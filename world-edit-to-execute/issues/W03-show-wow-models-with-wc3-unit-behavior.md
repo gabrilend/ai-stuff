@@ -8,6 +8,15 @@
 
 ---
 
+> **W client merge (2026-09-23).** The W client (formerly custom-client)
+> will also show WoW models with WC3 behaviour, in its issue 407 and Phase 11.
+> To avoid two versions of the rules, the WC3 behaviour rules (the animation
+> name table and the timing rules in `docs/datapath-wow-models-in-engine.md`)
+> are kept as a **data file** that both programs read. The M2 reader comes
+> from the W client's shared library (W01). Whether this project's own
+> renderer keeps drawing WoW models at all, or hands that job entirely to the
+> W client, depends on open question 4 below.
+
 ## Current Behavior
 
 Our engine (phase 5, `src/render/`) draws terrain and units as placeholder
@@ -62,7 +71,8 @@ Order: `W03a → W03b → W03c`, `W03d` after `W03b`.
 
 1. **Team colour**: WoW models have no team-colour texture slot. Options: (a) tint by a per-model mask made once per model; (b) a coloured ground ring and glow only; (c) both. Which does the owner want WC3's look to rely on?
 2. **"Mimic exactly"**: should our engine mimic how *WC3* would behave (the plan above), or how the *WoW client* animates these models (idle fidgets, emotes)? They conflict in places; WC3 is assumed.
-3. Should the custom-client project reuse W03c's skinning code, or keep its own?
+3. ~~Should the custom-client project reuse W03c's skinning code?~~ Superseded by the merge: skinning is built once, in the W client (its issues 403-404).
+4. Does this project's renderer (`src/render/`) remain a second place WoW models are drawn (useful for W04's comparisons and for the engine's own WC3 play), or does the W client become the only renderer for WoW models, leaving `src/render/` to the asset-free engine?
 
 ## Related Documents
 

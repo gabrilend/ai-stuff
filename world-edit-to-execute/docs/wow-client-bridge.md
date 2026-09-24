@@ -98,7 +98,7 @@ no script hard-codes them twice.
 | Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` points at `/mnt/dile/ritz/games/wotlk`, a different folder from the one above (see open questions) |
 | AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (a Lua scripting engine inside the server) and a `docker-compose.yml` |
 | Server data extracted from the client | `/mnt/mtwo/games/azeroth-core/data-files/` | `dbc/`, `maps/`, `vmaps/`, `mmaps/`, `Cameras/` |
-| Open-source client project | `/mnt/mtwo/games/azeroth-core/custom-client/` | A from-scratch C + raylib replacement for the WoW client. Its phase 1 plans an MPQ reader (StormLib), a DBC parser and a BLP parser; no code yet. W01 decides whether we share those readers |
+| The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its issues 104-107 build `libwreaders.so`, the reading layer this project uses; its Phase 11 is WC3 map mode. No code yet |
 | Map editor for hand touch-ups | Noggit (Noggit Red), not yet installed | Opens and edits WoW `.adt` terrain; used to inspect and tweak what W02's converter writes, never as the only way to make a map |
 
 ---
@@ -183,28 +183,77 @@ the flow:
 
 ---
 
+## Decisions made
+
+**2026-09-23: borrowed art, measured distance.** In the owner's words: "The
+blizzard files aren't added to the engine because they aren't ours. However we
+don't have enough 3d models, so we need to use Blizzard's because we have them,
+until we can create new ones based on them. With sufficient alterations, they
+will be visually distinct, but that requires some iteration, and for now we
+should just try and have a 'similarity score' that rates the distance from the
+original model, and we should try to improve our artwork bit-by-bit until it's
+sufficiently distinct."
+
+So every model the engine shows carries a **similarity score** against the
+Blizzard original it replaces (W05a). The replacement-progress statistic
+counts a model as replaced only when its score is past the distinctness
+threshold, not merely when a new file exists.
+
+**2026-09-23: the host becomes the open client.** In the owner's words: "the
+purpose of creating a custom client is so that we can heavily modify it" and
+"we are creating a new, custom, open source client. These problems will soon
+disappear." The stock 3.3.5a client's limits (an addon can't read ground
+clicks; the camera can't look straight down) are temporary. W02's control
+work targets the custom-client project
+(`/mnt/mtwo/games/azeroth-core/custom-client/`), which can offer native RTS
+input and a top-down camera. The stock-client addon with ground-targeted
+spells is only a stopgap until then.
+
+**2026-09-23: the custom-client project becomes the W client.** The
+custom-client project (`/mnt/mtwo/games/azeroth-core/custom-client/`) was
+rewritten to this design. It is now the **W client**: one open client for both
+AzerothCore's world and converted WC3 maps (its Phase 11, "WC3 Map Mode").
+It builds the reading layer once, in C, as `libwreaders.so`, which this
+project calls from Lua through LuaJIT's FFI (answers open question 2). It
+loads converted maps as loose overlay folders, so `patch-W.MPQ` is only for
+the stock client. The W design did not replace custom-client's networking,
+login, UI, gameplay and social phases; those stay, because the W client
+needs them to talk to AzerothCore.
+
+**2026-09-23: "default client compatible" seal.** In the owner's words: "the
+stock client doesn't need to read our archives, but it'd be neat. I think
+models and such will have to have a seal or medal that says 'default client
+compatible' and most models wouldn't have it." (W05c)
+
+**2026-09-23: everything is replaced, and the goal is a legally distinct
+game.** In the owner's words: "this we will have to replace over time as well.
+Same for things like particle effects, textures, etc. Eventually, we want to
+have a complete, legally distinct game, reverse engineered (with these
+llm-transcripts as proof) from the best, yet legacy and deprecated, version of
+the most powerful, impactful, and successful example of the genre." The
+similarity score covers every asset kind, and every replacement records its
+**lineage**: `derived` (made from or while looking at the original) or
+`independent`. The score shows distance; lineage shows whether a clean-room
+claim is available. Details:
+`/mnt/mtwo/games/azeroth-core/custom-client/docs/012-asset-replacement-and-provenance.md`.
+
+**2026-09-23: animations are reused.** Generated meshes get the skeleton and
+animation set of an existing model. The owner picks the set from a catalogue
+grouped by race or monster type (W05b).
+
 ## Open questions
 
 These are written in the issue files too; each must be answered before the
 issue that holds it can be called complete.
 
-1. **Mission boundary.** Is Phase W a side branch that never changes the
-   asset-free engine (recommended), or is the WoW client becoming a supported
-   primary host? Should `notes/vision` get an addendum saying so? (All of W)
-2. **One reader or two.** The custom-client project plans StormLib-backed MPQ,
-   DBC and BLP readers in C. Do we (a) build them once there as a small C
-   library and call it from here through LuaJIT's FFI, (b) extend our own Lua
-   MPQ reader (it lacks bzip2 decompression, which the WoW archives use), or
-   (c) both, with one as the reference for the other? (W01)
+1. ~~Mission boundary~~ (answered above: borrowed art, measured distance).
+2. ~~One reader or two~~ (answered: one C library in the W client, `libwreaders.so`, called here through the FFI).
 3. **Which client folder.** `client/run` points at `/mnt/dile/ritz/games/wotlk`
    but the client files found are in `client/client-files/`. Which is the
    live install? (W02, W04)
 4. **Scale.** Accept 1 WC3 tile = 1 WoW cell (4.1667 yd)? (W02)
-5. **How the player commands units inside the WoW client.** Hero mode (the
-   player *is* the WC3 hero) is nearly free; RTS mode (select many units, order
-   them) needs an addon plus server scripts, and the 3.3.5a camera cannot look
-   straight down without either a server-side view trick or patching the client
-   program. Which first? (W02)
+5. ~~How the player commands units inside the WoW client~~ (answered above:
+   natively in the custom client; the stock-client addon is only a stopgap).
 6. **Which model judges the recordings.** A local vision model through Ollama,
    or the Claude API? (W04)
 7. **Where the forge's "select a model" button lives first.** In our engine
@@ -213,6 +262,19 @@ issue that holds it can be called complete.
 8. **Publishing recordings.** Recorded frames of the real client contain
    Blizzard art. Keep them in RAM-backed `tmp/` only, or is keeping them on
    disk for regression history acceptable? (W04)
+9. **Borrowed animations.** Reusing Blizzard skeletons and animation sets
+   means the *motion* stays theirs even once mesh and texture are distinct. The
+   similarity score only measures appearance. Should animations get their own
+   score and replacement route later (e.g. retargeted motion capture)? (W05b)
+10. **Distinctness threshold.** Which score counts as "sufficiently
+    distinct"? The score is an engineering measure of how far one thing is from
+    another. It is **not** a legal test of whether something is a derivative
+    work. (W05a)
+11. **Who runs a WC3 map's rules in the W client?** AzerothCore with converted
+    server scripts (W02e), or this project's own simulation (phases 3-4)
+    running inside the W client? Written in the W client's issue 1108.
+12. **Server data.** Is AzerothCore's Blizzard-derived database (quests, NPC
+    text, spells) inside "legally distinct", or only the client-side game?
 
 ---
 
@@ -229,3 +291,5 @@ issue that holds it can be called complete.
 | Date | Change |
 |------|--------|
 | 2026-09-23 | Created with issues W01-W07 |
+| 2026-09-23 | Owner's answers: borrowed art with a similarity score; custom client as host; reused animation sets. Added W05a, W05b |
+| 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |

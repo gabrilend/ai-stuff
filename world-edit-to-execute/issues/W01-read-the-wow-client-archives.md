@@ -5,100 +5,73 @@
 **Priority:** Critical (every other W issue reads WoW data through this)
 **Dependencies:** None open
 **Builds on (completed):** our MPQ reader and PKWARE decompression (phase 1)
+**Built in:** the W client, `/mnt/mtwo/games/azeroth-core/custom-client/`, issues 104, 105, 106, 107 (and 401 for models)
 **Unlocks:** W02, W03
 
 ---
 
 ## Current Behavior
 
-The project can open WC3 map archives (`src/mpq/`), which are MPQ format
-version 1 (32-byte header) with zlib or PKWARE compression. It cannot read the
-WoW 3.3.5a client's archives:
+This project can open WC3 map archives (`src/mpq/`, MPQ format version 1,
+zlib or PKWARE compression). It cannot read the WoW 3.3.5a client's archives:
+no 44-byte header support, no bzip2, no chain of archives, no readers for WoW
+tables (DBC), textures (BLP2) or models (M2).
 
-- WoW's archives use the second MPQ header layout (`format_version` field = 1,
-  44 bytes), which adds a "high block table" so offsets can pass 4 GB.
-  `src/mpq/header.lua` reads the field but nothing uses the extra table.
-- Many WoW files are bzip2-compressed. `src/mpq/extract.lua` returns the error
-  "bzip2 decompression not implemented".
-- The client is a **chain** of archives where later ones override earlier ones
-  (`common.MPQ` … `patch-3.MPQ`, then the locale archives in `Data/enUS/`).
-  Our reader opens one archive at a time and has no notion of a chain.
-- There are no readers for WoW's table files (DBC), textures (BLP2) or models
-  (M2 + `.skin`).
-
-The sibling project `/mnt/mtwo/games/azeroth-core/custom-client/` plans the
-same readers (its issues 105 MPQ reader via StormLib, 106 DBC, 107 BLP), in C.
-None of its code exists yet.
+As of 2026-09-23 the readers are not built here. The W client (formerly the
+custom-client project) builds them once, in C, as a shared library,
+`libwreaders.so`, and this issue is this project's side of that arrangement.
+Nothing is built on either side yet.
 
 ## Intended Behavior
 
-One reading layer, used by W02 (to append map rows and look up texture names),
-W03 (to load models) and W04 (to know what a display id looks like):
+This project's Lua code uses the W client's reading layer through LuaJIT's
+FFI, and never keeps a second implementation:
 
-- **Archive chain**: given the client folder, open every archive in the
-  client's own load order, look a path up in all of them and return the bytes
-  from the last archive that has it. Paths are case-insensitive and use
-  backslashes. A lookup that finds nothing is an error naming the path and the
-  archives searched, not an empty result.
-- **DBC tables**: header `WDBC`, four uint32 counts (records, fields, record
-  size, string block size), fixed-size records, then a string block. A layout
-  description per table (field name → offset → type) turns rows into Lua tables
-  keyed by id. First tables: `Map`, `AreaTable`, `LoadingScreens`,
-  `CreatureDisplayInfo`, `CreatureModelData`, `AnimationData`,
-  `ItemDisplayInfo`, `ItemSet`, `GameObjectDisplayInfo`.
-- **BLP2 textures**: palettized (256 colours + 0/1/4/8-bit alpha) and DXT1/3/5,
-  with all mipmaps, decoded to RGBA8 or handed to the GPU still compressed.
-- **M2 models** (magic `MD20`, version 264): header, vertices, bones with
-  keyframe tracks, sequences, attachments, cameras, texture slots; plus the
-  `00.skin` file (which vertices and triangles form the mesh at full detail)
-  and external `.anim` files where a sequence's keyframes live outside the M2.
-- A **writer** for MPQ archives, needed by W02 to build `patch-W.MPQ`.
+- A Lua module (`src/wow/readers.lua`) loads `libwreaders.so` with the
+  declarations in the W client's `wreaders_ffi.h`, and offers Lua-shaped calls:
+  - archive chain: `open(client_folder)`, `read(path)`, `has(path)`,
+    `which(path)` (which archive supplied the file), `list(pattern)`;
+  - tables: `dbc(name)`, returning rows keyed by id, decoded with the
+    generated `dbc_layouts.lua` (the W client generates both the C structs and
+    this Lua file from one set of layout files, so the two projects cannot
+    disagree);
+  - textures: `blp_decode(bytes)` → RGBA8 image, and `blp_encode(image, format)`;
+  - archive writing: `mpq_write(path, entries)`, used by W02 to build
+    `patch-W.MPQ` for the **stock** client (the W client reads converted maps
+    as loose folders and does not need it);
+  - models (after the W client's issue 401): `m2_load(path)`.
+- Errors from the library arrive as Lua errors naming the path and the
+  archives searched, never as nil results.
+- WC3 maps keep using this project's own Lua MPQ reader, which works; the
+  shared library is for WoW's archives.
 
 ## Suggested Implementation Steps
 
-1. Decide open question 1 below (one shared reader or two) before writing code.
-2. **Archive chain** (`src/wow/archives`): the load order list lives in a data
-   file, not in code; the chain answers `has(path)`, `read(path)`,
-   `list(pattern)` and `which(path)` (which archive won).
-3. **Decompression**: add bzip2 (via a C library bound through LuaJIT's FFI,
-   or through the shared C reader) and the second header layout.
-4. **DBC**: one generic reader plus a layout file per table. Verify each layout
-   by checking `record size` equals the sum of field sizes; a mismatch is an
-   error, because it means the layout is for a different client build.
-5. **BLP2**: palettized first (easiest to check by eye), then DXT.
-6. **M2**: static mesh first (stand pose, one texture), then bones and one
-   sequence, then all sequences, attachments and cameras.
-7. **MPQ writer**: StormLib (the reference MPQ library) is the practical
-   choice; writing our own is possible later.
-8. Tests: against the owner's client, read `Map.dbc` and check its row count
-   is plausible and that map id 0 has directory `Azeroth`; decode a known BLP
-   to PNG in `tmp/shared-memory/`; load one creature M2 and print bone and
-   sequence counts. Tests that need the proprietary client skip with a loud
-   notice (not a silent pass) when the client folder is absent.
+1. Wait for (or help build) the W client's issues 104-107.
+2. Write `src/wow/readers.lua` over the FFI, plus its `.info.md`.
+3. Load `dbc_layouts.lua` from the W client's build output (path in the
+   launcher config, W02f).
+4. Tests against the owner's client: `Map.dbc` has map id 0 with directory
+   `Azeroth`; `which` names a patch archive for a known overridden file; a BLP
+   decodes and re-encodes; a small archive written with `mpq_write` reads back.
+   Tests that need the proprietary client stop with a loud notice (not a silent
+   pass) when the client folder is absent.
 
 ## Acceptance Criteria
 
-- [ ] Any path in the client resolves through the chain, and `which` names the winning archive
-- [ ] bzip2 and the 44-byte header are supported
-- [ ] The nine DBC tables above load with verified layouts
-- [ ] BLP2 palettized and DXT decode to images that look right
-- [ ] One creature M2 loads with mesh, bones, sequences, attachments
-- [ ] An MPQ archive can be written and then read back by the chain
-- [ ] `.info.md` file beside each new source file
+- [ ] `src/wow/readers.lua` reads the chain, DBC tables and BLP textures through `libwreaders.so`
+- [ ] `which`, `list` and `mpq_write` work from Lua
+- [ ] No second MPQ/DBC/BLP implementation for WoW files exists in this project
+- [ ] `.info.md` beside the new module
 
 ## Open Questions
 
-1. **One reader or two?** (a, recommended) Build the readers once, in C, in the
-   custom-client project, as a small library that this project calls through
-   LuaJIT's FFI: one implementation, two users, and our renderer is already C.
-   (b) Extend our Lua reader: no dependency on a project with no code yet.
-   (c) Both, each checking the other.
-2. **Client folder**: `client/run` points at `/mnt/dile/ritz/games/wotlk`;
-   the files found are in `/mnt/mtwo/games/azeroth-core/client/client-files/`.
+1. **Client folder**: `client/run` points at `/mnt/dile/ritz/games/wotlk`; the
+   files found are in `/mnt/mtwo/games/azeroth-core/client/client-files/`.
    Which is live?
 
 ## Related Documents
 
-- `docs/wow-client-bridge.md`, `docs/datapath-wow-models-in-engine.md`
-- `docs/formats/mpq-archive.md` (our MPQ notes; will gain a WoW section)
+- `docs/wow-client-bridge.md` (Decisions made: the W client)
+- `/mnt/mtwo/games/azeroth-core/custom-client/issues/105-mpq-reader.md`, `106-dbc-parser.md`, `107-blp-parser.md`
 - `/mnt/mtwo/games/azeroth-core/custom-client/docs/003-asset-formats.md`

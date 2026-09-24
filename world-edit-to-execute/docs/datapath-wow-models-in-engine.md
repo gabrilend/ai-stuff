@@ -79,6 +79,6 @@ hard-coded:
 
 ## Statistics this path produces
 
-- Share of units drawn from each source (override / client / placeholder): the "replacement progress" number the demos show.
+- Share of units drawn from each source (override / client / placeholder): the "replacement progress" number the demos show. An override counts as replaced only when its similarity score (W05a) is past the distinctness threshold.
 - Count of WC3 animation names with no WoW match, per model.
 - Frame time for skinning N units (N = 100, 500, 1000).
