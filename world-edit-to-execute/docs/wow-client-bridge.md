@@ -270,9 +270,9 @@ issue that holds it can be called complete.
     distinct"? The score is an engineering measure of how far one thing is from
     another. It is **not** a legal test of whether something is a derivative
     work. (W05a)
-11. **Who runs a WC3 map's rules in the W client?** AzerothCore with converted
-    server scripts (W02e), or this project's own simulation (phases 3-4)
-    running inside the W client? Written in the W client's issue 1108.
+11. ~~Who runs a WC3 map's rules in the W client?~~ Answered 2026-09-23:
+    AzerothCore, with triggers converted to server scripts (W02e). Licence
+    consequences: `docs/licensing-and-boundaries.md`.
 12. **Server data.** Is AzerothCore's Blizzard-derived database (quests, NPC
     text, spells) inside "legally distinct", or only the client-side game?
 

@@ -62,6 +62,7 @@ an asset is from the original. Lineage says whether it could be shown to be
 | ID | Name | Dependencies | Description |
 |----|------|--------------|-------------|
 | W05a | similarity-to-original-score | W03 | Scores how far a candidate model is from the Blizzard original, in shape and in look, and keeps each model's score history |
+| W05d | clean-room-describe-build-check-loop | W05a, W03 | **The default route** (decided 2026-09-23): a describer who sees the original writes a specification; a builder who never sees it makes the replacement; a checker returns only measurements. Iterative size fitting ("is approximately as large"; if not, rescale, re-render the candidate, ask the builder to fix the imbalances). Lineage `independent` |
 | W05c | default-client-compatible-seal | W05a, W01 | Convert a replacement to the stock client's formats (M2 version 264 + `.skin`, BLP2 via the shared library's encoder), check the stock client's limits, then confirm it loads in the stock client using W04's rig. Passing assets get the seal on their asset card and in the pack manifest. Needs an M2 writer, which nothing provides yet |
 | W05b | borrowed-skeleton-and-animation-sets | W01, W03 | A catalogue of existing skeleton + animation sets grouped by race or monster type; binding a new mesh to the chosen set |
 

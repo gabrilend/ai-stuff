@@ -52,6 +52,7 @@ docs/
 ├── datapath-wow-models-in-engine.md         W01/W03: WoW archives → model → WC3 behavior → frame
 ├── datapath-client-comparison-testing.md    W04: scenario → two clients → recordings → report
 ├── datapath-asset-forge.md                  W05/W06: select → search/generate → fit → keep → install
+├── licensing-and-boundaries.md      Which licence covers each piece, where they touch, what combines
 ├── render-architecture.md           Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── render-threading-v2.md           Target threading model (v2)

@@ -38,6 +38,14 @@
              → the model resolver (W03) now finds it first
 ```
 
+**Default route since 2026-09-23: clean-room (W05d).** Stages 3a/3b above
+are the `derived` routes. The default replaces them with: describer writes a
+specification (words + functional measurements) → a builder that never sees
+the original makes a candidate → a checker measures the candidate only →
+if it misses the size tolerance, rescale, re-render the candidate, and ask the
+builder to fix the imbalances → repeat → stage 4½'s similarity score as a
+final gate (never as feedback) → keep with lineage `independent`.
+
 W06 is the same path with stage 1 replaced by "enumerate every model" and a
 style template applied at 3b, run as a GPU batch queue.
 

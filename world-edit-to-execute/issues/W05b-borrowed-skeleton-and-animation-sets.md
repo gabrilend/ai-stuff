@@ -7,6 +7,11 @@
 
 ---
 
+> **Stopgap (2026-09-23).** Clean-room building (W05d) is now the default,
+> and a mesh bound to a borrowed Blizzard skeleton is `derived` by
+> construction. This catalogue lets animated replacements exist before
+> clean-room skeletons and animations do; see W05d's open question 1.
+
 ## Current Behavior
 
 A generated or downloaded mesh has no skeleton, so it cannot walk, attack or
