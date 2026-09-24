@@ -30,6 +30,11 @@ applied to *every* model the game can show, producing a complete style pack:
 - **Batch on the GPU**: many jobs are submitted to ComfyUI's queue at once so
   the GPU never waits; CPU work around it (rendering reference views, fitting,
   scoring) runs on a thread pool.
+- **Iterate until distinct**: each model's candidates are scored against the
+  Blizzard original (W05a). A model below the distinctness threshold is queued
+  again with a stronger style push (or new seeds), so the whole pack moves away
+  from the originals bit by bit. The progress page shows the share of models
+  past the threshold.
 - **Keep every candidate**, rate them (a vision model can pre-rate against the
   template's reference images; the owner has the final word), and install the
   best per model into the style pack.

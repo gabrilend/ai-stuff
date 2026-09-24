@@ -16,8 +16,18 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W03 | [Show WoW models with WC3 unit behavior](./W03-show-wow-models-with-wc3-unit-behavior.md) | open | W01, 508, 601, 602 |
 | W04 | [Compare the real client against the open client](./W04-compare-the-real-client-against-the-open-client.md) | open | W02, W03 |
 | W05 | [Asset forge: find or generate a replacement model](./W05-asset-forge-find-or-generate-a-replacement-model.md) | open | W03, 604 |
+| W05a | [Similarity-to-original score](./W05a-similarity-to-original-score.md) | open | W03 |
+| W05b | [Borrowed skeleton and animation sets](./W05b-borrowed-skeleton-and-animation-sets.md) | open | W01, W03 |
+| W05c | ["Default client compatible" seal](./W05c-default-client-compatible-seal.md) | open | W05a, W01, W04 |
 | W06 | [Restyle every model in one theme](./W06-restyle-every-model-in-one-theme.md) | open (later) | W05 |
 | W07 | [Phase W demo](./W07-phase-w-demo.md) | open | W02-W06 |
+
+## Built elsewhere
+
+Since 2026-09-23 the W client (`/mnt/mtwo/games/azeroth-core/custom-client/`)
+builds the shared reading layer (its issues 104-107), the model renderer
+(its Phase 4) and WC3 map mode controls (its Phase 11). W01 and W02g here
+track this project's side of those.
 
 ## Suggested order
 
