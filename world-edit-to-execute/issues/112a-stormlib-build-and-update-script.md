@@ -1,4 +1,4 @@
-# Issue 112a: StormLib, Built From Source by a Script
+# Issue 112a: StormLib, Built From Source by the Dependency Script
 
 **Phase:** 1 - Foundation, File Format Parsing
 **Type:** Sub-issue of 112
@@ -9,59 +9,68 @@
 
 ## Current Behavior
 
-**Built 2026-09-24 (in progress):** `src/cli/build-stormlib.sh` clones
-StormLib `v9.40` (pin in `libs/stormlib/PINNED`), builds `libstorm.so` into
-`libs/stormlib/lib/` (linked against the system's zlib 1.3.1 and bzip2 1.0.8;
-libtomcrypt compiled in from StormLib's own source), and a second run is a
-no-op. `src/mpq/stormlib.lua` (LuaJIT FFI: open, list, has, read, extract,
-close) opens the 1.21b patch program directly and lists its embedded archive.
-Remaining: the `mpq-extract` CLI, the byte-for-byte comparison test against
-our own reader, `.info.md` files, and the licence entries.
+**In progress (2026-09-24).** `scripts/build-dependencies.sh` builds StormLib
+`v9.40` into `deps/stormlib/lib/libstorm.so`, linked against the system's zlib
+1.3.1 and bzip2 1.0.8, with libtomcrypt compiled in from StormLib's own source.
+A second run is a no-op; `--list-tags`, `--latest` and `--pin` work.
+`src/mpq/stormlib.lua` (LuaJIT FFI: open, list, has, read, extract, close)
+opens the 1.21b patch program directly and lists its embedded archive.
 
-Before this: the project's own MPQ reader (`src/mpq/`) reads WC3 map archives, but not the
-archives inside Blizzard's patch programs or WoW's archives: it lacks bzip2 and
-other compression methods those use. On 2026-09-24 the 1.21b patch's embedded
-archive (cut out of `War3TFT_121b_English.exe` at byte offset 167936) opened,
-but every file in it failed to decompress. No MPQ tool or StormLib is
-installed on this machine.
+Remaining: the `mpq-extract` CLI, the byte-for-byte comparison test against
+our own reader, `.info.md` files, and the licence entries. **Licence finding:**
+StormLib's bundled copy of libtomcrypt (`src/libtomcrypt/`) carries no licence
+file or statement; upstream LibTomCrypt is released into the public domain
+(dual Unlicense/WTFPL in current releases). The release review should either
+record that or link against a system LibTomCrypt that carries its notice.
+
+Before this: the project's own MPQ reader (`src/mpq/`) reads WC3 map
+archives, but not Blizzard's patch or WoW archives: it lacks bzip2 and other
+compression methods those use. On 2026-09-24 the 1.21b patch's embedded
+archive opened in it, but every file failed to decompress.
+
+(An earlier first cut of this issue put the script at `src/cli/build-stormlib.sh`
+with the build in `libs/stormlib/`; the owner asked for it to live in
+`scripts/`, as one dependency in a script that walks through all of them, on
+the pattern of `/home/ritz/programs/r-mail/scripts/install.sh`.)
 
 ## Intended Behavior
 
 **StormLib** (github.com/ladislav-zezula/StormLib, by Ladislav Zezula, MIT
 licence, checked 2026-09-24) is the reference open-source MPQ library: it
-reads and writes MPQ archives of every version and compression Blizzard used,
-and verifies them. It builds with CMake and can use bundled copies of zlib,
-bzip2 and libtomcrypt.
+reads and writes MPQ archives of every version and compression Blizzard used.
 
-A script, `src/cli/build-stormlib.sh`, makes it a project tool:
+`scripts/build-dependencies.sh` compiles every third-party library the project
+needs, one by one, into the project-local `deps/` folder; nothing is installed
+system-wide:
 
-- A hard-coded `DIR` (the project root), overridable by the first argument;
-  all paths relative to it.
-- Clones StormLib at a **pinned release tag** (first pin: `v9.40`) into
-  `libs/stormlib/source/` (not committed; a build artefact, re-cloned on demand).
-- Builds a shared library with CMake into `libs/stormlib/build/` and copies
-  `libstorm.so` to `libs/stormlib/lib/`.
-- `--update <tag>` moves the pin to a newer tag, rebuilds, and records the new
-  pin in `libs/stormlib/PINNED` (committed), so an upgrade is one reviewed line.
-- Prints the licence file path of StormLib and of each bundled library it
-  compiled in, for the release review in `docs/licensing-and-boundaries.md`.
+- A hard-coded `DIR` (the project root), overridable by the first argument.
+- Phases, as in r-mail's installer: toolchain check, then each dependency in
+  order, then a summary. Re-running skips what's already built at its pin;
+  `--force` rebuilds.
+- **Pins** in `deps/versions` (one `name tag` per line, tracked in git), so an
+  upgrade is one reviewed line. `--pin NAME TAG` sets one; `--latest NAME`
+  pins the newest upstream release tag; `--list-tags NAME` shows what upstream
+  offers, newest last; `--list` shows each dependency's pin and build state.
+- Source clones and build folders live in `.build-tmp/` and are disposable.
+- Each dependency's licence, copying and notice files are copied into
+  `deps/licenses/<name>/`, keeping their paths, for the release review.
+- Adding a dependency = one entry in its list plus one `build_<name>` function.
 
 A LuaJIT FFI binding, `src/mpq/stormlib.lua`, exposes what the project needs:
-open an archive (including one embedded at an offset in a program file), list
-its files, extract a file to bytes or to disk, close.
+open an archive (including one embedded in a program file), list its files,
+read a file to bytes or extract it to disk, close.
 
 ## Suggested Implementation Steps
 
-1. Write the build script; run it; confirm `libstorm.so` loads from LuaJIT.
-2. Write the FFI binding (open, find-first/find-next listing, read file, close).
-3. A small CLI, `src/cli/mpq-extract.lua`, over the binding: list or extract an archive's files.
-4. Tests: list and extract from a project map archive (already readable by our own reader) and compare bytes with our reader's output.
-5. Record the licences of StormLib and the bundled libraries in the licence map.
+1. ~~Build script~~ done; ~~FFI binding~~ done.
+2. A small CLI, `src/cli/mpq-extract.lua`, over the binding: list or extract an archive's files.
+3. Tests: list and extract from a project map archive (already readable by our own reader) and compare bytes with our reader's output.
+4. Record the licences of StormLib and its bundled libraries in the licence map, including the libtomcrypt finding above.
 
 ## Acceptance Criteria
 
-- [ ] One command builds StormLib from a pinned tag; a second run is a no-op
-- [ ] `--update <tag>` changes the pin and rebuilds
+- [x] One command builds StormLib from a pinned tag; a second run is a no-op
+- [x] `--pin`, `--latest` and `--list-tags` work
 - [ ] The FFI binding lists and extracts files from a map archive, byte-identical to our own reader
 - [ ] Licences of StormLib and bundled libraries listed
 
@@ -69,4 +78,5 @@ its files, extract a file to bytes or to disk, close.
 
 - `issues/112-stock-object-tables-by-two-routes.md`
 - `docs/licensing-and-boundaries.md`
-- The upstream-patch pattern used by `/home/ritz/games/azeroth-core/wow-chat-2026/` (source cloned as a disposable build artefact at a pinned commit)
+- `/home/ritz/programs/r-mail/scripts/install.sh` (the pattern)
+- `/home/ritz/games/azeroth-core/wow-chat-2026/docs/patches/patch-registry.md` (source as a disposable artefact at a pinned version)
