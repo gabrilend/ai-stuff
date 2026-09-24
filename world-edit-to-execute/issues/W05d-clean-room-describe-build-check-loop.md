@@ -129,7 +129,7 @@ a given unit type must meet, whatever it looks like.
 - The loop's checker tests a candidate against the criteria set; passing it
   means the asset works in anyone's game.
 
-4. **Where the criteria set lives.** Beside the map (per converted map), in a shared library of criteria per WC3 unit type, or both, with the map able to override?
+4. ~~Where the criteria set lives.~~ Answered 2026-09-23: "the model is the model. the user uses whichever models they have installed, not what their playmates suggest they do." So nothing about art is synchronised. Gameplay's facts come from the **map file itself**: a WC3 map already carries each unit type's collision size, selection scale, missile launch and impact heights, and attack timing in its unit data. The map *is* the criteria set for gameplay. Body plans (W05e) and size ranges are only a guide for makers, so art fits well; they are not needed for players to agree. Players who want to see the same art share a map-and-model list (issue 609).
 
 ## Related Documents
 

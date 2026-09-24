@@ -1,4 +1,4 @@
-# Issue 1001: Map Finder Lists Freely Posted Maps
+# Issue 1001: Map Browser Lists Freely Posted Maps
 
 **Phase:** 10 - Polish, Tools and UX
 **Type:** Implementation
@@ -13,9 +13,9 @@
 The engine plays whatever `.w3x`/`.w3m` files are already on disk. The only
 maps in the project are the DAoW versions in `assets/`. The roadmap's phase 10
 lists a "Map browser/launcher UI" in one line, with no design. The owner
-remembered describing a crawler for freely posted maps earlier; no such design
-was found in this project's issues, docs, notes or transcripts (searched
-2026-09-23), so this issue is its first written form.
+confirmed (2026-09-23) that this issue is that map browser. No earlier
+written design was found in this project's issues, docs, notes or transcripts,
+so this issue is its first written form.
 
 ## Intended Behavior
 
@@ -39,8 +39,18 @@ A tool with two separate halves (data generation and data viewing):
   download: player count, map size, tileset, a minimap picture rendered from
   its terrain, trigger count, and whether it converts cleanly for the W client
   (W02's conversion report). Search and filter by those facts.
-- **Bundling, when allowed.** A map whose author has agreed can be bundled.
-  The catalogue records that agreement (who, when, where it was given).
+- **Bundling, with assumed consent until withdrawn.** The owner
+  (2026-09-23): "most authors will be unreachable, but we should do our due
+  diligence, and then just assume that their consent is given until
+  withdrawn." For each bundled map the catalogue records the due diligence:
+  every attempt to reach the author (where, when, the message sent, any reply),
+  the map's original posting and its stated terms. A map whose original post
+  forbids redistribution is not bundled. A public withdrawal channel (an
+  address and a file in the repository listing withdrawn maps) removes a map
+  from the next release and from the catalogue's bundle list as soon as its
+  author asks. The legal caveat is in `docs/licensing-and-boundaries.md`:
+  assumed consent limits harm but isn't permission, so fetching from the
+  original post stays the default and bundling is the exception.
 
 ## Suggested Implementation Steps
 
@@ -60,7 +70,8 @@ A tool with two separate halves (data generation and data viewing):
 
 - [ ] At least one source crawled within its terms, producing catalogue entries
 - [ ] A chosen map downloads to the user's machine, parses, and shows its facts
-- [ ] No map is stored in the repository unless its author's agreement is recorded
+- [ ] No map is bundled without a due-diligence record, and none whose original post forbids redistribution
+- [ ] A withdrawal request removes a map from the bundle list in one step
 - [ ] The source list with each site's terms is a reviewable file
 
 ## Open Questions

@@ -51,9 +51,14 @@ review → execute flow):
 | W02e | triggers-on-the-server | W02b | Transpiled triggers run in ALE. A shim implements JASS natives with ALE calls (unit creation, timers, region enter events, player resources). Unsupported natives are listed per map, not skipped silently. **This is the rules engine for WC3 maps in the W client** (decided 2026-09-23). The shim and any server module live in their own folder under AGPL v3, because they run inside AzerothCore (AGPL v3) and ALE (GPL v3); see `docs/licensing-and-boundaries.md` |
 | W02f | launcher-and-loader | W02c, W02d | Launcher: start authserver/worldserver, install `patch-W.MPQ` in the client's `Data/`, write `realmlist.wtf`, clear the client's creature/object cache (`Cache/WDB`), start `Wow.exe` under wine. Loader: pick a `.w3x`, run W02a-e, restart the worldserver (it reads map tables only at start), teleport the character to the WC3 start location |
 | W02g | rts-controls | W02e | WC3-style control: box select, right-click move, command card, resource bar, top-down camera. **Built in the W client** as its Phase 11 ("WC3 Map Mode", `/mnt/mtwo/games/azeroth-core/custom-client/issues/1108-phase-demo.md`); this sub-issue tracks the stock-client stopgap and the server side of orders. The W client can be changed freely, so it can read ground clicks and point the camera straight down. **Stopgap for the stock client:** an addon with a command card, where "move here" is a ground-targeted spell (in that client, the targeting circle is the only way an addon can hand the server a ground position). Either way, orders reach the server as messages, and server scripts turn them into creature movement |
+| W02h | empty-world-database | W02b | Decided 2026-09-23: "for this project we will have an empty database then. Filled only with what we need." The server's world database starts with its tables but no rows; the converter writes only what the map uses (its creatures, objects, factions, spells for converted abilities, one start location). Where the server reads data tables (DBC files) at startup, supply ours, generated from the map's object data (units, abilities, items), instead of Blizzard's where the server allows it. First step: measure what a stock AzerothCore refuses to start without (it may insist on certain rows, such as character creation data) and list each as a borrowed row to replace |
 
 Execution order:
-`W02a → W02b → W02c → W02d → W02f` with `W02e` after `W02b`, and `W02g` last.
+`W02a → W02b → W02c → W02d → W02f` with `W02e` and `W02h` after `W02b`, and `W02g` last.
+
+AzerothCore is **installed by the user, not bundled** (licence reasons, see
+`docs/licensing-and-boundaries.md`); the shim from W02e lives in its own AGPL v3
+folder. W08 plans a server of our own that would replace AzerothCore here.
 
 Tuning ("lots of tweaking") goes into `docs/balance-updates.md` as it happens,
 not into new issues.
