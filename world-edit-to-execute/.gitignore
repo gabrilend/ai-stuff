@@ -72,3 +72,9 @@ llm-transcripts/*.log
 
 # Keep transcript markdown summaries
 !llm-transcripts/*.md
+
+# ============================================================================
+# Links to the owner's own Warcraft III installs (machine-specific; see wc3-installs/README.md)
+# ============================================================================
+wc3-installs/reign-of-chaos
+wc3-installs/frozen-throne
