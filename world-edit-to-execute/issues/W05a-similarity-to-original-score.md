@@ -57,6 +57,11 @@ their own measures:
 The table is kept in step with the W client's
 `docs/012-asset-replacement-and-provenance.md`.
 
+The score is a **gate, never a guide**: it decides whether a finished
+candidate is distinct enough, but it is never fed back to whoever builds the
+next candidate. Feeding it back would steer the builder toward the original
+(see W05d, "Why the loop never uses similarity as its guide").
+
 The threshold that counts as "sufficiently distinct" is a setting, not a
 constant in code. The engine's replacement-progress statistic (W03) counts a
 model as replaced only above it.
