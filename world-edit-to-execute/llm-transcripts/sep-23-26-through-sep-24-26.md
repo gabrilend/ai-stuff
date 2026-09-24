@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 14:46:48
+Generated on: 2026-09-24 15:13:49
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -1476,6 +1476,133 @@ is installed on this machine.
    on the patcher running at all.
 
 Want me to go ahead with option 1?
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+● Frozen Throne is installed, but the 1.21b patch won't apply under wine. I've
+stopped there
+  rather than dig further.
+
+Why?
+
+> Why it matters: War3Patch.mpq holds the balance changes up to 1.21b. Custom
+> maps made for those
+>   versions expect the patched stock values, so Route A needs it.
+
+we should be able to dynamically apply and unapply each patch that might have
+maps for it. When you load a map, it should "just work". You can find an example
+of the patching system at /home/ritz/games/azeroth-core/wow-chat-2026/, or feel
+free to consult the skill built into your systems by me and you if you want the
+design patterns now.
+
+
+
+<pasted_content id="7a80">
+> Getting the patch contents without running the patcher: the patch program has
+> an MPQ archive
+> embedded inside it. I found and cut it out: it holds 10 files, including
+> BNUpdate.exe and
+> Patch.txt. Our MPQ reader opens it but can't decompress the files: it lacks
+> the compression
+> methods WoW-era and patch archives use (the bzip2 gap W01 already records). No
+> StormLib or other
+>   MPQ tool is installed on this machine.
+</pasted_content id="7a80">
+
+
+Stormlib sounds familiar, what is it? Can you install them as tools for the
+project? What are their licenses like? Can we compile from source with a
+compilation and update script? I'd prefer if we could extract MPQ archives, how
+is that related to the license agreements and such?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+> Checking three facts before I answer: the patching example you pointed at,
+> StormLib's licence, and what the Warcraft III licence that came with the
+> install says.
+
+> Before answering, pinning down StormLib's current release so the build script
+> has something concrete to pin to.
+
+> Writing the two sub-issues first (the StormLib build, and per-map game-version
+> layers), then the build script.
+
+> Issues committed. Now the build script.
+
+> StormLib v9.40 is built: MIT licence, linked against the system's zlib and
+> bzip2, with libtomcrypt compiled in from its own source. Checking its C
+> interface so the Lua binding matches it exactly.
+
+> My size check was wrong, not the layout: 1024 is already a multiple of 8, so
+> there's no padding before the pointer. Fixing the check.
+
+**Why I stopped:** both ways forward were new work you hadn't asked for. One was
+guessing at wine internals after two identical crashes; the other was writing
+new reader code. I treated that as your call. Given your answer, I went ahead
+with the second, and it's working.
+
+**StormLib, built and committed** (`ac2586823`):
+- **What it is:** the standard open-source library for Blizzard's MPQ archives,
+  written by Ladislav Zezula. It reads and writes every MPQ version and
+  compression method Blizzard used.
+- **Licence:** MIT. It compiles against your system's zlib (zlib licence) and
+  bzip2 (BSD-style licence), and builds in libtomcrypt from its own source
+  (public domain). All permissive, so all fine under the RGPL. They're still on
+  the pre-release review list.
+- **Build and update script:** `src/cli/build-stormlib.sh`.
+  - It clones StormLib at a pinned release (`v9.40`, recorded in
+    `libs/stormlib/PINNED`) and compiles it. A second run does nothing.
+  - `--update <tag>` moves the pin and rebuilds; `--licences` lists the licence
+    files.
+  - The source and build folders are throwaway and ignored by git; only the pin
+    is tracked. That's the same idea as wow-chat-2026's pristine upstream tree.
+- **Lua binding:** `src/mpq/stormlib.lua` opens archives, including one embedded
+  inside a program file, and lists, reads and extracts their files.
+
+**What the patch actually contains:** StormLib opened the 1.21b patch program
+directly. Inside is `Patch_War3x.mpq`: 722 files, and the changed game files are
+binary diffs (BSDIFF40) against the previous version of each file. It also has
+`patch.lst` (where each file goes) and `delete.lst` (the patcher deletes
+`War3Patch.mpq` and rebuilds it). So we never need the patcher that crashed.
+
+**Patching that "just works"** (issue `112b`): no install is ever patched in
+place. Each patch becomes a stored **layer**, built once by applying its diffs
+to the layer below and checked by hash. When a map loads, it reads its own
+version from `war3map.w3i` and the chain stacks base → expansion → the right
+patch layer, in memory. Applying a patch means adding its layer; unapplying
+means leaving it out.
+
+**Extraction and the licence agreement:** I read the `License.txt` that came
+with the install. Section 2A says you may not "copy… reverse engineer…
+modify, disassemble, decompile… create derivative works based on the Program"
+without Blizzard's written consent. Section 2C(iv) forbids emulating Blizzard's
+network protocols. There's also a directly relevant US case: in *Davidson &
+Associates v. Jung* (2005), Blizzard sued the bnetd developers, who had reverse
+engineered Battle.net to make a compatible server, and the appeals court
+enforced this same kind of clause against them.
+
+So "an emulator reading a ROM" is weaker ground than the vision assumes, at
+least for Americans who clicked through this agreement:
+- Reading **map files** is the least exposed part; they're made by map authors.
+- Pulling **Blizzard's own stock data** out of `war3.mpq` or the patch is the
+  part the agreement bites on. Our own MPQ reader was already doing this kind of
+  decrypting and extracting for maps; StormLib doesn't change what's being done,
+  only how much it can read.
+- EU law is different: it lets you reverse engineer for interoperability even if
+  a contract says otherwise.
+
+This is an engineering reading, not legal advice. It should shape who runs the
+extraction and where: each user, on their own install, which is what issue 112
+already requires.
+
+Before I build the first patch layer (that means applying the diffs, so pulling
+Blizzard's data out of the patch), do you want to weigh the bnetd case first? Or
+should I carry on, and write the jurisdiction point into the licensing doc and
+the vision's "emulator precedent" note?
 
 --------------------------------------------------------------------------------
 

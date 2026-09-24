@@ -6,7 +6,7 @@ archives, which use zlib and PKWARE compression. Blizzard's game and patch
 archives also use bzip2 and other methods, and patch programs carry their
 archive embedded partway into an .exe. StormLib reads all of those, so this
 binding is how the project reads stock game data and patch contents
-(issue 112a). StormLib itself is built by src/cli/build-stormlib.sh.
+(issue 112a). StormLib itself is built by scripts/build-dependencies.sh.
 
 StormLib finds an archive embedded in another file by itself: it scans the
 file for the MPQ signature at 512-byte steps, so an .exe can be opened
@@ -63,7 +63,7 @@ local SFILE_OPEN_FROM_MPQ = 0x00000000
 assert(ffi.sizeof("SFILE_FIND_DATA") == 1024 + 8 + 8 * 4,
     "SFILE_FIND_DATA layout does not match StormLib v9.40 on 64-bit Linux")
 
-local DEFAULT_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/libs/stormlib/lib/libstorm.so"
+local DEFAULT_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/deps/stormlib/lib/libstorm.so"
 
 local M = {}
 local lib = nil
@@ -76,7 +76,7 @@ local function load_library(path)
     local ok, loaded = pcall(ffi.load, path or DEFAULT_LIB)
     if not ok then
         error("StormLib not found at " .. tostring(path or DEFAULT_LIB)
-            .. "; build it with src/cli/build-stormlib.sh (" .. tostring(loaded) .. ")")
+            .. "; build it with scripts/build-dependencies.sh (" .. tostring(loaded) .. ")")
     end
     lib = loaded
     return lib
