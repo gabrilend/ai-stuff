@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-23 23:45:49
+Generated on: 2026-09-24 14:46:48
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -1323,6 +1323,159 @@ over expansion over base.
 
 Want me to install Frozen Throne and the patch into that wine prefix, or would
 you rather do it yourself?
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+Sure you can set up the frozen throne for our extraction process. Then we should
+compare with the remote sources to validate, that way we can confirm that if we
+had gone with the 3rd party wiki style approach, we would arrive at the same
+conclusion. Therefore, since both provide the same solution and we've verified
+that they provide the same numbers, configuration details, etc... we can claim
+that since both routes are valid, and in-fact we did do both routes, then the
+route which we took to confirm the values and the route to generate the values
+is arbitrary, and we might as easily have taken the wiki values, then compared
+them to the binary data in the game. But we should do both just to validate, and
+we should require that users do both in order to protect them slightly. Please
+create a directory in this project that is a symlink to the Reign of Chaos
+installation directory, and the Frozen Throne directory. We'll need both if we
+want to be able to support both Reign of Chaos maps, and Frozen Throne maps.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12
+
+> Setting up Frozen Throne first. Inspecting the disc images and patch folder
+> before touching anything.
+
+> Pulled the Frozen Throne installer archive off the disc image. Now listing its
+> contents with the project's own MPQ reader.
+
+> Launching the Frozen Throne installer in the new prefix. Its window will need
+> your clicks and the CD key.
+
+> The installer is running in the background. While it waits for your clicks,
+> I'll create the project links and the issue for the two-route check.
+
+> Committing the issue and the links' README. First checking that `.gitignore`
+> holds only my lines, since I claimed the whole file.
+
+The Frozen Throne installer is open on your screen and waiting for you.
+Everything around it is ready and committed (`22a14c7b3`).
+
+**What's set up:**
+- **A separate Frozen Throne prefix.** I copied the wine prefix to
+  `/mnt/mtwo/games/warcraft-iii/prefix-tft`, so your Reign of Chaos install
+  stays exactly as it was. It cost 3 GB; about 29 GB is left on that drive.
+- **The installer.** Its data archive has no file list, so I couldn't just pull
+  `war3x.mpq` out of it; the installer has to run. It's running in that new
+  prefix from an unpacked copy of the disc in my scratchpad, so no sudo mount
+  was needed.
+- **Project links.** `wc3-installs/reign-of-chaos` and
+  `wc3-installs/frozen-throne` point at the two installs, with a README beside
+  them. The commit tool can't commit symlinks, and their targets only exist on
+  this machine, so the links are listed in `.gitignore` and the README says how
+  to recreate them.
+- **Issue 112**, reading the stock tables two ways:
+  - **Route A:** a parser for the SLK files, the tables that match each field id
+    in a map file to its stock column, and the base, expansion and patch
+    archives read in patch order. It keeps only functional fields.
+  - **Route B:** Liquipedia through its API, within the terms I checked: one
+    request every 2 seconds, a User-Agent naming the project, and everything
+    cached.
+  - **Comparison:** every field is marked match, mismatch, or covered by one
+    route only.
+  - **The gate:** a stock table is only used once both routes have been run on
+    that install, for every user, as you asked.
+
+**Your part now:**
+1. Click through the installer. The CD key is in `torrent-version/CDKey/Warcraft
+   III - The Frozen Throne - serial.txt`. Install into the existing folder,
+   `C:\users\ritz\Warcraft-III`, so the `frozen-throne` link lands on it.
+2. Tell me when it's done. I'll run the 1.21b patch in the same prefix, check
+   that `war3x.mpq`, `War3xlocal.mpq` and `War3Patch.mpq` are there, and start
+   on the stock-table reader.
+
+**One limit on the "both routes are valid, so which came first is arbitrary"
+argument.** I've written it into issue 112:
+- Doing both routes does show the numbers are facts findable in two places.
+- The routes aren't interchangeable for the licence, though. A table *built
+  from* the wiki would have to be released under CC BY-SA 3.0, not the RGPL, so
+  the wiki can only ever check our table.
+- The wiki isn't independent of Blizzard either. Its editors measured the same
+  game; what it's independent of is *us*, which is exactly what a cross-check
+  needs.
+- The transcripts will show that Route A generated the table and Route B
+  confirmed it, and our records should say the same.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command "Run the Frozen Throne installer in the
+TFT prefix" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12 (continued)
+
+Frozen Throne is installed in the separate prefix, in the folder the
+`frozen-throne` link points at. The 1.21b patch is now running there. If a
+patcher window asks you anything, click through it.
+
+When it finishes, I'll check that `War3Patch.mpq` is there before starting on
+the stock-table reader.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command "Run the 1.21b patch in the TFT prefix"
+completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12 (continued)
+
+> Our reader doesn't look for an archive embedded deep inside a program file.
+> Searching the patch file for the archive's signature by hand.
+
+Frozen Throne is installed, but the 1.21b patch won't apply under wine. I've
+stopped there rather than dig further.
+
+**Done:**
+- A separate Frozen Throne prefix, `/mnt/mtwo/games/warcraft-iii/prefix-tft`.
+  Its game folder now has `War3x.mpq` and `War3xlocal.mpq` beside `war3.mpq`,
+  and `wc3-installs/frozen-throne` points at it.
+- Your Reign of Chaos prefix is untouched.
+
+**The patch:** I tried it twice, first with your system wine (10.20), then with
+the Lutris wine-ge 8.26 build you play Frozen Throne with. Both times the
+patcher copied its updater and notes, wrote "Installation Successful", then
+crashed with a stack overflow before patching anything. `Game.dll` and the
+program files are unchanged, and there's still no `War3Patch.mpq`. The Lutris
+run also rewrote the Frozen Throne prefix's wine settings (it printed
+"configuration … has been updated"); I haven't checked whether that affects
+running it with wine 10 again.
+
+**Why it matters:** `War3Patch.mpq` holds the balance changes up to 1.21b.
+Custom maps made for those versions expect the patched stock values, so Route A
+needs it.
+
+**Getting the patch contents without running the patcher:** the patch program
+has an MPQ archive embedded inside it. I found and cut it out: it holds 10
+files, including `BNUpdate.exe` and `Patch.txt`. Our MPQ reader opens it but
+can't decompress the files: it lacks the compression methods WoW-era and patch
+archives use (the bzip2 gap W01 already records). No StormLib or other MPQ tool
+is installed on this machine.
+
+**Two ways forward:**
+1. **Extend our MPQ reader** so it can unpack the patch archive directly, then
+   pull `War3Patch.mpq` (or the patched files) straight out of it, with no wine
+   involved. Issue 112's Route A needs this reader work anyway to read the patch
+   archive itself. I'd recommend this one.
+2. **Keep fighting the patcher under wine:** other wine versions, or a different
+   Windows version setting. That's slower, and it leaves the project depending
+   on the patcher running at all.
+
+Want me to go ahead with option 1?
 
 --------------------------------------------------------------------------------
 
