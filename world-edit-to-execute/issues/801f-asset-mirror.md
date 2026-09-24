@@ -14,6 +14,11 @@ Matchmaking server has no asset distribution capabilities. Players must download
 
 ## Intended Behavior
 
+> **Transport, 2026-09-23:** every asset transfer goes over rmail, "the only
+> connection protocol for assets that I trust" (owner). A mirror is then an
+> rmail contact that answers requests for packs, and players still accept each
+> transfer through rmail's consent step. See issues 603 and 609.
+
 Matchmaking server can host commonly-used community asset packs:
 1. Players download once from central mirror
 2. Reduces bandwidth burden on individual game hosts
