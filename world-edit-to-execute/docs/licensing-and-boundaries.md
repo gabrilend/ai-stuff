@@ -126,6 +126,105 @@ Separate from code licences, and not settled by any of the above:
   data where possible; the W client treats data tables as assets too, with
   Blizzard's as a counted, borrowed fallback.
 
+## Copyright, contracts and enforcement (the legal details)
+
+Written 2026-09-24 in answer to the owner's questions: how does AzerothCore
+stay hosted, is fan art a "derivative work", and doesn't widespread tolerance
+make the clause void? An engineering summary of how US law (and, where
+different, EU law) generally works, not legal advice.
+
+**Two different kinds of rule are mixed up in the word "licence".**
+
+| | Copyright | A licence agreement (EULA) |
+|--|-----------|----------------------------|
+| What it is | A law. It binds everyone. | A contract. It binds only the person who accepted it. |
+| What it protects | *Expression*: Blizzard's actual code, art, sound, text | Whatever the contract says, including things copyright doesn't protect (e.g. "don't reverse engineer") |
+| What it can't protect | Ideas, game rules and mechanics, methods of operation, facts, functional interfaces (US Copyright Act §102(b); *Lotus v. Borland*; *Google v. Oracle* (2021) on interfaces) | Nothing outside the contract: someone who never agreed isn't bound |
+| Remedy | Infringement suit against anyone who copies protected expression | Breach-of-contract suit against the person who agreed |
+
+**"Derivative work" is narrower than it sounds.** In copyright it means a new
+work that *incorporates protected expression* from an existing one (a
+translation, a sequel using the characters, a remix). A program that
+**behaves** like another, written without copying its code, isn't a derivative
+work of it: behaviour, rules and interfaces aren't protected expression.
+
+**So how is AzerothCore hosted?**
+- Its code is its own. It's the MaNGOS → TrinityCore → AzerothCore line of
+  server emulators, written from scratch to speak the same protocol and follow
+  the same game rules. That's generally not a derivative work of Blizzard's
+  code.
+- The exposed parts are the ones that *do* carry Blizzard expression: the
+  world database's quest text, NPC names and dialogue, and anything extracted
+  from the client. That's why AzerothCore ships code and tooling, and has each
+  user extract maps and data from their own client.
+- Enforcement is a choice. Blizzard has gone after large, commercial or public
+  operations: Scapegaming (2010, a US default judgment of about $88 million
+  against a paid private server) and the 2016 cease-and-desist that closed
+  Nostalrius. Open-source emulator code on GitHub has stayed up for well over a
+  decade. Nothing obliges a rights holder to sue everyone, or anyone.
+
+**Is fan art a derivative work?** Often, technically, yes: a drawing of a
+Blizzard character reuses protected expression (the character). It survives
+through **fair use** (non-commercial, transformative works weigh heavily in
+its favour), through the rights holder **choosing not to act** or publishing
+fan-content permissions, and through the plain cost of enforcing.
+
+**Does widespread tolerance make the clause void?** Not under copyright or
+contract law, unfortunately for that argument:
+- Copyright doesn't lapse when it isn't enforced; selective enforcement is
+  lawful. (Trademarks are different: a mark that isn't policed can weaken or
+  become generic. Copyright has no such rule.)
+- Narrow doctrines do limit a rights holder who waits or acquiesces: laches
+  (unreasonable delay; much weakened for copyright damages since *Petrella v.
+  MGM*, 2014), estoppel (if they led someone to rely on permission), and
+  implied licence. They protect a specific person in a specific situation;
+  they don't cancel the right for everyone.
+- Click-through agreements are generally enforced in the US (*ProCD v.
+  Zeidenberg*, 1996). A clause can be struck when a law overrides it, which is
+  where the EU differs (below).
+
+**The case closest to this project: *Davidson & Associates v. Jung* (8th
+Cir., 2005), "the bnetd case."** Volunteers reverse engineered Battle.net to
+build a compatible open-source server for StarCraft, Diablo II and Warcraft
+III. Blizzard won on two grounds, and neither was "derivative work":
+1. **Contract.** The developers had clicked the games' licence and Battle.net
+   terms, which forbade reverse engineering; the court held they had given up
+   the fair-use defence by agreeing.
+2. **Anti-circumvention (DMCA §1201).** bnetd let games play online without
+   Blizzard's CD-key check, which the court treated as circumventing an access
+   control. The interoperability exception (§1201(f)) didn't save them.
+
+What that means here:
+- The **contract** risk falls on whoever clicked the Warcraft III licence and
+  then extracts from their install. Its §2A forbids reverse engineering,
+  copying, modifying and derivative works "without the prior consent, in
+  writing, of Blizzard"; §2C(iv) forbids emulating Blizzard's network
+  protocols. That's each user's own agreement, which is one more reason
+  extraction runs on each user's machine, from their own install (issue 112).
+- The **anti-circumvention** risk depends on whether something bypasses a
+  protection that controls access. MPQ table encryption with publicly known
+  keys, and no CD-key or login check involved, is a much weaker fit than
+  bnetd's case, but it isn't nothing.
+- The **copyright** risk falls on whatever carries Blizzard expression:
+  their art, sounds, text and code. The engine, the converter, and replacement
+  art made independently carry none; that's the point of the resolver,
+  similarity scores and lineage records.
+
+**Where the EU differs.** The EU Software Directive (2009/24/EC, Articles 5(3),
+6 and 8) lets a lawful user study how a program works and decompile it where
+needed to make an independently created program interoperate, and makes any
+contract clause to the contrary void. *SAS Institute v. World Programming*
+(CJEU, 2012) also held that a program's functionality and its data formats
+aren't protected by copyright. So an EU-based user or maintainer stands on
+firmer ground than a US one.
+
+**The practical picture.** Who gets pursued follows power and money: large,
+public, commercial operations that distribute the rights holder's assets or
+compete with its products. This project is small, non-commercial, open, ships
+no Blizzard assets, and has each user extract from their own copy. That is the
+lowest-risk profile available. It is not zero risk, and the risk sits most
+with whoever runs the extraction under a US click-through agreement.
+
 ## Before any release
 
 Nothing here is released yet. Before one:
