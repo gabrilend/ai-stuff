@@ -10,6 +10,7 @@ A WC3-compatible game engine that reads Warcraft 3 map files (.w3x/.w3m) like an
 - **`docs/wc3-engine-architecture.md`** - **Pure WC3 engine design (active architecture)**
 - `docs/roadmap.md` - Development phases and **current focus/next steps**
 - `docs/postmortem-azerothcore-integration.md` - AC integration pivot analysis (2026-01-07)
+- `docs/wow-client-bridge.md` - Phase W: WoW 3.3.5a client as map host, model source and test reference (2026-09-23)
 - `docs/table-of-contents.md` - Documentation index
 - `issues/progress.md` - Current phase status and issue tracking
 - `docs/render-architecture.md` - Frame encoding, threading, numeric representation
@@ -360,7 +361,7 @@ tui_cleanup
 
 ---
 
-## Phase 1: File Format Parsing (In Progress)
+## Phase 1: File Format Parsing (Completed)
 
 ### MPQ Archive System (Complete)
 
@@ -394,7 +395,10 @@ archive:close()
 |------|--------|-------------|--------|
 | war3map.w3i | `parsers/w3i.lua` | Map info (name, players, forces, fog) | **Completed** |
 | war3map.wts | `parsers/wts.lua` | Trigger strings (TRIGSTR_xxx resolution) | **Completed** |
-| war3map.w3e | (pending) | Terrain data (tilepoints, heights) | Pending |
+| war3map.w3e | `parsers/w3e.lua` | Terrain data (tilepoints, heights) | **Completed** |
+
+Phases 2-4 added parsers for doodads, units, regions, cameras, sounds,
+triggers and JASS; see `docs/roadmap.md` for the module map.
 
 ### Test Suite
 
@@ -426,7 +430,9 @@ lua src/tests/test_wts.lua
 - Root issues: `{PHASE}{ID}-{description}.md` (e.g., `103-parse-war3map-w3i.md`)
 - Sub-issues: `{PHASE}{ID}{letter}-{description}.md` (e.g., `102a-parse-mpq-header.md`)
 
-Phase 1 = 1xx, Phase 2 = 2xx, etc.
+Phase 1 = 1xx, Phase 2 = 2xx, etc. Lettered side phases use the letter
+(A01, B02, W01) so they never collide with numbered phases. Get the next free
+number from `/home/ritz/programming/ai-stuff/scripts/validate-issues <project> --next <phase>`.
 
 ## Implementation Language
 
@@ -443,20 +449,16 @@ Chosen for:
 
 ## Current Phase
 
-**Phase 1: Foundation - File Format Parsing** (8/12 complete)
+Status lives in `issues/progress.md` and the per-phase progress files; live
+counts come from
+`lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
+Numbers are not copied here because they go stale.
 
-Current focus:
-- MPQ archive parser: **Complete** (102a-d)
-- W3I parser: **Complete** (103)
-- WTS parser: **Complete** (104)
-- W3E terrain parser: **Pending** (105)
-- Data structures: **Pending** (106)
-- CLI tool: **Pending** (107)
-- Integration test: **Pending** (108)
-
-**Phase 2: Data Model - Game Objects** (Issues created)
-
-8 issues ready for implementation after Phase 1 completes.
+- **Phases 1-4** (parsing, data model, triggers/JASS, runtime): completed
+- **Phase 5** (rendering): in progress; vertical slice done
+- **Phase W** (WoW Client Bridge): issues W01-W07 created 2026-09-23.
+  Design in `docs/wow-client-bridge.md`. Proprietary WoW files are read from
+  the owner's client folder at run time and never committed.
 
 ---
 

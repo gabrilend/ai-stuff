@@ -349,7 +349,7 @@ All three mutation types are valid operators.
 
 - `src/runtime/pathfinding/frames.lua` - 2D frame implementation
 - `docs/render-architecture.md` - Frame encoding in render context
-- `issues/512-3d-rotation-frames.md` - 3D extension implementation
+- `issues/514-3d-rotation-frames.md` - 3D extension implementation
 
 ---
 

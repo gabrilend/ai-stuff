@@ -3,7 +3,7 @@
 **Phase:** 5 - Rendering
 **Type:** Integration / Milestone
 **Priority:** Critical
-**Dependencies:** 501a (raylib demo completed)
+**Dependencies:** 501f (raylib demo completed)
 
 ---
 
@@ -24,7 +24,7 @@ a testing ground for subsequent work.
 
 ## Current Behavior
 
-- Raylib rotating cube demo works (501a complete)
+- Raylib rotating cube demo works (501f complete)
 - Threading model documented but not implemented
 - No entity rendering, no input, no game integration
 
@@ -245,6 +245,6 @@ architecture; refinement comes after.
 
 - `docs/render-architecture.md` - Threading model and component slots
 - `docs/render-system-multithreading.md` - Detailed pipeline stages and task submission
-- `issues/501a-raylib-rotating-cube-demo.md` - Foundation this builds on
+- `issues/completed/501f-raylib-rotating-cube-demo.md` - Foundation this builds on
 - `src/render/main.c` - Existing raylib demo code
 - Phase 4 systems (ECS, movement, orders) - Integration targets

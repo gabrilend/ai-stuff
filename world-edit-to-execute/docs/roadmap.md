@@ -6,6 +6,25 @@
 
 ## Current Focus
 
+Live per-phase counts (instead of numbers written here that go stale):
+
+```bash
+lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/world-edit-to-execute -m
+```
+
+### Phase W: WoW Client Bridge (planned 2026-09-23)
+
+A lettered side phase that uses the owner's WoW 3.3.5a client as an alternate
+host for WC3 maps, a local model source, and a reference to test our engine
+against, then replaces its models one at a time. It does not reorganise
+phases 1-10. See the Phase W section below and `docs/wow-client-bridge.md`.
+
+### Phase 5 (Rendering) in progress
+
+The vertical slice (508a-i), render profiler (511) and threading rewrite (512,
+513) are done; the abstract render interface, terrain, sprites, UI and minimap
+issues (501-507) are open.
+
 ### ⚡ Architectural Pivot (2026-01-07)
 
 **Decision:** Abandoned AzerothCore integration in favor of pure WC3 engine.
@@ -22,7 +41,7 @@
 
 ---
 
-### Phase 4 Complete! 🎉 34/34 issues done
+### Phase 4 Complete
 
 All core runtime systems implemented:
 - Game loop (62.5 ticks/sec)
@@ -723,6 +742,34 @@ Developer and player experience improvements.
 
 ---
 
+## Phase W: WoW Client Bridge (Issues Created)
+
+A side phase, lettered so phases 1-10 keep their numbers. It connects the
+engine to the World of Warcraft 3.3.5a client that AzerothCore serves. Design
+and reasoning: `docs/wow-client-bridge.md`. Progress: `issues/phase-W-progress.md`.
+
+| ID | Name | Role of the WoW client |
+|----|------|------------------------|
+| W01 | Read the WoW client's archives (MPQ chain, DBC, BLP, M2; MPQ writer) | Foundation |
+| W02 | Build WC3 maps into the WoW client (terrain → ADT, placements, map registration, server data, triggers in Eluna, launcher + loader, control addon) | Alternate host |
+| W03 | Show WoW models with WC3 unit behavior (model resolver, WC3 animation timing, skinning, replay) | Model source |
+| W04 | Compare the real client against the open client (scripted server scenes, recording, image statistics, vision-LLM notes) | Reference |
+| W05 | Asset forge: find or generate a replacement model (licensed search, ComfyUI image-to-3D) | Replacing it |
+| W06 | Restyle every model in one theme (e.g. "neopunk"; GPU batch) | Replacing it |
+| W07 | Phase W demo | Capstone |
+
+```
+W01 ──┬──▶ W02 ──┬──▶ W04 ──┐
+      └──▶ W03 ──┼──▶ W05 ──┼──▶ W06 ──▶ W07
+                 └──────────┘
+```
+
+Datapaths: `docs/datapath-wc3-map-into-wow-client.md`,
+`docs/datapath-wow-models-in-engine.md`,
+`docs/datapath-client-comparison-testing.md`, `docs/datapath-asset-forge.md`.
+
+---
+
 ## Success Milestones
 
 ### Minimum Viable Product (6 months)
@@ -778,6 +825,7 @@ For detailed architecture information, see:
 
 - **`docs/wc3-engine-architecture.md`** - Pure WC3 engine design (active)
 - **`docs/postmortem-azerothcore-integration.md`** - AC integration pivot analysis
+- **`docs/wow-client-bridge.md`** - Phase W design (WoW client as host, model source, reference)
 - **`docs/render-architecture.md`** - Threading model, component slots
 - **`docs/binary-vector-frames.md`** - Quadrant voting, curve approximation
 - **`notes/vision`** - Project philosophy and legal basis

@@ -13,27 +13,36 @@
 
 ---
 
-## Current Phase: 5 - Rendering (Visual Abstraction)
+## Current Phase: 5 - Rendering (Visual Abstraction), in progress
 
-**Status:** Ready to Begin (Phase 4 Complete)
+Phase W (WoW Client Bridge) planned beside it on 2026-09-23; see
+`issues/phase-W-progress.md`.
 
 ---
 
 ## Phase Summary
 
-| Phase | Name | Status | Issues |
-|-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 40/41 |
-| 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
-| 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
-| 4 | Runtime - Basic Engine Loop | **Completed** | 34/34 |
-| 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
-| 6 | Asset System - Community Content | Issues Created | 0/8 |
-| 7 | Gameplay - Core Mechanics | Archived | 0/0 |
-| 8 | Multiplayer & Networking | Issues Created | 0/9 |
-| 9 | World Editor | Issues Created | 0/12 |
-| 10 | Polish - Tools and UX | Planned | - |
+Done/open counts come from the dashboard, not from this table, so they
+cannot go stale:
+
+```bash
+lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/world-edit-to-execute -m
+```
+
+| Phase | Name | Status |
+|-------|------|--------|
+| 0 | Tooling/Infrastructure | In Progress |
+| 1 | Foundation - File Format Parsing | **Completed** |
+| 2 | Data Model - Game Objects | **Completed** |
+| 3 | Logic Layer - Triggers and JASS | **Completed** |
+| 4 | Runtime - Basic Engine Loop | **Completed** |
+| 5 | Rendering - Visual Abstraction | In Progress |
+| 6 | Asset System - Community Content | Issues Created |
+| 7 | Gameplay - Core Mechanics | Archived |
+| 8 | Multiplayer & Networking | Issues Created |
+| 9 | World Editor | Issues Created |
+| 10 | Polish - Tools and UX | Planned |
+| W | WoW Client Bridge | Issues Created |
 
 ---
 
@@ -425,7 +434,7 @@ Phase 2 & 3 Complete
 | 511c | Overlay rendering | Pending | 511a |
 | 511d | History buffer and graphs | Pending | 511c |
 | 511e | File export | Pending | 511a |
-| **512** | **3D rotation frames** | **Issue Created** | 409 |
+| **514** | **3D rotation frames** | **Issue Created** | 409 |
 | 512a | Core 3D frame encoding | Pending | 409 |
 | 512b | Render system integration | Pending | 512a |
 | 512c | Dynamic precision scaling | Pending | 512a |
