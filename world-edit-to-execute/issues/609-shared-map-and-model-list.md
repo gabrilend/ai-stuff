@@ -3,7 +3,8 @@
 **Phase:** 6 - Asset System
 **Type:** Implementation
 **Priority:** Medium
-**Dependencies:** 603 (asset transfer protocol), 604 (content-addressed storage), 605 (local storage manager)
+**Dependencies:** 604 (content-addressed storage), 605 (local storage manager)
+**Uses:** rmail (`/home/ritz/programs/r-mail/`) for every file transfer
 
 ---
 
@@ -31,14 +32,28 @@ selects it."
   asset the sharer has replaced, the asset's content hash and where to fetch
   it. Each entry carries its provenance (licence, lineage, similarity score)
   so the receiver sees what they are choosing.
-- **One choice, then automatic.** When another player offers a list, the
-  receiver sees one prompt: "Use Ana's models for this game?" Choosing yes
-  fetches whatever is missing (from the sharer through 603's transfer, or from
-  each asset's source URL), verifies every hash, and applies the list as a
-  **temporary profile for that game**, reverted afterwards unless the player
-  chooses to keep it. Choosing no changes nothing.
+- **Delivered over rmail** (owner, 2026-09-23: "the only connection protocol
+  for assets that I trust"). Sharing is an rmail message: the list file in the
+  body, and the assets as `attach:` lines. Two players who want to play along
+  are rmail contacts (they share a secret in their `contacts` files). rmail's
+  own consent step is the prompt: the receiver's inbox shows who is sending,
+  each file's name and size, and the space it will take, and they accept or
+  deny before any byte moves.
+- **Only what's missing is sent.** The list goes first, alone. The receiver's
+  side answers with the hashes it lacks, and the sharer's reply attaches only
+  those. Assets already stored (content-addressed, 604) are never re-sent.
+- **One choice, then automatic.** Accepting the list is the one prompt ("Use
+  Ana's models for this game?"). Then the attachments arrive, every hash is
+  verified, and the list is applied as a **temporary profile for that game**,
+  reverted afterwards unless the player chooses to keep it. Declining changes
+  nothing.
 - **Remembered choices.** "Always accept lists from this player" and "always
-  for this map" make it automatic from then on, as the owner asked.
+  for this map" make it automatic from then on, as the owner asked. This is an
+  rmail `on_receive` hook that answers the consent request for trusted
+  contacts and hands arriving lists to the engine. (To confirm while building:
+  that a hook can answer rmail's consent request the way the person would.)
+- Assets with a public source URL may be fetched from there instead, when the
+  receiver prefers; the sharer never has to host anything.
 
 List format (a Lua table):
 
@@ -53,9 +68,9 @@ List format (a Lua table):
 
 1. List format, writer ("share my current models for this map") and reader.
 2. Temporary profile in the resolver: a layer above the player's own packs that exists for one game and is then removed.
-3. Fetch-and-verify through 603 (peer) and plain URLs; refuse any asset whose hash doesn't match.
+3. rmail glue: write the outgoing list message into `~/mail/outbox/`; an `on_receive` hook that recognises a list, replies with the missing hashes, and (for trusted contacts) answers the consent request; verify every arriving attachment's hash and refuse mismatches.
 4. The one prompt, plus the "always" choices, stored per player.
-5. Change 603 so its transfers are driven by an accepted list, never pushed as "required".
+5. 603's own transfer protocol is not built; rmail replaces it.
 6. Tests: accepting a list shows the sharer's model for that game only; declining changes nothing; a tampered asset (hash mismatch) is refused; gameplay values (collision, hit timing) are identical with and without the list.
 
 ## Acceptance Criteria
@@ -72,6 +87,7 @@ List format (a Lua table):
 
 ## Related Documents
 
-- `issues/603-server-asset-download-protocol.md`, `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
+- `/home/ritz/programs/r-mail/docs/attachments.md` (consent flow), `docs/protocol.md`, `docs/.templates/scripting-tutorial.md` (hooks)
+- `issues/603-server-asset-download-protocol.md` (earlier transfer design, replaced by rmail), `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`

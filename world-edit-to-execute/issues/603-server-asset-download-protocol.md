@@ -20,6 +20,20 @@ No asset download system exists. Players cannot receive community asset packs fr
 > suggest they do." Transfers here happen only for a map-and-model list the
 > receiving player has accepted (issue 609). The "required" priority below
 > applies to the **map file** only; art is always optional.
+>
+> **Transport replaced 2026-09-23: files move over rmail.** The owner: "we
+> should use rmail to transfer files. It's the only connection protocol for
+> assets that I trust." rmail (`/home/ritz/programs/r-mail/`) is a file-based
+> messenger: a message is a text file in `~/mail/outbox/` with `to:` and
+> `attach:` lines; a daemon delivers it over TCP encrypted with AES-256-GCM
+> (key from a secret shared per contact); attachments are consent-first
+> (the recipient sees the file name and size and accepts or denies before any
+> byte moves), compressed, chunked and resumable; folders are zipped. The
+> custom CONNECT / MANIFEST / HAVE / NEED / CHUNK protocol sketched below is
+> **not built**. What stays from this issue: the manifest idea (a list of
+> assets with hashes), and "don't send what the receiver already has" (the
+> sender attaches only the hashes the receiver reports missing). The protocol
+> sketch below is kept as the record of the earlier design.
 
 A peer-to-peer asset download protocol that:
 1. Transfers community asset packs from LAN host to clients on connect
