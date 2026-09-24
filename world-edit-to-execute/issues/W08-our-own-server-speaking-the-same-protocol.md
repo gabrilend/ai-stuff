@@ -63,6 +63,39 @@ Packet layouts and opcode numbers are interface facts; the specification
 states them as facts, without AzerothCore's code. Where possible the
 describer works from recorded traffic rather than source.
 
+### Time is carried as frames (decided 2026-09-23)
+
+The owner: "all timing dependent things should include the frame when they
+are expected to be applied. If it's in the future, we schedule it. If it's in
+the past, we fast forward it. These rules should be hand written. For this
+aspect, we prioritize sane design over correctness."
+
+- **Frame** = one simulation tick of the phase 4 game loop (62.5 ticks per
+  second, 16 ms each), counted from the start of the game. Type: uint32.
+- **Every timing-dependent message between our server and the W client
+  carries the frame at which it takes effect**: a move order, a unit's path
+  step, an attack's hit, a spell's cast start and its landing, a buff's
+  expiry, a death. Messages that don't depend on timing (chat, a name lookup)
+  carry none.
+- **Receiving a message for a future frame:** schedule it; apply it when the
+  local frame counter reaches that frame.
+- **Receiving a message for a past frame:** fast-forward it: apply it now, in
+  the state it would have reached had it arrived on time (a unit ordered to
+  move 5 frames ago appears 5 frames along its path; a hit that landed 3 frames
+  ago has already taken its health).
+- This is a sane rule, not an exact copy of how AzerothCore or the stock
+  client time things. Where they disagree, ours wins.
+
+**How the checker compares against AzerothCore.** AzerothCore doesn't send
+frames; it sends millisecond times and durations. The checker converts each
+of its timed packets to a frame with **hand-written rules, one per packet
+type** (for example: a movement spline's start time → the frame containing
+it; a damage packet → the frame it was received in). Two streams then match
+when every timed event lands on the same frame. Differences that aren't about
+game state (object ids, timestamps, the order of packets within one frame) are
+listed per packet type in the same rules file and ignored. The rules are
+written by hand and reviewed, not learned from repeated runs.
+
 ### Scope: only what WC3 maps need, first
 
 Auth (SRP6) and realm list; world session crypto; character enter/leave;
