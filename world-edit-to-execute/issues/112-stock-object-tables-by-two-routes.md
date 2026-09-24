@@ -96,6 +96,13 @@ fetched politely and reused.
 - The transcripts record which route generated the table (A) and which
   confirmed it (B). The record should say that plainly.
 
+## Sub-Issues
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 112a | stormlib-build-and-update-script | None | StormLib (MIT) built from a pinned tag by a script, with a LuaJIT binding, to read patch archives our own reader can't |
+| 112b | game-version-layers-per-map | 112a | Each patch is a layer of changed files; loading a map stacks the layers for its version, and nothing on disk is patched |
+
 ## Suggested Implementation Steps
 
 1. SLK parser (`src/parsers/slk.lua`) with tests on small hand-made SLK text.
