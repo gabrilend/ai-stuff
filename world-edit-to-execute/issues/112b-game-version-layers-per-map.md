@@ -15,6 +15,19 @@ patcher copied its updater and notes, then crashed with a stack overflow
 before changing any game file. Patches change stock balance values, and a map
 built for a given patch expects that patch's values.
 
+**What a patch program contains** (read with StormLib, 2026-09-24):
+`War3TFT_121b_English.exe` holds an archive with `prepatch.lst` ("extract
+BNUpdate.exe / extract Patch.txt / execute BNUpdate"), `mpqs.lst`, the updater,
+and a nested archive `Patch_War3x.mpq` (51.5 MB, 722 files). In that nested
+archive the changed files are **binary diffs** (each carries a `BSDIFF40`
+section) against the previous version, under flat names (`UnitWeapons.slk`,
+`UndeadUpgradeFunc~00.txt` where one name appears in several folders), with
+`patch.lst` (46 KB, where each file goes), `patch.cmd`, `delete.lst` (which
+starts with `War3Patch.mpq`: the patcher deletes and rebuilds that archive)
+and `revert.lst`. So a layer can be built without running the patcher:
+read `patch.lst`, apply each BSDIFF40 diff to the file from the layer below,
+and store the result.
+
 ## Intended Behavior
 
 The owner (2026-09-24): "we should be able to dynamically apply and unapply

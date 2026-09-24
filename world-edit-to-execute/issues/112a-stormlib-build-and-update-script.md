@@ -9,7 +9,16 @@
 
 ## Current Behavior
 
-The project's own MPQ reader (`src/mpq/`) reads WC3 map archives, but not the
+**Built 2026-09-24 (in progress):** `src/cli/build-stormlib.sh` clones
+StormLib `v9.40` (pin in `libs/stormlib/PINNED`), builds `libstorm.so` into
+`libs/stormlib/lib/` (linked against the system's zlib 1.3.1 and bzip2 1.0.8;
+libtomcrypt compiled in from StormLib's own source), and a second run is a
+no-op. `src/mpq/stormlib.lua` (LuaJIT FFI: open, list, has, read, extract,
+close) opens the 1.21b patch program directly and lists its embedded archive.
+Remaining: the `mpq-extract` CLI, the byte-for-byte comparison test against
+our own reader, `.info.md` files, and the licence entries.
+
+Before this: the project's own MPQ reader (`src/mpq/`) reads WC3 map archives, but not the
 archives inside Blizzard's patch programs or WoW's archives: it lacks bzip2 and
 other compression methods those use. On 2026-09-24 the 1.21b patch's embedded
 archive (cut out of `War3TFT_121b_English.exe` at byte offset 167936) opened,
