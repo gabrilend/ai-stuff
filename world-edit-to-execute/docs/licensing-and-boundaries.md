@@ -12,7 +12,7 @@ the licences as written, not legal advice.
 | world-edit-to-execute (converter, forge, scorer) | GNU AGPL v3 (the `ai-stuff` repository's `LICENSE`) | the owner's machine |
 | The W client (`custom-client`) | **none yet**: no LICENSE file, which legally means "all rights reserved" | players' machines |
 | AzerothCore | GNU AGPL v3 | the server |
-| Eluna (`mod-eluna`, Lua inside AzerothCore) | GNU GPL v3 | inside the server process |
+| ALE (`mod-ale`, Lua inside AzerothCore) | GNU GPL v3 (checked 2026-09-23 at github.com/azerothcore/mod-ale). A fork of Eluna, which it replaces; its scripts are not compatible with Eluna's | inside the server process |
 | StormLib (MPQ) | MIT | linked into the W client's reader library |
 | raylib | zlib | linked into the W client |
 | LuaJIT | MIT | linked into the W client; used by world-edit-to-execute |
@@ -25,7 +25,7 @@ the licences as written, not legal advice.
 
 ```
   W client  ◀── network protocol ──▶  AzerothCore (AGPLv3)
-  (licence ?)                            └─ Eluna (GPLv3)
+  (licence ?)                            └─ ALE (GPLv3)
                                               └─ converted trigger scripts + native shim (Lua)
                                                    ▲
   world-edit-to-execute (AGPLv3) ── writes ────────┘
@@ -38,10 +38,10 @@ the licences as written, not legal advice.
    headers). Reimplementing the protocol from observed behaviour and public
    documentation is fine; opcode numbers are facts. Copying code would bring
    AGPL v3 terms into the W client.
-2. **Converted scripts + native shim ↔ Eluna: code running inside the
-   server.** Lua scripts loaded by Eluna call its API and share the server's
+2. **Converted scripts + native shim ↔ ALE: code running inside the
+   server.** Lua scripts loaded by ALE call its API and share the server's
    process. Whether that makes a combined work is debated. The safe reading
-   treats them as combined with Eluna (GPL v3) and AzerothCore (AGPL v3).
+   treats them as combined with ALE (GPL v3) and AzerothCore (AGPL v3).
    - Under **AGPL v3** (this project's current licence): compatible. AGPL v3
      §13 and GPL v3 §13 explicitly allow combining the two.
    - Under the **RGPL draft**: not compatible. The draft deliberately drops
@@ -57,7 +57,7 @@ the licences as written, not legal advice.
 ## What this means in practice
 
 - **Today everything is compatible.** world-edit-to-execute is AGPL v3,
-  AzerothCore is AGPL v3, Eluna is GPL v3, and the W client's dependencies
+  AzerothCore is AGPL v3, ALE is GPL v3, and the W client's dependencies
   are permissive.
 - **Anything that runs inside the server stays under AGPL v3 or GPL v3**,
   even if the rest moves to the RGPL. That means the JASS-native shim (W02e),
@@ -79,11 +79,44 @@ Separate from code licences, and not settled by any of the above:
   converted map is another and needs the author's permission. Blizzard's
   2020 Warcraft III terms also claim rights over custom games made with its
   editor; how far that reaches back to maps made under the original terms is
-  an open question.
+  an open question. **Plan (2026-09-23): bundle none.** A map finder
+  (issue 1001) lists maps that are freely posted on the web, and the player's
+  own machine downloads the ones they pick, the way a browser would. Bundling
+  a map stays possible when its author agrees.
 - **Blizzard's assets** are never redistributed (see `docs/wow-client-bridge.md`).
-- **AzerothCore's database** (quests, NPC text, spell data) is Blizzard-derived
-  content even though the server code is AGPL. The W client's doc 012 asks
-  whether it is inside the "legally distinct" goal.
+- **AzerothCore's world** (zones, quests, NPC text, loot) is Blizzard-derived.
+  world-edit-to-execute's maps don't use it: each converted map is its own
+  terrain, its own creatures and its own scripts. What the server **still**
+  takes from Blizzard even for our maps:
+  - the data tables (DBC files) extracted from the client, which it loads at
+    startup and needs to run at all: spells, factions, races and classes,
+    display info, map list;
+  - the rows our maps point at: display ids until models are replaced, spells
+    and spell visuals used for converted WC3 abilities, the faction and race of
+    the player's own character;
+  - the rest of the world database, which a stock install loads into memory
+    even though our maps never touch it.
+
+  So for our maps the concern shrinks from "the whole world" to the data
+  tables and the handful of rows we reference. Those can be replaced like
+  assets: custom spells in the server's database override tables, our own
+  factions, a stripped-down world database holding only what our maps use.
+
+## Before any release
+
+Nothing here is released yet. Before one:
+
+1. **Review every bundled library** (owner, 2026-09-23: "we will have to
+   review these inclusions before release"): StormLib, raylib, LuaJIT,
+   OpenSSL 3, miniz, and anything added later. For each: the exact version,
+   its licence text, what the licence requires in our distribution (notices,
+   source offers), and whether a smaller or better-licensed choice exists.
+2. **Give the W client a LICENSE file** (open question 1 below).
+3. **Keep server-side code in its own AGPL v3 folder** with its own LICENSE.
+4. **Confirm no AzerothCore code was copied into the W client** (a search for
+   its file headers and distinctive identifiers).
+5. **Confirm nothing from Blizzard's client or any bundled WC3 map is in the
+   release**, other than maps whose authors agreed.
 
 ## Open questions
 

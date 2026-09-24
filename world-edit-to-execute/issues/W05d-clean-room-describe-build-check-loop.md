@@ -108,9 +108,28 @@ steer toward the original and would be a copying machine. So:
 
 ## Open Questions
 
-1. **Skeletons.** A clean-room builder can't reuse Blizzard's skeletons (W05b), because that makes the result `derived`. It could build its own skeleton from the specification's functional measurements (bone count, joint positions, attachment heights), then the animations come from a clean-room source too. Accept that animated units take longer to reach `independent`, with W05b's borrowed skeletons as the stopgap?
+1. ~~Skeletons.~~ Answered 2026-09-23: "We are just creating the models at this point. We will create the skeletons and animations that are custom later, using a similar system that has been designed for a different type of asset that we haven't architected or built yet." This loop makes meshes only. Body fit against a skeleton is checked by W05e, and the dimensions future skeletons will target are W05e's body plans.
 2. **Tolerance.** How close is "approximately as large": ±10% on height and footprint as a first guess?
-3. Is a separate Claude session enough of a separation, or should the builder use a different model or tool chain altogether?
+3. ~~Is a separate session enough separation?~~ Answered 2026-09-23: "These tools will be done in userspace, not in the engine files itself. That way, anyone can describe their own examples, and if we can isolate a criteria set, then we should all be able to create whatever we want, and still be able to communicate the same game because they're running on the custom map files for wc3." So the loop is a user-side tool, and each user decides how strictly to separate the roles. The provenance record says what separation was used. What must be shared is the **criteria set** (see "The criteria set" below), not the art.
+
+## The criteria set (decided 2026-09-23)
+
+Everyone makes their own art with these tools. What keeps players in the
+same game is a shared **criteria set**: the functional facts every asset for
+a given unit type must meet, whatever it looks like.
+
+- A unit type's criteria: body plan (W05e), height and footprint ranges,
+  attachment heights, animation names and their key timings (when an attack
+  lands).
+- Gameplay reads **only** the criteria and the map file (WC3 unit data):
+  selection circle, collision, missile launch and impact heights, hit timing.
+  It never reads mesh bounds or animation lengths from whichever art a player
+  happens to have installed. That is what lets two players with different
+  art share a game.
+- The loop's checker tests a candidate against the criteria set; passing it
+  means the asset works in anyone's game.
+
+4. **Where the criteria set lives.** Beside the map (per converted map), in a shared library of criteria per WC3 unit type, or both, with the map able to override?
 
 ## Related Documents
 

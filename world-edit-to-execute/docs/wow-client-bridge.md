@@ -96,7 +96,7 @@ no script hard-codes them twice.
 |------|------|-------|
 | WoW 3.3.5a client | `/mnt/mtwo/games/azeroth-core/client/client-files/` | Holds `Data/` with `common.MPQ`, `common-2.MPQ`, `expansion.MPQ`, `lichking.MPQ`, `patch.MPQ`, `patch-2.MPQ`, `patch-3.MPQ`, and the `enUS/` locale archives |
 | Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` points at `/mnt/dile/ritz/games/wotlk`, a different folder from the one above (see open questions) |
-| AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (a Lua scripting engine inside the server) and a `docker-compose.yml` |
+| AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (the older Lua scripting engine; the project uses its successor ALE, `mod-ale`) and a `docker-compose.yml` |
 | Server data extracted from the client | `/mnt/mtwo/games/azeroth-core/data-files/` | `dbc/`, `maps/`, `vmaps/`, `mmaps/`, `Cameras/` |
 | The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its issues 104-107 build `libwreaders.so`, the reading layer this project uses; its Phase 11 is WC3 map mode. No code yet |
 | Map editor for hand touch-ups | Noggit (Noggit Red), not yet installed | Opens and edits WoW `.adt` terrain; used to inspect and tweak what W02's converter writes, never as the only way to make a map |
@@ -236,6 +236,18 @@ similarity score covers every asset kind, and every replacement records its
 `independent`. The score shows distance; lineage shows whether a clean-room
 claim is available. Details:
 `/mnt/mtwo/games/azeroth-core/custom-client/docs/012-asset-replacement-and-provenance.md`.
+
+**2026-09-23: AzerothCore runs converted maps' rules; the tools live in
+userspace; a shared criteria set keeps everyone in one game.** The forge,
+the clean-room loop and the fit checks are user-side tools, not engine code:
+"anyone can describe their own examples, and if we can isolate a criteria set,
+then we should all be able to create whatever we want, and still be able to
+communicate the same game." Gameplay reads only the criteria and the map file,
+never a player's art (W05d). For now only meshes are made; custom skeletons
+and animations come later through a system not yet designed, targeting W05e's
+body plans. world-edit-to-execute's maps don't use WoW's world; what the server
+still takes from Blizzard for them is listed in
+`docs/licensing-and-boundaries.md`. Maps are found, not bundled (issue 1001).
 
 **2026-09-23: animations are reused.** Generated meshes get the skeleton and
 animation set of an existing model. The owner picks the set from a catalogue
