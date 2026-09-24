@@ -78,3 +78,10 @@ llm-transcripts/*.log
 # ============================================================================
 wc3-installs/reign-of-chaos
 wc3-installs/frozen-throne
+
+# StormLib build artefacts (rebuilt by src/cli/build-stormlib.sh; only libs/stormlib/PINNED is tracked)
+libs/stormlib/source/
+libs/stormlib/build/
+libs/stormlib/lib/
+libs/stormlib/build.configure.log
+libs/stormlib/build.build.log
