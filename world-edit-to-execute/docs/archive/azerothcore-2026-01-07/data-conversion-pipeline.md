@@ -27,6 +27,14 @@
 
 ### Module 1: Terrain Conversion (w3e → .map/.adt)
 
+> **Correction (2026-09-23):** The layout below puts `.wdt`/`.adt` files in the
+> server's `maps/` folder. That is wrong. The *client* reads WDT/ADT terrain from
+> its MPQ archives; the *server* reads `.map`, vmap and mmap files that
+> AzerothCore's extractor tools make from those archives. So terrain is written
+> into a client patch archive first, and the extractors run afterwards. Also, one
+> WC3 tile per 33-yard chunk (as below) makes maps 8× too large; the current plan
+> maps one tile to one 4.17-yard cell. See `docs/datapath-wc3-map-into-wow-client.md`.
+
 **Input:** Parsed terrain data (from Phase 1, issue 105)
 
 **WC3 Terrain Structure:**

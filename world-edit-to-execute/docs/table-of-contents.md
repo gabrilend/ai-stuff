@@ -1,316 +1,129 @@
 # World Edit to Execute - Documentation
 
-## Table of Contents
+## Phases
+
+Phases group related functionality; they are not a timeline.
+
+| Phase | Name | Holds |
+|-------|------|-------|
+| 0 | Tooling/Infrastructure | Issue splitter, TUI library, attribute and currency systems |
+| 1 | Foundation - File Format Parsing | MPQ archives, map info, strings, terrain, object data |
+| 2 | Data Model - Game Objects | Doodads, units, regions, cameras, sounds, object registry |
+| 3 | Logic Layer - Triggers and JASS | Trigger files, JASS lexer/parser, JASS → Lua, events |
+| 4 | Runtime - Basic Engine Loop | Game loop, ECS, pathfinding, movement, collision, players |
+| 5 | Rendering - Visual Abstraction | Raylib renderer, threading, terrain, UI, minimap |
+| 6 | Asset System - Community Content | Asset packs, fallback visuals, storage, hot reload |
+| 7 | Gameplay - Core Mechanics | (archived to `issues/archive/wow-mode-2026-01-08/`) |
+| 8 | Multiplayer & Networking | Matchmaking, NAT traversal, lobby |
+| 9 | World Editor | Terrain, objects, triggers, export |
+| 10 | Polish - Tools and UX | Console, launcher, settings |
+| A | Infrastructure tools | Tracked in the delta-version project |
+| B, Q | Bug hunts, quest log | Gamified tracking documents |
+| W | WoW Client Bridge | WoW 3.3.5a client as map host, model source, test reference; model replacement |
+| X | Experimental | Design research |
+
+Issue status: `issues/progress.md`, `issues/phase-W-progress.md`, or live counts with
+`lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
+
+## Tree
 
 ```
 ./
-├── CLAUDE.md                   Project instructions for Claude Code
-│
-docs/
-├── table-of-contents.md       (this file)
-├── roadmap.md                  Project phases and milestones
-├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
-├── wc3-engine-architecture.md  Pure WC3 engine architecture (active design)
-├── postmortem-azerothcore-integration.md  AC integration pivot analysis
-├── render-architecture.md      Threading model, component slots, numeric encoding
-├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
-├── binary-vector-frames.md     Quadrant voting, curve approximation, 3D rotations
-├── archive/                    Archived design documents
-│   └── azerothcore-2026-01-07/ AzerothCore integration (archived)
-│       ├── azerothcore-integration-architecture.md
-│       ├── client-architecture.md
-│       ├── data-conversion-pipeline.md
-│       ├── custom-ability-bridge.md
-│       └── phase-reorganization.md
-├── formats/                    File format specifications
-│   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
-│   ├── w3i-map-info.md         Map info file format
-│   ├── wts-trigger-strings.md  Trigger string table format
-│   ├── w3e-terrain.md          Terrain/tileset data format
-│   ├── pkware-dcl-compression.md  PKWARE DCL compression
-│   └── unitsdoo.md               Unit/building placement format
-│
-src/
-├── cli/
-│   ├── issue-splitter.sh → /home/ritz/programming/ai-stuff/scripts/issue-splitter.sh
-│   ├── quest-generator.lua    Quest/bounty documentation generator
-│   └── guild-cli.lua          Hero & shop management CLI
-├── mpq/                        MPQ archive parsing
-│   ├── init.lua                Unified API (mpq.open, archive:extract)
-│   ├── header.lua              Header parsing (incl. HM3W wrapper)
-│   ├── hash.lua                Hash function and crypto table
-│   ├── hashtable.lua           Hash table parsing and lookup
-│   ├── blocktable.lua          Block table parsing
-│   ├── extract.lua             File extraction with decompression
-│   └── pkware.lua              PKWARE DCL decompressor
-├── parsers/                    File format parsers
-│   ├── w3i.lua                 Map info (name, players, forces)
-│   ├── wts.lua                 Trigger strings (TRIGSTR resolution)
-│   ├── w3e.lua                 Terrain (heights, textures, water)
-│   ├── doo.lua                 Doodads/trees
-│   ├── unitsdoo.lua            Units/buildings/heroes/items
-│   ├── w3r.lua                 Regions
-│   ├── w3c.lua                 Cameras
-│   └── w3s.lua                 Sounds
-├── gameobjects/                Game object type system (Issue 206)
-│   ├── init.lua                Module exports
-│   ├── doodad.lua              Doodad class
-│   ├── unit.lua                Unit class (with hero/building detection)
-│   ├── region.lua              Region class (with containment checks)
-│   ├── camera.lua              Camera class (with eye position calc)
-│   └── sound.lua               Sound class (with flag accessors)
-├── registry/                   Object registry system (Issue 207)
-│   ├── init.lua                ObjectRegistry class
-│   └── spatial.lua             SpatialIndex for spatial queries
-├── validation/                 Cross-reference validation (Issue 111)
-│   └── init.lua                Validates references between map files
-├── data/                       Unified Map class
-│   └── init.lua                Map.load() integrates all parsers
-├── guild/                      Hero & Shop System (Issue 014)
-│   ├── init.lua                Module exports, persistence, JSON utils
-│   ├── hero.lua                Hero class (stats, inventory, equipment)
-│   ├── items.lua               Item system (types, rarity, effects)
-│   └── shop.lua                Shop system (stock, transactions)
-├── render/                     Rendering system (Phase 5)
-│   ├── main.c                  Raylib demo - threaded cube renderer
-│   └── run                     Build and run script
-├── libs/attributes/            Attribute System (Issue 016)
-│   ├── init.lua                Module exports (016a complete)
-│   ├── schema.lua              Attribute types, flags, validation (016a complete)
-│   ├── registry.lua            Schema storage, dependency graph (016a complete)
-│   ├── getters.lua             Dispatch table getters [pending 016b]
-│   ├── setters.lua             Dispatch table setters [pending 016c]
-│   ├── modifiers.lua           Modifier stack system [pending 016d]
-│   ├── derived.lua             Derived attribute engine [pending 016e]
-│   ├── events.lua              Change event system [pending]
-│   ├── mapping.lua             Cross-system attribute mapping [pending 016h]
-│   └── configs/
-│       ├── wc3.lua             WC3 attribute definitions [pending 016f]
-│       └── wow.lua             WoW attribute definitions [pending 016g]
-│
-docs/templates/                 Quest & Bounty Templates
-├── README.md                   Template system documentation
-├── bounty-template.md          Boss monster bounty board template
-├── quest-template.md           Individual quest entry template
-├── quest-log-template.md       Full quest log template
-├── guild-roster-template.md    Progress tracking roster template
-└── example-spec.lua            Example specification for generator
+├── CLAUDE.md                        Project instructions for Claude Code
+├── run-demo.sh                      Phase demo picker
 │
 notes/
-├── vision                      Core project vision and philosophy
+├── vision                           Core project vision, legal philosophy
+├── vision-2                         One line: interface with wow-chat
+├── consideration-matching.md        Mapping design considerations to decisions
+├── mpq-debug-notes.md               The debug scripts used for the MPQ extraction bug (102d)
+├── thank-you.md                     A thank-you note (2025-12-16)
+└── conversations/
+    └── 2025-12-30-frame-encoding-dna.md   Frame encoding, DNA analogy
 │
-issues/
-├── progress.md                 Overall phase progress tracking
-├── CRITICAL-PATH.md            Decision points, open questions, tech debt
-├── 001-fix-issue-splitter-output-handling.md
-├── 002-add-streaming-queue-to-issue-splitter.md
-├── 003-execute-analysis-recommendations.md
-├── 004-redesign-interactive-mode-interface.md
-├── 010-debug-tui-integration-analysis.md
-├── 011-tui-history-insert-on-run.md
-├── 012-interactive-verdict-review-mode.md
-├── 101-research-wc3-file-formats.md
-├── 102-implement-mpq-archive-parser.md
-├── 102a-parse-mpq-header.md
-├── 102b-parse-mpq-hash-table.md
-├── 102c-parse-mpq-block-table.md
-├── 102d-implement-file-extraction.md
-├── 103-parse-war3map-w3i.md
-├── 104-parse-war3map-wts.md
-├── 105-parse-war3map-w3e.md
-├── 106-design-internal-data-structures.md
-├── 107-build-cli-metadata-dump-tool.md
-├── 108-phase-1-integration-test.md
-├── 201-parse-war3map-doo.md
-├── 202-parse-war3map-units-doo.md
-├── 203-parse-war3map-w3r.md
-├── 204-parse-war3map-w3c.md
-├── 205-parse-war3map-w3s.md
-├── 206-design-game-object-types.md
-├── 207-build-object-registry-system.md
-├── 208-phase-2-integration-test.md
-│   (Phase 8 issues maintained at /home/ritz/programming/ai-stuff/my-libs/issues/)
-├── completed/                  Completed issue archive
-│   └── demos/                  Phase completion demonstrations
+docs/
+├── table-of-contents.md             (this file)
+├── roadmap.md                       Phases, current focus, milestones
+├── critical-path.md → ../issues/CRITICAL-PATH.md   Decision points, open questions
+├── wc3-engine-architecture.md       Pure WC3 engine design (active)
+├── postmortem-azerothcore-integration.md   Why the January AC design was archived (+ Phase W addendum)
+├── wow-client-bridge.md             Phase W design: roles of the WoW client, scale, open questions
+├── datapath-wc3-map-into-wow-client.md      W02: .w3x → ADT/MPQ/SQL/scripts → WoW client
+├── datapath-wow-models-in-engine.md         W01/W03: WoW archives → model → WC3 behavior → frame
+├── datapath-client-comparison-testing.md    W04: scenario → two clients → recordings → report
+├── datapath-asset-forge.md                  W05/W06: select → search/generate → fit → keep → install
+├── render-architecture.md           Threading model, component slots, numeric encoding
+├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
+├── render-threading-v2.md           Target threading model (v2)
+├── binary-vector-frames.md          Quadrant voting, curve approximation, 3D rotations
+├── delta-guide.md                   Delta-version maintainer guide
+├── formats/                         File format specifications
+│   ├── mpq-archive.md               MPQ archive format (with HM3W wrapper)
+│   ├── pkware-dcl-compression.md    PKWARE DCL compression
+│   ├── w3i-map-info.md              Map info
+│   ├── wts-trigger-strings.md       Trigger string table, TRIGSTR resolution
+│   ├── w3e-terrain.md               Terrain: tilepoints, heights, textures, cliffs
+│   ├── unitsdoo.md                  Unit/building placement
+│   └── object-data.md               Object data files (w3u/w3a/w3t/…)
+├── templates/                       Quest & bounty templates
+│   ├── README.md, quest-template.md, quest-log-template.md,
+│   ├── bounty-template.md, guild-roster-template.md, example-spec.lua
+└── archive/
+    └── azerothcore-2026-01-07/      Archived AC integration research (reference only)
+        ├── README.md
+        ├── azerothcore-integration-architecture.md
+        ├── client-architecture.md
+        ├── data-conversion-pipeline.md   (has a 2026-09-23 correction note)
+        ├── custom-ability-bridge.md
+        └── phase-reorganization.md
+│
+flopsopolies/                        Short reflective essays on the project (001-008)
+│
+archives/
+└── 2026-01-07-wow-professions/      Archived WoW profession code and issues
+│
+src/
+├── compat.lua                       Lua 5.1/LuaJIT ↔ 5.3+ compatibility
+├── cli/                             mapdump, issue-splitter (symlink), quest-generator,
+│                                    guild-cli, run-tests, save-conversation, private-sync
+├── mpq/                             MPQ archive reading (header, hash, tables, extract, pkware)
+├── parsers/                         w3i, wts, w3e, doo, unitsdoo, w3r, w3c, w3s, wtg, wct, j, object data
+├── data/                            Map class integrating all parsers
+├── gameobjects/                     Doodad, Unit, Region, Camera, Sound classes
+├── registry/                        Object registry + spatial index
+├── validation/                      Cross-reference validation between map files
+├── jass/                            JASS lexer, parser, JASS → Lua transpiler
+├── runtime/                         Game loop, ECS, pathfinding, collision, orders, players,
+│                                    resources, triggers, events, timers, currency
+├── libs/attributes/                 Attribute system (schema, getters, setters, modifiers,
+│                                    derived, mapping, WC3/WoW configs)
+├── guild/                           Hero & shop system
+├── render/                          C + raylib renderer (threading, slots, terrain, input, UI, profiler)
+├── render.lua                       Lua side of the renderer bridge
+├── demo/                            Map renderer and testing-room demos
+└── tests/                           Test suite (run with src/cli/run-tests.sh)
+│
+issues/                              Issue files (not listed here; see progress files)
+├── progress.md                      Overall phase status
+├── phase-W-progress.md              Phase W status
+├── CRITICAL-PATH.md                 Decision points and tech debt
+├── completed/demos/                 Phase demos (run through run-demo.sh)
+├── analysis/                        Issue-splitter analysis archive
+└── archive/wow-mode-2026-01-08/     Archived Warlord Mode / WoW-mechanics issues
 ```
 
----
-
-## Document Index
-
-### Core Documents
-
-| Document | Location | Description |
-|----------|----------|-------------|
-| CLAUDE.md | ./CLAUDE.md | Project instructions for Claude Code |
-| Vision | notes/vision | Project philosophy, legal basis, and goals |
-| **WC3 Engine Architecture** | **docs/wc3-engine-architecture.md** | **Pure WC3 engine design (active)** |
-| Roadmap | docs/roadmap.md | Phased development plan |
-| Progress | issues/progress.md | Current phase status |
-| Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
-| Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
-| Binary Vector Frames | docs/binary-vector-frames.md | Quadrant voting, curve approximation, 3D rotations |
-
-### Historical Documents
-
-**Post-Mortem:** 2026-01-07/08 - AzerothCore integration pivot and WoW-mode archive
-
-| Document | Location | Description |
-|----------|----------|-------------|
-| **AC Integration Post-Mortem** | **docs/postmortem-azerothcore-integration.md** | **Why we pivoted to pure WC3 engine** |
-| Archived AC Designs | docs/archive/azerothcore-2026-01-07/ | AzerothCore integration documents (reference only) |
-| **Archived WoW Mode Issues** | **issues/archive/wow-mode-2026-01-08/** | **Warlord Mode, professions, dual-interface (19 issues)** |
-
-### Tools
+## Tools
 
 | Tool | Location | Description |
 |------|----------|-------------|
-| issue-splitter.sh | src/cli/issue-splitter.sh (symlink) | Issue analysis, sub-issue creation, auto-implementation |
-| quest-generator.lua | src/cli/quest-generator.lua | Gamified task documentation generator |
-| TUI library | /home/ritz/.../scripts/libs/ | Shared terminal UI (checkbox, menu, input) |
+| issue-splitter.sh | `src/cli/issue-splitter.sh` (symlink) | Issue analysis, sub-issue creation, auto-implementation |
+| validate-issues | `/home/ritz/programming/ai-stuff/scripts/validate-issues` | Issue tree consistency, next free issue number |
+| progress-dashboard.lua | `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua` | Done/open counts per phase |
+| mapdump.lua | `src/cli/mapdump.lua` | Dump a map's metadata |
+| quest-generator.lua | `src/cli/quest-generator.lua` | Gamified task documentation generator |
+| TUI library | `/home/ritz/programming/ai-stuff/scripts/libs/` | Shared terminal UI |
 
-### Phase 0 Issues (Tooling)
+## Guides
 
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 001 | Fix issue-splitter output handling | **Completed** |
-| 002 | Add streaming queue to issue-splitter | **Completed** |
-| 002a | Add queue infrastructure | **Completed** |
-| 002b | Add producer function | **Completed** |
-| 002c | Add streamer process | **Completed** |
-| 002d | Add parallel processing loop | **Completed** |
-| 002e | Add streaming config flags | **Completed** |
-| 003 | Execute analysis recommendations | **Completed** |
-| 004 | Redesign interactive mode interface | **Completed** |
-| 004a | Create TUI core library | **Completed** |
-| 004b | Implement checkbox component | **Completed** |
-| 004c | Implement multistate toggle | **Completed** |
-| 004d | Implement input components | **Completed** |
-| 004e | Build menu navigation system | **Completed** |
-| 004f | Integrate TUI into issue-splitter | **Completed** |
-| 005 | Migrate TUI library to shared libs | **Completed** |
-| 006 | Rename analysis sections for promoted roots | **Completed** |
-| 007 | Add auto-implement via Claude CLI | **Completed** |
-| 010 | Debug TUI integration analysis | Pending |
-| 011 | TUI history insert on run | Pending |
-| 012 | Interactive verdict review mode | Pending |
-| 013 | Quest & bounty template system | **Completed** |
-| 014 | Guild hero & shop system | **Completed** |
-
-**Note:** Issues 000-005 (Warlord Mode), 015-016 (WoW features), 500/510 series (dual-interface), and 701-702 series (WoW mechanics) have been archived to `issues/archive/wow-mode-2026-01-08/` following the pure WC3 engine pivot. See archive README for details.
-
-### Phase 8 Issues (Infrastructure Libraries)
-
-> Issues maintained externally at: `/home/ritz/programming/ai-stuff/my-libs/issues/`
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 800 | Threadpool library extraction | In Progress |
-| 800a | Core threadpool module | **Completed** |
-| 800b | Sync module (watch list) | Pending |
-| 800c | Updater module (self-evaluating) | Pending |
-| 800d | Threadpool test suite | Pending |
-| 800e | Render system migration | Pending |
-| 800f | Windows support planning | Pending |
-
-### Phase 1 Issues (File Format Parsing) - **COMPLETED**
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 101 | Research WC3 file formats | **Completed** |
-| 102 | Implement MPQ archive parser | **Completed** |
-| 102a | Parse MPQ header structure | **Completed** |
-| 102b | Parse MPQ hash table | **Completed** |
-| 102c | Parse MPQ block table | **Completed** |
-| 102d | Implement file extraction | **Completed** |
-| 103 | Parse war3map.w3i (map info) | **Completed** |
-| 104 | Parse war3map.wts (trigger strings) | **Completed** |
-| 105 | Parse war3map.w3e (terrain) | **Completed** |
-| 106 | Design internal data structures | **Completed** |
-| 107 | Build CLI metadata dump tool | **Completed** |
-| 108 | Phase 1 integration test | **Completed** |
-| 110 | Object data parsers (w3u/w3a/w3t/etc.) | **Completed** |
-| 111 | Cross-reference validation | **Completed** |
-
-### Phase 2 Issues (Data Model - Game Objects)
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 201 | Parse war3map.doo (doodads/trees) | **Completed** |
-| 202 | Parse war3mapUnits.doo (units/buildings) | **Completed** |
-| 202a | Parse unitsdoo header and basic fields | **Completed** |
-| 202b | Parse unitsdoo item drops | **Completed** |
-| 202c | Parse unitsdoo abilities | **Completed** |
-| 202d | Parse unitsdoo hero data | **Completed** |
-| 202e | Parse unitsdoo random/waygate | **Completed** |
-| 203 | Parse war3map.w3r (regions) | **Completed** |
-| 204 | Parse war3map.w3c (cameras) | **Completed** |
-| 205 | Parse war3map.w3s (sounds) | **Completed** |
-| 206 | Design game object types | **Completed** |
-| 206a | Create gameobjects module structure | **Completed** |
-| 206b | Implement Doodad class | **Completed** |
-| 206c | Implement Unit class | **Completed** |
-| 206d | Implement Region class | **Completed** |
-| 206e | Implement Camera class | **Completed** |
-| 206f | Implement Sound class | **Completed** |
-| 206g | Finalize module and documentation | **Completed** |
-| 207 | Build object registry system | In Progress |
-| 207a | Core registry class | **Completed** |
-| 207b | Filtering and iteration | **Completed** |
-| 207c | Spatial index | **Completed** |
-| 207d | Spatial integration | **Completed** |
-| 207e | Map integration | **Completed** |
-| 207f | Registry tests | Pending |
-| 208 | Phase 2 integration test | Pending |
-
-### Phase 6 Issues (Asset System)
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 601 | Asset loader and resolution | Pending |
-| 603 | LAN asset download protocol | Pending |
-| 604 | Asset deduplication system | Pending |
-| 605 | Local storage manager | Pending |
-| 606 | Hot reload system | Pending |
-| 607 | File server application | Pending |
-| 608 | Phase 6 integration test | Pending |
-
-### Phase 8 Issues (Multiplayer & Networking)
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| 801 | Matchmaking server (root) | Pending |
-| 801a | Protocol specification | Pending |
-| 801b | Server core | Pending |
-| 801c | Client library | Pending |
-| 801d | NAT traversal | Pending |
-| 801e | Lobby UI | Pending |
-| 801f | Asset mirror integration | Pending |
-| 801g | CLI server application | Pending |
-| 801h | Integration tests | Pending |
-
-### Technical Documentation
-
-| Document | Description | Status |
-|----------|-------------|--------|
-| mpq-archive.md | MPQ archive format with HM3W wrapper, encryption, compression | Created |
-| w3i-map-info.md | Map info: metadata, players, forces, fog settings | Created |
-| wts-trigger-strings.md | Trigger string table format and TRIGSTR resolution | Created |
-| w3e-terrain.md | Terrain: tilepoints, height maps, textures, cliffs | Created |
-| pkware-dcl-compression.md | PKWARE DCL compression algorithm | Created |
-| unitsdoo.md | Unit/building placement format | Created |
-
-### Experimental Issues (X-Series)
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| X01 | HotS Behavior Analysis to WC3 Mod Generator | Design Research |
-
-### Guides
-
-(To be added as development progresses)
-
-- Getting Started
-- Creating Asset Packs
-- Writing Lua Scripts
-- Contributing
+(To be written as development proceeds: getting started, creating asset
+packs, writing Lua scripts, contributing.)

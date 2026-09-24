@@ -1,4 +1,4 @@
-# Issue 501a: Raylib Rotating Cube Demo
+# Issue 501f: Raylib Rotating Cube Demo
 
 ## Current Behavior
 

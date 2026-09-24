@@ -1,4 +1,4 @@
-# Issue 512: 3D Rotation Frames
+# Issue 514: 3D Rotation Frames
 
 **Phase:** 5/6 - Rendering / Advanced Features
 **Type:** Implementation

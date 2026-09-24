@@ -339,3 +339,24 @@ docs/archive/azerothcore-2026-01-07/
 ---
 
 *This document serves as both memorial and lesson. We do not forget what we attempted - we learn from it, honor it, and move forward with clearer purpose.*
+
+---
+
+## Addendum (2026-09-23): Partial return as Phase W
+
+The owner chose to bring part of this research back as a lettered side phase,
+**Phase W — WoW Client Bridge** (`docs/wow-client-bridge.md`). None of the four
+resurrection conditions above is met; the choice was made knowingly and is
+recorded here so it does not look like the conditions were forgotten.
+
+What is different this time:
+
+- The pure WC3 engine stays the platform. Phases 1-10 are not reorganised.
+- The WoW client is used as a tool in three roles (alternate host, local model
+  source, reference to test against), not as the home of the project.
+- Nothing proprietary enters the repository. Conversion runs on the owner's own
+  client files on the owner's machine, and issues W05/W06 exist to replace the
+  borrowed models one at a time.
+
+The archived `data-conversion-pipeline.md` has one factual error, corrected in
+place with a note: the server does not read `.adt` files.
