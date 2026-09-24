@@ -15,7 +15,7 @@
       [2 terrain]       [3 placements]     [4 registration]   [5 scripts]
       WDT + ADT files   M2/WMO placements   Map.dbc row,       transpiled Lua
                         (in the ADT) and    AreaTable row,      + native shim
-                        SQL spawn rows      LoadingScreen row   for Eluna
+                        SQL spawn rows      LoadingScreen row   for ALE
             │                 │                  │                  │
             └────────┬────────┘                  │                  │
                      ▼                           ▼                  ▼
@@ -44,7 +44,7 @@
 | 2 | Terrain | terrain grid: tilepoints (W+1)×(H+1), each with height (float, WC3 units), ground texture index (uint 0-15), cliff level (uint), water flag + level (float) | one WDT (which ADT tiles exist, 64×64 flag grid) + up to 16 ADTs, each 256 chunks of 145 height floats, ≤4 texture layers with 64×64 alpha maps (uint8), liquid blocks | W02a |
 | 3 | Placements | doodad table (type id 4-char string, x/y/z float, facing radians, scale xyz); unit table (type id, owner player uint, position, facing) | doodads: M2/WMO placement records inside the ADT (`MDDF`/`MODF` blocks: file index, unique id uint32, position 3×float, rotation 3×float degrees, scale uint16 where 1024 = 1.0). Units: SQL rows for creature templates and spawns | W02b |
 | 4 | Registration | map name, size, WC3 tileset | a new row in `Map.dbc` (map id uint32, directory string = folder under `World\Maps\`), rows for `AreaTable.dbc` and `LoadingScreens.dbc` | W02c |
-| 5 | Scripts | JASS AST → Lua (phase 3 transpiler) | a Lua file per map for the server's Eluna engine plus a shim that implements JASS natives (`CreateUnit`, `TriggerRegisterTimerEvent`, …) with Eluna calls | W02e |
+| 5 | Scripts | JASS AST → Lua (phase 3 transpiler) | a Lua file per map for the server's ALE engine plus a shim that implements JASS natives (`CreateUnit`, `TriggerRegisterTimerEvent`, …) with ALE calls | W02e |
 | 6 | Pack | files from 2-4 | `patch-W.MPQ` (an MPQ archive the client loads after its own patches, so its files win) | W02c |
 | 7 | Server data | client `Data/` + the patch | `maps/*.map` (height + liquid grid the server uses for ground height), `vmaps/` (collision for line of sight), `mmaps/` (navigation mesh for creature pathing), `dbc/` | W02d |
 | 8 | Launch/load | a chosen `.w3x`, launcher config (paths) | running server + client, character on the new map | W02f |
@@ -59,7 +59,7 @@
 | Cliffs are separate cliff meshes chosen by cliff level | Terrain is one height field | Raise the height field; optionally place a cliff M2 along the edge |
 | Pathing from terrain + doodad pathing textures (`war3map.wpm`) | Server pathing from a navigation mesh built from geometry | Regenerate the mesh (stage 7); check a sample of WC3 pathable/unpathable cells against it |
 | Units belong to players 0-23 and obey orders | Creatures belong to factions and follow AI scripts | Units become creatures with a faction per WC3 force; orders come from the control addon through the server |
-| Triggers run in the game client | Only the server runs logic | Transpiled triggers run in the server's Eluna engine |
+| Triggers run in the game client | Only the server runs logic | Transpiled triggers run in the server's ALE engine |
 
 ## Correction to earlier research
 

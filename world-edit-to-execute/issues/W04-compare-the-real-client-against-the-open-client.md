@@ -75,3 +75,4 @@ Numbers decide pass or fail; the LLM explains. The reasoning is in
 
 - `docs/datapath-client-comparison-testing.md`, `docs/wow-client-bridge.md`
 - `/mnt/mtwo/games/azeroth-core/custom-client/` (the other open client)
+- `/mnt/mtwo/games/azeroth-core/wow-chat-2026/issues/159-equipment-portrait-grid.md` — wants the same rig for a different job: photographing characters in candidate starting kits for a picture grid (its route 1). Linked both ways, 2026-09-23.

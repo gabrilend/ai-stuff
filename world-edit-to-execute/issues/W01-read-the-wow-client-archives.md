@@ -75,3 +75,4 @@ FFI, and never keeps a second implementation:
 - `docs/wow-client-bridge.md` (Decisions made: the W client)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105-mpq-reader.md`, `106-dbc-parser.md`, `107-blp-parser.md`
 - `/mnt/mtwo/games/azeroth-core/custom-client/docs/003-asset-formats.md`
+- `/mnt/mtwo/games/azeroth-core/wow-chat-2026/issues/159-equipment-portrait-grid.md` — its route 3 (render characters in candidate kits) would read the client's archives, tables and models through this issue's readers. Linked both ways, 2026-09-23.

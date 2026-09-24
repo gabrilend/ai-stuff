@@ -79,3 +79,4 @@ Order: `W03a → W03b → W03c`, `W03d` after `W03b`.
 - `docs/datapath-wow-models-in-engine.md`, `docs/wow-client-bridge.md`
 - `docs/render-architecture.md` (threading, component slots)
 - `issues/601-asset-loader-resolution.md`, `issues/602-wireframe-fallback-renderer.md`
+- `/mnt/mtwo/games/azeroth-core/wow-chat-2026/issues/159-equipment-portrait-grid.md` — needs a dressed WoW character rendered headless to a picture (its route 3: M2 character, geosets, item textures composited). Whatever this issue builds for models is that route's starting point. Linked both ways, 2026-09-23.

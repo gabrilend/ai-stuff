@@ -734,7 +734,7 @@ Developer and player experience improvements.
 - In-game console for Lua commands
 - Debug visualization modes
 - Performance profiling tools
-- Map browser/launcher UI
+- Map browser/launcher UI (issue 1001: a map finder that lists freely posted maps instead of bundling any)
 - Settings and configuration UI
 - Documentation and tutorials
 - Asset pack browser
