@@ -363,17 +363,22 @@ tui_cleanup
 
 ## Phase 1: File Format Parsing (Completed)
 
-### MPQ Archive System (Complete)
+### MPQ Archive System (Complete; reads through StormLib since issue 114)
 
 ```
 src/mpq/
-├── init.lua        # Unified API: mpq.open(), archive:extract(), etc.
-├── header.lua      # MPQ header parsing (HM3W wrapper support)
-├── hash.lua        # Hash algorithm and crypto table
-├── hashtable.lua   # Hash table parsing and file lookup
-├── blocktable.lua  # Block table parsing
-└── extract.lua     # File extraction (zlib decompression)
+├── init.lua            # Unified API: mpq.open(), archive:extract(), etc.
+├── stormlib.lua        # LuaJIT binding to StormLib (built by scripts/build-dependencies.sh)
+├── map_wrapper.lua     # the 512-byte HM3W header in front of a map (name, players)
+└── standard_names.lua  # names a map normally holds, for maps with no listfile
 ```
+
+The project's own Lua reader (header, hash and block tables, sector
+extraction, PKWARE, Huffman, ADPCM) was retired in issue 114: StormLib reads
+every stored file of every test map, including those with no known name,
+which the own reader couldn't. The format itself is described in
+`docs/formats/mpq-archive.md`. MPQ reading needs LuaJIT (the binding uses
+its FFI).
 
 **API Example:**
 ```lua
@@ -405,13 +410,13 @@ triggers and JASS; see `docs/roadmap.md` for the module map.
 Run all Phase 1 tests:
 ```bash
 # MPQ API test
-lua src/tests/test_mpq.lua
+luajit src/tests/test_mpq.lua
 
 # W3I parser test
-lua src/tests/test_w3i.lua
+luajit src/tests/test_w3i.lua
 
 # WTS parser test
-lua src/tests/test_wts.lua
+luajit src/tests/test_wts.lua
 
 # Or run all tests
 ./issues/completed/demos/run_phase1.sh

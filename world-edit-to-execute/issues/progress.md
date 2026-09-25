@@ -137,6 +137,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 112b | Game-version layers, chosen per map | In progress | 112a |
 | 112c | Route A: stock rows merged with each map's objects, every field labelled | **Completed** 2026-09-24 | 112b |
 | 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
+| 114 | Read maps through StormLib; the own MPQ reader retired | In progress | 112a, 113 |
 
 Phase 1 was reopened on 2026-09-24 for the stock-table work that converting
 custom maps needs (112) and the reader work it uncovered (113). Comparing the

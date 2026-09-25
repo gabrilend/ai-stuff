@@ -46,14 +46,10 @@ run_test() {
     print_section "$name"
 
     if [[ -f "$script" ]]; then
-        # Try lua (prefer lua5.4 or lua5.3 for string.unpack)
-        local lua_cmd=""
-        if command -v lua5.4 &>/dev/null; then
-            lua_cmd="lua5.4"
-        elif command -v lua &>/dev/null; then
-            lua_cmd="lua"
-        else
-            echo -e "${RED}ERROR: No lua interpreter found${NC}"
+        # LuaJIT only: Maps are read through StormLib (issue 114), whose binding needs LuaJIT's FFI; no other interpreter can run this.
+        local lua_cmd="luajit"
+        if ! command -v luajit &>/dev/null; then
+            echo -e "${RED}ERROR: luajit not found (maps are read through StormLib, which needs LuaJIT)${NC}"
             return 1
         fi
 
