@@ -29,11 +29,15 @@
   labels included (its name "Raise Dead" is the map's; its tooltip and icon
   path are borrowed); all maps in `assets/` merge with only two kinds of
   problem, both understood (run the test for current counts):
-  - **369 orphan change sets**: changes filed in the "stock objects changed in
-    place" table under ids (`A008`, `A00Z`, …) that are neither stock objects
-    nor any of the map's own objects, touching only levels 4–6. Leftovers from
-    edits the maps no longer use; the game has nothing to apply them to. None
-    of them is also a custom object in its map.
+  - **Objects defined only in a map's own tables.** DAoW-5.2 and 5.3 ship
+    their own `Units\AbilityData.slk` and item, buff and upgrade tables (a
+    map optimizer's work), and define custom abilities only there. The chain
+    reads the map's archive first (112b), so the map's changes to those
+    abilities apply, and each object only the map's table defines gets a row
+    of its own (`defined_in = "map table"`). These first showed up as 369
+    "orphan" change sets, until the owner asked whether the triggers used
+    those ids: the maps' units named 275 of them and their scripts 45.
+    `test_stock_rows` checks DAoW-5.2's `A008` and that no orphans remain.
   - **31 changes with the field code `Crs\0`** (bytes `43 72 73 00`) on
     abilities copied from Carrion Swarm (`ACcs`). The 1.21b metadata has no
     such code.
@@ -111,7 +115,7 @@ copied. That's what W02h writes into the converted map's tables.
 
 1. ~~Review the dropped types~~ Answered 2026-09-24: nothing is dropped; everything is copied and labelled (see Intended Behavior).
 2. **`Crs\0`**: a field code the 1.21b metadata doesn't know, on Carrion Swarm copies. Likely a field added by a later editor version (the maps were saved by editors 6052 to 6060). Find which patch's metadata defines it once more layers exist (112b open question 1).
-3. **Orphan change sets**: report them (current) and ignore them in the converted map, since the game can't apply them. Agreed?
+3. ~~Orphan change sets~~ Answered 2026-09-24: they weren't orphans. The owner asked "Do the triggers create new abilities that use those IDs maybe?"; the ids were in the maps' units and scripts, defined in the maps' own tables. The chain now reads the map first; orphans are still reported if any ever appear.
 
 ## Related Documents
 

@@ -28,7 +28,12 @@ Usage:
   result.rows["A003"]      -- { id, parent, fields = { AbilityData = {...}, Profile = {...} },
                            --   origin = { AbilityData = { Cool1 = "fact", ... }, Profile = { Art = "borrowed", ... } } }
   result.problems          -- list of { kind ("orphan", "unknown_parent", "unknown_code"), object, code, problem }
-  result.counts            -- objects, changes, applied, borrowed (columns still Blizzard's), and one count per problem kind
+  result.counts            -- objects, changes, applied, borrowed (columns still Blizzard's),
+                           --   map_table_only (objects only the map's own tables define), and one count per problem kind
+
+Open the chain with the map (chain.open{..., map = path}): some maps ship
+their own object tables, and objects defined only there get rows too
+(defined_in = "map table").
 
 Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
 ]]
@@ -50,10 +55,22 @@ function M.load(chain, kind_name)
     if not kind then
         error("unknown object kind " .. tostring(kind_name))
     end
-    local stock = { kind = kind_name, rules = kind, tables = {}, profile = {}, missing = {} }
+    local stock = { kind = kind_name, rules = kind, tables = {}, profile = {}, missing = {}, map_defined = {} }
     stock.metadata = slk.parse((chain:read(kind.metadata)))
     for table_name, path in pairs(kind.tables) do
-        stock.tables[table_name] = slk.parse((chain:read(path)))
+        local bytes, source = chain:read(path)
+        stock.tables[table_name] = slk.parse(bytes)
+        -- A map that ships its own copy of a table (map optimizers do this)
+        -- can define objects there and nowhere else. Those ids are the ones
+        -- the stock copy beneath lacks; merge gives each one a row.
+        if source:match("^map: ") then
+            local beneath = slk.parse((chain:read(path, { below_map = true })))
+            for _, id in ipairs(stock.tables[table_name].order) do
+                if not beneath.rows[id] then
+                    stock.map_defined[id] = true
+                end
+            end
+        end
     end
     for _, path in ipairs(kind.profiles) do
         if chain:find(path) then
@@ -199,10 +216,12 @@ function M.merge(stock, parsed)
         result.counts[kind] = (result.counts[kind] or 0) + 1
     end
 
+    local emitted = {}
     for _, object in ipairs(objects_in(parsed)) do
         result.counts.objects = result.counts.objects + 1
         local id, parent = object.id, object.parent
         local fields, origin = copy_stock(stock, parent)
+        emitted[id] = true
         if not fields and object.source == "original" then
             -- Seen in the DAoW maps: changes filed under an id that is neither
             -- stock nor one of the map's custom objects (leftovers from edits
@@ -236,6 +255,34 @@ function M.merge(stock, parsed)
                 end
             end
             result.rows[id] = { id = id, parent = parent, fields = fields, origin = origin }
+        end
+    end
+
+    -- Objects defined only in the map's own copy of a table, which the map's
+    -- change file never mentions: their row is the map's table row as it
+    -- stands. Labels stay by type (an optimizer copies stock text too, so a
+    -- name here may still be Blizzard's). Parent is the base ability code
+    -- where the table has one, else the object itself.
+    local defined = {}
+    for id in pairs(stock.map_defined) do
+        if not emitted[id] then
+            defined[#defined + 1] = id
+        end
+    end
+    table.sort(defined)
+    for _, id in ipairs(defined) do
+        local fields, origin = copy_stock(stock, id)
+        local base = fields.AbilityData and fields.AbilityData.code
+        result.counts.objects = result.counts.objects + 1
+        result.counts.map_table_only = (result.counts.map_table_only or 0) + 1
+        result.rows[id] = { id = id, parent = type(base) == "string" and base or id, fields = fields,
+            origin = origin, defined_in = "map table" }
+        for _, labels in pairs(origin) do
+            for _, label in pairs(labels) do
+                if label == "borrowed" then
+                    result.counts.borrowed = result.counts.borrowed + 1
+                end
+            end
         end
     end
     return result

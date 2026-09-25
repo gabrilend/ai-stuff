@@ -47,7 +47,8 @@ only its notes. Instead:
    CRC32, built in about 2 seconds, 92 MB. The patched `game.dll` reports
    version 1.21.1.6300, exactly the version the patch names (it was 1.07.5535).
 4. **Per-map chains** (`src/gamedata/chain.lua`). A map's stock data is read
-   through: the map's data set copy (`Custom_V1\Units\...` for Frozen Throne
+   through: **the map's own archive first**, for every path (optional: `map`
+   names the map file); then the map's data set copy (`Custom_V1\Units\...` for Frozen Throne
    maps, `Custom_V0\...` for Reign of Chaos maps), then the plain path; each
    in the chosen layer first, then the three archives. The layer is picked by
    the map's editor version through `src/gamedata/editor_versions.lua`;
@@ -61,6 +62,17 @@ only its notes. Instead:
    different values unpatched, the manifest's CRC32; a Reign of Chaos map
    reading `Custom_V0`; a listed editor version picking its layer without a
    warning.
+
+Finding (2026-09-24): some maps carry their own copies of the stock tables.
+DAoW-5.2 and 5.3 ship `Units\AbilityData.slk`, `ItemData.slk`,
+`AbilityBuffData.slk`, `UpgradeData.slk` and three ability profile files (the
+work of a map optimizer that moves object data into tables); Daow6.2 ships
+`UpgradeData.slk`. Their custom abilities are defined only there: the 369
+"orphan" change sets issue 112c reported were changes to these abilities,
+named by the maps' units (275) and scripts (45). The game opens the map's
+archive above all others (the same rule that lets a map import models over
+stock ones), so the map comes before the data-set copy too: `Custom_V1` also
+holds an `ItemData.slk`, and the map's must win.
 
 Finding for issue 112: the stock tables custom maps start from are the
 data-set copies (`Custom_V0`, `Custom_V1`), which differ from the melee tables

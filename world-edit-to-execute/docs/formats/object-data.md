@@ -150,6 +150,18 @@ Note: Types 4+ in older docs (bool, char, unitList, etc.) are stored as strings.
 | uabi | Abilities | string |
 | ucla | Class | string |
 
+## Objects Defined Outside the Object Files
+
+A map archive can also carry its own copies of the stock tables
+(`Units\AbilityData.slk`, `Units\ItemData.slk`, profile `.txt` files).
+Map optimizers do this: they move custom objects out of the object files and
+into these tables, leaving the object files with only changes for levels the
+tables don't hold. The game reads the map's archive before every stock
+source, so its copy replaces the stock table for that map. A custom object
+can therefore appear in the map's units and scripts while no object file
+defines it (DAoW-5.2 and 5.3 do this). Reading a map's objects means reading
+its own tables too (`src/gamedata/chain.lua`, `src/gamedata/stock_rows.lua`).
+
 ## References
 
 - [WC3MapSpecification](https://github.com/ChiefOfGxBxL/WC3MapSpecification)

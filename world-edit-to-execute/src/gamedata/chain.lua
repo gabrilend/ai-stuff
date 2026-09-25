@@ -5,11 +5,19 @@ When the game loads a map it reads its stock data (unit, ability and item
 tables and so on) through a chain of sources, and this module rebuilds that
 chain per map so patches are applied or left off per map, in memory only:
 
+  0. the map's own archive, for either path below (when a map is given)
   1. the data set's own copy:  "Custom_V1\Units\UnitWeapons.slk"
   2. the plain path:           "Units\UnitWeapons.slk"
 each looked up, highest priority first, in
   a. the chosen patch layer's files (none if the map runs unpatched)
   b. War3xlocal.mpq, War3x.mpq, war3.mpq
+
+The map. The game opens a map's archive above every other source, which is
+how maps import models over stock ones, and also how map optimizers ship
+whole object tables: DAoW-5.2 carries its own Units\AbilityData.slk, and its
+custom abilities are defined only there. Custom_V1 holds an ItemData.slk
+too, and a map's own copy must beat it, so the map is tried first for both
+the data-set path and the plain path.
 
 Data sets. The Frozen Throne install keeps separate copies of some tables:
 Custom_V0 (Reign of Chaos custom games), Custom_V1 (Frozen Throne custom
@@ -27,8 +35,9 @@ available is used and the fallback is counted and reported.
 
 Usage:
   local chain = require("gamedata.chain")
-  local c = chain.open({ install = ..., layers = ..., w3i = parsed_w3i })
+  local c = chain.open({ install = ..., layers = ..., w3i = parsed_w3i, map = "path/to/map.w3x" })
   local bytes, source = c:read("Units\\UnitWeapons.slk")
+  local bytes = c:read("Units\\UnitWeapons.slk", { below_map = true })   -- the stock copy the map's hides
   c:report()   -- data set, layer, and why; warnings
   c:close()
 
@@ -134,8 +143,9 @@ Chain.__index = Chain
 
 -- {{{ function M.open
 -- options: install (Frozen Throne folder), layers (folder of layers),
--- w3i (parsed war3map.w3i), and optionally layer (name or false) and
--- editor_versions (a table like editor_versions.lua, for tests).
+-- w3i (parsed war3map.w3i), and optionally map (the map file, searched
+-- first), layer (name or false) and editor_versions (a table like
+-- editor_versions.lua, for tests).
 function M.open(options)
     local self = setmetatable({}, Chain)
     self.data_set = M.data_set_for(options.w3i)
@@ -152,6 +162,9 @@ function M.open(options)
         self.layer_index = {}
     end
     self.archives = {}
+    if options.map then
+        self.map = { name = "map", archive = stormlib.open(options.map) }
+    end
     for _, name in ipairs(BASE_ARCHIVES) do
         self.archives[#self.archives + 1] = { name = name, archive = stormlib.open(options.install .. "/" .. name) }
     end
@@ -160,10 +173,18 @@ end
 -- }}}
 
 -- {{{ function Chain:find
--- Returns where a path would be read from: "layer <name>", an archive name,
--- or nil; plus the exact path that matched (data-set copy or plain).
-function Chain:find(path)
+-- Returns where a path would be read from: "map", "layer <name>", an archive
+-- name, or nil; plus the exact path that matched (data-set copy or plain).
+-- options.below_map skips the map, giving the stock copy it hides.
+function Chain:find(path, options)
     local candidates = { self.data_set .. "\\" .. path, path }
+    if self.map and not (options and options.below_map) then
+        for _, candidate in ipairs(candidates) do
+            if self.map.archive:has(candidate) then
+                return "map", candidate
+            end
+        end
+    end
     for _, candidate in ipairs(candidates) do
         if self.layer_index[candidate:lower()] then
             return "layer " .. self.layer, candidate
@@ -180,11 +201,14 @@ end
 
 -- {{{ function Chain:read
 -- Returns the bytes and a description of where they came from, or raises an
--- error naming the path when nothing in the chain has it.
-function Chain:read(path)
-    local source, matched = self:find(path)
+-- error naming the path when nothing in the chain has it. options as find.
+function Chain:read(path, options)
+    local source, matched = self:find(path, options)
     if not source then
         error("not in the game data chain: " .. path)
+    end
+    if source == "map" then
+        return self.map.archive:read(matched), "map: " .. matched
     end
     if source:match("^layer ") then
         local f = assert(io.open(self.layer_index[matched:lower()], "rb"))
@@ -220,6 +244,10 @@ function Chain:close()
         a.archive:close()
     end
     self.archives = {}
+    if self.map then
+        self.map.archive:close()
+        self.map = nil
+    end
 end
 -- }}}
 
