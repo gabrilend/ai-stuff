@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 19:46:54
+Generated on: 2026-09-24 19:57:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -68,6 +68,11 @@ Models: claude-opus-5-5
     maps into the WoW-based W client, and the project's map reader now reads
     every test map and sound identically to StormLib. Next is issue 112b,
     building patch 1.21b as a layer, once you say go.
+16. 2026-09-24 19:49, after Request 23 - We're rebuilding Warcraft III's stock
+    unit and ability values so custom maps convert faithfully, and patch layers
+    plus stock-row merging are built and committed. Next: tell me whether to
+    commit the other session's two custom-client doc edits, then review the
+    dropped-field list.
 
 --------------------------------------------------------------------------------
 
@@ -2627,6 +2632,89 @@ Open questions, one at a time. The first is the dropped-types list in
 lightning lists, shadows, ground decals, team colour, and editor tileset lists
 are dropped. Everything else is kept, including button positions and order
 strings. Anything you'd move either way?
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+<pasted_content id="7a80">
+>   Open questions, one at a time. The first is the dropped-types list in
+> src/gamedata/field_rules.lua: text, icons, models, sound names, effect and
+> lightning lists,
+> shadows, ground decals, team colour, and editor tileset lists are dropped.
+> Everything else is
+> kept, including button positions and order strings. Anything you'd move either
+> way?
+</pasted_content id="7a80">
+
+
+dropped types? What do you mean?
+
+
+
+<pasted_content id="7a80">
+> The one thing blocking a clean custom-client repo: another session has
+> uncommitted edits in
+>   docs/008-build-system.md and docs/010-table-of-contents.md, pointing tmp/ at
+> /dev/shm/azc-custom-client/. They aren't mine. Should I commit them as they
+> are, or leave them
+>   for that session?
+</pasted_content id="7a80">
+
+
+I dunno, take ownership I guess. Find out what it's about.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+> The rules in `CLAUDE.md` say what `tmp/` should point at, so first I'm
+> checking what the link on disk actually does and what the ai-stuff scripts
+> that set up these folders produce.
+
+> The RAM folders are rebuilt. The script named the log tier
+> `/dev/shm/custom-client` (after the project folder), not `azc-custom-client`,
+> so I'm making the docs match what's actually on disk.
+
+> custom-client is clean. The only change left in world-edit-to-execute is this
+> conversation's transcript, which keeps growing as we talk. Committing it now
+> so the repository is clean at this point.
+
+Both repositories are clean. The last commits were custom-client `a512e0b22` and
+ai-stuff `94ba9d306`.
+
+**The other session's edits:** its change said the project's `tmp/` link points
+into `/dev/shm`. It doesn't:
+- The link points at `/tmp/azc-custom-client`, the scratch area for things that
+  run.
+- Logs and dumps go one level in, at `tmp/shared-memory/`, which points into
+  `/dev/shm`.
+
+That's your current two-tier rule, so the edit was most likely a leftover from
+an older, one-tier version of it. I took it over and rewrote both docs to
+describe the two tiers with the names actually on disk. A reboot had also
+emptied the folders behind the link, so I rebuilt them with your RAM-tier
+script.
+
+**What I meant by "dropped types":** when a map copies and changes a stock
+ability, the converted map needs that ability's full row: the stock values plus
+the map's changes. Blizzard's metadata tables label every field with a type:
+- **numbers** (cooldown, damage, range);
+- **yes/no flags** (is it a hero ability);
+- **ids** (which buff it applies, which base ability's behaviour it uses);
+- **text** (the name, the tooltip);
+- **art** (icon path, model path, sound name).
+
+When building those rows, the code keeps the first three and leaves out
+("drops") text and art. Two reasons:
+1. The numbers, flags and ids are what make a map play the same. They're the
+   functional facts we agreed are the defensible part to take.
+2. Text and art are Blizzard's creative expression, and the W client supplies
+   its own art anyway.
+
+So the question, put plainly: is it right to copy only the gameplay values into
+converted maps, and never Blizzard's names, tooltips, icons, models or sounds?
+Or is there something in that second group you'd want carried over?
 
 --------------------------------------------------------------------------------
 

@@ -11,8 +11,11 @@ items), reads the stock tables through a map's game data chain
      which names the table and column (level-dependent fields become
      field..level, "Cool1"; ability data fields "Data"..letter..level,
      "DataA1");
-  3. keeps only functional columns: those whose metadata type isn't in
-     field_rules.dropped_types, plus field_rules.always_kept.
+  3. labels every column by whose it is (field_rules.lua): "fact",
+     "borrowed" (Blizzard's text and art, on the replacement track),
+     "editor" (no metadata row, not read by the game) or "map" (the map
+     changed it). Everything is copied; the labels let the replacement work
+     count what is still borrowed, object by object.
 
 Problems are collected, never skipped silently: a change whose code has no
 metadata row, a parent id not in the stock tables, a profile file missing
@@ -22,9 +25,10 @@ Usage:
   local stock_rows = require("gamedata.stock_rows")
   local stock = stock_rows.load(chain, "abilities")
   local result = stock_rows.merge(stock, parsed_object_file)
-  result.rows["A003"]      -- { id, parent, fields = { AbilityData = {...}, Profile = {...} } }
+  result.rows["A003"]      -- { id, parent, fields = { AbilityData = {...}, Profile = {...} },
+                           --   origin = { AbilityData = { Cool1 = "fact", ... }, Profile = { Art = "borrowed", ... } } }
   result.problems          -- list of { kind ("orphan", "unknown_parent", "unknown_code"), object, code, problem }
-  result.counts            -- objects, changes, applied, not_functional, and one count per problem kind
+  result.counts            -- objects, changes, applied, borrowed (columns still Blizzard's), and one count per problem kind
 
 Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
 ]]
@@ -59,7 +63,7 @@ function M.load(chain, kind_name)
         end
     end
 
-    -- Which columns each metadata row covers, for the functional filter:
+    -- Which columns each metadata row covers, for the labels:
     -- table -> column name (or column prefix for level-dependent fields) -> type.
     stock.column_types = {}
     stock.prefix_types = {}
@@ -90,25 +94,39 @@ local function column_type(stock, table_name, column)
     if exact then
         return exact
     end
+    local prefixes = stock.prefix_types[table_name]
+    if not prefixes then
+        return nil
+    end
+    -- Profile files keep a level-dependent field under its bare name, all
+    -- levels comma-separated in one value (Tip=..., not Tip1=...), so the bare
+    -- name is tried before the name-plus-level form tables use (Cool1).
+    if prefixes[column] then
+        return prefixes[column]
+    end
     local prefix = column:match("^(.-)%d+$")
-    if prefix and stock.prefix_types[table_name] then
-        return stock.prefix_types[table_name][prefix]
+    if prefix then
+        return prefixes[prefix]
     end
     return nil
 end
 -- }}}
 
--- {{{ local function is_functional
-local function is_functional(stock, table_name, column)
-    local kept = rules.always_kept[table_name]
-    if kept and kept[column] then
-        return true
+-- {{{ local function label_for
+-- Whose a stock column is: "fact", "borrowed" or "editor" (see field_rules).
+local function label_for(stock, table_name, column)
+    local ids = rules.id_columns[table_name]
+    if ids and ids[column] then
+        return "fact"                      -- an id the game needs, though no metadata row names it
     end
     local kind = column_type(stock, table_name, column)
     if kind == nil then
-        return false                       -- editor-only columns (comments, sort, …)
+        return "editor"                    -- comments, sort keys, beta flags: copied, never read by the game
     end
-    return rules.dropped_types[kind] == nil
+    if rules.borrowed_types[kind] then
+        return "borrowed"                  -- Blizzard's text or art, until replaced
+    end
+    return "fact"
 end
 -- }}}
 
@@ -128,32 +146,28 @@ end
 -- }}}
 
 -- {{{ local function copy_stock
--- The stock parent's functional columns, per table; nil when no table has it.
+-- The stock parent's columns, every one, per table, each with its label;
+-- nil when no table has the parent.
 local function copy_stock(stock, parent)
-    local fields, found = {}, false
-    for table_name, sheet in pairs(stock.tables) do
-        local row = sheet.rows[parent]
-        fields[table_name] = {}
+    local fields, origin, found = {}, {}, false
+    local function copy(table_name, row)
+        fields[table_name], origin[table_name] = {}, {}
         if row then
             found = true
             for column, value in pairs(row) do
-                if is_functional(stock, table_name, column) then
-                    fields[table_name][column] = value
-                end
+                fields[table_name][column] = value
+                origin[table_name][column] = label_for(stock, table_name, column)
             end
         end
     end
-    fields.Profile = {}
-    local entry = stock.profile[parent]
-    if entry then
-        found = true
-        for key, value in pairs(entry) do
-            if is_functional(stock, "Profile", key) then
-                fields.Profile[key] = value
-            end
-        end
+    for table_name, sheet in pairs(stock.tables) do
+        copy(table_name, sheet.rows[parent])
     end
-    return found and fields or nil
+    copy("Profile", stock.profile[parent])
+    if not found then
+        return nil
+    end
+    return fields, origin
 end
 -- }}}
 
@@ -179,7 +193,7 @@ end
 -- parsed: the result of parsers.objectdata for the kind's map file.
 -- Returns { rows = id -> row, problems = list, counts = {...} }.
 function M.merge(stock, parsed)
-    local result = { rows = {}, problems = {}, counts = { objects = 0, changes = 0, applied = 0, not_functional = 0 } }
+    local result = { rows = {}, problems = {}, counts = { objects = 0, changes = 0, applied = 0, borrowed = 0 } }
     local function problem(kind, object, code, text)
         result.problems[#result.problems + 1] = { kind = kind, object = object, code = code, problem = text }
         result.counts[kind] = (result.counts[kind] or 0) + 1
@@ -188,7 +202,7 @@ function M.merge(stock, parsed)
     for _, object in ipairs(objects_in(parsed)) do
         result.counts.objects = result.counts.objects + 1
         local id, parent = object.id, object.parent
-        local fields = copy_stock(stock, parent)
+        local fields, origin = copy_stock(stock, parent)
         if not fields and object.source == "original" then
             -- Seen in the DAoW maps: changes filed under an id that is neither
             -- stock nor one of the map's custom objects (leftovers from edits
@@ -205,16 +219,23 @@ function M.merge(stock, parsed)
                 else
                     local table_name = tostring(meta.slk)
                     local column = column_for(meta, change.level or 0, change.column or 0)
-                    if is_functional(stock, table_name, column) then
-                        fields[table_name] = fields[table_name] or {}
-                        fields[table_name][column] = change.value
-                        result.counts.applied = result.counts.applied + 1
-                    else
-                        result.counts.not_functional = result.counts.not_functional + 1
+                    -- The map's value replaces the stock one, whatever its type:
+                    -- a name or model path the map author set is theirs, not Blizzard's.
+                    fields[table_name] = fields[table_name] or {}
+                    origin[table_name] = origin[table_name] or {}
+                    fields[table_name][column] = change.value
+                    origin[table_name][column] = "map"
+                    result.counts.applied = result.counts.applied + 1
+                end
+            end
+            for _, labels in pairs(origin) do
+                for _, label in pairs(labels) do
+                    if label == "borrowed" then
+                        result.counts.borrowed = result.counts.borrowed + 1
                     end
                 end
             end
-            result.rows[id] = { id = id, parent = parent, fields = fields }
+            result.rows[id] = { id = id, parent = parent, fields = fields, origin = origin }
         end
     end
     return result

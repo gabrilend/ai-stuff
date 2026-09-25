@@ -2,7 +2,7 @@
 -- test_stock_rows.lua - Route A: stock rows merged with each map's objects
 --
 -- One custom ability checked field by field (the map's changes on top, the
--- rest from its stock parent, text and art dropped), then every object of
+-- rest from its stock parent, every column labelled by whose it is), then every object of
 -- every map in assets/ merged, with problems only of the kinds understood so
 -- far. Needs the Frozen Throne install and the 1.21b layer; skipped with a
 -- loud notice without them.
@@ -76,10 +76,21 @@ else
     test("the map's level-2 cooldown (acdn -> Cool2)", d.Cool2 == 1, tostring(d.Cool2))
     test("an unchanged stock value kept (Cool1 = 180, from AUan)", d.Cool1 == 180, tostring(d.Cool1))
     test("the base ability code always kept", d.code == "AUan")
-    test("text dropped (no Name, no tooltips)", row.fields.Profile.Name == nil and row.fields.Profile.Tip == nil)
-    test("functional profile value kept (the order string)", row.fields.Profile.Order == "animatedead",
-        tostring(row.fields.Profile.Order))
-    test("art dropped (no icon path)", row.fields.Profile.Art == nil)
+    local p, o = row.fields.Profile, row.origin.Profile
+    test("the order string copied, labelled fact", p.Order == "animatedead" and o.Order == "fact",
+        tostring(p.Order) .. " " .. tostring(o.Order))
+    test("the icon path copied, labelled borrowed", type(p.Art) == "string" and o.Art == "borrowed",
+        tostring(p.Art) .. " " .. tostring(o.Art))
+    test("a name copied, labelled borrowed or map", p.Name ~= nil and (o.Name == "borrowed" or o.Name == "map"),
+        tostring(p.Name) .. " " .. tostring(o.Name))
+    -- Tooltips are level-dependent fields kept under their bare name in the
+    -- profile files; they once came out labelled "editor" because only the
+    -- name-plus-level form (Tip1) was looked up.
+    test("the tooltips copied, labelled borrowed", p.Tip ~= nil and o.Tip == "borrowed" and o.Ubertip == "borrowed",
+        tostring(o.Tip) .. " " .. tostring(o.Ubertip))
+    test("the map's cooldown change labelled map", row.origin.AbilityData.Cool2 == "map")
+    test("an untouched stock number labelled fact", row.origin.AbilityData.Cool1 == "fact")
+    test("borrowed columns counted", result.counts.borrowed > 0, tostring(result.counts.borrowed))
     -- }}}
 
     -- {{{ Every map
