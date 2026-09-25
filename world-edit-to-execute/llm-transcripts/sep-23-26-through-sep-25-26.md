@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 12:59:20
+Generated on: 2026-09-25 15:01:30
 Models: claude-opus-5-5
 
 ## Contents
@@ -120,6 +120,19 @@ Models: claude-opus-5-5
     in the game's tables against Liquipedia's published values, and none is left
     unexplained. Next, you decide whether I trace the 28 wiki pages that have no
     version from before 1.30.
+28. 2026-09-25 13:06, after Request 54 - We're starting phase 5, drawing real
+    Warcraft III maps with the existing raylib renderer. I need your call: show
+    a real map's textured ground and cliffs first (units stay boxes), or start
+    on unit models first?
+29. 2026-09-25 13:28, after Request 55 - We're planning Phase 5, drawing real
+    maps with raylib, possibly running its workers on your ceramic engine. Next
+    is your call: how a stateless graph should refer to large meshes, and
+    whether to start with BLP textures and textured terrain.
+30. 2026-09-25 13:42, after Request 56 - We're planning how to draw real
+    Warcraft III maps with raylib, with the parallel work running on the
+    soramech engine. Next, I need your answer: when a map loads a new model
+    mid-game, should the frozen model table unfreeze, or should the graph pause
+    while it grows?
 
 --------------------------------------------------------------------------------
 
@@ -5619,6 +5632,763 @@ Options for something else, most valuable first:
    option, and the most puzzle-like.
 
 Which one appeals?
+
+--------------------------------------------------------------------------------
+
+### User Request 54
+
+> 2. Phase 5, rendering. This is the largest open front (23 done, 44 open). The
+> vertical slice is
+>      done, so the next issues build on it and draw real maps.
+
+What are the technical implications of this? How are we building the engine?
+Raylib? Something else that's more modern, like Bevy...? TBH I prefer raylib...
+We can't do Love2d because it's, well, 2d. of course.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 54
+
+> I'll check what the rendering phase is actually built on before answering.
+
+> The project is already on raylib. I'll check how the Lua side reaches it and
+> what's open next:
+
+The engine is already built on raylib, so your preference and the code agree.
+Rendering is C, in `src/render/`, and the game logic is Lua. (I also corrected
+the architecture doc, which claimed a Vulkan backend raylib doesn't have; raylib
+draws through OpenGL only. Committed.)
+
+**How it's put together now**
+- **Four stages on separate threads**, each handing its results to the next:
+  - an *updater* reads the game state;
+  - *workers* turn it into numbers the graphics card can take;
+  - a *sync* stage swaps the finished buffers into place;
+  - the *draw* thread only calls raylib.
+
+  The draw thread never waits on game logic.
+- **Render slots** are a fixed array of records in C, one per visible thing,
+  holding its position, colour and shape. The Lua side never touches pixels. It
+  says "entity 42 is a cube at (x, y, z)", and a small bridge writes that into a
+  slot.
+- **Done so far:** the vertical slice. A map's terrain is loaded, and units show
+  as coloured boxes that you can select and order to move, with a minimal UI and
+  a profiler overlay.
+
+**Why raylib still fits better than Bevy**
+- **Bevy** is Rust, and it's built around its own entity system and scheduler.
+  Adopting it would mean throwing away the threading design and the slot bridge,
+  and putting a Rust layer between Lua and the screen.
+- **Raylib** is a thin C library over OpenGL. It imposes no structure, so our
+  own threading design stays ours, and Lua reaches it through one small bridge.
+- **Its limits** are in content, not drawing. Raylib loads glTF, IQM and OBJ
+  models, not Warcraft III's own formats, and its skeletal animation support is
+  basic. Custom GLSL shaders are fully available, and that's where the terrain
+  work would live.
+
+**What "draw real maps" means technically**
+1. **Terrain textures.** Warcraft III ground is a grid of corner points, each
+   naming one of up to 16 tile types. Every cell blends its four corners' tiles,
+   picking pieces from a 4×4 texture sheet by which corners match. The textures
+   are Blizzard's own image format (BLP) inside the install's archives. That
+   needs a BLP decoder in C or Lua; the format stores either JPEG data or a
+   256-colour palette. It also needs a shader for the blend.
+2. **Cliffs and water.** Cliffs aren't a heightmap: they're small models placed
+   per cell, chosen by the pattern of cliff levels at the four corners. Water is
+   a flat plane at the map's water height, drawn where the corner flag says
+   water.
+3. **Models.** Units, buildings, trees and doodads are MDX files, Blizzard's
+   binary model format. MDX holds meshes, bones and keyframed animation
+   sequences. We'd write an MDX reader that builds raylib meshes, and do the
+   bone animation ourselves, probably in the worker threads, which is what
+   they're for.
+4. **Team colour, shadows and fog** come later. Team colour is a texture swapped
+   per player, the shadow map is a file stored in the map, and fog of war is a
+   per-cell visibility grid fed to the shader.
+
+The art follows the same rule as the stock tables: Blizzard's textures and
+models are read from your install at run time and never committed. That's the
+"copy everything, then slowly replace the artwork" path. The asset-pack issue is
+the hook for swapping in our own art later.
+
+A question back: textured terrain (steps 1–2) is self-contained and produces a
+recognisable map quickly, while models (step 3) are the bigger, harder half.
+Would you rather see a real map's ground and cliffs first, with units staying as
+boxes for now, or go straight at the MDX models so the boxes become Footmen?
+
+--------------------------------------------------------------------------------
+
+### User Request 55
+
+Can you check out /home/ritz/programming/ai-playground/minimal-soramech/? This
+might be a great use-case for the design pattern. I haven't built any graphical
+applications with it yet, and I'm interested to see how they fare. We will have
+to pay special attention to Raylib's single-threaded render thread nature. But I
+think building it in a ceramic style could improve our knowledge of the core
+engine, and possible help improve the development of that project at the same
+time. If I remember correctly, the design for this system's engine was a
+previously designed threadpool system that could be replaced with a soramech.
+Confirm?
+
+Would it be better to just do a custom Vulkan backend? Vulkan is very fast.
+Raylib... Not sure how fast it is.
+
+
+
+<pasted_content id="7a80">
+> 1. Terrain textures. Warcraft III ground is a grid of corner points, each
+> naming one of up to 16
+>      tile types. Every cell blends its four corners' tiles, picking pieces from a 4×4 texture
+>      sheet by which corners match. The textures are Blizzard's own image format (BLP) inside the
+>      install's archives. That needs a BLP decoder in C or Lua; the format stores either JPEG data
+>      or a 256-colour palette. It also needs a shader for the blend.
+</pasted_content id="7a80">
+
+
+sounds like we don't have any blockers on the BLP decoder, correct? Same for the
+MDX reader? Any other files we need decoders for?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 55
+
+> I'll read the soramech project and check what decoders the engine already has.
+
+> Checking whether a JPEG library that can return 4-channel data is on the
+> machine. The BLP decoder hinges on it.
+
+**On your "confirm?":** half right. The engine does run on a thread pool we
+designed ourselves: the threading rewrite replaced the fixed render workers with
+a general pool that scales to the cores, fed through a ring buffer. But nothing
+written says that pool would be replaced by a soramech. Soramech appears in only
+one place in this project: the future server in the WoW bridge phase (Phase W),
+"built as a soramech map". The fit is real, though. Our pool is a hand-made
+version of what the ceramic engine provides (workers taking tasks off a ring),
+so swapping it is a natural step, not a stretch.
+
+## How the ceramic engine fits raylib's one-thread rule
+
+Raylib draws through OpenGL, and OpenGL only accepts drawing calls from the
+single thread that owns the window. The ceramic engine's rule is the opposite:
+any station may run on any worker, and choosing where a station runs is only a
+design sketch (that design issue says "confer before building"). So drawing
+can't be a station.
+
+It doesn't need to be. The engine already has the right doorway:
+- the main thread (raylib's) acts as the **host**;
+- each frame it **delivers** the frame's inputs into the map's marked argument
+  ports (clock, camera, orders);
+- the stations compute in parallel (animation, transforms, culling, fog);
+- the main thread **collects** the finished results from the marked output ports
+  and draws them.
+
+The graph is the worker side, and the draw call stays outside it. That's the
+same split our render architecture already makes ("workers compute, render
+thread only reads"), just stated as a map file instead of hand-written thread
+code.
+
+## The hard part, a question for you
+
+The engine promises that a box receives **private copies of its arguments, never
+shared pointers**, and that a box may not remember anything. Per-frame render
+data fits that well:
+- a unit's position is 64 bytes;
+- its 30 bone matrices are about 2 KB;
+- that's small copies for real work, the engine's sweet spot.
+
+Terrain meshes and model geometry don't fit. They're megabytes, built once, and
+live on the graphics card. Copying them into every task would be absurd, and
+passing a pointer breaks the promise.
+
+So how should a stateless graph refer to something large that lives outside it?
+One answer is handles, small numbers that name a mesh the host owns; the graph
+only ever says "draw mesh 7 with these matrices". But that's a question about
+the engine itself, which is why this could teach the soramech project something.
+What do you think the engine *should* say about large, long-lived, read-only
+data?
+
+There's a second trap: a station pairs whatever values its ports hold, so a
+camera from frame 5 could meet unit positions from frame 6. Anything that must
+stay in step has to travel as one value, such as a per-frame bundle.
+
+## Vulkan instead of raylib?
+
+I'd stay on raylib for now:
+- **The scene is small by modern standards.** A Warcraft III map has a few
+  hundred low-polygon units, doodads, and a 256×256 terrain. That's a few
+  thousand draw calls per frame, which OpenGL 3.3 handles at 60 fps. Vulkan's
+  speed advantage is lower CPU cost per draw call, which matters at tens of
+  thousands of calls, not here.
+- **Its real advantage is the one that fits the ceramic engine.** Vulkan lets
+  many threads each record drawing commands, and only the final submit is
+  single-threaded. That's the only way the *drawing itself* could become
+  stations.
+- **The cost is large.** A Vulkan backend is thousands of lines before the first
+  triangle: device, swapchain, render passes, pipelines, descriptors, memory,
+  synchronisation.
+- **Nothing is lost by waiting.** The engine already has an abstract renderer
+  interface, so Vulkan can be added later as a second backend without a rewrite.
+  The profiler would tell us if raylib ever becomes the bottleneck.
+
+Doing both new things at once (the ceramic engine and Vulkan) makes it hard to
+tell which one caused a problem.
+
+## Decoders: no blockers
+
+- **BLP (textures): no blocker.** Warcraft III uses BLP1, which comes in two
+  kinds:
+  - **Palette:** 256 colours plus alpha. Trivial to decode.
+  - **JPEG:** the one catch is that its data has four channels (blue, green,
+    red, alpha). Many small JPEG decoders assume three. libjpeg-turbo is
+    installed here (`/usr/include/turbojpeg.h`) and returns four raw channels.
+    The format is openly documented by the modding community.
+- **MDX (models): no technical blocker, but large.**
+  - Our 1.29.2 cutoff helps: only MDX version 800 exists in that range.
+    Reforged's later versions (900 and up) are out of scope, which removes a
+    third of the work.
+  - The file is a chain of tagged chunks: meshes, materials, textures, bones,
+    pivot points, animation sequences, attachment points, particle emitters,
+    ribbons, events, collision shapes.
+  - Animation keys use four interpolation modes (none, linear, hermite, bezier).
+  - Skinning uses "matrix groups" (each vertex averages a group of bones
+    equally) rather than weights, which is simpler.
+  - The particle emitters and ribbons are a large sub-project of their own.
+- **Other files we'd need**, from the map archive and the install, nearly all
+  small:
+
+| File | What it's for | State |
+|---|---|---|
+| `war3map.shd` | Baked ground shadows: one byte per quarter cell | No reader; trivial |
+| `war3map.wpm` | Pathing grid: which cells are walkable, flyable, buildable | No reader; small. It's for movement, not drawing, but units need it |
+| `war3mapMap.blp`, `war3map.mmp` | Minimap image and icons | BLP plus a small reader |
+| `TerrainArt\Terrain.slk`, `CliffTypes.slk`, `Water.slk` | Which texture each tile id uses, cliff model sets, water colours | The table reader already exists |
+| `Doodads.slk`, `Destructable` data, `Splats\*.slk` | Doodad models, building ground decals | Same table reader |
+| Cliff and ramp models | Cliffs are MDX pieces chosen by the pattern of corner heights | Comes with MDX |
+| `ReplaceableTextures\TeamColor\*.blp` | Team colours | Comes with BLP |
+| `.fdf`, `.toc` | The game's UI layout, a text format | New reader, for later |
+| `.ttf`, `.wav`, `.mp3` | Fonts, sound, music | Raylib reads these already |
+| `.bik` | Cinematics (Bink, a closed codec) | Skip |
+
+A suggested order: BLP and the terrain tables first, then a real map's textured
+ground drawn through a small ceramic map, which tests the host-delivers,
+stations-compute, host-draws loop cheaply. MDX comes after the ground works.
+
+--------------------------------------------------------------------------------
+
+### User Request 56
+
+- its 30 bone matrices are about 2 KB;
+
+whoa, 2kb going in and out of shared memory sounds like a massive slowdown to
+me. I think we'll have to re-evaluate the pointer rule for this specific
+implementation. Can you tell me the reasoning behind it?
+
+
+
+<pasted_content id="7a80">
+> There's a second trap: a station pairs whatever values its ports hold, so a
+> camera from frame 5
+> could meet unit positions from frame 6. Anything that must stay in step has to
+> travel as one
+>   value, such as a per-frame bundle.
+</pasted_content id="7a80">
+
+
+or with the intended frame attached. Though we should be aware that often, data
+can get invalidated, and a fast-running process run continuously might calculate
+1000 frames in advance for like, an animation on a unit that we know definitely
+will run, and then all of the sudden that unit changes direction. Not ideal. So,
+what's a good answer? only emit data for the next frame or two, and keep it
+stored or something until the frame is correct? Gosh that sounds complicated.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 56
+
+> I'll find the engine's own reasoning for the copy rule rather than guess at
+> it.
+
+**Why the copy rule exists.** The engine's docs give four reasons, and each
+protects something specific:
+
+1. **A port slot is reused immediately.** When a value arrives, it sits in a
+   slot on the station's input port. The moment the station fires, the value is
+   copied into the task and the slot is free to take the next delivery. Copying
+   is how a queued task stays valid after its slot has been refilled; a pointer
+   into the slot would change underneath the box.
+2. **Two runs of the same station can happen at once**, on different cores.
+   That's safe only because neither run shares anything the other could write.
+3. **A running program can be written to disk, rewired live, and have boxes
+   recompiled while it runs.** That works because everything the program is
+   lives as values in the graph. A raw address can't be saved to disk and still
+   mean anything when loaded.
+4. **An address can't be checked.** A wire is checked by width, and a pointer is
+   8 bytes, the same as a double. The docs call a wrong address "a fault with no
+   useful location".
+
+**Is 2 KB actually slow?** Probably much less than it feels. These are estimates
+to measure, not measured numbers:
+- **One copy is tiny.** Copying 2 KB takes roughly 100–300 nanoseconds, and a
+  60 fps frame is 16,600,000 nanoseconds.
+- **A whole frame is small too.** 500 units × 2 KB × about 3 copies each is
+  about 3 MB per frame, roughly 0.3 ms spread across all cores, or about 2% of a
+  frame.
+- **A pointer doesn't avoid the traffic.** On a multicore machine, all RAM is
+  already shared. When core B reads bones core A just wrote, those same 2 KB
+  travel between the two caches whether it's a copy or a pointer. The copy adds
+  one extra pass over data that's already moving.
+
+**Where the copy really is waste: data that never changes.** Meshes, bind poses
+and animation keyframe tracks are loaded once and only read afterwards. For
+those I'd relax the rule narrowly: **a station may carry an asset id, a small
+number naming an entry in a table that is frozen before the graph starts.**
+- Frozen means nobody writes it, so there's no race (keeps reasons 1–2).
+- It's a number, so it can be bounds-checked (keeps reason 4) and saved to disk
+  (keeps reason 3).
+- A raw pointer would lose reasons 3 and 4; an id keeps all four.
+
+Changing per-frame data (poses, positions) keeps the copy rule. A small
+benchmark in the soramech repo would settle the cost question with real numbers
+before either project commits to anything.
+
+**On the frames:** your worry about computing 1000 frames ahead and then having
+the unit turn is the right worry. The usual answer avoids the problem rather
+than managing it, with three habits:
+
+1. **Never compute ahead. Make the pose a function of time.** A unit's pose is
+   "sample this animation sequence at t milliseconds since it started", computed
+   fresh each frame from the current state. Nothing precomputed means nothing to
+   invalidate. If the unit turns, the next frame simply asks a different
+   question.
+2. **Let the input rule do the pacing.** The host delivers a frame tick carrying
+   its number, and every station downstream of it can't fire until that tick
+   arrives. So the graph can never run ahead of the host, and no extra machinery
+   is needed. This is the ceramic rule working for us.
+3. **Keep one frame computing while one draws.** The host draws frame N−1
+   while the graph computes frame N. It collects N, delivers N+1, and repeats.
+   That's the same one-frame latency every engine has.
+
+   With only one frame in flight, frame 5's camera can't meet frame 6's
+   positions, because frame 6 doesn't exist yet. The frame number rides along
+   anyway as a check: a station that joins two branches compares the numbers and
+   stops with an error on a mismatch, per the no-fallbacks rule.
+
+   If we later want two frames in flight for more throughput, the number becomes
+   load-bearing ("newest complete frame wins, stale ones dropped"). That's worth
+   trying only if the profiler shows cores sitting idle.
+
+Warcraft III itself makes habit 1 easy. Its game logic runs on fixed simulation
+ticks (that's how multiplayer stays in lockstep), and drawing only interpolates
+between the last two known states. A unit changing direction happens on a tick,
+and the drawing never guesses past it.
+
+A question back: once meshes live in a frozen asset table, what happens when a
+map loads a new model mid-game? That happens in Warcraft III when a trigger
+creates a unit type nothing has used yet. Does the table unfreeze, which brings
+the races back? Or does loading become its own step between frames, where the
+graph is paused, the table grows, and the graph resumes?
+
+--------------------------------------------------------------------------------
+
+### User Request 57
+
+<pasted_content id="7a80">
+> A question back: once meshes live in a frozen asset table, what happens when a
+> map loads a new
+> model mid-game? That happens in Warcraft III when a trigger creates a unit
+> type nothing has used
+> yet. Does the table unfreeze, which brings the races back? Or does loading
+> become its own step
+> between frames, where the graph is paused, the table grows, and the graph
+> resumes?
+</pasted_content id="7a80">
+
+
+the graph doesn't freeze, but the table can grow. "frozen" was always just a
+suggestion anyway.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 57
+
+Understood: the graph keeps running and the table grows. That works safely if
+the table is **append-only, with each entry published only once it's complete**.
+Three rules make it race-free:
+
+1. **Nothing is ever changed or moved.** An entry, once written, stays exactly
+   where it is for the map's lifetime.
+   - The table is a list of fixed-size blocks, and growing it adds a new block
+     rather than reallocating. Existing entries never move, so an id held by a
+     running task always points at the same bytes.
+   - The ceramic engine already uses this idea: its ring's storage can move
+     without anything dangling, and a port's destination list is replaced by one
+     atomic pointer swap.
+2. **An entry becomes visible in one step, after it's finished.** The single
+   writer fills the entry completely, then raises the table's published count
+   with one atomic store. Readers only trust ids below that count. A
+   half-written entry can't be seen, because its id doesn't exist yet.
+3. **Only one writer.** That's the raylib main thread, which is forced on us
+   anyway: uploading a mesh or texture to the graphics card is an OpenGL call,
+   so it has to happen there.
+
+A new model mid-game then flows like this:
+
+```
+trigger creates a unit type nobody has used
+  → a decode station (any worker) reads the MDX/BLP bytes into plain arrays   ← parallel, off the draw thread
+  → host collects them between frames, uploads to the GPU, appends the entry,
+    publishes the count                                                        ← one atomic store
+  → the new asset id is delivered into the graph like any other value
+  → units of that type draw from the next frame on
+```
+
+Nothing pauses. Until the id arrives, the unit either isn't shown yet or draws a
+placeholder box, which the sprite placeholder system already covers. The
+original game has the same moment: it stutters when a trigger first uses an
+unloaded model.
+
+One side effect: since entries are never removed, memory only grows until the
+map ends. That matches how Warcraft III treats a map's assets, so I'd accept it
+and call it out in the design.
+
+Nothing's been built. Should I write this design into a new Phase 5 issue, the
+rendering graph on the ceramic engine, covering the host loop, frame numbers,
+asset ids and the growing table? The copy-cost benchmark in the soramech repo
+would be its first step.
+
+--------------------------------------------------------------------------------
+
+### User Request 58
+
+What's your honest assessment on the soramech integration?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 58
+
+> I'll check two things first that decide how the verdict comes out: whether the
+> engine can gather many results back into one, and whether its build tool can
+> link raylib.
+
+A research bet worth making, but not a performance win, and only if we go in
+knowing where it strains.
+
+**What it would do well**
+- **The concurrency becomes a drawing.** Our render threading today is
+  hand-written C: an updater, workers, a sync stage, a ring, hand-tuned sleeps.
+  As a map file, the whole engine's parallelism would be one readable picture.
+  That's the software-design value, and it's real.
+- **Different kinds of work in a chain fit it naturally.** Simulation →
+  animation → culling → fog → UI data, plus asset decoding off the draw
+  thread. That's the "fan out, rejoin" shape it was built for.
+- **Embedding is already supported.** The engine can be built into a program
+  whose own main loop delivers values in and collects results out. So raylib's
+  one-thread rule is handled by design, without the build tool (which has no way
+  to add raylib's link flags anyway).
+- **It would test soramech on a real graphical program for the first time.**
+  Every rough edge we hit is a finding for that project.
+
+**Where it strains, most serious first**
+1. **The engine says it isn't for this.** Its guarantees document says, in its
+   own words: *"No value is ever fresh at the moment it is used, so this engine
+   is not for timing-critical work."* A 60 fps renderer is timing-critical. That
+   doesn't forbid the experiment, but it means we'd be pushing the engine past
+   what it promises, so the risk sits with us.
+2. **Gathering many results back into one is missing.** The renderer's core work
+   is the same computation on 500 units, then all 500 results bundled for the
+   draw.
+   - The engine's fan-in only queues values into a port one by one; it has no
+     "wait for N, then hand over one bundle".
+   - Built from its own parts, the gather would be an accumulator station wired
+     back into itself. That runs 500 times per frame, one after another, and
+     each run copies the growing bundle. That's quadratic copying and a serial
+     choke point, exactly where we want parallelism.
+   - Chunking helps (8 stations of 64 units each), but a real gather primitive,
+     or a data-parallel "for each", is something the engine would need to grow.
+3. **The game logic is Lua, and Lua can't live in boxes.** A Lua interpreter
+   state isn't thread-safe, and a box may not keep one between calls. So the
+   ceramic part would be confined to the C side (rendering and assets), and the
+   Lua simulation stays on the host thread. That boundary is clean, but it
+   shrinks the integration to about half the engine.
+4. **The overhead is per task.** Each station run allocates, copies and queues.
+   At 8–64 chunky tasks per frame that's negligible; at one task per bone it
+   would swamp the gain. The design has to keep boxes big, which the engine's
+   own README says too.
+5. **Two unfinished projects would be coupled.** A soramech interface change
+   would break our renderer. The placement feature (which core a station runs
+   on) is still a design sketch awaiting discussion.
+
+**What I'd recommend: a bounded experiment, not a migration.**
+- Build a separate vertical slice: textured terrain plus a few hundred animated
+  placeholder units, as a ceramic map embedded in the raylib host loop.
+- Keep the existing thread pool running the real renderer until the slice
+  matches it.
+- Measure the two on the same scene: frame time, time on the draw thread, and
+  core usage.
+- Run the copy-cost benchmark first. If a 2 KB copy per unit really costs what
+  it feels like it should, we'll know in an afternoon.
+- Carry what the slice teaches (the gather primitive, the growing asset table,
+  frame numbers) back to soramech as its own issues.
+
+The one thing that would make me advise against it: if we needed a playable
+renderer soon. Our own thread pool is the shorter road to drawing real maps. The
+ceramic road is the one that teaches both projects something.
+
+--------------------------------------------------------------------------------
+
+### User Request 59
+
+okay so, I'm thinking we should render whatever data is present in the shared
+memory no matter what each frame. That part should be responsive and consistent.
+However, we update the data values of what's in each spot according to
+mathematical rules and input responses and such. So it gets updated in the
+background, more smoothly on a fast computer, but still perfectly accurately on
+both. Like a double buffer pattern, where we write to the next frame to be
+rendered.
+
+
+
+<pasted_content id="7a80">
+> 4. The overhead is per task. Each station run allocates, copies and queues. At
+> 8–64 chunky tasks
+>      per frame that's negligible; at one task per bone it would swamp the gain. The design has to
+>      keep boxes big, which the engine's own README says too.
+</pasted_content id="7a80">
+
+
+So... is this an argument for something like, persistent tasks, that contain
+pointers for the arguments and which are re-placed into the task queue once per
+frame, or at some other interval?
+
+
+
+<pasted_content id="7a80">
+> 5. Two unfinished projects would be coupled. A soramech interface change would
+> break our
+>      renderer. The placement feature (which core a station runs on) is still a design sketch
+>      awaiting discussion.
+</pasted_content id="7a80">
+
+
+soramech is written like code, as plain text files. The interfaces and such are
+for human visualization and artisan-ization, not for machines auto-generating
+dynamic computer code at runtime.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 59
+
+That's the right shape, and the existing render design already says most of it
+("workers compute, render thread only reads"). Here's how each of your three
+points sharpens it.
+
+**1. Draw whatever is there, update in the background.** Yes, with one change:
+use **three buffers, not two**.
+- **Two isn't enough.** With two, when the writer finishes frame N+1 while the
+  draw thread is still reading N, it has nowhere to write. It must either wait,
+  which the ceramic rule forbids (a box never blocks), or overwrite the buffer
+  being drawn, which tears the picture.
+- **Three means nobody waits.** One buffer is being drawn, one holds the latest
+  complete state, and one is being written. When the writer finishes, it swaps
+  its buffer with "latest complete" in a single atomic exchange. When the draw
+  thread starts a frame, it swaps its buffer with "latest complete" the same
+  way.
+- Each frame draws the newest finished state. Neither side ever waits, and a
+  half-written state can never be seen.
+
+"Perfectly accurate on both machines" needs one distinction:
+- **The game simulation must run at a fixed rate**, identical everywhere.
+  Warcraft III's multiplayer is lockstep: every machine runs the same ticks and
+  must reach the same numbers. A fast computer gets the same ticks, just done
+  sooner.
+- **The visual layer may vary freely.** Animation poses and positions
+  interpolated between the last two ticks are computed from elapsed time. More
+  of them on a fast machine means smoother; fewer on a slow one means choppier.
+  Each one is still exact for its moment.
+
+If the simulation itself ran at "as often as the machine can", two machines
+would compute different games. So this is really two loops: a fixed one for the
+rules, and a free-running one for the pictures.
+
+**2. Persistent tasks with pointers, re-queued each interval.** Yes, that's what
+the overhead argues for. Here's why it can be safe:
+- **The copy rule was a means to one end: nobody else writes what you're
+  reading.** Ownership reaches the same end without copying:
+  - a standing task writes only into its own slice of the "being written"
+    buffer;
+  - it reads only frozen assets and the previous finished state.
+  - Nothing it touches is written by anyone else, so no copies are needed.
+- **Re-queue it only when it has finished.** A tick that finds it still running
+  skips it this round. That's what makes it degrade gracefully: a slow machine
+  updates a slice less often, and because the math is based on elapsed time, the
+  result is still correct, just less smooth.
+- **The per-task cost disappears.** The task record is reused, nothing is
+  allocated, and nothing is copied.
+
+To be honest about what this is: it's a different thing from soramech's current
+model. That model is "a station runs when every input arrived, with copies".
+This is "a standing job runs every tick, with ownership". It could become a new
+station kind in soramech (a *standing station*), and the triple buffer could be
+its memory. It's the kind of thing this experiment would feed back to that
+project, so it should be written up there as a proposal rather than hacked into
+our copy.
+
+**3. Coupling.** Fair correction: map files are source code for people to read,
+not an interface machines generate against. So the risk is smaller than I made
+it. It's like a language changing under us, and the engine was designed for this
+case ("two files, the engine leaving home"). We'd keep a copy of
+`cera.c`/`cera.h` in the project and update it deliberately, the way the project
+already keeps its own copies of libraries.
+
+A question back, on the hardest part of point 1: the fixed simulation tick has
+to reach the triple buffer too. Suppose the simulation finishes tick 40 while
+the visual layer is still interpolating between ticks 38 and 39. Which layer
+owns the "previous" and "current" tick states? And how does the visual layer
+learn, without waiting, that tick 40 has arrived and 38 can be forgotten?
+
+--------------------------------------------------------------------------------
+
+### User Request 60
+
+Does that mean 3 frames of latency? We might just prefer as low latency as
+possible! Can you give me a design that doesn't have those extra delay frames?
+\]
+
+--------------------------------------------------------------------------------
+
+### User Request 61
+
+Does that mean 3 frames of latency? We might just prefer as low latency as
+possible! Can you give me a design that doesn't have those extra delay frames?
+
+You're right. The custom client is, after all, simply a renderer, and the actual
+code is running primarily on the server. Everything the client has displayed can
+be CORRECTED by the server at an arbitrary timescale in the future.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 61
+
+No. A triple buffer done the right way adds no frames of latency. What adds
+delay is **how the buffers are used**:
+- **As a queue** (draw the oldest waiting frame), three buffers really can mean
+  up to two frames of delay. That's the version to avoid.
+- **As a mailbox** (the design above), a finished state replaces whatever was
+  waiting, and the draw thread always takes the newest one. The third buffer
+  isn't a queue slot; it exists only so the writer never has to wait. The delay
+  is at most one update period, and that shrinks as the machine gets faster.
+
+The frame of delay I *did* introduce was interpolation: drawing between the last
+two ticks means always showing the past. Your point about the server removes the
+reason for it. If the server can correct anything later, the client can draw the
+present, and even guess slightly ahead.
+
+## A low-latency design
+
+**1. Extrapolate, don't interpolate.** Each unit's visual state is a record: its
+last known position, velocity, facing, the animation it's playing, and the time
+all of that was true. At draw time the client computes "where is it *now*":
+position + velocity × elapsed time, and the animation sampled at the current
+time. That adds zero delay. The error is a small overshoot when a unit turns,
+which the next update corrects.
+
+**2. Camera and cursor never enter the pipeline.** The inputs you feel most
+(scrolling the view, moving the mouse, the selection box) are computed on the
+draw thread itself, at the last instant before drawing. A camera is one small
+matrix, so doing it there costs nothing, and scrolling responds within the frame
+being drawn.
+
+**3. Answer the player's order instantly, locally.** Warcraft III itself does
+this. Over the network its lockstep turn could be a quarter second, but the
+click marker, the unit's "Yes, milord?" and its turn to face the target happen
+immediately on your own machine, while the order is still travelling. Our client
+can do the same and go further:
+- start the unit moving along its predicted path at once;
+- let the server's answer confirm or correct it.
+
+**4. Correct gently.** When the server's state arrives and disagrees:
+- **small error:** blend toward the server's truth over a few frames, so the
+  unit drifts rather than jumps;
+- **large error** (the unit was stunned, blinked, or died): snap at once,
+  because blending would be a lie.
+
+**5. The draw thread takes the newest state as late as possible.** It grabs the
+mailbox's latest state just before submitting the frame, not at the start of the
+frame's work.
+
+**6. The display itself.** Vsync can hold a finished frame until the screen
+refreshes, which costs up to one refresh (16.7 ms at 60 Hz). That's the one
+delay software can't fully remove. The lowest-latency choice is drawing without
+waiting and accepting occasional tearing; that could be a player setting.
+
+**The resulting latency** at a 60 Hz display:
+
+| Input | Delay |
+|---|---|
+| Camera and cursor | At most one display frame |
+| Your own order | Its first visible response lands on the next drawn frame, predicted |
+| The world's true state | Network trip + at most one update period; hidden by extrapolation and blending |
+
+This also answers the question I asked last time. With extrapolation, the visual
+layer no longer needs "the previous two ticks". It keeps one record per unit
+(the latest known state plus its timestamp), and a new tick simply overwrites
+it, through the mailbox. There's nothing to hand over and nothing to wait for.
+
+A question back, where the design gets hard: prediction and correction disagree
+most in combat. Your predicted Footman walks into range and starts its swing
+animation, then the server says the target had already died a moment earlier.
+Should the client cancel the swing mid-air (honest, but it looks glitchy)? Or
+let it finish harmlessly against empty air (smooth, but briefly wrong)? And
+should that choice be one rule, or depend on the kind of action?
+
+--------------------------------------------------------------------------------
+
+### User Request 62
+
+cancel the swing mid-air. We should always update to the correct state as soon
+as possible rather than continue delaying the truth.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 62
+
+Decided: cancel the swing and show the truth at once.
+
+The same principle overrules one thing I proposed. **Blending small errors over
+a few frames is also delaying the truth**, just by less. So corrections should
+snap everywhere:
+
+- **Position:** the unit jumps to where the server says it is, in the frame the
+  correction arrives.
+- **Animation:** the swing is cancelled, and the unit switches to whatever the
+  server says it's doing (stand, walk, the next swing), sampled at the correct
+  moment of that animation. Restarting it from frame zero would be wrong too.
+- **Anything predicted locally** (the path, the facing, the attack) is thrown
+  away as soon as the server's answer arrives. Prediction only ever fills the
+  gap *before* the truth, never after it.
+
+What stays instant and local is what the server can't contradict: the camera,
+the cursor, the click marker and the acknowledgement voice. The order was given,
+whatever happens next.
+
+The cost of snapping is that a fast unit on a laggy connection will visibly jump
+now and then. That jump is accurate: it shows the player exactly how wrong the
+guess was. If players later want smoothing, it can be an explicit display
+setting, off by default, so the default always shows the truth.
+
+Nothing is written down yet. The decisions so far:
+- a ceramic vertical slice beside the existing renderer;
+- the host loop delivers and collects, and the draw stays on raylib's thread;
+- a mailbox triple buffer;
+- extrapolation from a per-unit record;
+- camera and cursor handled on the draw thread;
+- local order acknowledgement;
+- corrections always snap;
+- a growing, append-only asset table with ids;
+- standing tasks as a proposal for soramech.
+
+Should I record them in a new Phase 5 issue for the rendering graph on the
+ceramic engine, with the copy-cost benchmark as its first step?
 
 --------------------------------------------------------------------------------
 
