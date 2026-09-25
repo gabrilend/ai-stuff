@@ -249,3 +249,12 @@ Nothing here is released yet. Before one:
    or the RGPL once it's finished?
 2. If the projects move to the RGPL, confirm the server-side pieces stay AGPL
    v3 in their own folder (recommended above).
+
+## Patch notes from Liquipedia (issue 115b)
+
+The balance history page can show patch notes for the versions the project
+doesn't read. They are Liquipedia's text (CC BY-SA 3.0): fetched once to the
+user's own machine by `src/cli/patch-notes-fetch.lua` (batched, spaced, a
+User-Agent naming only the tool), kept in `wc3-installs/external-notes/`
+beside the installs, credited with page and licence wherever shown, never
+mixed into the project's data, never committed or distributed with it.

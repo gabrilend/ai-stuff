@@ -85,6 +85,7 @@ wc3-installs/frozen-throne
 wc3-installs/patch-layers
 wc3-installs/patch-layers-roc
 wc3-installs/patch-programs
+wc3-installs/external-notes
 
 # Third-party libraries compiled by scripts/build-dependencies.sh.
 # Only the pin file deps/versions is tracked; everything else is rebuilt.

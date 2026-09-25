@@ -36,7 +36,8 @@
   .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
   button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; }
   button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  main { display: grid; grid-template-columns: 280px 1fr; gap: 14px; padding: 0 16px 24px; }
+  main { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; padding: 0 16px 24px; }
+  main > section { min-width: 0; }
   @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
   #list { max-height: 72vh; overflow-y: auto; margin-top: 8px; }
@@ -62,6 +63,12 @@
   .up { color: var(--accent2); } .down { color: var(--hot); }
   .counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 8px 0; }
   #heat rect.col { cursor: pointer; }
+  .banner { border: 2px dashed var(--hot); border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: 14px; }
+  .banner b { color: var(--hot); }
+  .banner a { color: var(--accent2); }
+  .notes h3 { font-size: 15px; margin: 14px 0 4px; }
+  .notes h4 { font-size: 14px; margin: 10px 0 2px; color: var(--muted); font-weight: normal; }
+  .notes p { margin: 2px 0; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -91,16 +98,44 @@
   </section>
 </main>
 <script src="history.js"></script>
+<script src="notes.js"></script>
 <script>
 (function () {
   "use strict";
   var H = window.HISTORY;
   if (!H) { document.body.textContent = "history.js is missing: run scripts/balance-history.sh"; return; }
-  var state = { game: H.games.tft ? "tft" : Object.keys(H.games)[0], kind: "", sel: null, patch: null };
+  var NOTES = window.NOTES || {};
+  var state = { game: H.games.tft ? "tft" : Object.keys(H.games)[0], kind: "", sel: null, patch: null, notes: null };
+  // {{{ versions in order, including notes-only ones
+  // "1.21b" is 1, 21, 2, 0; "1.29.2" is 1, 29, 0, 2 (as the project's chain orders them).
+  function vkey(v) {
+    var m = /^(\d+)\.(\d+)([a-z]?)\.?(\d*)$/.exec(v) || [0, 0, 0, "", 0];
+    return [+m[1], +m[2], m[3] ? m[3].charCodeAt(0) - 96 : 0, +(m[4] || 0)];
+  }
+  function vless(a, b) { var x = vkey(a), y = vkey(b); for (var i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] < y[i]; return false; }
+  // Every column for a game: its data versions (read from the game's own
+  // files) and the notes-only versions it doesn't read, in version order.
+  function columns(game) {
+    var g = H.games[game], cols = g.versions.map(function (v, i) { return { v: v, data: i }; });
+    // A notes page named for a version family the game's data already has
+    // ("Patch 1.14" beside the 1.14b layer) is that same patch: not repeated.
+    var family = {};
+    g.versions.forEach(function (v) { family[v.replace(/[a-z]$/, "")] = true; });
+    Object.keys(NOTES).forEach(function (v) {
+      if (g.versions.indexOf(v) >= 0) return;
+      if (!/[a-z]$/.test(v) && family[v]) return;
+      cols.push({ v: v, notes: true });
+    });
+    cols.sort(function (a, b) { return vless(a.v, b.v) ? -1 : vless(b.v, a.v) ? 1 : 0; });
+    return cols;
+  }
+  var NOT_SUPPORTED = "not supported by this project — patch notes only";
+  // }}}
   // An address opens a game and an object (#tft/hkni) or a patch (#tft/v/1.22a).
   var hash = location.hash.replace(/^#/, "").split("/");
   if (hash[0] && H.games[hash[0]]) state.game = hash[0];
   if (hash[1] === "v" && hash[2]) { var pi = H.games[state.game].versions.indexOf(hash[2]); if (pi > 0) state.patch = pi; }
+  else if (hash[1] === "n" && hash[2] && NOTES[hash[2]]) state.notes = hash[2];
   else if (hash[1] && H.games[state.game].objects[hash[1]]) state.sel = hash[1];
   var $ = function (id) { return document.getElementById(id); };
   var NS = "http://www.w3.org/2000/svg";
@@ -127,12 +162,16 @@
   Object.keys(H.games).forEach(function (key) {
     var b = document.createElement("button");
     b.textContent = H.games[key].title;
-    b.onclick = function () { state.game = key; state.sel = null; state.patch = null; render(); };
+    b.onclick = function () { state.game = key; state.sel = null; state.patch = null; state.notes = null; render(); };
     b.dataset.key = key;
     $("games").appendChild(b);
   });
   $("kind").onchange = function () { state.kind = this.value; render(); };
-  $("patch").onchange = function () { var v = +this.value; state.patch = v > 0 ? v : null; state.sel = null; render(); };
+  $("patch").onchange = function () {
+    var v = this.value; state.sel = null; state.patch = null; state.notes = null;
+    if (v.indexOf("n:") === 0) state.notes = v.slice(2); else if (+v > 0) state.patch = +v;
+    render();
+  };
   $("search").oninput = function () { renderList(); if (state.patch) renderPatch(); };
   // }}}
 
@@ -154,34 +193,52 @@
   // }}}
 
   // {{{ heat map
+  // One column per version in order; versions the project doesn't read are
+  // hatched, labelled as not supported, and open their patch notes.
   function renderHeat() {
     var g = H.games[state.game], c = changes(state.game), kinds = ["unit", "ability", "item", "upgrade"];
-    var n = g.versions.length, cw = 34, ch = 26, left = 70, top = 8;
+    var cols = columns(state.game), n = cols.length, cw = 30, ch = 26, left = 70, top = 8;
     var max = 1;
     kinds.forEach(function (k) { c[k].forEach(function (x) { if (x > max) max = x; }); });
     var box = $("heat"); box.innerHTML = "";
-    var svg = el("svg", { viewBox: "0 0 " + (left + n * cw + 10) + " " + (top + kinds.length * ch + 60), style: "min-width:" + (left + n * cw) + "px" }, box);
-    var hot = css("--hot"), cold = css("--cold"), ink = css("--ink"), muted = css("--muted");
+    var svg = el("svg", { viewBox: "0 0 " + (left + n * cw + 10) + " " + (top + kinds.length * ch + 70), style: "min-width:" + (left + n * cw) + "px" }, box);
+    var hot = css("--hot"), cold = css("--cold"), ink = css("--ink"), muted = css("--muted"), line = css("--line");
+    var defs = el("defs", {}, svg);
+    var pat = el("pattern", { id: "hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+    el("rect", { width: 6, height: 6, fill: cold }, pat);
+    el("line", { x1: 0, y1: 0, x2: 0, y2: 6, stroke: line, "stroke-width": 3 }, pat);
     kinds.forEach(function (k, r) {
       el("text", { x: left - 8, y: top + r * ch + 17, "text-anchor": "end", fill: muted, "font-size": 12 }, svg).textContent = k;
-      for (var i = 0; i < n; i++) {
-        var x = c[k][i], a = i === 0 ? 0 : Math.sqrt(x / max);
-        var rect = el("rect", { x: left + i * cw + 1, y: top + r * ch + 1, width: cw - 2, height: ch - 2, rx: 3,
-          fill: a > 0 ? hot : cold, "fill-opacity": a > 0 ? (0.15 + 0.85 * a) : 1 }, svg);
-        var t = el("title", {}, rect); t.textContent = g.versions[i] + ": " + x + " " + k + " numbers changed";
-      }
+      cols.forEach(function (col, ci) {
+        var x = left + ci * cw + 1, y = top + r * ch + 1;
+        if (col.notes) {
+          el("rect", { x: x, y: y, width: cw - 2, height: ch - 2, rx: 3, fill: "url(#hatch)" }, svg);
+          return;
+        }
+        var v = c[k][col.data], a = col.data === 0 ? 0 : Math.sqrt(v / max);
+        var rect = el("rect", { x: x, y: y, width: cw - 2, height: ch - 2, rx: 3, fill: a > 0 ? hot : cold, "fill-opacity": a > 0 ? (0.15 + 0.85 * a) : 1 }, svg);
+        el("title", {}, rect).textContent = col.v + ": " + v + " " + k + " numbers changed";
+      });
     });
-    // A transparent column over each version (after the disc) opens its patch view.
-    for (var ci = 1; ci < n; ci++) (function (i) {
-      var col = el("rect", { x: left + i * cw, y: top, width: cw, height: kinds.length * ch, fill: "transparent", "class": "col" }, svg);
-      var tt = el("title", {}, col); tt.textContent = "What " + g.versions[i] + " changed";
-      col.onclick = function () { state.patch = i; state.sel = null; render(); };
-    })(ci);
-    g.versions.forEach(function (v, i) {
-      var tx = el("text", { x: left + i * cw + cw / 2, y: top + kinds.length * ch + 14, fill: ink, "font-size": 11,
-        transform: "rotate(-50 " + (left + i * cw + cw / 2) + " " + (top + kinds.length * ch + 14) + ")", "text-anchor": "end" }, svg);
-      tx.textContent = v;
+    cols.forEach(function (col, ci) {
+      if (!col.notes && col.data === 0) return;
+      var hit = el("rect", { x: left + ci * cw, y: top, width: cw, height: kinds.length * ch, fill: "transparent", "class": "col" }, svg);
+      el("title", {}, hit).textContent = col.notes ? col.v + ": " + NOT_SUPPORTED : "What " + col.v + " changed";
+      hit.onclick = function () {
+        state.sel = null; state.patch = null; state.notes = null;
+        if (col.notes) state.notes = col.v; else state.patch = col.data;
+        render();
+      };
     });
+    cols.forEach(function (col, ci) {
+      var tx = el("text", { x: left + ci * cw + cw / 2, y: top + kinds.length * ch + 14, fill: col.notes ? muted : ink, "font-size": 11,
+        "font-style": col.notes ? "italic" : "normal",
+        transform: "rotate(-55 " + (left + ci * cw + cw / 2) + " " + (top + kinds.length * ch + 14) + ")", "text-anchor": "end" }, svg);
+      tx.textContent = col.v + (col.notes ? " *" : "");
+    });
+    var legend = document.createElement("div"); legend.className = "legend";
+    legend.textContent = "Hatched columns marked * are versions this project doesn't read: " + NOT_SUPPORTED + " (from Liquipedia, CC BY-SA 3.0). Click any column.";
+    box.appendChild(legend);
   }
   // }}}
 
@@ -291,8 +348,35 @@
   }
   // }}}
 
+  // {{{ notes-only versions
+  function renderNotes() {
+    var v = state.notes, n = NOTES[v], det = $("detail");
+    det.className = "notes"; det.innerHTML = ""; $("heat").innerHTML = "";
+    $("title").textContent = v + " — patch notes";
+    $("subtitle").textContent = (n.release ? "released " + n.release : "") + (n.build ? " · build " + n.build : "");
+    var later = vless("1.29.2", v);
+    var banner = document.createElement("div"); banner.className = "banner";
+    banner.innerHTML = "<b>Not supported by this project — patch notes only.</b> ";
+    banner.appendChild(document.createTextNode(later
+      ? "This is a later version that this project leaves alone on principle (it reads 1.07 to 1.29.2; see docs/versions-we-leave-alone.md). "
+      : "No patch program for this version was found, so the project doesn't read its tables. "));
+    banner.appendChild(document.createTextNode("These are the patch notes as published, not the game's own numbers, and they aren't on the charts. Text from "));
+    var a = document.createElement("a"); a.href = n.url; a.textContent = n.title + " on Liquipedia"; a.target = "_blank"; a.rel = "noopener"; banner.appendChild(a);
+    banner.appendChild(document.createTextNode(" (" + n.license + "), fetched " + n.fetched.slice(0, 10) + "."));
+    det.appendChild(banner);
+    n.sections.forEach(function (sec) {
+      if (sec.heading) { var h = document.createElement(sec.level <= 2 ? "h3" : "h4"); h.textContent = sec.heading; det.appendChild(h); }
+      sec.lines.forEach(function (l) {
+        var p = document.createElement("p"); p.style.paddingLeft = (l[0] * 16) + "px";
+        p.textContent = (l[0] > 0 ? "• " : "") + l[1]; det.appendChild(p);
+      });
+    });
+  }
+  // }}}
+
   function renderDetail() {
     var g = H.games[state.game], det = $("detail"); det.innerHTML = ""; det.className = "charts";
+    if (state.notes && NOTES[state.notes]) { $("back").style.display = ""; $("back").onclick = function () { state.notes = null; render(); }; renderNotes(); return; }
     if (state.patch) { $("back").style.display = ""; $("back").onclick = function () { state.patch = null; render(); }; renderPatch(); return; }
     $("back").style.display = state.sel ? "" : "none";
     $("back").onclick = function () { state.sel = null; location.hash = state.game; render(); };
@@ -315,11 +399,14 @@
     Array.prototype.forEach.call($("games").children, function (b) { b.className = b.dataset.key === state.game ? "on" : ""; });
     var ps = $("patch"); ps.innerHTML = "";
     var o0 = document.createElement("option"); o0.value = 0; o0.textContent = "every patch (heat map)"; ps.appendChild(o0);
-    g.versions.forEach(function (v, i) {
-      if (i === 0) return;
-      var o = document.createElement("option"); o.value = i; o.textContent = "what " + v + " changed"; ps.appendChild(o);
+    columns(state.game).forEach(function (col) {
+      if (!col.notes && col.data === 0) return;
+      var o = document.createElement("option");
+      if (col.notes) { o.value = "n:" + col.v; o.textContent = col.v + " — " + NOT_SUPPORTED; }
+      else { o.value = col.data; o.textContent = "what " + col.v + " changed"; }
+      ps.appendChild(o);
     });
-    ps.value = state.patch || 0;
+    ps.value = state.notes ? "n:" + state.notes : (state.patch || 0);
     renderList(); renderDetail();
   }
   render();
