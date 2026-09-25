@@ -66,9 +66,11 @@ FFI, and never keeps a second implementation:
 
 ## Open Questions
 
-1. **Client folder**: `client/run` points at `/mnt/dile/ritz/games/wotlk`; the
-   files found are in `/mnt/mtwo/games/azeroth-core/client/client-files/`.
-   Which is live?
+1. ~~Client folder~~ Answered 2026-09-24: the live client is
+   `/mnt/mtwo/games/azeroth-core/client/`, its game files in `client-files/`
+   (so the archives are under `client-files/Data/`). The `DIR` inside
+   `client/run` still names `/mnt/dile/ritz/games/wotlk`, an older location;
+   that script is outside this project and was left as it is.
 
 ## Related Documents
 

@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 15:45:09
+Generated on: 2026-09-24 18:43:22
 Models: claude-opus-5-5
 
 ## Contents
@@ -46,6 +46,20 @@ Models: claude-opus-5-5
     maps load with the right stock values from your own installs, and StormLib
     now reads the 1.21b patch. Next, you decide whether I build the first patch
     layer, given the licence agreement and the bnetd court case.
+11. 2026-09-24 15:48, after Request 14 - We're designing Phase W, which runs WC3
+    maps through a WoW-style client, and we just moved the StormLib build into a
+    dependency script and documented the licensing risks. Next: decide whether
+    our docs should say that EU users are clearly entitled to extract, while US
+    users act under Blizzard's licence agreement.
+12. 2026-09-24 17:28, after Request 15 - Goal: turn Phase W's design into
+    working tools; I just finished the legal-implications document, linked from
+    a new README, and committed everything. Next: your answer on whether the
+    extraction code should come only from contributors who never accepted
+    Blizzard's licence.
+13. 2026-09-24 17:57, after Request 17 - We're planning Phase W, which turns
+    Warcraft III maps into a playable open WoW-client game, and we just mapped
+    the legal risks of running it as a public server. Next: say whether I should
+    add an "if you run a public server" section to the legal document.
 
 --------------------------------------------------------------------------------
 
@@ -1803,6 +1817,501 @@ by law, would it make sense for the project to say so openly: document that
 extraction is a user-side step that EU users are clearly entitled to, while US
 users are acting under their own click-through agreement? Or would you rather
 keep the documentation jurisdiction-neutral?
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+Sounds like we can be within copyright since we're not using their explicit
+assets (well, once the project is fully complete of course), but the EULA might
+be violated simply by creating a derivative work.
+
+
+
+<pasted_content id="7a80">
+> - Its exposure is where Blizzard's expression actually sits: quest text, NPC
+> names and dialogue
+>     in the world database, and anything extracted from the client. That's why every emulator makes
+>     each user extract data from their own client.
+</pasted_content id="7a80">
+
+
+question. Doesn't the engine itself keep some values and stats? Stuff that gets
+cached on the user's clientside for example. Does that not count?
+
+
+
+<pasted_content id="7a80">
+> That leaves a question for you. If the EU is where interoperability is
+> protected by law, would
+> it make sense for the project to say so openly: document that extraction is a
+> user-side step
+> that EU users are clearly entitled to, while US users are acting under their
+> own click-through
+>   agreement? Or would you rather keep the documentation jurisdiction-neutral?
+</pasted_content id="7a80">
+
+
+sure, we can explain the legal implications. Can you write a document explaining
+them, and link to it from the readme?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+I wrote `docs/legal-implications.md` and linked it from a new `README.md`,
+committed as `abdaa0109`. The project had no README of its own, and the
+monorepo's README is generated and currently being edited by another session, so
+I left that one alone.
+
+**On "the EULA might be violated simply by creating a derivative work":** mostly
+no. The Warcraft III licence's §2A does say you may not "create derivative
+works based on the Program". But a court would most likely read "derivative
+work" in its copyright sense, meaning something that incorporates Blizzard's
+expression, and an independently written engine doesn't meet that. The clauses
+that actually bite sit right next to it: no reverse engineering, disassembling,
+copying or modifying. Those cover *studying and extracting from* the game, not
+what you build afterwards. They also bind only people who accepted the licence.
+
+**On values and stats kept by the engine or cached on the client:**
+- **US:** individual values are facts, and facts aren't protected (*Feist v.
+  Rural*, 1991). A collection of them is protected only for any creative
+  selection or arrangement, which is thin. Text in the same tables (quest text,
+  names, descriptions) is expression and *is* protected.
+- **EU:** there's an extra database right (Directive 96/9/EC). The Court of
+  Justice held in *British Horseracing Board v. William Hill* (2004) that it
+  only rewards investment in *gathering* data, not in *creating* it. Game
+  balance values are created by the designer, so they're most likely not
+  covered. An emulator's database assembled from recorded traffic is a closer
+  call.
+- **Client caches** hold what the server sent: the same values, the same
+  analysis. They're the player's local copy and aren't redistributed.
+
+**What the document covers:**
+- a table of each activity, who does it, and what copyright and the licence
+  agreement each say about it;
+- copyright versus licence agreements, and what "derivative work" actually
+  means;
+- why tolerance doesn't cancel a right;
+- how emulators stay up, and the bnetd case with the lessons the project follows
+  (no bypassing CD-key or login checks, extraction on the user's own copy,
+  community-documented formats);
+- numbers and caches (the answer above);
+- US versus EU, and where the remaining risk sits;
+- what the project will never do.
+
+It's framed throughout as an engineering summary, not legal advice.
+
+A question back, since the bnetd ruling turned on the developers having clicked
+"accept": should the people who write the extraction code be contributors who
+have never installed Warcraft III, working only from the community's published
+format documentation? That would move the project's own code outside the
+contract entirely. Only each user's act of running the extraction would remain
+under it.
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+<pasted_content id="7a80">
+> On "the EULA might be violated simply by creating a derivative work": mostly
+> no. The Warcraft
+> III licence's §2A does say you may not "create derivative works based on the
+> Program". But a
+> court would most likely read "derivative work" in its copyright sense, meaning
+> something that
+> incorporates Blizzard's expression, and an independently written engine
+> doesn't meet that. The
+> clauses that actually bite sit right next to it: no reverse engineering,
+> disassembling, copying
+> or modifying. Those cover studying and extracting from the game, not what you
+> build afterwards.
+>   They also bind only people who accepted the licence.
+</pasted_content id="7a80">
+
+
+I really wish I didn't need to sacrifice my World of Warcraft characters that
+I've had since 2007.
+
+
+
+<pasted_content id="7a80">
+> A question back, since the bnetd ruling turned on the developers having
+> clicked "accept": should
+> the people who write the extraction code be contributors who have never
+> installed Warcraft III,
+> working only from the community's published format documentation? That would
+> move the project's
+> own code outside the contract entirely. Only each user's act of running the
+> extraction would
+>   remain under it.
+</pasted_content id="7a80">
+
+
+I built the code (with your help of course) and I have accepted the EULA. I'd
+love to continue using Blizzard products because I love them.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+You almost certainly don't have to give them up. I can't promise it, but as far
+as I know nothing in this project puts your account at risk.
+
+What's real and what isn't:
+
+- **Account bans come from terms-of-service breaches on Blizzard's live
+  service:** bots, cheats, exploits, third-party programs hooked into the retail
+  client, account selling. Those happen *on their servers*. This project never
+  touches them.
+- **Emulator enforcement goes after operators, not players' accounts.** In the
+  cases I know of (Scapegaming, Nostalrius, bnetd), Blizzard sent lawyers'
+  letters or sued the people running or distributing the service. I don't know
+  of anyone losing their Battle.net account for writing or tinkering with an
+  offline engine or emulator.
+- **The licence you accepted is the 2003-era Warcraft III disc licence,** tied
+  to that install. The worst it realistically gives Blizzard is a claim against
+  *that* use of *that* copy. Your WoW characters live under your Battle.net
+  account and its current terms, which govern how you use Blizzard's live games.
+
+A few habits keep the two worlds cleanly apart:
+
+1. Never point project tools at Blizzard's servers or at a Battle.net-connected
+   client. Use only the old disc installs and the 3.3.5a client, which is what
+   you already do.
+2. Keep it non-commercial, and don't run a public server with Blizzard content
+   under your name.
+3. Keep extraction local, as issue 112 already requires.
+
+As for the clean-room contributors question: it doesn't have to be you, and it
+doesn't have to happen at all. You built this and accepted the licence. That's
+the ordinary situation of nearly everyone who has ever modded a game they love.
+The project can stay a fan's work: made by someone who plays Blizzard's games,
+not someone at war with them.
+
+Want me to add that "keep your Battle.net account separate" checklist to
+`docs/legal-implications.md`?
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+<pasted_content id="7a80">
+> - Emulator enforcement goes after operators, not players' accounts. In the
+> cases I know of
+>     (Scapegaming, Nostalrius, bnetd), Blizzard sent lawyers' letters or sued the people running or
+>     distributing the service. I don't know of anyone losing their Battle.net account for writing
+>     or tinkering with an offline engine or emulator.
+</pasted_content id="7a80">
+
+
+I do not intend to keep it offline. Like caging a beautiful bird, or shackling a
+proud vessel to the dock for all time, I could not keep such a thing offline
+forever. I would be the operator, and I'd share the code according to the
+principles set forth in the RGPL, so I would be considered both an operator and
+a distributor.
+
+> 1. Never point project tools at Blizzard's servers or at a
+> Battle.net-connected client. Use only
+>      the old disc installs and the 3.3.5a client, which is what you already do.
+
+Absolutely. I would never infringe upon their space that they use to operate
+their games.
+
+> 2. Keep it non-commercial, and don't run a public server with Blizzard content
+> under your name.
+
+I would not charge money for such a service. I accept donations, but nobody has
+ever donated to me so far...
+
+>   3. Keep extraction local, as issue 112 already requires.
+
+Alright. The user must extract the data themselves. If they go down, I go with
+them.
+
+
+
+<pasted_content id="7a80">
+> As for the clean-room contributors question: it doesn't have to be you, and it
+> doesn't have to
+> happen at all. You built this and accepted the licence. That's the ordinary
+> situation of nearly
+> everyone who has ever modded a game they love. The project can stay a fan's
+> work: made by
+>   someone who plays Blizzard's games, not someone at war with them.
+</pasted_content id="7a80">
+
+
+The structure of our society pits lovers against one another. Though I doubt
+they know my name more than any other customer of 20 years.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+Being the public operator and the distributor changes your risk profile. It's
+still a position people have held for years. What matters most for someone in
+that role:
+
+- **What your server sends players matters most.** Operators got into trouble
+  for distributing Blizzard's content: their client, their data, their quest
+  text. The design already helps you here. Converted maps run on an empty
+  database filled from each map's own data, and players bring their own game
+  files. Keep the server serving only what the map made.
+- **Never distribute a client or any Blizzard file.** Players install their own.
+  The dependency script, the converter and the engine are yours to share under
+  the RGPL. Blizzard's files never pass through you.
+- **Keep donations away from access.** Scapegaming, the one that cost $88
+  million, sold in-game advantages. Donations for the project, with nothing
+  given in the game in return, are about as far from that as you can get. A
+  patron with no perk is not a customer.
+- **Have a plan for a letter.** In the cases I know of, the first step was a
+  cease-and-desist. Nostalrius shut down when it got one and wasn't sued.
+  Deciding now what you'd do if one arrives (take the server down, keep the code
+  up, talk to a lawyer) means you won't have to decide under pressure.
+- **Your account and your characters.** Operating a server is still a different
+  act from breaking the rules of Blizzard's live service. I don't know of an
+  operator losing their personal Battle.net account over an emulator, but at
+  your profile I can't rule it out the way I could for offline tinkering.
+
+On the rest: they probably don't know your name, and there's something freeing
+in that. The custom-map scene you're preserving only existed because Blizzard
+shipped the World Editor with the game. DotA, tower defense and the whole genre
+came out of it. You and the people who built that game have been on the same
+side of the thing you both love for a long time. The structures around you both
+are what make that look like a fight.
+
+Should I add an "if you run a public server" section to
+`docs/legal-implications.md`, built from the points above?
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+<pasted_content id="7a80">
+> - Have a plan for a letter. In the cases I know of, the first step was a
+> cease-and-desist.
+>     Nostalrius shut down when it got one and wasn't sued. Deciding now what you'd do if one
+>     arrives (take the server down, keep the code up, talk to a lawyer) means you won't have to
+>     decide under pressure.
+</pasted_content id="7a80">
+
+
+I'd immediately broadcast to anyone that'll listen that I got a letter and that
+I was going to talk to a lawyer about it. I'd take the game down but leave the
+source-code accessible in it's totality. I'd include in the broadcast message I
+made that the source-code was available and accessible and wouldn't be for long.
+I'd say how many gigabytes or whatever it would take up on their computer if
+they wanted to take a copy for themselves, and how I personally would not be
+able to distribute it for long, assuming that's what my lawyer suggested. The
+process of conferring with a lawyer could take a bit of time, because I'd need
+to schedule around it and shop around to find the right one. Plus we'd have to
+have several back and forth discussions, and we'd need to schedule accordingly.
+I get tired after talking about intense topics for more than a couple hours, so
+since we'd be talking for several sessions in order to fully map out our options
+and become apprised of the law and it's implications, plus reading the entire
+EULA and license agreements word-by-word to ensure that we truly understood
+everything, then I would take a bit of time to draft a take-down notice that I
+would post on my github repository where everyone could see it, alongside the
+source-code so that they know what exactly they had to take down if they wanted
+to follow the takedown notice's suggestion of taking down their copy of the
+sourcecode lest they be cease-and-desisted like me, and after a brief period
+where anyone who received this takedown notice (it would be delivered alongside
+the delivery mechanism that RGPL requires), then I would remove the source-code
+and leave the takedown notice up. If I received any other notices related to the
+cease-and-desist case, I would deal with them in a FIFO manner, ensuring that
+the latest received notices would be dealt with last, and the first received
+messages, the most important ones, would be received first. This feels like the
+truly fairest way to approach it to me.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+Taking the game down at once and handling notices in the order they arrive are
+both sound. One piece of the plan could hurt you: announcing "the code won't be
+up for long, take a copy now" while deliberately stretching the lawyer process.
+
+**Why that part is risky:**
+- A cease-and-desist usually sets a deadline. Public statements made after it
+  arrives can become evidence. If a court ever decided something in the code
+  *did* infringe, a message urging people to grab copies before a delayed
+  takedown looks like wilful spreading of infringing material. Wilfulness raises
+  damages, and encouraging others to copy can create liability of its own.
+- Letters that get quick, quiet compliance tend to stay letters: Nostalrius shut
+  down and wasn't sued. A public race to mirror the code is the kind of response
+  that turns a letter into a lawsuit.
+
+**Why you may not need the race at all:** by design, the code contains nothing
+of Blizzard's. No assets, no text, no code, and extraction runs on each user's
+machine. If the letter demands the source be removed, a lawyer may well tell you
+it can stay up, because your own independently written code is yours. Deciding
+to remove it before that conversation gives away the strongest position you
+have.
+
+**A version that keeps what you care about and drops the risk:**
+1. **Take the server down immediately.** That's the part the letter is really
+   about, and doing it at once shows good faith.
+2. **Send the sender a short holding reply:** "Received; the service is offline;
+   I'm consulting counsel and will respond by [date]." This is standard. It buys
+   the time you need for several short sessions with a lawyer, because the delay
+   is acknowledged openly instead of drawn out.
+3. **Post a plain, factual notice.** You got a letter, the server is down,
+   you're taking legal advice. Say nothing about hurrying to copy anything. The
+   source stays exactly as it was, already public under the RGPL.
+4. **Let the lawyer decide whether the code must go.** If it must, your takedown
+   notice and FIFO handling of later notices are fine. If it needn't, it stays.
+
+Pacing the conversations around your energy is legitimate. The holding reply is
+what makes that pace acceptable to the other side.
+
+Want me to put this response plan, together with the operator points from
+before, into an "if you run a public server" section of
+`docs/legal-implications.md`?
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+<pasted_content id="7a80">
+> - A cease-and-desist usually sets a deadline. Public statements made after it
+> arrives can become
+>     evidence. If a court ever decided something in the code did infringe, a message urging people
+>     to grab copies before a delayed takedown looks like wilful spreading of infringing material.
+>     Wilfulness raises damages, and encouraging others to copy can create liability of its own.
+</pasted_content id="7a80">
+
+
+Yep, that is intended.
+
+
+
+<pasted_content id="7a80">
+> - Letters that get quick, quiet compliance tend to stay letters: Nostalrius
+> shut down and wasn't
+>     sued. A public race to mirror the code is the kind of response that turns a letter into a
+    lawsuit.
+</pasted_content id="7a80">
+
+
+I will dig my own grave if I must.
+
+
+
+<pasted_content id="7a80">
+> Why you may not need the race at all: by design, the code contains nothing of
+> Blizzard's. No
+> assets, no text, no code, and extraction runs on each user's machine. If the
+> letter demands the
+> source be removed, a lawyer may well tell you it can stay up, because your own
+> independently
+> written code is yours. Deciding to remove it before that conversation gives
+> away the strongest
+>   position you have.
+</pasted_content id="7a80">
+
+
+Exactly. We are only distributing my code. The cease and desist would be for
+operating the server in a public setting, and the server would be taken offline
+immediately. However, the source-code of the server is entirely my own, just as
+much as Azerothcore is entirely owned by the Azerothcore developers.
+
+
+
+<pasted_content id="7a80">
+> 3. Post a plain, factual notice. You got a letter, the server is down, you're
+> taking legal
+>      advice. Say nothing about hurrying to copy anything. The source stays exactly as it was,
+>      already public under the RGPL.
+</pasted_content id="7a80">
+
+
+Very well, I will post a plain factual notice. I should be sure to identify
+exactly which source-code I am considering taking down though, so it might
+include a link to the repository or however I share it. Including perhaps a link
+to the instructions for how to request the code through the application itself,
+as required by the RGPL.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+Linking your own repository and the RGPL source-request instructions in a
+factual notice is fine. It's your code, and the RGPL obliges you to point people
+to it. I've said my piece on the rest. It's your call, and you're making it with
+open eyes.
+
+One thing about the RGPL link: once the server is offline, no new players are
+using it, so its source-sharing duty (§13) stops applying to anyone new. People
+who already played were owed the source when their use began. So the link is a
+courtesy from then on, not an obligation.
+
+A plain draft you could adapt:
+
+> **Notice, [date]**
+>
+> On [date] I received a letter from [sender] concerning the public server at
+> [address]. The server is now offline.
+>
+> I am taking legal advice and will post an update when I have one.
+>
+> The server's source code is my own work, distributed under the RGPL. It is at
+> [repository link], and instructions for requesting it through the application
+> are at [link]. It contains no Blizzard Entertainment files, art, text or code;
+> players supply their own game files.
+>
+> Whether any part of that repository will be taken down is one of the questions
+> I'm discussing with counsel. If anything changes, it will be listed here, by
+> path, before it happens.
+
+The last line identifies exactly which source is in question, as you wanted. It
+commits you only to saying so before anything changes.
+
+--------------------------------------------------------------------------------
+
+### User Request 20
+
+Great. What's next to work on?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 20
+
+In order of value, most likely to pay off first:
+
+1. **Finish 112a (StormLib).** It's small and close to done: the `mpq-extract`
+   command, a test showing StormLib and our own reader extract byte-identical
+   files from a map, the `.info.md` files, and the licence entries (including
+   the libtomcrypt finding). That completes an issue and gives everything after
+   it a trusted tool.
+2. **112b, the first patch layer.** Apply 1.21b's BSDIFF40 diffs to the files
+   below them without running the patcher, store the result as a layer, and make
+   a map load pick its layers automatically. Stock values are only right once
+   this exists.
+3. **112 Route A: stock tables.** An SLK parser, the metadata join, the
+   keep-list of functional fields, and the merge with a map's modified objects.
+   The first visible payoff: one DAoW map's custom abilities come out as
+   complete rows.
+4. **112 Route B and the cross-check.** Fetch from Liquipedia politely, compare
+   field by field, and write the report. That completes the two-route rule you
+   asked for.
+5. **The W client's foundation** (custom-client issues 101–105a). The build
+   system, logging, config, file access and the MPQ chain, built as the shared
+   library. Everything on the WoW side waits on this.
+6. **The most unusual option: a W02a prototype.** Turn the smallest DAoW map's
+   terrain into ADT files and open them in Noggit. It skips ahead of the
+   foundations, but it's the fastest way to *see* a Warcraft III map inside
+   WoW's world format, and it would test the one-tile-per-cell scale rule on a
+   real map.
+
+I'd start with 1, then 2 and 3, since those three turn today's setup into real
+converted data.
+
+There are also open questions waiting across the issues, which I'm meant to ask
+you one at a time. The oldest one blocks W01: your client launch script points
+at `/mnt/dile/ritz/games/wotlk`, but the 3.3.5a files I found are in
+`/mnt/mtwo/games/azeroth-core/client/client-files/`. Which is your live WoW
+client?
 
 --------------------------------------------------------------------------------
 
