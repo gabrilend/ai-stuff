@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 10:29:59
+Generated on: 2026-09-25 10:44:33
 Models: claude-opus-5-5
 
 ## Contents
@@ -4322,6 +4322,74 @@ Next, in order of value:
    published sources, or the first WoW-client bridge issue.
 
 Which would you like?
+
+--------------------------------------------------------------------------------
+
+### User Request 40
+
+can you write up a document listing the general steps and procedures we'd need
+to take in order to implement support for all the extra versions of the game
+that we're intentionally not supporting? Mark them as not intended to be created
+by us, for nobility's sake. We should say exactly what we would do, why we
+aren't doing it, and ensure that we explain the value in honoring the currently
+active game and it's denizens and sovereignty. My relationship toward Warcraft 3
+and it's developers as a whole, in general, is one of reverence and care.
+
+Then, let's continue with the patches that we do intend to support.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 40
+
+> I'll write the document first, then carry on with the Reign of Chaos stack.
+
+> The Frozen Throne stack reports all 18 layers present. Reign of Chaos reports
+> only 13 of its 14, so one layer rebuilt on the second run. Checking which one,
+> and why.
+
+> 49 of 49. Updating the notes and issues, then the full suite and a commit.
+
+Both pieces are done, committed as `5ba442e2c` and `c854abd29`. The whole suite
+passes and the repository is clean.
+
+**The document:** `docs/versions-we-leave-alone.md`, linked from the legal
+summary and the table of contents. It's marked throughout as not to be built by
+us.
+- **What support would take:** a CASC storage reader; the 1.30–1.31 data (Lua
+  map scripts, newer map-info formats, new native functions); Reforged's HD
+  models, skins and new fields.
+- **Why we won't:** the game is alive, and its current version belongs to
+  Blizzard and the people who play it now. The versions we keep are the ones
+  people shared on their own networks. Your reverence for the game and its
+  makers means leaving the living game to its community.
+
+**The Reign of Chaos stack:**
+- **Built:** 13 layers, 1.18a through 1.27b, from the 1.00 disc install, in
+  their own folder apart from Frozen Throne's. Each reports its correct game
+  version, and a second run changes nothing.
+- **New diff kind:** Reign of Chaos patches use one more kind, a bsdiff stored
+  as is. The reader now handles it, with a test.
+- **Editor builds now map to ranges.** Reign of Chaos has no 1.21b layer, yet
+  its editors hold the same build numbers as Frozen Throne's. So each build now
+  records its range of versions, and the chain loads the newest layer the stack
+  actually has in it. On a Reign of Chaos-only install, a 6052 map loads 1.20e.
+  Every test map loads the same version as before.
+
+**Supported range, what's left:**
+1. **The oldest diff format (kind `0x00`).** It unlocks Reign of Chaos
+   1.01–1.11 and Frozen Throne 1.11 and 1.14b. The framing is known; the
+   packing of copy offsets isn't.
+2. **Missing English programs:**
+   - Frozen Throne 1.10, 1.12, 1.13, 1.15–1.18, 1.28.0–1.28.3 and 1.29.0;
+   - Reign of Chaos 1.02a, 1.12–1.14b and 1.21a–1.23a.
+
+   Some exist only in other languages (1.13 in French and German, for example).
+   The balance tables are probably the same across languages, with only the text
+   differing. I could check that on a version we hold in both English and German
+   (1.24e): if the tables match, other-language programs can fill the gaps.
+
+Should I run that language check next? It's cheap, and it could close most of
+the gaps at once.
 
 --------------------------------------------------------------------------------
 
