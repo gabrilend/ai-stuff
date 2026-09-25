@@ -53,6 +53,7 @@ docs/
 ├── datapath-client-comparison-testing.md    W04: scenario → two clients → recordings → report
 ├── datapath-asset-forge.md                  W05/W06: select → search/generate → fit → keep → install
 ├── licensing-and-boundaries.md      Which licence covers each piece, where they touch, what combines
+├── legal-implications.md            For readers: copyright vs licence agreements, stats, US vs EU, where risk sits
 ├── render-architecture.md           Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── render-threading-v2.md           Target threading model (v2)
