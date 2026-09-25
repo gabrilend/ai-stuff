@@ -23,12 +23,22 @@ SFilePatchArchives.cpp (Decompress_RLE, ApplyFilePatch_BSD0):
   Copyright (c) Ladislav Zezula; StormLib is released under the MIT licence
   (deps/licenses/stormlib/LICENSE when built by scripts/build-dependencies.sh).
 
+Two generations of the run-length code (issue 112d, 2026-09-25). Patches
+from 1.21a on count runs from 1: a byte with the top bit set copies
+(byte & 0x7F) + 1 bytes, any other byte stands for byte + 1 zeros. Patches
+before it (1.19a-1.20e seen) count from 32: (byte & 0x7F) + 32 bytes, or
+byte + 32 zeros. Found by lining up the same file's diff in 1.20e and 1.21a,
+and confirmed on all 218 of 1.20e's archive diffs: each rebuilds exactly the
+file 1.21a's does. The bytes can't tell the two apart, so the caller says
+which (M.RUN_STEP_1_21, M.RUN_STEP_1_20), chosen by the patch's version.
+
 Needs LuaJIT (FFI byte buffers and the system zlib for CRC32).
 
 Usage:
   local bsd0 = require("gamedata.bsd0")
   local header = bsd0.read_header(entry_bytes)
   local new_bytes, err = bsd0.apply(entry_bytes, old_bytes)   -- old_bytes nil for whole files
+  local new_bytes, err = bsd0.apply(entry_bytes, old_bytes, bsd0.RUN_STEP_1_20)   -- a 1.20e-era patch
 
 Issue: issues/112b-game-version-layers-per-map.md
 ]]
@@ -46,6 +56,10 @@ local M = {}
 M.KIND_WHOLE = 0x01
 M.KIND_DIFF = 0x04
 local HEADER_SIZE = 24
+
+-- The run-length code's step: what a run's count byte is added to.
+M.RUN_STEP_1_21 = 1    -- 1.21a and later
+M.RUN_STEP_1_20 = 32   -- 1.19a-1.20e (and possibly earlier; issue 112d)
 
 -- {{{ local function u32
 local function u32(s, pos)
@@ -85,7 +99,7 @@ end
 -- (byte & 0x7F) + 1 bytes as they are"; otherwise "leave (byte + 1) zero
 -- bytes". The first 4 bytes of the packed data are its unpacked size.
 -- Returns an FFI byte buffer and its size.
-local function unpack_rle(packed, first)
+local function unpack_rle(packed, first, step)
     local unpacked_size = u32(packed, first)
     local out = ffi.new("uint8_t[?]", unpacked_size)   -- zero-filled
     local src = ffi.cast("const uint8_t *", packed)
@@ -96,7 +110,7 @@ local function unpack_rle(packed, first)
         local byte = src[pos]
         pos = pos + 1
         if bit.band(byte, 0x80) ~= 0 then
-            local count = bit.band(byte, 0x7F) + 1
+            local count = bit.band(byte, 0x7F) + step
             for _ = 1, count do
                 if n == unpacked_size or pos == stop then break end
                 out[n] = src[pos]
@@ -104,7 +118,7 @@ local function unpack_rle(packed, first)
                 pos = pos + 1
             end
         else
-            n = n + byte + 1
+            n = n + byte + step
         end
     end
     return out, unpacked_size
@@ -207,7 +221,8 @@ end
 -- Returns the new file's bytes, or nil and an error. A diff whose old file
 -- doesn't have the CRC32 and size the header names is refused: it was made
 -- against a different file.
-function M.apply(entry, old)
+function M.apply(entry, old, run_step)
+    run_step = run_step or M.RUN_STEP_1_21
     local header, err = M.read_header(entry)
     if not header then
         return nil, err
@@ -240,7 +255,7 @@ function M.apply(entry, old)
     if packed_length >= unpacked_size then
         return nil, "uncompressed diff payload (not seen in any patch yet; format unconfirmed)"
     end
-    local patch, patch_size = unpack_rle(entry, HEADER_SIZE + 1)
+    local patch, patch_size = unpack_rle(entry, HEADER_SIZE + 1, run_step)
 
     local old_buf = ffi.new("uint8_t[?]", #old)
     ffi.copy(old_buf, old, #old)

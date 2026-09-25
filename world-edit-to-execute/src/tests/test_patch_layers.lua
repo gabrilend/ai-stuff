@@ -308,6 +308,50 @@ else
         skip("1.29.2", "needs the install layer (build-patch-layer.lua --install-layer 1.29.2)")
     end
 
+    -- Cross-check: an incremental patch (one version to the next) applied to
+    -- the lower version's layer must write exactly the files the higher
+    -- version's full patch did. It tests the stack's base search and both
+    -- run-length steps (1.20d -> 1.20e uses the older one; 1.20e -> 1.21a
+    -- crosses to the newer).
+    local INCREMENTALS = {
+        { file = "war3tft_120d_120e_english.exe", from = "1.20d", to = "1.20e" },
+        { file = "warcraft3_tft_120e_121a_english.exe", from = "1.20e", to = "1.21a" },
+        { file = "warcraft3_tft_121a_121b_english.exe", from = "1.21a", to = "1.21b" },
+    }
+    for _, inc in ipairs(INCREMENTALS) do
+        local program = PROGRAMS .. "/incremental/" .. inc.file
+        if not exists(program) or not exists(LAYERS .. "/" .. inc.from .. "/manifest.lua")
+            or not exists(LAYERS .. "/" .. inc.to .. "/manifest.lua") then
+            skip(inc.from .. " -> " .. inc.to, "needs the incremental program and both layers")
+        else
+            local out = os.tmpname()
+            os.remove(out)
+            local scratch = os.tmpname()
+            os.remove(scratch)
+            local ok_build, built = pcall(patch_layer.build, {
+                patch_program = program, install = INSTALL,
+                base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },
+                version = inc.to .. "-incremental", output = out, scratch = scratch,
+                lower_layers = { { name = inc.from, folder = LAYERS .. "/" .. inc.from } },
+            })
+            local same, differ, first_differ = 0, 0, nil
+            if ok_build then
+                for _, e in ipairs(built.entries) do
+                    local rel = e.place .. "/" .. e.target:gsub("\\", "/")
+                    local a = io.open(out .. "/" .. rel, "rb")
+                    local b = io.open(LAYERS .. "/" .. inc.to .. "/" .. rel, "rb")
+                    local da, db = a and a:read("*a"), b and b:read("*a")
+                    if a then a:close() end
+                    if b then b:close() end
+                    if da and da == db then same = same + 1 else differ = differ + 1; first_differ = first_differ or rel end
+                end
+            end
+            os.execute("rm -rf '" .. out .. "' '" .. scratch .. "'")
+            test(string.format("%s -> %s incremental reproduces the %s layer (%d files)", inc.from, inc.to, inc.to, same),
+                ok_build and same > 0 and differ == 0, ok_build and tostring(first_differ) or tostring(built))
+        end
+    end
+
     -- Every editor build in the evidence table names a built layer.
     local table_ = dofile(DIR .. "/src/gamedata/editor_versions.lua")
     for build, row in pairs(table_) do

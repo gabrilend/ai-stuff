@@ -183,11 +183,12 @@ if arg[1] == "--install-layer" then
 end
 
 -- {{{ READABLE_FROM
--- Patch programs older than 1.21a come in three earlier shapes this builder
--- can't read yet (issue 112d): 1.19a-1.20e diff with an older encoding, 1.14b
--- carries three nested archives, and 1.11 and older store their inner files
--- without names. They are fetched and listed on every run, not built.
-local READABLE_FROM = { 1, 21, 1, 0 }   -- 1.21a
+-- Patch programs older than 1.19a come in two earlier shapes this builder
+-- can't read yet (issue 112d): 1.14b carries three nested archives, and 1.11
+-- and older store their inner files without names. They are fetched and
+-- listed on every run, not built. (1.19a-1.20e, with their older run-length
+-- step, are read since 2026-09-25.)
+local READABLE_FROM = { 1, 19, 1, 0 }   -- 1.19a
 -- }}}
 
 -- {{{ local function version_key

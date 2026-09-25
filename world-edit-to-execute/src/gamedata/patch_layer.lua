@@ -179,6 +179,27 @@ local function file_version(bytes)
 end
 -- }}}
 
+-- {{{ local function run_step_for
+-- Which run-length step a patch program's diffs use, from the version its
+-- script says it installs (FileVersionLessThan "War3.exe" 1.0.20.6056).
+-- Versions before 1.21a were numbered 1.0.X.build, so the build (the last
+-- part) is what compares across both schemes: below 6263 (1.21a) is the
+-- older step. From 1.25b the script says 1.99.99.9999, a placeholder: those
+-- are all newer programs. A script with no version check is an error.
+local FIRST_BUILD_WITH_STEP_1 = 6263   -- 1.21a
+local function run_step_for(script, patch_program)
+    local stated = script:match("FileVersionLessThan%s+\"[^\"]*\"%s+([%d%.]+)")
+    if not stated then
+        error(patch_program .. ": patch.cmd has no FileVersionLessThan check to tell its diff format by")
+    end
+    local build = tonumber(stated:match("(%d+)$"))
+    if build < FIRST_BUILD_WITH_STEP_1 then
+        return bsd0.RUN_STEP_1_20
+    end
+    return bsd0.RUN_STEP_1_21
+end
+-- }}}
+
 -- {{{ function M.target_version
 -- The game version a patch program produces: the version stamped in the
 -- War3.exe it writes (whole, or rebuilt from its diff against the install's
@@ -217,7 +238,7 @@ function M.target_version(patch_program, scratch, install)
     if header.kind == bsd0.KIND_DIFF then
         old = read_file(install_index(install)[checked_file:lower()] or "")
     end
-    local new, err = bsd0.apply(entry, old)
+    local new, err = bsd0.apply(entry, old, run_step_for(script, patch_program))
     if not new then
         error(patch_program .. ": can't rebuild " .. checked_file .. " to read its version: " .. err)
     end
@@ -226,12 +247,17 @@ function M.target_version(patch_program, scratch, install)
         error(patch_program .. ": the " .. checked_file .. " it writes has no version stamp")
     end
     local version = table.concat(parts, ".")
-    -- 1.99.99.9999 (and anything from 1.99 up) is Blizzard's "any version" placeholder.
+    -- The script's number is a threshold ("don't patch this version or
+    -- later"), not always the version made: 1.21a on set it to the new
+    -- version exactly, 1.20d set 1.0.20.6069 and makes 1.20.3.6070. So the
+    -- version made must be at or above it. Builds compare across both
+    -- numbering schemes (1.0.20.x before 1.20c, 1.20.2.x after); 1.99.99.9999
+    -- (from 1.25b) is a placeholder meaning any version.
     local stated_major, stated_minor = stated:match("^(%d+)%.(%d+)")
     local placeholder = tonumber(stated_major) == 1 and tonumber(stated_minor) >= 99
-    if not placeholder and stated ~= version then
-        error(string.format("%s: patch.cmd says %s but the %s it writes is %s", patch_program, stated,
-            checked_file, version))
+    if not placeholder and parts[4] < tonumber(stated:match("(%d+)$")) then
+        error(string.format("%s: patch.cmd's threshold is %s but the %s it writes is older, %s",
+            patch_program, stated, checked_file, version))
     end
     return version, parts
 end
@@ -330,6 +356,8 @@ function M.build(options)
     end
     local patch_cmd = patch:read("patch.cmd")
     manifest.requires_older_than = patch_cmd:match("FileVersionLessThan%s+\"[^\"]*\"%s+([%d%.]+)")
+    local run_step = run_step_for(patch_cmd, options.patch_program)
+    manifest.run_step = run_step
 
     local counts = { archive = 0, install = 0, diff = 0, whole = 0 }
     for _, line in ipairs(parse_list(patch:read("patch.lst"))) do
@@ -353,7 +381,7 @@ function M.build(options)
             end
         end
 
-        local new, err = bsd0.apply(entry, old)
+        local new, err = bsd0.apply(entry, old, run_step)
         if not new then
             error(string.format("%s -> %s: %s", source, target, err))
         end

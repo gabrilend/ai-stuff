@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 21:48:43
+Generated on: 2026-09-24 22:14:25
 Models: claude-opus-5-5
 
 ## Contents
@@ -85,6 +85,10 @@ Models: claude-opus-5-5
     the game data from the patch it was built for; the patch stack, per-map
     versions and RAM scratch folders are done and committed. Next: your call on
     keeping our own map reader or switching entirely to StormLib.
+20. 2026-09-24 21:51, after Request 38 - We're gathering every Warcraft III
+    patch from 1.07 to 1.29.2 so any map loads the game data it was made for,
+    and the downloads are still running. Next, I'll build the new layers in
+    version order and verify them.
 
 --------------------------------------------------------------------------------
 
@@ -4157,6 +4161,89 @@ for v in 1.28.5 1.29.1; do echo "== $v"; python3 $S/zipcd.py
 
 The fetch is still running: 1.11 and 1.14b are in, and the rest are downloading.
 I'll build and verify once it finishes.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/scripts/fetch-patch-programs.sh
+&gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/fetchall.log
+2&gt;&amp;1; echo "exit $?"; grep -v present
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/fetchall.log"
+completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 38 (continued)
+
+> Debugging: dumping this diff's block sizes and first control entries, read
+> both as 32-bit numbers (what we assume) and as standard bsdiff's 64-bit ones.
+
+> The 8-byte reading doesn't fit either. Rather than keep guessing at this one
+> file, I'm measuring how widespread the problem is: applying every diff in the
+> 1.20b program and counting how many fail.
+
+> This small diff decodes readably. Printing its control triples under the
+> standard rules, to see which number goes wrong.
+
+> 1.21a slotted in at the bottom and everything above it rebuilt in order, as
+> designed. Now the 1.28.5 and 1.29.1 install layers, and the editor-build check
+> for 6059 and 6060.
+
+> Next, a test for the crash fix. It uses a hand-built diff whose move points
+> before the start of the old file: the reference bsdiff skips those bytes, and
+> our applier used to read outside its buffer.
+
+> 42 of 42. Now the sub-issue for the older patch-program generations, with
+> what's known about each, and the patch-layer issue's current state.
+
+> The whole suite passes. Committing.
+
+I found English patch programs back to 1.01 for both games, but only 1.21a and
+later can be built so far. Committed as `f79f0c269`; the whole suite passes and
+the repository is clean.
+
+**Downloaded:**
+- **Frozen Throne:** 1.11, 1.14b, 1.19a, 1.20b–e, 1.21a and 1.27a. The 1.21a
+  and 1.27a files match their published SHA-512 checksums.
+- **Reign of Chaos:** 1.01–1.06, 1.11, 1.18a, 1.19a and 1.20c–e.
+- **Data from game copies:** 1.28.5 and 1.29.1 (as with 1.29.2, there's no patch
+  program for these).
+- **Sources:** mostly two Internet Archive collections, plus Hive Workshop's
+  file packs. From the 7 GB Gamefront archive, only the listed files were
+  downloaded. None of it came from Blizzard's servers.
+
+**Built:**
+- Frozen Throne from **1.21a through 1.27b**, plus install layers for **1.28.5,
+  1.29.1 and 1.29.2**.
+- 1.28.5's editor holds build 6059, so maps from that editor era now load
+  1.28.5, the newest version in their range.
+
+**A crash, fixed:** trying the older patch programs crashed the diff reader. It
+trusted a diff's lengths and read memory outside its buffers. Every length is
+now checked first, and tests cover it.
+
+**Not buildable yet: 1.01–1.20e.** These come in three older patch-program
+shapes:
+
+| Versions | What's different |
+|---|---|
+| 1.19a–1.20e | An older diff encoding. The header and control block are stored plainly, but the data block uses a packing rule I haven't identified yet |
+| 1.14b | Three nested archives inside instead of one |
+| 1.11 and older | The inner files have no names in the archive's file list |
+
+They're downloaded, and every stack build lists them as not built. A new
+sub-issue (112d) records what I learned about each, including a planned
+cross-check: the incremental 1.20d → 1.20e patch must reproduce the 1.20e
+layer. The Reign of Chaos stack is part of that sub-issue too.
+
+**Still unfound in English:** Frozen Throne 1.10, 1.12, 1.13, 1.15–1.18,
+1.28.0–1.28.3 and 1.29.0.
+
+**Disk:** 24 GB free.
+
+Should I start on the older diff encoding next? Or is there something else you'd
+rather tackle first?
 
 --------------------------------------------------------------------------------
 

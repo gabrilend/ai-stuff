@@ -18,7 +18,7 @@ produces, built by applying its entries to their bases, without running it.
 |------|-------|
 | `archive/<path>` | the files the rebuilt `War3Patch.mpq` would hold (backslashes become `/`) |
 | `install/<path>` | loose install files (maps, `game.dll`, `war3.exe`), in `patch.lst`'s spelling |
-| `manifest.lua` | `version`, `built` (UTC time), `patch_program` (file, size, CRC32), `requires_older_than` (from `patch.cmd`; a 1.99.99.9999 placeholder from 1.25b on), `base_archives`, `lower_layers` (names offered as bases, highest first), `deleted` (from `delete.lst`), `counts`, and `entries`: `{target, place ("archive"/"install"), kind ("diff"/"whole"), base (where the old file came from: an archive name, `"install"`, or `"layer <name>"`), size, crc32}` |
+| `manifest.lua` | `version`, `built` (UTC time), `patch_program` (file, size, CRC32), `requires_older_than` (from `patch.cmd`: a threshold, the version made or just below it; a 1.99.99.9999 placeholder from 1.25b on), `run_step` (the diffs' run-length step, chosen from that threshold's build number), `base_archives`, `lower_layers` (names offered as bases, highest first), `deleted` (from `delete.lst`), `counts`, and `entries`: `{target, place ("archive"/"install"), kind ("diff"/"whole"), base (where the old file came from: an archive name, `"install"`, or `"layer <name>"`), size, crc32}` |
 
 A patch rebuilds its whole data archive from its list, so a layer's archive
 files are complete by themselves. Its install files are not: a file the patch
