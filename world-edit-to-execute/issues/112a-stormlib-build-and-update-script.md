@@ -3,7 +3,7 @@
 **Phase:** 1 - Foundation, File Format Parsing
 **Type:** Sub-issue of 112
 **Priority:** High (blocks reading patch archives)
-**Dependencies:** None
+**Dependencies:** 113 (for the comparison test to pass on every map)
 
 ---
 
@@ -16,8 +16,20 @@ A second run is a no-op; `--list-tags`, `--latest` and `--pin` work.
 `src/mpq/stormlib.lua` (LuaJIT FFI: open, list, has, read, extract, close)
 opens the 1.21b patch program directly and lists its embedded archive.
 
-Remaining: the `mpq-extract` CLI, the byte-for-byte comparison test against
-our own reader, `.info.md` files, and the licence entries. **Licence finding:**
+Also built: `src/cli/mpq-extract.lua` (list, extract one, extract all; an
+extra listfile, by default the standard map names in
+`src/mpq/standard_names.lua`, so protected maps' files are found by name),
+`.info.md` beside each new file, and the licence entries in
+`docs/licensing-and-boundaries.md`.
+
+`src/tests/test_stormlib.lua` reads every file of every map in `assets/` with
+both readers (369 files across 16 maps). It found three bugs in the project's
+own reader (fixed; see `docs/formats/mpq-archive.md`: last-duplicate-wins
+lookup with the mask and block-range check, unencrypted trailing bytes, and
+multi-sector uncompressed encrypted files). **Remaining:** two minimap images
+are Huffman-compressed, which the project's reader doesn't implement, so the
+test fails on those two maps until issue 113 is done. That is the only thing
+keeping this issue open. **Licence finding:**
 StormLib's bundled copy of libtomcrypt (`src/libtomcrypt/`) carries no licence
 file or statement; upstream LibTomCrypt is released into the public domain
 (dual Unlicense/WTFPL in current releases). The release review should either
@@ -71,8 +83,8 @@ read a file to bytes or extract it to disk, close.
 
 - [x] One command builds StormLib from a pinned tag; a second run is a no-op
 - [x] `--pin`, `--latest` and `--list-tags` work
-- [ ] The FFI binding lists and extracts files from a map archive, byte-identical to our own reader
-- [ ] Licences of StormLib and bundled libraries listed
+- [ ] The FFI binding lists and extracts files from a map archive, byte-identical to our own reader (every map except the two Huffman images; waits on 113)
+- [x] Licences of StormLib and bundled libraries listed
 
 ## Related Documents
 

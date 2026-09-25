@@ -13,7 +13,9 @@ the licences as written, not legal advice.
 | The W client (`custom-client`) | **none yet**: no LICENSE file, which legally means "all rights reserved" | players' machines |
 | AzerothCore | GNU AGPL v3 | the server |
 | ALE (`mod-ale`, Lua inside AzerothCore) | GNU GPL v3 (checked 2026-09-23 at github.com/azerothcore/mod-ale). A fork of Eluna, which it replaces; its scripts are not compatible with Eluna's | inside the server process |
-| StormLib (MPQ) | MIT | linked into the W client's reader library |
+| StormLib (MPQ), v9.40 | MIT (`deps/licenses/stormlib/LICENSE`) | built by `scripts/build-dependencies.sh` into `deps/`; loaded by world-edit-to-execute's tools; planned for the W client's reader library |
+| libtomcrypt, compiled into StormLib | public domain upstream; StormLib's bundled copy carries no notice, so the release review must record its status | inside `libstorm.so` |
+| zlib 1.3.1 / bzip2 1.0.8 (system copies StormLib links to) | zlib licence / BSD-style bzip2 licence | the system; not bundled |
 | raylib | zlib | linked into the W client |
 | LuaJIT | MIT | linked into the W client; used by world-edit-to-execute |
 | OpenSSL 3 (SRP6, RC4, HMAC) | Apache 2.0 | linked into the W client |
