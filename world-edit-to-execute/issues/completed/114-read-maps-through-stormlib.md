@@ -9,8 +9,7 @@
 
 ## Current Behavior
 
-**In progress (2026-09-24): built and tested; the retired files are removed
-in the next commit.**
+**Completed 2026-09-24.**
 
 - `src/mpq/init.lua` reads through StormLib with the interface below;
   `src/mpq/map_wrapper.lua` reads the map's 512-byte `HM3W` wrapper. Every
@@ -28,8 +27,8 @@ in the next commit.**
 - The demo launchers (`run-demo.sh`, `run_phase1.sh`, `run_phase2.sh`)
   require LuaJIT and say why; phase 1 used to prefer `lua5.4`, and the others
   fell back to it.
-- Retiring, renamed with `-done` after the extension so nothing loads or runs
-  them (`src/mpq/`): `header.lua`, `hash.lua`, `hashtable.lua`,
+- Retired: renamed with `-done` after the extension for one commit
+  (637ab69c5) so nothing loaded or ran them, then removed (`src/mpq/`): `header.lua`, `hash.lua`, `hashtable.lua`,
   `blocktable.lua`, `extract.lua`, `pkware.lua`, `huffman.lua` (+ `.info.md`),
   `adpcm.lua` (+ `.info.md`), `system_codecs.lua` (+ `.info.md`); tests
   (`src/tests/`): `test_hash.lua`, `test_header.lua`, `test_blocktable.lua`,
@@ -115,7 +114,7 @@ and leave `info()`.
 - [x] Handing the binding an empty listfile raises
 - [x] `mpq.open` reads through StormLib with the interface above
 - [x] Every stored file of every test map is listed and read (2,786 at the time of writing; the test counts them)
-- [ ] The own reader's modules and their tests retired (`-done` for one commit, then removed)
+- [x] The own reader's modules and their tests retired (`-done` for one commit, then removed)
 - [x] The full test suite passes, apart from failures that were there before (`test_frames`)
 - [x] `.info.md` files and docs updated
 

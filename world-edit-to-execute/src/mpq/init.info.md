@@ -15,4 +15,4 @@ Opens Warcraft III maps and reads the files inside, through StormLib
 | `Archive:close()` | — | releases the handle; later calls raise |
 
 Nothing here raises for a missing file: callers ask for optional map files
-and branch on the answer. Issue: `issues/114-read-maps-through-stormlib.md`.
+and branch on the answer. Issue: `issues/completed/114-read-maps-through-stormlib.md`.
