@@ -71,3 +71,9 @@
 1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/War3Local.mpq	1.29.1/War3Local.mpq
 1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/Warcraft III.exe	1.29.1/Warcraft III.exe
 1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/World Editor.exe	1.29.1/World Editor.exe
+# Incremental patches (one version to the next), kept apart in incremental/ so the
+# stack doesn't build them: a cross-check. Applied to the lower version's layer, each
+# must reproduce the higher version's layer (src/tests/test_patch_layers.lua).
+1.20e	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_120d_120e_english.exe	-	incremental/war3tft_120d_120e_english.exe
+1.21a	tft	https://archive.org/download/warcraft3collection/patches/tft/english/incremental/warcraft3_tft_120e_121a_english.exe	-	incremental/warcraft3_tft_120e_121a_english.exe
+1.21b	tft	https://archive.org/download/warcraft3collection/patches/tft/english/incremental/warcraft3_tft_121a_121b_english.exe	-	incremental/warcraft3_tft_121a_121b_english.exe
