@@ -48,13 +48,19 @@ only its notes. Instead:
    version 1.21.1.6300, exactly the version the patch names (it was 1.07.5535).
 4. **Per-map chains** (`src/gamedata/chain.lua`). A map's stock data is read
    through: **the map's own archive first**, for every path (optional: `map`
-   names the map file); then the map's data set copy (`Custom_V1\Units\...` for Frozen Throne
-   maps, `Custom_V0\...` for Reign of Chaos maps), then the plain path; each
+   names the map file); then the data-set copy the map chose (below), then
+   the plain path; each
    in the chosen layer first, then the three archives. The layer is picked by
    the map's editor version through `src/gamedata/editor_versions.lua`;
    without an entry, the newest built layer is used and the fallback is
    reported as a warning. `layer = false` gives the unpatched game; a layer
    name forces that one.
+   **The data set** comes from the map's "game data set" setting (open
+   question 3): Custom (1) reads `Custom_V1\` for Frozen Throne maps,
+   `Custom_V0\` for Reign of Chaos maps; Melee (2) reads the plain melee
+   tables for Frozen Throne maps (the patched ones), `Melee_V0\` for Reign of
+   Chaos maps; Default (0) is Melee when the map's melee flag is set, Custom
+   otherwise. A value outside 0–2 is an error.
 5. **Tests** (`src/tests/test_patch_layers.lua`, 17 checks): hand-built
    entries (whole, wrong size, wrong CRC32, unknown kind); the layer's manifest
    and `game.dll` version; a Frozen Throne map reading unit weapons from the
@@ -64,8 +70,8 @@ only its notes. Instead:
    warning.
 
 6. **The stack** (2026-09-24). `scripts/fetch-patch-programs.sh` gathered
-   the English Frozen Throne programs for 1.21b, 1.23a, 1.24a–e, 1.25b,
-   1.26a and 1.27b (and Reign of Chaos 1.24a–1.27b, not built yet) into
+   the English Frozen Throne programs for 1.21b, 1.22a, 1.23a, 1.24a–e,
+   1.25b, 1.26a and 1.27b (and Reign of Chaos 1.24a–1.27b, not built yet) into
    `wc3-installs/patch-programs`, with a checksum record.
    `build-patch-layer.lua --stack` builds them in version order, each on the
    layers below (`patch_layer.build`'s `lower_layers`); a diff's base is the
@@ -81,13 +87,14 @@ only its notes. Instead:
      files. No lower layer has been needed as a base yet.
    - **Editor builds** (`src/gamedata/editor_versions.lua`): each layer's
      `WorldEdit.exe` holds its own build number and not its predecessor's
-     (6052 only in 1.21b, 6058 only in 1.23a, 6059 from 1.24a on), agreeing
-     with the published list. 6052 → 1.21b, 6058 → 1.23a, 6059 → 1.27b.
+     (6052 only in 1.21b, 6057 only in 1.22a, 6058 only in 1.23a, 6059 from
+     1.24a on), agreeing with the published list. 6052 → 1.21b, 6057 →
+     1.22a, 6058 → 1.23a, 6059 → 1.27b.
    - Tests (`test_patch_layers.lua`): versions read through a placeholder,
      each layer's `Game.dll` version, a second stack build changing nothing,
      every editor build naming a built layer. `test_stock_rows.lua` merges
-     each test map on its own version (12 on 1.21b, 2 on 1.27b) and names the
-     two with no layer yet (editor 6057 and 6060) as warnings.
+     each test map on its own version and names the one with no layer yet
+     (DaoW 7.5, editor 6060) as a warning.
 
 Finding (2026-09-24): some maps carry their own copies of the stock tables.
 DAoW-5.2 and 5.3 ship `Units\AbilityData.slk`, `ItemData.slk`,
@@ -198,7 +205,7 @@ editor build that saved them. The wiki table only cross-checks it.
 - [x] The 1.21b layer built from the patch program without running it
 - [x] Loading a map picks its layers automatically and says which
 - [x] No file in either install is modified
-- [ ] Layers for every patch that has maps (open questions 4 and 5: 1.22 and 1.29.x have no program yet)
+- [ ] Layers for every patch that has maps (open question 5: 1.29.x has no patch program)
 - [x] Editor versions mapped to layers from evidence (6052, 6058, 6059)
 - [x] The stack builds in version order, twice without change
 
@@ -207,8 +214,8 @@ editor build that saved them. The wiki table only cross-checks it.
 1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
 2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
 4. ~~The shared-CD-key cutoff~~ Answered 2026-09-24 from dates (the owner: "check the dates on the threads, then the release dates of the patches"). A Hive Workshop thread, Feb 24 – Mar 20, 2019, says one key works for several players on LAN (1.30.4, Jan 14, 2019, was current). A Blizzard forum post of July 5, 2019 says "after recent patches I have been unable to join my own LAN games like I could before"; the patches between were 1.31.0 (May 28, 2019) and 1.31.1 (June 10, 2019). Cutoff: after 1.30.4. Inferred from two community posts, not a changelog; a changelog line or a two-client test on 1.30.4 and 1.31.0 would confirm it.
-5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.22, 1.27a, 1.28.x, 1.29.x (1.28 onwards may exist only through Blizzard's launcher, which the project never contacts). 1.22 matters now: one test map (Daow6.2) was saved by its editor. Other languages' programs may carry the same game data with different text; to check once one is in hand.
-3. The data set: Reign of Chaos maps → `Custom_V0`, Frozen Throne maps → `Custom_V1` is inferred from the folder names and contents. Confirm from the game's behaviour (for example, a test map that shows a stat that differs between the two copies).
+5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.27a, 1.28.x, 1.29.x. 1.22a was found (2026-09-24) on the Internet Archive (`war3tft-en-patch122a`, a full patch) and built. 1.29.x matters now: DaoW 7.5 was saved by its editor (6060). 1.28 onwards shipped through Blizzard's launcher; the only 1.29.2 copies found are whole game installs (`warcraft-iii-1-29-2-9231`, 1.35 GB), not patch programs. Using one means taking its data archives as a layer instead of building one from a patch; to decide with the owner.
+3. ~~The data set~~ Answered 2026-09-24. A map chooses it: `war3map.w3i`'s "game data set" (format 17 on) is 0 = Default (based on the map's melee flag), 1 = Custom, 2 = Melee (latest patch). Evidence: the editor's own option names in each layer's `UI\WorldEditStrings.txt` ("Default (based on map melee status)", "Custom (TFT 1.07, RoC 1.01)", "Melee (Latest Patch)"), the values 0 and 2 in the test maps, and the community specification (WC3MapSpecification, `Info/0-33.md`) as a cross-check. It matters: the patches rebalance only the melee tables (`Units\`); the custom copies stay at 1.07 (1.22a's Knight: 28 damage and 1.40 cooldown in `Units\UnitWeapons.slk`, still 25 and 1.50 in `Custom_V1\` up to 1.27b). Seven test maps (DAoW 5.3 to 5.4c) choose Melee and so read the patched tables; the chain had given every Frozen Throne map `Custom_V1`.
 
 ## Related Documents
 

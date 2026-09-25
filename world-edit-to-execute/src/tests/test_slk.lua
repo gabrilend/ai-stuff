@@ -97,7 +97,7 @@ else
     probe:close()
     local chain = require("gamedata.chain")
     local c = chain.open({ install = INSTALL, layers = DIR .. "/wc3-installs/patch-layers",
-        w3i = { version = 25, editor_version = 0 }, editor_versions = {} })
+        w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } }, editor_versions = {} })
     local abilities = slk.parse((c:read("Units\\AbilityData.slk")))
     test("AbilityData.slk has hundreds of abilities", #abilities.order > 500, tostring(#abilities.order))
     local bolt = abilities.rows.AHtb
