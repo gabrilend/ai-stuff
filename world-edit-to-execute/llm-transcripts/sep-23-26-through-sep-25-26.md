@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 10:47:30
+Generated on: 2026-09-25 11:18:56
 Models: claude-opus-5-5
 
 ## Contents
@@ -4423,6 +4423,184 @@ What that means for the remaining gaps:
 
 Should I start on it? If it resists, I'll stop at a clear point and write up
 what I've learned, rather than sink unlimited time into it.
+
+--------------------------------------------------------------------------------
+
+### User Request 42
+
+Yes please!
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 42
+
+> Starting. The key is known answers. A file 1.14b changed and nothing later
+> touched again should appear, byte for byte, in our 1.19a layer. So wherever a
+> kind `0x00` entry's declared new size matches the 1.19a file's size, I likely
+> have the exact old file, the exact new file, and the diff between them.
+> Looking for such pairs, smallest first.
+
+> A truncated record crashed the probe. Guarding it, so bad guesses score as
+> misses instead of stopping the run.
+
+> 27 of 110. Sample 007 now raises an error, so printing the actual errors for
+> the first few misses.
+
+> Now 31 exact, 24 off by a few bytes (most likely later edits, like the typo
+> fix), 5 far off, and 50 errors. The errors are the biggest group, so looking
+> at one (010) in detail.
+
+> My scratch script has grown tangled. Rewriting it as a clean decoder module
+> with separate probes, so each hypothesis is one small change.
+
+> Same baseline, 79. Now the type-2 hypotheses, each a small plugin to the
+> decoder.
+
+> All three type-2 guesses fail the same way, with the wrong total length, so
+> the record's meaning is different from what I assumed. Lining up 058's trace
+> with the greedy match around that record.
+
+> **103 of 110 now decode exactly.** None is far off anymore: 6 differ by a few
+> bytes (most likely later patches, like the typo fix), and 1 hits a type-3
+> record. Tracing that one.
+
+> A type-3 record right after a 3-byte literal ("Glo"), with the parameter `26`
+> (+38). Looking at what the 63 new bytes actually are, and where they occur in
+> the old file.
+
+> The 63 new bytes are the rest of a padded name field: "…Glo" + "w 11", then
+> zeros. Testing the simplest reading first, type 3 as a plain copy like type 1,
+> to see how close it gets.
+
+> Written into the diff reader. Checking it against the scratch decoder on every
+> kind `0x00` entry of 1.14b, 1.11, and Reign of Chaos 1.06 and 1.01.
+
+> Moved; the checksum matches the earlier download. Building both stacks.
+
+> The Frozen Throne disc's newest maps were saved by 6031, so **6031 is the 1.07
+> disc**, on our own evidence. The Reign of Chaos disc keeps its maps inside
+> `war3.mpq`, so checking there.
+
+> The tightened check broke the three incremental cross-checks: their scripts'
+> version checks aren't matched by the new pattern. Looking at one.
+
+> 56 of 56. Updating the module notes and the two issues, then the full suite
+> and a commit.
+
+**The oldest diff format is decoded, and both stacks now reach back as far as
+the fetched patches go**, committed as `9f1bc9f29`. The whole suite passes and
+the repository is clean.
+
+**How:** 110 files that a 1.14b diff produced and no later patch changed served
+as known answers. I guessed one rule at a time and scored each guess against all
+110. The format:
+- **Records:** insert bytes; copy from the old file at a running offset; copy
+  while adding a constant to every 16-bit word, which is how model index lists
+  shift; and zero-fill.
+- **Then word additions,** grouped by ascending amount.
+- **Numbers** use a compact code that is 1 to 4 bytes long.
+
+104 of the 110 rebuild exactly. The other six differ only by later patches' own
+edits: the "ugpraded" typo fixed, XPFactor 0.10 → 0.15, a hotkey, a map size,
+and a value 250 → 300. Every oldest-format diff in the old programs decodes to
+its declared size.
+
+**Built now:**
+- Reign of Chaos: **1.01b, 1.02, 1.03, 1.04, 1.05, 1.06, 1.11**, then 1.18a
+  through 1.27b.
+- Frozen Throne: **1.11, 1.14b**, then 1.19a through 1.29.2.
+
+**Found along the way:**
+- The oldest programs hide their patch archive under unnamed files, so it's now
+  found by content.
+- Two programs misdescribe their own version, so names are confirmed from the
+  `War3.exe` each patch writes.
+- The collection's "1.01" was really the incremental 1.01a → 1.01b, and it now
+  sits with the other incremental patches.
+- The Frozen Throne disc is itself 1.07. Maps saved by its editor (build 6031)
+  read the disc directly.
+
+**One gap, recorded rather than guessed:**
+- **What fails:** in each old patch, the program binaries over a megabyte
+  (`War3.exe`, `Game.dll`, `WorldEdit.exe`) don't decode. Large copy offsets
+  work some way I haven't figured out, and no later copy of those files exists
+  to check against.
+- **Why it doesn't block anything:** they aren't game data, and the chain never
+  reads them.
+- **How it's handled:** each layer lists them as not built, on screen and in its
+  manifest. Anything else that fails still stops the build.
+
+**Still not supported:** maps saved by editor builds between 1.07 and 1.19a, and
+by the pre-expansion Reign of Chaos editors. For those builds I only have
+lower-bound evidence, so such maps stop with an error naming their build.
+First-hand evidence would come from those World Editors, which are among the
+unbuilt binaries.
+
+Next question: should I push on the large-binary gap now? A rebuilt `War3.exe`
+would have to carry its version stamp, so there's a clear test of success. Or
+leave it recorded and return to the main project threads?
+
+--------------------------------------------------------------------------------
+
+### User Request 43
+
+Great. Let's move on from supporting new patches now. Okay what's this about a
+large-binary?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 43
+
+It's the one part of the oldest patches I couldn't decode.
+
+**What the patch is trying to do.** An old patch doesn't ship whole new files.
+It ships instructions for building the new file from the old one:
+- "copy 2,038 bytes from the old file",
+- "insert these 2 bytes",
+- "copy 2,431 more, but skip 17 old bytes first".
+
+Every copy instruction carries a small signed number that nudges a running
+offset: where in the old file to read, relative to where we're writing in the
+new one. That number uses a variable-length code: small nudges take 1 byte, big
+jumps take 3 or 4.
+
+**What goes wrong.** In each old patch there are three big program files, each
+over a megabyte: `War3.exe` (the launcher), `Game.dll` (the game engine) and
+`WorldEdit.exe` (the editor). Their instructions decode sensibly for hundreds of
+thousands of bytes. Then the running offset drifts until an instruction says
+"copy from byte −351,422 of the old file", which is before its start. That's
+impossible, so something about large offsets is being read wrongly. Everything
+else is fine: every text file, table, model, sound and map in every old patch,
+over 330 diffs, decodes to exactly the right size.
+
+**Why I can't settle it.** For the smaller files I had known answers, copies
+that no later patch changed. These three binaries changed in every later patch,
+so there's no reference copy to check against. The only test available is
+indirect: a correctly rebuilt `War3.exe` must carry its version stamp
+(1.0.11.5616 for 1.11), and none of my guesses produce one.
+
+**Why it doesn't block anything.** They're programs, not game data. The chain
+never reads them; unit stats, abilities and maps all come from the archives,
+which decode completely. So each old layer lists those three files as "not
+built", with the reason, and everything the project uses is present.
+
+**What I've ruled out:**
+- The 1-, 2-, 3- and 4-byte number forms are right. Large jumps in these files
+  come in exact opposite pairs, jumping out to copy a few bytes and jumping
+  back, and they cancel perfectly.
+- The instruction stream stays aligned to the end, so no bytes are being misread
+  as the wrong kind of record.
+- The failure only appears in files over about a megabyte, and only after a long
+  stretch of correct decoding.
+
+Here's the puzzle, if you want to think about it: the numbers decode right, the
+records stay aligned, and small files never fail. What would make the running
+offset drift only in large files? My leading guesses are a second, wider offset
+register that big files switch to, or offsets measured from a moving window
+rather than the start of the file. I haven't found which.
+
+Understood on moving on from new patches. That gap stays recorded in the
+patch-layer sub-issue, as its first open question.
 
 --------------------------------------------------------------------------------
 
