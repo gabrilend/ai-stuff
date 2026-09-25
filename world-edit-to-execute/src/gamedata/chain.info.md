@@ -13,7 +13,7 @@ is changed.
 | `choose_layer(w3i, layers, options)` | as above | layer name or `nil`; reason (string); fallback (boolean) |
 | `Chain:read(path, options)` | a game path (backslashes), e.g. `Units\UnitWeapons.slk`; optional `{below_map = true}` to skip the map | bytes (string) and where they came from (string, `"map: ..."` when the map's copy won); raises if nothing has it |
 | `Chain:find(path, options)` | same | source name (`"map"`, `"layer <name>"` or an archive name) and the matched path, or `nil` |
-| `Chain:report()` | — | text: data set, layer and why, warnings |
+| `Chain:report()` | — | text: data set and layer, and why |
 | `Chain:close()` | — | closes the archives |
 
 ## Lookup order
@@ -23,5 +23,7 @@ above every other source, and map optimizers ship whole object tables there
 (DAoW-5.2's custom abilities are defined only in its own
 `Units\AbilityData.slk`). Then, for each of `"<data set>\<path>"` (when the map's choice has a
 folder), then `"<path>"`: the layer's files, then
-`War3xlocal.mpq`, `War3x.mpq`, `war3.mpq`. A map with no known editor version
-gets the newest built layer, and that fallback is listed in `warnings`.
+`War3xlocal.mpq`, `War3x.mpq`, `war3.mpq`. A map whose editor build has
+no entry in `editor_versions.lua`, or whose layer isn't built, is an
+error naming what to fetch. An install layer (manifest `kind = "install"`,
+1.29.2) replaces the disc's archives with its own, in its `archive_order`.

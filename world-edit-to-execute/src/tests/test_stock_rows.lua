@@ -53,7 +53,7 @@ else
     local objectdata = require("parsers.objectdata")
 
     local c = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
-        editor_versions = {} })
+        layer = "1.21b" })
     local stocks = {
         abilities = stock_rows.load(c, "abilities"),
         units = stock_rows.load(c, "units"),
@@ -97,7 +97,7 @@ else
     test_section("DAoW-5.2: an ability defined only in the map's own table (A008)")
     local m52 = DIR .. "/assets/DAoW-5.2.w3x"
     local c52 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
-        editor_versions = {}, map = m52 })
+        layer = "1.21b", map = m52 })
     local _, source = c52:read("Units\\AbilityData.slk")
     test("the map's own ability table beats the stock one", source == "map: Units\\AbilityData.slk", source)
     local _, beneath = c52:read("Units\\AbilityData.slk", { below_map = true })
@@ -118,7 +118,7 @@ else
     test_section("DaoW-(HvA)-7.5: Curse's chance to miss (field code Crs, stored Crs\\0)")
     local m75 = DIR .. "/assets/DaoW-(HvA)-7.5.w3x"
     local c75 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
-        editor_versions = {}, map = m75 })
+        layer = "1.21b", map = m75 })
     local a75 = assert(mpq.open(m75))
     local r75 = stock_rows.merge(stock_rows.load(c75, "abilities"),
         objectdata.parse(a75:extract("war3map.w3a"), { has_level_column = true }))
@@ -142,20 +142,17 @@ else
     -- abilities showed up as 369 "orphan" change sets.
     local listing = io.popen("ls '" .. DIR .. "/assets'")
     local w3i_parser = require("parsers.w3i")
-    local layers_used, fallbacks = {}, {}
+    local layers_used = {}
     totals.map_table_only = 0
     for name in listing:lines() do
         if name:match("%.w3[xm]$") then
             local archive = assert(mpq.open(DIR .. "/assets/" .. name))
             -- Each map on its own game version: its editor build picks the
-            -- layer (gamedata/editor_versions.lua); builds with no layer yet
-            -- fall back to the newest, with a warning counted below.
+            -- layer (gamedata/editor_versions.lua); a build with no layer is
+            -- an error, so every test map's build must be covered.
             local info = w3i_parser.parse(archive:extract("war3map.w3i"))
             local mc = chain.open({ install = INSTALL, layers = LAYERS, w3i = info, map = DIR .. "/assets/" .. name })
             layers_used[mc.layer] = (layers_used[mc.layer] or 0) + 1
-            if mc.fallback then
-                fallbacks[#fallbacks + 1] = name .. " (editor " .. info.editor_version .. ")"
-            end
             for kind, spec in pairs(kinds) do
                 local data = archive:extract(spec[1])
                 if data then
@@ -184,13 +181,9 @@ else
     for layer, n in pairs(layers_used) do used[#used + 1] = layer .. "×" .. n end
     table.sort(used)
     print("  layers used: " .. table.concat(used, " "))
-    -- A fallback is a warning: it means a map's own version has no layer yet
-    -- (issue 112b open question 5). Listed, not hidden.
-    for _, f in ipairs(fallbacks) do
-        print("  WARNING: no layer for its editor build, newest used instead: " .. f)
-    end
-    test("maps saved by editor 6052 load 1.21b, 6057 load 1.22a, 6059 load 1.27b",
-        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.22a"] or 0) >= 1 and (layers_used["1.27b"] or 0) >= 2)
+    test("maps saved by editor 6052 load 1.21b, 6057 load 1.22a, 6059 load 1.27b, 6060 load 1.29.2",
+        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.22a"] or 0) >= 1 and (layers_used["1.27b"] or 0) >= 2
+        and (layers_used["1.29.2"] or 0) >= 1)
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
     test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))
     test("objects defined only in a map's own table get rows", totals.map_table_only > 0, tostring(totals.map_table_only))

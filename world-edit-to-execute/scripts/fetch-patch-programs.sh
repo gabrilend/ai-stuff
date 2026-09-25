@@ -3,7 +3,9 @@
 #
 # In plain terms: to rebuild the game data of each Warcraft III version (so a
 # map plays with the numbers it was balanced for), the project reads each
-# version's patch program. This script collects those programs into one
+# version's patch program, or, for versions after Blizzard stopped making
+# patch programs (1.28 on), that version's own data archives, kept from a
+# copy of the game. This script collects those programs into one
 # folder beside the installs, from the list in wc3-installs/patch-sources.tsv
 # (public mirrors only, never Blizzard's servers). Each file's checksum and
 # origin are written to a record next to it, so every later step can say
@@ -80,6 +82,10 @@ recorded_sha() {
 fetch_one() {
     local version="$1" game="$2" source="$3" member="$4" saved="$5"
     local path="$TARGET/$saved"
+    # A saved-as name may hold a folder (1.29.2/War3.mpq: a version with no
+    # patch program keeps its data archives in a folder of its own).
+    local flat="${saved//\//_}"
+    mkdir -p "$(dirname "$path")" || return 1
     local known
     known="$(recorded_sha "$saved")"
     if [[ -f "$path" && -n "$known" ]]; then
@@ -100,7 +106,7 @@ fetch_one() {
     if [[ "$member" != "-" && -n "${ZIP_CACHE[$source]:-}" ]]; then
         work="${ZIP_CACHE[$source]}"
     else
-        work="$TARGET/.incoming-$saved"
+        work="$TARGET/.incoming-$flat"
         # Called as "fetch_one ... || FAILED=1", where bash ignores set -e, so
         # each step that can fail stops this file explicitly.
         case "$source" in
@@ -112,11 +118,11 @@ fetch_one() {
 
     # A zip holds the program as one member; only that member is kept.
     if [[ "$member" != "-" ]]; then
-        local unpacked="$TARGET/.unpacked-$saved"
+        local unpacked="$TARGET/.unpacked-$flat"
         mkdir -p "$unpacked"
         unzip -q -o -j "$work" "$member" -d "$unpacked" < /dev/null \
             || { echo "  FAILED    $version $game  $member not in the zip from $source" >&2; return 1; }
-        mv "$unpacked/$member" "$path" || return 1
+        mv "$unpacked/$(basename "$member")" "$path" || return 1
         rmdir "$unpacked"
         ZIP_CACHE[$source]="$work"
     else

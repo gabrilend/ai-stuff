@@ -9,6 +9,7 @@ one at a time, or the whole stack in version order.
 | `<patch-program.exe> <version>` | build one layer on the disc install alone, e.g. `War3TFT_121b_English.exe 1.21b` |
 | `--stack` | build every Frozen Throne program recorded in `wc3-installs/patch-programs/sources.tsv`, in the order of the versions they produce, each on the layers below |
 | `--stack --up-to VERSION` | the same, stopping after that layer (e.g. `1.24e`) |
+| `--install-layer VERSION` | for a version with no patch program (1.29.2): link the data archives the fetch script kept under `patch-programs/VERSION/` into an install layer; archive order and program names are in `INSTALL_LAYERS` in the script; a layer whose archives' checksums match is left alone |
 
 Reads the install through `wc3-installs/frozen-throne` and writes to
 `wc3-installs/patch-layers/<version>/`, which must be a link to a folder

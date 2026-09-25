@@ -22,3 +22,11 @@
 1.25b	roc	https://archive.org/download/wc3_patches/Windows/ROC/English/War3ROC_125b_English.exe	-	War3ROC_125b_English.exe
 1.26a	roc	https://archive.org/download/wc3_patches/Windows/ROC/English/War3ROC_126a_English.exe	-	War3ROC_126a_English.exe
 1.27b	roc	https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-Patches-enUS.zip	War3ROC_127b_English.exe	War3ROC_127b_English.exe
+# 1.29.2: no patch program exists (launcher-only from 1.28); its data archives
+# and the two programs that prove its version are kept from a whole-game copy.
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	War3.mpq	1.29.2/War3.mpq
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	War3x.mpq	1.29.2/War3x.mpq
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	War3xLocal.mpq	1.29.2/War3xLocal.mpq
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	War3Local.mpq	1.29.2/War3Local.mpq
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	Warcraft III.exe	1.29.2/Warcraft III.exe
+1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	World Editor.exe	1.29.2/World Editor.exe

@@ -90,6 +90,14 @@ only its notes. Instead:
      (6052 only in 1.21b, 6057 only in 1.22a, 6058 only in 1.23a, 6059 from
      1.24a on), agreeing with the published list. 6052 → 1.21b, 6057 →
      1.22a, 6058 → 1.23a, 6059 → 1.27b.
+   - **1.29.2 install layer**: the 1.29.2 archives kept from a game copy,
+     hard-linked into `patch-layers/1.29.2/archives/`
+     (`build-patch-layer.lua --install-layer 1.29.2`, `patch_layer.build_install`);
+     its game program reports 1.29.2.9231; its editor holds 6060 and not
+     6059. The chain opens its archives in place of the disc's. Every test
+     map's editor build names a built layer, so choosing a layer no longer
+     falls back: an unknown build or an unbuilt layer is an error naming what
+     to fetch.
    - Tests (`test_patch_layers.lua`): versions read through a placeholder,
      each layer's `Game.dll` version, a second stack build changing nothing,
      every editor build naming a built layer. `test_stock_rows.lua` merges
@@ -160,9 +168,18 @@ the recorded base differs.
 
 ### Which versions
 
-Every version with a Windows patch program and MPQ data, **up to the last
-version before Blizzard stopped clients sharing one CD key from playing
-together**. The owner (2026-09-24): "we also, on principle, should only
+**1.07 to 1.29.2: the MPQ era only, no CASC reader.** The owner
+(2026-09-24): "we shouldn't support the most recent build of the game ...
+supporting the new data format, the one they currently use, I feel like
+might be legally... difficult to defend. Since the game is running, if they
+wanted to play that patch, they'd use the live version of the game. It'd be
+like making a private server for... whatever expansion they're on now."
+1.30 moved to CASC (still the live game's format), so 1.29.2 is the last
+version supported; the reasoning is in `docs/legal-implications.md`.
+
+Within that, every version with a Windows patch program or MPQ data, **up to
+the last version before Blizzard stopped clients sharing one CD key from
+playing together**. The owner (2026-09-24): "we also, on principle, should only
 support the patches that were before Blizzard removed the capability to
 have multiple clients that shared a CD key play together. That change killed
 the game." By the dates (open question 4) that change came with 1.31.0
@@ -181,6 +198,33 @@ Patch programs are gathered by `scripts/fetch-patch-programs.sh` from the
 mirrors in `wc3-installs/patch-sources.tsv` (tracked) into
 `wc3-installs/patch-programs` (a link beside the installs, never in git),
 with a record of each file's checksum, mirror and date.
+
+### Versions without a patch program (1.28 on)
+
+From 1.28 Blizzard shipped updates only through its launcher, and folded
+them into the main archives: a 1.29.2 install has no `War3Patch.mpq`, and
+its `War3.mpq`, `War3x.mpq`, `War3xLocal.mpq` and `War3Local.mpq` are all
+rebuilt (dated 2018-05-05); the editor is `World Editor.exe`. Such a version
+becomes an **install layer**: the layer carries that version's own data
+archives, which replace the disc's in the chain (nothing is diffed or
+applied). The owner (2026-09-24), on the fallback that loaded a 1.29 map on
+the newest built layer: "this sounds like a problem we could solve with
+code. No warnings or errors required." So:
+
+- `wc3-installs/patch-sources.tsv` names the members to keep from a game
+  copy (the data archives and the two programs whose versions prove what it
+  is); `scripts/fetch-patch-programs.sh` keeps only those, in a folder per
+  version.
+- `build-patch-layer.lua --install-layer VERSION` copies them into
+  `patch-layers/VERSION/archives/` and writes a manifest (`kind =
+  "install"`, each archive's size and CRC32, the game and editor versions
+  read from the programs).
+- The chain opens an install layer's archives in place of the disc's; the
+  data-set rules are unchanged.
+- Layer names order by all their numbers (1.29.2 after 1.27b).
+- With every editor build in the test maps covered, the newest-layer
+  fallback is removed: a map whose editor build has no layer is missing data,
+  and the answer is another row in the source list.
 
 ### Map → version
 
@@ -205,7 +249,7 @@ editor build that saved them. The wiki table only cross-checks it.
 - [x] The 1.21b layer built from the patch program without running it
 - [x] Loading a map picks its layers automatically and says which
 - [x] No file in either install is modified
-- [ ] Layers for every patch that has maps (open question 5: 1.29.x has no patch program)
+- [x] Layers for every version the test maps were saved with (1.21b, 1.22a, 1.27b, 1.29.2)
 - [x] Editor versions mapped to layers from evidence (6052, 6058, 6059)
 - [x] The stack builds in version order, twice without change
 
@@ -214,7 +258,7 @@ editor build that saved them. The wiki table only cross-checks it.
 1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
 2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
 4. ~~The shared-CD-key cutoff~~ Answered 2026-09-24 from dates (the owner: "check the dates on the threads, then the release dates of the patches"). A Hive Workshop thread, Feb 24 – Mar 20, 2019, says one key works for several players on LAN (1.30.4, Jan 14, 2019, was current). A Blizzard forum post of July 5, 2019 says "after recent patches I have been unable to join my own LAN games like I could before"; the patches between were 1.31.0 (May 28, 2019) and 1.31.1 (June 10, 2019). Cutoff: after 1.30.4. Inferred from two community posts, not a changelog; a changelog line or a two-client test on 1.30.4 and 1.31.0 would confirm it.
-5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.27a, 1.28.x, 1.29.x. 1.22a was found (2026-09-24) on the Internet Archive (`war3tft-en-patch122a`, a full patch) and built. 1.29.x matters now: DaoW 7.5 was saved by its editor (6060). 1.28 onwards shipped through Blizzard's launcher; the only 1.29.2 copies found are whole game installs (`warcraft-iii-1-29-2-9231`, 1.35 GB), not patch programs. Using one means taking its data archives as a layer instead of building one from a patch; to decide with the owner.
+5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.27a, 1.28.x, 1.29.0–1.29.1. None has a test map. 1.22a (Internet Archive, a full patch) and 1.29.2 (an install layer from a whole-game copy's archives, `warcraft-iii-1-29-2-9231`, fetched with the owner's go-ahead) are built, so every test map's editor build now has its layer and the newest-layer fallback is gone. Still open: whether to chase the remaining versions before a map needs them.
 3. ~~The data set~~ Answered 2026-09-24. A map chooses it: `war3map.w3i`'s "game data set" (format 17 on) is 0 = Default (based on the map's melee flag), 1 = Custom, 2 = Melee (latest patch). Evidence: the editor's own option names in each layer's `UI\WorldEditStrings.txt` ("Default (based on map melee status)", "Custom (TFT 1.07, RoC 1.01)", "Melee (Latest Patch)"), the values 0 and 2 in the test maps, and the community specification (WC3MapSpecification, `Info/0-33.md`) as a cross-check. It matters: the patches rebalance only the melee tables (`Units\`); the custom copies stay at 1.07 (1.22a's Knight: 28 damage and 1.40 cooldown in `Units\UnitWeapons.slk`, still 25 and 1.50 in `Custom_V1\` up to 1.27b). Seven test maps (DAoW 5.3 to 5.4c) choose Melee and so read the patched tables; the chain had given every Frozen Throne map `Custom_V1`.
 
 ## Related Documents

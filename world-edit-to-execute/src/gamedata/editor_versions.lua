@@ -25,8 +25,16 @@ Evidence, two routes (issue 112b, 2026-09-24):
 Rule (owner, sane design over correctness): a build maps to the newest
 layer in its range, the version its authors most likely played.
 
-Not listed yet: 6060 (1.29.x) has no patch program found; see issue 112b
-open question 5. 6059's range runs to 1.28.5, inside the
+1.29.2 has no patch program (1.28 on shipped through Blizzard's launcher);
+its layer is an install layer built from a 1.29.2 game copy's own archives.
+Its World Editor is six times larger and many small constants match by
+chance, so the evidence there is a contrast: it holds 6060 and not 6059,
+which every editor from 1.24a to 1.27b holds; its game program is
+1.29.2.9231.
+
+1.29.2 is the top of the supported range: the last version on MPQ archives
+(1.30 moved to Blizzard's CASC storage, still used by the live game) and
+before shared-CD-key LAN play stopped (1.31). Issue 112b. 6059's range runs to 1.28.5, inside the
 shared-CD-key cutoff (after 1.30.4); 1.27b is the newest built, since 1.28
 has no patch program found.
 
@@ -42,4 +50,6 @@ return {
         evidence = "only 1.23a's WorldEdit.exe holds 6058; the list gives 1.23" },
     [6059] = { layer = "1.27b",
         evidence = "1.24a-1.27b's WorldEdit.exe hold 6059, none before; the list gives 1.24a-1.28.5; 1.27b is the newest built (1.28.x has no program yet)" },
+    [6060] = { layer = "1.29.2",
+        evidence = "1.29.2's World Editor.exe holds 6060 and not 6059; its game is 1.29.2.9231; the list gives 1.29.0-1.29.2" },
 }

@@ -181,6 +181,29 @@ What the project will not do:
 - ship Blizzard's files, art, sound, text or code;
 - bypass CD-key, login or copy-protection checks;
 - run a public commercial service on Blizzard's content.
+- support the game Blizzard currently runs.
+
+**Which game versions are supported, and why they stop where they do.** The
+project reads Warcraft III versions 1.07 to 1.29.2: every version stored in
+the old MPQ archive format. It stops there on principle, in two ways that
+land in the same place:
+
+- **Nothing Blizzard currently sells or runs.** From 1.30 (August 2018) the
+  game moved to Blizzard's CASC storage, the format the live game (Warcraft
+  III: Reforged, 1.32 on) still uses. Supporting it would be like running a
+  private server for a current World of Warcraft expansion: someone who wants
+  that version plays the live game. The owner (2026-09-24): "supporting the
+  new data format, the one they currently use, I feel like might be
+  legally... difficult to defend. Since the game is running, if they wanted
+  to play that patch, they'd use the live version of the game."
+- **Only versions from before shared-CD-key play was removed.** The owner:
+  support "the patches that were before Blizzard removed the capability to
+  have multiple clients that shared a CD key play together. That change
+  killed the game." By community posts' dates that came with 1.31 (mid-2019).
+
+Every supported version was distributed free by Blizzard as a patch, and the
+project reads each from the user's own copy; issue 112b records where each
+comes from. The project builds no reader for CASC.
 
 ## Related documents
 
