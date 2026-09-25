@@ -239,15 +239,21 @@ it contributes its corner value to the direction vector:
 
 #### Cardinal Direction Patterns
 
-Pure axis-aligned directions use patterns where same-side quadrants vote "far" (11)
-while opposite-side quadrants vote "near" (00). The perpendicular components cancel.
+The authoritative values are in `docs/binary-vector-frames.md` (sections 4-6);
+this section summarises them. Cardinals are axis-aligned, so they use the
+**Left/Right** votes of the two quadrants that share that axis, not Far
+(Far points at a corner, a diagonal):
 
-| Direction | Frame | Pattern | Far Quadrants |
-|-----------|-------|---------|---------------|
-| **North** (+Y) | `0xF0` | `11 11 00 00` | Q1,Q2 (top row, both have +Y corners) |
-| **South** (-Y) | `0x0F` | `00 00 11 11` | Q3,Q4 (bottom row, both have -Y corners) |
-| **East** (+X)  | `0x3C` | `00 11 11 00` | Q2,Q3 (right column, both have +X corners) |
-| **West** (-X)  | `0xC3` | `11 00 00 11` | Q1,Q4 (left column, both have -X corners) |
+| Direction | Frame | Pattern | Voting quadrants |
+|-----------|-------|---------|------------------|
+| **North** (+Y) | `0x60` | `01 10 00 00` | Q1 Right, Q2 Left (both along +Y) |
+| **East** (+X)  | `0x18` | `00 01 10 00` | Q2 Right, Q3 Left (both along +X) |
+| **South** (-Y) | `0x06` | `00 00 01 10` | Q3 Right, Q4 Left (both along -Y) |
+| **West** (-X)  | `0x81` | `10 00 00 01` | Q1 Left, Q4 Right (both along -X) |
+
+An earlier draft of this section used Far pairs (North = `0xF0`, `11 11 00
+00`: the top row's corners, whose X parts cancel). The spec keeps that form as
+the "stabilized" North, a wide damped arc, not the plain cardinal.
 
 The Y components cancel while X reinforces (or vice versa). These are the most
 common frames in gameplay - axis-aligned movement dominates.
@@ -841,11 +847,12 @@ Curve:    ╭───────╮
 
 Samples:  →  ↗  ↑  ↖  ←
 
-Frames:   [0x3C] [0x7C] [0xF0] [0xE1] [0xC3]
+Frames:   [0x18] [0x30] [0x60] [0xC0] [0x81]
           (east) (NE)   (north) (NW)  (west)
 
-Cardinal values: East=0x3C, North=0xF0, West=0xC3, South=0x0F
-Ordinal values are intermediate blends between adjacent cardinals.
+Cardinal values: East=0x18, North=0x60, West=0x81, South=0x06
+Ordinal values: one Far vote at the corner (NE=0x30, NW=0xC0, SE=0x0C, SW=0x03).
+(docs/binary-vector-frames.md holds the full table.)
 ```
 
 The sequence of frames **is** the curve, discretized into directional samples.
@@ -885,14 +892,13 @@ The resulting `spectrum->magnitude[256]` array shows which directions dominate:
 
 ```
 Straight line east:
-  spectrum[0x3C] = 100    (100% east)
+  spectrum[0x18] = 100    (100% east)
   all others = 0
 
 Quarter circle (east to north):
-  spectrum[0x3C] = 25     (25% east)
-  spectrum[0x7C] = 25     (25% NE)
-  spectrum[0xF0] = 25     (25% north)
-  spectrum[0xF4] = 25     (25% almost-north)
+  spectrum[0x18] = 33     (east)
+  spectrum[0x30] = 34     (NE)
+  spectrum[0x60] = 33     (north)
 
 Chaotic scribble:
   spectrum[*] ≈ uniform   (all directions equally represented)

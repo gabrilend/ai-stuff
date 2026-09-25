@@ -45,26 +45,29 @@ end
 -- {{{ Test: Cardinal Direction Constants
 section("Cardinal Direction Constants")
 
-test("NORTH = 0x0F", frames.NORTH == 0x0F, "0x0F", string.format("0x%02X", frames.NORTH))
-test("SOUTH = 0xF0", frames.SOUTH == 0xF0, "0xF0", string.format("0x%02X", frames.SOUTH))
-test("EAST = 0xCC", frames.EAST == 0xCC, "0xCC", string.format("0x%02X", frames.EAST))
-test("WEST = 0x33", frames.WEST == 0x33, "0x33", string.format("0x%02X", frames.WEST))
+-- Values from docs/binary-vector-frames.md, the spec (sections 4-6). The
+-- encoding changed on 2026-01-01 (cardinals became Left/Right pairs, Near
+-- became 00); this test kept the earlier values until 2026-09-24.
+test("NORTH = 0x60", frames.NORTH == 0x60, "0x60", string.format("0x%02X", frames.NORTH))
+test("SOUTH = 0x06", frames.SOUTH == 0x06, "0x06", string.format("0x%02X", frames.SOUTH))
+test("EAST = 0x18", frames.EAST == 0x18, "0x18", string.format("0x%02X", frames.EAST))
+test("WEST = 0x81", frames.WEST == 0x81, "0x81", string.format("0x%02X", frames.WEST))
 -- }}}
 
 -- {{{ Test: Ordinal Direction Constants
 section("Ordinal Direction Constants")
 
-test("NORTHEAST = 0x4C", frames.NORTHEAST == 0x4C, "0x4C", string.format("0x%02X", frames.NORTHEAST))
-test("NORTHWEST = 0x1C", frames.NORTHWEST == 0x1C, "0x1C", string.format("0x%02X", frames.NORTHWEST))
-test("SOUTHEAST = 0xC4", frames.SOUTHEAST == 0xC4, "0xC4", string.format("0x%02X", frames.SOUTHEAST))
-test("SOUTHWEST = 0xC1", frames.SOUTHWEST == 0xC1, "0xC1", string.format("0x%02X", frames.SOUTHWEST))
+test("NORTHEAST = 0x30", frames.NORTHEAST == 0x30, "0x30", string.format("0x%02X", frames.NORTHEAST))
+test("NORTHWEST = 0xC0", frames.NORTHWEST == 0xC0, "0xC0", string.format("0x%02X", frames.NORTHWEST))
+test("SOUTHEAST = 0x0C", frames.SOUTHEAST == 0x0C, "0x0C", string.format("0x%02X", frames.SOUTHEAST))
+test("SOUTHWEST = 0x03", frames.SOUTHWEST == 0x03, "0x03", string.format("0x%02X", frames.SOUTHWEST))
 -- }}}
 
 -- {{{ Test: Special Frames
 section("Special Frames")
 
-test("ORIGIN = 0xFF (all near)", frames.ORIGIN == 0xFF, "0xFF", string.format("0x%02X", frames.ORIGIN))
-test("OVERSHOOT = 0x00 (all far)", frames.OVERSHOOT == 0x00, "0x00", string.format("0x%02X", frames.OVERSHOOT))
+test("ORIGIN = 0x00 (all near)", frames.ORIGIN == 0x00, "0x00", string.format("0x%02X", frames.ORIGIN))
+test("OVERSHOOT = 0xFF (all far)", frames.OVERSHOOT == 0xFF, "0xFF", string.format("0x%02X", frames.OVERSHOOT))
 -- }}}
 
 -- {{{ Test: Frame to Vector Conversion
