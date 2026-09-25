@@ -53,6 +53,15 @@
   .tip { font-size: 12px; color: var(--muted); min-height: 1.2em; }
   #heat { overflow-x: auto; }
   .legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .pobj { border-top: 1px solid var(--line); padding: 8px 2px; }
+  .pobj h3 { font-size: 15px; margin: 0 0 4px; font-weight: normal; cursor: pointer; }
+  .pobj h3 .id { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+  .pobj h3 .kind { color: var(--muted); font-size: 12px; }
+  .prow { display: grid; grid-template-columns: minmax(160px, 1fr) auto auto; gap: 10px; font-size: 13px; padding: 1px 0; }
+  .prow .f { font-family: ui-monospace, monospace; color: var(--muted); overflow-wrap: anywhere; }
+  .up { color: var(--accent2); } .down { color: var(--hot); }
+  .counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 8px 0; }
+  #heat rect.col { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -61,6 +70,7 @@
   <span class="sub" id="summary"></span>
   <div class="controls">
     <span id="games"></span>
+    <select id="patch" title="See what one patch changed"></select>
     <select id="kind"><option value="">every kind</option><option>unit</option><option>ability</option><option>item</option><option>upgrade</option></select>
     <button id="theme" title="Switch light and dark">◐</button>
   </div>
@@ -86,11 +96,12 @@
   "use strict";
   var H = window.HISTORY;
   if (!H) { document.body.textContent = "history.js is missing: run scripts/balance-history.sh"; return; }
-  var state = { game: H.games.tft ? "tft" : Object.keys(H.games)[0], kind: "", sel: null };
-  // An address like balance-history.html#tft/hkni opens that game and object.
+  var state = { game: H.games.tft ? "tft" : Object.keys(H.games)[0], kind: "", sel: null, patch: null };
+  // An address opens a game and an object (#tft/hkni) or a patch (#tft/v/1.22a).
   var hash = location.hash.replace(/^#/, "").split("/");
   if (hash[0] && H.games[hash[0]]) state.game = hash[0];
-  if (hash[1] && H.games[state.game].objects[hash[1]]) state.sel = hash[1];
+  if (hash[1] === "v" && hash[2]) { var pi = H.games[state.game].versions.indexOf(hash[2]); if (pi > 0) state.patch = pi; }
+  else if (hash[1] && H.games[state.game].objects[hash[1]]) state.sel = hash[1];
   var $ = function (id) { return document.getElementById(id); };
   var NS = "http://www.w3.org/2000/svg";
   function el(tag, attrs, parent) {
@@ -116,12 +127,13 @@
   Object.keys(H.games).forEach(function (key) {
     var b = document.createElement("button");
     b.textContent = H.games[key].title;
-    b.onclick = function () { state.game = key; state.sel = null; render(); };
+    b.onclick = function () { state.game = key; state.sel = null; state.patch = null; render(); };
     b.dataset.key = key;
     $("games").appendChild(b);
   });
   $("kind").onchange = function () { state.kind = this.value; render(); };
-  $("search").oninput = function () { renderList(); };
+  $("patch").onchange = function () { var v = +this.value; state.patch = v > 0 ? v : null; state.sel = null; render(); };
+  $("search").oninput = function () { renderList(); if (state.patch) renderPatch(); };
   // }}}
 
   // {{{ changes: how many numbers each version changed, per kind
@@ -159,6 +171,12 @@
         var t = el("title", {}, rect); t.textContent = g.versions[i] + ": " + x + " " + k + " numbers changed";
       }
     });
+    // A transparent column over each version (after the disc) opens its patch view.
+    for (var ci = 1; ci < n; ci++) (function (i) {
+      var col = el("rect", { x: left + i * cw, y: top, width: cw, height: kinds.length * ch, fill: "transparent", "class": "col" }, svg);
+      var tt = el("title", {}, col); tt.textContent = "What " + g.versions[i] + " changed";
+      col.onclick = function () { state.patch = i; state.sel = null; render(); };
+    })(ci);
     g.versions.forEach(function (v, i) {
       var tx = el("text", { x: left + i * cw + cw / 2, y: top + kinds.length * ch + 14, fill: ink, "font-size": 11,
         transform: "rotate(-50 " + (left + i * cw + cw / 2) + " " + (top + kinds.length * ch + 14) + ")", "text-anchor": "end" }, svg);
@@ -224,8 +242,58 @@
       c.onmouseenter = function () { tip.textContent = g.versions[i] + ": " + v + (changed ? "  (was " + values[i - 1] + ")" : ""); };
     });
   }
+  // {{{ what one patch changed
+  function fmt(v) { return v === null || v === undefined ? "—" : String(+(+v).toFixed(4)); }
+  function renderPatch() {
+    var g = H.games[state.game], i = state.patch, det = $("detail"), q = $("search").value.toLowerCase();
+    det.className = ""; det.innerHTML = ""; $("heat").innerHTML = "";
+    $("title").textContent = "What " + g.versions[i] + " changed";
+    $("subtitle").textContent = g.title + " " + g.versions[i - 1] + " → " + g.versions[i] +
+      " · every number that differs, read from the game's own tables · click an object for its history";
+    var groups = [], counts = { unit: 0, ability: 0, item: 0, upgrade: 0 };
+    Object.keys(g.objects).forEach(function (id) {
+      var o = g.objects[id];
+      if (state.kind && o.kind !== state.kind) return;
+      if (q && id.toLowerCase().indexOf(q) < 0 && (o.name || "").toLowerCase().indexOf(q) < 0) return;
+      var rows = [];
+      Object.keys(o.fields).sort().forEach(function (f) {
+        var a = o.fields[f][i - 1], b = o.fields[f][i];
+        if (a !== b && !(a === null && b === null)) rows.push({ f: f, a: a, b: b });
+      });
+      if (rows.length) { groups.push({ id: id, o: o, rows: rows }); counts[o.kind] += rows.length; }
+    });
+    groups.sort(function (x, y) { return x.o.kind === y.o.kind ? (x.o.name || x.id).localeCompare(y.o.name || y.id) : x.o.kind.localeCompare(y.o.kind); });
+    var c = document.createElement("div"); c.className = "counts";
+    c.textContent = groups.length + " objects · " + Object.keys(counts).map(function (k) { return counts[k] + " " + k + " numbers"; }).join(" · ");
+    det.appendChild(c);
+    if (!groups.length) { var none = document.createElement("div"); none.className = "sub"; none.textContent = "No numbers changed here (for this filter)."; det.appendChild(none); }
+    groups.forEach(function (gr) {
+      var box = document.createElement("div"); box.className = "pobj";
+      var h = document.createElement("h3");
+      h.appendChild(document.createTextNode((gr.o.name || gr.id) + " "));
+      var sid = document.createElement("span"); sid.className = "id"; sid.textContent = gr.id + " "; h.appendChild(sid);
+      var sk = document.createElement("span"); sk.className = "kind"; sk.textContent = gr.o.kind; h.appendChild(sk);
+      h.onclick = function () { state.sel = gr.id; state.patch = null; render(); };
+      box.appendChild(h);
+      gr.rows.forEach(function (r) {
+        var row = document.createElement("div"); row.className = "prow";
+        var f = document.createElement("span"); f.className = "f"; f.textContent = r.f; row.appendChild(f);
+        var ch = document.createElement("span");
+        ch.textContent = r.a === null ? "new: " + fmt(r.b) : r.b === null ? "removed (was " + fmt(r.a) + ")" : fmt(r.a) + " → " + fmt(r.b);
+        row.appendChild(ch);
+        var d = document.createElement("span");
+        if (r.a !== null && r.b !== null) { var diff = r.b - r.a; d.textContent = (diff > 0 ? "+" : "") + fmt(diff); d.className = diff > 0 ? "up" : "down"; }
+        row.appendChild(d);
+        box.appendChild(row);
+      });
+      det.appendChild(box);
+    });
+  }
+  // }}}
+
   function renderDetail() {
-    var g = H.games[state.game], det = $("detail"); det.innerHTML = "";
+    var g = H.games[state.game], det = $("detail"); det.innerHTML = ""; det.className = "charts";
+    if (state.patch) { $("back").style.display = ""; $("back").onclick = function () { state.patch = null; render(); }; renderPatch(); return; }
     $("back").style.display = state.sel ? "" : "none";
     $("back").onclick = function () { state.sel = null; location.hash = state.game; render(); };
     if (!state.sel || !g.objects[state.sel]) {
@@ -245,6 +313,13 @@
     var g = H.games[state.game], count = Object.keys(g.objects).length;
     $("summary").textContent = g.title + ": " + g.versions.length + " versions, " + count + " objects whose numbers changed";
     Array.prototype.forEach.call($("games").children, function (b) { b.className = b.dataset.key === state.game ? "on" : ""; });
+    var ps = $("patch"); ps.innerHTML = "";
+    var o0 = document.createElement("option"); o0.value = 0; o0.textContent = "every patch (heat map)"; ps.appendChild(o0);
+    g.versions.forEach(function (v, i) {
+      if (i === 0) return;
+      var o = document.createElement("option"); o.value = i; o.textContent = "what " + v + " changed"; ps.appendChild(o);
+    });
+    ps.value = state.patch || 0;
     renderList(); renderDetail();
   }
   render();
