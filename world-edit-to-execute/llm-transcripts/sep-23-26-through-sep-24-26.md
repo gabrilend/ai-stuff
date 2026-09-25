@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 19:57:01
+Generated on: 2026-09-24 20:04:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -2715,6 +2715,470 @@ When building those rows, the code keeps the first three and leaves out
 So the question, put plainly: is it right to copy only the gameplay values into
 converted maps, and never Blizzard's names, tooltips, icons, models or sounds?
 Or is there something in that second group you'd want carried over?
+
+--------------------------------------------------------------------------------
+
+### User Request 25
+
+/compact
+
+--------------------------------------------------------------------------------
+
+### Session Recap (written by the harness, not by either speaker)
+
+This session is being continued from a previous conversation that ran out of
+context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. **Primary Request and Intent**
+
+   **Initial request.** Clean up the old world-edit-to-execute project. Create
+   issues and docs for a "next phase" that:
+   - builds WC3 maps into the WoW 3.3.5a client (via Noggit, a launcher and a
+     loader);
+   - loads WoW client models displayed with WC3 behaviour;
+   - adds automated testing: an AzerothCore server, recording the real client
+     against the open client, and LLM comparison;
+   - adds an asset-replacement addon: internet search or ComfyUI 3D generation,
+     plus a later "restyle everything, e.g. neopunk" issue.
+
+   **Later decisions and requests.**
+   - **Borrowed art.** Blizzard files are borrowed until replaced, each measured
+     by a similarity score. The W client is the open-source custom client,
+     heavily modifiable.
+   - **Merge.** "Take over" custom-client's issues and rewrite them to the W
+     design.
+   - **Skeletons and animations.** Reuse existing animation sets, grouped by
+     race or monster type. Custom skeletons and animations come later via an
+     undesigned system.
+   - **Seal.** A "default client compatible" seal for assets the stock client
+     can use.
+   - **Replace everything.** Animations, particles, textures, etc., toward "a
+     complete, legally distinct game, reverse engineered (with these
+     llm-transcripts as proof)".
+   - **Clean-room by default** for all assets, with an iterative size-fitting
+     loop.
+   - **Rules engine.** AzerothCore runs WC3 map rules.
+   - **Licensing.** The projects are moving to the owner's RGPL, so plan our own
+     server built as a soramech (W08). AzerothCore is installed by the user, not
+     bundled.
+   - **Data and maps.**
+     - Empty world database.
+     - Rows generated from map files.
+     - A map browser (1001) with assumed-consent bundling.
+     - Players use their own models; a shared map-and-model list is available on request (609).
+     - rmail for all file transfers.
+     - Timing is carried as frames: future frames are scheduled, past frames fast-forwarded, with hand-written rules ("sane design over correctness").
+   - **Stock values.** Read from the user's own install now, and a table of our
+     own later. Wikis are only a cross-check because of RGPL vs CC BY-SA.
+     Validate both routes and require users to do both.
+   - **Installs.** Set up Frozen Throne and add symlinks in the project to both
+     installs.
+   - **Patches.** Apply and unapply patches dynamically per map.
+   - **Dependencies.** Build StormLib from source via a
+     `scripts/build-dependencies.sh` script on r-mail's pattern, with
+     tag-listing and latest-tag flags, installing to a project-local folder.
+   - **Legal document.** Write one and link it from the README.
+   - **Working style.** "Don't forget to make git commits. I expect a clean
+     repository when we're done today."
+
+   **Latest user message.**
+   - Asked "dropped types? What do you mean?"
+   - On the other session's custom-client edits: "I dunno, take ownership I
+     guess. Find out what it's about."
+
+2. **Key Technical Concepts**
+   - **WoW formats.** ADT/WDT/MCVT terrain geometry; the scale rule 1 WC3 tile =
+     1 WoW cell = 4.1667 yd; M2, BLP2 and DBC files; the MPQ chain.
+   - **MPQ lookup, as the game's Storm.dll does it.**
+     - Mask probing: start at `hash & (size-1)`, step with `(slot+1)&mask`.
+     - The last matching neutral entry wins.
+     - Skip entries whose block index is at or beyond the block count.
+     - Trailing `len%4` bytes of a sector are unencrypted.
+     - Uncompressed multi-sector encrypted files are decrypted per sector with `key+i`.
+     - A raw sector has size equal to its expected size.
+   - **Decompression order:** bzip2 → PKWARE → zlib → Huffman → ADPCM
+     stereo → ADPCM mono. Unknown method bits are errors.
+   - **Huffman.** Adaptive FGK tree with 9 weight tables; ADPCM IMA variant.
+     Both ported from StormLib (MIT).
+   - **WC3 patch entry format.**
+     - 24-byte header: u16 18h, u8 04, u8 kind (01 whole, 04 diff), u32 old CRC32, u32 old size, u32 new size, u64 FILETIME.
+     - Diffs are BSD0: an RLE-packed BSDIFF40 whose first DWORD is the unpacked size. RLE: a high bit means copy `(b&0x7F)+1` bytes, otherwise skip `b+1` zeros.
+     - Control triples are u32 add, copy and move, where move is sign-magnitude.
+   - **Patch program structure.**
+     - The exe holds an MPQ; its `mpqs.lst` names `Patch_War3x.mpq`.
+     - `patch.lst` lines are `target;name;0x0` (archive file) or `target;name` (install file); `*` ends the list.
+     - `delete.lst` removes War3Patch.mpq, so layers are complete by themselves.
+     - `patch.cmd` requires FileVersionLessThan 1.21.1.6300.
+   - **Data sets.** Custom_V0 (RoC custom), Custom_V1 (TFT custom) and Melee_V0
+     hold only the tables that differ. Lookup: data-set copy, then the plain
+     path; within each, layer, then War3xlocal, War3x, war3.
+   - **SLK/SYLK format.** Profile INI txt files. Metadata tables have columns
+     ID, field, slk, index, repeat, data, type, etc.
+   - **Column resolution.** `repeat>0` gives `field..level` (Cool1); `data>0`
+     gives `"Data"..letter..level` (DataA1).
+   - **Licensing.** AGPL v3 (AzerothCore, the ai-stuff repo); ALE (`mod-ale`) is
+     GPL v3; StormLib is MIT; the RGPL draft is incompatible with GPL v3 and
+     AGPL v3. Copyright vs EULA; bnetd (*Davidson v. Jung*); the EU Software
+     Directive; the database right (*BHB v. William Hill*).
+   - **House tools.**
+     - `commit-own-changes`, `stage-own-changes`, `claim-own-change`, `validate-issues`, `progress-dashboard.lua`.
+     - `ensure-ram-tiers`: `tmp/` → `/tmp/<name>` (exec tier), `tmp/shared-memory` → `/dev/shm/<name>`.
+     - `issue-lifecycle` skill.
+   - **Soramech.** The owner's box-and-wire dataflow system (C leaf boxes plus
+     map files).
+
+3. **Files and Code Sections**
+
+   **World-edit-to-execute repo**
+   (`/mnt/mtwo/programming/ai-stuff/world-edit-to-execute`, inside the ai-stuff
+   git monorepo)
+
+   Docs:
+   - `docs/wow-client-bridge.md`: Phase W design, decisions and open questions
+     (numbered 1–12, several answered).
+   - Datapath docs: `docs/datapath-wc3-map-into-wow-client.md`,
+     `datapath-wow-models-in-engine.md`,
+     `datapath-client-comparison-testing.md`, `datapath-asset-forge.md`.
+   - `docs/licensing-and-boundaries.md`: licence table, touch points, the RGPL
+     stages, copyright vs EULA, content rights, bundling policy with its caveat,
+     a "Before any release" checklist, and the StormLib, libtomcrypt and
+     zlib/bzip2 rows.
+   - `docs/legal-implications.md`: reader-facing legal summary, linked from the
+     new `README.md`.
+   - Edited: `docs/table-of-contents.md`, `docs/roadmap.md`, `CLAUDE.md`,
+     `issues/progress.md`, `docs/postmortem-azerothcore-integration.md`
+     (addendum), and the archived `data-conversion-pipeline.md` (correction).
+   - `docs/formats/mpq-archive.md`: now documents the lookup rules, the
+     decryption rules, the corrected decompression order and the raw-sector
+     rule.
+
+   Issues:
+   - Phase W: W01–W08, W05a–W05e, `phase-W-progress.md`.
+   - 609 (shared map-and-model list over rmail), 1001 (map browser,
+     assumed-consent bundling).
+   - 112 (stock tables by two routes), 112b (layers; in progress with open
+     questions), 112c (Route A; in progress with open questions).
+   - Completed: `issues/completed/112a-...` and `113-...`.
+   - 603 and 801f (transport is rmail), 514 (renamed from a duplicate 512),
+     `completed/501f` (renamed from a duplicate 501a).
+
+   Scripts and dependencies:
+   - `scripts/build-dependencies.sh`: phases; pins in `deps/versions`; options
+     `--only`, `--force`, `--list`, `--list-tags NAME`, `--latest NAME`, `--pin
+     NAME TAG`; builds into `.build-tmp/` and installs to
+     `deps/stormlib/lib/libstorm.so`; licences go to `deps/licenses/<name>/`.
+     Has an `.info.md`.
+   - `deps/versions` contains `stormlib v9.40`.
+   - `.gitignore` covers
+     `wc3-installs/{reign-of-chaos,frozen-throne,patch-layers}`, `deps/*`,
+     `!deps/versions` and `.build-tmp/`.
+
+   MPQ code (`src/mpq/`):
+   - `stormlib.lua`: FFI binding (open, list with locale/hash/block, has, read,
+     extract, close); asserts the SFILE_FIND_DATA size is 1064.
+   - `standard_names.lua`: standard WC3 map file names.
+   - `huffman.lua`, `adpcm.lua`, `system_codecs.lua` (zlib `uncompress` and
+     bzip2 via FFI).
+   - `extract.lua`: new `decrypt_sector`, `DECOMPRESS_ORDER` and
+     `decompress_sector`; the Python route is removed.
+   - `hashtable.lua`: shared `probe` (mask, last-match-wins, block bound,
+     locale).
+   - `init.lua`: passes the block count.
+
+   Other code:
+   - `src/cli/mpq-extract.lua` (list/extract/all, `--listfile`) and
+     `src/cli/build-patch-layer.lua`.
+   - `src/gamedata/bsd0.lua`, `patch_layer.lua`, `chain.lua`,
+     `editor_versions.lua` (empty table, evidence-only), `field_rules.lua`,
+     `stock_rows.lua`.
+   - `src/parsers/slk.lua`, `profile_txt.lua`.
+   - Every new file has an `.info.md` beside it.
+   - `wc3-installs/README.md`, plus untracked symlinks:
+     - `reign-of-chaos` → `/mnt/mtwo/games/warcraft-iii/prefix/drive_c/users/ritz/Warcraft-III`
+     - `frozen-throne` → `.../prefix-tft/...` (TFT 1.07 disc install, a copy of the prefix)
+     - `patch-layers` → `/mnt/mtwo/games/warcraft-iii/patch-layers` (the 1.21b layer: 714 entries, 92 MB)
+
+   Tests:
+   - `test_stormlib` (369 files across 16 maps identical), `test_codecs`,
+     `test_patch_layers` (17), `test_slk` (17), `test_stock_rows` (12).
+   - `test_extract` and `test_header` fixed to use the compat layer.
+
+   **custom-client repo** (`/mnt/mtwo/games/azeroth-core/custom-client`, its own
+   git repo)
+   - Rewritten as the W client:
+     - `docs/000`, `001`, `003`, `009` (11 phases, Phase 11 WC3 map mode, AzerothCore runs the rules), `004` (frames section), `010`, new `012-asset-replacement-and-provenance.md`.
+     - Issues 101, 103–108, 105a (new), 204, 207, 208, 301 (corrected the three-file ADT claim), 408, 1108 (new); `phase-1-progress.md`; `.file-index-counter` = 12.
+   - **Latest edits (my rewrite of the other session's lines):**
+     - `docs/008-build-system.md` now reads `tmp/ # symlink → /tmp/azc-custom-client/ (RAM; the exec tier)`, `tmp/` for things that get executed, and `shared-memory/ # symlink → /dev/shm/custom-client/ (RAM; logs, dumps, builds)`, with a paragraph on the ensure-ram-tiers two-tier layout.
+     - `docs/010-table-of-contents.md` shows the same two tiers.
+   - The RAM tiers were rebuilt with `ensure-ram-tiers --restore`.
+
+4. **Errors and fixes**
+   - **Directory change blocked by hook:** used absolute paths instead.
+   - **Blocks: lines** switched `validate-issues` into two-way checking (456
+     findings): changed them to "Unlocks:".
+   - **Whole-file claims swept in another session's lines** (wow-chat-2026 links
+     in W01/W03/W04): reported to the user and left in place.
+   - **ALE replacement over-applied** ("not script-compatible with ALE"): fixed
+     to "Eluna".
+   - **Patcher failures:**
+     - The TFT installer's Setup.mpq had no listfile, so the installer was run under wine (worked).
+     - The 1.21b patcher crashed under wine 10.20 and under Lutris wine-ge 8.26 (stack overflow). The GE run also rewrote the prefix-tft configuration.
+     - Solution: parse the patch with StormLib and apply the diffs ourselves.
+   - **Our reader couldn't read the patch archive** (bzip2 etc.): built
+     StormLib.
+   - **SFILE_FIND_DATA size assert was wrong:** 1064, not 1068.
+   - **Reader bugs found by comparing against StormLib:**
+     - first-match wins instead of last-match on duplicate names (DAoW-5.2 war3map.w3d);
+     - the trailing-byte decryption padding bug;
+     - uncompressed encrypted multi-sector files left encrypted.
+     - (The `%` vs `&` mask was also changed.)
+   - **Missing compressions:** Huffman ported.
+   - **Wrong decompression order in the doc:** corrected.
+   - **`patch.lst` `*` line:** treated as end of list.
+   - **game.dll path case in the test:** found through the manifest; the version
+     read window was widened to +70.
+   - **parsed.custom/original are keyed by id, not lists:** handled both tables.
+   - **README table row outside the table, and a false claim that the patch was
+     installed:** rewrote the README.
+   - **The user corrected:**
+     - "commit as we go";
+     - "should be in scripts, part of build-dependencies… see r-mail";
+     - "we will have to review these inclusions before release";
+     - "Eluna deprecated, we use ALE";
+     - wikis can't be a source under the RGPL;
+     - "the rows need to be generated from the map files";
+     - "use rmail";
+     - timing is hand-written with frames.
+
+5. **Problem Solving**
+   - The stock-values chain works end to end:
+     - the patch layer is built without running the patcher; `game.dll` verifies as 1.21.1.6300;
+     - chains are per map;
+     - Route A merges 27,943 objects and 361,815 changes across 16 maps.
+   - Problems found and understood:
+     - 369 orphan change sets;
+     - 31 changes with the unknown code `Crs\0` (0x43727300) on ACcs copies.
+   - Full suite: 108/109 test files pass. `test_frames` was already failing
+     (pathfinding constants), was reported, and was not touched.
+   - Pending commits: none. world-edit-to-execute and custom-client were both
+     clean after commits a512e0b22 and 94ba9d306.
+
+6. **All user messages** (condensed, key content preserved)
+   - **Initial request.**
+     - Project is old; do cleanup operations.
+     - Issue: take the WoW client and build world-edit-to-execute maps in it (Noggit, launcher, loader, tweaking).
+     - Separate issue: load WoW models and display them per WC3 behaviour; "It will use proprietary models, but those can be replaced one-by-one… mimic the behavior exactly".
+     - Automated testing apparatus: AzerothCore sample server, recording the client, LLM comparing against the open-source client.
+     - Issues for an addon to search the internet or generate 3D models with ComfyUI; a later issue to restyle all models ("neopunk").
+     - "These are the goals of the next phase… create documentation accordingly."
+   - **On the design.**
+     - The custom client is to be heavily modified, so those problems disappear.
+     - Skeletons: use existing animations; the user picks an animation set grouped by race or monster type.
+     - "tell me about the differences between this design and that?"
+     - Blizzard files aren't ours; use them until replaced; a similarity score; improve bit by bit.
+   - **On the merge.**
+     - "sounds like the custom client can be completely superseded by our new W client, is that correct? If so, take-over the issue files and update them… overwrite those."
+     - The stock client doesn't need our archives, but a "default client compatible" seal would be nice.
+     - Replace animations, particles, textures, etc.; the end goal is a complete legally distinct game with transcripts as proof.
+   - **On legal questions.**
+     - Chose AzerothCore to run the rules; "Are the licenses compatible?"
+     - Clean-room in all cases, iterative scaling; "we should commit as we go."
+     - ALE replaced Eluna; review libraries before release.
+     - AzerothCore's database isn't a concern for this project?
+     - The map-search client; recalled it (it's the map browser).
+     - Body-structure fit check.
+     - Skeletons later via another system.
+     - Tools in userspace; a criteria set.
+     - Moving to the RGPL; might write our own server as a soramech.
+     - Data tables not needed in the custom client?
+     - Empty database.
+     - Map browser; assume consent until withdrawn.
+     - "The model is the model"; share map-and-model lists.
+   - **Commits and data.**
+     - "can you be sure to make git commits as we go?"
+     - Rows generated from map files; zero Blizzard rows.
+     - rmail for files.
+     - Timing: frames, schedule or fast-forward, hand-written, sane design over correctness.
+   - **Stock values.**
+     - Parse from a Wikipedia page, even create one?
+     - "I think you're right"; tables are part of our RGPL project; "sounds good... for now...".
+     - Set up Frozen Throne; compare with remote sources to validate both routes; require users to do both; create symlinks to the RoC and TFT directories.
+   - **Patching and StormLib.**
+     - "Why?" (why I stopped).
+     - Dynamically apply and unapply each patch (see wow-chat-2026's patch system).
+     - "StormLib… what is it? install as tools? licenses? compile from source with a compilation and update script? extract MPQ archives, how is that related to license agreements?"
+     - The build script should live in `scripts` as build-dependencies, installing to a project-local folder (see r-mail); a flag to list tags or select the latest.
+   - **Legal detail.**
+     - "Tell me about the license issues. How is AzerothCore still hosted…? fan-art derivative…? … I do not believe in intellectual property law…" Please elaborate on the legal details.
+     - EULA violated by derivative work? Values cached clientside count? Write a legal document and link it from the README.
+     - "I really wish I didn't need to sacrifice my World of Warcraft characters… I built the code… I'd love to continue using Blizzard products."
+     - Doesn't intend to keep it offline; would be operator and distributor; donations only; "If they go down, I go with them"; "The structure of our society pits lovers against one another…"
+     - A detailed cease-and-desist plan, then: "Yep, that is intended", "I will dig my own grave if I must", only distributing my code, will post a plain factual notice with a repository link and the RGPL instructions.
+   - **Proceeding.**
+     - "Great. What's next to work on?"
+     - The live client is at `/mnt/mtwo/games/azeroth-core/client/`; "let's start working on this project then."
+     - "Let's do (a)" (port the compressions).
+     - "Great let's keep working. Don't forget to make git commits. I expect a clean repository when we're done today."
+   - **Latest:** "dropped types? What do you mean?" and "I dunno, take ownership
+     I guess. Find out what it's about." (about the custom-client doc edits).
+
+   **Standing constraints** (from the user and CLAUDE.md):
+   - Commit as we go; clean repository at the end of the day.
+   - Never commit Blizzard files.
+   - Extraction happens only on the user's machine.
+   - Never point project tools at Blizzard's servers or a Battle.net-connected
+     client ("Absolutely. I would never infringe upon their space").
+   - rmail is the only trusted asset-transfer protocol.
+   - Use `commit-own-changes`, not plain `git commit`.
+
+7. **Pending Tasks**
+   - Answer "dropped types? What do you mean?" plainly. When Route A copies
+     stock values into our own tables, each field has a metadata "type". Fields
+     whose type is text or art (names, tooltips, icon, model and sound paths,
+     etc.) are left out ("dropped") because they're Blizzard's expression and
+     not needed for gameplay. Numbers, flags and ids are kept. Then re-ask
+     whether anything should move either way.
+   - Report the custom-client finding:
+     - The other session's edits wrongly said `tmp/` → `/dev/shm`.
+     - The real layout is two tiers: `tmp/` → `/tmp/azc-custom-client`, and `tmp/shared-memory` → `/dev/shm/custom-client`.
+     - Docs corrected; tiers rebuilt; committed a512e0b22. Both repos are clean (transcript committed as 94ba9d306).
+   - Remaining open questions, to be asked one at a time:
+     - 112c: the dropped-types review; the `Crs\0` code; ignoring orphan change sets.
+     - 112b: which other patches to build layers for; the editor-version → patch table evidence; confirming the Custom_V0/V1 data-set choice.
+     - Plus many Phase W questions (W02 map id range, team colour, etc.).
+   - Next work items not yet started:
+     - issue 112 Route B (Liquipedia cross-check within API terms: 1 request per 2 s, a User-Agent, caching, CC BY-SA data kept separate) and the comparison report and "both routes required" gate;
+     - W01 in the W client.
+   - `test_frames` failures were reported; ownership is undecided.
+
+8. **Current Work**
+
+   Immediately before the summary request:
+   - Handling the user's instruction "take ownership… find out what it's
+     about" for custom-client's uncommitted docs/008 and docs/010 edits.
+   - Findings: the link is `tmp -> /tmp/azc-custom-client`; the rooms were
+     missing after a reboot. `ensure-ram-tiers --restore` created
+     `/tmp/azc-custom-client/{tmp, shared-memory -> /dev/shm/custom-client}`.
+   - Rewrote the doc lines to describe both tiers and committed:
+     - custom-client a512e0b22 ("Describe the scratch folders as they really are: two RAM tiers behind one link").
+     - ai-stuff 94ba9d306 (transcript).
+   - Both repos were clean at that point.
+   - The text reply explaining "dropped types" and reporting this finding hasn't
+     been written yet.
+
+9. **Optional Next Step**
+
+   Reply to the user in text:
+   - Answer "dropped types? What do you mean?" in plain words, with examples
+     from the DAoW Animate Dead row: `Order=animatedead` kept; `Name`, `Tip` and
+     `Art` dropped.
+   - Explain why: the legal footing of functional facts vs Blizzard's
+     expression.
+   - Re-ask whether anything should move between the kept and dropped lists.
+   - Report the custom-client "take ownership" result (the docs were wrong, now
+     fixed and committed; tiers rebuilt; both repos clean).
+
+   Then continue with the remaining open questions one at a time, while keeping
+   commits going so the repository stays clean ("I expect a clean repository
+   when we're done today").
+
+If you need specific details from before compaction (like exact code snippets,
+error messages, or content you generated), read the full transcript at:
+/home/ritz/.claude/projects/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e.jsonl
+Continue the conversation from where it left off without asking the user any
+further questions. Resume directly — do not acknowledge the summary, do not
+recap what was happening, do not preface with "I'll continue" or similar. Pick
+up the last task as if the break never happened.
+
+--------------------------------------------------------------------------------
+
+`/compact` - Compacted (ctrl+o to see full summary)
+
+--------------------------------------------------------------------------------
+
+### User Request 26
+
+<pasted_content id="7a80">
+> So the question, put plainly: is it right to copy only the gameplay values
+> into converted maps,
+> and never Blizzard's names, tooltips, icons, models or sounds? Or is there
+> something in that
+>   second group you'd want carried over?
+</pasted_content id="7a80">
+
+
+copy everything, and we will work slowly to replace all the artwork and such.
+Tooltips are mirrors that reflect the values of facts and variables - they are
+part of the UI. Names come from the map files, or the default name-lists which
+we gather like other facts. You said facts were protected under the somebody vs
+rural I think?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 26
+
+> Switching the merge from "drop text and art" to "copy everything, label where
+> each value came from". Writing the change now.
+
+> Now the merge itself.
+
+> Now the test: Animate Dead should carry its name, tooltip and icon, labelled
+> borrowed.
+
+> Passing. Checking whether the name-list files were found and what A003's name
+> is.
+
+> Tooltips came out labelled "editor", which is wrong. In the profile files a
+> per-level field like `Tip` appears without a level number, and the lookup only
+> matched names that carry one. Fixing that.
+
+> Fixed; all 16 checks pass. Now the docs and issues.
+
+Done: converted objects now carry every stock field, including names, tooltips,
+icon, model and sound paths. Tests pass (16 checks), and the change is committed
+as `d017844c6`. The repository is clean.
+
+**How it works now.** Nothing is dropped. Each copied field gets a label saying
+whose it is:
+- **fact**: numbers, flags, ids and order strings.
+- **borrowed**: Blizzard's names, tooltip wording and art paths. These come from
+  your own install, stay on your machine, and are never committed.
+- **map**: the map author set it. For example, the DAoW Animate Dead is named
+  "Raise Dead" by the map, so its name counts as the map's, not Blizzard's.
+- **editor**: comment and sort columns the game never reads.
+
+Each run counts the borrowed fields. That count is the gauge for how much
+replacement is left. Wiring this up also turned up a bug: tooltips were being
+labelled editor-only. It's fixed, with a test.
+
+**The case is *Feist v. Rural Telephone* (1991).** It works the other way round
+from how you put it. It doesn't protect facts; it rules that facts can't be
+owned. A phone company copied another company's listings, and the Supreme Court
+said names and numbers are facts, so copying them wasn't infringement. Only
+creative selection or arrangement is protected, and that protection is thin. How
+that applies here:
+- **Tooltip values:** your "mirror" framing holds for these. Animate Dead's
+  stock tooltip is "Raises <AUan,DataA1> dead units in an area…". The
+  `<AUan,DataA1>` placeholder is a mirror of a fact.
+- **Tooltip wording:** the sentence around the placeholder is Blizzard's
+  writing, which is expression, not fact. So the replacement path is our UI
+  building its own sentence around the same values.
+- **Names:** in the US, single words and short phrases generally can't be
+  copyrighted, so gathering name lists like facts is mostly sound. The separate
+  risk is trademark: a name used as a brand ("Warcraft", well-known hero names)
+  is protected by trademark law. That matters once you distribute.
+- **Art:** it's plainly copyrighted, which is why it stays borrowed until it's
+  replaced.
+
+The legal document and the stock-values issue now describe this rule.
+
+Next open question, on stray changes: 369 blocks of changes in the maps point at
+ability ids that exist nowhere, neither stock nor defined by the map. They only
+touch levels 4–6, so they look like leftovers from edits the authors later
+undid. The game has nothing to apply them to. My plan is to list them in the
+report and leave them out of the converted map. Does that sound right?
 
 --------------------------------------------------------------------------------
 

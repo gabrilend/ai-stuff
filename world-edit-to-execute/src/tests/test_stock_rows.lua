@@ -93,40 +93,71 @@ else
     test("borrowed columns counted", result.counts.borrowed > 0, tostring(result.counts.borrowed))
     -- }}}
 
+    -- {{{ A map that ships its own ability table
+    test_section("DAoW-5.2: an ability defined only in the map's own table (A008)")
+    local m52 = DIR .. "/assets/DAoW-5.2.w3x"
+    local c52 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+        editor_versions = {}, map = m52 })
+    local _, source = c52:read("Units\\AbilityData.slk")
+    test("the map's own ability table beats the stock one", source == "map: Units\\AbilityData.slk", source)
+    local _, beneath = c52:read("Units\\AbilityData.slk", { below_map = true })
+    test("the stock copy beneath is still reachable", beneath:match("^layer ") or beneath:match("mpq"), beneath)
+    local a52 = assert(mpq.open(m52))
+    local r52 = stock_rows.merge(stock_rows.load(c52, "abilities"),
+        objectdata.parse(a52:extract("war3map.w3a"), { has_level_column = true }))
+    a52:close()
+    c52:close()
+    local a008 = r52.rows.A008
+    test("A008 merges (its changes apply over the map's own row)", a008 ~= nil and a008.origin.AbilityData.Cool4 == "map",
+        a008 and tostring(a008.origin.AbilityData.Cool4) or "no row")
+    test("A008 keeps its base ability code from the map's table", a008 and type(a008.fields.AbilityData.code) == "string")
+    test("no orphans in DAoW-5.2", (r52.counts.orphan or 0) == 0, tostring(r52.counts.orphan))
+    -- }}}
+
     -- {{{ Every map
     test_section("Every object of every map in assets/")
     local kinds = { abilities = { "war3map.w3a", true }, units = { "war3map.w3u", false }, items = { "war3map.w3t", false } }
     local totals, other = { objects = 0, applied = 0 }, {}
     local by_kind = { orphan = 0, unknown_parent = 0, unknown_code = 0 }
+    -- Each map gets its own chain with the map's archive on top: some maps
+    -- (DAoW-5.2, 5.3) ship their own object tables and define abilities only
+    -- there. Before the map was part of the chain, their changes to those
+    -- abilities showed up as 369 "orphan" change sets.
     local listing = io.popen("ls '" .. DIR .. "/assets'")
+    totals.map_table_only = 0
     for name in listing:lines() do
         if name:match("%.w3[xm]$") then
             local archive = assert(mpq.open(DIR .. "/assets/" .. name))
+            local mc = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+                editor_versions = {}, map = DIR .. "/assets/" .. name })
             for kind, spec in pairs(kinds) do
                 local data = archive:extract(spec[1])
                 if data then
-                    local r = stock_rows.merge(stocks[kind], objectdata.parse(data, { has_level_column = spec[2] }))
+                    local r = stock_rows.merge(stock_rows.load(mc, kind), objectdata.parse(data, { has_level_column = spec[2] }))
+                    totals.map_table_only = totals.map_table_only + (r.counts.map_table_only or 0)
                     totals.objects = totals.objects + r.counts.objects
                     totals.applied = totals.applied + r.counts.applied
                     for _, p in ipairs(r.problems) do
                         by_kind[p.kind] = (by_kind[p.kind] or 0) + 1
                         if p.kind == "unknown_code" and p.code ~= "0x43727300" then
                             other[#other + 1] = name .. " " .. p.object .. " " .. tostring(p.code)
-                        elseif p.kind == "unknown_parent" then
+                        elseif p.kind ~= "unknown_code" and p.kind ~= "orphan" then
                             other[#other + 1] = name .. " " .. p.object .. " parent " .. p.problem
                         end
                     end
                 end
             end
+            mc:close()
             archive:close()
         end
     end
     listing:close()
-    print(string.format("  objects %d, changes applied %d, orphans %d, unknown codes %d, unknown parents %d",
-        totals.objects, totals.applied, by_kind.orphan, by_kind.unknown_code, by_kind.unknown_parent))
+    print(string.format("  objects %d (%d defined only in a map's own table), changes applied %d, orphans %d, unknown codes %d, unknown parents %d",
+        totals.objects, totals.map_table_only, totals.applied, by_kind.orphan, by_kind.unknown_code, by_kind.unknown_parent))
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
-    test("no problems beyond the two understood kinds (orphan change sets; the Crs\\0 code)",
-        #other == 0, other[1])
+    test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))
+    test("objects defined only in a map's own table get rows", totals.map_table_only > 0, tostring(totals.map_table_only))
+    test("no problems beyond the one understood kind (the Crs\\0 code)", #other == 0, other[1])
     -- }}}
 
     c:close()
