@@ -1,7 +1,51 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 15:13:49
+Generated on: 2026-09-24 15:45:09
 Models: claude-opus-5-5
+
+## Contents
+
+1. 2026-09-23 21:23, after Request 2 - I planned the next phase, using the WoW
+   client to host WC3 maps and to lend models for replacing one by one; the
+   docs, seven issues and cleanup are committed. Next, please answer the first
+   open question: keep this phase a side branch, or make WoW a main host?
+2. 2026-09-23 21:36, after Request 4 - We're planning Phase W, where the WoW
+   client hosts WC3 maps and lends models until our own replacements score as
+   distinct enough. Next: answer whether table layouts should be written once
+   and shared with the custom client.
+3. 2026-09-23 21:56, after Request 5 - I'm merging the custom client into a
+   single open "W client" that plays both WoW and converted WC3 maps, and the
+   docs and issues in both repos are rewritten and uncommitted. Next, I need
+   your call on who runs a WC3 map's rules: AzerothCore or our own simulation.
+4. 2026-09-23 22:31, after Request 7 - We're planning Phase W, where WC3 maps
+   run on AzerothCore through our open W client with Blizzard art replaced over
+   time; docs and issues are committed. Next: decide whether each unit's
+   criteria travel with the map, a shared library, or both.
+5. 2026-09-23 23:18, after Request 9 - We're designing the W client, an open
+   client that plays converted WC3 maps and swaps Blizzard's art out over time;
+   the latest decisions are written up and committed. Next, you decide whether
+   stock ability values come from your WC3 install for now or from our own
+   table.
+6. 2026-09-23 23:36, after Request 10 - Goal: plan Phase W, so converted
+   Warcraft 3 maps play in your open W client with gradually replaced art;
+   everything so far is committed. Next: you choose where stock ability values
+   come from: your own WC3 install, our shipped table, or community wikis.
+7. 2026-09-23 23:48, after Request 11 - We're planning the W client, which plays
+   Warcraft III custom maps with replaceable art, and just decided to read stock
+   ability values from your own Warcraft III install. Next: should I install
+   Frozen Throne and its patch, or will you?
+8. 2026-09-24 14:20, after Request 12 - We're setting up Frozen Throne so stock
+   unit and ability values can be read from your install and checked against
+   Liquipedia. Next, click through the open installer using the CD key in
+   torrent-version/CDKey, then tell me so I can apply the 1.21b patch.
+9. 2026-09-24 14:49, after Request 12 - Goal: read Warcraft III's stock object
+   values from your own install and cross-check them against the wiki. Frozen
+   Throne is installed, but its 1.21b patch fails under wine. Next: your
+   go-ahead to extend our MPQ reader and unpack the patch directly.
+10. 2026-09-24 15:16, after Request 13 - We're making converted Warcraft III
+    maps load with the right stock values from your own installs, and StormLib
+    now reads the 1.21b patch. Next, you decide whether I build the first patch
+    layer, given the licence agreement and the bnetd court case.
 
 --------------------------------------------------------------------------------
 
@@ -1603,6 +1647,162 @@ Before I build the first patch layer (that means applying the diffs, so pulling
 Blizzard's data out of the patch), do you want to weigh the bnetd case first? Or
 should I carry on, and write the jurisdiction point into the licensing doc and
 the vision's "emulator precedent" note?
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+src/cli/build-stormlib.sh.
+
+this should be in scripts, and it should be part of a "build-dependencies"
+script that walks through them one-by-one. They should install to a project
+local directory. See the /home/ritz/programs/r-mail/ directory for example
+scripts.
+
+>     - --update <tag> moves the pin and rebuilds; --licences lists the licence files.
+
+we should have another flag that lists the potential tags, or perhaps one that
+just selects the most recent tag.
+
+Alright, tell me about the license issues. How is Azerothcore still hosted if it
+involves creating a "derivative work"? Could a person's fan-art be considered
+"derivative work"? If so, the clause should be considered incomplete or null
+because it is unenforceable through the fact that there are plenty of
+"derivative works" that exist. If it were the case that no derivative works
+existed (we are literally building on Azerothcore, a derivative work, alongside
+all of the other private server emulators, also derivative works) then we would
+be forced to [redacted] each and every single one of the employees who gave
+their time and labor to a rotten company who would enforce such things. No, I do
+not believe in intellectual property law as a general concept. I do however
+believe in the structures of power that chain us to typical lives. Please
+elaborate on the legal details.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+> Reading r-mail's scripts first, so the new dependency script follows your
+> pattern.
+
+> Building, the no-op re-run and the tag listing all work. Two checks left: the
+> "latest" flag, and whether the bundled libtomcrypt carries its licence
+> somewhere my file-name search didn't catch.
+
+> Updating `.gitignore` for the new layout, then the issue text.
+
+> The dependency script is committed (`b8d84a956`). Now writing the legal
+> details into the licensing doc, so the answer lives with the project and not
+> only in chat.
+
+Both changes are committed. The build now lives in
+`scripts/build-dependencies.sh` (`b8d84a956`), and the legal details below are
+also written into `docs/licensing-and-boundaries.md` (`51b5e6a56`).
+
+**The dependency script**, on r-mail's installer pattern:
+- It checks the toolchain, then walks each library in order: fetch it at its
+  pinned tag, compile it, install it into the project-local `deps/`, and copy
+  its licence files into `deps/licenses/<name>/`.
+- Pins live in `deps/versions`, the only tracked file there. Source and build
+  folders go in `.build-tmp/`, and re-running skips what's already built.
+- New flags:
+  - `--list-tags stormlib` shows upstream's releases, newest last.
+  - `--latest stormlib` pins the newest and rebuilds.
+  - `--pin stormlib TAG` pins a chosen one.
+  - `--list` shows each library's pin and whether it's built.
+- One finding: the copy of libtomcrypt bundled inside StormLib has no licence
+  statement at all. Upstream releases it into the public domain, so the release
+  review needs to record that.
+
+**The legal details.** Your intuition is closer to how enforcement *works* than
+to what the law *says*, so here are both.
+
+**1. "Licence" means two different things.**
+- **Copyright** is a law and binds everyone. It protects *expression* only:
+  Blizzard's actual code, art, sound and text. It does not protect ideas, game
+  rules, mechanics, methods of operation, facts, or functional interfaces.
+  That's US Copyright Act §102(b), *Lotus v. Borland*, and *Google v. Oracle*
+  (2021).
+- **The EULA** is a contract. It binds only the person who clicked "accept", and
+  it can forbid things copyright doesn't cover, like reverse engineering.
+
+**2. "Derivative work" is narrower than the word suggests.** It means a new work
+that *incorporates* protected expression: a translation, a sequel using the
+characters, a remix. A program that *behaves* like another, written without
+copying its code, generally isn't one.
+
+**3. That's how AzerothCore stays hosted.**
+- Its code is its own: the MaNGOS → TrinityCore → AzerothCore line was
+  written from scratch to speak the same protocol and follow the same rules.
+- Its exposure is where Blizzard's expression actually sits: quest text, NPC
+  names and dialogue in the world database, and anything extracted from the
+  client. That's why every emulator makes each user extract data from their own
+  client.
+- Enforcement is a choice. Blizzard pursued large and commercial operations: a
+  US default judgment of about $88 million against Scapegaming, a paid private
+  server, in 2010, and the 2016 cease-and-desist that closed Nostalrius.
+  Open-source emulator code has sat on GitHub for over a decade.
+
+**4. Fan art often *is* technically a derivative work,** because it reuses
+characters. It survives through fair use (non-commercial and transformative
+weigh heavily in its favour), through the rights holder choosing not to act, and
+through the cost of enforcing.
+
+**5. Tolerance doesn't void the clause.** This is where the argument breaks
+down:
+- Copyright doesn't lapse when it isn't enforced, and selective enforcement is
+  lawful. Trademarks are the exception: an unpoliced mark can weaken or go
+  generic.
+- A few narrow doctrines do limit a rights holder who waits or acquiesces:
+  - laches, meaning unreasonable delay (much weakened for copyright since
+    *Petrella v. MGM*, 2014);
+  - estoppel, where someone was led to rely on permission;
+  - implied licence.
+
+  Each protects a particular person in a particular situation. None cancels the
+  right for everyone.
+- US courts generally enforce click-through agreements (*ProCD v. Zeidenberg*,
+  1996).
+
+**6. The case closest to us is the bnetd case**, *Davidson & Associates v. Jung*
+(8th Circuit, 2005). Volunteers reverse engineered Battle.net to build an
+open-source server for StarCraft, Diablo II and Warcraft III. Blizzard won on
+two grounds, and neither was "derivative work":
+- **Contract.** The developers had clicked the games' licence, which forbade
+  reverse engineering, so the court held they had given up their fair-use
+  defence.
+- **Anti-circumvention (DMCA §1201).** bnetd let games play online past
+  Blizzard's CD-key check.
+
+What that means for us, part by part:
+- **Contract:** the risk sits with whoever clicked the Warcraft III licence and
+  then extracts from their install. That's each user, which is one more reason
+  extraction runs on each user's own machine.
+- **Anti-circumvention:** MPQ's table encryption uses publicly known keys and
+  guards no CD-key or login check. That's a much weaker fit than bnetd, though
+  not zero.
+- **Copyright:** the engine, the converter and independently made replacement
+  art carry no Blizzard expression. That's what the resolver, the similarity
+  scores and the lineage records are for.
+
+**7. The EU is firmer ground.** The Software Directive (2009/24/EC, Articles
+5(3), 6 and 8) lets a lawful user study a program and decompile it where needed
+so an independently made program can work with it, and it voids any contract
+clause that says otherwise. *SAS Institute v. World Programming* (CJEU, 2012)
+adds that a program's functionality and data formats aren't protected at all.
+
+**8. On power:** you're right that enforcement follows power and money, not the
+letter of the law. The people who get pursued are large, public and commercial,
+and they redistribute the rights holder's assets. This project is small,
+non-commercial, open, ships no Blizzard assets, and has each user extract from
+their own copy. That's the lowest-risk profile available. It isn't zero, and
+most of what remains sits with whoever runs the extraction under a US
+click-through agreement.
+
+That leaves a question for you. If the EU is where interoperability is protected
+by law, would it make sense for the project to say so openly: document that
+extraction is a user-side step that EU users are clearly entitled to, while US
+users are acting under their own click-through agreement? Or would you rather
+keep the documentation jurisdiction-neutral?
 
 --------------------------------------------------------------------------------
 
