@@ -34,15 +34,17 @@ Frozen Throne map got Custom_V1.
 
 Layers. Each Blizzard patch rebuilds its whole data archive, so a layer is
 complete by itself and a chain uses at most one. The map's editor version
-picks it through editor_versions.lua; without an entry, the newest layer
-available is used and the fallback is counted and reported.
+picks it through editor_versions.lua; a build with no entry, or whose layer
+isn't built, is an error naming what to fetch (never a guess). An install
+layer (1.28 on, manifest kind "install") carries that version's own data
+archives, which replace the disc's.
 
 Usage:
   local chain = require("gamedata.chain")
   local c = chain.open({ install = ..., layers = ..., w3i = parsed_w3i, map = "path/to/map.w3x" })
   local bytes, source = c:read("Units\\UnitWeapons.slk")
   local bytes = c:read("Units\\UnitWeapons.slk", { below_map = true })   -- the stock copy the map's hides
-  c:report()   -- data set, layer, and why; warnings
+  c:report()   -- data set, layer, and why
   c:close()
 
 Issue: issues/112b-game-version-layers-per-map.md
@@ -87,12 +89,22 @@ local function available_layers(layers_root)
     end
     listing:close()
     table.sort(names, function(a, b)
+        -- By every number in the name: "1.21b" is 1, 21, b(2), 0 and "1.29.2"
+        -- is 1, 29, 0, 2, so a letter release and a dotted one compare
+        -- correctly (the old two-number key sorted 1.29.2 first).
         local function key(v)
-            local major, minor, letter = v:match("^(%d+)%.(%d+)(%a?)$")
-            return (tonumber(major) or 0) * 10000 + (tonumber(minor) or 0) * 100
-                + (letter ~= "" and letter:byte() - 96 or 0)
+            local major, minor, letter, patch = v:match("^(%d+)%.(%d+)(%a?)%.?(%d*)$")
+            if not major then
+                error("layer folder " .. v .. " isn't named like a version (1.21b, 1.29.2)")
+            end
+            return { tonumber(major), tonumber(minor), letter ~= "" and letter:byte() - 96 or 0,
+                tonumber(patch) or 0 }
         end
-        return key(a) < key(b)
+        local ka, kb = key(a), key(b)
+        for i = 1, 4 do
+            if ka[i] ~= kb[i] then return ka[i] < kb[i] end
+        end
+        return false
     end)
     return names
 end
@@ -132,36 +144,43 @@ end
 -- }}}
 
 -- {{{ function M.choose_layer
--- Returns layer name (or nil for none), and a reason string, and whether it
--- was a fallback. options.layer = false forces no layer (unpatched);
+-- Returns the layer name (or nil for none) and a reason string.
+-- options.layer = false forces no layer (unpatched);
 -- options.layer = "1.21b" forces that one.
 function M.choose_layer(w3i, layers_root, options)
     options = options or {}
     if options.layer == false then
-        return nil, "unpatched (asked for no layer)", false
+        return nil, "unpatched (asked for no layer)"
     end
     local available = available_layers(layers_root)
     if options.layer then
         for _, name in ipairs(available) do
             if name == options.layer then
-                return name, "asked for " .. name, false
+                return name, "asked for " .. name
             end
         end
         error("patch layer " .. options.layer .. " not found under " .. layers_root)
     end
+    -- The map's editor build names its version (editor_versions.lua). There
+    -- is no guessing: a build with no entry, or whose layer isn't built, is
+    -- missing data, and the answer is its row in wc3-installs/patch-sources.tsv
+    -- (this once fell back to the newest layer; the owner: "this sounds like
+    -- a problem we could solve with code").
     local versions = options.editor_versions or require("gamedata.editor_versions")
     local known = versions[w3i.editor_version]
-    if known then
-        return known.layer, string.format("editor %d belongs to %s (%s)",
-            w3i.editor_version, known.layer, known.evidence), false
+    if not known then
+        error(string.format("editor build %s has no known game version: add its patch program or game"
+            .. " copy to wc3-installs/patch-sources.tsv and its evidence to editor_versions.lua",
+            tostring(w3i.editor_version)))
     end
-    local newest = available[#available]
-    if not newest then
-        return nil, string.format("editor %d has no known layer and no layers are built",
-            w3i.editor_version), true
+    for _, name in ipairs(available) do
+        if name == known.layer then
+            return name, string.format("editor %d belongs to %s (%s)",
+                w3i.editor_version, known.layer, known.evidence)
+        end
     end
-    return newest, string.format("editor %d has no known layer; using %s, the newest built",
-        w3i.editor_version, newest), true
+    error(string.format("editor build %d needs layer %s, which isn't built:"
+        .. " scripts/fetch-patch-programs.sh, then build-patch-layer.lua", w3i.editor_version, known.layer))
 end
 -- }}}
 
@@ -176,24 +195,27 @@ Chain.__index = Chain
 function M.open(options)
     local self = setmetatable({}, Chain)
     self.data_set, self.data_set_choice = M.data_set_for(options.w3i)
-    self.layer, self.layer_reason, self.fallback =
-        M.choose_layer(options.w3i, options.layers, options)
-    self.warnings = {}
-    if self.fallback then
-        self.warnings[#self.warnings + 1] = self.layer_reason
-    end
+    self.layer, self.layer_reason = M.choose_layer(options.w3i, options.layers, options)
+    self.layer_index = {}
+    -- Base archives: the disc install's, unless the layer is an install layer
+    -- (1.28 on: that version's own rebuilt archives, which replace the disc's).
+    local base_folder, base_names = options.install, BASE_ARCHIVES
     if self.layer then
-        self.layer_root = options.layers .. "/" .. self.layer .. "/archive"
-        self.layer_index = index_folder(self.layer_root)
-    else
-        self.layer_index = {}
+        local layer_folder = options.layers .. "/" .. self.layer
+        local manifest = assert(loadfile(layer_folder .. "/manifest.lua"))()
+        if manifest.kind == "install" then
+            base_folder, base_names = layer_folder .. "/archives", manifest.archive_order
+        else
+            self.layer_root = layer_folder .. "/archive"
+            self.layer_index = index_folder(self.layer_root)
+        end
     end
     self.archives = {}
     if options.map then
         self.map = { name = "map", archive = stormlib.open(options.map) }
     end
-    for _, name in ipairs(BASE_ARCHIVES) do
-        self.archives[#self.archives + 1] = { name = name, archive = stormlib.open(options.install .. "/" .. name) }
+    for _, name in ipairs(base_names) do
+        self.archives[#self.archives + 1] = { name = name, archive = stormlib.open(base_folder .. "/" .. name) }
     end
     return self
 end
@@ -258,9 +280,6 @@ function Chain:report()
         "data set: " .. (self.data_set or "plain melee tables") .. " (" .. self.data_set_choice .. ")",
         "patch layer: " .. tostring(self.layer or "none") .. " (" .. self.layer_reason .. ")",
     }
-    for _, w in ipairs(self.warnings) do
-        lines[#lines + 1] = "WARNING: " .. w
-    end
     return table.concat(lines, "\n")
 end
 -- }}}

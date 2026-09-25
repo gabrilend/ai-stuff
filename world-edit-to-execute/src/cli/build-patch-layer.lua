@@ -11,6 +11,11 @@
 -- Usage:
 --   luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>
 --   luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION]
+--   luajit src/cli/build-patch-layer.lua [--dir DIR] --install-layer VERSION
+--
+-- The third form is for versions with no patch program (1.28 on): it takes
+-- that version's own data archives, kept from a game copy by the fetch
+-- script, into an install layer that replaces the disc's archives.
 --
 -- The first form builds one layer on the disc install alone. The second
 -- builds the whole stack: every Frozen Throne patch program recorded in
@@ -63,7 +68,9 @@ local function recorded_programs(programs)
     local by_file = {}
     for line in f:lines() do
         local saved, version, game = line:match("^([^\t]+)\t([^\t]+)\t([^\t]+)\t")
-        if saved and game == "tft" then
+        -- Rows saved into a version's folder (1.29.2/War3.mpq) are an install
+        -- layer's data, not patch programs: --install-layer uses those.
+        if saved and game == "tft" and not saved:find("/", 1, true) then
             by_file[saved] = { file = programs .. "/" .. saved, version = version }
         end
     end
@@ -113,6 +120,55 @@ if not probe then
         .. " (see wc3-installs/README.md)")
 end
 probe:close()
+
+-- {{{ install layers
+-- Versions with no patch program (1.28 on): the data archives kept from a
+-- game copy, listed in the fetch record under "<version>/".
+local INSTALL_LAYERS = {
+    ["1.29.2"] = {
+        archive_order = { "War3xLocal.mpq", "War3x.mpq", "War3Local.mpq", "War3.mpq" },   -- highest priority first
+        game_program = "Warcraft III.exe",
+        editor_program = "World Editor.exe",
+    },
+}
+-- }}}
+
+if arg[1] == "--install-layer" then
+    local version = arg[2]
+    local spec = INSTALL_LAYERS[version]
+    if not spec then
+        error("no install layer described for " .. tostring(version) .. " (see INSTALL_LAYERS in this file)")
+    end
+    local checksums = {}
+    local f = assert(io.open(programs .. "/sources.tsv", "r"))
+    for line in f:lines() do
+        local saved, _, _, sha = line:match("^([^\t]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)\t")
+        if saved and saved:sub(1, #version + 1) == version .. "/" then
+            checksums[saved:sub(#version + 2)] = sha
+        end
+    end
+    f:close()
+    local folder = layers .. "/" .. version
+    local existing = read_manifest(folder)
+    local same = existing and existing.kind == "install" and #existing.archives == #spec.archive_order
+    if same then
+        for _, a in ipairs(existing.archives) do
+            if checksums[a.name] ~= a.sha256 then same = false end
+        end
+    end
+    if same then
+        print(version .. ": present; its archives are unchanged")
+        os.exit(0)
+    end
+    local m = patch_layer.build_install({
+        version = version, source_folder = programs .. "/" .. version,
+        archive_order = spec.archive_order, game_program = spec.game_program,
+        editor_program = spec.editor_program, checksums = checksums, output = folder,
+    })
+    print(string.format("install layer %s: game %s, %d archives, editor builds found: %s",
+        version, m.game_version, #m.archives, table.concat(m.editor_builds, " ")))
+    os.exit(0)
+end
 
 if arg[1] == "--stack" then
     local up_to = arg[2] == "--up-to" and arg[3] or nil

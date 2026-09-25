@@ -111,26 +111,15 @@ else
     end
     -- }}}
     local w3i = map_w3i("DAoW-2.1.w3x")
-    -- With no known editor version the newest built layer is used; which one
-    -- that is depends on how many layers are built, so it is read from the
-    -- layers folder (the one whose manifest names the highest version).
-    local fallback = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, editor_versions = {} })
-    local newest, newest_order = nil, nil
-    local listing = io.popen("ls '" .. LAYERS .. "'")
-    for name in listing:lines() do
-        local chunk = loadfile(LAYERS .. "/" .. name .. "/manifest.lua")
-        local m = chunk and chunk()
-        if m then
-            local a, b, c = name:match("^(%d+)%.(%d+)(%a?)$")
-            local order = tonumber(a) * 10000 + tonumber(b) * 100 + (c ~= "" and c:byte() - 96 or 0)
-            if not newest_order or order > newest_order then newest, newest_order = name, order end
-        end
-    end
-    listing:close()
-    test("with no known editor version it falls back to the newest layer", fallback.layer == newest,
-        tostring(fallback.layer) .. " vs " .. tostring(newest))
-    test("and the fallback is reported as a warning", #fallback.warnings == 1 and fallback:report():match("WARNING") ~= nil)
-    fallback:close()
+    -- A map's editor build must name a built layer; there is no guessing
+    -- (the chain once fell back to the newest layer with a warning).
+    local ok, err = pcall(chain.open, { install = INSTALL, layers = LAYERS, w3i = w3i, editor_versions = {} })
+    test("an editor build with no known version is an error naming what to add", not ok
+        and tostring(err):match("has no known game version") ~= nil, tostring(err))
+    ok, err = pcall(chain.open, { install = INSTALL, layers = LAYERS, w3i = w3i,
+        editor_versions = { [w3i.editor_version] = { layer = "9.99z", evidence = "test" } } })
+    test("a known build whose layer isn't built is an error", not ok and tostring(err):match("isn't built") ~= nil,
+        tostring(err))
 
     local patched = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, layer = "1.21b" })
     test("a Frozen Throne map uses the Custom_V1 data set", patched.data_set == "Custom_V1", patched.data_set)
@@ -193,7 +182,7 @@ else
 
     local known = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i,
         editor_versions = { [w3i.editor_version] = { layer = "1.21b", evidence = "test" } } })
-    test("a listed editor version picks its layer without a warning", known.layer == "1.21b" and #known.warnings == 0)
+    test("a listed editor version picks its layer", known.layer == "1.21b")
     known:close()
 end
 -- }}}
@@ -249,6 +238,28 @@ else
     local present = select(2, text:gsub("present;", ""))
     test("a second stack build rebuilds nothing", built == 0 and present >= 10,
         built .. " built, " .. present .. " present")
+
+    -- 1.29.2 has no patch program: its layer carries that version's own
+    -- rebuilt archives, which replace the disc's in the chain.
+    if exists(LAYERS .. "/1.29.2/manifest.lua") then
+        local m = dofile(LAYERS .. "/1.29.2/manifest.lua")
+        test("the 1.29.2 install layer's game program is 1.29.2.9231", m.kind == "install"
+            and m.game_version == "1.29.2.9231", tostring(m.game_version))
+        local c = chain.open({ install = INSTALL, layers = LAYERS,
+            w3i = { version = 25, editor_version = 6060, game_data_set = 2, flags = { melee_map = false } } })
+        local _, from = c:read("Units\\UnitWeapons.slk")
+        c:close()
+        test("editor 6060 loads 1.29.2, reading its own archives", from == "War3x.mpq: Units\\UnitWeapons.slk"
+            and c.layer == "1.29.2", tostring(c.layer) .. " " .. tostring(from))
+        local ok_sorted = pcall(function()
+            local newest = chain.open({ install = INSTALL, layers = LAYERS, layer = "1.29.2",
+                w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } } })
+            newest:close()
+        end)
+        test("layer names order by every number (1.29.2 is found by name)", ok_sorted)
+    else
+        skip("1.29.2", "needs the install layer (build-patch-layer.lua --install-layer 1.29.2)")
+    end
 
     -- Every editor build in the evidence table names a built layer.
     local table_ = dofile(DIR .. "/src/gamedata/editor_versions.lua")

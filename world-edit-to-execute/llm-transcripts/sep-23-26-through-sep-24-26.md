@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 21:06:11
+Generated on: 2026-09-24 21:24:39
 Models: claude-opus-5-5
 
 ## Contents
@@ -3754,6 +3754,257 @@ there before today (pathfinding constants).
 
 Should I look into that failure next? Or go back to the missing patch programs
 for 1.22 and 1.29, which two of the test maps are waiting on?
+
+--------------------------------------------------------------------------------
+
+### User Request 33
+
+sure.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 33
+
+> Taking them in order: `test_frames` first.
+
+> All 67 pass. Checking two open issues (801a, 505) that also mention those byte
+> values.
+
+> Unrelated: a network message code, and 505 only matched on "0xF0" elsewhere.
+> Committing the fix.
+
+> `test_frames` is fixed (commit `65a71a18a`), so the whole suite now passes.
+> Next, the missing patch programs: 1.22 (for Daow6.2) and 1.29 (for DaoW 7.5).
+
+> Fetched. Inserting it into the stack: 1.22a sits between 1.21b and 1.23a, so
+> everything above it should rebuild on its own.
+
+> Issue updated. Now stating the selection rule in the issue body, then fixing
+> the code.
+
+> The chain now follows the map's choice. Test callers that pass a hand-made
+> map-info table need the two new fields. Finding them.
+
+> 34 of 34 now, and the stack reports all 11 layers present. Next, recording
+> 6057 → 1.22a in the editor-build table, then rerunning the stock-row merge:
+> 7 maps now read different tables.
+
+> The whole suite passes with no failures, and all four demos run. Committing.
+
+I worked through both. Everything is committed (`65a71a18a` and `ed250e8bf`),
+the repository is clean, and **the whole test suite now passes with no
+failures**.
+
+**`test_frames`:** the code was right and the test was stale. On Jan 1 the
+direction encoding was reworked and written up as its own spec
+(`docs/binary-vector-frames.md`), and the code changed with it:
+- cardinals became the Left/Right votes of the two quadrants sharing an axis, so
+  North is 0x60;
+- "near" became 00, so arrived is 0x00 and overshoot is 0xFF.
+
+The test, the pathfinding issue with its progress entry, and
+`render-architecture.md` kept older values; the render doc even had a third,
+older set. All of them now match the spec and name it as the authority.
+
+**1.22a:**
+- Found on the Internet Archive and built into the stack between 1.21b and
+  1.23a. The layers above rebuilt themselves in order.
+- Its World Editor holds build 6057 and no other, so Daow6.2 now loads 1.22a.
+
+**The bigger find:** checking 1.22a's patch notes against its tables showed that
+**patches rebalance only the melee tables**.
+
+| Knight in… | Damage | Cooldown |
+|---|---|---|
+| 1.22a melee table | 28 | 1.40 |
+| custom-game copy, 1.22a through 1.27b | 25 | 1.50 |
+
+The custom-game copy stays frozen at 1.07. Which table a map reads is its own
+"game data set" setting:
+- **0, Default:** the map's melee flag decides;
+- **1, Custom:** the frozen copy;
+- **2, Melee:** the latest patch.
+
+The editor's option names and the community format spec agree on this. Seven
+test maps (DAoW 5.3 to 5.4c) choose Melee, but the chain had given every map the
+frozen custom copy. The chain now follows each map's choice. Tests check every
+choice against the Knight's values, and the map-info format doc now lists all
+three values.
+
+**What's left:** DaoW 7.5 (editor 6060) needs 1.29. From 1.28 on, patches came
+only through Blizzard's launcher. The only 1.29.2 copies I found are whole game
+installs (1.35 GB on the Internet Archive), not patch programs. Using one would
+mean taking its data archives straight in as a layer, and it would be a full
+copy of the game rather than a patch.
+
+Do you want me to fetch the 1.29.2 install for that? Or leave 1.29 maps on the
+newest layer, with their warning, for now?
+
+Sources:
+- [Internet Archive: Patch 1.22a
+  (EN)](https://archive.org/details/war3tft-en-patch122a)
+- [Internet Archive: Warcraft III
+  1.29.2.9231](https://archive.org/details/warcraft-iii-1-29-2-9231)
+- [ModDB: Patch 1.21b to
+  1.22a](https://www.moddb.com/games/warcraft-iii-frozen-throne/downloads/patch-1-21b-to-1-22a-english-1)
+- [WC3MapSpecification (w3i
+  format)](https://github.com/ChiefOfGxBxL/WC3MapSpecification)
+- [Blizzard forums: Classic Warcraft III
+  installers](https://us.forums.blizzard.com/en/warcraft3/t/classic-warcraft-iii-official-installers-official-patches/21415)
+
+--------------------------------------------------------------------------------
+
+### User Request 34
+
+Great, let's keep going. Hang on, what's the 1.29 warning?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 34
+
+The warning is what the game-data chain reports when a map's editor build has no
+layer yet. That applies only to DaoW 7.5 (editor 6060, which belongs to 1.29):
+- The chain looks up 6060 in the editor-build table, finds no entry, and loads
+  the **newest layer built** instead, 1.27b.
+- It records that as a warning on the chain ("editor 6060 has no known layer;
+  using 1.27b, the newest built"). The chain's report prints it, and the
+  stock-row test lists the map by name.
+
+**What it gets wrong for that map:**
+- The map uses the Default data set without the melee flag, so it reads the
+  custom-game copies (`Custom_V1\`), which are frozen at 1.07 in every patch.
+- But those copies cover only some tables. Abilities, for example, have no
+  custom copy, so they come from the plain tables, which are the patched melee
+  ones.
+- So DaoW 7.5 currently gets 1.27b's ability values where it should get 1.29's.
+  Anything 1.29 itself changed, such as its support for 24 players, is also
+  missing.
+
+**One thing to flag:** this is a fallback, and your rule is errors over
+fallbacks, with fallbacks treated as warnings and warnings as errors. It's
+reported rather than silent, but it still lets the map load on a guessed
+version.
+
+Should a map with no layer for its editor build refuse to load, naming the
+missing patch, until that layer exists? Or keep loading on the newest layer with
+the warning?
+
+--------------------------------------------------------------------------------
+
+### User Request 35
+
+um, this sounds like a problem we could solve with code. No warnings or errors
+required.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 35
+
+Agreed. The missing piece is data, and code can get it. Here's the plan:
+
+1. **Fetch.** Add the 1.29.2 game copy to the source list. The fetch script
+   already unpacks named files from a zip, so it would take only the data
+   archives (`War3Patch.mpq`, plus the base archives if 1.29 changed them) and
+   discard the rest.
+2. **Build a layer from installed files.** A second way to build a layer: read
+   an installed game's archives through StormLib and write them in the same
+   layer shape, with the same manifest. It then slots into the stack at 1.29.2,
+   above 1.27b.
+3. **Map the editor build.** Confirm 6060 inside 1.29.2's World Editor, as with
+   the other builds, and add 6060 → 1.29.2 to the table.
+4. **Remove the fallback.** With every editor build in the test maps covered,
+   the "use the newest layer" path has nothing left to do. A map naming a build
+   we don't know then becomes a missing-data case the fetch list should cover,
+   not something to guess at.
+
+One thing to check with you first: this download is a whole copy of the game,
+1.35 GB. Blizzard gave it out free in 2018, but every source so far has been a
+patch program. Only its data archives would be kept, beside the installs and
+outside git. OK to fetch it?
+
+--------------------------------------------------------------------------------
+
+### User Request 36
+
+sure, I guess.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 36
+
+> Before downloading, checking what's inside the 1.35 GB zip, so only the data
+> archives get kept.
+
+> Now the fetch script: it needs to keep several files from one zip under a
+> folder per version.
+
+> The script is ready. Starting the download in the background, about 1.35 GB.
+> Meanwhile, the stack builder has to skip these new rows: they're data files,
+> not patch programs.
+
+> Updating the chain's header comment and the tests that expected the fallback.
+
+> Those four test chains pass a made-up map-info table with an empty editor
+> table, so they'd now hit the new error. They test other things, so each gets
+> its layer named outright.
+
+1.29.2 isn't the current format. It's the last build of the old kind, from May
+2018, and the format you're wary of came later. Your cutoff lands in the right
+place.
+
+**Timeline since Blizzard's Classic Games team took the game back up (2016):**
+
+| Version | Date | Meaningful changes |
+|---|---|---|
+| 1.27a/b | 2016 | Modern Windows/Mac compatibility; the CD no longer needed in the drive |
+| 1.28.x | 2017 | New installer and launcher; standalone patch programs stop, and updates come only through the launcher |
+| **1.29.x** | Apr–May 2018 | Widescreen, 24-player maps, a batch of new script functions for map makers, editor limits raised (World Editor build 6060). **Still MPQ archives**: the same format as every version we support |
+| 1.30.x | Aug 2018 – Jan 2019 | **Switch to Blizzard's CASC storage**, the format they still use today, plus more languages. Shared-key LAN still worked (the Feb–Mar 2019 Hive thread) |
+| 1.31.x | May–June 2019 | Lua as a map scripting language, and more modern-client work. Shared-key LAN stopped working after these patches (the July 2019 forum post) |
+| 1.32+ (Reforged) | Jan 2020 onward | HD models, a Battle.net account required, LAN removed. The Reforged terms also claim ownership of custom games made with its editor |
+
+I'm confident about the storage switch (1.30), the Lua scripting (1.31) and
+Reforged's changes. I'm less sure exactly which of 1.29–1.31 brought the
+64-bit client.
+
+**Where the line sits:**
+- Your shared-key rule cuts after 1.30.4.
+- Staying with the MPQ format stops at 1.29.2.
+- Together that's **1.07 through 1.29.2**: all of it pre-CASC and pre-Reforged,
+  none of it the live game. The current game (CASC, Battle.net accounts) is
+  exactly what we're leaving alone, much as a private server for today's
+  expansion would be different from one for an old one.
+
+I'd record "MPQ era only; no CASC reader" as a rule in the patch-layer issue and
+in the legal document, with your reasoning, so it doesn't get reopened later.
+
+The 1.29.2 download is still running, about half done. Fetching it fits the line
+above, but if you'd rather stop at 1.27b (the last version with a standalone
+patch program), say so and I'll cancel it and delete the partial file.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/scripts/fetch-patch-programs.sh
+--only 1.29.2 &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/fetch129.log
+2&gt;&amp;1; echo "exit $?"; cat
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/fetch129.log"
+completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 36 (continued)
+
+The 1.29.2 download finished cleanly. Six files were kept with their checksums
+recorded: the four data archives (about 1.1 GB), `Warcraft III.exe` and `World
+Editor.exe`. The rest of the 1.35 GB zip was deleted, and 26 GB of disk is still
+free.
+
+I haven't built the 1.29.2 layer or committed the install-layer code yet. That
+waits on your answer: keep 1.29.2 as the top of the supported range (the last
+MPQ-era build, well before the storage switch and Reforged), or stop at 1.27b
+and delete these files?
 
 --------------------------------------------------------------------------------
 

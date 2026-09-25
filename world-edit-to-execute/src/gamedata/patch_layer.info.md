@@ -8,6 +8,8 @@ produces, built by applying its entries to their bases, without running it.
 | Function | Takes | Gives |
 |----------|-------|-------|
 | `build(options)` | table: `patch_program` (path), `install` (Frozen Throne folder), `base_archives` (list of archive names, lowest priority first), `version` (string, e.g. `"1.21b"`), `output` (layer folder), `scratch` (temporary folder), optional `lower_layers` (list of `{name, folder}`, highest first) | the manifest table (also written to `<output>/manifest.lua`); raises an error naming the first entry it can't build and the places it tried |
+| `program_version(path)` | a Windows program file | its stamped file version (string, `"1.29.2.9231"`); raises if it has none |
+| `build_install(options)` | table: `version`, `source_folder` (the fetched files), `archive_order` (names, highest priority first), `game_program`, `editor_program` (file names), `checksums` (name → sha256 from the fetch record), `output` | an install layer for a version with no patch program: archives hard-linked into `<output>/archives/`, manifest with `kind = "install"`, `archive_order`, `archives` ({name, size, sha256}), `game_version`, `editor_builds` (candidate constants, noisy) |
 | `target_version(program, scratch, install)` | patch program path; temporary folder; Frozen Throne folder | the version it produces (string, `"1.25.1.6397"`) and the same as four integers (list), read from the `War3.exe` it writes; raises if its script states a different real version |
 
 ## Layer layout

@@ -383,4 +383,73 @@ function M.build(options)
 end
 -- }}}
 
+-- {{{ function M.program_version
+-- The file version stamped in a Windows program file (path), as a string
+-- ("1.29.2.9231"), or raises.
+function M.program_version(path)
+    local parts = file_version(assert(read_file(path), "cannot read " .. path))
+    if not parts then
+        error(path .. " has no version stamp")
+    end
+    return table.concat(parts, ".")
+end
+-- }}}
+
+-- {{{ function M.build_install
+-- Builds an install layer: a version with no patch program (1.28 on), whose
+-- own rebuilt data archives replace the disc's in the chain (issue 112b).
+-- options:
+--   version        layer name ("1.29.2")
+--   source_folder  where the fetch script kept this version's files
+--   archive_order  archive names, highest priority first
+--   game_program, editor_program   file names in source_folder
+--   checksums      file name -> sha256 (from the fetch record)
+--   output         the layer folder
+-- The archives are hard-linked into output/archives (same disk as the
+-- fetched copies; a failed link is an error). Returns the manifest.
+function M.build_install(options)
+    ensure_folder(options.output .. "/archives")
+    local manifest = {
+        kind = "install",
+        version = options.version,
+        built = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        archive_order = options.archive_order,
+        archives = {},
+        game_version = M.program_version(options.source_folder .. "/" .. options.game_program),
+        editor_program = options.editor_program,
+    }
+    for _, name in ipairs(options.archive_order) do
+        local from = options.source_folder .. "/" .. name
+        local to = options.output .. "/archives/" .. name
+        os.remove(to)
+        local status = os.execute("ln " .. shell_quote(from) .. " " .. shell_quote(to))
+        if status ~= 0 and status ~= true then
+            error("could not link " .. from .. " into the layer")
+        end
+        local f = assert(io.open(to, "rb"))
+        local size = f:seek("end")
+        f:close()
+        local sha = options.checksums[name]
+        if not sha then
+            error(name .. " has no checksum in the fetch record")
+        end
+        manifest.archives[#manifest.archives + 1] = { name = name, size = size, sha256 = sha }
+    end
+    -- Candidate editor builds: 4-byte constants 6031-6099 present in the
+    -- editor. Noisy for a large program (1.29.2's matches 37 by chance), so
+    -- evidence is a contrast between versions, recorded in editor_versions.lua.
+    local editor = assert(read_file(options.source_folder .. "/" .. options.editor_program))
+    manifest.editor_builds = {}
+    for build = 6031, 6099 do
+        if editor:find(string.char(build % 256, math.floor(build / 256), 0, 0), 1, true) then
+            manifest.editor_builds[#manifest.editor_builds + 1] = build
+        end
+    end
+    write_file(options.output .. "/manifest.lua",
+        "-- Install layer manifest, written by src/gamedata/patch_layer.lua. Do not edit.\n"
+        .. "return " .. serialize(manifest) .. "\n")
+    return manifest
+end
+-- }}}
+
 return M
