@@ -25,8 +25,9 @@ Rule (owner, sane design over correctness): a build maps to the newest
 layer in its range, the version its authors most likely played.
 
 Not listed yet: 6057 (1.22) and 6060 (1.29.x) have no patch program found;
-see issue 112b open question 5. 6059's newest layer depends on the
-shared-CD-key cutoff (open question 4); 1.27b is the newest built.
+see issue 112b open question 5. 6059's range runs to 1.28.5, inside the
+shared-CD-key cutoff (after 1.30.4); 1.27b is the newest built, since 1.28
+has no patch program found.
 
 Format:  [editor_version] = { layer = "1.21b", evidence = "how we know" }
 ]]
@@ -37,5 +38,5 @@ return {
     [6058] = { layer = "1.23a",
         evidence = "only 1.23a's WorldEdit.exe holds 6058; the list gives 1.23" },
     [6059] = { layer = "1.27b",
-        evidence = "1.24a-1.27b's WorldEdit.exe hold 6059, none before; the list gives 1.24a-1.28.5; 1.27b is the newest built (cutoff open)" },
+        evidence = "1.24a-1.27b's WorldEdit.exe hold 6059, none before; the list gives 1.24a-1.28.5; 1.27b is the newest built (1.28.x has no program yet)" },
 }

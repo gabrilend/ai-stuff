@@ -158,8 +158,11 @@ version before Blizzard stopped clients sharing one CD key from playing
 together**. The owner (2026-09-24): "we also, on principle, should only
 support the patches that were before Blizzard removed the capability to
 have multiple clients that shared a CD key play together. That change killed
-the game." Which version that was is open question 4. (1.30 onwards also
-moved to Blizzard's CASC storage, a different format.) Reign of Chaos the
+the game." By the dates (open question 4) that change came with 1.31.0
+(May 28, 2019) or 1.31.1 (June 10, 2019), so the last supported version is
+1.30.4. Every MPQ-era version (up to 1.29.2) is before the cutoff, 1.26a and
+1.27b included. 1.30.x is inside the cutoff too, but moved to Blizzard's
+CASC storage, a different format: a separate reader, when wanted. Reign of Chaos the
 same way, on the Reign of Chaos install, for `.w3m` maps.
 
 One patch program per version is needed, even though a full patch installs
@@ -203,7 +206,7 @@ editor build that saved them. The wiki table only cross-checks it.
 
 1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
 2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
-4. **The shared-CD-key cutoff**: which patch stopped two clients with one CD key from playing together (on LAN)? Community threads confirm the behaviour changed but name no version; LAN itself was removed with Reforged. The owner's memory, a changelog, or a test with two clients on each built layer would settle it.
+4. ~~The shared-CD-key cutoff~~ Answered 2026-09-24 from dates (the owner: "check the dates on the threads, then the release dates of the patches"). A Hive Workshop thread, Feb 24 – Mar 20, 2019, says one key works for several players on LAN (1.30.4, Jan 14, 2019, was current). A Blizzard forum post of July 5, 2019 says "after recent patches I have been unable to join my own LAN games like I could before"; the patches between were 1.31.0 (May 28, 2019) and 1.31.1 (June 10, 2019). Cutoff: after 1.30.4. Inferred from two community posts, not a changelog; a changelog line or a two-client test on 1.30.4 and 1.31.0 would confirm it.
 5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.22, 1.27a, 1.28.x, 1.29.x (1.28 onwards may exist only through Blizzard's launcher, which the project never contacts). 1.22 matters now: one test map (Daow6.2) was saved by its editor. Other languages' programs may carry the same game data with different text; to check once one is in hand.
 3. The data set: Reign of Chaos maps → `Custom_V0`, Frozen Throne maps → `Custom_V1` is inferred from the folder names and contents. Confirm from the game's behaviour (for example, a test map that shows a stat that differs between the two copies).
 

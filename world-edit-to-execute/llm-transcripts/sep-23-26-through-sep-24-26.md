@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 20:25:25
+Generated on: 2026-09-24 20:40:04
 Models: claude-opus-5-5
 
 ## Contents
@@ -3374,6 +3374,169 @@ patches](https://www.hiveworkshop.com/threads/list-of-official-patches-for-warcr
 Should I download from the Internet Archive? I'd take only the English Windows
 patches (about 20 files, roughly 1 GB) rather than the full 9.9 GB, and store
 them beside the installs, outside git.
+
+--------------------------------------------------------------------------------
+
+### User Request 29
+
+Kinda sounds like we only need the most recent patch then, if it can assess all
+previous versions of the game. Right? That should mean it knows how to patch to
+any version of the game.
+
+> - Scope: 1.30 and later switched from MPQ archives to Blizzard's newer storage
+> format, so
+>     they're out of scope for now.
+
+we also, on principle, should only support the patches that were before Blizzard
+removed the capability to have multiple clients that shared a CD key play
+together. That change killed the game.
+
+
+
+<pasted_content id="7a80">
+> Should I download from the Internet Archive? I'd take only the English Windows
+> patches (about 20
+> files, roughly 1 GB) rather than the full 9.9 GB, and store them beside the
+> installs, outside
+  git.
+</pasted_content id="7a80">
+
+
+sure.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 29
+
+> A full patch only goes one direction, and only to its own version. It's like a
+> train from any earlier station to one destination:
+> - The 1.27b patch takes 1.07, 1.21b, or anything older than 1.27b, and
+>   produces 1.27b.
+> - Inside, it holds 1.27b's files: whole files, plus diffs against the disc
+>   copies.
+> - It doesn't hold 1.22's unit values, or 1.24's. Those versions' data is
+>   simply not in it.
+>
+> A map saved for 1.22 was balanced against 1.22's tables, and only the 1.22
+> patch (or a later one that was never published) carries those. So we need one
+> patch program per version we want to reproduce.
+>
+> Now finding when the shared-key LAN change happened, so the cutoff lands on
+> the right version.
+
+> That item holds English patches only for 1.24a–1.26a. Checking the other
+> item and what else exists in any language.
+
+> The fetch script is written. Tightening it before running: when one zip serves
+> two files, the record must still name the real mirror URL, not a temporary
+> copy.
+
+> Downloading in the background. Meanwhile, git needs to ignore the new link,
+> and the installs README needs a row for it.
+
+> Recording your cutoff rule and the missing versions in the patch-layer issue.
+
+> Downloads are running: 1.21b and 1.23a are in. While they finish, the next
+> piece is the stack builder, starting with how the current builder finds each
+> diff's base file.
+
+> The download log stopped after two files, and the partial file is gone.
+> Checking whether the fetch ended.
+
+> Six programs are in. Checking that each one reports the version it produces,
+> which is what the ordering depends on.
+
+> Every program reports its version, and the numbers agree with the published
+> table: 1.24b is 1.24.1.6374, a build the table skipped. Running the existing
+> layer tests while the rest download.
+
+> All 17 pass. I'll wait for the download to finish before building the stack.
+
+> The Frozen Throne programs through 1.24e are in, so I can build that part of
+> the stack now.
+
+> Both checks pass: the second run left all seven layers as they were, and every
+> `game.dll` reports its own version. Now the editor-build evidence, from the
+> Blizzard melee maps each patch writes.
+
+> All Frozen Throne programs are in. Building the full stack.
+
+> That error comes from my probe script, which didn't pass the install folder.
+> Fixing the probe.
+
+> Ten layers, built in order. The second run changed nothing. Before recording
+> which layer each editor build uses, checking where each build first appears in
+> the layers' `WorldEdit.exe` files.
+
+> Now tests for the stack. Checking how the existing layer test is laid out.
+
+> Those three failures are expected: the newest layer is now 1.27b, not 1.21b.
+> I'll pin the data checks to 1.21b by name, make the fallback check compute the
+> newest layer, and add a stack section.
+
+> One failure: 1.27b's `game.dll` writes its version text in a different format.
+> The test will read the numeric version block instead, the same way the builder
+> does.
+
+> Committing the patch stack.
+
+The downloads are done and the patch stack is built and committed as
+`a9533608c`. The repository is clean.
+
+**Was one patch enough?** No, and the stack shows why:
+- Every patch program found is a "full" patch. Each one diffs straight against
+  the 1.07 disc files and carries only its own version's files.
+- 1.27b's program contains 1.27b and nothing about 1.22's or 1.24's balance
+  tables. So we need one program per version.
+
+**What exists now:**
+- **Patch programs:** English 1.21b, 1.23a, 1.24a–e, 1.25b, 1.26a and 1.27b
+  for Frozen Throne; 1.24a–1.27b for Reign of Chaos. They were fetched from
+  the Internet Archive with checksums recorded, and live outside git.
+- **Ten Frozen Throne layers**, built in version order, each offered the layers
+  below it as bases:
+  - running it again changes nothing;
+  - a changed layer is rebuilt along with everything above it;
+  - no lower layer has been needed as a base yet, since every patch is full.
+- **One bug caught on the way:** from 1.25b on, Blizzard's scripts stopped
+  naming their version (they say "older than 1.99.99.9999"), and trusting that
+  built 1.27b before 1.25b. The order now comes from the version stamped in the
+  game program each patch writes.
+- **Which version a map loads now rests on our own evidence:** each patch's
+  World Editor holds its own build number and not its predecessor's.
+
+  | Editor build | Layer |
+  |---|---|
+  | 6052 | 1.21b |
+  | 6058 | 1.23a |
+  | 6059 | 1.27b |
+
+  The published list agrees.
+- **Test maps:** 12 load 1.21b and 2 load 1.27b. Two still fall back to the
+  newest layer with a warning, because no program was found for their editor
+  builds: Daow6.2 (1.22) and DaoW 7.5 (1.29).
+
+**Side finding:** this project's `tmp/` is an ordinary folder, not your two-tier
+RAM link. I didn't change it.
+
+**Open question:** which patch stopped two clients with one CD key from playing
+together? The threads I found confirm the change but name no version. The answer
+sets where the stack ends, and whether 1.27b (and 1.26a) stay supported.
+
+Sources:
+- [Internet Archive: wc3_patches](https://archive.org/details/wc3_patches)
+- [Internet Archive:
+  warcraft-iii-installer-enus](https://archive.org/details/warcraft-iii-installer-enus)
+- [Internet Archive:
+  war3tft-en-patch123a](https://archive.org/details/war3tft-en-patch123a)
+- [Hive Workshop: list of official
+  patches](https://www.hiveworkshop.com/threads/list-of-official-patches-for-warcraft-3.322919/)
+- [Blizzard forums: same CD key on
+  LAN](https://us.forums.blizzard.com/en/warcraft3/t/cant-play-lan-with-same-cd-key/6730)
+- [Hive Workshop: multiple players, one CD
+  key](https://www.hiveworkshop.com/threads/multiple-players-on-the-same-cd-key.313015/)
+- [PC Gamer: Reforged removes
+  LAN](https://www.pcgamer.com/games/rts/warcraft-3-reforged-adds-always-online-requirement-removes-lan-mode/)
 
 --------------------------------------------------------------------------------
 
