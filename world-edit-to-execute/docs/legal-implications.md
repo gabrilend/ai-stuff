@@ -203,7 +203,9 @@ land in the same place:
 
 Every supported version was distributed free by Blizzard as a patch, and the
 project reads each from the user's own copy; issue 112b records where each
-comes from. The project builds no reader for CASC.
+comes from. The project builds no reader for CASC; what one would take, and
+why we leave those versions to the living game, is written out in
+[versions-we-leave-alone.md](versions-we-leave-alone.md).
 
 ## Related documents
 
