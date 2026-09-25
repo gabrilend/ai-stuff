@@ -141,12 +141,21 @@ else
     -- there. Before the map was part of the chain, their changes to those
     -- abilities showed up as 369 "orphan" change sets.
     local listing = io.popen("ls '" .. DIR .. "/assets'")
+    local w3i_parser = require("parsers.w3i")
+    local layers_used, fallbacks = {}, {}
     totals.map_table_only = 0
     for name in listing:lines() do
         if name:match("%.w3[xm]$") then
             local archive = assert(mpq.open(DIR .. "/assets/" .. name))
-            local mc = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
-                editor_versions = {}, map = DIR .. "/assets/" .. name })
+            -- Each map on its own game version: its editor build picks the
+            -- layer (gamedata/editor_versions.lua); builds with no layer yet
+            -- fall back to the newest, with a warning counted below.
+            local info = w3i_parser.parse(archive:extract("war3map.w3i"))
+            local mc = chain.open({ install = INSTALL, layers = LAYERS, w3i = info, map = DIR .. "/assets/" .. name })
+            layers_used[mc.layer] = (layers_used[mc.layer] or 0) + 1
+            if mc.fallback then
+                fallbacks[#fallbacks + 1] = name .. " (editor " .. info.editor_version .. ")"
+            end
             for kind, spec in pairs(kinds) do
                 local data = archive:extract(spec[1])
                 if data then
@@ -171,6 +180,17 @@ else
     listing:close()
     print(string.format("  objects %d (%d defined only in a map's own table), changes applied %d, orphans %d, unknown codes %d, unknown parents %d",
         totals.objects, totals.map_table_only, totals.applied, by_kind.orphan, by_kind.unknown_code, by_kind.unknown_parent))
+    local used = {}
+    for layer, n in pairs(layers_used) do used[#used + 1] = layer .. "×" .. n end
+    table.sort(used)
+    print("  layers used: " .. table.concat(used, " "))
+    -- A fallback is a warning: it means a map's own version has no layer yet
+    -- (issue 112b open question 5). Listed, not hidden.
+    for _, f in ipairs(fallbacks) do
+        print("  WARNING: no layer for its editor build, newest used instead: " .. f)
+    end
+    test("maps saved by editor 6052 load 1.21b and 6059 load 1.27b",
+        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.27b"] or 0) >= 2)
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
     test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))
     test("objects defined only in a map's own table get rows", totals.map_table_only > 0, tostring(totals.map_table_only))

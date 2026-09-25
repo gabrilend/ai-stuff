@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 20:13:03
+Generated on: 2026-09-24 20:25:25
 Models: claude-opus-5-5
 
 ## Contents
@@ -77,6 +77,10 @@ Models: claude-opus-5-5
     WoW-client bridge, and converted objects now copy every stock field, each
     labelled by whose it is. Next, you decide whether the 369 stray change
     blocks should be listed in the report and left out of converted maps.
+18. 2026-09-24 20:16, after Request 27 - We're turning Warcraft III maps into
+    data the W client can run, and every map object now merges fully and is
+    committed. Next: tell me whether you have other patch installers, or whether
+    1.21b should stand in for every map for now.
 
 --------------------------------------------------------------------------------
 
@@ -3256,6 +3260,120 @@ You were close, and it led to a real fix. Those weren't leftovers.
 
 Do you have other patch installers (1.22 through 1.26 are the likely ones), or
 should 1.21b stand in for every map for now, with a warning on each?
+
+--------------------------------------------------------------------------------
+
+### User Request 28
+
+Teehee yes the map files contain many custom values, we should examine the map
+files as well, wink ;)
+
+> - An unknown code, Crs\0, appears on some Carrion Swarm copies. It's probably
+> a field a
+>     different patch added.
+
+we should find out.
+
+> - The test maps were saved by four different World Editor builds. Some may
+> come from earlier or
+>     later patches, and balance values changed between patches.
+
+we need to be able to apply and remove patches idempotently. However, patches
+are linear, so we will need to apply all of the patches inbetween as well,
+removing them if we need to downgrade. Make sure we do it in the correct order!
+
+> - Converted maps currently read their game data as it was after the 1.21b
+> patch, because that's
+>     the only patch program on this machine.
+
+well, of course we're going to need to find all the patches that we support. And
+we should try and support as many as we can.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 28
+
+> Starting with two quick checks: what `Crs\0` is (from the maps themselves),
+> and whether any other patch installers are already on this machine.
+
+> Now the test: unknown codes should drop to zero, and the Curse change should
+> apply.
+
+> Zero problems across every map. Running the whole suite for regressions from
+> the reader change.
+
+> Only `test_frames` fails, the same failure that was already there before
+> today. Updating the issue and committing.
+
+> All three of that issue's open questions are answered. Checking whether it can
+> close.
+
+> Rewriting the steps to name what was actually built, then moving the issue to
+> completed.
+
+> The warning came from my own move: `git mv` left an older copy of the issue in
+> the staging area. Clearing that stale entry so it matches the commit.
+
+> Staging area cleaned; everything is committed.
+>
+> Next, patches: writing the ordered-stack design into the patch-layer issue,
+> then researching which patches exist and where they can be found.
+
+> Checking the test-map column against the real editor builds before committing.
+
+Both findings are fixed and committed, and the patch plan is written into the
+patch-layer issue. The repository is clean.
+
+**`Crs\0` was our bug, not a later patch.**
+- It's Curse's chance-to-miss field, and the game's field list names it `Crs`,
+  with three letters.
+- Map files pad it to four bytes with a zero byte. Our object-file reader turned
+  any id holding a zero byte into a hex string, so it never matched. The reader
+  now trims the padding.
+- I had also called the parent Carrion Swarm; it's the creep version of Curse.
+- Result: every object in all 16 test maps now merges with zero problems. The
+  stock-rows work is complete and moved to completed. Commits `0bbb9cdf1` and
+  `a42a767c6`.
+
+**The patch stack** (the plan; none of it is built yet):
+- **Stored side by side:** each version becomes its own stored layer, built on
+  the one below it, from the disc (1.07) up to 1.29.2.
+- **Applying** version N builds any missing layers below N in version order.
+  Applying again finds matching records and changes nothing.
+- **Downgrading** means reading a lower layer. Nothing above it was ever written
+  into it, so there's nothing to undo.
+- **Order** comes from a version table, never from file names or dates.
+- **Two kinds of patch program:**
+  - "full" patches (like our 1.21b) apply on top of any earlier version;
+  - "incremental" ones apply only on the version just below.
+- **Handling full patches:** our 1.21b diffs match the 1.07 disc files directly.
+  When a full patch doesn't fit the layer below, the builder tries lower layers
+  down to the disc and records which one matched.
+- **Which version a map reads:** the newest patch its editor build allows. The
+  test maps span four builds, so layers are needed for 1.21b, 1.22, 1.28.5 and
+  1.29.2 at minimum.
+- **Proving the editor-build table ourselves:** each patch replaces Blizzard's
+  melee maps, and those maps record the editor build that saved them. The wiki
+  table is only a cross-check.
+- **Scope:** 1.30 and later switched from MPQ archives to Blizzard's newer
+  storage format, so they're out of scope for now.
+
+**Where the patch programs are.** Only 1.21b is on this machine. Public mirrors,
+none of them Blizzard's servers:
+- [Internet Archive: wc3_patches](https://archive.org/details/wc3_patches): the
+  whole collection, 9.9 GB, every language, both games.
+- [Internet Archive:
+  warcraft-iii-installer-enus](https://archive.org/details/warcraft-iii-installer-enus):
+  1.21b–1.27b installers and 1.26a–1.29.2 patches.
+- ModDB, for single patches such as
+  [1.26a](https://www.moddb.com/games/warcraft-iii-frozen-throne/downloads/warcraft-3-the-frozen-throne-patch-v126a).
+
+Version table cross-check: [Hive Workshop's list of official
+patches](https://www.hiveworkshop.com/threads/list-of-official-patches-for-warcraft-3.322919/).
+
+Should I download from the Internet Archive? I'd take only the English Windows
+patches (about 20 files, roughly 1 GB) rather than the full 9.9 GB, and store
+them beside the installs, outside git.
 
 --------------------------------------------------------------------------------
 

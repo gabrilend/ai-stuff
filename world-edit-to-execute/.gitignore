@@ -79,6 +79,7 @@ llm-transcripts/*.log
 wc3-installs/reign-of-chaos
 wc3-installs/frozen-throne
 wc3-installs/patch-layers
+wc3-installs/patch-programs
 
 # Third-party libraries compiled by scripts/build-dependencies.sh.
 # Only the pin file deps/versions is tracked; everything else is rebuilt.

@@ -16,11 +16,21 @@ What's inside a patch program (1.21b, read 2026-09-24):
   "~00", "~01" suffixes.
 - "delete.lst" lists install files the patcher deletes first. It starts with
   War3Patch.mpq: the patcher throws the old one away and builds a new one from
-  patch.lst alone. So a layer is complete by itself: layers replace each
-  other, they don't stack.
+  patch.lst alone. So a layer's archive files are complete by themselves.
+  Loose install files are not: a file the patch doesn't list stays as the
+  version below left it.
 - Each entry is a whole file or a diff against the old file (gamedata/bsd0.lua).
-  Archive entries diff against the same path in the game's archives; loose
-  entries diff against the file on disk.
+  The diff names the old file's size and CRC32. Archive entries diff against
+  the same path in the previous War3Patch.mpq or the game's archives; loose
+  entries against the file on disk.
+
+Stacking. Versions are built in order, each on the layers below it
+(options.lower_layers, highest first). For each diff the builder looks for
+the old file whose size and CRC32 match: in each lower layer, highest first,
+then in the disc install. A full patch (applies over any earlier version)
+may diff against the disc even when built on a lower layer; an incremental
+one against the layer just below. Either way the base found is recorded per
+entry, and the manifest names the layers the build was offered.
 
 Layer on disk:
   <layer>/archive/<target path, "/" separators>   what War3Patch.mpq would hold
@@ -35,6 +45,7 @@ Usage:
       base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },  -- lowest priority first
       version = "1.21b",
       output = ".../patch-layers/1.21b",
+      lower_layers = { { name = "1.21a", folder = ".../patch-layers/1.21a" } },  -- highest first; may be empty
       scratch = "/tmp/...",           -- where the nested archive is unpacked
   })
 
@@ -140,20 +151,100 @@ local function serialize(value, indent)
 end
 -- }}}
 
+-- {{{ local function open_patch
+-- Opens a patch program's nested archive (named in its mpqs.lst), unpacked
+-- into scratch. Returns the open archive and the unpacked file's path.
+local function open_patch(patch_program, scratch)
+    local outer = stormlib.open(patch_program)
+    local nested_name = parse_list(outer:read("mpqs.lst"))[1]:match("^%s*(.-)%s*$")
+    ensure_folder(scratch)
+    local nested_path = scratch .. "/" .. nested_name
+    outer:extract(nested_name, nested_path)
+    outer:close()
+    return stormlib.open(nested_path), nested_path
+end
+-- }}}
+
+-- {{{ local function file_version
+-- The file version stamped in a Windows program (its VS_FIXEDFILEINFO block,
+-- found by the 0xFEEF04BD signature): four integers, or nil when absent.
+local function file_version(bytes)
+    local at = bytes:find("\189\4\239\254", 1, true)
+    if not at then
+        return nil
+    end
+    local function u16(o) return bytes:byte(o) + bytes:byte(o + 1) * 256 end
+    -- dwFileVersionMS at +8, dwFileVersionLS at +12; each is two 16-bit halves, high first.
+    return { u16(at + 10), u16(at + 8), u16(at + 14), u16(at + 12) }
+end
+-- }}}
+
+-- {{{ function M.target_version
+-- The game version a patch program produces: the version stamped in the
+-- War3.exe it writes (whole, or rebuilt from its diff against the install's
+-- copy). Returns the version string and a list of four integers for
+-- ordering.
+--
+-- Why not the script's own check (FileVersionLessThan "War3.exe" 1.24.4.6387):
+-- from 1.25b on it says 1.99.99.9999, a placeholder, and ordering by it put
+-- 1.27b before 1.25b. A stated version that isn't the placeholder must agree
+-- with the stamped one, or this raises; a diff whose base isn't the
+-- install's War3.exe raises too (an incremental patch needs the layer below,
+-- which ordering can't assume).
+function M.target_version(patch_program, scratch, install)
+    local patch, nested_path = open_patch(patch_program, scratch)
+    local script = patch:read("patch.cmd")
+    local checked_file, stated = script:match("FileVersionLessThan%s+\"[^\"]-\\?([^\\\"]+)\"%s+([%d%.]+)")
+    if not checked_file then
+        patch:close()
+        os.remove(nested_path)
+        error(patch_program .. ": patch.cmd has no FileVersionLessThan check naming the game's program")
+    end
+    local entry
+    for _, line in ipairs(parse_list(patch:read("patch.lst"))) do
+        local target, source = line:match("^(.-);([^;]*)")
+        if target and target:lower() == checked_file:lower() then
+            entry = patch:read(source)
+        end
+    end
+    patch:close()
+    os.remove(nested_path)
+    if not entry then
+        error(patch_program .. ": patch.lst doesn't write " .. checked_file .. ", so its version can't be read")
+    end
+    local header = assert(bsd0.read_header(entry))
+    local old = nil
+    if header.kind == bsd0.KIND_DIFF then
+        old = read_file(install_index(install)[checked_file:lower()] or "")
+    end
+    local new, err = bsd0.apply(entry, old)
+    if not new then
+        error(patch_program .. ": can't rebuild " .. checked_file .. " to read its version: " .. err)
+    end
+    local parts = file_version(new)
+    if not parts then
+        error(patch_program .. ": the " .. checked_file .. " it writes has no version stamp")
+    end
+    local version = table.concat(parts, ".")
+    -- 1.99.99.9999 (and anything from 1.99 up) is Blizzard's "any version" placeholder.
+    local stated_major, stated_minor = stated:match("^(%d+)%.(%d+)")
+    local placeholder = tonumber(stated_major) == 1 and tonumber(stated_minor) >= 99
+    if not placeholder and stated ~= version then
+        error(string.format("%s: patch.cmd says %s but the %s it writes is %s", patch_program, stated,
+            checked_file, version))
+    end
+    return version, parts
+end
+-- }}}
+
 -- {{{ function M.build
 -- Builds one layer. Returns a summary table; raises an error on the first
 -- entry that can't be built (a missing base, a CRC mismatch), naming it.
 function M.build(options)
-    local outer = stormlib.open(options.patch_program)
     local program_bytes = read_file(options.patch_program)
 
     -- The nested archive named in mpqs.lst holds the patch.
-    local nested_name = parse_list(outer:read("mpqs.lst"))[1]:match("^%s*(.-)%s*$")
-    ensure_folder(options.scratch)
-    local nested_path = options.scratch .. "/" .. nested_name
-    outer:extract(nested_name, nested_path)
-    outer:close()
-    local patch = stormlib.open(nested_path)
+    local patch, nested_path = open_patch(options.patch_program, options.scratch)
 
     -- The game's own archives, highest priority first, for archive-entry bases.
     local archives = {}
@@ -165,6 +256,62 @@ function M.build(options)
     end
     local on_disk = install_index(options.install)
 
+    -- Lower layers, highest first: each one's files, indexed like the install.
+    local lower = {}
+    for _, layer in ipairs(options.lower_layers or {}) do
+        lower[#lower + 1] = {
+            name = layer.name,
+            archive = install_index(layer.folder .. "/archive"),
+            install = install_index(layer.folder .. "/install"),
+        }
+    end
+
+    -- {{{ local function find_base
+    -- The old file a diff names (by size and CRC32): each lower layer's copy,
+    -- highest first, then the disc install. Returns the bytes and where they
+    -- came from, or nil and the list of places tried. A copy with the wrong
+    -- size or CRC32 is passed over, not an error: a full patch built on a
+    -- lower layer still diffs against the disc.
+    local function find_base(header, place, target)
+        local key = target:gsub("\\", "/"):lower()
+        local tried = {}
+        local function matches(bytes)
+            return bytes and #bytes == header.old_size and bsd0.crc32(bytes) == header.old_crc
+        end
+        for _, layer in ipairs(lower) do
+            local real = layer[place][key]
+            if real then
+                local bytes = read_file(real)
+                if matches(bytes) then
+                    return bytes, "layer " .. layer.name
+                end
+                tried[#tried + 1] = "layer " .. layer.name .. " (differs)"
+            end
+        end
+        if place == "archive" then
+            for _, a in ipairs(archives) do
+                if a.archive:has(target) then
+                    local bytes = a.archive:read(target)
+                    if matches(bytes) then
+                        return bytes, a.name
+                    end
+                    tried[#tried + 1] = a.name .. " (differs)"
+                end
+            end
+        else
+            local real = on_disk[key]
+            if real then
+                local bytes = read_file(real)
+                if matches(bytes) then
+                    return bytes, "install"
+                end
+                tried[#tried + 1] = "install (differs)"
+            end
+        end
+        return nil, #tried > 0 and table.concat(tried, ", ") or "nowhere has it"
+    end
+    -- }}}
+
     local manifest = {
         version = options.version,
         built = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -174,9 +321,13 @@ function M.build(options)
             crc32 = bsd0.crc32(program_bytes),
         },
         base_archives = options.base_archives,
+        lower_layers = {},
         deleted = parse_list(patch:read("delete.lst")),
         entries = {},
     }
+    for _, layer in ipairs(lower) do
+        manifest.lower_layers[#manifest.lower_layers + 1] = layer.name
+    end
     local patch_cmd = patch:read("patch.cmd")
     manifest.requires_older_than = patch_cmd:match("FileVersionLessThan%s+\"[^\"]*\"%s+([%d%.]+)")
 
@@ -195,24 +346,10 @@ function M.build(options)
 
         local old, base_from = nil, nil
         if header.kind == bsd0.KIND_DIFF then
-            if place == "archive" then
-                for _, a in ipairs(archives) do
-                    if a.archive:has(target) then
-                        old = a.archive:read(target)
-                        base_from = a.name
-                        break
-                    end
-                end
-            else
-                local real = on_disk[target:gsub("\\", "/"):lower()]
-                if real then
-                    old = read_file(real)
-                    base_from = "install"
-                end
-            end
+            old, base_from = find_base(header, place, target)
             if not old then
-                error(string.format("%s: diff needs %s, which isn't in the %s", source, target,
-                    place == "archive" and "game's archives" or "install folder"))
+                error(string.format("%s: diff needs %s at %d bytes with CRC32 %08x; tried %s", source, target,
+                    header.old_size, header.old_crc, base_from))
             end
         end
 

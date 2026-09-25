@@ -10,13 +10,26 @@
 --
 -- Usage:
 --   luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>
+--   luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION]
+--
+-- The first form builds one layer on the disc install alone. The second
+-- builds the whole stack: every Frozen Throne patch program recorded in
+-- wc3-installs/patch-programs/sources.tsv (gathered by
+-- scripts/fetch-patch-programs.sh), in the order of the versions they
+-- produce, each on all the layers
+-- below it. (The version is the one stamped in the War3.exe each program
+-- writes; the programs' own version checks turned into a placeholder from
+-- 1.25b on.) A layer whose manifest already names the same program and the
+-- same layers beneath is left as it is, so running it twice changes nothing.
+-- A layer built on a lower layer that has since changed is rebuilt.
 --
 -- Example:
 --   luajit src/cli/build-patch-layer.lua \
 --       /mnt/mtwo/games/warcraft-iii/torrent-version/Patch/War3TFT_121b_English.exe 1.21b
+--   luajit src/cli/build-patch-layer.lua --stack
 --
 -- Reads the Frozen Throne install through wc3-installs/frozen-throne and
--- writes the layer to wc3-installs/patch-layers/<version>/ (a link to a
+-- writes each layer to wc3-installs/patch-layers/<version>/ (a link to a
 -- folder beside the installs; the layer holds Blizzard's files, so it is
 -- never inside the repository).
 --
@@ -32,15 +45,68 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local patch_layer = require("gamedata.patch_layer")
 
--- {{{ main
-local program, version = arg[1], arg[2]
-if not program or not version or program == "--help" then
-    print("Usage: luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>")
-    os.exit(program == "--help" and 0 or 1)
+-- {{{ local function read_manifest
+local function read_manifest(folder)
+    local chunk = loadfile(folder .. "/manifest.lua")
+    return chunk and chunk() or nil
 end
+-- }}}
 
+-- {{{ local function recorded_programs
+-- The Frozen Throne rows of the patch-programs record: saved-as, version.
+-- The last row for a file wins (the record is append-only).
+local function recorded_programs(programs)
+    local f = io.open(programs .. "/sources.tsv", "r")
+    if not f then
+        error("no " .. programs .. "/sources.tsv: run scripts/fetch-patch-programs.sh first")
+    end
+    local by_file = {}
+    for line in f:lines() do
+        local saved, version, game = line:match("^([^\t]+)\t([^\t]+)\t([^\t]+)\t")
+        if saved and game == "tft" then
+            by_file[saved] = { file = programs .. "/" .. saved, version = version }
+        end
+    end
+    f:close()
+    local list = {}
+    for _, row in pairs(by_file) do list[#list + 1] = row end
+    return list
+end
+-- }}}
+
+-- {{{ local function build_one
+local function build_one(program, version, lower_layers, install, layers)
+    local scratch = os.tmpname()
+    os.remove(scratch)
+    local started = os.clock()
+    local manifest = patch_layer.build({
+        patch_program = program,
+        install = install,
+        base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },
+        version = version,
+        output = layers .. "/" .. version,
+        lower_layers = lower_layers,
+        scratch = scratch,
+    })
+    os.execute("rm -rf '" .. scratch:gsub("'", "'\\''") .. "'")
+    local c = manifest.counts
+    print(string.format("layer %s: %d archive files, %d install files (%d diffs, %d whole) in %.1f s",
+        version, c.archive, c.install, c.diff, c.whole, os.clock() - started))
+    local bases = {}
+    for _, e in ipairs(manifest.entries) do
+        if e.base then bases[e.base] = (bases[e.base] or 0) + 1 end
+    end
+    for base, n in pairs(bases) do
+        print(string.format("    %d diffs based on %s", n, base))
+    end
+    return manifest
+end
+-- }}}
+
+-- {{{ main
 local install = DIR .. "/wc3-installs/frozen-throne"
 local layers = DIR .. "/wc3-installs/patch-layers"
+local programs = DIR .. "/wc3-installs/patch-programs"
 local probe = io.open(layers .. "/.", "r")
 if not probe then
     error("no " .. layers .. " folder: create it as a link to a folder beside the installs"
@@ -48,23 +114,68 @@ if not probe then
 end
 probe:close()
 
-local scratch = os.tmpname()
-os.remove(scratch)
+if arg[1] == "--stack" then
+    local up_to = arg[2] == "--up-to" and arg[3] or nil
+    -- Order by the version each program produces, never by file name.
+    local list = recorded_programs(programs)
+    local scratch = os.tmpname()
+    os.remove(scratch)
+    for _, row in ipairs(list) do
+        row.target, row.order = patch_layer.target_version(row.file, scratch, install)
+    end
+    os.execute("rm -rf '" .. scratch:gsub("'", "'\\''") .. "'")
+    table.sort(list, function(a, b)
+        for i = 1, 4 do
+            if (a.order[i] or 0) ~= (b.order[i] or 0) then
+                return (a.order[i] or 0) < (b.order[i] or 0)
+            end
+        end
+        return false
+    end)
 
-local started = os.clock()
-local manifest = patch_layer.build({
-    patch_program = program,
-    install = install,
-    base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },
-    version = version,
-    output = layers .. "/" .. version,
-    scratch = scratch,
-})
-os.execute("rm -rf '" .. scratch:gsub("'", "'\\''") .. "'")
+    local below = {}       -- layers built so far, highest first
+    local rebuilt_below = false
+    for _, row in ipairs(list) do
+        print(string.format("%s  (produces %s)  %s", row.version, row.target, row.file:match("[^/]+$")))
+        local folder = layers .. "/" .. row.version
+        local existing = read_manifest(folder)
+        local same_below = existing and table.concat(existing.lower_layers or {}, ",") ==
+            table.concat((function()
+                local names = {}
+                for _, l in ipairs(below) do names[#names + 1] = l.name end
+                return names
+            end)(), ",")
+        local program_crc = nil
+        if existing then
+            local f = assert(io.open(row.file, "rb"))
+            program_crc = require("gamedata.bsd0").crc32(f:read("*a"))
+            f:close()
+        end
+        if existing and same_below and not rebuilt_below
+            and existing.patch_program and existing.patch_program.crc32 == program_crc then
+            print("    present; its program and the layers beneath are unchanged")
+        else
+            if existing then
+                os.execute("rm -rf '" .. folder:gsub("'", "'\\''") .. "'")
+            end
+            build_one(row.file, row.version, below, install, layers)
+            rebuilt_below = true   -- everything above a rebuilt layer is rebuilt too
+        end
+        table.insert(below, 1, { name = row.version, folder = folder })
+        if up_to and row.version == up_to then
+            break
+        end
+    end
+    os.exit(0)
+end
 
-local c = manifest.counts
-print(string.format("layer %s: %d archive files, %d install files (%d diffs, %d whole) in %.1f s",
-    version, c.archive, c.install, c.diff, c.whole, os.clock() - started))
+local program, version = arg[1], arg[2]
+if not program or not version or program == "--help" then
+    print("Usage: luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>")
+    print("       luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION]")
+    os.exit(program == "--help" and 0 or 1)
+end
+local manifest = build_one(program, version, {}, install, layers)
 print("patch requires the game to be older than " .. tostring(manifest.requires_older_than))
 print("written to " .. layers .. "/" .. version)
 -- }}}
