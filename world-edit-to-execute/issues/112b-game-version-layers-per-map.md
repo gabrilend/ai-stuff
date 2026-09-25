@@ -85,16 +85,70 @@ Loading a map picks its game version and data set automatically and says
 which; every patch version that has maps is available as a layer; no install
 is modified.
 
-## Suggested Implementation Steps
+The owner (2026-09-24): "we need to be able to apply and remove patches
+idempotently. However, patches are linear, so we will need to apply all of
+the patches inbetween as well, removing them if we need to downgrade. Make
+sure we do it in the correct order!" and "we're going to need to find all
+the patches that we support. And we should try and support as many as we
+can."
 
-1. ~~Read a patch program; apply its entries; store a layer with a manifest.~~ Done (1.21b).
-2. ~~Chain assembly per map, with data sets and a reported fallback.~~ Done.
-3. Build layers for the other patches that have maps (needs their patch
-   programs; see open question 1). Patches that ship several steps (older
-   patch programs sometimes diff against an earlier patch's files) need the
-   base archives list extended with the lower layer.
-4. Fill `editor_versions.lua` from evidence (open question 2).
-5. Confirm how the game picks its data set (open question 3).
+### The patch stack
+
+Versions form one line: 1.07 (the disc) → 1.10 → 1.11 → … → 1.21b → 1.22 →
+… → 1.29.2. Each built version is a layer, stored side by side, never merged
+into the install:
+
+- **Apply** version N: build every missing layer from the lowest one up to N,
+  each on top of the one below it, in version order. A layer's manifest names
+  the layer (or the disc install) it was built on, and the patch program's
+  hash; a layer whose manifest already matches is left as it is, so applying
+  twice changes nothing.
+- **Remove** (downgrade to M): a map that needs M reads layer M. Nothing is
+  undone on disk because nothing above M was ever written into M; layers
+  above it simply aren't read. Deleting a layer removes only that folder,
+  and any layer built on it is marked stale and rebuilt from the layer
+  below before it is used again.
+- **Order** comes from the version table (below), never from file names or
+  file dates.
+
+Two kinds of Blizzard patch program exist (Hive Workshop's list, a
+cross-check, not a source):
+- **full** (`War3TFT_121b_English.exe`): applies to 1.07 or any later
+  version. Our 1.21b layer's diffs, `game.dll` included, all match the 1.07
+  disc files, which agrees.
+- **incremental** (`War3TFT_124b_124c_English.exe`): applies only to the
+  version one step below.
+
+A full patch's diffs may be against the disc files rather than the previous
+patch. Then building it on the layer below would fail its base checks; the
+builder then tries each lower layer down to the disc, highest first, and
+records which base matched. The result is the same stack either way; only
+the recorded base differs.
+
+### Which versions
+
+Every version that has a Windows patch program with MPQ data: 1.07 through
+1.29.2 (1.30 onwards moved to Blizzard's CASC storage, a different format;
+out of scope until asked). Reign of Chaos (1.00–1.06) the same way, on the
+Reign of Chaos install, for `.w3m` maps.
+
+### Map → version
+
+The map's `war3map.w3i` editor version names a range of patches, not one:
+
+| Editor | Patches | Test maps |
+|--------|---------|-----------|
+| 6052 | 1.19a – 1.21b | 12 (DAoW 1.23.1B through 5.4c) |
+| 6057 | 1.22 | Daow6.2 |
+| 6059 | 1.24a – 1.28.5 | DaoW 6.8, 6.93 |
+| 6060 | 1.29.0 – 1.29.2 | DaoW-(HvA)-7.5 |
+
+(Run the map scan in the tests for the current map list.) Rule, sane design
+over correctness: a map reads the **newest** patch in its range, the
+version its author most likely played; a map can name another in its
+settings. The table is built from evidence we produce ourselves: each patch
+replaces Blizzard's melee maps (`Maps\...`), and those maps record the
+editor build that saved them. The wiki table only cross-checks it.
 
 ## Acceptance Criteria
 
@@ -106,8 +160,8 @@ is modified.
 
 ## Open Questions
 
-1. Which patches does the owner want layers for? Each needs its patch program; only 1.21b is on this machine.
-2. Editor version → patch: the test maps carry editor versions 6052, 6057, 6059 and 6060. Build the table from maps whose patch is known, from the World Editor binaries in each layer, or from published changelogs?
+1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
+2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
 3. The data set: Reign of Chaos maps → `Custom_V0`, Frozen Throne maps → `Custom_V1` is inferred from the folder names and contents. Confirm from the game's behaviour (for example, a test map that shows a stat that differs between the two copies).
 
 ## Related Documents
