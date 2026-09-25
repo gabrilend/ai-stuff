@@ -8,7 +8,7 @@
 -- loud notice without them.
 --
 -- Run: luajit src/tests/test_stock_rows.lua [DIR]
--- Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
+-- Issue: issues/completed/112c-route-a-stock-rows-merged-with-map-objects.md
 
 -- {{{ Setup
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -114,6 +114,23 @@ else
     test("no orphans in DAoW-5.2", (r52.counts.orphan or 0) == 0, tostring(r52.counts.orphan))
     -- }}}
 
+    -- {{{ A three-letter field code
+    test_section("DaoW-(HvA)-7.5: Curse's chance to miss (field code Crs, stored Crs\\0)")
+    local m75 = DIR .. "/assets/DaoW-(HvA)-7.5.w3x"
+    local c75 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+        editor_versions = {}, map = m75 })
+    local a75 = assert(mpq.open(m75))
+    local r75 = stock_rows.merge(stock_rows.load(c75, "abilities"),
+        objectdata.parse(a75:extract("war3map.w3a"), { has_level_column = true }))
+    a75:close()
+    c75:close()
+    local curse = r75.rows.Acrs
+    test("stock Curse changed in place: miss chance 0.35 at level 1",
+        curse and math.abs(curse.fields.AbilityData.DataA1 - 0.35) < 1e-6 and curse.origin.AbilityData.DataA1 == "map",
+        curse and tostring(curse.fields.AbilityData.DataA1))
+    test("no unknown codes in this map", (r75.counts.unknown_code or 0) == 0, tostring(r75.counts.unknown_code))
+    -- }}}
+
     -- {{{ Every map
     test_section("Every object of every map in assets/")
     local kinds = { abilities = { "war3map.w3a", true }, units = { "war3map.w3u", false }, items = { "war3map.w3t", false } }
@@ -139,9 +156,9 @@ else
                     totals.applied = totals.applied + r.counts.applied
                     for _, p in ipairs(r.problems) do
                         by_kind[p.kind] = (by_kind[p.kind] or 0) + 1
-                        if p.kind == "unknown_code" and p.code ~= "0x43727300" then
+                        if p.kind == "unknown_code" then
                             other[#other + 1] = name .. " " .. p.object .. " " .. tostring(p.code)
-                        elseif p.kind ~= "unknown_code" and p.kind ~= "orphan" then
+                        elseif p.kind ~= "orphan" then
                             other[#other + 1] = name .. " " .. p.object .. " parent " .. p.problem
                         end
                     end
@@ -157,7 +174,10 @@ else
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
     test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))
     test("objects defined only in a map's own table get rows", totals.map_table_only > 0, tostring(totals.map_table_only))
-    test("no problems beyond the one understood kind (the Crs\\0 code)", #other == 0, other[1])
+    -- Curse's chance-to-miss field is "Crs" in the metadata and "Crs\0" in
+    -- map files; 31 changes went unmatched until the reader trimmed the padding.
+    test("no unknown field codes", by_kind.unknown_code == 0, tostring(by_kind.unknown_code))
+    test("no other problems", #other == 0, other[1])
     -- }}}
 
     c:close()

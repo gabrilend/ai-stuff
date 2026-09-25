@@ -126,13 +126,19 @@ end
 -- {{{ local function id_to_string
 -- Convert a 4-byte ID to a readable string.
 -- Handles both printable and non-printable characters.
+--
+-- Three-letter ids are stored padded with zero bytes: Curse's chance-to-miss
+-- field is "Crs" in AbilityMetaData.slk and "Crs\0" in map files. The padding
+-- is trimmed so the id matches the metadata; before this it came out as
+-- "0x43727300" and every Curse change was reported as an unknown field.
 local function id_to_string(id)
     if is_null_id(id) then
         return nil
     end
+    id = id:gsub("%z+$", "")
     -- Check if all characters are printable
     local printable = true
-    for i = 1, 4 do
+    for i = 1, #id do
         local b = id:byte(i)
         if b < 32 or b > 126 then
             printable = false
@@ -142,9 +148,9 @@ local function id_to_string(id)
     if printable then
         return id
     end
-    -- Return as hex for non-printable IDs
-    return string.format("0x%02X%02X%02X%02X",
-        id:byte(1), id:byte(2), id:byte(3), id:byte(4))
+    -- Return as hex for non-printable IDs (a zero byte inside the id, not
+    -- trailing, still lands here: no such id is known, so it stays visible)
+    return "0x" .. id:gsub(".", function(c) return string.format("%02X", c:byte()) end)
 end
 -- }}}
 

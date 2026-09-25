@@ -23,7 +23,7 @@ Usage:
   sheet.rows["AHbz"] -- { alias = "AHbz", code = "AHbz", levels = 3, ... }
   sheet.order        -- ids in file order
 
-Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
+Issue: issues/completed/112c-route-a-stock-rows-merged-with-map-objects.md
 ]]
 
 local M = {}

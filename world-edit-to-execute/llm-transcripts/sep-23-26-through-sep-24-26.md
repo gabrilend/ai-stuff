@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 20:04:01
+Generated on: 2026-09-24 20:13:03
 Models: claude-opus-5-5
 
 ## Contents
@@ -73,6 +73,10 @@ Models: claude-opus-5-5
     plus stock-row merging are built and committed. Next: tell me whether to
     commit the other session's two custom-client doc edits, then review the
     dropped-field list.
+17. 2026-09-24 20:07, after Request 26 - We're converting WC3 maps for the
+    WoW-client bridge, and converted objects now copy every stock field, each
+    labelled by whose it is. Next, you decide whether the 369 stray change
+    blocks should be listed in the report and left out of converted maps.
 
 --------------------------------------------------------------------------------
 
@@ -3179,6 +3183,79 @@ ability ids that exist nowhere, neither stock nor defined by the map. They only
 touch levels 4–6, so they look like leftovers from edits the authors later
 undid. The game has nothing to apply them to. My plan is to list them in the
 report and leave them out of the converted map. Does that sound right?
+
+--------------------------------------------------------------------------------
+
+### User Request 27
+
+<pasted_content id="7a80">
+> Next open question, on stray changes: 369 blocks of changes in the maps point
+> at ability ids
+> that exist nowhere, neither stock nor defined by the map. They only touch
+> levels 4–6, so they
+> look like leftovers from edits the authors later undid. The game has nothing
+> to apply them to.
+> My plan is to list them in the report and leave them out of the converted map.
+> Does that sound
+  right?
+</pasted_content id="7a80">
+
+
+um, I guess? Do the triggers create new abilities that use those IDs maybe?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 27
+
+> Checking the map scripts for those ids.
+
+> Updating the chain issue with the map-first rule, then the code.
+
+> Now the chain code.
+
+> Now the merge: read which tables came from the map, and emit rows for objects
+> defined only there.
+
+> Now the test: each map gets its own chain with the map on top. The stray
+> changes should drop to zero.
+
+You were close, and it led to a real fix. Those weren't leftovers.
+
+**What was going on:**
+- Triggers can't create new ability types. The scripting language in this game
+  version has no way to define one at run time; it can only hand existing
+  ability ids to units.
+- But your hunch that the ids were in use was right. The units in those two maps
+  list 275 of them as their abilities, and the scripts name 45.
+- They're defined inside the map itself. DAoW-5.2 and 5.3 carry their own copies
+  of the game's ability, item, buff and upgrade tables. A map optimizer produces
+  this, moving custom objects out of the usual change files and into full
+  tables.
+- The game always looks in the map's archive before its own. That's the same
+  rule that lets a map import a model over a stock one. So for those maps, the
+  map's tables replace the stock ones.
+- Our chain of game data never looked inside the map, so the changes seemed to
+  point at nothing.
+
+**What changed** (committed as `2d6e99994`):
+- The map's own archive now sits on top of the chain, ahead of everything else.
+  The stock copy underneath can still be read when needed.
+- All 369 blocks of changes now apply. The stray count is zero.
+- The 799 abilities and items that exist only in those maps' own tables now get
+  rows too.
+- A test follows one of them, A008 in DAoW-5.2, end to end. All 23 checks pass,
+  and the repository is clean.
+
+**Next open question** (patch versions):
+- Converted maps currently read their game data as it was after the 1.21b patch,
+  because that's the only patch program on this machine.
+- The test maps were saved by four different World Editor builds. Some may come
+  from earlier or later patches, and balance values changed between patches.
+- An unknown code, `Crs\0`, appears on some Carrion Swarm copies. It's probably
+  a field a different patch added.
+
+Do you have other patch installers (1.22 through 1.26 are the likely ones), or
+should 1.21b stand in for every map for now, with a warning on each?
 
 --------------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@
 -- (skipped with a loud notice otherwise).
 --
 -- Run: luajit src/tests/test_slk.lua [DIR]
--- Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
+-- Issue: issues/completed/112c-route-a-stock-rows-merged-with-map-objects.md
 
 -- {{{ Setup
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
