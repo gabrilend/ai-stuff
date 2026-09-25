@@ -45,9 +45,12 @@ agree:
    and friends map each 4-character field id used in map files (e.g. `umvs`,
    movement speed) to its SLK column. This is what lets a map's changes be laid
    over the stock row.
-4. **Functional fields only.** Keep numbers, flags and ids (hit points, damage,
-   cooldowns, ranges, costs, target flags, ability ids). Drop art paths, sound
-   names, text and tooltips. The keep-list is a reviewed data file.
+4. **Every field copied, each labelled by whose it is** (owner's decision,
+   2026-09-24: "copy everything, and we will work slowly to replace all the
+   artwork and such"). Numbers, flags and ids are `fact`; names, tooltips and
+   art paths are `borrowed` (Blizzard's, on the player's machine only, each on
+   a replacement track); fields the map sets are `map`. The borrowed types
+   are a reviewed data file.
 5. **Merge.** For each custom object: stock row of `original_id` + the map's
    modified fields = the full row (issue W02h consumes this).
 
@@ -102,7 +105,7 @@ fetched politely and reused.
 |----|------|--------------|-------------|
 | 112a | stormlib-build-and-update-script | None | StormLib (MIT) built from a pinned tag by a script, with a LuaJIT binding, to read patch archives our own reader can't |
 | 112b | game-version-layers-per-map | 112a | Each patch is a complete layer of the files it produces; loading a map picks its layer and data set, and nothing on disk is patched |
-| 112c | route-a-stock-rows-merged-with-map-objects | 112b | SLK, profile and metadata parsing; each custom object's full row (stock row plus the map's changes), functional fields only |
+| 112c | route-a-stock-rows-merged-with-map-objects | 112b | SLK, profile and metadata parsing; each custom object's full row (stock row plus the map's changes), every field labelled fact, borrowed, editor or map |
 
 Finding from 112b (2026-09-24): custom maps start from the data-set copies of
 the stock tables (`Custom_V0\` for Reign of Chaos maps, `Custom_V1\` for Frozen

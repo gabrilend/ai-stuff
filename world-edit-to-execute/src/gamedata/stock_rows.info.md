@@ -1,8 +1,8 @@
 # stock_rows.lua
 
 Each object in a map's object file as a full row: its stock parent's row
-(read through the map's game data chain) with the map's changes on top,
-functional fields only.
+(read through the map's game data chain) with the map's changes on top. Every
+column is copied, and every column is labelled by whose it is.
 
 ## Functions
 
@@ -15,14 +15,18 @@ functional fields only.
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `rows` | id (string) → `{id, parent, fields}` | `fields` is table name (`AbilityData`, `UnitBalance`, …, `Profile`) → column → value (number or string) |
+| `rows` | id (string) → `{id, parent, fields, origin}` | `fields` is table name (`AbilityData`, `UnitBalance`, …, `Profile`) → column → value (number or string); `origin` has the same shape, each value a label string |
 | `problems` | list of `{kind, object, code, problem}` | `kind` is `"orphan"` (changes filed under an id that is neither stock nor one of the map's objects), `"unknown_parent"`, or `"unknown_code"` (a field code with no metadata row) |
-| `counts` | table of integers | `objects`, `changes`, `applied`, `not_functional`, and one per problem kind |
+| `counts` | table of integers | `objects`, `changes`, `applied`, `borrowed` (columns across all rows still holding Blizzard's text or art), and one per problem kind |
 
 ## Rules
 
 A change's column comes from its metadata row: `field .. level` for
 level-dependent fields (`Cool1`), `"Data" .. letter .. level` for ability data
-fields (`DataA1`), else `field`. A column is kept when its metadata type isn't
-in `field_rules.dropped_types`, or it is in `field_rules.always_kept`; columns
-no metadata row describes (editor comments, sort keys) are dropped.
+fields (`DataA1`), else `field`. Profile files keep level-dependent fields
+under their bare name (`Tip`), all levels in one comma-separated value.
+
+Labels (`field_rules.lua`): `"map"` when the map's changes set the column;
+otherwise `"fact"` for ids in `id_columns` and for columns whose metadata type
+isn't in `borrowed_types`, `"borrowed"` for those that are, and `"editor"` for
+columns no metadata row describes (comments, sort keys).

@@ -131,9 +131,15 @@ server tells it. Do those count?
   same analysis. They are the player's local copy and aren't redistributed.
 
 How the project handles it:
-- Only **functional fields** are read from the stock tables: numbers, flags and
-  identifiers that maps need to behave the same. Art paths, text and tooltips
-  are dropped (issue 112).
+- Every field of the stock tables is read, on the player's own machine, and
+  **labelled by whose it is**: *facts* (numbers, flags and identifiers that
+  maps need to behave the same), *borrowed* (Blizzard's names, tooltip wording
+  and art paths) or *the map's* (values the map author set). Borrowed fields
+  are used only on the player's machine, are never committed or shipped, and
+  are replaced over time: names from the map or from name lists we gather,
+  tooltips rebuilt by our UI from the facts they display, art by the asset
+  forge. The count of borrowed fields measures how far that has come
+  (issue 112).
 - The values are checked against what community wikis publish (a second,
   independent source), and the record says which route produced them and which
   confirmed them.
