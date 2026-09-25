@@ -32,4 +32,4 @@ A first argument not starting with `-` overrides the project root.
 |------|--------|---------|--------|
 | stormlib | github.com/ladislav-zezula/StormLib | MIT (bundles libtomcrypt, which carries no notice in StormLib's copy; upstream is public domain) | `deps/stormlib/lib/libstorm.so`, linked to the system's zlib and bzip2 |
 
-Issue: `issues/112a-stormlib-build-and-update-script.md`
+Issue: `issues/completed/112a-stormlib-build-and-update-script.md`

@@ -40,7 +40,7 @@
 #     • Print what was built, where, and which licence files were kept.
 # ---------------------------------------------------------------------------
 #
-# Issue: issues/112a-stormlib-build-and-update-script.md
+# Issue: issues/completed/112a-stormlib-build-and-update-script.md
 
 set -euo pipefail
 

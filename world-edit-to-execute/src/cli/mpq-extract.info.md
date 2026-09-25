@@ -15,4 +15,4 @@ Options before the command: `--dir DIR` (project root), `--listfile FILE`
 (extra names; default: the standard Warcraft III map file names from
 `src/mpq/standard_names.lua`).
 
-Issue: `issues/112a-stormlib-build-and-update-script.md`
+Issue: `issues/completed/112a-stormlib-build-and-update-script.md`

@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 18:43:22
+Generated on: 2026-09-24 19:11:09
 Models: claude-opus-5-5
 
 ## Contents
@@ -60,6 +60,10 @@ Models: claude-opus-5-5
     Warcraft III maps into a playable open WoW-client game, and we just mapped
     the legal risks of running it as a public server. Next: say whether I should
     add an "if you run a public server" section to the legal document.
+14. 2026-09-24 18:46, after Request 20 - We're making Warcraft III custom maps
+    playable without Blizzard assets, currently reading the stock game values
+    through StormLib. Next, tell me which WoW client folder is live, then I'll
+    finish the StormLib issue.
 
 --------------------------------------------------------------------------------
 
@@ -2312,6 +2316,111 @@ you one at a time. The oldest one blocks W01: your client launch script points
 at `/mnt/dile/ritz/games/wotlk`, but the 3.3.5a files I found are in
 `/mnt/mtwo/games/azeroth-core/client/client-files/`. Which is your live WoW
 client?
+
+--------------------------------------------------------------------------------
+
+### User Request 21
+
+It's at /mnt/mtwo/games/azeroth-core/client/
+
+let's start working on this project then.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 21
+
+> Recording your answer first. The live client is
+> `/mnt/mtwo/games/azeroth-core/client/`, with its game files in
+> `client-files/`.
+
+> Answer recorded (`27d666472`). Starting on 112a's remaining work, first by
+> reading how the existing command-line tools and tests are written.
+
+> Writing the comparison test: every file in the DAoW maps, extracted by
+> StormLib and by our own reader, must come out byte-identical.
+
+> The format doc already says `& (table_size - 1)`, so the code had drifted from
+> its own doc. Replacing both lookups with one shared probe that matches Storm,
+> including the block-table bounds check.
+
+> Now the fix: one shared probe in `hashtable.lua`, used by both lookups.
+
+> Still disagreeing. Tracing the probe by hand.
+
+> The DAoW-5.2 disagreement is fixed. The full suite shows three other failures,
+> so I'm checking whether my change caused any of them.
+
+> Switching the two tests to the compatibility layer.
+
+> `test_extract` and `test_header` pass under LuaJIT now. Next: widen the
+> comparison test to try the standard map file names too, and check `test_mpq`'s
+> result.
+
+> Updating the format doc with what the comparison taught us, then committing
+> the fixes.
+
+> Committed (`d8c12a6fd`). The last gap is Huffman decompression. Checking which
+> of MPQ's compression methods our reader still lacks, since they share one
+> missing piece of code.
+
+> While that choice waits for you, I'll finish the rest of 112a: the
+> `mpq-extract` command, the `.info.md` files, and the licence entries.
+
+> One list of standard names now serves both the test and the command: a small
+> module that the command hands to StormLib as an extra file list.
+
+> Now wiring the list into the command, with a `--listfile` option and the
+> corrected folder check.
+
+> The command now finds a protected map's files by their standard names: 9
+> extracted by name where the first try found none. Writing the `.info.md` files
+> and licence entries next.
+
+The StormLib work is done except for one gap, and the new comparison test found
+and fixed three real bugs in our own map reader. Everything is committed
+(`d8c12a6fd`, `784a23292`, `ac7204f96`).
+
+**The comparison test** reads every file of every test map with both our reader
+and StormLib and requires identical bytes: 369 files across 16 maps. It caught
+three tricks protected maps use that our reader got wrong:
+1. **Planted duplicate names.** A map can contain two files with the same name.
+   The game reads the *last* matching one; our reader returned the first. In
+   `DAoW-5.2` that meant reading a decoy of one of the object-data files. The
+   lookup now also walks the table exactly as the game does and skips entries
+   that point past its end.
+2. **Unencrypted tail bytes.** Encryption works on 4-byte words, and a sector's
+   last 1–3 bytes are stored plain. We were decrypting them too, which garbled
+   the end of `Daow6.2`'s terrain file.
+3. **Encrypted but uncompressed files** came back still encrypted.
+
+All three rules are now in `docs/formats/mpq-archive.md`. Two older tests turned
+out to have been failing all along because they used Lua 5.3-only features; they
+now use the project's compatibility layer and pass.
+
+**New tools:**
+- `src/cli/mpq-extract.lua` lists or extracts any archive, including the one
+  inside a patch program. Protected maps strip their own file lists, so it tries
+  the standard Warcraft III file names; on one map that turned 0 extracted files
+  into 9.
+- Each new tool has an `.info.md` beside it, and the licence map lists StormLib
+  v9.40 and what it links to.
+
+**Still failing:** two maps' minimap images use Huffman compression, which our
+reader doesn't have (issue 113). That's the only thing keeping the StormLib
+issue open. `test_frames` also fails, but that was already broken and has
+nothing to do with this work.
+
+**Decision needed for issue 113:**
+- **(a) Port** StormLib's Huffman and ADPCM code into our Lua reader (about
+  1,460 lines of MIT C++), and do bzip2 through the system library. Our reader
+  stays complete on its own, and the comparison test keeps checking it. I
+  recommend this one.
+- **(b) Hand those files to StormLib** whenever our reader meets those methods.
+  Less code, but our reader stops being an independent check for exactly those
+  files. It's also a fallback, which your rules count as an error unless it's
+  named and counted.
+
+Which do you want?
 
 --------------------------------------------------------------------------------
 
