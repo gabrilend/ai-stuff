@@ -17,6 +17,7 @@ Blizzard "BSD0" binary diff against the old file. Needs LuaJIT.
 |------|-------|---------|
 | `KIND_WHOLE` | `0x01` | the whole new file follows the header |
 | `KIND_DIFF` | `0x04` | a run-length-packed BSDIFF40 diff follows |
+| `KIND_DIFF_UNPACKED` | `0x02` | a BSDIFF40 diff follows as is, no size word, no packing (two entries in Reign of Chaos 1.18a–1.20e) |
 | `RUN_STEP_1_21` | `1` | run-length step from 1.21a on |
 | `RUN_STEP_1_20` | `32` | run-length step in 1.19a–1.20e |
 

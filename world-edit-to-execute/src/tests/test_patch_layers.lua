@@ -115,6 +115,19 @@ local before_start = diff_entry(old, { { 0, 0, -3 }, { 8, 0, 0 } }, string.rep("
 local ok_run, result = pcall(bsd0.apply, before_start, old)
 test("a diff whose move goes before the old file's start doesn't crash", ok_run)
 test("and adds only the old bytes that exist", result == "\1\1\1BCDEF", tostring(result))
+-- Kind 0x02 (two entries in Reign of Chaos 1.18a-1.20e): the BSDIFF40 diff
+-- stored as is after the header, no size word, no packing.
+do
+    local function u32(n)
+        return string.char(n % 256, math.floor(n / 256) % 256, math.floor(n / 65536) % 256, math.floor(n / 16777216) % 256)
+    end
+    local function u64(n) return u32(n) .. "\0\0\0\0" end
+    local ctrl = u32(8) .. u32(2) .. u32(0)
+    local raw = "BSDIFF40" .. u64(#ctrl) .. u64(8) .. u64(10) .. ctrl .. string.rep("\1", 8) .. "!?"
+    local entry = header(0x02, bsd0.crc32(old), #old, 10) .. raw
+    local new_bytes, err = bsd0.apply(entry, old)
+    test("an unpacked diff (kind 0x02) applies", new_bytes == "BCDEFGHI!?", tostring(new_bytes or err))
+end
 local overrun = diff_entry(old, { { 20, 0, 0 } }, string.rep("\0", 4), "", 20)
 local _, overrun_err = bsd0.apply(overrun, old)
 test("a diff adding more than its data block holds is refused, not read past",
@@ -164,8 +177,8 @@ else
     test("an editor build with no known version is an error naming what to add", not ok
         and tostring(err):match("has no known game version") ~= nil, tostring(err))
     ok, err = pcall(chain.open, { install = INSTALL, layers = LAYERS, w3i = w3i,
-        editor_versions = { [w3i.editor_version] = { layer = "9.99z", evidence = "test" } } })
-    test("a known build whose layer isn't built is an error", not ok and tostring(err):match("isn't built") ~= nil,
+        editor_versions = { [w3i.editor_version] = { from = "9.99a", to = "9.99z", evidence = "test" } } })
+    test("a known build whose range has no built layer is an error", not ok and tostring(err):match("no layer in that range") ~= nil,
         tostring(err))
 
     local patched = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, layer = "1.21b" })
@@ -228,8 +241,8 @@ else
     end
 
     local known = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i,
-        editor_versions = { [w3i.editor_version] = { layer = "1.21b", evidence = "test" } } })
-    test("a listed editor version picks its layer", known.layer == "1.21b")
+        editor_versions = { [w3i.editor_version] = { from = "1.21a", to = "1.21b", evidence = "test" } } })
+    test("a listed editor version picks the newest layer in its range", known.layer == "1.21b", tostring(known.layer))
     known:close()
 end
 -- }}}
@@ -352,11 +365,35 @@ else
         end
     end
 
+    -- The Reign of Chaos stack: built from the Reign of Chaos install (1.00)
+    -- into its own folder, read with war3.mpq as the only base archive. A map
+    -- saved by editor 6052 (1.19a-1.21b) loads 1.20e there, the newest that
+    -- stack has in the range (no Reign of Chaos 1.21 program was found).
+    local ROC_INSTALL = DIR .. "/wc3-installs/reign-of-chaos"
+    local ROC_LAYERS = DIR .. "/wc3-installs/patch-layers-roc"
+    if exists(ROC_LAYERS .. "/1.20e/manifest.lua") and exists(ROC_INSTALL .. "/war3.mpq") then
+        local roc = chain.open({ install = ROC_INSTALL, layers = ROC_LAYERS, base_archives = { "war3.mpq" },
+            w3i = { version = 18, editor_version = 6052, game_data_set = 1, flags = { melee_map = false } } })
+        local _, from = roc:read("Units\\UnitWeapons.slk")
+        test("a Reign of Chaos-only install: editor 6052 loads its stack's 1.20e", roc.layer == "1.20e", tostring(roc.layer))
+        test("and reads the layer's Custom_V0 copy", from == "layer 1.20e: Custom_V0\\Units\\UnitWeapons.slk", tostring(from))
+        roc:close()
+        local m = dofile(ROC_LAYERS .. "/1.20e/manifest.lua")
+        local dll = io.popen("find '" .. ROC_LAYERS .. "/1.20e/install' -iname game.dll"):read("*l")
+        test("the Reign of Chaos 1.20e layer's game is 1.20.4.6074",
+            dll and patch_layer.program_version(dll) == "1.20.4.6074", dll and patch_layer.program_version(dll))
+    else
+        skip("Reign of Chaos stack", "build it: build-patch-layer.lua --stack --game roc")
+    end
+
     -- Every editor build in the evidence table names a built layer.
     local table_ = dofile(DIR .. "/src/gamedata/editor_versions.lua")
     for build, row in pairs(table_) do
-        test("editor " .. build .. " names a built layer (" .. row.layer .. ")",
-            exists(LAYERS .. "/" .. row.layer .. "/manifest.lua"))
+        local ok_pick, c = pcall(chain.open, { install = INSTALL, layers = LAYERS,
+            w3i = { version = 25, editor_version = build, game_data_set = 1, flags = { melee_map = false } } })
+        test("editor " .. build .. " (" .. row.from .. "-" .. row.to .. ") has a built layer", ok_pick,
+            ok_pick and c.layer or tostring(c))
+        if ok_pick then c:close() end
     end
 end
 -- }}}

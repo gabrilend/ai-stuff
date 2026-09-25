@@ -75,6 +75,27 @@ local function index_folder(root)
 end
 -- }}}
 
+-- {{{ function M.version_key
+-- A version name as four numbers for ordering: "1.21b" is 1, 21, 2 (b), 0;
+-- "1.29.2" is 1, 29, 0, 2. A name that isn't a version is an error.
+function M.version_key(v)
+    local major, minor, letter, patch = v:match("^(%d+)%.(%d+)(%a?)%.?(%d*)$")
+    if not major then
+        error(tostring(v) .. " isn't named like a version (1.21b, 1.29.2)")
+    end
+    return { tonumber(major), tonumber(minor), letter ~= "" and letter:byte() - 96 or 0, tonumber(patch) or 0 }
+end
+-- }}}
+
+-- {{{ function M.version_below
+function M.version_below(a, b)
+    for i = 1, 4 do
+        if a[i] ~= b[i] then return a[i] < b[i] end
+    end
+    return false
+end
+-- }}}
+
 -- {{{ local function available_layers
 -- Layer names found under the layers folder, newest last by version order.
 local function available_layers(layers_root)
@@ -88,24 +109,9 @@ local function available_layers(layers_root)
         end
     end
     listing:close()
-    table.sort(names, function(a, b)
-        -- By every number in the name: "1.21b" is 1, 21, b(2), 0 and "1.29.2"
-        -- is 1, 29, 0, 2, so a letter release and a dotted one compare
-        -- correctly (the old two-number key sorted 1.29.2 first).
-        local function key(v)
-            local major, minor, letter, patch = v:match("^(%d+)%.(%d+)(%a?)%.?(%d*)$")
-            if not major then
-                error("layer folder " .. v .. " isn't named like a version (1.21b, 1.29.2)")
-            end
-            return { tonumber(major), tonumber(minor), letter ~= "" and letter:byte() - 96 or 0,
-                tonumber(patch) or 0 }
-        end
-        local ka, kb = key(a), key(b)
-        for i = 1, 4 do
-            if ka[i] ~= kb[i] then return ka[i] < kb[i] end
-        end
-        return false
-    end)
+    -- By every number in the name ("1.21b" before "1.29.2"; the old
+    -- two-number key sorted 1.29.2 first).
+    table.sort(names, function(a, b) return M.version_below(M.version_key(a), M.version_key(b)) end)
     return names
 end
 -- }}}
@@ -161,11 +167,12 @@ function M.choose_layer(w3i, layers_root, options)
         end
         error("patch layer " .. options.layer .. " not found under " .. layers_root)
     end
-    -- The map's editor build names its version (editor_versions.lua). There
-    -- is no guessing: a build with no entry, or whose layer isn't built, is
-    -- missing data, and the answer is its row in wc3-installs/patch-sources.tsv
-    -- (this once fell back to the newest layer; the owner: "this sounds like
-    -- a problem we could solve with code").
+    -- The map's editor build names a range of versions (editor_versions.lua);
+    -- the newest layer this stack has inside it is used. There is no
+    -- guessing: a build with no entry, or a range with no built layer, is
+    -- missing data, and the answer is its row in
+    -- wc3-installs/patch-sources.tsv (this once fell back to the newest layer
+    -- overall; the owner: "this sounds like a problem we could solve with code").
     local versions = options.editor_versions or require("gamedata.editor_versions")
     local known = versions[w3i.editor_version]
     if not known then
@@ -173,14 +180,20 @@ function M.choose_layer(w3i, layers_root, options)
             .. " copy to wc3-installs/patch-sources.tsv and its evidence to editor_versions.lua",
             tostring(w3i.editor_version)))
     end
-    for _, name in ipairs(available) do
-        if name == known.layer then
-            return name, string.format("editor %d belongs to %s (%s)",
-                w3i.editor_version, known.layer, known.evidence)
+    local from, to = M.version_key(known.from), M.version_key(known.to)
+    local chosen
+    for _, name in ipairs(available) do            -- oldest first, so the last match is the newest
+        local k = M.version_key(name)
+        if not M.version_below(k, from) and not M.version_below(to, k) then
+            chosen = name
         end
     end
-    error(string.format("editor build %d needs layer %s, which isn't built:"
-        .. " scripts/fetch-patch-programs.sh, then build-patch-layer.lua", w3i.editor_version, known.layer))
+    if not chosen then
+        error(string.format("editor build %d belongs to %s-%s, and no layer in that range is built:"
+            .. " scripts/fetch-patch-programs.sh, then build-patch-layer.lua", w3i.editor_version, known.from, known.to))
+    end
+    return chosen, string.format("editor %d belongs to %s-%s; %s is the newest built (%s)",
+        w3i.editor_version, known.from, known.to, chosen, known.evidence)
 end
 -- }}}
 
@@ -190,8 +203,9 @@ Chain.__index = Chain
 -- {{{ function M.open
 -- options: install (Frozen Throne folder), layers (folder of layers),
 -- w3i (parsed war3map.w3i), and optionally map (the map file, searched
--- first), layer (name or false) and editor_versions (a table like
--- editor_versions.lua, for tests).
+-- first), layer (name or false), editor_versions (a table like
+-- editor_versions.lua, for tests) and base_archives (highest priority first;
+-- { "war3.mpq" } for a Reign of Chaos install with its own layers).
 function M.open(options)
     local self = setmetatable({}, Chain)
     self.data_set, self.data_set_choice = M.data_set_for(options.w3i)
@@ -199,7 +213,7 @@ function M.open(options)
     self.layer_index = {}
     -- Base archives: the disc install's, unless the layer is an install layer
     -- (1.28 on: that version's own rebuilt archives, which replace the disc's).
-    local base_folder, base_names = options.install, BASE_ARCHIVES
+    local base_folder, base_names = options.install, options.base_archives or BASE_ARCHIVES
     if self.layer then
         local layer_folder = options.layers .. "/" .. self.layer
         local manifest = assert(loadfile(layer_folder .. "/manifest.lua"))()

@@ -10,8 +10,11 @@
 --
 -- Usage:
 --   luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>
---   luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION]
+--   luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION] [--game tft|roc]
 --   luajit src/cli/build-patch-layer.lua [--dir DIR] --install-layer VERSION
+--
+-- --game roc builds the Reign of Chaos stack from wc3-installs/reign-of-chaos
+-- into wc3-installs/patch-layers-roc (default: tft, Frozen Throne).
 --
 -- The third form is for versions with no patch program (1.28 on): it takes
 -- that version's own data archives, kept from a game copy by the fetch
@@ -58,9 +61,9 @@ end
 -- }}}
 
 -- {{{ local function recorded_programs
--- The Frozen Throne rows of the patch-programs record: saved-as, version.
--- The last row for a file wins (the record is append-only).
-local function recorded_programs(programs)
+-- One game's rows of the patch-programs record ("tft" or "roc"): saved-as,
+-- version. The last row for a file wins (the record is append-only).
+local function recorded_programs(programs, game_name)
     local f = io.open(programs .. "/sources.tsv", "r")
     if not f then
         error("no " .. programs .. "/sources.tsv: run scripts/fetch-patch-programs.sh first")
@@ -70,7 +73,7 @@ local function recorded_programs(programs)
         local saved, version, game = line:match("^([^\t]+)\t([^\t]+)\t([^\t]+)\t")
         -- Rows saved into a version's folder (1.29.2/War3.mpq) are an install
         -- layer's data, not patch programs: --install-layer uses those.
-        if saved and game == "tft" and not saved:find("/", 1, true) then
+        if saved and game == game_name and not saved:find("/", 1, true) then
             by_file[saved] = { file = programs .. "/" .. saved, version = version }
         end
     end
@@ -82,14 +85,14 @@ end
 -- }}}
 
 -- {{{ local function build_one
-local function build_one(program, version, lower_layers, install, layers)
+local function build_one(program, version, lower_layers, install, layers, base_archives)
     local scratch = os.tmpname()
     os.remove(scratch)
     local started = os.clock()
     local manifest = patch_layer.build({
         patch_program = program,
         install = install,
-        base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },
+        base_archives = base_archives,
         version = version,
         output = layers .. "/" .. version,
         lower_layers = lower_layers,
@@ -111,8 +114,40 @@ end
 -- }}}
 
 -- {{{ main
-local install = DIR .. "/wc3-installs/frozen-throne"
-local layers = DIR .. "/wc3-installs/patch-layers"
+-- {{{ GAMES
+-- Each game's stack is built from its own install into its own layers
+-- folder, so the two never mix. Reign of Chaos patches rebuild War3Patch.mpq
+-- over war3.mpq alone; Frozen Throne's over war3.mpq, War3x.mpq and
+-- War3xlocal.mpq. readable_from: the oldest version whose patch program the
+-- builder reads (older ones use the kind 0x00 diff format, issue 112d).
+local GAMES = {
+    tft = {
+        install = DIR .. "/wc3-installs/frozen-throne",
+        layers = DIR .. "/wc3-installs/patch-layers",
+        base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },   -- lowest priority first
+        readable_from = { 1, 19, 1, 0 },   -- 1.19a (1.14b and older: kind 0x00)
+    },
+    roc = {
+        install = DIR .. "/wc3-installs/reign-of-chaos",
+        layers = DIR .. "/wc3-installs/patch-layers-roc",
+        base_archives = { "war3.mpq" },
+        readable_from = { 1, 18, 1, 0 },   -- 1.18a (1.11 and older: kind 0x00)
+    },
+}
+-- }}}
+local game_name = "tft"
+for i = #arg, 1, -1 do
+    if arg[i] == "--game" then
+        game_name = arg[i + 1]
+        table.remove(arg, i + 1)
+        table.remove(arg, i)
+    end
+end
+local game = GAMES[game_name]
+if not game then
+    error("unknown game " .. tostring(game_name) .. " (tft or roc)")
+end
+local install, layers, base_archives = game.install, game.layers, game.base_archives
 local programs = DIR .. "/wc3-installs/patch-programs"
 local probe = io.open(layers .. "/.", "r")
 if not probe then
@@ -182,14 +217,9 @@ if arg[1] == "--install-layer" then
     os.exit(0)
 end
 
--- {{{ READABLE_FROM
--- Patch programs older than 1.19a come in two earlier shapes this builder
--- can't read yet (issue 112d): 1.14b carries three nested archives, and 1.11
--- and older store their inner files without names. They are fetched and
--- listed on every run, not built. (1.19a-1.20e, with their older run-length
--- step, are read since 2026-09-25.)
-local READABLE_FROM = { 1, 19, 1, 0 }   -- 1.19a
--- }}}
+-- Programs older than the game's readable_from use the kind 0x00 diff
+-- format (issue 112d): fetched, and listed on every run, not built.
+local READABLE_FROM = game.readable_from
 
 -- {{{ local function version_key
 -- "1.21a" -> {1, 21, 1, 0}; "1.28.5" -> {1, 28, 0, 5}.
@@ -212,7 +242,7 @@ if arg[1] == "--stack" then
     local up_to = arg[2] == "--up-to" and arg[3] or nil
     -- Order by the version each program produces, never by file name.
     local list, unreadable = {}, {}
-    for _, row in ipairs(recorded_programs(programs)) do
+    for _, row in ipairs(recorded_programs(programs, game_name)) do
         if below(version_key(row.version), READABLE_FROM) then
             unreadable[#unreadable + 1] = row.version
         else
@@ -221,7 +251,7 @@ if arg[1] == "--stack" then
     end
     table.sort(unreadable, function(a, b) return below(version_key(a), version_key(b)) end)
     if #unreadable > 0 then
-        print("not built, older patch program shapes (issue 112d): " .. table.concat(unreadable, " "))
+        print("not built, older diff format (issue 112d): " .. table.concat(unreadable, " "))
     end
     local scratch = os.tmpname()
     os.remove(scratch)
@@ -263,7 +293,7 @@ if arg[1] == "--stack" then
             if existing then
                 os.execute("rm -rf '" .. folder:gsub("'", "'\\''") .. "'")
             end
-            build_one(row.file, row.version, below, install, layers)
+            build_one(row.file, row.version, below, install, layers, base_archives)
             rebuilt_below = true   -- everything above a rebuilt layer is rebuilt too
         end
         table.insert(below, 1, { name = row.version, folder = folder })
@@ -277,10 +307,10 @@ end
 local program, version = arg[1], arg[2]
 if not program or not version or program == "--help" then
     print("Usage: luajit src/cli/build-patch-layer.lua [--dir DIR] <patch-program.exe> <version>")
-    print("       luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION]")
+    print("       luajit src/cli/build-patch-layer.lua [--dir DIR] --stack [--up-to VERSION] [--game tft|roc]")
     os.exit(program == "--help" and 0 or 1)
 end
-local manifest = build_one(program, version, {}, install, layers)
+local manifest = build_one(program, version, {}, install, layers, base_archives)
 print("patch requires the game to be older than " .. tostring(manifest.requires_older_than))
 print("written to " .. layers .. "/" .. version)
 -- }}}
