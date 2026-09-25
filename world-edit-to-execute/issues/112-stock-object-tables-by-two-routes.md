@@ -101,7 +101,13 @@ fetched politely and reused.
 | ID | Name | Dependencies | Description |
 |----|------|--------------|-------------|
 | 112a | stormlib-build-and-update-script | None | StormLib (MIT) built from a pinned tag by a script, with a LuaJIT binding, to read patch archives our own reader can't |
-| 112b | game-version-layers-per-map | 112a | Each patch is a layer of changed files; loading a map stacks the layers for its version, and nothing on disk is patched |
+| 112b | game-version-layers-per-map | 112a | Each patch is a complete layer of the files it produces; loading a map picks its layer and data set, and nothing on disk is patched |
+| 112c | route-a-stock-rows-merged-with-map-objects | 112b | SLK, profile and metadata parsing; each custom object's full row (stock row plus the map's changes), functional fields only |
+
+Finding from 112b (2026-09-24): custom maps start from the data-set copies of
+the stock tables (`Custom_V0\` for Reign of Chaos maps, `Custom_V1\` for Frozen
+Throne maps), not the melee tables in `Units\`. Route A reads through each
+map's chain (`src/gamedata/chain.lua`), not the plain paths.
 
 ## Suggested Implementation Steps
 
