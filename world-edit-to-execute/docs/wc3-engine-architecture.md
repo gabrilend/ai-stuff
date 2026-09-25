@@ -85,7 +85,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Phase 5: Rendering System                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Raylib Backend (OpenGL/Vulkan)                          │  │
+│  │  Raylib Backend (OpenGL 3.3)                             │  │
 │  │  ├─ Terrain rendering (heightmap, textures)              │  │
 │  │  ├─ Model rendering (units, buildings, doodads)          │  │
 │  │  ├─ Animation system (attack, walk, death)               │  │
@@ -391,7 +391,7 @@ end
 
 **Purpose:** Visualize game state (terrain, units, UI)
 
-**Technology:** Raylib (OpenGL/Vulkan backend)
+**Technology:** Raylib (OpenGL backend through its rlgl layer; raylib has no Vulkan backend)
 
 **Dual-Camera System:**
 
