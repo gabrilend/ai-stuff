@@ -35,7 +35,7 @@ Open the chain with the map (chain.open{..., map = path}): some maps ship
 their own object tables, and objects defined only there get rows too
 (defined_in = "map table").
 
-Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
+Issue: issues/completed/112c-route-a-stock-rows-merged-with-map-objects.md
 ]]
 
 local slk = require("parsers.slk")

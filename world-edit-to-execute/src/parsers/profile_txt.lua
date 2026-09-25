@@ -20,7 +20,7 @@ Usage:
   local objects = profile.parse(text)              -- { hfoo = { Art = "...", ... } }
   profile.parse(more_text, objects)                -- merge a second file
 
-Issue: issues/112c-route-a-stock-rows-merged-with-map-objects.md
+Issue: issues/completed/112c-route-a-stock-rows-merged-with-map-objects.md
 ]]
 
 local M = {}
