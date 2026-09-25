@@ -86,6 +86,7 @@ wc3-installs/patch-layers
 wc3-installs/patch-layers-roc
 wc3-installs/patch-programs
 wc3-installs/external-notes
+wc3-installs/external-values
 
 # Third-party libraries compiled by scripts/build-dependencies.sh.
 # Only the pin file deps/versions is tracked; everything else is rebuilt.

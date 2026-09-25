@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 11:37:47
+Generated on: 2026-09-25 12:32:29
 Models: claude-opus-5-5
 
 ## Contents
@@ -98,6 +98,19 @@ Models: claude-opus-5-5
     version is finished and committed. Next, pick what to do: extend the page
     (such as comparing two versions side by side) or return to a main project
     thread.
+23. 2026-09-25 11:50, after Request 47 - We're building faithful game-data
+    support for every supported Warcraft III version, and just finished the
+    balance history page with patch notes for unsupported versions. Next, pick a
+    main thread: the stock-value cross-check or the first WoW-client bridge
+    issue.
+24. 2026-09-25 12:09, after Request 49 - We're cross-checking the game's stock
+    numbers against Liquipedia's published values, and the old-revision approach
+    works. Next, I need your yes to the request budget: about 8 batched requests
+    plus up to 200 single ones, 10 seconds apart.
+25. 2026-09-25 12:23, after Request 50 - We're cross-checking the game's stock
+    numbers against Liquipedia's published values, and the gentle download of
+    about 586 unit, building and item pages is almost done. Next I'll run the
+    first comparison against our 1.29.2 tables.
 
 --------------------------------------------------------------------------------
 
@@ -4781,6 +4794,683 @@ Once you pick, I'll fetch each unsupported patch's notes page once (one request
 every 2 seconds, cached). They'll show in the version menu and the heat map as
 "not supported by this project — patch notes only", credited to Liquipedia
 under CC BY-SA 3.0, and kept in their own file apart from our data.
+
+--------------------------------------------------------------------------------
+
+### User Request 47
+
+haha thanks a lot, now they know who I am.
+
+it's fine, but please try and respect my PII in the future. For now, just do as
+you've been doing. No sense giving them more info than they already have. Also,
+let's be sure not to "abuse" their tools.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 47
+
+> To be accurate about where it went: the email went to **Hive Workshop**, in
+> the header of that one request, not to Liquipedia. Liquipedia hasn't received
+> anything from us. I'm sorry about it. From now on your personal details stay
+> out of anything sent anywhere unless you name them for that purpose. I'll add
+> that rule to the project's instructions so it holds beyond this session.
+>
+> So the header stays as it has been, `world-edit-to-execute patch fetch`, with
+> no contact. That means we don't fully meet Liquipedia's request for contact
+> details, which is all the more reason to keep our footprint tiny:
+> - **Batched:** their API returns up to 50 pages in one request, so all the
+>   patch pages come in about two requests in total, spaced well apart.
+> - **Fetched once, ever:** kept on disk beside the installs, not in RAM, so a
+>   reboot doesn't mean fetching again.
+> - **Only what's needed:** the page text, through their standard API. No
+>   crawling, no images.
+>
+> Writing the issue first.
+
+> Each entry is a list item holding one `Patch object`. The converter will turn
+> each into a single bullet from its `text=`, and drop the `<noinclude>` header.
+
+> Whole suite passes. Committing.
+
+Done, committed as `c93364ba0`. The suite passes and the repository is clean.
+Refresh the page, or run:
+
+```
+! scripts/balance-history.sh --open
+```
+
+**What changed:**
+- **Versions you can't read yet show up anyway,** as hatched columns marked \*
+  on the heat map and in the version menu, in version order. That's 41 versions:
+  1.10, 1.12–1.18 and 1.29.0 among the classics, and everything from 1.30.0 to
+  Reforged's 2.0.3.
+- **Every place you can pick one says "not supported by this project — patch
+  notes only":** the menu entry, the column's hover text, and a dashed banner at
+  the top of the notes. The banner also gives the reason (a later version we
+  leave alone, or no patch program found) and links the Liquipedia page with its
+  licence.
+- **Notes are text only,** never on the charts, because they're a summary, not
+  the game's numbers. Where both exist they agree: 1.22's notes list the same
+  six changes the patch view reconstructs from the tables.
+
+**Being a good guest on Liquipedia:**
+- **Three requests in total,** each batched and at least 30 seconds apart. Their
+  header names only the tool.
+- **Nothing is fetched again,** even after a reboot. The pages sit on disk
+  beside your installs, and the run script builds from that copy only.
+- **Their text stays separate:** it's CC BY-SA 3.0, credited wherever shown, and
+  never mixed into our data or committed.
+
+**Your privacy:** the project's instructions now carry a rule that your personal
+details never go to an outside service unless you name them for that purpose.
+
+--------------------------------------------------------------------------------
+
+### User Request 48
+
+Great! Okay what can we work on next?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 48
+
+Here's what I'd suggest, most valuable first:
+
+1. **Finish the stock-values work: the second route.** This is the last big
+   piece of that work. Your rule is that stock numbers only count once two
+   independent routes agree: ours (read from your install, now done for every
+   version) and published sources. The comparison would show every number where
+   the two routes disagree, and whether each disagreement comes from a patch
+   version, a wiki error or a bug of ours. Once that's closed, converting a map
+   has trustworthy numbers under it.
+2. **Begin the WoW client bridge.** It starts with its first step: taking one
+   Warcraft III map's terrain and building it as a zone the WoW 3.3.5a client
+   can walk around in. It's the start of the next phase: bigger, and the most
+   new ground.
+3. **Refresh the phase 1 demo.** Your rules say each phase's demo should show
+   off what it built. Phase 1 grew a lot in these two days (StormLib reading, 43
+   version layers, the oldest diff format, the balance history), and its demo
+   shows none of it yet.
+4. **"How does this map differ from stock?" in the explorer.** Open a map like
+   DAoW and see every number its author changed against the stock value for its
+   version, with its own charts. Fun, and it reuses almost everything.
+5. **The copy-protected binaries puzzle.** Crack the large-offset rule, using
+   the version-stamp test. Purely for completeness, since nothing depends on it.
+
+My pick would be 1 or 2. Number 1 finishes something important. Number 2 starts
+the adventure. Which sounds good?
+
+--------------------------------------------------------------------------------
+
+### User Request 49
+
+Great, let's start with 1, then 3 if phase 1 is complete, then we'll put a pin
+in 2 until we have a custom client to play with. Changing the terrain changes
+the MPQs I think, which are client files, which we are not allowed to do.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 49
+
+> Plan noted: first the second route, then the phase 1 demo if phase 1 is
+> complete, then the bridge waits for the custom client.
+>
+> On the MPQs: a custom zone for the stock WoW client would normally be a new
+> patch archive dropped beside Blizzard's, rather than an edit to theirs. It's
+> still new files in the client's own folder, though, and waiting until our own
+> client can load maps directly is the cleaner line. I'll record that in the
+> bridge issue when we get there.
+>
+> Starting the second route. First, what published source can supply it. Reading
+> the stock-values issue's plan, then looking at one Liquipedia unit page (the
+> Knight) to see what numbers it carries. That's one request, with the same
+> spacing and header as before.
+
+The old revision works. The Knight's page as of October 2017 says **835 hit
+points, 28 base damage, 1.40 cooldown**, exactly our 1.29.2 tables. So the right
+comparison is Liquipedia's pages as they stood when 1.29.2 was current (before
+1.30 shipped in August 2018).
+
+The cost is the one thing to decide, because an old revision can only be fetched
+**one page per request**. Here's the gentlest plan I can see:
+1. **Current pages, batched:** 50 per request, so about 8 requests for the few
+   hundred unit, hero, ability and item pages. Wherever today's values already
+   match our 1.29.2 tables, that number is confirmed without further fetching.
+2. **Old revisions only where they differ,** one request each. That's mostly
+   pages Reforged rebalanced, likely 100–200 requests, spaced **10 seconds**
+   apart: five times gentler than their limit, about 20–30 minutes, run in the
+   background.
+3. **Everything cached on disk,** never fetched again, with the same tool-only
+   header.
+
+The result is a report of every number both routes cover: match, mismatch (with
+both values), or covered by only one route. Each mismatch gets investigated (a
+patch difference, a wiki slip, or our own bug), not auto-fixed. That's what your
+"both routes required" rule asks for.
+
+Is that request budget all right? If you'd rather keep it lighter, I can do step
+1 alone. It checks everything that hasn't changed since 2018 and lists the rest
+as unconfirmed.
+
+--------------------------------------------------------------------------------
+
+### User Request 50
+
+<pasted_content id="7a80">
+> 2. Old revisions only where they differ, one request each. That's mostly pages
+> Reforged
+>      rebalanced, likely 100–200 requests, spaced 10 seconds apart: five times gentler than their
+>      limit, about 20–30 minutes, run in the background.
+</pasted_content id="7a80">
+
+
+let's do this one but let's do +/- 1-2 seconds for each request. Then let's
+cache it on disk.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 50
+
+> A random 8–12 seconds between requests, 10 ± 2, cached on disk. Writing the
+> sub-issue first, including the contact-line correction in the parent.
+
+Pages found: 381 units, 67 buildings and 138 items, 586 in all. That's 12
+batched requests about 10 seconds apart, roughly two minutes, and 100 are
+already in. When the rest land, I'll map the item and building fields and run
+the first comparison.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"W=/mnt/mtwo/programming/ai-stuff/world-edit-to-execute
+mkdir -p /mnt/mtwo/games/warcraft-iii/external-values
+ln -s /mnt/mtwo/games/warcraft-iii/external-values
+$W/wc3-installs/external-values
+cat /mnt/mtwo/games/warcraft-iii/external-notes/.last_request &gt;
+/mnt/mtwo/games/warcraft-iii/external-values/.last_request
+python3 - &lt;&lt;'EOF'
+W = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+p = W + "/.gitignore"; s = open(p).read()
+s = s.replace("wc3-installs/external-notes\n",
+"wc3-installs/external-notes\nwc3-installs/external-values\n", 1); open(p,
+"w").write(s)
+p = W + "/wc3-installs/README.md"; s = open(p).read()
+old = "| `patch-layers-roc` |"
+new = "| `external-values` | `/mnt/mtwo/games/warcraft-iii/external-values` |
+Liquipedia's unit, building, spell and item pages (CC BY-SA 3.0) for Route B's
+cross-check, fetched once by `src/cli/route-b-fetch.lua` (today's revisions, and
+the revisions as they stood under 1.29.2 where they differ); used only to check,
+never committed |\n| `patch-layers-roc` |"
+s = s.replace(old, new, 1); open(p, "w").write(s)
+EOF
+(luajit $W/src/cli/route-b-fetch.lua discover &amp;&amp; luajit
+$W/src/cli/route-b-fetch.lua current) &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/rb1.log
+2&gt;&amp;1; echo "exit $?"; cat
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/rb1.log"
+completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 50 (continued)
+
+While that runs, a look at the 6,309 "only on the wiki" numbers. That's a lot,
+and it deserves an explanation before the report.
+
+--------------------------------------------------------------------------------
+
+*Prompt is too long*
+
+--------------------------------------------------------------------------------
+
+### User Request 51
+
+/compact
+
+--------------------------------------------------------------------------------
+
+### Session Recap (written by the harness, not by either speaker)
+
+This session is being continued from a previous conversation that ran out of
+context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. **Primary Request and Intent**
+
+   Early session:
+   - Clean up world-edit-to-execute.
+   - Phase W (WoW 3.3.5a client bridge) docs and issues.
+   - Stock values by two routes (issue 112).
+   - A clean repository with commits as we go.
+
+   Requests made this session, in order:
+   - **Copy every field.** "copy everything, and we will work slowly to replace
+     all the artwork… Tooltips are mirrors… Names come from the map files,
+     or the default name-lists." Done: fields are labelled
+     fact/borrowed/editor/map.
+   - **Investigate the orphan changes.** Done: the chain reads the map archive
+     first.
+   - **Find out what `Crs\0` is.** Done: a padded 3-letter field id.
+   - **Patches.** "apply and remove patches idempotently… patches are
+     linear… apply all of the patches inbetween… correct order"; "find all
+     the patches that we support… as many as we can".
+   - **Support cutoff.** Only support patches from before shared-CD-key LAN play
+     was removed (the cutoff lands after 1.30.4). No support for the current
+     CASC format or Reforged. 1.29.2 is the top of the range.
+   - **tmp/.** Fix it into the RAM tiers. Done.
+   - **StormLib.** "If we're using Stormlib, then let's use that." Transition,
+     since StormLib extracts everything. Done (issue 114).
+   - **Old patches.** "hunt down every patch you can find." Decode the old
+     formats. Done back to RoC 1.01b and TFT 1.11.
+   - **Document the versions left alone.** "write up a document… patches we
+     don't support… not intended to be created by us, for nobility's sake…
+     reverence and care." Done: `docs/versions-we-leave-alone.md`.
+   - **Something fun.** The balance history explorer (115), then "a way to see
+     what each patch changes" (115a).
+   - **External notes.** Show unsupported patches from external sources, "say
+     that those patches aren't supported anywhere that the user would be able to
+     select one in the UI" (115b, done).
+   - **Next.**
+     - Task 1: Route B cross-check (in progress).
+     - Task 3: the phase 1 demo refresh, if phase 1 is complete.
+     - "put a pin in 2 until we have a custom client" (the WoW bridge). The user believes changing terrain means changing client MPQs, which "we are not allowed to do".
+   - **Route B fetching.** "let's do this one" (old revisions only where values
+     differ), "but let's do +/- 1-2 seconds for each request. Then let's cache
+     it on disk."
+
+2. **Key Technical Concepts**
+
+   - **Chain** (`src/gamedata/chain.lua`):
+     - Source order: map archive first, then the data-set copy, then the plain path; within each, the layer, then the base archives.
+     - Data set from w3i `game_data_set`: 0 = Default (melee flag decides), 1 = Custom (TFT Custom_V1 frozen at 1.07, RoC Custom_V0), 2 = Melee (latest patch; plain `Units\` for TFT, Melee_V0 for RoC).
+     - Only melee tables change with patches.
+     - Install layers (`kind="install"`) replace the base archives.
+     - `disc_version` ("1.07" TFT / "1.00" RoC): the disc itself is a version.
+     - `version_key` / `version_below` order versions by every number in the name.
+     - `editor_versions.lua` holds ranges (from/to); the chain picks the newest built layer in range.
+     - No fallback: an unknown build is an error.
+   - **Patch layers:**
+     - Stack builder, `--game tft|roc`.
+     - `run_step`: RLE step 1 from 1.21a on, 32 before. Chosen from the build in the `patch.cmd` threshold (below 6263 means 32). FileVersionEqualTo is accepted, and commented-out checks are allowed for the step.
+     - `target_version` reads the War3.exe version stamp (VS_FIXEDFILEINFO signature 0xFEEF04BD); the patch.cmd threshold is used when a big binary can't be rebuilt.
+     - `not_built` manifest entries for the big protected binaries.
+     - Content-based discovery of the nested patch archive in old programs.
+     - Incremental patches live in `patch-programs/incremental/` and serve as a cross-check.
+   - **BSD0 entry kinds:** 0x01 whole; 0x04 RLE-packed BSDIFF40; 0x02 raw
+     BSDIFF40; 0x00 the oldest copy-and-insert format:
+     - **Block A.** u16 records: type in the top 2 bits, length in the low 14.
+       - 0: insert.
+       - 1: copy with a signed cumulative offset.
+       - 2: copy adding the last 2-byte insert to each 16-bit word.
+       - 3: zeros, no param.
+     - **Block B.** 16-bit word adds, grouped by ascending amount: the first amount signed, later increases unsigned, positions unsigned deltas.
+     - **Varnum.** 0xxxxxxx; 10xxxxxx+1 byte (×64); 110xxxxx+2 bytes (×32); 1110xxxx+3 bytes (×16).
+   - **Bounds checks in the bsdiff applier** (a crash was fixed).
+   - **MPQ reading is StormLib only** (`src/mpq/init.lua` wraps it;
+     `map_wrapper.lua` reads the HM3W header).
+   - **Balance history.**
+     - Generator: `src/cli/balance-history.lua`.
+     - Viewer: `src/viewers/balance-history.html`; offline SVG, `#tft/hkni`, `#tft/v/1.22a`, `#tft/n/1.32.10`.
+     - `scripts/balance-history.sh [--open]`; output in `tmp/shared-memory/balance-history/`.
+   - **Liquipedia API.**
+     - Batched `titles`, up to 50 per request.
+     - Old revisions are one page per request (`rvstart` / `rvdir=older` / `rvlimit=1`).
+     - User-Agent names the tool only.
+     - CC BY-SA 3.0 text kept separate, never committed.
+   - **House tools:**
+     - `commit-own-changes /mnt/mtwo/programming/ai-stuff -F -`, and `claim-own-change <file>` for edits made by script or python.
+     - `validate-issues`.
+     - `ensure-ram-tiers`.
+     - Firefox headless screenshots need `-no-remote -profile <scratch>/ffprof`.
+     - Node is broken on this machine (a library mismatch); JSON is checked with python.
+
+3. **Files and Code Sections (most recent first)**
+
+   **`src/cli/route-b-report.lua`** (new, just written, not yet run)
+   - Loads route A and the cached pages.
+   - Writes `tmp/shared-memory/route-b/report.md`:
+     - a summary: pages read (old vs current); numbers compared/agree, with the blank_is_zero share; disagreements; only on the wiki; unreadable;
+     - tables for mismatch, only_b and unreadable.
+   - Usage: `luajit src/cli/route-b-report.lua [--dir DIR] [output folder]`.
+
+   **`src/gamedata/route_b.lua`** (new)
+   - `parse_infobox(text)`: template name plus fields; multi-line values.
+   - `number(raw)`: returns (value, decimals).
+   - `load_route_a(install, layers, version="1.29.2")`:
+     - chain with game_data_set=2;
+     - tables named in the field map;
+     - `item_by_name` built from ItemStrings.txt; names that aren't unique are set to false.
+   - `cached_pages(cache)`: old revisions win over current ones when they have
+     text.
+   - `verdict(a, b, decimals, present)`: returns blank_is_zero, only_b, match
+     (within half a unit of the last decimal) or mismatch.
+   - `compare_page(route_a, text, title)`: items are matched by title.
+   - `compare_all` returns `{rows, counts, pages_differing (current source with
+     a mismatch), objects}`.
+
+   **`src/gamedata/route_b_fields.lua`** (new; `local M = {...}`; `M["Infobox
+   building"] = M["Infobox unit"]`)
+   - **Unit map:**
+     - costs and build: gold → UnitBalance.goldcost, lumber → lumbercost, build_time → bldtm, food → fused, foodproduced → fmade;
+     - defence and life: armor → def, armorup → defUp, hp → HP, hpregen → regenHP, level;
+     - mana: mana → manaN, manastart → mana0, manaregen → regenMana;
+     - sight and size: daysight → sight, nightsight → nsight, collision, speed → spd;
+     - bounty: bountybase → bountyplus, bountydice, bountysides;
+     - stock: stock → stockMax, stockstart → stockStart, stockreplenish → stockRegen;
+     - weapon 1: acq_range → UnitWeapons.acquire, minrange → minRange, castpoint → castpt, castbackwing → castbsw, backswingpoint → backSw1, dmgpoint → dmgpt1, cooldown → cool1, dmgbase → dmgplus1, dmgdice → dice1, dmgsides → sides1, range → rangeN1, rangemotionbuffer → RngBuff1;
+     - weapon 2: the same fields with suffix 2;
+     - unit data: turnrate → UnitData.turnRate, priority → prio, cargo_size → cargoSize.
+   - **Item map:** level → ItemData.Level, gold → goldcost, lumber →
+     lumbercost, charges → uses, stock → stockMax, stockstart →
+     stockStart, stockreplenish → stockRegen.
+
+   **`src/cli/route-b-fetch.lua`** (new)
+   - Phases: `discover` (list=embeddedin per template: Infobox unit, building,
+     spell, item), `current` (50 per request), `old <list>`
+     (rvstart=2018-08-08T00:00:00Z, one per request), `status`.
+   - `wait_turn()`: SPACING 10, JITTER ±(1 + random) seconds, stamp at
+     `CACHE/.last_request`.
+   - User-Agent: "world-edit-to-execute stock values cross-check".
+   - Cache: `wc3-installs/external-values` →
+     `/mnt/mtwo/games/warcraft-iii/external-values`, with `current/`, `old/`,
+     `<name>.wikitext`, `.meta`, `pages.<template>.txt`.
+   - A page with no old revision gets an empty file plus meta "none before …".
+
+   **`issues/112e-route-b-published-values-cross-check.md`** (new; design as the
+   user set it).
+   **`issues/112-stock-object-tables-by-two-routes.md`**: User-Agent contact
+   line corrected (tool only); 112e row added.
+   **`.gitignore`**: `wc3-installs/external-values` added (also earlier:
+   external-notes, patch-programs, patch-layers-roc, and `tmp` alongside
+   `tmp/`).
+   **`wc3-installs/README.md`**: rows for external-values, external-notes,
+   patch-layers-roc and patch-programs.
+
+   **Earlier this session (all committed):**
+   - `bsd0.lua`: kind0 decoder `apply_kind0`, `varnum`,
+     KIND_DIFF_OLDEST/UNPACKED, run_step.
+   - `patch_layer.lua`: open_patch, run_step_for, target_version, build_install,
+     program_version, not_built.
+   - `build-patch-layer.lua`: GAMES table, `--stack`, `--game`,
+     `--install-layer`, INSTALL_LAYERS for 1.28.5/1.29.1/1.29.2.
+   - `chain.lua`; `editor_versions.lua` (6031 disc 1.07, 6052 1.19a–1.21b,
+     6057 1.22a, 6058 1.23a, 6059 1.24a–1.28.5, 6060 1.29.0–1.29.2).
+   - `fetch-patch-programs.sh`, `patch-sources.tsv`, `mpq/init.lua`,
+     `map_wrapper.lua`, `stormlib.lua`.
+   - `balance-history.*`, `patch-notes-fetch.lua`, `patch-notes-build.lua`.
+   - Tests: test_patch_layers (56), test_stock_rows (27), test_stormlib,
+     test_mpq, test_balance_history (6), test_patch_notes (6).
+   - `docs/versions-we-leave-alone.md`, `docs/legal-implications.md`,
+     `docs/licensing-and-boundaries.md`, issues 112b/112d/114/115/115a/115b,
+     CLAUDE.md privacy rule.
+
+4. **Errors and fixes**
+
+   - **Email sent to Hive (my mistake).** I put the user's email in a
+     User-Agent. The user: "please try and respect my PII in the future… just
+     do as you've been doing. No sense giving them more info than they already
+     have." A privacy rule was added to CLAUDE.md, and headers now name the tool
+     only.
+   - **Lua pitfalls:**
+     - `cond and false or x` always gives x; fixed with a plain if.
+     - `%q` escapes are read as octal by JavaScript; replaced with JSON `\u` escapes.
+     - The helper test packing gave the wrong shape; the test B-block math was wrong.
+   - **Layers and versions:**
+     - The 1.29.2 layer sorted wrongly; fixed with the version_key of every number.
+     - The patch.cmd placeholder (1.99.99.9999) broke ordering; the version now comes from the War3.exe stamp.
+     - The threshold is not always the version made (1.20d); the check is now at-or-above.
+     - A mislabelled war3patch101.exe (an incremental) and stale "1.01b" text in 1.02/1.03 scripts; the claim check was removed.
+     - `head` truncation killed a stack build midway; rebuilt.
+   - **Diff reader:**
+     - A segfault on bad diffs; bounds checks added.
+     - Kind 0: the big protected binaries fail with "copy reaches outside the old file". Recorded as not_built; the user's lead (copy protection) is noted.
+     - Shared-tier empty listfile and silent listing; now errors.
+   - **Tests and shell:**
+     - `test_frames` was stale; fixed to the spec.
+     - `tmp/` was a real folder; converted to RAM tiers.
+     - `sleep` chained with other commands is blocked by a hook.
+     - Stale git staging after `git mv`; fixed with `git restore --staged`.
+
+5. **Problem Solving**
+
+   - Every supported version is built:
+     - TFT: 1.11, 1.14b, 1.19a–1.27b, 1.28.5, 1.29.1, 1.29.2;
+     - RoC: 1.01b–1.06, 1.11, 1.18a–1.27b.
+   - Open items:
+     - the large-binary offset puzzle (112d open question 1);
+     - first-hand evidence for editor builds 6034–6051 and 4448–4654.
+   - **Route B's first run:**
+     - 586 pages (381 unit, 67 building, 138 item) in 12 batched requests;
+     - 574 objects compared;
+     - 13873 match, 6252 blank_is_zero, 275 mismatch (before the old revisions), 57 only_b, 2 unreadable;
+     - 153 pages with a mismatch are being fetched as they stood under 1.29.2.
+
+6. **All user messages** (condensed, key wording verbatim)
+
+   - "copy everything, and we will work slowly to replace all the artwork and
+     such. Tooltips are mirrors that reflect the values of facts and variables -
+     they are part of the UI. Names come from the map files, or the default
+     name-lists which we gather like other facts. You said facts were protected
+     under the somebody vs rural I think?"
+   - "um, I guess? Do the triggers create new abilities that use those IDs
+     maybe?"
+   - "Teehee yes the map files contain many custom values, we should examine the
+     map files as well, wink ;) … Crs\0 … we should find out. … we need to
+     be able to apply and remove patches idempotently. However, patches are
+     linear, so we will need to apply all of the patches inbetween as well,
+     removing them if we need to downgrade. Make sure we do it in the correct
+     order! … we're going to need to find all the patches that we support. And
+     we should try and support as many as we can."
+   - "Kinda sounds like we only need the most recent patch then… we also, on
+     principle, should only support the patches that were before Blizzard
+     removed the capability to have multiple clients that shared a CD key play
+     together. That change killed the game. [download] sure."
+   - "Side finding… tmp/… let's fix it. … check the dates on the threads,
+     then the release dates of the patches."
+   - "If we're using Stormlib, then let's use that. If we want to replace it,
+     we'll rewrite the functionality that we're using it for."
+   - "Um, I'm concerned that Stormlib might not do all the functionality that we
+     need. Does it successfully extract all of the data that is stored in the
+     map files? If so, then we can transition to just using Stormlib."
+   - "sure." (to looking at test_frames and the missing patches)
+   - "Great, let's keep going. Hang on, what's the 1.29 warning?"
+   - "um, this sounds like a problem we could solve with code. No warnings or
+     errors required."
+   - "sure, I guess." (fetch the 1.29.2 whole-game copy)
+   - Mid-turn: "we shouldn't support the most recent build of the game…
+     supporting the new data format, the one they currently use, I feel like
+     might be legally... difficult to defend. Since the game is running, if they
+     wanted to play that patch, they'd use the live version of the game. It'd be
+     like making a private server for... whatever expansion they're on now. I
+     stopped playing in Legion I think. Now I mostly play Warcraft Rumble
+     teehee"
+   - "Okay, sounds good." (keep 1.29.2)
+   - "Yeah hunt down every patch you can find. The test maps are not the
+     totality of all maps we intend to support."
+   - "Good morning! Please continue."
+   - "sounds great." (the language check)
+   - "Yes please!" (the oldest format)
+   - "can you write up a document listing the general steps and procedures we'd
+     need to take in order to implement support for all the extra versions of
+     the game that we're intentionally not supporting? Mark them as not intended
+     to be created by us, for nobility's sake. We should say exactly what we
+     would do, why we aren't doing it, and ensure that we explain the value in
+     honoring the currently active game and it's denizens and sovereignty. My
+     relationship toward Warcraft 3 and it's developers as a whole, in general,
+     is one of reverence and care. Then, let's continue with the patches that we
+     do intend to support."
+   - "Great. Let's move on from supporting new patches now. Okay what's this
+     about a large-binary?"
+   - "Hmmmm... I think it's okay if we move on for now. Let's come back to it
+     later. It could also be that the binary inflates itself at runtime perhaps?
+     Idk if that's possible. Not sure, sorry. Let's focus on something more fun!
+     Anything you'd like!"
+   - "Wow! Wow! That's so cool! I love that! Thank you for making this for me!"
+   - "I like that option 3, can we add a way to see what each patch changes? And
+     ideally, we'd be able to see the patches we don't support, because we can
+     get the data from external sources. Right? Just make sure that we say that
+     those patches aren't supported anywhere that the user would be able to
+     select one in the UI."
+   - "haha thanks a lot, now they know who I am. it's fine, but please try and
+     respect my PII in the future. For now, just do as you've been doing. No
+     sense giving them more info than they already have. Also, let's be sure not
+     to "abuse" their tools."
+   - "Great! Okay what can we work on next?"
+   - "Great, let's start with 1, then 3 if phase 1 is complete, then we'll put a
+     pin in 2 until we have a custom client to play with. Changing the terrain
+     changes the MPQs I think, which are client files, which we are not allowed
+     to do."
+   - "[option 2: old revisions only where they differ] let's do this one but
+     let's do +/- 1-2 seconds for each request. Then let's cache it on disk."
+
+   **Standing constraints (preserve):**
+   - Never commit Blizzard files.
+   - Never point project tools at Blizzard's servers or a Battle.net-connected
+     client.
+   - Personal details (email, name, accounts) are never sent to outside services
+     unless the owner names them for that purpose; User-Agents name the tool
+     only.
+   - Don't "abuse" Liquipedia: batched, spaced (10 s ± 1–2 s for Route B),
+     cached on disk, never refetched.
+   - Liquipedia CC BY-SA text is kept separate and never committed.
+   - Commit via commit-own-changes (claim script edits) and keep the repo clean.
+   - Issue file before work.
+   - No fallbacks: errors instead.
+   - The 1.07–1.29.2 MPQ-era support range; no CASC reader.
+
+7. **Pending Tasks**
+
+   - **Route B (issue 112e):**
+     - finish the old-revision fetch (background task b2t6dbu1l, 153 pages, 6 done so far);
+     - run route-b-report.lua;
+     - investigate every remaining mismatch and only_b case (57, e.g. Blood Wizard nwzw is not in Route A), plus the 2 unreadable;
+     - record the findings in 112e;
+     - tests: the infobox parser on the Knight's text and a match on Knight HP 835;
+     - `.info.md` for route_b.lua, route_b_fields.lua, route-b-fetch.lua and route-b-report.lua;
+     - optionally discover ability pages (the `Template:SpellCard/<id>` namespace);
+     - complete and move 112e; update the progress file and issue 112; commit.
+   - Remaining parent-issue 112 work: the "both routes required" gate in the
+     converter.
+   - Then task 3: refresh the phase 1 demo, if phase 1 is complete.
+   - Pinned: the W bridge until there's a custom client (record in the W01 issue
+     that the stock-client patch MPQ route waits).
+
+8. **Current Work**
+
+   Implementing 112e Route B:
+   - Discovery and current revisions are done.
+   - `route-b-report.lua` has just been written; it hasn't been run.
+   - The old-revision fetch was started in the background:
+     `luajit src/cli/route-b-fetch.lua old …/scratchpad/differing.txt > …/scratchpad/rb2.log`
+     Its log is at `/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/rb2.log`; the old cache count was 6 at last check.
+   - The last message to the user said the old revisions were being fetched
+     "about 25 minutes in the background", and that I'm writing the report tool
+     meanwhile.
+   - Uncommitted files: the 112e issue, the 112 edit, .gitignore,
+     wc3-installs/README.md, route_b_fields.lua, route_b.lua, route-b-fetch.lua,
+     route-b-report.lua.
+
+9. **Optional Next Step**
+
+   Wait for task b2t6dbu1l to complete, then:
+   1. Run `luajit src/cli/route-b-report.lua` and review
+      `tmp/shared-memory/route-b/report.md`.
+   2. Investigate and categorise the remaining mismatches (patch-version
+      difference, wiki error, or parser bug) and record the findings in 112e.
+   3. Add the tests and .info.md files, then complete and commit 112e.
+
+   This follows the user's latest instruction: "let's do this one but let's do
+   +/- 1-2 seconds for each request. Then let's cache it on disk." It is task 1
+   of "let's start with 1, then 3 if phase 1 is complete".
+
+If you need specific details from before compaction (like exact code snippets,
+error messages, or content you generated), read the full transcript at:
+/home/ritz/.claude/projects/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e.jsonl
+Continue the conversation from where it left off without asking the user any
+further questions. Resume directly — do not acknowledge the summary, do not
+recap what was happening, do not preface with "I'll continue" or similar. Pick
+up the last task as if the break never happened.
+
+--------------------------------------------------------------------------------
+
+`/compact` - Compacted (ctrl+o to see full summary)
+
+--------------------------------------------------------------------------------
+
+### User Request 52
+
+please continue
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 52
+
+> The old-revision fetch is at 39 of 153 pages. The report reads only the cache,
+> so I'll run it now on what's there.
+
+> I'm writing Route B's tests while the old pages download. Knight isn't cached
+> yet, so the real-page check will skip for now.
+
+> It found a real bug: the last field picks up a trailing blank line, left over
+> from the newline before the closing braces. I'll trim each field when the box
+> is read.
+
+> Now the `.info.md` files. First a neighbour's shape:
+
+> Old pages: 50 of 153. Meanwhile I'm checking the disagreements that remain
+> even on pages as they stood under 1.29.2, starting with the bear-form Druid:
+
+> Objects compared fell from 570 to 568. I'll find which two pages the new
+> reader lost:
+
+> Old revisions write the template as `Infobox_building`; MediaWiki treats `_`
+> and a space as the same. The drop came from these newly arrived old pages, not
+> from the new reader. I'll normalise it:
+
+> The old building pages have no `id` field. I'll see what they carry instead:
+
+> Old building pages use an older infobox layout: no id, and different names
+> (`buildtime`, `foodsupply`). I'll list every field name the old pages use that
+> the field map doesn't know:
+
+> Now the name pairing and the unpaired list in `route_b.lua`:
+
+> Now the unpaired section in the report:
+
+> 85 pages left, about 15 minutes. Meanwhile I'll read the 112e issue so it's
+> ready to update:
+
+> Ancient of War, Ancient Protector and Boneyard show no revision before
+> 2018-08-08, which is suspicious for core buildings. I'll count how many old
+> fetches came back empty:
+
+> Only 5 of 88 fetched pages have no 2018 revision; the rest came back with
+> text. The flagging is still worth doing, so I'll carry "no revision before
+> 1.30" into the report:
+
+The refetch list now has 92 pages: the ~77 the running fetch hasn't reached yet,
+plus about 15 new ones (only-on-wiki and unpaired pages). When the current run
+finishes, I'll give the fetcher this list; it skips anything already cached.
+
+Status so far:
+- **Parser fixes, each with a test** (15 pass):
+  - fields are now cut at every top-level `|`, as MediaWiki does, which fixes
+    two item pages that put several fields on one line;
+  - the older `Infobox_building` spelling is accepted;
+  - a trailing blank line no longer sticks to the last field.
+- **Pairing by name.** The 2018 building pages carry no id, so they are now
+  paired by name through the game's race name files. Pages that still can't be
+  paired are listed with the reason (11, mostly items added after 1.29.2).
+- **New fields.** The splash fields (radii and damage fractions) are now
+  compared.
+- **Disagreements explained so far:**
+  - **Druid forms:** the wiki shows fully researched values. Bear-form HP is 810
+    + 2 × 75 = 960, and mana is 200 + 2 × 100 = 400, which matches the game's
+    research table.
+  - **Destroyer:** the page writes mana regen as `03`, a lost minus sign; the
+    game has −3.
+
+I'll resume when the background fetch reports done (~13 min).
 
 --------------------------------------------------------------------------------
 
