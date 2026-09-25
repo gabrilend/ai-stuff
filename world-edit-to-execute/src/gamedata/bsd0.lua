@@ -15,7 +15,7 @@ patch and confirmed against real base files):
   3  uint8   kind: 0x01 = the whole new file follows; 0x04 = a BSD0 diff follows
                  (run-length packed); 0x02 = a BSDIFF40 diff follows as is, with no
                  size word and no packing (two entries in Reign of Chaos 1.18a-1.20e);
-                 0x00 = an older diff format, not yet read (issue 112d)
+                 0x00 = the oldest diff format, copy-and-insert (1.01-1.14b; below)
   4  uint32  CRC32 of the old file (0 for whole files)
   8  uint32  size of the old file (0 for whole files)
  12  uint32  size of the new file
@@ -58,6 +58,7 @@ local M = {}
 
 M.KIND_WHOLE = 0x01
 M.KIND_DIFF = 0x04
+M.KIND_DIFF_OLDEST = 0x00     -- the copy-and-insert diff of 1.01-1.14b (see below)
 M.KIND_DIFF_UNPACKED = 0x02   -- a BSDIFF40 diff stored as is (Reign of Chaos 1.18a-1.20e, rarely)
 local HEADER_SIZE = 24
 
@@ -219,6 +220,158 @@ local function apply_bsdiff(patch, patch_size, old, old_size, expected_new_size)
 end
 -- }}}
 
+-- {{{ The oldest diff format (entry kind 0x00; patches 1.01 to 1.14b)
+--[[
+Worked out 2026-09-25 (issue 112d) by lining up known answers: files a
+1.14b diff produced that no later patch changed appear byte for byte in the
+1.19a layer. The rules below rebuild all 110 such files (six more differ
+only by edits later patches made, a fixed typo, tuned numbers), and every
+kind 0x00 diff in 1.14b (178), 1.11 (110) and Reign of Chaos 1.01 (9) and
+1.06 (36) decodes to its declared size.
+
+After the 24-byte header: two uint32 lengths, then two blocks of exactly
+those lengths.
+
+Block A rebuilds the file from records. Each starts with a little-endian
+uint16: the top two bits are the record's type, the low 14 its length.
+  type 0  insert: the next `length` bytes, as they are
+  type 1  copy `length` bytes from the old file; a signed number follows,
+          which changes the running offset (old position - new position)
+  type 2  the same copy, adding a constant to every 16-bit word copied: the
+          constant is the last two-byte insert (model files, whose index
+          lists shift when vertices are added: 01 00 02 00 -> 05 00 06 00)
+  type 3  `length` zero bytes (padding); no number follows
+Block B then adds to 16-bit little-endian words of the rebuilt file, in
+groups by amount, in ascending order of amount: a signed number (the first
+group's amount) or an unsigned one (each later group's increase), then
+unsigned position steps from 0 until a zero; a zero amount ends the list.
+
+Numbers are variable length, low bits first, each form's later bytes
+little-endian:
+  0xxxxxxx                 7 bits
+  10xxxxxx + 1 byte        6 bits + byte * 64
+  110xxxxx + 2 bytes       5 bits + uint16 * 32
+  1110xxxx + 3 bytes       4 bits + uint24 * 16 (not seen yet; by pattern)
+Signed numbers take the last part as two's complement (0x68 is -24; a4 0c
+is 804; b4 f3 is -780); unsigned ones don't (0x74 is 116).
+]]
+
+-- {{{ local function varnum
+-- Reads a variable-length number at 1-based pos in s; returns it and the
+-- next position. signed: whether the last part is two's complement.
+local function varnum(s, pos, signed)
+    local b = s:byte(pos)
+    if not b then
+        error("diff ends inside a number")
+    end
+    local low, rest, rest_bits, next_pos
+    if b < 0x80 then
+        low, rest, rest_bits, next_pos = 0, b, 7, pos + 1
+        if signed and rest >= 64 then rest = rest - 128 end
+        return rest, next_pos
+    elseif b < 0xC0 then
+        low, rest, rest_bits, next_pos = b % 64, s:byte(pos + 1), 8, pos + 2
+        return low + ((signed and rest >= 128) and rest - 256 or rest) * 64, next_pos
+    elseif b < 0xE0 then
+        rest = s:byte(pos + 1) + s:byte(pos + 2) * 256
+        return (b % 32) + ((signed and rest >= 32768) and rest - 65536 or rest) * 32, pos + 3
+    end
+    rest = s:byte(pos + 1) + s:byte(pos + 2) * 256 + s:byte(pos + 3) * 65536
+    return (b % 16) + ((signed and rest >= 8388608) and rest - 16777216 or rest) * 16, pos + 4
+end
+-- }}}
+
+-- {{{ local function apply_kind0
+local function apply_kind0(entry, old, new_size)
+    local a_length = u32(entry, HEADER_SIZE + 1)
+    local b_length = u32(entry, HEADER_SIZE + 5)
+    local a_first = HEADER_SIZE + 9
+    if a_first + a_length + b_length - 1 > #entry then
+        return nil, "diff blocks run past the end of the entry"
+    end
+    local A = entry:sub(a_first, a_first + a_length - 1)
+    local B = entry:sub(a_first + a_length, a_first + a_length + b_length - 1)
+    local new = ffi.new("uint8_t[?]", new_size + 1)   -- +1: a word add may touch the last byte's neighbour
+    local old_size = #old
+    local new_pos, offset, word_add = 0, 0, 0
+    local pos = 1
+    while pos <= #A do
+        if pos + 1 > #A then
+            return nil, "record header cut short"
+        end
+        local w = A:byte(pos) + A:byte(pos + 1) * 256
+        pos = pos + 2
+        local kind, length = bit.rshift(w, 14), bit.band(w, 0x3FFF)
+        if new_pos + length > new_size then
+            return nil, "diff writes past the end of the new file"
+        end
+        if kind == 0 then
+            if pos + length - 1 > #A then
+                return nil, "insert runs past the end of the diff"
+            end
+            ffi.copy(new + new_pos, A:sub(pos, pos + length - 1), length)
+            if length == 2 then
+                word_add = A:byte(pos) + A:byte(pos + 1) * 256
+            end
+            pos = pos + length
+        elseif kind == 3 then
+            ffi.fill(new + new_pos, length, 0)
+        else
+            local change
+            change, pos = varnum(A, pos, true)
+            offset = offset + change
+            local from = new_pos + offset
+            if from < 0 or from + length > old_size then
+                return nil, "copy reaches outside the old file"
+            end
+            ffi.copy(new + new_pos, old:sub(from + 1, from + length), length)
+            if kind == 2 then
+                for i = 0, length - 2, 2 do
+                    local word = (new[new_pos + i] + new[new_pos + i + 1] * 256 + word_add) % 65536
+                    new[new_pos + i] = word % 256
+                    new[new_pos + i + 1] = bit.rshift(word, 8)
+                end
+            end
+        end
+        new_pos = new_pos + length
+    end
+    if new_pos ~= new_size then
+        return nil, string.format("diff makes %d bytes, header says %d", new_pos, new_size)
+    end
+
+    pos = 1
+    local amount, first_group = 0, true
+    while pos <= #B do
+        local change
+        change, pos = varnum(B, pos, first_group)
+        if change == 0 then
+            break
+        end
+        first_group = false
+        amount = amount + change
+        local at = 0
+        while true do
+            local step
+            step, pos = varnum(B, pos, false)
+            if step == 0 then
+                break
+            end
+            at = at + step
+            if at >= new_size then
+                return nil, "word addition past the end of the new file"
+            end
+            local word = (new[at] + new[at + 1] * 256 + amount) % 65536
+            new[at] = word % 256
+            if at + 1 < new_size then
+                new[at + 1] = bit.rshift(word, 8)
+            end
+        end
+    end
+    return ffi.string(new, new_size)
+end
+-- }}}
+-- }}}
+
 -- {{{ function M.apply
 -- entry: the whole patch entry (header and payload), as a string.
 -- old: the old file's bytes (string), required for diffs, ignored for whole files.
@@ -240,7 +393,7 @@ function M.apply(entry, old, run_step)
         return body
     end
 
-    if header.kind ~= M.KIND_DIFF and header.kind ~= M.KIND_DIFF_UNPACKED then
+    if header.kind ~= M.KIND_DIFF and header.kind ~= M.KIND_DIFF_UNPACKED and header.kind ~= M.KIND_DIFF_OLDEST then
         return nil, string.format("unknown entry kind 0x%02X", header.kind)
     end
     if old == nil then
@@ -252,6 +405,10 @@ function M.apply(entry, old, run_step)
     local crc = M.crc32(old)
     if crc ~= header.old_crc then
         return nil, string.format("old file CRC32 0x%08X, diff expects 0x%08X", crc, header.old_crc)
+    end
+
+    if header.kind == M.KIND_DIFF_OLDEST then
+        return apply_kind0(entry, old, header.new_size)
     end
 
     -- Kind 0x02: the BSDIFF40 diff is stored as is, right after the header.

@@ -128,6 +128,31 @@ do
     local new_bytes, err = bsd0.apply(entry, old)
     test("an unpacked diff (kind 0x02) applies", new_bytes == "BCDEFGHI!?", tostring(new_bytes or err))
 end
+-- Kind 0x00, the oldest diff format (1.01-1.14b): records in block A (insert,
+-- copy with a running offset, copy adding the last two-byte insert to every
+-- word, zeros), then block B's 16-bit additions grouped by ascending amount.
+do
+    local function u16(n) return string.char(n % 256, math.floor(n / 256)) end
+    local function u32(n)
+        return string.char(n % 256, math.floor(n / 256) % 256, math.floor(n / 65536) % 256, math.floor(n / 16777216) % 256)
+    end
+    local base = "\1\0\2\0\3\0" .. "HELLO"
+    local A = u16(0x4000 + 6) .. "\0"            -- copy 6 bytes from old, running offset 0
+        .. u16(2) .. "\4\0"                     -- insert 04 00 (also sets the word add to 4)
+        .. u16(0x8000 + 6) .. "\120"             -- copy 6 adding 4 per word; offset -8 (0x78) reads old 0..5
+        .. u16(0xC000 + 3)                        -- three zero bytes
+    -- block B: amount -1 (0x7f, signed) at position 1; then an increase of 2
+    -- (unsigned) to +1 at position 4; zero ends the list
+    local B = "\127\1\0" .. "\2\4\0" .. "\0"
+    local new_size = 6 + 2 + 6 + 3
+    local entry = header(0x00, bsd0.crc32(base), #base, new_size) .. u32(#A) .. u32(#B) .. A .. B
+    local got, err = bsd0.apply(entry, base)
+    -- after A: 01 00 02 00 03 00 | 04 00 | 05 00 06 00 07 00 | 00 00 00
+    -- B: word at 1 (00 02) - 1 = 01 ff -> bytes ff 01; word at 4 (03 00) + 1 -> 04 00
+    local want = "\1\255\1\0\4\0" .. "\4\0" .. "\5\0\6\0\7\0" .. "\0\0\0"
+    test("a hand-built oldest-format diff (all four record kinds, word additions) applies", got == want,
+        tostring(err) .. " " .. (got and got:gsub(".", function(c) return string.format("%02x ", c:byte()) end) or ""))
+end
 local overrun = diff_entry(old, { { 20, 0, 0 } }, string.rep("\0", 4), "", 20)
 local _, overrun_err = bsd0.apply(overrun, old)
 test("a diff adding more than its data block holds is refused, not read past",
@@ -386,13 +411,48 @@ else
         skip("Reign of Chaos stack", "build it: build-patch-layer.lua --stack --game roc")
     end
 
+    -- The oldest diff format, on real data: 1.14b's diff of
+    -- Melee_V0\Units\UndeadUpgradeStrings.txt, applied to the disc's copy,
+    -- gives exactly the file the 1.14b layer holds, and that file is the same
+    -- in the 1.19a layer (no later patch touched it): a known answer.
+    if exists(LAYERS .. "/1.14b/manifest.lua") and exists(LAYERS .. "/1.19a/manifest.lua") then
+        local rel = "archive/Melee_V0/Units/UndeadUpgradeStrings.txt"
+        local a = io.open(LAYERS .. "/1.14b/" .. rel, "rb"); local b = io.open(LAYERS .. "/1.19a/" .. rel, "rb")
+        local da, db = a and a:read("*a"), b and b:read("*a")
+        if a then a:close() end
+        if b then b:close() end
+        test("1.14b's oldest-format diff rebuilds the file later versions still hold", da ~= nil and da == db)
+        -- Only the program binaries over a megabyte are left unbuilt (issue 112d).
+        for _, v in ipairs({ "1.11", "1.14b" }) do
+            local m = dofile(LAYERS .. "/" .. v .. "/manifest.lua")
+            local names = {}
+            for _, nb in ipairs(m.not_built or {}) do names[#names + 1] = nb.target:lower() end
+            table.sort(names)
+            test(v .. " leaves only game.dll, war3.exe and worldedit.exe unbuilt, and says so",
+                table.concat(names, ",") == "game.dll,war3.exe,worldedit.exe", table.concat(names, ","))
+        end
+    else
+        skip("oldest diff format on real data", "build the stack: build-patch-layer.lua --stack")
+    end
+    if exists(ROC_LAYERS .. "/1.06/manifest.lua") then
+        local m = dofile(ROC_LAYERS .. "/1.06/manifest.lua")
+        test("Reign of Chaos 1.06 builds from its oldest-format patch", m.counts.archive > 300, tostring(m.counts.archive))
+    end
+    -- The disc install is itself version 1.07: a map saved by the disc's
+    -- editor (6031) reads the disc with no layer.
+    local disc = chain.open({ install = INSTALL, layers = LAYERS,
+        w3i = { version = 25, editor_version = 6031, game_data_set = 1, flags = { melee_map = false } } })
+    test("editor 6031 reads the 1.07 disc as it is", disc.layer == nil and disc.layer_reason:match("disc install is 1.07") ~= nil,
+        tostring(disc.layer) .. " " .. tostring(disc.layer_reason))
+    disc:close()
+
     -- Every editor build in the evidence table names a built layer.
     local table_ = dofile(DIR .. "/src/gamedata/editor_versions.lua")
     for build, row in pairs(table_) do
         local ok_pick, c = pcall(chain.open, { install = INSTALL, layers = LAYERS,
             w3i = { version = 25, editor_version = build, game_data_set = 1, flags = { melee_map = false } } })
-        test("editor " .. build .. " (" .. row.from .. "-" .. row.to .. ") has a built layer", ok_pick,
-            ok_pick and c.layer or tostring(c))
+        test("editor " .. build .. " (" .. row.from .. "-" .. row.to .. ") has a built layer or the disc", ok_pick,
+            ok_pick and tostring(c.layer) or tostring(c))
         if ok_pick then c:close() end
     end
 end

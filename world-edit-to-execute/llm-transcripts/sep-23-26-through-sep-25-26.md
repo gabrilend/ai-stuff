@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 10:44:33
+Generated on: 2026-09-25 10:47:30
 Models: claude-opus-5-5
 
 ## Contents
@@ -4390,6 +4390,39 @@ us.
 
 Should I run that language check next? It's cheap, and it could close most of
 the gaps at once.
+
+--------------------------------------------------------------------------------
+
+### User Request 41
+
+sounds great.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 41
+
+> Running the check: German 1.24e against our English 1.24e layer, comparing the
+> game-data tables (`.slk` files and the `*Func.txt` profile files). First, the
+> German program.
+
+The balance tables turned out not to depend on language, but that doesn't unlock
+any missing version yet. It's recorded in the sub-issue (commit `76d8e305e`),
+and the repository is clean.
+
+What that means for the remaining gaps:
+- **Other languages:** a German or French patch could supply a version's balance
+  tables, but not its English text. If one is ever used, its layer has to say
+  which text it lacks, rather than letting the chain quietly read older English
+  text from below.
+- **The one path left** to more supported versions is the oldest diff format,
+  kind `0x00`. It unlocks Reign of Chaos 1.01–1.11 (the pre-expansion balance
+  from 2002–2003), including the German and French 1.12 and 1.13, plus Frozen
+  Throne 1.11 and 1.14b.
+- **Its difficulty is open:** the framing is worked out, but not how the copy
+  offsets and lengths are packed.
+
+Should I start on it? If it resists, I'll stop at a clear point and write up
+what I've learned, rather than sink unlimited time into it.
 
 --------------------------------------------------------------------------------
 

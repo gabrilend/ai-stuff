@@ -152,19 +152,39 @@ end
 -- }}}
 
 -- {{{ local function open_patch
--- Opens a patch program's nested archive (named in its mpqs.lst), unpacked
--- into scratch. Returns the open archive and the unpacked file's path.
+-- Opens a patch program's nested archive, unpacked into scratch. Returns the
+-- open archive and the unpacked file's path. From 1.14b the outer archive
+-- names it in mpqs.lst. Programs from 1.11 and before have no names in their
+-- outer archive (File00000003.mpq and so on), so the patch is found by
+-- content: the one inner archive holding a non-empty patch.lst (the small
+-- archives beside it hold none).
 local function open_patch(patch_program, scratch)
     local outer = stormlib.open(patch_program)
-    local nested_name = parse_list(outer:read("mpqs.lst"))[1]:match("^%s*(.-)%s*$")
     ensure_folder(scratch)
-    local nested_path = scratch .. "/" .. nested_name
-    outer:extract(nested_name, nested_path)
+    if outer:has("mpqs.lst") then
+        local nested_name = parse_list(outer:read("mpqs.lst"))[1]:match("^%s*(.-)%s*$")
+        local nested_path = scratch .. "/" .. nested_name
+        outer:extract(nested_name, nested_path)
+        outer:close()
+        return stormlib.open(nested_path), nested_path
+    end
+    for _, e in ipairs(outer:list("*")) do
+        if e.name:match("%.mpq$") then
+            local nested_path = scratch .. "/" .. e.name
+            outer:extract(e.name, nested_path)
+            local nested = stormlib.open(nested_path)
+            if nested:has("patch.lst") and #parse_list(nested:read("patch.lst")) > 0 then
+                outer:close()
+                return nested, nested_path
+            end
+            nested:close()
+            os.remove(nested_path)
+        end
+    end
     outer:close()
-    return stormlib.open(nested_path), nested_path
+    error(patch_program .. ": no mpqs.lst, and no inner archive holds a patch.lst")
 end
 -- }}}
-
 -- {{{ local function file_version
 -- The file version stamped in a Windows program (its VS_FIXEDFILEINFO block,
 -- found by the 0xFEEF04BD signature): four integers, or nil when absent.
@@ -188,9 +208,14 @@ end
 -- are all newer programs. A script with no version check is an error.
 local FIRST_BUILD_WITH_STEP_1 = 6263   -- 1.21a
 local function run_step_for(script, patch_program)
+    -- FileVersionLessThan names a threshold, FileVersionEqualTo (1.01b's) the
+    -- one version it patches. Either build number tells the diff format, even
+    -- when the line is commented out with a leading "*", as incremental
+    -- patches do (they rely on each file's base CRC32 instead).
     local stated = script:match("FileVersionLessThan%s+\"[^\"]*\"%s+([%d%.]+)")
+        or script:match("FileVersionEqualTo%s+\"[^\"]*\"%s+([%d%.]+)")
     if not stated then
-        error(patch_program .. ": patch.cmd has no FileVersionLessThan check to tell its diff format by")
+        error(patch_program .. ": patch.cmd has no active version check to tell its diff format by")
     end
     local build = tonumber(stated:match("(%d+)$"))
     if build < FIRST_BUILD_WITH_STEP_1 then
@@ -215,11 +240,17 @@ end
 function M.target_version(patch_program, scratch, install)
     local patch, nested_path = open_patch(patch_program, scratch)
     local script = patch:read("patch.cmd")
-    local checked_file, stated = script:match("FileVersionLessThan%s+\"[^\"]-\\?([^\\\"]+)\"%s+([%d%.]+)")
+    local check = "LessThan"
+    local checked_file, stated = script:match("\nFileVersionLessThan%s+\"[^\"]-\\?([^\\\"]+)\"%s+([%d%.]+)")
+    if not checked_file then
+        check = "EqualTo"
+        checked_file, stated = script:match("\nFileVersionEqualTo%s+\"[^\"]-\\?([^\\\"]+)\"%s+([%d%.]+)")
+    end
     if not checked_file then
         patch:close()
         os.remove(nested_path)
-        error(patch_program .. ": patch.cmd has no FileVersionLessThan check naming the game's program")
+        error(patch_program .. ": patch.cmd has no active version check naming the game's program"
+            .. " (an incremental patch with its check commented out belongs in patch-programs/incremental/)")
     end
     local entry
     for _, line in ipairs(parse_list(patch:read("patch.lst"))) do
@@ -235,10 +266,19 @@ function M.target_version(patch_program, scratch, install)
     end
     local header = assert(bsd0.read_header(entry))
     local old = nil
-    if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED then
+    if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED or header.kind == bsd0.KIND_DIFF_OLDEST then
         old = read_file(install_index(install)[checked_file:lower()] or "")
     end
     local new, err = bsd0.apply(entry, old, run_step_for(script, patch_program))
+    if not new and header.kind == bsd0.KIND_DIFF_OLDEST then
+        -- The known gap above: a large War3.exe in the oldest diff format
+        -- can't be rebuilt, so the version is the script's threshold, which
+        -- before 1.21 names the version made or one just below it. The third
+        -- value returned says which route gave the version.
+        local parts = {}
+        for n in stated:gmatch("%d+") do parts[#parts + 1] = tonumber(n) end
+        return stated, parts, "patch.cmd threshold (" .. checked_file .. " not rebuilt: " .. err .. ")"
+    end
     if not new then
         error(patch_program .. ": can't rebuild " .. checked_file .. " to read its version: " .. err)
     end
@@ -255,11 +295,11 @@ function M.target_version(patch_program, scratch, install)
     -- (from 1.25b) is a placeholder meaning any version.
     local stated_major, stated_minor = stated:match("^(%d+)%.(%d+)")
     local placeholder = tonumber(stated_major) == 1 and tonumber(stated_minor) >= 99
-    if not placeholder and parts[4] < tonumber(stated:match("(%d+)$")) then
+    if check == "LessThan" and not placeholder and parts[4] < tonumber(stated:match("(%d+)$")) then
         error(string.format("%s: patch.cmd's threshold is %s but the %s it writes is older, %s",
             patch_program, stated, checked_file, version))
     end
-    return version, parts
+    return version, parts, "the " .. checked_file .. " it writes"
 end
 -- }}}
 
@@ -373,7 +413,7 @@ function M.build(options)
         local header = assert(bsd0.read_header(entry))
 
         local old, base_from = nil, nil
-        if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED then
+        if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED or header.kind == bsd0.KIND_DIFF_OLDEST then
             old, base_from = find_base(header, place, target)
             if not old then
                 error(string.format("%s: diff needs %s at %d bytes with CRC32 %08x; tried %s", source, target,
@@ -382,12 +422,26 @@ function M.build(options)
         end
 
         local new, err = bsd0.apply(entry, old, run_step)
+        -- One known gap (issue 112d): in the oldest diff format, the three
+        -- program binaries over a megabyte (War3.exe, Game.dll,
+        -- WorldEdit.exe in 1.01-1.14b) don't decode; large copy offsets work
+        -- some way not yet understood, and no later copy of those files
+        -- exists to check against. They aren't game data (the chain reads
+        -- only archive files), so such a loose install file is recorded as
+        -- not built, with the reason, in the manifest and on screen. Any
+        -- other entry that fails stops the build.
+        if not new and place == "install" and header.kind == bsd0.KIND_DIFF_OLDEST
+            and target:lower():match("%.[ed][xl][el]$") then
+            manifest.not_built = manifest.not_built or {}
+            manifest.not_built[#manifest.not_built + 1] = { target = target, reason = err }
+            goto continue
+        end
         if not new then
             error(string.format("%s -> %s: %s", source, target, err))
         end
         write_file(options.output .. "/" .. place .. "/" .. target:gsub("\\", "/"), new)
 
-        local kind = (header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED) and "diff" or "whole"
+        local kind = (header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED or header.kind == bsd0.KIND_DIFF_OLDEST) and "diff" or "whole"
         counts[place] = counts[place] + 1
         counts[kind] = counts[kind] + 1
         manifest.entries[#manifest.entries + 1] = {
@@ -398,6 +452,7 @@ function M.build(options)
             size = #new,
             crc32 = bsd0.crc32(new),
         }
+        ::continue::
     end
     patch:close()
     for _, a in ipairs(archives) do a.archive:close() end
