@@ -5,6 +5,13 @@ Warcraft III map files (.w3m/.w3x). This document covers the format as used by W
 
 ---
 
+> **How the project reads this format:** through StormLib
+> (`src/mpq/stormlib.lua`, wrapped by the `mpq` module), since issue 114.
+> The project's own Lua reader, which this document was written alongside,
+> was retired then; its source is in git history (`src/mpq/*.lua-done` for
+> one commit). This document stays as the description of the format and of
+> how Blizzard's game reads it, which is where any future replacement starts.
+
 ## Overview
 
 MPQ archives are read-optimized containers using hash-based file lookup. Key features:

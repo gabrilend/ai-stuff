@@ -24,13 +24,10 @@ NC='\033[0m'
 
 # {{{ find_lua
 # Find appropriate lua interpreter
+# LuaJIT only: Maps are read through StormLib (issue 114), whose binding needs LuaJIT's FFI; no other interpreter can run this.
 find_lua() {
     if command -v luajit &>/dev/null; then
         echo "luajit"
-    elif command -v lua5.4 &>/dev/null; then
-        echo "lua5.4"
-    elif command -v lua &>/dev/null; then
-        echo "lua"
     else
         echo ""
     fi
@@ -47,7 +44,7 @@ main() {
     fi
 
     if [[ -z "$LUA_CMD" ]]; then
-        echo -e "${RED}ERROR: No lua interpreter found (need luajit, lua5.4, or lua)${NC}"
+        echo -e "${RED}ERROR: luajit not found (maps are read through StormLib, which needs LuaJIT)${NC}"
         exit 1
     fi
 

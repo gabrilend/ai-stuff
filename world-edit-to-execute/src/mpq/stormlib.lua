@@ -1,12 +1,13 @@
 --[[
 stormlib.lua - LuaJIT binding to StormLib, the reference MPQ library
 
-Why this exists beside our own reader (src/mpq/): our reader handles WC3 map
-archives, which use zlib and PKWARE compression. Blizzard's game and patch
-archives also use bzip2 and other methods, and patch programs carry their
-archive embedded partway into an .exe. StormLib reads all of those, so this
-binding is how the project reads stock game data and patch contents
-(issue 112a). StormLib itself is built by scripts/build-dependencies.sh.
+Why this exists: it is how the project reads every MPQ archive. Maps go
+through src/mpq/init.lua (the mpq module), which wraps this binding; stock
+game archives, patch programs and the per-map game data chain use it
+directly (issues 112a, 114). It replaced the project's own Lua reader after
+a coverage check: over the 16 test maps it reads every stored file (2,786),
+including 2,416 with no known name. StormLib itself is built by
+scripts/build-dependencies.sh.
 
 StormLib finds an archive embedded in another file by itself: it scans the
 file for the MPQ signature at 512-byte steps, so an .exe can be opened
@@ -70,7 +71,7 @@ local lib = nil
 
 -- {{{ local function load_library
 -- Loads libstorm.so once. A missing library is an error naming the build
--- script, never a silent switch to our own reader.
+-- script; there is no other reader to switch to.
 local function load_library(path)
     if lib then return lib end
     local ok, loaded = pcall(ffi.load, path or DEFAULT_LIB)
@@ -109,10 +110,30 @@ end
 -- sometimes plant duplicate entries to confuse editors.
 function Archive:list(mask, listfile)
     local L = lib
+    -- An empty extra listfile made StormLib's search find nothing at all, and
+    -- the list came back empty without a word (issue 114). A listfile given
+    -- must exist and hold something.
+    if listfile then
+        local f = io.open(listfile, "rb")
+        if not f then
+            error(self.path .. ": extra listfile " .. listfile .. " doesn't exist")
+        end
+        local size = f:seek("end")
+        f:close()
+        if size == 0 then
+            error(self.path .. ": extra listfile " .. listfile .. " is empty")
+        end
+    end
     local data = ffi.new("SFILE_FIND_DATA")
     local find = L.SFileFindFirstFile(self.handle, mask or "*", data, listfile)
     local out = {}
     if find == nil then
+        -- "No more files" (1001 in StormPort.h) is a genuinely empty result;
+        -- any other failure is an error.
+        local code = L.SErrGetLastError()
+        if code ~= 1001 then
+            error(string.format("%s: listing %s failed (error %d)", self.path, mask or "*", code))
+        end
         return out
     end
     repeat

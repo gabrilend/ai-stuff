@@ -67,7 +67,6 @@ local function run_tests()
         print("")
         print("  Archive info:")
         print("    File size: " .. info.file_size .. " bytes")
-        print("    Archive size: " .. info.archive_size .. " bytes")
         print("    File count: " .. info.file_count)
         if info.map_name then
             print("    Map name: " .. info.map_name)
@@ -130,16 +129,33 @@ local function run_tests()
         end
     end) then passed = passed + 1 else failed = failed + 1 end
 
-    -- Test 7: Get block info
-    if test("archive:get_block_info()", function()
-        local block, err = archive:get_block_info("war3map.w3i")
-        assert(block, "get_block_info failed: " .. tostring(err))
-        assert(block.uncompressed_size > 0, "block should have size")
+    -- Test 7: Every stored file is listed and readable, named or not. Maps
+    -- read through StormLib (issue 114); files with no known name appear as
+    -- "File00000041.blp", and a name stored twice (a protected map's trick)
+    -- is listed once by name and once per copy by position.
+    if test("every stored file listed and read", function()
+        local names = archive:list()
+        local unreadable = {}
+        for _, name in ipairs(names) do
+            if not archive:extract(name) then unreadable[#unreadable + 1] = name end
+        end
+        assert(#unreadable == 0, "unreadable: " .. table.concat(unreadable, ", "))
+        assert(#names >= archive:file_count(), "fewer names than stored files")
         print("")
-        print("    war3map.w3i block:")
-        print("      Compressed: " .. block.compressed_size .. " bytes")
-        print("      Uncompressed: " .. block.uncompressed_size .. " bytes")
-        print("      Encrypted: " .. tostring(block.flags.encrypted))
+        print("    " .. #names .. " names, " .. archive:file_count() .. " stored files, all read")
+    end) then passed = passed + 1 else failed = failed + 1 end
+
+    if test("a protected map's hidden duplicate is reachable (DAoW-5.2)", function()
+        local p = DIR .. "/assets/DAoW-5.2.w3x"
+        local dup = assert(mpq.open(p))
+        local by_name = assert(dup:extract("war3map.w3d"))
+        local first = assert(dup:extract("File00000123.w3d"))
+        local hidden = assert(dup:extract("File00000131.w3d"))
+        dup:close()
+        -- The game reads the name's last match (block 123); block 131 is an
+        -- encrypted copy StormLib decrypts without knowing its name.
+        assert(by_name == first, "the name should give the copy the game reads")
+        assert(hidden ~= first and hidden:byte(1) == 2, "the hidden copy should be a separate object file")
     end) then passed = passed + 1 else failed = failed + 1 end
 
     -- Test 8: Close archive

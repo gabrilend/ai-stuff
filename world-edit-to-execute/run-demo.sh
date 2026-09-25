@@ -180,14 +180,10 @@ run_phase1_demo() {
         return 1
     fi
 
-    # Find lua interpreter (prefer lua5.4 or lua for string.unpack support)
-    local lua_cmd=""
-    if command -v lua5.4 &>/dev/null; then
-        lua_cmd="lua5.4"
-    elif command -v lua &>/dev/null; then
-        lua_cmd="lua"
-    else
-        echo -e "${RED}ERROR: No lua interpreter found${NC}"
+    # LuaJIT only: Maps are read through StormLib (issue 114), whose binding needs LuaJIT's FFI; no other interpreter can run this.
+    local lua_cmd="luajit"
+    if ! command -v luajit &>/dev/null; then
+        echo -e "${RED}ERROR: luajit not found (maps are read through StormLib, which needs LuaJIT)${NC}"
         return 1
     fi
 
@@ -214,16 +210,10 @@ run_phase2_demo() {
         return 1
     fi
 
-    # Find lua interpreter (prefer luajit for Phase 2)
-    local lua_cmd=""
-    if command -v luajit &>/dev/null; then
-        lua_cmd="luajit"
-    elif command -v lua5.4 &>/dev/null; then
-        lua_cmd="lua5.4"
-    elif command -v lua &>/dev/null; then
-        lua_cmd="lua"
-    else
-        echo -e "${RED}ERROR: No lua interpreter found${NC}"
+    # LuaJIT only: Maps are read through StormLib (issue 114), whose binding needs LuaJIT's FFI; no other interpreter can run this.
+    local lua_cmd="luajit"
+    if ! command -v luajit &>/dev/null; then
+        echo -e "${RED}ERROR: luajit not found (maps are read through StormLib, which needs LuaJIT)${NC}"
         return 1
     fi
 
@@ -319,12 +309,11 @@ run_test_file() {
 
     echo -e "  ${CYAN}▶${NC} ${test_name}"
 
-    # Prefer luajit for bitwise operations (Phase 1 needs it)
-    local lua_cmd="lua"
-    if command -v luajit &>/dev/null; then
-        lua_cmd="luajit"
-    elif command -v lua5.4 &>/dev/null; then
-        lua_cmd="lua5.4"
+    # LuaJIT only: Maps are read through StormLib (issue 114), whose binding needs LuaJIT's FFI; no other interpreter can run this.
+    local lua_cmd="luajit"
+    if ! command -v luajit &>/dev/null; then
+        echo -e "${RED}ERROR: luajit not found (maps are read through StormLib, which needs LuaJIT)${NC}"
+        return 1
     fi
 
     # Run and stream output, colorizing PASS/FAIL

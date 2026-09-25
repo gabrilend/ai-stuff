@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 20:40:04
+Generated on: 2026-09-24 20:48:41
 Models: claude-opus-5-5
 
 ## Contents
@@ -3537,6 +3537,106 @@ Sources:
   key](https://www.hiveworkshop.com/threads/multiple-players-on-the-same-cd-key.313015/)
 - [PC Gamer: Reforged removes
   LAN](https://www.pcgamer.com/games/rts/warcraft-3-reforged-adds-always-online-requirement-removes-lan-mode/)
+
+--------------------------------------------------------------------------------
+
+### User Request 30
+
+> Side finding: this project's tmp/ is an ordinary folder, not your two-tier RAM
+> link. I didn't
+  change it.
+
+let's fix it.
+
+
+
+<pasted_content id="7a80">
+> Open question: which patch stopped two clients with one CD key from playing
+> together? The
+> threads I found confirm the change but name no version. The answer sets where
+> the stack ends,
+>   and whether 1.27b (and 1.26a) stay supported.
+</pasted_content id="7a80">
+
+
+check the dates on the threads, then the release dates of the patches.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 30
+
+> Starting with `tmp/`: checking what's in it, whether git tracks any of it, and
+> how your RAM-tier tool expects to be run.
+
+> The link and both RAM folders are in place. Moving the scripts in, then
+> checking git: the ignore rule `tmp/` matches only folders, and `tmp` is now a
+> link.
+
+> `tmp` is now listed as a link in `.gitignore`. Git shows only my `.gitignore`
+> change and the transcript. Now writing the cutoff finding into the patch-layer
+> issue.
+
+Both are done and committed as `577c698d3`. The repository is clean.
+
+**The cutoff, by the dates:**
+
+| Date | What happened |
+|---|---|
+| Jan 14, 2019 | 1.30.4 released |
+| Feb 24 – Mar 20, 2019 | Hive thread: one CD key works for several players on LAN |
+| May 28, 2019 | 1.31.0 released |
+| June 10, 2019 | 1.31.1 released |
+| July 5, 2019 | Blizzard forum: "after recent patches I have been unable to join my own LAN games" |
+
+So the change came with 1.31.0 or 1.31.1, and **1.30.4 is the last supported
+version**. Every MPQ-era version up to 1.29.2 is inside the line, so 1.26a and
+1.27b stay. This is inferred from two community posts rather than a changelog. A
+changelog line, or two clients tested on 1.30.4 and 1.31.0, would confirm it.
+It's recorded that way in the patch-layer issue.
+
+**`tmp/` is now the two-tier RAM layout:**
+- `tmp` is a link to `/tmp/world-edit-to-execute`, the folder for things that
+  run.
+- `tmp/shared-memory` is a link to `/dev/shm/world-edit-to-execute`, for logs
+  and output.
+- Git ignores both. The old rule matched only folders, so the link would have
+  appeared as a new file.
+- The five old debugging scripts (MPQ decompression, decryption, sector offsets)
+  moved into `tmp/tmp/`.
+
+Those five scripts are in RAM now, so the next reboot deletes them. They date
+from before StormLib replaced that debugging work. Should they go? Or should I
+save them somewhere on disk, such as `notes/`?
+
+--------------------------------------------------------------------------------
+
+### User Request 31
+
+If we're using Stormlib, then let's use that. If we want to replace it, we'll
+rewrite the functionality that we're using it for.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 31
+
+> Deleting the five scripts now. They were never tracked, so there's nothing to
+> commit.
+
+The five scripts are deleted. The only change left is this conversation's
+transcript, which will ride along with the next commit.
+
+Your rule touches something bigger. The project currently has **two** MPQ
+readers:
+- **Our own Lua reader** (the `mpq` module), which every map parser uses. Today
+  we ported Huffman and the other decompressors into it.
+- **StormLib**, used for the patch programs and the per-map game data chain. The
+  tests also compare every file of every test map against it, and all 369 match.
+
+Under "use StormLib unless we rewrite what we use it for", the own reader is
+exactly that rewrite: map reading doesn't depend on StormLib, and StormLib
+serves as the reference it's checked against. That's how things stand now. Do
+you want to keep both, or move map reading onto StormLib and retire our own
+reader?
 
 --------------------------------------------------------------------------------
 
