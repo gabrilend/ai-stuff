@@ -32,7 +32,7 @@ figures come from `luajit src/cli/route-b-report.lua` (report in
     - the Cannon Tower's splash radii are a tenth of the game's.
   - **Another form** (8 rows). The Spirit Walker's page names the ethereal
     form's id, but its attack is the corporeal form's, exactly.
-- **Not checkable:** 94 differ on 28 pages that have no revision from before
+- **Have not been checked:** 94 differ on 28 pages that have no revision from before
   1.30, so they show a later patch's numbers. Spot checks against the
   cached patch notes agree with this: Boneyard 175 → 150 gold, Nerubian Tower
   cooldown 1 → 1.3 → 1.15, Moon Well regeneration 1.5 → 1.35 → 1.45,
@@ -125,13 +125,16 @@ check, never to fill a table, never committed.
    buildings (Ziggurat, Moon Well, Boneyard, Ancient of War), which surely
    had pages in 2017. A likely cause is that the pages were written under
    other titles and later copied to these, which leaves the older history
-   behind. These 94 numbers are "not checkable" for now.
+   behind. These 94 numbers have not been checked.
 
-   Should the fetcher trace them? It would be one request per page (about
-   28, ~5 minutes at the agreed spacing), asking for each page's first
-   revision and the note written with it, then fetching the older title's
-   2018 revision where one is named. If not, they stay not checkable and the
-   issue is complete as it stands.
+   Tracing them would take one request per page (about 28, ~5 minutes at the
+   agreed spacing): ask for each page's first revision and the note written
+   with it, then fetch the older title's 2018 revision where one is named.
+
+   **The owner (2026-09-25):** "Leave them as 'have not been checked' and
+   keep the issue open. But let's move on to something else for now." The
+   report labels them so. The issue stays open until the trace is done or
+   declined.
 
 ## Related Documents
 

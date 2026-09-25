@@ -78,7 +78,7 @@ w(string.format("- Numbers both routes give: %d; agree: %d (%.1f%%), of which %d
 -- its line is kept apart from the reasons found.
 w(string.format("- Disagree, with the reason found: %d (an upgrade's cost counted over the chain: %d; investigated by hand: %d)",
     (c.upgrade_step or 0) + (c.explained or 0), c.upgrade_step or 0, c.explained or 0))
-w(string.format("- Disagree, not checkable: %d (the page was first written after 1.30, so it shows a later patch's numbers)", c.later_page or 0))
+w(string.format("- Disagree, have not been checked: %d (the page was first written after 1.30, so it shows a later patch's numbers; its 1.29.2 value is still unconfirmed)", c.later_page or 0))
 w(string.format("- Disagree, unexplained: %d (listed below, to investigate)", c.mismatch or 0))
 w(string.format("- Only on the wiki (no such object or cell in Route A): %d; unreadable on the wiki: %d", c.only_b or 0, c.unreadable or 0))
 w(string.format("- Pages not compared (no infobox, or no id and no single object by that name): %d", #r.unpaired))
@@ -139,5 +139,5 @@ f:close()
 local rf = assert(io.open(out_folder .. "/refetch.txt", "w"))
 for _, title in ipairs(r.pages_differing) do rf:write(title, "\n") end
 rf:close()
-print(string.format("%d objects; %d numbers compared, %d agree, %d differ with a reason, %d not checkable, %d unexplained (+%d only on the wiki); report: %s/report.md",
+print(string.format("%d objects; %d numbers compared, %d agree, %d differ with a reason, %d have not been checked, %d unexplained (+%d only on the wiki); report: %s/report.md",
     r.objects, compared, agree, (c.upgrade_step or 0) + (c.explained or 0), c.later_page or 0, c.mismatch or 0, c.only_b or 0, out_folder))
