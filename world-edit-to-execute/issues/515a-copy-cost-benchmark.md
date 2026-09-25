@@ -10,52 +10,78 @@
 
 ## Current Behavior
 
-Built (`src/render/ceramic/bench/`, run with `run-copy-cost.sh`; report in
-`tmp/shared-memory/ceramic/copy-cost.md`). The first run on this machine (12
-cores) gave these mean times per frame, in microseconds:
+Built and run. Two tools in `src/render/ceramic/bench/`:
 
-| Units | Plain loop | Parallel loop | Ceramic, per unit | Ceramic, per chunk of 64 |
-|-------|------------|---------------|-------------------|--------------------------|
-| 128   | 309        | 166           | 787               | 513                      |
-| 512   | 956        | 441           | 3007              | 523                      |
-| 2048  | 3606       | 1145          | 11641             | 818                      |
+- **`run-copy-cost.sh`**, the first pass: four ways, three army sizes.
+- **`run-analysis.sh`**, the full analysis. It runs six sweeps:
+  - **anatomy:** an empty task, the work with a 4-byte answer, the work with
+    its 2 KB answer;
+  - **size:** answers from 16 bytes to 120 KB;
+  - **chunk:** 1 to 256 units per task;
+  - **scale:** 1 to 11 workers;
+  - **army:** 128 to 8192 units;
+  - **herd:** one line of a scratch copy of the engine changed so each
+    hand-in wakes one sleeping worker instead of all.
 
-- **A task per unit costs about 5 µs of overhead** (2048 units: 10.5 ms over
-  the parallel loop). That's 70% of a 60 fps frame, so one task per unit is
-  ruled out.
-- **A task per 64 units matches or beats the parallel loop** from 512 units
-  on.
-- Not yet separated: how much of the 5 µs is the 2 KB copy, and how much is
-  the task itself (allocation, queueing, the host delivering requests one at
-  a time). A way that returns 4 bytes instead of the pose will separate them.
+  Every frame is timed, so each run carries percentiles as well as the mean.
+  `analysis-report.lua` writes the report and fills the viewer page
+  (`src/viewers/ceramic-analysis.html`). The live numbers come from running
+  them. The first run was published for the owner as the "Ceramic Frame
+  Budget" page.
 
-**The chunked way's poses were wrong.** Its checksum disagreed, differently
-on every run. The cause is a bug in the ceramic engine:
-- The count of collected results (`cera_map_collected`, documented as "how
-  many values landed") goes up when a result's slot is reserved, *before* its
-  bytes are copied in (`station_collect_result`).
-- So a caller that trusts the count reads results still being copied. A 2 KB
-  result finishes almost at once and hides it; a 120 KB one showed about 66
-  KB copied and the rest still zero.
-- Confirmed by waiting 1 ms after the count is reached: the poses then match
-  the plain loop exactly, run after run.
-- **The fix belongs in soramech:** a second counter that goes up after the
-  copy (with release ordering), which the count reports (read with acquire).
-  It waits on the owner's word, because nothing is written into that
-  repository without asking.
+What the measurements show, on an i7-7820X (6 physical cores, 12 threads):
 
-Other findings for soramech, met while building this:
-- **Value types can't hold number arrays**, only character arrays (text). A
-  matrix has to be 16 named floats. `pose-types.lua` writes them, and the
-  build splices them into the box file.
-- **serac's documentation names `--main=FILE`, but serac has no such
-  option.** The build instead emits the map's C (`--emit-c`, written beside
-  the map), replaces the emitted `main` with the host's, and compiles it
-  with the engine (`serac --unpack`).
-- **serac can't add linker flags** (raylib will need them); the same route
-  works around it.
-- **Collection can be re-armed per frame** by calling it again, which resets
-  the count. That's safe only with one frame in flight.
+- **The 2 KB copy costs nothing measurable.** Answers from 16 bytes to 16 KB
+  cost the same per task; only 120 KB shows copying. The owner's worry about
+  moving 2 KB in and out of shared memory doesn't appear in the numbers.
+- **One unit per task is ruled out, and handing tasks in is the whole
+  reason.**
+  - An empty task costs about 5 µs, more than the pose itself (about 1.9 µs
+    on one thread), and it is all the host handing tasks in.
+  - With one worker a hand-in costs about 0.2 µs. The cost climbs sharply
+    once the thread count passes the 6 physical cores. The host and every
+    worker share the engine's single queue lock, and past that point whoever
+    holds it shares a core with the threads waiting for it: a lock convoy.
+  - One unit per task gets *slower* with every worker past four.
+- **Chunked tasks are the right shape.**
+  - From 8 to 64 units per task the frame stays within 10% of its best:
+    about 0.67 ms for 2048 units, 4% of a 60 fps frame.
+  - That beats the hand-written fixed-slice loop by up to about 2×: a free
+    worker takes the next chunk, while fixed slices wait for the slowest
+    thread (two threads sharing a core finish late).
+  - Chunked ceramic scales to about 5× on 11 workers, close to what 6 cores
+    with hyperthreading give.
+- **Repeated runs wander by about a third** (the hand-written loop measured
+  1.2 to 1.6 ms for the same work), so smaller differences are noise.
+
+**Findings for soramech** (written up with the owner before anything goes
+into that repository):
+
+1. **Fault: collected results are counted before they are copied in.**
+   `station_collect_result` reserves the slot, raising the count that
+   `cera_map_collected` reports as "how many values landed", and only then
+   copies. Large answers were read half-copied, differently every run.
+   - The fix: a second counter raised after the copy.
+   - The workaround here: once the count is reached, wait out every worker
+     mid-task. A worker's epoch is odd inside a task, and the task includes
+     the copy. It costs about as long as the last copy.
+2. **One queue lock is shared by the host and every worker** (the lock
+   convoy above). Batched hand-ins, a queue per worker, or a lock-free queue
+   would each remove it.
+3. **Every hand-in wakes every sleeping worker** (`pthread_cond_broadcast`
+   in `cera_pool_push`). Waking one cut the one-per-task frame by up to
+   about 30%, but the lock remains the main cost.
+4. **Value types can't hold number arrays**, only character arrays. A matrix
+   is sixteen named floats, written by `pose-types.lua`.
+5. **serac documents `--main=FILE` but has no such option, and can't add
+   linker flags.** The builds emit the map's C (`--emit-c`, written beside
+   the map), replace the emitted `main`, and compile with the engine
+   (`serac --unpack`).
+6. **Collection can be re-armed per frame** by calling it again, which
+   resets the count. That's safe only with one frame in flight.
+
+**Still open:** how the chunked ceramic path compares with the 512 thread
+pool itself, rather than a stand-in loop (that's 515f's job).
 
 ## Intended Behavior
 

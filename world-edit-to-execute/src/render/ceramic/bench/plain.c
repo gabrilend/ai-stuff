@@ -10,7 +10,13 @@
  * Same checksum as ceramic-host.c, so the script can check that all four
  * ways computed the same poses.
  *
- * Usage: ./plain plain|parallel UNITS FRAMES
+ * Output: the analysis host's columns (analysis-host.c), so the two sides
+ * line up: way, units, 0, threads, frames, mean / 50th / 95th / 99th
+ * percentile / worst frame in microseconds, 0, 0, checksum. (The zeros are
+ * the host's delivery and landing times, which a plain loop doesn't have.)
+ *
+ * Usage: ./plain plain|parallel UNITS FRAMES [THREADS]
+ *   THREADS: the parallel loop's thread count, default one per online core
  */
 #include <pthread.h>
 #include <stdint.h>
@@ -27,6 +33,14 @@ static double now_us(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1e6 + ts.tv_nsec / 1e3;
+}
+/* }}} */
+
+/* {{{ static int by_value(const void *a, const void *b) */
+static int by_value(const void *a, const void *b)
+{
+    double x = *(const double *)a, y = *(const double *)b;
+    return (x > y) - (x < y);
 }
 /* }}} */
 
@@ -79,17 +93,19 @@ static void *slice_thread(void *arg)
 /* {{{ int main(int argc, char **argv) */
 int main(int argc, char **argv)
 {
-    if (argc != 4 || (strcmp(argv[1], "plain") != 0 && strcmp(argv[1], "parallel") != 0)) {
-        fprintf(stderr, "usage: %s plain|parallel UNITS FRAMES\n", argv[0]);
+    if ((argc != 4 && argc != 5) || (strcmp(argv[1], "plain") != 0 && strcmp(argv[1], "parallel") != 0)) {
+        fprintf(stderr, "usage: %s plain|parallel UNITS FRAMES [THREADS]\n", argv[0]);
         return 64;
     }
     int parallel = strcmp(argv[1], "parallel") == 0;
     int units = atoi(argv[2]), frames = atoi(argv[3]);
     pose *poses = malloc((size_t)units * sizeof(pose));
-    if (!poses) { fprintf(stderr, "no memory for %d poses\n", units); return 71; }
+    double *took = malloc(sizeof *took * (size_t)frames);
+    if (!poses || !took) { fprintf(stderr, "no memory for %d poses\n", units); return 71; }
 
     long cores = sysconf(_SC_NPROCESSORS_ONLN);
-    int threads = parallel ? (cores > 0 ? (int)cores : 1) : 1;
+    int threads = parallel ? (argc == 5 ? atoi(argv[4]) : (cores > 0 ? (int)cores : 1)) : 1;
+    if (threads < 1) { fprintf(stderr, "threads must be at least 1\n"); return 64; }
     frame_share share = { .poses = poses, .units = units, .threads = threads, .frames = frames };
     pthread_t *ids = NULL;
     slice_arg *args = NULL;
@@ -106,7 +122,7 @@ int main(int argc, char **argv)
     }
 
     uint32_t check = 0;
-    double total = 0, best = 1e18;
+    double total = 0;
     for (int f = 0; f < frames; f++) {
         float t = (float)f / 60.0f;
         double start = now_us();
@@ -118,9 +134,8 @@ int main(int argc, char **argv)
         } else {
             for (int u = 0; u < units; u++) pose_into(u, t, &poses[u]);
         }
-        double took = now_us() - start;
-        total += took;
-        if (took < best) best = took;
+        took[f] = now_us() - start;
+        total += took[f];
         check ^= fold(poses, (size_t)units * sizeof(pose)) + (uint32_t)f;
     }
 
@@ -129,9 +144,12 @@ int main(int argc, char **argv)
         free(ids);
         free(args);
     }
-    printf("%s\t%d\t%d\t%d\t%.1f\t%.1f\t%08x\n", parallel ? "parallel-loop" : "plain-loop",
-           units, frames, threads, total / frames, best, check);
+    qsort(took, (size_t)frames, sizeof *took, by_value);
+#define PCT(q) took[(int)((frames - 1) * (q))]
+    printf("%s\t%d\t0\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t0\t0\t%08x\n", parallel ? "parallel-loop" : "plain-loop",
+           units, threads, frames, total / frames, PCT(0.50), PCT(0.95), PCT(0.99), took[frames - 1], check);
     free(poses);
+    free(took);
     return 0;
 }
 /* }}} */

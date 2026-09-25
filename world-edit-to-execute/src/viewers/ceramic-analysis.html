@@ -1,0 +1,524 @@
+<title>Ceramic Frame Budget</title>
+<!--
+  ceramic-analysis.html - the viewer for the ceramic engine's performance analysis (issue 515a)
+
+  Draws what src/render/ceramic/bench/run-analysis.sh measured: the ceramic
+  engine doing a renderer's per-frame work beside a hand-written thread loop.
+  This file is a template: src/render/ceramic/bench/analysis-report.lua fills
+  the two markers below with the measurements and this machine's processor,
+  and writes the filled page to tmp/shared-memory/ceramic/. Every number on
+  the page is computed from that data; nothing is typed in by hand.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --ground: #f1f4f2;
+  --sheet: #fbfcfb;
+  --ink: #16201d;
+  --muted: #5b6863;
+  --grid: #d6ddd9;
+  --rule: #c3ccc7;
+  --ceramic: #1b746e;
+  --ceramic-soft: #1b746e22;
+  --per-task: #b0442a;
+  --hand: #4b5c86;
+  --plain: #8a948f;
+  --budget: #b98114;
+  --good: #2f7a3e;
+  --warn: #a8661a;
+  --bad: #a83a2a;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0f1513;
+    --sheet: #151d1a;
+    --ink: #e1e8e4;
+    --muted: #93a19b;
+    --grid: #25302c;
+    --rule: #33403b;
+    --ceramic: #45b4aa;
+    --ceramic-soft: #45b4aa26;
+    --per-task: #e27b5d;
+    --hand: #93a5d6;
+    --plain: #7c8883;
+    --budget: #deaa42;
+    --good: #6cc07b;
+    --warn: #e0a257;
+    --bad: #ef7f6c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0f1513;
+  --sheet: #151d1a;
+  --ink: #e1e8e4;
+  --muted: #93a19b;
+  --grid: #25302c;
+  --rule: #33403b;
+  --ceramic: #45b4aa;
+  --ceramic-soft: #45b4aa26;
+  --per-task: #e27b5d;
+  --hand: #93a5d6;
+  --plain: #7c8883;
+  --budget: #deaa42;
+  --good: #6cc07b;
+  --warn: #e0a257;
+  --bad: #ef7f6c;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.6 var(--body);
+  padding-inline: 16px;
+  padding-block: 28px 64px;
+}
+main { max-width: 900px; margin: 0 auto; display: grid; gap: 44px; }
+header { display: grid; gap: 12px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 clamp(40px, 7vw, 64px)/0.95 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h2 { font: 600 28px/1.05 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 17px; }
+section { display: grid; gap: 14px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 13px/1.4 var(--body); color: var(--muted); }
+.key span { display: inline-flex; align-items: center; gap: 7px; }
+.key i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.chart { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 10px 6px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
+svg text { fill: var(--muted); font: 11px var(--mono); }
+svg .label { fill: var(--ink); font: 500 12px var(--body); }
+svg .strong { fill: var(--ink); font: 600 12px var(--mono); }
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; width: max-content; }
+.toggle button { font: 500 12px var(--mono); padding: 5px 12px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.toggle button:focus-visible { outline: 2px solid var(--budget); outline-offset: -2px; }
+.budget-row { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 14px; align-items: center; }
+.budget-row .who { font: 500 14px/1.3 var(--body); }
+.budget-row .who small { display: block; color: var(--muted); font: 12px var(--mono); }
+.bar { position: relative; height: 22px; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--grid) calc(10% - 1px) 10%); border-left: 1px solid var(--rule); }
+.bar b { position: absolute; inset: 3px auto 3px 0; border-radius: 2px; }
+.bar em { position: absolute; top: 0; font: 500 12px/22px var(--mono); font-style: normal; white-space: nowrap; padding-left: 8px; color: var(--ink); }
+.budget-scale { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 14px; font: 11px var(--mono); color: var(--muted); }
+.budget-scale div { display: flex; justify-content: space-between; }
+.findings { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+.finding { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.chip { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 3px; height: max-content; width: max-content; }
+.chip.bad { color: var(--bad); border: 1px solid var(--bad); }
+.chip.warn { color: var(--warn); border: 1px solid var(--warn); }
+.chip.good { color: var(--good); border: 1px solid var(--good); }
+.finding h3 { margin: 0 0 4px; font: 600 15px/1.35 var(--body); }
+.finding p { color: var(--muted); font-size: 14px; }
+.method { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; display: grid; gap: 8px; }
+@media (max-width: 560px) {
+  .budget-row, .budget-scale { grid-template-columns: 1fr; gap: 4px; }
+  .budget-scale > span { display: none; }
+  .finding { grid-template-columns: 1fr; gap: 8px; }
+}
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">World Edit to Execute · issue 515a · render graph on the ceramic engine</div>
+    <h1>Ceramic Frame Budget</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section aria-labelledby="h-budget">
+    <h2 id="h-budget">One frame, <span class="num" id="budget-units"></span> skeletons</h2>
+    <p>Each bar is the time to pose every unit's 30-bone skeleton for one frame, measured against a 60&nbsp;fps frame (16.67&nbsp;ms, the full width). The shorter the bar, the more of the frame is left for drawing.</p>
+    <div id="budget" style="display:grid; gap:8px"></div>
+    <div class="budget-scale"><span></span><div><span>0</span><span>4.2 ms</span><span>8.3 ms</span><span>12.5 ms</span><span>16.7 ms</span></div></div>
+  </section>
+
+  <section aria-labelledby="h-chunk">
+    <h2 id="h-chunk">How many units one task should cover</h2>
+    <p id="chunk-text"></p>
+    <div class="toggle" role="group" aria-label="Frame measure">
+      <button type="button" id="chunk-mean" aria-pressed="true">mean frame</button>
+      <button type="button" id="chunk-p99" aria-pressed="false">99th percentile</button>
+    </div>
+    <div class="key"><span><i style="background:var(--ceramic)"></i>ceramic, whole frame</span><span><i style="background:var(--budget)"></i>host handing work in</span><span><i style="background:var(--hand)"></i>hand-written thread loop</span></div>
+    <div class="chart" id="chunk-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-anatomy">
+    <h2 id="h-anatomy">Where a task's time goes</h2>
+    <p id="anatomy-text"></p>
+    <div class="key"><span><i style="background:var(--budget)"></i>host handing work in</span><span><i style="background:var(--ceramic)"></i>workers finishing after the last hand-in</span><span><i style="background:var(--per-task)"></i>waiting for the last result to land</span></div>
+    <div class="chart" id="anatomy-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-herd">
+    <h2 id="h-herd">Why one unit per task collapses</h2>
+    <p id="herd-text"></p>
+    <div class="key"><span><i style="background:var(--per-task)"></i>engine as it is: every hand-in wakes every sleeping worker</span><span><i style="background:var(--ceramic)"></i>experiment: wake one</span></div>
+    <div class="chart" id="herd-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-scale">
+    <h2 id="h-scale">Adding workers</h2>
+    <p id="scale-text"></p>
+    <div class="key"><span><i style="background:var(--ceramic)"></i>ceramic, 32 units per task</span><span><i style="background:var(--per-task)"></i>ceramic, 1 unit per task</span><span><i style="background:var(--hand)"></i>hand-written thread loop</span><span><i style="background:var(--plain)"></i>perfect scaling</span></div>
+    <div class="chart" id="scale-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-army">
+    <h2 id="h-army">Army size</h2>
+    <p id="army-text"></p>
+    <div class="key"><span><i style="background:var(--ceramic)"></i>ceramic, 32 per task</span><span><i style="background:var(--per-task)"></i>ceramic, 1 per task</span><span><i style="background:var(--hand)"></i>hand-written loop</span><span><i style="background:var(--plain)"></i>one thread</span></div>
+    <div class="chart" id="army-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-size">
+    <h2 id="h-size">What an answer's size costs</h2>
+    <p id="size-text"></p>
+    <div class="chart" id="size-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-steady">
+    <h2 id="h-steady">Steadiness</h2>
+    <p>A renderer feels its worst frames, not its average. Each line runs from the median frame to the worst of the run; the tick is the 99th percentile (three frames in 300 were slower).</p>
+    <div class="chart" id="steady-chart"></div>
+  </section>
+
+  <section aria-labelledby="h-findings">
+    <h2 id="h-findings">What this tells the soramech project</h2>
+    <div class="findings" id="findings"></div>
+  </section>
+
+  <div class="method" id="method"></div>
+</main>
+
+<script>
+const ROWS = /*@@DATA@@*/[];
+const MACHINE = /*@@MACHINE@@*/{};
+const FRAME = 16667;
+
+// {{{ data helpers
+const pick = (sweep, way, units, workers) => ROWS.find(r => r.sweep === sweep && r.way === way &&
+  (units === undefined || r.units === units) && (workers === undefined || r.workers === workers));
+const all = (sweep, way) => ROWS.filter(r => r.sweep === sweep && (!way || r.way === way));
+const ms = us => (us / 1000).toFixed(us < 1000 ? 2 : 1);
+const fmtUs = us => us >= 1000 ? `${(us / 1000).toFixed(2)} ms` : `${us.toFixed(0)} µs`;
+const el = id => document.getElementById(id);
+// }}}
+
+// {{{ svg helpers
+const NS = "http://www.w3.org/2000/svg";
+function svg(w, h) { const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("role", "img"); return s; }
+function add(parent, tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e);
+  return e;
+}
+function tip(e, text) { add(e, "title", {}, text); return e; }
+// A scale: linear or log, domain -> range.
+function scale(d0, d1, r0, r1, log) {
+  if (log) { const a = Math.log(d0), b = Math.log(d1); return v => r0 + (Math.log(v) - a) / (b - a) * (r1 - r0); }
+  return v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
+}
+// A line chart: series [{color, points:[[x,y,label]], dash, width}], axes with ticks.
+function lineChart(target, o) {
+  const W = 860, H = o.height || 320, L = 64, R = 20, T = 16, B = 44;
+  const s = svg(W, H);
+  const x = scale(o.x.min, o.x.max, L, W - R, o.x.log), y = scale(o.y.min, o.y.max, H - B, T, o.y.log);
+  for (const t of o.y.ticks) {
+    add(s, "line", { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: "var(--grid)", "stroke-width": 1 });
+    add(s, "text", { x: L - 8, y: y(t) + 4, "text-anchor": "end" }, o.y.fmt(t));
+  }
+  for (const t of o.x.ticks) {
+    add(s, "line", { x1: x(t), x2: x(t), y1: H - B, y2: H - B + 5, stroke: "var(--rule)" });
+    add(s, "text", { x: x(t), y: H - B + 18, "text-anchor": "middle" }, o.x.fmt(t));
+  }
+  add(s, "text", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle" }, o.x.title);
+  add(s, "text", { x: 14, y: T + (H - B - T) / 2, "text-anchor": "middle", transform: `rotate(-90 14 ${T + (H - B - T) / 2})` }, o.y.title);
+  if (o.before) o.before(s, x, y, { L, R, T, B, W, H });
+  for (const ser of o.series) {
+    const d = ser.points.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+    add(s, "path", { d, fill: "none", stroke: ser.color, "stroke-width": ser.width || 2.5, "stroke-dasharray": ser.dash || "none", "stroke-linejoin": "round" });
+    if (!ser.dash) for (const p of ser.points) tip(add(s, "circle", { cx: x(p[0]), cy: y(p[1]), r: 4, fill: ser.color, stroke: "var(--sheet)", "stroke-width": 1.5 }), p[2]);
+    if (ser.end) { const p = ser.points[ser.points.length - 1]; add(s, "text", { x: x(p[0]) - 6, y: y(p[1]) - 9, "text-anchor": "end", class: "label", style: `fill:${ser.color}` }, ser.end); }
+  }
+  if (o.after) o.after(s, x, y, { L, R, T, B, W, H });
+  target.replaceChildren(s);
+}
+// }}}
+
+// {{{ the lede and the frame-budget bars
+const units = 2048;
+const plainRun = pick("anatomy", "plain-loop", units);
+const handRun = pick("anatomy", "parallel-loop", units);
+const chunkRows = all("chunk").filter(r => r.per > 0);
+const bestChunk = chunkRows.reduce((a, b) => (b.mean < a.mean ? b : a));
+const perTaskRun = pick("chunk", "pose_chunk_1", units);
+el("budget-units").textContent = units.toLocaleString();
+el("lede").textContent = `Chunked into tasks of ${bestChunk.per} units, the ceramic engine poses ${units.toLocaleString()} skeletons in ${fmtUs(bestChunk.mean)} — ` +
+  `${(handRun.mean / bestChunk.mean).toFixed(1)}× faster than a hand-written thread loop and ${(100 * bestChunk.mean / FRAME).toFixed(1)}% of a 60 fps frame. ` +
+  `Given one unit per task it takes ${fmtUs(perTaskRun.mean)}, and almost all of that is the host waiting on the engine's one queue lock.`;
+const budget = [
+  { who: "One thread", sub: "plain loop", r: plainRun, color: "var(--plain)" },
+  { who: "Hand-written loop", sub: `${handRun.workers} threads, fixed slices`, r: handRun, color: "var(--hand)" },
+  { who: "Ceramic, chunked", sub: `${bestChunk.per} units per task, ${bestChunk.workers} workers`, r: bestChunk, color: "var(--ceramic)" },
+  { who: "Ceramic, one per task", sub: `${perTaskRun.workers} workers`, r: perTaskRun, color: "var(--per-task)" },
+];
+for (const b of budget) {
+  const row = document.createElement("div");
+  row.className = "budget-row";
+  const share = Math.min(100, 100 * b.r.mean / FRAME);
+  row.innerHTML = `<div class="who">${b.who}<small>${b.sub}</small></div>` +
+    `<div class="bar" title="${fmtUs(b.r.mean)} mean, ${fmtUs(b.r.p99)} at the 99th percentile"><b style="width:${share}%;background:${b.color}"></b>` +
+    `<em style="left:${share}%">${ms(b.r.mean)} ms · ${share.toFixed(1)}%</em></div>`;
+  el("budget").appendChild(row);
+}
+// }}}
+
+// {{{ units per task
+const hand = pick("chunk", "parallel-loop");
+const sweet = chunkRows.filter(r => r.mean <= bestChunk.mean * 1.1).map(r => r.per);
+el("chunk-text").textContent = `The same ${units.toLocaleString()} units, cut into tasks of 1 to 256 units on ${bestChunk.workers} workers. ` +
+  `Below 4 units per task, handing tasks in swamps the work. From ${Math.min(...sweet)} to ${Math.max(...sweet)} units per task the frame sits within 10% of its best (${fmtUs(bestChunk.mean)}); ` +
+  `past 128 there are too few tasks to keep every worker busy until the end.`;
+function drawChunk(measure) {
+  const val = r => r[measure];
+  const top = Math.max(...chunkRows.map(val), val(hand)) * 1.15;
+  lineChart(el("chunk-chart"), {
+    x: { min: 0.8, max: 320, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256], fmt: t => t, title: "units per task (log scale)" },
+    y: { min: 20, max: top, log: true, ticks: [50, 100, 200, 500, 1000, 2000, 5000, 10000].filter(t => t < top), fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
+    before: (s, x, y, g) => {
+      add(s, "rect", { x: x(Math.min(...sweet)), width: x(Math.max(...sweet)) - x(Math.min(...sweet)), y: g.T, height: g.H - g.B - g.T, fill: "var(--ceramic-soft)" });
+      add(s, "text", { x: (x(Math.min(...sweet)) + x(Math.max(...sweet))) / 2, y: g.T + 14, "text-anchor": "middle", class: "label", style: "fill:var(--ceramic)" }, "within 10% of best");
+      add(s, "line", { x1: g.L, x2: g.W - g.R, y1: y(val(hand)), y2: y(val(hand)), stroke: "var(--hand)", "stroke-width": 2, "stroke-dasharray": "6 5" });
+      add(s, "text", { x: g.W - g.R - 4, y: y(val(hand)) - 7, "text-anchor": "end", class: "label", style: "fill:var(--hand)" }, `hand-written loop ${fmtUs(val(hand))}`);
+    },
+    series: [
+      { color: "var(--ceramic)", points: chunkRows.map(r => [r.per, val(r), `${r.per} per task: ${fmtUs(val(r))} per frame`]) },
+      { color: "var(--budget)", points: chunkRows.map(r => [r.per, Math.max(r.deliver, 21), `${r.per} per task: ${fmtUs(r.deliver)} handing in ${r.units / r.per} tasks`]) },
+    ],
+  });
+}
+function setChunk(measure) {
+  el("chunk-mean").setAttribute("aria-pressed", measure === "mean");
+  el("chunk-p99").setAttribute("aria-pressed", measure === "p99");
+  drawChunk(measure);
+}
+el("chunk-mean").addEventListener("click", () => setChunk("mean"));
+el("chunk-p99").addEventListener("click", () => setChunk("p99"));
+setChunk("mean");
+// }}}
+
+// {{{ anatomy: stacked bars
+(() => {
+  const list = all("anatomy").filter(r => r.per > 0);
+  const names = { noop: "empty task", pose_fold: "pose, 4-byte answer", pose_unit: "pose, 2 KB answer", pose_chunk_64: "64 poses, 4-byte answer", pose_chunk: "64 poses, 120 KB answer" };
+  const noop = pick("anatomy", "noop");
+  el("anatomy-text").textContent = `Each bar is one frame of ${units.toLocaleString()} units split into three parts. With one unit per task, the host is still handing tasks in when the work is done: ` +
+    `even an empty task costs ${(noop.mean / units).toFixed(1)} µs, which is more than the ${(plainRun.mean / units).toFixed(1)} µs the pose itself takes on one thread. ` +
+    `The size of the answer barely matters: 2 KB instead of 4 bytes adds ${fmtUs(Math.max(0, pick("anatomy", "pose_unit").mean - pick("anatomy", "pose_fold").mean))} per frame.`;
+  const W = 860, rowH = 40, L = 190, R = 90, T = 10, H = T + list.length * rowH + 30;
+  const s = svg(W, H), max = Math.max(...list.map(r => r.mean));
+  const x = scale(0, max, L, W - R);
+  for (const t of [0, 2500, 5000, 7500, 10000].filter(t => t <= max)) {
+    add(s, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(s, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+  }
+  list.forEach((r, i) => {
+    const yy = T + i * rowH + 8, work = Math.max(0, r.mean - r.deliver - r.land);
+    add(s, "text", { x: L - 10, y: yy + 16, "text-anchor": "end", class: "label" }, names[r.way] || r.way);
+    let at = 0;
+    for (const [v, c, what] of [[r.deliver, "var(--budget)", "handing in"], [work, "var(--ceramic)", "finishing"], [r.land, "var(--per-task)", "last result landing"]]) {
+      tip(add(s, "rect", { x: x(at), y: yy, width: Math.max(0.5, x(at + v) - x(at)), height: 22, fill: c }), `${what}: ${fmtUs(v)}`);
+      at += v;
+    }
+    add(s, "text", { x: x(r.mean) + 8, y: yy + 16, class: "strong" }, fmtUs(r.mean));
+  });
+  el("anatomy-chart").replaceChildren(s);
+})();
+// }}}
+
+// {{{ the herd experiment
+(() => {
+  const all_ = all("herd", "pose_fold").sort((a, b) => a.workers - b.workers);
+  const one = all("herd-wake-one", "pose_fold").sort((a, b) => a.workers - b.workers);
+  const dedupe = list => list.filter((r, i) => i === 0 || r.workers !== list[i - 1].workers);
+  const A = dedupe(all_), O = dedupe(one);
+  const solo = A.find(r => r.workers === 1), worst = A[A.length - 1], worstOne = O[O.length - 1];
+  el("herd-text").textContent = `Handing ${units.toLocaleString()} one-unit tasks to one worker costs ${(solo.deliver / units).toFixed(2)} µs each: that is what the engine's hand-in really costs. ` +
+    `With ${worst.workers} workers it costs ${(worst.deliver / units).toFixed(1)} µs, because the host and every worker share one queue lock. ` +
+    `The cliff sits where the thread count passes this machine's ${MACHINE.cores} physical cores: past it, whoever holds the lock shares a core with the threads waiting for it. ` +
+    `Waking one worker per hand-in instead of all of them brings ${worst.workers} workers down to ${(worstOne.deliver / units).toFixed(1)} µs — better, but the lock is still the bottleneck.`;
+  lineChart(el("herd-chart"), {
+    height: 300,
+    x: { min: 0.5, max: 12, ticks: A.map(r => r.workers), fmt: t => t, title: "workers" },
+    y: { min: 0, max: Math.max(...A.map(r => r.deliver / units)) * 1.15, ticks: [0, 1, 2, 3, 4, 5, 6], fmt: t => `${t} µs`, title: "handing in one task" },
+    before: (s, x, y, g) => {
+      add(s, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
+      add(s, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
+    },
+    series: [
+      { color: "var(--per-task)", points: A.map(r => [r.workers, r.deliver / units, `${r.workers} workers, wake all: ${(r.deliver / units).toFixed(2)} µs per task`]) },
+      { color: "var(--ceramic)", points: O.map(r => [r.workers, r.deliver / units, `${r.workers} workers, wake one: ${(r.deliver / units).toFixed(2)} µs per task`]) },
+    ],
+  });
+})();
+// }}}
+
+// {{{ scaling
+(() => {
+  const base = pick("scale", "plain-loop").mean;
+  const ns = [1, 2, 3, 4, 6, 8, 11];
+  const c = ns.map(n => pick("scale", "pose_chunk_32", units, n));
+  const u = ns.map(n => pick("scale", "pose_fold", units, n));
+  const p = ns.map(n => pick("scale", "parallel-loop", units, n === 11 ? 12 : n));
+  const cBest = c[c.length - 1], pBest = p.reduce((a, b) => (b.mean < a.mean ? b : a));
+  el("scale-text").textContent = `Speed-up over one thread, ${units.toLocaleString()} units. Chunked ceramic reaches ${(base / cBest.mean).toFixed(1)}× with ${cBest.workers} workers, ` +
+    `close to what ${MACHINE.cores} physical cores (each running two threads) can give. The hand-written loop tops out at ${(base / pBest.mean).toFixed(1)}×: ` +
+    `it cuts the units into one fixed slice per thread and waits for the slowest, and two threads sharing a core finish late. The ceramic queue hands the next chunk to whichever worker is free. ` +
+    `One unit per task gets slower with every worker past four.`;
+  lineChart(el("scale-chart"), {
+    x: { min: 0.5, max: 12, ticks: ns, fmt: t => t, title: "workers (the hand-written loop's last point is 12 threads)" },
+    y: { min: 0, max: 7, ticks: [0, 1, 2, 3, 4, 5, 6, 7], fmt: t => `${t}×`, title: "speed-up over one thread" },
+    before: (s, x, y, g) => {
+      add(s, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
+      add(s, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
+    },
+    series: [
+      { color: "var(--plain)", dash: "5 5", width: 1.5, points: [[1, 1], [7, 7]] },
+      { color: "var(--ceramic)", points: c.map(r => [r.workers, base / r.mean, `${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
+      { color: "var(--hand)", points: p.map((r, i) => [ns[i], base / r.mean, `${r.workers} threads: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
+      { color: "var(--per-task)", points: u.map(r => [r.workers, base / r.mean, `${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
+    ],
+  });
+})();
+// }}}
+
+// {{{ army size
+(() => {
+  const us_ = [128, 512, 2048, 8192];
+  const get = way => us_.map(n => pick("army", way, n));
+  const c = get("pose_chunk_32"), h = get("parallel-loop"), o = get("plain-loop"), u = get("pose_fold");
+  const fits = c.filter(r => r.mean < FRAME).map(r => r.units);
+  el("army-text").textContent = `Time per frame as the army grows, on log scales (a straight line means the time grows in step with the units). ` +
+    `Chunked ceramic poses ${Math.max(...fits).toLocaleString()} skeletons in ${fmtUs(c[c.length - 1].mean)}, ${(100 * c[c.length - 1].mean / FRAME).toFixed(0)}% of a frame; ` +
+    `one unit per task needs ${fmtUs(u[u.length - 1].mean)} for the same army, more than two whole frames.`;
+  lineChart(el("army-chart"), {
+    x: { min: 100, max: 10000, log: true, ticks: us_, fmt: t => t.toLocaleString(), title: "units (log scale)" },
+    y: { min: 60, max: 60000, log: true, ticks: [100, 300, 1000, 3000, 10000, 30000], fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
+    before: (s, x, y, g) => {
+      add(s, "line", { x1: g.L, x2: g.W - g.R, y1: y(FRAME), y2: y(FRAME), stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "6 4" });
+      add(s, "text", { x: g.L + 6, y: y(FRAME) - 7, class: "label", style: "fill:var(--budget)" }, "one 60 fps frame");
+    },
+    series: [
+      { color: "var(--plain)", points: o.map(r => [r.units, r.mean, `one thread, ${r.units}: ${fmtUs(r.mean)}`]) },
+      { color: "var(--hand)", points: h.map(r => [r.units, r.mean, `hand-written, ${r.units}: ${fmtUs(r.mean)}`]) },
+      { color: "var(--per-task)", points: u.map(r => [r.units, r.mean, `1 per task, ${r.units}: ${fmtUs(r.mean)}`]) },
+      { color: "var(--ceramic)", points: c.map(r => [r.units, r.mean, `32 per task, ${r.units}: ${fmtUs(r.mean)}`]) },
+    ],
+  });
+})();
+// }}}
+
+// {{{ answer size
+(() => {
+  const list = all("size").filter(r => r.way.startsWith("make_blob_")).map(r => ({ bytes: +r.way.split("_").pop(), per: r.mean / 256, r }));
+  const small = list.filter(b => b.bytes <= 16384);
+  const big = list[list.length - 1];
+  el("size-text").textContent = `256 tasks per frame that do nothing but produce an answer of a given size. From 16 bytes to 16 KB the cost per task stays near ` +
+    `${(small.reduce((a, b) => a + b.per, 0) / small.length).toFixed(1)} µs, all of it handing the task in. Only at ${(big.bytes / 1024).toFixed(0)} KB does copying show, at ${big.per.toFixed(1)} µs. ` +
+    `A 2 KB pose is free to copy: the worry about moving it in and out of shared memory doesn't show up at all.`;
+  lineChart(el("size-chart"), {
+    height: 260,
+    x: { min: 10, max: 200000, log: true, ticks: list.map(b => b.bytes), fmt: t => t >= 1024 ? `${t / 1024} KB` : `${t} B`, title: "answer size (log scale)" },
+    y: { min: 0, max: Math.max(...list.map(b => b.per)) * 1.2, ticks: [0, 2, 4, 6, 8, 10, 12], fmt: t => `${t} µs`, title: "per task" },
+    series: [{ color: "var(--ceramic)", points: list.map(b => [b.bytes, b.per, `${b.bytes} bytes: ${b.per.toFixed(2)} µs per task`]) }],
+  });
+})();
+// }}}
+
+// {{{ steadiness
+(() => {
+  const list = [
+    ["One thread", pick("anatomy", "plain-loop"), "var(--plain)"],
+    ["Hand-written loop", pick("anatomy", "parallel-loop"), "var(--hand)"],
+    ["Ceramic, 16 per task", pick("chunk", "pose_chunk_16"), "var(--ceramic)"],
+    ["Ceramic, 64 per task", pick("chunk", "pose_chunk_64"), "var(--ceramic)"],
+    ["Ceramic, 1 per task", pick("chunk", "pose_chunk_1"), "var(--per-task)"],
+  ];
+  const W = 860, rowH = 34, L = 190, R = 30, T = 10, H = T + list.length * rowH + 30;
+  const s = svg(W, H);
+  const x = scale(80, 30000, L, W - R, true);
+  for (const t of [100, 300, 1000, 3000, 10000, 30000]) {
+    add(s, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(s, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, t >= 1000 ? `${t / 1000} ms` : `${t} µs`);
+  }
+  add(s, "line", { x1: x(FRAME), x2: x(FRAME), y1: T, y2: H - 30, stroke: "var(--budget)", "stroke-dasharray": "5 4", "stroke-width": 1.5 });
+  list.forEach(([name, r, color], i) => {
+    const yy = T + i * rowH + 16;
+    add(s, "text", { x: L - 10, y: yy + 4, "text-anchor": "end", class: "label" }, name);
+    add(s, "line", { x1: x(r.p50), x2: x(r.worst), y1: yy, y2: yy, stroke: color, "stroke-width": 3, "stroke-linecap": "round" });
+    tip(add(s, "circle", { cx: x(r.p50), cy: yy, r: 5, fill: color }), `median ${fmtUs(r.p50)}`);
+    tip(add(s, "line", { x1: x(r.p99), x2: x(r.p99), y1: yy - 8, y2: yy + 8, stroke: "var(--ink)", "stroke-width": 2 }), `99th percentile ${fmtUs(r.p99)}`);
+    tip(add(s, "circle", { cx: x(r.worst), cy: yy, r: 4, fill: "var(--sheet)", stroke: color, "stroke-width": 2 }), `worst ${fmtUs(r.worst)}`);
+  });
+  el("steady-chart").replaceChildren(s);
+})();
+// }}}
+
+// {{{ findings
+const herdAll = all("herd", "pose_fold"), herdOne = all("herd-wake-one", "pose_fold");
+const soloDeliver = herdAll.find(r => r.workers === 1).deliver / units;
+const mostWorkers = Math.max(...herdAll.map(r => r.workers));
+const crowdDeliver = herdAll.filter(r => r.workers === mostWorkers).pop().deliver / units;
+const wakeGain = Math.max(...all("herd").map(r => {
+  const o = all("herd-wake-one").find(q => q.way === r.way && q.workers === r.workers);
+  return o ? 1 - o.mean / r.mean : 0;
+}));
+const chunkVsHand = Math.max(...[128, 512, 2048, 8192].map(n => pick("army", "parallel-loop", n).mean / pick("army", "pose_chunk_32", n).mean));
+const findings = [
+  ["bad", "Fault", "The count of collected results rises before each result is copied in.",
+    "A caller that trusts “how many values landed” reads results still being written. 2 KB answers hide it; 120 KB answers were caught half-copied, differently on every run. The fix is a second counter that rises after the copy. Waiting out every worker's current task works around it here, and costs about as long as the last copy."],
+  ["bad", "Scaling", "One queue lock is shared by the host and every worker.",
+    `Handing a task in costs ${soloDeliver.toFixed(2)} µs with one worker and ${crowdDeliver.toFixed(1)} µs with ${mostWorkers}. Batched hand-ins (many tasks under one lock), a queue per worker, or a lock-free queue would each remove the convoy.`],
+  ["warn", "Scaling", "Every task handed in wakes every sleeping worker.",
+    `Waking one instead is a one-line change that cut the one-per-task frame by up to ${(100 * wakeGain).toFixed(0)}% in a scratch copy. It is not the main cost; the lock is.`],
+  ["warn", "Language", "Value types can't hold arrays of numbers.",
+    "Only character arrays are allowed, so a 4×4 matrix has to be sixteen named floats. Graphics is arrays; a renderer will meet this everywhere."],
+  ["warn", "Build", "serac documents a --main option it doesn't have, and can't add linker flags.",
+    "A program with its own main loop, or one linking raylib, has to emit the map's C and compile it by hand."],
+  ["good", "Strength", "Chunked tasks balance themselves.",
+    `With 32 units per task the engine beat a hand-written fixed-slice loop by up to ${chunkVsHand.toFixed(1)}× on this machine, because a free worker simply takes the next chunk. The dataflow design earns its keep here.`],
+];
+for (const [sev, tag, head, body] of findings) {
+  const d = document.createElement("div");
+  d.className = "finding";
+  d.innerHTML = `<span class="chip ${sev}">${tag}</span><div><h3></h3><p></p></div>`;
+  d.querySelector("h3").textContent = head;
+  d.querySelector("p").textContent = body;
+  el("findings").appendChild(d);
+}
+// }}}
+
+// {{{ method
+el("method").innerHTML = "";
+for (const line of [
+  `Measured on ${MACHINE.model}: ${MACHINE.cores} physical cores, ${MACHINE.threads} hardware threads online (${MACHINE.per_core} per core). Each run is ${MACHINE.frames} frames; every frame is timed.`,
+  `The work is the same function everywhere: 30 bones per unit, a rotation and a 4×4 matrix product each. Every way that computes poses was checked against the one-thread loop by checksum, and all agree.`,
+  (() => {
+    // the same run repeated across sweeps shows how much a measurement wanders
+    const again = ROWS.filter(r => r.units === units && ((r.way === "parallel-loop" && r.workers === MACHINE.threads) || r.way === "plain-loop"));
+    const spread = way => { const v = again.filter(r => r.way === way).map(r => r.mean); return [Math.min(...v), Math.max(...v), v.length]; };
+    const [h0, h1, hn] = spread("parallel-loop"), [p0, p1, pn] = spread("plain-loop");
+    return `Repeated runs wander: the hand-written loop measured ${fmtUs(h0)} to ${fmtUs(h1)} over ${hn} runs of the same work, the one-thread loop ${fmtUs(p0)} to ${fmtUs(p1)} over ${pn}. Differences smaller than that are noise.`;
+  })(),
+  `The ceramic host uses one worker per hardware thread but one; its own thread plays the renderer's main thread. Built and measured by src/render/ceramic/bench/run-analysis.sh; the soramech repository was only read.`,
+]) { const p = document.createElement("p"); p.textContent = line; el("method").appendChild(p); }
+// }}}
+</script>
