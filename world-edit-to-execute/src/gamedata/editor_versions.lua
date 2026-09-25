@@ -45,6 +45,8 @@ Format:  [editor_version] = { from = "1.19a", to = "1.21b", evidence = "how we k
 ]]
 
 return {
+    [6031] = { from = "1.07", to = "1.07",
+        evidence = "the Frozen Throne disc's newest maps were saved by 6031 (52 by 6030, 9 by 6031); the list gives 1.07" },
     [6052] = { from = "1.19a", to = "1.21b",
         evidence = "1.19a-1.21b's WorldEdit.exe hold 6052, none after; the list gives 1.19a-1.21b" },
     [6057] = { from = "1.22a", to = "1.22a",

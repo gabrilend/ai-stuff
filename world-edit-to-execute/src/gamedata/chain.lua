@@ -188,6 +188,14 @@ function M.choose_layer(w3i, layers_root, options)
             chosen = name
         end
     end
+    -- The disc install is itself a version (1.07 for Frozen Throne, 1.00 for
+    -- Reign of Chaos): a range that holds it and no built layer reads the
+    -- disc as it is.
+    local disc = options.disc_version or "1.07"
+    if not chosen and not M.version_below(M.version_key(disc), from) and not M.version_below(to, M.version_key(disc)) then
+        return nil, string.format("editor %d belongs to %s-%s; the disc install is %s (%s)",
+            w3i.editor_version, known.from, known.to, disc, known.evidence)
+    end
     if not chosen then
         error(string.format("editor build %d belongs to %s-%s, and no layer in that range is built:"
             .. " scripts/fetch-patch-programs.sh, then build-patch-layer.lua", w3i.editor_version, known.from, known.to))
@@ -204,8 +212,10 @@ Chain.__index = Chain
 -- options: install (Frozen Throne folder), layers (folder of layers),
 -- w3i (parsed war3map.w3i), and optionally map (the map file, searched
 -- first), layer (name or false), editor_versions (a table like
--- editor_versions.lua, for tests) and base_archives (highest priority first;
--- { "war3.mpq" } for a Reign of Chaos install with its own layers).
+-- editor_versions.lua, for tests), base_archives (highest priority first;
+-- { "war3.mpq" } for a Reign of Chaos install with its own layers) and
+-- disc_version (the install's own version: "1.07" by default, "1.00" for
+-- the Reign of Chaos disc).
 function M.open(options)
     local self = setmetatable({}, Chain)
     self.data_set, self.data_set_choice = M.data_set_for(options.w3i)

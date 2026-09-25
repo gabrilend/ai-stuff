@@ -17,6 +17,7 @@ Blizzard "BSD0" binary diff against the old file. Needs LuaJIT.
 |------|-------|---------|
 | `KIND_WHOLE` | `0x01` | the whole new file follows the header |
 | `KIND_DIFF` | `0x04` | a run-length-packed BSDIFF40 diff follows |
+| `KIND_DIFF_OLDEST` | `0x00` | the oldest diff format, copy-and-insert records plus 16-bit additions (1.01–1.14b); described in full in `bsd0.lua` |
 | `KIND_DIFF_UNPACKED` | `0x02` | a BSDIFF40 diff follows as is, no size word, no packing (two entries in Reign of Chaos 1.18a–1.20e) |
 | `RUN_STEP_1_21` | `1` | run-length step from 1.21a on |
 | `RUN_STEP_1_20` | `32` | run-length step in 1.19a–1.20e |
@@ -49,3 +50,16 @@ reproducing full-patch layers (issue 112d). An uncompressed diff payload hasn't 
 seen yet and is refused until one is.
 
 Ported in part from StormLib's `SFilePatchArchives.cpp` (MIT).
+
+## The oldest diff format (kind 0x00)
+
+Two blocks follow the header's two lengths. Block A rebuilds the file from
+records (a 16-bit word: type in the top two bits, length in the low 14):
+insert literal bytes; copy from the old file with a running offset; the same
+copy adding the last two-byte insert to every 16-bit word; zero bytes. Block B
+then adds amounts to 16-bit words, grouped by ascending amount. Numbers are
+variable length (1–4 bytes). Rebuilds all 110 known-answer files from 1.14b
+(six differ only by later patches' edits). Known gap: the three program
+binaries over a megabyte (War3.exe, Game.dll, WorldEdit.exe) fail with a copy
+outside the old file; large offsets work some way not yet understood (issue
+112d).

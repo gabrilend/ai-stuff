@@ -18,6 +18,8 @@ beside the installs (the layer holds Blizzard's files). Prints each layer's
 counts of archive and install files, diffs and whole files, and how many
 diffs each base supplied.
 
+Each layer's unbuilt entries are printed as `NOT BUILT (issue 112d)`, and a version taken from the script's threshold rather than the `War3.exe` it writes is printed as such.
+
 In stack mode a layer whose manifest names the same program (by CRC32) and
 the same layers beneath is reported `present` and left alone; otherwise it
 is rebuilt, and every layer above it too. Running it twice changes nothing.

@@ -10,7 +10,7 @@ produces, built by applying its entries to their bases, without running it.
 | `build(options)` | table: `patch_program` (path), `install` (Frozen Throne folder), `base_archives` (list of archive names, lowest priority first), `version` (string, e.g. `"1.21b"`), `output` (layer folder), `scratch` (temporary folder), optional `lower_layers` (list of `{name, folder}`, highest first) | the manifest table (also written to `<output>/manifest.lua`); raises an error naming the first entry it can't build and the places it tried |
 | `program_version(path)` | a Windows program file | its stamped file version (string, `"1.29.2.9231"`); raises if it has none |
 | `build_install(options)` | table: `version`, `source_folder` (the fetched files), `archive_order` (names, highest priority first), `game_program`, `editor_program` (file names), `checksums` (name → sha256 from the fetch record), `output` | an install layer for a version with no patch program: archives hard-linked into `<output>/archives/`, manifest with `kind = "install"`, `archive_order`, `archives` ({name, size, sha256}), `game_version`, `editor_builds` (candidate constants, noisy) |
-| `target_version(program, scratch, install)` | patch program path; temporary folder; Frozen Throne folder | the version it produces (string, `"1.25.1.6397"`) and the same as four integers (list), read from the `War3.exe` it writes; raises if its script states a different real version |
+| `target_version(program, scratch, install)` | patch program path; temporary folder; the install folder | the version it produces (string, `"1.25.1.6397"`), the same as four integers (list), and where it came from (string): the `War3.exe` it writes, or, where that is a large binary in the oldest diff format that can't be rebuilt, the script's threshold (said so); raises if the version made is below the script's threshold, or the script has no active check (an incremental patch) |
 
 ## Layer layout
 
@@ -26,3 +26,17 @@ doesn't list stays as the version below left it. Versions are built in
 order, each offered the layers below as bases; a diff's base is the first
 copy (highest layer first, then the disc) whose size and CRC32 match the
 diff's header.
+
+## Finding the patch archive
+
+From 1.14b the outer archive names it in `mpqs.lst`. Programs from 1.11 and
+before have unnamed inner files; the patch is the inner archive with a
+non-empty `patch.lst`.
+
+## Not built
+
+A manifest's `not_built` lists entries left out, each `{target, reason}`: only
+the program binaries over a megabyte in the oldest diff format (War3.exe,
+Game.dll, WorldEdit.exe in 1.01–1.14b; issue 112d). The chain never reads
+install files, so a layer's game data is complete. Any other entry that
+fails stops the build.

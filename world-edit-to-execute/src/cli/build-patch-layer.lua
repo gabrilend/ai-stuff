@@ -102,6 +102,9 @@ local function build_one(program, version, lower_layers, install, layers, base_a
     local c = manifest.counts
     print(string.format("layer %s: %d archive files, %d install files (%d diffs, %d whole) in %.1f s",
         version, c.archive, c.install, c.diff, c.whole, os.clock() - started))
+    for _, nb in ipairs(manifest.not_built or {}) do
+        print("    NOT BUILT (issue 112d): " .. nb.target .. ": " .. nb.reason)
+    end
     local bases = {}
     for _, e in ipairs(manifest.entries) do
         if e.base then bases[e.base] = (bases[e.base] or 0) + 1 end
@@ -119,19 +122,20 @@ end
 -- folder, so the two never mix. Reign of Chaos patches rebuild War3Patch.mpq
 -- over war3.mpq alone; Frozen Throne's over war3.mpq, War3x.mpq and
 -- War3xlocal.mpq. readable_from: the oldest version whose patch program the
--- builder reads (older ones use the kind 0x00 diff format, issue 112d).
+-- builder reads; every one since the oldest diff format was decoded (issue
+-- 112d). Kept so a program shape found later can be listed, not guessed at.
 local GAMES = {
     tft = {
         install = DIR .. "/wc3-installs/frozen-throne",
         layers = DIR .. "/wc3-installs/patch-layers",
         base_archives = { "war3.mpq", "War3x.mpq", "War3xlocal.mpq" },   -- lowest priority first
-        readable_from = { 1, 19, 1, 0 },   -- 1.19a (1.14b and older: kind 0x00)
+        readable_from = { 1, 0, 0, 0 },    -- every version (the oldest diffs decoded 2026-09-25)
     },
     roc = {
         install = DIR .. "/wc3-installs/reign-of-chaos",
         layers = DIR .. "/wc3-installs/patch-layers-roc",
         base_archives = { "war3.mpq" },
-        readable_from = { 1, 18, 1, 0 },   -- 1.18a (1.11 and older: kind 0x00)
+        readable_from = { 1, 0, 0, 0 },
     },
 }
 -- }}}
@@ -256,7 +260,7 @@ if arg[1] == "--stack" then
     local scratch = os.tmpname()
     os.remove(scratch)
     for _, row in ipairs(list) do
-        row.target, row.order = patch_layer.target_version(row.file, scratch, install)
+        row.target, row.order, row.version_source = patch_layer.target_version(row.file, scratch, install)
     end
     os.execute("rm -rf '" .. scratch:gsub("'", "'\\''") .. "'")
     table.sort(list, function(a, b)
@@ -272,6 +276,9 @@ if arg[1] == "--stack" then
     local rebuilt_below = false
     for _, row in ipairs(list) do
         print(string.format("%s  (produces %s)  %s", row.version, row.target, row.file:match("[^/]+$")))
+        if not row.version_source:match("^the ") then
+            print("    version from " .. row.version_source)
+        end
         local folder = layers .. "/" .. row.version
         local existing = read_manifest(folder)
         local same_below = existing and table.concat(existing.lower_layers or {}, ",") ==
