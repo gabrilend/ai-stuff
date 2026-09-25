@@ -92,7 +92,7 @@ Map dimensions: `width = A + E + B`, `height = C + F + D`
 | LoadingScreenText | string | Loading screen text |
 | LoadingScreenTitle | string | Loading screen title |
 | LoadingScreenSubtitle | string | Loading screen subtitle |
-| GameDataSet | int32 | 0 = Default, 1 = Custom |
+| GameDataSet | int32 | 0 = Default (the map's melee flag decides), 1 = Custom (TFT 1.07 / RoC 1.01 tables), 2 = Melee (latest patch). Names from the editor's `UI\WorldEditStrings.txt` (`WESTRING_GAMEDATASET_*`); only the melee tables change with patches. See `src/gamedata/chain.lua` |
 | PrologueScreenPath | string | Prologue screen path |
 | PrologueScreenText | string | Prologue text |
 | PrologueScreenTitle | string | Prologue title |

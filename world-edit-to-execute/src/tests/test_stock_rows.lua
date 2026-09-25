@@ -52,7 +52,7 @@ else
     local mpq = require("mpq")
     local objectdata = require("parsers.objectdata")
 
-    local c = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+    local c = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
         editor_versions = {} })
     local stocks = {
         abilities = stock_rows.load(c, "abilities"),
@@ -96,7 +96,7 @@ else
     -- {{{ A map that ships its own ability table
     test_section("DAoW-5.2: an ability defined only in the map's own table (A008)")
     local m52 = DIR .. "/assets/DAoW-5.2.w3x"
-    local c52 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+    local c52 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
         editor_versions = {}, map = m52 })
     local _, source = c52:read("Units\\AbilityData.slk")
     test("the map's own ability table beats the stock one", source == "map: Units\\AbilityData.slk", source)
@@ -117,7 +117,7 @@ else
     -- {{{ A three-letter field code
     test_section("DaoW-(HvA)-7.5: Curse's chance to miss (field code Crs, stored Crs\\0)")
     local m75 = DIR .. "/assets/DaoW-(HvA)-7.5.w3x"
-    local c75 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0 },
+    local c75 = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 25, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
         editor_versions = {}, map = m75 })
     local a75 = assert(mpq.open(m75))
     local r75 = stock_rows.merge(stock_rows.load(c75, "abilities"),
@@ -189,8 +189,8 @@ else
     for _, f in ipairs(fallbacks) do
         print("  WARNING: no layer for its editor build, newest used instead: " .. f)
     end
-    test("maps saved by editor 6052 load 1.21b and 6059 load 1.27b",
-        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.27b"] or 0) >= 2)
+    test("maps saved by editor 6052 load 1.21b, 6057 load 1.22a, 6059 load 1.27b",
+        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.22a"] or 0) >= 1 and (layers_used["1.27b"] or 0) >= 2)
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
     test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))
     test("objects defined only in a map's own table get rows", totals.map_table_only > 0, tostring(totals.map_table_only))

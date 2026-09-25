@@ -20,13 +20,17 @@ too, and a map's own copy must beat it, so the map is tried first for both
 the data-set path and the plain path.
 
 Data sets. The Frozen Throne install keeps separate copies of some tables:
-Custom_V0 (Reign of Chaos custom games), Custom_V1 (Frozen Throne custom
-games) and Melee_V0 (Reign of Chaos melee). Each holds only the tables that
-differ, which is why a data set's copy is tried first and the plain path
-second. A map saved in Reign of Chaos format (w3i version 18) uses
-Custom_V0; a Frozen Throne map (version 25 and later) uses Custom_V1. This
-matches the folder names and contents; how the game itself picks is still an
-open question in issue 112b.
+Custom_V0 (Reign of Chaos custom games, frozen at 1.01), Custom_V1 (Frozen
+Throne custom games, frozen at 1.07) and Melee_V0 (Reign of Chaos melee).
+Each holds only the tables that differ, which is why a data set's copy is
+tried first and the plain path second. The plain Units\ tables are Frozen
+Throne melee: the only ones the balance patches change (1.22a's Knight is
+28 damage there and still 25 in Custom_V1).
+
+The map chooses its set in war3map.w3i ("game data set", issue 112b):
+0 Default (the map's melee flag decides), 1 Custom, 2 Melee (latest patch).
+Seven of the sixteen test maps choose Melee; before this was read, every
+Frozen Throne map got Custom_V1.
 
 Layers. Each Blizzard patch rebuilds its whole data archive, so a layer is
 complete by itself and a chain uses at most one. The map's editor version
@@ -94,13 +98,36 @@ local function available_layers(layers_root)
 end
 -- }}}
 
+-- {{{ DATA_SETS
+-- Which folder each choice reads, per game: false means the plain path only
+-- (Frozen Throne melee, the patched tables). w3i format 18 is Reign of Chaos.
+local DATA_SETS = {
+    custom = { roc = "Custom_V0", tft = "Custom_V1" },
+    melee  = { roc = "Melee_V0",  tft = false },
+}
+-- The stored "game data set" values, as the editor names them
+-- (UI\WorldEditStrings.txt: WESTRING_GAMEDATASET_*).
+local CHOICES = {
+    [0] = function(w3i) return w3i.flags.melee_map and "melee" or "custom" end,   -- Default (based on map melee status)
+    [1] = function() return "custom" end,                                          -- Custom (TFT 1.07, RoC 1.01)
+    [2] = function() return "melee" end,                                           -- Melee (Latest Patch)
+}
+-- }}}
+
 -- {{{ function M.data_set_for
--- The data-set folder for a parsed war3map.w3i.
+-- The data-set folder for a parsed war3map.w3i, or false for the plain
+-- melee tables; plus the choice's name ("custom" or "melee"). Needs the
+-- w3i's version, game_data_set and flags.melee_map; a value the editor
+-- doesn't offer is an error.
 function M.data_set_for(w3i)
-    if w3i.version == 18 then
-        return "Custom_V0"
+    local choose = CHOICES[w3i.game_data_set]
+    if not choose then
+        error("war3map.w3i game data set " .. tostring(w3i.game_data_set)
+            .. " isn't one the editor offers (0 Default, 1 Custom, 2 Melee)")
     end
-    return "Custom_V1"
+    local choice = choose(w3i)
+    local game = w3i.version == 18 and "roc" or "tft"
+    return DATA_SETS[choice][game], choice
 end
 -- }}}
 
@@ -148,7 +175,7 @@ Chain.__index = Chain
 -- editor_versions.lua, for tests).
 function M.open(options)
     local self = setmetatable({}, Chain)
-    self.data_set = M.data_set_for(options.w3i)
+    self.data_set, self.data_set_choice = M.data_set_for(options.w3i)
     self.layer, self.layer_reason, self.fallback =
         M.choose_layer(options.w3i, options.layers, options)
     self.warnings = {}
@@ -177,7 +204,7 @@ end
 -- name, or nil; plus the exact path that matched (data-set copy or plain).
 -- options.below_map skips the map, giving the stock copy it hides.
 function Chain:find(path, options)
-    local candidates = { self.data_set .. "\\" .. path, path }
+    local candidates = self.data_set and { self.data_set .. "\\" .. path, path } or { path }
     if self.map and not (options and options.below_map) then
         for _, candidate in ipairs(candidates) do
             if self.map.archive:has(candidate) then
@@ -228,7 +255,7 @@ end
 -- A short description of this chain, for logs and demos.
 function Chain:report()
     local lines = {
-        "data set: " .. self.data_set,
+        "data set: " .. (self.data_set or "plain melee tables") .. " (" .. self.data_set_choice .. ")",
         "patch layer: " .. tostring(self.layer or "none") .. " (" .. self.layer_reason .. ")",
     }
     for _, w in ipairs(self.warnings) do

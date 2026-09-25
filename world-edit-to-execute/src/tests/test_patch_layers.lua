@@ -155,11 +155,41 @@ else
     patched:close()
     unpatched:close()
 
-    local roc = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 18, editor_version = 0 },
+    local roc = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 18, editor_version = 0, game_data_set = 1, flags = { melee_map = false } },
         layer = "1.21b" })
     local _, roc_from = roc:read("Units\\UnitWeapons.slk")
     test("a Reign of Chaos map (w3i version 18) uses Custom_V0", roc_from == "layer 1.21b: Custom_V0\\Units\\UnitWeapons.slk", roc_from)
     roc:close()
+
+    -- The data set is the map's own choice (w3i "game data set": 0 Default by
+    -- melee flag, 1 Custom, 2 Melee latest patch). Patches rebalance only the
+    -- melee tables: 1.22a's Knight is 28 damage / 1.40 cooldown there, and
+    -- still 25 / 1.50 in the custom copy. The chain once gave every Frozen
+    -- Throne map the custom copy, whatever it chose.
+    if exists(LAYERS .. "/1.22a/manifest.lua") then
+        local slk = require("parsers.slk")
+        local function knight(choice, melee_flag)
+            local c = chain.open({ install = INSTALL, layers = LAYERS, layer = "1.22a",
+                w3i = { version = 25, editor_version = 0, game_data_set = choice, flags = { melee_map = melee_flag } } })
+            local bytes, from = c:read("Units\\UnitWeapons.slk")
+            c:close()
+            return slk.parse(bytes).rows.hkni, from
+        end
+        local melee, melee_from = knight(2, false)
+        test("Melee (2) reads the patched melee table", melee.dmgplus1 == 28 and melee.cool1 == 1.4
+            and melee_from == "layer 1.22a: Units\\UnitWeapons.slk", melee_from)
+        local custom, custom_from = knight(1, true)
+        test("Custom (1) reads the 1.07 custom copy, even on a melee map", custom.dmgplus1 == 25
+            and custom_from == "layer 1.22a: Custom_V1\\Units\\UnitWeapons.slk", custom_from)
+        local default_melee = knight(0, true)
+        local default_custom = knight(0, false)
+        test("Default (0) follows the map's melee flag", default_melee.dmgplus1 == 28 and default_custom.dmgplus1 == 25)
+        local ok, err = pcall(knight, 3, false)
+        test("a data set the editor doesn't offer is an error", not ok and tostring(err):match("game data set 3") ~= nil,
+            tostring(err))
+    else
+        skip("data set choice", "needs the 1.22a layer (build-patch-layer.lua --stack)")
+    end
 
     local known = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i,
         editor_versions = { [w3i.editor_version] = { layer = "1.21b", evidence = "test" } } })

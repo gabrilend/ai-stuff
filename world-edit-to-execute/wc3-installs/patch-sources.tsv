@@ -4,6 +4,7 @@
 # source is a URL, or file:// for a copy already on this machine.
 # Order doesn't matter here; version order comes from the version table (issue 112b).
 1.21b	tft	file:///mnt/mtwo/games/warcraft-iii/torrent-version/Patch/War3TFT_121b_English.exe	-	War3TFT_121b_English.exe
+1.22a	tft	https://archive.org/download/war3tft-en-patch122a/War3TFT_122a_English.zip	War3TFT_122a_English.exe	War3TFT_122a_English.exe
 1.23a	tft	https://archive.org/download/war3tft-en-patch123a/War3TFT_123a_English.zip	War3TFT_123a_English.exe	War3TFT_123a_English.exe
 1.24a	tft	https://archive.org/download/wc3_patches/Windows/TFT/English/War3TFT_124a_English.exe	-	War3TFT_124a_English.exe
 1.24b	tft	https://archive.org/download/wc3_patches/Windows/TFT/English/War3TFT_124b_English.exe	-	War3TFT_124b_English.exe
