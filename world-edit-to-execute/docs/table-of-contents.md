@@ -54,6 +54,7 @@ docs/
 ├── datapath-asset-forge.md                  W05/W06: select → search/generate → fit → keep → install
 ├── licensing-and-boundaries.md      Which licence covers each piece, where they touch, what combines
 ├── legal-implications.md            For readers: copyright vs licence agreements, stats, US vs EU, where risk sits
+├── versions-we-leave-alone.md       The later versions (1.30 on, Reforged): what support would take, and why we won't
 ├── render-architecture.md           Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── render-threading-v2.md           Target threading model (v2)

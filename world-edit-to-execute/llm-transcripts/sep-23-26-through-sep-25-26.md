@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 22:14:25
+Generated on: 2026-09-25 10:29:59
 Models: claude-opus-5-5
 
 ## Contents
@@ -89,6 +89,10 @@ Models: claude-opus-5-5
     patch from 1.07 to 1.29.2 so any map loads the game data it was made for,
     and the downloads are still running. Next, I'll build the new layers in
     version order and verify them.
+21. 2026-09-24 22:17, after Request 38 - Goal: every map loads with the Warcraft
+    III version it was made for. Versions 1.21a through 1.29.2 now build and
+    every test map loads its own version. Next, your call: start decoding the
+    older 1.01–1.20e patches, or something else.
 
 --------------------------------------------------------------------------------
 
@@ -4244,6 +4248,80 @@ layer. The Reign of Chaos stack is part of that sub-issue too.
 
 Should I start on the older diff encoding next? Or is there something else you'd
 rather tackle first?
+
+--------------------------------------------------------------------------------
+
+### User Request 39
+
+Good morning! Please continue.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 39
+
+> Good morning. Picking up the older diff encoding (sub-issue 112d).
+>
+> The approach is a known-answer comparison. The same file patched in both 1.20e
+> and 1.21a should produce the same raw diff, since bsdiff output is
+> deterministic for the same old and new files. I can already unpack 1.21a's, so
+> lining the two up byte by byte should reveal 1.20e's packing rule. First,
+> finding small files whose base and result are identical in both patches.
+
+> 295 files match on base and result. The smallest is `iconindex_def.txt`: 105
+> bytes in 1.20e and 87 in 1.21a. Decoding the 1.21a one to its raw diff and
+> printing it beside 1.20e's bytes.
+
+> The applier takes the step now. Next, `patch_layer` picks it from each
+> program's own script: the build number of the version it installs.
+
+> Lowering the builder's readable-from line to 1.19a and running the stack.
+
+> Just a filename case slip in my test (the disc has `War3xlocal.mpq`). Fixing
+> it.
+
+> Committed as `f3cdf59de`. Next shape: 1.14b, with three nested archives.
+> Reading its lists.
+
+> Nothing public documents it. I'm writing up what's known in the sub-issue so
+> the next attempt starts from here, then committing.
+
+**The 1.19a–1.20e patches now build** (commit `f3cdf59de`). Their diffs use
+the same format as later patches, but the old packer counts every run from 32
+instead of from 1.
+
+**How I found it:** I took one file that both 1.20e and 1.21a patch from the
+same base to the same result, so the diff underneath must be identical and only
+the packing can differ. Lining the two up showed the count, and the rule held on
+all 218 of 1.20e's archive diffs.
+
+**Cross-check:** the incremental patches 1.20d → 1.20e, 1.20e → 1.21a (which
+crosses the packing change) and 1.21a → 1.21b each reproduce the next full
+layer exactly. The whole suite passes.
+
+**Built now:** Frozen Throne 1.19a through 1.27b, plus 1.28.5, 1.29.1 and
+1.29.2.
+
+**Still unbuilt: 1.14b and everything older.** They share one older diff format
+that isn't bsdiff:
+- It covers Frozen Throne 1.11 and 1.14b, and Reign of Chaos 1.01–1.06, the
+  pre-expansion data that maps from 2002–2003 were balanced for.
+- I've worked out its framing: two blocks, the first holding records of control
+  bytes followed by inserted text.
+- I haven't worked out how the copy offsets and lengths are packed, and no
+  public documentation exists.
+- The sub-issue has the structure and a worked example with anchor points, so
+  the next attempt starts there (commit `3ff5a063d`).
+
+Next, in order of value:
+1. **The Reign of Chaos stack from 1.18a on.** It's readable with today's
+   decoder. It needs the builder to run on the Reign of Chaos install, and one
+   rare entry kind (two entries per patch) identified. Small and certain.
+2. **Keep reverse-engineering the oldest format.** The effort is unknown, but it
+   unlocks 1.01–1.14b in one go.
+3. **Back to the main threads:** the cross-check of stock values against
+   published sources, or the first WoW-client bridge issue.
+
+Which would you like?
 
 --------------------------------------------------------------------------------
 
