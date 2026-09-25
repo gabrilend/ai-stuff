@@ -30,3 +30,44 @@
 1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	War3Local.mpq	1.29.2/War3Local.mpq
 1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	Warcraft III.exe	1.29.2/Warcraft III.exe
 1.29.2	tft	https://archive.org/download/warcraft-iii-1-29-2-9231/Warcraft%20III%201.29.2.9231.zip	World Editor.exe	1.29.2/World Editor.exe
+# From the Gamefront collection's third part (W-Z) on the Internet Archive: single
+# files served out of the 7 GB archive, so only the programs listed are downloaded.
+1.11	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_111_english.exe	-	war3tft_111_english.exe
+1.14b	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_114b_english.exe	-	war3tft_114b_english.exe
+1.19a	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_119a_english.exe	-	war3tft_119a_english.exe
+1.20b	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_120b_english.exe	-	war3tft_120b_english.exe
+1.20c	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/warcraft3_120c_english.exe	-	warcraft3_120c_english.exe
+1.20d	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_120d_english.exe	-	war3tft_120d_english.exe
+1.20e	tft	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3tft_120e_english.exe	-	war3tft_120e_english.exe
+1.01	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patch101.exe	-	war3patch101.exe
+1.01b	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patch101b.exe	-	war3patch101b.exe
+1.02	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patch102.exe	-	war3patch102.exe
+1.03	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patches_103.exe	-	war3patches_103.exe
+1.04	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patches_104_english.exe	-	war3patches_104_english.exe
+1.05	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patches_105_english.exe	-	war3patches_105_english.exe
+1.06	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3patches_106_english.exe	-	war3patches_106_english.exe
+1.11	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_111_english.exe	-	war3roc_111_english.exe
+1.18a	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_118a_english.exe	-	war3roc_118a_english.exe
+1.19a	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_119a_english.exe	-	war3roc_119a_english.exe
+1.20c	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_120c_english.exe	-	war3roc_120c_english.exe
+1.20d	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_120d_english.exe	-	war3roc_120d_english.exe
+1.20e	roc	https://archive.org/download/gamefront-part-1-1-k/Gamefront%20Part%203%20%28W%20-%20Z%29.rar/war3roc_120e_english.exe	-	war3roc_120e_english.exe
+# From the "Warcraft 3 Collection" on the Internet Archive (each with a published sha512).
+1.21a	tft	https://archive.org/download/warcraft3collection/patches/tft/english/full/war3_tft_121a_english.exe	-	war3_tft_121a_english.exe
+1.27a	tft	https://archive.org/download/warcraft3collection/patches/tft/english/full/war3_tft_127a_english.exe	-	war3_tft_127a_english.exe
+# 1.28.5: no patch program; its data archives and programs, from Hive Workshop's file
+# pack (hiveworkshop.com/threads/wc3-download-archive-1-00-1-31-1-beta-demo.326836).
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/War3Patch.mpq	1.28.5/War3Patch.mpq
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/War3.mpq	1.28.5/War3.mpq
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/War3x.mpq	1.28.5/War3x.mpq
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/War3xLocal.mpq	1.28.5/War3xLocal.mpq
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/War3Local.mpq	1.28.5/War3Local.mpq
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/Warcraft III.exe	1.28.5/Warcraft III.exe
+1.28.5	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.28.5.zip	Warcraft III/World Editor.exe	1.28.5/World Editor.exe
+# 1.29.1: the same layout as 1.29.2 (no War3Patch.mpq), from Hive Workshop's file pack.
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/War3.mpq	1.29.1/War3.mpq
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/War3x.mpq	1.29.1/War3x.mpq
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/War3xLocal.mpq	1.29.1/War3xLocal.mpq
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/War3Local.mpq	1.29.1/War3Local.mpq
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/Warcraft III.exe	1.29.1/Warcraft III.exe
+1.29.1	tft	https://www.hiveworkshop.com/downloads/Patches/Files_1.29.1.zip	Warcraft III/World Editor.exe	1.29.1/World Editor.exe

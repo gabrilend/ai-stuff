@@ -106,6 +106,7 @@ fetched politely and reused.
 | 112a | stormlib-build-and-update-script | None | StormLib (MIT) built from a pinned tag by a script, with a LuaJIT binding, to read patch archives our own reader can't |
 | 112b | game-version-layers-per-map | 112a | Each patch is a complete layer of the files it produces; loading a map picks its layer and data set, and nothing on disk is patched |
 | 112c | route-a-stock-rows-merged-with-map-objects | 112b | SLK, profile and metadata parsing; each custom object's full row (stock row plus the map's changes), every field labelled fact, borrowed, editor or map |
+| 112d | older-patch-program-shapes | 112b | Layers for 1.01–1.20e: three older patch-program shapes (an older diff encoding, several nested archives, unnamed inner files) and the Reign of Chaos stack |
 
 Finding from 112b (2026-09-24): custom maps start from the data-set copies of
 the stock tables (`Custom_V0\` for Reign of Chaos maps, `Custom_V1\` for Frozen

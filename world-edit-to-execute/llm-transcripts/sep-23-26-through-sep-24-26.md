@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 21:24:39
+Generated on: 2026-09-24 21:48:43
 Models: claude-opus-5-5
 
 ## Contents
@@ -4005,6 +4005,158 @@ I haven't built the 1.29.2 layer or committed the install-layer code yet. That
 waits on your answer: keep 1.29.2 as the top of the supported range (the last
 MPQ-era build, well before the storage switch and Reforged), or stop at 1.27b
 and delete these files?
+
+--------------------------------------------------------------------------------
+
+### User Request 37
+
+Okay, sounds good.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 37
+
+> Keeping 1.29.2 as the top of the range. Building its layer.
+
+> All 39 pass. Now the docs: the patch-layer issue, the module notes, the
+> installs README, and the legal document's statement of where support stops and
+> why.
+
+> Suite and demos all pass. Fixing a garbled sentence in the chain notes, then
+> committing.
+
+Every test map now loads the game version it was made for, and nothing is
+guessed. Committed as `707e06db7`. The whole suite passes, the phase demos run,
+and the repository is clean.
+
+**1.29.2:**
+- It has no patch program, so it has a new kind of layer: an **install layer**
+  made from that version's own data archives, which the chain reads in place of
+  the disc's.
+- Only the four archives and two programs were kept from the game copy.
+- Its game program reports 1.29.2.9231. Its editor contains build 6060 and lacks
+  6059, which every editor from 1.24a to 1.27b has.
+
+**No more fallback:**
+- A map whose editor build is unknown, or whose layer isn't built yet, now stops
+  with an error naming what to fetch.
+- The test maps never reach that error, because all their builds are covered: 12
+  load 1.21b, one 1.22a, two 1.27b, and one 1.29.2.
+
+**Your cutoff is written down.** The legal document and the patch-layer issue
+now state it, with your reasoning in your words:
+- **MPQ era only (1.07 to 1.29.2):** no reader for the storage format the live
+  game uses.
+- **Nothing after shared-CD-key play was removed.**
+
+**Open question:** these English versions still have no patch program on hand:
+1.10–1.21a, 1.27a, 1.28.x and 1.29.0–1.29.1. No test map needs them. Should
+I hunt them down now, so any map from that era loads? Or wait until a map
+actually names one of those editor builds?
+
+--------------------------------------------------------------------------------
+
+### User Request 38
+
+Yeah hunt down every patch you can find. The test maps are not the totality of
+all maps we intend to support.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 38
+
+> Hunting. First a broad search of the Internet Archive for every Warcraft III
+> patch item.
+
+> Promising candidates: a "many versions collection", a Gamefront Warcraft 3
+> collection (Gamefront hosted patch mirrors), a "Warcraft 3 Collection", and a
+> 1.05 patch. Listing their patch files.
+
+> The "Warcraft 3 Collection" item is the jackpot: full and incremental English
+> patches, each with a published checksum. Getting its complete English listing,
+> both games.
+
+> The Gamefront archive (7 GB) is full of Warcraft III patch programs, including
+> incrementals and other languages. Listing every English or unlabelled one in
+> it.
+
+> Only Part 3 has them. Downloading all 7 GB for about 30 files would be
+> wasteful. The Internet Archive's viewer can serve single members out of an
+> archive, so I'm testing that on a small file first.
+
+> The table-of-contents probe is taking too long, which suggests the range is
+> being ignored somewhere and it's downloading whole files. Checking before it
+> wastes bandwidth.
+
+> Starting the fetch in the background. Anything already present is skipped, so
+> this downloads the new programs and the 1.28.5 pack.
+
+> While that runs, adding 1.28.5 to the install-layer table in the builder, with
+> the patch archive at the top of its order.
+
+> Recording the sources and remaining steps in the patch-layer issue while the
+> downloads run.
+
+Both background jobs are still running:
+- **The fetch:** it has passed the files already on disk and is now pulling the
+  Gamefront programs, the collection's 1.21a and 1.27a, and the 1.28.5 pack
+  (about 1.2 GB).
+- **The 1.29.1 probe:** it's still reading that zip's table of contents from
+  Hive's slow server.
+
+When they finish, I'll:
+1. Build the new Frozen Throne layers in version order, including an install
+   layer for 1.28.5, and 1.29.1 if its pack holds the data archives.
+2. Check each layer's game version and editor build, and extend the editor-build
+   table.
+3. Run the suite and commit.
+
+The Reign of Chaos programs are being fetched too, but building their stack
+needs the builder extended, since it only handles Frozen Throne. That's recorded
+as the next step in the patch-layer issue.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"S=/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad
+cat &gt; $S/zipcd.py &lt;&lt;'EOF'
+# Reads a remote zip's table of contents from its tail (fetched with curl -r).
+import sys, struct, subprocess
+def get(url, start, end):
+    return subprocess.run(["curl", "-s", "-L", "-A", "world-edit-to-execute patch fetch", "-r", f"{start}-{end}", url], capture_output=True, check=True).stdout
+url = sys.argv[1]
+size = int(subprocess.run(["curl", "-sIL", "-A", "world-edit-to-execute patch
+fetch", url], capture_output=True,
+text=True).stdout.lower().split("content-length:")[-1].split()[0])
+tail = get(url, size - 65536, size - 1)
+i = tail.rfind(b"PK\x05\x06")
+count, cd_size, cd_off = struct.unpack("&lt;HII", tail[i+10:i+20])
+if cd_off == 0xFFFFFFFF:  # zip64
+    j = tail.rfind(b"PK\x06\x06")
+    count, cd_size, cd_off = struct.unpack("&lt;QQQ", tail[j+32:j+56])
+cd = get(url, cd_off, cd_off + cd_size - 1)
+p = 0
+while p &lt; len(cd) and cd[p:p+4] == b"PK\x01\x02":
+    usize = struct.unpack("&lt;I", cd[p+24:p+28])[0]
+    nlen, elen, clen = struct.unpack("&lt;HHH", cd[p+28:p+34])
+    name = cd[p+46:p+46+nlen].decode("utf-8", "replace")
+    if name.lower().endswith((".mpq", ".exe")):
+        print(f"{usize:&gt;12} {name}")
+    p += 46 + nlen + elen + clen
+EOF
+for v in 1.28.5 1.29.1; do echo "== $v"; python3 $S/zipcd.py
+"https://www.hiveworkshop.com/downloads/Patches/Files_$v.zip"; done" completed
+(exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 38 (continued)
+
+> 1.29.1's pack has the same layout as 1.29.2. Adding its rows and its
+> install-layer entry; the fetch will be run again afterwards to pick them up.
+
+The fetch is still running: 1.11 and 1.14b are in, and the rest are downloading.
+I'll build and verify once it finishes.
 
 --------------------------------------------------------------------------------
 

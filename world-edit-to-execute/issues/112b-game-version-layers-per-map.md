@@ -70,8 +70,8 @@ only its notes. Instead:
    warning.
 
 6. **The stack** (2026-09-24). `scripts/fetch-patch-programs.sh` gathered
-   the English Frozen Throne programs for 1.21b, 1.22a, 1.23a, 1.24a–e,
-   1.25b, 1.26a and 1.27b (and Reign of Chaos 1.24a–1.27b, not built yet) into
+   the English Frozen Throne programs 1.21a–1.27b (and older ones, not yet
+   readable: issue 112d), plus 1.28.5, 1.29.1 and 1.29.2 data from game copies (and Reign of Chaos 1.24a–1.27b, not built yet) into
    `wc3-installs/patch-programs`, with a checksum record.
    `build-patch-layer.lua --stack` builds them in version order, each on the
    layers below (`patch_layer.build`'s `lower_layers`); a diff's base is the
@@ -88,9 +88,11 @@ only its notes. Instead:
    - **Editor builds** (`src/gamedata/editor_versions.lua`): each layer's
      `WorldEdit.exe` holds its own build number and not its predecessor's
      (6052 only in 1.21b, 6057 only in 1.22a, 6058 only in 1.23a, 6059 from
-     1.24a on), agreeing with the published list. 6052 → 1.21b, 6057 →
-     1.22a, 6058 → 1.23a, 6059 → 1.27b.
-   - **1.29.2 install layer**: the 1.29.2 archives kept from a game copy,
+     1.24a on, through 1.28.5), agreeing with the published list. 6052 →
+     1.21b, 6057 → 1.22a, 6058 → 1.23a, 6059 → 1.28.5, 6060 → 1.29.2.
+   - **Install layers** (1.28.5, 1.29.1, 1.29.2): versions with no patch
+     program; 1.28.5 keeps a `War3Patch.mpq` above rebuilt main archives,
+     1.29.x fold everything in. First built: 1.29.2, the archives kept from a game copy,
      hard-linked into `patch-layers/1.29.2/archives/`
      (`build-patch-layer.lua --install-layer 1.29.2`, `patch_layer.build_install`);
      its game program reports 1.29.2.9231; its editor holds 6060 and not
@@ -258,7 +260,12 @@ editor build that saved them. The wiki table only cross-checks it.
 1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
 2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
 4. ~~The shared-CD-key cutoff~~ Answered 2026-09-24 from dates (the owner: "check the dates on the threads, then the release dates of the patches"). A Hive Workshop thread, Feb 24 – Mar 20, 2019, says one key works for several players on LAN (1.30.4, Jan 14, 2019, was current). A Blizzard forum post of July 5, 2019 says "after recent patches I have been unable to join my own LAN games like I could before"; the patches between were 1.31.0 (May 28, 2019) and 1.31.1 (June 10, 2019). Cutoff: after 1.30.4. Inferred from two community posts, not a changelog; a changelog line or a two-client test on 1.30.4 and 1.31.0 would confirm it.
-5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.27a, 1.28.x, 1.29.0–1.29.1. None has a test map. 1.22a (Internet Archive, a full patch) and 1.29.2 (an install layer from a whole-game copy's archives, `warcraft-iii-1-29-2-9231`, fetched with the owner's go-ahead) are built, so every test map's editor build now has its layer and the newest-layer fallback is gone. Still open: whether to chase the remaining versions before a map needs them.
+5. **Every version we can find** (owner, 2026-09-24: "hunt down every patch you can find. The test maps are not the totality of all maps we intend to support."). Sources found, all public mirrors and none Blizzard's servers:
+   - the Internet Archive's `gamefront-part-1-1-k` (part 3, W–Z): English Frozen Throne programs 1.11, 1.14b, 1.19a, 1.20b–e and Reign of Chaos 1.01–1.06, 1.11, 1.18a, 1.19a, 1.20c–e, plus incrementals and other languages; single files are served out of the 7 GB archive;
+   - `warcraft3collection`: English Frozen Throne full patches 1.21a–1.27a (1.22a both enUS and enGB; ours is enGB) with sha512s, and the incremental chain 1.20e→1.21a … 1.25b→1.26a;
+   - Hive Workshop's file packs for 1.28.5 and 1.29.1 (game data, no patch program);
+   - earlier: `wc3_patches`, `warcraft-iii-installer-enus`, `war3tft-en-patch122a`/`123a`, `warcraft-iii-1-29-2-9231`.
+   Still missing in English: Frozen Throne 1.10, 1.12, 1.13, 1.15–1.18, 1.28.0–1.28.3, 1.29.0; Reign of Chaos 1.02a, 1.12, 1.13, 1.14b (only as `.bin`/`.zip` or other languages so far), 1.21a–1.23a. Built: 1.21a–1.27b, 1.28.5, 1.29.1, 1.29.2. The older programs (1.01–1.20e) come in three shapes the builder can't read yet, and the Reign of Chaos stack isn't built: issue 112d. Still open here: using the incremental patches as a cross-check (applying 1.21a→1.21b to the 1.21a layer must reproduce the 1.21b layer).
 3. ~~The data set~~ Answered 2026-09-24. A map chooses it: `war3map.w3i`'s "game data set" (format 17 on) is 0 = Default (based on the map's melee flag), 1 = Custom, 2 = Melee (latest patch). Evidence: the editor's own option names in each layer's `UI\WorldEditStrings.txt` ("Default (based on map melee status)", "Custom (TFT 1.07, RoC 1.01)", "Melee (Latest Patch)"), the values 0 and 2 in the test maps, and the community specification (WC3MapSpecification, `Info/0-33.md`) as a cross-check. It matters: the patches rebalance only the melee tables (`Units\`); the custom copies stay at 1.07 (1.22a's Knight: 28 damage and 1.40 cooldown in `Units\UnitWeapons.slk`, still 25 and 1.50 in `Custom_V1\` up to 1.27b). Seven test maps (DAoW 5.3 to 5.4c) choose Melee and so read the patched tables; the chain had given every Frozen Throne map `Custom_V1`.
 
 ## Related Documents
