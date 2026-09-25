@@ -173,7 +173,7 @@ end
 function Archive:get_block_info(filename)
     check_closed(self)
 
-    local block_index = hashtable.find_file(self._hash_table, filename)
+    local block_index = hashtable.find_file(self._hash_table, filename, self._block_table.entry_count)
     if not block_index then
         return nil, "File not found"
     end

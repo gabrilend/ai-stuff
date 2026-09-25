@@ -7,6 +7,9 @@ local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 
 package.path = DIR .. "/src/?.lua;" .. package.path
 
+-- LuaJIT has no string.unpack or bitwise operators; the compat layer supplies both.
+local compat = require("compat")
+
 local extract = require("mpq.extract")
 local hashtable = require("mpq.hashtable")
 local blocktable = require("mpq.blocktable")
@@ -106,7 +109,7 @@ if w3i_data then
          string.format("got %d, expected %d", #w3i_data, expected_size))
 
     -- W3I files start with version number (typically 25 for TFT)
-    local version = string.unpack("<I4", w3i_data, 1)
+    local version = compat.unpack_uint32(w3i_data, 1)
     test("w3i has valid version", version == 25 or version == 18,
          "version=" .. tostring(version))
 

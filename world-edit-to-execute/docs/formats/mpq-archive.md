@@ -88,10 +88,24 @@ Files are located by hashing filenames. No actual filenames are stored in the ar
 ```
 1. hash_index = HashString(filename, HASH_TYPE_TABLE_OFFSET) & (table_size - 1)
 2. Check entry at hash_index
-3. If FilePathHashA and FilePathHashB match: found
-4. If empty slot: file not in archive
-5. Otherwise: linear probe to next slot
+3. If FilePathHashA and FilePathHashB match (and the block index is inside the
+   block table): remember it as the best match so far, and keep walking
+4. If empty slot: stop; the answer is the last remembered match (or none)
+5. Otherwise: next slot = (hash_index + 1) & (table_size - 1); stop on return to the start
 ```
+
+**Protected maps exploit this lookup** (confirmed 2026-09-24 against StormLib,
+which reproduces the game's Storm.dll):
+
+- **Use the mask, not modulo.** `& (table_size - 1)` equals `% table_size`
+  only when the size is a power of two; protectors write other sizes.
+- **Several entries can share one name**, all language-neutral (locale 0).
+  Warcraft III reads the **last** matching entry along the walk, not the first.
+  In `DAoW-5.2.w3x` the first `war3map.w3d` entry is a 59,659-byte decoy and the
+  real 61,537-byte file comes later.
+- **Entries pointing past the end of the block table are decoys**: skip them.
+- When a specific (non-zero) locale is wanted, an entry in exactly that locale
+  is returned at once; otherwise the last neutral-or-matching one.
 
 ---
 
@@ -225,6 +239,18 @@ end
 For encrypted files:
 1. Base key = `hash_string(filename, HASH_FILE_KEY)`
 2. If KEY_ADJUST flag: `key = (base_key + block_offset) XOR file_size`
+
+Applying it:
+- Each sector is decrypted with `key + sector_index`; the sector offset table
+  with `key - 1`. This holds for **uncompressed** files too: they are still
+  stored in sectors, each encrypted separately (unless SINGLE_UNIT).
+- Decryption works on whole 4-byte words. **The last `length % 4` bytes of a
+  sector are stored unencrypted** and must be copied as they are, not padded
+  and decrypted.
+
+(Both rules were found missing from the project's reader on 2026-09-24, by
+comparing it with StormLib across the maps in `assets/`;
+`src/tests/test_stormlib.lua` keeps checking.)
 
 ---
 
