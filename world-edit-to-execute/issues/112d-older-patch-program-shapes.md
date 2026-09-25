@@ -81,6 +81,21 @@ every run as "not built, older patch program shapes (issue 112d)"
    stack has in it (Reign of Chaos has no 1.21b: 6052 loads its 1.20e). The
    chain takes `base_archives` for a Reign of Chaos-only install.
 
+**Other languages (checked 2026-09-25).** The German 1.24e program
+(`warcraft3collection`, matching its published SHA-512) built on the English
+disc gives all 96 of its game-data files (`.slk` tables, `*Func.txt`
+profiles) byte-identical to the English 1.24e layer; only text differs (two UI
+string files) or can't be built on an English base (42 localized
+`*Strings.txt` files, diffed against the German disc's text). So a
+foreign-language program could supply a version's balance tables, but not
+its English text. It fills no gap yet: the missing Frozen Throne versions
+(1.12, 1.13, 1.15–1.18) aren't in these collections in any language; the
+Reign of Chaos ones that are (1.12, 1.13 in German, French, Czech) predate
+1.18a and use kind 0x00 anyway; Reign of Chaos 1.21a–1.23a exist only as
+incrementals, which need a Reign of Chaos 1.21b layer. If a foreign program
+is ever used, its layer must say which text it lacks, rather than let the
+chain read older English text from below without a word.
+
 Not yet fetched, because no English program was found: Frozen Throne 1.10,
 1.12, 1.13, 1.15–1.18; Reign of Chaos 1.02a, 1.12, 1.13, 1.14b, 1.21a–1.23a
 (some exist only as `.bin`/`.zip` or in other languages in the same
