@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 15:01:30
+Generated on: 2026-09-25 15:20:18
 Models: claude-opus-5-5
 
 ## Contents
@@ -133,6 +133,11 @@ Models: claude-opus-5-5
     soramech engine. Next, I need your answer: when a map loads a new model
     mid-game, should the frozen model table unfreeze, or should the graph pause
     while it grows?
+31. 2026-09-25 15:04, after Request 62 - We're designing how the engine draws
+    real Warcraft III maps on raylib, with soramech doing the background work;
+    the low-latency, show-the-truth design is settled. Next, with your go-ahead,
+    I'll write it into a new rendering issue, starting with a copy-cost
+    benchmark.
 
 --------------------------------------------------------------------------------
 
@@ -6389,6 +6394,127 @@ Nothing is written down yet. The decisions so far:
 
 Should I record them in a new Phase 5 issue for the rendering graph on the
 ceramic engine, with the copy-cost benchmark as its first step?
+
+--------------------------------------------------------------------------------
+
+### User Request 63
+
+Okay yeah let's keep working.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 63
+
+> I'll start by checking for existing issues that overlap, and get the next free
+> Phase 5 number.
+
+> No duplicate. The closest open work is the thread pool's main integration and
+> the 3D rotation frames; I'll read both to link them properly.
+
+> Now the sub-issue files. First, the soramech test that builds a program
+> outside its repo, so 515a names the real embedding steps:
+
+> Boxes are placed by name, so I need to see how a box name reaches the engine
+> when building outside serac:
+
+> The build path is: a generator reads the box C files and writes an "emitted"
+> file, which compiles together with the engine. I'll check the documented way
+> to build against the engine by hand:
+
+> `serac --main=FILE` builds a map with our own `main`, which is exactly what
+> the benchmark needs (no raylib yet). Is serac built, and does it pass extra
+> compiler flags through?
+
+> Building serac into our own RAM tier, so the soramech repository isn't
+> touched:
+
+> Serac built into our RAM tier, and the soramech repository is untouched.
+> Before writing the benchmark, I'll read exactly how collected results fill and
+> what happens when the room runs out:
+
+> All seven issue files validate. Now 515a. With `--main`, I need to know what
+> the emitted code hands my own `main`:
+
+> I'll write the box file and a map, then look at the emitted C to see what the
+> construction code offers a custom `main`:
+
+> Now splice them in the RAM tier and emit the C again:
+
+> Now the plain program, with the single-thread floor and the hand-threaded
+> parallel loop:
+
+> (The editor diagnostics are expected: both files are only compiled with the
+> engine or the spliced types in front of them.) Serac's option takes a separate
+> argument; checking its parser:
+
+> `--emit-c` writes its C beside the map (as `per-unit.c`) rather than to
+> standard output. Checking whether that file includes the engine or only the
+> construction code:
+
+> The emitted file is the construction code plus a `main`; it includes `cera.h`
+> and expects the engine compiled beside it. `serac --unpack` writes out exactly
+> those two files. Adjusting the build:
+
+> The ceramic ways built. The plain program's `#include` found the unspliced
+> source beside it first; I'll compile it from a copy in the build folder, next
+> to the spliced box file:
+
+> Nondeterministic even for a single frame, and wrong at 64 units too, so the
+> 512/2048 agreement may have been luck. I'll dump one frame's chunk result and
+> compare it to the plain loop byte by byte:
+
+> Tracking a data-corruption bug in the engine's large results; I've narrowed it
+> to how a result gets from the box to the collection array.
+
+> Committing the issues and the benchmark as they stand:
+
+The benchmark ran and produced the first numbers. It also found a real bug in
+the ceramic engine. The issue and its six parts are written, and everything is
+committed.
+
+**Time per frame to pose every unit's 30-bone skeleton** (microseconds; a 60 fps
+frame is 16,667):
+
+| Units | One thread | Hand-threaded loop | Ceramic, a task per unit | Ceramic, a task per 64 units |
+|---|---|---|---|---|
+| 128 | 309 | 166 | 787 | 513 |
+| 512 | 956 | 441 | 3,007 | 523 |
+| 2,048 | 3,606 | 1,145 | **11,641** | **818** |
+
+- **A task per unit costs about 5 µs of overhead.** At 2,048 units that's 70%
+  of a frame, so your instinct was right that this shape is expensive. What
+  isn't known yet is how much of the 5 µs is the 2 KB copy and how much is the
+  task itself (allocation, queueing, the host handing in requests one at a
+  time). A variant returning 4 bytes instead of the pose will split the two.
+- **A task per 64 units matches the hand-threaded loop**, and beats it at 2,048
+  units. So the ceramic engine is viable here if boxes are chunky.
+
+**The bug in the ceramic engine:** the count of collected results goes up when a
+result's slot is *reserved*, before its bytes are copied in. Anyone trusting the
+count ("how many values landed", per its docs) can read a result that's still
+being written.
+- A 2 KB result finishes copying almost instantly and hides the bug.
+- A 120 KB chunk showed about 66 KB copied and the rest still zero, differently
+  on every run.
+- Waiting 1 ms before reading made the results match the plain loop exactly,
+  which confirms the cause.
+
+Because of this, the chunked times above are slightly optimistic: each frame's
+last copy hadn't finished when the clock stopped.
+
+Other findings for soramech, recorded in the issue:
+- **Value types can't hold number arrays, only text.** A matrix has to be 16
+  named floats, so a small tool generates them.
+- **serac's documentation lists a `--main` option serac doesn't have.** The
+  build works around it by emitting the map's C and swapping in our own `main`.
+- **serac can't add linker flags**, which raylib will need; the same route works
+  around it.
+
+**The fix belongs in the soramech repository:** a second counter that goes up
+only after the copy, which the count then reports, plus a test there with a
+large result. I haven't touched that repository. Should I make the fix there,
+following its own issue and test conventions? Once it's in, I'd re-run the
+benchmark with the 4-byte variant added, which finishes the first part.
 
 --------------------------------------------------------------------------------
 
