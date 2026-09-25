@@ -17,6 +17,16 @@ A WC3-compatible game engine that reads Warcraft 3 map files (.w3x/.w3m) like an
 
 ---
 
+## Privacy
+
+The owner's personal details (email address, name, accounts) are never sent
+to any outside service (request headers, URLs, uploads) unless the owner
+names that detail for that purpose. Requests identify the tool only
+(e.g. a User-Agent `world-edit-to-execute patch fetch`). The owner
+(2026-09-25): "please try and respect my PII in the future."
+
+---
+
 ## Issue Management Workflow
 
 ### Philosophy

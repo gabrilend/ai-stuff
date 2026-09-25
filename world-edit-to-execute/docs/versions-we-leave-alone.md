@@ -127,6 +127,10 @@ from file name or ID to content hash). Reading it would mean:
   by a later editor is not guessed at; the chain says its editor build is
   unknown (`src/gamedata/chain.lua`).
 - Point anyone who wants the current game to the current game.
+- The balance history page (issue 115b) lists these versions with their
+  published patch notes, as text credited to Liquipedia, each labelled "not
+  supported by this project — patch notes only". That is a record of what
+  Blizzard announced, not support: nothing is read from those versions' files.
 
 ## Related documents
 

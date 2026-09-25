@@ -140,6 +140,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
+| 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
 
 Phase 1 was reopened on 2026-09-24 for the stock-table work that converting
 custom maps needs (112) and the reader work it uncovered (113). Comparing the
