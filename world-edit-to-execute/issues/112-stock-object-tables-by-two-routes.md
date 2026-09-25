@@ -59,8 +59,9 @@ agree:
 1. Fetch the values community wikis publish for stock objects. First source:
    **Liquipedia** (Warcraft III) through its MediaWiki API, following its API
    terms (checked 2026-09-24): at most one request every 2 seconds (one every
-   30 seconds for `action=parse`), a User-Agent naming this project and a
-   contact, gzip, and results cached so each page is fetched once. Content is
+   30 seconds for `action=parse`), a User-Agent naming this project (only
+   the tool, no contact: the owner, 2026-09-25, keeps personal details out of
+   requests), gzip, and results cached so each page is fetched once. Content is
    CC BY-SA 3.0 and requires attribution.
 2. Parse each page's infobox/stat tables into the same shape as Route A
    (object id → field → value).
@@ -107,6 +108,7 @@ fetched politely and reused.
 | 112b | game-version-layers-per-map | 112a | Each patch is a complete layer of the files it produces; loading a map picks its layer and data set, and nothing on disk is patched |
 | 112c | route-a-stock-rows-merged-with-map-objects | 112b | SLK, profile and metadata parsing; each custom object's full row (stock row plus the map's changes), every field labelled fact, borrowed, editor or map |
 | 112d | older-patch-program-shapes | 112b | Layers for 1.01–1.20e: three older patch-program shapes (an older diff encoding, several nested archives, unnamed inner files) and the Reign of Chaos stack |
+| 112e | route-b-published-values-cross-check | 112c, 112b | Liquipedia's infobox values, as each page stood when 1.29.2 was current, compared field by field with Route A |
 
 Finding from 112b (2026-09-24): custom maps start from the data-set copies of
 the stock tables (`Custom_V0\` for Reign of Chaos maps, `Custom_V1\` for Frozen
