@@ -138,6 +138,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 112c | Route A: stock rows merged with each map's objects, every field labelled | **Completed** 2026-09-24 | 112b |
 | 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
+| 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
 
 Phase 1 was reopened on 2026-09-24 for the stock-table work that converting
 custom maps needs (112) and the reader work it uncovered (113). Comparing the
