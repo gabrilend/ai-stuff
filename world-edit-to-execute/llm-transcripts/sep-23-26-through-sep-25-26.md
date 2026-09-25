@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 12:51:06
+Generated on: 2026-09-25 12:59:20
 Models: claude-opus-5-5
 
 ## Contents
@@ -116,6 +116,10 @@ Models: claude-opus-5-5
     revisions are still downloading in the background. Once they finish, I'll
     fetch the remaining refetch list, then investigate each disagreement and
     commit.
+27. 2026-09-25 12:54, after Request 52 - We're cross-checking every stock number
+    in the game's tables against Liquipedia's published values, and none is left
+    unexplained. Next, you decide whether I trace the 28 wiki pages that have no
+    version from before 1.30.
 
 --------------------------------------------------------------------------------
 
@@ -5566,6 +5570,55 @@ behind. Tracing them would take about 28 more requests (~5 minutes at the same
 spacing): ask for each page's first version and the note written with it, then
 fetch the older title's pre-1.30 version where one is named. Should I trace
 them, or leave those 94 numbers marked as can't-be-checked and close the issue?
+
+--------------------------------------------------------------------------------
+
+### User Request 53
+
+Leave them as "have not been checked" and keep the issue open. But let's move on
+to something else for now.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 53
+
+> I'll rename that group to "have not been checked", record your answer in the
+> issue, and leave the issue open.
+
+> Now the issue: your decision goes into the open question, and the item stays
+> unchecked.
+
+> Committed. Next on the earlier plan was the phase 1 demo refresh, if phase 1
+> is complete. Checking:
+
+Done: those 94 numbers are now reported as "have not been checked", your
+decision is written into the open question, and the issue stays open. The tests
+still pass (20 of 20), and the change is committed.
+
+The phase 1 demo refresh has to wait: phase 1 isn't finished. Four of its issues
+are still open:
+- **Route B** (the published-values cross-check), open on the 28 pages;
+- **the stock values parent issue**;
+- **the game-version layers**;
+- **the older patch-program formats**, open on the big copy-protected binaries.
+
+Options for something else, most valuable first:
+
+1. **Finish the stock values parent issue.** Its main remaining piece is a gate
+   in the converter: a stock table counts as trusted only when both routes stand
+   behind it. Route B's results are fresh, so the gate can be wired straight to
+   them. That would close most of what keeps phase 1 open.
+2. **Phase 5, rendering.** This is the largest open front (23 done, 44 open).
+   The vertical slice is done, so the next issues build on it and draw real
+   maps.
+3. **Show the cross-check in the balance history explorer.** Each number would
+   get a small mark: confirmed by the wiki, explained difference, or not yet
+   checked. It reuses what we just built, in the viewer you liked.
+4. **Look at the big copy-protected binaries again**, with a fresh angle on your
+   idea that the program unpacks itself when it runs. This is the most uncertain
+   option, and the most puzzle-like.
+
+Which one appeals?
 
 --------------------------------------------------------------------------------
 
