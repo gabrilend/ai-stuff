@@ -95,7 +95,7 @@ no script hard-codes them twice.
 | What | Path | Notes |
 |------|------|-------|
 | WoW 3.3.5a client | `/mnt/mtwo/games/azeroth-core/client/client-files/` | Holds `Data/` with `common.MPQ`, `common-2.MPQ`, `expansion.MPQ`, `lichking.MPQ`, `patch.MPQ`, `patch-2.MPQ`, `patch-3.MPQ`, and the `enUS/` locale archives |
-| Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` points at `/mnt/dile/ritz/games/wotlk`, a different folder from the one above (see open questions) |
+| Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` still names `/mnt/dile/ritz/games/wotlk`, an older location; the live client is the folder above (confirmed by the owner 2026-09-24) |
 | AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (the older Lua scripting engine; the project uses its successor ALE, `mod-ale`) and a `docker-compose.yml` |
 | Server data extracted from the client | `/mnt/mtwo/games/azeroth-core/data-files/` | `dbc/`, `maps/`, `vmaps/`, `mmaps/`, `Cameras/` |
 | The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its issues 104-107 build `libwreaders.so`, the reading layer this project uses; its Phase 11 is WC3 map mode. No code yet |
@@ -260,9 +260,8 @@ issue that holds it can be called complete.
 
 1. ~~Mission boundary~~ (answered above: borrowed art, measured distance).
 2. ~~One reader or two~~ (answered: one C library in the W client, `libwreaders.so`, called here through the FFI).
-3. **Which client folder.** `client/run` points at `/mnt/dile/ritz/games/wotlk`
-   but the client files found are in `client/client-files/`. Which is the
-   live install? (W02, W04)
+3. ~~Which client folder.~~ Answered 2026-09-24: `/mnt/mtwo/games/azeroth-core/client/`
+   (game files in `client-files/`).
 4. **Scale.** Accept 1 WC3 tile = 1 WoW cell (4.1667 yd)? (W02)
 5. ~~How the player commands units inside the WoW client~~ (answered above:
    natively in the custom client; the stock-client addon is only a stopgap).
