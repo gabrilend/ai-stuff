@@ -1,0 +1,254 @@
+<!doctype html>
+<!--
+  balance-history.html - shows how Warcraft III's stock numbers moved across versions
+
+  Reads history.js (window.HISTORY), written beside it by src/cli/balance-history.lua,
+  and draws: a searchable list of units, abilities, items and upgrades; one chart per
+  number that changed, version by version; and a heat map of how many numbers each
+  patch changed, by kind. Self-contained (no network); the data stays on this machine.
+  Issue: issues/completed/115-balance-history-explorer.md
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balance History</title>
+<style>
+  :root {
+    --bg: #f6f3ec; --panel: #fffdf8; --ink: #2a2622; --muted: #7a7166; --line: #ddd5c8;
+    --accent: #7a4f2b; --accent2: #3f6f8f; --hot: #b2452f; --cold: #efe8dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1a17; --panel: #25221e; --ink: #ece6dc; --muted: #9c9285; --line: #3a352f;
+      --accent: #d8a15f; --accent2: #7fb3d5; --hot: #e0674b; --cold: #2c2823;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1a17; --panel: #25221e; --ink: #ece6dc; --muted: #9c9285; --line: #3a352f;
+    --accent: #d8a15f; --accent2: #7fb3d5; --hot: #e0674b; --cold: #2c2823;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 Georgia, "Iowan Old Style", serif; }
+  header { padding: 18px 16px 8px; display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .02em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; }
+  button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  main { display: grid; grid-template-columns: 280px 1fr; gap: 14px; padding: 0 16px 24px; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+  #list { max-height: 72vh; overflow-y: auto; margin-top: 8px; }
+  #list div { padding: 4px 6px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+  #list div:hover, #list div.sel { background: var(--cold); }
+  #list .id { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+  #list .n { color: var(--muted); font-size: 12px; }
+  #search { width: 100%; }
+  h2 { font-size: 18px; margin: 4px 0 2px; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 10px; }
+  .chart { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .chart .t { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+  svg { width: 100%; height: auto; display: block; }
+  .tip { font-size: 12px; color: var(--muted); min-height: 1.2em; }
+  #heat { overflow-x: auto; }
+  .legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Balance History</h1>
+  <span class="sub" id="summary"></span>
+  <div class="controls">
+    <span id="games"></span>
+    <select id="kind"><option value="">every kind</option><option>unit</option><option>ability</option><option>item</option><option>upgrade</option></select>
+    <button id="theme" title="Switch light and dark">◐</button>
+  </div>
+</header>
+<main>
+  <section class="panel">
+    <input id="search" placeholder="Search by name or id (hkni, Knight…)">
+    <div id="list"></div>
+  </section>
+  <section>
+    <div class="panel">
+      <button id="back" style="float:right;display:none">← every patch</button>
+      <h2 id="title">Which patches changed the most</h2>
+      <div class="sub" id="subtitle">Numbers changed from the version before, by kind of object. Pick an object on the left to see its history.</div>
+      <div id="heat"></div>
+      <div id="detail" class="charts"></div>
+    </div>
+  </section>
+</main>
+<script src="history.js"></script>
+<script>
+(function () {
+  "use strict";
+  var H = window.HISTORY;
+  if (!H) { document.body.textContent = "history.js is missing: run scripts/balance-history.sh"; return; }
+  var state = { game: H.games.tft ? "tft" : Object.keys(H.games)[0], kind: "", sel: null };
+  // An address like balance-history.html#tft/hkni opens that game and object.
+  var hash = location.hash.replace(/^#/, "").split("/");
+  if (hash[0] && H.games[hash[0]]) state.game = hash[0];
+  if (hash[1] && H.games[state.game].objects[hash[1]]) state.sel = hash[1];
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  // {{{ theme (remembered per viewer when storage is allowed)
+  try { var saved = localStorage.getItem("bh-theme"); if (saved) document.documentElement.dataset.theme = saved; } catch (e) {}
+  $("theme").onclick = function () {
+    var dark = document.documentElement.dataset.theme === "dark" ||
+      (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("bh-theme", document.documentElement.dataset.theme); } catch (e) {}
+    render();
+  };
+  // }}}
+
+  // {{{ game buttons
+  Object.keys(H.games).forEach(function (key) {
+    var b = document.createElement("button");
+    b.textContent = H.games[key].title;
+    b.onclick = function () { state.game = key; state.sel = null; render(); };
+    b.dataset.key = key;
+    $("games").appendChild(b);
+  });
+  $("kind").onchange = function () { state.kind = this.value; render(); };
+  $("search").oninput = function () { renderList(); };
+  // }}}
+
+  // {{{ changes: how many numbers each version changed, per kind
+  function changes(game) {
+    var g = H.games[game], n = g.versions.length, out = {};
+    ["unit", "ability", "item", "upgrade"].forEach(function (k) { out[k] = new Array(n).fill(0); });
+    Object.keys(g.objects).forEach(function (id) {
+      var o = g.objects[id];
+      Object.keys(o.fields).forEach(function (f) {
+        var v = o.fields[f];
+        for (var i = 1; i < n; i++) {
+          if (v[i] !== null && v[i - 1] !== null && v[i] !== v[i - 1]) out[o.kind][i]++;
+        }
+      });
+    });
+    return out;
+  }
+  // }}}
+
+  // {{{ heat map
+  function renderHeat() {
+    var g = H.games[state.game], c = changes(state.game), kinds = ["unit", "ability", "item", "upgrade"];
+    var n = g.versions.length, cw = 34, ch = 26, left = 70, top = 8;
+    var max = 1;
+    kinds.forEach(function (k) { c[k].forEach(function (x) { if (x > max) max = x; }); });
+    var box = $("heat"); box.innerHTML = "";
+    var svg = el("svg", { viewBox: "0 0 " + (left + n * cw + 10) + " " + (top + kinds.length * ch + 60), style: "min-width:" + (left + n * cw) + "px" }, box);
+    var hot = css("--hot"), cold = css("--cold"), ink = css("--ink"), muted = css("--muted");
+    kinds.forEach(function (k, r) {
+      el("text", { x: left - 8, y: top + r * ch + 17, "text-anchor": "end", fill: muted, "font-size": 12 }, svg).textContent = k;
+      for (var i = 0; i < n; i++) {
+        var x = c[k][i], a = i === 0 ? 0 : Math.sqrt(x / max);
+        var rect = el("rect", { x: left + i * cw + 1, y: top + r * ch + 1, width: cw - 2, height: ch - 2, rx: 3,
+          fill: a > 0 ? hot : cold, "fill-opacity": a > 0 ? (0.15 + 0.85 * a) : 1 }, svg);
+        var t = el("title", {}, rect); t.textContent = g.versions[i] + ": " + x + " " + k + " numbers changed";
+      }
+    });
+    g.versions.forEach(function (v, i) {
+      var tx = el("text", { x: left + i * cw + cw / 2, y: top + kinds.length * ch + 14, fill: ink, "font-size": 11,
+        transform: "rotate(-50 " + (left + i * cw + cw / 2) + " " + (top + kinds.length * ch + 14) + ")", "text-anchor": "end" }, svg);
+      tx.textContent = v;
+    });
+  }
+  // }}}
+
+  // {{{ list
+  function renderList() {
+    var g = H.games[state.game], q = $("search").value.toLowerCase();
+    var ids = Object.keys(g.objects).filter(function (id) {
+      var o = g.objects[id];
+      if (state.kind && o.kind !== state.kind) return false;
+      return !q || id.toLowerCase().indexOf(q) >= 0 || (o.name || "").toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return Object.keys(g.objects[b].fields).length - Object.keys(g.objects[a].fields).length; });
+    var list = $("list"); list.innerHTML = "";
+    ids.slice(0, 400).forEach(function (id) {
+      var o = g.objects[id], d = document.createElement("div");
+      d.innerHTML = "<span></span><span class='n'></span>";
+      d.firstChild.textContent = (o.name || id) + " ";
+      var s = document.createElement("span"); s.className = "id"; s.textContent = id; d.firstChild.appendChild(s);
+      d.lastChild.textContent = Object.keys(o.fields).length;
+      if (id === state.sel) d.className = "sel";
+      d.onclick = function () { state.sel = id; render(); };
+      list.appendChild(d);
+    });
+  }
+  // }}}
+
+  // {{{ one chart per changed field
+  function chart(parent, g, field, values) {
+    var box = document.createElement("div"); box.className = "chart"; parent.appendChild(box);
+    var t = document.createElement("div"); t.className = "t"; t.textContent = field; box.appendChild(t);
+    var W = 320, Hh = 130, pl = 42, pr = 8, pt = 10, pb = 24, n = g.versions.length;
+    var nums = values.filter(function (v) { return v !== null; });
+    var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums);
+    if (lo === hi) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    var X = function (i) { return pl + (W - pl - pr) * (n === 1 ? 0.5 : i / (n - 1)); };
+    var Y = function (v) { return pt + (Hh - pt - pb) * (1 - (v - lo) / (hi - lo)); };
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + Hh }, box);
+    var line = css("--line"), muted = css("--muted"), acc = css("--accent"), acc2 = css("--accent2");
+    el("line", { x1: pl, y1: Hh - pb, x2: W - pr, y2: Hh - pb, stroke: line }, svg);
+    [lo + pad, hi - pad].forEach(function (v) {
+      el("text", { x: pl - 5, y: Y(v) + 4, "text-anchor": "end", fill: muted, "font-size": 10 }, svg).textContent = +v.toFixed(3);
+      el("line", { x1: pl, y1: Y(v), x2: W - pr, y2: Y(v), stroke: line, "stroke-dasharray": "2 3" }, svg);
+    });
+    [0, n - 1].forEach(function (i) {
+      el("text", { x: X(i), y: Hh - 8, "text-anchor": i === 0 ? "start" : "end", fill: muted, "font-size": 10 }, svg).textContent = g.versions[i];
+    });
+    var d = "", pen = false;
+    values.forEach(function (v, i) {
+      if (v === null) { pen = false; return; }
+      d += (pen ? " H" + X(i) + " V" + Y(v) : " M" + X(i) + " " + Y(v)); pen = true;
+    });
+    el("path", { d: d, fill: "none", stroke: acc, "stroke-width": 2 }, svg);
+    var tip = document.createElement("div"); tip.className = "tip"; box.appendChild(tip);
+    values.forEach(function (v, i) {
+      if (v === null) return;
+      var changed = i > 0 && values[i - 1] !== null && values[i - 1] !== v;
+      var c = el("circle", { cx: X(i), cy: Y(v), r: changed ? 4 : 2.2, fill: changed ? acc2 : acc }, svg);
+      c.onmouseenter = function () { tip.textContent = g.versions[i] + ": " + v + (changed ? "  (was " + values[i - 1] + ")" : ""); };
+    });
+  }
+  function renderDetail() {
+    var g = H.games[state.game], det = $("detail"); det.innerHTML = "";
+    $("back").style.display = state.sel ? "" : "none";
+    $("back").onclick = function () { state.sel = null; location.hash = state.game; render(); };
+    if (!state.sel || !g.objects[state.sel]) {
+      $("title").textContent = "Which patches changed the most";
+      $("subtitle").textContent = "Numbers changed from the version before, by kind of object. Pick an object on the left to see its history.";
+      renderHeat(); return;
+    }
+    var o = g.objects[state.sel];
+    $("heat").innerHTML = "";
+    $("title").textContent = (o.name || state.sel) + " (" + state.sel + ")";
+    $("subtitle").textContent = o.kind + " · " + Object.keys(o.fields).length + " numbers changed across " + g.title + " " + g.versions[0] + "–" + g.versions[g.versions.length - 1] + " · hover a point; larger points mark a change";
+    Object.keys(o.fields).sort().forEach(function (f) { chart(det, g, f, o.fields[f]); });
+  }
+  // }}}
+
+  function render() {
+    var g = H.games[state.game], count = Object.keys(g.objects).length;
+    $("summary").textContent = g.title + ": " + g.versions.length + " versions, " + count + " objects whose numbers changed";
+    Array.prototype.forEach.call($("games").children, function (b) { b.className = b.dataset.key === state.game ? "on" : ""; });
+    renderList(); renderDetail();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
