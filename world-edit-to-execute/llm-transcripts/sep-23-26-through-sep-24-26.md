@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 20:48:41
+Generated on: 2026-09-24 21:06:11
 Models: claude-opus-5-5
 
 ## Contents
@@ -81,6 +81,10 @@ Models: claude-opus-5-5
     data the W client can run, and every map object now merges fully and is
     committed. Next: tell me whether you have other patch installers, or whether
     1.21b should stand in for every map for now.
+19. 2026-09-24 20:51, after Request 31 - We're making each converted map load
+    the game data from the patch it was built for; the patch stack, per-map
+    versions and RAM scratch folders are done and committed. Next: your call on
+    keeping our own map reader or switching entirely to StormLib.
 
 --------------------------------------------------------------------------------
 
@@ -3637,6 +3641,119 @@ exactly that rewrite: map reading doesn't depend on StormLib, and StormLib
 serves as the reference it's checked against. That's how things stand now. Do
 you want to keep both, or move map reading onto StormLib and retire our own
 reader?
+
+--------------------------------------------------------------------------------
+
+### User Request 32
+
+Um, I'm concerned that Stormlib might not do all the functionality that we need.
+Does it successfully extract all of the data that is stored in the map files? If
+so, then we can transition to just using Stormlib.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 32
+
+> I'll measure it rather than assume: for every test map, count the files the
+> archive's own index says exist, then check that StormLib can read each one.
+> That includes files with no known name, which protected maps often have.
+> First, what our binding exposes.
+
+> Zero entries everywhere, which smells like my probe rather than StormLib.
+> Probably the extra name list I passed. Retrying without it.
+
+> It was my probe: it handed StormLib an empty name list, and StormLib then
+> listed nothing. Using the project's real name list:
+
+> Only two tests look at the archive's internal numbers (sector size, format
+> version). Every real caller uses the file list and the map's name. Writing the
+> issue now.
+
+> Taking number 114. The completed issues for our own reader (102 and 113) will
+> get a pointer forward, so the history stays connected.
+
+> Next, a small module for the map's 512-byte wrapper, the part in front of the
+> archive that holds the map's name. Then the reader itself, rebuilt on
+> StormLib.
+
+> The new reader works on the hardest map: 132 stored files, and all 133 listed
+> names read (the duplicate appears by name plus both copies by position). Now
+> the whole suite.
+
+> That loop checked the exit status of the wrong command, so it reported
+> nothing. Rerunning so each test's own result counts.
+
+> Nothing else depends on them, and only completed issues mention them, which is
+> history. Renaming.
+
+> Renamed. Now updating the StormLib binding's header comment, adding notes
+> files for the reader and the wrapper module, and adjusting the docs that
+> describe the old reader.
+
+> The phase demos prefer `lua5.4` when it's installed. Map reading now needs
+> LuaJIT, so those demos would break. Checking which ones read maps.
+
+> Launchers fixed. Running the phase 1 demo end to end, then the full suite.
+
+> Everything passes except `test_frames`, the failure that was already there.
+> The phase 1 demo loads all 16 maps. Checking the later phase demos, which also
+> read maps.
+
+> All phase demos run clean. Updating the issue: its current state, and a
+> pointer from the two completed reader issues (102 and 113). Then the first
+> commit, with the `-done` files still in place.
+
+> Committing the switch. The renames went through `git mv`, so I'm claiming them
+> explicitly.
+
+> Committed as `637ab69c5`, and the staging area is clean. Now the second step:
+> remove the `-done` files and close the issue.
+
+> Removed. Closing the issue: its state rewritten as built, moved to completed,
+> and the progress table updated.
+
+> The same leftover as before: my own `git mv` left a stale copy in the staging
+> area. Clearing it.
+
+Yes: StormLib extracts everything the maps store, and the project now uses it
+alone. Two commits (`637ab69c5` and `1bbdc6c73`), and the repository is clean.
+
+**The evidence:**
+- Across the 16 test maps, StormLib read all 2,786 stored files.
+- That includes the 2,416 with no name in any list: it works out their
+  encryption keys without the names.
+- It also reached DAoW-5.2's hidden encrypted duplicate, which parses as a valid
+  object file.
+- Our own reader couldn't read unnamed files at all.
+
+**What changed:**
+- **Same interface:** the map reader keeps its interface (open, has, extract,
+  list, file count, info, close), with StormLib behind it. Every parser, the
+  loader, the tools and the phase 1–4 demos run unchanged.
+- **Listing:** it now shows every stored file. Unnamed files appear as position
+  names like `File00000041.blp`, and a duplicated name also lists each copy by
+  position.
+- **The map's name and player count** live in a 512-byte wrapper in front of the
+  archive, which isn't part of the archive format. A small module of its own
+  reads them.
+- **Retired:** the old reader (the table readers, sector extraction, and the
+  PKWARE, Huffman, ADPCM and zlib/bzip2 decoders) and its tests. They spent one
+  commit under `-done` names, then were removed. The format document stays, as
+  the starting point if StormLib is ever replaced.
+
+**Found along the way:**
+- Handed an empty name list, StormLib listed nothing and our binding stayed
+  silent. It now raises, as does any other failed listing.
+- Some encrypted files open only by name, not by position (Daow1.23.1B's own
+  name list). So the reader uses names wherever they're known.
+- The demo launchers preferred or fell back to `lua5.4`, which can't load
+  StormLib. They now require LuaJIT and say why.
+
+The full suite passes apart from `test_frames`, the failure that was already
+there before today (pathfinding constants).
+
+Should I look into that failure next? Or go back to the missing patch programs
+for 1.22 and 1.29, which two of the test maps are waiting on?
 
 --------------------------------------------------------------------------------
 

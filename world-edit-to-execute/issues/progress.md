@@ -1441,9 +1441,9 @@ All ─────────────────────────�
   - Classic/Vanilla WoW baseline with 8 standing tiers and 14 honor ranks
 - **Issue 409 completed:** Frame-based pathfinding storage
   - Created src/runtime/pathfinding/frames.lua (~340 lines):
-    - Cardinal frames: NORTH=0x0F, SOUTH=0xF0, EAST=0xCC, WEST=0x33
-    - Ordinal frames: NE=0x4C, NW=0x1C, SE=0xC4, SW=0xC1
-    - Boundary frames: ORIGIN=0xFF (arrived), OVERSHOOT=0x00 (reverse)
+    - Cardinal frames: NORTH=0x60, SOUTH=0x06, EAST=0x18, WEST=0x81 (Left/Right pairs; revised 2026-01-01, see docs/binary-vector-frames.md)
+    - Ordinal frames: NE=0x30, NW=0xC0, SE=0x0C, SW=0x03 (one Far vote)
+    - Boundary frames: ORIGIN=0x00 (all Near, arrived), OVERSHOOT=0xFF (all Far, reverse)
     - frame_to_vector, vector_to_frame, path_to_frames, frames_to_path
     - Momentum structure with direction + count separation
     - ASCII visualization (↑↓←→↗↖↘↙○×)
