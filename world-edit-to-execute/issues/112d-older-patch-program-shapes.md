@@ -164,7 +164,16 @@ applied or the build stops naming it, a second run changes nothing.
 1. **Large binaries in the oldest format.** How do copy positions work once
    they pass about a megabyte? A decoding is checkable: a rebuilt `War3.exe`
    must carry the version its patch installs. Not game data, so it blocks
-   nothing the project reads.
+   nothing the project reads. A lead (the owner, 2026-09-25: "It could also
+   be that the binary inflates itself at runtime perhaps?"): the 1.07
+   `War3.exe` has two sections with scrambled names (`.iyhivx`, `.wwaw`)
+   beside `.text` and `.data`, the mark of the disc-era copy-protection
+   wrapper, which is packed and unpacks itself at runtime. The three failing
+   files are exactly the wrapped programs; the unwrapped `Storm.dll` decodes.
+   The patch's base CRC32 matches the wrapped file, so the diff is taken
+   against those bytes, but the wrapper's layout may be what the large jumps
+   refer to. The project reads these files only to rebuild them from their
+   diffs, and never removes or works around the protection.
 2. **Editor builds 6034–6051 and 4448–4654.** First-hand evidence would come
    from those World Editors (open question 1) or from maps whose patch is
    known.
