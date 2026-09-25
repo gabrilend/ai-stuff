@@ -56,20 +56,9 @@ local function map_files()
 end
 -- }}}
 
--- {{{ STANDARD_NAMES
--- The files a Warcraft III map normally holds. Protected maps often strip or
--- falsify their (listfile), so the comparison can't rely on it alone.
-local STANDARD_NAMES = {
-    "(listfile)", "(attributes)", "(signature)",
-    "war3map.w3i", "war3map.w3e", "war3map.wts", "war3map.j", "scripts\\war3map.j",
-    "war3map.shd", "war3map.wpm", "war3map.doo", "war3mapUnits.doo",
-    "war3map.w3r", "war3map.w3c", "war3map.w3s", "war3map.wtg", "war3map.wct",
-    "war3map.w3u", "war3map.w3t", "war3map.w3b", "war3map.w3d", "war3map.w3a",
-    "war3map.w3h", "war3map.w3q", "war3map.mmp", "war3mapMap.blp", "war3mapMap.tga",
-    "war3mapPreview.tga", "war3mapMisc.txt", "war3mapSkin.txt", "war3mapExtra.txt",
-    "war3map.imp", "war3mapImported\\",
-}
--- }}}
+-- Protected maps often strip or falsify their (listfile), so the comparison
+-- also tries the names a map normally holds.
+local STANDARD_NAMES = require("mpq.standard_names").MAP_FILES
 
 -- {{{ local function candidate_names
 -- Standard names plus whatever the (listfile) names, without duplicates.
