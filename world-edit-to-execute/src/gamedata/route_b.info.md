@@ -53,7 +53,7 @@ Reads Liquipedia infoboxes and compares their numbers with Route A's tables.
 | `blank_is_zero` | The game leaves the cell blank and the wiki writes 0; counts as agreement. |
 | `upgrade_step` | An upgraded building's cost. Proven by the sum: the game's number is the earlier building's cost plus the wiki's step. |
 | `explained` | Investigated by hand; the finding is in `route_b_findings.lua`. |
-| `later_page` | The page was first written after 1.30. Not checkable. |
+| `later_page` | The page was first written after 1.30: the number has not been checked. |
 | `mismatch` | Differs, unexplained. |
 | `only_b` | Only the wiki gives a number, unexplained. |
 | `unreadable` | The wiki's value isn't a number. |

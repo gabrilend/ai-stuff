@@ -87,7 +87,7 @@ local by_title = {}
 for _, r in ipairs(keep.rows) do by_title[r.title] = r.verdict end
 test("an upgrade's step plus the earlier building is the game's cost", by_title.Keep == "upgrade_step", tostring(by_title.Keep))
 test("a step that doesn't add up stays a mismatch", by_title.Wrong == "mismatch", tostring(by_title.Wrong))
-test("a page written after 1.30 is not checkable", by_title.Later == "later_page", tostring(by_title.Later))
+test("a page written after 1.30 has not been checked", by_title.Later == "later_page", tostring(by_title.Later))
 
 local cache = DIR .. "/wc3-installs/external-values"
 local knight = io.open(cache .. "/old/Knight.wikitext", "r")

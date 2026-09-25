@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 12:32:29
+Generated on: 2026-09-25 12:51:06
 Models: claude-opus-5-5
 
 ## Contents
@@ -111,6 +111,11 @@ Models: claude-opus-5-5
     numbers against Liquipedia's published values, and the gentle download of
     about 586 unit, building and item pages is almost done. Next I'll run the
     first comparison against our 1.29.2 tables.
+26. 2026-09-25 12:35, after Request 52 - We're cross-checking the game's own
+    1.29.2 stock numbers against Liquipedia's published values. The 2018 page
+    revisions are still downloading in the background. Once they finish, I'll
+    fetch the remaining refetch list, then investigate each disagreement and
+    commit.
 
 --------------------------------------------------------------------------------
 
@@ -5471,6 +5476,96 @@ Status so far:
     game has −3.
 
 I'll resume when the background fetch reports done (~13 min).
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command "luajit
+/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/cli/route-b-fetch.lua
+old
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/differing.txt
+&gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/rb2.log
+2&gt;&amp;1; echo "exit $?"; tail -5
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/rb2.log"
+completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 52 (continued)
+
+> Disagreements fell to 64 with the 2018 revisions. Fetching the 15 remaining
+> pages (only-on-wiki and unpaired), about 3 minutes:
+
+> Tome of Retraining's 2017 page says stock 2; the game's 1.29.2 table says 1.
+> The 1.36.1 notes say it "now has a stock of 2", so the 2017 wiki value was
+> wrong at the time. Checking the last fetch:
+
+> While it runs, the only-on-wiki rows (now 68):
+
+> Spirit Walker: the page says `id=ospm`, but the game's `ospm` row has no
+> weapon values. My guess is that the attack is on the other form's row, `ospw`.
+> Checking:
+
+> I'm building the automatic explanations (upgrade-step arithmetic, later pages,
+> reviewed findings) so every disagreement ends up classified.
+
+> Now the findings file, with each hand investigation and its evidence:
+
+> All 24,434 numbers are now either agreed or explained; none are left
+> unexplained. The breakdown:
+
+> The summary counts the 94 later-page rows as "reason found", but that
+> overstates it: those pages simply have nothing from 1.29.2 to check against.
+> I'll report them on their own line:
+
+> That leaves 35 explained, 94 not checkable and none unexplained. Next: a test
+> for the upgrade arithmetic, then the docs and the issue.
+
+> Now the info files and the issue:
+
+> Now the issue: Current Behavior rewritten to what's built, plus an open
+> question for you.
+
+> Issue validates cleanly. Commit preview:
+
+The published-values cross-check is built and committed, and none of the
+differences between the wiki and the game's tables is left unexplained. The
+issue stays open on one question for you, below.
+
+The wiki (Liquipedia) and the game's own 1.29.2 tables, read from your install,
+both give a value for 24,434 numbers:
+
+| Result | Numbers | What it means |
+|---|---|---|
+| Agree | 24,305 | Includes 10,020 cells the game leaves blank and the wiki writes as 0. |
+| Upgraded buildings | 13 | The game stores the cost of the whole chain; the wiki gives the step. Castle: 1065 = Town Hall 385 + Keep 320 + 360. The tool proves each one by adding up the chain, using the game's own list of what upgrades into what. |
+| Druid animal forms | 9 | The wiki shows values after all research. Bear form: 810 + 2 × 75 = 960 hit points, matching the game's research table. |
+| Other form | 8 | The Spirit Walker's page carries the id of the ghostly form, but its attack numbers are exactly the solid form's. |
+| Errors on the page at the time | 5 | The Destroyer's mana regeneration is written `03` instead of −3. The Tome of Retraining's stock was 2 in 2017, which later patch notes contradict. The Cannon Tower's splash sizes are a tenth of the real ones. |
+| Can't be checked | 94 | These are on 28 pages that have no version from before 1.30, so they show a later patch's numbers. Spot checks against the saved patch notes agree (Boneyard 175 → 150 gold, Moon Well 1.5 → 1.35 → 1.45). |
+| Unexplained | 0 | |
+
+The hand-investigated findings (the Druid, Spirit Walker and page-error rows)
+are kept in a reviewed data file with their evidence. The game's numbers are
+never changed. Eleven pages couldn't be matched to an object, and the report
+lists each with its reason: most are items added after 1.29.2, and three use a
+name the game gives to several objects.
+
+The page reader had several bugs, all fixed now, and I added a test for each.
+The two that mattered most were fields sharing one line (as some item pages
+write them) and the older 2018 building page layout. The tests pass, including
+the real Knight: 835 hit points in both the 2017 wiki page and the game.
+
+The fetching took 180 requests in all, 10 seconds apart give or take 1–2, and
+everything is saved on disk.
+
+**Open question:** why do 28 pages, including core buildings like Ziggurat, Moon
+Well and Ancient of War, have no version before 2018? My guess is they were
+written under other titles and later copied over, which leaves the older history
+behind. Tracing them would take about 28 more requests (~5 minutes at the same
+spacing): ask for each page's first version and the note written with it, then
+fetch the older title's pre-1.30 version where one is named. Should I trace
+them, or leave those 94 numbers marked as can't-be-checked and close the issue?
 
 --------------------------------------------------------------------------------
 
