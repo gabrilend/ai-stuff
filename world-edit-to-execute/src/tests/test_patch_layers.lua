@@ -111,11 +111,29 @@ else
     end
     -- }}}
     local w3i = map_w3i("DAoW-2.1.w3x")
-    local patched = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, editor_versions = {} })
+    -- With no known editor version the newest built layer is used; which one
+    -- that is depends on how many layers are built, so it is read from the
+    -- layers folder (the one whose manifest names the highest version).
+    local fallback = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, editor_versions = {} })
+    local newest, newest_order = nil, nil
+    local listing = io.popen("ls '" .. LAYERS .. "'")
+    for name in listing:lines() do
+        local chunk = loadfile(LAYERS .. "/" .. name .. "/manifest.lua")
+        local m = chunk and chunk()
+        if m then
+            local a, b, c = name:match("^(%d+)%.(%d+)(%a?)$")
+            local order = tonumber(a) * 10000 + tonumber(b) * 100 + (c ~= "" and c:byte() - 96 or 0)
+            if not newest_order or order > newest_order then newest, newest_order = name, order end
+        end
+    end
+    listing:close()
+    test("with no known editor version it falls back to the newest layer", fallback.layer == newest,
+        tostring(fallback.layer) .. " vs " .. tostring(newest))
+    test("and the fallback is reported as a warning", #fallback.warnings == 1 and fallback:report():match("WARNING") ~= nil)
+    fallback:close()
+
+    local patched = chain.open({ install = INSTALL, layers = LAYERS, w3i = w3i, layer = "1.21b" })
     test("a Frozen Throne map uses the Custom_V1 data set", patched.data_set == "Custom_V1", patched.data_set)
-    test("with no known editor version it falls back to the newest layer", patched.layer == "1.21b",
-        tostring(patched.layer))
-    test("and the fallback is reported as a warning", #patched.warnings == 1 and patched:report():match("WARNING") ~= nil)
 
     local weapons_patched, from = patched:read("Units\\UnitWeapons.slk")
     test("unit weapons come from the layer's Custom_V1 copy", from == "layer 1.21b: Custom_V1\\Units\\UnitWeapons.slk", from)
@@ -138,7 +156,7 @@ else
     unpatched:close()
 
     local roc = chain.open({ install = INSTALL, layers = LAYERS, w3i = { version = 18, editor_version = 0 },
-        editor_versions = {} })
+        layer = "1.21b" })
     local _, roc_from = roc:read("Units\\UnitWeapons.slk")
     test("a Reign of Chaos map (w3i version 18) uses Custom_V0", roc_from == "layer 1.21b: Custom_V0\\Units\\UnitWeapons.slk", roc_from)
     roc:close()
@@ -147,6 +165,67 @@ else
         editor_versions = { [w3i.editor_version] = { layer = "1.21b", evidence = "test" } } })
     test("a listed editor version picks its layer without a warning", known.layer == "1.21b" and #known.warnings == 0)
     known:close()
+end
+-- }}}
+
+-- {{{ The stack of layers
+test_section("The stack: every patch program, in the order of the versions it produces")
+local PROGRAMS = DIR .. "/wc3-installs/patch-programs"
+if not exists(PROGRAMS .. "/sources.tsv") or not exists(INSTALL .. "/War3x.mpq") then
+    skip("stack", "needs the Frozen Throne install and the programs from scripts/fetch-patch-programs.sh")
+else
+    local patch_layer = require("gamedata.patch_layer")
+    local scratch = os.tmpname()
+    os.remove(scratch)
+    -- 1.25b's own script says "older than 1.99.99.9999", a placeholder; the
+    -- order once put 1.27b before it. The version comes from the War3.exe
+    -- each program writes.
+    local v125 = patch_layer.target_version(PROGRAMS .. "/War3TFT_125b_English.exe", scratch, INSTALL)
+    local v127 = patch_layer.target_version(PROGRAMS .. "/War3TFT_127b_English.exe", scratch, INSTALL)
+    local v121 = patch_layer.target_version(PROGRAMS .. "/War3TFT_121b_English.exe", scratch, INSTALL)
+    os.execute("rm -rf '" .. scratch .. "'")
+    test("1.21b's program produces 1.21.1.6300", v121 == "1.21.1.6300", v121)
+    test("1.25b's program produces 1.25.1.6397, despite its placeholder check", v125 == "1.25.1.6397", v125)
+    test("1.27b's program produces 1.27.1.7085", v127 == "1.27.1.7085", v127)
+
+    -- Each built layer's Game.dll carries the version its program produces.
+    local expected = { ["1.21b"] = "1, 21, 1, 6300", ["1.23a"] = "1, 23, 0, 6352", ["1.24e"] = "1, 24, 4, 6387",
+        ["1.25b"] = "1, 25, 1, 6397", ["1.26a"] = "1, 26, 0, 6401", ["1.27b"] = "1, 27, 1, 7085" }
+    for layer, want in pairs(expected) do
+        local finder = io.popen("find '" .. LAYERS .. "/" .. layer .. "/install' -iname game.dll")
+        local path = finder:read("*l")
+        finder:close()
+        if not path then
+            skip("layer " .. layer, "not built; run build-patch-layer.lua --stack")
+        else
+            local f = assert(io.open(path, "rb"))
+            local dll = f:read("*a")
+            f:close()
+            -- The numeric version block (signature 0xFEEF04BD), not the
+            -- version text: 1.27b writes its text as "1.27.1.7085", the
+            -- others as "1, 21, 1, 6300".
+            local at = dll:find("\189\4\239\254", 1, true)
+            local function u16(o) return dll:byte(o) + dll:byte(o + 1) * 256 end
+            local got = at and string.format("%d, %d, %d, %d", u16(at + 10), u16(at + 8), u16(at + 14), u16(at + 12)) or "?"
+            test("layer " .. layer .. "'s Game.dll reports " .. want, got == want, got)
+        end
+    end
+
+    -- Building the stack again changes nothing: every layer is reported present.
+    local out = io.popen("luajit '" .. DIR .. "/src/cli/build-patch-layer.lua' --dir '" .. DIR .. "' --stack 2>&1")
+    local text = out:read("*a")
+    out:close()
+    local built = select(2, text:gsub("\nlayer ", ""))
+    local present = select(2, text:gsub("present;", ""))
+    test("a second stack build rebuilds nothing", built == 0 and present >= 10,
+        built .. " built, " .. present .. " present")
+
+    -- Every editor build in the evidence table names a built layer.
+    local table_ = dofile(DIR .. "/src/gamedata/editor_versions.lua")
+    for build, row in pairs(table_) do
+        test("editor " .. build .. " names a built layer (" .. row.layer .. ")",
+            exists(LAYERS .. "/" .. row.layer .. "/manifest.lua"))
+    end
 end
 -- }}}
 

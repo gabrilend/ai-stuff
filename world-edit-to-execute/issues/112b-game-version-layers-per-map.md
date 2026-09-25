@@ -63,6 +63,32 @@ only its notes. Instead:
    reading `Custom_V0`; a listed editor version picking its layer without a
    warning.
 
+6. **The stack** (2026-09-24). `scripts/fetch-patch-programs.sh` gathered
+   the English Frozen Throne programs for 1.21b, 1.23a, 1.24a–e, 1.25b,
+   1.26a and 1.27b (and Reign of Chaos 1.24a–1.27b, not built yet) into
+   `wc3-installs/patch-programs`, with a checksum record.
+   `build-patch-layer.lua --stack` builds them in version order, each on the
+   layers below (`patch_layer.build`'s `lower_layers`); a diff's base is the
+   first copy, highest layer first then the disc, whose size and CRC32 match.
+   A second run rebuilds nothing; a layer whose program or layers beneath
+   changed is rebuilt, and so is everything above it.
+   - **Order** is the version stamped in the `War3.exe` each program writes
+     (`patch_layer.target_version`). The programs' own scripts can't be
+     trusted for it: from 1.25b on they check "older than 1.99.99.9999", a
+     placeholder, and ordering by it built 1.27b before 1.25b.
+   - **Every program found is a full patch**: all 301 diffs in each, from
+     1.21b to 1.26a, sit on the 1.07 disc files; 1.27b ships only whole
+     files. No lower layer has been needed as a base yet.
+   - **Editor builds** (`src/gamedata/editor_versions.lua`): each layer's
+     `WorldEdit.exe` holds its own build number and not its predecessor's
+     (6052 only in 1.21b, 6058 only in 1.23a, 6059 from 1.24a on), agreeing
+     with the published list. 6052 → 1.21b, 6058 → 1.23a, 6059 → 1.27b.
+   - Tests (`test_patch_layers.lua`): versions read through a placeholder,
+     each layer's `Game.dll` version, a second stack build changing nothing,
+     every editor build naming a built layer. `test_stock_rows.lua` merges
+     each test map on its own version (12 on 1.21b, 2 on 1.27b) and names the
+     two with no layer yet (editor 6057 and 6060) as warnings.
+
 Finding (2026-09-24): some maps carry their own copies of the stock tables.
 DAoW-5.2 and 5.3 ship `Units\AbilityData.slk`, `ItemData.slk`,
 `AbilityBuffData.slk`, `UpgradeData.slk` and three ability profile files (the
@@ -127,10 +153,24 @@ the recorded base differs.
 
 ### Which versions
 
-Every version that has a Windows patch program with MPQ data: 1.07 through
-1.29.2 (1.30 onwards moved to Blizzard's CASC storage, a different format;
-out of scope until asked). Reign of Chaos (1.00–1.06) the same way, on the
-Reign of Chaos install, for `.w3m` maps.
+Every version with a Windows patch program and MPQ data, **up to the last
+version before Blizzard stopped clients sharing one CD key from playing
+together**. The owner (2026-09-24): "we also, on principle, should only
+support the patches that were before Blizzard removed the capability to
+have multiple clients that shared a CD key play together. That change killed
+the game." Which version that was is open question 4. (1.30 onwards also
+moved to Blizzard's CASC storage, a different format.) Reign of Chaos the
+same way, on the Reign of Chaos install, for `.w3m` maps.
+
+One patch program per version is needed, even though a full patch installs
+over any earlier version: it goes forward to its own version only, and holds
+that version's files (whole, or as diffs against the disc). The 1.27b patch
+cannot produce 1.22's tables; nothing in it describes them.
+
+Patch programs are gathered by `scripts/fetch-patch-programs.sh` from the
+mirrors in `wc3-installs/patch-sources.tsv` (tracked) into
+`wc3-installs/patch-programs` (a link beside the installs, never in git),
+with a record of each file's checksum, mirror and date.
 
 ### Map → version
 
@@ -155,13 +195,16 @@ editor build that saved them. The wiki table only cross-checks it.
 - [x] The 1.21b layer built from the patch program without running it
 - [x] Loading a map picks its layers automatically and says which
 - [x] No file in either install is modified
-- [ ] Layers for every patch that has maps (open question 1)
-- [ ] Editor versions mapped to layers from evidence (open question 2)
+- [ ] Layers for every patch that has maps (open questions 4 and 5: 1.22 and 1.29.x have no program yet)
+- [x] Editor versions mapped to layers from evidence (6052, 6058, 6059)
+- [x] The stack builds in version order, twice without change
 
 ## Open Questions
 
 1. Where do the patch programs come from? Answered in part (2026-09-24): "find all the patches that we support... support as many as we can". Only 1.21b is on this machine. Public mirrors that are not Blizzard's servers: the Internet Archive's `wc3_patches` item (9.9 GB, Reign of Chaos and Frozen Throne, all languages; its English Frozen Throne patches listed so far are 1.24a–1.26a) and `warcraft-iii-installer-enus` (1.21b–1.27b installers, 1.26a–1.29.2 patches); ModDB (1.21b, 1.26a, 1.27a, 1.27b). Downloading them is waiting for the owner's go-ahead on source and size.
 2. ~~Editor version → patch~~ Answered 2026-09-24: from the melee maps each patch ships (our own evidence), cross-checked against the published list; a map reads the newest patch in its editor build's range.
+4. **The shared-CD-key cutoff**: which patch stopped two clients with one CD key from playing together (on LAN)? Community threads confirm the behaviour changed but name no version; LAN itself was removed with Reforged. The owner's memory, a changelog, or a test with two clients on each built layer would settle it.
+5. **Versions with no public English patch program found yet**: 1.10–1.21a, 1.22, 1.27a, 1.28.x, 1.29.x (1.28 onwards may exist only through Blizzard's launcher, which the project never contacts). 1.22 matters now: one test map (Daow6.2) was saved by its editor. Other languages' programs may carry the same game data with different text; to check once one is in hand.
 3. The data set: Reign of Chaos maps → `Custom_V0`, Frozen Throne maps → `Custom_V1` is inferred from the folder names and contents. Confirm from the game's behaviour (for example, a test map that shows a stat that differs between the two copies).
 
 ## Related Documents
