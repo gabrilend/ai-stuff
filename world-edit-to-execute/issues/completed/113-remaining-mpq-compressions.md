@@ -1,6 +1,6 @@
 # Issue 113: The Remaining MPQ Compression Methods
 
-> **Superseded 2026-09-24 by issue 114** (`issues/114-read-maps-through-stormlib.md`): maps are read through StormLib, which reads every stored file including those with no known name; the reader this issue built was retired. This issue stays as the record of how it was built.
+> **Superseded 2026-09-24 by issue 114** (`issues/completed/114-read-maps-through-stormlib.md`): maps are read through StormLib, which reads every stored file including those with no known name; the reader this issue built was retired. This issue stays as the record of how it was built.
 
 **Phase:** 1 - Foundation, File Format Parsing
 **Type:** Implementation

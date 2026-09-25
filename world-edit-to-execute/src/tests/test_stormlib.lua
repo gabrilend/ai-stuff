@@ -13,7 +13,7 @@
 -- message if it isn't.
 --
 -- Run: luajit src/tests/test_stormlib.lua [DIR]
--- Issue: issues/114-read-maps-through-stormlib.md
+-- Issue: issues/completed/114-read-maps-through-stormlib.md
 
 -- {{{ Setup
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
