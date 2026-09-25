@@ -72,6 +72,53 @@ local diff_for_wrong_base = header(0x04, 0x12345678, 3, 3) .. "\4\0\0\0\131abc"
 local _, crc_err = bsd0.apply(diff_for_wrong_base, "xyz")
 test("a diff against a file with the wrong CRC32 is refused", crc_err and crc_err:match("CRC32") ~= nil, tostring(crc_err))
 test("an unknown entry kind is refused", bsd0.apply(header(0x07, 0, 0, 1) .. "x") == nil)
+
+-- {{{ local function diff_entry
+-- A diff entry built by hand: BSDIFF40 with the given control triples (each
+-- {add, copy, move}; a negative move is stored sign-and-magnitude), data and
+-- extra blocks, run-length packed in copy runs of up to 128 bytes.
+local function diff_entry(old, triples, data, extra, new_size)
+    local function u32(n)
+        return string.char(n % 256, math.floor(n / 256) % 256, math.floor(n / 65536) % 256, math.floor(n / 16777216) % 256)
+    end
+    local function u64(n) return u32(n) .. "\0\0\0\0" end
+    local ctrl = {}
+    for _, t in ipairs(triples) do
+        local move = t[3] < 0 and (0x80000000 + (-t[3])) or t[3]
+        ctrl[#ctrl + 1] = u32(t[1]) .. u32(t[2]) .. u32(move)
+    end
+    ctrl = table.concat(ctrl)
+    local raw = "BSDIFF40" .. u64(#ctrl) .. u64(#data) .. u64(new_size) .. ctrl .. data .. extra
+    -- Runs of zero bytes become one-byte zero runs, everything else literal
+    -- runs, as Blizzard's packer does (so the packed form is smaller).
+    local packed, i = {}, 1
+    while i <= #raw do
+        local zeros = raw:match("^%z+", i)
+        if zeros then
+            local n = math.min(#zeros, 128)
+            packed[#packed + 1] = string.char(n - 1)
+            i = i + n
+        else
+            local piece = raw:match("^[^%z]+", i):sub(1, 128)
+            packed[#packed + 1] = string.char(0x80 + #piece - 1) .. piece
+            i = i + #piece
+        end
+    end
+    return header(0x04, bsd0.crc32(old), #old, new_size) .. u32(#raw) .. table.concat(packed)
+end
+-- }}}
+-- A move can take the old position before the file's start; the reference
+-- bsdiff then adds nothing from the old file. The applier once read outside
+-- its buffer there and crashed the process (found on 1.20b's diffs).
+local old = "ABCDEFGH"
+local before_start = diff_entry(old, { { 0, 0, -3 }, { 8, 0, 0 } }, string.rep("\1", 8), "", 8)
+local ok_run, result = pcall(bsd0.apply, before_start, old)
+test("a diff whose move goes before the old file's start doesn't crash", ok_run)
+test("and adds only the old bytes that exist", result == "\1\1\1BCDEF", tostring(result))
+local overrun = diff_entry(old, { { 20, 0, 0 } }, string.rep("\0", 4), "", 20)
+local _, overrun_err = bsd0.apply(overrun, old)
+test("a diff adding more than its data block holds is refused, not read past",
+    overrun_err and overrun_err:match("data block") ~= nil, tostring(overrun_err))
 -- }}}
 
 -- {{{ Tests: the 1.21b layer and per-map chains

@@ -159,18 +159,23 @@ local function apply_bsdiff(patch, patch_size, old, old_size, expected_new_size)
         local move = read_u32(patch, ctrl + 8)
         ctrl = ctrl + 12
 
+        -- Every length is checked before memory is touched: these buffers are
+        -- raw memory, and a malformed or misread diff (1.20b's War3.exe once
+        -- was) otherwise reads past them and crashes the process.
         if new_pos + add > new_size then
             return nil, "diff adds past the end of the new file"
+        end
+        if data + add > extra then
+            return nil, "diff adds past the end of its data block"
         end
         ffi.copy(new + new_pos, patch + data, add)
         data = data + add
 
-        -- Add the old file's bytes, as far as the old file reaches.
-        local combine = add
-        if old_pos + add >= old_size then
-            combine = old_size - old_pos
-        end
-        for i = 0, combine - 1 do
+        -- Add the old file's bytes where the old position lies inside the old
+        -- file (as the reference bsdiff does; a move can take it outside).
+        local first = math.max(0, -old_pos)
+        local last = math.min(add, old_size - old_pos) - 1
+        for i = first, last do
             new[new_pos + i] = bit.band(new[new_pos + i] + old[old_pos + i], 0xFF)
         end
         new_pos = new_pos + add
@@ -178,6 +183,9 @@ local function apply_bsdiff(patch, patch_size, old, old_size, expected_new_size)
 
         if new_pos + copy > new_size then
             return nil, "diff copies past the end of the new file"
+        end
+        if extra + copy > patch_size then
+            return nil, "diff copies past the end of its extra block"
         end
         ffi.copy(new + new_pos, patch + extra, copy)
         extra = extra + copy

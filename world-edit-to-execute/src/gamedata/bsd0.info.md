@@ -31,7 +31,11 @@ Blizzard "BSD0" binary diff against the old file. Needs LuaJIT.
 | 16 | uint64 | Windows FILETIME |
 
 Refuses a diff whose old file doesn't have the named CRC32 and size, a result
-of the wrong size, and unknown kinds. An uncompressed diff payload hasn't been
+of the wrong size, and unknown kinds. Every length in a diff is checked
+against its buffers before memory is touched (a misread diff once crashed the
+process), and old-file bytes are added only where the old position lies
+inside the old file, as the reference bsdiff does. Reads the diffs of
+1.21a and later; 1.19a–1.20e use an older encoding (issue 112d). An uncompressed diff payload hasn't been
 seen yet and is refused until one is.
 
 Ported in part from StormLib's `SFilePatchArchives.cpp` (MIT).

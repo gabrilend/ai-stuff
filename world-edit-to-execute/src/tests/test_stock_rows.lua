@@ -181,8 +181,8 @@ else
     for layer, n in pairs(layers_used) do used[#used + 1] = layer .. "×" .. n end
     table.sort(used)
     print("  layers used: " .. table.concat(used, " "))
-    test("maps saved by editor 6052 load 1.21b, 6057 load 1.22a, 6059 load 1.27b, 6060 load 1.29.2",
-        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.22a"] or 0) >= 1 and (layers_used["1.27b"] or 0) >= 2
+    test("maps saved by editor 6052 load 1.21b, 6057 load 1.22a, 6059 load 1.28.5, 6060 load 1.29.2",
+        (layers_used["1.21b"] or 0) >= 12 and (layers_used["1.22a"] or 0) >= 1 and (layers_used["1.28.5"] or 0) >= 2
         and (layers_used["1.29.2"] or 0) >= 1)
     test("tens of thousands of objects merged", totals.objects > 20000, tostring(totals.objects))
     test("no orphan change sets once the map's own tables are in the chain", by_kind.orphan == 0, tostring(by_kind.orphan))

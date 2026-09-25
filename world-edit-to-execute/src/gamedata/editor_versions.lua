@@ -27,10 +27,10 @@ layer in its range, the version its authors most likely played.
 
 1.29.2 has no patch program (1.28 on shipped through Blizzard's launcher);
 its layer is an install layer built from a 1.29.2 game copy's own archives.
-Its World Editor is six times larger and many small constants match by
-chance, so the evidence there is a contrast: it holds 6060 and not 6059,
-which every editor from 1.24a to 1.27b holds; its game program is
-1.29.2.9231.
+1.28.5 and 1.29.1 likewise, from game copies (Hive Workshop's file packs).
+These World Editors are larger and many small constants match by chance, so
+the evidence there is a contrast: 1.28.5's holds 6059 (like 1.24a-1.27b);
+1.29.1's and 1.29.2's hold 6060 and not 6059.
 
 1.29.2 is the top of the supported range: the last version on MPQ archives
 (1.30 moved to Blizzard's CASC storage, still used by the live game) and
@@ -48,8 +48,8 @@ return {
         evidence = "only 1.22a's WorldEdit.exe holds 6057; the list gives 1.22" },
     [6058] = { layer = "1.23a",
         evidence = "only 1.23a's WorldEdit.exe holds 6058; the list gives 1.23" },
-    [6059] = { layer = "1.27b",
-        evidence = "1.24a-1.27b's WorldEdit.exe hold 6059, none before; the list gives 1.24a-1.28.5; 1.27b is the newest built (1.28.x has no program yet)" },
+    [6059] = { layer = "1.28.5",
+        evidence = "1.24a-1.27b's WorldEdit.exe and 1.28.5's World Editor.exe hold 6059, none before and neither 1.29 editor; the list gives 1.24a-1.28.5, and 1.28.5 is its newest" },
     [6060] = { layer = "1.29.2",
-        evidence = "1.29.2's World Editor.exe holds 6060 and not 6059; its game is 1.29.2.9231; the list gives 1.29.0-1.29.2" },
+        evidence = "1.29.1's and 1.29.2's World Editor.exe hold 6060 and not 6059; 1.29.2 (game 1.29.2.9231) is the newest; the list gives 1.29.0-1.29.2" },
 }

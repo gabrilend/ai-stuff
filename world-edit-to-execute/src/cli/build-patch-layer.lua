@@ -125,6 +125,18 @@ probe:close()
 -- Versions with no patch program (1.28 on): the data archives kept from a
 -- game copy, listed in the fetch record under "<version>/".
 local INSTALL_LAYERS = {
+    -- 1.28.5 still keeps a separate War3Patch.mpq above rebuilt main archives.
+    ["1.28.5"] = {
+        archive_order = { "War3Patch.mpq", "War3xLocal.mpq", "War3x.mpq", "War3Local.mpq", "War3.mpq" },
+        game_program = "Warcraft III.exe",
+        editor_program = "World Editor.exe",
+    },
+    -- 1.29.1 and 1.29.2 fold everything into the main archives.
+    ["1.29.1"] = {
+        archive_order = { "War3xLocal.mpq", "War3x.mpq", "War3Local.mpq", "War3.mpq" },
+        game_program = "Warcraft III.exe",
+        editor_program = "World Editor.exe",
+    },
     ["1.29.2"] = {
         archive_order = { "War3xLocal.mpq", "War3x.mpq", "War3Local.mpq", "War3.mpq" },   -- highest priority first
         game_program = "Warcraft III.exe",
@@ -170,10 +182,46 @@ if arg[1] == "--install-layer" then
     os.exit(0)
 end
 
+-- {{{ READABLE_FROM
+-- Patch programs older than 1.21a come in three earlier shapes this builder
+-- can't read yet (issue 112d): 1.19a-1.20e diff with an older encoding, 1.14b
+-- carries three nested archives, and 1.11 and older store their inner files
+-- without names. They are fetched and listed on every run, not built.
+local READABLE_FROM = { 1, 21, 1, 0 }   -- 1.21a
+-- }}}
+
+-- {{{ local function version_key
+-- "1.21a" -> {1, 21, 1, 0}; "1.28.5" -> {1, 28, 0, 5}.
+local function version_key(v)
+    local major, minor, letter, patch = v:match("^(%d+)%.(%d+)(%a?)%.?(%d*)$")
+    return { tonumber(major), tonumber(minor), letter ~= "" and letter:byte() - 96 or 0, tonumber(patch) or 0 }
+end
+-- }}}
+
+-- {{{ local function below
+local function below(a, b)
+    for i = 1, 4 do
+        if a[i] ~= b[i] then return a[i] < b[i] end
+    end
+    return false
+end
+-- }}}
+
 if arg[1] == "--stack" then
     local up_to = arg[2] == "--up-to" and arg[3] or nil
     -- Order by the version each program produces, never by file name.
-    local list = recorded_programs(programs)
+    local list, unreadable = {}, {}
+    for _, row in ipairs(recorded_programs(programs)) do
+        if below(version_key(row.version), READABLE_FROM) then
+            unreadable[#unreadable + 1] = row.version
+        else
+            list[#list + 1] = row
+        end
+    end
+    table.sort(unreadable, function(a, b) return below(version_key(a), version_key(b)) end)
+    if #unreadable > 0 then
+        print("not built, older patch program shapes (issue 112d): " .. table.concat(unreadable, " "))
+    end
     local scratch = os.tmpname()
     os.remove(scratch)
     for _, row in ipairs(list) do
