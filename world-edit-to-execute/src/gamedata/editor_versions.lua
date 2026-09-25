@@ -23,7 +23,10 @@ Evidence, two routes (issue 112b, 2026-09-24):
          1.29.x. A cross-check only (see docs/licensing-and-boundaries.md).
 
 Rule (owner, sane design over correctness): a build maps to the newest
-layer in its range, the version its authors most likely played.
+layer in its range, the version its authors most likely played. Each entry
+records the range (from, to); the chain picks the newest layer the game's
+stack has inside it (the Reign of Chaos stack, for one, has no 1.21b), and a
+range with no built layer is an error.
 
 1.29.2 has no patch program (1.28 on shipped through Blizzard's launcher);
 its layer is an install layer built from a 1.29.2 game copy's own archives.
@@ -38,18 +41,18 @@ before shared-CD-key LAN play stopped (1.31). Issue 112b. 6059's range runs to 1
 shared-CD-key cutoff (after 1.30.4); 1.27b is the newest built, since 1.28
 has no patch program found.
 
-Format:  [editor_version] = { layer = "1.21b", evidence = "how we know" }
+Format:  [editor_version] = { from = "1.19a", to = "1.21b", evidence = "how we know" }
 ]]
 
 return {
-    [6052] = { layer = "1.21b",
-        evidence = "only 1.21b's WorldEdit.exe holds 6052; the list gives 1.19a-1.21b" },
-    [6057] = { layer = "1.22a",
+    [6052] = { from = "1.19a", to = "1.21b",
+        evidence = "1.19a-1.21b's WorldEdit.exe hold 6052, none after; the list gives 1.19a-1.21b" },
+    [6057] = { from = "1.22a", to = "1.22a",
         evidence = "only 1.22a's WorldEdit.exe holds 6057; the list gives 1.22" },
-    [6058] = { layer = "1.23a",
+    [6058] = { from = "1.23a", to = "1.23a",
         evidence = "only 1.23a's WorldEdit.exe holds 6058; the list gives 1.23" },
-    [6059] = { layer = "1.28.5",
+    [6059] = { from = "1.24a", to = "1.28.5",
         evidence = "1.24a-1.27b's WorldEdit.exe and 1.28.5's World Editor.exe hold 6059, none before and neither 1.29 editor; the list gives 1.24a-1.28.5, and 1.28.5 is its newest" },
-    [6060] = { layer = "1.29.2",
+    [6060] = { from = "1.29.0", to = "1.29.2",
         evidence = "1.29.1's and 1.29.2's World Editor.exe hold 6060 and not 6059; 1.29.2 (game 1.29.2.9231) is the newest; the list gives 1.29.0-1.29.2" },
 }

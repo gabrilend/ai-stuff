@@ -13,6 +13,9 @@ patch and confirmed against real base files):
   0  uint16  header size (0x18)
   2  uint8   0x04 (seen on every entry)
   3  uint8   kind: 0x01 = the whole new file follows; 0x04 = a BSD0 diff follows
+                 (run-length packed); 0x02 = a BSDIFF40 diff follows as is, with no
+                 size word and no packing (two entries in Reign of Chaos 1.18a-1.20e);
+                 0x00 = an older diff format, not yet read (issue 112d)
   4  uint32  CRC32 of the old file (0 for whole files)
   8  uint32  size of the old file (0 for whole files)
  12  uint32  size of the new file
@@ -55,6 +58,7 @@ local M = {}
 
 M.KIND_WHOLE = 0x01
 M.KIND_DIFF = 0x04
+M.KIND_DIFF_UNPACKED = 0x02   -- a BSDIFF40 diff stored as is (Reign of Chaos 1.18a-1.20e, rarely)
 local HEADER_SIZE = 24
 
 -- The run-length code's step: what a run's count byte is added to.
@@ -236,7 +240,7 @@ function M.apply(entry, old, run_step)
         return body
     end
 
-    if header.kind ~= M.KIND_DIFF then
+    if header.kind ~= M.KIND_DIFF and header.kind ~= M.KIND_DIFF_UNPACKED then
         return nil, string.format("unknown entry kind 0x%02X", header.kind)
     end
     if old == nil then
@@ -248,6 +252,16 @@ function M.apply(entry, old, run_step)
     local crc = M.crc32(old)
     if crc ~= header.old_crc then
         return nil, string.format("old file CRC32 0x%08X, diff expects 0x%08X", crc, header.old_crc)
+    end
+
+    -- Kind 0x02: the BSDIFF40 diff is stored as is, right after the header.
+    if header.kind == M.KIND_DIFF_UNPACKED then
+        local raw_size = #entry - HEADER_SIZE
+        local patch = ffi.new("uint8_t[?]", raw_size)
+        ffi.copy(patch, entry:sub(HEADER_SIZE + 1), raw_size)
+        local old_buf = ffi.new("uint8_t[?]", #old)
+        ffi.copy(old_buf, old, #old)
+        return apply_bsdiff(patch, raw_size, old_buf, #old, header.new_size)
     end
 
     local unpacked_size = u32(entry, HEADER_SIZE + 1)

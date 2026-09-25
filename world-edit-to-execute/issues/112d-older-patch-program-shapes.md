@@ -68,10 +68,18 @@ every run as "not built, older patch program shapes (issue 112d)"
    `patch.lst` with entries (`File00000003.mpq` in Frozen Throne 1.11 and
    Reign of Chaos 1.01 and 1.06); the two small ones beside it hold none. So
    this shape is solved by content once kind 0x00 is read.
-4. **Reign of Chaos 1.18a on** (`Patch_War3.mpq`) uses kinds 0x01 and 0x04,
-   readable now, plus two entries of kind **0x02**, not yet identified. Its
-   stack needs the builder to work on the Reign of Chaos install
-   (`war3.mpq` only), with its layers kept apart from Frozen Throne's.
+4. **Reign of Chaos 1.18a on: built (2026-09-25).** `Patch_War3.mpq` uses
+   kinds 0x01 and 0x04 plus two entries of kind **0x02**: a BSDIFF40 diff
+   stored as is after the header, with no size word and no packing
+   (`bsd0.KIND_DIFF_UNPACKED`). `build-patch-layer.lua --stack --game roc`
+   builds the stack from the Reign of Chaos install (the 1.00 disc,
+   `war3.mpq` only) into `wc3-installs/patch-layers-roc`: 1.18a, 1.19a,
+   1.20c–e, 1.24a–e, 1.25b, 1.26a, 1.27b, each reporting its game version.
+   Their editors hold the same builds as Frozen Throne's of the same era
+   (6052 up to 1.20e, 6059 from 1.24a), so `editor_versions.lua` now records
+   each build's **range** and the chain picks the newest layer that game's
+   stack has in it (Reign of Chaos has no 1.21b: 6052 loads its 1.20e). The
+   chain takes `base_archives` for a Reign of Chaos-only install.
 
 Not yet fetched, because no English program was found: Frozen Throne 1.10,
 1.12, 1.13, 1.15–1.18; Reign of Chaos 1.02a, 1.12, 1.13, 1.14b, 1.21a–1.23a
@@ -98,10 +106,8 @@ applied or the build stops naming it, a second run changes nothing.
    text-file entries (known inserts, known base, known new size); then
    1.14b builds, and 1.11 and older once their patch archive is found by
    content (the inner archive with a non-empty `patch.lst`).
-3. **Kind 0x02** (two entries in Reign of Chaos 1.18a–1.20e): identify.
-4. **Reign of Chaos stack**: layers for `.w3m` maps, built on the Reign of
-   Chaos install (`wc3-installs/reign-of-chaos`), named apart from the Frozen
-   Throne layers.
+3. ~~**Kind 0x02**~~ Done: an unpacked BSDIFF40.
+4. ~~**Reign of Chaos stack**~~ Done 2026-09-25 from 1.18a (above); 1.01–1.11 wait on kind 0x00.
 5. Lower `READABLE_FROM` as each shape is read; editor builds of those
    versions into `src/gamedata/editor_versions.lua` with evidence.
 
@@ -109,7 +115,7 @@ applied or the build stops naming it, a second run changes nothing.
 
 - [x] 1.19a–1.20e layers build, with the incremental-patch cross-check
 - [ ] Kind 0x00 diffs read; 1.14b and 1.11 layers build
-- [ ] Reign of Chaos layers build
+- [x] Reign of Chaos layers build from 1.18a (1.01–1.11 wait on kind 0x00)
 - [ ] The builder reads every fetched program (`READABLE_FROM` gone)
 
 ## Related Documents

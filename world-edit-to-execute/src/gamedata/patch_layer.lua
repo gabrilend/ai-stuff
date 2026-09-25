@@ -235,7 +235,7 @@ function M.target_version(patch_program, scratch, install)
     end
     local header = assert(bsd0.read_header(entry))
     local old = nil
-    if header.kind == bsd0.KIND_DIFF then
+    if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED then
         old = read_file(install_index(install)[checked_file:lower()] or "")
     end
     local new, err = bsd0.apply(entry, old, run_step_for(script, patch_program))
@@ -373,7 +373,7 @@ function M.build(options)
         local header = assert(bsd0.read_header(entry))
 
         local old, base_from = nil, nil
-        if header.kind == bsd0.KIND_DIFF then
+        if header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED then
             old, base_from = find_base(header, place, target)
             if not old then
                 error(string.format("%s: diff needs %s at %d bytes with CRC32 %08x; tried %s", source, target,
@@ -387,7 +387,7 @@ function M.build(options)
         end
         write_file(options.output .. "/" .. place .. "/" .. target:gsub("\\", "/"), new)
 
-        local kind = header.kind == bsd0.KIND_DIFF and "diff" or "whole"
+        local kind = (header.kind == bsd0.KIND_DIFF or header.kind == bsd0.KIND_DIFF_UNPACKED) and "diff" or "whole"
         counts[place] = counts[place] + 1
         counts[kind] = counts[kind] + 1
         manifest.entries[#manifest.entries + 1] = {
