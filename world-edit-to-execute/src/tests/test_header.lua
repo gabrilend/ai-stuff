@@ -8,6 +8,9 @@ local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 -- Add src to package path
 package.path = DIR .. "/src/?.lua;" .. package.path
 
+-- LuaJIT has no bitwise operators; the compat layer supplies them.
+local compat = require("compat")
+
 local header = require("mpq.header")
 -- }}}
 
@@ -64,7 +67,7 @@ if result then
         test("Hash entries > 0", result.mpq.hash_table_entries > 0)
         test("Hash entries is power of 2",
              result.mpq.hash_table_entries > 0 and
-             (result.mpq.hash_table_entries & (result.mpq.hash_table_entries - 1)) == 0)
+             compat.band(result.mpq.hash_table_entries, result.mpq.hash_table_entries - 1) == 0)
         test("Block entries > 0", result.mpq.block_table_entries > 0)
         test("Sector size calculated", result.mpq.sector_size > 0)
     end

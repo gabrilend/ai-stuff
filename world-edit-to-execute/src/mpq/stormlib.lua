@@ -103,7 +103,10 @@ end
 -- {{{ function Archive:list
 -- Lists files matching a mask ("*" for all). Uses the archive's own listfile;
 -- files with no listfile entry appear under StormLib's generated names
--- ("File00000012.xxx"). Returns a list of {name, size, compressed_size, flags}.
+-- ("File00000012.xxx"). Returns a list of {name, size, compressed_size, flags,
+-- locale, hash_index, block_index}. One name can appear more than once: an MPQ
+-- keeps a separate entry per language (locale 0 = neutral), and protected maps
+-- sometimes plant duplicate entries to confuse editors.
 function Archive:list(mask, listfile)
     local L = lib
     local data = ffi.new("SFILE_FIND_DATA")
@@ -118,6 +121,9 @@ function Archive:list(mask, listfile)
             size = data.dwFileSize,
             compressed_size = data.dwCompSize,
             flags = data.dwFileFlags,
+            locale = data.lcLocale,
+            hash_index = data.dwHashIndex,
+            block_index = data.dwBlockIndex,
         }
     until not L.SFileFindNextFile(find, data)
     L.SFileFindClose(find)

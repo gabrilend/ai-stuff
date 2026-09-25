@@ -42,20 +42,18 @@ end
 
 -- {{{ decrypt_sector
 -- Decrypts a single sector of data.
--- Handles non-aligned data by padding to 4-byte boundary.
+-- MPQ encryption works on whole 4-byte words. When a sector's length isn't a
+-- multiple of 4, Storm decrypts only the whole words and leaves the last 1-3
+-- bytes exactly as stored. (An earlier version padded those bytes with zeros
+-- and decrypted them too, which garbled the end of any sector with an odd
+-- length; found 2026-09-24 when StormLib and this reader disagreed on the last
+-- 7 bytes of Daow6.2.w3x's war3map.w3e.)
 function extract.decrypt_sector(data, key)
-    local original_len = #data
-    local remainder = original_len % 4
-
-    if remainder == 0 then
+    local whole = #data - (#data % 4)
+    if whole == #data then
         return hash.decrypt_block(data, key)
     end
-
-    -- Pad with zeros to 4-byte boundary
-    local padded = data .. string.rep("\0", 4 - remainder)
-    local decrypted = hash.decrypt_block(padded, key)
-    -- Return only the original length
-    return decrypted:sub(1, original_len)
+    return hash.decrypt_block(data:sub(1, whole), key) .. data:sub(whole + 1)
 end
 -- }}}
 
@@ -263,7 +261,7 @@ function extract.extract_file(file_data, hash_table, block_table, sector_size, f
     local hashtable = require("mpq.hashtable")
     local blocktable = require("mpq.blocktable")
 
-    local block_index = hashtable.find_file(hash_table, filename)
+    local block_index = hashtable.find_file(hash_table, filename, block_table.entry_count)
     if not block_index then
         return nil, "File not found: " .. filename
     end
@@ -286,10 +284,22 @@ function extract.extract_file(file_data, hash_table, block_table, sector_size, f
 
         if block.flags.encrypted then
             local key = extract.compute_file_key(filename, block)
-            -- For uncompressed files, we still need to handle sector-based decryption
-            -- But if it's a single unit and not compressed, decrypt directly
             if block.flags.single_unit then
+                -- One chunk, one key.
                 data = extract.decrypt_sector(data, key)
+            else
+                -- Uncompressed files are still stored in sectors, and each
+                -- sector is encrypted with key + its index, like compressed
+                -- ones. (An earlier version returned these files still
+                -- encrypted; found 2026-09-24 on Daow1.23.1B.w3x's (listfile).)
+                local parts = {}
+                local index = 0
+                for start = 1, #data, sector_size do
+                    local chunk = data:sub(start, start + sector_size - 1)
+                    parts[#parts + 1] = extract.decrypt_sector(chunk, key + index)
+                    index = index + 1
+                end
+                data = table.concat(parts)
             end
         end
 
