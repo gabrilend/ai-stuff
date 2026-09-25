@@ -19,7 +19,7 @@
 -- given, otherwise the standard Warcraft III map file names. Files neither
 -- list names appear as StormLib's placeholders, e.g. File00000021.blp.
 --
--- Issue: issues/112a-stormlib-build-and-update-script.md
+-- Issue: issues/completed/112a-stormlib-build-and-update-script.md
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 local LISTFILE = nil

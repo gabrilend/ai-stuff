@@ -85,6 +85,6 @@ and loading a map stacks the layers for the version it was made for:
 
 ## Related Documents
 
-- `issues/112-stock-object-tables-by-two-routes.md`, `issues/112a-stormlib-build-and-update-script.md`
+- `issues/112-stock-object-tables-by-two-routes.md`, `issues/completed/112a-stormlib-build-and-update-script.md`
 - `/home/ritz/games/azeroth-core/wow-chat-2026/docs/patches/patch-registry.md` (the apply/unapply pattern)
 - `wc3-installs/README.md`

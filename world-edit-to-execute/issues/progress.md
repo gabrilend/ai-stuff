@@ -132,6 +132,17 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 109 | Implement PKWARE DCL decompression | **Completed** | 102d |
 | 110 | Object data parsers | **Completed** | 102 |
 | 111 | Cross-reference validation | **Completed** | 110, 202, 201 |
+| 112 | Stock object tables, read two ways and cross-checked | In progress | 112a, 112b |
+| 112a | StormLib built from source by the dependency script | **Completed** 2026-09-24 | 113 |
+| 112b | Game-version layers, chosen per map | Open | 112a |
+| 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
+
+Phase 1 was reopened on 2026-09-24 for the stock-table work that converting
+custom maps needs (112) and the reader work it uncovered (113). Comparing the
+project's MPQ reader with StormLib on every file of the 16 test maps found and
+fixed three protected-map bugs in the reader and added the last missing
+compression methods; all 369 files now match, as do 150 Warcraft III sound
+files.
 
 ### Dependency Graph
 

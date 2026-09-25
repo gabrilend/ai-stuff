@@ -1,12 +1,16 @@
 -- MPQ File Extraction
 -- Extracts files from MPQ archives with decryption and decompression.
--- Uses Python3 zlib for decompression (temporary solution until pure Lua).
--- Compatible with both LuaJIT and Lua 5.3+.
+-- Decompression: PKWARE, Huffman and ADPCM in Lua (pkware.lua, huffman.lua,
+-- adpcm.lua); zlib and bzip2 through the system libraries via LuaJIT's FFI
+-- (system_codecs.lua). Needs LuaJIT for zlib/bzip2 sectors.
 
 local compat = require("compat")
 local band, bxor = compat.band, compat.bxor
 local hash = require("mpq.hash")
 local pkware = require("mpq.pkware")
+local huffman = require("mpq.huffman")
+local adpcm = require("mpq.adpcm")
+local system_codecs = require("mpq.system_codecs")
 
 local extract = {}
 
@@ -57,73 +61,54 @@ function extract.decrypt_sector(data, key)
 end
 -- }}}
 
--- {{{ decompress_zlib
--- Decompresses zlib data using Python3 (temporary solution).
--- MPQ files use zlib format but the Adler-32 checksum may be corrupted
--- due to decryption padding, so we use raw deflate mode.
-local function decompress_zlib(data)
-    -- Check for zlib header and skip it
-    local has_zlib_header = #data >= 2 and data:byte(1) == 0x78
-    local deflate_data = data
-    if has_zlib_header then
-        -- Skip 2-byte zlib header, use raw deflate
-        deflate_data = data:sub(3)
-    end
+-- {{{ decompression steps
+-- The methods a sector's first byte can name, in the order Storm undoes them
+-- (StormLib's dcmp_table): bzip2, PKWARE, zlib, Huffman, ADPCM stereo, ADPCM
+-- mono. Each step's output is capped at the sector's expected size.
+local DECOMPRESS_ORDER = {
+    { mask = COMPRESSION.BZIP2, name = "bzip2",
+      run = function(data, size) return system_codecs.bzip2(data, size) end },
+    { mask = COMPRESSION.PKWARE, name = "PKWARE DCL",
+      run = function(data, size) return pkware.decompress(data, size) end },
+    { mask = COMPRESSION.ZLIB, name = "zlib",
+      run = function(data, size) return system_codecs.zlib(data, size) end },
+    { mask = COMPRESSION.HUFFMAN, name = "Huffman",
+      run = function(data, size) return huffman.decompress(data, size) end },
+    { mask = COMPRESSION.ADPCM_STEREO, name = "ADPCM stereo",
+      run = function(data, size) return adpcm.decompress(data, size, 2) end },
+    { mask = COMPRESSION.ADPCM_MONO, name = "ADPCM mono",
+      run = function(data, size) return adpcm.decompress(data, size, 1) end },
+}
 
-    -- Write compressed data to temp file
-    local tmp_in = os.tmpname()
-    local tmp_out = os.tmpname()
-
-    local f = io.open(tmp_in, "wb")
-    f:write(deflate_data)
-    f:close()
-
-    -- Use Python3 for decompression with raw deflate mode (-15)
-    local cmd = string.format(
-        'python3 -c "' ..
-        'import sys,zlib; ' ..
-        'd=open(\'%s\',\'rb\').read(); ' ..
-        'sys.stdout.buffer.write(zlib.decompress(d,-15))" > "%s" 2>/dev/null',
-        tmp_in, tmp_out
-    )
-
-    local ok = os.execute(cmd)
-
-    -- Read decompressed data
-    local result = nil
-    if ok then
-        f = io.open(tmp_out, "rb")
-        if f then
-            result = f:read("*a")
-            f:close()
-        end
-    end
-
-    -- Cleanup
-    os.remove(tmp_in)
-    os.remove(tmp_out)
-
-    return result
+local KNOWN_METHODS = 0
+for _, step in ipairs(DECOMPRESS_ORDER) do
+    KNOWN_METHODS = KNOWN_METHODS + step.mask
 end
 -- }}}
 
 -- {{{ decompress_sector
--- Decompresses a sector based on compression flags.
--- @param data: Compressed sector data
--- @param is_implode: True if IMPLODE flag is set on the file
--- @param is_compress: True if COMPRESS flag is set on the file
--- @param expected_size: Optional expected decompressed size for PKWARE DCL
+-- Decompresses one sector.
+-- @param data: the sector's stored bytes (already decrypted)
+-- @param is_implode: the file's IMPLODE flag (whole file uses PKWARE, no method byte)
+-- @param is_compress: the file's COMPRESS flag (each sector starts with a method byte)
+-- @param expected_size: the sector's uncompressed size
+--
+-- A sector whose stored size already equals its expected size was stored
+-- raw: the writer found compression didn't help and kept the bytes as they
+-- were, with no method byte (StormLib does the same check). Treating such a
+-- sector's first byte as a method byte would corrupt it.
 function extract.decompress_sector(data, is_implode, is_compress, expected_size)
     if not data or #data == 0 then
         return ""
     end
-
     if not is_implode and not is_compress then
+        return data
+    end
+    if expected_size and #data == expected_size then
         return data
     end
 
     if is_implode then
-        -- PKWARE DCL (implode) decompression
         local decompressed, err = pkware.decompress(data, expected_size)
         if not decompressed then
             return nil, "PKWARE DCL decompression failed: " .. (err or "unknown")
@@ -131,43 +116,21 @@ function extract.decompress_sector(data, is_implode, is_compress, expected_size)
         return decompressed
     end
 
-    if is_compress then
-        -- Multi-compression: first byte indicates methods
-        local flags = data:byte(1)
-        if not flags then
-            return data  -- Empty data
-        end
-        data = data:sub(2)
-
-        -- Handle each compression in reverse order
-        if band(flags, COMPRESSION.BZIP2) ~= 0 then
-            return nil, "bzip2 decompression not implemented"
-        end
-
-        if band(flags, COMPRESSION.PKWARE) ~= 0 then
-            -- PKWARE DCL (implode) decompression
-            local decompressed, err = pkware.decompress(data, expected_size)
-            if not decompressed then
-                return nil, "PKWARE DCL decompression failed: " .. (err or "unknown")
-            end
-            data = decompressed
-        end
-
-        if band(flags, COMPRESSION.ZLIB) ~= 0 then
-            local decompressed = decompress_zlib(data)
-            if not decompressed then
-                return nil, "zlib decompression failed"
-            end
-            data = decompressed
-        end
-
-        if band(flags, COMPRESSION.HUFFMAN) ~= 0 then
-            return nil, "Huffman decompression not implemented"
-        end
-
-        return data
+    local methods = data:byte(1)
+    if band(methods, KNOWN_METHODS) ~= methods then
+        return nil, string.format("unsupported compression method mask 0x%02X", methods)
     end
+    data = data:sub(2)
 
+    for _, step in ipairs(DECOMPRESS_ORDER) do
+        if band(methods, step.mask) ~= 0 then
+            local decompressed, err = step.run(data, expected_size)
+            if not decompressed then
+                return nil, step.name .. " decompression failed: " .. (err or "unknown")
+            end
+            data = decompressed
+        end
+    end
     return data
 end
 -- }}}

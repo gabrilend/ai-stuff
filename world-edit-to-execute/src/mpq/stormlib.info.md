@@ -24,4 +24,4 @@ project's own is checked against. StormLib is built by
 - `SFILE_FIND_DATA`'s layout is checked by size at load (1064 bytes on 64-bit
   Linux, StormLib v9.40); a mismatch raises an error.
 
-Issue: `issues/112a-stormlib-build-and-update-script.md`
+Issue: `issues/completed/112a-stormlib-build-and-update-script.md`

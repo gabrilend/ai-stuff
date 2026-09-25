@@ -272,8 +272,28 @@ Files may use multiple compression algorithms, applied in sequence.
 
 ### Decompression Order
 
-When multiple algorithms are combined, decompress in reverse flag order:
-ADPCM → SPARSE → BZIP2 → PKWARE → ZLIB → HUFFMAN
+When several methods are combined, they are undone in this fixed order (Storm's
+own table, as reproduced by StormLib's `dcmp_table`):
+
+bzip2 → PKWARE → zlib → Huffman → ADPCM stereo → ADPCM mono → sparse
+
+(Correction, 2026-09-24: an earlier version of this section put ADPCM first.
+Sound is compressed ADPCM-then-Huffman, so Huffman must come off first; Warcraft
+III's sounds use `0x41` = Huffman + ADPCM mono and `0x81` = Huffman + ADPCM
+stereo.)
+
+Rules that go with it:
+- **A sector whose stored size equals its expected size is stored raw**, with
+  no method byte: the writer found compression didn't help. Its first byte is
+  data, not a method mask.
+- **Each step's output is capped at the sector's expected size.**
+- **A method bit the reader doesn't know is an error**, not skipped. (The
+  project's reader supports every method above except sparse, which is
+  StarCraft II-era and absent from Warcraft III and WoW 3.3.5a data.)
+
+The project's reader implements PKWARE (`src/mpq/pkware.lua`), Huffman
+(`huffman.lua`) and ADPCM (`adpcm.lua`) in Lua, and zlib and bzip2 through the
+system libraries (`system_codecs.lua`).
 
 ---
 

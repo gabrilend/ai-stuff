@@ -11,7 +11,7 @@
 -- message if it isn't.
 --
 -- Run: luajit src/tests/test_stormlib.lua [DIR]
--- Issue: issues/112a-stormlib-build-and-update-script.md
+-- Issue: issues/completed/112a-stormlib-build-and-update-script.md
 
 -- {{{ Setup
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
