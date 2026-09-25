@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 19:11:09
+Generated on: 2026-09-24 19:24:47
 Models: claude-opus-5-5
 
 ## Contents
@@ -2421,6 +2421,96 @@ nothing to do with this work.
   named and counted.
 
 Which do you want?
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+Let's do (a)
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> Going with (a). Starting with StormLib's source: how it chains several
+> compressions in one sector, then the Huffman and ADPCM code.
+
+> Decompression runs in a fixed order: bzip2, PKWARE, zlib, Huffman, ADPCM
+> stereo, ADPCM mono. Reading our reader's sector decompression, then the
+> Huffman source.
+
+> The chaining is clear. Every step's output is limited to the sector's expected
+> size, and a byte naming an unknown method is an error. Reading the ADPCM
+> source.
+
+> I have everything for the port. One more check: whether StormLib's zlib step
+> expects the 2-byte zlib header, since our old Python route stripped it.
+
+> Porting now: Huffman first, straight from StormLib's `huff.cpp`, keeping its
+> MIT notice.
+
+> Before testing, I'm checking my hand-typed weight tables against StormLib's
+> source with a small script, since a single wrong number would silently corrupt
+> output.
+
+> All nine weight tables match StormLib's source exactly. Now the ADPCM decoder.
+
+> ADPCM tables match too. Now the zlib and bzip2 module over LuaJIT's FFI,
+> replacing the Python call.
+
+> Spliced in cleanly, and no Python calls remain. Running the comparison test
+> and the other MPQ tests.
+
+> All 150 sound files match. Confirming they actually exercised ADPCM rather
+> than only zlib, by counting the method bytes seen.
+
+> All 12 pass. Running the full suite to check nothing else regressed.
+
+> The format doc gives the decompression order backwards: it undoes ADPCM first,
+> but Huffman has to come off before ADPCM. Correcting it, and adding the
+> raw-sector rule.
+
+> Rewriting issue 113 as the blueprint of what was built, since it's complete.
+
+> Repointing those references at the completed paths.
+
+> References fixed, and both key tests still pass. Previewing and committing.
+
+Done and committed (`7084be474`). Our own map reader now decodes every
+compression method Warcraft III uses, and the StormLib and compression issues
+are both complete and moved to `completed/`.
+
+**What was ported:**
+- **Huffman** (Blizzard's adaptive tree code) and **ADPCM** (its lossy sound
+  coding), ported to Lua from StormLib with its MIT notice kept. Their fixed
+  tables were checked value by value against StormLib's source: 2,304 Huffman
+  weights and 121 ADPCM steps, all matching.
+- **zlib and bzip2** now call the system libraries directly. This replaced the
+  old route that ran Python on temporary files, which also turned off zlib's
+  checksum to work around the decryption bug fixed earlier today. Checksums are
+  verified again.
+- **Sector handling now matches the game:** methods undone in its fixed order,
+  each step capped at the sector's size, raw-stored sectors passed through, and
+  unknown methods reported as errors.
+
+**Results:**
+- All 369 files of the 16 test maps now read identical to StormLib, including
+  the two Huffman images that failed before.
+- 150 Warcraft III sound files from `war3.mpq` match too. They exercised both
+  ADPCM variants: 2,951 sectors of mono and 856 of stereo, each under Huffman.
+- The comparison runs in 2 seconds instead of minutes.
+- A new codec test covers zlib, bzip2, the sector rules and real sound.
+- The format doc had the decompression order backwards; that's fixed.
+
+**Full suite:** 105 of 106 test files pass. The one failure, `test_frames` (10
+checks on pathfinding direction constants), was already failing before this work
+and has nothing to do with it. Should I add it to the list, or leave it with
+whoever owns the pathfinding frames?
+
+**Next on the plan: issue 112b, the first patch layer.** That means reading
+`patch.lst` from the 1.21b patch, applying each BSDIFF40 diff to the file
+beneath it, storing the result as a layer, and having each map pick its layers
+automatically. Shall I start?
 
 --------------------------------------------------------------------------------
 
