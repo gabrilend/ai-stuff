@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-24 19:24:47
+Generated on: 2026-09-24 19:46:54
 Models: claude-opus-5-5
 
 ## Contents
@@ -64,6 +64,10 @@ Models: claude-opus-5-5
     playable without Blizzard assets, currently reading the stock game values
     through StormLib. Next, tell me which WoW client folder is live, then I'll
     finish the StormLib issue.
+15. 2026-09-24 19:27, after Request 22 - We're preparing to convert Warcraft III
+    maps into the WoW-based W client, and the project's map reader now reads
+    every test map and sound identically to StormLib. Next is issue 112b,
+    building patch 1.21b as a layer, once you say go.
 
 --------------------------------------------------------------------------------
 
@@ -2511,6 +2515,118 @@ whoever owns the pathfinding frames?
 `patch.lst` from the 1.21b patch, applying each BSDIFF40 diff to the file
 beneath it, storing the result as a layer, and having each map pick its layers
 automatically. Shall I start?
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+Great let's keep working. Don't forget to make git commits. I expect a clean
+repository when we're done today.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> Starting 112b by looking at how the 1.21b patch describes its changes: the
+> `patch.lst`, `patch.cmd`, `delete.lst` and `revert.lst` files, and the header
+> in front of each diff.
+
+> Now the layer builder. It reads the patch program, resolves each entry's base
+> (the archive chain for data, the install folder for loose files), applies it,
+> and writes the layer plus a manifest.
+
+> `patch.lst` has lines that are just `*`, which `delete.lst` has too. Checking
+> where they sit before deciding what they mean.
+
+> It's just an end-of-list marker, followed by a blank line. Treating `*` as the
+> end of the list in both files.
+
+> 16 of 17 pass. The only failure is the `Game.dll` check, which probably can't
+> find the file under that exact capitalization. Checking the layer's install
+> folder.
+
+> The layer keeps the patch list's own spelling, `game.dll`. Windows doesn't
+> care about case, but Linux does, so the test should look the path up through
+> the manifest rather than hard-code it.
+
+> The version string is being cut off ("…630"). My read window is 10 bytes too
+> short; widening it.
+
+> All 17 pass. Next: the `.info.md` notes, the README update for the new layers
+> link, and issue 112b's current state, then a commit.
+
+> The table row landed outside the table, and the `frozen-throne` row still
+> claims patch 1.21b and `War3Patch.mpq` are installed, which isn't true. Fixing
+> both.
+
+> Committed (`6368b2e92`). Now the two parsers: SLK spreadsheets and the
+> INI-style profile text files.
+
+> All 17 pass on the real 1.21b data too: Storm Bolt reads 3 levels and a
+> 9-second cooldown, and the metadata maps `acdn` to the `Cool` column. Adding
+> the `.info.md` notes and committing.
+
+> Committed (`f7d1af3a5`). Now the metadata join. Looking at real rows to learn
+> how `index`, `repeat` and `data` combine into column names, and which `type`
+> values exist.
+
+> Zero objects: the parsed file keeps its custom objects under a different shape
+> than I assumed. Checking.
+
+> Giving each problem a kind: orphan change set, unknown parent, or unknown
+> field code.
+
+> Now the test for the merge: DAoW-2.1's Animate Dead copy checked field by
+> field, and all 16 maps with problems only of the two known kinds.
+
+> All 12 pass. Writing the notes for the two new modules, updating 112c's
+> current state with its open questions, then committing.
+
+> Committed (`4a32d179f`). Running the full suite once more before reporting.
+
+The patch layers work, the first half of the stock-table work (reading the
+values from your own install) is built, and every step is committed.
+world-edit-to-execute is clean, with 108 of 109 test files passing; the one
+failure is `test_frames`, which was already broken before today.
+
+**Patch layers (issue 112b):**
+- Each file in a Warcraft III patch is a small header plus either the whole new
+  file or a binary diff. The header carries the old file's CRC32, so every diff
+  is checked against its base before it's applied.
+- The 1.21b patch program became a stored layer in 2 seconds, without running
+  the patcher: 714 files, including 301 diffs, each matching its base. The
+  patched `game.dll` reports **1.21.1.6300**, exactly the version the patch
+  names. The layer lives beside your installs, never in the repository.
+- Loading a map now builds its own chain in memory: its data-set copy, the patch
+  layer, then the game archives. Maps can also load unpatched or with a named
+  layer. Nothing on disk changes.
+- A key finding: custom maps start from separate custom-game tables (`Custom_V0`
+  for Reign of Chaos maps, `Custom_V1` for Frozen Throne maps), not the melee
+  tables. Route A reads through them.
+
+**Stock rows (issue 112c):**
+- New parsers for Blizzard's stock spreadsheets and profile text files.
+- Every object in a map is merged over its stock parent, keeping only functional
+  fields. The dropped types are a reviewed data file: text, icons, models,
+  sounds.
+- Across the 16 test maps: 27,943 objects merged and 361,815 changes applied.
+  Two kinds of problem are reported rather than skipped:
+  - **369 orphan change sets:** leftover changes filed under ids that exist
+    nowhere, which the game can't apply;
+  - **31 changes with a field code `Crs\0`**, which the 1.21b data doesn't know,
+    probably from a later editor.
+
+**The one thing blocking a clean custom-client repo:** another session has
+uncommitted edits in `docs/008-build-system.md` and
+`docs/010-table-of-contents.md`, pointing `tmp/` at
+`/dev/shm/azc-custom-client/`. They aren't mine. Should I commit them as they
+are, or leave them for that session?
+
+Open questions, one at a time. The first is the dropped-types list in
+`src/gamedata/field_rules.lua`: text, icons, models, sound names, effect and
+lightning lists, shadows, ground decals, team colour, and editor tileset lists
+are dropped. Everything else is kept, including button positions and order
+strings. Anything you'd move either way?
 
 --------------------------------------------------------------------------------
 
