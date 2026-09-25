@@ -27,7 +27,11 @@ hots-to-wc3-gift/
 # General Project Ignores
 # ============================================================================
 
-# Temporary files
+# Temporary files. tmp is a link into RAM (/tmp/world-edit-to-execute, with
+# tmp/shared-memory -> /dev/shm/world-edit-to-execute; made by
+# scripts/libs/ensure-ram-tiers). "tmp/" alone matches folders only, not
+# the link, so both forms are listed.
+tmp
 tmp/
 *.tmp
 *.temp
