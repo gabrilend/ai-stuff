@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 11:18:56
+Generated on: 2026-09-25 11:31:39
 Models: claude-opus-5-5
 
 ## Contents
@@ -4601,6 +4601,113 @@ rather than the start of the file. I haven't found which.
 
 Understood on moving on from new patches. That gap stays recorded in the
 patch-layer sub-issue, as its first open question.
+
+--------------------------------------------------------------------------------
+
+### User Request 44
+
+Hmmmm... I think it's okay if we move on for now. Let's come back to it later.
+It could also be that the binary inflates itself at runtime perhaps? Idk if
+that's possible. Not sure, sorry. Let's focus on something more fun! Anything
+you'd like!
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 44
+
+> Your guess may be closer than you think. When I looked inside the 1.07 disc's
+> `War3.exe`, two of its sections have scrambled names, `.iyhivx` and `.wwaw`,
+> next to the usual `.text` and `.data`. Randomly named sections are the
+> signature of the disc-era copy protection that wrapped these programs, and
+> that wrapping is typically packed or encrypted and unpacks itself at runtime,
+> just as you suspected. The patch diffs against the wrapped bytes (its base
+> checksum matches our file), so that alone doesn't explain the drift. But it's
+> a real lead: the three failing files are exactly the protected programs, while
+> the smaller unwrapped `Storm.dll` decodes fine. Recording it in the sub-issue
+> for when we come back.
+
+> Number 115. Writing the issue.
+
+> A classic Lua slip in my code: `cond and false or x` always yields `x`,
+> because `false` is falsy. Fixing it.
+
+> Node is broken on this system (a library mismatch, not something I touched),
+> so validating the data with Python's JSON parser instead.
+
+> Now the run script, with an `--open` option to launch the page in Firefox, and
+> a test. First, a more reliable way for the generator to tell "run directly"
+> from "loaded by a test".
+
+> Firefox wrote no screenshot, probably because it attached to an
+> already-running Firefox. Retrying with a separate temporary profile.
+
+> My test's expectation was wrong, not the data. Counting the chart's points,
+> the Knight's hit points go 800 → 835 at **1.19a**, not 1.14b. Checking the
+> exact values, then fixing the test.
+
+> All 6 pass. Writing the notes files, completing the issue, and committing.
+
+> The issue file was never committed at its old path, so a plain move was right.
+> Running the full suite and committing.
+
+The **Balance History** explorer is built and committed as `4ee30cb64`. The
+whole suite passes and the repository is clean.
+
+To open it:
+```
+! scripts/balance-history.sh --open
+```
+That generates everything in about 11 seconds into the project's RAM scratch
+space and opens the page in Firefox. `#tft/hkni` in the address jumps straight
+to an object.
+
+**What's in it:**
+- **Coverage:** 24 Frozen Throne versions (1.07 disc to 1.29.2) and 21 Reign of
+  Chaos versions (1.00 disc to 1.27b). Over 1,300 units, abilities, items and
+  upgrades have at least one number that changed.
+- **The front page** is a heat map of how much each patch changed, per kind of
+  object. The shape of the game's history is right there: 1.11, 1.14b and 1.19a
+  were the big early rebalances, it was quiet for years after that, and 1.29.1
+  ran a large ability pass.
+- **Each object's page** has a step chart per number, marking the version it
+  changed in. The Knight reads cleanly: hit points 800 → 835 in 1.19a, then
+  damage 25 → 28 with a faster attack (cooldown 1.50 → 1.40) in 1.22a.
+- **Most-reworked object:** Breath of Fire, with 28 of its numbers changed over
+  the years.
+
+**Notes:**
+- It's two separate pieces, as your rule asks: a Lua generator that writes the
+  data, and a self-contained page that only draws it.
+- It stays on your machine, since it's made from your own install's files.
+- `node` fails to start on this machine because of a library mismatch. I didn't
+  touch it; I checked the data with Python instead. Say if you'd like me to look
+  into that.
+
+--------------------------------------------------------------------------------
+
+### User Request 45
+
+Wow! Wow! That's so cool! I love that! Thank you for making this for me!
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 45
+
+You're welcome! I really enjoyed this one. After two days of layers, checksums
+and diff formats, it was a treat to finally watch twenty years of balance
+decisions move across a page. Every step in those charts is somebody at Blizzard
+deciding the Knight needed a little more bite.
+
+If you'd like to keep playing with it later, a few directions it could grow,
+most useful first:
+1. **Compare two versions side by side:** pick 1.07 and 1.29.2, say, and list
+   every number that differs, sorted by how much it moved.
+2. **Show a map's own changes on top:** open a map such as DAoW and see how its
+   custom numbers compare with the stock ones for its version.
+3. **A "what changed in this patch" view:** click a column of the heat map to
+   see that patch's changes, like reconstructed patch notes.
+
+Or we can pick up any of the main threads whenever you're ready.
 
 --------------------------------------------------------------------------------
 
