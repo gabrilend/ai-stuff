@@ -77,6 +77,7 @@ in full there.
 | Date | Decision | Recorded in |
 |------|----------|-------------|
 | 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
+| 2026-09-26 | **Community models first; Blizzard's only for compatibility; placeholders otherwise.** The owner: "use the models posted online rather than the ones in the game. We want to respect and honor Warcraft 3 and the most respectful way to do that I can think of is to use their models only when we are building in compatibility with their formats. For the rest of it, we can use placeholders." The engine gets a WC3 model reader, a texture reader and an in-engine model renderer ("Why use capsules when you could use footmen and grunts?"). | issues 116, 117, 516 |
 | 2026-09-26 | **Fetching and browsing are split, generation from viewing.** Issue 603 is the fetcher: it finds maps and models on public hosting sites and downloads one over HTTP when a player asks. Issue 1001 is the catalogue: it shows what 603 found and never fetches. The file server (607) is retired; nothing in the project serves files. | issues 603, 1001, `issues/superseded/607-file-server-application.md` |
 | 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | issue 603 |
 | 2026-09-25 | **One host holds the truth; lockstep is dropped.** The host's machine runs the one simulation and every other player is its client. | `docs/wc3-engine-architecture.md` (Multiplayer Strategy), issue 803 |
@@ -224,7 +225,7 @@ Places where a document disagrees with the code or with another document.
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
 | 801b-801h | headers say Phase 7 | Phase 8; 801h's dependency names "701 sub-issues", which are archived |
 | 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped |
-| 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | the player's install and the WoW client belong in the order; the roadmap says `~/.wc3-engine/` |
+| 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | for models the order is now a map's own imported files, then installed community models, then placeholders (516, the owner's rule of 2026-09-26); the player's WC3 install supplies stock *data* (112), not models in play; the WoW client belongs only in Phase W's order (W03); the roadmap says `~/.wc3-engine/` |
 | Current Behavior sections | 112 says there is no reader for the stock tables; 515k says only steps 1-2 are done; 803 has met criteria unticked | the reader exists (`src/gamedata/`); step 3 is committed; 3 of 4 criteria are met |
 
 ---

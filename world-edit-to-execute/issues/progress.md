@@ -139,6 +139,8 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
+| 116 | Read WC3 models (.mdx) | Pending | — |
+| 117 | Read WC3 textures (BLP1) | Pending | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
 
@@ -473,6 +475,7 @@ Phase 2 & 3 Complete
 | 515e | Growing asset table | Pending | 515b |
 | 515f | Measured against the pool | Pending | 515c, 515d, 515e |
 | 515k | A crowd on every design (the unpredictable workload) | Pending | 405f, 515h, 515j |
+| 516 | Draw WC3 models in the engine (community models first, placeholders otherwise) | Pending | 116, 117 |
 
 ### Dependency Graph
 
