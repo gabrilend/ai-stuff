@@ -24,7 +24,8 @@
 # dependent work, and its total work spread over every core.
 #
 # Usage: run-frame.sh [DIR] [FRAMES] [REPEATS]
-#   writes tmp/shared-memory/ceramic/frame.tsv, frame-loc.tsv, frame-bounds.tsv
+#   writes tmp/shared-memory/ceramic/frame.tsv, frame-loc.tsv, frame-bounds.tsv,
+#   frame-tuning.tsv
 
 DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 if [ -n "$1" ]; then DIR="$1"; fi
@@ -81,14 +82,38 @@ cp "${SRC}/frame-bounds.c" "${BUILD}/frame-bounds.c"
 cc -std=gnu11 -O2 -DROUNDS_PER_US="${ROUNDS}" "${BUILD}/frame-bounds.c" -o "${BUILD}/frame-bounds" -lm
 "${BUILD}/frame-bounds" "${FRAMES}" "$(nproc)" > "${OUT}/frame-bounds.tsv"
 
-T="${OUT}/frame.tsv"
 W=$(( $(nproc) - 1 ))
+
+# The stronger opponents (issue 515j) are given their best setting, not a
+# guess: each spin-then-sleep way is tried at several spin lengths, the
+# fastest mean wins, and the trial is kept (frame-tuning.tsv).
+TUNE="${OUT}/frame-tuning.tsv"
+: > "${TUNE}"
+declare -A BEST_SPIN
+for way in jobs systems-hybrid levels-hybrid; do
+    best=""; best_mean=""
+    for us in 50 200 1000 5000; do
+        mean=$(FRAME_SPIN_US="${us}" "${BUILD}/frame-hand" "${way}" 150 $(( W + 1 )) 0 | cut -f5)
+        printf '%s\t%s\t%s\n' "${way}" "${us}" "${mean}" >> "${TUNE}"
+        if [ -z "${best_mean}" ] || awk -v a="${mean}" -v b="${best_mean}" 'BEGIN { exit !(a < b) }'; then
+            best="${us}"; best_mean="${mean}"
+        fi
+    done
+    BEST_SPIN["${way}"]="${best}"
+    echo "${way}: best spin ${best} us (${best_mean} us a frame)"
+done
+
+T="${OUT}/frame.tsv"
 : > "${T}"
 "${BUILD}/frame-hand" serial "${FRAMES}" 1 0 >> "${T}"
 for repeat in $(seq "${REPEATS}"); do
     for bg in 0 1; do
         for way in systems systems-spin levels levels-spin; do
             "${BUILD}/frame-hand" "${way}" "${FRAMES}" $(( W + 1 )) "${bg}" >> "${T}"
+        done
+        # the stronger opponents, each at its best spin
+        for way in jobs systems-hybrid levels-hybrid; do
+            FRAME_SPIN_US="${BEST_SPIN[${way}]}" "${BUILD}/frame-hand" "${way}" "${FRAMES}" $(( W + 1 )) "${bg}" >> "${T}"
         done
         "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"
         CERAMIC_SPIN=10000 "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"

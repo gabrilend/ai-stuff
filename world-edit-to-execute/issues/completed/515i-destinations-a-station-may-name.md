@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 515 (the render graph on the ceramic engine)
 **Dependencies:** 515g (the kept copy's lock-free queue), 515h (the frame that measures it)
+**Blocks:** 515j (stronger opponents on this frame)
 
 ---
 

@@ -4,7 +4,8 @@
  * Spliced into each page's <style> by the report tools at the marker
  * @@KIT-CSS, so every published page stays one self-contained file. One
  * colour per approach (grey one thread, slate fixed slices, plum shared
- * counter, brick one task per unit, teal chunked), amber for handing in
+ * counter, brown a hand-written job system, brick one task per unit, teal
+ * chunked), amber for handing in
  * to the task queue, and a light and a dark palette.
  */
 :root {
@@ -19,6 +20,7 @@
   --one: #b0442a;
   --hand: #4b5c86;
   --counter: #7a569e;
+  --jobs: #8c5a1f;
   --plain: #8a948f;
   --budget: #b98114;
   --good: #2f7a3e;
@@ -42,6 +44,8 @@
     --one: #e27b5d;
     --hand: #93a5d6;
     --counter: #bd9be6;
+  --jobs: #d8a066;
+    --jobs: #d8a066;
     --plain: #7c8883;
     --budget: #deaa42;
     --good: #6cc07b;
@@ -62,6 +66,7 @@
   --one: #e27b5d;
   --hand: #93a5d6;
   --counter: #bd9be6;
+  --jobs: #d8a066;
   --plain: #7c8883;
   --budget: #deaa42;
   --good: #6cc07b;
