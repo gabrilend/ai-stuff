@@ -25,9 +25,26 @@ a testing ground for subsequent work.
 
 ## Current Behavior
 
-- Raylib rotating cube demo works (501f complete)
-- Threading model documented but not implemented
-- No entity rendering, no input, no game integration
+Built. All nine sub-issues (508a-508i) are in `issues/completed/`.
+
+- A C program on raylib (`src/render/`) owns the window and the drawing.
+  Lua never draws: it writes each unit's values (position, facing, colour,
+  team, selected, shape) into fixed render slots (`slots.h`) through the
+  bridge (`bridge.c`, `src/render.lua`), and the draw thread only reads them.
+- A real map's terrain shows as a coloured grid (`terrain.c`); units and
+  doodads from the map show as simple shapes.
+- Left-click selects by casting a ray from the mouse (`input.c`, fixed for
+  chunked terrain in 508i); right-click issues a move order through the
+  runtime's order system, and the unit walks there.
+- A top bar shows resources and a bottom panel shows the selected unit's
+  name and hit points (`ui.c`).
+- The threading underneath was later rebuilt as issue 512 (a ring-buffer
+  task pool); 512f moved this renderer onto it.
+- The camera is fixed in place; panning and zoom were left to the
+  camera-controls issue (505c).
+- Built with `src/render/run`; `src/demo/testing_room.lua` is the demo
+  script. Rechecked 2026-09-26: the renderer compiles with no warnings under
+  `-Wall`.
 
 ---
 
@@ -190,16 +207,16 @@ Extend `src/render/main.c`:
 
 ## Acceptance Criteria
 
-- [ ] Worker thread pool processes entity updates
-- [ ] Sync thread swaps output buffers atomically
-- [ ] Draw thread renders from primary buffer at 60 FPS
-- [ ] Map terrain displays as colored grid
-- [ ] Units from map file render as shapes
-- [ ] Click selects entity (visual feedback)
-- [ ] Right-click moves selected entity
-- [ ] Selected entity info displays in UI panel
-- [ ] Resources display in top bar
-- [ ] Demo runs on test map without crashes
+- [x] Worker thread pool processes entity updates
+- [x] Sync thread swaps output buffers atomically
+- [x] Draw thread renders from primary buffer at 60 FPS
+- [x] Map terrain displays as colored grid
+- [x] Units from map file render as shapes
+- [x] Click selects entity (visual feedback)
+- [x] Right-click moves selected entity
+- [x] Selected entity info displays in UI panel
+- [x] Resources display in top bar
+- [x] Demo runs on test map without crashes
 
 ---
 
@@ -232,7 +249,10 @@ src/demo/
 This issue intentionally bypasses some Phase 5 infrastructure to reach a
 testable state faster. Once this works, we can:
 
-1. Refactor to match 501-507 architecture more precisely
+1. ~~Refactor to match 501-507 architecture more precisely~~. Not done, on
+   purpose: the slice's split (C draws, Lua writes slots) became the
+   architecture, and the 501-507 plan (a Lua renderer interface with
+   swappable backends) is the one that has to be re-cut to fit it.
 2. Add features incrementally (terrain detail, sprites, minimap)
 3. Profile and optimize the threading model
 4. Replace placeholder visuals with real rendering

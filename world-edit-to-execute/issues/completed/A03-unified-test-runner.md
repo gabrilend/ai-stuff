@@ -9,11 +9,19 @@
 
 ## Current Behavior
 
-Tests must be run individually via `luajit src/tests/test_*.lua`. No way to:
-- Run all tests at once
-- Filter tests by pattern
-- Get aggregate pass/fail statistics
-- Identify which tests are failing across the project
+Built (2026-01-08) as `src/cli/run-tests.sh`: it finds every
+`src/tests/test_*.lua`, runs each with LuaJIT, reads each file's own summary
+line in any of the formats the tests print, and reports passed files,
+passed and failed assertions, and timing; a pattern argument filters files,
+and the exit code is non-zero if any file failed.
+
+Phase A later moved to the shared scripts project (commit 447e8ceb5), where
+a project-independent runner (`scripts/test-runner.sh`) is tracked by its
+own copy of this issue. This copy records the runner that lives here.
+
+Rechecked 2026-09-26: 112 of 112 test files pass. The run prints one bash
+warning, "ignored null byte in input": the map-info test prints a map's
+weather code, which is four zero bytes when the map has no weather.
 
 ---
 

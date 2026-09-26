@@ -85,7 +85,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 005 | Migrate TUI library to shared libs | **Completed** | 004 |
 | 006 | Rename analysis sections for promoted roots | **Completed** | 003 |
 | 007 | Add auto-implement via Claude CLI | **Completed** | None |
-| 010 | Debug TUI integration analysis | Pending | 004 |
+| 010 | Debug TUI integration analysis | **Completed** | 004 |
 | 011 | TUI history insert on run | **Completed** | 004 |
 | 012 | Interactive verdict review mode | **Completed** | 003, 004 |
 | 013 | Quest & bounty template system | **Completed** | None |
@@ -426,7 +426,7 @@ Phase 2 & 3 Complete
 | 507d | Camera viewport | Pending | 507a |
 | 507e | Minimap interaction | Pending | 507a |
 | 507f | Ping system | Pending | 507a |
-| **508** | **Vertical slice testing room** | **Priority** | 501a |
+| **508** | **Vertical slice testing room** | **Completed** | 501f |
 | 508a | Threading infrastructure | **Completed** | 501a |
 | 508b | Entity render slots | **Completed** | 508a |
 | 508c | Lua-C bridge | **Completed** | 508b |
