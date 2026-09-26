@@ -11,9 +11,9 @@
 # descriptions (src/net/messages-c.lua); the program is compiled with Lua
 # built in (LuaJIT), the mailbox, and raylib.
 #
-# Usage: run-crossing.sh [DIR] [window | window-one-radius]
-#   window-one-radius: units steer round nobody before touching (the larger
-#   pathing radius off), to compare with the default by eye
+# Usage: run-crossing.sh [DIR] [window | window-two-radii]
+#   window-two-radii: units steer round each other's larger pathing radius
+#   before touching (off by default: it slowed the crossing), to compare
 #   writes tmp/shared-memory/crossing/check.txt, shot.png and shot-paused.png
 
 DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -36,8 +36,8 @@ export CROSSING_DIR="${DIR}"
 if [ "${MODE}" = "window" ]; then
     exec "${BUILD}/crossing-host"
 fi
-if [ "${MODE}" = "window-one-radius" ]; then
-    CROSSING_ONE_RADIUS=1 exec "${BUILD}/crossing-host"
+if [ "${MODE}" = "window-two-radii" ]; then
+    CROSSING_TWO_RADII=1 exec "${BUILD}/crossing-host"
 fi
 set +e
 : > "${OUT}/check.txt"
