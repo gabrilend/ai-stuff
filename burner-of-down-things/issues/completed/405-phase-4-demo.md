@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-4-demo` and `phase-4-demo.lua`. The notes fixture is surveyed, outlined (the first outline forgets a file and is caught) and described (one issue omits its checks twice and is caught twice); the ledger's account is printed as ticks and crosses; the graph is drawn as boxed columns, one per level, each box naming what it is built on; every code file is mapped to its issue; the house validator runs on the whole blueprint; numbers: issues, levels, coverage, turns and retries, seconds.
 
 ## Intended Behavior
 

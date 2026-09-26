@@ -6,7 +6,7 @@ and the machine checks the table ([006](../docs/006-datapath-the-blueprint.md),
 
 ## Current Behavior
 
-A case can be surveyed; nothing plans a blueprint.
+Built as `src/042-the-outline.lua`. The checks are a named dispatch table (ids, names, blockers, cycles, coverage) so each finding says which check made it, and the ledger's `outline-failed` lines are about `attempt N` with the findings as text. The cycle check names the cycle in order (`101 -> 103 -> 102 -> 101`). Checked by tests/047, one fixture per finding and with the stand-in: a first outline that forgets `notes.lua` is caught by coverage and replanned; three bad outlines stop the step.
 
 ## Intended Behavior
 

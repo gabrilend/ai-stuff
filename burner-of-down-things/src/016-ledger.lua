@@ -233,6 +233,26 @@ function ledger.read(path)
 end
 -- }}}
 
+-- {{{ function ledger.index
+-- The questions later phases ask of a history — "has issue 101 been built?"
+-- — answered from lines already read: kind -> about -> the last line of that
+-- kind about that thing. `ledger.has(index, kind, about)` reads it.
+function ledger.index(lines)
+    local index = {}
+    for _, line in ipairs(lines) do
+        index[line.kind] = index[line.kind] or {}
+        index[line.kind][line.about] = line
+    end
+    return index
+end
+-- }}}
+
+-- {{{ function ledger.has
+function ledger.has(index, kind, about)
+    return index[kind] ~= nil and index[kind][about] ~= nil
+end
+-- }}}
+
 -- {{{ function ledger.head
 -- The last line's hash without reading the whole file.
 function ledger.head(path)

@@ -5,7 +5,7 @@ Writing every issue file of the blueprint, many turns at once
 
 ## Current Behavior
 
-The outline and graph exist; no issue files are written.
+Built as `src/045-describing.lua`, with the `describe` command in `src/046-the-blueprint-commands.lua`. The fixture used to test it is real: `tests/fixtures/tiny-notes/` (a six-file notes program), a hand-written blueprint of it in `tests/fixtures/tiny-notes-blueprint/` (house-valid), and a stand-in script `tests/fixtures/tiny-notes.stand-in.lua` that plays outline and describe turns from it, with options to make chosen turns fail first. Checked by tests/047: 202 failing twice takes three turns while the others take one; an issue that never passes is describe-failed; describing again runs no turns.
 
 ## Intended Behavior
 
