@@ -18,14 +18,14 @@ description.
 
 **Layout:** a type byte, then the fields in order, little-endian. Field
 kinds: `u8`, `u16`, `u32`, `f32` (4 bytes), and a list (a `u16` count, then
-records). A unit record is 38 bytes.
+records). A unit record is 43 bytes.
 
 | Type | Name | Direction | Fields |
 |---|---|---|---|
 | 1 | order | client → server | order_id u32, given_tick u32, kind u8, target_x f32, target_y f32, target_unit u32 (0: a point), units list of {id u32} |
 | 2 | heard | client → server | tick u32 (newest received) |
 | 3 | order_answer | server → client | order_id u32, accepted u8, effect_tick u32, refusal u8 |
-| 4 | unit_states | server → client | tick u32, units list of {id u32, x y z f32, vx vy vz f32, facing f32, anim u16, anim_phase f32} |
+| 4 | unit_states | server → client | tick u32, units list of {id u32, x y z f32, vx vy vz f32, facing f32, anim u16, anim_phase f32, radius f32, team u8} |
 | 5 | events | server → client | tick u32, events list of {kind u8, tick u32, unit u32, other u32} |
 | 6 | waiting | server → client | tick u32, paused u8, silent list of {player u8, silent_ms u32, countdown_ms u32} |
 | 7 | tolerance | client → server | ms u32 |

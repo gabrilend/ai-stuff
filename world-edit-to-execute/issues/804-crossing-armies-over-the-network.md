@@ -26,6 +26,13 @@ Built (2026-09-25); waiting on the owner to try the window.
   dialog opens with them.
 - Paths messages lost on a lossy connection leave a unit's drawn path
   stale until its next re-plan; they are for drawing only.
+- **After the owner's first look (2026-09-25):** units come in three
+  sizes, each drawn with its radius as a ring on the ground (green for
+  player 0's side, purple for player 1's, as the owner asked) and a body
+  sized by it; unit states carry each unit's radius and player. The fans
+  were loud because the server's thread spun a whole core (the threading
+  library's sleep didn't sleep); fixed in 803. It isn't running on the
+  ceramic engine: the game is Lua on threads of its own.
 
 ## Intended Behavior
 
