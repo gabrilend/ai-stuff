@@ -31,7 +31,17 @@ struct task {
 
 typedef struct pool cera_pool_t;
 typedef void (*cera_pool_finish_t)(void *ctx, cera_task_t *t);
+/* FORK (issue 515g): this copy's task queue takes no lock, and adds the
+ * calls below; a program built against either engine can ask. */
+#define CERA_FORK_TASK_QUEUE 1
+
+/* FORK (issue 515g): n tasks handed in with one reservation; and a
+ * per-thread batch that gathers every push to `p` until it is ended,
+ * then hands them in as one. */
+void cera_pool_push_many(cera_pool_t *p, cera_task_t **tasks, int n);
 void cera_pool_push(cera_pool_t *p, cera_task_t *t);
+void cera_pool_batch_begin(cera_pool_t *p);
+void cera_pool_batch_end(cera_pool_t *p);
 cera_task_t *cera_pool_pop(cera_pool_t *p);
 int cera_pool_worker_index(void);
 uint64_t cera_pool_worker_epoch(cera_pool_t *p, int worker);
@@ -146,11 +156,16 @@ typedef struct out_port {
      * No slot state machine: a ring slot needs one because it is
      * reused and a reader must know what it is looking at, and one of
      * these is written once and read by nobody until the caller looks.
+     *
+     * FORK (issue 515g): but the caller does look, at the count, and
+     * `taken` rises before the bytes are copied. `landed` rises after
+     * (release), and is what cera_map_collected reports.
      */
     void  *into;
     int    room;
     int    elem_size;
     _Atomic int taken;
+    _Atomic int landed;
 } cera_out_port_t;
 
 typedef int (*cera_station_compare_t)(const void *a, const void *b);
@@ -258,6 +273,11 @@ const char *cera_map_designate_argument(cera_map_t *m, int station, int port,
 int cera_map_argument_at(cera_map_t *m, int nth, int *station, int *port);
 int cera_map_result_at(cera_map_t *m, int nth, int *station, int *port);
 
+/* FORK (issue 515g): `count` values of `size` bytes each, delivered in
+ * order; every task they make ready is handed in to the task queue in
+ * one batch at the end. */
+const char *cera_map_deliver_arguments(cera_map_t *m, int station, int port,
+                                       const void *values, int count, int size);
 const char *cera_map_deliver_argument(cera_map_t *m, int station, int port,
                                  const void *value, int size);
 

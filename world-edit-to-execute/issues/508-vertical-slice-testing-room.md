@@ -4,6 +4,7 @@
 **Type:** Integration / Milestone
 **Priority:** Critical
 **Dependencies:** 501f (raylib demo completed)
+**Blocks:** 515 (the render graph on the ceramic engine builds on the slice)
 
 ---
 

@@ -5,7 +5,7 @@
 **Priority:** Medium
 **Parent:** 515 (the render graph on the ceramic engine)
 **Dependencies:** None
-**Blocks:** 515g (the lock-free queue it measured the need for)
+**Blocks:** 515g (the lock-free queue it measured the need for), 515b
 
 ---
 
@@ -123,10 +123,12 @@ chain). The measurement is honest only if the work per unit is realistic.
 
 ## Acceptance Criteria
 
-- [ ] All four ways produce the same poses (checked, not assumed)
-- [ ] Times at the three sizes, the ceramic overhead in microseconds and as a
-      share of a frame
-- [ ] The finding written into 515: how big a box must be for the engine to
+- [x] All four ways produce the same poses (checked, not assumed); the full
+      analysis checks every way, every run
+- [x] Times at the three sizes, the ceramic overhead in microseconds and as a
+      share of a frame (and the full analysis: six sweeps, published as the
+      "Ceramic Frame Budget" page and as soramech case study 151)
+- [x] The finding written into 515: how big a box must be for the engine to
       pay for itself here
 
 ## Notes

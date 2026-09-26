@@ -14,7 +14,9 @@
 --                   without the 2 KB result copy
 --   pose_unit       poses one unit, returns the 2 KB pose (pose-boxes.c)
 --   blob_N          fills and returns N bytes, no pose work: the cost of result size
+--                   (16 bytes to 1 MB)
 --   pose_chunk_K    poses K units, returns 4 bytes: the cost of task granularity
+--                   (1 to 2048, the whole army in one task)
 --   pose_chunk      poses 64 units, returns all 120 KB of poses (pose-boxes.c)
 --
 -- Usage:
@@ -22,8 +24,8 @@
 --   luajit analysis-gen.lua map     the map
 --   luajit analysis-gen.lua table   the host's variant table (C)
 
-local BLOBS = { 16, 256, 2048, 16384, 122880 }
-local CHUNKS = { 1, 2, 4, 8, 16, 32, 64, 128, 256 }
+local BLOBS = { 16, 256, 2048, 16384, 65536, 122880, 262144, 524288, 1048576 }
+local CHUNKS = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048 }
 
 -- Every variant in station order: box name, request kind, result kind,
 -- units per task, result C type.

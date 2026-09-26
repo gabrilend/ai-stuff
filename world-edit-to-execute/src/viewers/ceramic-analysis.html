@@ -23,6 +23,7 @@
   --chunk-soft: #1b746e22;
   --one: #b0442a;
   --hand: #4b5c86;
+  --counter: #7a569e;
   --plain: #8a948f;
   --budget: #b98114;
   --good: #2f7a3e;
@@ -45,6 +46,7 @@
     --chunk-soft: #45b4aa26;
     --one: #e27b5d;
     --hand: #93a5d6;
+    --counter: #bd9be6;
     --plain: #7c8883;
     --budget: #deaa42;
     --good: #6cc07b;
@@ -64,6 +66,7 @@
   --chunk-soft: #45b4aa26;
   --one: #e27b5d;
   --hand: #93a5d6;
+  --counter: #bd9be6;
   --plain: #7c8883;
   --budget: #deaa42;
   --good: #6cc07b;
@@ -151,28 +154,32 @@ dl.terms dd { margin: 0; color: var(--muted); max-width: 64ch; }
     <h2 id="h-task">The task</h2>
     <p>A real-time strategy renderer redraws the battlefield sixty times a second, so each frame has <strong>16.67 ms</strong> for everything: game rules, animation, and drawing. One of the heaviest per-frame jobs is <strong>posing skeletons</strong>. Every unit on screen is a model hung on a chain of bones, and each frame every bone's position has to be worked out again from the animation's clock: a small rotation, then a 4×4 matrix product onto its parent bone, down the chain. Here each unit has 30 bones, so its pose is 30 matrices, 1920 bytes.</p>
     <p>The work for one unit is small (about <span class="num" id="work-per-unit"></span> on one core) and every unit is independent of every other, which makes it the textbook job to spread across cores. The question this study answers is whether the <strong>ceramic engine</strong> (soramech, where a program is plain C functions wired together and a function runs as soon as all its inputs have arrived) can do that job inside a frame, and what shape the work has to take for it to pay.</p>
+    <p><strong>Why not the graphics card?</strong> A shipping engine would often do this there: the graphics card is built for exactly this arithmetic, thousands of matrix products at once. Here the skeleton stands in for any per-frame work that stays on the processor (game rules, pathfinding, fog of war, deciding what is visible), because it is real work of a realistic size with an answer that can be checked. The question is how well the engine spreads a frame's work across cores, not where skeletons belong.</p>
+    <p><strong>Why is a pose 1920 bytes?</strong> A skeleton is <em>stored</em> compactly: each bone's offset from its parent as a position (3 numbers) and a rotation (a quaternion, 4 numbers), about 28 bytes, and the bone's number is just its place in the list. But the answer a renderer needs is each bone's <em>final</em> placement in the model, every parent's turn already folded in, as a 4×4 matrix the graphics card applies to the bone's vertices: 16 numbers × 4 bytes = 64 bytes, × 30 bones = 1920 bytes. Sending quaternions instead would shrink it to about 840 bytes and move the folding onto the graphics card.</p>
     <p>Every approach below computes exactly the same poses, checked by checksum against the one-thread loop.</p>
   </section>
 
   <section aria-labelledby="h-approaches">
-    <h2 id="h-approaches">Four approaches</h2>
+    <h2 id="h-approaches">Five approaches</h2>
     <p>Each keeps its colour on every chart below.</p>
     <div class="approaches">
       <div class="approach"><div class="swatch" style="background:var(--plain)"></div><h3>One thread<small>the plain loop</small></h3><p>A <code>for</code> loop over every unit on a single core. No parallelism at all: this is what the work itself costs, and the yardstick for every speed-up.</p></div>
-      <div class="approach"><div class="swatch" style="background:var(--hand)"></div><h3>Hand-written thread loop<small>fixed slices, one per thread</small></h3><p>One thread per hardware thread, created once. Each frame, every thread poses its own fixed slice of the units (thread 3 always gets the fourth twelfth), then all of them meet at a barrier. It is the classic hand-built answer and the shape of this project's existing render thread pool. Its weakness: the frame ends when the <em>slowest</em> thread finishes.</p></div>
-      <div class="approach"><div class="swatch" style="background:var(--one)"></div><h3>Ceramic, one unit per task<small>the engine, finest grain</small></h3><p>The renderer's main thread hands the engine one small request per unit (“pose unit 812 at time t”). Each request becomes a task on the engine's queue; whichever worker is free takes it, runs the pose function, and the 2 KB pose is copied back into the renderer's array. The most natural way to write it, and the most hand-ins: one per unit, every frame.</p></div>
-      <div class="approach"><div class="swatch" style="background:var(--chunk)"></div><h3>Ceramic, chunked<small>the engine, one task per group of units</small></h3><p>The same engine and the same function, but each request covers a run of units (16, 32 or 64 of them), so the renderer hands in a few dozen tasks per frame instead of thousands. Free workers still take whichever task is next, so the load balances itself.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--hand)"></div><h3>Hand-written thread loop<small>fixed slices, one per thread</small></h3><p>One thread per hardware thread, created once. Each frame, every thread poses its own fixed, equal share of the units (with 12 threads, about 171 each), then all of them meet at a barrier. It is the classic hand-built answer and the shape of this project's existing render thread pool. Equal shares don't finish at equal times, though: two threads share each physical core and run at roughly half speed, and the operating system interrupts threads at random, so the frame ends when the <em>slowest</em> thread finishes.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--counter)"></div><h3>Hand-written loop, shared counter<small>the same threads, no fixed slices</small></h3><p>The same threads, but instead of a fixed share each one repeatedly takes the next run of units (32 at a time, or as many as the chart says) by adding to one shared counter, until the units run out. A thread that is slowed simply takes fewer runs. It is the hand-written equal of the ceramic engine's chunked tasks, and shows how much of the engine's advantage is just this self-balancing.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--one)"></div><h3>Ceramic, one unit per task<small>the engine, finest grain</small></h3><p>The renderer's main thread hands the engine one small request per unit (“pose unit 812 at time t”). Each request becomes a task handed in to the engine's task queue; whichever worker is free takes it, runs the pose function, and the 2 KB pose is copied back into the renderer's array. The most natural way to write it, and the most hand-ins: one per unit, every frame.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--chunk)"></div><h3>Ceramic, chunked<small>the engine, one task per group of units</small></h3><p>The same engine and the same function, but each request covers a run of units (16, 32 or 64 of them), so the renderer hands a few dozen tasks per frame in to the task queue instead of thousands. Free workers still take whichever task is next, so the load balances itself.</p></div>
     </div>
   </section>
 
   <section aria-labelledby="h-path">
     <h2 id="h-path">What one ceramic task goes through</h2>
     <div class="flow" aria-label="The path of one task">
-      <span>renderer hands in a request</span><b>→</b><span>the task is built (inputs copied)</span><b>→</b><span class="lock">the engine's one queue · locked</span><b>→</b><span>a free worker takes it and runs the box</span><b>→</b><span>the answer is copied into the renderer's array</span>
+      <span>renderer hands in a request</span><b>→</b><span>the task is built (inputs copied)</span><b>→</b><span class="lock">handed in to the task queue (one lock)</span><b>→</b><span>a free worker takes it and runs the box</span><b>→</b><span>the answer is copied into the renderer's array</span>
     </div>
     <dl class="terms">
-      <dt>handing in</dt><dd>the renderer's thread delivering a request to the engine. It is serial: one thread hands in every task, one at a time. Drawn in amber on every chart.</dd>
-      <dt>the queue lock</dt><dd>the engine keeps one queue of ready tasks for all its workers, guarded by one lock. Handing a task in takes the lock; so does every worker taking a task out.</dd>
+      <dt>the task queue</dt><dd>the engine's one list of tasks ready to run, shared by all its workers. Whichever worker is free takes the oldest.</dd>
+      <dt>handing in to the task queue</dt><dd>the renderer's thread delivering a request, which the engine turns into a task and adds to the task queue. It is serial: one thread hands every task in, one at a time. Drawn in amber on every chart.</dd>
+      <dt>the queue lock</dt><dd>the stock engine guards the task queue with one lock. Handing a task in to the task queue takes the lock; so does every worker taking a task out of it.</dd>
       <dt>landing</dt><dd>an answer being copied into the renderer's array. The frame is done when the last answer has landed.</dd>
       <dt>frame budget</dt><dd>16.67 ms, one frame at 60 fps. Times are shown as their share of it.</dd>
     </dl>
@@ -192,35 +199,35 @@ dl.terms dd { margin: 0; color: var(--muted); max-width: 64ch; }
       <button type="button" id="chunk-mean" aria-pressed="true">mean frame</button>
       <button type="button" id="chunk-p99" aria-pressed="false">99th percentile</button>
     </div>
-    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, whole frame (the brick point is one per task)</span><span><i style="background:var(--budget)"></i>host handing work in</span><span><i style="background:var(--hand)"></i>hand-written thread loop</span></div>
+    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, whole frame (the brick point is one per task)</span><span><i style="background:var(--budget)"></i>handing in to the task queue</span><span><i style="background:var(--counter)"></i>hand-written, shared counter (same units at a time)</span><span><i style="background:var(--hand)"></i>hand-written, fixed slices</span></div>
     <div class="chart" id="chunk-chart"></div>
   </section>
 
   <section aria-labelledby="h-anatomy">
     <h2 id="h-anatomy">Where a task's time goes</h2>
     <p id="anatomy-text"></p>
-    <div class="key"><span><i style="background:var(--budget)"></i>handing in</span><span><i style="background:var(--one)"></i><i style="background:var(--chunk)"></i>workers finishing after the last hand-in (the approach's colour)</span><span><i style="background:var(--ink)"></i>waiting for the last answer to land</span></div>
+    <div class="key"><span><i style="background:var(--budget)"></i>handing in to the task queue</span><span><i style="background:var(--one)"></i><i style="background:var(--chunk)"></i>workers finishing after the last hand-in (the approach's colour)</span><span><i style="background:var(--ink)"></i>waiting for the last answer to land</span></div>
     <div class="chart" id="anatomy-chart"></div>
   </section>
 
   <section aria-labelledby="h-herd">
     <h2 id="h-herd">Why one unit per task collapses</h2>
     <p id="herd-text"></p>
-    <div class="key"><span><i style="background:var(--one)"></i>ceramic, one per task: the engine as it is (every hand-in wakes every sleeping worker)</span><span><i style="background:repeating-linear-gradient(90deg,var(--one) 0 5px,transparent 5px 8px)"></i>the same, with one line changed to wake one</span></div>
+    <div class="key"><span><i style="background:var(--one)"></i>ceramic, one per task: the stock engine (every hand-in to the task queue wakes every sleeping worker)</span><span><i style="background:repeating-linear-gradient(90deg,var(--one) 0 5px,transparent 5px 8px)"></i>the same, with one line changed to wake one</span></div>
     <div class="chart" id="herd-chart"></div>
   </section>
 
   <section aria-labelledby="h-scale">
     <h2 id="h-scale">Adding workers</h2>
     <p id="scale-text"></p>
-    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, 32 units per task</span><span><i style="background:var(--one)"></i>ceramic, 1 unit per task</span><span><i style="background:var(--hand)"></i>hand-written thread loop</span><span><i style="background:var(--plain)"></i>perfect scaling</span></div>
+    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, 32 units per task</span><span><i style="background:var(--one)"></i>ceramic, 1 unit per task</span><span><i style="background:var(--hand)"></i>hand-written, fixed slices</span><span><i style="background:var(--counter)"></i>hand-written, shared counter</span><span><i style="background:var(--plain)"></i>perfect scaling</span></div>
     <div class="chart" id="scale-chart"></div>
   </section>
 
   <section aria-labelledby="h-army">
     <h2 id="h-army">Army size</h2>
     <p id="army-text"></p>
-    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, 32 per task</span><span><i style="background:var(--one)"></i>ceramic, 1 per task</span><span><i style="background:var(--hand)"></i>hand-written loop</span><span><i style="background:var(--plain)"></i>one thread</span></div>
+    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic, 32 per task</span><span><i style="background:var(--one)"></i>ceramic, 1 per task</span><span><i style="background:var(--hand)"></i>hand-written, fixed slices</span><span><i style="background:var(--counter)"></i>hand-written, shared counter</span><span><i style="background:var(--plain)"></i>one thread</span></div>
     <div class="chart" id="army-chart"></div>
   </section>
 
@@ -233,13 +240,37 @@ dl.terms dd { margin: 0; color: var(--muted); max-width: 64ch; }
 
   <section aria-labelledby="h-steady">
     <h2 id="h-steady">Steadiness</h2>
-    <p>A renderer feels its worst frames, not its average. Each line runs from the median frame to the worst of the run; the tick is the 99th percentile (three frames in 300 were slower).</p>
+    <p>A renderer feels its worst frames, not its average. Each line runs from the median frame to the worst of the run; the tick is the 99th percentile (three frames in 300 were slower). Every chunk size is here, from one unit per task down to the whole army as one task.</p>
     <div class="chart" id="steady-chart"></div>
   </section>
 
   <section aria-labelledby="h-findings">
     <h2 id="h-findings">What this tells the ceramic engine</h2>
+    <p>About the stock engine. The first three are answered, in a kept copy, in the next part.</p>
     <div class="findings" id="findings"></div>
+  </section>
+
+  <section aria-labelledby="h-fork">
+    <h2 id="h-fork">Taking the lock out</h2>
+    <p>A kept copy of the engine, changed in one place: the task queue. It reuses a pattern the engine already has. Every input port's slots move through four states, <strong>empty → reserved → ready → claimed → empty</strong>, and the rule written beside that code is “counted after it is published, never before”. The task queue becomes a ring of such slots, with the lap folded into each slot's number, so a place in the queue is found by counting forward rather than by taking a lock.</p>
+    <div class="flow" aria-label="The path of one hand-in through the ring">
+      <span>check there is room (head vs tail)</span><b>→</b><span class="lock">claim positions: one compare-and-swap on the tail</span><b>→</b><span>write the task pointer (reserved: only this thread may)</span><b>→</b><span>publish: the slot's number says ready</span><b>→</b><span>a worker claims it: one compare-and-swap on the head</span><b>→</b><span>the slot's number says empty, one lap on</span>
+    </div>
+    <dl class="terms">
+      <dt>batched hand-in</dt><dd>a whole frame of requests handed in to the task queue in one call: the positions for all of them are claimed with one compare-and-swap, then filled and published in order, and sleeping workers are woken once. Workers start on the first task while the last is still being written.</dd>
+      <dt>waking</dt><dd>the copy wakes a sleeping worker only when one is asleep, and only as many as there are new tasks; the stock engine woke every sleeper on every hand-in.</dd>
+      <dt>spinning</dt><dd>an idle worker looks at the ring again a thousand times (a few microseconds) before it sleeps. A worker still looking when the next task arrives just takes it, and nobody has to be woken. It keeps that core busy, which can slow the other thread sharing it.</dd>
+      <dt>a full ring</dt><dd>the ring doesn't grow. A thread outside the engine (the renderer) waits for room; a worker, which must never wait, runs the task itself.</dd>
+      <dt>landing</dt><dd>the count of collected answers now rises after each answer is copied in, so the renderer can trust it with no workaround wait.</dd>
+    </dl>
+    <p id="fork-text"></p>
+    <div class="key"><span><i style="background:var(--one)"></i>one unit per task</span><span><i style="background:var(--chunk)"></i>chunked</span><span><i style="background:var(--ink)"></i>stock engine: solid</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 10px)"></i>lock-free copy: dashed</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px)"></i>+ batched hand-in: dotted</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 8px,transparent 8px 11px,var(--ink) 11px 13px,transparent 13px 16px)"></i>+ spinning: dash-dot</span></div>
+    <div class="chart" id="fork-bars"></div>
+    <p id="fork-chunk-text"></p>
+    <div class="chart" id="fork-chunk"></div>
+    <p id="fork-scale-text"></p>
+    <div class="chart" id="fork-scale"></div>
+    <p id="fork-check"></p>
   </section>
 
   <div class="method" id="method"></div>
@@ -294,7 +325,7 @@ function lineChart(target, o) {
   for (const ser of o.series) {
     const d = ser.points.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
     add(s, "path", { d, fill: "none", stroke: ser.color, "stroke-width": ser.width || 2.5, "stroke-dasharray": ser.dash || "none", "stroke-linejoin": "round" });
-    if (!ser.dash) for (const p of ser.points) tip(add(s, "circle", { cx: x(p[0]), cy: y(p[1]), r: 4, fill: ser.color, stroke: "var(--sheet)", "stroke-width": 1.5 }), p[2]);
+    if (!ser.noDots) for (const p of ser.points) tip(add(s, "circle", { cx: x(p[0]), cy: y(p[1]), r: ser.dash ? 3 : 4, fill: ser.dash ? "var(--sheet)" : ser.color, stroke: ser.dash ? ser.color : "var(--sheet)", "stroke-width": 1.5 }), p[2]);
     if (ser.end) { const p = ser.points[ser.points.length - 1]; add(s, "text", { x: x(p[0]) - 6, y: y(p[1]) - 9, "text-anchor": "end", class: "label", style: `fill:${ser.color}` }, ser.end); }
   }
   if (o.after) o.after(s, x, y, { L, R, T, B, W, H });
@@ -306,17 +337,21 @@ function lineChart(target, o) {
 const units = 2048;
 const plainRun = pick("anatomy", "plain-loop", units);
 const handRun = pick("anatomy", "parallel-loop", units);
-const chunkRows = all("chunk").filter(r => r.per > 0);
+const chunkRows = all("chunk").filter(r => r.way.startsWith("pose_chunk_"));
+const counterRows = all("chunk", "counter-loop");
+const counterRun = pick("anatomy", "counter-loop", units);
 const bestChunk = chunkRows.reduce((a, b) => (b.mean < a.mean ? b : a));
 const perTaskRun = pick("chunk", "pose_chunk_1", units);
 el("budget-units").textContent = units.toLocaleString();
 el("work-per-unit").textContent = `${(plainRun.mean / units).toFixed(1)} µs`;
-el("lede").textContent = `Chunked into tasks of ${bestChunk.per} units, the ceramic engine poses ${units.toLocaleString()} skeletons in ${fmtUs(bestChunk.mean)} — ` +
-  `${(handRun.mean / bestChunk.mean).toFixed(1)}× faster than a hand-written thread loop and ${(100 * bestChunk.mean / FRAME).toFixed(1)}% of a 60 fps frame. ` +
-  `Given one unit per task it takes ${fmtUs(perTaskRun.mean)}, and almost all of that is the host waiting on the engine's one queue lock.`;
+const bestCounter = counterRows.reduce((a, b) => (b.mean < a.mean ? b : a));
+el("lede").textContent = `Chunked into tasks of ${bestChunk.per} units, the ceramic engine poses ${units.toLocaleString()} skeletons in ${fmtUs(bestChunk.mean)} (${(100 * bestChunk.mean / FRAME).toFixed(1)}% of a 60 fps frame): ` +
+  `${(handRun.mean / bestChunk.mean).toFixed(1)}× faster than a hand-written loop with fixed slices, and within ${(100 * (bestChunk.mean / bestCounter.mean - 1)).toFixed(0)}% of a hand-written loop that balances itself with a shared counter (${fmtUs(bestCounter.mean)}). ` +
+  `Given one unit per task it takes ${fmtUs(perTaskRun.mean)}, almost all of it spent handing tasks in to the task queue; a kept copy with the lock taken out brings that under a tenth of a frame.`;
 const budget = [
   { who: "One thread", sub: "plain loop", r: plainRun, color: "var(--plain)" },
   { who: "Hand-written thread loop", sub: `${handRun.workers} threads, fixed slices`, r: handRun, color: "var(--hand)" },
+  { who: "Hand-written, shared counter", sub: `${counterRun.workers} threads, ${counterRun.per} units at a time`, r: counterRun, color: "var(--counter)" },
   { who: "Ceramic, chunked", sub: `${bestChunk.per} units per task, ${bestChunk.workers} workers`, r: bestChunk, color: "var(--chunk)" },
   { who: "Ceramic, one per task", sub: `${perTaskRun.workers} workers`, r: perTaskRun, color: "var(--one)" },
 ];
@@ -335,15 +370,16 @@ for (const b of budget) {
 const hand = pick("chunk", "parallel-loop");
 const sweet = chunkRows.filter(r => r.mean <= bestChunk.mean * 1.1).map(r => r.per);
 el("chunk-text").textContent = `The same ${units.toLocaleString()} units, cut into tasks of 1 to 256 units on ${bestChunk.workers} workers. ` +
-  `Below 4 units per task, handing tasks in swamps the work. From ${Math.min(...sweet)} to ${Math.max(...sweet)} units per task the frame sits within 10% of its best (${fmtUs(bestChunk.mean)}); ` +
-  `past 128 there are too few tasks to keep every worker busy until the end. ` +
-  `Why chunks work: a task of ${bestChunk.per} units carries about ${fmtUs(bestChunk.per * plainRun.mean / units)} of work, far more than the few microseconds it costs to hand in, ` +
-  `and there are ${bestChunk.per}× fewer hand-ins, so the host and the workers rarely meet at the queue lock at all.`;
+  `Below 4 units per task, handing tasks in to the task queue swamps the work. From ${Math.min(...sweet)} to ${Math.max(...sweet)} units per task the frame sits within 10% of its best (${fmtUs(bestChunk.mean)}); ` +
+  `Past 128 there are too few tasks to keep every worker busy until the end, and at 2,048 units per task the whole army is one task on one worker: the one-thread loop plus the engine's overhead. ` +
+  `Why chunks work: a task of ${bestChunk.per} units carries about ${fmtUs(bestChunk.per * plainRun.mean / units)} of work, far more than the few microseconds it costs to hand in to the task queue, ` +
+  `and there are ${bestChunk.per}× fewer hand-ins, so the host and the workers rarely meet at the queue lock at all. ` +
+  `The shared-counter loop (plum) does the same balancing by hand, with no queue at all.`;
 function drawChunk(measure) {
   const val = r => r[measure];
-  const top = Math.max(...chunkRows.map(val), val(hand)) * 1.15;
+  const top = Math.max(...chunkRows.map(val), ...counterRows.map(val), val(hand)) * 1.15;
   lineChart(el("chunk-chart"), {
-    x: { min: 0.8, max: 320, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256], fmt: t => t, title: "units per task (log scale)" },
+    x: { min: 0.8, max: 2600, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048], fmt: t => t, title: "units per task (log scale; 2,048 is the whole army in one task)" },
     y: { min: 20, max: top, log: true, ticks: [50, 100, 200, 500, 1000, 2000, 5000, 10000].filter(t => t < top), fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
     before: (s, x, y, g) => {
       add(s, "rect", { x: x(Math.min(...sweet)), width: x(Math.max(...sweet)) - x(Math.min(...sweet)), y: g.T, height: g.H - g.B - g.T, fill: "var(--chunk-soft)" });
@@ -353,7 +389,8 @@ function drawChunk(measure) {
     },
     series: [
       { color: "var(--chunk)", points: chunkRows.map(r => [r.per, val(r), `${r.per} per task: ${fmtUs(val(r))} per frame`]) },
-      { color: "var(--budget)", points: chunkRows.map(r => [r.per, Math.max(r.deliver, 21), `${r.per} per task: ${fmtUs(r.deliver)} handing in ${r.units / r.per} tasks`]) },
+      { color: "var(--budget)", points: chunkRows.map(r => [r.per, Math.max(r.deliver, 21), `${r.per} per task: ${fmtUs(r.deliver)} handing ${r.units / r.per} tasks in to the task queue`]) },
+      { color: "var(--counter)", points: counterRows.map(r => [r.per, val(r), `shared counter, ${r.per} at a time: ${fmtUs(val(r))} per frame`]) },
     ],
     after: (s, x, y) => {
       // the one-per-task end of the curve is the brick approach
@@ -375,10 +412,10 @@ setChunk("mean");
 
 // {{{ anatomy: stacked bars
 (() => {
-  const list = all("anatomy").filter(r => r.per > 0);
+  const list = all("anatomy").filter(r => !r.way.endsWith("-loop"));
   const names = { noop: "empty task", pose_fold: "pose, 4-byte answer", pose_unit: "pose, 2 KB answer", pose_chunk_64: "64 poses, 4-byte answer", pose_chunk: "64 poses, 120 KB answer" };
   const noop = pick("anatomy", "noop");
-  el("anatomy-text").textContent = `Each bar is one frame of ${units.toLocaleString()} units split into three parts. With one unit per task, the host is still handing tasks in when the work is done: ` +
+  el("anatomy-text").textContent = `Each bar is one frame of ${units.toLocaleString()} units split into three parts. With one unit per task, the host is still handing tasks in to the task queue when the work is done: ` +
     `even an empty task costs ${(noop.mean / units).toFixed(1)} µs, which is more than the ${(plainRun.mean / units).toFixed(1)} µs the pose itself takes on one thread. ` +
     `The size of the answer barely matters: 2 KB instead of 4 bytes adds ${fmtUs(Math.max(0, pick("anatomy", "pose_unit").mean - pick("anatomy", "pose_fold").mean))} per frame.`;
   const W = 860, rowH = 40, L = 190, R = 90, T = 10, H = T + list.length * rowH + 30;
@@ -410,22 +447,22 @@ setChunk("mean");
   const dedupe = list => list.filter((r, i) => i === 0 || r.workers !== list[i - 1].workers);
   const A = dedupe(all_), O = dedupe(one);
   const solo = A.find(r => r.workers === 1), worst = A[A.length - 1], worstOne = O[O.length - 1];
-  el("herd-text").textContent = `Handing ${units.toLocaleString()} one-unit tasks to one worker costs ${(solo.deliver / units).toFixed(2)} µs each: that is what the engine's hand-in really costs. ` +
-    `With ${worst.workers} workers it costs ${(worst.deliver / units).toFixed(1)} µs, because the host and every worker share one queue lock. ` +
+  el("herd-text").textContent = `With one worker, handing a one-unit task in to the task queue costs ${(solo.deliver / units).toFixed(2)} µs: that is what the stock engine's hand-in really costs. ` +
+    `With ${worst.workers} workers it costs ${(worst.deliver / units).toFixed(1)} µs, because the host and every worker share the task queue's one lock. ` +
     `The cliff sits where the thread count passes this machine's ${MACHINE.cores} physical cores: past it, whoever holds the lock shares a core with the threads waiting for it. ` +
-    `Waking one worker per hand-in instead of all of them brings ${worst.workers} workers down to ${(worstOne.deliver / units).toFixed(1)} µs — better, but the lock is still the bottleneck.`;
+    `Waking one worker per hand-in instead of all of them brings ${worst.workers} workers down to ${(worstOne.deliver / units).toFixed(1)} µs — better, but the lock is still the bottleneck (see “Taking the lock out”, below).`;
   const perTask = r => r.deliver / units;
   lineChart(el("herd-chart"), {
     height: 320,
     x: { min: 0.5, max: 12, ticks: A.map(r => r.workers), fmt: t => t, title: "workers" },
-    y: { min: 0.1, max: 12, log: true, ticks: [0.1, 0.2, 0.5, 1, 2, 5, 10], fmt: t => `${t} µs`, title: "handing in one task (log scale)" },
+    y: { min: 0.1, max: 12, log: true, ticks: [0.1, 0.2, 0.5, 1, 2, 5, 10], fmt: t => `${t} µs`, title: "one hand-in to the task queue (log)" },
     before: (s, x, y, g) => {
       add(s, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
       add(s, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
     },
     series: [
       { color: "var(--one)", points: A.map(r => [r.workers, perTask(r), `${r.workers} workers, wake all: ${perTask(r).toFixed(2)} µs per task`]) },
-      { color: "var(--one)", dash: "7 5", points: O.map(r => [r.workers, perTask(r), `${r.workers} workers, wake one: ${perTask(r).toFixed(2)} µs per task`]) },
+      { color: "var(--one)", dash: "7 5", noDots: true, points: O.map(r => [r.workers, perTask(r), `${r.workers} workers, wake one: ${perTask(r).toFixed(2)} µs per task`]) },
     ],
     after: (s, x, y) => {
       // every point labelled: the lines share a colour on purpose (one approach, two variants)
@@ -446,6 +483,7 @@ setChunk("mean");
   const c = ns.map(n => pick("scale", "pose_chunk_32", units, n));
   const u = ns.map(n => pick("scale", "pose_fold", units, n));
   const p = ns.map(n => pick("scale", "parallel-loop", units, n === 11 ? 12 : n));
+  const k = ns.map(n => pick("scale", "counter-loop", units, n === 11 ? 12 : n));
   const cBest = c[c.length - 1], pBest = p.reduce((a, b) => (b.mean < a.mean ? b : a));
   el("scale-text").textContent = `Speed-up over one thread, ${units.toLocaleString()} units. Chunked ceramic reaches ${(base / cBest.mean).toFixed(1)}× with ${cBest.workers} workers, ` +
     `close to what ${MACHINE.cores} physical cores (each running two threads) can give. The hand-written loop tops out at ${(base / pBest.mean).toFixed(1)}×: ` +
@@ -459,9 +497,10 @@ setChunk("mean");
       add(s, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
     },
     series: [
-      { color: "var(--plain)", dash: "5 5", width: 1.5, points: [[1, 1], [7, 7]] },
+      { color: "var(--plain)", dash: "5 5", width: 1.5, noDots: true, points: [[1, 1], [7, 7]] },
       { color: "var(--chunk)", points: c.map(r => [r.workers, base / r.mean, `${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
       { color: "var(--hand)", points: p.map((r, i) => [ns[i], base / r.mean, `${r.workers} threads: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
+      { color: "var(--counter)", points: k.map((r, i) => [ns[i], base / r.mean, `shared counter, ${r.workers} threads: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
       { color: "var(--one)", points: u.map(r => [r.workers, base / r.mean, `${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) },
     ],
   });
@@ -472,7 +511,7 @@ setChunk("mean");
 (() => {
   const us_ = [128, 512, 2048, 8192];
   const get = way => us_.map(n => pick("army", way, n));
-  const c = get("pose_chunk_32"), h = get("parallel-loop"), o = get("plain-loop"), u = get("pose_fold");
+  const c = get("pose_chunk_32"), h = get("parallel-loop"), o = get("plain-loop"), u = get("pose_fold"), k = get("counter-loop");
   const fits = c.filter(r => r.mean < FRAME).map(r => r.units);
   el("army-text").textContent = `Time per frame as the army grows, on log scales (a straight line means the time grows in step with the units). ` +
     `Chunked ceramic poses ${Math.max(...fits).toLocaleString()} skeletons in ${fmtUs(c[c.length - 1].mean)}, ${(100 * c[c.length - 1].mean / FRAME).toFixed(0)}% of a frame; ` +
@@ -487,6 +526,7 @@ setChunk("mean");
     series: [
       { color: "var(--plain)", points: o.map(r => [r.units, r.mean, `one thread, ${r.units}: ${fmtUs(r.mean)}`]) },
       { color: "var(--hand)", points: h.map(r => [r.units, r.mean, `hand-written, ${r.units}: ${fmtUs(r.mean)}`]) },
+      { color: "var(--counter)", points: k.map(r => [r.units, r.mean, `shared counter, ${r.units}: ${fmtUs(r.mean)}`]) },
       { color: "var(--one)", points: u.map(r => [r.units, r.mean, `1 per task, ${r.units}: ${fmtUs(r.mean)}`]) },
       { color: "var(--chunk)", points: c.map(r => [r.units, r.mean, `32 per task, ${r.units}: ${fmtUs(r.mean)}`]) },
     ],
@@ -499,14 +539,15 @@ setChunk("mean");
   const list = all("size").filter(r => r.way.startsWith("make_blob_")).map(r => ({ bytes: +r.way.split("_").pop(), per: r.mean / 256, r }));
   const small = list.filter(b => b.bytes <= 16384);
   const big = list[list.length - 1];
-  el("size-text").textContent = `256 tasks per frame that do nothing but produce an answer of a given size. From 16 bytes to 16 KB the cost per task stays near ` +
-    `${(small.reduce((a, b) => a + b.per, 0) / small.length).toFixed(1)} µs, all of it handing the task in. Only at ${(big.bytes / 1024).toFixed(0)} KB does copying show, at ${big.per.toFixed(1)} µs. ` +
+  const kb = t => t >= 1048576 ? `${t / 1048576} MB` : t >= 1024 ? `${t / 1024} KB` : `${t} B`;
+  el("size-text").textContent = `256 tasks per frame that do nothing but produce an answer of a given size, which is copied into the task and again into the renderer's array. From 16 bytes to 16 KB the cost per task stays near ` +
+    `${(small.reduce((a, b) => a + b.per, 0) / small.length).toFixed(1)} µs, all of it handing the task in to the task queue. Past that, copying takes over: ${big.bytes >= 1048576 ? (big.bytes / 1048576) + " MB" : (big.bytes / 1024) + " KB"} costs ${big.per.toFixed(0)} µs per task. ` +
     `A 2 KB pose is free to copy: the worry about moving it in and out of shared memory doesn't show up at all.`;
   lineChart(el("size-chart"), {
     height: 260,
-    x: { min: 10, max: 200000, log: true, ticks: list.map(b => b.bytes), fmt: t => t >= 1024 ? `${t / 1024} KB` : `${t} B`, title: "answer size (log scale)" },
-    y: { min: 0, max: Math.max(...list.map(b => b.per)) * 1.2, ticks: [0, 2, 4, 6, 8, 10, 12], fmt: t => `${t} µs`, title: "per task" },
-    series: [{ color: "var(--one)", points: list.map(b => [b.bytes, b.per, `${b.bytes} bytes: ${b.per.toFixed(2)} µs per task`]) }],
+    x: { min: 10, max: 1600000, log: true, ticks: [16, 256, 2048, 16384, 131072, 1048576], fmt: kb, title: "answer size (log scale)" },
+    y: { min: 1, max: Math.max(...list.map(b => b.per)) * 1.5, log: true, ticks: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000], fmt: t => `${t} µs`, title: "per task (log)" },
+    series: [{ color: "var(--one)", points: list.map(b => [b.bytes, b.per, `${kb(b.bytes)}: ${b.per.toFixed(2)} µs per task`]) }],
   });
 })();
 // }}}
@@ -515,12 +556,11 @@ setChunk("mean");
 (() => {
   const list = [
     ["One thread", pick("anatomy", "plain-loop"), "var(--plain)"],
-    ["Hand-written thread loop", pick("anatomy", "parallel-loop"), "var(--hand)"],
-    ["Ceramic, 16 per task", pick("chunk", "pose_chunk_16"), "var(--chunk)"],
-    ["Ceramic, 64 per task", pick("chunk", "pose_chunk_64"), "var(--chunk)"],
-    ["Ceramic, 1 per task", pick("chunk", "pose_chunk_1"), "var(--one)"],
+    ["Hand-written, fixed slices", pick("anatomy", "parallel-loop"), "var(--hand)"],
+    ["Hand-written, shared counter", pick("anatomy", "counter-loop"), "var(--counter)"],
+    ...chunkRows.map(r => [r.per === 1 ? "Ceramic, 1 per task" : `Ceramic, ${r.per} per task`, r, r.per === 1 ? "var(--one)" : "var(--chunk)"]),
   ];
-  const W = 860, rowH = 34, L = 190, R = 30, T = 10, H = T + list.length * rowH + 30;
+  const W = 860, rowH = 30, L = 190, R = 30, T = 10, H = T + list.length * rowH + 30;
   const s = svg(W, H);
   const x = scale(80, 30000, L, W - R, true);
   for (const t of [100, 300, 1000, 3000, 10000, 30000]) {
@@ -560,7 +600,7 @@ const findings = [
   ["warn", "Language", "Value types can't hold arrays of numbers.",
     "Only character arrays are allowed, so a 4×4 matrix has to be sixteen named floats. Graphics is arrays; a renderer will meet this everywhere."],
   ["good", "Strength", "Chunked tasks balance themselves.",
-    `With 32 units per task the engine beat a hand-written fixed-slice loop by up to ${chunkVsHand.toFixed(1)}× on this machine, because a free worker simply takes the next chunk. The dataflow design earns its keep here.`],
+    `With 32 units per task the engine beat a hand-written fixed-slice loop by up to ${chunkVsHand.toFixed(1)}× on this machine, because a free worker simply takes the next chunk. A hand-written loop that balances itself the same way (the shared counter) was faster still, by ${(100 * (bestChunk.mean / bestCounter.mean - 1)).toFixed(0)}% at its best: the engine's balancing is right, and what it costs over the bare minimum is the price of never writing thread code.`],
 ];
 for (const [sev, tag, head, body] of findings) {
   const d = document.createElement("div");
@@ -570,6 +610,92 @@ for (const [sev, tag, head, body] of findings) {
   d.querySelector("p").textContent = body;
   el("findings").appendChild(d);
 }
+// }}}
+
+// {{{ taking the lock out
+(() => {
+  const STYLE = { stock: undefined, fork: "7 5", batch: "2 4", spin: "9 4 2 4" };
+  const NAME = { stock: "stock engine", fork: "lock-free copy", batch: "+ batched hand-in", spin: "+ spinning" };
+  // one unit per task, 2048 units, 11 workers, four engines
+  const one = {
+    stock: pick("chunk", "pose_chunk_1"),
+    fork: pick("chunk@fork", "pose_chunk_1"),
+    batch: pick("batch", "pose_chunk_1+batch"),
+    spin: pick("spin", "pose_chunk_1"),
+  };
+  const best = r => r.mean;
+  el("fork-text").textContent = `One unit per task, ${units.toLocaleString()} units, ${one.stock.workers} workers. Taking the lock out alone takes the frame from ${fmtUs(one.stock.mean)} to ${fmtUs(one.fork.mean)}: ` +
+    `most of what is left is waking sleeping workers, one call into the operating system per hand-in. Handing the frame in as one batch wakes them once (${fmtUs(one.batch.mean)}); ` +
+    `spinning means there is rarely anyone asleep to wake (${fmtUs(one.spin.mean)}). Either way, the finest-grained way to write it now fits in ${(100 * Math.max(one.batch.mean, one.spin.mean) / FRAME).toFixed(0)}% of a frame instead of ${(100 * one.stock.mean / FRAME).toFixed(0)}%.`;
+  // bars: frame split into handing in and the rest
+  (() => {
+    const order = ["stock", "fork", "batch", "spin"];
+    const W = 860, rowH = 40, L = 190, R = 90, T = 10, H = T + order.length * rowH + 30;
+    const svgEl = svg(W, H), max = Math.max(...order.map(e => one[e].mean));
+    const x = scale(0, max, L, W - R);
+    for (const t of [0, 2500, 5000, 7500, 10000].filter(t => t <= max)) {
+      add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+      add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+    }
+    order.forEach((e, i) => {
+      const r = one[e], yy = T + i * rowH + 8, rest = Math.max(0, r.mean - r.deliver);
+      add(svgEl, "text", { x: L - 10, y: yy + 16, "text-anchor": "end", class: "label" }, NAME[e]);
+      tip(add(svgEl, "rect", { x: x(0), y: yy, width: Math.max(0.5, x(r.deliver) - x(0)), height: 22, fill: "var(--budget)" }), `handing in to the task queue: ${fmtUs(r.deliver)}`);
+      tip(add(svgEl, "rect", { x: x(r.deliver), y: yy, width: Math.max(0.5, x(r.mean) - x(r.deliver)), height: 22, fill: "var(--one)" }), `workers finishing: ${fmtUs(rest)}`);
+      add(svgEl, "text", { x: x(r.mean) + 8, y: yy + 16, class: "strong" }, fmtUs(r.mean));
+    });
+    el("fork-bars").replaceChildren(svgEl);
+  })();
+  // units per task, four engines
+  const curve = (sweep, wayOf) => [1, 2, 4, 8, 16, 32, 64, 128, 256].map(k => pick(sweep, wayOf(k))).filter(Boolean);
+  const curves = {
+    stock: curve("chunk", k => `pose_chunk_${k}`),
+    fork: curve("chunk@fork", k => `pose_chunk_${k}`),
+    batch: curve("batch", k => `pose_chunk_${k}+batch`),
+    spin: curve("spin", k => `pose_chunk_${k}`),
+  };
+  const bestOf = list => list.reduce((a, b) => (b.mean < a.mean ? b : a));
+  el("fork-chunk-text").textContent = `By units per task. The lock mattered most where tasks are small: at 2 units per task the stock engine takes ${fmtUs(curves.stock[1].mean)}, the batched copy ${fmtUs(curves.batch[1].mean)}. ` +
+    `Where tasks are already chunky, the engines meet: best frames ${fmtUs(bestOf(curves.stock).mean)} (stock), ${fmtUs(bestOf(curves.fork).mean)} (lock-free), ${fmtUs(bestOf(curves.batch).mean)} (batched), ${fmtUs(bestOf(curves.spin).mean)} (spinning).`;
+  lineChart(el("fork-chunk"), {
+    x: { min: 0.8, max: 320, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256], fmt: t => t, title: "units per task (log scale)" },
+    y: { min: 300, max: 12000, log: true, ticks: [500, 1000, 2000, 5000, 10000], fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
+    series: Object.keys(curves).map(e => ({ color: "var(--chunk)", dash: STYLE[e], points: curves[e].map(r => [r.per, r.mean, `${NAME[e]}, ${r.per} per task: ${fmtUs(r.mean)}`]) })),
+    after: (s2, x, y) => {
+      for (const e of Object.keys(curves)) {
+        const r = curves[e][0];
+        add(s2, "circle", { cx: x(1), cy: y(r.mean), r: 5, fill: "var(--one)", stroke: "var(--sheet)", "stroke-width": 1.5 });
+      }
+    },
+  });
+  // adding workers, one unit per task
+  const ws = [1, 2, 3, 4, 6, 8, 11];
+  const byW = {
+    stock: ws.map(w => pick("scale", "pose_fold", units, w)),
+    fork: ws.map(w => pick("scale@fork", "pose_fold", units, w)),
+    batch: ws.map(w => pick("batch", "pose_fold+batch", units, w)),
+    spin: ws.map(w => pick("spin", "pose_fold", units, w)),
+  };
+  const base = pick("scale", "plain-loop").mean;
+  el("fork-scale-text").textContent = `Adding workers, one unit per task. The stock engine collapses past ${MACHINE.cores} physical cores; ` +
+    `the batched copy reaches ${(base / byW.batch[byW.batch.length - 1].mean).toFixed(1)}× and the spinning copy ${(base / byW.spin[byW.spin.length - 1].mean).toFixed(1)}× with ${ws[ws.length - 1]} workers, ` +
+    `against ${(base / byW.stock[byW.stock.length - 1].mean).toFixed(2)}× for the stock engine.`;
+  lineChart(el("fork-scale"), {
+    x: { min: 0.5, max: 12, ticks: ws, fmt: t => t, title: "workers" },
+    y: { min: 0, max: 5, ticks: [0, 1, 2, 3, 4, 5], fmt: t => `${t}×`, title: "speed-up over one thread" },
+    before: (s2, x, y, g) => {
+      add(s2, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
+      add(s2, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
+    },
+    series: Object.keys(byW).map(e => ({ color: "var(--one)", dash: STYLE[e], points: byW[e].map(r => [r.workers, base / r.mean, `${NAME[e]}, ${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) })),
+  });
+  // the landing check
+  const trusted = all("landing");
+  const truth = pick("anatomy", "plain-loop", units);
+  const agree = trusted.filter(r => r.check === truth.check).length;
+  el("fork-check").textContent = `Landing: ${agree} of ${trusted.length} runs that trusted the copy's count of collected answers, with no workaround wait, produced exactly the one-thread loop's poses — including 120 KB answers, which the stock engine let the renderer read half-written. ` +
+    `Soramech's own test suite, run against the copy, passes except for two tests: one that requires the task queue to grow (this ring doesn't, by design), and one that depends on where the repository sits and fails the same way on the stock engine.`;
+})();
 // }}}
 
 // {{{ method

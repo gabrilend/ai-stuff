@@ -4,9 +4,16 @@
  * What this is: the same pose work (pose-boxes.c, included whole) done
  *   - by one thread in a plain loop: the floor, what the work itself costs;
  *   - by a hand-written parallel loop: persistent threads, one per core,
- *     each posing its own slice of units per frame, meeting at a barrier.
- *     That is the shape of the 512 thread pool, and the thing the ceramic
- *     ways have to match.
+ *     each posing its own fixed slice of units per frame, meeting at a
+ *     barrier. That is the shape of the 512 thread pool. Equal slices
+ *     don't finish at equal times (two threads share each physical core,
+ *     and the system interrupts threads), so the frame waits for the
+ *     slowest;
+ *   - by the same threads sharing one counter instead of fixed slices:
+ *     each takes the next PER units by adding PER to the counter, until
+ *     the units run out, so a slowed thread simply takes fewer. The
+ *     owner's fairness question (2026-09-25); the hand-written equal of
+ *     the ceramic engine's chunked tasks.
  * Same checksum as ceramic-host.c, so the script can check that all four
  * ways computed the same poses.
  *
@@ -15,10 +22,12 @@
  * percentile / worst frame in microseconds, 0, 0, checksum. (The zeros are
  * the host's delivery and landing times, which a plain loop doesn't have.)
  *
- * Usage: ./plain plain|parallel UNITS FRAMES [THREADS]
- *   THREADS: the parallel loop's thread count, default one per online core
+ * Usage: ./plain plain|parallel|counter UNITS FRAMES [THREADS] [PER]
+ *   THREADS: the thread count, default one per online core
+ *   PER: units taken from the shared counter at a time (counter), default 32
  */
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +70,8 @@ typedef struct {
     pose *poses;
     int units, threads, frames;
     float time;
+    int counter, per;              /* counter mode: units taken PER at a time */
+    _Atomic int next;              /* counter mode: the next unit nobody has taken */
 } frame_share;
 
 typedef struct {
@@ -71,6 +82,16 @@ typedef struct {
 /* {{{ static void pose_slice(frame_share *s, int index) */
 static void pose_slice(frame_share *s, int index)
 {
+    /* Two paths: the shared counter hands out the next PER units until
+     * none are left; fixed slices give thread i the i-th share. */
+    if (s->counter) {
+        for (;;) {
+            int from = atomic_fetch_add(&s->next, s->per);
+            if (from >= s->units) return;
+            int to = from + s->per < s->units ? from + s->per : s->units;
+            for (int u = from; u < to; u++) pose_into(u, s->time, &s->poses[u]);
+        }
+    }
     int per = (s->units + s->threads - 1) / s->threads;
     int from = index * per, to = from + per < s->units ? from + per : s->units;
     for (int u = from; u < to; u++) pose_into(u, s->time, &s->poses[u]);
@@ -93,20 +114,24 @@ static void *slice_thread(void *arg)
 /* {{{ int main(int argc, char **argv) */
 int main(int argc, char **argv)
 {
-    if ((argc != 4 && argc != 5) || (strcmp(argv[1], "plain") != 0 && strcmp(argv[1], "parallel") != 0)) {
-        fprintf(stderr, "usage: %s plain|parallel UNITS FRAMES [THREADS]\n", argv[0]);
+    if (argc < 4 || argc > 6 || (strcmp(argv[1], "plain") != 0 && strcmp(argv[1], "parallel") != 0 && strcmp(argv[1], "counter") != 0)) {
+        fprintf(stderr, "usage: %s plain|parallel|counter UNITS FRAMES [THREADS] [PER]\n", argv[0]);
         return 64;
     }
-    int parallel = strcmp(argv[1], "parallel") == 0;
+    int counter = strcmp(argv[1], "counter") == 0;
+    int parallel = counter || strcmp(argv[1], "parallel") == 0;
+    int per_take = argc == 6 ? atoi(argv[5]) : 32;
+    if (per_take < 1) { fprintf(stderr, "PER must be at least 1\n"); return 64; }
     int units = atoi(argv[2]), frames = atoi(argv[3]);
     pose *poses = malloc((size_t)units * sizeof(pose));
     double *took = malloc(sizeof *took * (size_t)frames);
     if (!poses || !took) { fprintf(stderr, "no memory for %d poses\n", units); return 71; }
 
     long cores = sysconf(_SC_NPROCESSORS_ONLN);
-    int threads = parallel ? (argc == 5 ? atoi(argv[4]) : (cores > 0 ? (int)cores : 1)) : 1;
+    int threads = parallel ? (argc >= 5 ? atoi(argv[4]) : (cores > 0 ? (int)cores : 1)) : 1;
     if (threads < 1) { fprintf(stderr, "threads must be at least 1\n"); return 64; }
-    frame_share share = { .poses = poses, .units = units, .threads = threads, .frames = frames };
+    frame_share share = { .poses = poses, .units = units, .threads = threads, .frames = frames,
+                          .counter = counter, .per = per_take };
     pthread_t *ids = NULL;
     slice_arg *args = NULL;
     if (parallel) {
@@ -128,6 +153,7 @@ int main(int argc, char **argv)
         double start = now_us();
         if (parallel) {
             share.time = t;
+            atomic_store(&share.next, 0);       /* a fresh count every frame */
             pthread_barrier_wait(&share.start);
             pose_slice(&share, 0);
             pthread_barrier_wait(&share.done);
@@ -146,8 +172,8 @@ int main(int argc, char **argv)
     }
     qsort(took, (size_t)frames, sizeof *took, by_value);
 #define PCT(q) took[(int)((frames - 1) * (q))]
-    printf("%s\t%d\t0\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t0\t0\t%08x\n", parallel ? "parallel-loop" : "plain-loop",
-           units, threads, frames, total / frames, PCT(0.50), PCT(0.95), PCT(0.99), took[frames - 1], check);
+    printf("%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t0\t0\t%08x\n",
+           counter ? "counter-loop" : parallel ? "parallel-loop" : "plain-loop", units, counter ? per_take : 0, threads, frames, total / frames, PCT(0.50), PCT(0.95), PCT(0.99), took[frames - 1], check);
     free(poses);
     free(took);
     return 0;
