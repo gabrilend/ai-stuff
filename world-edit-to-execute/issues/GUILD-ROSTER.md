@@ -52,8 +52,8 @@ As adventurers complete quests, they unlock capabilities for the guild:
 | Capability | Unlocked By | Status |
 |------------|-------------|--------|
 | Priority Queue Mastery | Bounty B01 | 🔒 Locked |
-| Resource Lifecycle Control | Bounty B02 | 🔒 Locked |
-| Deep Copy Techniques | Bounty B03 | 🔒 Locked |
+| Resource Lifecycle Control | Bounty B02 | ✓ Unlocked 2026-01-02 (`completed/B02-the-eternal-timer.md`) |
+| Deep Copy Techniques | Bounty B03 | ✓ Unlocked 2026-01-02 (`completed/B03-the-hivemind-component.md`) |
 
 ---
 

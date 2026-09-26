@@ -15,6 +15,24 @@ No unified asset loading system exists. The MPQ parser can extract files, but th
 - Caching layer for loaded assets
 - Support for server-provided asset directories
 
+> **2026-09-26 note: decisions made since this was written (2026-01-08).**
+> - **Models are looked up in this order** (issue 516, owner): the player's
+>   own override for that model path, then the model the map asks for
+>   (imported into the map, or stock from the player's own WC3 install),
+>   then a placeholder shape, counted. Nothing Blizzard-made is shipped.
+>   Other asset types likely follow the same shape; not yet decided.
+> - **The player's own install is a source**, read at run time: stock
+>   object data (issue 112) and stock models (516). This issue's two sources
+>   (map, community packs) need that third one.
+> - **Files between people move over rmail** (609); files from public
+>   sites are fetched by 603 and stored by hash (604, 605). Nothing is
+>   "server-provided".
+> - **The chooser's design comes from W03** (override, then source, then
+>   placeholder, counted), shared by WC3 and WoW models once it exists.
+> - **The folder name disagrees:** this issue says `~/.world-edit-engine/`;
+>   `docs/wc3-engine-architecture.md` and `docs/roadmap.md` say
+>   `~/.wc3-engine/`. No code uses either yet. See open question 1.
+
 ## Intended Behavior
 
 A unified asset loader that:
@@ -110,3 +128,11 @@ loader.clear()
 - Model loading (MDX/M2) may be stubbed initially - full implementation depends on render system needs
 - BLP texture format is Blizzard-specific; we may need a decoder or require PNG conversion
 - Audio loading should integrate with whatever audio library Phase 5 chooses
+- (2026-09-26) Model reading is now issue 116 and BLP1 textures issue 117 (in the shared texture reader); the two notes above are answered there.
+
+## Open Questions
+
+1. Which folder holds the player's data: `~/.wc3-engine/` (the
+   architecture doc and roadmap) or `~/.world-edit-engine/` (this issue)?
+   Or a standard per-user data folder (`$XDG_DATA_HOME`, usually
+   `~/.local/share/`)? (Asked 2026-09-26.)
