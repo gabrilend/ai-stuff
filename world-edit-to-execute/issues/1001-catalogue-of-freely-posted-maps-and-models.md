@@ -41,9 +41,10 @@ the result the downloader records.
   minimap picture rendered from its terrain, trigger count, and whether it
   converts cleanly for the W client (W02's conversion report). Search and
   filter by those facts.
-- **Facts from a downloaded model:** what the model check recorded (603).
-  Richer facts (polygon count, animations, a rendered turntable) wait on a
-  reader for WC3 models (603, open question 2).
+- **Facts from a downloaded model:** read through the model reader (116):
+  triangle and vertex counts, animation names, the textures it uses and
+  whether it takes team colour; and a turntable picture drawn by the
+  in-engine model renderer (516).
 - **Bundling, with assumed consent until withdrawn.** The owner
   (2026-09-23): "most authors will be unreachable, but we should do our due
   diligence, and then just assume that their consent is given until

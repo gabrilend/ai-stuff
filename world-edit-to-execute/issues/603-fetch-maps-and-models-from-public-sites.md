@@ -3,7 +3,7 @@
 **Phase:** 6
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** 604 (content-addressed storage), 605 (local storage manager)
+**Dependencies:** 604 (content-addressed storage), 605 (local storage manager), 116 and 117 (the model check)
 **Blocks:** 1001 (the catalogue viewer reads what this writes)
 **Formerly:** "LAN Asset Download Protocol" (`603-server-asset-download-protocol.md`,
 renamed 2026-09-26); that design is kept at the end of this file
@@ -15,8 +15,8 @@ renamed 2026-09-26); that design is kept at the end of this file
 Nothing fetches anything. The engine plays whatever `.w3x`/`.w3m` files are
 already on disk (the DAoW versions in `assets/`), and uses no models beyond
 the placeholder shapes the renderer draws. No source list, catalogue format,
-finder or downloader exists. There is no reader for WC3 model files (`.mdx`)
-in `src/parsers/`.
+finder or downloader exists. There is no reader yet for WC3 model files
+(`.mdx`, issue 116) or their textures (BLP1, issue 117).
 
 ## Intended Behavior
 
@@ -63,8 +63,9 @@ The parts:
   (604) in the local storage manager (605), and record the hash in the entry.
   Checks before an item counts as downloaded:
   - a map must open as an MPQ archive and parse its map-info file (Phase 1);
-  - a model must at least carry the model file's signature (`MDLX` for
-    binary `.mdx`) until a model reader exists (open question 2);
+  - a model must read through the model reader (issue 116), and each
+    texture it names must decode (issue 117). A model posted as a zip with
+    its textures is one item: the zip is stored as it came, and read from;
   - a file whose hash doesn't match a hash the site publishes is refused.
   Nothing is re-hosted by the project.
 
@@ -90,23 +91,32 @@ The parts:
 - [ ] At least one source is read within its terms, producing catalogue entries for maps
 - [ ] At least one source produces catalogue entries for models
 - [ ] A chosen map downloads, is stored by hash, and parses
-- [ ] A chosen model downloads, is stored by hash, and passes the model check
+- [ ] A chosen model downloads, is stored by hash, reads through the model reader (116), and its textures decode (117)
 - [ ] A "visit by hand" source is never fetched, and a test proves it
 - [ ] Requests carry the tool's name and nothing about the person
 
 ## Open Questions
 
-1. Which sites first? Candidates to check: long-running WC3 map archives,
-   modding community sites that host both maps and models (Hive Workshop is
-   the best known), and Internet Archive collections of old map packs.
-2. How far should the model check go? No reader for WC3 `.mdx` models exists
-   in this project (Phase W reads WoW `.m2` models, a different format). A
-   signature check proves little; a real reader would let the catalogue show
-   polygon counts and animations, and let the renderer draw the model.
-3. Models are often posted as a zip holding the model and its textures. Is
-   the unpacked set stored as one catalogue item, or each file on its own?
-4. Should the finder also run inside the W client, or stay a separate tool?
-   (Moved here from 1001.)
+1. Which sites first? **Hive Workshop first** (owner, 2026-09-26: "hive
+   workshop probably"); it hosts both maps and models. The owner asked what
+   other sites there are; candidates offered: Epic War and WC3Maps (map
+   archives), XGM (a Russian-language modding community with maps and
+   models), ModDB (some total conversions), and Internet Archive collections
+   of old map packs. Each is checked for its terms and current state when
+   the source list is written (step 1).
+2. ~~How far should the model check go?~~ Answered 2026-09-26: all the way.
+   The owner: "sounds like we need a reader for .mdx files, and a little
+   renderer in-engine." A downloaded model must read through the model
+   reader (issue 116); the signature check is only the reader's first step.
+   Drawing them is issue 516.
+3. ~~A zip of a model and its textures: one item or several?~~ Answered
+   2026-09-26: one item ("zip of model and textures is fine"). The zip is
+   stored as it came, under its hash; the model and textures inside are
+   read from it.
+4. Should the finder also run inside the W client? Deferred by the owner
+   (2026-09-26) to the Phase W work: "we should answer that question when
+   we're working on the WoW client. I don't see why not". Carried in W02's
+   open questions.
 
 ## Related Documents
 

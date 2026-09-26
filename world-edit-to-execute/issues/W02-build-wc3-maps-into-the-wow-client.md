@@ -90,6 +90,7 @@ not into new issues.
 6. ~~Who runs a converted map's rules in the W client?~~ Answered 2026-09-23: AzerothCore, through W02e. Multiplayer comes with the server; every WC3 rule the shim touches must be re-expressed as server logic.
 3. Which range of map ids is ours? (Must not collide with Blizzard's rows or other custom patches the owner uses.)
 4. Custom units need a WoW model per WC3 unit type. Who fills the WC3 → WoW table first: a hand-seeded table for the melee races, or W05's forge?
+8. Should the map and model fetcher (issue 603) also run inside the W client, as a map list in WC3 map mode? Deferred here from 603 by the owner (2026-09-26): "we should answer that question when we're working on the WoW client. I don't see why not, but maybe I will when we're working over there."
 
 ## Related Documents
 
