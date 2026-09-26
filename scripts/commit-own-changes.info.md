@@ -21,7 +21,7 @@ EOF
 | `-F -` / `-F <file>` / `-m <message>` | the commit message; one is required |
 | `--leave-mixed` | commit the session's other blocks even when some changed the same place as someone else (blocks that merely touch are taken apart anyway) |
 | `--no-verify` | skip the `pre-commit` and `commit-msg` hooks, as git does |
-| `--project <dir>` | the session's project folder, whose changed transcripts ride along; default the current folder, which Claude Code keeps at the session's project |
+| `--project <dir>` | the session's project folder, whose changed transcripts ride along; default the current folder, which Claude Code keeps at the session's project. May be repeated: a commit carrying a rebuild of several projects' transcripts names each project |
 | `--scripts-dir <dir>` | where the libraries live (for trying a copy) |
 | `-- <path>...` | commit only this session's changes in these files or folders (repository-relative), to commit work in small pieces; the transcripts of the session's project and of the limited files' projects still ride along |
 

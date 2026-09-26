@@ -1,7 +1,14 @@
 # Conversation Summary: b3c0db53-4db1-4ae3-8200-fb023520ebb8
 
-Generated on: 2026-09-21 19:46:24
+Generated on: 2026-09-26 12:47:19
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-28 17:37, after Request 6 - Goal: build the hero-less-moba prototype.
+   I resized the map and built zones plus waypoints, so waves now wander instead
+   of walking dead-centre. Next: decide H9, whether each wave gets its own
+   wander line or the road keeps one.
 
 --------------------------------------------------------------------------------
 

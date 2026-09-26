@@ -1,7 +1,15 @@
 # Conversation Summary: 9fcdb4bb-9be7-4a95-a9ec-fba7d7db34af
 
-Generated on: 2026-09-21 19:46:38
+Generated on: 2026-09-26 12:47:41
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-12 20:08, after Request 5 - Goal: convert soren-ds from the old
+   soramech design to ceramic. Phases 2, 3, and the downstream references in
+   4-10 are all converted and committed. Next: work through the soren-ds open
+   questions, starting with whether the chip's exclusive instructions arbitrate
+   across cores.
 
 --------------------------------------------------------------------------------
 

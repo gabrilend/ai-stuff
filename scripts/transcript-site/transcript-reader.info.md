@@ -39,6 +39,7 @@ exceptions) and produces no HTML.
 | `body` | string | what was said, as markdown, separator lines removed |
 | `continued` | boolean | the rest of a reply resumed after running out of room |
 | `model` | string or nil | which model served an assistant reply |
+| `commits` | list of tables | for an assistant reply, the commits it records making — `hash` (string, abbreviated hex) and `subject` (string) — read from the exporter's `*[commit] <hash> in <repository> - <subject>*` lines; empty otherwise |
 
 ## Worth knowing before changing it
 

@@ -1,7 +1,41 @@
 # Conversation Summary: 4844b85b-191a-4964-a9c5-854cba1fe10a
 
-Generated on: 2026-09-21 19:46:05
+Generated on: 2026-09-26 12:46:55
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-03 14:57, after Request 1 - Goal is a bootable AI seed chip; the
+   second architecture's ten arithmetic routines now match x86 bit-for-bit, but
+   nothing runs them as a sequence there yet. Next: write the ARM conductor that
+   drives a whole forward pass.
+2. 2026-08-04 12:48, after Request 3 - Goal: port the seed's engine to all three
+   architectures. Arithmetic, conducting, and sampler now agree bit-for-bit on
+   x86, ARM, and RISC-V; 34 tests pass. Next: you pick how the on-chip thinking
+   loop gets built, since nothing currently assembles the engine into bootable
+   bytes.
+3. 2026-08-04 13:58, after Request 6 - We're building a seed that boots bare
+   metal and thinks; the arithmetic, conducting, and sampler now agree
+   bit-for-bit on all three architectures, and I've just reopened the tickets
+   covering the missing driver. Next: write the driver in assembly for x86
+   first.
+4. 2026-08-04 14:24, after Request 7 - Goal: get this seed actually bootable.
+   All three architectures now agree bit-for-bit on arithmetic, conducting, and
+   word choice, and I've reopened the tickets covering the missing driver. Next:
+   your yes/no on the five ticket changes I proposed, starting with the
+   parallel-architecture rule.
+5. 2026-08-04 14:55, after Request 8 - Goal: get the seed booting on bare metal
+   across all three architectures. All the arithmetic, conducting and sampling
+   now agree bit for bit; tickets are updated to name the missing driver. Next:
+   write that driver, on all three at once.
+6. 2026-08-04 19:29, after Request 11 - Goal is a seed image that boots bare
+   hardware and thinks. The engine's arithmetic, conducting, sampler and
+   tokenizer now agree bit-for-bit on x86, ARM and RISC-V; all tests pass. Next:
+   write the console for ARM and RISC-V.
+7. 2026-08-04 20:32, after Request 13 - Goal: a card you can boot that thinks
+   unaided. Phase 4 is finished — three hand-written engines agreeing bit for
+   bit — and now has its demo. Next: the driver, ticket 107, the program
+   firmware enters that ties the parts together and never returns.
 
 --------------------------------------------------------------------------------
 

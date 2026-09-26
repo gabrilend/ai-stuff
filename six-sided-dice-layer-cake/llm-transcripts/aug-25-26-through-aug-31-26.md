@@ -1,7 +1,43 @@
 # Conversation Summary: dd43b4bb-4f84-4084-975d-174e788da568
 
-Generated on: 2026-09-21 19:46:35
+Generated on: 2026-09-26 13:26:47
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-26 16:08, after Request 7 - Goal: fully spec the six-sided cube
+   hardware design. All work is committed and clean — the plumbing solve, the
+   new declaration kind, and the last target closed, with 566 constraints
+   holding. Next: you decide whether to rewrite the three crossed git commits.
+2. 2026-08-27 15:37, after Request 8 - Goal: split three commits that mixed my
+   project's files into other projects' commits. The rewrite is done and
+   verified under tag history-fix/tip; permissions block the last step. Next:
+   you run the two catch-up and update-ref commands above.
+3. 2026-08-27 15:55, after Request 10 - I split the three commits that mixed my
+   project's files into other projects' commits; the repair is verified and
+   tagged as history-fix/tip, but master keeps moving and the branch move is
+   permission-blocked. Next: run the two catch-up commands when the other agents
+   are quiet.
+4. 2026-08-27 19:39, after Request 11 - You're building the six-sided cube
+   blueprint set; the design now holds at 566 of 566 checks with generated
+   companion pages for every program. The one thing left is running the git
+   command I gave you to move master onto the corrected history.
+5. 2026-08-28 21:48, after Request 12 - The goal is a self-checking hardware
+   design for the six-sided cube; I finished the program companion-page
+   generator and everything is committed and passing. Next: catch up the git
+   history-fix branch and move master, once the other agents go quiet.
+6. 2026-08-28 22:48, after Request 15 - Goal: pitch the six-sided cube design to
+   investors. I've delivered the ten-sheet presentation with speaker notes, plus
+   a concept PDF and its source in the project root. Next: tell me whether to
+   commit those two files and whether the brief belongs in docs/.
+7. 2026-08-28 23:20, after Request 16 - Goal was investor materials for the cube
+   design: the deck, PDF, and brief are built and committed, and a face-ordering
+   bug found along the way is fixed. Next action is yours — run the update-ref
+   one-liner when the other agents are idle to finish the git history repair.
+8. 2026-08-28 23:47, after Request 17 - Goal: build out the six-sided dice cube
+   design and pitch it. The deck, PDF and brief are done and committed, with 573
+   requirements holding. Next: move master to the rewritten git history, which
+   needs your permission to run.
 
 --------------------------------------------------------------------------------
 
@@ -41,6 +77,8 @@ should be able to build it. Feel free to get creative.
 > Let me commit the vision exactly as you handed it to me, before I move
 > anything.
 
+*[commit] 5d07b40c - six-sided-dice-layer-cake: the page it started from*
+
 > Now the documentation. Starting with what the machine actually is.
 
 > Now the notation — the format every blueprint is written in, and that the
@@ -57,6 +95,8 @@ should be able to build it. Feel free to get creative.
 
 > Let me commit the documentation set before starting on issues.
 
+*[commit] 5fd478f7 - six-sided-dice-layer-cake: the shape of the thing, and five ways through it*
+
 > Something's off — my staged rename got picked up by another commit. Let me
 > look.
 
@@ -64,6 +104,10 @@ should be able to build it. Feel free to get creative.
 > swept up my staged `notes/vision` rename into its commit. Nothing lost, but
 > I'll stage-and-commit tightly from here. Now the issue files, starting with
 > phase 1.
+
+*[commit] edd567bc - six-sided-dice-layer-cake: eighteen tickets, and a cold plate that had to change metal*
+
+*[commit] 6990729c - six-sided-dice-layer-cake: the rails and the yolk, and one bit that flips every two hours*
 
 > Two things I should check with you before I write the remaining fifty issues
 > and ninety blueprints — the answers change what gets written.
@@ -154,6 +198,8 @@ should be able to build it. Feel free to get creative.
 
 > Renumbering the blocking questions was a mistake — it collides with the
 > answered ones and breaks references. Reverting to stable identifiers.
+
+*[commit] 0ecff9c5 - six-sided-dice-layer-cake: the sieve turns out to run backwards, and the tube gets a far end*
 
 > Committing with an explicit pathspec worked cleanly — I'll use that form
 > from here so nothing of mine sits staged. Continuing with phase 8.
@@ -682,6 +728,8 @@ please continue
 > I'll pick up with the commit of the documentation reconciliation, then the
 > table of contents and transcript.
 
+*[commit] 6561a6ff - six-sided-dice-layer-cake: the prose caught up with the arithmetic*
+
 > Now the table of contents, which was written when the project had fourteen
 > planned phases and nothing built.
 
@@ -692,12 +740,18 @@ please continue
 > Now rebuild the generated docs and site so the renamed listing lands at its
 > new index, then verify nothing broke.
 
+*[commit] 119befef - six-sided-dice-layer-cake: one number meant two things, and the map was drawn from memory*
+
 > That's the right tool.
+
+*[commit] e6d77a57 - six-sided-dice-layer-cake: the conversation the cube was argued out of*
 
 > Now the issue files, written before the work.
 
 > Now I'll update both reopened issues to state the gap honestly before the
 > work.
+
+*[commit] 6b2496ca - six-sided-dice-layer-cake: two tickets that said they were not finished, filed as finished*
 
 > Now the notation change. Let me look at how the reader and ledger handle
 > kinds.
@@ -752,6 +806,8 @@ please continue
 
 > Everything holds. Committing the whole piece of work.
 
+*[commit] 3e9da2f0 - six-sided-dice-layer-cake: the plumbing solved itself, and sixteen ways out of sixty-four turned out to be right*
+
 > The git history question needs your decision, so I'll surface it at the end.
 > Meanwhile, the largest remaining mechanical gap is the orphan symbols.
 
@@ -790,6 +846,10 @@ the limit was reached; do not repeat work that is already complete.
 
 > My own dimensionless-literal rule catches those two — the bounds need to be
 > named quantities.
+
+*[commit] 9af00304 - six-sided-dice-layer-cake: twelve unread material properties, four of which were holes*
+
+*[commit] 07315bf1 - six-sided-dice-layer-cake: the rest of the conversation*
 
 Everything is committed and the tree is clean. Here's where the project stands.
 
@@ -1201,6 +1261,8 @@ development of any kind.
 > function *call* read as one. Fixing the target extraction.
 
 > The transcript was renamed to span both days. Let me commit that.
+
+*[commit] 9cb43745 - six-sided-dice-layer-cake: the conversation, now spanning two days*
 
 Clean. Here's where things stand.
 
@@ -1751,6 +1813,12 @@ kinda weak, can we replace them? And yes please commit them
 
 > The bug is repeated in two other files. Let me fix those before committing.
 
+*[commit] ccad2cfd - six-sided-dice-layer-cake: a table said the cube had six opposite faces, and nothing could tell*
+
+*[commit] d23336d8 - six-sided-dice-layer-cake: the same design, told to somebody deciding whether to fund it*
+
+*[commit] 1b4e68f5 - six-sided-dice-layer-cake: the conversation, now spanning three days*
+
 All three committed, tree clean. **Deck:**
 https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984
 
@@ -1861,6 +1929,10 @@ a regular GPU setup? Highlight where our system would perform better or worse.
 
 > They're all there — pandoc emits a short-form heading my grep missed. Twelve
 > sections, and the PDF grew accordingly.
+
+*[commit] 66337465 - six-sided-dice-layer-cake: how long the lead lasts, and a way of cooling nobody had considered*
+
+*[commit] 5ecaed0f - six-sided-dice-layer-cake: the pitch stops being about the object and starts being about the choice*
 
 Clean, committed, 573 of 573 holding.
 https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984

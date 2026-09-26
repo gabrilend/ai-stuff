@@ -1,7 +1,51 @@
 # Conversation Summary: 5830bd03-a9ab-4f15-bb57-f947518112e8
 
-Generated on: 2026-09-21 19:46:23
+Generated on: 2026-09-26 12:47:17
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-25 10:33, after Request 8 - We're auditing and reconciling the
+   hero-less-moba design docs; 71 questions are answered, 11 await playtest
+   data, and 8 still need your decisions. Next: answer those 8, starting with
+   the unbraked hero economy (C3).
+2. 2026-08-25 20:34, after Request 11 - We've been auditing and settling the
+   hero-less-moba design docs; last commit stored your two new visions and made
+   stones player-owned rather than team-shared. Next: decide F31, whether locks
+   and objections still have a job now that teammates can't move each other's
+   stones.
+3. 2026-08-25 21:28, after Request 12 - We're turning your hero-less MOBA's
+   design docs into a consistent, contradiction-free blueprint by working
+   through open questions. Locks were just replaced with contribute-and-dismiss.
+   Next: decide F31b, what to do with issues 406 and 407, which build the
+   now-cancelled lock system.
+4. 2026-08-25 23:19, after Request 13 - We're auditing and rewriting the
+   hero-less-moba design docs so every rule agrees with every other; latest
+   commit fixed the moss balls and the AzerothCore port framing. Next: you
+   answer six open questions, starting with whether the tripled draw rate is
+   intended.
+5. 2026-08-25 23:48, after Request 14 - We're auditing and reconciling the
+   hero-less-moba design docs, and just committed six answers covering the stone
+   merge, commander rotation, die staking, and the request verb. Next: three
+   questions still need your decision — F27, F30, and F37.
+6. 2026-08-26 00:14, after Request 15 - We're auditing and reconciling the
+   hero-less-moba design docs; latest commit `33831246` settled wave
+   composition, the dice wallet, and added lobby/scenario issues. Two questions
+   remain open: F30 (per-colour ceilings and reroll price) and F38 (what a
+   priest does).
+7. 2026-08-26 00:51, after Request 17 - We've been auditing and extending the
+   hero-less-moba design docs; the healer behaviour spec is written and
+   committed. Two questions remain open: whether resource colours have
+   per-colour ceilings, and whether the five healers are wave units or heroes.
+8. 2026-08-26 10:52, after Request 18 - We audited your hero-less MOBA docs,
+   then worked through every design question your answers raised — the open
+   list is now empty, with only balance numbers awaiting playtesting. Next:
+   rename the two stale files (the tower-sense "stone" doc and "The brain is
+   five states") in one validated pass.
+9. 2026-08-26 12:04, after Request 23 - We audited and rebuilt this game's
+   design docs; all 106 open questions are now answered or waiting on playtest
+   data, with no code written yet. Next: start issue 101, the map builder, since
+   everything else is blocked on it.
 
 --------------------------------------------------------------------------------
 

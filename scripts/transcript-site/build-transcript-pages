@@ -1,0 +1,74 @@
+#!/bin/bash
+#
+# build-transcript-pages
+#
+# Turns a project's saved conversations into web pages you can read in a
+# browser: one page per conversation, with the person and the assistant on
+# opposite sides of the page, plus a front page that tells the project's story
+# as its list of commits, oldest first, each group of commits linked to the
+# conversation that produced it. The pages go in the project's
+# llm-transcripts/HTML/ folder, beside the transcripts they are made from.
+#
+# The look is double-diaper-dungeon's, which is where these pages were first
+# built (issue 035 in ai-stuff/scripts).
+#
+# Usage:
+#   build-transcript-pages [project-dir] [--palette <file>] [--dir <scripts-dir>]
+#
+#   project-dir   the project whose llm-transcripts/ to read (default: the
+#                 current folder)
+#   --palette     a palette file (see default-palette.lua for the shape);
+#                 default: the double-diaper-dungeon colours
+#   --dir         where the ai-stuff scripts live (default below)
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+
+# -- {{{ parse_arguments
+function parse_arguments() {
+   PROJECT=""
+   PALETTE=""
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --palette) PALETTE="${2:?--palette needs a file}"; shift ;;
+         --dir)     DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         -*)        echo "build-transcript-pages: unknown option $1" >&2; exit 1 ;;
+         *)         PROJECT="$1" ;;
+      esac
+      shift
+   done
+   PROJECT="${PROJECT:-$(pwd)}"
+   SITE="$DIR/transcript-site"
+   PALETTE="${PALETTE:-$SITE/default-palette.lua}"
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   parse_arguments "$@"
+
+   # Every missing piece is an error named plainly, before anything is written.
+   if [ ! -d "$PROJECT/llm-transcripts" ]; then
+      echo "build-transcript-pages: $PROJECT has no llm-transcripts/ folder" >&2
+      return 1
+   fi
+   if [ ! -f "$PALETTE" ]; then
+      echo "build-transcript-pages: no palette file at $PALETTE" >&2
+      return 1
+   fi
+   # The front page is built from the project's git history; a project that is
+   # not in a repository has no history to tell, which is an error rather than
+   # a front page quietly listing files in some other order.
+   if ! git -C "$PROJECT" rev-parse --git-dir > /dev/null; then
+      echo "build-transcript-pages: $PROJECT is not in a git repository, so there is no history for the front page" >&2
+      return 1
+   fi
+
+   PROJECT=$(realpath "$PROJECT")
+   luajit "$SITE/build-site.lua" "$PROJECT" "$PROJECT/llm-transcripts/HTML" "$PALETTE"
+}
+# }}}
+
+main "$@"

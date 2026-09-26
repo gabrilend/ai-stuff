@@ -75,17 +75,17 @@ parse_arguments() {
 # }}}
 
 # -- {{{ session_log_dir_for(project_path)
-# The exporter finds a project's session logs by flattening the project's
-# absolute path into a single directory name: leading slash dropped, every
-# remaining slash turned into a dash. This must match the exporter exactly; if
-# the two ever disagree, this script reports a project as frozen that the
-# exporter would happily rebuild.
+# Claude Code files a project's session logs under a folder named after the
+# project's absolute path with every character that is not a letter or digit
+# turned into a dash: /mnt/mtwo/.claude/claude-code becomes
+# -mnt-mtwo--claude-claude-code. This must match the exporter exactly; if the
+# two ever disagree, this script reports a project as having no logs that the
+# exporter would happily rebuild. It used to turn only slashes into dashes,
+# which the exporter also did until issue 025 - so every project with a dot
+# in its path was skipped by --write.
 session_log_dir_for() {
    local project="$1"
-   local flattened
-   flattened=$(echo "$project" | sed 's|^/||')
-   flattened=$(echo "$flattened" | tr '/' '-')
-   echo "${CLAUDE_SESSIONS_ROOT}/-${flattened}"
+   echo "${CLAUDE_SESSIONS_ROOT}/$(printf '%s' "$project" | sed 's/[^A-Za-z0-9]/-/g')"
 }
 # }}}
 
@@ -181,6 +181,26 @@ classify_transcript() {
 }
 # }}}
 
+# -- {{{ is_date_named_helper(file)
+# True when a transcript holds a helper conversation (its header id begins
+# "agent-") but its name is the old date-only kind, e.g. "sep-22-26_agent-7.md"
+# or "jul-1-26-through-jul-2-26.md". Since issue 025 a helper's name leads with
+# the words of its task, so a name that is nothing but a date is one the
+# exporter will move. Only asked of transcripts whose log survives: a helper
+# whose log is gone has lost its description too, and keeps its old name.
+is_date_named_helper() {
+   local file="$1"
+   local id name
+   id=$(head -1 "$file" | sed -n 's/^# Conversation Summary:[[:space:]]*\([^[:space:]]*\).*/\1/p')
+   case "$id" in
+      agent-*) : ;;
+      *) return 1 ;;                     # a main conversation keeps date names
+   esac
+   name=$(basename "$file")
+   [[ "$name" =~ ^[a-z]{3}-[0-9]{1,2}-[0-9]{2}(-through-[a-z]{3}-[0-9]{1,2}-[0-9]{2})?(_agent-[0-9]+)?\.md$ ]]
+}
+# }}}
+
 # -- {{{ main()
 main() {
    parse_arguments "$@"
@@ -197,7 +217,7 @@ main() {
    projects=$(echo "$found" | sed 's|/llm-transcripts$||' | sort -u)
 
    local runnable=() barren=()
-   local repairable=0 frozen=0 headerless=0
+   local repairable=0 frozen=0 headerless=0 helpers_to_rename=0
    local project log_dir file verdict here_repairable
 
    while read -r project; do
@@ -216,7 +236,14 @@ main() {
          verdict=$(classify_transcript "$file")
          case "$verdict" in
             repairable) repairable=$((repairable + 1))
-                        here_repairable=$((here_repairable + 1)) ;;
+                        here_repairable=$((here_repairable + 1))
+                        # A helper still under a date-only name
+                        # ("sep-22-26_agent-7.md") is renamed after its task by
+                        # the exporter on --write (issue 025). Counted so the
+                        # report says how many names will move.
+                        if is_date_named_helper "$file"; then
+                           helpers_to_rename=$((helpers_to_rename + 1))
+                        fi ;;
             frozen)     frozen=$((frozen + 1)) ;;
             headerless) headerless=$((headerless + 1)) ;;
          esac
@@ -240,6 +267,7 @@ main() {
    echo "Transcripts whose conversation log survives:            ${repairable}"
    echo "Transcripts whose conversation log is gone, frozen:     ${frozen}"
    echo "Files with no conversation-id header (not transcripts): ${headerless}"
+   echo "Helper transcripts to be renamed after their task:      ${helpers_to_rename}"
    echo "Total markdown files in llm-transcripts folders:        ${total}"
    echo ""
    echo "Projects the exporter can be run on:                    ${#runnable[@]}"

@@ -1,7 +1,26 @@
 # Conversation Summary: 9f4041e6-ef3c-4f3d-9481-08e9bd7aca15
 
-Generated on: 2026-09-21 19:46:32
+Generated on: 2026-09-26 13:26:38
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-27 15:21, after Request 1 - We're working through this VTT's open
+   design questions, and the fog-grid question just turned into a pivot toward a
+   3D engine with sprite-based characters and vertex-based fog. Next: your
+   answer on whether terrain is 2.5D or fully 3D.
+2. 2026-08-27 15:41, after Request 2 - We're working through this VTT's open
+   questions and just pivoted the visual design to a 3D world with 8-direction
+   sprites and vertex-based fog. I asked three questions back and am waiting on
+   your answers before writing any of it down.
+3. 2026-08-27 15:56, after Request 3 - We're deciding the visual and visibility
+   design for your VTT: you've chosen DM-flipped light switches per area instead
+   of computed fog, likely on regions you already have. Next: answer whether
+   moving units stay geometrically sighted or are also switch-gated.
+4. 2026-08-28 20:34, after Request 4 - We redesigned the VTT's visual engine
+   across four exchanges: 3D geometry, DM-authored reveal levels instead of
+   computed fog, half-edge meshes, and an AI chat window. None of it is written
+   down yet. Next: your call on whether I open phase 13 to record it.
 
 --------------------------------------------------------------------------------
 
@@ -2502,6 +2521,8 @@ deciding local model vs hosted API
 
 > Reorganization deferred, then. Let me record the demo rule and the deferral so
 > neither gets lost.
+
+*[commit] b64c98a0 - my-own-custom-vtt: a question about a grid, and the world grew a third dimension*
 
 Committed as `b64c98a0` — 18 files, 1,308 lines added.
 

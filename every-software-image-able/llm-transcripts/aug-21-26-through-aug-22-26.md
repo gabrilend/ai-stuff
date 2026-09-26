@@ -1,7 +1,51 @@
 # Conversation Summary: b8db14fa-4604-4bd8-a85f-2982b746a29b
 
-Generated on: 2026-09-16 17:59:41
+Generated on: 2026-09-26 12:46:56
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-21 16:32, after Request 8 - We're reviewing your bare-metal LLM seed
+   design for holes and working through open questions one at a time; six are
+   answered so far. Next: you decide whether the seed targets old-style firmware
+   boards at all, or requires the modern kind.
+2. 2026-08-21 17:37, after Request 13 - We're reviewing the self-building seed
+   design for holes and working through open questions one at a time. Eleven
+   asked so far. Next: you answer how the machine learns it's running out of
+   context room — remember to ask, ride on tool results, or read it as a
+   status.
+3. 2026-08-21 20:32, after Request 21 - We're auditing your self-building
+   machine design for holes, working through open questions one at a time and
+   writing each answer into the docs. I just fixed a live bug where any loop
+   over fifteen turns was killed. Next: you decide who sets a program's loop
+   allowance.
+4. 2026-08-21 22:37, after Request 39 - We were reviewing the machine's design
+   for holes and recording the answers; every open question is now closed but
+   one, and all the work is committed in 17 subject-based commits. Next: run the
+   full test suite when you're ready.
+5. 2026-08-21 22:52, after Request 40 - Goal is a card that turns any computer
+   into a self-building machine. Today's design questions are all answered and
+   committed in 18 subject-based commits, and the emulator can now show you a
+   live screen. Next: make the built image bootable, since no firmware can
+   currently open one.
+6. 2026-08-21 23:04, after Request 41 - You wanted a way to watch these emulated
+   machines run, and that now exists as watch-a-machine in the project root: it
+   asks which board, what to boot, and where the screen goes. Next, run it
+   yourself and pick the window option.
+7. 2026-08-21 23:31, after Request 43 - We're building a bootable seed that
+   installs itself, and I've just given the emulated machines a disk they keep
+   between runs so you can watch one live somewhere. Next: teach the image
+   builder to write a partition table and filesystem, so a built image can
+   actually boot.
+8. 2026-08-22 00:32, after Request 46 - We're making the image builder produce
+   something that actually boots. A firmware now opens what we build, and a
+   thinking machine booted off it; the builder itself still lays out an
+   arrangement nothing reads. Next: decide whether the executable wrapper
+   becomes a library or the builder shells out to it.
+9. 2026-08-22 01:14, after Request 48 - You're building a self-constructing seed
+   image, and today it became makeable: one command now produces an image that
+   boots on real firmware and thinks. Next is first light on an actual board
+   rather than an emulator.
 
 --------------------------------------------------------------------------------
 

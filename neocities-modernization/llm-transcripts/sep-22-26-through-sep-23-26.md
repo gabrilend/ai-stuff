@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-26 12:47:33
+Generated on: 2026-09-26 13:26:43
 Models: claude-opus-5-5
 
 ## Contents
@@ -2042,6 +2042,8 @@ $N/scripts/validate-output $N 2&gt;&amp;1 | head -30" completed (exit code 0)*
 > else's staged files, so I can drop my workaround scripts. Committing item 5
 > with it, limited to item 5's files.
 
+*[commit] 55b617d59 in ai-stuff - A character-counting check for every page of the built site*
+
 > Item 5 committed (`55b617d59`). Item 6: wiring the rankings check into the
 > pre-flight gate. Finding where `run.sh` works out the model's cache folder.
 
@@ -2049,6 +2051,8 @@ $N/scripts/validate-output $N 2&gt;&amp;1 | head -30" completed (exit code 0)*
 > must pass.
 
 > Exactly item 6's files. Committing.
+
+*[commit] bcbacb24a in ai-stuff - The build checks that saved similarity lists fit today's poems before it starts*
 
 All six items are built, tested and committed. The most important thing for
 tonight: the build will end by failing on purpose. The new checker runs last and
@@ -2189,6 +2193,8 @@ $N/tmp/shared-memory/validate-output-report.txt" completed (exit code 0)*
 
 ### Assistant Response 17 (continued)
 
+*[commit] d32d2b582 in ai-stuff - The site checker also checks frame shapes; the old one-file checker retires*
+
 The old checker's frame rules are now part of the whole-site checker, and the
 old tool is retired (`d32d2b582`).
 
@@ -2263,6 +2269,8 @@ Great sounds good
 > Running the full test set, and checking whether the old byte-counting wrap
 > helper is now unused.
 
+*[commit] 4faf52ff1 in ai-stuff - Every content-warning box wraps inside its frame; word pages wrap like the rest*
+
 The scan step in that command won't work: `find` doesn't follow the symlink I
 pointed it at, so it'll check zero pages. When the rebuild finishes, I'll scan
 `output/wordcloud` directly instead.
@@ -2291,6 +2299,8 @@ failed with exit code 2 (failed)*
 
 > Tests pass. Tonight's build rewrites that page with the fix. Recording the
 > result in issue 9-011 and committing.
+
+*[commit] 1cef0676d in ai-stuff - Measure an escaped ampersand once, not twice*
 
 All three items are done. Rebuilding every word page with the new code and
 re-scanning took the over-wide lines from 23,858 to 1, and that last one was a
@@ -2352,6 +2362,8 @@ to both the ctrl+v clipboard, and the middle mouse-click clipboard.
 
 > Correcting the function name in the issue: the prompt loop is
 > `menu.batch_pause`.
+
+*[commit] 52d680615 in ai-stuff - Issue for three run.sh menu problems: a missing glyph, a hang, the clipboard*
 
 I wrote issue `10-070-run-sh-menu-glyphs-escape-hang-and-clipboard.md` and
 committed it (`52d680615`). Nothing is fixed yet.
@@ -2432,6 +2444,8 @@ me.
 > flag comes from how the diff lines up old and new lines. Claiming the file and
 > committing.
 
+*[commit] 6db0bf6c0 in ai-stuff - The menu's copy key no longer hangs the script behind it, and the copy survives*
+
 Fixed and committed (`6db0bf6c0`). The hang and the missing copy turned out to
 be the same bug.
 
@@ -2483,6 +2497,8 @@ registers.
 > Testing in a real menu session: go to the command preview, press Escape once,
 > and it should quit. Then the editing case, where Escape leaves editing mode
 > and a second Escape quits.
+
+*[commit] ec826079b in ai-stuff - Escape leaves the menu from the command line too*
 
 Fixed and committed (`ec826079b`). Escape now quits from the command-preview
 line too, which is where the cursor sits after you copy. Before, Escape there
@@ -2548,6 +2564,8 @@ always because "force regenerate all stages" is enabled.
 > cut apart" check fails. With the new code all 4 pass. Recording the two fixes
 > in issue 10-070 and committing.
 
+*[commit] 7d596d6f7 in ai-stuff - Menu markers stay readable when highlighted or dimmed; settled options are skipped*
+
 Both fixed and committed (`7d596d6f7`).
 
 **Garbled markers:** the menu's screen code stored one byte per screen cell, but
@@ -2610,6 +2628,8 @@ I'm currently running the pipeline now. We're in stage 6.
 
 > All 7 pass. Checking that the new radio checks fail on the previous menu code,
 > so they'd catch the bug coming back.
+
+*[commit] a93240de6 in ai-stuff - In a radio list with nothing chosen, L chooses the entry under the cursor*
 
 Fixed and committed (`a93240de6`).
 
@@ -2743,6 +2763,8 @@ scan through.
 > Committing the alignment and the two symbol swaps. `run.sh` stays out until
 > your run finishes.
 
+*[commit] 8a9f0fd88 in ai-stuff - Image statistics line up on their colons; a broom the terminal can't draw goes*
+
 I haven't found a bug in the golden-poem counter. The 1023 cluster fits a known
 limit of what the archive can show: posts typed to exactly 1024 that lost one
 character in storage. I can't prove it from the archive alone.
@@ -2809,6 +2831,8 @@ validate it.
 > Setting it aside. I'll record what we found in the golden-poem counting issue,
 > so the 1023 cluster and the way to verify it aren't lost if it comes up again.
 
+*[commit] 625a7ece6 in ai-stuff - Note the 1023-character cluster in the golden-poem counting issue*
+
 I've set it aside. The findings are recorded in the golden-poem counting issue
 (4-003) as a "set aside" note, and committed (`625a7ece6`). The note covers the
 44 poems at 1023 against 675 at 1024, the likely cause, and the one way to check
@@ -2853,6 +2877,8 @@ Shutting down inference server (PID 27606) that this run started...
 > missed: the paginated chronological page template. Looking at it.
 
 > 6 of 6 pass. Checking that the test fails on the code that crashed your run.
+
+*[commit] 8fef7d4ec in ai-stuff - Paginated chronological pages build again; a broom the terminal can't draw goes*
 
 Fixed and committed (`8fef7d4ec`). The crash was the same `%` problem I fixed
 earlier, in the one template that fix missed.

@@ -1,7 +1,14 @@
 # Conversation Summary: 2d18b479-cf68-4669-b656-31b03e425488
 
-Generated on: 2026-09-16 18:00:01
+Generated on: 2026-09-26 12:47:23
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-09-01 02:28, after Request 1 - Built the whole jurassic-maze project
+   from your vision doc: an isometric stone maze with balls, wanderers, fencers,
+   dinosaurs and a delve mode, all seven phases committed and tested. Next:
+   nothing pending, awaiting your direction or the night shift's.
 
 --------------------------------------------------------------------------------
 

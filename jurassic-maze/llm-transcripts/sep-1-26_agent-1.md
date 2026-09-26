@@ -1,7 +1,14 @@
 # Conversation Summary: 612135c3-0031-44b4-bd43-2bcaf284be20
 
-Generated on: 2026-09-21 19:46:27
+Generated on: 2026-09-26 13:26:33
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-09-01 22:11, after Request 1 - Goal was a tile classifier over the
+   reference painting plus a verb-based map language, but you said to let it be
+   and commit, so I committed only the two transcript files. Next: tell me what
+   xyuszn should mark, or move on.
 
 --------------------------------------------------------------------------------
 
@@ -74,6 +81,8 @@ step-by-step estimations for the ways the structure fits into the larger
 > the transcripts directory — but there are ~160
 > `hero-less-moba/docs/HTML/*.html` files already staged in the index that
 > aren't mine. I'll leave those exactly where they are and commit only my paths.
+
+*[commit] bbd4532f - the record of how it was made, kept beside the thing it made*
 
 Committed. `bbd4532f` — the two transcript files, and nothing else.
 

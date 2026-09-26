@@ -1,7 +1,18 @@
 # Conversation Summary: f9eff958-75f5-4616-afb2-911a773846ff
 
-Generated on: 2026-09-21 19:46:20
+Generated on: 2026-09-26 13:26:24
 Models: claude-fable-5
+
+## Contents
+
+1. 2026-07-23 19:25, after Request 1 - Architecting the particle-sim
+   gif-generator: docs, roadmap, and 23 issue files across 5 phases are all
+   written, pure-LuaJIT design, nothing committed. Next action: your go-ahead to
+   start executing from the skeleton issue.
+2. 2026-07-25 13:20, after Request 5 - Built the gif-generator end to end:
+   phases 1-5 complete, all 211 tests green, and your two-clocks vision renders
+   from a score file. Next: light the llama.cpp orchestrator and copy
+   input/cluster.example to input/cluster so the prose porch can go live.
 
 --------------------------------------------------------------------------------
 
@@ -229,10 +240,16 @@ shall see your potential at last.
 > Blueprints amended. Now phase 1, starting with the skeleton issue: the
 > bootstrap script and the run harness.
 
+*[commit] 784f2b49 - gif-generator: the blueprints and the skeleton — a particle-drawn gif studio takes its first breath*
+
 > First light-machinery: the canvas. Taking indices 000 and 001 from the counter
 > — module, then its proof:
 
 > Ten for ten. The info files and bookkeeping:
+
+*[commit] f27a20c7 - gif-generator: light learns to accumulate — the canvas and its tone-mapper*
+
+*[commit] c666f0d8 - gif-generator: 256 colors, spent on purpose — the glow palette seats its guests*
 
 > Now the heart of phase 1 — the handwritten GIF89a encoder (issue 104),
 > indices 004 and 005:
@@ -246,19 +263,37 @@ shall see your potential at last.
 > ImageMagick — an implementation that shares no code with ours — reads all
 > ten frames cleanly. The encoder speaks true GIF. Closing out the issue:
 
+*[commit] eb1c6a20 - gif-generator: the file format learns our name — a handwritten GIF89a encoder*
+
 > Phase 1's capstone: first light. The demo renders an orbiting glow through the
 > whole pipeline:
 
+*[commit] 9ba81a1a - gif-generator: first light — an ember orbits on black, and the pipeline is real*
+
 > Phase 2 — particle life. The pool first (issue 201), indices 006 and 007:
+
+*[commit] 9544cb58 - gif-generator: a home for every particle, built before any are born*
+
+*[commit] 1ab404ed - gif-generator: sources of particles, with a character — emitters and the one voice of chance*
 
 > Physics next (issue 203), indices 010 and 011 — the loop that touches every
 > particle every tick:
 
+*[commit] e0eb58b2 - gif-generator: particles learn to move, wander, age, and die on time*
+
 > The snapshot and the splatter (issue 204), indices 012 and 013 — where
 > particle populations become light:
 
+*[commit] a6e5a164 - gif-generator: the border between simulating and drawing, proven lossless*
+
+*[commit] de3f203b - gif-generator: the bloom and the fountain — particle life performs in public*
+
 > Eighteen for eighteen on first run. Bookkeeping and commit — checking the
 > index first this time:
+
+*[commit] 2bc84e03 - gif-generator: the clock face becomes geometry — paths that know their way around*
+
+*[commit] 1d93ea0b - gif-generator: time learns its gestures — easing curves and fade envelopes*
 
 > Now the tracks (issue 303) — where paths, easings, envelopes, and recipes
 > bind under a schedule. Indices 018 and 019:
@@ -266,7 +301,11 @@ shall see your potential at last.
 > A floating-point boundary suspect — 25 × 0.04 isn't exactly 1.0 in binary.
 > Let me look at the actual numbers:
 
+*[commit] 090aab56 - gif-generator: strokes learn their schedules — tracks and the timeline*
+
 Refactor holds — same births, same bytes. Now the fills module itself:
+
+*[commit] d413b9ff - gif-generator: regions learn to flood with light — fills as growing fields*
 
 --------------------------------------------------------------------------------
 
@@ -291,8 +330,14 @@ please continue
 > The phase-3 capstone is staged and verified — committing it, then on to the
 > score language:
 
+*[commit] 983f63bd - gif-generator: the vision, staged — two clocks sweep, a line arrives, a triangle floods*
+
 > Phase 4 begins — the score language. First the format document, then the
 > reader/writer module (issue 401):
+
+*[commit] e28ac650 - gif-generator: the language gets its words — the score format, read and written*
+
+*[commit] 66eec6c9 - gif-generator: the wall that teaches — a compiler that refuses everything at once*
 
 > Now the runner (issue 403) — index 026, the front door the vision describes:
 
@@ -301,8 +346,12 @@ please continue
 
 > Frame one is black by design — the orbit fades in. Checking mid-flight:
 
+*[commit] 87b9b972 - gif-generator: the front door opens — scores in, gifs out, goodbye last*
+
 > The issue just moved, so the generated pages are already stale — proof the
 > regenerate-everything design matters. Rebuilding before the commit:
+
+*[commit] 938f2521 - gif-generator: the documentation learns to glow — a linked gallery of pages and pictures*
 
 > 115 frames, 333536 bytes — the same count the runner produced. The moment of
 > truth:
@@ -310,6 +359,8 @@ please continue
 > **Byte-identical.** The hand-staged vision and the score compiled through the
 > language render the exact same file — the language layer provably adds
 > nothing and loses nothing. Now the phase-4 demo performs that proof in public:
+
+*[commit] 8d92f2d7 - gif-generator: the language proves itself transparent — one road, same bytes*
 
 > Phase 5 — many hands. First, reconnaissance: what does the effil library
 > shelf actually hold, and can LuaJIT load it?
@@ -320,11 +371,19 @@ please continue
 > All green. Closing 501 and 502 in turn — info files, counter, issues,
 > commits:
 
+*[commit] c05ab67e - gif-generator: many hands, one truth — the snapshot pipeline goes parallel*
+
+*[commit] d1ddf6e9 - gif-generator: the one measurer — numbers come from running, not remembering*
+
 > 3.08× speedup with four hands, byte-identical at a full megabyte. Looking at
 > the forge before calling it a showpiece:
 
 > The heart of the forge blooms violet around a white-hot core — worthy.
 > Closing the capstone and phase 5:
+
+*[commit] 6b3d7d7d - gif-generator: the crew proves itself in public — same bytes, three times the pace*
+
+*[commit] 1e75101a - gif-generator: the porch stands and listens — fluent with fakes, waiting for its cluster*
 
 > The whole battery, one final sweep before the curtain:
 

@@ -12,6 +12,10 @@
 #     folder deeper than it used to, are found and saved (issue 025);
 #   - a forked helper's orders and replies reach its transcript, not just an
 #     empty header;
+#   - a helper's transcript is named after the task it was given, the
+#     parent's "helper finished" line links to it, an old date-named helper
+#     file is moved to its task name, and a helper with no description is
+#     refused rather than given a date-only name;
 #   - a project whose path has a dot in it is found (Claude turns the dot into
 #     a dash, and the old lookup did not);
 #   - the hook exports only the conversation it was told about;
@@ -68,10 +72,16 @@ function build_fixtures() {
     MAIN_ID="aaaaaaaa-1111-1111-1111-111111111111"
     OTHER_ID="bbbbbbbb-2222-2222-2222-222222222222"
 
-    # The conversation the hook will be told about.
+    # The conversation the hook will be told about. Its third line is the
+    # harness reporting that the reviewer helper finished; its fifth is a
+    # background shell command finishing, which has no transcript to link to.
     cat > "$SESSION_FOLDER/$MAIN_ID.jsonl" <<'EOF'
 {"type":"user","timestamp":"2026-09-01T10:00:00.000Z","uuid":"u1","message":{"role":"user","content":"Please review the skills."}}
 {"type":"assistant","timestamp":"2026-09-01T10:00:05.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"Sending a reviewer now."}]}}
+{"type":"user","timestamp":"2026-09-01T10:03:01.000Z","uuid":"u2","message":{"role":"user","content":"<task-notification>\n<task-id>a1b2c3</task-id>\n<status>completed</status>\n<summary>Agent \"Review the skills!\" finished</summary>\n</task-notification>"}}
+{"type":"assistant","timestamp":"2026-09-01T10:03:05.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"The reviewer is back."}]}}
+{"type":"user","timestamp":"2026-09-01T10:04:01.000Z","uuid":"u3","message":{"role":"user","content":"<task-notification>\n<task-id>bzz999</task-id>\n<status>completed</status>\n<summary>Background command \"make\" finished</summary>\n</task-notification>"}}
+{"type":"assistant","timestamp":"2026-09-01T10:04:05.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"The build is done."}]}}
 EOF
 
     # A different conversation in the same project, same day. The hook must
@@ -87,6 +97,13 @@ EOF
 {"type":"user","isSidechain":true,"agentId":"a1b2c3","timestamp":"2026-09-01T10:00:06.000Z","uuid":"s1","message":{"role":"user","content":"READ-ONLY review of the skills."}}
 {"type":"assistant","isSidechain":true,"agentId":"a1b2c3","timestamp":"2026-09-01T10:03:00.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"The skills are reviewed; nothing was changed."}]}}
 EOF
+    # Every helper log has a description file beside it; the description
+    # names the helper's transcript. The capital letters and the "!" check
+    # the words are lowercased and punctuation dropped.
+    printf '{"agentType":"general-purpose","description":"Review the skills!","spawnDepth":1}\n' \
+        > "$SESSION_FOLDER/$MAIN_ID/subagents/agent-a1b2c3.meta.json"
+    printf '{"agentType":"fork","isFork":true,"description":"Fix conversation backup hook","spawnDepth":1}\n' \
+        > "$SESSION_FOLDER/$MAIN_ID/subagents/agent-f0f0f0.meta.json"
 
     # A forked helper: its log points back at the parent instead of repeating
     # the parent's history, and its orders arrive riding on a tool result.
@@ -147,6 +164,55 @@ function test_hook_exports_named_session_and_its_helpers() {
         "$([ -n "$fork_file" ] && ! grep -q "worker fork" "$fork_file" && echo yes || echo no)"
     check "hook: a conversation the hook was not told about is left alone" \
         "$([ -z "$other_file" ] && echo yes || echo no)"
+
+    # Helpers are named after their task, date last (issue 025).
+    check "hook: the helper is named after its task ($(basename "$helper_file"))" \
+        "$([ "$(basename "$helper_file")" = "review-the-skills-sep-1-26.md" ] && echo yes || echo no)"
+    check "hook: the fork is named after its task ($(basename "$fork_file"))" \
+        "$([ "$(basename "$fork_file")" = "fix-conversation-backup-hook-sep-1-26.md" ] && echo yes || echo no)"
+    check "hook: the parent's 'helper finished' line links to the helper's file" \
+        "$(tr '\n' ' ' < "$main_file" | grep -qF 'Agent "Review the skills!" finished — [review-the-skills-sep-1-26.md](review-the-skills-sep-1-26.md)*' && echo yes || echo no)"
+    check "hook: a background command's line has no link" \
+        "$(grep -qF '*[background task] Background command "make" finished*' "$main_file" && echo yes || echo no)"
+}
+# }}}
+
+# -- {{{ test_old_date_named_helper_is_renamed
+# A helper transcript saved before this naming existed sits under a date-only
+# name. Its next export moves it to its task name and removes the old file.
+function test_old_date_named_helper_is_renamed() {
+    local helper_file old="$PROJECT_DIR/llm-transcripts/sep-1-26_agent-9.md"
+    helper_file=$(transcript_claiming "agent-a1b2c3")
+    mv "$helper_file" "$old"
+    run_hook "$MAIN_ID"
+    helper_file=$(transcript_claiming "agent-a1b2c3")
+    check "rename: an old date-named helper moves to its task name ($(basename "$helper_file"))" \
+        "$([ "$HOOK_STATUS" = 0 ] && [ "$(basename "$helper_file")" = "review-the-skills-sep-1-26.md" ] && [ ! -e "$old" ] && echo yes || echo no)"
+}
+# }}}
+
+# -- {{{ test_helper_without_description_fails_loudly
+# A helper log with no description file cannot be named; that is an error for
+# that helper, and the others are still exported.
+function test_helper_without_description_fails_loudly() {
+    local project="$SCRATCH/nameless-project"
+    mkdir -p "$project"
+    local folder="$SESSIONS_ROOT/$(session_folder_name "$project")"
+    mkdir -p "$folder/$MAIN_ID/subagents"
+    cp "$SESSION_FOLDER/$MAIN_ID.jsonl" "$folder/$MAIN_ID.jsonl"
+    cp "$SESSION_FOLDER/$MAIN_ID/subagents/agent-a1b2c3.jsonl" "$folder/$MAIN_ID/subagents/"
+
+    local out status
+    out=$(CLAUDE_SESSIONS_ROOT="$SESSIONS_ROOT" "$EXPORTER" "$project" 2>&1)
+    status=$?
+    check "nameless helper: non-zero exit (status $status)" \
+        "$([ "$status" != 0 ] && echo yes || echo no)"
+    check "nameless helper: says what it could not find" \
+        "$(echo "$out" | grep -q "no .*agent-a1b2c3.meta.json to name it by" && echo yes || echo no)"
+    check "nameless helper: no date-only file was written for it" \
+        "$(! grep -lqx "# Conversation Summary: agent-a1b2c3" "$project/llm-transcripts"/*.md && echo yes || echo no)"
+    check "nameless helper: the parent is still exported, without a link" \
+        "$(grep -qF '*[background task] Agent "Review the skills!" finished*' "$project/llm-transcripts/sep-1-26.md" && echo yes || echo no)"
 }
 # }}}
 
@@ -297,7 +363,9 @@ EOF
 echo "backup-conversations session-selection test suite"
 build_fixtures
 test_hook_exports_named_session_and_its_helpers
+test_old_date_named_helper_is_renamed
 test_sweep_exports_everything_and_counts_helpers
+test_helper_without_description_fails_loudly
 test_linked_project_is_found_under_the_spelling_it_started_with
 test_simultaneous_exports_make_one_file
 test_missing_session_folder_fails_loudly

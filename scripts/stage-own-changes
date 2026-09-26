@@ -25,12 +25,14 @@
 --                          [--scripts-dir <dir>]
 --   repository-directory defaults to the ai-stuff monorepo below.
 --   --project <dir> the session's project folder (default: the current one,
---                   where Claude Code keeps the session).
+--                   where Claude Code keeps the session). May be given more
+--                   than once, to carry several projects' transcripts.
 -- Hooks are not run: a preview must not have their effects.
 
 local DIR = "/mnt/mtwo/programming/ai-stuff"
 local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
-local PROJECT_DIR = "."
+-- One or more project folders; --project may repeat, as for commit-own-changes.
+local PROJECT_DIRS = {}
 do
     local i = 1
     while arg[i] do
@@ -39,13 +41,15 @@ do
             SCRIPTS_DIR = arg[i + 1]
             i = i + 2
         elseif arg[i] == "--project" then
-            PROJECT_DIR = arg[i + 1]
+            PROJECT_DIRS[#PROJECT_DIRS + 1] = arg[i + 1]
             i = i + 2
         else
             DIR = arg[i]
             i = i + 1
         end
     end
+    -- no --project given: the session's own folder
+    if #PROJECT_DIRS == 0 then PROJECT_DIRS[1] = "." end
 end
 
 package.path = SCRIPTS_DIR .. "/libs/?.lua;" .. package.path
@@ -96,8 +100,13 @@ local function main()
     local carried = {}
     for _, rel in ipairs(result.taken) do carried[#carried + 1] = rel end
     for _, rel in ipairs(result.whole) do carried[#carried + 1] = rel end
-    local projects, perr = patch.transcript_projects(top, PROJECT_DIR, carried)
-    if not projects then fail(perr) end
+    -- every named project folder's set, joined into one
+    local projects = {}
+    for _, dir in ipairs(PROJECT_DIRS) do
+        local these, perr = patch.transcript_projects(top, dir, carried)
+        if not these then fail(perr) end
+        for project in pairs(these) do projects[project] = true end
+    end
     local transcripts, terr = patch.changed_transcripts(top, tip, patch.own_ids(session_id, sessions_root), projects)
     if not transcripts then fail(terr) end
     for _, t in ipairs(transcripts) do result.report[#result.report + 1] = patch.transcript_report_line(t) end

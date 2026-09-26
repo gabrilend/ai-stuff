@@ -58,7 +58,8 @@
 --                   the same place as someone else (they are reported)
 --   --no-verify     skip the pre-commit and commit-msg hooks, as git does
 --   --project <dir> the session's project folder, whose changed transcripts
---                   ride along; defaults to the current folder, which Claude
+--                   ride along (may be given more than once, one folder per
+--                   project); defaults to the current folder, which Claude
 --                   Code keeps at the session's project
 --   -- <path>...    commit only this session's changes in these files or
 --                   folders (repository-relative), so work can be committed in
@@ -77,8 +78,11 @@ local message_file, message_text, message_from_stdin = nil, nil, false
 local leave_mixed = false
 local no_verify = false
 -- the folder the session runs in: Claude Code never moves the working
--- directory, so "." is the session's project unless --project says otherwise
-local project_dir = "."
+-- directory, so "." is the session's project unless --project says otherwise.
+-- A list, because --project may be given more than once: a commit that
+-- carries a rebuild of many projects' transcripts in one repository (the
+-- monorepo, after the exporter improved) names each of those projects.
+local project_dirs = {}
 local only = nil
 do
     local i = 1
@@ -102,11 +106,13 @@ do
         elseif a == "--no-verify" then
             no_verify = true; i = i + 1
         elseif a == "--project" then
-            project_dir = arg[i + 1]; i = i + 2
+            project_dirs[#project_dirs + 1] = arg[i + 1]; i = i + 2
         else
             DIR = a; i = i + 1
         end
     end
+    -- no --project given: the session's own folder
+    if #project_dirs == 0 then project_dirs[1] = "." end
 end
 -- }}}
 
@@ -188,8 +194,10 @@ local function with_lock(session_id)
     if leave_mixed then argv[#argv + 1] = "--leave-mixed" end
     if no_verify then argv[#argv + 1] = "--no-verify" end
     -- resolved now: the re-run starts in the same folder, but say it plainly
-    argv[#argv + 1] = "--project"
-    argv[#argv + 1] = project_dir
+    for _, dir in ipairs(project_dirs) do
+        argv[#argv + 1] = "--project"
+        argv[#argv + 1] = dir
+    end
     if only then
         argv[#argv + 1] = "--"
         for _, p in ipairs(only) do argv[#argv + 1] = p end
@@ -420,8 +428,13 @@ local function build_commit(top, old, first, claims, rels, ids, work, msg_path)
     local carried = {}
     for _, rel in ipairs(result.taken) do carried[#carried + 1] = rel end
     for _, rel in ipairs(result.whole) do carried[#carried + 1] = rel end
-    local projects, perr = patch.transcript_projects(top, project_dir, carried)
-    if not projects then cleanup(); return nil, perr, report end
+    -- every named project folder's set, joined into one
+    local projects = {}
+    for _, dir in ipairs(project_dirs) do
+        local these, perr = patch.transcript_projects(top, dir, carried)
+        if not these then cleanup(); return nil, perr, report end
+        for project in pairs(these) do projects[project] = true end
+    end
     local transcripts, terr = patch.changed_transcripts(top, old, ids, projects)
     if not transcripts then cleanup(); return nil, terr, report end
     local present, gone = {}, {}

@@ -1,7 +1,43 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-09-21 19:46:14
+Generated on: 2026-09-26 12:47:05
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-28 17:12, after Request 2 - We designed enheim-tome's UI in a Q&A
+   session and committed the project structure plus ten design documents. Next:
+   decide whether to break the roadmap into issue files or work through the
+   twelve open questions first.
+2. 2026-08-28 23:10, after Request 6 - We're designing enheim-tome's interface,
+   a strategy game played over a painted city map, and I've committed the
+   project scaffolding plus ten design documents. Next: rewrite those documents
+   to absorb the sixteen decisions made since, once you say go.
+3. 2026-08-28 23:55, after Request 8 - We designed the enheim-tome UI and wrote
+   it up: twelve documents and sixty-seven issue blueprints, all committed. Next
+   action is your call on the git machine, since another session's commits are
+   colliding with mine.
+4. 2026-08-31 12:53, after Request 10 - We designed the interface for
+   enheim-tome, a strategy game over a painted city, and turned it into twelve
+   documents and sixty-seven issue blueprints, all committed. Next: work through
+   the seventeen open questions, starting with which structures count as
+   megastructures.
+5. 2026-08-31 13:19, after Request 11 - We're designing enheim-tome, a strategy
+   game played over a painted city map. Design docs and 67 issue files are
+   written and committed; you were asking what heredocs and pathspecs are. Next:
+   pick up whichever open design question you want to work through.
+6. 2026-08-31 13:47, after Request 12 - We're designing enheim-tome, a strategy
+   game played over one painted city map, and going through its eight build
+   phases one at a time to settle open questions. Phase 1 is done and committed;
+   next is Phase 2, the fence network and cage.
+7. 2026-08-31 17:16, after Request 13 - We're designing enheim-tome's interface
+   phase by phase, updating docs and issues as decisions land. Phases 1 and 2
+   are settled and committed. Next: walk through Phase 3, the tracing tool, and
+   answer its three open questions.
+8. 2026-09-01 02:29, after Request 14 - We're designing the interface for Enheim
+   Tome, a strategy game played over one painting of a city, and recording it as
+   documents and issue files. Phases 1 through 3 are settled and committed. Next
+   is walking through Phase 4, the places of the city.
 
 --------------------------------------------------------------------------------
 

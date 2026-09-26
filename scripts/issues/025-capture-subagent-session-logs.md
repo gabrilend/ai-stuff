@@ -67,13 +67,47 @@ message. A helper's full report travels back to its parent through a tool
 call, which the parser drops like every tool call; the report is kept in the
 parent's transcript, where it arrived as a message.
 
-### The overloaded suffix
+### How a helper's transcript is named
 
-`_agent-N` still means two things: "a helper conversation" and "a second
-conversation claiming the same date span". The header line
-(`# Conversation Summary: agent-<hash>` for a helper, a uuid for a main
-conversation) tells them apart without ambiguity; the filename alone does not.
-This was left as it is — see Open Questions.
+Built and tested on 2026-09-23 as described under Intended Behavior: helpers
+are named `<task words>-<date>.md`, exported before their parent, and the
+parent's "helper finished" line links to the helper's file. Tried against a
+real session (the one that drafted the RGPL) in a scratch folder: its three
+helpers came out as `draft-the-rgpl-license-sep-23-26.md`,
+`human-vs-machine-work-ratio-sep-23-26.md` and
+`3d-shapes-gif-generator-sep-23-26.md`, and all five "finished" lines in the
+parent linked to them.
+
+Helper transcripts already in the projects' folders keep their old
+date-numbered names (`sep-22-26_agent-7.md`) until their conversation is
+exported again — by the Stop hook when that session next replies, or by the
+archive-wide rebuild, `rederive-transcripts --write`, which re-runs the
+exporter over every project with surviving logs. Its read-only report now
+has a line "Helper transcripts to be renamed after their task", counting
+helpers whose log survives but whose name is still date-only (the owner asked
+on 2026-09-24 that the renaming live in that sweep). A helper whose log is
+gone has lost its description too and keeps its old name.
+
+The same day, `rederive-transcripts` was found to spell session folders the
+old way (slashes to dashes only), so it reported every project with a dot in
+its path — `/mnt/mtwo/.claude/claude-code`, `/mnt/mtwo/.dominions6` and its
+mods — as having no logs, and `--write` skipped them. It now uses the same
+rule as the exporter.
+
+The rebuild was run on 2026-09-26, after a verified snapshot of the whole
+archive (`backup-transcript-corpus`, kept under
+`/home/ritz/ai/transcript-snapshots/`): 53 projects, 256 transcripts written,
+no failures. It left 20 helpers date-named, all in the Claude Code program
+folder, because that project's sessions are split between two session
+folders — `-mnt-mtwo-programs-claude-code` from before it was moved on
+2026-09-22 and linked back, and `-mnt-mtwo--claude-claude-code` since — and
+the sweep, which knows only the resolved path, found the newer one alone. A
+hand run of the exporter under the old spelling
+(`backup-conversations /mnt/mtwo/programs/claude-code`) renamed them. See
+open question 6.
+
+Open questions 2, 4, 5 and 6 below are still unanswered, so the issue is in
+progress.
 
 ## Intended Behavior
 
@@ -81,6 +115,71 @@ Capture them (decided September 2026: the owner confirmed the gap was a real
 loss and asked for it fixed). Every helper conversation reaches the project's
 `llm-transcripts/` folder on the same Stop hook that saves its parent, and a
 search that stops finding helpers where helpers exist says so.
+
+### Helpers are named after their task (decided 2026-09-23)
+
+The owner asked that a helper's transcript be titled with the one-line
+description it was spawned with, followed by the date:
+
+```
+Agent "Draft the RGPL license"  ->  draft-the-rgpl-license-sep-22-26.md
+```
+
+- The words come from the `.meta.json` beside the helper's log (its
+  `description` field, a string). Lowercased; every run of characters that is
+  not a letter or digit becomes one dash; leading and trailing dashes dropped.
+- The date part is the same date-span token a main conversation gets
+  (`sep-22-26`, or `sep-22-26-through-sep-23-26`), placed LAST. The rulebook
+  already reads dates from the end of a name
+  (`transcript_basename_start_ymd`, written in anticipation of exactly this
+  shape), so the storyline library and everything else that orders
+  transcripts by date keeps working unchanged.
+- Two helpers with the same description on the same day take the usual
+  numbered slots: `draft-the-rgpl-license-sep-22-26_agent-1.md`.
+- A helper whose `.meta.json` is missing, unreadable, or has no description is
+  an export error for that helper, not a quiet fall back to a date-only name.
+  Every one of the 147 helper logs on the machine on 2026-09-23 had one.
+- Helpers no longer compete with main conversations for bare date names, so
+  the `_agent-N` suffix goes back to meaning only "a second claimant of this
+  name" — this settles the first open question below.
+- Helper transcripts already on disk under their old date-only names are
+  re-placed automatically on their next export: the claimed file's base no
+  longer matches the wanted base, which is the existing "span grew" path.
+
+### Main conversations keep date-only names (decided 2026-09-26)
+
+Considered and declined: naming main conversations after the session title
+Claude Code generates. That title is made once, from the first message, and
+the owner's sessions are long and change purpose more than once, so a title
+would describe only the opening. Helpers are different: each is spawned for
+one task and its description stays true for its whole life.
+
+### The parent's line names the helper's file (decided 2026-09-23)
+
+The line in the parent's transcript that reports a helper finishing ends with
+a link to that helper's transcript:
+
+```
+*[background task] Agent "Draft the RGPL license" finished — [draft-the-rgpl-license-sep-22-26.md](draft-the-rgpl-license-sep-22-26.md)*
+```
+
+The harness's notification carries a task id (a string such as
+`a112f69cc1a1ad9eb`); a helper's log is `agent-<that id>.jsonl`, and its
+transcript's header line is `# Conversation Summary: agent-<that id>`. So:
+
+- The exporter saves helpers BEFORE their parent (reversing the old order,
+  which only existed to keep bare date names for main conversations — no
+  longer needed now that helpers have their own names).
+- Before parsing a main conversation, the exporter writes a small table of
+  "helper id, tab, transcript filename" lines — one per helper transcript in
+  the folder, read from headers — to the RAM scratch tier, and passes its
+  path to the parser through the environment variable
+  `TRANSCRIPT_HELPER_NAMES`.
+- The parser, meeting a notification whose task id is in the table, appends
+  the link. A notification whose id is NOT in the table is left as it was:
+  background shell commands also notify, and they have no transcript. A
+  helper that finished but has no transcript (it never spoke) is the same
+  case — its log produced no file, so there is nothing to link to.
 
 ## Suggested Implementation Steps
 
@@ -91,7 +190,23 @@ search that stops finding helpers where helpers exist says so.
 3. Teach the parser the fork shape (`libs/conversation-parser.lua`: pre-pass
    three, the fork exception in the user-message branch, and the
    `fork-boilerplate` removal in the envelope splitter).
-4. Test with fixtures in both shapes:
+4. Name helpers after their task: a routine in `backup-conversations` that
+   reads the description out of the `.meta.json` and turns it into dashed
+   words, used in place of the bare date base when the log is a helper.
+5. Save helpers before their parent in both the Stop-hook mode and the sweep.
+6. Build the helper-name table before each main conversation's parse and
+   hand its path to the parser; teach the envelope splitter to keep the task
+   id with each note, and the note renderer to append the link.
+7. Test: a helper's file is named `<words>-<date>.md`; the parent's note links
+   to it; a notification for an unknown id is unchanged; a helper with no
+   `.meta.json` fails its export with a message; an old date-named helper
+   transcript is re-placed. Update `tests/test-commit-own-changes.sh`'s
+   fixture names only if the change breaks them.
+8. Rename the existing archive through the sweep: `rederive-transcripts`
+   counts date-named helpers in its report and renames them on `--write`
+   (by running the exporter); its session-folder spelling matches the
+   exporter's.
+9. Test with fixtures in both shapes:
    `tests/test-backup-conversations-sessions.sh` (a plain helper, a fork, the
    ordering, the counts). The older suites — `tests/test-transcript-export-guards.sh`,
    `tests/test-transcript-wrapping.sh`, and the parser suites
@@ -115,8 +230,8 @@ search that stops finding helpers where helpers exist says so.
 
 ## Metadata
 
-- **Status**: complete. The open questions below refine the result; none of
-  them block the capture itself.
+- **Status**: reopened 2026-09-23 for descriptive helper names and the
+  parent's link to them. The capture itself is complete.
 - **Complexity**: Low for the search; the fork shape needed a parser change.
 - **Dependencies**: none.
 
@@ -126,23 +241,33 @@ search that stops finding helpers where helpers exist says so.
 - A fork's transcript carries its orders and its replies.
 - A sweep that finds no helper logs reports the count.
 - A reader can tell a helper transcript from a same-day collision without
-  opening the file — not met; see Open Questions.
+  opening the file — a helper's name starts with its task's words.
+- The parent's line for a finished helper links to that helper's transcript.
 
 ## Open Questions
 
-1. **Should the `_agent-N` suffix be split?** Helpers and same-day collisions
-   still share it. The header tells them apart; the filename does not. Splitting
-   means a second suffix (for example `_sub-N` for helpers), which changes the
-   naming rulebook and every tool that reads names through it (the storyline
-   library in delta-version, `rederive-transcripts`,
-   `check-transcripts-are-filed-right`). Left unsplit until the owner decides it
-   is worth that change.
-2. **Should a helper's transcript name its parent and its description?** The
-   `.meta.json` beside each log has the one-line description it was given and
-   its type; the log's records carry the parent session id. One header line
-   ("Helper for <parent> — <description>") would make a folder of helper
-   transcripts readable without opening them. Other tools read only the first
-   line of a transcript, so a second header line is believed safe.
+1. **Should the `_agent-N` suffix be split?** Settled 2026-09-23 by naming
+   helpers after their task: helpers no longer need the suffix, so it keeps
+   one meaning.
+2. **Should a helper's transcript name its parent?** The description is now
+   in the filename. The parent is not: a helper transcript still does not say
+   which conversation spawned it, though the parent now links to the helper.
+   A second header line ("Helper for <parent>") would close the loop in the
+   other direction. Not asked for; open.
 3. **Should the Stop hook also report a zero?** The sweep prints its helper
    count; the hook exports one session and does not, because a session with no
    helpers is normal. A layout change would still surface on the next sweep.
+4. **Should the description words be shortened?** Descriptions are asked to
+   be 3–5 words, so names stay short, but nothing enforces it. Not capped;
+   a very long description makes a very long filename.
+5. **Should a same-description collision use `_agent-N`?** Two helpers both
+   described "Draft the RGPL license" on one day get
+   `…-sep-22-26.md` and `…-sep-22-26_agent-1.md`. The word "agent" there
+   now reads oddly (both are agents). Left as the rulebook's existing suffix
+   to avoid touching the tools that parse it.
+6. **Should the sweep find every session folder a project has ever had?** A
+   project that was moved and linked back has sessions under both spellings
+   of its path, and `rederive-transcripts` visits only the resolved one. Each
+   session log records the folder it ran in (the `cwd` field of its records,
+   a string), so the sweep could list session folders first and read which
+   project each belongs to, instead of guessing folders from project paths.

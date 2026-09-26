@@ -1,7 +1,31 @@
 # Conversation Summary: b9d87cff-a87e-4d7f-afb9-a7419718e79f
 
-Generated on: 2026-09-16 17:59:42
+Generated on: 2026-09-26 13:26:08
 Models: claude-fable-5, claude-opus-5
+
+## Contents
+
+1. 2026-08-02 17:31, after Request 3 - Goal: work through all 34 phase 1-7 issue
+   tickets; 30 are closed and committed, and 401 (porting the engine to ARM64
+   and RISC-V) is the live one. Next: find why only 28 of 58 ARM matrix answers
+   match the x86 reference.
+2. 2026-08-03 11:50, after Request 8 - Goal is a bootable seed image that runs a
+   language model on bare metal; 30 of 34 tickets are done. Currently porting
+   the engine to ARM, where a test-harness bug is feeding the kernels constant
+   data. Next: find why the payload emitter writes repeated matrix values.
+3. 2026-08-03 12:03, after Request 9 - We're building a bare-metal seed image
+   that runs a language model, and the current task is porting its arithmetic to
+   ARM; three of ten kernels are done and proven bit-exact on real hardware.
+   Next is writing the remaining seven ARM kernels.
+4. 2026-08-03 14:25, after Request 11 - Goal is porting the engine's arithmetic
+   to ARM and RISC-V. Three of ten ARM routines are written and proven bit-exact
+   on a real ARM machine; the test harness bug that masked them is fixed. Next:
+   write the remaining seven ARM routines.
+5. 2026-08-03 14:49, after Request 12 - We're building a seed image that boots a
+   language model on bare hardware, and I've just finished porting all ten
+   arithmetic routines to ARM with every answer matching x86 exactly. Next: run
+   a whole forward pass on ARM, since the routines are only proven one at a
+   time.
 
 --------------------------------------------------------------------------------
 
@@ -43,6 +67,8 @@ start working on them until they're done?
 > The trap test is running through its six cases. While it does, I'm studying
 > the existing UEFI payload machinery that 102 builds on.
 
+*[commit] 3436a7a4 - every-software-image-able: the first ticket closed — a model, packed and proven*
+
 > The pieces are clear. Now let me read the board launcher to understand how
 > UEFI payloads get booted and their console captured — 102's test will need
 > that.
@@ -70,7 +96,11 @@ start working on them until they're done?
 > Quick regression check on the host-side tests (the 045 change touches tested
 > arithmetic), then commit:
 
+*[commit] ad6c68c9 - every-software-image-able: the machine learns what room it has, in all three tongues*
+
 > Now wiring the conductor into the whole-thought test:
+
+*[commit] f35cf986 - every-software-image-able: the conducting joins the arithmetic, and the third ticket closes*
 
 > Exactly the predicted failure — the tolerance predates the single-precision
 > specification. Updating it with the reasoning:
@@ -82,15 +112,21 @@ start working on them until they're done?
 
 > The sampler's declare needs the exponential's own declaration too:
 
+*[commit] 730b01d7 - every-software-image-able: choosing the same word twice over — the sampler closes*
+
 > Four tickets closed. Next is 105a — the tokenizer's assembly half, which
 > 105's loop needs. Reading the issue and the reference:
 
 > Now the comparison test:
 
+*[commit] 785c992a - every-software-image-able: the same words into the same numbers — the tokenizer's second half*
+
 > One cleanup in the request-refusal path, then the test:
 
 > The fixture model's context is 16 tokens, not 128 — my test was sized wrong,
 > and the context join needs checking:
+
+*[commit] c5dba644 - every-software-image-able: the loop closes, and catches a separator nobody named*
 
 > Now extending the native measure tool with the conducted-assembly rate and
 > data output:
@@ -103,6 +139,8 @@ start working on them until they're done?
 
 > The runner forwards its own choice argument into the demo, which reads it as a
 > directory. Fixing the argument handoff:
+
+*[commit] e0487467 - every-software-image-able: the engine measured whole, and phase 1 closes*
 
 > Phase 2's shape is now clear. The foundational object is 201's
 > door-and-catalogue; let me align with the interpreter datapath before
@@ -131,11 +169,15 @@ start working on them until they're done?
 
 > All 27 pass. Wiring into the suite and documenting:
 
+*[commit] 15df0505 - every-software-image-able: the machine gets hands, and the door is the catalogue*
+
 > Eight tickets closed, phase 1 complete. Next: 201a, the reader for oversized
 > results — the seam 064 already calls into.
 
 > My test asserted the document was over 40,000 characters; it's 35,359. Fixing
 > the assertion to check the ratio that actually matters:
+
+*[commit] fdc32510 - every-software-image-able: reading what will not fit in a head*
 
 > Now 202 — say something. The framebuffer first, since firmware hands it over
 > with the memory map.
@@ -180,6 +222,8 @@ start working on them until they're done?
 
 > All 13. Wiring in and documenting:
 
+*[commit] dc8e3f28 - every-software-image-able: the machine can be heard, and the letters are drawn by hand*
+
 > Ten closed. Next, 203 — touching memory, with the refusals that protect the
 > machine's own mind.
 
@@ -188,6 +232,8 @@ start working on them until they're done?
 > tell "identical" from "refused" — both were nil:
 
 > All 22 pass. Committing 203:
+
+*[commit] dcbce5b9 - every-software-image-able: the machine reaches memory, and refuses one address*
 
 > Now 204 — the ticket phase 2 calls its own risk: running code the machine
 > just wrote, and surviving code that never returns.
@@ -208,6 +254,8 @@ start working on them until they're done?
 > All 18 pass — including real machine-written code executing on this
 > processor. Committing:
 
+*[commit] 2b400fc1 - every-software-image-able: the machine runs what it wrote, and survives what will not stop*
+
 > Twelve done. Next: 205 and 206, which the phase notes say "land together or
 > not at all" — the exploration discipline needs somewhere to write its intent
 > note first.
@@ -221,9 +269,13 @@ start working on them until they're done?
 > My test's own expression was tangled — `no_storage.store and nil or ...`
 > short-circuits wrongly. Fixing the check:
 
+*[commit] 8fae951d - every-software-image-able: somewhere to keep things, and a body that can be broken*
+
 > Now 207 — the status emission, which closes phase 2.
 
 > All 24. Now the phase 2 demo and closing the phase:
+
+*[commit] c564c19d - every-software-image-able: how it is, on a machine that cannot spell — and phase 2 closes*
 
 > Phase 2 complete. Now phase 3 — the text the machine wakes up holding.
 
@@ -234,6 +286,8 @@ start working on them until they're done?
 > rather than what the next start would hold — those are different things:
 
 > All 43. Wiring in and closing all four phase-3 tickets:
+
+*[commit] 594fcfb8 - every-software-image-able: what the machine is told, and phase 3 closes*
 
 > Three phases done, 19 tickets closed. Next: phase 4 — the other two tongues.
 
@@ -254,6 +308,8 @@ start working on them until they're done?
 > All 18. Recording what this taught in the emulator-lies list, since it's
 > exactly that kind of finding:
 
+*[commit] a12c5689 - every-software-image-able: the machine finds out what it woke up on*
+
 > 20 closed. Let me take phase 7 next — several are near-done, and the roadmap
 > says it's built first. Starting with the two that are already working.
 
@@ -263,8 +319,12 @@ start working on them until they're done?
 > Nine of nine — count mode now tested on all three architectures. Closing
 > 702a and 701:
 
+*[commit] 4e4b2a72 - every-software-image-able: the proving ground stands, and counts as well as halts*
+
 > 705 is designed never to close — the phase notes say so explicitly. My job
 > is to bring it current and leave it open:
+
+*[commit] 4d8b4183 - every-software-image-able: the list that does not close, brought current*
 
 > Now phase 5 — the image. 501 and 502 together, since the builder needs the
 > recipe.
@@ -276,6 +336,8 @@ start working on them until they're done?
 
 > 34 of 34. Closing the three phase-5 tickets:
 
+*[commit] 83555070 - every-software-image-able: something you can put on a card — phase 5 closes*
+
 > Now the remaining phase 7 tickets — 702/702b (devices that die), 703 (watch
 > what it wrote), 704 (cut the power).
 
@@ -284,10 +346,14 @@ start working on them until they're done?
 
 > All 18. Closing 702 and 702b:
 
+*[commit] 099746fe - every-software-image-able: parts that can be killed, and stay killed*
+
 > Now 703 and 704 — the last two phase-7 tickets. Both build on the debugger
 > and snapshot machinery the emulator already offers.
 
 > 19 of 19. Closing 703 and 704, which completes phase 7:
+
+*[commit] 0f1fca69 - every-software-image-able: watching what nobody wrote, and choosing when the power goes*
 
 > 401 is the largest remaining piece — the engine written twice more. Before
 > starting it, let me finish 603, which is small and self-contained, so the demo
@@ -302,6 +368,8 @@ start working on them until they're done?
 
 > The description extraction failed — my pattern excluded hyphens, and every
 > demo name contains them:
+
+*[commit] c6c9b8c5 - every-software-image-able: five demonstrations, and the thing that runs them*
 
 > 31 of 34 closed. The remaining three are the largest and interdependent: 401
 > ports the engine to two more architectures, and 601/602 need that engine. Let
@@ -326,6 +394,8 @@ start working on them until they're done?
 > the first mark — deeper than I can chase without spending the budget I need
 > for reporting. Let me record 401's true state honestly rather than leave it
 > ambiguous.
+
+*[commit] e4ff5222 - every-software-image-able: the second tongue begun, and the way to prove it*
 
 > Let me run the full suite one final time to confirm nothing regressed, then
 > report.
@@ -449,6 +519,8 @@ can you tell me more about these errors?
 > instead of silent.
 >
 > Let me record this properly.
+
+*[commit] 58a84502 - every-software-image-able: the second tongue reaches the end and reports*
 
 I have to correct my earlier report before explaining. **My diagnosis was
 wrong**, and the way it was wrong matters more than the errors themselves.
@@ -1157,6 +1229,8 @@ use this pattern the better.
 
 > Now the document you asked for, on adding hardware support:
 
+*[commit] 05d36e9a - every-software-image-able: a bus that never answers, modelled rather than guessed*
+
 Answers in order.
 
 ## ONE: why not just accept that processors add differently
@@ -1398,6 +1472,8 @@ Soramech at a higher level.
 > Every shape sits under what reordering can explain, and the bound is derived
 > rather than picked. Wiring it in and committing:
 
+*[commit] 8b574ab2 - every-software-image-able: letting the order go, and getting 4.48x back for it*
+
 > Now the watchdog, since you chose that over dataflow at this level.
 
 > The test caught a real design defect. The last note belonged to a *different
@@ -1407,6 +1483,8 @@ Soramech at a higher level.
 
 > The note now returns the core number, which is zero for core zero — my check
 > tested for a truthy index. Fixing the assertion:
+
+*[commit] d9b4bda6 - every-software-image-able: a countdown per core, armed only where the danger is*
 
 Two of your four are built. Here's where each landed.
 
