@@ -22,6 +22,9 @@ kit.fs = require("017-the-filesystem")
 
 local passed, failed = 0, 0
 local scratch_folders = {}
+-- Cases whose design scratch space (in /tmp and /dev/shm, outside the
+-- check's own scratch folder) must also go when the check ends.
+local fixture_cases = {}
 
 -- {{{ function kit.check
 function kit.check(condition, name)
@@ -105,10 +108,52 @@ function kit.write_file(path, text)
 end
 -- }}}
 
+-- {{{ function kit.fixture_case
+-- A case on a scratch copy of the tiny-notes fixture, played by the stand-in
+-- with the fixture script and the given options (Lua table text, without the
+-- braces), surveyed. Returns the project copy and the case.
+function kit.fixture_case(label, options_text)
+    local case = require("018-the-case")
+    local survey = require("029-the-survey")
+    local summary = require("030-the-survey-summary")
+    local fixtures = kit.project.fixtures
+    local project, folder = kit.project_copy(label)
+    local src = folder .. "/tiny-notes"
+    kit.fs.run("cp -r " .. kit.fs.quote(fixtures .. "/tiny-notes") .. " " .. kit.fs.quote(src))
+    local record = case.open(project, label, src, "stand-in")
+    kit.write_file(record.folder .. "/stand-in.lua", "return dofile(" .. string.format("%q", fixtures .. "/tiny-notes.stand-in.lua")
+        .. ")({ root = " .. string.format("%q", fixtures) .. ", " .. (options_text or "") .. " })\n")
+    survey.run(project, record, 2)
+    summary.write(record.survey)
+    fixture_cases[#fixture_cases + 1] = record
+    return project, record
+end
+-- }}}
+
+-- {{{ function kit.turns_of
+-- How many turns of a kind a case has run.
+function kit.turns_of(record, kind)
+    local n = 0
+    for _, name in ipairs(kit.fs.list(record.turns)) do
+        if name:match("^%d+%-" .. kind .. "%-") then n = n + 1 end
+    end
+    return n
+end
+-- }}}
+
 -- {{{ function kit.finish
 function kit.finish()
     for _, folder in ipairs(scratch_folders) do
         kit.fs.remove_tree(folder)
+    end
+    local design_folder = require("048-the-design-folder")
+    for _, record in ipairs(fixture_cases) do
+        local key = design_folder.scratch_key(record)
+        for _, root in ipairs({ "/tmp/burner-of-down-things/cases/", "/dev/shm/burner-of-down-things/cases/" }) do
+            if kit.fs.is_folder(root .. key) then
+                kit.fs.remove_tree(root .. key)
+            end
+        end
     end
     io.write(string.format("  %d passed, %d failed\n", passed, failed))
     os.exit(failed == 0 and 0 or 1)

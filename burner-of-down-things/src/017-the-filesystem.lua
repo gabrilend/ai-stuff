@@ -29,18 +29,21 @@ end
 -- }}}
 
 -- {{{ function fs.capture
--- Runs a command and returns everything it printed on standard output, and
--- whether it exited 0. The exit status is read from a marker line appended by
--- the shell, since io.popen's close does not report it under LuaJIT.
+-- Runs a command and returns everything it printed on standard output,
+-- whether it exited 0, and its exit status (number). The status is read from
+-- a marker line the shell prints after the command, since io.popen's close
+-- does not report it under LuaJIT. The command runs in a subshell, so an
+-- `exit` inside it cannot skip the marker.
 function fs.capture(command)
-    local pipe = assert(io.popen(command .. "; printf '\\n%d' $?", "r"))
+    local pipe = assert(io.popen("( " .. command .. " ); printf '\\n%d' $?", "r"))
     local out = pipe:read("*a")
     pipe:close()
     local body, code = out:match("^(.*)\n(%d+)$")
     if not body then
-        return out, false
+        return out, false, nil
     end
-    return body, tonumber(code) == 0
+    code = tonumber(code)
+    return body, code == 0, code
 end
 -- }}}
 

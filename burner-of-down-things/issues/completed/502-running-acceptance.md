@@ -5,7 +5,7 @@ Running an issue's Acceptance commands in the design folder
 
 ## Current Behavior
 
-Nothing runs a design's checks.
+Built as `src/049-acceptance.lua`. Finding the exit status of a command that itself ends with `exit` showed a flaw in the one shell-capture function everything uses: its status marker came after the command in the same shell and was skipped. `fs.capture` now runs the command in a subshell and returns the status number as a third value; acceptance reads 124 or 137 as "stopped at the limit". Checked by tests/052 (a failing second command named with its output; a sleep stopped at a 1 s limit).
 
 ## Intended Behavior
 

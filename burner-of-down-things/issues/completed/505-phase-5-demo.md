@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-5-demo` and `phase-5-demo.lua`. Case one builds the notes blueprint with 202 broken the first time: the ledger's timeline of build and repair turns with ticks, waves, turns, seconds, the delivery fingerprint checked against the ledger line it names, the chain verified; then the delivered design is used (add three notes, list, list by tag, find) and its size counted. Case two makes 202 unbuildable and draws the graph marked built, FAILED and held with the reason.
 
 ## Intended Behavior
 
