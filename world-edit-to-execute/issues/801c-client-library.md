@@ -1,10 +1,11 @@
 # Issue 801c: Matchmaking Client Library
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** Issue 801a (protocol), Issue 801b (server core - for testing)
 **Parent:** Issue 801 (Matchmaking Server)
+**Blocks:** 801h (the integration tests)
 
 ---
 

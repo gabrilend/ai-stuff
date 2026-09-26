@@ -32,7 +32,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | Phase | Name | Status |
 |-------|------|--------|
 | 0 | Tooling/Infrastructure | In Progress |
-| 1 | Foundation - File Format Parsing | **Completed** |
+| 1 | Foundation - File Format Parsing | In Progress (112, 116, 117 open) |
 | 2 | Data Model - Game Objects | **Completed** |
 | 3 | Logic Layer - Triggers and JASS | **Completed** |
 | 4 | Runtime - Basic Engine Loop | **Completed** |
@@ -136,6 +136,8 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 112a | StormLib built from source by the dependency script | **Completed** 2026-09-24 | 113 |
 | 112b | Game-version layers, chosen per map | In progress | 112a |
 | 112c | Route A: stock rows merged with each map's objects, every field labelled | **Completed** 2026-09-24 | 112b |
+| 112d | Older patch program shapes (1.01 to 1.20e) | In progress | 112b |
+| 112e | Route B: published values as a cross-check | Built; waits on the owner's answers | 112b, 112c |
 | 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
@@ -457,10 +459,10 @@ Phase 2 & 3 Complete
 | 511d | History buffer and graphs | Pending | 511c |
 | 511e | File export | Pending | 511a |
 | **514** | **3D rotation frames** | **Issue Created** | 409 |
-| 512a | Core 3D frame encoding | Pending | 409 |
-| 512b | Render system integration | Pending | 512a |
-| 512c | Dynamic precision scaling | Pending | 512a |
-| 512d | Convergence detection | Pending | 512a |
+| 514a | Core 3D frame encoding | Planned (no file yet) | 409 |
+| 514b | Render system integration | Planned (no file yet) | 514a |
+| 514c | Dynamic precision scaling | Planned (no file yet) | 514a |
+| 514d | Convergence detection | Planned (no file yet) | 514a |
 | 512f | v2 threading migration | **Completed** | 508a |
 | **513** | **Threading architecture demo** | **Completed** | 512f |
 | **515** | **Render graph on the ceramic engine** | **In progress** | 508, 512 |
@@ -474,7 +476,7 @@ Phase 2 & 3 Complete
 | 515d | Extrapolate, predict, snap | Pending | 515c |
 | 515e | Growing asset table | Pending | 515b |
 | 515f | Measured against the pool | Pending | 515c, 515d, 515e |
-| 515k | A crowd on every design (the unpredictable workload) | Pending | 405f, 515h, 515j |
+| 515k | A crowd on every design (the unpredictable workload) | In progress (steps 1-3 committed) | 405f, 515h, 515j |
 | 516 | Draw WC3 models in the engine (community models first, placeholders otherwise) | Pending | 116, 117 |
 
 ### Dependency Graph
@@ -561,20 +563,20 @@ All ─────────────────────────�
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 701 | Death and resurrection system | Issues Created | 402 (ECS) |
-| 701a | Death state and events | Pending | 402 |
-| 701b | Spirit world layer | Pending | 701a |
-| 701c | Ghost form component | Pending | 701a |
-| 701d | Resurrection mechanics | Pending | 701a |
-| 701e | Corpse system | Pending | 701a |
-| 702 | Profession system | In Progress | 402, 406 |
+| 701 | Death and resurrection system | Archived 2026-01-08 | 402 (ECS) |
+| 701a | Death state and events | Archived | 402 |
+| 701b | Spirit world layer | Archived | 701a |
+| 701c | Ghost form component | Archived | 701a |
+| 701d | Resurrection mechanics | Archived | 701a |
+| 701e | Corpse system | Archived | 701a |
+| 702 | Profession system | Archived 2026-01-08 (no root file kept) | 402, 406 |
 | 702a | Profession core component | **Completed** | 402 |
-| 702b | Gathering professions | Pending | 702a |
-| 702c | Crafting professions | Pending | 702a |
-| 702d | Recipe system | Pending | 702a |
-| 702e | WoW-mode configuration | Pending | 702a |
-| 702f | WC3-mode configuration | Pending | 702a |
-| 702g | Profession UI abstraction | Pending | 702a, 506 |
+| 702b | Gathering professions | Never written | 702a |
+| 702c | Crafting professions | Never written | 702a |
+| 702d | Recipe system | Archived | 702a |
+| 702e | WoW-mode configuration | Archived | 702a |
+| 702f | WC3-mode configuration | Archived | 702a |
+| 702g | Profession UI abstraction | Archived | 702a, 506 |
 
 ### Dependency Graph
 
@@ -617,16 +619,25 @@ All ─────────────────────────�
 | 800b | Sync module (watch list) | Pending | my-libs/issues/ |
 | 800c | Updater module (self-evaluating) | Pending | my-libs/issues/ |
 | 800d | Threadpool test suite | Pending | my-libs/issues/ |
-| 800e | Render system migration | Pending | my-libs/issues/ |
+| 800e | Render system migration | Moved to this project as 802 | issues/802 |
 | 800f | Windows support planning | Pending | my-libs/issues/ |
 
-Phase 8 issues kept in this project (gameplay networking; the matchmaking
-issues 801a-h are not yet tracked here):
+Phase 8 issues kept in this project:
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 803 | Gameplay messages, with the server inside the client | In progress (steps 1-4 built) | 401, 515c |
 | 804 | Crossing armies, drawn from across the network | In progress (built; the owner to try the window) | 405f, 803, 515c |
+| 801 | Matchmaking server | Pending; its shape waits on question Q-1 | Phase 5, 6 |
+| 801a | Protocol specification | Pending | None |
+| 801b | Server core | Pending | 801a |
+| 801c | Client library | Pending | 801a, 801b |
+| 801d | NAT traversal | Pending | 801a, 801b |
+| 801e | Lobby UI | Pending | 801c, Phase 5 |
+| 801f | Asset mirror integration | Pending | 801b |
+| 801g | CLI server application | Pending | 801b, 801f |
+| 801h | Integration tests | Pending | 801a-g |
+| 802 | Render system moved onto the shared thread-pool library | Waits on 515f (question Q-6) | my-libs threadpool |
 
 ### Dependency Graph
 

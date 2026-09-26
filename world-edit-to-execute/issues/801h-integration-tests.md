@@ -1,9 +1,9 @@
 # Issue 801h: Matchmaking Integration Tests
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Testing
 **Priority:** High
-**Dependencies:** All other 701 sub-issues
+**Dependencies:** 801a, 801b, 801c, 801d, 801e, 801f, 801g (the other matchmaking sub-issues; this line used the old Phase 7 numbering until 2026-09-26)
 **Parent:** Issue 801 (Matchmaking Server)
 
 ---
@@ -221,7 +221,7 @@ cleanup(server, host, client)
 
 ## Related Documents
 
-- All 701 sub-issues (testing integration of all components)
+- 801a-801g (testing integration of all components)
 
 ## Test Environment Setup
 

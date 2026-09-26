@@ -216,7 +216,7 @@ This issue has been split into manageable sub-tasks:
 | **801e** | Lobby UI (game browser, lobby screen) | 801c, Phase 5 |
 | **801f** | Asset mirror integration | 801b, Phase 6 |
 | **801g** | CLI server application | 801b, 801f |
-| **801h** | Integration tests | All 701 sub-issues |
+| **801h** | Integration tests | 801a-801g |
 
 ## Implementation Approach
 
