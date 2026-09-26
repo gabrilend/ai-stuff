@@ -11,6 +11,21 @@
 
 Maps can be parsed (loaded) but not saved. No unified format exists that supports both WC3 and WoW gameplay modes.
 
+> **Premise dropped, 2026-09-26 note.** This design (written 2026-01-02)
+> rests on WoW gameplay mode, which was dropped with the AzerothCore
+> integration on 2026-01-07 (`docs/postmortem-azerothcore-integration.md`).
+> Everything below about a WoW layer, `.wowmap` exports and "both modes" no
+> longer has a mode to serve. Phase W later brought WoW back only as an
+> alternate *host* for WC3 maps (W02 converts a `.w3x` into the WoW
+> client's files), not as a second gameplay mode inside a map. What is left
+> of this issue is saving a map the editor changed. Since then:
+> - maps are read through StormLib (issue 114), which can also create and
+>   write MPQ archives, and W01 plans an MPQ writer on the same library;
+> - the project reads any WC3 version through 1.29.2 (`docs/versions-we-leave-alone.md`).
+>
+> The design below is kept as the record until the open question at the
+> end is answered, and then rewritten.
+
 ## Intended Behavior
 
 A unified map format that:
@@ -268,3 +283,13 @@ EXPORT VALIDATION: WC3
 - Consider checksums for asset integrity
 - Format version important for future compatibility
 - May want "map optimization" (strip unused assets)
+
+## Open Questions
+
+1. With WoW gameplay mode gone, what does the editor save? (a) Straight to
+   `.w3x`/`.w3m` through StormLib, so every map the editor touches stays a
+   plain WC3 map; (b) a working format of this project's own (the `.wex`
+   idea, without a WoW layer) that exports to `.w3x`; (c) (a), plus a
+   folder form of a map (its files unpacked) for editing and diffing. And
+   which WC3 version does a saved map target: the one it was loaded as, or a
+   chosen one? (Asked 2026-09-26.)

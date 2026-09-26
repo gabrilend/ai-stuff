@@ -11,6 +11,12 @@
 
 No integrated testing for the complete World Editor.
 
+> **2026-09-26 note.** The scenarios below that load "mixed WC3/WoW content",
+> check warnings for WoW-only features, or save `.wex` files come from the
+> unified format in issue 911, whose WoW gameplay mode was dropped on
+> 2026-01-07. They wait on 911's open question (what the editor saves) and
+> are rewritten with it.
+
 ## Intended Behavior
 
 A comprehensive integration test that validates the complete editor workflow:

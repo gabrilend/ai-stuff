@@ -83,11 +83,11 @@ in full there.
 | 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | issue 603 |
 | 2026-09-25 | **One host holds the truth; lockstep is dropped.** The host's machine runs the one simulation and every other player is its client. | `docs/wc3-engine-architecture.md` (Multiplayer Strategy), issue 803 |
 | 2026-09-25 | The owner's personal details are never sent to an outside service unless the owner names that detail for that purpose. | `CLAUDE.md` (Privacy) |
+| 2026-09-24 | MPQ archives are read through StormLib; the project's own reader was retired. | issue 114, `docs/formats/mpq-archive.md` |
 | 2026-09-23 | **Assets pass between people over rmail**, "the only connection protocol for assets that I trust". 603's own transfer protocol is not built. | issue 609 |
 | 2026-09-23 | **Stock unit and ability values come from the player's own WC3 install** at map load; nothing Blizzard-made is shipped. Community wikis are a cross-check only, never a source (their licence would bind the tables). | issue W02 (open question 4), issue 112 |
 | 2026-09-23 | **Phase W: the WoW 3.3.5a client as an alternate host**, model source and test reference. Proprietary WoW files are read from the owner's client folder at run time and never committed. WC3 triggers run on the server through the ALE scripting engine (successor to Eluna, not script-compatible with it). | `docs/wow-client-bridge.md`, issues W01-W08 |
 | 2026-09 | **The ceramic engine** is built as a second, measured render path beside the C renderer. Its one fixed rule: the host thread draws whatever state is present. The hand-written thread pool from issue 512 stays as the benchmark it must beat. | issue 515, `docs/render-architecture.md` |
-| 2026-01-08 | MPQ archives are read through StormLib; the project's own reader was retired. | issue 114, `docs/formats/mpq-archive.md` |
 | 2026-01-07 | **Pure WC3 engine; the AzerothCore integration was abandoned** (complexity against the preservation mission). Phase 7 and the WoW-mode issues were archived on 2026-01-08. Phase W (above) later brought the WoW client back as a *host*, not as the engine. | `docs/postmortem-azerothcore-integration.md`, `issues/archive/wow-mode-2026-01-08/` |
 | 2026-01-02 | The renderer runs on the second threading design (a ring-buffer task pool); the first was removed, not wrapped. | `issues/completed/512f-main-integration.md` |
 | 2025-12-31 | Camera transitions play back from frame arrays driven by a timer in the thread pool; each thread owns its copy of the data. | issue 409 |
@@ -221,18 +221,9 @@ Places where a document disagrees with the code or with another document.
 
 | Where | Says | Reality |
 |-------|------|---------|
-| `docs/roadmap.md`, Phase 5 | the renderer interface (501a) is complete | it was never built; the slot split replaced it |
-| `docs/roadmap.md`, Phase 5 | lists 500 and 510 | both archived 2026-01-08 |
-| `docs/roadmap.md`, Phase 7 | issues created, active | archived 2026-01-08 |
-| `docs/roadmap.md`, Phase W | triggers in Eluna; no W05a-e, no W08 | ALE; W05a-e and W08 exist |
-| `issues/progress.md` | Phase 1 completed | 112, 112b, 112d, 112e are open |
-| `issues/progress.md` | 701/702 pending; 515k pending; 514's sub-issues as 512a-d | archived; in progress; 514a-d (512a-e are the finished threading issues) |
-| `issues/progress.md` | no rows for 112d, 112e, 802 | they exist |
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
-| 801b-801h | headers say Phase 7 | Phase 8; 801h's dependency names "701 sub-issues", which are archived |
-| 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped |
+| 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped; both issues now say so at the top, and 911 asks what the editor saves instead (its open question 1) |
 | 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | for models the order is now the player's override for a model path, then the model the map requests (imported, or stock from the player's own install), then a placeholder (516, decided 2026-09-26); the player's install also supplies stock data (112); the roadmap says `~/.wc3-engine/` |
-| Current Behavior sections | 112 says there is no reader for the stock tables; 515k says only steps 1-2 are done; 803 has met criteria unticked | the reader exists (`src/gamedata/`); step 3 is committed; 3 of 4 criteria are met |
 
 ---
 
