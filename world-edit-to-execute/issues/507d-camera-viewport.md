@@ -3,17 +3,41 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** Medium
-**Dependencies:** 507a, 501d
+**Dependencies:** 507a, 501d (the camera's view rectangle)
+**Re-cut:** 2026-09-26, from "Camera Viewport"
 
 ---
 
 ## Current Behavior
 
+No minimap; the camera has no view rectangle yet (501d).
+
+## Intended Behavior
+
+The camera's view on the ground, drawn as a box on the minimap (a
+trapezoid, since the camera looks down at an angle, as WC3 draws it).
+
+## Suggested Implementation Steps
+
+1. Take the view's four ground corners from 501d; map them to the minimap.
+
+## Acceptance Criteria
+
+- [ ] The box moves and changes shape with the camera
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No camera indicator on minimap. Players cannot see which area of the map is currently visible.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 White rectangle showing current camera viewport:
 
@@ -97,7 +121,7 @@ return viewport
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Get camera view bounds**
    - Camera position (center)
@@ -127,17 +151,17 @@ return viewport
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] White rectangle shows visible area
-- [ ] Rectangle moves with camera
-- [ ] Rectangle resizes with zoom
-- [ ] Rectangle clamped to map bounds
-- [ ] Visible against all terrain types
+- White rectangle shows visible area
+- Rectangle moves with camera
+- Rectangle resizes with zoom
+- Rectangle clamped to map bounds
+- Visible against all terrain types
 
 ---
 
-## Notes
+### Notes
 
 The viewport indicator is crucial for orientation. It answers "where am I looking?"
 
@@ -154,7 +178,7 @@ The viewport indicator is crucial for orientation. It answers "where am I lookin
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507a-minimap-module.md (parent component)
 - issues/501d-implement-camera-system.md (camera data)

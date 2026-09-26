@@ -3,17 +3,46 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 502
 **Priority:** Medium
-**Dependencies:** 502a
+**Dependencies:** 502 (chunk meshes), 502e (which builds them)
+**Re-cut:** 2026-09-26, from "Water Rendering"
 
 ---
 
 ## Current Behavior
 
+No water is drawn. Only the demo script colours some tiles "water"
+(`src/render/main.c`, around lines 974-983). The parser reads each
+tilepoint's water level and water flag.
+
+## Intended Behavior
+
+Water surfaces at their level wherever a tilepoint is flagged as water, as
+a second, translucent mesh per chunk, tinted by the map's water colour
+(`war3map.w3i`), with shallow and deep water told apart by depth.
+
+## Suggested Implementation Steps
+
+1. Water mesh per chunk from the water flags and levels.
+2. Tint from the map's water colour; depth shading.
+
+## Acceptance Criteria
+
+- [ ] Water shows where the map has it, at its level
+- [ ] Shallow and deep water look different
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Water data exists in W3E (water_level per tile) but is not rendered.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Render water surfaces with distinct visuals:
 
@@ -58,7 +87,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Identify water tiles**
    - Scan for tiles where water_level > ground_height
@@ -91,18 +120,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Water tiles render with blue color
-- [ ] Water is semi-transparent (ground visible beneath)
-- [ ] Deeper water appears darker
-- [ ] Shallow water appears lighter
-- [ ] Water renders above ground tiles
-- [ ] Can toggle water visibility
+- Water tiles render with blue color
+- Water is semi-transparent (ground visible beneath)
+- Deeper water appears darker
+- Shallow water appears lighter
+- Water renders above ground tiles
+- Can toggle water visibility
 
 ---
 
-## Notes
+### Notes
 
 Water affects gameplay:
 - Most ground units cannot cross deep water
@@ -116,7 +145,7 @@ Water affects gameplay:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502a-core-terrain-renderer.md (renders before water)
 - issues/502-implement-terrain-rendering.md (parent)

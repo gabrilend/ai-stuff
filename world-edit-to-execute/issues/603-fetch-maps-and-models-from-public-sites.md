@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 604 (content-addressed storage), 605 (local storage manager), 116 and 117 (the model check)
-**Blocks:** 1001 (the catalogue viewer reads what this writes)
+**Blocks:** 1001 (the catalogue viewer reads what this writes), 608
 **Formerly:** "LAN Asset Download Protocol" (`603-server-asset-download-protocol.md`,
 renamed 2026-09-26); that design is kept at the end of this file
 

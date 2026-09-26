@@ -3,17 +3,46 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** High
-**Dependencies:** 507a, 502
+**Dependencies:** 507a, 502 (terrain)
+**Re-cut:** 2026-09-26, from "Terrain Texture"
 
 ---
 
 ## Current Behavior
 
+No minimap. The terrain's tile colours exist in `src/render/terrain.c`.
+
+## Intended Behavior
+
+A texture made once at map load from the terrain: each tile's colour (the
+same colours the world grid uses, later the ground textures' average
+colours), shaded by height, with water and cliffs marked. Drawn as the
+minimap's background. If the map carries its own minimap picture
+(`war3mapMap.blp`), that is used instead, decoded by 117.
+
+## Suggested Implementation Steps
+
+1. The texture from tile colours and heights.
+2. The map's own picture when present.
+
+## Acceptance Criteria
+
+- [ ] The minimap background matches the map's layout
+- [ ] A map's own minimap picture is used when it has one
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No minimap terrain rendering. Minimap shows only black background.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Pre-rendered terrain texture for minimap:
 
@@ -140,7 +169,7 @@ return terrain_texture
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define terrain color palette**
    - Map terrain type codes to colors
@@ -173,18 +202,18 @@ return terrain_texture
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Terrain types render with appropriate colors
-- [ ] Height shading visible on hills/valleys
-- [ ] Water areas clearly blue
-- [ ] Cliffs visible as dark lines
-- [ ] Texture generates at correct resolution
-- [ ] Pre-rendered texture cached
+- Terrain types render with appropriate colors
+- Height shading visible on hills/valleys
+- Water areas clearly blue
+- Cliffs visible as dark lines
+- Texture generates at correct resolution
+- Pre-rendered texture cached
 
 ---
 
-## Notes
+### Notes
 
 The minimap terrain should be recognizable at a glance. Color choices matter.
 
@@ -201,7 +230,7 @@ Minimap texture should be same size as display (200x200). Sampling terrain at th
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507a-minimap-module.md (parent component)
 - issues/502-implement-terrain-rendering.md (terrain data structure)

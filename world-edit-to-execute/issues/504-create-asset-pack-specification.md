@@ -3,17 +3,54 @@
 **Phase:** 5 - Rendering
 **Type:** Design/Architecture
 **Priority:** Medium
-**Dependencies:** 501-create-abstract-render-interface
+**Dependencies:** 516 (the model chooser)
+**Re-cut:** 2026-09-26, from "Create Asset Pack Specification"
 
 ---
 
 ## Current Behavior
 
+No format exists for a player's replacement art. The January plan was an
+asset pack: a manifest mapping WC3 content ids to community files, stacked
+as fallbacks. Since then (2026-09-26): a unit draws the model its map asks
+for, a player may override any model path with a model of their own, seen
+only on their machine, and overrides are made through the game's UI, not
+yet planned; until then the chooser reads them from a data file (516).
+
+## Intended Behavior
+
+The format of that override data file, written down: which model path is
+replaced, by which file (stored by hash, 604), with what scale, tint and
+team-colour handling, and whether for every map or one. The UI (506) writes
+it; the chooser (516) reads it; a player can pass a set of overrides to
+another over rmail (609). "Asset pack" becomes this: a shareable set of
+overrides.
+
+## Suggested Implementation Steps
+
+1. The file's fields and types, in this issue and in a `.info.md` beside
+   its reader.
+2. A reader used by 516's chooser, with tests.
+
+## Acceptance Criteria
+
+- [ ] The override file's format is written down with every field's type
+- [ ] 516's chooser reads it, and a test override replaces a model path
+- [ ] A set of overrides can be passed as one file
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No asset loading system exists. All visuals would need to be hardcoded or use primitive placeholders. There's no way for the community to supply visual content.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Asset pack specification that:
 - Defines manifest format for community asset packs
@@ -64,7 +101,7 @@ return {
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Design manifest schema**
    - Required fields vs optional
@@ -103,7 +140,7 @@ return {
 
 ---
 
-## Design Questions for User
+### Design Questions for User
 
 1. **Manifest format?**
    - Lua table (easy for modders)
@@ -128,18 +165,18 @@ return {
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Manifest schema documented
-- [ ] Asset loader can read manifests
-- [ ] Fallback chain works correctly
-- [ ] Missing assets log warnings
-- [ ] At least one example pack created
-- [ ] Asset creation guide written
+- Manifest schema documented
+- Asset loader can read manifests
+- Fallback chain works correctly
+- Missing assets log warnings
+- At least one example pack created
+- Asset creation guide written
 
 ---
 
-## Notes
+### Notes
 
 This is critical for the project's legal strategy - community supplies visuals, we supply the engine. The specification must be clear enough for contributors to create compatible packs.
 
@@ -151,11 +188,11 @@ This is critical for the project's legal strategy - community supplies visuals, 
 
 ---
 
-## Sub-Issue Analysis
+### Sub-Issue Analysis
 
 **Analysis Date:** 2025-12-29
 
-### Recommendation: Keep as Single Issue
+#### Recommendation: Keep as Single Issue
 
 This issue does not benefit from splitting. While it has multiple steps, they are tightly coupled:
 
@@ -175,7 +212,7 @@ For now, keep as single issue and split only if implementation exceeds expected 
 
 ---
 
-## Related Documents
+### Related Documents
 
 - notes/vision (legal philosophy)
 - issues/503-*.md (placeholder system this replaces)

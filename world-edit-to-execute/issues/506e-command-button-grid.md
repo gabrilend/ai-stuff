@@ -3,17 +3,50 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 506
 **Priority:** Medium
-**Dependencies:** 506c, 506d
+**Dependencies:** 506c, 506d, 110 (object data)
+**Re-cut:** 2026-09-26, from "Command Button Grid"
 
 ---
 
 ## Current Behavior
 
+There is no command grid. Orders are given by right-click only (508f).
+
+## Intended Behavior
+
+The 4-by-3 grid of the selected unit's commands, as WC3 lays it out: move,
+stop, hold, attack, patrol in their places, then the unit's abilities,
+trains and builds at the positions its object data gives (`abpx`,
+`abpy`), with their icons and hotkeys. With several unit types selected,
+the grid shows the active group's. Clicking a button or pressing its
+hotkey issues the order through the runtime's order system (404c), or
+enters targeting for orders that need a target.
+
+## Suggested Implementation Steps
+
+1. The basic commands, laid out.
+2. Abilities, trains and builds from object data, at their positions.
+3. Targeting mode.
+
+## Acceptance Criteria
+
+- [ ] The grid matches WC3's layout for a test unit
+- [ ] Button and hotkey issue the same order
+- [ ] Targeted orders enter targeting and take a click
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No command UI. Players cannot see or click ability buttons.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 WC3-style 4x3 command button grid:
 
@@ -156,7 +189,7 @@ return CommandPanel
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create CommandPanel component**
    - Extends Panel
@@ -189,18 +222,18 @@ return CommandPanel
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] 4x3 grid of buttons renders
-- [ ] Hotkeys QWER/ASDF/ZXCV work
-- [ ] Buttons show icon or label
-- [ ] Disabled buttons appear dimmed
-- [ ] Cooldown overlay displays correctly
-- [ ] Selection changes update buttons
+- 4x3 grid of buttons renders
+- Hotkeys QWER/ASDF/ZXCV work
+- Buttons show icon or label
+- Disabled buttons appear dimmed
+- Cooldown overlay displays correctly
+- Selection changes update buttons
 
 ---
 
-## Notes
+### Notes
 
 The command panel is central to RTS gameplay. Must be responsive and clear.
 
@@ -214,7 +247,7 @@ Only show commands common to all selected units.
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506d-core-ui-elements.md (Button component)
 - issues/506c-input-handling.md (hotkey system)

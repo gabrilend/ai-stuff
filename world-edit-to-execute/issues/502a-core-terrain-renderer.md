@@ -3,17 +3,54 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 502
 **Priority:** Critical
-**Dependencies:** 501a, 105
+**Dependencies:** 105 (terrain parser)
+**Blocks:** 502e
+**Re-cut:** 2026-09-26, from "Core Terrain Renderer" (its criteria named a Lua `terrain.init`; the C renderer built the grid instead)
 
 ---
 
 ## Current Behavior
 
+Built by the vertical slice (508d) in `src/render/terrain.c`: a map's
+`war3map.w3e` becomes a grid of tiles, each coloured by its ground texture,
+at the correct world positions; `terrain_get_tile` returns the tile under a
+world point. Missing from this issue's aims: culling (every tile is drawn
+every frame) and a grid-line view showing tile boundaries.
+
+## Intended Behavior
+
+The colour grid as it is, plus:
+- tiles outside the camera's view (501d) are not drawn;
+- a toggle draws tile boundaries as lines (useful beside the pathing
+  overlay, 505f).
+
+## Suggested Implementation Steps
+
+1. Cull by the camera's ground rectangle (or leave culling to 502e's
+   chunks and close this criterion there).
+2. The grid-line toggle.
+
+## Acceptance Criteria
+
+- [x] Tiles render at correct world positions (508d)
+- [x] Different tile types show different colours (508d)
+- [x] The tile under a world point is found (`terrain_get_tile`, 508d)
+- [ ] Tiles outside the view are not drawn
+- [ ] A toggle draws tile boundaries
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 W3E terrain data is parsed (Issue 105) but not rendered. Terrain exists as data structures only.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Core terrain rendering module that displays the map ground:
 
@@ -74,7 +111,7 @@ local TILE_COLORS = {
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create terrain module**
    ```lua
@@ -114,19 +151,19 @@ local TILE_COLORS = {
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] terrain.init() accepts W3E data
-- [ ] Tiles render at correct world positions
-- [ ] Only visible tiles are processed (basic culling)
-- [ ] Different tile types show different colors
-- [ ] Wireframe mode draws tile boundaries
-- [ ] Flat color mode fills tiles
-- [ ] get_tile_at_world() returns correct tile
+- terrain.init() accepts W3E data
+- Tiles render at correct world positions
+- Only visible tiles are processed (basic culling)
+- Different tile types show different colors
+- Wireframe mode draws tile boundaries
+- Flat color mode fills tiles
+- get_tile_at_world() returns correct tile
 
 ---
 
-## Notes
+### Notes
 
 This is the foundation of the visual map. Everything else renders on top of terrain.
 
@@ -143,7 +180,7 @@ tile = {
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502-implement-terrain-rendering.md (parent)
 - issues/105-parse-war3map-w3e.md (terrain data source)

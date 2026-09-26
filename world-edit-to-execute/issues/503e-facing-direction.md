@@ -3,17 +3,53 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 503
 **Priority:** Low
-**Dependencies:** 503a
+**Dependencies:** 501 (the page format)
+**Re-cut:** 2026-09-26, from "Facing Direction"
 
 ---
 
 ## Current Behavior
 
+Facing is worked out and stored but never drawn. Movement sets each
+slot's `facing` (`src/render/main.c`, around line 1090, from the direction
+of travel), and the bridge can set it (`render.set_rotation`,
+`src/render/bridge.c`), but the drawing code never reads the field: every
+placeholder shape faces the same way.
+
+## Intended Behavior
+
+Every unit is drawn turned to its facing: a model (516) rotated about its
+upright axis; a placeholder shape likewise, with a small mark at its front
+so a round shape shows which way it faces. Buildings don't turn. Facing
+comes from the game state (the runtime's unit facing, as WC3 turns units at
+a set rate), not worked out in the renderer from the last move.
+
+## Suggested Implementation Steps
+
+1. Read `facing` when drawing, and rotate the shape.
+2. A front mark on round placeholders.
+3. Take facing from the runtime's unit state instead of the renderer's own
+   guess.
+
+## Acceptance Criteria
+
+- [ ] Units visibly turn as they change direction
+- [ ] Buildings don't turn
+- [ ] Facing comes from the game state
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Units render as circles/shapes with no indication of facing. Movement direction is not visible.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Visual indicator showing unit facing direction:
 
@@ -65,7 +101,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create facing module**
    - Draw facing indicator given angle
@@ -99,18 +135,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Moving units show facing direction
-- [ ] Facing updates as units turn
-- [ ] Indicator is visible but not obtrusive
-- [ ] Can toggle facing display on/off
-- [ ] Buildings don't show facing
-- [ ] Works at various zoom levels
+- Moving units show facing direction
+- Facing updates as units turn
+- Indicator is visible but not obtrusive
+- Can toggle facing display on/off
+- Buildings don't show facing
+- Works at various zoom levels
 
 ---
 
-## Notes
+### Notes
 
 Facing indicators help players understand unit state, especially:
 - Which direction a unit will attack
@@ -127,7 +163,7 @@ The movement component stores facing angle in radians. This system just reads an
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/503a-core-sprite-system.md (base rendering)
 - issues/404-create-unit-movement-system.md (facing data source)

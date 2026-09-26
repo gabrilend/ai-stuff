@@ -3,17 +3,56 @@
 **Phase:** 5 - Rendering
 **Type:** Feature
 **Priority:** High
-**Dependencies:** 501-create-abstract-render-interface
+**Dependencies:** 508 (completed), 501 (the page format)
+**Blocks:** 509
+**Re-cut:** 2026-09-26, from "Build Sprite/Model Placeholder System"
 
 ---
 
 ## Current Behavior
 
+The vertical slice draws units as one of four placeholder shapes (circle,
+cube, triangle, cylinder) by the slot's `mesh_id`, coloured by team, with a
+ring under selected units (508b, 508e). Real models are planned separately
+(516).
+
+## Intended Behavior
+
+Everything drawn *for* a unit besides its model: the placeholder shape when
+no model can be found or read (516's chooser falls back to these), team
+colour, the selection ring, health bars and facing. Each is a field on the
+unit's page item, drawn by the renderer. The sub-issues:
+
+| ID | What | State |
+|----|------|-------|
+| 503a | placeholder shapes | built; culling open |
+| 503b | a unit type's model, scale and tint from object data | open; feeds 516 |
+| 503c | team colours and selection | built; neutral grey open |
+| 503d | health and mana bars | open |
+| 503e | facing drawn | open; facing is set but not drawn |
+
+## Suggested Implementation Steps
+
+1. 503b first: 516 needs each unit type's model path.
+2. 503e and 503d as fields on the unit item.
+
+## Acceptance Criteria
+
+- [ ] Every unit shows a model or a placeholder, its team colour, selection, health and facing
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Units, buildings, and effects exist as ECS entities with position data, but have no visual representation. The runtime tracks their state without rendering anything.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Placeholder visual system that:
 - Renders units as colored shapes (circles, rectangles)
@@ -44,7 +83,7 @@ Visual Indicators:
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create sprite system module**
    ```lua
@@ -83,7 +122,7 @@ Visual Indicators:
 
 ---
 
-## Design Questions for User
+### Design Questions for User
 
 1. **Placeholder aesthetic?**
    - Geometric (circles, squares)
@@ -107,19 +146,19 @@ Visual Indicators:
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Units render as colored shapes
-- [ ] Player colors distinguish ownership
-- [ ] Selected units have visual indicator
-- [ ] Health bars display correctly
-- [ ] Different unit types look different
-- [ ] Moving units show facing direction
-- [ ] Works with camera zoom
+- Units render as colored shapes
+- Player colors distinguish ownership
+- Selected units have visual indicator
+- Health bars display correctly
+- Different unit types look different
+- Moving units show facing direction
+- Works with camera zoom
 
 ---
 
-## Notes
+### Notes
 
 This is the primary visual feedback for gameplay. Even with placeholder graphics, the game should be playable and understandable.
 
@@ -131,11 +170,11 @@ This is the primary visual feedback for gameplay. Even with placeholder graphics
 
 ---
 
-## Initial Analysis
+### Initial Analysis
 
 **Analysis Date:** 2025-12-29
 
-### Recommendation: SPLIT
+#### Recommendation: SPLIT
 
 This issue has 6 implementation steps with logically distinct visual systems:
 
@@ -147,14 +186,14 @@ This issue has 6 implementation steps with logically distinct visual systems:
 | 503d | health-bars-indicators | 503a | Health/mana bars, status icons, positioning above units |
 | 503e | facing-direction | 503a | Arrow/line showing unit direction, updates with movement |
 
-### Rationale
+#### Rationale
 
 1. **Separable visual features**: Health bars and selection rings are independent systems
 2. **Team colors shared**: The color system is used by both sprites and health bars - extract early
 3. **Facing is optional**: Can ship without facing indicator, add it for polish
 4. **Testable in isolation**: Each visual element can be verified independently
 
-### Execution Order
+#### Execution Order
 
 ```
 503a (core) → 503b (mappings) → 503c (colors + selection)
@@ -164,7 +203,7 @@ This issue has 6 implementation steps with logically distinct visual systems:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/501-*.md (render interface)
 - issues/504-*.md (asset loading)
@@ -172,7 +211,7 @@ This issue has 6 implementation steps with logically distinct visual systems:
 
 ---
 
-## Generated Sub-Issues
+### Generated Sub-Issues
 
 *Auto-generated on 2025-12-29 19:39*
 

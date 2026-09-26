@@ -3,17 +3,47 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 506
 **Priority:** Low
-**Dependencies:** 506a, 506c
+**Dependencies:** 506c, 506d, 104 (the map's strings)
+**Re-cut:** 2026-09-26, from "Tooltip System"
 
 ---
 
 ## Current Behavior
 
+No tooltips.
+
+## Intended Behavior
+
+Hovering a button shows its tooltip after a short delay: the title and
+text from object data (`tip`, `ubertip`), with `TRIGSTR_` references
+resolved through the map's string file (104) and WC3's colour codes
+(`|cffRRGGBB`) drawn as colours; costs and cooldown shown as WC3 shows
+them. The tooltip is an element on the page, placed so it stays on screen.
+
+## Suggested Implementation Steps
+
+1. Delay and placement.
+2. Text from object data and strings, with colour codes.
+3. Costs and cooldown.
+
+## Acceptance Criteria
+
+- [ ] A test unit's ability tooltips show their text with colours
+- [ ] Tooltips stay on screen
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No tooltips. Players cannot see detailed information about abilities, items, or units on hover.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Hover-triggered tooltip system:
 
@@ -195,7 +225,7 @@ return tooltip_manager
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create Tooltip component**
    - Panel with title, description, hotkey, stats
@@ -225,18 +255,18 @@ return tooltip_manager
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Tooltip appears after hover delay
-- [ ] Tooltip disappears on mouse move
-- [ ] Tooltip stays on screen
-- [ ] Title renders in gold
-- [ ] Hotkey renders in blue
-- [ ] Stats render in green
+- Tooltip appears after hover delay
+- Tooltip disappears on mouse move
+- Tooltip stays on screen
+- Title renders in gold
+- Hotkey renders in blue
+- Stats render in green
 
 ---
 
-## Notes
+### Notes
 
 Tooltips provide crucial information without cluttering the UI. They should be informative but not intrusive.
 
@@ -260,7 +290,7 @@ Cooldown: 8 seconds
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506a-ui-component-system.md (base component)
 - issues/506c-input-handling.md (hover detection)

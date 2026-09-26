@@ -4,16 +4,46 @@
 **Type:** Sub-Issue of 506
 **Priority:** High
 **Dependencies:** 506a
+**Blocks:** 506c, 506d
+**Re-cut:** 2026-09-26, from "Layout System"
 
 ---
 
 ## Current Behavior
 
+`src/render/ui.c` places its panels from the screen size each frame.
+
+## Intended Behavior
+
+Each element is anchored to a corner, edge or centre of its parent, with
+offsets and a size; when the window changes size, anchors are resolved to
+screen rectangles once and kept. WC3's console proportions (the bottom
+console's fixed layout at 4:3, stretched sides on wider screens) are the
+default layout.
+
+## Suggested Implementation Steps
+
+1. Anchors and offsets; resolution on resize.
+2. The console's default layout.
+
+## Acceptance Criteria
+
+- [ ] Layout is recomputed on resize only
+- [ ] The console keeps WC3's layout at 4:3 and at wide sizes
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No layout system. Components would need manual pixel positioning with no adaptation to screen size.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Anchoring and positioning system for responsive UI:
 
@@ -138,7 +168,7 @@ return layout
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define anchor points**
    - 9 standard anchors (corners, edges, center)
@@ -171,19 +201,19 @@ return layout
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Anchor positioning works for all 9 points
-- [ ] Percent sizing relative to parent
-- [ ] Fill sizing respects margins
-- [ ] Horizontal layout distributes children
-- [ ] Vertical layout stacks children
-- [ ] Grid layout arranges in rows/columns
-- [ ] Screen resize updates all layouts
+- Anchor positioning works for all 9 points
+- Percent sizing relative to parent
+- Fill sizing respects margins
+- Horizontal layout distributes children
+- Vertical layout stacks children
+- Grid layout arranges in rows/columns
+- Screen resize updates all layouts
 
 ---
 
-## Notes
+### Notes
 
 Layout should be recalculated lazily, not every frame. Only recalc when dirty.
 
@@ -196,7 +226,7 @@ Layout should be recalculated lazily, not every frame. Only recalc when dirty.
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506a-ui-component-system.md (base component)
 - issues/506-build-ui-framework.md (parent issue)

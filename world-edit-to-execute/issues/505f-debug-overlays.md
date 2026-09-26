@@ -3,17 +3,51 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 505
 **Priority:** Low
-**Dependencies:** 505b
+**Dependencies:** 501 (the page format)
+**Re-cut:** 2026-09-26, from "Debug Overlays" (the frame-time overlay is built: 511)
 
 ---
 
 ## Current Behavior
 
+The profiler overlay (F3, `src/render/profiler.c`, issue 511) shows frame
+and per-thread timing, and a debug readout is drawn on screen
+(`src/render/main.c`). Nothing shows pathing, collision or ids.
+
+## Intended Behavior
+
+Overlays switched by keys, each an item kind on the page:
+- the pathing map (walkable, flyable, buildable cells) from the map's
+  pathing data;
+- collision shapes of units;
+- entity ids over units;
+- each unit's current path (from pathfinding, 403) and the crowd's
+  give-way decisions (405f).
+
+## Suggested Implementation Steps
+
+1. The pathing map overlay.
+2. Collision shapes and ids.
+3. Paths and crowd decisions.
+
+## Acceptance Criteria
+
+- [ ] Each overlay toggles with its own key
+- [ ] The pathing overlay matches the map's pathing data
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No debug visualization. Developers cannot see pathfinding grids, collision shapes, or performance metrics.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Toggle-able debug overlays:
 
@@ -65,7 +99,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Implement FPS counter**
    - Calculate frame rate
@@ -99,18 +133,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] FPS counter displays and updates
-- [ ] Pathing overlay shows walkable tiles
-- [ ] Collision shapes visible when enabled
-- [ ] Entity IDs appear above units
-- [ ] Overlays can be toggled on/off
-- [ ] Overlays don't significantly impact performance
+- FPS counter displays and updates
+- Pathing overlay shows walkable tiles
+- Collision shapes visible when enabled
+- Entity IDs appear above units
+- Overlays can be toggled on/off
+- Overlays don't significantly impact performance
 
 ---
 
-## Notes
+### Notes
 
 Debug overlays are essential for development but should be easily hidden for normal play.
 
@@ -124,7 +158,7 @@ F-keys for debug toggles:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/505b-wire-render-systems.md (renders after game)
 - issues/403-implement-basic-pathfinding.md (pathing data)

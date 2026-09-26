@@ -3,17 +3,52 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 503
 **Priority:** High
-**Dependencies:** 503a
+**Dependencies:** 110 (object data), 112 (stock tables)
+**Blocks:** 516 (the model chooser needs each unit type's model path)
+**Re-cut:** 2026-09-26, from "Unit Visual Mappings"
 
 ---
 
 ## Current Behavior
 
+A unit's placeholder shape and size are set by the demo scripts, not from
+the map. Nothing reads a unit type's art fields.
+
+## Intended Behavior
+
+For each unit type on a map, its visual fields read from object data, the
+map's own changes over the stock row (112): the model path (`umdl`), scale
+(`usca`), tint (`uclr`, `uclg`, `uclb`), selection circle size (`ussc`),
+and whether it is a building. The result, one row per unit type, is what
+516's chooser looks up a model by, and what 503a falls back on: a building
+gets a cube, a flyer a triangle, the rest by selection size. This replaces
+the January plan's hand-made table of sizes and colours.
+
+## Suggested Implementation Steps
+
+1. Read the art fields for every unit type through 112's merged rows.
+2. Hand them to the renderer at map load, with each unit's type.
+3. Choose the placeholder shape from them.
+
+## Acceptance Criteria
+
+- [ ] Every unit type on a test map has its model path, scale and tint from object data
+- [ ] A map's changed scale or tint shows in game
+- [ ] Placeholder shapes follow building, flyer and size
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No mapping between WC3 unit type IDs and visual representations.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Map WC3 unit types to placeholder visuals:
 
@@ -64,7 +99,7 @@ local RACE_COLORS = {
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define size categories**
    - Map descriptive names to pixel sizes
@@ -100,18 +135,18 @@ local RACE_COLORS = {
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Common Human units have mappings
-- [ ] Common Orc units have mappings
-- [ ] Unknown units get default visuals
-- [ ] Size categories produce correct sizes
-- [ ] Heroes are visually distinct
-- [ ] Buildings render as rectangles
+- Common Human units have mappings
+- Common Orc units have mappings
+- Unknown units get default visuals
+- Size categories produce correct sizes
+- Heroes are visually distinct
+- Buildings render as rectangles
 
 ---
 
-## Notes
+### Notes
 
 The WC3 unit ID format:
 - 4 characters
@@ -123,7 +158,7 @@ This mapping can be expanded as needed. Start with common units, add more over t
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/503a-core-sprite-system.md (uses these mappings)
 - src/runtime/ecs/wc3_components.lua (unit type IDs)

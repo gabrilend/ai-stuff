@@ -4,8 +4,13 @@
 **Type:** Sub-Issue of 501
 **Priority:** Critical
 **Dependencies:** None
+**Status:** Retired 2026-09-26, moved to `issues/superseded/`
 
 ---
+
+> **Why retired.** It defined a Lua renderer interface for swappable backends (terminal, SDL, LÖVE). The vertical slice (508) set a different split: C owns the window and draws, and Lua never draws but writes render slots (`src/render/slots.h`) through a bridge; the ceramic path (515) replaces the slots with a page that C boxes build each frame. The owner agreed to retire this on 2026-09-26. The contract between game and renderer is the slot layout today and the page format later (issue 501, re-cut).
+> The design below is kept as the record.
+
 
 ## Current Behavior
 

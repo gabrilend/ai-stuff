@@ -3,17 +3,57 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 501
 **Priority:** High
-**Dependencies:** 501a
+**Dependencies:** 508 (completed)
+**Blocks:** 505c (camera controls), 507d (the minimap's viewport box), 502e, 506, 507, 507a
+**Re-cut:** 2026-09-26, from "Implement Camera System"
 
 ---
 
 ## Current Behavior
 
+The renderer uses a raylib 3D camera fixed at (8, 6, 8) looking at the
+origin (`src/render/main.c`, around line 1299). Picking casts a ray from
+the mouse through it (`src/render/input.c`). There is no camera state
+beyond that: no position the game knows, no zoom, no limits from the map.
+
+## Intended Behavior
+
+The camera model, in C beside the renderer: where it looks (a point on the
+ground), its height and pitch, WC3's default angle, zoom limits, and the
+map's camera bounds read from `war3map.w3i`. It answers two questions the
+rest need: which world point is under a screen point (picking, minimap
+clicks), and which ground rectangle is in view (terrain culling 502e, the
+minimap's viewport box 507d). The camera is renderer state: input moves it
+(505c), and the game never writes it except through trigger natives that
+set the camera (Phase 3's camera natives, when they are wired to the
+renderer).
+
+## Suggested Implementation Steps
+
+1. A camera struct: target point, distance, pitch, yaw, zoom limits, bounds.
+2. Screen point to ground point, and ground rectangle in view.
+3. The map's bounds from `war3map.w3i` applied on load.
+4. Tests: known camera, known screen points give known ground points.
+
+## Acceptance Criteria
+
+- [ ] The camera starts at the map's start location, at WC3's default angle
+- [ ] Screen-to-ground and view-rectangle answers are tested
+- [ ] The camera can't leave the map's camera bounds
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No camera abstraction exists. World coordinates cannot be converted to screen coordinates, and there's no way to pan or zoom the view.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Camera system for viewport management:
 
@@ -68,7 +108,7 @@ ZOOM_DEFAULT = 1.0 -- Normal gameplay
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create camera module**
    ```lua
@@ -113,19 +153,19 @@ ZOOM_DEFAULT = 1.0 -- Normal gameplay
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] world_to_screen() correctly converts coordinates
-- [ ] screen_to_world() is inverse of world_to_screen()
-- [ ] Zoom affects coordinate conversion correctly
-- [ ] Camera respects bounds when set
-- [ ] Smooth movement interpolates properly
-- [ ] get_visible_bounds() returns correct world rectangle
-- [ ] Unit tests for coordinate math
+- world_to_screen() correctly converts coordinates
+- screen_to_world() is inverse of world_to_screen()
+- Zoom affects coordinate conversion correctly
+- Camera respects bounds when set
+- Smooth movement interpolates properly
+- get_visible_bounds() returns correct world rectangle
+- Unit tests for coordinate math
 
 ---
 
-## Notes
+### Notes
 
 The camera is central to the player experience. Edge panning, smooth following, and proper bounds make the game feel polished.
 
@@ -138,7 +178,7 @@ The camera is central to the player experience. Edge panning, smooth following, 
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/501a-define-renderer-interface.md (renderer uses camera)
 - issues/505c-game-view-camera.md (integrates camera with input)

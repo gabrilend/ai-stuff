@@ -3,17 +3,44 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** Medium
-**Dependencies:** 507a, 507b, 507c, 507d
+**Dependencies:** 507a, 505c (camera controls), 506c (interface input)
+**Re-cut:** 2026-09-26, from "Minimap Interaction"
 
 ---
 
 ## Current Behavior
 
+No minimap.
+
+## Intended Behavior
+
+Left-click or drag on the minimap moves the camera there; right-click
+gives the selected units a move (or smart) order to that point, through
+the runtime's order system, as WC3 does.
+
+## Suggested Implementation Steps
+
+1. Click and drag move the camera.
+2. Right-click orders.
+
+## Acceptance Criteria
+
+- [ ] Clicking and dragging move the view
+- [ ] Right-click sends selected units there
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Minimap is display-only. Players cannot click to move camera or issue commands.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Interactive minimap with click and drag support:
 
@@ -122,7 +149,7 @@ return interaction
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Implement left-click camera move**
    - Click anywhere on minimap
@@ -155,18 +182,18 @@ return interaction
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Left-click moves camera to location
-- [ ] Right-click issues move order
-- [ ] Left-drag pans camera smoothly
-- [ ] Right-drag + release does attack-move
-- [ ] Alt-click creates ping
-- [ ] Clicks outside minimap pass through
+- Left-click moves camera to location
+- Right-click issues move order
+- Left-drag pans camera smoothly
+- Right-drag + release does attack-move
+- Alt-click creates ping
+- Clicks outside minimap pass through
 
 ---
 
-## Notes
+### Notes
 
 Minimap interaction is critical for fast gameplay. Must be responsive and predictable.
 
@@ -182,7 +209,7 @@ Ensure minimap interactions only trigger when click is within minimap bounds. Ma
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507a-minimap-module.md (parent component)
 - issues/507d-camera-viewport.md (camera integration)

@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High (every converted custom map needs the stock values under its modified objects)
 **Dependencies:** None open
+**Blocks:** 503b
 **Builds on (completed):** MPQ reader (102), object data parsers (110)
 
 ---

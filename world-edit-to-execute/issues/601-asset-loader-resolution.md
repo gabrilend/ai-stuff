@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** Phase 1 (MPQ parser), Phase 5 (render interface)
+**Blocks:** 602, 604, 605, 606, 608, W03
 
 ---
 

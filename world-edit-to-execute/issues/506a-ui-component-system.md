@@ -3,17 +3,49 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 506
 **Priority:** High
-**Dependencies:** 501a
+**Dependencies:** 501 (the page format)
+**Blocks:** 506b, 506d, 507a
+**Re-cut:** 2026-09-26, from "UI Component System"
 
 ---
 
 ## Current Behavior
 
+`src/render/ui.c` draws its two panels directly; there is no notion of an
+interface element.
+
+## Intended Behavior
+
+An interface element is a flat record on the page, not an object in a
+tree drawn by walking it: a kind (panel, text, button, bar, icon, minimap),
+a screen rectangle, a draw order, a visible flag, a state (normal, hovered,
+pressed, disabled), and its content (text, icon id, fraction). Parent and
+child are kept only for layout (506b); drawing walks a list sorted by
+order. Fields and types go into the page format (501).
+
+## Suggested Implementation Steps
+
+1. The element record in `page.h` and `docs/page-format.md`.
+2. The renderer draws a list of them in order.
+
+## Acceptance Criteria
+
+- [ ] The element record is in the page format with every field's type
+- [ ] `ui.c`'s two panels are drawn from element records
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No UI component system. UI elements would need to be drawn manually without structure or hierarchy.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Base component class with hierarchy, visibility, and update lifecycle:
 
@@ -120,7 +152,7 @@ function Component:on_blur() end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create base Component class**
    - Properties: position, size, visibility, enabled
@@ -154,18 +186,18 @@ function Component:on_blur() end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Component class with position/size properties
-- [ ] Parent/child hierarchy works correctly
-- [ ] Absolute position calculation correct
-- [ ] Hit testing identifies correct component
-- [ ] Lifecycle methods propagate to children
-- [ ] Event callbacks can be overridden
+- Component class with position/size properties
+- Parent/child hierarchy works correctly
+- Absolute position calculation correct
+- Hit testing identifies correct component
+- Lifecycle methods propagate to children
+- Event callbacks can be overridden
 
 ---
 
-## Notes
+### Notes
 
 This is the foundation for all UI elements. Keep it lightweight but extensible.
 
@@ -177,7 +209,7 @@ This is the foundation for all UI elements. Keep it lightweight but extensible.
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506-build-ui-framework.md (parent issue)
 - issues/501a-define-renderer-interface.md (draw calls)

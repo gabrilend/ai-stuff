@@ -27,8 +27,10 @@ backend on the ceramic engine, C boxes building each frame's page, and raylib
 drawing it on one thread. Reading and drawing real WC3 models is planned
 (116, 117, 516). The January plan for a Lua renderer interface with terrain,
 sprite, UI and minimap sub-issues (501-507) was replaced by the vertical
-slice's split (C draws, Lua writes render slots) and waits to be re-cut;
-see `issues/CRITICAL-PATH.md`, question Q-3.
+slice's split (C draws, Lua writes render slots); on 2026-09-26 eight of
+those issues were retired (`issues/superseded/`) and the rest re-cut for the
+page: terrain, unit overlays, camera, interface and minimap, each saying
+what goes into the page and what the renderer draws.
 
 ### ⚡ Architectural Pivot (2026-01-07)
 
@@ -494,13 +496,13 @@ dashboard command under Current Focus.
 | ID | Name | Sub-Issues | Status |
 |----|------|------------|--------|
 | 500 | Dual interface rendering considerations | - | Archived 2026-01-08 (WoW mode) |
-| 501 | Create abstract render interface | 5 (501a-e) | Never built; replaced by the slot split (508); to be re-cut |
-| 502 | Implement terrain rendering | 5 (502a-e) | Colour grid built in 508; heights, water, fog open; to be re-cut |
-| 503 | Build sprite/placeholder system | 5 (503a-e) | Placeholder shapes and team colour built in 508; to be re-cut |
-| 504 | Create asset pack specification | - | Open; overlaps Phase 6 |
-| 505 | Implement default visual mode | 6 (505a-f) | Mostly done by 508; movable camera open; to be re-cut |
-| 506 | Build UI framework | 6 (506a-f) | Open; where it lives is question Q-4 |
-| 507 | Create minimap renderer | 6 (507a-f) | Open; to be re-cut |
+| 501 | The page's format (re-cut) | 501c, 501d kept; 501a, 501b, 501e retired | Re-cut 2026-09-26: the page format, a headless renderer, the camera model |
+| 502 | Terrain rendering | 5 (502a-e) | Re-cut 2026-09-26: built once per map as chunk meshes; colour grid built (508), heights, water, fog, chunking open |
+| 503 | Everything drawn for a unit besides its model | 5 (503a-e) | Re-cut 2026-09-26: shapes and team colour built (508); model paths from object data, health bars, facing open |
+| 504 | The model-override file's format | - | Re-cut 2026-09-26 (was: asset pack specification) |
+| 505 | Implement default visual mode | 505c, 505f kept; the rest retired | Retired 2026-09-26: built by 508 instead; camera controls (505c) and debug overlays (505f) re-cut |
+| 506 | WC3's game interface | 6 (506a-f) | Re-cut 2026-09-26: interface elements as items on the page (question Q-4 confirms) |
+| 507 | Minimap | 6 (507a-f) | Re-cut 2026-09-26: terrain picture made once, dots and view box per frame |
 | 508 | Vertical slice testing room | 9 (508a-i) | **Completed** |
 | 509 | Player-customizable visual effects | 5 planned (509a-e) | Open |
 | 510 | Dual perspective camera system | 5 (510a-e) | Archived 2026-01-08 (WoW mode) |

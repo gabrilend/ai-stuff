@@ -3,17 +3,49 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 505
 **Priority:** High
-**Dependencies:** 505b, 501d
+**Dependencies:** 501d (the camera model)
+**Blocks:** 507e
+**Re-cut:** 2026-09-26, from "Game View Camera"
 
 ---
 
 ## Current Behavior
 
+The camera doesn't move (`src/render/main.c`, fixed at (8, 6, 8)). The
+vertical slice left panning and zoom out (508d).
+
+## Intended Behavior
+
+WC3's camera controls on 501d's camera: the view pans when the mouse is at
+a screen edge and with the arrow keys; the wheel zooms within limits; a key
+returns to the selected unit; clicking the minimap moves the view (507e).
+Speeds as WC3's defaults.
+
+## Suggested Implementation Steps
+
+1. Edge and arrow-key panning.
+2. Wheel zoom.
+3. Jump to the selected unit.
+
+## Acceptance Criteria
+
+- [ ] Edge panning and arrow keys move the view within the map's bounds
+- [ ] The wheel zooms within limits
+- [ ] A key centres the view on the selection
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Camera exists (501d) but is not connected to input controls. No way for player to navigate the map.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Integrate camera with input for map navigation:
 
@@ -60,7 +92,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Implement edge panning**
    - Detect mouse near screen edges
@@ -92,18 +124,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Edge panning works
-- [ ] Arrow keys pan camera
-- [ ] Mouse wheel zooms
-- [ ] Camera respects map bounds
-- [ ] Smooth camera movement
-- [ ] Zoom toward cursor position
+- Edge panning works
+- Arrow keys pan camera
+- Mouse wheel zooms
+- Camera respects map bounds
+- Smooth camera movement
+- Zoom toward cursor position
 
 ---
 
-## Notes
+### Notes
 
 Camera controls must feel responsive and predictable. Sluggish or erratic camera is frustrating.
 
@@ -115,7 +147,7 @@ Camera controls must feel responsive and predictable. Sluggish or erratic camera
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/501d-implement-camera-system.md (camera logic)
 - issues/505b-wire-render-systems.md (camera used here)
