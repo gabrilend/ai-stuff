@@ -23,6 +23,18 @@ the core engine and to improve soramech itself through its first graphical
 program, while "paying special attention to Raylib's single-threaded render
 thread nature".
 
+**Measured so far (515a, 515g):**
+- **Box size.** Per-frame work must be handed in to the task queue in
+  chunks (8 to 64 units a task) or as one batch per frame. One task per
+  unit, handed in one at a time, costs half a frame on the stock engine.
+- **The engine copy.** The kept copy in `src/render/ceramic/engine/` hands
+  work in without a lock, counts collected results after they land, hands a
+  frame in as one batch (`cera_map_deliver_arguments`), and wakes only
+  sleeping workers. 515b builds on this copy.
+- **The benchmark.** A hand-written loop whose threads take work from a
+  shared counter is the fastest way measured, about a tenth faster than the
+  engine's best. That's the floor the ceramic path is measured against.
+
 ## Intended Behavior
 
 A second, experimental render path, which draws the same scene as the current

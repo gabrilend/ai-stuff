@@ -460,6 +460,14 @@ Phase 2 & 3 Complete
 | 512d | Convergence detection | Pending | 512a |
 | 512f | v2 threading migration | **Completed** | 508a |
 | **513** | **Threading architecture demo** | **Completed** | 512f |
+| **515** | **Render graph on the ceramic engine** | **In progress** | 508, 512 |
+| 515a | Copy-cost benchmark and performance analysis | **Completed** | None |
+| 515g | Lock-free task queue in a kept copy of the engine | **Completed** (delivered to soramech as its note 152) | 515a |
+| 515b | Ceramic host loop | Pending | 515a, 515g |
+| 515c | Mailbox triple buffer | Pending | 515b |
+| 515d | Extrapolate, predict, snap | Pending | 515c |
+| 515e | Growing asset table | Pending | 515b |
+| 515f | Measured against the pool | Pending | 515c, 515d, 515e |
 
 ### Dependency Graph
 

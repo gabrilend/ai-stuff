@@ -21,7 +21,15 @@
  * frames, then per-frame microseconds (mean, 50th / 95th / 99th percentile,
  * worst), the mean time delivering, the mean landing wait, the checksum.
  *
- * Usage: ./analysis VARIANT UNITS FRAMES WORKERS
+ * Usage: ./analysis VARIANT UNITS FRAMES WORKERS [batch]
+ *   batch  hand each frame's requests in to the task queue in one call
+ *          (cera_map_deliver_arguments), which only the kept engine copy
+ *          has (issue 515g); the way is reported with "+batch"
+ * Environment: ANALYSIS_TRUST_COUNT=1 skips the landing wait and trusts
+ *   the engine's count of collected results, as a caller should be able
+ *   to; the way is reported with "+trust". On the kept copy the checksums
+ *   must still agree (its count rises after the copy); on the stock
+ *   engine they may not.
  */
 #include <sched.h>
 #include <stdint.h>
@@ -93,10 +101,16 @@ static void wait_until_landed(cera_pool_t *pool, int workers)
 /* {{{ int main(int argc, char **argv) */
 int main(int argc, char **argv)
 {
-    if (argc != 5) {
-        fprintf(stderr, "usage: %s VARIANT UNITS FRAMES WORKERS\n", argv[0]);
+    if (argc != 5 && !(argc == 6 && strcmp(argv[5], "batch") == 0)) {
+        fprintf(stderr, "usage: %s VARIANT UNITS FRAMES WORKERS [batch]\n", argv[0]);
         return 64;
     }
+    int batch = argc == 6;
+#ifndef CERA_FORK_TASK_QUEUE
+    if (batch) { fprintf(stderr, "batch hand-in needs the kept engine copy (issue 515g)\n"); return 64; }
+#endif
+    const char *trust_env = getenv("ANALYSIS_TRUST_COUNT");
+    int trust = trust_env && strcmp(trust_env, "1") == 0;
     int units = atoi(argv[2]), frames = atoi(argv[3]), workers = atoi(argv[4]);
     int vi = -1;
     for (int i = 0; i < N_VARIANTS; i++)
@@ -122,7 +136,10 @@ int main(int argc, char **argv)
     int per_frame = units / v->per;
     char *landing = malloc((size_t)per_frame * v->size);
     double *took = malloc(sizeof *took * (size_t)frames);
-    if (!landing || !took) { fprintf(stderr, "no memory\n"); return 71; }
+    /* the frame's requests, built up front when handing in as one batch */
+    size_t request_size = v->request == REQ_UNIT ? sizeof(pose_request) : sizeof(chunk_request);
+    char *requests = malloc((size_t)per_frame * request_size);
+    if (!landing || !took || !requests) { fprintf(stderr, "no memory\n"); return 71; }
     must(cera_map_collect(m, out_at, out_port, landing, per_frame, (int)v->size), "the landing");
     cera_pool_release(m->pool);
 
@@ -133,19 +150,33 @@ int main(int argc, char **argv)
         double start = now_us();
         /* re-armed only now: the whole previous frame has landed */
         if (f > 0) must(cera_map_collect(m, out_at, out_port, landing, per_frame, (int)v->size), "a frame's landing");
-        for (int i = 0; i < per_frame; i++) {
-            if (v->request == REQ_UNIT) {
-                pose_request r = { i, t };
-                must(cera_map_deliver_argument(m, in_at, in_port, &r, sizeof r), "a request");
-            } else {
-                chunk_request r = { i * v->per, t };
-                must(cera_map_deliver_argument(m, in_at, in_port, &r, sizeof r), "a request");
+        /* Two paths: one hand-in per request, or (batch) every request
+         * built first and handed in to the task queue in one call. */
+        if (batch) {
+            for (int i = 0; i < per_frame; i++) {
+                if (v->request == REQ_UNIT) ((pose_request *)requests)[i] = (pose_request){ i, t };
+                else ((chunk_request *)requests)[i] = (chunk_request){ i * v->per, t };
+            }
+#ifdef CERA_FORK_TASK_QUEUE
+            must(cera_map_deliver_arguments(m, in_at, in_port, requests, per_frame, (int)request_size), "a frame's requests");
+#endif
+        } else {
+            for (int i = 0; i < per_frame; i++) {
+                if (v->request == REQ_UNIT) {
+                    pose_request r = { i, t };
+                    must(cera_map_deliver_argument(m, in_at, in_port, &r, sizeof r), "a request");
+                } else {
+                    chunk_request r = { i * v->per, t };
+                    must(cera_map_deliver_argument(m, in_at, in_port, &r, sizeof r), "a request");
+                }
             }
         }
         double delivered = now_us();
         while (cera_map_collected(m, out_at, out_port) < per_frame) sched_yield();
         double counted = now_us();
-        wait_until_landed(m->pool, workers);
+        /* The workaround for the stock engine's early count, unless this
+         * run is checking that the count can be trusted. */
+        if (!trust) wait_until_landed(m->pool, workers);
         double end = now_us();
         took[f] = end - start;
         delivering += delivered - start;
@@ -163,13 +194,16 @@ int main(int argc, char **argv)
     for (int f = 0; f < frames; f++) total += took[f];
     qsort(took, (size_t)frames, sizeof *took, by_value);
 #define PCT(q) took[(int)((frames - 1) * (q))]
-    printf("%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%08x\n", v->name, units, v->per, workers, frames,
+    char way[96];
+    snprintf(way, sizeof way, "%s%s%s", v->name, batch ? "+batch" : "", trust ? "+trust" : "");
+    printf("%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%08x\n", way, units, v->per, workers, frames,
            total / frames, PCT(0.50), PCT(0.95), PCT(0.99), took[frames - 1], delivering / frames, landing_wait / frames,
            v->result == RES_NONE ? 0u : check);
     cera_pool_submitter_unregister(m->pool);
     cera_pool_join(m->pool);
     free(landing);
     free(took);
+    free(requests);
     cera_map_destroy(m);
     return 0;
 }

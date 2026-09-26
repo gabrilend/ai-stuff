@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 17:01:25
+Generated on: 2026-09-25 17:59:32
 Models: claude-opus-5-5
 
 ## Contents
@@ -138,6 +138,10 @@ Models: claude-opus-5-5
     the low-latency, show-the-truth design is settled. Next, with your go-ahead,
     I'll write it into a new rendering issue, starting with a copy-cost
     benchmark.
+32. 2026-09-25 17:04, after Request 67 - We're building the renderer on the
+    ceramic engine, and I've just published its performance case study to your
+    page and the soramech repository. Next, I need your yes to write up the
+    queue fixes there as an implementation note and issues.
 
 --------------------------------------------------------------------------------
 
@@ -6807,6 +6811,212 @@ Recommended order, smallest first, each measured by the harness we now have:
 
 These are soramech changes. Should I write them up there as an implementation
 note, then as issues?
+
+--------------------------------------------------------------------------------
+
+### User Request 68
+
+So I know this task is for testing the ceramic engine, but... couldn't skeleton
+poses be done on the graphics card more easily than the CPU? It's a rotation,
+then a matrix multiply, which sounds like something the GPU is designed for.
+
+I'm confused, how the heck is a pose 2 whole kilobytes? Isn't it just like, an
+ID for each joint, and a coordinate for each of them, plus a rotation? So a
+quaternion?
+
+I think if we expand this chart to the right a bit more:
+
+How many units one task should cover
+
+we might be able to discover some interesting behavior. Exploratorily.
+
+we should make sure we qualify where we're "handing things in" to -
+specifically, the task queue, but the reader might not pick up on that, so we
+need to reinforce it consistently.
+
+we should expand this chart as well, I'm curious what happens:
+
+What an answer's size costs
+
+for this one:
+
+Steadiness
+
+can we add more ceramic batch values? Not just 16 and 64, but all of them. I
+wanna see what happens.
+
+as for the ceramic design, I'm glad we're picking option 2. It's conceptually
+simpler, and I think we already have this pattern built - when we're writing an
+output value to an input port, we have an array that stores which slot we want
+to reserve. It's just an integer I think, and there's like 3 or 4 values but I
+forget what they are. Can you find that and see if it would map well to the task
+queue as well?
+
+> - Batched reservation. "Reserve k slots" is one atomic add, so the host hands
+> in a frame's worth
+>     of tasks at once.
+
+explain how we'd implement this?
+
+> These are soramech changes. Should I write them up there as an implementation
+> note, then as
+  issues?
+
+build the implementation here. Add a blocker to completing the issue that we
+should test and see how it goes, then either deliver a report on it's
+effectiveness to the ceramic-core-engine project if it doesn't work out, or
+deliver design schematics if it proves useful, with explanations about our
+use-case so we can see if it's a pattern worth being made permanent.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 68
+
+> Several parts. The answers to your questions come at the end. The work comes
+> first, because one of your questions (the slot pattern) decides the design:
+> 1. an issue for the new queue, with the test-then-report blocker;
+> 2. read the engine's input-port slot states and its task queue;
+> 3. build the new queue in our own copy of the engine;
+> 4. widen the three sweeps and the steadiness chart;
+> 5. qualify "handing in" everywhere as "handing in to the task queue".
+>
+> First, the slot pattern you remembered:
+
+> Everything is contained in one small region of `cera.c`, plus the collection
+> counter. One last look: where a delivery turns into a queue push, which is
+> where batching hooks in:
+
+> The validator wants both sides of each link. Adding "Blocks" to 515a and
+> re-checking:
+
+> Links are clean. Now the fork: copy the engine from its source, recording
+> which soramech commit it came from:
+
+> The fork's starting point is byte-for-byte soramech's commit `059487d`. I'll
+> commit the untouched copy first, so every change after it shows as a readable
+> diff:
+
+> Now the changes. I need the pool section's opening (its constants and the
+> design notes above the struct) before rewriting it:
+
+> Part 2: the worker loop, plus the small places that read `stop`, `sleeping` or
+> the old ring:
+
+> Now the header (the new counter, and three new calls) and the map-level
+> batched hand-in:
+
+> It compiles cleanly with every warning switched on. Checking that the new
+> function landed between folds rather than inside one:
+
+> 35 of 37 pass. The first failure is expected: the test demands that the queue
+> grows, and the fixed ring doesn't by design, so it goes in the report. The
+> second needs a look:
+
+> The stock engine also fails this test when run from a copy, with different
+> checks failing, maybe because its build wasn't complete. To settle it
+> properly, the stock copy's full suite:
+
+> Fixing two mistakes before running: a nonsense expression in the seeding test,
+> and children spawning out of bounds there. Children should spawn only during
+> the first test:
+
+> The stress test passed 10 of 10. ThreadSanitizer isn't installed for gcc here
+> (no `libtsan`); trying clang's:
+
+> ThreadSanitizer reports **no data races** across two million tasks, including
+> the ring being full nearly the whole time, and every check passes. Re-running
+> soramech's suite against the updated fork:
+
+> The shell tests default to the *real* repository's path (their convention
+> takes a directory argument). Re-running them pointed at the scratch copy:
+
+> `make all` doesn't build serac; only `make test` and `make serac` do. Building
+> it, then re-running the compiler test:
+
+> 44 pass. Of the 4 failures, two are already explained (the growth test, and
+> the location-dependent late-box test). The two viewer tests are new. Checking
+> them on the stock copy:
+
+> A real regression: the stock engine passes both viewer tests and the fork
+> fails them. The fork's "program to watch did not stay up", so it's ending
+> early or crashing. Running that program directly:
+
+> It builds cleanly; my earlier rebuild simply hadn't made it. Running the two
+> viewer tests on the fork again:
+
+> Run directly, the program stays up and works (it was stopped by my timeout).
+> So the test is failing somewhere else. Its full output:
+
+> Now it's the viewer failing to stay up, not the program. The stock and fork
+> copies use the same port, so a viewer left over from an earlier run may be
+> holding it:
+
+> Nothing is holding the port now. Running the fork's viewer by hand to see why
+> it exits:
+
+> Also never built: my rebuild evidently doesn't make every target. I'll build
+> the viewer explicitly and run both tests:
+
+> Now the runner. It builds the analysis program twice, once against each
+> engine, and runs the widened sweeps:
+
+> A quick smoke test before the long run: build everything, and run only the
+> landing sweep for 20 frames. That exercises the fork end to end and the
+> trust-the-count check:
+
+> The engine tests still pass. The full run starts now in the background (about
+> 15 minutes). While it runs I'll check the queue test once with spinning on,
+> then work on the report and page:
+
+> Part b: the charts learn the new data (the shared-counter loop, K up to 2,048,
+> every chunk size on steadiness), and the new closing section is added:
+
+> Part c: the new section, "Taking the lock out", after the findings:
+
+> While the run continues, the markdown report needs two fixes: its chunk table
+> would print the shared-counter rows as if they were ceramic, and it needs
+> sections for the fork's sweeps.
+
+> Next, the fork's notes file and the `.info.md` files for the new test
+> programs:
+
+> The remaining sweeps (army, herd, batch, spin, landing) are still running;
+> I'll continue when they finish.
+
+The full measurement run is still going (it's on the army sweep; herd, batch,
+spin and landing are left). I'll pick up automatically when it finishes,
+regenerate the report and page, and send the numbers.
+
+Done so far this turn:
+- **Lock-free task queue built** in a kept copy of the engine
+  (`src/render/ceramic/engine/`). It reuses the engine's own four-state slot
+  pattern (empty → reserved → ready → claimed). It adds batched hand-in to
+  the task queue, wakes only sleeping workers, and has optional spinning.
+  Collected results are now counted after they're copied in.
+- **Tested:**
+  - a million tasks each ran exactly once, on a normal ring and on a 16-slot
+    ring that's full nearly all the time;
+  - ThreadSanitizer reported no data races;
+  - soramech's own suite passes 46 of 48 against the copy. The two failures: one
+    test requires the queue to grow, which this ring doesn't by design; the
+    other depends on where the tree lives and fails the same way on the stock
+    engine.
+- **Early results** (one unit per task, 11 workers):
+
+| Engine | Frame time |
+|---|---|
+| Stock | ~10 ms |
+| Lock-free copy | ~7 ms |
+| Batched hand-in | ~1.1 ms |
+| Spinning | ~1.1 ms |
+
+  Most of what the lock-free copy still spends is waking sleeping workers;
+  batching and spinning both remove that.
+- **Your fairness point:** the hand-written loop gave every thread an *equal*
+  share. There was no extra slice; equal shares just finish at unequal times.
+  Your idea is now in the measurements as a fifth approach, a hand-written loop
+  with a shared counter, where threads take the next run of units until they're
+  gone.
 
 --------------------------------------------------------------------------------
 

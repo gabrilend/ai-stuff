@@ -57,6 +57,7 @@ local lines = {}
 local function w(s) lines[#lines + 1] = s or "" end
 local function f1(x) return string.format("%.1f", x) end
 local function pct(x) return string.format("%.1f%%", 100 * x / FRAME) end
+-- (the scale sweep's rows now include the shared counter; find() picks by way)
 
 -- the checksums: every way that computes poses must agree with the plain loop
 local truth = {}
@@ -107,13 +108,20 @@ end
 w("")
 w("## How many units one task should cover (2048 units, " .. in_sweep("chunk")[1].workers .. " workers)")
 w("")
-w("| Units per task | Tasks per frame | Frame (mean) | 99th percentile | Host delivering |")
-w("|----------------|-----------------|--------------|-----------------|-----------------|")
-for _, r in ipairs(in_sweep("chunk")) do
-    if r.per > 0 then
-        w(string.format("| %d | %d | %s | %s | %s |", r.per, r.units / r.per, f1(r.mean), f1(r.p99), f1(r.deliver)))
-    else
-        w(string.format("| hand-written loop (%d threads) | | %s | %s | |", r.workers, f1(r.mean), f1(r.p99)))
+w("| Way | Units per task | Tasks per frame | Frame (mean) | 99th percentile | Handing in to the task queue |")
+w("|-----|----------------|-----------------|--------------|-----------------|------------------------------|")
+for _, sweep in ipairs({ "chunk", "chunk@fork", "batch", "spin" }) do
+    for _, r in ipairs(in_sweep(sweep)) do
+        -- three kinds of row: a ceramic way (tasks handed in), the shared
+        -- counter (units taken at a time, no queue), a plain or fixed loop
+        local label = (sweep == "chunk" and "" or (sweep .. ": ")) .. r.way
+        if r.way:match("^pose_") then
+            w(string.format("| %s | %d | %d | %s | %s | %s |", label, r.per, r.units / r.per, f1(r.mean), f1(r.p99), f1(r.deliver)))
+        elseif r.way == "counter-loop" then
+            w(string.format("| %s (%d threads) | %d at a time | | %s | %s | |", label, r.workers, r.per, f1(r.mean), f1(r.p99)))
+        else
+            w(string.format("| %s (%d threads) | | | %s | %s | |", label, r.workers, f1(r.mean), f1(r.p99)))
+        end
     end
 end
 -- }}}
@@ -159,6 +167,16 @@ for _, r in ipairs(in_sweep("herd")) do
     end
     assert(one, "no wake-one run to pair with " .. r.way .. " at " .. r.workers .. " workers")
     w(string.format("| %s | %d | %s | %s | %s | %s |", r.way, r.workers, f1(r.mean), f1(r.deliver), f1(one.mean), f1(one.deliver)))
+end
+-- }}}
+
+-- {{{ landing
+w("")
+w("## Landing: the kept copy's count trusted with no workaround wait")
+w("")
+for _, r in ipairs(in_sweep("landing")) do
+    local ok = truth[r.units] and r.check == truth[r.units]
+    w(string.format("- %s, %d units: checksum %s (%s)", r.way, r.units, r.check, ok and "agrees with the one-thread loop" or "**disagrees**"))
 end
 -- }}}
 
