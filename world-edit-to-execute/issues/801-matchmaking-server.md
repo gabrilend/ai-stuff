@@ -56,7 +56,7 @@ A lightweight matchmaking server that:
                    (direct connection)
 ```
 
-**Key Point:** Matchmaking server facilitates discovery and connection, but **game traffic is peer-to-peer** (not relayed through server).
+**Key Point:** Matchmaking server facilitates discovery and connection, but **game traffic goes directly to the host** (not relayed through the matchmaking server). The host's machine runs the one true simulation and every other player is its client: lockstep was dropped with the owner, 2026-09-25 (`docs/wc3-engine-architecture.md`, Multiplayer Strategy).
 
 ---
 

@@ -333,7 +333,7 @@ wc3_natives = {
 - ✅ Resource management
 - ⏳ Combat system (basic damage implemented)
 - ⏳ Ability system (framework exists)
-- ❌ Multiplayer synchronization (deferred)
+- ❌ Multiplayer (deferred; server-authoritative, see Multiplayer Strategy)
 
 **Architecture:**
 
@@ -567,11 +567,23 @@ $ wc3-engine host "path/to/map.w3x" --port 6112
 $ wc3-engine join 192.168.1.100:6112
 ```
 
-**Architecture:**
-- Lockstep synchronization (deterministic simulation)
-- Command protocol (actions only, not state)
-- Host is authoritative for trigger execution
-- Players sync inputs every tick
+**Architecture: one server holds the truth** (decided with the owner,
+2026-09-25; lockstep is dropped):
+- The hosting player's machine (or a dedicated one) runs the simulation.
+  Clients send orders and receive unit states; a client is a renderer.
+- The owner, on lockstep: "let's drop entirely. I see little benefit except
+  for simulation accuracy. If that becomes a concern later, if we want that
+  feature, we can build it then." So clients never need bit-identical
+  arithmetic, and a difference between machines is corrected, not fatal.
+- A client answers its own player's orders at once (prediction) and snaps
+  to the server's corrections. How the renderer draws states that arrive
+  late is issue 515d; the design is issue 515, point 4.
+- Offline, the same simulation plays the server inside the client.
+- **A silent player pauses everyone** (decided 2026-09-25), with a waiting
+  dialog and a countdown before the others vote to drop them, as Warcraft
+  III did. Nothing is rewound. How long a silence is tolerated is each
+  player's slider; the strictest is in force, and everyone sees everyone's. The messages, the pause and the server inside the
+  client are issue 803.
 
 **Future:** Optional relay server for internet play (not Battle.net)
 

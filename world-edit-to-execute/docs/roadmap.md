@@ -638,14 +638,17 @@ Same map, different experience:
 
 9 issues created. Matchmaking server with lobby system, NAT traversal, and asset distribution.
 
-**Focus:** Peer-to-peer connections with matchmaking server for discovery.
+**Focus:** Direct connections to the hosting player's server, with a
+matchmaking server for discovery. The host's machine runs the one true
+simulation; lockstep was dropped (2026-09-25, see
+`docs/wc3-engine-architecture.md`, Multiplayer Strategy).
 
 **Key Features:**
 - Matchmaking server (game listing, lobby system)
 - NAT traversal (UDP hole punching)
 - Asset mirror (distribute community packs)
 - Lobby UI (game browser, pre-game coordination)
-- P2P game connections (not relayed)
+- Direct game connections to the host's server (not relayed)
 
 ### Issue Breakdown
 
@@ -666,10 +669,15 @@ Same map, different experience:
 **Network Architecture:**
 - Client discovers games via matchmaking server
 - NAT traversal establishes direct P2P connections
-- Game traffic flows peer-to-peer (not through server)
+- Game traffic flows directly between each client and the host's server
+  (not through the matchmaking server)
 - Asset packs downloaded from mirror or host
 
-**Future Consideration:** Deterministic simulation (Issue 802+) for actual gameplay networking comes after matchmaking infrastructure.
+**Gameplay networking:** server-authoritative, not lockstep (decided
+2026-09-25). No deterministic simulation across machines is needed. The
+gameplay messages (states, orders, corrections, waiting for a silent
+player) are issue 803, built offline first, the simulation playing the
+server inside the client.
 
 ---
 
