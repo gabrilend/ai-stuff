@@ -27,6 +27,7 @@
 #define BUNDLE_TICKS 25
 #define BUNDLE_GAP 0.3
 #define BUNDLE_KEEP 120
+#define BUNDLE_MOST 40
 #define NUDGE_EVERY 20
 #define NO_PROGRESS_TICKS 1250
 #define PROGRESS 0.25
@@ -278,25 +279,40 @@ static _Thread_local cr_list scratch_near, scratch_near2;
 
 /* {{{ static int overlapping(const cr_crowd *c, const cr_unit *u, double x, double y, cr_view *found) */
 /* The unit a circle of u's size at (x, y) would overlap most deeply; 1
- * and its view in `found`, or 0. */
+ * and its view in `found`, or 0. Reads the neighbours' positions and sizes
+ * where they lie (the snapshot or the units) and copies only the one found:
+ * copying every neighbour's whole view made settling the tick's costliest
+ * serial part. The order of looking is near()'s, so ties go as in Lua. */
 static int overlapping(const cr_crowd *c, const cr_unit *u, double x, double y, cr_view *found)
 {
+    const cr_bucket *buckets = c->deciding ? c->snapped : c->live;
+    int bx = (int)floor(x / c->bucket_size), by = (int)floor(y / c->bucket_size);
     double deepest = 0;
-    int have = 0;
-    near(c, x, y, &scratch_near);
-    for (int j = 0; j < scratch_near.n; j++) {
-        cr_view o;
-        view_of(c, scratch_near.items[j], &o);
-        if (o.id == u->id) continue;
-        double reach = u->radius + o.radius;
-        double dx = o.x - x, dy = o.y - y;
-        double d2 = dx * dx + dy * dy;
-        if (d2 < reach * reach - 1e-9) {
-            double depth = reach - sqrt(d2);
-            if (depth > deepest || (depth == deepest && have && o.id < found->id)) { *found = o; deepest = depth; have = 1; }
+    int have = -1, have_id = 0;
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dy = -1; dy <= 1; dy++) {
+            int k = bucket_index(c, bx + dx, by + dy);
+            if (k < 0) continue;
+            const cr_bucket *b = &buckets[k];
+            for (int j = 0; j < b->n; j++) {
+                int i = b->items[j];
+                double ox, oy, orad;
+                int oid;
+                if (c->deciding) { const cr_record *r = &c->snap[i]; ox = r->x; oy = r->y; orad = r->radius; oid = r->id; }
+                else { const cr_unit *o = &c->units[i]; ox = o->x; oy = o->y; orad = o->radius; oid = o->id; }
+                if (oid == u->id) continue;
+                double reach = u->radius + orad;
+                double ddx = ox - x, ddy = oy - y;
+                double d2 = ddx * ddx + ddy * ddy;
+                if (d2 < reach * reach - 1e-9) {
+                    double depth = reach - sqrt(d2);
+                    if (depth > deepest || (depth == deepest && have >= 0 && oid < have_id)) { have = i; have_id = oid; deepest = depth; }
+                }
+            }
         }
-    }
-    return have;
+    if (have < 0) return 0;
+    view_of(c, have, found);
+    return 1;
 }
 /* }}} */
 /* }}} */
@@ -636,7 +652,7 @@ static void bundle_of(cr_crowd *c, cr_unit *u, const cr_view *o)
         for (int j = 0; j < scratch_near2.n; j++) {
             cr_view b;
             view_of(c, scratch_near2.items[j], &b);
-            if (!seen[b.id] && !b.moving) {
+            if (!seen[b.id] && !b.moving && u->bundle_len + qn < BUNDLE_MOST) {
                 double reach = a.radius + b.radius + BUNDLE_GAP;
                 double dx = a.x - b.x, dy = a.y - b.y;
                 if (dx * dx + dy * dy < reach * reach) {
