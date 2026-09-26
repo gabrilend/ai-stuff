@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 16:41:12
+Generated on: 2026-09-25 17:01:25
 Models: claude-opus-5-5
 
 ## Contents
@@ -6622,6 +6622,191 @@ physical cores. What do you predict if we pinned the engine to **one worker per
 physical core** (6, not 11)? Would chunked tasks get faster or slower, and would
 one-per-task stop collapsing? I have a guess, but the machine can answer it in
 about a minute.
+
+--------------------------------------------------------------------------------
+
+### User Request 66
+
+That analysis looks great. Can we get a bit more background information? Also
+make sure that it's stored in the ceramic-core-engine's repository too, as a
+case study or something that matches what we're showing here. The background
+information should explain up front what our task is, and the differences
+between the four approaches we took. Then we can illustrate the data with charts
+and such, which we already have.
+
+This chart here:
+
+Why one unit per task collapses
+
+the Y value is hard to distinguish until they fork near the end.
+
+Can we make sure that we maintain the same colors for the same case studies? I
+need a bit more of a throughline to follow.
+
+serac documents a --main option it doesn't have, and can't add linker flags.
+
+A program with its own main loop, or one linking raylib, has to emit the map's C
+and compile it by hand.
+
+this isn't relevant to this document. It's important and we should note it in
+the serac documentation or issue files or progress trackers or... something, but
+it doesn't belong here.
+
+> 3. Chunking fixes it. With 8–64 units per task, 2,048 skeletons take 0.67 ms
+> (4% of a 60 fps
+>      frame), and 8,192 take 2.6 ms.
+
+the reason for this is that the tasks take longer than the time wasted waiting
+for an atomic lock on the thread pool?
+
+> 2. Handing tasks in one at a time is the problem. The host and every worker
+> share the engine's
+>      one queue lock:
+
+what's a better solution? maybe, each thread writes to their own queue without
+an atomic lock, and every time they add a task they "enable" a scheduler task
+that doesn't ever go away (persistent tasks seem valuable again, could re-use
+the design pattern maybe), and that scheduler walks through every task list,
+gathers them, then adds them to the main queue in a batch. However it also
+switches which "buffer" the threads write their new tasks into when it starts to
+take from them, so we'll need an atomic lock there which is fine because now
+it's N locks, one of which is active at a time, instead of 1 lock that is active
+always. The scheduler thread is a task like any other, and it's put in the task
+queue. No sense gathering new tasks if there's already tasks in there, right?
+They all gotta get done. But, there's also no sense stopping all work because
+the final task in the task queue is the scheduler, which would always be the
+case, while they wait for the scheduler to gather more tasks for the queue.
+
+So, maybe we just... keep track of how many threads are waiting in the queue,
+and ensure that we keep an accurate track, and then instead of locking the
+ability to add tasks to the task queue, we instead count how many are waiting in
+line, and maybe each of their task sizes, and project forward in the address
+space (ring buffer of course) to find where we should put our next tasks? That
+way we can essentially always be writing a new task to the queue. What do you
+think? Which design makes more sense?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 66
+
+> I'll handle this in three parts:
+> - the page: background up front, one colour per approach throughout, a
+>   readable herd chart, and the serac item moved out;
+> - a case study in the soramech repository, following its conventions, with the
+>   serac finding filed in its own issues;
+> - your queue design question, answered at the end.
+>
+> First, soramech's conventions:
+
+> Soramech's working tree is clean, and its file counter stands at 150. Checking
+> where a serac issue would belong, and how its docs generator treats files:
+
+The rewrite went through (the exit code came from the last check finding zero
+old colour names, which is the desired result). Regenerating, and one look:
+
+--------------------------------------------------------------------------------
+
+### User Request 67
+
+[Image: original 1000x6200, displayed at 323x2000. Multiply coordinates by 3.10
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 67
+
+> The colours now carry through, and the herd chart separates at every point
+> with values labelled. Republishing to the same link:
+
+> Now the written study itself, in the soramech docs' voice:
+
+> Now the table of contents (tree and "by question"), and the serac note in its
+> own issue 910 plus its progress row:
+
+> The renumber checker reports 42 broken mentions. I need to know whether any
+> are mine:
+
+> None of the 42 are mine (the one in the phase-9 page names an older file and
+> was there before). Checking that the docs site picks up the new section:
+
+> The site builds with zero unresolved references, and the case study appears as
+> its own section. Committing to the soramech repository:
+
+> And the page changes in this project:
+
+Both copies are done and committed: [the
+page](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc) (version 2) and a
+matching case study in the soramech repository,
+`docs/case-studies/151-a-renderers-frame.md`.
+- **The page now opens with background.** It explains the task (posing every
+  unit's skeleton inside a 60 fps frame) and the four approaches. It also shows
+  the path one ceramic task takes and defines the terms the charts use.
+- **Each approach keeps one colour on every chart:** grey for one thread, slate
+  for the hand-written loop, brick for ceramic one-per-task, teal for ceramic
+  chunked. Amber always means "handing in", which is a step, not an approach.
+- **The "collapses" chart** now uses a log scale with every value labelled. Its
+  two lines are the same approach in two variants: solid is the engine as it is,
+  dashed is the one-line experiment.
+- **The case study** follows soramech's conventions: number 151 from its
+  counter, a new `case-studies/` section with a README, and the charts and raw
+  data alongside. The table of contents is updated, and the docs site builds
+  with zero broken links.
+- **The serac note moved to where it belongs.** It's now in soramech's compiler
+  issue (910) and its phase-9 progress row, as evidence for that issue's open
+  question, "is `--main=` worth keeping?".
+
+**Why chunking works:** mostly yes, with one correction. The queue lock isn't an
+atomic; it's a mutex. When it's taken, waiting threads go to sleep and must be
+woken by the operating system, which costs microseconds per handover, not
+nanoseconds. Chunking helps in two ways:
+1. A 16-unit task carries about 30 µs of work against a few µs to hand in, so
+   the overhead is a small fraction.
+2. There are 16× fewer hand-ins, so the host and the workers rarely reach the
+   lock at the same moment. An uncontended lock costs about 0.2 µs. What hurt
+   was never the lock itself; it was the crowd at it.
+
+**Your two queue designs.** The second one, reserving your place with a count,
+is the better base, and it links to the bug we found.
+
+What you described is a known structure: a ring where a writer claims a slot
+with one atomic add on the tail ("project forward"). Two refinements:
+- **Slots don't need task sizes.** A slot holds a pointer to the task, so every
+  slot is 8 bytes and "project forward" is just `tail++`.
+- **Reserving a slot and filling it are two separate moments.** A worker that
+  sees a reserved slot must not take it before the writer has finished. That is
+  exactly the engine's collection bug. The standard fix is a sequence number in
+  each slot, set after the pointer is written (the bounded MPMC queue by Dmitry
+  Vyukov). The fix for the landing bug and the lock-free queue are the same
+  repair.
+
+Two more pieces make it complete:
+- **Batched reservation.** "Reserve k slots" is one atomic add, so the host
+  hands in a frame's worth of tasks at once.
+- **Wake only when someone's asleep.** Keep an atomic count of sleeping workers,
+  and make the operating-system wake call only when it's above zero. When all
+  workers are busy, a hand-in makes no call into the operating system at all.
+
+Your first design (per-thread buffers plus a persistent gatherer task) is sound
+but trades latency for fewer locks: a task waits until the gatherer's next pass.
+You spotted its own trap too: the gatherer is always last in the queue, so
+either work pauses for it or it spins. In a renderer, that pass is delay added
+to every frame.
+
+The part of it worth keeping is **one queue per worker**, taken further. Each
+worker pushes new work onto its own queue, and a worker whose queue is empty
+steals from another's. That's work stealing, and it needs no gatherer. It
+matters when *workers* create most of the tasks. In a renderer the host creates
+most of them, so the ring comes first; stealing can come later if one ring's
+head and tail become the hot spot.
+
+Recommended order, smallest first, each measured by the harness we now have:
+1. Fix the landing count (the per-slot "written" marker).
+2. Wake only when someone is asleep.
+3. Batched hand-in.
+4. The lock-free ring.
+
+These are soramech changes. Should I write them up there as an implementation
+note, then as issues?
 
 --------------------------------------------------------------------------------
 

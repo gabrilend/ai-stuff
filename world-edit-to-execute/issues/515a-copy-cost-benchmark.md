@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 515 (the render graph on the ceramic engine)
 **Dependencies:** None
+**Blocks:** 515g (the lock-free queue it measured the need for)
 
 ---
 
