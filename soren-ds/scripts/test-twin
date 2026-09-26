@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# test-twin — build the laptop twin and run every one of its tests.
+#
+# General description: compiles the portable half of Soren DS (the engine
+# and the system above it) for this laptop, in both its variants, then
+# runs each test program under twin/tests/ one after another and reports
+# which passed. Each test also writes whatever it measured to
+# tmp/shared-memory/metrics/, which is where the documentation pages read
+# their numbers from. Exits nonzero if any test failed.
+#
+# Usage: scripts/test-twin [project-dir] [name-filter]
+#   project-dir   defaults to the hard-coded DIR below
+#   name-filter   run only tests whose file name contains this text
+
+DIR="/mnt/mtwo/programming/ai-stuff/soren-ds"
+if [ -n "$1" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+FILTER="${1:-}"
+
+# The RAM tiers are wiped at every reboot; make sure they exist.
+"${DIR}/scripts/ensure-tmp" "${DIR}" || exit 1
+
+export SOREN_DIR="${DIR}"
+LOG_DIR="${DIR}/tmp/shared-memory/test-logs"
+mkdir -p "${LOG_DIR}"
+
+for variant in debug fast; do
+    if ! make -s -C "${DIR}/twin" VARIANT="${variant}" DIR="${DIR}"; then
+        echo "build failed (${variant})" >&2
+        exit 1
+    fi
+done
+
+BUILD="$(make -s -C "${DIR}/twin" VARIANT=debug DIR="${DIR}" print-build)"
+failed=0
+ran=0
+for test in "${BUILD}"/tests/*; do
+    name="$(basename "${test}")"
+    if [ -n "${FILTER}" ] && [[ "${name}" != *"${FILTER}"* ]]; then
+        continue
+    fi
+    ran=$((ran + 1))
+    if ! timeout 300 "${test}" > "${LOG_DIR}/${name}.log" 2>&1; then
+        failed=$((failed + 1))
+        echo "---- ${name} failed; its log: ----"
+        tail -n 30 "${LOG_DIR}/${name}.log"
+    else
+        tail -n 1 "${LOG_DIR}/${name}.log"
+    fi
+done
+
+echo
+echo "${ran} test programs, ${failed} failed. Logs: ${LOG_DIR}"
+[ "${failed}" -eq 0 ]

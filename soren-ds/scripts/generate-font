@@ -1,0 +1,196 @@
+#!/usr/bin/env luajit
+--
+-- generate-font — turn a Linux console font into the C table the system
+-- draws text with.
+--
+-- General description: the handheld has no font files and no font
+-- renderer; text is drawn from a table of 8×16 one-bit pictures, one per
+-- character, compiled into the kernel. Rather than drawing those pictures
+-- by hand, this tool reads a console font the laptop already has (a PSF
+-- file, the format the Linux text console uses), looks up which picture
+-- the font uses for each of the 256 Latin-1 characters, and writes them
+-- out as a C source file. Run it again with another font to change how
+-- every piece of text on both screens looks.
+--
+-- Usage: scripts/generate-font [project-dir] [font.psf[u][.gz]]
+--   project-dir  defaults to the hard-coded DIR below
+--   font         defaults to Lat2-Terminus16, which is 8×16 and clear
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/soren-ds"
+local FONT = "/usr/share/kbd/consolefonts/Lat2-Terminus16.psfu.gz"
+
+local args = { ... }
+if args[1] and not args[1]:match("%.psf") and not args[1]:match("%.gz$") then
+    DIR = args[1]
+    table.remove(args, 1)
+end
+FONT = args[1] or FONT
+local OUT = DIR .. "/src/system/056-font-8x16.c"
+
+-- {{{ local function read_font
+-- Read the whole font file, decompressing it if it is gzipped. Reading
+-- through gzip is a read-only use of the shell.
+local function read_font(path)
+    local handle
+    if path:match("%.gz$") then
+        handle = assert(io.popen("gzip -dc '" .. path .. "'", "r"))
+    else
+        handle = assert(io.open(path, "rb"))
+    end
+    local bytes = handle:read("*a")
+    handle:close()
+    assert(bytes and #bytes > 0, "generate-font: could not read " .. path)
+    return bytes
+end
+-- }}}
+
+-- {{{ local function u32
+-- A little-endian 32-bit number starting at 1-based position `at`.
+local function u32(s, at)
+    local a, b, c, d = s:byte(at, at + 3)
+    return a + b * 256 + c * 65536 + d * 16777216
+end
+-- }}}
+
+-- {{{ local function decode_utf8
+-- Decode one UTF-8 character at `at`; answers the code point and the
+-- position after it.
+local function decode_utf8(s, at)
+    local c = s:byte(at)
+    if c < 0x80 then return c, at + 1 end
+    if c < 0xE0 then return (c % 0x20) * 64 + (s:byte(at + 1) % 64), at + 2 end
+    if c < 0xF0 then
+        return (c % 0x10) * 4096 + (s:byte(at + 1) % 64) * 64 + (s:byte(at + 2) % 64), at + 3
+    end
+    return (c % 0x08) * 262144 + (s:byte(at + 1) % 64) * 4096 + (s:byte(at + 2) % 64) * 64 + (s:byte(at + 3) % 64), at + 4
+end
+-- }}}
+
+-- {{{ local function parse_psf
+-- Answers { width, height, bytes_per_glyph, glyphs = { [index] = string },
+-- map = { [code point] = glyph index } }. Two formats exist: PSF1 (8 pixels
+-- wide, 256 or 512 glyphs, magic 36 04) and PSF2 (any size, magic
+-- 72 b5 4a 86). Both may carry a table saying which characters each glyph
+-- draws; without one, glyph N is character N.
+local function parse_psf(s)
+    local font = { glyphs = {}, map = {} }
+    local first, count, table_at, has_table
+    if s:byte(1) == 0x72 and s:byte(2) == 0xb5 and s:byte(3) == 0x4a and s:byte(4) == 0x86 then
+        local header = u32(s, 9)
+        local flags = u32(s, 13)
+        count = u32(s, 17)
+        font.bytes_per_glyph = u32(s, 21)
+        font.height = u32(s, 25)
+        font.width = u32(s, 29)
+        first = header + 1
+        has_table = flags % 2 == 1
+        table_at = first + count * font.bytes_per_glyph
+        font.psf2 = true
+    elseif s:byte(1) == 0x36 and s:byte(2) == 0x04 then
+        local mode = s:byte(3)
+        font.height = s:byte(4)
+        font.width = 8
+        font.bytes_per_glyph = font.height
+        count = (mode % 2 == 1) and 512 or 256
+        first = 5
+        has_table = math.floor(mode / 2) % 2 == 1
+        table_at = first + count * font.bytes_per_glyph
+        font.psf2 = false
+    else
+        error("generate-font: not a PSF font")
+    end
+    for g = 0, count - 1 do
+        local at = first + g * font.bytes_per_glyph
+        font.glyphs[g] = s:sub(at, at + font.bytes_per_glyph - 1)
+    end
+    if not has_table then
+        for g = 0, count - 1 do font.map[g] = g end
+        return font
+    end
+    -- The table: for each glyph in order, the characters it draws,
+    -- ended by a terminator (0xFF in PSF2; 0xFFFF in PSF1). A start-of-
+    -- sequence marker introduces combined characters, which are skipped.
+    local at = table_at
+    local g = 0
+    while g < count and at <= #s do
+        if font.psf2 then
+            local b = s:byte(at)
+            if b == 0xFF then
+                g = g + 1
+                at = at + 1
+            elseif b == 0xFE then
+                while at <= #s and s:byte(at) ~= 0xFF do at = at + 1 end
+            else
+                local cp
+                cp, at = decode_utf8(s, at)
+                if font.map[cp] == nil then font.map[cp] = g end
+            end
+        else
+            local lo, hi = s:byte(at, at + 1)
+            local v = lo + hi * 256
+            at = at + 2
+            if v == 0xFFFF then
+                g = g + 1
+            elseif v == 0xFFFE then
+                while at <= #s do
+                    local a, b = s:byte(at, at + 1)
+                    if a + b * 256 == 0xFFFF then break end
+                    at = at + 2
+                end
+            elseif font.map[v] == nil then
+                font.map[v] = g
+            end
+        end
+    end
+    return font
+end
+-- }}}
+
+-- {{{ local function emit
+local function emit(font, source_name)
+    assert(font.width == 8 and font.height == 16,
+           "generate-font: the system draws 8x16 text; this font is " .. font.width .. "x" .. font.height)
+    local fallback = font.map[63] -- '?'
+    local lines = {}
+    local function add(x) lines[#lines + 1] = x end
+    add("/*")
+    add(" * 056-font-8x16.c — the picture of every character the system draws.")
+    add(" *")
+    add(" * GENERATED by scripts/generate-font from " .. source_name .. ".")
+    add(" * Do not edit by hand; run the tool again instead.")
+    add(" *")
+    add(" * General description: 256 characters (the Latin-1 set), each an 8-pixel")
+    add(" * by 16-pixel picture stored as 16 bytes, one byte per row, the leftmost")
+    add(" * pixel in the highest bit. A character the source font had no picture")
+    add(" * for is drawn as a question mark; how many there were is below.")
+    add(" */")
+    add("#include \"056-font-8x16.h\"")
+    add("")
+    local missing = 0
+    add("const uint8_t font_8x16[256][16] = {")
+    for cp = 0, 255 do
+        local g = font.map[cp]
+        if g == nil then
+            g = fallback
+            if cp >= 32 and cp ~= 127 and not (cp >= 128 and cp < 160) then missing = missing + 1 end
+        end
+        local bytes = font.glyphs[g]
+        local row = {}
+        for i = 1, 16 do row[#row + 1] = string.format("0x%02x", bytes:byte(i)) end
+        local label = (cp >= 32 and cp < 127) and string.format("'%s'", string.char(cp) == "\\" and "\\\\" or string.char(cp)) or string.format("%3d", cp)
+        add(string.format("    /* %s */ { %s },", label, table.concat(row, ", ")))
+    end
+    add("};")
+    add("")
+    add(string.format("/* Printable characters the source font had no picture for: %d. */", missing))
+    add(string.format("const int font_8x16_missing = %d;", missing))
+    local f = assert(io.open(OUT, "w"))
+    f:write(table.concat(lines, "\n"), "\n")
+    f:close()
+    print(string.format("generate-font: wrote %s (%d printable characters missing)", OUT, missing))
+end
+-- }}}
+
+local bytes = read_font(FONT)
+local font = parse_psf(bytes)
+emit(font, FONT:match("[^/]+$"))

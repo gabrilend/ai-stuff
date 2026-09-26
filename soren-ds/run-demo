@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# run-demo — the front door to this project's phase demos.
+#
+# General description: every phase leaves behind a demo, a runnable
+# program that shows what the system could do at that point using what
+# that phase built alongside everything beneath it. This script finds
+# them, lists them, and runs the one you pick. It discovers demos rather
+# than knowing about them, so a phase becomes available here the moment
+# its demo is put in place. Demos that run on the laptop twin say so;
+# demos that need the handheld say that instead.
+#
+# Usage:
+#   ./run-demo             list the demos and ask which to run
+#   ./run-demo 2           run phase 2's demo directly
+#   ./run-demo /some/dir   use a different project root
+#   ./run-demo /some/dir 2 both
+
+set -euo pipefail
+
+DIR="/mnt/mtwo/programming/ai-stuff/soren-ds"
+
+CHOICE=""
+for arg in "$@"; do
+    if [[ -d "$arg" ]]; then
+        DIR="$arg"
+    else
+        CHOICE="$arg"
+    fi
+done
+
+DEMO_DIR="${DIR}/issues/completed/demos"
+"${DIR}/scripts/ensure-tmp" "${DIR}"
+
+phases=()
+for d in "${DEMO_DIR}"/phase-*/; do
+    [[ -x "${d}run.sh" ]] || continue
+    n="${d%/}"
+    n="${n##*phase-}"
+    phases+=("${n}")
+done
+if [[ ${#phases[@]} -eq 0 ]]; then
+    echo "no phase demos yet under ${DEMO_DIR}" >&2
+    exit 1
+fi
+IFS=$'\n' phases=($(sort -n <<<"${phases[*]}"))
+unset IFS
+
+if [[ -z "${CHOICE}" ]]; then
+    echo "phase demos:"
+    for n in "${phases[@]}"; do
+        summary="$(sed -n 's/^# summary: //p' "${DEMO_DIR}/phase-${n}/run.sh" | head -n 1)"
+        echo "  ${n}) ${summary}"
+    done
+    read -r -p "which phase (${phases[0]}-${phases[-1]})? " CHOICE
+fi
+
+if [[ ! -x "${DEMO_DIR}/phase-${CHOICE}/run.sh" ]]; then
+    echo "no demo for phase ${CHOICE}" >&2
+    exit 1
+fi
+exec "${DEMO_DIR}/phase-${CHOICE}/run.sh" "${DIR}"

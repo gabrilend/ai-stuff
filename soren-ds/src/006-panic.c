@@ -43,9 +43,17 @@ extern void led_set_stage(int stage);
  * line and 002-main.c's same #define must both change too. */
 #define STAGE_PANIC_GENERIC 1
 
+/* Phase 2 (issue 214): if the fault happened inside a box the engine was
+ * running under a guard, this jumps back to the guard and never returns;
+ * otherwise it returns at once and the panic proceeds exactly as before.
+ * Defined in src/device/042-platform-device.c. */
+extern void platform_fault_return(uint64_t faulting_pc, uint64_t syndrome);
+
 __attribute__((noreturn))
 void panic_handler(uint64_t vector, uint64_t faulting_pc, uint64_t syndrome)
 {
+    platform_fault_return(faulting_pc, syndrome);
+
     /* Suppress unused-parameter warnings while the captured state
      * has nowhere to go. Future versions of this function read
      * these out and emit them through the USB debug stream. */
