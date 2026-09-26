@@ -1,0 +1,308 @@
+<title>Frame as a Graph</title>
+<!--
+  ceramic-frame.html - the third ceramic report: a fabricated frame, three ways (issue 515h)
+
+  Draws what src/render/ceramic/frame/run-frame.sh measured. A template:
+  frame-report.lua splices in the shared kit (ceramic-kit.css / .js), the
+  runs, the plan's own numbers (read from frame-plan.h), the floor and the
+  threading-code counts, and this machine's processor. Every number on the
+  page comes from that data.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/*@@KIT-CSS@@*/
+table.plan { border-collapse: collapse; font-size: 14px; width: 100%; }
+table.plan th, table.plan td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.plan th { font: 600 12px/1.3 var(--mono); color: var(--muted); letter-spacing: .04em; }
+table.plan td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tablewrap { overflow-x: auto; }
+blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--chunk); color: var(--muted); font-style: italic; max-width: 64ch; }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">World Edit to Execute · issue 515h · the ceramic engine's flexibility</div>
+    <h1>Frame as a Graph</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section aria-labelledby="h-question">
+    <h2 id="h-question">The question</h2>
+    <p>The first report measured uniform work: every unit's skeleton, the same job thousands of times. That is exactly what a plain parallel loop is best at, and the ceramic engine only matched it. But the engine's promise was never uniform work.</p>
+    <blockquote>“My understanding was always that the benefit of the ceramic core engine was in its flexibility — the ability to run arbitrary tasks, not just the same type … Enabling parallelism when it is not structurally suited for it, that's the goal.”</blockquote>
+    <p>So this test builds a frame with the shape real frames have: stages of different sizes that depend on each other, work whose length isn't known until it runs, and work in the background that doesn't belong to any frame. Every task does real work with a checkable answer, and every way of running it must agree on every frame's checksum.</p>
+  </section>
+
+  <section aria-labelledby="h-frame">
+    <h2 id="h-frame">The frame</h2>
+    <div class="tablewrap"><table class="plan"><thead><tr><th>stage</th><th>tasks per frame</th><th>each costs</th><th>waits for</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
+    <p>Costs are rounds of real work, calibrated once on this machine (<span class="num" id="rounds"></span> rounds a microsecond) so every way does the same work. The frame is done when fog, culling and pathfinding have all landed; background decodes are never waited for, but they share the cores. Drawn as the ceramic engine reads it:</p>
+    <div class="chart" id="graph"></div>
+  </section>
+
+  <section aria-labelledby="h-ways">
+    <h2 id="h-ways">Three ways to run it</h2>
+    <div class="approaches">
+      <div class="approach"><div class="swatch" style="background:var(--plain)"></div><h3>One thread<small>every task in order</small></h3><p>Its frame time is the frame's total work — the yardstick.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--hand)"></div><h3>Hand-written, by system<small>the usual engine shape</small></h3><p>One parallel loop per system, in order: simulation, then fog, then poses, then pathfinding, then culling, with every thread meeting at a barrier after each. Within a loop threads take the next task from a shared counter, so each loop balances itself. Background decoding gets its own dedicated thread.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--counter)"></div><h3>Hand-written, by level<small>the best a barrier design can do</small></h3><p>Everything that could run together shares one loop: simulation; then fog, poses and pathfinding together; then culling. Three barriers instead of five. Same dedicated background thread.</p></div>
+      <div class="approach"><div class="swatch" style="background:var(--chunk)"></div><h3>Ceramic graph<small>the frame as a map</small></h3><p>The renderer's thread hands the whole frame in to the task queue as one batch (tick, lane requests, pathfinding requests, and the background decodes), on the kept engine copy with the lock-free queue. Nothing says “wait for the previous stage”: fog for one player starts the moment the simulation lands, a lane's culling the moment its poses land, and a free worker takes whatever is ready.</p></div>
+    </div>
+    <p><strong>Sleeping or spinning.</strong> Each parallel way runs twice: with threads that <em>sleep</em> while they wait (solid bars), and with threads that <em>spin</em> — keep checking without sleeping (hatched bars). It matters here more than it looks; see below.</p>
+  </section>
+
+  <section aria-labelledby="h-results">
+    <h2 id="h-results">Frame time</h2>
+    <p id="results-text"></p>
+    <div class="key"><span><i style="background:var(--ink)"></i>sleeping: solid</span><span><i style="background:repeating-linear-gradient(45deg,var(--ink) 0 2px,transparent 2px 5px)"></i>spinning: hatched</span><span><i style="background:var(--budget)"></i>best possible (the plan's floor)</span><span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px)"></i>longest chain of dependent work</span></div>
+    <div class="chart" id="bars"></div>
+  </section>
+
+  <section aria-labelledby="h-clock">
+    <h2 id="h-clock">Why sleeping between stages is so slow here</h2>
+    <p id="clock-text"></p>
+  </section>
+
+  <section aria-labelledby="h-worst">
+    <h2 id="h-worst">Worst frames</h2>
+    <p id="worst-text"></p>
+    <div class="chart" id="worst"></div>
+  </section>
+
+  <section aria-labelledby="h-bg">
+    <h2 id="h-bg">Work in the background</h2>
+    <p id="bg-text"></p>
+    <div class="key"><span><i style="background:var(--ink)"></i>no background work</span><span><i style="background:var(--muted)"></i>two decodes a frame in the background</span></div>
+    <div class="chart" id="bg"></div>
+  </section>
+
+  <section aria-labelledby="h-code">
+    <h2 id="h-code">Threading code</h2>
+    <p id="code-text"></p>
+  </section>
+
+  <section aria-labelledby="h-means">
+    <h2 id="h-means">What it means</h2>
+    <div class="findings" id="findings"></div>
+  </section>
+
+  <div class="method" id="method"></div>
+</main>
+
+<script>
+const ROWS = /*@@DATA@@*/[];
+const EXTRA = /*@@EXTRA@@*/{};
+const MACHINE = /*@@MACHINE@@*/{};
+const FRAME = 16667;
+
+/*@@KIT-JS@@*/
+
+const P = EXTRA.plan, B = EXTRA.bounds;
+// {{{ the ways, their colours and names
+const WAYS = [
+  { key: "hand-serial", name: "One thread", color: "var(--plain)" },
+  { key: "hand-systems", name: "By system", color: "var(--hand)" },
+  { key: "hand-systems-spin", name: "By system, spinning", color: "var(--hand)", spin: true },
+  { key: "hand-levels", name: "By level", color: "var(--counter)" },
+  { key: "hand-levels-spin", name: "By level, spinning", color: "var(--counter)", spin: true },
+  { key: "ceramic-graph", name: "Ceramic graph", color: "var(--chunk)" },
+  { key: "ceramic-graph-spin", name: "Ceramic graph, spinning", color: "var(--chunk)", spin: true },
+];
+const runs = (key, bg) => ROWS.filter(r => r.way === key && r.bg === bg);
+const summary = (key, bg) => {
+  const rs = runs(key, bg);
+  if (!rs.length) return null;
+  const means = rs.map(r => r.mean);
+  return { lo: Math.min(...means), hi: Math.max(...means), mean: means.reduce((a, b) => a + b, 0) / means.length,
+           p99: Math.max(...rs.map(r => r.p99)), worst: Math.max(...rs.map(r => r.worst)), n: rs.length, decoded: rs[0].decoded };
+};
+const S = key => summary(key, 0);
+function hatch(svgEl, id, color) {
+  const defs = add(svgEl, "defs", {});
+  const p = add(defs, "pattern", { id, width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  add(p, "rect", { width: 6, height: 6, fill: "var(--sheet)" });
+  add(p, "rect", { width: 3, height: 6, fill: color });
+}
+// }}}
+
+// {{{ lede
+(() => {
+  const g = S("ceramic-graph"), l = S("hand-levels"), sys = S("hand-systems"), one = S("hand-serial");
+  el("lede").textContent = `A fabricated game frame — uneven stages that wait on each other, pathfinding requests from ${10} µs to 2 ms, work in the background — run by hand-written threads and as a ceramic map. ` +
+    `The graph finished frames in ${fmtUs(g.mean)}: ${(100 * (l.mean / g.mean - 1)).toFixed(0)}% faster than the best hand-written barrier design, ${(sys.mean / g.mean).toFixed(1)}× faster than the usual one, ` +
+    `and within ${(100 * (g.mean / B.best - 1)).toFixed(0)}% of the fastest this frame could possibly run on ${MACHINE.threads} hardware threads.`;
+})();
+// }}}
+
+// {{{ the plan table
+(() => {
+  const rows = [
+    ["simulation step", "1", `${P.SIM_US} µs`, "the frame's tick"],
+    ["fog of war, one per player", `${P.FRAME_PLAYERS}`, "400–1000 µs, different every frame", "the simulation step"],
+    ["skeleton poses, in lanes", `${P.FRAME_LANES}`, `${P.FRAME_UNITS_PER_LANE} units of real pose math, about ${fmtUs(B.pose)}`, "the simulation step, and the lane's request"],
+    ["culling, one per lane", `${P.FRAME_LANES}`, `${P.CULL_US} µs`, "that lane's poses"],
+    ["pathfinding requests", `${P.FRAME_PATHS_MIN}–${P.FRAME_PATHS_MAX}, varying`, "10 µs to 2 ms: most short, a few very long", "nothing"],
+    ["background decoding", `${P.FRAME_DECODES}`, `${fmtUs(P.DECODE_US)}`, "nothing; no frame waits for it"],
+  ];
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    r.forEach((c, i) => { const td = document.createElement("td"); td.textContent = c; if (i === 1 || i === 2) td.className = "num"; tr.appendChild(td); });
+    el("plan-rows").appendChild(tr);
+  }
+  el("rounds").textContent = EXTRA.rounds;
+})();
+// }}}
+
+// {{{ the dependency graph
+(() => {
+  const W = 860, H = 345, svgEl = svg(W, H);
+  const node = (x, y, w, h, label, color, sub) => {
+    add(svgEl, "rect", { x, y, width: w, height: h, rx: 4, fill: "var(--sheet)", stroke: color, "stroke-width": 1.8 });
+    add(svgEl, "text", { x: x + w / 2, y: y + h / 2 + (sub ? -2 : 4), "text-anchor": "middle", class: "label" }, label);
+    if (sub) add(svgEl, "text", { x: x + w / 2, y: y + h / 2 + 12, "text-anchor": "middle" }, sub);
+  };
+  const edge = (x1, y1, x2, y2) => add(svgEl, "path", { d: `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`, fill: "none", stroke: "var(--rule)", "stroke-width": 1.4 });
+  node(10, 130, 90, 40, "tick", "var(--budget)", "from the host");
+  node(150, 130, 110, 40, "simulation", "var(--ink)", `${P.SIM_US} µs`);
+  edge(100, 150, 150, 150);
+  for (let p = 0; p < P.FRAME_PLAYERS; p++) { const y = 10 + p * 34; node(330, y, 120, 28, `fog, player ${p + 1}`, "var(--chunk)"); edge(260, 150, 330, y + 14); }
+  for (let l = 0; l < P.FRAME_LANES; l++) {
+    const y = 180 + l * 20;
+    add(svgEl, "rect", { x: 330, y, width: 120, height: 16, rx: 3, fill: "var(--sheet)", stroke: "var(--chunk)", "stroke-width": 1.4 });
+    add(svgEl, "rect", { x: 520, y, width: 90, height: 16, rx: 3, fill: "var(--sheet)", stroke: "var(--chunk)", "stroke-width": 1.4 });
+    edge(260, 150, 330, y + 8); edge(450, y + 8, 520, y + 8);
+  }
+  add(svgEl, "text", { x: 390, y: 172, "text-anchor": "middle", class: "label" }, `poses, ${P.FRAME_LANES} lanes`);
+  add(svgEl, "text", { x: 565, y: 172, "text-anchor": "middle", class: "label" }, "culling");
+  node(680, 20, 170, 44, "pathfinding", "var(--chunk)", `${P.FRAME_PATHS_MIN}–${P.FRAME_PATHS_MAX} requests`);
+  node(680, 90, 170, 44, "background decoding", "var(--muted)", `${P.FRAME_DECODES} a frame`);
+  add(svgEl, "text", { x: 765, y: 160, "text-anchor": "middle" }, "handed in with the tick;");
+  add(svgEl, "text", { x: 765, y: 174, "text-anchor": "middle" }, "wait for nothing");
+  el("graph").replaceChildren(svgEl);
+})();
+// }}}
+
+// {{{ frame time bars
+(() => {
+  const g = S("ceramic-graph"), l = S("hand-levels"), sysS = S("hand-systems-spin"), one = S("hand-serial");
+  el("results-text").textContent = `Mean frame time, no background work; the bar is the average of ${g.n} runs of ${MACHINE.frames} frames and the whisker spans their range. ` +
+    `The longest chain of dependent work in a frame averages ${fmtUs(B.chain)} and the total work ${fmtUs(B.work)}, so ${fmtUs(B.best)} is the fastest any arrangement could run it on ${MACHINE.threads} hardware threads. ` +
+    `The graph gets within ${(100 * (g.mean / B.best - 1)).toFixed(0)}% of that; the best barrier design, by level, stops ${(100 * (l.mean / B.best - 1)).toFixed(0)}% above it — its barriers make every level wait for its longest task, while in the graph a long pathfinding request just keeps one worker busy as everything else flows past it.`;
+  const list = WAYS.map(w => ({ ...w, s: S(w.key) })).filter(w => w.s);
+  const W = 860, rowH = 34, L = 200, R = 110, T = 10, H = T + list.length * rowH + 34;
+  const svgEl = svg(W, H), max = Math.max(...list.map(w => w.s.hi));
+  const x = scale(0, max, L, W - R);
+  list.forEach((w, i) => hatch(svgEl, `h${i}`, w.color));
+  for (const t of [0, 5000, 10000, 15000, 20000].filter(t => t <= max)) {
+    add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+  }
+  list.forEach((w, i) => {
+    const yy = T + i * rowH + 7;
+    add(svgEl, "text", { x: L - 10, y: yy + 14, "text-anchor": "end", class: "label" }, w.name);
+    tip(add(svgEl, "rect", { x: x(0), y: yy, width: x(w.s.mean) - x(0), height: 20, fill: w.spin ? `url(#h${i})` : w.color, stroke: w.color }),
+        `${w.name}: ${fmtUs(w.s.mean)} (runs ${fmtUs(w.s.lo)}–${fmtUs(w.s.hi)})`);
+    add(svgEl, "line", { x1: x(w.s.lo), x2: x(w.s.hi), y1: yy + 10, y2: yy + 10, stroke: "var(--ink)", "stroke-width": 1.5 });
+    add(svgEl, "text", { x: x(w.s.hi) + 8, y: yy + 14, class: "strong" }, fmtUs(w.s.mean));
+  });
+  add(svgEl, "line", { x1: x(B.best), x2: x(B.best), y1: T, y2: H - 30, stroke: "var(--budget)", "stroke-width": 2 });
+  add(svgEl, "line", { x1: x(B.chain), x2: x(B.chain), y1: T, y2: H - 30, stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "4 3" });
+  el("bars").replaceChildren(svgEl);
+})();
+// }}}
+
+// {{{ the clock
+(() => {
+  const sys = S("hand-systems"), sysS = S("hand-systems-spin"), g = S("ceramic-graph"), gS = S("ceramic-graph-spin");
+  el("clock-text").textContent = `The usual engine shape takes ${fmtUs(sys.mean)} sleeping and ${fmtUs(sysS.mean)} spinning — the same work, the same order. ` +
+    `This machine's power governor (${MACHINE.governor}) lowers the clock of a core with nothing to do, to ${MACHINE.idle_mhz} MHz, and raises it again only after the core has been busy a while. ` +
+    `Threads that sleep at five barriers a frame keep handing each stage to cores that have just cooled down, so every task in it runs slower than the same task on a busy core. ` +
+    `Spinning keeps the cores busy and their clocks up. The graph barely cares (${fmtUs(g.mean)} sleeping, ${fmtUs(gS.mean)} spinning): its workers rarely wait long enough to cool, because something is almost always ready.`;
+})();
+// }}}
+
+// {{{ worst frames
+(() => {
+  const lS = S("hand-levels-spin"), l = S("hand-levels"), g = S("ceramic-graph");
+  el("worst-text").textContent = `The 99th-percentile frame, worst over the runs. Spinning buys hand-written threads their average at the cost of their worst frames: ${MACHINE.threads} threads spinning on ${MACHINE.threads} hardware threads leave the operating system nowhere to run, and now and then a thread is pushed off its core mid-stage — by level, ${fmtUs(l.p99)} sleeping becomes ${fmtUs(lS.p99)} spinning. ` +
+    `The graph's worst frames stay close to its average (${fmtUs(g.p99)}).`;
+  const list = WAYS.map(w => ({ ...w, s: S(w.key) })).filter(w => w.s && w.key !== "hand-serial");
+  const W = 860, rowH = 30, L = 200, R = 110, T = 10, H = T + list.length * rowH + 34;
+  const svgEl = svg(W, H), max = Math.max(...list.map(w => w.s.p99));
+  const x = scale(0, max, L, W - R);
+  list.forEach((w, i) => hatch(svgEl, `w${i}`, w.color));
+  for (const t of [0, 5000, 10000, 15000, 20000, 25000, 30000].filter(t => t <= max)) {
+    add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+  }
+  add(svgEl, "line", { x1: x(FRAME), x2: x(FRAME), y1: T, y2: H - 30, stroke: "var(--budget)", "stroke-dasharray": "5 4", "stroke-width": 1.5 });
+  list.forEach((w, i) => {
+    const yy = T + i * rowH + 6;
+    add(svgEl, "text", { x: L - 10, y: yy + 13, "text-anchor": "end", class: "label" }, w.name);
+    add(svgEl, "rect", { x: x(0), y: yy, width: x(w.s.p99) - x(0), height: 18, fill: w.spin ? `url(#w${i})` : w.color, stroke: w.color });
+    add(svgEl, "text", { x: x(w.s.p99) + 8, y: yy + 13, class: "strong" }, fmtUs(w.s.p99));
+  });
+  el("worst").replaceChildren(svgEl);
+})();
+// }}}
+
+// {{{ background work
+(() => {
+  const pairs = ["hand-systems", "hand-levels", "ceramic-graph"].map(k => ({ w: WAYS.find(w => w.key === k), a: summary(k, 0), b: summary(k, 1) }));
+  const g = pairs[2], l = pairs[1];
+  el("bg-text").textContent = `Two ${fmtUs(P.DECODE_US)} decodes a frame, needed by no frame. The hand-written designs give them a dedicated thread, as engines usually do, and by level barely notices (${fmtUs(l.a.mean)} → ${fmtUs(l.b.mean)}). ` +
+    `The graph puts them in the same task queue as the frame, in the order they were handed in, and the engine has no priorities: a decode handed in with the tick can be taken before the pose lanes that become ready a moment later. It costs the graph ${(100 * (g.b.mean / g.a.mean - 1)).toFixed(0)}% (${fmtUs(g.a.mean)} → ${fmtUs(g.b.mean)}) — still the fastest, but the one place the hand-written design has something the engine lacks. ` +
+    `The soramech project has an open design for exactly this: several queues a station may name (its issue 107).`;
+  const W = 860, rowH = 50, L = 200, R = 190, T = 10, H = T + pairs.length * rowH + 34;
+  const svgEl = svg(W, H), max = Math.max(...pairs.map(p => Math.max(p.a.mean, p.b.mean)));
+  const x = scale(0, max, L, W - R);
+  for (const t of [0, 2500, 5000, 7500, 10000, 12500].filter(t => t <= max)) {
+    add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+  }
+  pairs.forEach((p, i) => {
+    const yy = T + i * rowH + 4;
+    add(svgEl, "text", { x: L - 10, y: yy + 20, "text-anchor": "end", class: "label" }, p.w.name);
+    add(svgEl, "rect", { x: x(0), y: yy, width: x(p.a.mean) - x(0), height: 16, fill: p.w.color });
+    add(svgEl, "text", { x: x(p.a.mean) + 8, y: yy + 12, class: "strong" }, fmtUs(p.a.mean));
+    add(svgEl, "rect", { x: x(0), y: yy + 20, width: x(p.b.mean) - x(0), height: 16, fill: p.w.color, opacity: 0.45 });
+    add(svgEl, "text", { x: x(p.b.mean) + 8, y: yy + 32 }, `${fmtUs(p.b.mean)} with background`);
+  });
+  el("bg").replaceChildren(svgEl);
+})();
+// }}}
+
+// {{{ threading code
+el("code-text").textContent = `Counted by a tool, from regions marked in the source: the hand-written program needs ${EXTRA.loc.hand} lines of threading — thread start-up, the stage lists, the shared counter, two kinds of barrier, the background queue and its thread. ` +
+  `The ceramic host needs ${EXTRA.loc.host}: start the engine, find its doors, hand a frame in as a batch, wait for the answers. The frame's shape lives in a ${EXTRA.loc.map}-line map, written by a ${EXTRA.loc.gen}-line generator; changing which stage waits for which is editing the map, not the threading.`;
+// }}}
+
+// {{{ findings
+(() => {
+  const g = S("ceramic-graph"), l = S("hand-levels"), gb = summary("ceramic-graph", 1);
+  const findings = [
+    ["good", "Flexibility", "Where the work isn't uniform, the graph wins.", `Stages that wait on each other, tasks whose length isn't known in advance, and a long tail of slow requests: the graph ran this frame ${(100 * (l.mean / g.mean - 1)).toFixed(0)}% faster than the best barrier design and within ${(100 * (g.mean / B.best - 1)).toFixed(0)}% of the floor, with the steadiest worst frames. Nothing in it was tuned; the dependencies were drawn and the engine did the rest.`],
+    ["good", "Machines", "It keeps cores busy, and busy cores stay fast.", "A design that sleeps between stages pays twice on a machine that saves power: once for the wait and again for the cold core after it. The graph's workers rarely wait long enough to cool."],
+    ["warn", "Priorities", "Background work competes with the frame.", `One task queue, first come first served: background decodes cost the graph ${(100 * (gb.mean / g.mean - 1)).toFixed(0)}% here, where a dedicated thread cost the hand-written design almost nothing. Several queues a station may name (soramech issue 107) would give frame work its own lane.`],
+    ["warn", "Honesty", "This is one fabricated frame on one machine.", "The costs are chosen to look like a real frame, not measured from one; the renderer's real frame is the next test (issue 515f). Runs were repeated and agree closely, and every way produced the same answer every frame."],
+  ];
+  for (const [sev, tag, head, body] of findings) {
+    const d = document.createElement("div");
+    d.className = "finding";
+    d.innerHTML = `<span class="chip ${sev}">${tag}</span><div><h3></h3><p></p></div>`;
+    d.querySelector("h3").textContent = head;
+    d.querySelector("p").textContent = body;
+    el("findings").appendChild(d);
+  }
+})();
+// }}}
+
+// {{{ method
+for (const line of [
+  `Measured on ${MACHINE.model}: ${MACHINE.cores} physical cores, ${MACHINE.threads} hardware threads, power governor ${MACHINE.governor}. Each run is ${MACHINE.frames} frames, every frame timed; each parallel way was run ${S("ceramic-graph").n} times, with and without background work.`,
+  `Every way runs the same box functions on the same plan (src/render/ceramic/frame/), and all runs agreed on the frame checksum. The hand-written designs use ${MACHINE.threads} threads plus a background thread; the ceramic graph uses ${MACHINE.threads - 1} workers plus the host's own thread, on the kept engine copy with the lock-free task queue (the second report, Lockless Task Queue).`,
+  `The floor is worked out from the plan by frame-bounds.c: the frame's longest chain of dependent work, and its total work spread perfectly over every hardware thread.`,
+]) { const p = document.createElement("p"); p.textContent = line; el("method").appendChild(p); }
+// }}}
+</script>

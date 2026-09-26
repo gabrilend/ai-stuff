@@ -10,16 +10,55 @@
 
 ## Current Behavior
 
-515a measured the ceramic engine on uniform work (posing every unit's
-skeleton), where a hand-written parallel loop is close to ideal. The
-engine matched it: within about a tenth of a self-balancing hand-written
-loop, when the work is chunked or handed in as one batch.
+Built, measured and reported (2026-09-25). The harness is in
+`src/render/ceramic/frame/`:
+- `run-frame.sh` calibrates, builds, runs and counts;
+- `frame-report.lua` writes the summary and fills
+  `src/viewers/ceramic-frame.html`.
 
-The owner (2026-09-25): "My understanding was always that the benefit of
-the ceramic core engine was in its flexibility - the ability to run
-arbitrary tasks, not just the same type ... Enabling parallelism when it is
-not structurally suited for it, that's the goal." Nothing measures that
-yet.
+The third report is published as the "Frame as a Graph" page and as
+soramech case study 153 (soramech commit `d1b089b8c`).
+
+**Shape as built.** The frame runs three ways, plus spinning variants,
+repeated three times, with and without background work.
+- **The ceramic graph** (`frame-gen.lua` writes `frame.map`):
+  - the simulation fans out to four fog stations, each with its player as a
+    static constant, and to eight pose lanes (joins);
+  - each lane feeds its own culling station;
+  - the host hands a whole frame in to the task queue as one batch
+    (`cera_pool_batch_begin` / `_end` around every delivery).
+- **The hand-written ways** (`frame-hand.c`): by system (five barriers) and
+  by level (three), each with sleeping or spinning barriers, and a
+  dedicated background thread.
+- **Checks.** All runs agreed on one checksum. The floor (`frame-bounds.c`,
+  from the plan) is a longest chain of 1.98 ms and total work of 21.2 ms,
+  so the best possible frame on 12 hardware threads is about 2.05 ms.
+
+**Found** (mean frame, no background):
+
+| Way | Sleeping | Spinning |
+|---|---|---|
+| ceramic graph | 2.81 ms | 2.87 ms |
+| by level | 3.45 ms | 3.6–3.9 ms |
+| by system | 12.0 ms | 5.0 ms |
+| one thread | 21.6 ms | |
+
+- **The graph is 23% faster than the best barrier design**, and within 37%
+  of the floor.
+- **Why "by system" is slow:** the power governor idles cores at 1.2 GHz,
+  and threads that sleep between stages wake on cold cores.
+- **Spinning barriers cost worst frames:** by level's 99th percentile went
+  from 4.8 ms to 19 ms.
+- **Background decodes cost the graph 9%.** It has one first-come queue,
+  and they compete with frame work (soramech issue 107). The hand-written
+  dedicated thread barely noticed.
+- **Threading code:** 118 lines hand-written; 52 in the ceramic host, plus
+  a 92-line map from a 37-line generator.
+
+**Reports.** The first report (the stock-engine analysis, 515a) and the
+second (the lock-free design, 515g) were split apart at the same time, and
+share one look through `src/viewers/ceramic-kit.css` / `.js`, spliced in by
+the report tools.
 
 ## Intended Behavior
 
@@ -87,8 +126,13 @@ design (515g), for soramech's developers.
    each with its player as a constant on a static port, and to eight pose
    lanes, each wired to its own cull station).
 3. `frame-host.c` (ceramic), `frame-hand.c` (serial and hand-written): the
-   same frames, the same checksums, the same timing columns as the
-   analysis.
+   same frames, the same checksums, the same timing columns. The
+   hand-written barriers come in two kinds, sleeping and spinning. On a
+   machine whose governor slows idle cores, "sleeps between stages" and
+   "has stages" have to be told apart, or the comparison blames the wrong
+   thing.
+3b. `frame-bounds.c`: the floor from the plan (longest chain, total work
+   over the cores), so every result is read against the best possible.
 4. `run-frame.sh`: build (the kept engine copy), run every way with and
    without background decoding, write the table;
    `frame-report.lua` plus the viewer `src/viewers/ceramic-frame.html`.
@@ -96,10 +140,11 @@ design (515g), for soramech's developers.
 
 ## Acceptance Criteria
 
-- [ ] All three ways produce the same checksum, every frame
-- [ ] Frame time, fullness and the background-work effect, measured
-- [ ] Threading code counted by a tool
-- [ ] The page and the soramech case study, with the finding stated: where
+- [x] All three ways produce the same checksum, every frame
+- [x] Frame time, fullness (against the floor) and the background-work
+      effect, measured
+- [x] Threading code counted by a tool
+- [x] The page and the soramech case study, with the finding stated: where
       the graph wins, where it doesn't, and why
 
 ## Related Documents
