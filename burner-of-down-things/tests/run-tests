@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# run-tests - runs every check file of the machine and says how many passed.
+#
+# The machine's checks are small Lua programs in this folder, named
+# NNN-checking-<thing>.lua, one per part of the machine, run in their reading
+# order. Each prints its failures and a count, and exits non-zero if anything
+# failed. This script runs them all (each in its own process, so one crash
+# cannot hide another's result), then prints a one-line summary and exits
+# non-zero if any file failed. The kit file (020) is loaded by the others and
+# is not itself run.
+#
+# Usage:
+#   tests/run-tests                 every check file
+#   tests/run-tests <project dir>   the same, for another copy of the project
+#   tests/run-tests <dir> ledger    only files whose name contains "ledger"
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [[ "${1:-}" == /* ]] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+ONLY="${1:-}"
+
+# Checks write into the RAM scratch space; make sure it exists after a reboot.
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+FILES_RUN=0
+FILES_FAILED=0
+FAILED_NAMES=()
+for CHECK in "${DIR}"/tests/[0-9][0-9][0-9]-checking-*.lua; do
+    NAME="${CHECK##*/}"
+    # The kit is a library, not a check.
+    [ "${NAME}" = "020-checking-kit.lua" ] && continue
+    if [ -n "${ONLY}" ] && [[ "${NAME}" != *"${ONLY}"* ]]; then
+        continue
+    fi
+    echo "${NAME}"
+    FILES_RUN=$((FILES_RUN + 1))
+    if ! luajit "${CHECK}" "${DIR}"; then
+        FILES_FAILED=$((FILES_FAILED + 1))
+        FAILED_NAMES+=("${NAME}")
+    fi
+done
+
+echo
+echo "${FILES_RUN} check files, ${FILES_FAILED} failed"
+if [ "${FILES_FAILED}" -gt 0 ]; then
+    printf '  %s\n' "${FAILED_NAMES[@]}"
+    exit 1
+fi

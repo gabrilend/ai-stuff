@@ -5,8 +5,7 @@ folder, the launcher that sets it, and the RAM scratch space logs go to.
 
 ## Current Behavior
 
-The project has its skeleton (folders, table of contents, index counter,
-demo picker, `tmp` link to RAM) from the house init tool. There is no code.
+Built. `machine` at the project root holds `DIR`, takes an absolute folder as an optional first argument, refuses a folder without `src/019-the-machine.lua`, refuses when LuaJIT is missing, rebuilds the RAM tiers with the house helper, and runs `src/019-the-machine.lua`. `src/013-paths.lua` builds every path from `DIR` and sets the module search path (project `src/`, `libs/`, the effil build folder). `.gitignore` carries `cases/` and `output/goodbye`. Checked by tests/025 running the launcher against a copy of the project.
 
 ## Intended Behavior
 

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#
+# phase-1-demo - shows the machine's memory: a case's ledger, chained line to
+# line by checksums, growing by tens of thousands of lines, verified end to
+# end, then tampered with — and the verifier pointing at the exact line.
+#
+# It opens a throwaway case in the RAM scratch space (never the real cases/),
+# so it can be run any number of times and leaves nothing behind.
+#
+# Usage: phase-1-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-1-demo.lua" "${DIR}"

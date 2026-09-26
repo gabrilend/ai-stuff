@@ -6,7 +6,7 @@ is the one reader and writer for each, so no other module parses a line.
 
 ## Current Behavior
 
-Nothing reads or writes tables.
+Built as `src/014-text-tables.lua`. Escaping also covers carriage return, so a table file never holds one raw. Writes go through a neighbour file and a rename. A table whose last line has no newline is refused as torn. Records are read with an empty environment (`setfenv`), so a record file cannot reach `os` or `io`. Checked by tests/021 (274 checks).
 
 ## Intended Behavior
 

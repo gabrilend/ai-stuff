@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-1-demo` (bash, `DIR` at top) runs `phase-1-demo.lua`, which opens a case in the RAM scratch space, appends 30 000 lines, prints append and verify rates as bars and the SHA-256 speed, then draws the chain around line 15 000 as it is tampered with twice and shows the verifier naming line 15 000 (hash) and then 15 001 (prev). Removes its scratch case at the end.
 
 ## Intended Behavior
 
