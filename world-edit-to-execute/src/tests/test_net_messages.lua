@@ -1,0 +1,121 @@
+-- test_net_messages.lua - every gameplay message survives the trip to bytes and back (issue 803)
+--
+-- In plain terms: the server and its clients only ever exchange bytes. This
+-- checks that each kind of message comes back from its bytes exactly as it
+-- was, that encoding it again gives the same bytes, and that damaged or
+-- impossible messages are refused with a reason instead of guessed at.
+--
+-- Run with: luajit src/tests/test_net_messages.lua [DIR]
+
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
+
+local messages = require("net.messages")
+
+-- {{{ Test utilities
+local test_count, pass_count = 0, 0
+
+local function test(name, condition, msg)
+    test_count = test_count + 1
+    if condition then
+        pass_count = pass_count + 1
+        print("  [PASS] " .. name)
+    else
+        print("  [FAIL] " .. name .. (msg and ": " .. msg or ""))
+    end
+end
+
+-- {{{ local function same(a, b)
+-- Deep equality of two decoded tables.
+local function same(a, b)
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" then return a == b end
+    for k, v in pairs(a) do if not same(v, b[k]) then return false end end
+    for k in pairs(b) do if a[k] == nil then return false end end
+    return true
+end
+-- }}}
+
+-- {{{ local function refused(fn, ...)
+-- Whether the call raised an error, and its text.
+local function refused(fn, ...)
+    local ok, why = pcall(fn, ...)
+    return not ok, tostring(why)
+end
+-- }}}
+-- }}}
+
+-- One example of every message. Floats are chosen to be exact in 32 bits,
+-- except where noted, so the round trip compares with ==.
+local examples = {
+    order = { order_id = 7, given_tick = 900, kind = messages.order_kind.attack,
+              target_x = 1024.5, target_y = -256.25, target_unit = 40,
+              units = { { id = 12 }, { id = 13 }, { id = 4000000000 } } },
+    heard = { tick = 905 },
+    order_answer = { order_id = 7, accepted = 0, effect_tick = 906, refusal = messages.refusal.not_yours },
+    unit_states = { tick = 900, units = {
+        { id = 12, x = 1.5, y = 2.25, z = 0, vx = -3.5, vy = 0, vz = 0.125, facing = 1.5, anim = 3, anim_phase = 0.75 },
+        { id = 13, x = -8, y = 16, z = 0.5, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0 },
+    } },
+    events = { tick = 903, events = {
+        { kind = messages.event_kind.death, tick = 902, unit = 40, other = 12 },
+    } },
+    waiting = { tick = 1000, paused = 1, silent = {
+        { player = 3, silent_ms = 2500, countdown_ms = 27500 },
+    } },
+    tolerance = { ms = 2000 },
+    tolerances = { in_force_ms = 500, players = { { player = 0, ms = 2000 }, { player = 1, ms = 500 } } },
+    drop_vote = { player = 3 },
+    votes = { needed = 2, silent = { { player = 3, votes = 1 } } },
+}
+
+print("\n=== Every message, to bytes and back ===")
+for _, name in ipairs(messages.names) do
+    local example = examples[name]
+    if not example then
+        test(name .. " has an example", false, "add one to this test")
+    else
+        local bytes = messages.encode(name, example)
+        local back_name, back = messages.decode(bytes)
+        test(name .. " comes back whole", back_name == name and same(back, example))
+        test(name .. " encodes to the same bytes again", messages.encode(back_name, back) == bytes)
+    end
+end
+
+print("\n=== Sizes, as they would cross a network ===")
+local one_unit = messages.encode("unit_states", { tick = 1, units = { examples.unit_states.units[1] } })
+local no_unit = messages.encode("unit_states", { tick = 1, units = {} })
+test("a unit record is 38 bytes", #one_unit - #no_unit == 38, tostring(#one_unit - #no_unit))
+test("a heard beat is 5 bytes", #messages.encode("heard", { tick = 1 }) == 5)
+
+print("\n=== Floats come back as 32-bit floats ===")
+local third = { tick = 1, units = { { id = 1, x = 1 / 3, y = 0, z = 0, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0 } } }
+local _, back = messages.decode(messages.encode("unit_states", third))
+test("a third comes back as the nearest 32-bit float", back.units[1].x == messages.f32(1 / 3) and back.units[1].x ~= 1 / 3)
+
+print("\n=== Refusals, with a reason ===")
+local r, why
+r, why = refused(messages.encode, "shout", {})
+test("an unknown message name", r and why:find("no message is called shout"), why)
+r, why = refused(messages.encode, "heard", {})
+test("a missing field", r and why:find("heard.tick is missing"), why)
+r, why = refused(messages.encode, "drop_vote", { player = 256 })
+test("a number too big for its field", r and why:find("does not fit a u8"), why)
+r, why = refused(messages.encode, "heard", { tick = 1.5 })
+test("a fraction in a whole-number field", r and why:find("does not fit a u32"), why)
+r, why = refused(messages.encode, "heard", { tick = -1 })
+test("a negative number", r and why:find("does not fit"), why)
+r, why = refused(messages.encode, "order", { order_id = 1, given_tick = 1, kind = 1, target_x = 0, target_y = 0, target_unit = 0, units = { {} } })
+test("a missing field inside a list names its place", r and why:find("order.units%[1%].id is missing"), why)
+r, why = refused(messages.decode, "")
+test("empty bytes", r and why:find("empty"), why)
+r, why = refused(messages.decode, string.char(99))
+test("an unknown type byte", r and why:find("no message has type 99"), why)
+local heard = messages.encode("heard", { tick = 905 })
+r, why = refused(messages.decode, heard:sub(1, 3))
+test("a message cut short", r and why:find("ends early"), why)
+r, why = refused(messages.decode, heard .. "x")
+test("bytes left over", r and why:find("1 bytes left over"), why)
+
+print(string.format("\n%d/%d passed", pass_count, test_count))
+os.exit(pass_count == test_count and 0 or 1)

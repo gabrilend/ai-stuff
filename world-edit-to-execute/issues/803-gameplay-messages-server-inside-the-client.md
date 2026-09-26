@@ -10,8 +10,16 @@
 
 ## Current Behavior
 
-Nothing of this exists. There is no network code in the project (no
-sockets, no protocol for play; 801 stops at the lobby). The simulation
+Being built (2026-09-25).
+- **Step 1, the messages: built.** `src/net/messages.lua` describes all ten
+  messages as data and encodes and decodes any of them;
+  `src/tests/test_net_messages.lua` passes (every message round-trips and
+  re-encodes to the same bytes; bad input is refused with a reason). A unit
+  record is 38 bytes on the wire.
+- Steps 2 to 5: not yet.
+
+Before this, there was no network code in the project (no sockets, no
+protocol for play; 801 stops at the lobby). The simulation
 (`src/runtime/`, the 62.5-ticks-a-second game loop and its systems) runs
 in the same process as whatever reads it, with no line between "server"
 and "client".
