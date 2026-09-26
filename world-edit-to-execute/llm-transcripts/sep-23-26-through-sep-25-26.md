@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 21:06:17
+Generated on: 2026-09-25 21:22:14
 Models: claude-opus-5-5
 
 ## Contents
@@ -166,6 +166,10 @@ Models: claude-opus-5-5
     engine and have just settled the networking model: no lockstep, and the
     server holds the truth. Next, I need your answer on the lag rewind idea:
     what is meeting in the middle for?
+39. 2026-09-25 21:09, after Request 85 - We're building the renderer's path from
+    the server's game state to the screen, and I just planned gameplay
+    networking with a pause when a player goes silent. Next: answer the four
+    open questions, and say whether to commit the documentation now.
 
 --------------------------------------------------------------------------------
 
@@ -8842,6 +8846,77 @@ circling cubes.
 Nothing from this conversation's document changes is committed yet, because your
 rule is to commit when an issue completes. Should I commit the decisions now as
 a documentation commit, or wait?
+
+--------------------------------------------------------------------------------
+
+### User Request 86
+
+How about on the "waiting for player..." screen there's a little slider, one for
+each player, that represents their "desired network tolerance" - if they drag it
+one way, then the tolerance is stricter, causing more "waiting for player..."
+pop-ups. If they drag it the other, then there's more lag and sliding and such
+but they don't have to wait. The server will use whichever value is lowest, and
+all players can see each other player's desired values.
+
+>   2. Who may drop a silent player: anyone, the host, or a vote?
+
+vote
+
+>   4. Still open from before: is the cap twice the ping, or based on jitter?
+
+your design was better than mine, let's do jitter based.
+
+
+
+<pasted_content id="7a80">
+> Nothing from this conversation's document changes is committed yet, because
+> your rule is to
+> commit when an issue completes. Should I commit the decisions now as a
+> documentation commit, or
+  wait?
+</pasted_content id="7a80">
+
+
+let's commit as we go, just-incase the power goes out.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 86
+
+All three decisions are recorded and committed. From now on I'll commit as I go,
+for power-outage safety, instead of waiting for each issue to finish.
+
+**Recorded in the gameplay networking issue:**
+- **Tolerance sliders.** The waiting dialog shows one slider per player,
+  measured in seconds of silence before the game pauses.
+  - The server uses the lowest value, so the strictest player decides.
+  - Everyone sees everyone's value, so it's visible who is causing the pauses.
+  - Four new messages carry this: a player's tolerance, everyone's tolerances, a
+    drop vote, and the vote count.
+- **Dropping a silent player is decided by vote.**
+- **The two limits are different things.** The limit before units run in place
+  is measured from the connection's jitter. The limit before the game pauses is
+  the players' slider. So on an uneven connection with a loose slider, units run
+  in place for a while before any dialog appears. That's the trade the slider
+  offers.
+
+**One thing about the slider design:** a player who has gone silent can't move
+their own slider, because their messages aren't arriving. So the value in force
+during a pause always comes from the players who are still connected. That seems
+right to me.
+
+**Still open:**
+1. **What range do the sliders cover, and where do they start?** Also, how long
+   does the countdown run before a drop vote opens?
+2. **Does the slider appear only on the waiting dialog, or also in the lobby and
+   a menu during play?** If only on the dialog, nobody can set it before the
+   first pause.
+3. **What wins a drop vote:** a majority of the players still connected, or
+   every other player?
+
+If you'd rather decide those when we build it, the next step is the gameplay
+networking work, starting with how each message is encoded and a test that
+encoding and decoding gives back the same message.
 
 --------------------------------------------------------------------------------
 
