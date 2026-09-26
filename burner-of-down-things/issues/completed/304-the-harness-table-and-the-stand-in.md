@@ -6,7 +6,7 @@ every kind of turn from fixtures ([005](../docs/005-datapath-the-hands.md),
 
 ## Current Behavior
 
-There is no way to run a turn.
+Built as `src/037-the-harness-table.lua` and `src/038-the-stand-in.lua`. Rows carry `command` (the program line), `pool` and `limit`; the machine wraps every row's command in the same shell line (working folder, `timeout`, output to `result.json`, errors to `stderr.txt`, status to `exit`). The stand-in's script may key entries by "kind about" or "kind", may be a function of the turn (with an attempt count, so a fixture can fail and then succeed), and can misbehave four ways: write outside, write into the source, fail, hang. Checked by tests/040.
 
 ## Intended Behavior
 

@@ -6,7 +6,7 @@ paragraph ([005](../docs/005-datapath-the-hands.md), *crafts*).
 
 ## Current Behavior
 
-A turn folder has a prompt and a confinement, no instructions.
+Built as `src/035-instructions.lua`. Build and repair turns take their crafts from the case's `input/crafts` (one skill name per line) rather than from a fixed list: the person decides which of their skills a design is built with. Instructions over 120 KiB are refused, since Claude Code receives them as one argument. Checked by tests/040.
 
 ## Intended Behavior
 

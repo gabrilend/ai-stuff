@@ -5,7 +5,7 @@ The row that runs a real turn with Claude Code
 
 ## Current Behavior
 
-Only the stand-in can run a turn.
+In progress. Built as the `claude-code` row of `src/037-the-harness-table.lua`: `claude -p` with the prompt on standard input, instructions through `--append-system-prompt`, `--output-format json`, `--restricted`, `--tools Read,Write,Edit,Glob,Grep`, `--permission-mode acceptEdits`, `--permission-prompts none`, `--no-session-persistence`, a `--settings` deny rule for every read-only folder, and `--add-dir` for exactly the turn's folders. tests/040 checks the line for every kind (a build line never names the source). The live check is written — `tests/live/041-live-describe-turn.lua`, one real describe turn — and has NOT been run: it spends the owner's subscription and waits for the owner's word (docs/010, question 7).
 
 ## Intended Behavior
 

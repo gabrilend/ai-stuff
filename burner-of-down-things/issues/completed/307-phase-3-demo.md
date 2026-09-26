@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-3-demo` and `phase-3-demo.lua`. Throughput of 48 stand-in turns through pools of 1, 4 and 8 with bars; five single-turn sets showing each verdict (write outside → breach with the path, write into the source → breach and "a run would stop here", error → failed with the harness's words, hang → failed at the 2 s limit, well-behaved → kept); the Claude Code command line for an outline and a build turn, saying which can read the source; first and second snapshot times on the AzerothCore tree; the ledger's verification. Paths are shortened as plain text (the folder name's dashes would be read as pattern instructions).
 
 ## Intended Behavior
 

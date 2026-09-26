@@ -5,7 +5,7 @@ The check after a turn that it changed only what it was allowed to
 
 ## Current Behavior
 
-A turn could write anywhere and nobody would know.
+Built as `src/036-snapshots.lua`. `find` prints type, size, time, link target and path, NUL-separated; links are known by their target (`link:<target>`) and never followed, so a design's `tmp` link into RAM is never read through. Files over 64 MiB are known by size and time (`large:…`): a 943 MB git pack in a real source made a first snapshot take 14 s instead of 1.5 s. Charging uses the longest matching write prefix; a change no turn may write is a breach of the whole set, since turns running together cannot be told apart. Snapshots are kept in `turns/snapshot.tsv` so later runs hash almost nothing. Checked by tests/040.
 
 ## Intended Behavior
 

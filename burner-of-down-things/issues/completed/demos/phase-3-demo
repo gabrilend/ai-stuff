@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# phase-3-demo - shows the machine's hands: many model turns run at once,
+# each told which folders it may touch, and every one checked afterwards by
+# comparing snapshots of the whole case and the source. The turns here are
+# played by the stand-in (no model, no cost); some are told to misbehave —
+# write outside their folders, write into the source, fail, hang — and the
+# checks catch each one. Also shows the exact Claude Code command line each
+# kind of turn would get, and that no build turn can see the source.
+#
+# Usage: phase-3-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-3-demo.lua" "${DIR}"
