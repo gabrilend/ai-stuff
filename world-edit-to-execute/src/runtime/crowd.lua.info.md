@@ -14,7 +14,7 @@ server's thread can run one. Deterministic: id order, no clock, no random.
 - **`crowd:any_overlap() -> a, b`:** the first overlapping pair (tests).
 - **A unit's fields:** `x`, `y`, `vx`, `vy`, `facing` (radians), `moving`
   (bool), `gave_up` (bool), `path` (list of `{x, y}`), `step`,
-  `path_changed` (bool, this tick), `radius`, `speed`, `goal_x`, `goal_y`.
+  `path_changed` (bool: set when the path changes, and left set until whoever reads it clears it), `radius`, `speed`, `goal_x`, `goal_y`.
 - **The rules:** a step is taken only if it ends clear of units and walls;
   blocked by a standing or stalled unit → re-plan around it every few
   ticks; by a moving one → wait (longer for higher ids), then re-plan with

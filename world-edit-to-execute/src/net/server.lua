@@ -18,6 +18,8 @@ nothing about units:
   sim.order(player, order, tick) -> accepted (bool), refusal (a messages.refusal number)
   sim.tick(tick) -> events (a list of {kind, tick, unit, other})
   sim.visible(player) -> unit records (as in the unit_states message)
+and optionally a fourth, for anything else a game sends each tick:
+  sim.extras(player) -> a list of {name, message}
 
 The rules, as decided with the owner (2026-09-25):
   - nothing is rewound: a silent player pauses the game, and play resumes
@@ -288,6 +290,9 @@ function server:step(now_ms)
         for p in each_player(self) do
             self:send(p, "unit_states", { tick = self.tick, units = self.sim.visible(p) })
             if #events > 0 then self:send(p, "events", { tick = self.tick, events = events }) end
+            if self.sim.extras then
+                for _, extra in ipairs(self.sim.extras(p)) do self:send(p, extra[1], extra[2]) end
+            end
         end
     end
 end
