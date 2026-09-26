@@ -12,135 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-:root {
-  --ground: #f1f4f2;
-  --sheet: #fbfcfb;
-  --ink: #16201d;
-  --muted: #5b6863;
-  --grid: #d6ddd9;
-  --rule: #c3ccc7;
-  --chunk: #1b746e;
-  --chunk-soft: #1b746e22;
-  --one: #b0442a;
-  --hand: #4b5c86;
-  --counter: #7a569e;
-  --plain: #8a948f;
-  --budget: #b98114;
-  --good: #2f7a3e;
-  --warn: #a8661a;
-  --bad: #a83a2a;
-  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
-  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --ground: #0f1513;
-    --sheet: #151d1a;
-    --ink: #e1e8e4;
-    --muted: #93a19b;
-    --grid: #25302c;
-    --rule: #33403b;
-    --chunk: #45b4aa;
-    --chunk-soft: #45b4aa26;
-    --one: #e27b5d;
-    --hand: #93a5d6;
-    --counter: #bd9be6;
-    --plain: #7c8883;
-    --budget: #deaa42;
-    --good: #6cc07b;
-    --warn: #e0a257;
-    --bad: #ef7f6c;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --ground: #0f1513;
-  --sheet: #151d1a;
-  --ink: #e1e8e4;
-  --muted: #93a19b;
-  --grid: #25302c;
-  --rule: #33403b;
-  --chunk: #45b4aa;
-  --chunk-soft: #45b4aa26;
-  --one: #e27b5d;
-  --hand: #93a5d6;
-  --counter: #bd9be6;
-  --plain: #7c8883;
-  --budget: #deaa42;
-  --good: #6cc07b;
-  --warn: #e0a257;
-  --bad: #ef7f6c;
-}
-* { box-sizing: border-box; }
-body {
-  background: var(--ground);
-  color: var(--ink);
-  font: 15px/1.6 var(--body);
-  padding-inline: 16px;
-  padding-block: 28px 64px;
-}
-main { max-width: 900px; margin: 0 auto; display: grid; gap: 44px; }
-header { display: grid; gap: 12px; }
-.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-h1 { font: 700 clamp(40px, 7vw, 64px)/0.95 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
-h2 { font: 600 28px/1.05 var(--display); margin: 0; text-wrap: balance; }
-p { margin: 0; max-width: 68ch; }
-.lede { font-size: 17px; }
-section { display: grid; gap: 14px; }
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-.key { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 13px/1.4 var(--body); color: var(--muted); }
-.key span { display: inline-flex; align-items: center; gap: 7px; }
-.key i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
-.chart { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 10px 6px; overflow-x: auto; }
-.chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
-svg text { fill: var(--muted); font: 11px var(--mono); }
-svg .label { fill: var(--ink); font: 500 12px var(--body); }
-svg .strong { fill: var(--ink); font: 600 12px var(--mono); }
-.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; width: max-content; }
-.toggle button { font: 500 12px var(--mono); padding: 5px 12px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
-.toggle button:focus-visible { outline: 2px solid var(--budget); outline-offset: -2px; }
-.budget-row { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 14px; align-items: center; }
-.budget-row .who { font: 500 14px/1.3 var(--body); }
-.budget-row .who small { display: block; color: var(--muted); font: 12px var(--mono); }
-.bar { position: relative; height: 22px; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--grid) calc(10% - 1px) 10%); border-left: 1px solid var(--rule); }
-.bar b { position: absolute; inset: 3px auto 3px 0; border-radius: 2px; }
-.bar em { position: absolute; top: 0; font: 500 12px/22px var(--mono); font-style: normal; white-space: nowrap; padding-left: 8px; color: var(--ink); }
-.budget-scale { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 14px; font: 11px var(--mono); color: var(--muted); }
-.budget-scale div { display: flex; justify-content: space-between; }
-.findings { display: grid; gap: 0; border-top: 1px solid var(--rule); }
-.finding { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
-.chip { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 3px; height: max-content; width: max-content; }
-.chip.bad { color: var(--bad); border: 1px solid var(--bad); }
-.chip.warn { color: var(--warn); border: 1px solid var(--warn); }
-.chip.good { color: var(--good); border: 1px solid var(--good); }
-.finding h3 { margin: 0 0 4px; font: 600 15px/1.35 var(--body); }
-.finding p { color: var(--muted); font-size: 14px; }
-.approaches { display: grid; gap: 0; border-top: 1px solid var(--rule); }
-.approach { display: grid; grid-template-columns: 28px minmax(160px, 230px) 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); align-items: start; }
-.swatch { width: 28px; height: 10px; border-radius: 2px; margin-top: 6px; }
-.approach h3 { margin: 0; font: 600 15px/1.35 var(--body); }
-.approach h3 small { display: block; font: 12px/1.4 var(--mono); color: var(--muted); font-weight: 400; }
-.approach p { font-size: 14px; }
-.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 12px/1.3 var(--mono); }
-.flow span { border: 1px solid var(--rule); border-radius: 4px; padding: 6px 9px; background: var(--sheet); }
-.flow span.lock { border-color: var(--budget); color: var(--budget); }
-.flow b { color: var(--muted); font-weight: 400; }
-dl.terms { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
-dl.terms dt { font: 600 13px/1.6 var(--mono); }
-dl.terms dd { margin: 0; color: var(--muted); max-width: 64ch; }
-.method { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; display: grid; gap: 8px; }
-@media (max-width: 560px) {
-  .budget-row, .budget-scale { grid-template-columns: 1fr; gap: 4px; }
-  .budget-scale > span { display: none; }
-  .finding { grid-template-columns: 1fr; gap: 8px; }
-  .approach { grid-template-columns: 28px 1fr; }
-  .approach p { grid-column: 1 / -1; }
-  dl.terms { grid-template-columns: 1fr; gap: 2px; }
-  dl.terms dd { margin-bottom: 8px; }
-}
+/*@@KIT-CSS@@*/
 </style>
 
 <main>
@@ -246,31 +118,8 @@ dl.terms dd { margin: 0; color: var(--muted); max-width: 64ch; }
 
   <section aria-labelledby="h-findings">
     <h2 id="h-findings">What this tells the ceramic engine</h2>
-    <p>About the stock engine. The first three are answered, in a kept copy, in the next part.</p>
+    <p>About the stock engine. The first three are answered, in a kept copy of the engine, by the companion report <em>Lockless Task Queue</em>.</p>
     <div class="findings" id="findings"></div>
-  </section>
-
-  <section aria-labelledby="h-fork">
-    <h2 id="h-fork">Taking the lock out</h2>
-    <p>A kept copy of the engine, changed in one place: the task queue. It reuses a pattern the engine already has. Every input port's slots move through four states, <strong>empty → reserved → ready → claimed → empty</strong>, and the rule written beside that code is “counted after it is published, never before”. The task queue becomes a ring of such slots, with the lap folded into each slot's number, so a place in the queue is found by counting forward rather than by taking a lock.</p>
-    <div class="flow" aria-label="The path of one hand-in through the ring">
-      <span>check there is room (head vs tail)</span><b>→</b><span class="lock">claim positions: one compare-and-swap on the tail</span><b>→</b><span>write the task pointer (reserved: only this thread may)</span><b>→</b><span>publish: the slot's number says ready</span><b>→</b><span>a worker claims it: one compare-and-swap on the head</span><b>→</b><span>the slot's number says empty, one lap on</span>
-    </div>
-    <dl class="terms">
-      <dt>batched hand-in</dt><dd>a whole frame of requests handed in to the task queue in one call: the positions for all of them are claimed with one compare-and-swap, then filled and published in order, and sleeping workers are woken once. Workers start on the first task while the last is still being written.</dd>
-      <dt>waking</dt><dd>the copy wakes a sleeping worker only when one is asleep, and only as many as there are new tasks; the stock engine woke every sleeper on every hand-in.</dd>
-      <dt>spinning</dt><dd>an idle worker looks at the ring again a thousand times (a few microseconds) before it sleeps. A worker still looking when the next task arrives just takes it, and nobody has to be woken. It keeps that core busy, which can slow the other thread sharing it.</dd>
-      <dt>a full ring</dt><dd>the ring doesn't grow. A thread outside the engine (the renderer) waits for room; a worker, which must never wait, runs the task itself.</dd>
-      <dt>landing</dt><dd>the count of collected answers now rises after each answer is copied in, so the renderer can trust it with no workaround wait.</dd>
-    </dl>
-    <p id="fork-text"></p>
-    <div class="key"><span><i style="background:var(--one)"></i>one unit per task</span><span><i style="background:var(--chunk)"></i>chunked</span><span><i style="background:var(--ink)"></i>stock engine: solid</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 10px)"></i>lock-free copy: dashed</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px)"></i>+ batched hand-in: dotted</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 8px,transparent 8px 11px,var(--ink) 11px 13px,transparent 13px 16px)"></i>+ spinning: dash-dot</span></div>
-    <div class="chart" id="fork-bars"></div>
-    <p id="fork-chunk-text"></p>
-    <div class="chart" id="fork-chunk"></div>
-    <p id="fork-scale-text"></p>
-    <div class="chart" id="fork-scale"></div>
-    <p id="fork-check"></p>
   </section>
 
   <div class="method" id="method"></div>
@@ -281,57 +130,7 @@ const ROWS = /*@@DATA@@*/[];
 const MACHINE = /*@@MACHINE@@*/{};
 const FRAME = 16667;
 
-// {{{ data helpers
-const pick = (sweep, way, units, workers) => ROWS.find(r => r.sweep === sweep && r.way === way &&
-  (units === undefined || r.units === units) && (workers === undefined || r.workers === workers));
-const all = (sweep, way) => ROWS.filter(r => r.sweep === sweep && (!way || r.way === way));
-const ms = us => (us / 1000).toFixed(us < 1000 ? 2 : 1);
-const fmtUs = us => us >= 1000 ? `${(us / 1000).toFixed(2)} ms` : `${us.toFixed(0)} µs`;
-const el = id => document.getElementById(id);
-// }}}
-
-// {{{ svg helpers
-const NS = "http://www.w3.org/2000/svg";
-function svg(w, h) { const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("role", "img"); return s; }
-function add(parent, tag, attrs, text) {
-  const e = document.createElementNS(NS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
-  if (text !== undefined) e.textContent = text;
-  parent.appendChild(e);
-  return e;
-}
-function tip(e, text) { add(e, "title", {}, text); return e; }
-// A scale: linear or log, domain -> range.
-function scale(d0, d1, r0, r1, log) {
-  if (log) { const a = Math.log(d0), b = Math.log(d1); return v => r0 + (Math.log(v) - a) / (b - a) * (r1 - r0); }
-  return v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
-}
-// A line chart: series [{color, points:[[x,y,label]], dash, width}], axes with ticks.
-function lineChart(target, o) {
-  const W = 860, H = o.height || 320, L = 64, R = 20, T = 16, B = 44;
-  const s = svg(W, H);
-  const x = scale(o.x.min, o.x.max, L, W - R, o.x.log), y = scale(o.y.min, o.y.max, H - B, T, o.y.log);
-  for (const t of o.y.ticks) {
-    add(s, "line", { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: "var(--grid)", "stroke-width": 1 });
-    add(s, "text", { x: L - 8, y: y(t) + 4, "text-anchor": "end" }, o.y.fmt(t));
-  }
-  for (const t of o.x.ticks) {
-    add(s, "line", { x1: x(t), x2: x(t), y1: H - B, y2: H - B + 5, stroke: "var(--rule)" });
-    add(s, "text", { x: x(t), y: H - B + 18, "text-anchor": "middle" }, o.x.fmt(t));
-  }
-  add(s, "text", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle" }, o.x.title);
-  add(s, "text", { x: 14, y: T + (H - B - T) / 2, "text-anchor": "middle", transform: `rotate(-90 14 ${T + (H - B - T) / 2})` }, o.y.title);
-  if (o.before) o.before(s, x, y, { L, R, T, B, W, H });
-  for (const ser of o.series) {
-    const d = ser.points.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
-    add(s, "path", { d, fill: "none", stroke: ser.color, "stroke-width": ser.width || 2.5, "stroke-dasharray": ser.dash || "none", "stroke-linejoin": "round" });
-    if (!ser.noDots) for (const p of ser.points) tip(add(s, "circle", { cx: x(p[0]), cy: y(p[1]), r: ser.dash ? 3 : 4, fill: ser.dash ? "var(--sheet)" : ser.color, stroke: ser.dash ? ser.color : "var(--sheet)", "stroke-width": 1.5 }), p[2]);
-    if (ser.end) { const p = ser.points[ser.points.length - 1]; add(s, "text", { x: x(p[0]) - 6, y: y(p[1]) - 9, "text-anchor": "end", class: "label", style: `fill:${ser.color}` }, ser.end); }
-  }
-  if (o.after) o.after(s, x, y, { L, R, T, B, W, H });
-  target.replaceChildren(s);
-}
-// }}}
+/*@@KIT-JS@@*/
 
 // {{{ the lede and the frame-budget bars
 const units = 2048;
@@ -347,7 +146,7 @@ el("work-per-unit").textContent = `${(plainRun.mean / units).toFixed(1)} µs`;
 const bestCounter = counterRows.reduce((a, b) => (b.mean < a.mean ? b : a));
 el("lede").textContent = `Chunked into tasks of ${bestChunk.per} units, the ceramic engine poses ${units.toLocaleString()} skeletons in ${fmtUs(bestChunk.mean)} (${(100 * bestChunk.mean / FRAME).toFixed(1)}% of a 60 fps frame): ` +
   `${(handRun.mean / bestChunk.mean).toFixed(1)}× faster than a hand-written loop with fixed slices, and within ${(100 * (bestChunk.mean / bestCounter.mean - 1)).toFixed(0)}% of a hand-written loop that balances itself with a shared counter (${fmtUs(bestCounter.mean)}). ` +
-  `Given one unit per task it takes ${fmtUs(perTaskRun.mean)}, almost all of it spent handing tasks in to the task queue; a kept copy with the lock taken out brings that under a tenth of a frame.`;
+  `Given one unit per task it takes ${fmtUs(perTaskRun.mean)}, almost all of it spent handing tasks in to the task queue; a kept copy with the lock taken out (the companion report, Lockless Task Queue) brings that under a tenth of a frame.`;
 const budget = [
   { who: "One thread", sub: "plain loop", r: plainRun, color: "var(--plain)" },
   { who: "Hand-written thread loop", sub: `${handRun.workers} threads, fixed slices`, r: handRun, color: "var(--hand)" },
@@ -450,7 +249,7 @@ setChunk("mean");
   el("herd-text").textContent = `With one worker, handing a one-unit task in to the task queue costs ${(solo.deliver / units).toFixed(2)} µs: that is what the stock engine's hand-in really costs. ` +
     `With ${worst.workers} workers it costs ${(worst.deliver / units).toFixed(1)} µs, because the host and every worker share the task queue's one lock. ` +
     `The cliff sits where the thread count passes this machine's ${MACHINE.cores} physical cores: past it, whoever holds the lock shares a core with the threads waiting for it. ` +
-    `Waking one worker per hand-in instead of all of them brings ${worst.workers} workers down to ${(worstOne.deliver / units).toFixed(1)} µs — better, but the lock is still the bottleneck (see “Taking the lock out”, below).`;
+    `Waking one worker per hand-in instead of all of them brings ${worst.workers} workers down to ${(worstOne.deliver / units).toFixed(1)} µs — better, but the lock is still the bottleneck (the companion report, Lockless Task Queue, takes it out).`;
   const perTask = r => r.deliver / units;
   lineChart(el("herd-chart"), {
     height: 320,
@@ -610,92 +409,6 @@ for (const [sev, tag, head, body] of findings) {
   d.querySelector("p").textContent = body;
   el("findings").appendChild(d);
 }
-// }}}
-
-// {{{ taking the lock out
-(() => {
-  const STYLE = { stock: undefined, fork: "7 5", batch: "2 4", spin: "9 4 2 4" };
-  const NAME = { stock: "stock engine", fork: "lock-free copy", batch: "+ batched hand-in", spin: "+ spinning" };
-  // one unit per task, 2048 units, 11 workers, four engines
-  const one = {
-    stock: pick("chunk", "pose_chunk_1"),
-    fork: pick("chunk@fork", "pose_chunk_1"),
-    batch: pick("batch", "pose_chunk_1+batch"),
-    spin: pick("spin", "pose_chunk_1"),
-  };
-  const best = r => r.mean;
-  el("fork-text").textContent = `One unit per task, ${units.toLocaleString()} units, ${one.stock.workers} workers. Taking the lock out alone takes the frame from ${fmtUs(one.stock.mean)} to ${fmtUs(one.fork.mean)}: ` +
-    `most of what is left is waking sleeping workers, one call into the operating system per hand-in. Handing the frame in as one batch wakes them once (${fmtUs(one.batch.mean)}); ` +
-    `spinning means there is rarely anyone asleep to wake (${fmtUs(one.spin.mean)}). Either way, the finest-grained way to write it now fits in ${(100 * Math.max(one.batch.mean, one.spin.mean) / FRAME).toFixed(0)}% of a frame instead of ${(100 * one.stock.mean / FRAME).toFixed(0)}%.`;
-  // bars: frame split into handing in and the rest
-  (() => {
-    const order = ["stock", "fork", "batch", "spin"];
-    const W = 860, rowH = 40, L = 190, R = 90, T = 10, H = T + order.length * rowH + 30;
-    const svgEl = svg(W, H), max = Math.max(...order.map(e => one[e].mean));
-    const x = scale(0, max, L, W - R);
-    for (const t of [0, 2500, 5000, 7500, 10000].filter(t => t <= max)) {
-      add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
-      add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
-    }
-    order.forEach((e, i) => {
-      const r = one[e], yy = T + i * rowH + 8, rest = Math.max(0, r.mean - r.deliver);
-      add(svgEl, "text", { x: L - 10, y: yy + 16, "text-anchor": "end", class: "label" }, NAME[e]);
-      tip(add(svgEl, "rect", { x: x(0), y: yy, width: Math.max(0.5, x(r.deliver) - x(0)), height: 22, fill: "var(--budget)" }), `handing in to the task queue: ${fmtUs(r.deliver)}`);
-      tip(add(svgEl, "rect", { x: x(r.deliver), y: yy, width: Math.max(0.5, x(r.mean) - x(r.deliver)), height: 22, fill: "var(--one)" }), `workers finishing: ${fmtUs(rest)}`);
-      add(svgEl, "text", { x: x(r.mean) + 8, y: yy + 16, class: "strong" }, fmtUs(r.mean));
-    });
-    el("fork-bars").replaceChildren(svgEl);
-  })();
-  // units per task, four engines
-  const curve = (sweep, wayOf) => [1, 2, 4, 8, 16, 32, 64, 128, 256].map(k => pick(sweep, wayOf(k))).filter(Boolean);
-  const curves = {
-    stock: curve("chunk", k => `pose_chunk_${k}`),
-    fork: curve("chunk@fork", k => `pose_chunk_${k}`),
-    batch: curve("batch", k => `pose_chunk_${k}+batch`),
-    spin: curve("spin", k => `pose_chunk_${k}`),
-  };
-  const bestOf = list => list.reduce((a, b) => (b.mean < a.mean ? b : a));
-  el("fork-chunk-text").textContent = `By units per task. The lock mattered most where tasks are small: at 2 units per task the stock engine takes ${fmtUs(curves.stock[1].mean)}, the batched copy ${fmtUs(curves.batch[1].mean)}. ` +
-    `Where tasks are already chunky, the engines meet: best frames ${fmtUs(bestOf(curves.stock).mean)} (stock), ${fmtUs(bestOf(curves.fork).mean)} (lock-free), ${fmtUs(bestOf(curves.batch).mean)} (batched), ${fmtUs(bestOf(curves.spin).mean)} (spinning).`;
-  lineChart(el("fork-chunk"), {
-    x: { min: 0.8, max: 320, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256], fmt: t => t, title: "units per task (log scale)" },
-    y: { min: 300, max: 12000, log: true, ticks: [500, 1000, 2000, 5000, 10000], fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
-    series: Object.keys(curves).map(e => ({ color: "var(--chunk)", dash: STYLE[e], points: curves[e].map(r => [r.per, r.mean, `${NAME[e]}, ${r.per} per task: ${fmtUs(r.mean)}`]) })),
-    after: (s2, x, y) => {
-      for (const e of Object.keys(curves)) {
-        const r = curves[e][0];
-        add(s2, "circle", { cx: x(1), cy: y(r.mean), r: 5, fill: "var(--one)", stroke: "var(--sheet)", "stroke-width": 1.5 });
-      }
-    },
-  });
-  // adding workers, one unit per task
-  const ws = [1, 2, 3, 4, 6, 8, 11];
-  const byW = {
-    stock: ws.map(w => pick("scale", "pose_fold", units, w)),
-    fork: ws.map(w => pick("scale@fork", "pose_fold", units, w)),
-    batch: ws.map(w => pick("batch", "pose_fold+batch", units, w)),
-    spin: ws.map(w => pick("spin", "pose_fold", units, w)),
-  };
-  const base = pick("scale", "plain-loop").mean;
-  el("fork-scale-text").textContent = `Adding workers, one unit per task. The stock engine collapses past ${MACHINE.cores} physical cores; ` +
-    `the batched copy reaches ${(base / byW.batch[byW.batch.length - 1].mean).toFixed(1)}× and the spinning copy ${(base / byW.spin[byW.spin.length - 1].mean).toFixed(1)}× with ${ws[ws.length - 1]} workers, ` +
-    `against ${(base / byW.stock[byW.stock.length - 1].mean).toFixed(2)}× for the stock engine.`;
-  lineChart(el("fork-scale"), {
-    x: { min: 0.5, max: 12, ticks: ws, fmt: t => t, title: "workers" },
-    y: { min: 0, max: 5, ticks: [0, 1, 2, 3, 4, 5], fmt: t => `${t}×`, title: "speed-up over one thread" },
-    before: (s2, x, y, g) => {
-      add(s2, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
-      add(s2, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
-    },
-    series: Object.keys(byW).map(e => ({ color: "var(--one)", dash: STYLE[e], points: byW[e].map(r => [r.workers, base / r.mean, `${NAME[e]}, ${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) })),
-  });
-  // the landing check
-  const trusted = all("landing");
-  const truth = pick("anatomy", "plain-loop", units);
-  const agree = trusted.filter(r => r.check === truth.check).length;
-  el("fork-check").textContent = `Landing: ${agree} of ${trusted.length} runs that trusted the copy's count of collected answers, with no workaround wait, produced exactly the one-thread loop's poses — including 120 KB answers, which the stock engine let the renderer read half-written. ` +
-    `Soramech's own test suite, run against the copy, passes except for two tests: one that requires the task queue to grow (this ring doesn't, by design), and one that depends on where the repository sits and fails the same way on the stock engine.`;
-})();
 // }}}
 
 // {{{ method

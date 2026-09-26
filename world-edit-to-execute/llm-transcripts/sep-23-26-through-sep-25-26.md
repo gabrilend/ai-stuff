@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 17:59:32
+Generated on: 2026-09-25 18:16:12
 Models: claude-opus-5-5
 
 ## Contents
@@ -142,6 +142,10 @@ Models: claude-opus-5-5
     ceramic engine, and I've just published its performance case study to your
     page and the soramech repository. Next, I need your yes to write up the
     queue fixes there as an implementation note and issues.
+33. 2026-09-25 18:08, after Request 69 - We're making the ceramic engine fast
+    enough for a renderer's per-frame work; the lock-free task queue now takes
+    one unit per task from 10.8 ms to 1.0 ms and is delivered to soramech. Next:
+    say whether I should update the stale Phase 5 progress table.
 
 --------------------------------------------------------------------------------
 
@@ -7017,6 +7021,225 @@ Done so far this turn:
   Your idea is now in the measurements as a fifth approach, a hand-written loop
   with a shared counter, where threads take the next run of units until they're
   gone.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/bench/run-analysis.sh
+"" 300 &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/run-full.log
+2&gt;&amp;1" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 68 (continued)
+
+> That ThreadSanitizer binary predates the spinning change, so it proves nothing
+> about spinning. Rebuilding it from the current copy and running again:
+
+ThreadSanitizer is clean with spinning on too. Now one look at the regenerated
+page before publishing:
+
+--------------------------------------------------------------------------------
+
+### User Request 69
+
+[Image: original 1000x9800, displayed at 204x2000. Multiply coordinates by 4.90
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 69
+
+> Writing the queue design into the soramech docs now: updating the case study
+> and table of contents to point at it.
+
+> One sentence in the case study is now overstated. "Chunked, it needed no
+> tuning to beat hand-written threading" is only true against fixed slices.
+> Qualifying it, then committing to soramech:
+
+> Delivered to soramech. Now this project's side: rewrite 515g as the blueprint
+> of what was built, complete it, and record in 515 what 515a concluded:
+
+> Phase 5 is tracked in the shared `progress.md` (there's no separate phase-5
+> page). Its Phase 5 table:
+
+> The Intended Behavior section still describes the first draft: a blind atomic
+> add, and a full ring that stops the program. As a blueprint it has to match
+> what was built:
+
+> Fixing the one reference to the moved file, then validating:
+
+> Those one-sided links all come from the 515 family I created. Adding the
+> matching "Blocks" lines, including on 508 and on the completed 512, since
+> issues may be added to:
+
+> All the 515 links are two-sided now. Committing: the engine copy's changes,
+> its tests, the widened harness, the page, and the completed issues:
+
+> The two warnings are from my own `git mv` (my staging entries, not someone
+> else's). Checking what the commit recorded for the moved files, and clearing
+> that staging:
+
+Everything is built, tested, measured, delivered to soramech, and committed in
+both repositories. The page is updated at the same link: **[Ceramic Frame
+Budget](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc)** (version 3).
+
+**The new task queue results** (2,048 units, 11 workers, one unit per task):
+
+| Engine | Frame time |
+|---|---|
+| Stock | 10.8 ms |
+| Lock taken out | 6.9 ms |
+| Lock out + whole frame handed in as one batch | 1.0 ms |
+| Lock out + idle workers keep looking before sleeping ("spinning") | 1.0 ms |
+
+- **Correctness:** a million tasks each ran exactly once, including on a tiny
+  ring that was full nearly all the time. A race detector found nothing.
+  Soramech's own tests pass against it except one that requires the queue to
+  grow.
+- **Waking was the hidden cost.** With the lock gone, the remaining time was
+  waking sleeping workers, a call into the operating system per task. Batching
+  or spinning removes it. Spinning keeps a core busy, so it's off by default.
+- **The test changed the design.** Fast producers filled the ring immediately.
+  Now a thread outside the engine waits for room, and a worker runs the task
+  itself (a box may never wait).
+- **Delivered to soramech** as design schematics:
+  `docs/implementation-notes/152-a-task-queue-without-a-lock.md`. It argues the
+  other side too. Running the task in place contradicts two of soramech's
+  deliberate guarantees ("a full ring doubles rather than making the pusher run
+  a task"). A chain of rings that grows would keep them, so whether and how to
+  adopt it is that project's call. The case study was refreshed alongside it.
+
+**Your shared-counter loop won.** With threads taking the next run of units from
+one counter, the hand-written loop was the fastest approach measured: about 0.52
+ms against 1.27 ms for fixed slices. It beats the engine's best by about a
+tenth. So your worry was right: fixed slices were what made the hand-written
+loop look bad. The page and the case study now say that plainly.
+
+**Your questions:**
+- **The graphics card:** yes, a real engine would often pose skeletons there.
+  Here the skeleton stands in for per-frame work that stays on the CPU (rules,
+  pathing, fog, visibility): realistic work whose answer can be checked.
+- **Why 1920 bytes:** a skeleton is *stored* compactly, about 28 bytes a bone as
+  a position plus a quaternion, with the bone's number being its place in the
+  list. What the graphics card needs is each bone's *final* placement, every
+  parent already folded in, as a 4×4 matrix: 64 bytes × 30 bones.
+- **The slot pattern:** it's the input ports' four states, empty → reserved
+  → ready → claimed, with the rule "counted after it is published, never
+  before". It mapped cleanly onto the queue with one addition: each slot's
+  number also carries which lap of the ring it's on, because the queue finds
+  slots by position rather than by scanning.
+- **How batched reservation works:**
+  1. Check there's room for k tasks (tail − head plus k fits in the ring).
+  2. Claim all k positions with one compare-and-swap on the tail.
+  3. Fill each slot and mark it ready, in order. Workers can start on the first
+     while the last is still being written.
+  4. Wake sleeping workers once.
+
+  The map-level call gathers every task a batch of deliveries produces, then
+  hands them in this way.
+
+**Changes to the page you asked for:**
+- "handing in to the task queue" is spelled out everywhere;
+- units per task now runs out to 2,048 (the whole army in one task);
+- answers now go up to 1 MB, where copying finally dominates (hundreds of µs
+  per task);
+- the steadiness chart shows every chunk size.
+
+One thing for you: the Phase 5 table in `issues/progress.md` is partly stale
+(some finished issues still read "Pending" or "Issue Created"). I only added the
+515 rows. Should I bring the rest up to date from the completed folder?
+
+--------------------------------------------------------------------------------
+
+### User Request 70
+
+Interesting! So this tells me that the ceramic core engine is about as
+performant as hand-written, optimized threaded code for this type of task. I
+expected it to be worse, actually, so this is good news. Perhaps we could
+optimize the threaded core more if we wanted to hunt for that result. My
+understanding was always that the benefit of the ceramic core engine was in it's
+flexibility - the ability to run arbitrary tasks, not just the same type. Can
+you think of a way to test that? We might need to wait until we have multiple
+systems running at once... Enabling parallelism when it is not structurally
+suited for it, that's the goal. What kinds of tasks are like that?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 70
+
+Yes, with one qualification. The engine matched hand-written threading because
+the work was chunked, or handed in to the task queue as one batch. Written the
+naive way (one task per unit, one hand-in at a time), the stock engine was 20×
+slower. So the good news is: the engine's model is sound, and its costs were in
+the plumbing, which turned out to be fixable. That remaining tenth is probably
+the per-task memory allocation and copying, and it's worth hunting later.
+
+**This test couldn't show off flexibility.** Posing skeletons is uniform work,
+and uniform work is exactly what a simple parallel loop does best; the
+shared-counter loop is close to ideal there. The engine's claimed advantage is
+work that *doesn't* have that shape.
+
+**Work that isn't structurally suited to parallelism**, roughly from most to
+least common in this project:
+1. **Different stages with different costs, depending on each other.** A frame
+   is really a chain:
+   - simulation tick → pathfinding → movement → skeleton poses → fog of
+     war per player → culling → draw lists.
+
+   Hand-written code runs each stage as a parallel loop with a barrier after it,
+   so every core waits for the slowest item of every stage. In a graph, fog for
+   player 2 can start the moment movement finishes, while poses are still
+   running. The win is idle time filled.
+2. **Work whose size isn't known until it runs.** One pathfinding request is 10
+   µs, another 2 ms; a chain-lightning spell bounces a random number of times;
+   a fog-of-war flood fill spreads until blocked. A shared counter handles
+   uneven sizes, but not **work that creates more work.** In a graph, a task
+   that spawns children just delivers values.
+3. **Loading a map.** A graph whose shape comes from the data:
+   - decompress each file (wildly different sizes);
+   - parse by format;
+   - models need their textures decoded first;
+   - terrain needs the tileset.
+
+   Written by hand, that's a custom dependency scheduler. As a map, it's the
+   dependencies drawn.
+4. **Background work beside the frame.** Decoding a new model while frames keep
+   flowing: two different rhythms sharing the same cores.
+5. **Event cascades.** A trigger fires, which causes events, which fire more
+   triggers. This one is hardest, because Warcraft III's trigger order matters,
+   so it's more a research question than a benchmark.
+
+**A test we could build now**, without waiting for the renderer: **a synthetic
+frame as a graph.** It would have stages with realistic, deliberately uneven
+costs:
+- one serial simulation step;
+- a variable number of pathfinding requests with a wide spread of costs;
+- chunked poses;
+- four heavy fog tasks;
+- a steady trickle of background decode tasks.
+
+It runs three ways:
+- serially;
+- hand-written, with a parallel loop and a barrier per stage (how engines are
+  usually written);
+- as a ceramic map where stages start as soon as their inputs are ready.
+
+Measured by frame time, how busy each core is (idle gaps are exactly what should
+disappear), and how many lines of threading code each version needs. The same
+harness, charts and checksums carry over.
+
+**A problem this test will expose:** the engine runs tasks strictly first-in,
+first-out, with no priorities. If background decoding and this frame's fog share
+one queue, a frame-critical task can wait behind a decode task that doesn't
+matter until next second. Hand-written code solves this with separate queues.
+Soramech has an open design for it ("several queues a station may name", its
+issue 107), so this test would give that issue real numbers too.
+
+Which would you rather start with: the synthetic frame graph (controllable, and
+ready now), or real map loading (real data and the parsers we already have, but
+most of that code is Lua, which can't run inside boxes yet)?
 
 --------------------------------------------------------------------------------
 
