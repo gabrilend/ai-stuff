@@ -78,6 +78,7 @@ A tool with two separate halves (data generation and data viewing):
 
 1. Which sites does the owner want first? (Candidates to check: long-running WC3 map archives and modding community sites, and Internet Archive collections of old map packs.)
 2. Should the finder also run inside the W client (a map list in WC3 map mode), or stay a separate tool?
+3. Models too? The owner (2026-09-26): "we will still need to download files from the websites that are hosting the WC3 maps / models". This issue fetches maps; nothing yet fetches models from the sites that post them. Does the same finder, downloader and catalogue take models, or does issue 603 become the fetcher for both? (`issues/CRITICAL-PATH.md`, Q-2)
 
 ## Related Documents
 
