@@ -44,6 +44,37 @@ What building it taught, each now a rule or number in the file:
   when there's room.
 - **The demo's pillars made a two-cell channel on the armies' straight
   line;** they are now four cells apart.
+- **Gridlock, and two radii (the owner, 2026-09-25):** "Can we detect if a
+  unit is gridlocked somehow? If so, we should have them move back a bit,
+  then try again, just to shake up the entire structure." And: "Warcraft 3
+  units have two separate radiuses related to pathfinding [...] the
+  pathfinding radius is larger, so they'll try to walk around other
+  units. Can you try building that and see how it goes?" Built:
+  - a unit no closer to its goal for 2 s backs off from the units
+    touching it, and so do the stuck units round it, then tries again (up
+    to three times an order); 112 back-offs in one crossing;
+  - each unit has a pathing radius (its collision radius + 0.2) and
+    steers, up to 0.8 ahead, to pass outside the pathing radii in its way;
+    a unit now passes a standing one without touching it.
+  - **How it went, measured on the crossing (80 units):**
+
+    | Setup | Crossing | Gave up |
+    |---|---|---|
+    | neither | 46.5 s | 1 |
+    | back-off only | 39.7 s | 0 |
+    | both, pathing +0.35, 1.2 ahead | 57.6 s | 13 |
+    | both, pathing +0.2, 0.8 ahead (the default) | 45.9 s | 0 |
+    | both, pathing +0.15, 0.6 ahead | 66.6 s | 7 |
+
+    Back-off helps; steering by the larger radius slows two head-on armies
+    and is sensitive to its numbers. It suits sparse scenes. The demo can
+    run with it off (`run-crossing.sh "" window-one-radius`) to compare.
+- **Steering lessons:** the side it steers to is kept while anyone is in
+  the way (choosing afresh each tick dithered left and right, and between
+  a bundle's members); idle allies aren't steered round, they're nudged
+  (steering round one in a narrow corridor never reached it); "heading
+  the same way" is judged by goal, not speed (at an order's start every
+  speed is zero, and an army steered round itself and spread).
 - **Known limit:** at the end of a crossing a straggler circling the
   arrived army can still give up after 20 s without getting closer (0 to 2
   a crossing in the test).

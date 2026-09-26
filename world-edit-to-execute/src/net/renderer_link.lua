@@ -9,7 +9,8 @@ the waiting dialog has someone to wait for when that stand-in is told to
 go silent.
 
 C calls, all from the one receiving thread:
-  link.start(dir)            -> the map: rows (text), cell
+  link.start(dir, one_radius) -> the map: rows (text), cell; one_radius
+                             turns the larger pathing radius off
   link.poll()                -> this player's messages due now (a list of
                                 byte strings); sends both players' heard
                                 beats when one is due (every 16 ms)
@@ -29,14 +30,14 @@ local newest = { [0] = 0, [1] = 0 }   -- each player's newest tick received
 local next_beat = 0
 local stand_in_silent = false
 
--- {{{ function link.start(dir)
+-- {{{ function link.start(dir, one_radius)
 function link.start(dir)
     package.path = dir .. "/src/?.lua;" .. dir .. "/src/?/init.lua;" .. package.path
     package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
     hosted = require("net.hosted")
     messages = require("net.messages")
     clock = require("net.clock")
-    h = hosted.start({ dir = dir, players = 2, sim = "net.crossing_sim", sim_config = {} })
+    h = hosted.start({ dir = dir, players = 2, sim = "net.crossing_sim", sim_config = { one_radius = one_radius or false } })
     me, stand_in = h:player(0), h:player(1)
     next_beat = clock.now_ms()
     local map = require("net.arenas.crossing")

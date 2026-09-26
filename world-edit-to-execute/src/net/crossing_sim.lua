@@ -39,12 +39,16 @@ end
 -- }}}
 
 -- {{{ function crossing_sim.new(config)
--- config.map: the map module's name (optional). Returns the server's four
+-- config.map: the map module's name (optional). config.one_radius: true
+-- to turn the larger pathing radius off (units steer round nobody before
+-- touching; for comparing the two by eye). Returns the server's four
 -- functions, plus `crowd` (the crowd itself), `crossings` (how many have
 -- ended) and `gave_up_last` (how many gave up in the last one), for tests.
 function crossing_sim.new(config)
     local map, grid = crossing_sim.map(config and config.map)
     local c = crowd.new(grid, map.cell)
+    local one_radius = config and config.one_radius
+    if one_radius then c.look_ahead = 0 end
     local sim = { crowd = c, crossings = 0, gave_up_last = 0 }
     local owner, army_ids = {}, { {}, {} }
     local id = 0
@@ -60,7 +64,7 @@ function crossing_sim.new(config)
         local places = c:pack(home[1], home[2], radii)
         for i, place in ipairs(places) do
             id = id + 1
-            c:add(id, place[1], place[2], radii[i], speeds[i], army)
+            c:add(id, place[1], place[2], radii[i], speeds[i], army, one_radius and radii[i] or nil)
             owner[id] = army - 1
             army_ids[army][#army_ids[army] + 1] = id
         end

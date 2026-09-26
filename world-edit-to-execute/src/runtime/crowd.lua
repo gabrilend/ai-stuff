@@ -30,7 +30,14 @@ waypoint. The branches, in order:
       or else stands still a moment while the other goes round;
   - sliding along units without getting closer for a while -> the units
       touching the blocker form a BUNDLE, and the mover plans a new path
-      with the whole bundle as an obstacle, going round it.
+      with the whole bundle as an obstacle, going round it;
+  - no closer to its goal for 2 s: GRIDLOCKED -> it backs off, and so do
+      the stuck units round it, then all try again (up to three times an
+      order), to shake the knot loose.
+Before any of that, a unit STEERS round others early: each unit has two
+radii, the one it collides with and a larger pathing radius, and a unit
+aims to pass outside the pathing circles in its way, so it walks round
+units before it touches them.
 No unit ever overlaps another or a wall; a step that would is not taken.
 
 Paths are planned around the ground only (A* over cells whose clearance
@@ -82,6 +89,15 @@ crowd.SETTLE_TICKS = 10        -- blocked by an arrived groupmate within the gro
                                -- sliding without getting closer this long: settle
 crowd.SETTLE_FAR_TICKS = 90    -- ... and outside it (sliding round the group for a way in)
 crowd.PACKING = 0.6            -- how much of a disc packed circles of mixed sizes fill
+crowd.PATHING_EXTRA = 0.2      -- a unit's pathing radius: its collision radius plus this (world units)
+crowd.LOOK_AHEAD = 0.8         -- how far ahead (world units) a unit steers round others' pathing radius;
+                               -- 0 turns steering off (each crowd may set its own: crowd.look_ahead).
+                               -- Measured on the crossing demo (80 units, 2026-09-25): +0.35 and 1.2
+                               -- took 57.6 s with 13 giving up; +0.2 and 0.8, 45.9 s and none; off,
+                               -- 39.7 s and none. It suits sparse scenes better than head-on armies
+crowd.GRIDLOCK_TICKS = 125     -- no closer to the goal this long (2 s): gridlocked -- back off and retry
+crowd.BACK_OFF = 1.0           -- how far a gridlocked unit backs off (world units, plus its radius)
+crowd.BACK_OFFS = 3            -- at most this many back-offs per order; then the give-up rule stands
 -- }}}
 
 -- {{{ Small helpers
@@ -99,6 +115,7 @@ function crowd.new(grid, cell_size)
         grid = grid, cell = cell_size, h = #grid, w = #grid[1],
         units = {}, order = {},
         tick_count = 0, largest = 0, buckets = {}, bucket_size = 1,
+        look_ahead = crowd.LOOK_AHEAD,
     }, crowd)
     c:measure_clearance()
     return c
@@ -184,13 +201,20 @@ end
 -- }}}
 
 -- {{{ Units
--- {{{ function crowd:add(id, x, y, radius, speed, team)
--- A standing unit. `speed` in world units a second; `team` any value
--- (units nudge only their own team's).
-function crowd:add(id, x, y, radius, speed, team)
+-- {{{ function crowd:add(id, x, y, radius, speed, team, path_radius)
+-- A standing unit. `radius` is what it collides with; `path_radius`
+-- (optional; radius + PATHING_EXTRA) is the larger circle others steer
+-- round, so units walk round each other before they touch (the owner,
+-- 2026-09-25: "Warcraft 3 units have two separate radiuses [...] the
+-- pathfinding radius is larger, so they'll try to walk around other
+-- units"). `speed` in world units a second; `team` any value (units
+-- nudge only their own team's).
+function crowd:add(id, x, y, radius, speed, team, path_radius)
     if self.units[id] then error("unit " .. id .. " is already in the crowd", 0) end
     self.units[id] = {
         id = id, x = x, y = y, radius = radius, speed = speed, team = team or 0,
+        path_radius = path_radius or radius + crowd.PATHING_EXTRA,
+        backing = false, back_offs = 0,
         moving = false, path = nil, step = 0, goal_x = x, goal_y = y, exact = true,
         vx = 0, vy = 0, facing = 0, gave_up = false, path_changed = false,
         group = nil, arrived = false, settle = 0,
@@ -549,6 +573,7 @@ function crowd:move_group(ids, x, y)
         u.moving, u.gave_up, u.arrived, u.group = true, false, false, group
         u.closest, u.no_progress, u.orbit, u.wait_until, u.bundle, u.bundle_until = math.huge, 0, 0, 0, nil, 0
         u.slide_since_progress, u.mutual, u.blocked_by, u.settle = 0, 0, nil, 0
+        u.backing, u.back_offs = false, 0
     end
     -- the radius the members fill packed together round the point: a
     -- member outside it keeps sliding round the group for a way in
@@ -751,6 +776,95 @@ function crowd:slide_on_wall(u, wx, wy, reach)
 end
 -- }}}
 
+-- {{{ function crowd:steer(u, wx, wy, reach, ahead)
+-- The step (wx, wy) turned to pass outside the pathing radius of the
+-- nearest unit whose pathing circle lies across the next `ahead` world
+-- units of u's way: aimed at the edge of the two pathing radii together,
+-- on the side u is already going round (or the side its heading leans
+-- to; head-on, its right). Units heading the same way, arrived
+-- groupmates (so a group can pack) and idle allies (they are nudged)
+-- aren't steered round.
+function crowd:steer(u, wx, wy, reach, ahead)
+    local d = length(wx, wy)
+    if d == 0 or ahead <= 0 then return wx, wy end
+    local ux, uy = wx / d, wy / d
+    local best, best_along
+    self:near(u.x, u.y, function(o)
+        if o == u then return end
+        if o.arrived and o.group == u.group then return end
+        -- an idle ally isn't steered round: it will be nudged aside (in a
+        -- corridor narrower than two pathing radii, steering round it
+        -- never reached it, so it was never nudged)
+        if not o.moving and o.team == u.team then return end
+        -- heading the same way: judged by where o is going, not its speed
+        -- (at the start of an order everyone's speed is zero, and an army
+        -- steered round its own members and spread out)
+        if o.moving then
+            local gx, gy = o.goal_x - o.x, o.goal_y - o.y
+            local gd = length(gx, gy)
+            if gd > 0 and (gx * ux + gy * uy) / gd > 0.5 then return end
+        end
+        local cx, cy = o.x - u.x, o.y - u.y
+        local along = cx * ux + cy * uy
+        if along <= 0 or along > ahead + o.path_radius then return end
+        local across = abs(cx * uy - cy * ux)
+        if across < u.path_radius + o.path_radius and (not best or along < best_along) then best, best_along = o, along end
+    end)
+    if not best then u.steer_from = nil; return wx, wy end
+    local cx, cy = best.x - u.x, best.y - u.y
+    local D = length(cx, cy)
+    local R = u.path_radius + best.path_radius
+    -- which side: kept for as long as anyone is in the way, even as the
+    -- nearest one changes (the first version chose afresh each tick and
+    -- dithered left and right in front of a unit, or between the members
+    -- of a bundle); chosen by the side the heading leans to, or head-on,
+    -- to the right
+    local side = u.steer_from and u.steer_side or nil
+    if not side then
+        local cross = cx * uy - cy * ux
+        if abs(cross) < 0.05 * D then side = 1 else side = cross > 0 and 1 or -1 end
+        u.steer_from, u.steer_side = best, side
+    end
+    local angle = math.atan2(cy, cx)
+    local off = D > R and math.asin(R / D) or math.pi / 2
+    local a = angle - side * off
+    return math.cos(a) * reach, math.sin(a) * reach
+end
+-- }}}
+
+-- {{{ function crowd:back_off(u)
+-- A gridlocked unit backs away from the units touching it (or from its
+-- goal if none), as far as it can up to BACK_OFF plus its radius, then
+-- plans for its goal afresh.
+function crowd:back_off(u)
+    local ax, ay, n = 0, 0, 0
+    self:near(u.x, u.y, function(o)
+        if o ~= u and length(o.x - u.x, o.y - u.y) < u.radius + o.radius + crowd.BUNDLE_GAP then
+            ax, ay, n = ax + o.x, ay + o.y, n + 1
+        end
+    end)
+    local bx, by
+    if n > 0 then bx, by = u.x - ax / n, u.y - ay / n else bx, by = u.x - u.goal_x, u.y - u.goal_y end
+    local bd = length(bx, by)
+    if bd == 0 then return end
+    bx, by = bx / bd, by / bd
+    local far = crowd.BACK_OFF + u.radius
+    local tx, ty
+    for k = 8, 1, -1 do
+        local x, y = u.x + bx * far * k / 8, u.y + by * far * k / 8
+        if self:clear_of_walls(x, y, u.radius) then tx, ty = x, y; break end
+    end
+    if not tx then return end
+    u.back_offs = u.back_offs + 1
+    self.back_offs_total = (self.back_offs_total or 0) + 1
+    u.backing = true
+    u.orbit, u.bundle, u.bundle_until = 0, nil, 0
+    u.path, u.step, u.path_changed = { { x = tx, y = ty } }, 1, true
+    -- its patience starts again from where it backs off to
+    u.closest, u.no_progress = math.huge, 0
+end
+-- }}}
+
 -- {{{ function crowd:advance(u, dt)
 -- One moving unit's tick. The branches are the ones at the top of the file.
 function crowd:advance(u, dt)
@@ -767,6 +881,18 @@ function crowd:advance(u, dt)
         u.no_progress = u.no_progress + 1
     end
     if u.no_progress >= crowd.NO_PROGRESS_TICKS then self:stand(u, true); return end
+    -- gridlocked: back off, and make the stuck ones round it back off too,
+    -- to shake the whole knot loose (the owner, 2026-09-25)
+    if not u.backing and u.back_offs < crowd.BACK_OFFS and u.no_progress >= crowd.GRIDLOCK_TICKS * (u.back_offs + 1) then
+        self:back_off(u)
+        self:near(u.x, u.y, function(o)
+            if o ~= u and o.moving and not o.backing and o.back_offs < crowd.BACK_OFFS
+               and o.no_progress >= crowd.GRIDLOCK_TICKS / 2
+               and length(o.x - u.x, o.y - u.y) < u.radius + o.radius + 1.0 then
+                self:back_off(o)
+            end
+        end)
+    end
 
     -- no path (it couldn't leave its place): try again
     if not u.path then
@@ -780,6 +906,8 @@ function crowd:advance(u, dt)
     local reach = u.speed * dt
     local wx, wy
     if dist <= reach then wx, wy = dx, dy else wx, wy = dx / dist * reach, dy / dist * reach end
+    -- steer round others' pathing radius before touching their collision one
+    if not u.backing and self.look_ahead > 0 then wx, wy = self:steer(u, wx, wy, reach, math.min(dist, self.look_ahead)) end
 
     local moved = self:try_step(u, wx, wy)
     if moved == true then
@@ -862,6 +990,14 @@ function crowd:advance(u, dt)
     if abs(u.x - target.x) < crowd.ARRIVE and abs(u.y - target.y) < crowd.ARRIVE then
         u.step = u.step + 1
         if u.step > #u.path then
+            -- Two paths: backed off -> head for the goal again; otherwise
+            -- -> arrived
+            if u.backing then
+                u.backing = false
+                u.planned_at = nil
+                self:head_for(u, u.goal_x, u.goal_y)
+                return
+            end
             self:stand(u, false)
         end
     end
