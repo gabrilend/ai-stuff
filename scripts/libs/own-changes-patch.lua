@@ -20,6 +20,10 @@
 --            gets exactly those committed), unless both changed the same
 --            place, when the order of the two cannot be told; then it is left
 --            out and reported as tangled (see untangle_hunk).
+-- Before judging, a removal git reports of a line this session only moved --
+-- a repeated blank line or `end` that the edit's own diff called unchanged --
+-- is counted as ours when the session added the same text elsewhere in that
+-- file's diff and the block already holds our lines (pair_repeated_lines).
 -- Our blocks are kept and renumbered so they still line up once the skipped
 -- ones are gone. A new or deleted file is all-or-nothing. A binary or
 -- mode-only change is ours only when the file is claimed whole. A file git has
@@ -106,15 +110,83 @@ function M.run_quiet(argv, env)
 end
 -- }}}
 
+-- {{{ local function line_is_ours()
+-- Whether line `index` of a block is this session's: claimed in the ledger,
+-- or a removal paired with one of the session's own additions (see
+-- pair_repeated_lines).
+local function line_is_ours(claims, path, hunk, index, mark, text)
+    if ledger.line_claimed(claims, path, mark, text) then return true end
+    return hunk.paired ~= nil and hunk.paired[index] == true
+end
+-- }}}
+
+-- {{{ local function pair_repeated_lines()
+-- Marks the removals in one file's diff that are really a line this session
+-- kept, seen through a different pairing (issue 032, open question 6).
+--
+-- Claude Code diffs each edit on its own; git diffs the whole file against the
+-- branch tip. Where a file repeats a line -- a blank line, a lone `end` --
+-- the two may pair the copies differently: the edit's diff calls one copy
+-- unchanged, git's calls it removed in one place and added in another. The
+-- ledger then holds git's addition (the session typed that text) and not
+-- git's removal, and the block reads as tangled with somebody else when
+-- nobody else is there. Both tangles in the 2026-09-26 commits were exactly
+-- this: a blank line in a skill file, a `                end` in the parser.
+--
+-- The pairing: an unclaimed removal whose exact text appears as a claimed
+-- addition somewhere in the same file's diff counts as ours, one addition
+-- covering one removal, first come first served in file order. Only inside a
+-- block that already holds a claimed line: a block that is wholly someone
+-- else's stays theirs, even if its removed text happens to match ours. The
+-- risk left is the one the ledger already carries -- a foreign line
+-- identical to one of ours, in a block beside our own lines.
+--
+-- Sets `hunk.paired` (index -> true) on the blocks it pairs in.
+local function pair_repeated_lines(claims, path, entry)
+    -- how many of each text the session added, as git counts the additions
+    local budget = {}
+    for _, hunk in ipairs(entry.hunks) do
+        for _, line in ipairs(hunk.lines) do
+            if line:sub(1, 1) == "+" and ledger.line_claimed(claims, path, "+", line:sub(2)) then
+                budget[line:sub(2)] = (budget[line:sub(2)] or 0) + 1
+            end
+        end
+    end
+    for _, hunk in ipairs(entry.hunks) do
+        -- two kinds of block: one with a claimed line in it, where pairing
+        -- applies; one with none, which is left exactly as it was
+        local has_ours = false
+        for _, line in ipairs(hunk.lines) do
+            local mark = line:sub(1, 1)
+            if (mark == "+" or mark == "-") and ledger.line_claimed(claims, path, mark, line:sub(2)) then
+                has_ours = true
+                break
+            end
+        end
+        if has_ours then
+            for index, line in ipairs(hunk.lines) do
+                local text = line:sub(2)
+                if line:sub(1, 1) == "-" and not ledger.line_claimed(claims, path, "-", text)
+                    and (budget[text] or 0) > 0 then
+                    hunk.paired = hunk.paired or {}
+                    hunk.paired[index] = true
+                    budget[text] = budget[text] - 1
+                end
+            end
+        end
+    end
+end
+-- }}}
+
 -- {{{ local function classify_hunk()
 -- "ours" when every added and removed line is claimed, "foreign" when none is,
 -- "mixed" otherwise.
 local function classify_hunk(claims, path, hunk)
     local mine, theirs = 0, 0
-    for _, line in ipairs(hunk.lines) do
+    for index, line in ipairs(hunk.lines) do
         local mark = line:sub(1, 1)
         if mark == "+" or mark == "-" then
-            if ledger.line_claimed(claims, path, mark, line:sub(2)) then
+            if line_is_ours(claims, path, hunk, index, mark, line:sub(2)) then
                 mine = mine + 1
             else
                 theirs = theirs + 1
@@ -133,10 +205,10 @@ end
 -- { { mine = boolean, texts = { string } } }, in file order.
 local function owner_runs(claims, path, hunk, mark)
     local runs = {}
-    for _, line in ipairs(hunk.lines) do
+    for index, line in ipairs(hunk.lines) do
         if line:sub(1, 1) == mark then
             local text = line:sub(2)
-            local mine = ledger.line_claimed(claims, path, mark, text) and true or false
+            local mine = line_is_ours(claims, path, hunk, index, mark, text)
             local last = runs[#runs]
             -- same owner as the line above: the run grows; otherwise a new run
             if last and last.mine == mine then
@@ -291,6 +363,7 @@ local function filter_entry(claims, top, entry, result)
     -- taken apart lands shorter or longer than it is on disk
     local kept, shift = {}, 0
     local untangled = 0
+    pair_repeated_lines(claims, path, entry)
     for _, hunk in ipairs(entry.hunks) do
         local verdict = classify_hunk(claims, path, hunk)
         local lines = nil

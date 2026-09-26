@@ -120,6 +120,33 @@ if #transcripts == 0 then
 end
 os.execute("mkdir -p '" .. OUT .. "'")
 
+-- {{{ the font
+-- The pages ask for a font that sits in fonts/ beside them (libs/page-head.lua
+-- says which files). The builder keeps its own copy and writes each file into
+-- the project's HTML/fonts/ when it is not there yet -- in practice, the
+-- first time a project's pages are built. Two paths per file: already there,
+-- left alone; missing, copied, and a copy that fails stops the build, since
+-- pages without their font fall back silently to whatever the reader has.
+do
+  local page_head = dofile(HERE .. "libs/page-head.lua")
+  local fonts_out = OUT .. "/" .. page_head.FONT_DIR_NAME
+  os.execute("mkdir -p '" .. fonts_out .. "'")
+  for _, file in ipairs(page_head.FONT_FILES) do
+    local target = fonts_out .. "/" .. file
+    local present = io.open(target, "rb")
+    if present then
+      present:close()
+    else
+      local ok = os.execute("cp '" .. HERE .. "fonts/" .. file .. "' '" .. target .. "'")
+      if not (ok == true or ok == 0) then
+        io.stderr:write("build-site: could not copy the font " .. file .. " into " .. fonts_out .. "\n")
+        os.exit(1)
+      end
+    end
+  end
+end
+-- }}}
+
 local conversations = {}
 local evidence = { by_hash = {}, by_subject = {}, parent_of = {}, is_main = {}, links = {} }
 local oversized = {}

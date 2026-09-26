@@ -17,5 +17,4 @@ for now; a note at the top of the upstream file names both copies.
 
 `page-head.lua` asks for a font the pages expect to find in a `fonts/`
 folder beside them (`HackNerdFont-Regular.ttf`, `HackNerdFont-Bold.ttf`).
-Whether each project's pages carry those files is an open question in issue
-035; without them a browser shows the reader's own monospace font.
+`build-site.lua` writes them there from `../fonts/` whenever one is missing.

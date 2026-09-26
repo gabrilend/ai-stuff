@@ -97,6 +97,8 @@ printf 'c1\nc2\nc3\n' > "${REPO}/c.lua"
 printf -- '-- comment one\nkeep\n' > "${REPO}/d.lua"
 printf 'f1\nf2\nf3\n' > "${REPO}/f.lua"
 printf 'g1\ng2\ng3\ng4\ng5\ng6\ng7\ng8\ng9\n' > "${REPO}/g.lua"
+printf 'h1\n' > "${REPO}/h.lua"
+printf 'x1\nend\nx2\np1\nend\np2\n' > "${REPO}/p.lua"
 mkdir -p "${REPO}/proj/src" "${REPO}/proj/llm-transcripts"
 printf 's1\n' > "${REPO}/proj/src/e.lua"
 printf 'first transcript\n' > "${REPO}/proj/llm-transcripts/t.md"
@@ -144,6 +146,24 @@ check "a file changed without a diff is named to the model" \
 printf 'generated\n' > "${REPO}/gen.txt"
 claimed="$("${DIR}/claim-own-change" "${REPO}/gen.txt" --scripts-dir "${DIR}")"
 check "claim-own-change says what it claimed" "$(grep -q 'gen.txt' <<< "${claimed}" && echo yes || echo no)"
+# h.lua: saved by ANOTHER session while this session's read-only command ran;
+# Claude Code reports it against the command anyway (issue 032, question 5)
+printf 'h1\nforeign-h2\n' > "${REPO}/h.lua"
+notes="$(record Bash '{tool_input: {command: "./run-tests.sh -q"},
+  tool_response: {stdout: "", bashEditDiff: {files: [{filePath: ($repo + "/h.lua"),
+    hunks: [{oldStart: 2, oldLines: 0, newStart: 2, newLines: 1, lines: ["+foreign-h2"]}]}],
+    moreFiles: 0, changedFiles: [($repo + "/h.lua")]}}}')"
+check "a file a command does not name is not recorded as the command's" \
+    "$(grep -q 'h.lua' "${LEDGER_DIR}/ledger.tsv" && echo no || echo yes)"
+check "... and is named to the model, to claim if it is its own" \
+    "$(jq -r '.hookSpecificOutput.additionalContext // ""' <<< "${notes}" | grep -q 'h.lua' && echo yes || echo no)"
+# p.lua: an `end` the edit's diff saw as staying, which git sees as removed in
+# one place and added in another (issue 032, question 6); and, above it,
+# someone else's deletion of an identical `end`, which must stay theirs
+printf 'x1\nend\nx2\np1\nown-p\np2\nend\n' > "${REPO}/p.lua"
+record Edit '{tool_input: {file_path: ($repo + "/p.lua")},
+  tool_response: {structuredPatch: [{oldStart: 4, oldLines: 3, newStart: 4, newLines: 4,
+    lines: [" p1", "+own-p", " p2", "+end"]}]}}'
 # proj/src/e.lua: an own edit inside a project that keeps transcripts
 printf 's1\nown-s2\n' > "${REPO}/proj/src/e.lua"
 record Edit '{tool_input: {file_path: ($repo + "/proj/src/e.lua")},
@@ -156,6 +176,9 @@ sed -i 's/^line4$/foreign-4/' "${REPO}/a.lua"
 sed -i 's/^b1$/foreign-b1/' "${REPO}/b.lua"
 # the foreign deletion of g5, between this session's two g.lua changes
 sed -i '/^g5$/d' "${REPO}/g.lua"
+# the foreign deletion of p.lua's first `end`, identical to the one this
+# session's edit moved
+sed -i '2{/^end$/d}' "${REPO}/p.lua"
 check "the foreign deletion of g5 is in the working tree" "$(grep -qx g5 "${REPO}/g.lua" && echo no || echo yes)"
 check "the working tree holds both sessions' edits" \
     "$(grep -q foreign-4 "${REPO}/a.lua" && grep -q own-2 "${REPO}/a.lua" && echo yes || echo no)"
@@ -188,6 +211,12 @@ check "g.lua's second own change landed on the right line after the skipped one"
 check "a new file written by this session is committed" "$(git -C "${REPO}" cat-file -e HEAD:new.lua && echo yes || echo no)"
 check "a file changed by a shell command with a diff is committed" "$(git -C "${REPO}" show HEAD:f.lua | grep -qx 'bash-f3' && echo yes || echo no)"
 check "a claimed generated file is committed" "$(git -C "${REPO}" cat-file -e HEAD:gen.txt && echo yes || echo no)"
+check "another session's file, reported against a read-only command, is not committed" \
+    "$(git -C "${REPO}" show HEAD:h.lua | grep -q 'foreign-h2' && echo no || echo yes)"
+check "a moved identical line is not read as someone else's: p.lua's own change is committed" \
+    "$(git -C "${REPO}" show HEAD:p.lua | diff -q - <(printf 'x1\nend\nx2\np1\nown-p\np2\nend\n') > /dev/null && echo yes || echo no)"
+check "... and the other person's deletion of an identical line stays out" \
+    "$(git -C "${REPO}" show HEAD:p.lua | sed -n 2p | grep -qx 'end' && echo yes || echo no)"
 check "a changed transcript rides along, whoever's conversation it is" \
     "$(git -C "${REPO}" show HEAD:proj/llm-transcripts/t.md | grep -q 'second transcript line' && echo yes || echo no)"
 check "the working tree still holds the foreign edits" "$(grep -q foreign-4 "${REPO}/a.lua" && echo yes || echo no)"
