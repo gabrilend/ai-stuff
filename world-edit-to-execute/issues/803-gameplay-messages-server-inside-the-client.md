@@ -21,7 +21,26 @@ Being built (2026-09-25).
   passing: ticks, orders and their answers, the pause and resuming with
   nothing rewound, the strictest slider in force, and the drop vote. A vote
   on oneself is refused before any other check.
-- Steps 3 to 5: not yet.
+- **Step 3, the server on its own thread: built.** `src/net/hosted.lua`
+  runs the server on an effil thread; each player has a queue each way
+  (`src/net/link.lua`), which can delay, jitter, lose, or go silent for a
+  span. `src/net/circling_sim.lua` is a stand-in game whose units move as
+  the renderer's ceramic test units do; `src/net/clock.lua` is the shared
+  clock. `src/tests/test_net_hosted.lua` passes in real time: a clean
+  connection, 100 ms of delay, half the messages lost, and a 1.3 s drop
+  that the 2 s starting tolerance rides out and a 0.5 s slider turns into
+  a pause resuming from the paused tick. All three test files run from
+  `src/tests/run-net-tests.sh`.
+- **Encoding speed:** 2,048 units encode in about 1 ms (a reused byte
+  buffer, field names spelled out only on a refusal); the first version
+  took 9.6 ms. Decoding into Lua tables takes about 1.7 ms, so the
+  renderer's receiver should decode in C straight into the mailbox.
+- **Found by the strict encoder:** the real clock has fractions of a
+  millisecond, and the waiting message's times are whole; the server now
+  rounds them, with a test.
+- Steps 4 and 5: not yet (the receiver into the renderer's mailbox; the
+  tests of a refused order cancelling a local answer, which need the
+  client side).
 
 Before this, there was no network code in the project (no sockets, no
 protocol for play; 801 stops at the lobby). The simulation

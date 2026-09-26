@@ -243,8 +243,9 @@ function server:send_waiting(now_ms)
     for p, pl in each_player(self) do
         if pl.silent_since_ms then
             list[#list + 1] = {
-                player = p, silent_ms = now_ms - pl.heard_ms,
-                countdown_ms = math.max(0, server.COUNTDOWN_MS - (now_ms - pl.silent_since_ms)),
+                -- whole milliseconds: the clock has fractions, the message doesn't
+                player = p, silent_ms = math.floor(now_ms - pl.heard_ms),
+                countdown_ms = math.max(0, math.floor(server.COUNTDOWN_MS - (now_ms - pl.silent_since_ms))),
             }
         end
     end
