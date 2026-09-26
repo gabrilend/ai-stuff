@@ -88,6 +88,7 @@ crowd.GIVE_WAY_FOR = 30        -- ... and stands still this long
 crowd.BUNDLE_TICKS = 25        -- sliding along units without getting closer this long: plan round the bundle
 crowd.BUNDLE_GAP = 0.3         -- units this close (edge to edge) belong to the same bundle
 crowd.BUNDLE_KEEP = 120        -- ticks a bundle stays an obstacle to that unit's planning
+crowd.BUNDLE_MOST = 40         -- a bundle holds at most this many units (see bundle_of)
 crowd.NUDGE_EVERY = 20         -- a unit is nudged at most once in this many ticks
 crowd.NO_PROGRESS_TICKS = 1250 -- no closer to the goal this long (20 s at 62.5/s): give up
 crowd.PROGRESS = 0.25          -- getting this much closer counts as progress
@@ -730,8 +731,11 @@ end
 -- }}}
 
 -- {{{ function crowd:bundle_of(o)
--- The standing units touching o, and those touching them: what a mover
--- goes round as one. (The first version counted blocked movers too; in a
+-- The standing units touching o, and those touching them, up to
+-- BUNDLE_MOST: what a mover goes round as one. (Unlimited, a bundle in two
+-- armies of 1,000 each grew to hundreds of units, and planning round it --
+-- every cell checked against every one -- took up to 0.6 s for one unit's
+-- tick.) (The first version counted blocked movers too; in a
 -- dense moving crowd everything was one bundle, no way round it existed,
 -- and the units that tried stopped.)
 function crowd:bundle_of(o)
@@ -740,7 +744,7 @@ function crowd:bundle_of(o)
         local a = table.remove(queue)
         bundle[#bundle + 1] = { x = a.x, y = a.y, radius = a.radius }
         self:near(a.x, a.y, function(b)
-            if not seen[b.id] and not b.moving then
+            if not seen[b.id] and not b.moving and #bundle + #queue < crowd.BUNDLE_MOST then
                 local reach = a.radius + b.radius + crowd.BUNDLE_GAP
                 if (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < reach * reach then
                     seen[b.id] = true
