@@ -101,6 +101,16 @@ stays the working one until this one matches or beats it.
      truth."
    - Offline, the local simulation plays the server's part, at its fixed
      tick rate.
+   - **No lockstep** (the owner, 2026-09-25): "let's drop entirely." Only
+     the server simulates; clients never need identical arithmetic.
+   - **What the client shows** (the owner, 2026-09-25): "Show what the
+     server sends. But, if the server is late, we can extrapolate up to the
+     ping x 2." A state is shown as it arrives. Only while the next one is
+     overdue does the client carry each unit forward from its newest
+     state, and only up to a cap. Past the cap the unit stays where the
+     guess reached, **still playing its running animation in place**, so
+     the player can see it's lag (the owner: "so the user knows that it's
+     lag").
 5. **Large read-only data travels as an id, not a copy.**
    - Meshes, textures, bind poses and animation tracks live in an asset
      table. Stations carry a small number naming an entry.
