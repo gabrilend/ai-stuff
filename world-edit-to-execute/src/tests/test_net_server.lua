@@ -120,6 +120,7 @@ do
     local w = last(inbox[0], "waiting")
     test("everyone is told who is silent", w.paused == 1 and #w.silent == 1 and w.silent[1].player == 1 and last(inbox[1], "waiting") ~= nil)
     test("the countdown starts at 30 s", w.silent[1].countdown_ms == 30000)
+    test("the dialog opens with every player's slider", last(inbox[0], "tolerances") ~= nil and #last(inbox[0], "tolerances").players == 2)
     for t = 2032, 5000, 16 do beat(s, { 0 }, t); s:step(t) end
     test("no ticks while paused", s.tick == tick_before, s.tick .. " vs " .. tick_before)
     local order = { order_id = 1, given_tick = 1, kind = 1, target_x = 0, target_y = 0, target_unit = 0, units = { { id = 1 } } }

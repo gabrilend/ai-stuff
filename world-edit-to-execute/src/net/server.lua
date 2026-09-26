@@ -164,9 +164,7 @@ function takes.tolerance(self, player, message)
         return
     end
     self.players[player].tolerance_ms = message.ms
-    local list = {}
-    for p, pl in each_player(self) do list[#list + 1] = { player = p, ms = pl.tolerance_ms } end
-    self:broadcast("tolerances", { in_force_ms = self:tolerance_in_force(), players = list })
+    self:send_tolerances()
 end
 -- }}}
 
@@ -209,6 +207,15 @@ function server:receive(player, bytes, now_ms)
     end
     pl.heard_ms = now_ms
     takes[name](self, player, message, now_ms)
+end
+-- }}}
+
+-- {{{ function server:send_tolerances()
+-- Every player's slider, and the one in force, to everyone.
+function server:send_tolerances()
+    local list = {}
+    for p, pl in each_player(self) do list[#list + 1] = { player = p, ms = pl.tolerance_ms } end
+    self:broadcast("tolerances", { in_force_ms = self:tolerance_in_force(), players = list })
 end
 -- }}}
 
@@ -272,6 +279,8 @@ function server:step(now_ms)
         if not self.paused then
             self.paused, self.paused_since_ms = true, now_ms
             self:send_waiting(now_ms)
+            -- the dialog shows every player's slider, so it opens with them
+            self:send_tolerances()
         elseif now_ms - self.last_waiting_ms >= server.WAITING_EVERY_MS then
             self:send_waiting(now_ms)
         end

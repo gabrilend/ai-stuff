@@ -43,8 +43,12 @@ Being built (2026-09-25).
   program holds a Lua state running the server on its own thread, as the
   tests do; a C unpacker generated from `messages.lua` writes states into
   the mailbox. Chosen over a separate server program on a local socket,
-  which would make offline play two programs. Built as part of issue 804
-  (the crossing-armies demo).
+  which would make offline play two programs. **Built** in issue 804 (the
+  crossing-armies demo): `src/net/renderer_link.lua` on the renderer's
+  receiving thread, `src/net/messages-c.lua` generating the C reader
+  (tested by `src/tests/test_net_messages_c.lua`). A receiver can now be
+  disturbed live from its own end (`link.lua`), and the server sends every
+  slider when a pause begins.
 - Step 5: not yet (a refused order cancelling a local answer needs the
   client side).
 
