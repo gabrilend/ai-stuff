@@ -7,8 +7,10 @@ that build shipped with, so a map loads with the stock values it was made
 against.
 
 Only entries backed by evidence belong here, each with where the evidence
-came from. A map whose editor version isn't listed loads with the newest
-layer available and a counted warning (src/gamedata/chain.lua).
+came from. A map whose editor version isn't listed is refused with an error
+that says what to fetch (src/gamedata/chain.lua, choose_layer); the chain
+never guesses a layer. (This comment said "newest layer and a counted
+warning" until 2026-09-26; the code had already moved to the error.)
 
 Evidence, two routes (issue 112b, 2026-09-24):
   ours   Each layer's WorldEdit.exe holds its own build number as a 4-byte
