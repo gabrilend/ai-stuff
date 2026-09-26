@@ -440,7 +440,6 @@ function crowd:tick(dt)
     self:rehash()
     for _, id in ipairs(self.order) do
         local u = self.units[id]
-        u.path_changed = false
         if u.moving then self:advance(u, dt) end
     end
 end

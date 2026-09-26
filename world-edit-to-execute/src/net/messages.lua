@@ -135,6 +135,14 @@ local descriptions = {
         { "needed", "u8" },
         { "silent", "list", { { "player", "u8" }, { "votes", "u8" } } },
     } },
+    -- server -> client, for drawing only: the paths units re-planned this
+    -- tick, as one flat list of points (a unit's points in order; a unit
+    -- with no points has stopped). Flat, so a C reader needs no nesting.
+    { 11, "paths", {
+        { "tick", "u32" },
+        { "stopped", "list", { { "id", "u32" } } },
+        { "points", "list", { { "id", "u32" }, { "x", "f32" }, { "y", "f32" } } },
+    } },
 }
 
 -- Two ways in: by number (decoding) and by name (encoding).
@@ -146,6 +154,9 @@ for _, d in ipairs(descriptions) do
 end
 messages.names = {}
 for _, d in ipairs(descriptions) do messages.names[#messages.names + 1] = d[2] end
+-- The descriptions themselves, read-only by agreement: the C unpacker is
+-- generated from them (net/messages-c.lua), so the two can't drift apart.
+messages.descriptions = descriptions
 -- }}}
 
 -- {{{ Where the walk is, for refusals
