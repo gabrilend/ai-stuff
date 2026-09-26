@@ -286,10 +286,11 @@ EXPORT VALIDATION: WC3
 
 ## Open Questions
 
-1. With WoW gameplay mode gone, what does the editor save? (a) Straight to
-   `.w3x`/`.w3m` through StormLib, so every map the editor touches stays a
-   plain WC3 map; (b) a working format of this project's own (the `.wex`
-   idea, without a WoW layer) that exports to `.w3x`; (c) (a), plus a
-   folder form of a map (its files unpacked) for editing and diffing. And
-   which WC3 version does a saved map target: the one it was loaded as, or a
-   chosen one? (Asked 2026-09-26.)
+1. ~~With WoW gameplay mode gone, what does the editor save?~~ Answered
+   2026-09-26: **`.w3x`, for now.** The owner: "We are already building
+   compatibility for that system so we might as well." The editor writes
+   plain WC3 maps through StormLib; the `.wex`, `.wexl` and `.wowmap`
+   formats above are not built. This issue's design is to be rewritten
+   around that when Phase 9 starts.
+2. Which WC3 version does a saved map target: the one it was loaded as, or
+   a chosen one? (Asked 2026-09-26.)

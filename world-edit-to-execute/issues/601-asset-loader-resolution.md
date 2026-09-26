@@ -132,7 +132,11 @@ loader.clear()
 
 ## Open Questions
 
-1. Which folder holds the player's data: `~/.wc3-engine/` (the
-   architecture doc and roadmap) or `~/.world-edit-engine/` (this issue)?
-   Or a standard per-user data folder (`$XDG_DATA_HOME`, usually
-   `~/.local/share/`)? (Asked 2026-09-26.)
+1. ~~Which folder holds the player's data?~~ Answered 2026-09-26: **the
+   project directory**, "though they can config file it somewhere else". So
+   the default is a folder inside the project, and a config file can point
+   it anywhere. The `~/.world-edit-engine/` tree above and the
+   `~/.wc3-engine/` paths in `docs/wc3-engine-architecture.md` and
+   `docs/roadmap.md` are to be rewritten to that when this issue is built.
+   Still to choose: the folder's name inside the project, and where the
+   config file itself lives.
