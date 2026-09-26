@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 601 (asset loader)
-**Blocks:** 603 (the fetcher stores each download by its hash)
+**Blocks:** 603 (the fetcher stores each download by its hash), 605, 608, 609, W05
 
 ---
 
