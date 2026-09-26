@@ -331,7 +331,13 @@ New features use v2 directly. Old code migrated over time.
 - [x] Render demo compiles and runs
 - [x] F3 profiler shows per-thread timing
 - [x] FPS stable at 60
-- [ ] No memory leaks (not tested with valgrind)
+- [x] No memory leaks in the threading layer: the 14 threading tests run
+      under `valgrind --leak-check=full` with 0 bytes in use at exit
+      (2026-09-26). The first run found one 64-byte leak, which was the
+      test's own: it started an updater and never freed its context. The
+      test now frees it after the pool, the same order main.c's shutdown
+      uses. The full window demo was not run under valgrind; raylib and the
+      GL driver are outside what this issue changed.
 - [x] test_threading.c tests still pass (14/14)
 - [x] v2 API used directly by main.c (v1 removed entirely)
 

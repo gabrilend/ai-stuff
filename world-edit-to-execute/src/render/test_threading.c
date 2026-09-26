@@ -452,6 +452,12 @@ int test_updater_create_start(void) {
     /* Destroy (note: updater is still in worker's task list) */
     pool_destroy(pool);
 
+    /* The pool stops the updater's task but does not own its context, so
+     * the context is freed separately, after the pool, in the same order
+     * main.c's shutdown uses. Leaving this out was the only leak valgrind
+     * found in these tests (2026-09-26). */
+    updater_destroy(updater);
+
     printf("PASS\n\n");
     return 0;
 }

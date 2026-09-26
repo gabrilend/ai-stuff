@@ -519,12 +519,22 @@ fi
 ## Acceptance Criteria
 
 - [x] Identified root cause of rendering bug
-- [ ] Created minimal reproduction test
+- [x] ~~Created minimal reproduction test~~ Not needed: the bash menu the
+      bug lived in was replaced by the Lua rewrite below, so there is no
+      buggy renderer left to reproduce. The reproduction scripts that did
+      exist moved to `scripts/debug/` (commit 0434c89d6).
 - [x] Applied fix to menu.sh (superseded by Lua rewrite)
-- [ ] Verified fix in test scripts
+- [x] ~~Verified fix in test scripts~~ Superseded by the Lua rewrite, which
+      was verified through issue-splitter.sh.
 - [x] Verified fix in issue-splitter.sh
 - [x] No regression in existing functionality
-- [ ] Screen resize functionality (NOT IMPLEMENTED - future work)
+- [x] Screen resize functionality: built later in the shared Lua terminal
+      library (`scripts/libs/tui.lua`, its resize function rebuilds the
+      screen buffers and redraws). The bash menu's own rendering bug is
+      tracked in the scripts project as
+      `scripts/issues/004-fix-tui-menu-incremental-rendering.md`.
+
+Status (2026-09-26): complete. Nothing in this project remains open for it.
 
 ---
 
