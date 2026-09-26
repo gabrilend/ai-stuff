@@ -14,6 +14,16 @@
  * Within a loop, threads take the next task from a shared counter (the
  * self-balancing kind, not fixed slices).
  *
+ * Two stronger ways (issue 515j):
+ *   jobs      a hand-written job system, the design shipping engines use:
+ *             every task is a job with a count of unfinished inputs;
+ *             finishing one releases its dependents onto the finishing
+ *             thread's own queue; idle threads steal from the others, then
+ *             spin, then sleep; the frame ends when nothing is outstanding.
+ *             It does what the ceramic graph does, by hand, for this frame.
+ *   systems-hybrid, levels-hybrid   the barrier ways, with threads that spin
+ *             for SPIN_US at a barrier and then sleep.
+ *
  * Between stages, threads either sleep at a barrier (systems, levels) or
  * spin at one (systems-spin, levels-spin). It matters more than it looks:
  * on a machine that lowers an idle core's clock (this one's governor idles
@@ -25,7 +35,7 @@
  *
  * Output: the same columns as frame-host.c.
  *
- * Usage: ./frame-hand serial|systems|levels|systems-spin|levels-spin FRAMES THREADS BACKGROUND
+ * Usage: ./frame-hand serial|systems|levels|systems-spin|levels-spin|systems-hybrid|levels-hybrid|jobs FRAMES THREADS BACKGROUND
  */
 #include <pthread.h>
 #include <stdatomic.h>
@@ -90,11 +100,22 @@ typedef struct {
     int          n;
     _Atomic int  next;
     _Atomic int  quit;
-    /* the spinning barrier: how many have arrived, and which round it is */
+    /* the spinning barrier: how many have arrived, and which round it is;
+     * spin is 0 (sleep), 1 (spin) or 2 (spin, then sleep) */
     int          spin, threads;
     _Atomic int  arrived;
     _Atomic int  round;
+    /* the hybrid barrier's sleepers */
+    pthread_mutex_t nap_lock;
+    pthread_cond_t  nap;
+    _Atomic int     napping;
 } stage_share;
+
+/* How long a hybrid wait spins before it sleeps, in microseconds: long
+ * enough to cover the short gaps inside a frame, short enough not to burn a
+ * core through the long ones. FRAME_SPIN_US overrides the default, so the
+ * opponents can be given their best setting rather than a guess. */
+static double SPIN_US = 50;
 
 /* {{{ static void meet(stage_share *st, pthread_barrier_t *b) */
 /* Every thread waits here until all have arrived. Two ways: sleep in the
@@ -110,11 +131,29 @@ static void meet(stage_share *st, pthread_barrier_t *b)
     if (atomic_fetch_add(&st->arrived, 1) + 1 == st->threads) {
         atomic_store(&st->arrived, 0);
         atomic_store(&st->round, round + 1);
+        /* hybrid: wake whoever gave up spinning and went to sleep */
+        if (st->spin == 2 && atomic_load(&st->napping) > 0) {
+            pthread_mutex_lock(&st->nap_lock);
+            pthread_cond_broadcast(&st->nap);
+            pthread_mutex_unlock(&st->nap_lock);
+        }
     } else {
+        double until = st->spin == 2 ? now_us() + SPIN_US : 1e300;
         while (atomic_load(&st->round) == round) {
 #if defined(__x86_64__) || defined(__i386__)
             __builtin_ia32_pause();
 #endif
+            if (now_us() > until) {
+                /* hybrid: spun long enough; sleep until the round moves.
+                 * napping is raised before the round is checked again under
+                 * the lock, and the last to arrive moves the round before it
+                 * reads napping, so one of the two always sees the other. */
+                pthread_mutex_lock(&st->nap_lock);
+                atomic_fetch_add(&st->napping, 1);
+                while (atomic_load(&st->round) == round) pthread_cond_wait(&st->nap, &st->nap_lock);
+                atomic_fetch_sub(&st->napping, 1);
+                pthread_mutex_unlock(&st->nap_lock);
+            }
         }
     }
 }
@@ -181,14 +220,186 @@ static void *background(void *arg)
     }
 }
 /* }}} */
+
+/* The job system (issue 515j). Job numbers: the simulation 0, fog 1..4,
+ * pose lanes 5..12, culling 13..20, pathfinding 21 onward. */
+#define J_SIM 0
+#define J_FOG (J_SIM + 1)
+#define J_POSE (J_FOG + FRAME_PLAYERS)
+#define J_CULL (J_POSE + FRAME_LANES)
+#define J_PATH (J_CULL + FRAME_LANES)
+#define JOBS_MAX (J_PATH + FRAME_PATHS_MAX)
+
+typedef struct {
+    item        what;
+    _Atomic int waiting;                            /* unfinished inputs */
+    int         n_next, next[FRAME_PLAYERS + FRAME_LANES];   /* who it releases */
+} frame_job;
+
+/* One thread's queue: its own jobs pop from the back, thieves take from
+ * the front. A spin lock each; the lists are a few dozen jobs long. */
+typedef struct {
+    atomic_flag lock;
+    int         jobs[JOBS_MAX], head, tail;
+    char        pad[64];
+} job_queue;
+
+typedef struct {
+    frame_state *s;
+    frame_job    job[JOBS_MAX];
+    int          n_jobs;
+    job_queue   *queues;
+    int          threads;
+    _Atomic int  outstanding;
+    _Atomic int  quit;
+    pthread_mutex_t nap_lock;
+    pthread_cond_t  nap;
+    _Atomic int     napping;
+} job_share;
+
+static void queue_lock(job_queue *q) { while (atomic_flag_test_and_set_explicit(&q->lock, memory_order_acquire)) {} }
+static void queue_unlock(job_queue *q) { atomic_flag_clear_explicit(&q->lock, memory_order_release); }
+
+/* {{{ static void job_push(job_share *js, int self, int j) */
+/* A job ready to run: onto this thread's own queue, and wake a sleeper if
+ * there is one (the push is published before napping is read). */
+static void job_push(job_share *js, int self, int j)
+{
+    job_queue *q = &js->queues[self];
+    queue_lock(q);
+    q->jobs[q->tail++] = j;
+    queue_unlock(q);
+    atomic_thread_fence(memory_order_seq_cst);
+    if (atomic_load(&js->napping) > 0) {
+        pthread_mutex_lock(&js->nap_lock);
+        pthread_cond_signal(&js->nap);
+        pthread_mutex_unlock(&js->nap_lock);
+    }
+}
+/* }}} */
+
+/* {{{ static int job_take(job_share *js, int self) */
+/* The newest job on this thread's own queue, else the oldest on another's
+ * (stealing, starting from the next thread along), else -1. */
+static int job_take(job_share *js, int self)
+{
+    job_queue *q = &js->queues[self];
+    int j = -1;
+    queue_lock(q);
+    if (q->tail > q->head) j = q->jobs[--q->tail];
+    queue_unlock(q);
+    for (int k = 1; j < 0 && k < js->threads; k++) {
+        job_queue *v = &js->queues[(self + k) % js->threads];
+        /* Always under the lock: an unlocked glance at head and tail first
+         * would be cheaper, and is a data race. */
+        queue_lock(v);
+        if (v->tail > v->head) j = v->jobs[v->head++];
+        queue_unlock(v);
+    }
+    return j;
+}
+/* }}} */
+
+/* {{{ static void job_run(job_share *js, int self, int j) */
+/* Run one job, release the jobs waiting on it, and count it done. */
+static void job_run(job_share *js, int self, int j)
+{
+    frame_job *fj = &js->job[j];
+    run_item(js->s, fj->what);
+    for (int i = 0; i < fj->n_next; i++)
+        if (atomic_fetch_sub(&js->job[fj->next[i]].waiting, 1) == 1) job_push(js, self, fj->next[i]);
+    atomic_fetch_sub(&js->outstanding, 1);
+}
+/* }}} */
+
+/* {{{ static int anything_queued(job_share *js) */
+static int anything_queued(job_share *js)
+{
+    for (int t = 0; t < js->threads; t++) {
+        job_queue *q = &js->queues[t];
+        queue_lock(q);
+        int some = q->tail > q->head;
+        queue_unlock(q);
+        if (some) return 1;
+    }
+    return 0;
+}
+/* }}} */
+
+typedef struct { job_share *js; int self; } job_worker_arg;
+
+/* {{{ static void *job_worker(void *arg) */
+/* A helper: take, steal, run; with nothing to take, spin SPIN_US, then
+ * sleep until a push wakes it. */
+static void *job_worker(void *arg)
+{
+    job_worker_arg *a = arg;
+    job_share *js = a->js;
+    for (;;) {
+        if (atomic_load(&js->quit)) return NULL;
+        int j = job_take(js, a->self);
+        if (j >= 0) { job_run(js, a->self, j); continue; }
+        double until = now_us() + SPIN_US;
+        while (j < 0 && now_us() < until && !atomic_load(&js->quit)) {
+#if defined(__x86_64__) || defined(__i386__)
+            __builtin_ia32_pause();
+#endif
+            j = job_take(js, a->self);
+        }
+        if (j >= 0) { job_run(js, a->self, j); continue; }
+        pthread_mutex_lock(&js->nap_lock);
+        atomic_fetch_add(&js->napping, 1);
+        if (!anything_queued(js) && !atomic_load(&js->quit)) pthread_cond_wait(&js->nap, &js->nap_lock);
+        atomic_fetch_sub(&js->napping, 1);
+        pthread_mutex_unlock(&js->nap_lock);
+    }
+}
+/* }}} */
+
+/* {{{ static void jobs_frame(job_share *js) */
+/* One frame: reset every job's count and links, hand the simulation and
+ * the pathfinding to the main thread's own queue, and work alongside the
+ * helpers until nothing is outstanding. */
+static void jobs_frame(job_share *js)
+{
+    frame_state *s = js->s;
+    js->n_jobs = J_PATH + s->npaths;
+    js->job[J_SIM] = (frame_job){ { T_SIM, 0 }, 0, 0, { 0 } };
+    for (int p = 0; p < FRAME_PLAYERS; p++) {
+        js->job[J_FOG + p] = (frame_job){ { T_FOG, p }, 1, 0, { 0 } };
+        js->job[J_SIM].next[js->job[J_SIM].n_next++] = J_FOG + p;
+    }
+    for (int l = 0; l < FRAME_LANES; l++) {
+        js->job[J_POSE + l] = (frame_job){ { T_POSE, l }, 1, 1, { J_CULL + l } };
+        js->job[J_CULL + l] = (frame_job){ { T_CULL, l }, 1, 0, { 0 } };
+        js->job[J_SIM].next[js->job[J_SIM].n_next++] = J_POSE + l;
+    }
+    for (int i = 0; i < s->npaths; i++) js->job[J_PATH + i] = (frame_job){ { T_PATH, i }, 0, 0, { 0 } };
+    atomic_store(&js->outstanding, js->n_jobs);
+    job_push(js, 0, J_SIM);
+    for (int i = 0; i < s->npaths; i++) job_push(js, 0, J_PATH + i);
+    /* the main thread works too, and never sleeps: it spins until the
+     * frame is done, so a helper that sleeps a moment too long costs time
+     * and never the frame */
+    while (atomic_load(&js->outstanding) > 0) {
+        int j = job_take(js, 0);
+        if (j >= 0) job_run(js, 0, j);
+#if defined(__x86_64__) || defined(__i386__)
+        else __builtin_ia32_pause();
+#endif
+    }
+}
+/* }}} */
 /* } THREADING */
 
 /* {{{ int main(int argc, char **argv) */
 int main(int argc, char **argv)
 {
-    if (argc != 5 || (strcmp(argv[1], "serial") && strcmp(argv[1], "systems") && strcmp(argv[1], "levels")
-                      && strcmp(argv[1], "systems-spin") && strcmp(argv[1], "levels-spin"))) {
-        fprintf(stderr, "usage: %s serial|systems|levels|systems-spin|levels-spin FRAMES THREADS BACKGROUND\n", argv[0]);
+    const char *ways[] = { "serial", "systems", "levels", "systems-spin", "levels-spin", "systems-hybrid", "levels-hybrid", "jobs" };
+    int known = 0;
+    for (int i = 0; argc == 5 && i < 8; i++) if (strcmp(argv[1], ways[i]) == 0) known = 1;
+    if (!known) {
+        fprintf(stderr, "usage: %s serial|systems|levels|systems-spin|levels-spin|systems-hybrid|levels-hybrid|jobs FRAMES THREADS BACKGROUND\n", argv[0]);
         return 64;
     }
     const char *way = argv[1];
@@ -200,11 +411,30 @@ int main(int argc, char **argv)
     if (!took || !s) { fprintf(stderr, "no memory\n"); return 71; }
 
     /* THREADING { -- start the helpers and the background thread */
-    stage_share st = { .s = s, .spin = strstr(way, "-spin") != NULL, .threads = threads };
+    const char *spin_env = getenv("FRAME_SPIN_US");
+    if (spin_env && *spin_env) SPIN_US = atof(spin_env);
+    int jobs = strcmp(way, "jobs") == 0;
+    stage_share st = { .s = s, .spin = strstr(way, "-spin") ? 1 : strstr(way, "-hybrid") ? 2 : 0, .threads = threads };
+    pthread_mutex_init(&st.nap_lock, NULL);
+    pthread_cond_init(&st.nap, NULL);
     pthread_t *ids = malloc(sizeof *ids * (size_t)threads);
     pthread_barrier_init(&st.start, NULL, (unsigned)threads);
     pthread_barrier_init(&st.done, NULL, (unsigned)threads);
-    for (int i = 1; i < threads; i++) pthread_create(&ids[i], NULL, helper, &st);
+    /* the job system's helpers, or the barrier ways' */
+    job_share js = { .s = s, .threads = threads };
+    job_worker_arg *jargs = malloc(sizeof *jargs * (size_t)threads);
+    if (jobs) {
+        js.queues = calloc((size_t)threads, sizeof *js.queues);
+        for (int i = 0; i < threads; i++) atomic_flag_clear(&js.queues[i].lock);
+        pthread_mutex_init(&js.nap_lock, NULL);
+        pthread_cond_init(&js.nap, NULL);
+        for (int i = 1; i < threads; i++) {
+            jargs[i] = (job_worker_arg){ &js, i };
+            pthread_create(&ids[i], NULL, job_worker, &jargs[i]);
+        }
+    } else {
+        for (int i = 1; i < threads; i++) pthread_create(&ids[i], NULL, helper, &st);
+    }
     background_queue bq = { .jobs = malloc(sizeof(job) * (size_t)(frames * FRAME_DECODES + 1)) };
     pthread_mutex_init(&bq.lock, NULL);
     pthread_cond_init(&bq.more, NULL);
@@ -239,6 +469,20 @@ int main(int argc, char **argv)
             for (int l = 0; l < FRAME_LANES; l++) run_item(s, (item){ T_POSE, l });
             for (int i = 0; i < s->npaths; i++) run_item(s, (item){ T_PATH, i });
             for (int l = 0; l < FRAME_LANES; l++) run_item(s, (item){ T_CULL, l });
+        } else if (jobs) {
+            /* Every queue starts the frame empty, reset under its own lock:
+             * a helper still looking for work reads head and tail under
+             * that lock, and a reset outside it once let a helper see the
+             * new head with the old tail and "steal" a job number from the
+             * last frame, which then ran twice (every frame's checksum
+             * caught it). */
+            for (int t = 0; t < threads; t++) {
+                queue_lock(&js.queues[t]);
+                js.queues[t].head = 0;
+                js.queues[t].tail = 0;
+                queue_unlock(&js.queues[t]);
+            }
+            jobs_frame(&js);
         } else if (strncmp(way, "systems", 7) == 0) {
             list[0] = (item){ T_SIM, 0 };
             run_stage(&st, list, 1);
@@ -275,8 +519,15 @@ int main(int argc, char **argv)
     }
 
     /* THREADING { -- stop the helpers and let the background finish */
-    atomic_store(&st.quit, 1);
-    meet(&st, &st.start);
+    if (jobs) {
+        atomic_store(&js.quit, 1);
+        pthread_mutex_lock(&js.nap_lock);
+        pthread_cond_broadcast(&js.nap);
+        pthread_mutex_unlock(&js.nap_lock);
+    } else {
+        atomic_store(&st.quit, 1);
+        meet(&st, &st.start);
+    }
     for (int i = 1; i < threads; i++) pthread_join(ids[i], NULL);
     if (with_background && !serial) {
         pthread_mutex_lock(&bq.lock);
@@ -294,6 +545,8 @@ int main(int argc, char **argv)
     free(took);
     free(s);
     free(ids);
+    free(jargs);
+    free(js.queues);
     free(bq.jobs);
     return 0;
 }

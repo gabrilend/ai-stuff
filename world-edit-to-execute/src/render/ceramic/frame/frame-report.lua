@@ -117,9 +117,20 @@ for _, r in ipairs(rows) do
 end
 local plan_json = {}
 for k, v in pairs(plan) do plan_json[#plan_json + 1] = string.format('"%s":%d', k, v) end
-local extra = string.format('{"bounds":{"chain":%.1f,"work":%.1f,"best":%.1f,"pose":%.1f},"loc":{"hand":%d,"host":%d,"map":%d,"gen":%d},"rounds":%d,"plan":{%s}}',
+-- the spin-length trial for the stronger opponents (issue 515j), if run
+local tuning = {}
+local tf = io.open(out_dir .. "/frame-tuning.tsv", "r")
+if tf then
+    for line in tf:lines() do
+        local way, us, mean = line:match("^([^\t]+)\t(%d+)\t([%d.]+)$")
+        assert(way, "an unreadable tuning line: " .. line)
+        tuning[#tuning + 1] = string.format('{"way":"%s","us":%s,"mean":%s}', way, us, mean)
+    end
+    tf:close()
+end
+local extra = string.format('{"bounds":{"chain":%.1f,"work":%.1f,"best":%.1f,"pose":%.1f},"loc":{"hand":%d,"host":%d,"map":%d,"gen":%d},"rounds":%d,"plan":{%s},"tuning":[%s]}',
     bounds.chain, bounds.work, bounds.best, bounds.pose, loc["hand-written"], loc["ceramic host"], loc["ceramic map"], gen, rounds,
-    table.concat(plan_json, ","))
+    table.concat(plan_json, ","), table.concat(tuning, ","))
 local cpu = io.popen("lscpu"):read("*a")
 local online = io.popen("nproc"):read("*l")
 -- the power governor and the lowest clock it idles a core at (cpu0 stands

@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 19:39:01
+Generated on: 2026-09-25 19:52:20
 Models: claude-opus-5-5
 
 ## Contents
@@ -7506,6 +7506,167 @@ The full run is still going. When it finishes I'll:
 - regenerate and publish the frame report with the before-and-after section;
 - write what the build taught into a note for soramech's issue 107;
 - complete the issue and commit both repositories.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/frame/run-frame.sh
+"" 300 3 &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/frame-run3.log
+2&gt;&amp;1" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### User Request 75
+
+[Image: original 1000x6400, displayed at 313x2000. Multiply coordinates by 3.19
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 75
+
+> It renders fully, including the new "after" section. Publishing to the same
+> link:
+
+> Now soramech: what the build taught goes into an implementation note for their
+> issue 107, and case study 153 gets the refreshed page and data:
+
+> Delivered to soramech. Completing 515i and committing this project's side:
+
+> The move failed because the issue file hadn't been committed yet, so it went
+> in at its old path. Moving it now that it's tracked:
+
+The priority queues are built. I added them to the existing frame report rather
+than a fourth artifact, since it's the same frame measured before and after:
+**[Frame as a Graph](https://claude.ai/artifact/8syLBAZ6BL4oGmKzMhPedn)**
+(version 2, new section "After: a lane for the frame"). Everything is committed
+in both repositories.
+
+**What was built**, following soramech's own design for this (their issue 107):
+- **Several task queues ("destinations").** A station may name one; each worker
+  serves an ordered list of them and takes from the first that has work.
+- **It can go unused, as you asked.** A program that names no destination
+  behaves exactly as before, which the unchanged original tests confirm. That's
+  why the before-and-after comparison is fair.
+- **Two things the build needed that 107 doesn't say:**
+  - a queue nobody serves must be refused, or its tasks hang forever;
+  - waking one worker per task is only right when every worker serves the same
+    queues.
+- **Tested:**
+  - task order;
+  - refusal of an unserved queue;
+  - a million tasks across three queues, each run exactly once;
+  - a race detector, which found nothing;
+  - soramech's suite, whose result is unchanged.
+
+**What it did to background work's cost** (frame time with two background
+decodes, against the same frame without them):
+
+| Setup | Frame with background | Cost |
+|---|---|---|
+| One task queue (before) | 3.05 ms | 8.4% |
+| A frame lane served first | 3.00 ms | 6.8% |
+| A frame lane, and only one worker serving the background | 2.92 ms | 3.8% |
+
+- **Priority alone wasn't enough.** A queue's order only decides what a free
+  worker takes *next*; it can't interrupt a 1.5 ms decode already running, and
+  idle workers grab the decodes at the start of each frame.
+- **Who serves slow work mattered as much as the order.** One worker for the
+  background means at most one is ever tied up.
+- **Worst frames didn't measurably change.** A short early run suggested they
+  did; the full run didn't bear it out, and the page and issue say so.
+- **It went back to soramech** as their implementation note 154, "Destinations,
+  built once", with an open idea: "at most N workers in this queue at once"
+  would express the one-worker trick more generally.
+
+**On the OS question:** "don't interrupt me until I'm done" is what real-time
+scheduling does, and your caution about responsiveness is exactly its catch. The
+cheap version (pin threads, leave the OS its own core) fits the adversarial
+list.
+
+**Adversarial opponents:** I'd still build these two first:
+- a **hand-written job system with dependency counts and work stealing**, what
+  shipping engines use and the strongest fair opponent;
+- **spin-then-sleep barriers**, which fix the hand-written loops' cold cores
+  without wrecking their worst frames.
+
+Should I add them to the frame harness, so the report compares the graph against
+the best hand-written code rather than the usual kind?
+
+--------------------------------------------------------------------------------
+
+### User Request 76
+
+Sure. Also, this paragraph could do with a rewrite:
+
+
+
+<pasted_content id="7a80">
+After: a lane for the frame
+
+The kept engine copy can now hold several task queues — destinations,
+following the soramech project's design (its issue 107): a station may name one,
+each worker serves an ordered list of them, and a program that names none
+behaves exactly as before. Here the frame's own stations name a “frame”
+destination that every worker serves first; background decoding stays in the
+default. Serving the frame first only decides what a free worker takes next —
+it can't interrupt a decode already running, and at the start of each frame,
+while the simulation step runs, idle workers pick the decodes up and are tied up
+for 1.50 ms. So the second arrangement also says who serves the background: only
+one worker, so at most one is ever inside a decode. With background work the
+background's cost went from 8% (one task queue) to 7% (a frame lane) to 4% (a
+frame lane and one worker for the background), while the worst frames stayed
+about where they were (4.50 ms, 4.54 ms). Without background work, neither
+arrangement changes much (2.81 ms, 2.80 ms, 2.88 ms): the same tasks, one more
+list to look at.
+</pasted_content id="7a80">
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 76
+
+> Both. First the rewrite. The paragraph packs four things into one run-on: what
+> changed, the two setups, why the second one was needed, and the results. I'll
+> split it into short paragraphs and a results list, with every number still
+> computed from the data:
+
+> Now the stronger opponents. The issue first:
+
+> I'm waiting for the full frame run (with the new opponents) to finish; I'll be
+> notified the moment it lands.
+
+The run is still going. I'll regenerate the report, publish it, and commit when
+it finishes.
+
+--------------------------------------------------------------------------------
+
+*[background task] Monitor "the full frame run with the stronger opponents"
+stream ended*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 76 (continued)
+
+> The report tool **refused**: the runs disagree on the frame's checksum (six
+> different answers). Something is computing wrong. Finding which ways differ:
+
+> All 12 job-system runs now match the one-thread loop. A dozen clean runs is
+> evidence, not proof, so I'll put the job system under the race detector too:
+
+> The race detector is now clean for the job system. A quick check of the
+> spin-then-sleep barriers too, since they're new:
+
+> Both clean. The job system's earlier numbers were produced by broken code, so
+> the whole frame run goes again with the fixed version:
+
+> The re-run is going (about ten minutes). Meanwhile, the job system's
+> `.info.md` and the issue's record of the race, since the checksum check is
+> what caught it:
+
+The frame re-run is still going (about ten minutes). When it finishes I'll check
+that every way agrees, regenerate and publish the page with the rewritten
+"after" section and the new opponents, and complete the issue.
 
 --------------------------------------------------------------------------------
 
