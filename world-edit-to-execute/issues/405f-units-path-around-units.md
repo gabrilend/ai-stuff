@@ -11,89 +11,125 @@
 
 ## Current Behavior
 
-Built (2026-09-25): `src/runtime/crowd.lua`, tested by
-`src/tests/test_crowd.lua` (all pass). Two armies of 40 swapping sides
-through a 12-cell gap: no overlap at any tick, about 80% arrive at or
-beside their goals, the rest give up after 20 s without getting closer,
-about 0.5 ms a tick.
+**Being rebuilt (2026-09-25), after the owner watched the first version.**
 
-What the first versions taught, each now a rule in the file:
-- **Waiting on a waiting unit deadlocks.** A unit blocked by a "moving"
-  unit that was itself waiting waited forever; the armies gridlocked within
-  a second. Now a moving unit that hasn't moved for 4 ticks counts as
-  standing.
-- **A group ordered one by one weaves around itself** (later members were
-  still standing when earlier ones planned). Now `move_group` marks them all
-  moving first.
-- **A cell whose centre is just clear can still block the first step** of a
-  unit starting off-centre; planning keeps 0.15 of a cell further away.
-- **"As close as it can get" made jams permanent:** units stopped short of
-  a goal behind a passing crowd and stood there for good. Now a unit that
-  stopped short only because of moving units waits and tries again.
-- **Blocked ticks in a row don't measure being stuck:** in a crowd a unit
-  steps, is blocked, re-plans and steps again forever. Giving up is now
-  measured as getting no closer to the goal, and needs 20 s: at 5 s or
-  10 s half the armies gave up while queued.
-- **Known limit:** two 8-deep armies meeting head-on in an 8-cell gap jam
-  for good (each front stalls against the other and walls off the gap).
-  A "keep right" planning cost was tried and removed: it only bends paths
-  that already bend, and Warcraft III isn't known to do it.
-- The project's general A* (`runtime/pathfinding/astar.lua`) wasn't used:
-  its diagonal steps cut past wall corners, which a round unit would clip.
+The first version (`src/runtime/crowd.lua` as committed in a75b9cdc2 and
+420d102e4) moved units cell to cell on the grid: every unit planned with
+A* over cells, standing and stalled units were stamped into the grid as
+obstacles, a step that would overlap was simply not taken, and a blocked
+unit waited or re-planned. Its checks passed (no overlap at any tick; two
+armies of 40 crossing a 12-cell gap, about 80% arriving), but watching it
+showed what the checks didn't:
+- units stood still blocking each other in pairs;
+- movement looked bound to a grid, not round units sliding past each
+  other;
+- nothing gave way: no nudging, no orbiting a crowd, no shuffling into a
+  formation;
+- every unit was the same size.
+
+What the first version taught, kept for the rebuild:
+- waiting on a unit that is itself waiting deadlocks;
+- a group ordered one by one weaves around its own members;
+- "as close as it can get" to a goal blocked by passing units makes jams
+  permanent;
+- blocked ticks in a row don't measure being stuck (a unit can step, be
+  blocked, re-plan and step forever); getting no closer to the goal does;
+- two groups head-on in a gap no wider than themselves jammed for good.
 
 ## Intended Behavior
 
-Warcraft III's behaviour, as the owner described it (2026-09-25): "units
-path around each other and don't walk into the same area that another
-unit is in." And on a moving unit meeting a friendly unit standing still:
-"it paths around."
+Warcraft III's behaviour, as the owner described it (2026-09-25). First:
+"units path around each other and don't walk into the same area that
+another unit is in"; a moving unit meeting a friendly unit standing still
+"paths around." Then, after watching the first version:
 
-A self-contained crowd (`src/runtime/crowd.lua`), separate from the global
-entity system so the server's thread can run it:
-- **The ground:** a walkability grid (cells of a fixed size, true or false).
-- **A unit:** id, position (x, y), radius, speed, and either standing or
-  moving along a path of cell centres to its goal.
-- **Standing units are obstacles to planning.** A* (its own, eight
-  directions, no corner cutting) treats every cell a standing unit covers
-  as blocked, so paths go around them.
-- **No two units ever overlap.** Each tick, in unit id order, a moving unit
-  takes its step only if it ends clear of every other unit (a spatial hash
-  finds the neighbours). Otherwise it is **blocked** for that tick and
-  waits. Nobody is pushed.
-- **Blocked by a unit standing still:** re-plan now (it stopped after this
-  unit's path was made).
-- **Blocked by a moving unit:** wait a few ticks (it'll probably move on);
-  if still blocked, re-plan treating that unit's cells as blocked too.
-- **No path:** keep waiting and retry every so often; after a limit, give
-  up and stand where it is (it then becomes an obstacle to others).
-- **Arriving:** a unit whose goal cell is taken stops at the nearest free
-  point it can reach.
-- **What it reports per unit per tick:** position, velocity, facing,
-  standing or walking, and whether its path changed (for drawing).
-- Deterministic: same orders, same result (id order, no clock, no random).
+> I think Warcraft 3 had a concept of nudging, we might need something
+> similar. [...] Units are getting stuck on each other, so two units will
+> just stand still blocking each other. We should dynamically route around
+> objects. [...] Can you make some units of larger size? Warcraft 3 didn't
+> feel so rigidly bound to a grid. That game had lots of circles and you
+> could slide around units easier. This demo, not so much. They don't jam.
+> If they need to get past a unit, they "orbit" the units in the way,
+> viewing them as a bundle. Sometimes they stand still while units move
+> past them. Also, if a collection of them is moving to a location and
+> another unit is in the way, they'll shuffle past them. If that unit is
+> part of the same selection - for example, unit A is surrounded by 15 unit
+> Bs. Unit A has a slow movement speed, and unit B's are fast. They arrive
+> at the destination first, but unit A is intended to move toward the
+> center of the formation. The unit B's will shuffle to fill the space unit
+> A is intended for, and unit A will take the closer spot. Remember, units
+> can be different sizes, so we have to make sure the waypoints are
+> displaced correctly.
+
+**The design (a crowd of circles, not of cells):**
+- **Units are circles of their own sizes,** moving continuously. The grid
+  only describes the ground (walls, pillars), with each cell's clearance
+  (distance to the nearest wall), so a unit of radius r plans only through
+  ground at least r clear.
+- **Paths are planned around the ground only,** then pulled straight
+  (a waypoint is kept only where a straight line would clip a wall at the
+  unit's radius), so paths are a few straight legs, not a staircase of
+  cells.
+- **Sliding:** each tick a unit wants to step toward its next waypoint.
+  When the step would overlap another unit, the part of the step pointing
+  into that unit is removed and the rest is taken, so it slides along the
+  circle. It keeps sliding the same way round (clockwise or anticlockwise,
+  chosen at first contact by which side its waypoint is on) until clear:
+  that is orbiting. No overlap is ever allowed; a step that would still
+  overlap is shortened.
+- **Bundles:** units touching each other (or nearly) form a bundle. A unit
+  that has slid along a bundle without getting closer for a moment plans
+  again with the whole bundle as an obstacle, and goes round it.
+- **Giving way:** two moving units that can't slide past each other don't
+  both stop: the one of lower priority (the higher id, or the one not in a
+  hurry) stands still for a moment while the other goes round it.
+- **Nudging:** a unit standing idle that is in the way of a moving unit of
+  its own side steps aside, out of the mover's way. Enemies are not
+  nudged; they are gone round.
+- **Formations fill as units arrive.** A group ordered to one point
+  doesn't get fixed places in advance. Each unit heads for the point; as it
+  arrives it takes the free spot nearest the point that fits its size
+  (packed against the circles already there, and clear of walls), so the
+  first to arrive fill the middle and a slow latecomer takes the free spot
+  nearest to itself. Units already there shuffle aside (nudging) for
+  members still passing through.
+- **Sizes:** units come in sizes (radius 0.35, 0.5 and 0.8 in the demo; the
+  large ones slower). Every clearance, contact and formation spot uses each
+  unit's own radius.
+- **What it reports per unit:** position, velocity, facing, radius,
+  standing or walking, and its path when that changes.
+- Deterministic: same orders, same result.
 
 ## Suggested Implementation Steps
 
-1. The crowd: grid, units, the spatial hash, orders (`move to`), the tick.
-2. Tests, each a small scene: a unit paths around a standing unit; two units
-   walking head-on in a corridor never overlap and both arrive; a unit
-   blocked by a unit that then stops re-plans around it; an unreachable
-   goal is approached as closely as possible; a boxed-in unit gives up;
-   two armies swap sides through a gap with no
-   overlap at any tick, and every unit arrives or gives up.
-3. Record the numbers (wait ticks, retry, give-up) as named values.
+1. The ground: walls, and each cell's clearance.
+2. Planning with clearance for a radius, and pulling paths straight.
+3. Moving with sliding and orbiting; bundles; giving way; nudging.
+4. Formations that fill as units arrive, by size.
+5. Tests, each a scene checked for overlap at every tick (units, and units
+   against walls): a unit orbits a standing enemy; two units pass
+   head-on without stopping for long; a unit goes round a bundle; an idle
+   ally is nudged aside; sixteen mixed-size units ordered to a point pack
+   round it without overlap; the owner's slow unit A among fifteen fast Bs
+   ends at the free spot nearest itself while Bs fill the middle; two
+   armies of mixed sizes cross without jamming.
+6. The demo draws each unit's radius on the ground under it, green for one
+   side and purple for the other, and bodies sized by radius.
 
 ## Acceptance Criteria
 
-- [x] The tests above pass; no overlap at any tick in any of them
-- [x] `.info.md` beside each new source file
+- [ ] The tests above pass; no overlap at any tick in any of them
+- [ ] `.info.md` beside each new source file (updated)
 
 ## Open Questions
 
-- **The narrow-gap jam** (asked 2026-09-25): two groups meeting head-on in
-  a gap no wider than themselves jam for good. What does Warcraft III do
-  there: jam too, or does something let one side through (units briefly
-  allowed to overlap allies, one side yielding)?
+- **The narrow-gap jam**, answered by the owner (2026-09-25): "They don't
+  jam. If they need to get past a unit, they 'orbit' the units in the way,
+  viewing them as a bundle. Sometimes they stand still while units move
+  past them." Built into the design above (sliding, bundles, giving way).
+- **Who gives way** between two moving units that can't slide past each
+  other: the design says the higher id, as a stand-in; Warcraft III's own
+  rule isn't recorded here.
 
 ## Related Documents
 
