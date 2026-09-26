@@ -64,12 +64,25 @@ over a network, so nothing is shared by pointer):
 - When the silent player is heard again, play resumes from the tick it
   paused on; nothing is rewound.
 - When the countdown ends, the others **vote** to drop the silent player
-  (the owner, 2026-09-25: "vote").
+  (the owner, 2026-09-25: "vote"). The countdown runs **30 seconds**.
+- **A drop needs three quarters of the players still connected, rounded
+  down** (the owner, 2026-09-25: "3/4th of the players still connected,
+  rounded down"), **and at least one vote**: with one player left, three
+  quarters rounds down to zero, which would drop the silent player with
+  nobody asking. Two players left need 1 vote, three need 2, four need 3,
+  eight need 6.
 - The client draws a waiting dialog over the paused game.
 
 **Each player's tolerance** (the owner's design, 2026-09-25):
 - The waiting dialog has a slider per player: their "desired network
-  tolerance", in seconds of silence before the game pauses.
+  tolerance", in seconds of silence before the game pauses. It appears
+  **only on the waiting dialog** (the owner, 2026-09-25), so until a
+  player first moves it, theirs is the starting value.
+- **The range is 0.25 to 10 seconds, starting at 2 seconds.** The owner
+  (2026-09-25): "pick reasonable numbers and we'll adjust if necessary."
+  0.25 s is about four missed ticks' worth of messages beyond ordinary
+  jitter; 10 s is long enough to ride out a router restart's first
+  moments. Later changes to these go in `docs/balance-updates.md`.
 - Stricter means more "waiting for player" pauses; looser means more lag
   shown in play (units guessed forward, then running in place) and fewer
   waits.
@@ -102,18 +115,14 @@ the waiting dialog testable without a network.
    with nothing rewound; the lowest tolerance being the one in force; a
    player dropped by vote.
 
-## Open Questions
+## Decisions
 
-- **The slider's range and starting value,** and the countdown's length
-  before a drop vote opens. (Warcraft III's own numbers aren't recorded in
-  this project.)
-- **Where else the slider lives:** only on the waiting dialog, or also in
-  the lobby and an in-game menu, so a player can set it before the first
-  pause.
-- **What wins a drop vote:** a majority of the players still connected, or
-  everyone else.
-- Answered (2026-09-25): who may drop (a vote); whether the pause limit is
-  515d's cap (no: it's the players' tolerance).
+- Who may drop: a vote, needing three quarters of the players still
+  connected, rounded down, and at least one vote.
+- The pause limit is not 515d's cap: it's the players' tolerance.
+- The slider lives only on the waiting dialog; 0.25 to 10 seconds, starting
+  at 2; the countdown before a vote is 30 seconds (numbers picked, to be
+  adjusted).
 
 ## Acceptance Criteria
 
