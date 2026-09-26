@@ -5,7 +5,7 @@ One folder per piece of software, its record, and its lock
 
 ## Current Behavior
 
-There are no cases.
+Built as `src/018-the-case.lua`, with `src/017-the-filesystem.lua` for the folder operations LuaJIT lacks (make, list, test, quote for a shell). The record also carries `hold` (default `foundation`, for phase 6). `input/target` overrides the record's target on load. Checked by tests/024.
 
 ## Intended Behavior
 

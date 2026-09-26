@@ -5,7 +5,7 @@ The append-only, chained record of a case
 
 ## Current Behavior
 
-Nothing is recorded.
+Built as `src/016-ledger.lua`. A line's hash covers its first six fields *as written on disk* (escaped), so verification hashes bytes without re-escaping. `append` reads only the file's tail, doubling the window until the last line fits. `verify` reports the first failing line and which check failed: fields, seq, prev or hash. Checked by tests/023, including all three tamperings and constant-time appends to 20 500 lines.
 
 ## Intended Behavior
 

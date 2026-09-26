@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# machine - the front door of the machine that turns software into blueprints
+# and blueprints back into software.
+#
+# In plain terms: a person hands it a folder of someone's source code; it
+# writes that software down as a set of numbered plans (issue files), then
+# builds a fresh version from the plans alone, and rebuilds whatever a later
+# change request reaches. This script only makes sure the ground is ready —
+# the project folder is the right one, the in-memory scratch space exists,
+# LuaJIT is present — and then hands the command to the Lua program that does
+# the work. See docs/012-the-commands.md for the commands.
+#
+# Usage:
+#   ./machine <command> [arguments]
+#   ./machine <project folder> <command> [arguments]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+
+# A first argument that is an absolute path to an existing folder names a
+# different copy of the project; anything else is the command. Absolute only,
+# so a folder in the current directory that happens to be called "open" is
+# never mistaken for a project.
+if [[ "${1:-}" == /* ]] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+# The folder must be this project: it has the source folder with the entry
+# point in it. Anything else would run someone else's code as the machine.
+ENTRY="${DIR}/src/019-the-machine.lua"
+if [ ! -f "${ENTRY}" ]; then
+    echo "machine: ${DIR} is not this project (no ${ENTRY})" >&2
+    exit 1
+fi
+
+# LuaJIT only. The house forbids Lua 5.4 syntax and the thread library is
+# built for LuaJIT; running under another Lua would be a silent fallback.
+if ! command -v luajit > /dev/null; then
+    echo "machine: luajit is not installed" >&2
+    exit 1
+fi
+
+# The scratch space lives in RAM and a reboot empties it; rebuild it before
+# anything tries to write a log there.
+RAM_TIERS="/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+if [ ! -f "${RAM_TIERS}" ]; then
+    echo "machine: the RAM tier helper is missing at ${RAM_TIERS}" >&2
+    exit 1
+fi
+source "${RAM_TIERS}"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${ENTRY}" "${DIR}" "$@"
