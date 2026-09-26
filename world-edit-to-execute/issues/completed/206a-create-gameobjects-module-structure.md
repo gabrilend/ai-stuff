@@ -4,6 +4,7 @@
 **Type:** Architecture
 **Priority:** High
 **Dependencies:** None
+**Blocks:** 206, 206b, 206c, 206d, 206e, 206f
 **Parent Issue:** 206-design-game-object-types
 
 ---

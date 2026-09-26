@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 512a (ring buffer), 512b (load balancing)
+**Blocks:** 512e
 **Parent:** 512-threading-architecture-rewrite.md
 
 ---

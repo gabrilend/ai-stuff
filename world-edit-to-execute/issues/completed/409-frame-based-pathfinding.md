@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** 403 (A* pathfinding), render-architecture.md (frame encoding)
+**Blocks:** 514
 
 ---
 

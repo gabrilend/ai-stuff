@@ -4,6 +4,7 @@
 **Type:** Implementation (root; test apparatus)
 **Priority:** Medium
 **Dependencies:** W02 (launcher and server setup), W03 (open client rendering and replay)
+**Blocks:** W05c, W07, W08
 **Unlocks:** W07
 
 ---

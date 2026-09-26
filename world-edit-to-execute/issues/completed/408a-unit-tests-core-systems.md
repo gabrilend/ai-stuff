@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** High
 **Dependencies:** 401 (game loop), 402 (ECS), 403 (pathfinding)
+**Blocks:** 408, 408b, 408c, 408d
 
 ---
 

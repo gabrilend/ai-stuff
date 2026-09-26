@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 304-build-jass-lexer
 **Dependencies:** 303-parse-war3map-j
+**Blocks:** 304, 304b, 304c, 304d
 
 ---
 

@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Critical
 **Dependencies:** 402a-implement-entity-manager
+**Blocks:** 402, 402c, 402e
 **Parent Issue:** 402-build-entity-component-system
 
 ---

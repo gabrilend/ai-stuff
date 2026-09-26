@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** None (first sub-issue)
+**Blocks:** 512b, 512c, 512d, 512e, 512f
 **Parent:** 512-threading-architecture-rewrite.md
 
 ---

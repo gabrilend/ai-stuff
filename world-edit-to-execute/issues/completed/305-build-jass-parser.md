@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 304-build-jass-lexer
+**Blocks:** 306, 306a, 309, 309c, 309d
 
 ---
 

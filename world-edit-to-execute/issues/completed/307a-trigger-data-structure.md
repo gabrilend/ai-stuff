@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** None (first sub-issue, but requires handles.lua from runtime)
+**Blocks:** 307, 307b, 307c
 **Parent Issue:** 307-implement-trigger-framework
 
 ---

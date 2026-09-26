@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 403-implement-basic-pathfinding.md
 **Dependencies:** 105-parse-war3map-w3e
+**Blocks:** 403, 403c, 403d
 
 ---
 

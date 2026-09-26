@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Medium
 **Dependencies:** None (standalone module)
+**Blocks:** 207, 207d
 **Parent Issue:** 207-build-object-registry-system
 
 ---

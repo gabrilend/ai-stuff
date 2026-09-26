@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 405-implement-basic-collision-detection.md
 **Dependencies:** 405c-collision-queries, 404-create-unit-movement-system
+**Blocks:** 405f
 
 ---
 

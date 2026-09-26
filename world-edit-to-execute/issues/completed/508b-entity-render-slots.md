@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 508a (threading infrastructure)
+**Blocks:** 503a, 508c, 508i
 
 ---
 

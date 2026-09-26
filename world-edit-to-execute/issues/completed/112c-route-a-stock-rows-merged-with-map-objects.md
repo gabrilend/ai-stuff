@@ -4,6 +4,7 @@
 **Type:** Sub-issue of 112
 **Priority:** High
 **Dependencies:** 112b (per-map game data chains)
+**Blocks:** 112e, 115
 
 ---
 

@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Critical
 **Dependencies:** Phase 2 complete (data model), Phase 3 complete (triggers/JASS)
+**Blocks:** 401, 401b
 **Parent Issue:** 401-implement-game-tick-update-loop
 
 ---

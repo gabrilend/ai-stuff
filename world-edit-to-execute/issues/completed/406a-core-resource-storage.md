@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 406-build-resource-management-system.md
 **Dependencies:** None (foundational)
+**Blocks:** 406, 406b, 406c
 
 ---
 

@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 512a (worker ring buffer)
+**Blocks:** 512c, 512d, 512e
 **Parent:** 512-threading-architecture-rewrite.md
 
 ---

@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** High
 **Dependencies:** 408a (core system tests), 404 (movement), 405 (collision)
+**Blocks:** 408, 408d
 
 ---
 

@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 303-parse-war3map-j
+**Blocks:** 305, 305a, 309, 309b, 309c, 309d
 
 ---
 

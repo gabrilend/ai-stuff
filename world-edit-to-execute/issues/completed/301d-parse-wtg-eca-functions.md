@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 301-parse-war3map-wtg.md
 **Dependencies:** 301c-parse-wtg-trigger-metadata
+**Blocks:** 301, 301e
 
 ---
 

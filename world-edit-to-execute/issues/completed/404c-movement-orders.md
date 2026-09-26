@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 404-create-unit-movement-system.md
 **Dependencies:** 404b-path-following-logic, 403-implement-basic-pathfinding
+**Blocks:** 404, 404d
 
 ---
 

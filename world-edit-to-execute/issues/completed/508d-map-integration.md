@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 508c (Lua-C bridge)
+**Blocks:** 508e, 508g
 
 ---
 

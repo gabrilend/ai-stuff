@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 307-implement-trigger-framework
+**Blocks:** 309, 309f
 
 ---
 

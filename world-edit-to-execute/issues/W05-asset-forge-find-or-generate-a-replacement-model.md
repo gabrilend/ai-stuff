@@ -4,6 +4,7 @@
 **Type:** Implementation (root)
 **Priority:** Medium
 **Dependencies:** W03 (model resolver, override packs), 604 (content-addressed storage)
+**Blocks:** W06, W07
 **Unlocks:** W06, W07
 
 ---

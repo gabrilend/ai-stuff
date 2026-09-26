@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** High
 **Dependencies:** 301-parse-war3map-wtg, 302-parse-war3map-wct, 303-parse-war3map-j
+**Blocks:** 309, 309g
 **Parent Issue:** 309-phase-3-integration-test
 
 ---

@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 307a-trigger-data-structure
+**Blocks:** 307, 307c
 **Parent Issue:** 307-implement-trigger-framework
 
 ---

@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 102-implement-mpq-archive-parser, 103-parse-war3map-w3i
+**Blocks:** 106, 403, 403a, 502, 502a, 902
 
 ---
 

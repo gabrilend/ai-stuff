@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 512 (threading architecture)
+**Blocks:** 511b, 511c, 511e
 
 ---
 

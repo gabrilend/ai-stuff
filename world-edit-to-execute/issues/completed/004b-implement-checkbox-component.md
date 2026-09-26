@@ -5,6 +5,7 @@
 **Priority:** High
 **Affects:** src/cli/lib/tui.sh or libs/checkbox.sh
 **Dependencies:** 004a (uses tui_read_key, colors)
+**Blocks:** 004, 004c, 004e, 004f
 
 ---
 

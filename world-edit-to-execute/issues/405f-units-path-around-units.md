@@ -5,7 +5,7 @@
 **Priority:** Medium
 **Parent:** 405 (collision detection)
 **Dependencies:** 403 (A* pathfinding), 405d (movement with collision)
-**Blocks:** 804 (the crossing-armies demo)
+**Blocks:** 804 (the crossing-armies demo), 515k
 
 ---
 

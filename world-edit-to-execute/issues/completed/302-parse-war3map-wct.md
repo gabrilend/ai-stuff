@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Medium
 **Dependencies:** 102-implement-mpq-archive-parser, 301-parse-war3map-wtg
+**Blocks:** 309, 309a
 
 ---
 

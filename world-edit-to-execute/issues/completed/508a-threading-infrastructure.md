@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 501a (raylib demo)
+**Blocks:** 508b, 508h, 508i, 511, 512
 
 ---
 

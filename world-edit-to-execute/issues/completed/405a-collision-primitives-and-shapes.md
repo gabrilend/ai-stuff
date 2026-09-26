@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 405-implement-basic-collision-detection.md
 **Dependencies:** 402-build-entity-component-system
+**Blocks:** 405, 405b, 405c
 
 ---
 

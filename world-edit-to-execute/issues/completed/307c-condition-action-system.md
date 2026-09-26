@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 307a-trigger-data-structure, 307b-trigger-lifecycle-api
+**Blocks:** 307, 307d
 **Parent Issue:** 307-implement-trigger-framework
 
 ---

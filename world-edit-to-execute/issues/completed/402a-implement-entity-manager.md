@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Critical
 **Dependencies:** 401-implement-game-tick-update-loop
+**Blocks:** 402, 402b, 402f
 **Parent Issue:** 402-build-entity-component-system
 
 ---

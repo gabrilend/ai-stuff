@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 301-parse-war3map-wtg.md
 **Dependencies:** 102-implement-mpq-archive-parser
+**Blocks:** 301, 301b, 301c
 
 ---
 

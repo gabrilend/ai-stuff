@@ -4,6 +4,7 @@
 **Type:** Sub-issue of 115
 **Priority:** Medium
 **Dependencies:** 115 (the balance history explorer)
+**Blocks:** 115b
 
 ---
 

@@ -5,6 +5,7 @@
 **Priority:** High
 **Affects:** src/cli/lib/tui.sh (new file)
 **Dependencies:** None (foundational layer)
+**Blocks:** 004, 004b, 004c, 004d, 004f
 
 ---
 

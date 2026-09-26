@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** Phase 5 (Rendering), Phase 6 (Assets)
+**Blocks:** 902, 903, 904, 905, 906, 907, 908, 909, 910, 911
 
 ---
 

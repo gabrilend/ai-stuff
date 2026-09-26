@@ -4,6 +4,7 @@
 **Type:** Sub-Issue of 102
 **Priority:** Critical
 **Dependencies:** 102a-parse-mpq-header
+**Blocks:** 102c, 102d
 
 ---
 

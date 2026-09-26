@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 511a (core timing)
+**Blocks:** 511c
 
 ---
 

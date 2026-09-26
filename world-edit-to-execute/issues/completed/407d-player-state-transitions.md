@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 407-create-player-state-management.md
 **Dependencies:** 407a (player data structure), 407b (player queries), 402 (ECS for owner component)
+**Blocks:** 407, 407e
 
 ---
 

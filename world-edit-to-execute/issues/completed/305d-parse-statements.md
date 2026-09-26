@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 305a-parser-infrastructure, 305c-parse-expressions
+**Blocks:** 305, 305e
 **Parent Issue:** 305-build-jass-parser
 
 ---

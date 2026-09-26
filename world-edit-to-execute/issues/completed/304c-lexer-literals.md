@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 304-build-jass-lexer
 **Dependencies:** 304a-lexer-core-infrastructure
+**Blocks:** 304, 304d
 
 ---
 

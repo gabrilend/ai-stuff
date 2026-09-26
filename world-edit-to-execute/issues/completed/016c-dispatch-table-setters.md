@@ -329,6 +329,7 @@ adjust(entity.attrs, "health", -50, { source = "damage:fire" })
 
 **Status:** Completed
 **Dependencies:** 016a (Core Attribute Registry)
+**Blocks:** 016d
 
 ---
 

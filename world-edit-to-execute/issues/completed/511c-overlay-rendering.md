@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** 511a (core timing), 511b (thread-safe recording)
+**Blocks:** 511d
 
 ---
 

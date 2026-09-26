@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 304-build-jass-lexer
+**Blocks:** 305, 305b, 305c, 305d, 305e
 **Parent Issue:** 305-build-jass-parser
 
 ---

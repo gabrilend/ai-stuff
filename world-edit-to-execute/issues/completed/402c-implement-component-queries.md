@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 402b-implement-component-registry
+**Blocks:** 402, 402d
 **Parent Issue:** 402-build-entity-component-system
 
 ---

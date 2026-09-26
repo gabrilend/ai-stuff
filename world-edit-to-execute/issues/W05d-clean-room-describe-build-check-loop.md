@@ -4,6 +4,7 @@
 **Type:** Sub-issue of W05
 **Priority:** High (the default route for every replacement)
 **Dependencies:** W05a (scorer), W03 (renders models from fixed cameras)
+**Blocks:** W05e
 
 ---
 

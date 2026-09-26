@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 305-build-jass-parser
+**Blocks:** 307, 309, 309d
 
 ---
 

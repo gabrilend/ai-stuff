@@ -4,6 +4,7 @@
 **Type:** Sub-Issue of 102
 **Priority:** Critical
 **Dependencies:** 101-research-wc3-file-formats
+**Blocks:** 102b, 102c, 102d
 
 ---
 

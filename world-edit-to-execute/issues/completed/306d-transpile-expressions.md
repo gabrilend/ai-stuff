@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 306a-transpiler-infrastructure
+**Blocks:** 306, 306c, 306e
 **Parent Issue:** 306-create-jass-lua-transpiler
 
 ---

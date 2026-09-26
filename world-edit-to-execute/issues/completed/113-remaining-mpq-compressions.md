@@ -6,6 +6,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** None open
+**Blocks:** 112a, 114
 **Builds on (completed):** file extraction (102d), PKWARE decompression (109)
 **Status:** Completed 2026-09-24
 

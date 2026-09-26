@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 206-design-game-object-types
+**Blocks:** 207, 207b, 207d, 207e, 207f
 **Parent Issue:** 207-build-object-registry-system
 
 ---
