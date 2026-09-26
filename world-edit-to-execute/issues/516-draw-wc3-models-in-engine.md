@@ -5,7 +5,7 @@
 **Priority:** High
 **Dependencies:** 116 (model reader), 117 (texture reader)
 **Builds on (completed):** 508 (the vertical slice: C draws, Lua writes render slots)
-**Related:** 503 and 503b (the placeholder sprite plan, to be re-cut), W03 (WoW models in the engine), 603 (where community models come from)
+**Related:** 515 (the ceramic backend that builds each frame's page), 503 and 503b (the placeholder sprite plan, to be re-cut), W03 (WoW models in the engine, and the model chooser both systems will share), 603 (where community models come from)
 
 ---
 
@@ -20,10 +20,12 @@ animation. No model file is read anywhere in the project.
 ## Intended Behavior
 
 The owner (2026-09-26): "Why use capsules when you could use footmen and
-grunts?" The renderer draws real WC3 models where a model is available, and
-keeps the placeholder shapes for everything else.
+grunts?" The renderer draws real WC3 models, and keeps the placeholder
+shapes for any model it cannot find or read.
 
-**Which models (the owner's rule, 2026-09-26):**
+### Which model a unit gets
+
+The owner, in two answers on 2026-09-26:
 
 > "Ideally, we'd try as much as possible to use the models posted online
 > rather than the ones in the game. We want to respect and honor Warcraft 3
@@ -31,76 +33,108 @@ keeps the placeholder shapes for everything else.
 > models only when we are building in compatibility with their formats. For
 > the rest of it, we can use placeholders."
 
-So a unit's model is looked up in this order:
-1. **A community model** the player has installed: fetched from a public
-   site (603) or received from another person (609).
-2. **A placeholder shape**, as today. Every placeholder use is counted and
-   reported, as W03's resolver does.
+> "use the models that the map requests. Even if they're stock. The user
+> will build per-stock-model overrides that they can then have rendered on
+> their end."
 
-The stock models in the player's own WC3 install are **not** a step in that
-order. They are read only while building compatibility with Blizzard's
-formats: testing the reader (116), the texture decoder (117) and this
-renderer against Blizzard's own files, and comparing a community model with
-the original it stands in for.
+Drawing the model a map asks for *is* building compatibility with the
+format, so the second answer settles how the first applies in play. A
+unit's model is looked up in this order:
+1. **The player's own override** for that model path: a community model (or
+   one they made) that the player has chosen to stand in for it. Overrides
+   live on the player's machine and are drawn only there; no other player
+   sees them unless they install the same ones.
+2. **The model the map requests:** one imported into the map, or a stock
+   model read from the player's own WC3 install. Nothing Blizzard-made is
+   shipped with the project.
+3. **A placeholder shape**, as today, when neither can be found or read.
+   Every placeholder use is counted and reported.
 
-**Drawing a model:**
-- Each geoset becomes a mesh (positions, normals, texture coordinates,
-  triangles), uploaded once per model and shared by every unit using it.
-- Each material layer's texture is decoded (117) and uploaded; blend modes
-  map to raylib's blend modes.
-- **Team colour:** a texture slot with replaceable id 1 (team colour) or 2
-  (team glow) takes the unit's team colour from its slot, not a file.
-- **Pose and animation:** first the model's rest pose, then animation: the
-  slot's `anim` field names a sequence, the bone tracks are sampled at the
-  current frame, and each vertex follows the average of the bones in its
-  vertex group. This matches how WC3 skins its classic models.
-- The slot's `facing`, `scale` and `selected` apply as they do to the
-  placeholder shapes.
+A unit type's model path comes from the map's object data and the stock
+tables (issue 112).
 
-**How a unit finds its model.** A unit type's model path comes from the
-map's object data and the stock tables (issue 112). A community model is
-matched to that path by a table kept as data, one line per path, so the
-matching can be edited without touching code.
+**The chooser, now and later.** The owner (2026-09-26): "the WoW path is the
+desired path for both systems. But it's a ways off. We can implement a
+placeholder solution for now." The WoW path is W03's resolver (an override
+pack, then the source, then a placeholder, with counts per source and a
+warning for each placeholder). Both systems will share that design when it
+exists. Until then this issue builds a small stand-in with the same three
+steps and the same counts, kept behind one function so W03's resolver can
+replace it without the renderer noticing.
+
+### Where the drawing happens
+
+The owner (2026-09-26): "We are building the backend in ceramic, and the
+renderer in raylib, with C being used (probably as soramech boxes) to create
+the 'page' that the renderer will draw from with a single thread to display
+on the screen."
+
+So:
+- **At map load,** the model reader (116, Lua) reads each model the map
+  uses, once. Its result is handed to C and stored for the whole map: each
+  geoset's positions, normals, texture coordinates and triangles uploaded as
+  a mesh, each texture decoded (117) and uploaded, and a model id handed
+  back.
+- **Each frame,** the ceramic backend (515) works out the game state, and C
+  boxes turn it into the **page**: for each thing to draw, its model id, its
+  pose (the animation and frame, resolved to bone transforms), position,
+  facing, scale, team colour and selection.
+- **The raylib renderer,** on its one thread, draws the page: meshes with
+  their textures and blend modes, textures with replaceable id 1 (team
+  colour) or 2 (team glow) filled from the page's team colour, and each
+  vertex following the average of the bones in its vertex group (how WC3
+  skins its classic models).
+
+One model's meshes and textures are shared by every unit that uses it.
 
 ## Suggested Implementation Steps
 
-1. Model cache in C: load a parsed model once, keep its meshes and textures,
-   hand out an id. The Lua side asks for a model by path; the render slot
-   carries the id where it now carries a placeholder shape.
-2. Rest-pose drawing of geosets with their textures and blend modes.
+1. The C model store: take the reader's result, upload meshes and textures,
+   hand back a model id, free everything when the map ends.
+2. Rest-pose drawing of geosets, with textures and blend modes, in the
+   current renderer, from the render slots, so models show up before the
+   page exists.
 3. Team colour and team glow through replaceable ids.
-4. The resolver: installed community model, else placeholder, with counts.
-5. The path-to-model table, as a data file.
-6. Animation: sequence lookup by name, track sampling, vertex-group
+4. The stand-in chooser: override, then the requested model, then
+   placeholder, with counts.
+5. Animation: sequence lookup by name, bone track sampling, vertex-group
    skinning.
-7. Tests: headless, a test model loads into the cache with the expected
-   mesh and triangle counts; the resolver picks the community model when
-   installed and the placeholder when not, and counts each; a screenshot of
-   a footman-shaped test model under the fixed camera is compared with a
-   saved one.
+6. Move the per-frame pose work into C boxes that write the page, once 515's
+   backend builds pages; the renderer then reads the page instead of slots.
+7. Tests: headless, a test model goes into the store with the expected mesh
+   and triangle counts; the chooser picks the override when one exists, the
+   requested model when not, and the placeholder when neither reads, and
+   counts each; a screenshot of a test model under the fixed camera is
+   compared with a saved one.
 
 ## Acceptance Criteria
 
-- [ ] A community model draws in the vertical slice in place of a placeholder
+- [ ] A map's requested model draws in place of a placeholder, whether imported or stock
+- [ ] A player's override for a model path replaces it, on that player's machine only
 - [ ] Team colour shows on replaceable-id textures
-- [ ] Units with no installed community model draw as placeholder shapes, and the count is reported
-- [ ] Stock WC3 models are never drawn in play; they are read only by compatibility tests
+- [ ] A model that can't be found or read draws as a placeholder shape, and the count is reported
+- [ ] Each model is read once per map and stored until the map ends
 - [ ] A unit plays its stand and walk animations
 - [ ] One model's meshes are shared by every unit that uses it
 
 ## Open Questions
 
-1. Does this go into the current C renderer, the ceramic render path (515),
-   or both? (`issues/CRITICAL-PATH.md`, Q-4)
-2. When a map uses a unit type no community model covers, is the placeholder
-   enough, or should the catalogue (1001) suggest community models for it?
-3. How does this share work with W03, which draws WoW models through its own
-   resolver (override pack, then the WoW client, then a placeholder)? One
-   resolver with two chains, or two resolvers?
+1. ~~The current C renderer, the ceramic path, or both?~~ Answered
+   2026-09-26: the raylib renderer draws, from a page the ceramic backend
+   and C boxes build (see Where the drawing happens).
+2. ~~When no community model covers a unit type, is a placeholder enough?~~
+   Answered 2026-09-26: draw the model the map requests, even a stock one;
+   players make their own overrides.
+3. ~~One chooser with W03, or two?~~ Answered 2026-09-26: W03's design, for
+   both, when it exists; a stand-in until then.
+4. How does a player make an override? A folder of models named by the path
+   they replace, a table mapping paths to files, or a screen in the
+   catalogue (1001) that sets one from a downloaded model?
 
 ## Related Documents
 
 - `issues/116-read-wc3-models.md`, `issues/117-read-wc3-textures.md`
+- `issues/515-render-graph-on-the-ceramic-engine.md`
 - `issues/completed/508-vertical-slice-testing-room.md`
 - `issues/W03-show-wow-models-with-wc3-unit-behavior.md`
 - `issues/603-fetch-maps-and-models-from-public-sites.md`
