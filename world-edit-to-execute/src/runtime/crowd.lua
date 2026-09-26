@@ -99,6 +99,7 @@ crowd.SETTLE_TICKS = 10        -- blocked by an arrived groupmate within the gro
                                -- sliding without getting closer this long: settle
 crowd.SETTLE_FAR_TICKS = 90    -- ... and outside it (sliding round the group for a way in)
 crowd.PACKING = 0.6            -- how much of a disc packed circles of mixed sizes fill
+crowd.CLEARANCE_REACH = 3      -- cells out a cell's clearance is looked for (wider than any unit)
 crowd.PATHING_EXTRA = 0.2      -- a unit's pathing radius: its collision radius plus this (world units)
 crowd.LOOK_AHEAD = 0           -- how far ahead (world units) a unit steers round others' pathing radius;
                                -- 0: off, the default (each crowd may set its own: crowd.look_ahead;
@@ -183,26 +184,27 @@ end
 
 -- {{{ function crowd:measure_clearance()
 -- Each open cell's clearance: the distance from its centre to the nearest
--- wall cell's edge (the grid's outside counts as wall). Worked out once.
+-- wall cell's edge (the grid's outside counts as wall), looked for only
+-- CLEARANCE_REACH cells out: no unit is wider than that, so a cell with no
+-- wall so near counts as that clear. Worked out once. (Checking every
+-- wall for every cell took seconds on the benchmark's large maps.)
 function crowd:measure_clearance()
-    local walls = {}
-    for y = 0, self.h + 1 do
-        for x = 0, self.w + 1 do
-            if not self:walkable(x, y) then walls[#walls + 1] = { x, y } end
-        end
-    end
     self.clearance = {}
-    local c = self.cell
+    local c, k = self.cell, crowd.CLEARANCE_REACH
     for y = 1, self.h do
         self.clearance[y] = {}
         for x = 1, self.w do
             local best = 0
             if self:walkable(x, y) then
-                best = math.huge
+                best = k * c
                 local px, py = self:centre_of(x, y)
-                for _, wc in ipairs(walls) do
-                    local d = to_rect(px, py, (wc[1] - 1) * c, (wc[2] - 1) * c, wc[1] * c, wc[2] * c)
-                    if d < best then best = d end
+                for wy = y - k, y + k do
+                    for wx = x - k, x + k do
+                        if not self:walkable(wx, wy) then
+                            local d = to_rect(px, py, (wx - 1) * c, (wy - 1) * c, wx * c, wy * c)
+                            if d < best then best = d end
+                        end
+                    end
                 end
             end
             self.clearance[y][x] = best
@@ -556,17 +558,37 @@ end
 -- }}}
 
 -- {{{ function crowd:pack(cx, cy, radii)
--- Places for units of these radii packed round (cx, cy), in order: the
--- first nearest the middle. For placing armies at the start.
+-- Places for units of these radii round (cx, cy), for placing armies at
+-- the start: a square lattice as wide as the largest unit, its points
+-- taken nearest the middle first (ties by angle), skipping points that
+-- touch a wall. (Packing each unit against those already placed grew with
+-- the cube of the army and took minutes at the benchmark's sizes.)
 function crowd:pack(cx, cy, radii)
-    local taken, out = {}, {}
-    self:rehash()
-    for i, r in ipairs(radii) do
-        local p = self:free_spot(cx, cy, { radius = r, x = cx, y = cy }, taken)
-        if not p then error("no room to place unit " .. i .. " round " .. cx .. ", " .. cy, 0) end
-        taken[#taken + 1] = { x = p[1], y = p[2], radius = r }
-        out[i] = p
+    local widest = 0
+    for _, r in ipairs(radii) do widest = max(widest, r) end
+    local pitch = 2 * widest + crowd.GAP
+    local ring = math.ceil(sqrt(#radii)) + 2
+    local points
+    while true do
+        points = {}
+        for j = -ring, ring do
+            for i = -ring, ring do
+                local x, y = cx + i * pitch, cy + j * pitch
+                if self:clear_of_walls(x, y, widest) then
+                    points[#points + 1] = { x, y, i * i + j * j, math.atan2(j, i) }
+                end
+            end
+        end
+        if #points >= #radii then break end
+        ring = ring * 2
+        if ring > 4096 then error("no room to place " .. #radii .. " units round " .. cx .. ", " .. cy, 0) end
     end
+    table.sort(points, function(a, b)
+        if a[3] ~= b[3] then return a[3] < b[3] end
+        return a[4] < b[4]
+    end)
+    local out = {}
+    for i = 1, #radii do out[i] = { points[i][1], points[i][2] } end
     return out
 end
 -- }}}

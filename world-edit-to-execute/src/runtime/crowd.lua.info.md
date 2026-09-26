@@ -26,8 +26,9 @@ clock, no random numbers.
 - **`crowd:snapshot()`**, **`crowd:decide(u, dt)`**, **`crowd:settle(u,
   dt, last_try)`**, **`crowd:do_requests(u)`:** the phases' parts, for a
   runner that splits the deciding across threads.
-- **`crowd:pack(x, y, radii) -> places`:** places for circles of these
-  radii packed round a point (for placing armies at the start).
+- **`crowd:pack(x, y, radii) -> places`:** places for units of these radii
+  round a point, for placing armies at the start: a square lattice as wide
+  as the largest, nearest the middle first.
 - **`crowd:any_overlap() -> a, b`**, **`crowd:any_in_wall() -> u`:** the
   checks the tests hold it to.
 - **A unit's fields:** `x`, `y`, `vx`, `vy` (per second), `facing`

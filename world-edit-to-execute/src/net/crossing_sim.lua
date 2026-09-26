@@ -25,10 +25,11 @@ local crowd = require("runtime.crowd")
 
 local crossing_sim = {}
 
--- {{{ function crossing_sim.map(map_module)
--- The map module and its walkable grid.
-function crossing_sim.map(map_module)
-    local map = require(map_module or "net.arenas.crossing")
+-- {{{ function crossing_sim.map(map_module, per_army)
+-- The map and its walkable grid: the scaled map at `per_army` units per
+-- army when given, else the map module (the demo's by default).
+function crossing_sim.map(map_module, per_army)
+    local map = per_army and require("net.arenas.crossing_scaled")(per_army) or require(map_module or "net.arenas.crossing")
     local grid = {}
     for y, row in ipairs(map.rows) do
         grid[y] = {}
@@ -39,14 +40,15 @@ end
 -- }}}
 
 -- {{{ function crossing_sim.new(config)
--- config.map: the map module's name (optional). config.two_radii: true
+-- config.map: the map module's name (optional); config.per_army: build
+-- the scaled map with this many units per army instead. config.two_radii: true
 -- to turn the larger pathing radius on (units steer round others before
 -- touching; off by default, as it slowed the crossing; for comparing the
 -- two by eye). Returns the server's four
 -- functions, plus `crowd` (the crowd itself), `crossings` (how many have
 -- ended) and `gave_up_last` (how many gave up in the last one), for tests.
 function crossing_sim.new(config)
-    local map, grid = crossing_sim.map(config and config.map)
+    local map, grid = crossing_sim.map(config and config.map, config and config.per_army)
     local c = crowd.new(grid, map.cell)
     local two_radii = config and config.two_radii
     if two_radii then c.look_ahead = 0.8 end
