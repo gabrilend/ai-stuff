@@ -5,7 +5,7 @@ cannot be repaired ([007](../docs/007-datapath-the-design.md)).
 
 ## Current Behavior
 
-Issues can be read and their acceptance run; nothing builds them.
+Built as `src/050-building.lua`, with the `build` command in `src/051-the-design-commands.lua`. The fixture's hand-written design (`tests/fixtures/tiny-notes-design/`, whose own tests pass) is what the stand-in writes, with switches to build an issue broken N times and to have one issue's build break an earlier issue's file. Checked by tests/052: a clean build in 3 waves and 6 turns; one repair; a build that never passes (2 repairs, `build-failed`, 301 held and never built); 201's build breaking 101's store, caught after the wave and 101 repaired; an issue that could not be described holding its reach from the start; building again runs no turns. Run end to end through the launcher (open, survey, describe, build) with the delivered notes program then used.
 
 ## Intended Behavior
 

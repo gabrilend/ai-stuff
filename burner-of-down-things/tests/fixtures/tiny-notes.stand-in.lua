@@ -17,6 +17,9 @@
 --                    leave out its Acceptance section
 --   broken_build     { [id] = N }: the first N build or repair turns of that
 --                    issue write a module that raises an error when loaded
+--   also_writes      { [id] = { [design path] = text } }: that issue's first
+--                    build also writes these files — a later build breaking
+--                    an earlier issue's code, for the regression check
 --   requests         phase 6: { [request file] = { touched = "201\n", amend = {
 --                    [issue file name] = new text }, design = { [path] = text } } }
 
@@ -99,6 +102,11 @@ return function(options)
         local writes = build_writes(turn, turn.attempt)
         if not writes then
             return { exit = 7, say = "no fixture design for " .. turn.about }
+        end
+        if turn.attempt == 1 then
+            for design_path, text in pairs((options.also_writes or {})[turn.about] or {}) do
+                writes["design/" .. design_path] = text
+            end
         end
         return { writes = writes }
     end

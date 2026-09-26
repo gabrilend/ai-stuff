@@ -5,7 +5,7 @@ Laying out `design/` as a house project, the first time a case builds
 
 ## Current Behavior
 
-`design/` is an empty folder.
+Built as `src/048-the-design-folder.lua`. The skeleton tool names a project's second scratch tier after the folder too, so the machine makes both doors — `design/tmp` into `/tmp/burner-of-down-things/cases/<key>` and its `shared-memory` into `/dev/shm/burner-of-down-things/cases/<key>` — before running the tool, which honours doors that exist. `<key>` is the case name plus 8 hex characters of the SHA-256 of the case folder's path, so same-named cases in different places never share scratch space. The check kit removes those spaces when a check ends. Checked by tests/052.
 
 ## Intended Behavior
 

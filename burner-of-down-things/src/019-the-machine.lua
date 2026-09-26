@@ -113,6 +113,7 @@ COMMANDS.ledger = {
 local LATER_COMMAND_MODULES = {
     "031-the-survey-commands",
     "046-the-blueprint-commands",
+    "051-the-design-commands",
 }
 
 -- {{{ local function load_later_commands

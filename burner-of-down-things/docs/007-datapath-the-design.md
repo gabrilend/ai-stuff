@@ -29,11 +29,14 @@ project-init tool when it is present (`init-project.sh --skeleton-only`);
 when it is not, the machine stops and says so rather than inventing a
 layout of its own.
 
-The tool names a project's RAM scratch space after its folder, and every
-case's design folder is called `design`, so every case would share one
-scratch space. The machine therefore makes the design's `tmp` link first,
-pointing at `/tmp/burner-of-down-things/cases/<case name>/`, and the tool
-honours a `tmp` link that already exists.
+The tool names a project's RAM scratch space after its folder — both tiers
+of it — and every case's design folder is called `design`, so every case
+would share one scratch space. The machine therefore makes both doors
+first: `design/tmp` → `/tmp/burner-of-down-things/cases/<key>`, and inside
+it `shared-memory` → `/dev/shm/burner-of-down-things/cases/<key>`. The tool
+honours doors that already exist. `<key>` is the case name and 8 hex
+characters of the SHA-256 of the case folder's path, so two cases with the
+same name in different places never share scratch space.
 
 Each build turn is told:
 
@@ -72,5 +75,7 @@ at once is the pool size ([005](005-datapath-the-hands.md)).
 
 When every issue has `built` and the final full acceptance run passes, the
 machine writes `output/delivered`: the design's path, the count of issues,
-the count of turns spent, and the ledger's head hash at the moment of
-delivery — the fingerprint of the history that produced it.
+the count of turns spent, and the `delivered` line's number and hash — the
+fingerprint of the history that produced it. A build run that builds
+nothing over an already-delivered design appends no second `delivered`
+line: nothing happened, and the ledger records only what happened.
