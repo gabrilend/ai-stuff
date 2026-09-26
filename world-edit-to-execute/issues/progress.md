@@ -390,46 +390,46 @@ Phase 2 & 3 Complete
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 500 | Dual interface rendering considerations | Issues Created | None |
-| 501 | Create abstract render interface | Issues Created | Phase 4 |
-| 501a | Define renderer interface | Pending | None |
-| 501b | Create renderer registry | Pending | 501a |
-| 501c | Implement null renderer | Pending | 501a |
-| 501d | Implement camera system | Pending | 501a |
-| 501e | Create render events | Pending | 501a |
-| 502 | Implement terrain rendering | Issues Created | 501, 105 |
-| 502a | Core terrain renderer | Pending | 501 |
-| 502b | Height visualization | Pending | 502a |
-| 502c | Water rendering | Pending | 502a |
-| 502d | Fog of war integration | Pending | 502a |
-| 502e | Terrain optimization | Pending | 502a |
-| 503 | Build sprite/placeholder system | Issues Created | 501 |
-| 503a | Core sprite system | Pending | 501 |
-| 503b | Unit visual mappings | Pending | 503a |
-| 503c | Team colors selection | Pending | 503a |
-| 503d | Health bars indicators | Pending | 503a |
-| 503e | Facing direction | Pending | 503a |
-| 504 | Create asset pack specification | Planned | 501 |
-| 505 | Implement default visual mode | Issues Created | 501, 502, 503 |
-| 505a | Default renderer backend | Pending | 501 |
-| 505b | Wire render systems | Pending | 505a |
-| 505c | Game view camera | Pending | 505a |
-| 505d | Minimal UI | Pending | 505a, 506 |
-| 505e | Input commands | Pending | 505a |
-| 505f | Debug overlays | Pending | 505a |
-| 506 | Build UI framework | Issues Created | 501 |
-| 506a | UI component system | Pending | 501 |
-| 506b | Layout system | Pending | 506a |
-| 506c | Input handling | Pending | 506a |
-| 506d | Core UI elements | Pending | 506a-c |
-| 506e | Command button grid | Pending | 506c, 506d |
-| 506f | Tooltip system | Pending | 506a, 506c |
-| 507 | Create minimap renderer | Issues Created | 501, 502, 506 |
-| 507a | Minimap module | Pending | 501 |
-| 507b | Terrain texture | Pending | 507a |
-| 507c | Unit dots | Pending | 507a |
-| 507d | Camera viewport | Pending | 507a |
-| 507e | Minimap interaction | Pending | 507a |
-| 507f | Ping system | Pending | 507a |
+| **501** | Create abstract render interface | Re-cut 2026-09-26 | 508, 515 |
+| 501a | Define renderer interface | Retired (superseded/) | — |
+| 501b | Create renderer registry | Retired (superseded/) | — |
+| 501c | Implement null renderer | Re-cut 2026-09-26 | 501 |
+| 501d | Implement camera system | Re-cut 2026-09-26 | 508 |
+| 501e | Create render events | Retired (superseded/) | — |
+| **502** | Implement terrain rendering | Re-cut 2026-09-26 | 508, 105, 501 |
+| 502a | Core terrain renderer | Re-cut 2026-09-26; partly built | 105 |
+| 502b | Height visualization | Re-cut 2026-09-26 | 502, 502e |
+| 502c | Water rendering | Re-cut 2026-09-26 | 502, 502e |
+| 502d | Fog of war integration | Re-cut 2026-09-26 | 502 |
+| 502e | Terrain optimization | Re-cut 2026-09-26 | 502a, 501d |
+| **503** | Build sprite/placeholder system | Re-cut 2026-09-26 | 508, 501 |
+| 503a | Core sprite system | Re-cut 2026-09-26; partly built | 508, 508b |
+| 503b | Unit visual mappings | Re-cut 2026-09-26 | 110, 112 |
+| 503c | Team colors selection | Re-cut 2026-09-26; partly built | 503a |
+| 503d | Health bars indicators | Re-cut 2026-09-26 | 501 |
+| 503e | Facing direction | Re-cut 2026-09-26 | 501 |
+| **504** | Create asset pack specification | Re-cut 2026-09-26 | 516 |
+| **505** | Implement default visual mode | Retired (superseded/) | — |
+| 505a | Default renderer backend | Retired (superseded/) | — |
+| 505b | Wire render systems | Retired (superseded/) | — |
+| 505c | Game view camera | Re-cut 2026-09-26 | 501d |
+| 505d | Minimal UI | Retired (superseded/) | — |
+| 505e | Input commands | Retired (superseded/) | — |
+| 505f | Debug overlays | Re-cut 2026-09-26 | 501 |
+| **506** | Build UI framework | Re-cut 2026-09-26 | 501, 501d |
+| 506a | UI component system | Re-cut 2026-09-26 | 501 |
+| 506b | Layout system | Re-cut 2026-09-26 | 506a |
+| 506c | Input handling | Re-cut 2026-09-26 | 506b |
+| 506d | Core UI elements | Re-cut 2026-09-26 | 506a, 506b, 506c |
+| 506e | Command button grid | Re-cut 2026-09-26 | 506c, 506d, 110 |
+| 506f | Tooltip system | Re-cut 2026-09-26 | 506c, 506d, 104 |
+| **507** | Create minimap renderer | Re-cut 2026-09-26 | 501, 501d, 502 |
+| 507a | Minimap module | Re-cut 2026-09-26 | 506a, 501d |
+| 507b | Terrain texture | Re-cut 2026-09-26 | 507a, 502 |
+| 507c | Unit dots | Re-cut 2026-09-26 | 507a |
+| 507d | Camera viewport | Re-cut 2026-09-26 | 507a, 501d |
+| 507e | Minimap interaction | Re-cut 2026-09-26 | 507a, 505c, 506c |
+| 507f | Ping system | Re-cut 2026-09-26 | 507a, 803 |
 | **508** | **Vertical slice testing room** | **Completed** | 501f |
 | 508a | Threading infrastructure | **Completed** | 501a |
 | 508b | Entity render slots | **Completed** | 508a |

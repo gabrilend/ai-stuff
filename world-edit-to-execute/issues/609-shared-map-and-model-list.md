@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** 604 (content-addressed storage), 605 (local storage manager)
+**Blocks:** 801f
 **Uses:** rmail (`/home/ritz/programs/r-mail/`) for every file transfer
 
 ---

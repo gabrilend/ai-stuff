@@ -4,16 +4,51 @@
 **Type:** Sub-Issue of 503
 **Priority:** High
 **Dependencies:** 503a
+**Re-cut:** 2026-09-26, from "Team Colors and Selection"
 
 ---
 
 ## Current Behavior
 
+Built by the vertical slice: the twelve WC3 player colours
+(`src/render.lua`, `TEAM_COLORS`, the game's own values), each unit drawn
+in its owner's colour, a ring under selected units, and box and shift
+selection (508e). Not done: neutral players (WC3's players 12 to 15:
+neutral hostile, passive, victim, extra) have no entries in the colour
+table.
+
+## Intended Behavior
+
+As built, plus the neutral players' colours, and a selection ring whose
+colour says whose unit it is (green for your own, yellow for allied or
+neutral, red for enemies), as WC3 does.
+
+## Suggested Implementation Steps
+
+1. Neutral players' colours.
+2. Selection ring colour by relation to the local player.
+
+## Acceptance Criteria
+
+- [x] All 12 player colours defined, matching WC3's values
+- [x] Units show their owner's colour
+- [x] Selected units have a ring; multi-selection works (508e)
+- [ ] Neutral units show neutral colours
+- [ ] The ring's colour shows own, allied or neutral, or enemy
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No team color system. Units cannot be visually distinguished by owner. No selection indicators.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Team colors and selection visuals:
 
@@ -63,7 +98,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define team color palette**
    - Match WC3 colors exactly
@@ -104,18 +139,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] All 12 player colors defined
-- [ ] Units show owner's color
-- [ ] Selected units have green ring
-- [ ] Multi-selection works
-- [ ] Neutral units show gray
-- [ ] Colors match WC3 palette
+- All 12 player colors defined
+- Units show owner's color
+- Selected units have green ring
+- Multi-selection works
+- Neutral units show gray
+- Colors match WC3 palette
 
 ---
 
-## Notes
+### Notes
 
 Team colors are essential for gameplay clarity. Players must instantly recognize unit ownership.
 
@@ -127,7 +162,7 @@ For placeholder shapes, team color is the fill. For real sprites, team color wou
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/503a-core-sprite-system.md (base rendering)
 - issues/505e-input-commands.md (selection logic)

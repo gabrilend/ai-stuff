@@ -76,6 +76,7 @@ in full there.
 
 | Date | Decision | Recorded in |
 |------|----------|-------------|
+| 2026-09-26 | **The January rendering plan is re-cut** (owner: "sure"). Eight issues describing a Lua renderer with swappable backends, or work the vertical slice already did, are retired to `issues/superseded/`. The other 32 are rewritten for the page split, each keeping its January design below as the record: the page's format and a headless renderer (501), the camera model (501d), terrain built once as chunk meshes (502), what is drawn for a unit besides its model (503), the override file's format (504), camera controls and debug overlays (505c, 505f), the interface as page items (506) and the minimap (507). Three that were mostly built stay open for their small gaps. | issues 501-507 |
 | 2026-09-26 | **The editor saves `.w3x`, for now** ("We are already building compatibility for that system so we might as well"). **Player data lives in the project directory** by default, movable by a config file. **Model overrides are made through the game's UI**, not yet planned. | issues 911, 601, 516 |
 | 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
 | 2026-09-26 | **Backend in ceramic, renderer in raylib, a page between them.** The owner: "We are building the backend in ceramic, and the renderer in raylib, with C being used (probably as soramech boxes) to create the 'page' that the renderer will draw from with a single thread to display on the screen." Readers that run once (such as the model reader) stay in Lua and hand their data to C, which keeps it for the map. | issues 515, 516, 116 |
@@ -118,18 +119,6 @@ authority and differ only in the wire format. If they are one simulation
 with two front ends, the matchmaking protocol (801a) should reuse 803's
 message layer instead of defining its own, and NAT traversal (801d) serves
 only the open-client route.
-
-### Q-3: What happens to the old renderer-interface issues (501-507)?
-**Reshapes:** about 40 issues in Phase 5
-
-They describe a Lua renderer with swappable backends, which the slot split
-(decided 2025-12-30) replaced. About 8 of them are retired in substance
-(the interface, registry, render events, default visual mode and its
-backend, wiring, minimal UI, input); about 3 are built (the terrain colour
-grid, basic unit shapes, team colours and selection); about 25 still name
-real missing features (terrain heights, water, fog, health bars, a movable
-camera, the minimap, the UI framework, asset packs) and need rewriting for
-the C renderer.
 
 ### Q-4: Where do the missing render features go?
 **Reshapes:** the rewrites from Q-3

@@ -3,17 +3,50 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 502
 **Priority:** Low
-**Dependencies:** 502a, 502b, 502c, 502d
+**Dependencies:** 502a, 501d (the camera's view rectangle)
+**Blocks:** 502b, 502c (they build on chunk meshes)
+**Re-cut:** 2026-09-26, from "Terrain Optimization"
 
 ---
 
 ## Current Behavior
 
+Each terrain tile is drawn with its own call. The ceramic path's first real
+frame (515b) measured drawing, not the engine, as the cost: about 1.3 ms of
+a frame for 2,048 units drawn one call each. Terrain adds a call per tile on
+top.
+
+## Intended Behavior
+
+Terrain is split into chunks (for example 16 by 16 tiles), each built once
+into one mesh; a frame draws only the chunks in the camera's view, one call
+each. The chunk list for the frame goes on the page. Measured before and
+after on the test maps, with the profiler (511).
+
+## Suggested Implementation Steps
+
+1. Chunk meshes built at map load.
+2. View culling by chunk.
+3. Measure frame time and draw calls before and after.
+
+## Acceptance Criteria
+
+- [ ] Terrain draws in one call per visible chunk
+- [ ] Frame time and draw calls, before and after, recorded in this issue
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Basic terrain rendering works but may be slow on large maps (256x256 = 65536 tiles).
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Optimize terrain rendering for smooth performance:
 
@@ -56,7 +89,7 @@ Acceptable: 30 FPS minimum
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Profile current performance**
    - Measure draw time for various map sizes
@@ -89,18 +122,18 @@ Acceptable: 30 FPS minimum
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] 60 FPS on 128x128 map
-- [ ] 30+ FPS on 256x256 map
-- [ ] Tile batching reduces draw calls
-- [ ] View culling eliminates off-screen tiles
-- [ ] No visual artifacts from optimization
-- [ ] Performance metrics can be displayed
+- 60 FPS on 128x128 map
+- 30+ FPS on 256x256 map
+- Tile batching reduces draw calls
+- View culling eliminates off-screen tiles
+- No visual artifacts from optimization
+- Performance metrics can be displayed
 
 ---
 
-## Notes
+### Notes
 
 Optimization should come after correctness. Get terrain rendering working first, then profile and optimize.
 
@@ -127,7 +160,7 @@ end
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502a-core-terrain-renderer.md (base to optimize)
 - issues/502b-height-visualization.md (may need optimization)

@@ -3,17 +3,47 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** Low
-**Dependencies:** 507e
+**Dependencies:** 507a, 803 (the gameplay messages)
+**Re-cut:** 2026-09-26, from "Ping System" (it waited on Phase 7 networking, now archived; the messages are 803's)
 
 ---
 
 ## Current Behavior
 
+No minimap and no pings. Messages between players and the host are built
+(803), with no ping message among them.
+
+## Intended Behavior
+
+A player pings a point (Alt-click on the minimap or the world): a pulsing
+marker on the minimap and in the world for that player's allies, with a
+sound. Triggers can ping too (`PingMinimap` natives, Phase 3). The ping is
+a message through the host (803), sent only to allies.
+
+## Suggested Implementation Steps
+
+1. A ping message in 803's set.
+2. The marker on the minimap and in the world, fading out.
+3. Trigger natives wired to it.
+
+## Acceptance Criteria
+
+- [ ] An ally sees another player's ping
+- [ ] A trigger's ping shows
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No ping system. Players cannot mark locations on the map for teammates.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Visual ping markers with animation and audio:
 
@@ -174,7 +204,7 @@ return ping_system
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define ping types**
    - Alert (yellow, general)
@@ -208,18 +238,18 @@ return ping_system
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Pings appear at correct world position
-- [ ] Pings visible on both minimap and world
-- [ ] Pulsing animation plays
-- [ ] Pings fade and disappear after duration
-- [ ] Different ping types have different colors
-- [ ] Audio plays on ping creation
+- Pings appear at correct world position
+- Pings visible on both minimap and world
+- Pulsing animation plays
+- Pings fade and disappear after duration
+- Different ping types have different colors
+- Audio plays on ping creation
 
 ---
 
-## Notes
+### Notes
 
 Pings are essential for team communication in RTS games. They should be noticeable but not distracting.
 
@@ -238,7 +268,7 @@ Pings are essential for team communication in RTS games. They should be noticeab
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507e-minimap-interaction.md (ping trigger)
 - issues/507a-minimap-module.md (parent component)

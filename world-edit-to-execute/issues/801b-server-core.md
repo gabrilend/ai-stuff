@@ -5,7 +5,7 @@
 **Priority:** Critical
 **Dependencies:** Issue 801a (protocol specification)
 **Parent:** Issue 801 (Matchmaking Server)
-**Blocks:** 801h (the integration tests)
+**Blocks:** 801h (the integration tests), 801c, 801d, 801f, 801g
 
 ---
 

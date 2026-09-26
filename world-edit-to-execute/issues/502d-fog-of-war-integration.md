@@ -3,17 +3,57 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 502
 **Priority:** Medium
-**Dependencies:** 502a
+**Dependencies:** 502 (chunk meshes); a visibility system in the runtime (no issue yet)
+**Re-cut:** 2026-09-26, from "Fog of War Integration"
 
 ---
 
 ## Current Behavior
 
+Nothing is hidden. The runtime (`src/runtime/`) has no visibility system:
+nothing records what each player sees or has seen, so there is nothing for
+the renderer to show.
+
+## Intended Behavior
+
+The backend works out, per player, which cells are visible now, explored
+before, or never seen (units' sight radii, blocked by terrain height as WC3
+does). The page carries that as a small texture, one texel per cell; the
+renderer darkens explored cells and blacks out unexplored ones, over the
+terrain and over units. Units in unexplored or fogged cells are left off
+the page for that player.
+
+The visibility system is game logic, not rendering: it belongs in the
+runtime with its own issue (Phase 4, or the gameplay mechanics that Phase 7
+listed). Fog also matters to the network (803): a player's client should
+not be sent what that player can't see.
+
+## Suggested Implementation Steps
+
+1. An issue for the runtime's visibility system (sight, line of sight by
+   height, explored memory).
+2. The fog texture on the page.
+3. Darkening in the renderer; hidden units left off the page.
+
+## Acceptance Criteria
+
+- [ ] A player sees only around their units; explored ground stays dim
+- [ ] Hidden enemy units are not drawn
+- [ ] The visibility system has its own issue and tests
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No fog of war rendering. All terrain is fully visible regardless of player's explored/visible state.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Integrate fog of war with terrain rendering:
 
@@ -53,7 +93,7 @@ FOG_OVERLAY = {0, 0, 0, 128}     -- 50% darkening for explored
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create visibility grid**
    ```lua
@@ -89,18 +129,18 @@ FOG_OVERLAY = {0, 0, 0, 128}     -- 50% darkening for explored
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Unexplored tiles are black
-- [ ] Explored-but-not-visible tiles are darkened
-- [ ] Visible tiles show at full brightness
-- [ ] Fog updates when units move
-- [ ] Fog respects player's vision
-- [ ] Can toggle fog for debugging
+- Unexplored tiles are black
+- Explored-but-not-visible tiles are darkened
+- Visible tiles show at full brightness
+- Fog updates when units move
+- Fog respects player's vision
+- Can toggle fog for debugging
 
 ---
 
-## Notes
+### Notes
 
 Fog of war is crucial for competitive play. Without it, all player positions are known.
 
@@ -118,7 +158,7 @@ Fog can be expensive to update every frame. Consider:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502a-core-terrain-renderer.md (base rendering)
 - issues/407-create-player-state-management.md (player ownership)

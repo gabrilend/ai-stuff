@@ -3,17 +3,45 @@
 **Phase:** 5 - Rendering
 **Type:** Feature
 **Priority:** Medium
-**Dependencies:** 501, 502, 506
+**Dependencies:** 501 (the page format), 501d (the camera), 502 (terrain)
+**Re-cut:** 2026-09-26, from "Create Minimap Renderer"
 
 ---
 
 ## Current Behavior
 
+No minimap exists.
+
+## Intended Behavior
+
+The minimap in the bottom console's corner: a picture of the map's terrain
+made once at load (507b), dots for units (507c), a box for the camera's
+view (507d), clicks that move the camera or give orders (507e), and pings
+(507f). The terrain picture is a texture kept for the map; each frame only
+the dots, the box and pings go on the page. Fog (502d), when it exists,
+darkens it the same way it darkens the world.
+
+## Suggested Implementation Steps
+
+1. 507a, then 507b and 507c, then 507d and 507e, then 507f.
+
+## Acceptance Criteria
+
+- [ ] The minimap shows terrain, units and the view box, and moves the camera on click
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No minimap exists. Players have no way to see the full map at a glance or quickly navigate to different areas.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Minimap system that:
 - Shows scaled-down view of entire map
@@ -38,7 +66,7 @@ Minimap system that:
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create minimap module**
    ```lua
@@ -79,7 +107,7 @@ Minimap system that:
 
 ---
 
-## Design Questions for User
+### Design Questions for User
 
 1. **Minimap shape?**
    - Square (WC3 default)
@@ -103,19 +131,19 @@ Minimap system that:
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Minimap renders terrain colors correctly
-- [ ] Unit positions shown as dots
-- [ ] Team colors distinguish ownership
-- [ ] Camera viewport rectangle visible
-- [ ] Left-click moves camera
-- [ ] Updates in real-time
-- [ ] Doesn't impact performance significantly
+- Minimap renders terrain colors correctly
+- Unit positions shown as dots
+- Team colors distinguish ownership
+- Camera viewport rectangle visible
+- Left-click moves camera
+- Updates in real-time
+- Doesn't impact performance significantly
 
 ---
 
-## Notes
+### Notes
 
 The minimap is essential for strategic gameplay. Players need to quickly assess the whole map and navigate to action.
 
@@ -127,11 +155,11 @@ The minimap is essential for strategic gameplay. Players need to quickly assess 
 
 ---
 
-## Initial Analysis
+### Initial Analysis
 
 **Analysis Date:** 2025-12-29
 
-### Recommendation: SPLIT
+#### Recommendation: SPLIT
 
 This issue has 6 steps with distinct rendering and interaction concerns:
 
@@ -144,14 +172,14 @@ This issue has 6 steps with distinct rendering and interaction concerns:
 | 507e | minimap-interaction | 507a-d | Left-click to move camera, right-click for commands, drag pan |
 | 507f | ping-system | 507e | Player pings, visual + audio feedback, temporary markers |
 
-### Rationale
+#### Rationale
 
 1. **Terrain texture is cached**: Pre-rendering logic is distinct from real-time updates
 2. **Interaction is complex**: Three input types (left-click, right-click, drag) with different behaviors
 3. **Ping system optional**: Social feature, can ship without initially
 4. **Unit dots update frequently**: Different update cadence than terrain
 
-### Execution Order
+#### Execution Order
 
 ```
 507a (module) → 507b (terrain) ──────────────────┐
@@ -161,7 +189,7 @@ This issue has 6 steps with distinct rendering and interaction concerns:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502-*.md (terrain data)
 - issues/506-*.md (UI framework)
@@ -169,7 +197,7 @@ This issue has 6 steps with distinct rendering and interaction concerns:
 
 ---
 
-## Generated Sub-Issues
+### Generated Sub-Issues
 
 *Auto-generated on 2025-12-29 19:39*
 

@@ -4,8 +4,13 @@
 **Type:** Sub-Issue of 505
 **Priority:** High
 **Dependencies:** 505a, 502, 503
+**Status:** Retired 2026-09-26, moved to `issues/superseded/`
 
 ---
+
+> **Why retired.** Wiring terrain, sprites and UI into the default mode. The vertical slice wired them (508c, 508d, 508h). The vertical slice (508) set a different split: C owns the window and draws, and Lua never draws but writes render slots (`src/render/slots.h`) through a bridge; the ceramic path (515) replaces the slots with a page that C boxes build each frame. The owner agreed to retire this on 2026-09-26.
+> The design below is kept as the record.
+
 
 ## Current Behavior
 

@@ -3,17 +3,51 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 501
 **Priority:** High
-**Dependencies:** 501a
+**Dependencies:** 501 (the page format)
+**Re-cut:** 2026-09-26, from "Implement Null Renderer"
 
 ---
 
 ## Current Behavior
 
+The Lua runtime runs with no window (the Phase 4 tests do), but nothing
+stands in for the renderer: whatever is written into render slots is only
+checked by opening the raylib window and looking.
+
+## Intended Behavior
+
+A headless renderer: a C program (or a mode of the renderer) that reads
+the same page, or today the same slots, that the raylib renderer reads,
+draws nothing, and reports what it would have drawn: counts per item kind,
+the items outside the map, items with no model (placeholders), and a
+checksum of the page. Tests and the ceramic benchmarks (515) use it to
+check a frame's contents without a display.
+
+## Suggested Implementation Steps
+
+1. A reader of the slot array that prints counts and a checksum.
+2. The same over `page.h` once the page exists.
+3. A test: a known scene gives known counts and a stable checksum.
+
+## Acceptance Criteria
+
+- [ ] Runs with no display and no raylib window
+- [ ] Reports counts per item kind and a checksum of the frame
+- [ ] A test scene gives the same checksum on every run
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No renderer exists for headless operation. Testing and CI require visual output to be disabled.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Null renderer that implements the interface but produces no output:
 
@@ -62,7 +96,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create null renderer module**
    - Inherit from Renderer interface
@@ -90,18 +124,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] NullRenderer implements all interface methods
-- [ ] All draw methods are no-ops (no errors)
-- [ ] Frame and draw call counting works
-- [ ] Can run full game loop with null renderer
-- [ ] Registered as "null" in registry
-- [ ] Unit tests pass using null renderer
+- NullRenderer implements all interface methods
+- All draw methods are no-ops (no errors)
+- Frame and draw call counting works
+- Can run full game loop with null renderer
+- Registered as "null" in registry
+- Unit tests pass using null renderer
 
 ---
 
-## Notes
+### Notes
 
 The null renderer is essential for testing. Every test that doesn't need visual output should use it for speed.
 
@@ -122,7 +156,7 @@ print("Frames:", stats.frame_count)      -- e.g., 1
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/501a-define-renderer-interface.md (interface to implement)
 - issues/501b-create-renderer-registry.md (registers with this)

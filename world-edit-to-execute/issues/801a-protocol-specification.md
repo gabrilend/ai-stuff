@@ -5,7 +5,7 @@
 **Priority:** Critical
 **Dependencies:** None (foundation for all other 801 sub-issues)
 **Parent:** Issue 801 (Matchmaking Server)
-**Blocks:** 801h (the integration tests)
+**Blocks:** 801h (the integration tests), 801b, 801c, 801d
 
 ---
 

@@ -3,17 +3,67 @@
 **Phase:** 5 - Rendering
 **Type:** Architecture
 **Priority:** Critical
-**Dependencies:** Phase 4 complete
+**Dependencies:** 508 (completed: the slot split), 515 (the page)
+**Blocks:** 501c, 502, 503, 503d, 503e, 505f, 506, 506a, 507, 509
+**Re-cut:** 2026-09-26, from "Create Abstract Render Interface"; sub-issues 501a, 501b, 501e retired to `issues/superseded/`
 
 ---
 
 ## Current Behavior
 
+There is no renderer interface in Lua and there won't be one. The contract
+between the game and the screen is, today, the render slot layout in
+`src/render/slots.h`: Lua writes each unit's position, facing, scale,
+colour, team, selection and shape into a slot through the bridge
+(`src/render/bridge.c`, `src/render.lua`), and the drawing thread only reads
+slots. The ceramic path (515) is replacing the slots with a **page**: each
+frame, C boxes on the ceramic engine turn the game state into a list of
+things to draw, and the raylib renderer draws that list on its one thread
+(decided with the owner 2026-09-26; `issues/CRITICAL-PATH.md`, section 2).
+The page's contents are spread across issues (515 for units, 516 for models
+and poses) and written down nowhere as one format.
+
+## Intended Behavior
+
+**The page's format, written once.** A document, `docs/page-format.md`,
+and a C header, `src/render/page.h`, that every page-building box and the
+renderer share. For each kind of item on the page, its fields and their
+types, down to the primitives: a unit (model id, pose, position, facing,
+scale, team colour, selected, hit-point fraction), a terrain chunk, a fog
+texture, a UI element, a minimap layer, a debug overlay. Features in
+502-507 add their item kinds here, not in private structures.
+
+Two pieces of the old plan survive as sub-issues:
+- **501c:** a headless renderer: the page consumed without a window, for
+  tests.
+- **501d:** the camera model the renderer and input share.
+
+## Suggested Implementation Steps
+
+1. Write down the slot layout as the page's first item kind (unit), exactly
+   as `slots.h` has it, so nothing changes yet.
+2. Add item kinds as 502-507 and 516 need them, each with its fields.
+3. When 515 builds pages, `slots.h` is retired in favour of `page.h`.
+
+## Acceptance Criteria
+
+- [ ] `docs/page-format.md` lists every item kind with fields and types
+- [ ] `src/render/page.h` matches the document, and the renderer and the page-building boxes both include it
+- [ ] Each of 502-507 and 516 names the item kinds it adds
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No rendering system exists. The runtime can simulate games but produces no visual output. All Phase 4 systems work headlessly.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Abstract rendering interface that:
 - Decouples game logic from specific rendering backends
@@ -54,7 +104,7 @@ function Renderer:supports_feature(feature) end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define renderer interface in `src/render/interface.lua`**
    - Document all required methods
@@ -84,7 +134,7 @@ function Renderer:supports_feature(feature) end
 
 ---
 
-## Design Questions for User
+### Design Questions for User
 
 These should be discussed before implementation:
 
@@ -110,18 +160,18 @@ These should be discussed before implementation:
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Renderer interface defined and documented
-- [ ] Null renderer implemented for headless mode
-- [ ] Renderer registry allows switching implementations
-- [ ] Camera system handles coordinate conversion
-- [ ] At least one working renderer backend
-- [ ] Unit tests for coordinate math
+- Renderer interface defined and documented
+- Null renderer implemented for headless mode
+- Renderer registry allows switching implementations
+- Camera system handles coordinate conversion
+- At least one working renderer backend
+- Unit tests for coordinate math
 
 ---
 
-## Notes
+### Notes
 
 This is the foundation for all visual output. Getting the abstraction right is critical - it affects every subsequent rendering issue.
 
@@ -138,11 +188,11 @@ This is the foundation for all visual output. Getting the abstraction right is c
 
 ---
 
-## Initial Analysis
+### Initial Analysis
 
 **Analysis Date:** 2025-12-29
 
-### Recommendation: SPLIT
+#### Recommendation: SPLIT
 
 This issue contains 5 distinct work streams that are independently testable and have clear boundaries:
 
@@ -154,14 +204,14 @@ This issue contains 5 distinct work streams that are independently testable and 
 | 501d | implement-camera-system | 501a | World-to-screen conversion, zoom, bounds, smooth movement |
 | 501e | create-render-events | 501a, 501b | Define pre_render, post_render, viewport_changed events |
 
-### Rationale
+#### Rationale
 
 1. **Distinct work streams**: The interface definition, registry system, and camera are fundamentally different concerns
 2. **Testability**: Each sub-issue can be unit tested independently
 3. **Camera complexity**: The camera system alone has 4 aspects (coordinate conversion, zoom levels, bounds, smooth movement)
 4. **Foundation importance**: This is critical infrastructure - getting each piece right matters
 
-### Execution Order
+#### Execution Order
 
 ```
 501a (interface) → 501b (registry) ──────────────────┐
@@ -171,7 +221,7 @@ This issue contains 5 distinct work streams that are independently testable and 
 
 ---
 
-## Related Documents
+### Related Documents
 
 - docs/roadmap.md (Phase 5 overview)
 - issues/502-*.md (terrain rendering depends on this)
@@ -179,7 +229,7 @@ This issue contains 5 distinct work streams that are independently testable and 
 
 ---
 
-## Generated Sub-Issues
+### Generated Sub-Issues
 
 *Auto-generated on 2025-12-29 19:39*
 

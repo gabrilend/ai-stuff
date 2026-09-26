@@ -4,8 +4,13 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 501, 502, 503
+**Status:** Retired 2026-09-26, moved to `issues/superseded/`
 
 ---
+
+> **Why retired.** The default visual mode (a first playable view: terrain, units, camera, UI, input) was built by the vertical slice instead (508a-i). The vertical slice (508) set a different split: C owns the window and draws, and Lua never draws but writes render slots (`src/render/slots.h`) through a bridge; the ceramic path (515) replaces the slots with a page that C boxes build each frame. The owner agreed to retire this on 2026-09-26. What 505 still lacked, a movable camera and debug overlays, lives on in 505c and 505f.
+> The design below is kept as the record.
+
 
 ## Current Behavior
 

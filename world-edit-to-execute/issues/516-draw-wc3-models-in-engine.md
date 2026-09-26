@@ -3,9 +3,10 @@
 **Phase:** 5 - Rendering
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** 116 (model reader), 117 (texture reader)
+**Dependencies:** 116 (model reader), 117 (texture reader), 503b (each unit type's model path)
+**Blocks:** 504
 **Builds on (completed):** 508 (the vertical slice: C draws, Lua writes render slots)
-**Related:** 515 (the ceramic backend that builds each frame's page), 503 and 503b (the placeholder sprite plan, to be re-cut), W03 (WoW models in the engine, and the model chooser both systems will share), 603 (where community models come from)
+**Related:** 515 (the ceramic backend that builds each frame's page), 503 (placeholder shapes, selection, bars, facing), 504 (the override file's format), W03 (WoW models in the engine, and the model chooser both systems will share), 603 (where community models come from)
 
 ---
 

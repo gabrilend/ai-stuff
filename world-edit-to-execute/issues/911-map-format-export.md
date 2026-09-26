@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 901 (Editor core), Phase 1 (Parsers)
+**Blocks:** 910
 
 ---
 

@@ -3,17 +3,50 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 502
 **Priority:** Medium
-**Dependencies:** 502a
+**Dependencies:** 502 (chunk meshes, via 502e)
+**Re-cut:** 2026-09-26, from "Height Visualization"
 
 ---
 
 ## Current Behavior
 
+The terrain is flat: `terrain.c` ignores each tilepoint's height and cliff
+level, although the parser (105) reads both.
+
+## Intended Behavior
+
+Terrain has its real shape: each tilepoint's ground height and cliff level
+set the vertices of its chunk's mesh, and cliffs show as steps between
+levels, as WC3 draws them. Shading comes from the mesh's normals and one
+light, not from recolouring tiles. Units stand on the surface: the ground
+height under a point is available to the page builder, so a unit's z is
+the ground's.
+
+## Suggested Implementation Steps
+
+1. Vertex heights from tilepoint height and cliff level.
+2. Normals and one directional light.
+3. Cliff walls between levels.
+4. Ground height under a point, for placing units.
+
+## Acceptance Criteria
+
+- [ ] Hills and cliffs on a test map match their shape in the editor's view
+- [ ] Units stand on the ground, not at height zero
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 Terrain renders flat. Height data exists in W3E but is not visualized.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Visualize terrain height differences:
 
@@ -56,7 +89,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Calculate height range**
    - Find min/max height in map
@@ -97,18 +130,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Higher terrain appears lighter
-- [ ] Lower terrain appears darker
-- [ ] Cliff edges have visible indicators
-- [ ] Height shading can be toggled
-- [ ] Height differences are clearly visible
-- [ ] Performance acceptable (large maps)
+- Higher terrain appears lighter
+- Lower terrain appears darker
+- Cliff edges have visible indicators
+- Height shading can be toggled
+- Height differences are clearly visible
+- Performance acceptable (large maps)
 
 ---
 
-## Notes
+### Notes
 
 Height visualization helps players understand terrain without 3D. Critical for gameplay since height affects combat.
 
@@ -119,7 +152,7 @@ Height visualization helps players understand terrain without 3D. Critical for g
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/502a-core-terrain-renderer.md (base rendering)
 - issues/502-implement-terrain-rendering.md (parent)

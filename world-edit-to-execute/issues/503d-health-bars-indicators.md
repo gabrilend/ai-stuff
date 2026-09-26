@@ -3,17 +3,50 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 503
 **Priority:** High
-**Dependencies:** 503a
+**Dependencies:** 501 (the page format)
+**Re-cut:** 2026-09-26, from "Health Bars and Indicators"
 
 ---
 
 ## Current Behavior
 
+Hit points show only as text and a bar in the bottom panel for the
+selected unit (`src/render/ui.c`, 508g). Render slots carry no hit points,
+so nothing can be drawn over units in the world.
+
+## Intended Behavior
+
+Each unit's page item carries its hit-point fraction and, when it has mana,
+its mana fraction. The renderer draws a bar over the unit, facing the
+camera, coloured green to red by the fraction as WC3 does, and a mana bar
+beneath it. Shown the way WC3 shows them: for selected and hovered units,
+and for all units while the "show bars" key is held.
+
+## Suggested Implementation Steps
+
+1. Hit-point and mana fractions on the unit item.
+2. Bars drawn above the unit's height (its model's bounds, or the
+   placeholder's).
+3. Which units show bars: selected, hovered, or all while the key is held.
+
+## Acceptance Criteria
+
+- [ ] Bars show over selected and hovered units, and over all while the key is held
+- [ ] The bar's colour follows the fraction
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No health bars or status indicators above units. Players cannot see unit health without selecting.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Health bars and status indicators:
 
@@ -71,7 +104,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create health bar module**
    - Define bar dimensions as constants
@@ -109,18 +142,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Health bars draw above units
-- [ ] Color reflects health percentage
-- [ ] Bars scale with current/max health
-- [ ] Mana bars appear for casters
-- [ ] Display modes work (always, selected, damaged)
-- [ ] Bars are readable at normal zoom
+- Health bars draw above units
+- Color reflects health percentage
+- Bars scale with current/max health
+- Mana bars appear for casters
+- Display modes work (always, selected, damaged)
+- Bars are readable at normal zoom
 
 ---
 
-## Notes
+### Notes
 
 Health bars are critical UI feedback. Players constantly check unit health during combat.
 
@@ -137,7 +170,7 @@ Drawing bars for hundreds of units can be expensive. Consider:
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/503a-core-sprite-system.md (draws after sprites)
 - issues/503c-team-colors-selection.md (selection affects display)

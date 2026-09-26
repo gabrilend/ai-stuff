@@ -4,16 +4,48 @@
 **Type:** Sub-Issue of 506
 **Priority:** Medium
 **Dependencies:** 506a, 506b, 506c
+**Blocks:** 506e, 506f
+**Re-cut:** 2026-09-26, from "Core UI Elements"
 
 ---
 
 ## Current Behavior
 
+`ui.c` draws rectangles, text and one bar directly.
+
+## Intended Behavior
+
+The element kinds the console needs, each drawn by the renderer from its
+record: panel (filled rectangle with a border), text (font, size, colour,
+alignment), button (icon, hotkey letter, cooldown shade, disabled grey),
+bar (fraction, colour), icon (a texture from the map or the player's
+install, or a placeholder), and a portrait slot (the selected unit's model,
+516, in a small view).
+
+## Suggested Implementation Steps
+
+1. Panel, text, bar.
+2. Button and icon.
+3. Portrait.
+
+## Acceptance Criteria
+
+- [ ] The top bar and bottom console are built from these elements
+- [ ] A button shows hover, pressed, disabled and cooldown
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No UI elements. All game information must be displayed via debug overlays or console.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Common UI elements built on component system:
 
@@ -169,7 +201,7 @@ end
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Implement Panel**
    - Background color with alpha
@@ -203,18 +235,18 @@ end
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Panel renders with background and border
-- [ ] Label displays text correctly
-- [ ] Button responds to hover/click
-- [ ] ProgressBar shows fill percentage
-- [ ] All elements respect visibility/enabled
-- [ ] Elements composable in hierarchy
+- Panel renders with background and border
+- Label displays text correctly
+- Button responds to hover/click
+- ProgressBar shows fill percentage
+- All elements respect visibility/enabled
+- Elements composable in hierarchy
 
 ---
 
-## Notes
+### Notes
 
 Keep elements simple. Complex widgets (dropdown, list) can be composed from primitives.
 
@@ -225,7 +257,7 @@ Keep elements simple. Complex widgets (dropdown, list) can be composed from prim
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506a-ui-component-system.md (base component)
 - issues/506b-layout-system.md (positioning)

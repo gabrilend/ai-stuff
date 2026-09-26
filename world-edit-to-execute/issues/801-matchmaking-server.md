@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Phase 5 (Rendering - for lobby UI), Phase 6 (Asset System - for asset distribution)
+**Blocks:** 801a
 
 ---
 
@@ -218,7 +219,7 @@ This issue has been split into manageable sub-tasks:
 | **801g** | CLI server application | 801b, 801f |
 | **801h** | Integration tests | 801a-801g |
 
-## Implementation Approach
+## Suggested Implementation Steps
 
 See individual sub-issues (801a-801h) for detailed implementation steps, acceptance criteria, and technical specifications.
 

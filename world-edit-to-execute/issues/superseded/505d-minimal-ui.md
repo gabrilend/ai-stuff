@@ -4,8 +4,13 @@
 **Type:** Sub-Issue of 505
 **Priority:** Medium
 **Dependencies:** 505b, 506
+**Status:** Retired 2026-09-26, moved to `issues/superseded/`
 
 ---
+
+> **Why retired.** A minimal UI (resource bar, selection panel). Built by the vertical slice (508g, `src/render/ui.c`). The vertical slice (508) set a different split: C owns the window and draws, and Lua never draws but writes render slots (`src/render/slots.h`) through a bridge; the ceramic path (515) replaces the slots with a page that C boxes build each frame. The owner agreed to retire this on 2026-09-26. The full interface is 506.
+> The design below is kept as the record.
+
 
 ## Current Behavior
 

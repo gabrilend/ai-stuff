@@ -3,17 +3,45 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** High
-**Dependencies:** 506a, 501a
+**Dependencies:** 506a (interface elements), 501d (the camera)
+**Blocks:** 507b, 507c, 507d, 507e, 507f
+**Re-cut:** 2026-09-26, from "Minimap Module"
 
 ---
 
 ## Current Behavior
 
+No minimap.
+
+## Intended Behavior
+
+A minimap element on the page: a screen rectangle in the console, the
+map's playable area mapped into it (map bounds from `war3map.w3i`, the
+square fitted as WC3 fits non-square maps), and the two conversions the
+others use: world point to minimap point and back.
+
+## Suggested Implementation Steps
+
+1. The element and its rectangle.
+2. World-to-minimap and minimap-to-world, with tests.
+
+## Acceptance Criteria
+
+- [ ] The two conversions are tested on a square and a non-square map
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No minimap system. Players cannot see an overview of the map or unit positions.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Core minimap component with render-to-texture and coordinate mapping:
 
@@ -152,7 +180,7 @@ return Minimap
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create Minimap component**
    - Extends UI Component
@@ -186,17 +214,17 @@ return Minimap
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Minimap component renders in correct position
-- [ ] Coordinate conversion works correctly
-- [ ] Layer system supports all required layers
-- [ ] Map bounds configurable from terrain data
-- [ ] Border and background render properly
+- Minimap component renders in correct position
+- Coordinate conversion works correctly
+- Layer system supports all required layers
+- Map bounds configurable from terrain data
+- Border and background render properly
 
 ---
 
-## Notes
+### Notes
 
 The minimap is essential for strategic awareness in RTS games. It must be clear and responsive.
 
@@ -210,7 +238,7 @@ Minimap should render efficiently. Pre-render terrain to texture, only update un
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507-create-minimap-renderer.md (parent issue)
 - issues/506a-ui-component-system.md (base component)

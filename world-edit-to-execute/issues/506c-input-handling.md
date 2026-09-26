@@ -3,17 +3,49 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 506
 **Priority:** High
-**Dependencies:** 506a
+**Dependencies:** 506b
+**Blocks:** 506d, 506e, 506f, 507e
+**Re-cut:** 2026-09-26, from "Input Handling"
 
 ---
 
 ## Current Behavior
 
+`src/render/input.c` handles world input (click select, box select,
+right-click orders, 508e/508f). It doesn't know the interface exists.
+
+## Intended Behavior
+
+Each mouse event is tested against the interface's rectangles first, top
+of the draw order down; only a miss goes to the world. Hover and pressed
+states are set on elements. Hotkeys go to the command grid (506e) when a
+unit is selected. Keyboard focus exists only for text entry (chat).
+
+## Suggested Implementation Steps
+
+1. Hit test against element rectangles before world picking.
+2. Hover and pressed states.
+3. Hotkeys routed to the command grid.
+
+## Acceptance Criteria
+
+- [ ] A click on a panel never selects a unit behind it
+- [ ] Buttons show hover and pressed states
+- [ ] Hotkeys trigger commands
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No UI input handling. Mouse clicks and keyboard input not routed to UI components.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Input dispatch system with hover, focus, and hotkeys:
 
@@ -159,7 +191,7 @@ return ui_input
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Implement hit testing**
    - Recursive depth-first search
@@ -193,18 +225,18 @@ return ui_input
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Hit testing finds correct component
-- [ ] Hover events fire on mouse enter/leave
-- [ ] Clicks dispatch to correct component
-- [ ] Focus changes on click
-- [ ] Hotkeys trigger callbacks
-- [ ] Unconsumed input passes to game
+- Hit testing finds correct component
+- Hover events fire on mouse enter/leave
+- Clicks dispatch to correct component
+- Focus changes on click
+- Hotkeys trigger callbacks
+- Unconsumed input passes to game
 
 ---
 
-## Notes
+### Notes
 
 Input should follow this priority:
 1. Focused UI component
@@ -217,7 +249,7 @@ When a modal is open, it should capture all input. Clicks outside dismiss or are
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/506a-ui-component-system.md (component base)
 - issues/505e-input-commands.md (game input)

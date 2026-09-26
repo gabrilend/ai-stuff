@@ -3,17 +3,63 @@
 **Phase:** 5 - Rendering
 **Type:** Feature
 **Priority:** High
-**Dependencies:** 501-create-abstract-render-interface, 105-parse-war3map-w3e
+**Dependencies:** 508 (completed), 105 (terrain parser), 501 (the page format)
+**Blocks:** 502b, 502c, 502d, 507, 507b
+**Re-cut:** 2026-09-26, from "Implement Terrain Rendering"
 
 ---
 
 ## Current Behavior
 
+The vertical slice draws a map's terrain as a flat grid of coloured tiles
+(`src/render/terrain.c`, from 508d): one colour per ground texture, at the
+right world positions, with a lookup from world point to tile. Heights,
+cliffs, water and fog are not drawn, and each tile is its own draw call.
+
+## Intended Behavior
+
+Terrain is built **once, at map load**, and drawn every frame without
+being rebuilt. The Lua terrain parser (105) reads `war3map.w3e`; C builds
+meshes from it, one per chunk of tiles, and keeps them for the map (the
+same pattern as models in 516). Each frame only what changes goes into the
+page: which chunks are in view, and the fog texture. The sub-issues:
+
+| ID | What | State |
+|----|------|-------|
+| 502a | the colour grid, culling, a grid-line view | colour grid built |
+| 502b | heights and cliffs as a real mesh | open |
+| 502c | water surfaces | open |
+| 502d | fog of war | open; needs a visibility system in the runtime |
+| 502e | one draw per chunk, culled by the camera | open |
+
+Ground textures (the tileset's images) come later, read from the map or the
+player's own install like models (516); until then, colours.
+
+## Suggested Implementation Steps
+
+1. 502e's chunking first, since every other part builds on chunk meshes.
+2. 502b heights into those meshes; 502c water as a second mesh per chunk.
+3. 502d fog when the runtime can say what each player sees.
+
+## Acceptance Criteria
+
+- [ ] A test map's terrain is built once at load and not rebuilt per frame
+- [ ] Heights, cliffs and water show on the test maps
+- [ ] Terrain costs a few draw calls per frame, not one per tile
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 W3E terrain data is parsed (Issue 105) but not rendered. Terrain information exists as data structures with tile types, heights, and water levels, but there's no visual representation.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Terrain rendering system that:
 - Converts w3e data to renderable terrain mesh/tiles
@@ -34,7 +80,7 @@ Terrain rendering system that:
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Create terrain renderer module**
    ```lua
@@ -70,7 +116,7 @@ Terrain rendering system that:
 
 ---
 
-## Design Questions for User
+### Design Questions for User
 
 1. **Rendering style preference?**
    - Realistic (textured, shaded)
@@ -94,18 +140,18 @@ Terrain rendering system that:
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Terrain tiles render at correct positions
-- [ ] Height differences are visually apparent
-- [ ] Water tiles distinguished from land
-- [ ] Multiple visual modes available
-- [ ] Only visible tiles are rendered (culling)
-- [ ] Performance acceptable for 256x256 maps
+- Terrain tiles render at correct positions
+- Height differences are visually apparent
+- Water tiles distinguished from land
+- Multiple visual modes available
+- Only visible tiles are rendered (culling)
+- Performance acceptable for 256x256 maps
 
 ---
 
-## Notes
+### Notes
 
 Terrain is the foundation of the visual scene. Everything else (units, buildings, effects) renders on top of it.
 
@@ -117,11 +163,11 @@ Terrain is the foundation of the visual scene. Everything else (units, buildings
 
 ---
 
-## Initial Analysis
+### Initial Analysis
 
 **Analysis Date:** 2025-12-29
 
-### Recommendation: SPLIT
+#### Recommendation: SPLIT
 
 This issue contains 5 distinct rendering subsystems with clear technical boundaries:
 
@@ -133,14 +179,14 @@ This issue contains 5 distinct rendering subsystems with clear technical boundar
 | 502d | fog-of-war-integration | 502a | Explored/unexplored/visible states, darkening overlays |
 | 502e | terrain-optimization | 502a-d | View frustum culling, tile caching, performance tuning |
 
-### Rationale
+#### Rationale
 
 1. **Distinct rendering techniques**: Height, water, and fog each use different visual approaches
 2. **Fog of war complexity**: Integrates with player visibility system from Phase 4 - significant scope
 3. **Optimization separate from features**: Culling and caching should come after features work
 4. **Progressive enhancement**: Can ship basic terrain first, add polish later
 
-### Execution Order
+#### Execution Order
 
 ```
 502a (core) → 502b (height) ─────────────────┐
@@ -150,7 +196,7 @@ This issue contains 5 distinct rendering subsystems with clear technical boundar
 
 ---
 
-## Related Documents
+### Related Documents
 
 - src/parsers/w3e.lua (terrain data parser)
 - issues/501-*.md (render interface dependency)
@@ -158,7 +204,7 @@ This issue contains 5 distinct rendering subsystems with clear technical boundar
 
 ---
 
-## Generated Sub-Issues
+### Generated Sub-Issues
 
 *Auto-generated on 2025-12-29 19:39*
 

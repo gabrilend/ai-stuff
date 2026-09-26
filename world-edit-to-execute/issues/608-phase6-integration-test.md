@@ -3,7 +3,7 @@
 **Phase:** 6
 **Type:** Testing
 **Priority:** High
-**Dependencies:** Issues 601-606 (607, the file server, was retired 2026-09-26)
+**Dependencies:** Issues 601, 602, 603, 604, 605, 606 (the file server issue was retired 2026-09-26)
 
 ---
 

@@ -3,17 +3,45 @@
 **Phase:** 5 - Rendering
 **Type:** Sub-Issue of 507
 **Priority:** High
-**Dependencies:** 507a, 503
+**Dependencies:** 507a
+**Re-cut:** 2026-09-26, from "Unit Dots"
 
 ---
 
 ## Current Behavior
 
+No minimap.
+
+## Intended Behavior
+
+A dot per visible unit at its minimap point, in its owner's colour (503c),
+larger for buildings, as WC3 draws them; the player's own units and allies
+optionally in one colour each (WC3's minimap colour toggle). Built into the
+page each frame from the unit items; units hidden by fog (502d) left out.
+
+## Suggested Implementation Steps
+
+1. Dots from unit items.
+2. Building size and the colour toggle.
+
+## Acceptance Criteria
+
+- [ ] Dots follow units and show owners' colours
+- [ ] The colour toggle works
+
+---
+
+## Earlier Design (January 2026, for a Lua renderer interface)
+
+Kept as the record; not built as written.
+
+### Current Behavior
+
 No unit markers on minimap. Players cannot see unit positions at a glance.
 
 ---
 
-## Intended Behavior
+### Intended Behavior
 
 Team-colored dots for units on minimap:
 
@@ -139,7 +167,7 @@ return unit_dots
 
 ---
 
-## Suggested Implementation Steps
+### Suggested Implementation Steps
 
 1. **Define dot sizes**
    - Small for regular units
@@ -172,18 +200,18 @@ return unit_dots
 
 ---
 
-## Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] Units appear as colored dots
-- [ ] Team colors match player slots
-- [ ] Heroes have distinct marker (diamond)
-- [ ] Buildings larger than units
-- [ ] Selected units highlighted
-- [ ] Dots update with unit movement
+- Units appear as colored dots
+- Team colors match player slots
+- Heroes have distinct marker (diamond)
+- Buildings larger than units
+- Selected units highlighted
+- Dots update with unit movement
 
 ---
 
-## Notes
+### Notes
 
 Dots must be visible against terrain but not overwhelming. Balance size and color.
 
@@ -199,7 +227,7 @@ Collect and draw all visible units each frame. Should be fast since minimap is s
 
 ---
 
-## Related Documents
+### Related Documents
 
 - issues/507a-minimap-module.md (parent component)
 - issues/503c-team-colors-selection.md (color palette)

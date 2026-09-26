@@ -4,6 +4,7 @@
 **Type:** Sub-issue of 112
 **Priority:** High
 **Dependencies:** 112a (completed)
+**Blocks:** 112c, 112d, 112e, 115
 
 ---
 
@@ -52,8 +53,9 @@ only its notes. Instead:
    the plain path; each
    in the chosen layer first, then the three archives. The layer is picked by
    the map's editor version through `src/gamedata/editor_versions.lua`;
-   without an entry, the newest built layer is used and the fallback is
-   reported as a warning. `layer = false` gives the unpatched game; a layer
+   without an entry, the map is refused with an error naming what to fetch
+   (it fell back to the newest layer with a warning until the stack was
+   built; see item 6). `layer = false` gives the unpatched game; a layer
    name forces that one.
    **The data set** comes from the map's "game data set" setting (open
    question 3): Custom (1) reads `Custom_V1\` for Frozen Throne maps,
@@ -245,6 +247,20 @@ version its author most likely played; a map can name another in its
 settings. The table is built from evidence we produce ourselves: each patch
 replaces Blizzard's melee maps (`Maps\...`), and those maps record the
 editor build that saved them. The wiki table only cross-checks it.
+
+## Suggested Implementation Steps
+
+As built (the section was missing; added 2026-09-26 from the code):
+1. List where each patch program comes from (`wc3-installs/patch-sources.tsv`)
+   and fetch them (`scripts/fetch-patch-programs.sh`).
+2. Build each patch's changed files into a layer folder
+   (`src/cli/build-patch-layer.lua`, `src/gamedata/patch_layer.lua`), for the
+   Frozen Throne stack and the separate Reign of Chaos stack.
+3. Map each World Editor build to its range of versions from evidence
+   (`src/gamedata/editor_versions.lua`).
+4. Assemble a map's data per map: its own archive, one layer, the disc's
+   archives, and its data set (`src/gamedata/chain.lua`).
+5. Tests over the test maps: each reads the layer its editor build names.
 
 ## Acceptance Criteria
 

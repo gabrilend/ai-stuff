@@ -3,9 +3,9 @@
 **Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** Medium
-**Dependencies:** Issue 801b (server core). (Issue 607, the file server, was retired 2026-09-26: files between people move over rmail, issue 609.)
+**Dependencies:** Issue 801b (server core). (The file server issue was retired 2026-09-26: files between people move over rmail, issue 609.)
 **Parent:** Issue 801 (Matchmaking Server)
-**Blocks:** 801h (the integration tests)
+**Blocks:** 801h (the integration tests), 801g
 
 ---
 
