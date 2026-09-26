@@ -41,6 +41,7 @@ watching a demo.
  units path around units (405f) ──▶ the same crowd on every threading design (515k)
    built; waits on the owner          steps 1-3 committed; step 4 (films, report,
    watching it                         page) in progress, uncommitted
+
  THE NETWORK
  gameplay messages, server inside ──▶ crossing armies over the network (804)
  the client (803)                      built; waits on the owner watching it
@@ -55,6 +56,7 @@ watching a demo.
  a growing asset table (515e) ─┘     thread pool (515f): the verdict that decides
                                      whether the render code ever moves to the
                                      shared thread-pool library (802)
+
  STOCK DATA FOR CONVERTED MAPS
  game-version layers (112b) ──▶ the converter refuses a map whose stock table
    built; waits on patch          is unchecked (112, its last box)
@@ -68,8 +70,10 @@ map browser) or needs rewriting before it can start (section 4).
 ---
 
 ## 2. Decisions
+
 Newest first. Each names where it was recorded, so the reasoning can be read
 in full there.
+
 | Date | Decision | Recorded in |
 |------|----------|-------------|
 | 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | This document; to be written into 603 and 1001 |
@@ -90,31 +94,39 @@ in full there.
 ---
 
 ## 3. Open Questions
+
 Each stays here until the owner answers it; then it moves to Decisions with
 the answer and the date.
+
 ### Q-1: How do the three server routes relate?
 **Reshapes:** 801 and its sub-issues, W02e, W08, 803
+
 There are three ways a game can be hosted:
 - the engine's own host inside a player's client (803), speaking this
   project's compact message records;
 - AzerothCore with a shim that runs WC3 triggers as ALE scripts (W02e);
 - our own server speaking the WoW client's protocol (W08), which W08 already
   calls the successor to the shim ("a stage-1 bridge only").
+
 The first and third both run this project's own simulation as the one
 authority and differ only in the wire format. If they are one simulation
 with two front ends, the matchmaking protocol (801a) should reuse 803's
 message layer instead of defining its own, and NAT traversal (801d) serves
 only the open-client route.
+
 ### Q-2: Which HTTP fetching belongs where?
 **Reshapes:** 603, 607, 1001, 601
+
 Files still come over HTTP from public hosting sites (decided 2026-09-26),
 and rmail carries them between people. What remains open:
 - Does 603 become "fetch from public sites", or does the map browser (1001)
   own all fetching and 603 retire?
 - Does anything still need this project to *serve* files over HTTP (607's
   file server), now that people pass files over rmail?
+
 ### Q-3: What happens to the old renderer-interface issues (501-507)?
 **Reshapes:** about 40 issues in Phase 5
+
 They describe a Lua renderer with swappable backends, which the slot split
 (decided 2025-12-30) replaced. About 8 of them are retired in substance
 (the interface, registry, render events, default visual mode and its
@@ -123,39 +135,51 @@ grid, basic unit shapes, team colours and selection); about 25 still name
 real missing features (terrain heights, water, fog, health bars, a movable
 camera, the minimap, the UI framework, asset packs) and need rewriting for
 the C renderer.
+
 ### Q-4: Where do the missing render features go?
 **Reshapes:** the rewrites from Q-3
+
 - Does the UI framework (506) live in C next to the existing panel code, or
   in Lua writing into a buffer the C side draws?
 - Do terrain, unit and minimap features target the current C renderer, the
   ceramic path, or both?
+
 ### Q-5: May the patch programs be downloaded?
 **Blocks:** 112b's completion, 112d
+
 The version layers need each patch's game data. Public mirrors that are not
 Blizzard's servers have been found (the Internet Archive's `wc3_patches`,
 about 9.9 GB, and others listed in 112b); downloading waits on the owner's
 go-ahead on source and size.
+
 ### Q-6: Is the thread-pool library move (802) kept?
 **Depends on:** 515f
+
 The ceramic engine's plan keeps the hand-written pool as its benchmark. 802
 would replace that pool with the shared library. Wait for 515f's verdict, or
 retire 802 now?
+
 ### Q-7: Are the guild files still live?
 **Affects:** `GUILD-ROSTER.md`, `Q00-adventurer-quest-log.md`,
 `B01-the-phantom-priority.md`
+
 The roster lists two bounties as unclaimed that are completed. The quest log's
 paths still resolve. The bounty's bug is real (debt D-1). Keep them as the
 way newcomers find work, or archive them and make D-1 an ordinary bugfix?
+
 ### Q-8: How is "no weather" stored?
 **Affects:** the map-info parser, the region parser
+
 A map with no weather has four zero bytes where the weather code goes. The
 region parser stores that as an absent value; the map-info parser keeps the
 four zero bytes, and its test prints them, which makes the test runner warn
 ("ignored null byte in input"). The two parsers should agree. The house rule
 is not to treat "nothing" as a normal value, which argues for a named value
 such as `"none"` over leaving it absent.
+
 ### Q-9: Phase 7 leftovers from before the pivot
 **Affects:** ghost and spirit rules
+
 The archived death system asked four questions about the spirit world (can
 enemies see a ghost, can ghosts use abilities, what if the hero dies while
 reviving, can corpses share a tile). They were never answered and are parked
@@ -203,7 +227,9 @@ now gets its own deep copy).
 ---
 
 ## 5. Documentation Drift
+
 Places where a document disagrees with the code or with another document.
+
 | Where | Says | Reality |
 |-------|------|---------|
 | `docs/roadmap.md`, Phase 5 | the renderer interface (501a) is complete | it was never built; the slot split replaced it |
