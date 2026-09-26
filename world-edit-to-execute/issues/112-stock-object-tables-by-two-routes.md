@@ -10,17 +10,41 @@
 
 ## Current Behavior
 
-The object database (`src/parsers/objectdb.lua`) reads a map's own object
-changes (w3u, w3a, w3t, w3b, w3d, w3h, w3q). Each changed object stores only
-its **modified** fields plus the id of the stock object it copies
-(`original_id`). The unchanged fields live in Warcraft III's stock tables
-(`Units\UnitData.slk`, `Units\AbilityData.slk` and others, inside the game's
-archives), which the project cannot read: there is no SLK parser, and
-`src/validation/init.lua` notes "we don't have SLK data".
+Both routes are built and agree; one criterion is left.
 
-The owner's installs are linked from `wc3-installs/`: `reign-of-chaos`
-(`war3.mpq`) and `frozen-throne` (a separate prefix, with The Frozen Throne
-and patch 1.21b being installed 2026-09-24).
+- **Route A (112c, completed):** the stock tables are read from the
+  player's own install. `src/parsers/slk.lua` and `profile_txt.lua` read the
+  table files; `src/gamedata/stock_rows.lua` merges each of a map's changed
+  objects over its stock row, every column labelled by a reviewed type list
+  (`field_rules.lua`).
+- **Game-version layers (112b):** `src/gamedata/chain.lua` assembles, per
+  map, the map's own archive over one patch layer over the disc's archives,
+  choosing the layer from the map's editor build (`editor_versions.lua`) and
+  its data set. Layers are built for Frozen Throne 1.11 through 1.29.2 and a
+  separate Reign of Chaos stack. 112b stays open on the owner's go-ahead to
+  download the remaining patch programs (`issues/CRITICAL-PATH.md`, Q-5).
+- **Route B (112e):** published values from Liquipedia compared with Route
+  A's 1.29.2 melee tables: 0 unexplained mismatches; 94 values on pages with
+  no pre-1.30 revision are listed as not yet checkable. 112e stays open on
+  its open questions.
+- **Not built:** the converter's refusal of an unchecked stock table. No
+  code yet marks a table as checked or unchecked, and nothing converts maps
+  that would consult such a mark.
+- **A fallback still in use (found 2026-09-26):** the cross-reference
+  validator (`src/validation/init.lua`, unit placements, about line 268)
+  meets a unit id that isn't in the map's own object data and isn't a custom
+  id, warns, and then counts it as valid, with the comment "we don't have
+  SLK data". The stock rows now exist, so the id can be looked up in the
+  map's chain instead: found means valid, not found means an error that
+  names the id and the layer searched. The same assumption should be checked
+  for doodads and destructables in the same file.
+
+Live figures for both routes come from `luajit src/cli/route-b-report.lua`
+rather than from this file. The owner's installs are linked from
+`wc3-installs/`.
+
+(Until 2026-09-26 this section still described the starting point: no SLK
+parser, and `src/validation/init.lua` noting "we don't have SLK data".)
 
 ## Intended Behavior
 
@@ -128,12 +152,13 @@ map's chain (`src/gamedata/chain.lua`), not the plain paths.
 
 ## Acceptance Criteria
 
-- [ ] Stock rows read for both data sets (Reign of Chaos, Frozen Throne)
-- [ ] A custom map's modified abilities merge into full rows
-- [ ] Route B fetches within Liquipedia's terms and is cached
-- [ ] Comparison report with coverage and every mismatch investigated
+- [x] Stock rows read for both data sets (Reign of Chaos, Frozen Throne) (112b, 112c)
+- [x] A custom map's modified abilities merge into full rows (112c)
+- [x] Route B fetches within Liquipedia's terms and is cached (112e)
+- [x] Comparison report with coverage and every mismatch investigated (112e)
 - [ ] The converter refuses to use an unchecked stock table
-- [ ] `.info.md` beside each new source file
+- [ ] The cross-reference validator looks stock ids up in the map's chain instead of assuming them valid
+- [x] `.info.md` beside each new source file (the last one, `editor_versions.info.md`, written 2026-09-26)
 
 ## Open Questions
 
