@@ -131,7 +131,12 @@ local function run_tests()
             assert(map.weather, "missing weather")
             print("")
             print("  Fog style: " .. map.fog.style)
-            print("  Weather: '" .. map.weather .. "'")
+            -- The weather code is four raw bytes, and a map with no weather
+            -- holds four zero bytes there, which is correct data. Printed
+            -- raw, those zeros reached the test runner as null bytes and it
+            -- warned; %q shows them escaped, as \0, so every map prints the
+            -- same way.
+            print("  Weather: " .. string.format("%q", map.weather))
             if map.upgrades then
                 print("  Upgrades: " .. #map.upgrades)
             end

@@ -1,7 +1,71 @@
 # Conversation Summary: e35e37f8-3248-42a5-afb9-0fc607b14aaa
 
-Generated on: 2026-09-21 19:46:01
+Generated on: 2026-09-26 12:46:49
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-09-01 22:01, after Request 2 - You asked for a progress report on recent
+   project updates; I wrote one covering 226 commits across nine projects from
+   Aug 20 to Sep 1, saved as markdown and published as an artifact. Nothing
+   pending unless you want changes.
+2. 2026-09-01 22:34, after Request 4 - Wrote two progress reports covering 29
+   Jul–12 Aug and 20 Aug–1 Sep, stored in progress-reports/ as data files
+   with a Lua generator producing the .md and .html, and published both as
+   artifacts. Next: your review of the rewritten prose.
+3. 2026-09-01 23:33, after Request 5 - Goal: a series of progress reports on the
+   repo's projects. Three are written, generated from Lua data files in
+   progress-reports/, published, and consistent in style. Next: write the
+   fourth, covering the July stage before 21 July.
+4. 2026-09-02 17:16, after Request 9 - We're writing progress reports across
+   your repository's history, backwards from September. Four are done (12 June
+   onward), each as a local HTML page plus a shareable link, with the method
+   captured in a progress-report skill. Next: the remaining May and April
+   stages, if you want them.
+5. 2026-09-02 17:40, after Request 11 - We're writing progress reports backwards
+   through the repo's git history; six are now published in progress-reports/,
+   covering 17 Jan through 1 Sep 2026. Next up is the remaining gap: roughly 850
+   commits from 15 December 2025 through mid-January.
+6. 2026-09-02 18:03, after Request 13 - Goal was a series of progress reports
+   across your projects; seven now exist, covering 15 December 2025 through 1
+   September 2026 continuously, each as local HTML plus a published link. The
+   only remaining gap is early April to mid-May, about 33 commits, if you want
+   it written next.
+7. 2026-09-02 18:11, after Request 14 - We built a seven-report progress-report
+   series covering your repository's whole history back to the first commit,
+   plus a reusable skill and a generator. Everything is written, verified at
+   97.7% coverage, and published. Next: write the last gap, early April through
+   mid-May, about 33 commits.
+8. 2026-09-02 18:27, after Request 16 - We're building a series of progress
+   reports covering your repository's whole history, now complete from the first
+   commit plus a companion page on the four pre-git years. Everything is
+   published; next step is yours to say what to cover or change.
+9. 2026-09-05 21:45, after Request 18 - Goal: progress reports for the projects,
+   stored as HTML in /mnt/mtwo/programming/ai-stuff/progress-reports/. Audits
+   came back clean; April was my omission. Next: awaiting your go-ahead to apply
+   the five language/metric changes to the skill and rewrite the eight reports.
+10. 2026-09-06 01:20, after Request 19 - We're turning nine standalone progress
+    reports into one nine-part essay; the structure, navigation, issue-file
+    metrics, and opening page with the project cast are done and verified. Next:
+    your go-ahead to rewrite all nine parts' prose, add the missing April–May
+    part, and add a closing part.
+11. 2026-09-06 12:48, after Request 21 - We're turning nine standalone progress
+    reports into one continuous essay in nine parts at
+    /mnt/mtwo/programming/ai-stuff/progress-reports/. The opening, Part 5 and
+    the thread-callout device are done; next is rewriting Parts 1, 2, 3, 4, 6,
+    7, 8 and 9 in the new voice.
+12. 2026-09-07 17:30, after Request 22 - We're turning the eight standalone
+    progress reports into one nine-part essay with threaded callouts; all nine
+    parts are rewritten, validated, and building. Next: open index.html and
+    check the result reads right.
+13. 2026-09-07 22:15, after Request 23 - We're turning your progress reports
+    into one nine-part essay in progress-reports/, and all nine parts are now
+    rewritten with thread callouts and 53 verified transcript links. Next: open
+    index.html and tell me what needs changing.
+14. 2026-09-07 23:43, after Request 24 - We're building a nine-part essay in
+    progress-reports/ documenting a year of work, generated from Lua data files.
+    Just switched transcript links to GitHub URLs and verified all 48 resolve.
+    Next: nothing pending, awaiting your direction.
 
 --------------------------------------------------------------------------------
 

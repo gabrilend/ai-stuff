@@ -1,7 +1,28 @@
 # Conversation Summary: a80cedeb-c69c-45b9-99c3-8134bed42e97
 
-Generated on: 2026-09-21 19:46:00
+Generated on: 2026-09-26 12:46:47
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-21 23:47, after Request 1 - Goal: add a root LICENSE for this
+   monorepo, based on your existing Don't Be Cruel license plus a clause that
+   big corporations pay you. I asked whether that clause should be legally
+   binding and where the "big" line falls; you wanted to clarify first. Next:
+   tell me what's unclear.
+2. 2026-08-21 23:55, after Request 2 - Goal was licensing the monorepo: AGPL-3.0
+   text, a COPYRIGHT file scoping it, and an updated README line are all written
+   but not committed. Next: tell me whether to stage just those three files,
+   since unrelated changes are sitting in your tree.
+3. 2026-08-22 00:09, after Request 4 - You asked for a license file for the
+   monorepo; AGPL-3.0 is now in place at the root alongside a COPYRIGHT file and
+   an updated README line. Nothing is committed yet, so tell me when to stage
+   those changes.
+4. 2026-08-22 00:14, after Request 5 - Goal was licensing this monorepo under
+   AGPL-3.0. All five files are written and verified — root LICENSE,
+   COPYRIGHT, a README line, and MIT licenses surfaced for LuaSocket and
+   LuaHPDF. Nothing is committed yet; say the word and I'll stage just those
+   five.
 
 --------------------------------------------------------------------------------
 

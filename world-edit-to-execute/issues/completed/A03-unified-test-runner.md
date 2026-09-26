@@ -19,9 +19,10 @@ Phase A later moved to the shared scripts project (commit 447e8ceb5), where
 a project-independent runner (`scripts/test-runner.sh`) is tracked by its
 own copy of this issue. This copy records the runner that lives here.
 
-Rechecked 2026-09-26: 112 of 112 test files pass. The run prints one bash
-warning, "ignored null byte in input": the map-info test prints a map's
-weather code, which is four zero bytes when the map has no weather.
+Rechecked 2026-09-26: 112 of 112 test files pass with no warnings. (The
+first recheck printed a bash warning, "ignored null byte in input": the
+map-info test printed a map's weather code raw, and a map with no weather
+holds four zero bytes there. The test now prints it escaped.)
 
 ---
 
