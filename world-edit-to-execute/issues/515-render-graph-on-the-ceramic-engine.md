@@ -110,9 +110,10 @@ owner's say, and adopted here only once it exists there.
 | 515c | mailbox-triple-buffer | 515b | The three-buffer mailbox of per-unit visual records, with its two atomic swaps, and tests that a draw never sees a half-written state |
 | 515d | extrapolate-predict-snap | 515c | Drawing "now" from each record; local order answers; corrections that snap, with the swing case as a test |
 | 515e | growing-asset-table | 515b | The append-only, block-based asset table with published ids; a decode station, and upload and append on the host |
+| 515g | lock-free-task-queue | 515a | A kept copy of the engine with a lock-free task queue (slot sequence numbers, batched hand-in, wake-only-sleepers) and collection counted after the copy; measured against the stock engine, then reported to soramech |
 | 515f | measured-against-the-pool | 515c, 515d, 515e | The same scene on both paths: frame time, time on the draw thread, core use. The verdict on the experiment |
 
-Execution order: 515a → 515b → (515c, 515e in parallel) → 515d → 515f
+Execution order: 515a → 515g → 515b → (515c, 515e in parallel) → 515d → 515f
 
 ## Suggested Implementation Steps
 
