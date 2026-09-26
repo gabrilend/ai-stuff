@@ -44,6 +44,8 @@ line. Adding a language is adding a row.
 |---|---|---|---|
 | `.lua` | lua | code | `require "x"`, `require("x")`, `dofile("x")` |
 | `.c` `.h` | c | code | `#include "x"` (the angle-bracket form is recorded as outside) |
+| `.cpp` `.cc` `.cxx` `.hpp` `.hh` | c++ | code | as for C |
+| `.S` | assembly | code | as for C (it goes through the C preprocessor) |
 | `.sh` `.bash` | shell | code | `source x`, `. x` |
 | `.py` | python | code | `import x`, `from x import` |
 | `.js` `.mjs` `.ts` | javascript | code | `import … from "x"`, `require("x")` |
@@ -67,11 +69,21 @@ it is a dependency outside the source (a system library, a package).
 
 > never ever do batch processing on a single thread.
 
-The path list is cut into as many slices as the machine has hardware threads
-(from the thread library, effil). Each worker thread reads its slice and
-returns its rows as one tab-separated string, since only strings and plain
-tables cross between threads. The gatherer joins them and sorts by path, so
+The path list is dealt out like cards into as many slices as the machine has
+hardware threads (from the thread library, effil): entry 1 to slice 1, entry
+2 to slice 2, and so on round. Dealing rather than cutting spreads the large
+files that sit together in one folder across every thread. Each worker reads
+its slice and returns its rows as one tab-separated string, each row tagged
+with its entry's number, since only strings and plain tables cross between
+threads. The gatherer puts the rows back in walk order by those numbers, so
 the output is identical however many threads ran.
+
+Two things decide the speed, both found by measuring a large C++ tree (the
+AzerothCore server, about 8 500 files and 6 million lines): lines are counted
+with a plain search rather than a substitution that would copy each file, and
+the include patterns are tried only on lines that contain one of the
+scanner's plain keywords (`include`, `require`, …). Run the phase 2 demo for
+current numbers.
 
 ## The summary
 
@@ -79,6 +91,9 @@ the output is identical however many threads ran.
 nothing else: counts by language and role, the largest files, the files most
 linked to (the likely foundations), the files that link out but are never
 linked to (the likely entry points), and every outside dependency by name.
+C and C++ source files (`.c`, `.cpp`, …) are never included by anything —
+they are compiled and linked — so they are counted as compile units rather
+than listed as entry points.
 
 The survey's generation and its viewing are separate modules: one writes the
 tables, the other reads them. The summary can be rebuilt from the tables at

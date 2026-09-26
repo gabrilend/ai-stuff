@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-2-demo` and `phase-2-demo.lua`. Surveys kiln, rao-chat, wow-chat-2026's `src/` and a copy of this machine into scratch cases and prints them side by side (files, lines, languages, links, the most leaned-on file, entry points, compile units, outside dependencies, timing, ledger head), then surveys the AzerothCore source at 1, 2, 4 and every thread with bars. Columns are padded by characters, not bytes, so the `…` marks line up.
 
 ## Intended Behavior
 

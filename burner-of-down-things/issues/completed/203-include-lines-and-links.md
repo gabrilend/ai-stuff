@@ -5,7 +5,7 @@ Finding which file includes which, and resolving the names
 
 ## Current Behavior
 
-Nothing knows how files connect.
+Built as `src/028-include-lines.lua`. Two findings from real sources shaped it. LuaJIT's `gmatch` reads a leading `^` as a literal caret, so anchored patterns silently matched nothing (every C include in kiln was invisible); anchored patterns are now matched once per line with `match`, and tests/032 holds this. And pattern-matching every line was slow on millions of lines, so each scanner has plain keywords (`include`, `require`, …) and only lines holding one are matched.
 
 ## Intended Behavior
 

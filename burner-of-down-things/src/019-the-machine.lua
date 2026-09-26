@@ -108,7 +108,9 @@ COMMANDS.ledger = {
 }
 
 -- Rows added by later phases: each module returns a table of rows.
-local LATER_COMMAND_MODULES = {}
+local LATER_COMMAND_MODULES = {
+    "031-the-survey-commands",
+}
 
 -- {{{ local function load_later_commands
 local function load_later_commands()

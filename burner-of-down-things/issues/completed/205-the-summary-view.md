@@ -5,7 +5,7 @@ The viewing side of the survey: built from the two tables alone
 
 ## Current Behavior
 
-The tables exist; nothing reads them for a person.
+Built as `src/030-the-survey-summary.lua` with the `summary` command. C and C++ source files are never included by anything (they are compiled and linked), so they are counted as compile units instead of being listed as entry points; without that, all 29 of kiln's C files showed as entry points. Rebuilds identically with the source deleted (tests/032).
 
 ## Intended Behavior
 
