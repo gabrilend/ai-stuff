@@ -1,10 +1,11 @@
 # Issue 801g: CLI Server Application
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 801b (server core), Issue 801f (asset mirror)
 **Parent:** Issue 801 (Matchmaking Server)
+**Blocks:** 801h (the integration tests)
 
 ---
 

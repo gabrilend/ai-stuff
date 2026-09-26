@@ -1,10 +1,11 @@
 # Issue 801e: Lobby UI
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 801c (client library), **Phase 5 (Rendering)**
 **Parent:** Issue 801 (Matchmaking Server)
+**Blocks:** 801h (the integration tests)
 
 ---
 

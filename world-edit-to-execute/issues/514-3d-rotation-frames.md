@@ -49,7 +49,7 @@ Byte layout: [O1:2][O2:2][O3:2][O4:2] [O5:2][O6:2][O7:2][O8:2]
 
 ## Suggested Implementation Steps
 
-### 512a: Core 3D Frame Encoding
+### 514a: Core 3D Frame Encoding
 
 1. Create `src/runtime/rotation/frames3d.lua`
 2. Define 8 octant constants with corner coordinates
@@ -58,19 +58,19 @@ Byte layout: [O1:2][O2:2][O3:2][O4:2] [O5:2][O6:2][O7:2][O8:2]
 5. Define 3D cardinal directions (UP, DOWN, NORTH, SOUTH, EAST, WEST)
 6. Add 3D ordinal support (8 corners)
 
-### 512b: Integrate with Render System
+### 514b: Integrate with Render System
 
 1. Update render slot rotation storage to use 3D frames
 2. Convert between quaternion/euler and 3D frames for compatibility
 3. Test with rotating cubes in demo
 
-### 512c: Dynamic Precision Scaling
+### 514c: Dynamic Precision Scaling
 
 1. Implement variable-length frame encoding (2, 4, 8 bytes)
 2. Add precision scaling based on A* path deviation
 3. Cap precision when units stay on path
 
-### 512d: Convergence Detection
+### 514d: Convergence Detection
 
 1. Port 2D complement detection to 3D
 2. Implement 3D figure-eight (spherical Lissajous) convergence
@@ -103,10 +103,10 @@ Byte layout: [O1:2][O2:2][O3:2][O4:2] [O5:2][O6:2][O7:2][O8:2]
 
 | ID | Description | Priority |
 |----|-------------|----------|
-| 512a | Core 3D frame encoding | High |
-| 512b | Render system integration | Medium |
-| 512c | Dynamic precision scaling | Medium |
-| 512d | Convergence detection | Medium |
+| 514a | Core 3D frame encoding | High |
+| 514b | Render system integration | Medium |
+| 514c | Dynamic precision scaling | Medium |
+| 514d | Convergence detection | Medium |
 
 ---
 

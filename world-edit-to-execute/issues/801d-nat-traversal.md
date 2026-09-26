@@ -1,10 +1,11 @@
 # Issue 801d: NAT Traversal System
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 801a (protocol), Issue 801b (server core)
 **Parent:** Issue 801 (Matchmaking Server)
+**Blocks:** 801h (the integration tests)
 
 ---
 

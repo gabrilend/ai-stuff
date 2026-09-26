@@ -1,10 +1,11 @@
 # Issue 801b: Matchmaking Server Core
 
-**Phase:** 7 - Multiplayer & Networking
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** Issue 801a (protocol specification)
 **Parent:** Issue 801 (Matchmaking Server)
+**Blocks:** 801h (the integration tests)
 
 ---
 
