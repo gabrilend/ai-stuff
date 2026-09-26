@@ -59,7 +59,7 @@ local function server_thread(options, up, down, stop, start_ms)
             for _, bytes in ipairs(receivers[p]:take(now)) do s:receive(p, bytes, now) end
         end
         s:step(now)
-        effil.sleep(1, "ms")
+        clock.sleep_ms(1)
     end
 
     local lost = 0

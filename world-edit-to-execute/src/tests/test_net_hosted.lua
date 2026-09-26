@@ -59,7 +59,7 @@ local function play(h, players, ms, each)
             for p = 0, players - 1 do ends[p]:send(messages.encode("heard", { tick = newest[p] })) end
             next_beat = next_beat + 16
         end
-        effil.sleep(1, "ms")
+        clock.sleep_ms(1)
     end
     return got
 end
@@ -73,6 +73,16 @@ local function of(list, name)
     return out
 end
 -- }}}
+
+print("\n=== Resting really rests ===")
+do
+    -- effil.sleep(1, "ms") returned at once, and the server's thread spun
+    -- a whole core; the server now rests through the operating system
+    local t = clock.now_ms()
+    for _ = 1, 50 do clock.sleep_ms(1) end
+    local took = clock.now_ms() - t
+    test("fifty 1 ms rests take at least 50 ms", took >= 50, string.format("%.2f ms", took))
+end
 
 print("\n=== A clean connection ===")
 do

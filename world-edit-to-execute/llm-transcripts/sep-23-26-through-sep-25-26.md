@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 21:46:34
+Generated on: 2026-09-25 22:12:38
 Models: claude-opus-5-5
 
 ## Contents
@@ -9094,6 +9094,120 @@ obstacles; only terrain is.
    - **b. Run the server as a separate program on a local socket.**
 
 Once you've picked, I'll write the issue and build it.
+
+--------------------------------------------------------------------------------
+
+### User Request 89
+
+> 1. How units treat each other.
+>      - a. Warcraft III-like (my recommendation).
+
+
+
+<pasted_content id="7a80">
+>      One thing I'm not sure of is exactly what Warcraft III does when a moving unit meets a
+>      friendly unit standing still. Does it path around, or nudge it aside? If you remember, tell
+>      me. Otherwise I'll do "path around" and note it as unverified.
+</pasted_content id="7a80">
+
+
+it paths around.
+
+>   2. How the C renderer gets the states.
+>      - a. Build Lua into the renderer (my recommendation).
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 89
+
+> Both answers recorded. Before building, I'm writing the issues: one for units
+> that path around units, and one for the demo.
+
+> Writing the crowd: its own small planner (the existing one lets diagonal steps
+> cut wall corners, which a round unit can't), a spatial hash, and the blocked,
+> wait, re-plan and give-up rules.
+
+> Now the demo itself. First, a "paths" message (for drawing only) and a way for
+> a game to send extra messages.
+
+> Hand-drawing those rows was error-prone (they came out different lengths).
+> Generating the map instead:
+
+> The game runs: about 40 s per crossing, no overlaps, 0.6 ms a tick. Next, the
+> tool that writes the C unpacker from the Lua message descriptions, and its
+> test.
+
+> Now the generator:
+
+> C unpacker: 25/25, every value read back exactly and floats bit-for-bit.
+> Committing this piece.
+
+> Now the renderer. First checking how the threading library links, since it
+> will load inside a C program.
+
+> Now the renderer program itself: the receiving thread with Lua built in, and
+> the window.
+
+> The waiting dialog works: paused on tick 56, the stand-in silent for 3.0 s,
+> voting opens in 27 s, and both sliders show with yours in force. Writing the
+> notes and committing.
+
+The demo is built, checked and committed. It's a raylib window in which two
+armies of 40 swap sides through a gap in a wall. Every unit routes around every
+other, and every unit on screen arrived from the game's server as bytes.
+
+**What's in it:**
+- **Units that path around units (the Warcraft III behaviour you described).**
+  - Standing units count as obstacles when a path is planned. A step that would
+    overlap another unit isn't taken, and nobody is pushed.
+  - A unit blocked by one that isn't moving plans around it. Blocked by one that
+    is moving, it waits a moment first.
+  - A unit that gets no closer to its goal for 20 seconds gives up and stands.
+  - It runs at about 0.5 ms per tick for 80 units.
+- **The network path, as you chose:**
+  - The renderer runs Lua on its own receiving thread, and that Lua starts the
+    server on a third thread.
+  - Arriving messages are read in C by a reader generated from the same message
+    descriptions the Lua side uses, and written straight into the mailbox.
+  - Each unit's planned path is drawn as a line.
+- **Keys, live:**
+  - **D** delay, **J** jitter, **L** loss, **C** clear.
+  - **S** silences a stand-in second player. That pauses the game and opens the
+    waiting dialog: who is silent, the countdown to the vote, both players'
+    sliders (yours can be dragged), and a vote button.
+
+**Checked with nobody watching:**
+- **Clean connection:** about 500 states in 8 s, no two units ever overlapping,
+  ticks only rising.
+- **100 ms delay, 60 ms jitter, 20% loss:** the same holds.
+- **Two pictures:** one mid-crossing, and one of the waiting dialog paused on
+  tick 56, with the stand-in silent 3 s and voting opening in 27 s.
+
+**Bugs the checks caught:**
+- **The picture ran backwards under jitter.** Messages overtook each other and
+  the renderer showed whichever arrived last, so it jumped backwards 96 times in
+  8 seconds. It now drops any state older than the newest one shown.
+- **Several early crowd versions gridlocked.** One example: a unit blocked by a
+  "moving" unit that was itself waiting waited forever. Each fix is written into
+  the code and the issue.
+
+**Try it:**
+```
+! /mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/crossing/run-crossing.sh "" window
+```
+A crossing takes about 40 seconds, then everyone is sent back. To see the
+waiting dialog, press **S** and wait 2 seconds.
+
+**Open question (the crowd issue stays open on it):**
+- Two 8-deep armies meeting head-on in an 8-cell gap jam for good. Each front
+  stalls against the other, and the stalled fronts wall off the gap, so nobody
+  behind can plan a path.
+- With a 12-cell gap it flows, and that's what the demo uses.
+- I tried a "keep right" preference and removed it: it didn't help, and I
+  invented it rather than taking it from Warcraft III.
+- What do Warcraft III units do in that situation? Do they jam too, or does
+  something let one side through, such as briefly overlapping allies or one side
+  backing off?
 
 --------------------------------------------------------------------------------
 
