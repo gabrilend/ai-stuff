@@ -95,11 +95,50 @@ Read them in order for a walkthrough of how the engine comes together.
 
 ## Completed issues
 
-None yet.
+The whole engine is built as portable C (`src/engine/`) and proven on
+the laptop twin (issue 200, `twin/`). Counts are best read from
+`/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`
+rather than copied here.
+
+- **200 — the laptop twin.** The seam (`src/engine/025-platform.h`)
+  every portable file asks its hardware questions through, the laptop's
+  answers, the device's answers (unverified), the build variants, the
+  test runner, and the picture and measurement writers.
+- **203 — memory each core owns.** Striped page bitmap, one cache line
+  per stripe, unowned stripes claimed on demand; foreign frees routed
+  home.
+- **204 — the task ring.** One ring, ticket lock, doubling. Wakes only
+  parked cores.
+- **205 — workers and the run loop.**
+- **207 — the station table.** Shelves, immutable destination lists,
+  removal with the scrapyard sweep.
+- **208 — what an input port is.** Per-cell state locks; growth by
+  adding pages and, when needed, a longer page list.
+- **209 — the readiness check and the claim.** With the lost-set race
+  found and closed: one checker per station at a time, nobody waiting.
+- **210 — the task.** Exactly sized, copies; size-class blocks with a
+  debug-build double-free and write-after-free catcher.
+- **211 — the delivery walk.** All six exit kinds are already rows.
+- **212 — maps built by hand**, and the starter box library.
+- **213 — asked to stop, and parking.** Begin / step / restart;
+  checksummed pages released and taken back, or rebuilt out loud.
+- **214 — when a box removes itself.** One counted slot per station; a
+  faulting box survived in debug builds.
+
+Tests: `scripts/test-twin` runs `twin/tests/048`–`054`, 88 checks.
 
 ## Open issues
 
-All of 201 through 215, plus 201a.
+- **201 — the memory map that turns the caches on.** Written in
+  `src/device/044-identity-map.c`; unverified on hardware.
+- **201a — the CPU clock.** Untouched.
+- **202 — waking the other cores.** Written in
+  `src/device/042-platform-device.c` and `043-cores.s`; unverified.
+- **206 — sleeping and waking.** Built and proven on the twin; the
+  device half uses wait-for-event with the timer's event stream instead
+  of wait-for-interrupt, and is unverified.
+- **215 — the endurance test.** Passes on the twin
+  (`./run-demo 2`); the device run waits on 201 and 202.
 
 ## Open questions still to work through
 
@@ -113,12 +152,28 @@ Every issue carries its own. The ones that reach beyond a single issue:
 | how does the engine know which stations belong to one program? | 213, 214 | parking and error reporting both need the answer |
 | how large is a worker's stack? | 202 | the delivery walk runs on it and fan-out is unbounded |
 
+### Proposed answers (UNVERIFIED — see each issue for the reasoning)
+
+| question | proposed answer |
+|---|---|
+| does the exclusive monitor arbitrate across all four cores? | assumed yes; the twin's equivalent passes (053); the device probe in 201 is the check |
+| one task ring for four cores, or one each? | measured on the twin: four cores give about 1.9–2× one core on engine-bound work, so the single ring costs about half the machine; keep one until the device's number exists, then try per-core rings with stealing |
+| how coarse should a box be? | a do-nothing run costs as much core time as a few hundred rounds of chew's work (the current number is on the metrics pages); a box should do at least that much per run |
+| how does the engine know which stations belong to one program? | it does not; the caller keeps the list (phase 3's loader keeps one per program) |
+| how large is a worker's stack? | 64 KB on the device; measure by stack painting |
+
 ## Phase demo
 
-`issues/completed/demos/phase-2/run.sh` will exist once the phase
-closes. It builds and flashes the image, assembles an endurance map out
-of the starter box library, streams per-core numbers out the USB serial
-line while drawing the running totals on the bottom screen, and reports
-pass or fail. It passes when the sink's count and sum match the
-closed-form expected values exactly, every core drained roughly its
-share, and the growth counters go flat after warm-up.
+`issues/completed/demos/phase-2/run.sh`, also reached as `./run-demo 2`,
+exists and passes **on the laptop twin**. It builds the twin, runs the
+endurance program on four cores and on one for the given number of
+seconds, checks count and sum against arithmetic in each, and reports
+how many times more work four cores did than one. Both runs draw their
+totals on the two screens and write them as pictures under
+`tmp/shared-memory/demos/phase-2/`; every number goes to
+`tmp/shared-memory/metrics/` for the documentation pages.
+
+The device version — flash, run on the handheld's four cores, stream
+the numbers over USB, draw them on its bottom screen — waits on 201
+and 202.
+

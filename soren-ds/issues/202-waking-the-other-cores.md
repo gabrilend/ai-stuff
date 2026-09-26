@@ -2,14 +2,26 @@
 
 ## Current behavior
 
-**Three of the four cores have never executed a single instruction of
-our code.**
+**Written, compiled, unverified on hardware.**
+`platform_start_cores` (042-platform-device.c) gives each secondary
+core a 64 KB stack from phase 1's allocator, then asks the secure
+firmware to switch it on with the standard power-control call
+(`CPU_ON`, function 0xC4000003) at the affinity the device tree gives
+(0x000, 0x100, 0x200, 0x300), passing the core's own number.
+`secondary_entry` (043-cores.s) masks interrupts, takes its stack from
+`core_stack_top[]`, installs phase 1's vector table, writes its number
+into `tpidr_el1`, turns on its own view of 201's table, and calls
+`device_secondary_main`, which enters the engine's run loop. A core the
+firmware refuses to start stops the boot with its number and the
+firmware's answer.
 
-Phase 1 ran entirely on core zero. The other three are where the boot
-firmware left them: powered but parked, each spinning in firmware or
-held in a low-power state, waiting for someone to tell them an address
-to jump to. They are not asleep in any sense this project's engine
-understands — they have no stack, no identity, and no entry point.
+The starting gate is the engine's (`engine_core_main` waits for
+`engine_open_gate`), and it is the same code on both builds. On the twin
+the four cores are four threads and the gate is proven: nothing runs
+before it opens (test 051).
+
+Not done: the stack guard region (the one-gigabyte blocks of 201 cannot
+express a page-sized hole), and the report-in line from each core.
 
 ## Intended behavior
 
@@ -97,10 +109,21 @@ sits idle while something is ready to run.
   months later. Leaning toward: report loudly, park, and require the
   count to match.
 
+### Proposed answers (UNVERIFIED)
+
+1. *Which exception level?* Unknown; see 201's new question — print
+   `CurrentEL` first thing on the first engine boot.
+2. *How large is a stack?* 64 KB. The delivery walk recurses only
+   through a box that calls the engine, and the twin's deepest test
+   (boxes that place stations and deliver from inside a run) never came
+   near it. Measure with a stack-painting check on the device.
+3. *Does a missing core stop the boot?* Yes — implemented: loud report,
+   halt. A silent three-of-four is the mystery nobody finds.
+
 ## Blocked by
 
 201 (the caches must be on before four cores share memory), 105
-(vector table), 108 (stacks).
+(vector table), 108 (stacks), 200 (the platform seam).
 
 ## Blocks
 

@@ -2,12 +2,25 @@
 
 ## Current behavior
 
-**Issues 201 through 214 produce a working engine and nothing puts it
-under load.**
+**Runs on the twin and passes; not yet run on the device.**
+`twin/programs/059-endurance.c`, run by
+`issues/completed/demos/phase-2/run.sh` (and `./run-demo 2`): fans each
+value out to one chain of 24 increment stations per core, rejoined at a
+counting sink; pumps values for the requested seconds with a bounded
+number in flight; parks and restarts everything halfway; lets a picky
+box refuse and then rewires it; feeds one station unevenly. It checks
+count and sum against arithmetic, every core's share, the unevenly fed
+port's growth against the imbalance, and free memory from warm-up to the
+end; it draws per-core bars on the top screen and the verdict and totals
+on the bottom, and writes both as a picture. The script runs it on four
+cores and on one and prints the ratio.
 
-Every one of them ends with tests that prove a piece. None of them
-proves the pieces survive each other, running for a long time, on all
-four cores, on the actual device.
+One thing the demo taught the engine: every push used to wake every
+core, and that was the largest single cost per run — waking is now sent
+only to parked cores (204, 206).
+
+What remains: the device run — the same program on the handheld's four
+cores with the totals on its bottom screen — which waits on 201 and 202.
 
 ## Intended behavior
 
@@ -115,6 +128,19 @@ relative to it.
 - *Should it run with one core to compare?* Four-cores-versus-one is
   the cleanest possible statement of whether the engine actually
   parallelises, and it costs one boot argument. Almost certainly yes.
+
+### Proposed answers (UNVERIFIED)
+
+1. *How long is long enough?* Any duration; the script takes seconds as
+   an argument and reports every second.
+2. *The clock?* The twin reports on the laptop's clock; the device run
+   must print the measured core frequency (201a) beside every number.
+3. *One core to compare?* Yes — built into the script.
+4. *(new)* **The coarseness answer.** A box that does nothing costs
+   about as much core time per run as a few hundred rounds of chew's
+   mixing work on the twin (the number is on the metrics pages). The
+   proposed design rule: a box should do at least that much work per
+   run; anything smaller should be merged into its neighbour.
 
 ## Blocked by
 

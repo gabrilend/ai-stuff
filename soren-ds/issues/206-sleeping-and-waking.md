@@ -2,10 +2,27 @@
 
 ## Current behavior
 
-**A worker that finds the ring empty asks again immediately, forever.**
+**Built and tested on the twin; the device half is unverified.** A
+worker that finds the ring empty raises the parked count, looks at the
+ring once more, and only then parks (`platform_wait_for_event`). A push
+reads the parked count after publishing its task and wakes everyone only
+if somebody is parked — each side writes then reads with a full barrier
+between, so one of them always sees the other. The last core to park
+sleeps only until the earliest timer (`platform_wait_until`), so a
+scheduled value arrives on time with every core asleep. Timers are
+`engine_timer` / `engine_timer_cancel`: a value delivered into a port at
+a moment, optionally every period after, skipping (and counting) periods
+nobody fired in time.
 
-Four cores held at full occupancy producing nothing, drawing full
-current from a battery, warming a handheld somebody is holding.
+On the device, the wait is wait-for-event plus the generic timer's
+periodic event stream (about 2.9 kHz), not the wait-for-interrupt the
+text below describes — that needs the interrupt controller to route the
+timer's interrupt, which nothing has set up. Recorded in
+042-platform-device.c.
+
+Tests: 051 (a 5 ms trickle parks cores between values and loses
+nothing), 054 (a 1 kHz timer feeds a program; parking it stops every
+run while the timer keeps firing).
 
 ## Intended behavior
 
@@ -133,6 +150,19 @@ not empty — it just put something in it.
   means the power button has to be polled by something that never
   fully sleeps. That is a phase 5 problem and it should be written down
   there before it is discovered there.
+
+### Proposed answers (UNVERIFIED)
+
+1. *How deep should idle go?* Wait-for-event now; wait-for-interrupt once
+   the interrupt controller routes the timer (a new issue). Powering
+   cores down waits for battery measurements.
+2. *Who owns the timer?* One table of up to 64 timers, fired by whichever
+   core first notices one is due (a try-lock — losing means somebody is
+   already doing it). On the device each core would arm its own timer
+   for the earliest deadline.
+3. *What wakes a fully idle device?* The 60 Hz input frame (phase 5) is
+   a periodic timer, so a device with its input map running is never
+   without a deadline. Written into 501.
 
 ## Blocked by
 

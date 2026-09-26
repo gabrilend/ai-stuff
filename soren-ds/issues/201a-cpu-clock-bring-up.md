@@ -152,3 +152,19 @@ on this.
 201 — the caches. The phase-2 renumbering moved the parent
 from the multi-core bring-up to the cache bring-up, which is
 where this issue's own recon note said the real story was.
+
+
+
+## Open questions
+
+### Proposed answers (UNVERIFIED)
+
+This issue had no open-questions section; the questions its update
+raised are: *is the delivered core clock really ~816 MHz?* — proposed:
+measure with the cycle counter against the generic timer on the first
+engine-flag boot, before any PLL change; and *does 1.8 GHz need a core
+voltage raise on the RK817?* — proposed: yes, follow the upstream
+operating-point table for the RK3568 (1.8 GHz at 1.15 V class), and
+land the voltage step before the frequency step. Neither is attempted
+yet; this issue is untouched by the twin work.
+

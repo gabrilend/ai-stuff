@@ -123,6 +123,10 @@ static void backlight_on(void)
 }
 /* }}} */
 
+/* The two framebuffers once display_bringup has made them; zero before. */
+uint64_t display_fb_top;
+uint64_t display_fb_bottom;
+
 /* {{{ void display_bringup() */
 /* Bring both screens all the way up: allocate + paint framebuffers, run the
  * four driver layers, and light the backlights. Not wired into boot yet. */
@@ -160,6 +164,10 @@ void display_bringup(void)
     }
     fill_test_pattern((uint32_t)fb0);
     fill_test_pattern((uint32_t)fb1);
+    /* Published for the portable code (src/device/042-platform-device.c,
+     * issue 200): which framebuffer is which screen. */
+    display_fb_bottom = fb0;
+    display_fb_top = fb1;
 
     vop2_init();
     mipi_dsi_init();

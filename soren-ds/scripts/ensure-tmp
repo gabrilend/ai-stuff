@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# ensure-tmp — make sure the project's two RAM-backed scratch tiers exist.
+#
+# General description: the project keeps its build products under tmp/
+# (a link to /tmp/<project>, where executables may live) and its logs and
+# measurements under tmp/shared-memory/ (a link to /dev/shm/<project>,
+# guaranteed to be RAM). Both vanish at every reboot while the links in
+# the project remain, so every script that writes there calls this first.
+#
+# Usage: scripts/ensure-tmp [project-dir]
+
+DIR="/mnt/mtwo/programming/ai-stuff/soren-ds"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+NAME="$(basename "${DIR}")"
+
+mkdir -p "/tmp/${NAME}/tmp" "/dev/shm/${NAME}" || exit 1
+if [ ! -L "${DIR}/tmp" ]; then
+    if [ -e "${DIR}/tmp" ]; then
+        echo "ensure-tmp: ${DIR}/tmp exists and is not a link; refusing to replace it" >&2
+        exit 1
+    fi
+    ln -s "/tmp/${NAME}" "${DIR}/tmp"
+fi
+if [ ! -L "/tmp/${NAME}/shared-memory" ]; then
+    ln -s "/dev/shm/${NAME}" "/tmp/${NAME}/shared-memory"
+fi

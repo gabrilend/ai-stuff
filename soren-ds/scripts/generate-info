@@ -1,0 +1,198 @@
+#!/usr/bin/env luajit
+--
+-- generate-info — write the <file>.info.md reference beside every portable
+-- and twin source file.
+--
+-- General description: every source file is meant to have a short
+-- companion that lists what it offers to the rest of the program — each
+-- function a caller may use, what goes in and what comes out — so a
+-- reader can treat the file as a sealed box and only open the source when
+-- chasing a particular bug. Those descriptions already live in the source
+-- as the comment above each declaration; this tool collects them rather
+-- than having them written twice. For a header it takes every declaration;
+-- for a C file it takes every function that is not private to the file,
+-- plus the file's own opening description. Run it after changing a file's
+-- outward face; the documentation pages link to what it writes.
+--
+-- Usage: scripts/generate-info [project-dir] [--check]
+--   --check  write nothing; exit 1 if any .info.md is missing or stale
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/soren-ds"
+local CHECK = false
+for _, a in ipairs({ ... }) do
+    if a == "--check" then CHECK = true else DIR = a end
+end
+
+local FOLDERS = { "src/engine", "src/system", "src/device", "twin", "twin/tests", "twin/programs" }
+
+-- {{{ local function read_file
+local function read_file(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local s = f:read("*a")
+    f:close()
+    return s
+end
+-- }}}
+
+-- {{{ local function list_sources
+-- Answers the .c/.h/.s files of one folder, sorted. `ls` is read-only.
+local function list_sources(folder)
+    local out = {}
+    local p = io.popen("ls -1 '" .. DIR .. "/" .. folder .. "' 2>/dev/null")
+    for name in p:lines() do
+        if name:match("%.[chs]$") then out[#out + 1] = name end
+    end
+    p:close()
+    table.sort(out)
+    return out
+end
+-- }}}
+
+-- {{{ local function clean_comment
+-- Strip comment markers and fold marks from a block comment's lines.
+local function clean_comment(text)
+    local lines = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        line = line:gsub("^%s*/%*+%s?", ""):gsub("%s*%*+/%s*$", ""):gsub("^%s*%*%s?", "")
+        if not line:match("{{{") and not line:match("}}}") then
+            lines[#lines + 1] = line
+        end
+    end
+    while #lines > 0 and lines[1]:match("^%s*$") do table.remove(lines, 1) end
+    while #lines > 0 and lines[#lines]:match("^%s*$") do table.remove(lines) end
+    return table.concat(lines, "\n")
+end
+-- }}}
+
+-- {{{ local function file_description
+-- The opening block comment, minus its first line (which names the file).
+local function file_description(src)
+    local block = src:match("^%s*(/%*.-%*/)")
+    if not block then return nil end
+    local text = clean_comment(block)
+    return text
+end
+-- }}}
+
+-- {{{ local function declarations
+-- Walk the source, pairing each outward-facing declaration or definition
+-- with the comment just above it. Answers a list of { signature, comment }.
+-- A C file's function counts if it starts at the beginning of a line with
+-- a type and is not marked static; a header's counts if it ends in ");".
+local function declarations(src, is_header)
+    local found = {}
+    local last_comment = nil
+    local i = 1
+    local n = #src
+    while i <= n do
+        local c_start, c_end = src:find("^%s*/%*.-%*/", i)
+        if c_start then
+            local body = src:sub(c_start, c_end)
+            local cleaned = clean_comment(body)
+            if cleaned ~= "" then last_comment = cleaned end
+            i = c_end + 1
+        else
+            local line_end = src:find("\n", i) or n
+            local line = src:sub(i, line_end - 1)
+            local is_decl = false
+            if not line:match("^%s") and not line:match("^static") and not line:match("^#")
+               and not line:match("^typedef") and not line:match("^struct%s+[%w_]+%s*{")
+               and not line:match("^enum") and not line:match("^extern")
+               and line:match("^[%w_][%w_%s%*]-[%s%*]([%w_]+)%s*%(") then
+                -- gather the whole signature up to ')' then ';' or '{'
+                local sig_end = src:find("[;{]", i)
+                local sig = src:sub(i, sig_end - 1):gsub("%s+", " "):gsub("%s*$", "")
+                if (is_header and src:sub(sig_end, sig_end) == ";") or
+                   (not is_header and src:sub(sig_end, sig_end) == "{") then
+                    is_decl = true
+                    found[#found + 1] = { signature = sig, comment = last_comment }
+                end
+            end
+            if not line:match("^%s*$") and not is_decl then
+                -- any other code between a comment and a declaration detaches it
+                if not line:match("^%s*//") then last_comment = nil end
+            elseif is_decl then
+                last_comment = nil
+            end
+            i = line_end + 1
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function render
+local function render(folder, name, src)
+    local is_header = name:match("%.h$") ~= nil
+    local out = {}
+    local function add(s) out[#out + 1] = s end
+    add("# " .. name)
+    add("")
+    add("`" .. folder .. "/" .. name .. "` — generated by `scripts/generate-info` from the file's own comments; edit those, not this.")
+    add("")
+    local desc = file_description(src)
+    if desc then
+        -- the first sentence opens with the file's own name; keep the rest
+        local body = desc:gsub("^%S+%s+—%s+", "", 1)
+        add(body)
+        add("")
+    end
+    if name:match("%.s$") then
+        add("## Entry points")
+        add("")
+        for label in src:gmatch("%.global%s+([%w_]+)") do add("- `" .. label .. "`") end
+        return table.concat(out, "\n") .. "\n"
+    end
+    local decls = declarations(src, is_header)
+    if #decls > 0 then
+        add("## " .. (is_header and "What it declares" or "What it offers"))
+        add("")
+        for _, d in ipairs(decls) do
+            local fname = d.signature:match("([%w_]+)%s*%(")
+            add("### " .. fname)
+            add("")
+            add("```c")
+            add(d.signature)
+            add("```")
+            add("")
+            if d.comment then
+                add(d.comment)
+                add("")
+            end
+        end
+    elseif not is_header then
+        add("Everything in this file is private to it, or it is a program with only a `main`.")
+        add("")
+    end
+    return table.concat(out, "\n") .. "\n"
+end
+-- }}}
+
+local stale = 0
+local written = 0
+for _, folder in ipairs(FOLDERS) do
+    for _, name in ipairs(list_sources(folder)) do
+        local path = DIR .. "/" .. folder .. "/" .. name
+        local text = render(folder, name, read_file(path))
+        local info_path = path .. ".info.md"
+        local existing = read_file(info_path)
+        if existing ~= text then
+            if CHECK then
+                print("stale: " .. folder .. "/" .. name .. ".info.md")
+                stale = stale + 1
+            else
+                local f = assert(io.open(info_path, "w"))
+                f:write(text)
+                f:close()
+                written = written + 1
+            end
+        end
+    end
+end
+if CHECK then
+    if stale > 0 then os.exit(1) end
+    print("generate-info: every .info.md is current")
+else
+    print("generate-info: wrote " .. written .. " files")
+end

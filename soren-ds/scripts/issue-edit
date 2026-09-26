@@ -1,0 +1,126 @@
+#!/usr/bin/env luajit
+--
+-- issue-edit — rewrite or extend named sections of Markdown files.
+--
+-- General description: issue files are made of "## Heading" sections.
+-- When an issue's state changes, one section is rewritten in place (its
+-- current behaviour) or added to (answers under its open questions),
+-- never appended to the end as a log. This tool does exactly that. The
+-- new text is read from a file, so nothing needs quoting on a command
+-- line. A section that does not exist yet is created just before a named
+-- heading, or at the end.
+--
+-- A bundle file carries many edits at once, each introduced by a line
+--   === FILE | replace|append | Heading [| before Other heading]
+-- and followed by its text, up to the next === line. FILE is found in
+-- any of the directories given, searched in order.
+--
+-- Usage:
+--   scripts/issue-edit replace FILE "Heading" TEXTFILE
+--   scripts/issue-edit append  FILE "Heading" TEXTFILE [--before "Other heading"]
+--   scripts/issue-edit bundle  BUNDLEFILE DIR [DIR ...]
+
+-- {{{ local function slurp
+local function slurp(p)
+    local f = assert(io.open(p, "r"), "cannot read " .. p)
+    local s = f:read("*a")
+    f:close()
+    return s
+end
+-- }}}
+
+-- {{{ local function find_section
+-- Answers the position of the heading line's start, its end, and the start
+-- of the next "## " heading (or one past the end), for section `name`.
+local function find_section(s, name)
+    local escaped = name:gsub("%p", "%%%0")
+    local a, b = ("\n" .. s):find("\n## " .. escaped .. "[^\n]*\n")
+    if not a then return nil end
+    a, b = a - 1, b - 1
+    local next_heading = s:find("\n## ", b)
+    return a, b, next_heading or #s + 1
+end
+-- }}}
+
+-- {{{ local function apply
+local function apply(doc, mode, heading, text, before)
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+    local a, b, stop = find_section(doc, heading)
+    if not a then
+        local insert_at = #doc + 1
+        if before then
+            local ba = find_section(doc, before)
+            if ba then insert_at = ba + 1 end
+        end
+        local block = "## " .. heading .. "\n\n" .. text .. "\n\n"
+        if insert_at > #doc then
+            return doc:gsub("%s*$", "\n\n") .. block
+        end
+        return doc:sub(1, insert_at - 1) .. block .. doc:sub(insert_at)
+    end
+    if mode == "replace" then
+        return doc:sub(1, b) .. "\n" .. text .. "\n\n" .. doc:sub(stop + 1)
+    end
+    local body = doc:sub(b + 1, stop - 1):gsub("%s+$", "")
+    return doc:sub(1, b) .. body .. "\n\n" .. text .. "\n\n" .. doc:sub(stop + 1)
+end
+-- }}}
+
+-- {{{ local function edit_file
+local function edit_file(path, mode, heading, text, before)
+    local doc = slurp(path)
+    doc = apply(doc, mode, heading, text, before)
+    local f = assert(io.open(path, "w"))
+    f:write(doc)
+    f:close()
+    print("issue-edit: " .. mode .. " \"" .. heading .. "\" in " .. path:match("[^/]+$"))
+end
+-- }}}
+
+-- {{{ local function locate
+local function locate(name, dirs)
+    for _, d in ipairs(dirs) do
+        local p = d .. "/" .. name
+        local f = io.open(p, "r")
+        if f then f:close() return p end
+    end
+    error("issue-edit: " .. name .. " not found in any given directory")
+end
+-- }}}
+
+local args = { ... }
+local mode = args[1]
+if mode == "bundle" then
+    local bundle = slurp(args[2])
+    local dirs = {}
+    for i = 3, #args do dirs[#dirs + 1] = args[i] end
+    local current = nil
+    local lines = {}
+    local function flush()
+        if current then
+            edit_file(locate(current.file, dirs), current.mode, current.heading,
+                      table.concat(lines, "\n"), current.before)
+        end
+        lines = {}
+    end
+    for line in (bundle .. "\n"):gmatch("(.-)\n") do
+        if line:match("^===") then
+            flush()
+            local parts = {}
+            for part in (line:sub(4) .. "|"):gmatch("%s*(.-)%s*|") do parts[#parts + 1] = part end
+            local before = parts[4] and parts[4]:match("^before%s+(.+)$") or nil
+            current = { file = parts[1], mode = parts[2], heading = parts[3], before = before }
+            assert(current.mode == "replace" or current.mode == "append", "bad bundle line: " .. line)
+        elseif current then
+            lines[#lines + 1] = line
+        end
+    end
+    flush()
+else
+    assert(mode == "replace" or mode == "append", "usage: see the header of this file")
+    local before = nil
+    for i = 5, #args do
+        if args[i] == "--before" then before = args[i + 1] end
+    end
+    edit_file(args[2], mode, args[3], slurp(args[4]), before)
+end

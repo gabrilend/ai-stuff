@@ -2,32 +2,25 @@
 
 ## Current behavior
 
-**No translation table is loaded, and on this chip that is not a
-neutral state.**
+**Written, compiled, unverified on hardware.**
+`src/device/044-identity-map.c` builds one level-1 translation table of
+one-gigabyte blocks mapping every address to itself: gigabytes 0–2 are
+normal, write-back, inner-shareable RAM; gigabyte 3 (every peripheral
+window, per `docs/016-physical-memory-map.md`) is device memory, never
+executable; everything above is invalid, so a stray access faults
+loudly. `mmu_enable_on_this_core` loads MAIR, TCR and TTBR0 for
+exception level 1, invalidates the translation buffers and instruction
+cache, and sets the translation, data-cache and instruction-cache bits.
+Every core calls it for itself (043-cores.s does, for the secondary
+cores).
 
-Phase 1 left the memory management unit switched off, on the reasoning
-that translation is a phase 9 concern. Translation is. But the same
-hardware block carries a second job, and switching it off switches off
-both.
+Nothing calls it on the ordinary boot. The self-test, the before/after
+measurement, and the cross-core compare-and-swap probe described below
+are still to be run on the device.
 
-With no table loaded, the cores treat **every** data access as Device
-memory. That is not "the same as before, just without translation" —
-it is a different kind of memory with different rules:
-
-| with no table loaded | consequence |
-|---|---|
-| nothing is cached, ever | the clock probe measured ~35x slow and correctly named this, not the clock, as the lever |
-| unaligned accesses fault | a struct field at an odd offset is an exception, not a slow read |
-| accesses are not reordered or merged | correct for a hardware register, wasteful for RAM |
-| **the exclusive instructions are undefined** | the whole engine above this rests on them |
-
-That last row is the one that stops phase 2 before it starts. A
-compare-and-swap on these cores is built from a load-exclusive followed
-by a store-exclusive, and the architecture only defines that pair on
-Normal memory. On Device memory the behaviour is unspecified: it may
-fault, or — far worse — it may succeed on each core independently
-without arbitrating between them. Two cores would each believe they
-won, and one value would be delivered twice, silently.
+On the laptop twin the question does not arise: the host's memory is
+already normal and coherent, which is why the whole engine could be
+built and tested there first.
 
 ## Intended behavior
 
@@ -122,9 +115,30 @@ that silence into a trap.
   cores?* Under one coherent inner-shareable region, no. This becomes a
   real question in phase 9 when regions stop being uniform.
 
+### Proposed answers (UNVERIFIED)
+
+1. *Does the exclusive monitor arbitrate across all four cores?* Assumed
+   yes; the probe proposed above is the check. The twin's claim test
+   (053) is the same property on the laptop and passes: four cores
+   spraying one adder produced exactly as many runs as complete pairs.
+2. *One instruction or a retry loop?* The kernel is built for the
+   Cortex-A55 (`-mcpu=cortex-a55`), so the compiler already emits the
+   single-instruction atomics. Keep that; measure against the loop only
+   if a problem appears.
+3. *Where does the table live?* In the kernel image's own data — it is
+   `level1[]` in 044-identity-map.c, 4 KB aligned, and inside RAM the
+   table maps as normal. Answered in the code's comment.
+4. *Flush when a page changes hands?* No, under one coherent region, as
+   the question itself says; revisit in phase 9.
+5. *(new)* **Which exception level does the kernel run at?** The table
+   is written for EL1 because `001-boot.s` already writes `vbar_el1`. If
+   the bootloader hands over at EL2, both are configuring the wrong
+   level. The first hardware run should read `CurrentEL` and print it.
+
 ## Blocked by
 
-107 (the region list), 108 (somewhere to put the table).
+107 (the region list), 108 (somewhere to put the table), 200 (the
+platform seam the device half answers).
 
 ## Blocks
 
