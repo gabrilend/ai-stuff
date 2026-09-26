@@ -12,7 +12,7 @@
 
 Each player draws units with whatever models they have installed (the asset
 resolver: their packs first, then borrowed files, then a placeholder). Issue
-603 plans a host that sends its asset packs to every client on connect, with
+603 once planned a host that sends its asset packs to every client on connect, with
 assets marked "required", which would make the host decide what everyone sees.
 
 ## Intended Behavior
@@ -70,7 +70,7 @@ List format (a Lua table):
 2. Temporary profile in the resolver: a layer above the player's own packs that exists for one game and is then removed.
 3. rmail glue: write the outgoing list message into `~/mail/outbox/`; an `on_receive` hook that recognises a list, replies with the missing hashes, and (for trusted contacts) answers the consent request; verify every arriving attachment's hash and refuse mismatches.
 4. The one prompt, plus the "always" choices, stored per player.
-5. 603's own transfer protocol is not built; rmail replaces it.
+5. 603's own transfer protocol is not built; rmail replaces it. (603 was rewritten on 2026-09-26 as the fetcher from public hosting sites; the file server, 607, was retired.)
 6. Tests: accepting a list shows the sharer's model for that game only; declining changes nothing; a tampered asset (hash mismatch) is refused; gameplay values (collision, hit timing) are identical with and without the list.
 
 ## Acceptance Criteria
@@ -88,6 +88,6 @@ List format (a Lua table):
 ## Related Documents
 
 - `/home/ritz/programs/r-mail/docs/attachments.md` (consent flow), `docs/protocol.md`, `docs/.templates/scripting-tutorial.md` (hooks)
-- `issues/603-server-asset-download-protocol.md` (earlier transfer design, replaced by rmail), `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
+- `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`

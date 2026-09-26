@@ -3,7 +3,7 @@
 **Phase:** 6
 **Type:** Testing
 **Priority:** High
-**Dependencies:** Issues 601-607
+**Dependencies:** Issues 601-606 (607, the file server, was retired 2026-09-26)
 
 ---
 
@@ -166,7 +166,7 @@ lua src/tests/test_phase6_integration.lua --summary
 
 ## Related Documents
 
-- Issues 601-607 (components being tested)
+- Issues 601-606 (components being tested; 607 retired 2026-09-26)
 - `issues/completed/demos/` (phase demo location)
 
 ## Notes

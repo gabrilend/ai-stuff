@@ -294,8 +294,8 @@ return {
 
 ## Related Documents
 
-- Issue 603 - Asset download protocol (used for asset mirror)
-- Issue 607 - File server (asset distribution)
+- Issue 603 - Fetch maps and models from public sites (was: asset download protocol)
+- Issue 607 - File server (retired 2026-09-26, `issues/superseded/`)
 - `docs/wc3-engine-architecture.md` - Overall system design
 
 ---
