@@ -34,6 +34,13 @@ thread nature".
 - **The benchmark.** A hand-written loop whose threads take work from a
   shared counter is the fastest way measured, about a tenth faster than the
   engine's best. That's the floor the ceramic path is measured against.
+- **The first real frame (515b).** A raylib host hands 2,048 units in to
+  the engine each frame and draws them. The engine's part takes about
+  0.15 ms and drawing about 1.3 ms. The graph is not the bottleneck; drawing
+  one call per unit is.
+- **Against the strongest hand-written design (515j),** a job system with
+  dependency counts and stealing, the graph matched it on average on a
+  fabricated frame and kept steadier worst frames.
 
 ## Intended Behavior
 

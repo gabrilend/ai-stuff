@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 19:52:20
+Generated on: 2026-09-25 19:55:12
 Models: claude-opus-5-5
 
 ## Contents
@@ -7667,6 +7667,75 @@ stream ended*
 The frame re-run is still going (about ten minutes). When it finishes I'll check
 that every way agrees, regenerate and publish the page with the rewritten
 "after" section and the new opponents, and complete the issue.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/home/ritz/programming/ai-stuff/scripts/claim-own-change
+/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/frame/frame-hand.c
+&gt;/dev/null;
+/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/frame/run-frame.sh
+"" 300 3 &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/frame-run5.log
+2&gt;&amp;1" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### User Request 77
+
+[Image: original 1000x7400, displayed at 270x2000. Multiply coordinates by 3.70
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 77
+
+> The page renders fully, including the job system in every chart and the
+> rewritten "after" section. Publishing:
+
+> Now completing the issue, and adding the job-system result to soramech's case
+> study:
+
+Both are done and published: **[Frame as a
+Graph](https://claude.ai/artifact/8syLBAZ6BL4oGmKzMhPedn)** (version 3). Both
+repositories are committed.
+
+**The paragraph** is now four short paragraphs (what changed, the two setups,
+why the second was needed, the worst frames) plus a three-line list of what
+background work cost. Every cost is measured against the same baseline, the
+frame with no background work.
+
+**The stronger opponents:**
+- **A hand-written job system**, the design shipping engines use. Jobs carry
+  counts of unfinished inputs, and finishing one releases its dependents. Each
+  thread has its own queue and steals from the others when idle.
+- **Spin-then-sleep barriers.**
+
+Each got its best spin length from a timed trial that the run records.
+
+| Way | No background | With background | Worst 1% of frames |
+|---|---|---|---|
+| Hand-written job system | 2.76–2.84 ms | 2.83–2.86 ms | 6.1–6.8 ms |
+| **Ceramic graph** | 2.79–3.02 ms | 2.94–2.98 ms | **4.5–4.7 ms** |
+| By level, spin then sleep | 3.40–3.42 ms | 3.41–3.43 ms | 4.8–4.9 ms |
+| By system, spin then sleep | 4.60–4.76 ms | 4.59–4.70 ms | 6.8–6.9 ms |
+
+- **The graph matches a hand-built job system on average and has steadier worst
+  frames.** On this frame, the ceramic engine's generality costs between nothing
+  measurable and about 4% (with background work, where the job system's extra
+  thread helps it).
+- **The job system took 330 lines of hand-written threading** (all the hand
+  designs together), against 80 in the ceramic host plus a map.
+- **The checksum check earned its keep.** The job system's first full run
+  disagreed with every other way, and the report tool refused the data. My
+  frame-start queue reset skipped the queues' locks, so a helper could steal a
+  stale job from the previous frame and run it twice. It's fixed, all runs now
+  agree, and the race detector is clean. The finding is recorded in the issue
+  and in soramech's case study.
+
+The next open step on this path is the real renderer's host loop (the mailbox
+buffer, extrapolation and the asset table), which would test all of this on
+actual frames instead of a fabricated one.
 
 --------------------------------------------------------------------------------
 
