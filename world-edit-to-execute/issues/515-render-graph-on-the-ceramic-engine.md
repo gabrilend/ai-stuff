@@ -38,6 +38,12 @@ thread nature".
   the engine each frame and draws them. The engine's part takes about
   0.15 ms and drawing about 1.3 ms. The graph is not the bottleneck; drawing
   one call per unit is.
+- **The mailbox (515c).** The engine now fills a state while the last one
+  is drawn: 725 frames a second uncapped, against 472 taking turns. The
+  cost is age: at 60 a second a state is a frame (about 17.8 ms) old when
+  drawn, since it is worked out right after the previous take. Extrapolation
+  (515d) is what answers that; the owner chose it over working states out
+  just in time.
 - **Against the strongest hand-written design (515j),** a job system with
   dependency counts and stealing, the graph matched it on average on a
   fabricated frame and kept steadier worst frames.
