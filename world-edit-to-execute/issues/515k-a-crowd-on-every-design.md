@@ -20,6 +20,22 @@ every unit exactly as the Lua crowd does, digit for digit, at 80 units for
 times faster than LuaJIT. The scene (the scaled crossing map,
 `net/arenas/crossing_scaled.lua`, and each unit's start) is written by
 `crowd-scene.lua` from the Lua game's own placement, so both start alike.
+Rechecked 2026-09-26: both sizes still match to the last digit.
+**Step 3 done** (commit 49e375273): the deciding phase is shared out over
+threads five ways by hand (fixed slices and a shared counter, each with
+sleeping or spin-then-sleep waits, and the job system; `crowd-hand.c`) and
+as a ceramic map, one station taking each chunk of units as a task
+(`crowd-boxes.c`, `crowd-host.c`); every way ends with the same checksum of
+every unit's position. A measuring mode times each phase and each unit's
+decision and works out the floor no design can beat. Measuring found two
+fixes, both made: the overlap check copied each neighbour's whole record
+(reading only positions cut the serial settling by a third), and a bundle
+of units could grow to hundreds, making one unit's planning take over half
+a second (a bundle now holds at most 40, in both crowds).
+**Step 4 under way:** films, a timeline, the report and the run scripts
+(`crowd-film.c`, `timeline-film.c`, `crowd-report.lua`, `run-crowd.sh`,
+`run-crowd-gifs.sh`) are in the working tree, not yet committed, and have
+no `.info.md` files yet.
 
 Before this: the ceramic engine has been measured on uniform
 work (515a) and on a fabricated frame whose costs were chosen (515h, 515j).
@@ -89,7 +105,7 @@ what, when).
 ## Acceptance Criteria
 
 - [ ] Every design gives the same checksum at every scale
-- [ ] The C crowd matches the Lua reference on the test scenes
+- [x] The C crowd matches the Lua reference on the test scenes (`test-crowd-c.sh`, rechecked 2026-09-26)
 - [ ] The page, with GIFs, published; the case study delivered to soramech
 - [ ] `.info.md` beside each new source file
 

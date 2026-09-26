@@ -168,10 +168,10 @@ the waiting dialog testable without a network.
 
 ## Acceptance Criteria
 
-- [ ] Every message encodes and decodes to itself
-- [ ] Offline play runs through the messages, the server in its own thread
+- [x] Every message encodes and decodes to itself (`test_net_messages.lua`, and the generated C reader in `test_net_messages_c.lua`; rechecked 2026-09-26)
+- [x] Offline play runs through the messages, the server in its own thread (`test_net_hosted.lua`; the crossing-armies demo, 804, plays this way)
 - [ ] The tests in step 5 pass, including under the disturbance
-- [ ] `.info.md` beside each new source file
+- [x] `.info.md` beside each new source file (every file in `src/net/`, checked 2026-09-26)
 
 ## Related Documents
 
