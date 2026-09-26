@@ -174,6 +174,25 @@ another unit is in"; a moving unit meeting a friendly unit standing still
   other: the design says the higher id, as a stand-in; Warcraft III's own
   rule isn't recorded here.
 
+## Ideas Waiting on the Owner Watching the Two Radii
+
+The owner (2026-09-25), held until they have seen the two radii run: "might
+be better to see how the two pathing radiuses work first..."
+- **A vague heading while stuck, one re-path when free:** "when we replan,
+  we just keep a general conception of which direction we want to move
+  toward vaguely. Then once the unit is out of the gridlock, it re-paths
+  just once. That might help us wander around each other." (In the crowd's
+  terms: while gridlocked or backing off, a unit follows only the
+  direction of its goal, planning nothing; it plans once when it is next
+  free to move.)
+- **Seeing a blocking mass from the back:** "if large groups of units are
+  blocking the path, a unit near the back should pre-emptively realize
+  that it'd be fastest if they went around, so they should group the mass
+  as one radius in their mind and orbit around that until they have a
+  clear path to their target." (A mass ahead, found before touching it,
+  treated as one circle round its members, orbited until the way to the
+  target is clear.)
+
 ## Related Documents
 
 - `issues/completed/404d-advanced-movement-behaviors.md` (separation and sliding, which this doesn't use)

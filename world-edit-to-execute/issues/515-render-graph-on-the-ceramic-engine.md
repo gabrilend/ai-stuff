@@ -149,6 +149,7 @@ owner's say, and adopted here only once it exists there.
 | 515h | a-frame-as-a-graph | 515g | A fabricated realistic frame (uneven stages that depend on each other, irregular pathfinding, background decoding) run serially, hand-written stage by stage, and as a ceramic map: the engine's flexibility, measured |
 | 515i | destinations-a-station-may-name | 515g, 515h | Several task queues in the kept copy (soramech 107's model): a station may name one, workers serve an ordered list, and a program naming none behaves as before; measured on the 515h frame |
 | 515j | stronger-hand-written-opponents | 515h, 515i | A hand-written job system with dependency counts and work stealing, and spin-then-sleep barriers, measured against the ceramic graph on the 515h frame |
+| 515k | a-crowd-on-every-design | 405f, 515h, 515j | The crowd's tick split into a decide phase (each unit alone, from a snapshot) and a settle phase, ported to C, and run on one thread, by system, on the job system and as a ceramic graph at 500 to 5,000 units; a page with GIFs |
 | 515f | measured-against-the-pool | 515c, 515d, 515e | The same scene on both paths: frame time, time on the draw thread, core use. The verdict on the experiment |
 
 Execution order: 515a → 515g → 515h → 515b → (515c, 515e in parallel) → 515d → 515f

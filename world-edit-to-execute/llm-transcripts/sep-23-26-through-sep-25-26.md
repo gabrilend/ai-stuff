@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 22:43:16
+Generated on: 2026-09-25 23:23:31
 Models: claude-opus-5-5
 
 ## Contents
@@ -175,6 +175,10 @@ Models: claude-opus-5-5
     server on its own thread are done, with all tests passing. Next, you choose
     how the renderer receives states: build Lua into the renderer (my pick) or
     connect over a local socket.
+41. 2026-09-25 22:46, after Request 90 - We're making units move like Warcraft
+    III's in the networked crossing-armies demo, and the rebuilt movement plus
+    the fan fix are committed. Next, watch it with run-crossing.sh "" window and
+    tell me what still looks wrong.
 
 --------------------------------------------------------------------------------
 
@@ -9341,6 +9345,88 @@ for you to watch again. All tests pass and it's committed.
 
 A question as you watch: when two armies pass through each other, what do you
 see Warcraft III units do that these don't?
+
+--------------------------------------------------------------------------------
+
+### User Request 91
+
+okay it looks much better! Can we detect if a unit is gridlocked somehow? If so,
+we should have them move back a bit, then try again, just to shake up the entire
+structure. Also, I think Warcraft 3 units have two separate radiuses related to
+pathfinding, one is the radius that they use when pathfinding, and the other is
+the radius that they collide with. The idea is the pathfinding radius is larger,
+so they'll try to walk around other units. Can you try building that and see how
+it goes?
+
+> - Is it running on the ceramic engine? No. The game is Lua on its own thread,
+> started by the
+>     renderer's receiving thread. The ceramic engine only drives the earlier cube demo.
+
+well... if the engine is designed to be ceramic eventually, and we wanted to
+test the engine's capabilities with a workload that was unpredictable when
+compared to the other options (job system, threaded by system, by role, and
+single threaded), shouldn't we build it in all of the options to see which one
+performs better, and more importantly, to create another HTML page? This one
+should have gifs. :)
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 91
+
+> Glad it's better. Doing the two movement changes first, then the benchmark. On
+> the benchmark, one design question needs settling before I build, so I'll
+> write it up once these two are in.
+
+> Steering broke most scenes. Tracing the simplest one, a unit going round a
+> single standing enemy:
+
+> Worse: 13 give-ups and 58 s. Measuring the two new features separately, each
+> on and off, to see which one hurts:
+
+> Adding tests for both features: a unit passes a standing one without ever
+> touching it, and gridlocked units in the crossing back off.
+
+> All 26 pass. Rebuilding the renderer, then updating the notes and committing:
+
+> Committed. Now the benchmark. Checking what's available for making GIFs:
+
+Before building, one question decides what the benchmark measures.
+
+**The problem:** the crowd's tick is serial by nature. Units move one at a time,
+in id order, and each sees where the ones before it just moved. No threading
+design can split that up without changing what the game does. There are two ways
+to make it parallel:
+
+1. **Two phases a tick (my recommendation).**
+   - **Decide:** every unit works out its step, and any new path, from where
+     everyone stood at the start of the tick. This runs in parallel, and it's
+     where the unpredictable cost lives: a re-plan costs about a hundred times a
+     plain step, and which units re-plan changes every tick.
+   - **Settle:** the steps are applied in id order, and a step that would now
+     overlap is refused. This is cheap and serial, or split by region of the
+     map.
+   - Every design (single thread, by system, by level, the job system, the
+     ceramic graph) then produces the same result. So the checksums match and
+     the comparison is fair.
+   - The cost is that the game's behaviour changes slightly: units decide from a
+     snapshot, as real game servers do. The movement tests and tuning would need
+     redoing.
+2. **Only planning in parallel.** Movement stays exactly as it is now, and each
+   tick's re-plans are handed out as tasks. The behaviour is unchanged, but the
+   parallel part is tiny: about 0.05 ms a tick at 80 units. It only matters with
+   thousands of units.
+
+**Both need a C version of the crowd.** The ceramic engine's boxes and all the
+hand-written designs are C, and Lua can't share one crowd across threads. The
+Lua crowd stays as the reference, and the C one is checked against it.
+
+**Both need a bigger scene,** since 80 units take 0.2 ms a tick. I'd measure at
+500, 2,000 and 5,000 units on a larger map.
+
+**The page:** GIFs of each design running, recorded from renderer frames with
+ffmpeg (installed here), next to the charts.
+
+Which should I build, 1 or 2?
 
 --------------------------------------------------------------------------------
 
