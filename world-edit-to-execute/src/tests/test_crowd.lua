@@ -94,6 +94,39 @@ do
     test("the enemy wasn't moved", near(c.units[2], 6.5, 3.5))
 end
 
+print("\n=== Two radii: walking round before touching ===")
+do
+    -- the same scene; with a pathing radius larger than the collision one,
+    -- the mover passes without ever touching the standing unit
+    local c = open_field(14, 7)
+    c:add(1, 2.5, 3.5, 0.5, 3, "west")
+    c:add(2, 6.5, 3.5, 0.5, 3, "east")
+    c:move(1, 11.5, 3.5)
+    local closest = math.huge
+    for _ = 1, 600 do
+        c:tick(DT)
+        local a, b = c.units[1], c.units[2]
+        closest = math.min(closest, math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2))
+        if not a.moving then break end
+    end
+    test("it arrives", near(c.units[1], 11.5, 3.5))
+    test("never closer than touching plus a margin", closest >= 1.0 + 0.1, string.format("closest %.2f (touching is 1.00)", closest))
+    -- and with steering off, it does touch (it slides round instead)
+    local d = open_field(14, 7)
+    d.look_ahead = 0
+    d:add(1, 2.5, 3.5, 0.5, 3, "west")
+    d:add(2, 6.5, 3.5, 0.5, 3, "east")
+    d:move(1, 11.5, 3.5)
+    local closest_off = math.huge
+    for _ = 1, 600 do
+        d:tick(DT)
+        local a, b = d.units[1], d.units[2]
+        closest_off = math.min(closest_off, math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2))
+        if not a.moving then break end
+    end
+    test("with one radius it touches and slides", closest_off < 1.0 + 0.02, string.format("closest %.2f", closest_off))
+end
+
 print("\n=== Two meeting head-on pass each other ===")
 do
     local c = open_field(16, 7)
@@ -165,8 +198,9 @@ do
     -- packed: the group's circles fit in a disc not much wider than their
     -- area needs. Arrivals take the free spot a little toward their own
     -- side and nudge each other as they come in, so the packing is looser
-    -- than the tightest; 3.97 against the sizes' 1.8x was measured first
-    local snug = math.sqrt(area) * 2.2
+    -- than the tightest; 3.97 against the sizes' 1.8x was measured first,
+    -- and steering round pathing radii loosens it a little more (4.67)
+    local snug = math.sqrt(area) * 2.3
     test("all stand, packed round the point", ticks < 2000 and furthest <= snug,
         string.format("reaches %.2f from the point; snug is %.2f", furthest, snug))
 end
@@ -220,6 +254,8 @@ do
     -- a straggler or two circling the arrived army can still give up after
     -- 20 s without getting closer (a known limit, in issue 405f)
     test("at most two gave up", (sim.gave_up_last or 0) <= 2, tostring(sim.gave_up_last))
+    test("gridlocked units backed off and tried again", (c.back_offs_total or 0) > 0, tostring(c.back_offs_total))
+    print(string.format("    (%d back-offs)", c.back_offs_total or 0))
 end
 
 print(string.format("\n%d/%d passed", pass_count, test_count))

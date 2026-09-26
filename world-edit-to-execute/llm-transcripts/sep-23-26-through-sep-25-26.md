@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 22:12:38
+Generated on: 2026-09-25 22:43:16
 Models: claude-opus-5-5
 
 ## Contents
@@ -9208,6 +9208,139 @@ waiting dialog, press **S** and wait 2 seconds.
 - What do Warcraft III units do in that situation? Do they jam too, or does
   something let one side through, such as briefly overlapping allies or one side
   backing off?
+
+--------------------------------------------------------------------------------
+
+### User Request 90
+
+okay it looks pretty good, but there's several real problems with it. I think
+Warcraft 3 had a concept of nudging, we might need something similar. Can you
+draw the radius underneath each unit's feet? Maybe in green and purple, one for
+each team? Units are getting stuck on each other, so two units will just stand
+still blocking each other. We should dynamically route around objects. Is this
+running as a soramech? My fans are spinning loudly. Can you make some units of
+larger size? Warcraft 3 didn't feel so rigidly bound to a grid. That game had
+lots of circles and you could slide around units easier. This demo, not so much.
+They don't jam. If they need to get past a unit, they "orbit" the units in the
+way, viewing them as a bundle. Sometimes they stand still while units move past
+them. Also, if a collection of them is moving to a location and another unit is
+in the way, they'll shuffle past them. If that unit is part of the same
+selection - for example, unit A is surrounded by 15 unit Bs. Unit A has a slow
+movement speed, and unit B's are fast. They arrive at the destination first, but
+unit A is intended to move toward the center of the formation. The unit B's will
+shuffle to fill the space unit A is intended for, and unit A will take the
+closer spot. Remember, units can be different sizes, so we have to make sure the
+waypoints are displaced correctly.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 90
+
+> First, the fans. Measuring how busy each part of the demo keeps the processor.
+
+> Fixed: the server thread went from 99% of a core to about 22%. Committing that
+> now; the rest of the cost is the crowd itself, which is about to be rebuilt
+> anyway.
+
+> Now the movement rebuild. First writing your description into the crowd issue
+> as its new blueprint, word for word, followed by the design:
+
+> Blueprint committed. Now rewriting the crowd from cells to circles. This is
+> the big piece.
+
+> Now the tests, rewritten for the new behaviour. Each scene checks for overlaps
+> between units and against walls on every tick.
+
+> Units now carry their size and team in each message. Running every test:
+
+> Two problems: the armies don't finish crossing within a minute, and a tick
+> takes 14 ms, which would bring the fans back. Profiling before changing
+> anything.
+
+> The time goes almost all into re-planning: about 21 re-plans a tick. And the
+> crossing is slow: after 30 s only 42 of 80 have reached their spots. Looking
+> at what the armies actually do:
+
+> Time per tick dropped from 14 ms to about 0.4 ms. The crossing is still slow,
+> though: 46 of 80 are still moving after 30 s. Looking at who is still moving,
+> and why:
+
+> Better: the crossing finishes, a tick takes 0.2 ms, and the A-among-the-Bs
+> case still passes. Still wrong: it takes 57 s, 5 units gave up, and the
+> packing is loose. Looking at the crossing mid-way:
+
+> The crossing now completes in 29 s with nobody giving up, at 0.2 ms a tick.
+> Only the packing is still loose (5.58 against the 4.55 bound). Giving settling
+> units longer to slide inward:
+
+> They stand the instant a slide is blocked. Outside the group's packed size, a
+> blocked slide should try the other way round instead:
+
+> The picture looks right: sized bodies, rings under their feet, and the two
+> armies mixing mid-field while a few go round the pillars. Two units still give
+> up during the crossing. Finding out why:
+
+I've rebuilt the movement around your description and fixed the fans; it's ready
+for you to watch again. All tests pass and it's committed.
+
+**Your questions:**
+- **The fans:** the server's thread was spinning a whole core. The threading
+  library's one-millisecond sleep doesn't sleep at all; a hundred of them took
+  0.18 ms. The server now rests through the operating system's own sleep, and a
+  test checks that the rest really takes the time. That thread went from 99% of
+  a core to about 22%. The new movement is also much cheaper, about 0.2 ms a
+  tick for 80 units.
+- **Is it running on the ceramic engine?** No. The game is Lua on its own
+  thread, started by the renderer's receiving thread. The ceramic engine only
+  drives the earlier cube demo.
+- **Radius under the feet:** a ring on the ground under each unit, green for
+  your army and purple for the other. Bodies are sized to match.
+- **Larger units:** each army now has 4 large units (slower), 20 medium and 16
+  small.
+
+**How units move now:**
+- **Circles, not grid cells.** Paths go round walls only, pulled into a few
+  straight legs, and every clearance uses the unit's own size.
+- **Sliding and orbiting.** A unit about to bump another slides along it. It
+  keeps the part of its step that heads toward its goal and goes round the same
+  way until clear. Two units meeting head-on each go to their right and pass.
+- **Nudging.** An idle unit of your own side that's in the way steps aside.
+  Enemies are gone round, not nudged.
+- **Giving way.** When two moving units are stuck on each other, one steps
+  aside, or waits a moment if there's no room.
+- **Bundles.** A unit sliding along standing units without getting closer plans
+  a new path round the whole touching group.
+- **Arrival, with your A-and-B example as a test.** No places are reserved.
+  Everyone heads for the point and settles where they meet groupmates who have
+  already arrived. So the fast Bs fill the middle and slow A stops on its own
+  side. Positions come from where the circles actually touch, so every size
+  lands in the right place.
+
+**What went wrong on the way, each now a rule in the code and the issue:**
+- **Reserving each member a place gridlocked.** Members had to cross each other
+  at the finish.
+- **Settling at the first arrived groupmate made a comet's tail** behind a group
+  arriving from one side.
+- **Sliding purely round the edge at full speed scattered the crowd.**
+- **Re-planning every tick cost 14 ms a tick.**
+- **The pillars left a two-cell channel on the armies' straight line.** They're
+  further apart now.
+
+**Known limits:**
+- A crossing takes about 30 s for most units, with the last stragglers settling
+  by about 46 s.
+- A straggler still circling the arrived army can give up after 20 seconds of
+  getting no closer. That's 0 to 2 a crossing in the test.
+- When two stuck units meet, the higher-numbered one gives way. I made that up
+  as a stand-in; I don't know Warcraft III's actual rule.
+
+**Try it:**
+```
+! /mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/crossing/run-crossing.sh "" window
+```
+
+A question as you watch: when two armies pass through each other, what do you
+see Warcraft III units do that these don't?
 
 --------------------------------------------------------------------------------
 
