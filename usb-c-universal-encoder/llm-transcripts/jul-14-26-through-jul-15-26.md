@@ -1,7 +1,19 @@
 # Conversation Summary: b5b80d75-d502-4539-bdcc-70296fc82001
 
-Generated on: 2026-09-21 19:46:39
+Generated on: 2026-09-26 13:26:55
 Models: claude-opus-4-8
+
+## Contents
+
+1. 2026-07-15 00:29, after Request 3 - Building a safe "everything-is-a-file"
+   USB-C data pipe in Lua; scaffolded the project and completed the RAM arena
+   (issue 11) and the self-installing cable delivery (issue 71), both tested.
+   Next: build issue 12, the file directory over the arena.
+2. 2026-07-15 00:36, after Request 4 - Building the USB-C universal encoder: a
+   safe, everything-is-a-file data pipe. So far the arena (issue 11) and
+   self-installing cable delivery (issue 71) are built and tested, plus the
+   mount and continuity directives. Next: build issue 12, the file directory
+   over the arena.
 
 --------------------------------------------------------------------------------
 
@@ -160,6 +172,8 @@ hi can you make this for me
 > Everything staged is mine, all under `usb-c-universal-encoder/`, and the
 > vision's rename resolved cleanly. I'll commit only this subtree via pathspec
 > so the parent repo's unrelated staged work stays exactly as it was.
+
+*[commit] 7c0c81fb - usb-c-universal-encoder: scaffold the project and pour its RAM foundation*
 
 Done for this pass, and it's real: `luajit tests/00-ram-arena-test.lua` →
 **15/15 checks pass**, committed as its own scoped commit (`7c0c81fb`, 19 files)
@@ -357,6 +371,8 @@ operators. plug it in, and it installs itself easily. then it just works.
 > `note-tonet` (a stray note, possibly yours). Per your rules I'll unstage both,
 > leave them untouched, and commit only my work. Flagging them so you can decide
 > what they are.
+
+*[commit] fa65302e - usb-c-universal-encoder: make the cable carry and install its own software*
 
 Both done, committed as `fa65302e` (15 files, only mine).
 

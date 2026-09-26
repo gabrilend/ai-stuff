@@ -1,7 +1,30 @@
 # Conversation Summary: 69c3b5fd-5d17-43e3-80e7-5480a78b708b
 
-Generated on: 2026-09-21 19:46:04
+Generated on: 2026-09-26 13:26:03
 Models: claude-fable-5
+
+## Contents
+
+1. 2026-07-23 20:10, after Request 1 - Sorted your unsorted issue note into a
+   proper blueprint: issue 057, a script that symlinks every project's
+   transcripts into one date-ordered storyline library. The old scrap is
+   deleted. Next action: implement the script whenever you're ready.
+2. 2026-07-23 20:53, after Request 2 - Built the storyline library: 409
+   transcripts from 17 projects symlinked in chronological order, tests passing,
+   issue 057 completed and committed. Next: optionally rename the two date-less
+   UUID transcripts with the migrator so they shelve too.
+3. 2026-07-24 19:26, after Request 4 - Building the chronological transcript
+   library: it works, 410 of 411 transcripts shelved, one excluded because it's
+   an empty live session the exporter keeps renaming back. Awaiting your choice:
+   fix the exporter to skip empty sessions, or leave as-is.
+4. 2026-07-25 12:53, after Request 6 - Transcript system work: the storyline
+   library is built and committed; your soravoice transcript is fixed, caused by
+   the Stop-hook export racing the reply write. Next action: your go-ahead to
+   consolidate the exporter as sole naming authority plus race guard.
+5. 2026-07-25 13:03, after Request 7 - We're hardening the transcript backup
+   system behind your storyline library; the soravoice race is diagnosed and its
+   transcript regenerated. Next action: your go-ahead to implement the exporter
+   fixes (race guard, single naming authority) under one new issue file.
 
 --------------------------------------------------------------------------------
 
@@ -94,6 +117,8 @@ okay can you build it please?
 > describes a built system), and the one hard-won lesson from the bug:
 
 > Now moving the completed issue and checking the docs table of contents format:
+
+*[commit] b547d691 - storyline library: every project's diary, shelved on one chronological bookshelf (057)*
 
 Built, tested, and committed. The storyline library is live: **409 transcripts
 from 17 projects, shelved in chronological order from September 18, 2025 to July
@@ -753,6 +778,8 @@ Hmmmmm okay sure you can take the lead on this
 > Marking the issue built and shelving it in the completed directory, then the
 > careful staging dance:
 
+*[commit] 18618c55 - transcript exports: one voice names the files, and it pauses before speaking (020)*
+
 Done and committed. The batch shipped as one commit (`18618c55`), staged to
 exactly the twelve intended paths — I verified the staged list before
 committing so the other agent's ambient churn couldn't ride along this time.
@@ -839,6 +866,8 @@ keeping dead code around.
 > **Zero lines over 80** in the regenerated transcript — every `**` and `- `
 > offender is gone. Now the cleanup: delete the dead migrator as instructed, and
 > note the wrapping rules in the README:
+
+*[commit] 7a826ebe - transcripts: prose learns to fold itself at the margin, structure stands firm*
 
 Both jobs done, committed as `7a826ebe`.
 

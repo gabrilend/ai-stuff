@@ -1,7 +1,14 @@
 # Conversation Summary: dfd51076-5ef6-46ea-9541-c3600cd20ff1
 
-Generated on: 2026-09-21 19:46:04
+Generated on: 2026-09-26 12:46:53
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-07-25 23:22, after Request 1 - Goal is getting transcript exports
+   reliable everywhere. I diagnosed both issues: the hook is global but silently
+   skips paths containing dots, and the parser injects a blank line after every
+   line. Next step is your go-ahead to apply the fixes.
 
 --------------------------------------------------------------------------------
 

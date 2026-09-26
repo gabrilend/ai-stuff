@@ -150,6 +150,16 @@ fallback, and it is announced every time rather than taken silently.
 - **A shell command that edits files the harness was not tracking reports no
   diff.** Those files need `claim-own-change`, or the gate refuses them. That is
   the right direction to fail.
+- **A shell command is credited with every tracked file that changed while it
+  ran, whoever changed it.** Claude Code's `bashEditDiff` lists the files that
+  changed on disk during a command among those the session has read; it does
+  not know which process wrote them. Seen 2026-09-26: a world-edit-to-execute
+  session ran its read-only test suite at 12:57 while another session saved
+  five files (four `scripts/transcript-site/*.md` and a note at the top of
+  `neocities-modernization/libs/markdown.lua`); the hook recorded them in the
+  test-running session's ledger, and that session's next commit, 8e67ba20c
+  "Stop the map-info test from printing raw zero bytes", carried them. See
+  open question 5.
 - **A command piped into a shell** (`echo '...' | bash`) is not read by the
   gates. Heredocs fed to a shell interpreter, `eval` and `bash -c` are.
 - **Not a security boundary**, like the gates before it: the session can write
@@ -175,6 +185,14 @@ fallback, and it is announced every time rather than taken silently.
    and the project of each committed file — plus this conversation's own
    wherever they are. "Only this conversation's" was tried first and left
    finished sessions' last lines stranded.
+5. **How should a shell command's reported file changes be trusted?** (Known
+   limits, 2026-09-26.) A command that only reads — a test run, a search —
+   is credited with any tracked file another session saved meanwhile. Ideas,
+   most likely first: record a shell command's changes only for files the
+   command's own text names or writes into; or hold them as unconfirmed until
+   `claim-own-change` confirms them, as untracked files already are; or drop
+   a file from the record when another session's ledger already holds the
+   same lines.
 
 ## Related
 

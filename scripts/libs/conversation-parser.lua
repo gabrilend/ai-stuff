@@ -404,7 +404,8 @@ end
 --            dropped (see issue 023).
 --   note     a background task reporting in. Reduced to its summary line; the
 --            full result is a JSON dump running to thousands of characters
---            and is not prose anybody reads.
+--            and is not prose anybody reads. Also carries the task's id
+--            (a string, or nil when the notification had none).
 --   recap    the machine-written summary that opens a continued session.
 --
 -- Two kinds are removed and NOT returned, because they carry nothing a reader
@@ -441,7 +442,10 @@ local function split_envelope(text)
             if status and status ~= "" and status ~= "completed" then
                 said = said .. " (" .. status .. ")"
             end
-            items[#items + 1] = { kind = "note", text = said }
+            -- The task id rides along so the renderer can link a finished
+            -- helper to its own transcript (issue 025): a helper's log is
+            -- agent-<task id>.jsonl, so the id is the key to its file.
+            items[#items + 1] = { kind = "note", text = said, id = id }
             return ""
         end)
 
@@ -768,6 +772,174 @@ local function to_date_string(timestamp_value)
 end
 -- }}}
 
+-- {{{ load_helper_names
+-- Read the table the exporter leaves for us: which transcript file holds each
+-- helper conversation already saved in this project, so a parent's "helper
+-- finished" line can link to it (issue 025).
+--
+-- The table is a plain text file, one helper per line:
+--   agent-<task id> <TAB> <transcript filename, no folder>
+-- Its path arrives in the environment variable TRANSCRIPT_HELPER_NAMES.
+--
+-- Returns a table mapping the conversation id (string) to the filename
+-- (string). Two paths: the variable is unset, meaning the caller keeps no
+-- helper table (a test, or a library user), and the result is empty so no
+-- line gets a link; or it is set, and a file that cannot be read or a line
+-- that is not "id TAB name" is an error - the exporter wrote it moments ago,
+-- so either failure means the two have stopped agreeing.
+local function load_helper_names()
+    local names = {}
+    local path = os.getenv("TRANSCRIPT_HELPER_NAMES")
+    if not path then return names end
+    local f = io.open(path, "r")
+    if not f then
+        error("TRANSCRIPT_HELPER_NAMES names a file that cannot be read: " .. path)
+    end
+    for line in f:lines() do
+        if line ~= "" then
+            local id, name = line:match("^([^\t]+)\t([^\t]+)$")
+            if not id then
+                f:close()
+                error("malformed line in helper-name table " .. path .. ": " .. line)
+            end
+            names[id] = name
+        end
+    end
+    f:close()
+    return names
+end
+-- }}}
+
+-- {{{ runs_a_commit
+-- Whether a shell command RUNS a commit, as against mentioning one. The
+-- command is cut into steps at newlines, ";", "&&", "||" and "|"; a step runs
+-- a commit when its first word (after any VAR=value settings) is a path ending
+-- in commit-own-changes, or is git with "commit" as a later word. A search
+-- for the words - grep "commit-own-changes: committed" - is a step whose
+-- first word is grep, and does not count.
+local function runs_a_commit(command)
+    for step in (command .. "\n"):gsub("&&", "\n"):gsub("||", "\n"):gsub("[;|]", "\n"):gmatch("([^\n]*)\n") do
+        local words = step:gsub("^%s*", ""):gsub("^[%w_]+=%S*%s+", "")
+        local first = words:match("^(%S+)") or ""
+        if first:match("commit%-own%-changes$") then
+            return true
+        end
+        if first == "git" and (" " .. words .. " "):find("%scommit%s") then
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ commits_reported
+-- The commits a command's output says were just made (issue 035), so the
+-- transcript can record which commits its conversation made.
+--
+-- Takes one tool-result record from the log; reads its output text, which is
+-- `toolUseResult.stdout` (a string) for a shell command. Returns a list of
+-- { hash = <string, hex>, subject = <string>, repository = <string or nil> }.
+--
+-- The two routes by which a commit is made print two shapes:
+--
+--   commit-own-changes: committed 8a235a0fe on main in /mnt/mtwo/.../ai-stuff
+--     Close four finished issues that had never been filed away
+--
+--   [main 6b80531] One service per mailbox, instead of one mailbox per machine
+--   [main (root-commit) 1a2b3c4] First commit
+--
+-- The first names its repository and puts the subject on the next line; plain
+-- git names neither the repository nor anything but the branch.
+--
+-- Output is only read when the command that printed it was a commit:
+-- `commands_by_id` maps a call id to its command string, and the command must
+-- run commit-own-changes or `git ... commit`. Without that, any output QUOTING
+-- a commit report counted - found the first time this ran, on a session that
+-- had searched old logs for exactly these lines. A commit command that runs a
+-- test suite making throwaway commits can still print fixture commits; the
+-- page matches recorded commits against the project's real history, and one
+-- it cannot find there is simply not linked.
+local function commits_reported(msg, commands_by_id)
+    local found = {}
+    local content = msg.message and msg.message.content
+    local call_id = type(content) == "table" and type(content[1]) == "table"
+        and content[1].tool_use_id or nil
+    local command = call_id and commands_by_id[call_id] or ""
+    -- Two kinds of command: a commit, whose output is read; anything else,
+    -- whose output is not, however much it looks like a commit report.
+    if not runs_a_commit(command) then
+        return found
+    end
+    local result = msg.toolUseResult
+    local text = type(result) == "table" and result.stdout or nil
+    if type(text) ~= "string" or text == "" then
+        return found
+    end
+    local lines = {}
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        lines[#lines + 1] = line
+    end
+    for i, line in ipairs(lines) do
+        local hash, repository = line:match("^commit%-own%-changes: committed (%x+) on %S+ in (.+)$")
+        if hash then
+            local subject = (lines[i + 1] or ""):match("^%s+(.-)%s*$") or ""
+            found[#found + 1] = { hash = hash, subject = subject, repository = repository }
+        else
+            local plain_hash, subject = line:match("^%[.- (%x+)%] (.-)%s*$")
+            -- Seven hex digits is git's shortest abbreviation; anything
+            -- shorter in brackets is not a commit report.
+            if plain_hash and #plain_hash >= 7 then
+                found[#found + 1] = { hash = plain_hash, subject = subject }
+            end
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ commit_line
+-- The line a recorded commit becomes in the transcript:
+--
+--   *[commit] 8a235a0fe in ai-stuff - Close four finished issues...*
+--
+-- One line, never wrapped, so a reader can take the hash and the subject from
+-- it without joining lines. The repository is named by its folder's name
+-- when the output gave one. Asterisks in the subject are escaped so they
+-- cannot end the line's italics early.
+local function commit_line(commit)
+    local where = commit.repository and (" in " .. commit.repository:match("([^/]+)/*$")) or ""
+    local subject = commit.subject:gsub("%*", "\\*")
+    return "*[commit] " .. commit.hash .. where .. " - " .. subject .. "*"
+end
+-- }}}
+
+-- {{{ recap_text
+-- The prose of a recap Claude Code wrote while the person was away, without
+-- the "(disable recaps in /config)" it always ends with: that is an
+-- instruction to whoever is at the keyboard, harness furniture like the
+-- local-command caveat, and says nothing about the conversation (issue 037).
+-- A recap whose content is not a string means the record's shape changed,
+-- which is reported rather than printed as "nil".
+local function recap_text(content)
+    if type(content) ~= "string" then
+        error("recap record content is not text: " .. type(content))
+    end
+    local text = content:gsub("%s*%(disable recaps in /config%)%s*$", "")
+    return text:match("^%s*(.-)%s*$")
+end
+-- }}}
+
+-- {{{ recap_place
+-- Where a recap falls, in the words a reader can find in the body: the last
+-- "User Request" heading written before it. Zero means it came before any.
+local function recap_place(after_request)
+    if after_request < 1 then
+        return "before Request 1"
+    end
+    return "after Request " .. after_request
+end
+-- }}}
+
 -- {{{ parse_conversation
 -- Turn one session log into a readable markdown transcript.
 --
@@ -778,6 +950,7 @@ end
 -- is what tells them apart now.
 local function parse_conversation(jsonl_file, output_file)
     local json = load_dkjson()
+    local helper_names = load_helper_names()
 
     -- Read and parse all messages
     local messages = {}
@@ -831,6 +1004,26 @@ local function parse_conversation(jsonl_file, output_file)
         end
     end
 
+    -- The other direction: every shell command the model ran, by its call id
+    -- (string -> the command string). A command's output is only believed to
+    -- report a commit when the command was a commit (see commits_reported):
+    -- output that merely QUOTES a commit report - a search through old logs,
+    -- a test printing its fixtures - otherwise reads exactly like one.
+    local commands_by_id = {}
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "assistant" then
+            local content = msg.message and msg.message.content
+            if type(content) == "table" then
+                for _, item in ipairs(content) do
+                    if type(item) == "table" and item.type == "tool_use" and item.id
+                        and type(item.input) == "table" and type(item.input.command) == "string" then
+                        commands_by_id[item.id] = item.input.command
+                    end
+                end
+            end
+        end
+    end
+
     -- Pre-pass two: every model that served a reply in this session, in the
     -- order each was first seen. The header needs the whole list before the
     -- first message is written, which is why this cannot wait for the main
@@ -878,10 +1071,23 @@ local function parse_conversation(jsonl_file, output_file)
     end
 
     -- Generate markdown output
-    local out = io.open(output_file, "w")
-    if not out then
+    local out_file = io.open(output_file, "w")
+    if not out_file then
         error("Could not open output file: " .. output_file)
     end
+
+    -- The body is gathered in memory and written after the header and the
+    -- recap contents (issue 037): the contents list sits above the body but
+    -- is only known once the body has been walked. Everything below writes
+    -- through out:write exactly as it did when out was the file.
+    local out = { parts = {} }
+    function out:write(text)
+        self.parts[#self.parts + 1] = text
+    end
+
+    -- Each entry: { epoch = <number, seconds>, after_request = <number>,
+    -- text = <string> }. Filled by the walk, written above the body.
+    local recaps = {}
 
     -- Extract conversation ID from filename
     local conversation_id = jsonl_file:match("([^/]+)%.jsonl$") or "unknown"
@@ -889,15 +1095,13 @@ local function parse_conversation(jsonl_file, output_file)
     local RULE = string.rep("-", 80)
 
     -- Header
-    out:write("# Conversation Summary: " .. conversation_id .. "\n")
-    out:write("\n")
-    out:write("Generated on: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
+    out_file:write("# Conversation Summary: " .. conversation_id .. "\n")
+    out_file:write("\n")
+    out_file:write("Generated on: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
     if #models_order > 0 then
-        out:write("Models: " .. table.concat(models_order, ", ") .. "\n")
+        out_file:write("Models: " .. table.concat(models_order, ", ") .. "\n")
     end
-    out:write("\n")
-    out:write(RULE .. "\n")
-    out:write("\n")
+    out_file:write("\n")
 
     local user_count = 1
     local current_user_uuid = nil
@@ -972,25 +1176,39 @@ local function parse_conversation(jsonl_file, output_file)
         out:write(heading .. "\n")
         out:write("\n")
 
+        -- The considered answer is the last block of prose; a commit line
+        -- after it (the reply ended by committing) must not turn the answer
+        -- into narration.
+        local last_prose = 0
         for i, block in ipairs(assistant_blocks) do
-            if block.model and block.model ~= last_model_announced then
-                if last_model_announced ~= nil then
-                    out:write("*model: " .. block.model .. "*")
-                    out:write("\n\n")
-                end
-                last_model_announced = block.model
-            end
+            if not block.commit_line then last_prose = i end
+        end
 
-            local is_narration = (i < #assistant_blocks)
-            if is_narration then
-                -- Two columns are spent on the quote marker, so the text is
-                -- measured and positioned in the 78 that remain. That is what
-                -- keeps a quoted line's right edge level with an unquoted
-                -- one's.
-                local body = format_content(block.text, 78)
-                out:write(quote_block(body) .. "\n")
+        for i, block in ipairs(assistant_blocks) do
+            -- Two kinds of block: a commit the conversation made, written as
+            -- its own line exactly as recorded; or prose.
+            if block.commit_line then
+                out:write(block.commit_line .. "\n")
             else
-                out:write(format_content(block.text, 80) .. "\n")
+                if block.model and block.model ~= last_model_announced then
+                    if last_model_announced ~= nil then
+                        out:write("*model: " .. block.model .. "*")
+                        out:write("\n\n")
+                    end
+                    last_model_announced = block.model
+                end
+
+                local is_narration = (i < last_prose)
+                if is_narration then
+                    -- Two columns are spent on the quote marker, so the text
+                    -- is measured and positioned in the 78 that remain. That
+                    -- is what keeps a quoted line's right edge level with an
+                    -- unquoted one's.
+                    local body = format_content(block.text, 78)
+                    out:write(quote_block(body) .. "\n")
+                else
+                    out:write(format_content(block.text, 80) .. "\n")
+                end
             end
             out:write("\n")
         end
@@ -1057,7 +1275,19 @@ local function parse_conversation(jsonl_file, output_file)
                         pending_skill = item.text
                     elseif item.kind == "note" then
                         flush_pending_command()
-                        emit_marginal("*[background task] " .. item.text .. "*")
+                        -- Two paths: the task is a helper whose transcript
+                        -- the exporter has already saved, so the line ends
+                        -- with a link to that file; or it is anything else
+                        -- (a background shell command, a helper that never
+                        -- spoke and so has no file), and the line is the
+                        -- summary alone.
+                        local helper_file = item.id and helper_names["agent-" .. item.id]
+                        if helper_file then
+                            emit_marginal("*[background task] " .. item.text
+                                .. " — [" .. helper_file .. "](" .. helper_file .. ")*")
+                        else
+                            emit_marginal("*[background task] " .. item.text .. "*")
+                        end
                     elseif item.kind == "recap" then
                         flush_pending_command()
                         out:write("### Session Recap (written by the harness, not by either speaker)\n")
@@ -1095,6 +1325,18 @@ local function parse_conversation(jsonl_file, output_file)
                     current_user_uuid = msg.uuid or ""
                     user_count = user_count + 1
                     response_continued = false
+                end
+
+            -- A command's output. Dropped like every tool result, except for
+            -- the commits it reports: those are kept as a line in the reply
+            -- where they happened, so the transcript says which commits its
+            -- conversation made (issue 035) - the only evidence that
+            -- outlives the session log. Two paths: a turn is open, and each
+            -- commit becomes a block of the reply; or none is (a fork's
+            -- first orders), and there is no reply to put it in.
+            elseif current_user_uuid then
+                for _, commit in ipairs(commits_reported(msg, commands_by_id)) do
+                    assistant_blocks[#assistant_blocks + 1] = { commit_line = commit_line(commit) }
                 end
             end
 
@@ -1144,6 +1386,26 @@ local function parse_conversation(jsonl_file, output_file)
                     end
                 end
             end
+
+        -- A recap Claude Code wrote while the person was away (issue 037).
+        -- It is not placed in the body; it is noted for the contents list at
+        -- the top, with the number of the last request heading already
+        -- written, so a reader can find the spot. user_count is always the
+        -- NEXT request's number, hence the minus one; zero means the recap
+        -- came before any request.
+        elseif msg_type == "system" and msg.subtype == "away_summary" then
+            -- A recap with no readable time cannot be placed in the list;
+            -- every one seen so far has had one, so its absence means the
+            -- record's shape changed and is reported rather than guessed.
+            local epoch = parse_timestamp(msg.timestamp)
+            if not epoch then
+                error("recap record has no readable timestamp: " .. tostring(msg.timestamp))
+            end
+            recaps[#recaps + 1] = {
+                epoch = epoch,
+                after_request = user_count - 1,
+                text = recap_text(msg.content),
+            }
         end
     end
 
@@ -1158,7 +1420,22 @@ local function parse_conversation(jsonl_file, output_file)
     flush_assistant()
     flush_pending_command()
 
-    out:close()
+    -- Two paths: the log held recaps, and they are listed between the header
+    -- and the body; or it held none, and no Contents heading is written,
+    -- because an empty list says nothing.
+    if #recaps > 0 then
+        out_file:write("## Contents\n")
+        out_file:write("\n")
+        for i, recap in ipairs(recaps) do
+            out_file:write(wrap_text(i .. ". " .. os.date("%Y-%m-%d %H:%M", recap.epoch)
+                .. ", " .. recap_place(recap.after_request) .. " - " .. recap.text, 80) .. "\n")
+        end
+        out_file:write("\n")
+    end
+    out_file:write(RULE .. "\n")
+    out_file:write("\n")
+    out_file:write(table.concat(out.parts))
+    out_file:close()
 
     -- Hand back three dating signals: the end epoch (used to stamp the file's
     -- mtime, unchanged) plus the start and end calendar dates (used to build

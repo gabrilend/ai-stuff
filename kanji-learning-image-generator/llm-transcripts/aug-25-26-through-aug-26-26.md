@@ -1,7 +1,39 @@
 # Conversation Summary: 1acaf547-1dc5-497a-87dc-d1b51c708958
 
-Generated on: 2026-09-21 19:46:29
+Generated on: 2026-09-26 12:47:26
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-26 10:40, after Request 3 - Goal: a study tool that generates images
+   where each kanji's strokes form the picture. It's built and working — 28
+   tickets, all tests passing, real images generated. Next: run ./run-demo 2 and
+   look at the thumbnail it ends with.
+2. 2026-08-26 11:39, after Request 5 - We're building a study tool that
+   generates images where a kanji's strokes form the picture; the system is
+   complete and ComfyUI is installed and working. I asked whether to test-render
+   about 8 characters first (~5 minutes) or go straight to all 80 (~50 minutes).
+3. 2026-08-26 11:48, after Request 6 - We're generating a nine-character sample
+   to verify the pipeline end-to-end before committing to the 80-character run.
+   The generation is running on the GPU now, about six minutes total. Next I'll
+   show you the results so you can judge whether the images look right.
+4. 2026-08-26 11:59, after Request 6 - We're building your kanji study-tool
+   image generator; the nine-character sample ran clean and confirmed 80
+   characters takes about 52 minutes. Next: either I test control strength 1.90
+   on three characters first, or just start the grade-one run of 80.
+5. 2026-08-26 12:44, after Request 9 - We're building a kanji study tool that
+   generates images where the strokes hide inside a real scene, and I'm testing
+   whether doubling the resolution to 1536 gives crowded characters more room.
+   Four are rendering now; I'll show you them against the 768 versions when they
+   finish.
+6. 2026-08-26 13:04, after Request 9 - We're building a kanji study tool that
+   generates images where the strokes hide inside a real scene; the
+   four-character run at doubled resolution is still going. Next: look at the
+   results and compare them against the 768 versions.
+7. 2026-08-26 21:50, after Request 12 - Goal: a study tool that turns kanji into
+   scenes. I tested double resolution — it's worse and 8x slower, so we stay
+   at 768. Next: pick the big-run style (photographic, Wimmelbild, or per-world)
+   and I'll launch it.
 
 --------------------------------------------------------------------------------
 

@@ -1,7 +1,14 @@
 # Conversation Summary: d89f3a64-0fe6-448a-919c-f70e82be69e5
 
-Generated on: 2026-09-16 17:59:38
+Generated on: 2026-09-26 13:26:04
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-02 11:58, after Request 1 - Goal: play a Dominions 6 turn by talking
+   to a local LLM cluster instead of the game interface. Phase one (save-file
+   reading, survey, 650 passing tests) is built and committed. Next action: your
+   call on building the world table.
 
 --------------------------------------------------------------------------------
 
@@ -58,6 +65,8 @@ it's better to make accurate assumptions than fearless deductions.
 
 > A large set of files from other sessions is staged. I'll commit only my own
 > paths and leave their staging untouched:
+
+*[commit] a8debb50 - dominions-interpreter: the seed — a turn played by talking, and the game as judge*
 
 > Phase one is built, committed, and runs. Here is what happened.
 >

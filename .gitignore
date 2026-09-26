@@ -279,3 +279,6 @@ symbeline-2/
 # To add project-specific patterns, consider using .gitignore files
 # in individual project directories.
 # =============================================================================
+
+# Conversation pages, rebuilt before every push (install-pages-hook)
+**/llm-transcripts/HTML/

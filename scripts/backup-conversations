@@ -7,7 +7,9 @@
 # llm-transcripts/ folder. It keeps what the person typed and what the model
 # wrote for them to read, and drops the machinery (tool calls, tool output).
 # Conversations with helper agents ("subagents") are saved too, beside the
-# conversation that spawned them.
+# conversation that spawned them, each named after the task it was given
+# ("draft-the-rgpl-license-sep-22-26.md"); the line in the parent that says a
+# helper finished links to that helper's file.
 #
 # It runs in two ways:
 #
@@ -124,24 +126,82 @@ function subagent_logs_of() {
 # }}}
 
 # -- {{{ all_logs_in
-# The full sweep's work list: every main conversation first, then every helper.
-# Order matters, because the naming rulebook hands the bare date name to the
-# first claimant and numbered "_agent-N" slots to later ones - main
-# conversations are meant to get the bare names.
+# The full sweep's work list: every helper first, then every main
+# conversation. Helpers go first so that, by the time a main conversation is
+# written, the files of the helpers it spawned already exist and its "helper
+# finished" lines can link to them (issue 025). This used to be the other way
+# round, to keep bare date names for main conversations; helpers now carry
+# their task's words in their names and no longer compete for those.
 function all_logs_in() {
    local session_folder="$1"
    local f
-   for f in "$session_folder"/*.jsonl; do
-      [ -f "$f" ] || continue
-      case "$(basename "$f")" in
-         agent-*) : ;;                   # the old loose layout: helpers go last
-         *) printf '%s\n' "$f" ;;
-      esac
-   done
    for f in "$session_folder"/agent-*.jsonl "$session_folder"/*/subagents/agent-*.jsonl; do
       [ -f "$f" ] || continue
       printf '%s\n' "$f"
    done
+   for f in "$session_folder"/*.jsonl; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in
+         agent-*) : ;;                   # the old loose layout: already listed above
+         *) printf '%s\n' "$f" ;;
+      esac
+   done
+}
+# }}}
+
+# -- {{{ helper_task_words
+# The words a helper's transcript is named with: the one-line description the
+# helper was spawned with, lowercased, every run of other characters turned
+# into a single dash. "Draft the RGPL license" -> "draft-the-rgpl-license".
+#
+# The description lives in <log>.meta.json beside the helper's log, as the
+# string field "description". Two paths: it is there and has words in it, and
+# they are printed; or the file is missing, unreadable, lacks the field, or
+# the description has no letters or digits at all, and that is an error for
+# this helper - never a quiet fall back to a date-only name, which would
+# rebuild the ambiguity this naming exists to remove.
+function helper_task_words() {
+   local jsonl_file="$1"
+   local meta_file="${jsonl_file%.jsonl}.meta.json"
+   local description words
+   if [ ! -f "$meta_file" ]; then
+      echo "  ERROR: helper log $jsonl_file has no $meta_file to name it by" >&2
+      return 1
+   fi
+   if ! description=$(jq -er '.description | strings' "$meta_file"); then
+      echo "  ERROR: $meta_file has no description to name its helper by" >&2
+      return 1
+   fi
+   words=$(printf '%s' "$description" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+   if [ -z "$words" ]; then
+      echo "  ERROR: the description in $meta_file ('$description') has no letters or digits to name its helper by" >&2
+      return 1
+   fi
+   printf '%s\n' "$words"
+}
+# }}}
+
+# -- {{{ write_helper_name_table
+# Write the table the parser reads to link a "helper finished" line to that
+# helper's transcript: one line per helper transcript already in the folder,
+# "agent-<id> TAB <filename>". Read from the header lines, which are the
+# rulebook's source of truth for which conversation a file holds, so the table
+# is right whatever the files happen to be called. Prints the table's path.
+function write_helper_name_table() {
+   local table f id
+   table=$(mktemp "$SCRATCH_DIR/helper-names.XXXXXX") || return 1
+   TEMP_FILES+=("$table")
+   for f in "$TRANSCRIPT_DIR"/*.md; do
+      [ -e "$f" ] || continue
+      # A file with no header is not a transcript (a word cloud, a note);
+      # skipping it is the rulebook's own rule, not a lost helper.
+      id=$(transcript_conv_id "$f") || continue
+      case "$id" in
+         agent-*) printf '%s\t%s\n' "$id" "$(basename "$f")" >> "$table" ;;
+         *) : ;;                          # a main conversation: nothing to link
+      esac
+   done
+   printf '%s\n' "$table"
 }
 # }}}
 
@@ -164,6 +224,20 @@ function export_one_log() {
    local temp_file
    temp_file=$(mktemp "$TRANSCRIPT_DIR/.transcript-${conversation_id}.XXXXXX") || return 1
    TEMP_FILES+=("$temp_file")
+
+   # A helper is named after its task. Its words are read before parsing so a
+   # helper that cannot be named fails before anything is written.
+   local task_words=""
+   case "$conversation_id" in
+      agent-*) task_words=$(helper_task_words "$jsonl_file") || { rm -f "$temp_file"; return 1; } ;;
+      *) : ;;                             # a main conversation: named by date alone
+   esac
+
+   # The helpers saved so far, for the parser to link to. Rebuilt for every
+   # log because each helper exported in this run adds a row.
+   local helper_table
+   helper_table=$(write_helper_name_table) || { rm -f "$temp_file"; return 1; }
+   export TRANSCRIPT_HELPER_NAMES="$helper_table"
 
    # The parser reports dates and warnings on stderr and writes the transcript
    # itself to the temp file. A parser that fails outright is a real error:
@@ -246,6 +320,12 @@ function export_one_log() {
    local base husk_claim
    if [ -n "$start_date" ] || [ -n "$final_date" ]; then
       base=$(transcript_span_basename "$start_date" "$final_date") || return 1
+      # A helper's name leads with its task's words and ends with the date,
+      # so the rulebook - which reads dates from the END of a name - orders
+      # it among the other transcripts unchanged.
+      if [ -n "$task_words" ]; then
+         base="${task_words}-${base}"
+      fi
    else
       echo "  WARNING: no messages in $conversation_id; no transcript written"
       rm -f "$temp_file"
@@ -424,7 +504,8 @@ function run_hook() {
    fi
 
    echo "Exporting session $session_id to $TRANSCRIPT_DIR"
-   { printf '%s\n' "$transcript_path"; subagent_logs_of "$SESSION_FOLDER" "$session_id"; } | export_logs
+   # Helpers before their parent, so the parent can link to their files.
+   { subagent_logs_of "$SESSION_FOLDER" "$session_id"; printf '%s\n' "$transcript_path"; } | export_logs
 }
 # }}}
 
@@ -460,7 +541,8 @@ function run_session() {
       echo "backup-conversations: no log for session $session_id in $SESSION_FOLDER" >&2
       return 1
    fi
-   { printf '%s\n' "$main_log"; subagent_logs_of "$SESSION_FOLDER" "$session_id"; } | export_logs
+   # Helpers before their parent, so the parent can link to their files.
+   { subagent_logs_of "$SESSION_FOLDER" "$session_id"; printf '%s\n' "$main_log"; } | export_logs
 }
 # }}}
 

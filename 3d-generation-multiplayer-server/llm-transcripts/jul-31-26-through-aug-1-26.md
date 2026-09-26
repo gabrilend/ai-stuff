@@ -1,7 +1,26 @@
 # Conversation Summary: c256c5f4-0059-4f29-b6e3-ba74f004ba0e
 
-Generated on: 2026-09-16 17:59:36
+Generated on: 2026-09-26 13:26:00
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-07-31 15:02, after Request 2 - We're building the
+   3d-generation-multiplayer-server project: docs, roadmap, and seven phases are
+   written and committed. Next action is your call — either work through the
+   seven open questions or start writing the phase 1 issue files.
+2. 2026-07-31 16:19, after Request 3 - We're setting up the 3D multiplayer
+   server project — docs, roadmap, and the first issue file are committed.
+   Next: decide whether to write the login's big-number arithmetic by hand or
+   link a library, then start phase 1.
+3. 2026-08-01 15:25, after Request 4 - Building an AzerothCore-based server with
+   a custom C client, docs and phase plan now committed. Next: start issue 301,
+   gating the world server's data requirements so it boots empty — unless
+   you'd rather settle the login-arithmetic question first.
+4. 2026-08-01 15:45, after Request 5 - We're building a WoW-server-based game
+   with a custom C client and pink star squiggle characters; the docs, roadmap,
+   and first issue file are written and committed. Next is writing phase 1's
+   issue files for the patch machine, then building it.
 
 --------------------------------------------------------------------------------
 
@@ -1058,6 +1077,8 @@ forecloses it":
 
 > Now the commit — only this project's paths, nothing of anyone else's.
 
+*[commit] 98b65ea6 - 3d-generation-multiplayer-server: the seed — a borrowed world, held at arm's length*
+
 > Committed — 19 files, only this project's paths. The 18 backwards-reader
 > files staged by the earlier session are still staged, untouched.
 >
@@ -1116,6 +1137,8 @@ forecloses it":
 > The world server won't boot without the client-derived data tables — not
 > "lacks maps," *refuses to start*. But three things make this tractable, and
 > the third makes it better than the alternative:
+
+*[commit] 1568083b - 3d-generation-multiplayer-server: nothing in the tree is a copy of anything*
 
 Two commits in, backwards-reader's 18 staged files still untouched.
 
@@ -1251,6 +1274,8 @@ effect is striking.
 > A transcript file appeared in the project that isn't mine — the session
 > tooling wrote it. Unstaging it, and adding the directory to the table of
 > contents since it's now real.
+
+*[commit] ab644e8c - 3d-generation-multiplayer-server: don't answer the door, move the wall*
 
 Three commits, backwards-reader's 18 still staged and untouched. The transcript
 directory is left untracked — it's the tooling's file, not mine to commit.
@@ -1452,6 +1477,8 @@ whichever
 > First, the client-as-oracle framing was wrong: the server source *is* the
 > second implementation, and it's the open one.
 
+*[commit] d1ea4bcf - 3d-generation-multiplayer-server: read the server, not the client; and three shrugs close three questions*
+
 Four commits. Net −109 lines this round, which is the right direction.
 
 **On the client** — you're right, and I'd reached past the obvious thing. The
@@ -1515,6 +1542,8 @@ why not just do both? what problem are you trying to solve?
 >
 > The "cost" I described only existed if you picked one. Picking one was my
 > invention.
+
+*[commit] fd5bc319 - 3d-generation-multiplayer-server: the login question was malformed; both, and the bin already held both*
 
 Open questions section is empty for the first time.
 

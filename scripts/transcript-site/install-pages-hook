@@ -1,0 +1,87 @@
+#!/bin/bash
+#
+# install-pages-hook
+#
+# Sets a repository up so its conversation pages rebuild themselves whenever it
+# is pushed, and are never committed.
+#
+# In general terms, two things per repository:
+#
+#   a git "pre-push" hook that runs build-pages-before-push, which rebuilds
+#   the pages of every project in the repository that has moved;
+#
+#   a line in the repository's .gitignore, "**/llm-transcripts/HTML/", so the
+#   pages - rebuildable output - stay out of git.
+#
+# A pre-push hook that something else wrote is never touched: double-diaper-
+# dungeon's, for one, rewrites itself on every run to keep its public mirror in
+# step, and builds that project's site its own way. Such a repository gets the
+# ignore line only, and is reported. Running this twice changes nothing the
+# second time.
+#
+# Usage: install-pages-hook <repository>... [--dir <scripts-dir>]
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+
+# The line that marks a hook as this tool's, so a second run can tell its own
+# hook from someone else's.
+MARK="# installed by install-pages-hook"
+IGNORE_LINE="**/llm-transcripts/HTML/"
+
+# -- {{{ install_one
+function install_one() {
+   local repo hook
+   repo=$(git -C "$1" rev-parse --show-toplevel)
+   hook=$(git -C "$repo" rev-parse --path-format=absolute --git-path hooks)/pre-push
+
+   # The ignore line, whatever happens to the hook: pages built by hand in a
+   # repository whose hook is someone else's are still output, and still stay
+   # out of git. Added once, at the end of the top-level .gitignore.
+   if ! grep -qxF "$IGNORE_LINE" "$repo/.gitignore" 2> /dev/null; then
+      printf '\n# Conversation pages, rebuilt before every push (install-pages-hook)\n%s\n' "$IGNORE_LINE" >> "$repo/.gitignore"
+   fi
+
+   # Three states for the hook: absent (write it), ours (rewrite it, in case
+   # the scripts folder moved), someone else's (leave it and say so).
+   if [ -e "$hook" ] && ! grep -qF "$MARK" "$hook"; then
+      echo "ignore line only for $repo: it already has a pre-push hook of its own ($hook), left as it is"
+      return 0
+   fi
+   mkdir -p "$(dirname "$hook")"
+   cat > "$hook" <<EOF
+#!/bin/bash
+$MARK
+# Rebuilds this repository's conversation pages (llm-transcripts/HTML/) before
+# a push; see $DIR/transcript-site/build-pages-before-push.
+exec "$DIR/transcript-site/build-pages-before-push" "$repo" --dir "$DIR"
+EOF
+   chmod +x "$hook"
+   echo "installed $repo"
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   local repos=()
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --dir) DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         *) repos+=("$1") ;;
+      esac
+      shift
+   done
+   if [ "${#repos[@]}" -eq 0 ]; then
+      echo "install-pages-hook: name at least one repository" >&2
+      return 1
+   fi
+   local repo
+   for repo in "${repos[@]}"; do
+      install_one "$repo"
+   done
+}
+# }}}
+
+main "$@"

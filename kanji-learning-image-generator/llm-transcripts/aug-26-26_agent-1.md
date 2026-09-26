@@ -1,7 +1,14 @@
 # Conversation Summary: 30d9cc11-3c9b-442c-b3cf-3305ad4f372e
 
-Generated on: 2026-09-16 18:00:03
+Generated on: 2026-09-26 12:47:26
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-26 12:29, after Request 1 - Goal was issue files for a subsystem
+   stamping each character's meaning onto its image in bright yellow lettering;
+   four are written (107, 207, 208, 413), no code changed. Next: your answers to
+   the three open questions at the end.
 
 --------------------------------------------------------------------------------
 

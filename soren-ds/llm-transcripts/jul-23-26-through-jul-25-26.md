@@ -1,7 +1,25 @@
 # Conversation Summary: 3a4a8697-62f3-4c2a-9cd4-1874f81843e4
 
-Generated on: 2026-09-21 19:46:38
+Generated on: 2026-09-26 13:26:50
 Models: claude-opus-4-8
+
+## Contents
+
+1. 2026-07-23 19:27, after Request 4 - We're building Soren DS, a from-scratch
+   OS for the Anbernic RG DS handheld. The eMMC wipe succeeded, so the device
+   now boots only our SD. Next: plug into a PC to confirm USB enumeration, then
+   build the USB-C flashing loop.
+2. 2026-07-23 20:30, after Request 5 - Goal: build Soren DS, a from-scratch OS
+   for the Anbernic RG DS. We wiped the eMMC (confirmed blank) and just added
+   the debug-log end-of-log marker plus a viewer. Next: you check whether
+   plugging in shows a new /dev/ serial device.
+3. 2026-07-24 15:47, after Request 8 - Cleaning up the phase-1 issues on Soren
+   DS: I've torn down the wipe issue and closed 106c, with three more commits
+   ready. Next action is committing my changes once you confirm I should leave
+   your teammate's staged gif-generator work untouched.
+4. 2026-07-25 12:56, after Request 9 - We're cleaning up Soren DS's phase-1
+   issues. Just closed 110q and 106c with clean commits; next I start 110n,
+   weaving the probe runner into the boot flow and dropping the terminal park.
 
 --------------------------------------------------------------------------------
 
@@ -993,7 +1011,8 @@ work. I'll drive the closures (update current-behavior → move to `completed/`
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Audit open phase-1 issues" came to rest*
+*[background task] Agent "Audit open phase-1 issues" came to rest —
+[audit-open-phase-1-issues-jul-24-26.md](audit-open-phase-1-issues-jul-24-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -1333,6 +1352,8 @@ that.
 > rule. My mistake — committing now, around it, leaving their staging
 > untouched.
 
+*[commit] e69a98f8 - debug log: mark where each boot's log ends, and read it back clean (110g)*
+
 > Committed. Let me verify it stayed clean — my files only, and the teammate's
 > staging untouched.
 
@@ -1341,7 +1362,15 @@ that.
 > right now), yet my commit stayed clean. Good, that's the proof it's isolated.
 > Continuing with the rest.
 
+*[commit] 180b06d0 - settle on SD-boot for development; keep the eMMC for releases (014, 110c)*
+
+*[commit] ddb5a28d - the SD-image builder now explains itself with --help*
+
 > Now the two closures with moves to `completed/`.
+
+*[commit] 7bf60443 - put away the one-shot eMMC eraser now that it has done its job (110q)*
+
+*[commit] 584c24b3 - the indicator lights run on their own dimmer again — confirmed (106c)*
 
 > All five committed. Let me verify the final state — my commits landed, the
 > tree's clean of my work, and the teammate's `gif-generator` staging is

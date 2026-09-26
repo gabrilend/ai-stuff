@@ -5,7 +5,8 @@ Extracts Claude conversation transcripts from `~/.claude/projects/` and writes s
 Text the *harness* wrote into the user's seat — slash commands, their output, background-task notices, boilerplate caveats — is neither speaker, and is rendered as a short line of its own without taking a number in the user's sequence.
 
 Conversations with helper agents ("subagents") are saved too, beside the
-conversation that spawned them (issue 025).
+conversation that spawned them, each named after the task it was given
+(issue 025).
 
 ## Use Cases
 
@@ -115,14 +116,27 @@ tomorrow if the log's date characters were taken at face value; they are
 resolved to an instant and re-read locally instead.
 
 The date token is `<lowercase-month>-<day>-<2-digit-year>`. When several
-transcripts resolve to the same span in one folder — a conversation and its
-helper conversations, or two conversations held the same day — the first keeps
-the bare name and the rest take a suffix placed just before `.md`:
-`jul-3-26_agent-1.md`, `jul-3-26_agent-2.md`, and so on. Main conversations are
-exported before helpers so that they hold the bare names. The suffix alone does
-not say which kind a file is; its header does (`agent-<hash>` for a helper, a
-uuid for a main conversation). Whether to split the suffix is an open question
-in issue 025.
+transcripts resolve to the same name in one folder — two conversations held
+the same day — the first keeps the bare name and the rest take a suffix placed
+just before `.md`: `jul-3-26_agent-1.md`, `jul-3-26_agent-2.md`, and so on.
+
+A helper conversation is named after the one-line task it was given, with the
+date last: a helper spawned as "Draft the RGPL license" on 22 September 2026
+becomes `draft-the-rgpl-license-sep-22-26.md`. The words come from the
+`.meta.json` Claude Code keeps beside each helper's log; a helper without one
+is an export error, not a date-only name. Helpers are exported before the
+conversation that spawned them, and the parent's line saying a helper
+finished ends with a link to that helper's file:
+
+```
+*[background task] Agent "Draft the RGPL license" finished —
+[draft-the-rgpl-license-sep-22-26.md](draft-the-rgpl-license-sep-22-26.md)*
+```
+
+The exporter hands the parser a small table of helper ids and filenames
+through the `TRANSCRIPT_HELPER_NAMES` environment variable to make that link;
+a notice whose id is not in the table (a background shell command) gets none.
+Details in issue 025.
 
 The header line `# Conversation Summary: <id>` is the file's stable identity.
 It is how this tool re-finds a conversation's file on later runs (so re-running
@@ -297,6 +311,11 @@ Each conversation is saved as a markdown file with:
 Generated on: {date}
 Models: {every model that served a reply, in first-appearance order}
 
+## Contents
+
+1. {local date and time}, after Request {N} - {a recap Claude Code wrote
+   while the person was away}
+
 --------------------------------------------------------------------------------
 
 `/model` - {what the command did, if one was run}
@@ -319,7 +338,21 @@ Models: {every model that served a reply, in first-appearance order}
 ```
 
 The `Models:` line is omitted when no assistant message named a model, and the
-command line when no command was run. Everything else is always present.
+command line when no command was run. The Contents section lists, in order,
+every recap Claude Code wrote while the person was stepped away — read top to
+bottom it is a summary of how the conversation went — each placed by the last
+request before it, with the "(disable recaps in /config)" boilerplate removed;
+a conversation with no recaps has no Contents section (issue 037). Everything
+else is always present.
+
+A reply that made a commit carries a line for it where it happened,
+`*[commit] <hash> in <repository name> - <subject>*` (the repository is left
+out when plain `git commit` made it, since git does not print one). It is
+read from the output of the command that made the commit, and only when that
+command ran `commit-own-changes` or `git ... commit` — output that merely
+quotes a commit report, such as a search through old logs, is ignored. The
+transcript pages use these lines to say which conversation made each commit
+(issue 035).
 
 Every line begins at the left margin. Nothing is padded or repositioned: a
 transcript is a record, and where its words sit on a page belongs to whatever

@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# build-pages-before-push
+#
+# Rebuilds the conversation web pages of every project in a repository whose
+# pages have fallen behind, just before that repository is pushed. It is what
+# a repository's git "pre-push" hook runs (install-pages-hook puts it there).
+#
+# In general terms: each project keeps its saved conversations in an
+# llm-transcripts/ folder and readable pages of them in llm-transcripts/HTML/.
+# The pages are rebuildable output and are not committed; this keeps them
+# current on the machine at the natural moment a piece of work is shipped. A
+# project's pages are rebuilt when a transcript, or the project's latest
+# commit, is newer than its front page; the rest are left as they are, so a
+# push in a repository of forty projects rebuilds the handful that moved.
+#
+# A project whose pages cannot be built stops the push, with the reason: the
+# pages would otherwise go quietly stale. `git push --no-verify` skips every
+# pre-push check, this one included.
+#
+# Usage: build-pages-before-push [repository] [--dir <scripts-dir>]
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+
+# -- {{{ parse_arguments
+function parse_arguments() {
+   REPO=""
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --dir) DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         *) REPO="$1" ;;
+      esac
+      shift
+   done
+   REPO=$(git -C "${REPO:-$(pwd)}" rev-parse --show-toplevel)
+}
+# }}}
+
+# -- {{{ projects_in
+# Every folder in the repository (the top and up to three levels down) that
+# holds an llm-transcripts/ folder with at least one transcript in it. The
+# pages' own HTML/ folder never qualifies, having no transcripts.
+function projects_in() {
+   local folder
+   while IFS= read -r folder; do
+      if grep -l -s -m1 '^# Conversation Summary: ' "$folder"/*.md > /dev/null; then
+         dirname "$folder"
+      fi
+   done < <(find "$REPO" -maxdepth 4 -type d -name llm-transcripts -not -path '*/.git/*')
+}
+# }}}
+
+# -- {{{ is_stale
+# Whether a project's pages are behind: no front page yet, a transcript
+# newer than it, or a commit to the project made after it was written.
+function is_stale() {
+   local project="$1"
+   local index="$project/llm-transcripts/HTML/index.html"
+   [ -f "$index" ] || return 0
+   if find "$project/llm-transcripts" -maxdepth 1 -name '*.md' -newer "$index" | grep -q .; then
+      return 0
+   fi
+   local last_commit
+   last_commit=$(git -C "$project" log -1 --format=%ct -- . || echo 0)
+   [ "${last_commit:-0}" -gt "$(stat -c %Y "$index")" ]
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   parse_arguments "$@"
+   local project built=0 failed=0 current=0
+   while IFS= read -r project; do
+      if is_stale "$project"; then
+         echo "transcript pages: rebuilding $project"
+         if "$DIR/transcript-site/build-transcript-pages" "$project" --dir "$DIR" > /dev/null; then
+            built=$((built + 1))
+         else
+            echo "transcript pages: FAILED for $project (run build-transcript-pages there to see why)" >&2
+            failed=$((failed + 1))
+         fi
+      else
+         current=$((current + 1))
+      fi
+   done < <(projects_in)
+   echo "transcript pages: $built rebuilt, $current already current, $failed failed"
+   [ "$failed" -eq 0 ]
+}
+# }}}
+
+main "$@"

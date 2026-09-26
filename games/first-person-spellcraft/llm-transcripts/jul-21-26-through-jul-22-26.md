@@ -1,7 +1,27 @@
 # Conversation Summary: d56354f8-b859-47d0-9d82-52213cf9faba
 
-Generated on: 2026-09-21 19:46:17
+Generated on: 2026-09-26 13:26:21
 Models: claude-opus-4-8
+
+## Contents
+
+1. 2026-07-21 16:28, after Request 2 - Building First-Person-Spellcraft, a
+   two-mouse spellcasting FPS on a SoraMech-style dataflow engine. I've read the
+   vision docs and mapped the architecture. Next: your call on two design
+   questions (frame-clock inside the map vs. separate renderer; mouse delta
+   handling) before I write phase-1 docs.
+2. 2026-07-21 21:19, after Request 8 - We're building the game's engine as a
+   SoraMech-style dataflow substrate: Lua map, C functions, FFI, all separate
+   threads. I'm waiting on your nod for the reuse plan (vendor the pool, write
+   lean C slots modeled on SoraMech's locking) before pouring the C layer.
+3. 2026-07-21 22:25, after Request 12 - We're building First Person Spellcraft's
+   engine as a pure-C SoraMech-style dataflow system. The substrate (slots,
+   pool, dispatch) is built and tested. Next: your call on whether I commit it
+   now as sub-issue 102a, or keep building toward a runnable window first.
+4. 2026-07-22 12:10, after Request 15 - We're building First Person Spellcraft
+   as a pure-C SoraMech-style dataflow engine. The runnable window loop (issue
+   102) is done and committed; next is issue 103, the square-room world model
+   the player will stand in.
 
 --------------------------------------------------------------------------------
 
@@ -382,6 +402,8 @@ renderables you choose.
 
 > Diff is accurate and coherent. Staging only my three files (leaving all the
 > in-progress work untouched) and committing:
+
+*[commit] 803c35c - clarifying the system purpose*
 
 Committed to `master` as `803c35c` — "clarifying the system purpose", 3 files,
 and I left all your in-progress work (phase-4 scaffolding, the new issue drafts,
@@ -926,6 +948,8 @@ it is a soramech system. All things are separate threads.
 
 > Now finish the docs branch — create the symlink, commit on `documentation`,
 > and remove the throwaway worktree so your `main` tree is never touched:
+
+*[commit] 773f713 - documentation index: seed the cross-project notes branch*
 
 > Symlink committed as mode `120000` (a real symlink blob — tombstone behavior
 > confirmed), on a root-commit orphan branch. Now removing the throwaway
@@ -1707,6 +1731,8 @@ sounds great to me
 > only my files and leaves everything else staged exactly as it was. Doing that,
 > then verifying the commit touched only my files and their ~380 remain staged:
 
+*[commit] 7c2c86ae - first-person-spellcraft: lay the dataflow substrate — wires, threads, a self-turning graph*
+
 > Caught at the verification step — and handled cleanly. The commit
 > **`7c2c86ae`** contains exactly my **17 files** and nothing else; the other
 > **381 staged entries** (the double-gitters' in-progress work across the
@@ -1803,6 +1829,8 @@ great can we start working on it?
 > Right — `git commit -- <pathspec>` can't reach *untracked* files; they have
 > to be staged first. Staging just the transcripts, then committing only them:
 
+*[commit] 458d7ee6 - first-person-spellcraft: capture session transcripts through the substrate work*
+
 > Transcripts in (`458d7ee6`), only mine, the 381 others untouched. Now
 > verifying raylib actually links and a window can open here before I build the
 > Platform seam on it:
@@ -1880,6 +1908,8 @@ please continue
 > Exactly my 10 files — no `output/goodbye`, no `datapath`, no `101`. (The
 > transcripts didn't re-stage because they're unchanged since `458d7ee6` —
 > already in history, so "every commit" is satisfied.) Committing via pathspec:
+
+*[commit] 5168ec71 - first-person-spellcraft: the substrate becomes a window you can run (102b)*
 
 Committed clean: **`5168ec71`** — exactly my 10 runnable-loop files, the 381
 concurrent entries still staged and untouched. (`run` even carried its
@@ -2016,6 +2046,8 @@ various lesson directories.
 > three I'm deliberately excluding: `101` + `datapath` (architecture-decision
 > concern) and the runtime `output/goodbye`. Committing via pathspec, including
 > both sides of the 103 rename:
+
+*[commit] dda0bff9 - first-person-spellcraft: the room takes shape — the world model, seen top-down (103)*
 
 Committed clean: **`dda0bff9`** — 17 files, all mine (including the 103 rename
 into `completed/`), the 381 concurrent entries untouched.

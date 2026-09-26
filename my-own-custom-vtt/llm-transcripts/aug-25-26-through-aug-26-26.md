@@ -1,7 +1,14 @@
 # Conversation Summary: 3af1649c-9a08-450f-90b7-6772b60a9272
 
-Generated on: 2026-09-21 19:46:32
+Generated on: 2026-09-26 12:47:28
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-26 22:19, after Request 6 - Building your VTT: twelve phases are
+   complete and committed, including phase 12 from your four answers. Next up is
+   deciding which of the 23 remaining open questions to work through, or picking
+   a new direction.
 
 --------------------------------------------------------------------------------
 

@@ -1,7 +1,22 @@
 # Conversation Summary: 09b1f2ed-6cb3-4243-bd3a-fe3b541b23d8
 
-Generated on: 2026-09-16 17:59:56
+Generated on: 2026-09-26 12:47:16
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-09-14 19:04, after Request 3 - Goal was cleaning the hero-less-moba tree
+   and building out the test census; that's done and committed, census now 59 of
+   80. Next: write tests for the remaining coverable gaps, starting with the
+   commander catalogue and hero spawning in phase 5.
+2. 2026-09-15 03:57, after Request 4 - We've been building out the
+   hero-less-moba test census: it went from 28 to 59 of 80 mechanics covered,
+   and the hand tests now run their own sim and record your answers. Next: you
+   run the eight hand tests and answer what they ask.
+3. 2026-09-15 04:15, after Request 5 - Goal was cleaning the git tree and
+   building out the test census; that's done and committed, with the census up
+   from 28 to 59 of 80 mechanics. Next: work down the 21 uncovered mechanics,
+   mostly commanders, heroes and lane zones.
 
 --------------------------------------------------------------------------------
 

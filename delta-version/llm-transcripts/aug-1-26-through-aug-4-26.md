@@ -1,7 +1,18 @@
 # Conversation Summary: 22a5a00d-edad-4b48-90b6-d21f0141448c
 
-Generated on: 2026-09-21 19:46:02
+Generated on: 2026-09-26 12:46:50
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-01 22:25, after Request 1 - You asked whether the transcript backup
+   hook deletes markdown when Claude Code culls old session logs; it doesn't,
+   and week-spanning sessions are safe. I also found subagent logs are no longer
+   being captured, and I'm waiting on your answer about whether to fix that.
+2. 2026-08-02 12:15, after Request 4 - We're fixing your llm-transcripts backup
+   so it reads as a design narrative; retention is now set to 20 years. Next:
+   you answer three open questions (interruptions, summary labeling, whether to
+   repass old transcripts) before I build anything.
 
 --------------------------------------------------------------------------------
 

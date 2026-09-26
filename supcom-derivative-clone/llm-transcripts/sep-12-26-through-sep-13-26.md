@@ -1,7 +1,14 @@
 # Conversation Summary: a8f0ec08-a803-4c79-8797-ac04c21cd6f9
 
-Generated on: 2026-09-21 19:46:39
+Generated on: 2026-09-26 13:26:54
 Models: claude-fable-5-1
+
+## Contents
+
+1. 2026-09-13 08:37, after Request 2 - Setting up the supcom-derivative-clone
+   project: docs, 76 issue blueprints, 10 failing-by-design tests, and build
+   scripts are committed. Next action: work through the open questions with you,
+   starting with whether the simulation is ported to C boxes for the handheld.
 
 --------------------------------------------------------------------------------
 
@@ -50,6 +57,8 @@ please continue
 --------------------------------------------------------------------------------
 
 ### Assistant Response 2
+
+*[commit] f8b23c51 - A field of dunes is designed before a grain is raised*
 
 Committed as `f8b23c51` on master, scoped to the project: 158 files, everything
 the request asked for, plus the tools that made them. The task is **in progress,

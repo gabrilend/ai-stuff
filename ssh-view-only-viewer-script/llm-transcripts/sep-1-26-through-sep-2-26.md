@@ -1,7 +1,25 @@
 # Conversation Summary: 66b27888-4f43-4a8f-af72-9b58f8ef77e6
 
-Generated on: 2026-09-21 19:46:39
+Generated on: 2026-09-26 13:26:52
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-09-01 20:50, after Request 1 - You asked what this project is about;
+   it's just a vision note describing an SSH login that appears temporarily when
+   a specially-shaped packet arrives, granting read-only viewing of a terminal.
+   No code exists yet. Next: decide the trigger mechanism and where the paired
+   names come from.
+2. 2026-09-02 02:48, after Request 3 - Goal: build a rotating RAM shelf that
+   shares files between your sora minis, delivered via r-mail so viewers open
+   them with their own local tools. I pitched the design; next you decide
+   whether attachments should be revocable, since issue #355 currently says they
+   aren't.
+3. 2026-09-02 17:36, after Request 5 - Goal: a packet that makes temporary
+   view-only SSH credentials on the listening machine. The knock, verdict, and
+   account-granting plans are built and tested; the room isn't. Next: build
+   phase 3, the sshd chroot and read-only config that lets a granted account
+   actually look around.
 
 --------------------------------------------------------------------------------
 
@@ -379,6 +397,8 @@ separate, but related enough to be part of the same project.
 > Confirmed the gate fails. Now let me preserve the current state before
 > restructuring, so both versions are in the record.
 
+*[commit] ff5d65f4 - A dream about a door that opens on a stranger's name*
+
 > Baseline is in the record. Now the structure and the vision split.
 
 > Let me verify the one mechanism the whole refill loop depends on — that a
@@ -481,6 +501,8 @@ separate, but related enough to be part of the same project.
 > The test caught a real bug: `readlink -f` succeeds on a path whose final
 > component doesn't exist, so a missing file read as *inside* the corpus. `-e`
 > requires every component to exist.
+
+*[commit] f547cc4a - Two dreams get a shared hand, and the hand learns to refuse*
 
 Committed. Here's where things stand.
 
@@ -666,6 +688,8 @@ after we have the script working.
 > End to end through stdin. Now the real transport — UDP over the loopback.
 
 > Both carriers work. Now aligning the docs with the new phase order.
+
+*[commit] e8fdd397 - A knock, a name, and a door that makes itself*
 
 Both corrections taken. The script exists and runs.
 

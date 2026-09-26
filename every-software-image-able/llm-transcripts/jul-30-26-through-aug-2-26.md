@@ -1,7 +1,61 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-09-21 19:46:13
+Generated on: 2026-09-26 13:26:13
 Models: claude-opus-5, claude-fable-5
+
+## Contents
+
+1. 2026-07-30 22:02, after Request 10 - We're designing the
+   every-software-image-able system: a seed image whose model writes its own
+   bytecode floor in assembly, plus status colorshapes, an infinite radial
+   canvas, and life-images as input. Next: write it into notes/ and docs/ when
+   you say go.
+2. 2026-07-30 23:11, after Request 11 - We're designing
+   every-software-image-able: a bootable seed that writes its own floor and
+   fills a disk with software. I added your open-questions rule to CLAUDE.md and
+   gathered eight questions. Next: you answer question one, what the compiler
+   measures when picking the best variant.
+3. 2026-07-31 14:44, after Request 13 - We're designing the
+   every-software-image-able project through conversation — a bootable seed
+   that writes its own floor — and gathering open questions before writing
+   anything to disk. I've asked what a "moment" holds when the machine steps
+   backward through its own history, and I'm waiting on your answer.
+4. 2026-08-01 14:44, after Request 16 - We're designing your self-building
+   computer: a seed image whose model writes its own floor, then uses, alters,
+   or condenses software to fill the disk. Everything about display, people, and
+   games is parked. Next: you answer what makes the machine want something in
+   the first place.
+5. 2026-08-01 15:04, after Request 18 - We're designing
+   every-software-image-able: a computer that boots with a model and writes all
+   its own software, starting from assembly and its own hardware map. Everything
+   so far lives only in this conversation. Next: you say whether to write it
+   down.
+6. 2026-08-01 15:48, after Request 19 - We're designing a computer that writes
+   all its own software from scratch, and I just wrote the design into nine
+   documents under docs/ and notes/. Next: tell me what drains the second
+   coordinate of a status code, and whether I can commit.
+7. 2026-08-01 16:39, after Request 22 - We're documenting a computer that writes
+   all its own software from a bare image, and I've written the design docs and
+   committed them. Next: you answer what mediates between altering existing
+   software and condensing it, the last big open question.
+8. 2026-08-01 17:02, after Request 23 - We're documenting the
+   every-software-image-able design: a computer that writes all its own software
+   from bare metal. Nine docs are written and committed. Next: you answer
+   whether these machines should be verifiable at all, the last blocking open
+   question.
+9. 2026-08-01 17:17, after Request 24 - We're documenting your self-building
+   computer project — nine documents are written and committed, with twelve of
+   thirteen open questions answered. The one left: how many different approaches
+   the machine tries on a constraint before moving on, or whether that's simply
+   its own call.
+10. 2026-08-01 18:08, after Request 25 - We've been designing a computer that
+    writes all its own software from an empty drive, and the documentation for
+    it is now written and committed with no blocking questions left. Next: write
+    the roadmap and issue files, if you want them.
+11. 2026-08-01 21:56, after Request 33 - We're planning the seed for a computer
+    that writes all its own software; the design docs and 28 tickets are written
+    and committed, and I've just walked you through phase 1 in detail. Next:
+    pick the model and the first target board.
 
 --------------------------------------------------------------------------------
 
@@ -1368,6 +1422,8 @@ have the correct one.
 > `vision` was never tracked, so there's no history at the root to preserve.
 > Recording it there first, so the move shows as a move.
 
+*[commit] 7523a5fd - every-software-image-able: the page it started from*
+
 > Structure is in place. Now the documents.
 
 Written. Nine documents, plus the directories and the RAM symlinks.
@@ -1486,6 +1542,8 @@ each code as a markdown table, but each system will build it's own design.
 > The rule's there — commit only my own paths, leave the other work staged
 > where it is. Doing that.
 
+*[commit] 6bd8fc5f - every-software-image-able: a computer with no floor, and the order it builds one*
+
 Two commits, and the other work is untouched — backwards-reader is still
 staged exactly as it was.
 
@@ -1562,6 +1620,8 @@ them.
 > The transcript is this conversation, current through my last message.
 > Committing it — and while I have it, wiring the deferred note to the lines
 > it came from, so each parked thing points at where it was said.
+
+*[commit] 75857aae - every-software-image-able: the dialogue the documents were cut from*
 
 Committed. `75857aae`.
 
@@ -1791,6 +1851,8 @@ the machine handles that sort of thing.
 > Three corrections to fold in, and the growth phase is a real change to what
 > I'd written — I had it purely reactive.
 
+*[commit] 09ed8cd2 - every-software-image-able: it fills itself before it answers the door*
+
 Your RAM worry doesn't bite. Memory and the boot medium are separate hardware
 — read-only describes the storage, not the machine. The processor writes to
 RAM directly, with nothing in between that could refuse, and the image gets
@@ -1893,6 +1955,8 @@ A stranger could verify it as well as you could.
 > That flips read-only from a hazard into the preferred form — the seed stays
 > a seed, and can plant the same thing a hundred times without being touched.
 > Reordering the bootstrap around it.
+
+*[commit] 33515185 - every-software-image-able: the seed stays a seed*
 
 `33515185`. The reordering did more than move a step — it changed what the
 delivery medium *is*. It's a seed in the agricultural sense now: the thing that
@@ -2001,9 +2065,13 @@ That sounds better to me than "you must show up at 9 and leave by 5"
 > carried the worry over to a project that never had it. That's the second thing
 > I've smuggled in from next door. Backing it out.
 
+*[commit] 5813a0e8 - every-software-image-able: say what is wanted, and then stand back*
+
 > The export tool renamed the transcript as the conversation crossed into today
 > — my commit caught the old name's deletion without the new one. Fixing that,
 > and checking whether the line numbers in the deferred note still land.
+
+*[commit] 71edd1d8 - every-software-image-able: say what is wanted, and then stand back*
 
 Written up as a strategem, since the pattern isn't specific to this project —
 a compiler is told what to compute rather than which registers to use, a query
@@ -2288,6 +2356,8 @@ is... opaque at best.
 > boot. Writing it up as its own document, since the thing that thinks turns out
 > to be a major feature nobody had described.
 
+*[commit] 5b42aa06 - every-software-image-able: the part that arrives, and what it costs to touch it*
+
 The walkthrough held everywhere except one place, and that place was large:
 **nothing described what does the building.** Every document said what the
 machine writes; none said what runs the model. Now there's one — the engine on
@@ -2353,6 +2423,8 @@ pools" and "looping iterators" and such.
 > recommended patterns riding along on the chip, rather than rules scattered
 > through the documents.
 
+*[commit] c9971bdc - every-software-image-able: shapes that have worked, carried along and not enforced*
+
 That bundle did something to the documents themselves. Every one of them had
 been separately insisting that its contents were suggestions rather than rules
 — the same sentence written eight times in eight places, which is precisely
@@ -2399,6 +2471,8 @@ but we shouldn't insist upon it when the seed is growing.
 > Roadmap first.
 
 > Phase 2 — the hands.
+
+*[commit] f94e2ebf - every-software-image-able: a plan for the seed, and none for what grows from it*
 
 Roadmap, twenty-two tickets, and a progress file per phase. The ordering is
 forced rather than chosen: nothing means anything until a model runs, a machine
@@ -2455,6 +2529,8 @@ as we build it?
 >
 > The word covers three unrelated things, which is where the confusion comes
 > from. Writing it up.
+
+*[commit] 0caa3155 - every-software-image-able: a computer to fail in, and devices that can be killed*
 
 Short answer: **a hardware emulator doesn't need an operating system inside it,
 and you don't have to write one.**
@@ -2536,6 +2612,8 @@ just for testing...
 > emulator, not the guest — otherwise the machine learns "when I do the bad
 > thing I find out immediately," which is the opposite of what real hardware
 > teaches.
+
+*[commit] 9e3c763c - every-software-image-able: landmines where the fatal registers are*
 
 The thing your idea unlocked that I hadn't seen: **the gravestone becomes
 testable.**
@@ -3032,6 +3110,8 @@ system boots. This should be a mutable file.
 > Two filenames no longer match their tickets. Renaming, and checking what
 > points at them.
 
+*[commit] ae979410 - every-software-image-able: nothing in the context that cannot be named*
+
 Phase 1 changed shape in three places, and two of the answers have a consequence
 worth looking at before we move on.
 
@@ -3145,6 +3225,8 @@ sure, unless you want to talk about those things I just said above.
 > its own mind can rewrite anything. What we can do is write the procedure out
 > in full with the reason attached, and let the consequence be the enforcement.
 > Fixing both documents to say that.
+
+*[commit] f9c4b5a7 - every-software-image-able: the lock was always imaginary*
 
 Committed.
 
@@ -3426,6 +3508,8 @@ way that each of those types - NVMe, SATA, or USB - would? Sorta like adding the
 >
 > The egg line goes in the notes.
 
+*[commit] e8d1183f - every-software-image-able: a room of eggs, cooking in the dark*
+
 Committed.
 
 Two things worth knowing about what that changed.
@@ -3675,6 +3759,8 @@ the system is running independently - learning to walk on it's own.
 > Which makes not warning it safe. And makes pulling the card a real event
 > rather than tidying up.
 
+*[commit] 23dc27db - every-software-image-able: it can check itself against what it was handed, until it can't*
+
 Committed.
 
 Worth noticing what this design's safety story now looks like, because it
@@ -3729,6 +3815,8 @@ sure, 4 and 5 next.
 ### Assistant Response 39
 
 > Sharper than I had it, and it's two milestones rather than a judgement call.
+
+*[commit] 16d46956 - every-software-image-able: two milestones, and nobody deciding which engine runs*
 
 # Phase 4 — three tongues, in detail
 
@@ -3952,6 +4040,8 @@ the rest looks fine enough. we'll iron out the details as they come up.
 > the matching payload, so your goal happens; the mechanism is selection rather
 > than trial.
 
+*[commit] 98c2c95e - every-software-image-able: it can draw before it can do anything else*
+
 Committed.
 
 The nice consequence of the framebuffer: the machine's very first act of
@@ -3984,6 +4074,8 @@ sure let's do phase 6.
 >
 > One thing worth putting in the ticket before walking it, because it turns the
 > capstone from an anecdote into a measurement.
+
+*[commit] 4815acab - every-software-image-able: twenty of them, differing only in their luck*
 
 **Goal.** A card goes into a computer with nothing on it, and the computer
 starts. Then, unaided, it writes an allocator, finds storage, moves in, and
@@ -4117,6 +4209,8 @@ phase 7 next
 >
 > Four things to put in the tickets first — one of them changes how the whole
 > phase relates to phase 5.
+
+*[commit] f8f11163 - every-software-image-able: an emulated machine is a board like any other*
 
 **Goal.** Develop the seed without a computer in front of you, and test the one
 thing that can't be tested safely on real hardware.
@@ -4301,6 +4395,8 @@ okay can you add everything you need to your todo list and start programming?
 > All three stubs built on the first try, and the x86 one passed its
 > exactly-512-bytes check. Now the real test — booting them.
 
+*[commit] 2fe8a6c4 - every-software-image-able: first light, three times, on the first try*
+
 *model: claude-opus-5*
 
 > Now the hazard map — where the landmines sit, per architecture.
@@ -4348,8 +4444,14 @@ okay can you add everything you need to your todo list and start programming?
 > Six of six across all three architectures. Writing the info files and
 > recording what the runs taught, then committing.
 
+*[commit] 5f35df0c - every-software-image-able: tripwires on the controls that would kill a chip*
+
 > The renamed info file still describes the old single-purpose builder. Fixing
 > that.
+
+*[commit] fc2e40ab - every-software-image-able: the description a rename left behind*
+
+*[commit] 938e96df - every-software-image-able: the mailbox is kept, the letters are not*
 
 There's working code now. Both tickets that had nothing blocking them are done,
 tested on all three architectures.
@@ -4433,6 +4535,8 @@ working?
 
 > Writing the info files, then committing the packer.
 
+*[commit] 7a2cf2fb - every-software-image-able: a model that explains itself to whoever finds it*
+
 > UEFI firmware for all three architectures, and KVM. That changes the harness
 > picture — the linear framebuffer the design depends on comes from UEFI, and
 > my boards use BIOS and no-firmware.
@@ -4462,6 +4566,8 @@ working?
 
 > Everything works. Recording the framebuffer finding — it's the most
 > consequential thing this session turned up.
+
+*[commit] f3b375e1 - every-software-image-able: it drew something, and the drawing was read back*
 
 > Acceleration and screens are done. The UEFI question is next, and there's no
 > linker here — so the PE file gets generated the same way everything else
@@ -4525,6 +4631,8 @@ working?
 > All three architectures now boot through real UEFI firmware. Confirming x86
 > still works after the envelope change, then recording what this cost.
 
+*[commit] ae773e6a - every-software-image-able: real firmware, three times, and nobody choosing*
+
 > Now issue 102 — finding the weights with nothing underneath. With UEFI the
 > blob can ride inside the image itself, so the engine locates it by measuring
 > from where it's standing. Extending the wrapper to carry one.
@@ -4553,6 +4661,8 @@ working?
 > context 128, 5 tensors, 32 tokens, and 0x6480 = 25728 bytes, exactly what the
 > host-side reader reports. A machine with no filesystem, no allocator and no
 > operating system found a model inside itself and read it.
+
+*[commit] 685b4100 - every-software-image-able: it found the model inside itself and read it aloud*
 
 The tree is clean and the roadmap is on the task list. Here's where the code
 stands.
@@ -4656,6 +4766,8 @@ Can you keep working until your to-do list is cleared? It looks great so far. :
 > backwards through the attention, which is a mistake that otherwise shows up
 > only as subtly wrong output.
 
+*[commit] 34d2d901 - every-software-image-able: a known question, and the answer it must keep giving*
+
 > Now the tokenizer — self-contained, and the one whose failures are quietest.
 
 > 21 of 21, including every byte from 0 to 255 and a null byte mid-string. Now
@@ -4669,6 +4781,8 @@ Can you keep working until your to-do list is cleared? It looks great so far. :
 
 > The runner works from any directory. Running the full suite including the
 > emulated machines.
+
+*[commit] d0812da1 - every-software-image-able: the two pieces whose failures are quietest*
 
 I've taken this as far as I can do well in one sitting, and I should be straight
 with you: **the list won't clear in a session.** What's left is the assembly
@@ -4795,6 +4909,8 @@ academic format.
 > methodology, with the self-building machine as motivation rather than claimed
 > result. That paper can be fully supported by what exists.
 
+*[commit] fd971945 - every-software-image-able: seven ways of being wrong without being told*
+
 Written and committed: `docs/042-whitepaper.md`, about 5,000 words.
 
 ## Is it valuable? Yes, but as a specific paper
@@ -4918,6 +5034,8 @@ work on other tasks.
 >
 > Wiring it into the runner and recording what this cost.
 
+*[commit] 65737b41 - every-software-image-able: the same answer, down to the last bit*
+
 > Next: the number that decides whether a model fits at all, which is the top
 > risk in the paper.
 
@@ -4929,8 +5047,12 @@ work on other tasks.
 > This is the answer to the paper's top risk, as arithmetic rather than
 > argument. Wiring it in and committing.
 
+*[commit] 33eccbd0 - every-software-image-able: the biggest risk, turned into arithmetic*
+
 > The whitepaper's numbers went stale the moment I kept working — and it
 > gained a finding. Fixing that, since I created the staleness.
+
+*[commit] d7dda443 - every-software-image-able: an eighth way, and the first one caught in advance*
 
 **The arithmetic issue you asked about:** I'd built the reference forward pass
 and its recorded answer, but not the assembly. That's now started, and starting
@@ -5089,6 +5211,8 @@ because it's what you're budgeted for. You're doing great!
 >
 > Recording the two new findings and committing.
 
+*[commit] 9775c313 - every-software-image-able: no tolerance anywhere*
+
 > Now the remaining kernels, so a complete forward pass can run on assembly
 > arithmetic.
 
@@ -5123,6 +5247,8 @@ because it's what you're budgeted for. You're doing great!
 >
 > Verifying everything else still holds, then committing.
 
+*[commit] f4b8d297 - every-software-image-able: a whole thought, on the real arithmetic*
+
 > Now the other half of the feasibility question — speed. There's a working
 > forward pass to measure.
 
@@ -5130,8 +5256,12 @@ because it's what you're budgeted for. You're doing great!
 > a time is only 1.15× faster**, because keeping bit-exactness forces the
 > additions to stay in order. That's the measured price of exact comparability.
 
+*[commit] 90864dc8 - every-software-image-able: how fast it thinks, and what exactness costs*
+
 > Next: the thinking loop and the atom context — the piece that turns a
 > forward pass into something that can hold a thought.
+
+*[commit] 4bf455f1 - every-software-image-able: nothing in the context that cannot be named*
 
 Ten commits this round. I'm near the practical limit of what I can hold in one
 session, so let me report cleanly and set up the next one.
