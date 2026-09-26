@@ -16,8 +16,8 @@ local examples = {
     heard = { tick = 905 },
     order_answer = { order_id = 7, accepted = 0, effect_tick = 906, refusal = messages.refusal.not_yours },
     unit_states = { tick = 900, units = {
-        { id = 12, x = 1.5, y = 2.25, z = 0, vx = -3.5, vy = 0, vz = 0.125, facing = 1.5, anim = 3, anim_phase = 0.75 },
-        { id = 13, x = -8, y = 16, z = 0.5, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0 },
+        { id = 12, x = 1.5, y = 2.25, z = 0, vx = -3.5, vy = 0, vz = 0.125, facing = 1.5, anim = 3, anim_phase = 0.75, radius = 0.5, team = 0 },
+        { id = 13, x = -8, y = 16, z = 0.5, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0, radius = 0.75, team = 1 },
     } },
     events = { tick = 903, events = {
         { kind = messages.event_kind.death, tick = 902, unit = 40, other = 12 },

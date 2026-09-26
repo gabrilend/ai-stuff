@@ -64,11 +64,11 @@ end
 print("\n=== Sizes, as they would cross a network ===")
 local one_unit = messages.encode("unit_states", { tick = 1, units = { examples.unit_states.units[1] } })
 local no_unit = messages.encode("unit_states", { tick = 1, units = {} })
-test("a unit record is 38 bytes", #one_unit - #no_unit == 38, tostring(#one_unit - #no_unit))
+test("a unit record is 43 bytes", #one_unit - #no_unit == 43, tostring(#one_unit - #no_unit))
 test("a heard beat is 5 bytes", #messages.encode("heard", { tick = 1 }) == 5)
 
 print("\n=== Floats come back as 32-bit floats ===")
-local third = { tick = 1, units = { { id = 1, x = 1 / 3, y = 0, z = 0, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0 } } }
+local third = { tick = 1, units = { { id = 1, x = 1 / 3, y = 0, z = 0, vx = 0, vy = 0, vz = 0, facing = 0, anim = 0, anim_phase = 0, radius = 0.5, team = 0 } } }
 local _, back = messages.decode(messages.encode("unit_states", third))
 test("a third comes back as the nearest 32-bit float", back.units[1].x == messages.f32(1 / 3) and back.units[1].x ~= 1 / 3)
 

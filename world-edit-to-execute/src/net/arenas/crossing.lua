@@ -2,24 +2,23 @@
 crossing.lua - the crossing-armies demo's map: a field split by a wall with one gap (issue 804)
 
 What this is: the map both the server and the renderer read, the way both
-sides of a Warcraft III game read the same map file. It is built from a
-few numbers rather than drawn by hand, so it can't come out lopsided, and
-returned as text rows, top row first: "#" a wall, "." open ground, "w" a
-west-army unit's starting cell, "e" an east-army unit's. Each unit is sent
-to the cell mirrored across the middle (the west army to where the east
-army started, and back).
+sides of a Warcraft III game read the same map file. The ground is built
+from a few numbers rather than drawn by hand, so it can't come out
+lopsided, and returned as text rows, top row first: "#" a wall, "." open
+ground. The armies are listed by size: each is packed round its home
+point, and sent to the other army's home point.
 
-The gap is twelve cells for armies eight deep: an eight-cell gap jams for
-good (runtime/crowd.lua's known limit). Two pillars on each side give the
-paths something to go around besides each other.
+Sizes, as the owner asked (2026-09-25: "Can you make some units of larger
+size?"): small, medium and large, the large ones slower.
 ]]
 
 local W, H = 40, 22           -- cells
 local WALL_X = 20             -- the dividing wall's column
 local GAP = { 6, 17 }         -- its gap, rows (twelve)
-local ARMY_ROWS = { 8, 15 }   -- eight deep
-local WEST_COLS = { 4, 8 }    -- five wide; the east army mirrors it
-local PILLARS = { { 14, 9 }, { 14, 13 } }   -- 2x2, top-left cells; mirrored east
+-- 2x2 pillars, top-left cells; mirrored east. Four cells apart: at two
+-- apart they made a narrow channel right on the armies' straight line,
+-- and the two armies funnelled into it head-on
+local PILLARS = { { 14, 7 }, { 14, 14 } }
 
 -- {{{ local function build()
 local function build()
@@ -40,21 +39,23 @@ local function build()
             end
         end
     end
-    for y = ARMY_ROWS[1], ARMY_ROWS[2] do
-        for x = WEST_COLS[1], WEST_COLS[2] do
-            cells[y][x] = "w"
-            cells[y][W + 1 - x] = "e"
-        end
-    end
     local rows = {}
     for y = 1, H do rows[y] = table.concat(cells[y]) end
     return rows
 end
 -- }}}
 
+-- Each army: how many of each size (radius, world units; speed, world
+-- units a second). Both armies are the same; the east one is mirrored.
+local ARMY = {
+    { count = 4,  radius = 0.8,  speed = 2.2 },   -- large
+    { count = 20, radius = 0.5,  speed = 3.0 },   -- medium
+    { count = 16, radius = 0.35, speed = 3.6 },   -- small
+}
+
 return {
     cell = 1.0,          -- world units a cell
-    unit_radius = 0.4,
-    unit_speed = 3.0,    -- world units a second
     rows = build(),
+    army = ARMY,
+    homes = { { 6.5, 11.5 }, { W - 6.5, 11.5 } },   -- west, east: world units
 }

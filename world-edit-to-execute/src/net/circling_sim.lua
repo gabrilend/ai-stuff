@@ -34,6 +34,7 @@ local function unit_record(id, t)
         x = math.cos(angle) * ring, z = math.sin(angle) * ring, y = 0.35 + 0.25 * math.sin(bob),
         vx = -math.sin(angle) * ring * speed, vz = math.cos(angle) * ring * speed, vy = 0.5 * math.cos(bob),
         facing = angle + 1.5707963, anim = 1, anim_phase = bob % 6.2831853,
+        radius = 0.25, team = 0,
     }
 end
 -- }}}

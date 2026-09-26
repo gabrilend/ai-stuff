@@ -69,11 +69,11 @@ static double now_us(void)
 /* }}} */
 
 /* One unit as drawn: where on the ground (x, z), how fast, which way it
- * faces, whether it is walking. */
+ * faces, its size on the ground, whether it is walking, whose it is. */
 typedef struct {
     uint32_t id;
-    float    x, z, vx, vz, facing;
-    int      walking;
+    float    x, z, vx, vz, facing, radius;
+    int      walking, team;
 } cross_unit;
 
 /* One whole state, as the mailbox carries it. */
@@ -88,8 +88,7 @@ typedef struct {
 typedef struct {
     int   rows, cols;
     char  cell[MOST_ROWS][MOST_COLS];   /* '#' wall, else ground */
-    float cell_size, unit_radius;
-    int   west_units;                   /* ids 1..west_units are player 0's */
+    float cell_size;
     sem_t ready;
 } cross_map;
 
@@ -174,7 +173,7 @@ static void on_unit_states(const uint8_t *b, size_t n)
     s->count = m.units_count;
     for (int i = 0; i < m.units_count; i++) {
         net_unit_states_units *u = &m.units[i];
-        s->units[i] = (cross_unit){ u->id, u->x, u->z, u->vx, u->vz, u->facing, u->anim == 1 };
+        s->units[i] = (cross_unit){ u->id, u->x, u->z, u->vx, u->vz, u->facing, u->radius, u->anim == 1, u->team };
     }
     s->received_us = now_us();
     mailbox_publish(mb, 0);
@@ -318,12 +317,11 @@ static void *receiver_run(void *arg)
              "link = require('net.renderer_link')", project_dir, project_dir);
     lua_must(L, luaL_dostring(L, setup), "loading the link");
 
-    /* the map: rows, cell size, unit radius */
+    /* the map: rows, cell size */
     lua_pushstring(L, project_dir);
-    call_link(L, "start", 1, 3);
-    map.unit_radius = (float)lua_tonumber(L, -1);
-    map.cell_size = (float)lua_tonumber(L, -2);
-    lua_pop(L, 2);
+    call_link(L, "start", 1, 2);
+    map.cell_size = (float)lua_tonumber(L, -1);
+    lua_pop(L, 1);
     map.rows = (int)lua_objlen(L, -1);
     if (map.rows > MOST_ROWS) { fprintf(stderr, "the map has more than %d rows\n", MOST_ROWS); exit(1); }
     for (int y = 0; y < map.rows; y++) {
@@ -332,10 +330,7 @@ static void *receiver_run(void *arg)
         const char *row = lua_tolstring(L, -1, &len);
         if (len > MOST_COLS) { fprintf(stderr, "the map has more than %d columns\n", MOST_COLS); exit(1); }
         map.cols = (int)len;
-        for (size_t x = 0; x < len; x++) {
-            map.cell[y][x] = row[x];
-            if (row[x] == 'w') map.west_units++;
-        }
+        for (size_t x = 0; x < len; x++) map.cell[y][x] = row[x];
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -392,9 +387,9 @@ static void want_disturbance(double delay, double jitter, double loss)
 static int overlapping(const cross_state *s)
 {
     int pairs = 0;
-    float reach = 2 * map.unit_radius;
     for (int i = 0; i < s->count; i++)
         for (int j = i + 1; j < s->count; j++) {
+            float reach = s->units[i].radius + s->units[j].radius;
             float dx = s->units[i].x - s->units[j].x, dz = s->units[i].z - s->units[j].z;
             if (dx * dx + dz * dz < reach * reach - 1e-4f) pairs++;
         }
@@ -455,7 +450,7 @@ static void draw_world(const cross_state *s, double seconds)
     for (int i = 0; i < s->count; i++) {
         uint32_t id = s->units[i].id;
         if (id > MOST_UNITS || news.path_len[id] == 0) continue;
-        Color col = id <= (uint32_t)map.west_units ? (Color){ 230, 90, 70, 110 } : (Color){ 80, 140, 240, 110 };
+        Color col = s->units[i].team == 0 ? (Color){ 230, 90, 70, 110 } : (Color){ 80, 140, 240, 110 };
         Vector3 from = ground(s->units[i].x, s->units[i].z, 0.04f);
         for (int k = 0; k < news.path_len[id]; k++) {
             Vector3 to = ground(news.path[id][k][0], news.path[id][k][1], 0.04f);
@@ -467,14 +462,21 @@ static void draw_world(const cross_state *s, double seconds)
 
     for (int i = 0; i < s->count; i++) {
         const cross_unit *u = &s->units[i];
-        int west = u->id <= (uint32_t)map.west_units;
+        int west = u->team == 0;
         Color body = west ? (Color){ 214, 72, 59, 255 } : (Color){ 59, 127, 217, 255 };
-        /* walking units bob, a little out of step with each other */
+        /* its size on the ground, as a ring under its feet: green for
+         * player 0's side, purple for player 1's (the owner, 2026-09-25) */
+        Color ring = west ? (Color){ 70, 220, 90, 255 } : (Color){ 190, 90, 230, 255 };
+        DrawCircle3D(ground(u->x, u->z, 0.03f), u->radius, (Vector3){ 1, 0, 0 }, 90.0f, ring);
+        DrawCircle3D(ground(u->x, u->z, 0.035f), u->radius * 0.97f, (Vector3){ 1, 0, 0 }, 90.0f, ring);
+        /* the body, sized by the radius; walking units bob, a little out of
+         * step with each other */
+        float r = u->radius * 0.8f, h = 0.5f + u->radius * 0.9f;
         float bob = u->walking ? 0.06f * fabsf(sinf((float)seconds * 9.0f + (float)u->id)) : 0;
-        DrawCylinder(ground(u->x, u->z, bob), map.unit_radius, map.unit_radius * 0.8f, 0.9f, 12, body);
+        DrawCylinder(ground(u->x, u->z, bob), r, r * 0.8f, h, 14, body);
         /* a nose, to show which way it faces */
-        Vector3 nose = ground(u->x + cosf(u->facing) * map.unit_radius, u->z + sinf(u->facing) * map.unit_radius, 0.7f + bob);
-        DrawSphere(nose, 0.09f, RAYWHITE);
+        Vector3 nose = ground(u->x + cosf(u->facing) * r, u->z + sinf(u->facing) * r, h * 0.78f + bob);
+        DrawSphere(nose, 0.05f + r * 0.12f, RAYWHITE);
     }
 }
 /* }}} */
@@ -631,7 +633,7 @@ int main(int argc, char **argv)
                                 delays[di], jitters[ji], losses[li] * 100), 20, 66, 16, (Color){ 222, 170, 66, 255 });
             DrawText(TextFormat("player 1 (a stand-in): %s [S]   tolerance in force: %s", silent ? "SILENT" : "talking",
                                 in_force ? TextFormat("%.2f s", in_force / 1000.0) : "2.00 s (starting)"), 20, 90, 16, (Color){ 190, 150, 210, 255 });
-            DrawText("red: player 0's army (you)   blue: player 1's   lines: each unit's planned path", 20, 114, 16, GRAY);
+            DrawText("red/green ring: player 0's army (you)   blue/purple ring: player 1's   lines: planned paths", 20, 114, 16, GRAY);
             if (paused) draw_waiting(&dragging, &drag_ms);
             if (shot_path) { EndTextureMode(); BeginDrawing(); EndDrawing(); } else EndDrawing();
             if (shot_path && seconds >= shot_seconds) {

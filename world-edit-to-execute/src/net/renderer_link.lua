@@ -9,7 +9,7 @@ the waiting dialog has someone to wait for when that stand-in is told to
 go silent.
 
 C calls, all from the one receiving thread:
-  link.start(dir)            -> the map: rows (text), cell, unit_radius
+  link.start(dir)            -> the map: rows (text), cell
   link.poll()                -> this player's messages due now (a list of
                                 byte strings); sends both players' heard
                                 beats when one is due (every 16 ms)
@@ -40,7 +40,7 @@ function link.start(dir)
     me, stand_in = h:player(0), h:player(1)
     next_beat = clock.now_ms()
     local map = require("net.arenas.crossing")
-    return map.rows, map.cell, map.unit_radius
+    return map.rows, map.cell
 end
 -- }}}
 

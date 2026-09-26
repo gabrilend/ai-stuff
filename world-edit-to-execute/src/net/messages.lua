@@ -66,6 +66,8 @@ local unit_record = {
     { "facing", "f32" },                                 -- radians
     { "anim", "u16" },                                   -- which animation
     { "anim_phase", "f32" },                             -- seconds into it
+    { "radius", "f32" },                                 -- its size on the ground
+    { "team", "u8" },                                    -- the player it belongs to
 }
 
 local descriptions = {

@@ -46,7 +46,7 @@ local function make_game(players)
         return {}
     end
     function sim.visible(player)
-        return { { id = player + 1, x = steps, y = 0, z = 0, vx = 62.5, vy = 0, vz = 0, facing = 0, anim = 1, anim_phase = 0 } }
+        return { { id = player + 1, x = steps, y = 0, z = 0, vx = 62.5, vy = 0, vz = 0, facing = 0, anim = 1, anim_phase = 0, radius = 0.5, team = player } }
     end
     local inbox = {}
     for p = 0, players - 1 do inbox[p] = {} end
