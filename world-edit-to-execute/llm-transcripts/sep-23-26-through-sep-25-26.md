@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 20:02:56
+Generated on: 2026-09-25 20:15:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -150,6 +150,10 @@ Models: claude-opus-5-5
     performs so we can build the renderer on it, and all three reports are
     published and copied to soramech. Next, you choose between prototyping named
     priority queues and starting the real renderer's host loop.
+35. 2026-09-25 20:06, after Request 78 - We're moving the renderer onto the
+    ceramic engine, and its first real frame now draws 2,048 engine-placed units
+    correctly. Next, try the live window (command above) so I can close that
+    issue, then build the mailbox buffer.
 
 --------------------------------------------------------------------------------
 
@@ -7795,6 +7799,481 @@ that criterion and close the issue.
 Next is the **mailbox triple buffer** (515c). It lets the engine work out frame
 N+1 while the raylib thread draws frame N, so computing and drawing overlap
 instead of taking turns.
+
+--------------------------------------------------------------------------------
+
+### User Request 79
+
+/compact
+
+--------------------------------------------------------------------------------
+
+### Session Recap (written by the harness, not by either speaker)
+
+This session is being continued from a previous conversation that ran out of
+context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. **Primary Request and Intent** (chronological)
+
+- **Route B (112e):** continued the Liquipedia cross-check.
+  - The user decided: "Leave them as 'have not been checked' and keep the issue
+    open. But let's move on to something else for now."
+- **Rendering direction.** The user chose Phase 5 rendering and asked about
+  raylib vs Bevy vs Vulkan; raylib is preferred.
+  - The user asked to review
+    `/home/ritz/programming/ai-playground/minimal-soramech/` (the "ceramic core
+    engine") as the design pattern for the engine, paying attention to raylib's
+    single-threaded render thread.
+- **Design decisions the user made:**
+  - on copy cost: re-evaluate the pointer rule;
+  - frames: attach a frame number; the lowest possible latency, with no extra
+    delay frames;
+  - "the client is simply a renderer … Everything the client has displayed can
+    be CORRECTED by the server";
+  - "cancel the swing mid-air. We should always update to the correct state as
+    soon as possible rather than continue delaying the truth";
+  - asset table: "the graph doesn't freeze, but the table can grow".
+- **Performance analysis.** The user asked for a performance analysis ("show me
+  more!") and then asked to:
+  - add background information;
+  - keep the same colour for each approach;
+  - fix the Y-axis readability of the herd chart;
+  - remove the serac-build finding from the report (note it in serac docs or
+    issues instead);
+  - store the analysis in the soramech repository as a case study;
+  - qualify "handing in" as "handing in to the task queue" everywhere;
+  - extend the charts (units per task to the right, answer size larger, every
+    chunk size on the steadiness chart).
+- **Lock-free queue.** "I'm glad we're picking option 2 … find [the slot
+  states] … see if it would map well to the task queue"; "build the
+  implementation here. Add a blocker to completing the issue that we should test
+  and see how it goes, then either deliver a report … or design schematics."
+- **Fairness point.** The user worried that the hand-written loop's fixed slices
+  were unfair; this led to the shared-counter loop.
+- **Reports.** The user asked to split into three reports: the stock analysis,
+  the lock-free design (for the soramech developers), and a new fabricated
+  realistic workload.
+- **Flexibility.** The user asked for a test of flexibility (heterogeneous
+  work), then:
+  - "we'll need the priority queue. Can we build it in this project … deploy
+    it in such a way that it can go unused" (before/after);
+  - adversarial improvements to the hand-written code;
+  - "Sure." to building the job system and hybrid barriers, plus a rewrite of
+    the "After: a lane for the frame" paragraph.
+- **Latest request:** "Okay yeah let's work on that then. Great reports!",
+  meaning the renderer's real host loop (515b: mailbox, extrapolation, asset
+  table path).
+
+2. **Key Technical Concepts**
+
+- **The soramech ceramic engine:**
+  - boxes (plain C functions, taking values by value), stations, maps, ports;
+  - rule: "a station runs when every input holds a value";
+  - serac: `--emit-c` writes `<map>.c` beside the map; `--unpack` writes cera.c
+    and cera.h; `--main` does not exist; no linker flags;
+  - value types can't hold numeric arrays (only char arrays), so types are
+    generated as named fields;
+  - collection is re-armed per frame via `cera_map_collect`.
+- **Engine bugs found:**
+  - the collected count was raised before the copy (fixed in the fork with a
+    `landed` counter);
+  - `pthread_cond_broadcast` on every push (the herd);
+  - a single mutex caused a lock convoy past 6 physical cores (i7-7820X: 6 cores
+    / 12 threads; the powersave governor idles cores at 1.2 GHz).
+- **The fork** `src/render/ceramic/engine/cera.c` (from soramech 059487d):
+  - a lock-free ring whose slots use sequence numbers
+    (empty/reserved/ready/claimed, with the lap folded in);
+  - `reserve_positions` CAS on tail with a room check; `ring_place`; `ring_take`
+    CAS on head;
+  - `wake_for` sleeper count (seq_cst Dekker ordering);
+  - batch API: `cera_pool_push_many`, `cera_pool_batch_begin`/`_end`,
+    `cera_map_deliver_arguments`;
+  - `CERAMIC_SPIN`, `CERAMIC_QUEUE_SLOTS`;
+  - full ring: outside threads wait, a worker runs the task itself (`run_here`);
+  - `CERA_FORK_TASK_QUEUE` define;
+  - destinations (515i): `struct ring` per destination, `worker_t.sources`,
+    `task->dest`, `station->destination`, `cera_pool_add_destination`,
+    `cera_pool_set_sources`/`_set_worker_sources`,
+    `cera_map_station_set_destination`, `cera_map_station_find`, refusal of
+    unserved destinations, `uniform_service` (wake all otherwise).
+- **Measurement practice:**
+  - checksums across every way; the report refuses the data on disagreement;
+  - interleaved repeats;
+  - a floor (longest chain, total work over cores);
+  - spin/hybrid tuning trials;
+  - ThreadSanitizer (clang).
+- **Artifacts:**
+  - a shared kit (`ceramic-kit.css`/`.js`) spliced in at the `/*@@KIT-CSS@@*/`
+    and `/*@@KIT-JS@@*/` markers;
+  - colours: grey plain, slate fixed slices, plum counter, brown jobs, brick
+    one-per-task, teal chunked, amber for handing in.
+- **House tools:**
+  - `commit-own-changes <repo> -F -` and `claim-own-change <file>` (after a
+    Python/sed edit);
+  - `validate-issues`;
+  - `git mv` to `issues/completed` needs the file tracked first; then `git
+    restore --staged` the staging warnings.
+
+3. **Files and Code Sections**
+
+- **Route B** (committed):
+  - `src/gamedata/route_b.lua`: MediaWiki-style infobox parser (splits at
+    top-level pipes, handles `Infobox_building`, "base / upgraded"),
+    `unit_by_name`/`item_by_name`, `upgraded_from` (from *UnitFunc Upgrade
+    lists), explain() verdicts (upgrade_step, explained, later_page), `no_old`,
+    unpaired;
+  - `route_b_findings.lua`, `route-b-report.lua` (writes `refetch.txt`),
+    `test_route_b.lua` (20 pass);
+  - `issues/112e-route-b-published-values-cross-check.md`: open on the question
+    of 28 pages with no revision before 1.30.
+- **Docs:** `docs/wc3-engine-architecture.md` corrected (raylib has an OpenGL
+  backend only).
+- **Issues:**
+  - `issues/515-render-graph-on-the-ceramic-engine.md`: parent; sub-issues 515a
+    (completed), 515b, 515c, 515d, 515e, 515f, 515g (completed), 515h
+    (completed), 515i (completed), 515j (completed);
+  - `issues/progress.md`: 515 rows added. The old Phase 5 table is stale; I
+    asked the user and got no answer.
+- **`src/render/ceramic/bench/`:** `pose-boxes.c`, `pose-types.lua`,
+  `ceramic-host.c`, `plain.c` (modes plain|parallel|counter), `analysis-gen.lua`
+  (BLOBS up to 1 MB, CHUNKS 1..2048), `analysis-host.c` (batch arg,
+  ANALYSIS_TRUST_COUNT, epoch landing wait), `analysis-report.lua` (fills
+  ceramic-analysis.html and ceramic-lockfree.html through `fill()`),
+  `run-analysis.sh` (sweeps
+  anatomy/size/chunk/scale/army/herd/batch/spin/landing; stock plus `@fork`).
+- **`src/render/ceramic/engine/`:** `cera.c`, `cera.h`, `fork-notes.md`, and
+  `tests/` (`test-task-queue.c`, `test-destinations.c`, `stub.map`,
+  `stub-boxes.c`, `run-engine-tests.sh`).
+- **`src/render/ceramic/frame/`:** `frame-plan.h`, `frame-boxes.c`,
+  `frame-gen.lua`, `frame-host.c` (FRAME_DESTINATIONS=1/2 → -lanes/-lanes-one,
+  CERAMIC_SPIN → -spin), `frame-hand.c` (serial, systems, levels, -spin,
+  -hybrid, jobs; FRAME_SPIN_US; job system with per-thread spin-locked queues;
+  queue reset under lock), `frame-bounds.c`, `calibrate.c`, `run-frame.sh`
+  (tuning trial → frame-tuning.tsv, repeats, loc counting),
+  `frame-report.lua`.
+- **Viewers:** `src/viewers/ceramic-analysis.html`, `ceramic-lockfree.html`,
+  `ceramic-frame.html` (the rewritten lanes-text uses innerHTML paragraphs and a
+  list, with the baseline `before0`), `ceramic-kit.css`/`.js`, and `.info.md`
+  files.
+- **`src/render/ceramic/host/`** (most recent, 515b):
+  - `units-types.lua` prints `lane_units` (u0..u255 of `unit`);
+  - `units-boxes.c`: types `unit {x,y,z,color}`, `tick`, `frame_clock`,
+    `lane_req`; `static void unit_place(int id, float t, unit *out)`; boxes
+    `frame_clock advance(tick)` and `lane_units move(lane_req, frame_clock)`;
+    UNIT_LANES 8, UNITS_PER_LANE 256;
+  - `units-gen.lua` writes `units.map` (advance fans out to move0..7 port 1;
+    args 0..8, results 0..7);
+  - `units-host.c`: `host_start`/`host_frame` (batch hand-in, wait for 8
+    landings)/`host_stop`/`draw_units` (DrawCube)/`check`; modes window,
+    `--check N`, `--shot N PATH` (render into a RenderTexture2D, then
+    LoadImageFromTexture + ImageFlipVertical + ExportImage);
+  - `run-host.sh [DIR] [window]`: builds with raylib
+    `-L/home/ritz/programming/c/libs/raylib/src -lraylib -lGL -lm -lpthread -ldl
+    -lrt -lX11` and the fork's cera.c, then runs `--check 600` and `--shot 240`
+    to `tmp/shared-memory/ceramic/host-shot.png`;
+  - `.info.md` files for each.
+- **Soramech repository**
+  (`/home/ritz/programming/ai-playground/minimal-soramech`, branch minimal):
+  - `docs/case-studies/README.md`;
+  - `151-a-renderers-frame.{md,html,tsv}`;
+  - `153-a-frame-as-a-graph.{md,html,tsv}`;
+  - `docs/implementation-notes/152-a-task-queue-without-a-lock.{md,html}`;
+  - `154-destinations-built-once.md`;
+  - `issues/910` note on `--main` and linker flags;
+  - `phase-9-progress.md` row;
+  - TOC updates;
+  - `.file-index-counter` = 154.
+
+4. **Errors and fixes**
+
+- **Route B parser:**
+  - a trailing blank line stuck to the last field; fixed by trimming;
+  - several fields on one line; fixed by splitting at top-level pipes;
+  - `Infobox_building` spelling;
+  - "base / upgraded" values;
+  - the Scout Tower upgrade list is a comma string.
+- **Chunked results half-copied** (the collect count raised before the copy):
+  diagnosed with a 1 ms wait. Worked around with an epoch grace wait, and fixed
+  in the fork with `landed`.
+- **serac:** `--main` doesn't exist and `--emit-c` writes a file beside the map.
+  Worked around by cutting out the emitted main.
+- **Plain include:** it picked up the unspliced box file; fixed by compiling a
+  copy in BUILD.
+- **Fork full ring:** it stopped the program; the policy was changed to outside
+  threads waiting and workers running the task in place, with the room check
+  before a CAS reservation. Also the head > pos underflow case.
+- **Header-mirror test 117:** declaration order fixed; the `this_worker_index`
+  forward declaration was replaced.
+- **Soramech scratch suite:**
+  - viewer tests failed only because their binaries weren't built;
+  - 075 is location-dependent (the stock engine fails the same way);
+  - 013 requires the queue to grow (by design).
+- **Frame hand-written "by system" slow:** diagnosed as the powersave governor;
+  spin and hybrid variants added.
+- **printf argument order in frame-host:** fixed.
+- **Job system race:** queues were reset without locks, so stale jobs ran twice.
+  Caught by the checksum guard; fixed by resetting under the lock and removing
+  the unlocked glance. TSan is clean.
+- **Priority lanes alone gave little benefit:** added one-worker-for-background
+  (lanes-one); learned to interleave runs.
+- **Overclaimed worst-frame improvement:** corrected.
+- **A page claim from a scratch experiment:** removed.
+- **Black screenshot** from a hidden window: fixed with RenderTexture.
+- **git mv of an untracked issue failed:** committed the file first, then moved
+  it.
+- **User feedback applied:**
+  - PII respect (from earlier);
+  - the serac note doesn't belong in the report;
+  - consistent colours;
+  - clearer paragraph writing;
+  - fairness for the hand-written loop.
+
+5. **Problem Solving**
+
+- **Key results:**
+  - chunked ceramic ≈ hand-written;
+  - the shared-counter loop is the fastest on uniform work;
+  - the fork's one-per-task time went from 10.8 ms to about 1.0 ms (batch or
+    spin);
+  - the frame graph is 2.8 ms: 23% faster than barrier designs and roughly tied
+    with the job system (2.76–2.84 ms), with steadier p99 (4.5 against 6.1
+    ms);
+  - background cost: 8.4% → 6.8% (lanes) → 3.8% (lanes-one);
+  - host loop: engine 0.15 ms per frame, drawing 1.3 ms (DrawCube ×2048), 472
+    fps.
+- **Open:**
+  - 112e (28 pages);
+  - 515b: interactive window unconfirmed;
+  - 515c/d/e/f pending;
+  - Phase 5 progress table stale (question to the user unanswered).
+
+6. **All user messages**
+
+- "Leave them as "have not been checked" and keep the issue open. But let's move
+  on to something else for now."
+- Re option 2 (Phase 5): "What are the technical implications of this? How are
+  we building the engine? Raylib? Something else that's more modern, like
+  Bevy...? TBH I prefer raylib... We can't do Love2d because it's, well, 2d. of
+  course."
+- "Can you check out /home/ritz/programming/ai-playground/minimal-soramech/? …
+  ceramic style … threadpool system that could be replaced with a soramech.
+  Confirm? Would it be better to just do a custom Vulkan backend? … sounds
+  like we don't have any blockers on the BLP decoder, correct? Same for the MDX
+  reader? Any other files we need decoders for?"
+- "whoa, 2kb going in and out of shared memory sounds like a massive slowdown
+  … re-evaluate the pointer rule … reasoning behind it? … or with the
+  intended frame attached … what's a good answer?"
+- "the graph doesn't freeze, but the table can grow. "frozen" was always just a
+  suggestion anyway."
+- "What's your honest assessment on the soramech integration?"
+- "render whatever data is present in the shared memory no matter what each
+  frame … double buffer … persistent tasks …? … soramech is written like
+  code, as plain text files…"
+- "Does that mean 3 frames of latency? We might just prefer as low latency as
+  possible! … The custom client is, after all, simply a renderer … CORRECTED
+  by the server…"
+- "cancel the swing mid-air. We should always update to the correct state as
+  soon as possible rather than continue delaying the truth."
+- "Okay yeah let's keep working."
+- "Okay I'm going to need a performance analysis … show me more!"
+- "That analysis looks great. Can we get a bit more background … store it in
+  the ceramic-core-engine's repository too, as a case study … same colors …
+  serac --main … doesn't belong here … Chunking fixes it … the reason …?
+  … what's a better solution? [two designs]"
+- "couldn't skeleton poses be done on the graphics card …? … how the heck is
+  a pose 2 whole kilobytes? … expand this chart to the right … qualify where
+  we're 'handing things in' to … expand [size] chart … Steadiness: all
+  ceramic batch values … option 2 … slot states … Batched reservation:
+  explain how we'd implement this? … build the implementation here. Add a
+  blocker … report … or design schematics…"
+- (Mid-turn) "for the hand-written thread code, I'm worried about that extra
+  caveat - that thread 3 gets the fourth twelfth…"
+- "Interesting! So this tells me that the ceramic core engine is about as
+  performant as hand-written … flexibility … What kinds of tasks are like
+  that?"
+- "Great, can we build that? I think we should split this into three reports -
+  one with the lock-free design, so we can show the soramech developers and
+  compare, and then a new one with the fabricated realistic workload."
+- "Is there a way to ask the OS not to interrupt a thread …? … Yeah I think
+  we'll need the priority queue. Can we build it in this project, then either
+  make a 4th HTML artifact or add to these with the comparison? We want to
+  compare before and after, so make sure that we can deploy it in such a way
+  that it can go unused if we don't want. … Can you think of any updates to
+  the hand-threaded code we could make, to adversarially increase the difficulty
+  of our benchmarks?"
+- "Sure. Also, this paragraph could do with a rewrite: [After: a lane for the
+  frame paragraph]"
+- "Okay yeah let's work on that then. Great reports!" (the renderer's real host
+  loop)
+
+**Standing constraints (preserve):**
+- The owner's PII is never sent to outside services; User-Agents name the tool
+  only.
+- Never commit Blizzard files.
+- Liquipedia text is never committed.
+- Don't abuse outside services.
+- Soramech's issue 107 says "confer before building": the work was built in our
+  fork, not in the soramech source.
+- Nothing is written into soramech's `src` (docs and issues notes only, as
+  authorized).
+- Commit with commit-own-changes; claim script edits.
+- No fallbacks.
+- Issue file before work.
+- Don't move the working directory.
+
+7. **Pending Tasks**
+
+- **515b:** the interactive window needs a person to confirm (`run-host.sh ""
+  window`); then complete the issue (move it to completed; update the progress
+  table with a 515b row).
+- **The remaining 515 sub-issues:** 515c (mailbox triple buffer), 515d
+  (extrapolate/predict/snap), 515e (growing asset table), 515f (measured against
+  the pool).
+- **A possible next improvement:** instanced drawing, since drawing (1.3 ms) is
+  now the bottleneck.
+- **112e** stays open (the 28 pages).
+- **The stale Phase 5 progress table:** asked the user; unanswered.
+
+8. **Current Work**
+
+Implementing 515b (the ceramic host loop), per the user's "Okay yeah let's work
+on that then." The 515b issue was rewritten concretely, then implemented in
+`src/render/ceramic/host/`:
+- `run-host.sh` builds;
+- `--check 600` passed (every unit matched);
+- `--shot 240` produced a picture after the black-screenshot fix
+  (RenderTexture): 2048 cubes on a grid, overlay "hand-in to landed: 152 us,
+  drawing 1306 us, 472 fps".
+
+It was committed (d875013c3, "Draw the first frame whose units the ceramic
+engine places").
+
+The 515 parent issue was updated with "The first real frame (515b)" and "Against
+the strongest hand-written design (515j)" bullets, but the last hook reported
+that `issues/515-render-graph-on-the-ceramic-engine.md` (and one more file) were
+changed without a ledger diff and may need `claim-own-change`. The commit output
+did list 515 as "ours", so it was likely included.
+
+The 515b acceptance criterion "The window runs interactively" is left for the
+user to confirm.
+
+Published artifacts:
+- Ceramic Frame Budget: https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc (v4);
+- Lockless Task Queue: https://claude.ai/artifact/46pysVA4YdVCxvv8MfNpcy;
+- Frame as a Graph: https://claude.ai/artifact/8syLBAZ6BL4oGmKzMhPedn (v3).
+
+9. **Optional Next Step**
+
+Report the 515b result to the user and ask them to try the interactive window.
+The command is
+`/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/host/run-host.sh
+"" window`; they could run it with `!`. Once they confirm, complete 515b and
+proceed to 515c (the mailbox triple buffer), which follows the user's direction
+"Okay yeah let's work on that then" (the host loop path: mailbox, extrapolation,
+asset table). Before committing further, make sure any unclaimed edits (the 515
+parent issue) are claimed with `claim-own-change`.
+
+If you need specific details from before compaction (like exact code snippets,
+error messages, or content you generated), read the full transcript at:
+/home/ritz/.claude/projects/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e.jsonl
+Continue the conversation from where it left off without asking the user any
+further questions. Resume directly — do not acknowledge the summary, do not
+recap what was happening, do not preface with "I'll continue" or similar. Pick
+up the last task as if the break never happened.
+
+--------------------------------------------------------------------------------
+
+`/compact` - Compacted (ctrl+o to see full summary)
+
+--------------------------------------------------------------------------------
+
+### User Request 80
+
+The demo looks delightful, I can't wait to see more. :)
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 80
+
+> Marking the host loop issue done now that you've seen the window, then
+> starting the mailbox.
+
+> Wrote the mailbox issue's blueprint; now writing the mailbox itself and its
+> tests.
+
+> Now rewriting the host so a feeder thread drives the engine and the draw
+> thread only takes from the mailbox.
+
+> Mailbox works and passes its tests; writing the notes beside each file, then
+> one pacing question for you.
+
+I'm glad the demo worked for you. I closed the host-loop issue since you watched
+it run, and the mailbox is now built and working.
+
+**What the mailbox is.** It's the handoff point between the engine and the
+drawing thread:
+- It holds three whole copies of the scene. One is being drawn, one holds the
+  newest finished state, and one is being filled.
+- A single shared number says which copy is the newest finished one, plus a "not
+  yet picked up" flag.
+- When the engine finishes filling a copy, it swaps that number in one
+  uninterruptible step and gets back the copy that was sitting in the middle.
+- When the drawing thread starts a frame, it makes the same swap if something
+  new is waiting. Otherwise it draws what it already has.
+- Each thread only ever touches its own copy, so a half-filled scene can't be
+  drawn, and neither side waits on the other.
+- If a newer state arrives before the old one was drawn, the newer one simply
+  replaces it. Nothing queues up.
+- The engine's lanes write their answers straight into the copy being filled, so
+  there's no extra copying step.
+
+**Tests (all pass):**
+- **The simple sequence:** nothing is new before the first handoff, each handoff
+  is picked up once, and the newer of two handoffs wins.
+- **Races:** first one filling thread, then four, all against one drawing
+  thread, with 300,000 states per filling thread. Each state is 8 KB with every
+  word stamped with its number. No state was torn and none arrived out of order.
+- **A deliberately broken mailbox:** its filling thread keeps writing into a
+  copy it already handed over. The tests caught it, with about half its pickups
+  torn, which shows the tests really do catch that failure.
+- **A race-detecting build** (ThreadSanitizer, which watches every memory access
+  between threads) found nothing.
+- **The real program's check** picked up 600 states through the mailbox while
+  the engine raced to fill it, and every unit matched.
+
+**Results:**
+- **More frames per second.** With no frame cap, the program went from 472 to
+  725 frames a second, because the engine now works during the drawing instead
+  of before it.
+- **Older scenes when drawn.** Capped at 60 frames a second in a window, each
+  state is about **17.8 ms old** when it's drawn. When the drawing thread waited
+  for the engine, it was about 0.2 ms. To measure this, a test window opened on
+  your screen for about 5 seconds.
+- **Why the extra age:** the engine works out the next state as soon as the
+  current one is picked up. That state then sits in the mailbox for a whole
+  frame until the next pickup.
+
+**Open question: how should the engine decide when to work out the next state?**
+The issue stays open until you choose.
+
+1. **Keep it as it is (my recommendation).** The next step, extrapolation, then
+   draws "now" from each unit's recorded speed and direction, which hides the
+   age. It's the closest match to the real game, where the mailbox is filled by
+   the server's states as they arrive over the network, and the client can't
+   choose when they arrive.
+2. **Just in time.** The engine waits until shortly before the next draw is due,
+   then works out the state for that exact moment. The age drops to nearly zero,
+   but if it guesses the timing wrong, a frame repeats the old picture.
+3. **Nonstop.** The engine produces states continuously and the drawing thread
+   takes the newest. The age drops to about 0.2 ms, but most cores stay busy
+   producing states that are thrown away.
+
+I haven't committed the mailbox work yet, since your house rule is to commit
+only when an issue is finished.
+
+What do you think happens to option 1's hidden age when a unit turns sharply
+within that 17 ms?
 
 --------------------------------------------------------------------------------
 

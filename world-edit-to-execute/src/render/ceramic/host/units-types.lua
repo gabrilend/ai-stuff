@@ -11,8 +11,9 @@
 -- Usage: luajit units-types.lua > types.c   (units per lane below)
 
 local PER_LANE = 256
+local UNIT_BYTES = 36   -- the `unit` record in units-boxes.c: nine 32-bit fields
 
-print("/* One lane's answer: " .. PER_LANE .. " units, " .. PER_LANE * 16 .. " bytes. */")
+print("/* One lane's answer: " .. PER_LANE .. " units, " .. PER_LANE * UNIT_BYTES .. " bytes. */")
 print("typedef struct {")
 for i = 0, PER_LANE - 1 do print(string.format("    unit u%d;", i)) end
 print("} lane_units;")

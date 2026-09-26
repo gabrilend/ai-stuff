@@ -13,6 +13,14 @@
 
 Nothing of this exists. The design is decided in issue 515 (with the owner, 2026-09-25).
 
+What it builds on (515c): the draw thread takes whole states from a mailbox.
+Each unit's record already holds position, velocity, facing and animation
+phase, and each state the time it was true. With the feeder paced by the
+draw's take, a state is about one frame (17.8 ms at 60 a second) old when
+drawn; this issue's extrapolation is what the owner chose to answer that
+with. Its test should show the age hidden: drawn positions matching the
+direct arithmetic at the moment of drawing, within a stated error.
+
 ## Intended Behavior
 
 The draw computes each unit's state now from its record (position + velocity × elapsed; the animation sampled at the current time), not between two past states. The camera and cursor are computed on the draw thread at the last moment. The player's own orders get an immediate local answer (click marker, acknowledgement voice, the unit turning and starting its predicted path). A correction from the truth (the server, or offline the local simulation at its fixed tick) snaps in the frame it arrives: position, and the animation at the correct moment of the true animation. The owner: cancel the swing mid-air; always show the correct state as soon as possible. Tests: a predicted swing cancelled by a death that arrives late; a position correction applied in one frame.

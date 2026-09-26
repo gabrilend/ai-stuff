@@ -467,7 +467,7 @@ Phase 2 & 3 Complete
 | 515i | Destinations a station may name (several task queues) | **Completed** (delivered to soramech as its note 154) | 515g, 515h |
 | 515j | Stronger hand-written opponents (a job system, spin-then-sleep barriers) | **Completed** | 515h, 515i |
 | 515b | Ceramic host loop (a raylib window drawing 2,048 units the engine places) | **Completed** | 515a, 515g |
-| 515c | Mailbox triple buffer | Pending | 515b |
+| 515c | Mailbox triple buffer (the engine fills a state while the last is drawn) | **Completed** | 515b |
 | 515d | Extrapolate, predict, snap | Pending | 515c |
 | 515e | Growing asset table | Pending | 515b |
 | 515f | Measured against the pool | Pending | 515c, 515d, 515e |
