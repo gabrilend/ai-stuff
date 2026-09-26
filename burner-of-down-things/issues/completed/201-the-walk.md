@@ -5,7 +5,7 @@ Listing every file in a source folder, with the skip table
 
 ## Current Behavior
 
-Nothing reads a source.
+Built as `src/026-the-walk.lua`. `find -P` prints each entry's type letter and path, NUL-separated; skipped folders are pruned inside the `find` command. `cases` joined the skip table (a source that holds this machine's case folders). A walk with no skip table lists everything, for phase 3's snapshots. Checked by tests/032, including names with spaces and with a newline.
 
 ## Intended Behavior
 

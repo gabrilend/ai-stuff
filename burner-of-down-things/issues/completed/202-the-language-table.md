@@ -5,7 +5,7 @@ Deciding each file's language and role
 
 ## Current Behavior
 
-Nothing knows what a file is.
+Built as `src/027-the-language-table.lua`. C++ (`.cpp .cc .cxx .hpp .hh`, scanned like C), assembly (`.S` through the C preprocessor), CMake, HTML, CSS, SQL, linker scripts and common binary extensions were added once real sources (kiln, AzerothCore) showed them. Extensions are matched as written first, so `.S` and `.s` differ. Checked by tests/032.
 
 ## Intended Behavior
 

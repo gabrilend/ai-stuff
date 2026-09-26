@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# phase-2-demo - shows the machine reading software without a model: the
+# owner's own projects (kiln, rao-chat, wow-chat-2026's own code, and a copy
+# of this machine) surveyed side by side — size, languages, the files
+# everything else leans on, where the programs start, what they need from
+# outside — then the biggest source on hand (the AzerothCore game server
+# kept in wow-chat-2026) read on one core and on all of them, to show what
+# the parallel reader buys.
+#
+# Every case is opened in the RAM scratch space and removed afterwards.
+#
+# Usage: phase-2-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-2-demo.lua" "${DIR}"
