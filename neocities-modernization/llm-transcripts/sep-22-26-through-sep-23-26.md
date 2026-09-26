@@ -1,7 +1,57 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 10:05:37
+Generated on: 2026-09-26 12:47:33
 Models: claude-opus-5-5
+
+## Contents
+
+1. 2026-09-22 12:22, after Request 3 - The rmail-to-notes hook works and rmail
+   is now kept out of the site build, and both unsorted files are sorted into
+   issues. Next, restart the mail program on the notes mailbox, then answer the
+   ten open questions above.
+2. 2026-09-22 12:49, after Request 4 - You asked for rmail notes routing,
+   keeping the mailbox out of the site, and sorting your two note files; all
+   three are done. Next I need your answers on the clash notice, the terminal
+   mail notice, and dash placement.
+3. 2026-09-22 15:34, after Request 8 - You're wiring the notes mailbox into your
+   main mailbox; I patched rmail so it tidies its contacts file, and suggested
+   sending to yourself with the reserved word "me". Next, tell me whether to
+   build that, and whether the old self-name should still work with a warning.
+4. 2026-09-22 16:17, after Request 11 - We're getting your phone-to-notes mail
+   working, and the rmail fixes are committed. Next, restart both mail programs,
+   then tell me whether a message saved mid-sync should go out on the next pass.
+5. 2026-09-22 17:33, after Request 14 - We're getting neocities-modernization
+   ready for an unattended overnight build. All five roadmap fixes and the
+   checks-first gate are committed and tested. Next, you start tonight's full
+   build; it will stop early and name the problem if any check fails.
+6. 2026-09-23 08:30, after Request 16 - We're fixing the site's known bugs ahead
+   of tonight's overnight build, and all six easy fixes are done and committed.
+   Tonight's run will end by reporting over-wide lines on purpose; next, decide
+   whether to fix, merge or retire the old frame checker.
+7. 2026-09-23 08:52, after Request 18 - We're clearing easy fixes before
+   tonight's full build, and I'm rebuilding every word page to confirm the last
+   over-wide frame lines are gone. Next, I'll run the width checker on
+   `output/wordcloud` and report the result.
+8. 2026-09-23 09:10, after Request 18 - We were getting the site build ready to
+   run overnight. All the planned fixes are committed, and the word pages now
+   pass the width check. Next: start the full pipeline run, then read
+   `tmp/shared-memory/validate-output-report.txt` in the morning.
+9. 2026-09-23 09:31, after Request 20 - We've been clearing easy neocities fixes
+   before tonight's full pipeline run, and just fixed the run.sh menu hang and
+   clipboard copy. Next, try `run.sh -I`, copy the command, then press Escape to
+   confirm it exits cleanly.
+10. 2026-09-23 10:03, after Request 24 - We're polishing the site build while
+    your pipeline runs, and I'm checking whether the 44 poems counted at 1023
+    characters were really 1024. Next, tell me whether to fetch the original
+    typed text from Mastodon's API, which needs your access token.
+11. 2026-09-23 10:08, after Request 25 - We're tidying up the neocities pipeline
+    while your full build runs, and the latest menu, stats-alignment and emoji
+    fixes are committed. Next: once the run finishes, I'll swap the last 🧹
+    emoji in run.sh.
+12. 2026-09-23 11:00, after Request 26 - You're building the Neocities site
+    overnight. Stage 9 crashed on the chronological pages; that's now fixed and
+    committed. Next: rerun only stages 9 and 10 with the same settings as your
+    full run.
 
 --------------------------------------------------------------------------------
 
@@ -541,7 +591,8 @@ Waiting on four sub-agents that are writing the reopened issues.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Reopen 8-045 and note 8-058" finished*
+*[background task] Agent "Reopen 8-045 and note 8-058" finished —
+[reopen-8-045-and-note-8-058-sep-22-26.md](reopen-8-045-and-note-8-058-sep-22-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -551,7 +602,8 @@ One done, three still running.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Reopen 10-025 and 10-036" finished*
+*[background task] Agent "Reopen 10-025 and 10-036" finished —
+[reopen-10-025-and-10-036-sep-22-26.md](reopen-10-025-and-10-036-sep-22-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -561,7 +613,8 @@ Two of the four sub-agents are done. The other two are still running.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Reopen 2-010, extend 11-009" finished*
+*[background task] Agent "Reopen 2-010, extend 11-009" finished —
+[reopen-2-010-extend-11-009-sep-22-26.md](reopen-2-010-extend-11-009-sep-22-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -572,7 +625,8 @@ mobile-layout, content-warning and validator issues.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Reopen 16-010, 9-011, 9-006" finished*
+*[background task] Agent "Reopen 16-010, 9-011, 9-006" finished —
+[reopen-16-010-9-011-9-006-sep-22-26.md](reopen-16-010-9-011-9-006-sep-22-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -847,7 +901,8 @@ put the single-threaded builder on it too.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Record owner answers in issues" finished*
+*[background task] Agent "Record owner answers in issues" finished —
+[record-owner-answers-in-issues-sep-22-26.md](record-owner-answers-in-issues-sep-22-26.md)*
 
 --------------------------------------------------------------------------------
 
@@ -2762,6 +2817,65 @@ it (Mastodon's API for the text as typed).
 One thing is still waiting: the `🧹` at the head of the "Stripping excluded
 content" stage is inside `run.sh`. I'll swap it for `✂` once your pipeline run
 finishes. Let me know when it's done.
+
+--------------------------------------------------------------------------------
+
+### User Request 26
+
+<pasted_content id="abad">
+═══════════════════════════════════════════════════════════════════
+  🌐 Stage 9/10: Generating website HTML
+═══════════════════════════════════════════════════════════════════
+   Clearing stale HTML files (--force)...
+[INFO] Chronological pagination: 50 poems/page
+[INFO] Generating chronological HTML for 8591 poems (172 pages, 50
+poems/page)...
+luajit: ...tuff/neocities-modernization/src/flat-html-generator.lua:3130:
+invalid option '%;' to 'format'
+stack traceback:
+        [C]: in function 'format'
+        ...tuff/neocities-modernization/src/flat-html-generator.lua:3130: in function 'generate_chronological_index_with_navigation'
+        src/main.lua:611: in function 'generate_website_html'
+        src/main.lua:964: in function 'main'
+        src/main.lua:992: in main chunk
+        [C]: at 0x5573ec500330
+Error: HTML generation failed
+Build did not complete; restored the previous build record.
+  (/mnt/mtwo/programming/ai-stuff/neocities-modernization/output/generation-metadata.json)
+Shutting down inference server (PID 27606) that this run started...
+</pasted_content id="abad">
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 26
+
+> The run stopped at stage 9 on the same `%` crash I fixed earlier, in a spot I
+> missed: the paginated chronological page template. Looking at it.
+
+> 6 of 6 pass. Checking that the test fails on the code that crashed your run.
+
+Fixed and committed (`8fef7d4ec`). The crash was the same `%` problem I fixed
+earlier, in the one template that fix missed.
+
+- **Cause:** the paginated chronological pages are filled in two passes, page
+  numbers and the page head first, then the poems. The head's stylesheet
+  contains `100%;`, and the second pass read that as a broken placeholder. The
+  head now goes in with the `%` doubled, and the second pass turns it back into
+  one.
+- **Test:** a new one builds real chronological pages from five made-up poems,
+  paginated and on one page, including a poem with its own `%`. It passes, and
+  on the code that stopped your run it fails with the same error at the same
+  line.
+- **Other page builders:** the word pages and the word-cloud menu fill their
+  templates only once, so they're safe from this.
+- **`✂`:** also swapped into the stage heading in `run.sh`, now that no run is
+  using it.
+
+You don't need to redo stages 1–8; their results are saved. Rerun just stages
+9 and 10, with the same model, server, thread and page values as your full run.
+The pre-flight gate will first check the threading library, the poem dates, and
+that the rankings from this run match the poem list. Then it builds the pages,
+and the final width-and-link check runs at the end.
 
 --------------------------------------------------------------------------------
 

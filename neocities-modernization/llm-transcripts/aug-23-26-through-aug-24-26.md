@@ -1,7 +1,14 @@
 # Conversation Summary: 97e6f86e-b853-462f-9828-9bdc0ba274ef
 
-Generated on: 2026-09-21 19:46:33
+Generated on: 2026-09-26 12:47:34
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-24 16:27, after Request 14 - We set out to fix the wordcloud's broken
+   similarity ranking, mobile layout, and boost rendering; all of that is done
+   and committed, along with mean-centering and repaired validation tools. Next:
+   run stages 7-10 to regenerate the site.
 
 --------------------------------------------------------------------------------
 

@@ -76,6 +76,7 @@ in full there.
 
 | Date | Decision | Recorded in |
 |------|----------|-------------|
+| 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
 | 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | This document; to be written into 603 and 1001 |
 | 2026-09-25 | **One host holds the truth; lockstep is dropped.** The host's machine runs the one simulation and every other player is its client. | `docs/wc3-engine-architecture.md` (Multiplayer Strategy), issue 803 |
 | 2026-09-25 | The owner's personal details are never sent to an outside service unless the owner names that detail for that purpose. | `CLAUDE.md` (Privacy) |
@@ -167,17 +168,7 @@ The roster lists two bounties as unclaimed that are completed. The quest log's
 paths still resolve. The bounty's bug is real (debt D-1). Keep them as the
 way newcomers find work, or archive them and make D-1 an ordinary bugfix?
 
-### Q-8: How is "no weather" stored?
-**Affects:** the map-info parser, the region parser
-
-A map with no weather has four zero bytes where the weather code goes. The
-region parser stores that as an absent value; the map-info parser keeps the
-four zero bytes, and its test prints them, which makes the test runner warn
-("ignored null byte in input"). The two parsers should agree. The house rule
-is not to treat "nothing" as a normal value, which argues for a named value
-such as `"none"` over leaving it absent.
-
-### Q-9: Phase 7 leftovers from before the pivot
+### Q-8: Phase 7 leftovers from before the pivot
 **Affects:** ghost and spirit rules
 
 The archived death system asked four questions about the spirit world (can

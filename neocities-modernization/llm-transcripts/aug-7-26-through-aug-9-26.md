@@ -1,7 +1,35 @@
 # Conversation Summary: f5710ce4-eae3-4c90-974b-8c957186d41f
 
-Generated on: 2026-09-21 19:46:34
+Generated on: 2026-09-26 12:47:35
 Models: claude-opus-5
+
+## Contents
+
+1. 2026-08-07 15:20, after Request 1 - Goal: strip all defaults and fallbacks
+   from run.sh so missing values are reported together as required flags. That's
+   implemented and verified, uncommitted. Next: answer the eight open questions
+   in issue 10-065, starting with whether the metadata should record every
+   required value.
+2. 2026-08-08 17:38, after Request 10 - We're removing all defaults and
+   fallbacks from run.sh, and have worked through 11 of the follow-up questions
+   it raised. Next: decide whether to record which poems.json each word cloud
+   was built from, so dated clouds are fully reproducible.
+3. 2026-08-08 18:31, after Request 11 - We removed all defaults and fallbacks
+   from run.sh so every value must be supplied explicitly, then worked through
+   the resulting open questions. Nothing is committed yet, and I still owe you
+   the walkthrough of issue 10-066 about the 11 GB word pages.
+4. 2026-08-08 19:48, after Request 12 - Goal was removing all defaults and
+   fallbacks from run.sh so every value must be supplied; that's implemented and
+   verified, and we've worked through all the open questions. Next action:
+   commit my ten changed files, or say what you'd rather tackle.
+5. 2026-08-09 09:14, after Request 13 - We removed all defaults and fallbacks
+   from run.sh so every value must be supplied explicitly, then worked through
+   all the resulting open questions. Next: decide whether I commit my ten
+   changed files before you run the full regeneration.
+6. 2026-08-09 18:27, after Request 20 - We're removing all defaults and
+   fallbacks from run.sh so every value must be supplied explicitly, plus fixing
+   bugs found along the way. Four commits are done; next is deciding the stage
+   taxonomy in issue 10-067, specifically whether to split stage 6.
 
 --------------------------------------------------------------------------------
 

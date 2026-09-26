@@ -1,7 +1,14 @@
 # Conversation Summary: 16128181-03c0-4425-a540-092e5a433dc2
 
-Generated on: 2026-09-16 17:59:34
+Generated on: 2026-09-26 12:46:46
 Models: claude-opus-4-8
+
+## Contents
+
+1. 2026-07-16 17:38, after Request 1 - Goal: migrate all project `tmp/` symlinks
+   from `/tmp/` to RAM-guaranteed `/dev/shm/`. I finished the system-wide audit:
+   25 live symlinks, all on `/tmp`, none on `/dev/shm`, categorized by how each
+   regenerates. Next: you pick a migration approach so I can start.
 
 --------------------------------------------------------------------------------
 

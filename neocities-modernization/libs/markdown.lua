@@ -1,6 +1,14 @@
 -- markdown.lua
 -- A small, dependency-free Markdown -> HTML renderer (Issue 10-055, Feature B).
 --
+-- Two copies of this file live elsewhere and have diverged by one option,
+-- `reflow`, which joins a paragraph's wrapped lines before rendering so prose
+-- a tool wrapped at eighty columns re-wraps to the reader's window:
+-- double-diaper-dungeon/libs/markdown.lua and
+-- ai-stuff/scripts/transcript-site/libs/markdown.lua. Left there rather than
+-- brought back here, by the owner's choice on 2026-09-26; see
+-- double-diaper-dungeon/libs/README-vendored.md for what it does.
+--
 -- General description (for the reader skimming): the source browser used to dump
 -- .md files as plain numbered text, so tables were ASCII soup and headings were
 -- not headings. This turns the common Markdown the repo actually uses -- ATX

@@ -1,7 +1,20 @@
 # Conversation Summary: fd051e56-9aa2-4763-aa68-5d24af3bd4a1
 
-Generated on: 2026-09-21 19:46:02
+Generated on: 2026-09-26 12:46:50
 Models: claude-opus-4-8
+
+## Contents
+
+1. 2026-07-07 11:12, after Request 2 - We're building a llama.cpp recursive
+   summarizer for Claude transcripts; the chat-client foundation is done and
+   verified. Next: you decide whether I start the llama.cpp server so I can
+   live-test the summarizer engine, and whether to add
+   AskUserQuestion-preservation to the backup parser.
+2. 2026-07-07 11:45, after Request 3 - Building a llama.cpp recursive summarizer
+   for Claude transcripts; I finished and tested the
+   AskUserQuestion-preservation parser change and the summarizer's foundation.
+   Next: start the Qwen3-8B server so I can build and live-test the recursive
+   summarizer, pending your go-ahead on that and on committing.
 
 --------------------------------------------------------------------------------
 
@@ -229,7 +242,8 @@ Standing by for it.
 
 --------------------------------------------------------------------------------
 
-*[background task] Agent "Map exporter internals" came to rest*
+*[background task] Agent "Map exporter internals" came to rest —
+[map-exporter-internals-jul-6-26.md](map-exporter-internals-jul-6-26.md)*
 
 --------------------------------------------------------------------------------
 
