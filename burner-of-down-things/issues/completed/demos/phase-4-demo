@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# phase-4-demo - shows a piece of software written down as a blueprint: a
+# small notes program is surveyed, then planned as an outline and described
+# issue by issue by stand-in turns (the first outline forgets a file and the
+# first two descriptions of one issue leave out their checks — the machine
+# catches both and asks again). The blueprint is drawn as its graph, level
+# by level, every source file is shown mapped to the issue that describes
+# it, and the house issue validator gives its verdict on the whole thing.
+#
+# Usage: phase-4-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-4-demo.lua" "${DIR}"

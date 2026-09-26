@@ -107,15 +107,19 @@ COMMANDS.ledger = {
     end,
 }
 
--- Rows added by later phases: each module returns a table of rows.
+-- Rows added by later phases: each module returns a table of rows, or a
+-- table whose `rows` field is one (when the module also lends helpers to
+-- later phases).
 local LATER_COMMAND_MODULES = {
     "031-the-survey-commands",
+    "046-the-blueprint-commands",
 }
 
 -- {{{ local function load_later_commands
 local function load_later_commands()
     for _, module_name in ipairs(LATER_COMMAND_MODULES) do
-        for name, row in pairs(require(module_name)) do
+        local module = require(module_name)
+        for name, row in pairs(module.rows or module) do
             COMMANDS[name] = row
         end
     end

@@ -1,0 +1,7 @@
+#id	name	blocked_by	covers
+101	note-storage	-	src/store.lua
+102	tag-parsing	-	src/tags.lua
+103	dates	-	src/dates.lua
+201	showing-notes	101	src/show.lua
+202	searching-notes	101	src/search.lua
+301	the-notes-command	101 102 103 201 202	notes.lua

@@ -58,9 +58,9 @@ writes the file.
 | `surveyed` | the survey finishes | `-` |
 | `turn-started` | a harness is started | the turn id |
 | `turn-ended` | it exits, with its verdict | the turn id |
-| `breach` | confinement found a write outside the allowed paths | the turn id |
+| `breach` | confinement found a write outside the allowed paths | `set of N`: turns run together cannot be told apart, so the whole set is named |
 | `outlined` | the outline passes its checks | `-` |
-| `outline-failed` | an outline turn's table fails a check | the check's name |
+| `outline-failed` | an outline turn's table fails a check | `attempt N` |
 | `described` | an issue file passes its checks | the issue id |
 | `describe-failed` | an issue's describe turns all fail their checks | the issue id |
 | `built` | an issue's tests pass in the design | the issue id |

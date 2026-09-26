@@ -1,0 +1,137 @@
+-- tiny-notes.stand-in.lua
+--
+-- A stand-in script (see src/038-the-stand-in.lua) that plays every turn of
+-- a case on the tiny-notes fixture source as a careful model would: the
+-- outline and issue files come from tests/fixtures/tiny-notes-blueprint/,
+-- the design's code and tests from tests/fixtures/tiny-notes-design/. Both
+-- were written by hand from the source, the way a describe turn and then a
+-- build turn would.
+--
+-- A case uses it with a one-line stand-in.lua:
+--   return dofile("<project>/tests/fixtures/tiny-notes.stand-in.lua")({ root = "<project>/tests/fixtures", … })
+--
+-- Options (all optional) make chosen turns go wrong first, so the machine's
+-- retries and holds can be shown:
+--   bad_outline      number: the first N outline turns leave notes.lua uncovered
+--   bad_describe     { [id] = N }: the first N describe turns of that issue
+--                    leave out its Acceptance section
+--   broken_build     { [id] = N }: the first N build or repair turns of that
+--                    issue write a module that raises an error when loaded
+--   requests         phase 6: { [request file] = { touched = "201\n", amend = {
+--                    [issue file name] = new text }, design = { [path] = text } } }
+
+-- {{{ local function read
+local function read(path)
+    local file = assert(io.open(path, "rb"), "fixture missing: " .. path)
+    local text = file:read("*a")
+    file:close()
+    return text
+end
+-- }}}
+
+-- Which design files each issue's build writes.
+local BUILDS = {
+    ["101"] = { "src/store.lua", "tests/101-note-storage.lua" },
+    ["102"] = { "src/tags.lua", "tests/102-tag-parsing.lua" },
+    ["103"] = { "src/dates.lua", "tests/103-dates.lua" },
+    ["201"] = { "src/show.lua", "tests/201-showing-notes.lua" },
+    ["202"] = { "src/search.lua", "tests/202-searching-notes.lua" },
+    ["301"] = { "notes.lua", "tests/301-the-notes-command.lua" },
+}
+
+local ISSUE_FILES = {
+    ["101"] = "101-note-storage.md", ["102"] = "102-tag-parsing.md", ["103"] = "103-dates.md",
+    ["201"] = "201-showing-notes.md", ["202"] = "202-searching-notes.md", ["301"] = "301-the-notes-command.md",
+}
+
+return function(options)
+    local root = options.root
+    local blueprint = root .. "/tiny-notes-blueprint"
+    local design = root .. "/tiny-notes-design"
+    local script = {}
+
+    script.outline = function(turn)
+        local text = read(blueprint .. "/outline.tsv")
+        if turn.attempt <= (options.bad_outline or 0) then
+            -- Forget notes.lua: the coverage check must catch it.
+            text = text:gsub("\tnotes%.lua\n", "\t-\n")
+        end
+        return { writes = { ["blueprint/outline.tsv"] = text } }
+    end
+
+    script.describe = function(turn)
+        local name = ISSUE_FILES[turn.about]
+        if not name then
+            return { exit = 7, say = "no fixture issue for " .. turn.about }
+        end
+        local text = read(blueprint .. "/issues/" .. name)
+        if turn.attempt <= ((options.bad_describe or {})[turn.about] or 0) then
+            text = text:gsub("## Acceptance\n.-\n## Blocked by", "## Blocked by")
+        end
+        return { writes = { ["blueprint/issues/" .. name] = text } }
+    end
+
+    -- {{{ local function build_writes
+    local function build_writes(turn, kind_attempt)
+        local files = BUILDS[turn.about]
+        if not files then
+            return nil
+        end
+        local writes = {}
+        for _, path in ipairs(files) do
+            local text = read(design .. "/" .. path)
+            local override = options.design_overrides and options.design_overrides[path]
+            if override then
+                text = override
+            end
+            if path:sub(1, 6) ~= "tests/" and kind_attempt <= ((options.broken_build or {})[turn.about] or 0) then
+                text = "error('a broken build of issue " .. turn.about .. "')\n" .. text
+            end
+            writes["design/" .. path] = text
+        end
+        return writes
+    end
+    -- }}}
+
+    -- A repair's attempt counts after the builds: the first repair of an
+    -- issue built once is its second try overall.
+    script.build = function(turn)
+        local writes = build_writes(turn, turn.attempt)
+        if not writes then
+            return { exit = 7, say = "no fixture design for " .. turn.about }
+        end
+        return { writes = writes }
+    end
+    script.repair = function(turn)
+        local writes = build_writes(turn, turn.attempt + 1)
+        if not writes then
+            return { exit = 7, say = "no fixture design for " .. turn.about }
+        end
+        return { writes = writes }
+    end
+
+    script.locate = function(turn)
+        local request = (options.requests or {})[turn.about]
+        if not request then
+            return { exit = 7, say = "no fixture for request " .. turn.about }
+        end
+        return { writes = { ["turn/touched"] = request.touched } }
+    end
+
+    script.amend = function(turn)
+        local request = (options.requests or {})[turn.about]
+        if not request then
+            return { exit = 7, say = "no fixture for request " .. turn.about }
+        end
+        local writes = {}
+        for name, text in pairs(request.amend or {}) do
+            writes["blueprint/issues/" .. name] = text
+        end
+        if request.outline then
+            writes["blueprint/outline.tsv"] = request.outline
+        end
+        return { writes = writes }
+    end
+
+    return script
+end

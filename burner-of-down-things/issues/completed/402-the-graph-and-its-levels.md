@@ -5,7 +5,7 @@ Which issue builds on which, as a structure every later phase reads
 
 ## Current Behavior
 
-The outline is a checked table; nothing computes order.
+Built as `src/043-the-graph.lua`, with the `graph` command in `src/046-the-blueprint-commands.lua` (marks each issue described, built, failed from the ledger). Checked by tests/047 on a diamond and on the tiny-notes fixture (three levels; showing-notes reaches 2 of 6).
 
 ## Intended Behavior
 

@@ -5,7 +5,7 @@ Reading a blueprint issue file and checking it against the outline
 
 ## Current Behavior
 
-Nothing reads the blueprint's issue files.
+Built as `src/044-issue-files.lua`. The shape checks and the house validator are separate calls: the validator runs only once every file of a describe set is on disk, and its "blocker has no file" finding is dropped — the blockers are already checked against the outline, and a neighbour whose own description failed is retried by the machine, not blamed on this issue. The issue name must match the outline's. Checked by tests/047, including the validator passing a fixture issue and refusing to run when missing.
 
 ## Intended Behavior
 
