@@ -11,14 +11,21 @@ clock, no random numbers.
   cell's clearance (distance to the nearest wall) once.
 - **`crowd:add(id, x, y, radius, speed, team, path_radius)`:** a standing
   unit; `radius` is what it collides with, `path_radius` (optional:
-  radius + `PATHING_EXTRA`) the larger circle others steer round; `speed`
+  radius + `PATHING_EXTRA`) the larger circle others steer round (only
+  when the crowd's `look_ahead` is above 0; off by default); `speed`
   in world units a second; `team` any value (only a unit's own team is
   nudged). Raises on a repeated id.
-- **`crowd.look_ahead`** (per crowd; `LOOK_AHEAD` to start): how far ahead
-  a unit steers round pathing radii; 0 turns steering off.
+- **`crowd.look_ahead`** (per crowd; `LOOK_AHEAD`, 0, to start): how far
+  ahead a unit steers round pathing radii; 0 is off.
 - **`crowd:move_group(ids, x, y)`**, **`crowd:move(id, x, y)`:** orders; a
   lone unit is a group of one.
-- **`crowd:tick(dt)`:** one tick, every unit in id order.
+- **`crowd:tick(dt, deciding_order)`:** one tick in two phases: every
+  moving unit decides alone from a snapshot of the tick's start (in
+  `deciding_order`, a list of ids, if given: any order gives the same
+  tick), then every unit settles in id order.
+- **`crowd:snapshot()`**, **`crowd:decide(u, dt)`**, **`crowd:settle(u,
+  dt, last_try)`**, **`crowd:do_requests(u)`:** the phases' parts, for a
+  runner that splits the deciding across threads.
 - **`crowd:pack(x, y, radii) -> places`:** places for circles of these
   radii packed round a point (for placing armies at the start).
 - **`crowd:any_overlap() -> a, b`**, **`crowd:any_in_wall() -> u`:** the

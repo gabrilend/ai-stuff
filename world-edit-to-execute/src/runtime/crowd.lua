@@ -12,8 +12,18 @@ Units are circles, each of its own size, moving continuously. The grid of
 cells only describes the ground: which cells are walls, and how far each
 open cell's centre is from the nearest wall (its clearance).
 
-Each tick, in unit id order, a moving unit wants to step toward its next
-waypoint. The branches, in order:
+Each tick has two phases. DECIDE: every moving unit, alone, works out
+what it will do from its own state and a snapshot of where everyone stood
+at the tick's start; it changes only its own state, proposes a step, and
+asks (a request) for anything it would do to another unit. Any order, or
+all at once, gives the same tick: a threaded runner splits this phase.
+SETTLE: in id order, each proposed step is taken if it is still clear
+(else half of it; refused both, it gets a second try after everyone else),
+and the requests are done. (Moving the units one after another, each
+seeing the moves before it, was the first way; it can't be split.)
+
+What a unit decides, wanting to step toward its next waypoint. The
+branches, in order:
   - the step is clear of walls and every unit          -> it takes it;
   - it would overlap a unit                            -> it SLIDES: it steps
       along that unit's edge instead, always the same way round (chosen at
@@ -90,11 +100,13 @@ crowd.SETTLE_TICKS = 10        -- blocked by an arrived groupmate within the gro
 crowd.SETTLE_FAR_TICKS = 90    -- ... and outside it (sliding round the group for a way in)
 crowd.PACKING = 0.6            -- how much of a disc packed circles of mixed sizes fill
 crowd.PATHING_EXTRA = 0.2      -- a unit's pathing radius: its collision radius plus this (world units)
-crowd.LOOK_AHEAD = 0.8         -- how far ahead (world units) a unit steers round others' pathing radius;
-                               -- 0 turns steering off (each crowd may set its own: crowd.look_ahead).
-                               -- Measured on the crossing demo (80 units, 2026-09-25): +0.35 and 1.2
-                               -- took 57.6 s with 13 giving up; +0.2 and 0.8, 45.9 s and none; off,
-                               -- 39.7 s and none. It suits sparse scenes better than head-on armies
+crowd.LOOK_AHEAD = 0           -- how far ahead (world units) a unit steers round others' pathing radius;
+                               -- 0: off, the default (each crowd may set its own: crowd.look_ahead;
+                               -- 0.8 is the setting measured). On the crossing demo (80 units,
+                               -- 2026-09-25), deciding from a snapshot with back-off: off, 47.0 s and
+                               -- none giving up; +0.2 at 0.8 ahead, 64.7 s and 10 giving up. Units
+                               -- moving one after another it had been: off 39.7 s, on 45.9 s. It
+                               -- slows head-on armies; it may suit sparse scenes
 crowd.GRIDLOCK_TICKS = 125     -- no closer to the goal this long (2 s): gridlocked -- back off and retry
 crowd.BACK_OFF = 1.0           -- how far a gridlocked unit backs off (world units, plus its radius)
 crowd.BACK_OFFS = 3            -- at most this many back-offs per order; then the give-up rule stands
@@ -218,7 +230,7 @@ function crowd:add(id, x, y, radius, speed, team, path_radius)
         moving = false, path = nil, step = 0, goal_x = x, goal_y = y, exact = true,
         vx = 0, vy = 0, facing = 0, gave_up = false, path_changed = false,
         group = nil, arrived = false, settle = 0,
-        orbit = 0, blocked_by = nil, mutual = 0, wait_until = 0,
+        orbit = 0, blocked_id = nil, mutual = 0, wait_until = 0,
         slide_since_progress = 0, bundle = nil, bundle_until = 0,
         closest = math.huge, no_progress = 0, nudged_at = -math.huge,
     }
@@ -284,11 +296,13 @@ end
 
 -- {{{ function crowd:overlapping(u, x, y)
 -- The unit a circle of u's size at (x, y) would overlap most deeply (not
--- u itself), or nil.
+-- u itself), or nil. While units decide, the buckets hold the tick's
+-- snapshot, so this answers from where everyone stood at its start; while
+-- they settle, from where they stand now.
 function crowd:overlapping(u, x, y)
     local found, deepest = nil, 0
     self:near(x, y, function(o)
-        if o ~= u then
+        if o.id ~= u.id then
             local reach = u.radius + o.radius
             local dx, dy = o.x - x, o.y - y
             local d2 = dx * dx + dy * dy
@@ -572,8 +586,8 @@ function crowd:move_group(ids, x, y)
         area = area + (u.radius + crowd.GAP) ^ 2
         u.moving, u.gave_up, u.arrived, u.group = true, false, false, group
         u.closest, u.no_progress, u.orbit, u.wait_until, u.bundle, u.bundle_until = math.huge, 0, 0, 0, nil, 0
-        u.slide_since_progress, u.mutual, u.blocked_by, u.settle = 0, 0, nil, 0
-        u.backing, u.back_offs = false, 0
+        u.slide_since_progress, u.mutual, u.blocked_id, u.settle = 0, 0, nil, 0
+        u.backing, u.back_offs, u.before_nudge = false, 0, nil
     end
     -- the radius the members fill packed together round the point: a
     -- member outside it keeps sliding round the group for a way in
@@ -590,28 +604,54 @@ end
 -- }}}
 
 -- {{{ Moving
+-- {{{ function crowd:snapshot()
+-- Everyone as they stood at the start of the tick, as records of the
+-- fields another unit may read: the only way a deciding unit sees the
+-- others. Built into its own buckets.
+function crowd:snapshot()
+    local snap, buckets = {}, {}
+    for _, id in ipairs(self.order) do
+        local u = self.units[id]
+        local r = {
+            id = id, x = u.x, y = u.y, radius = u.radius, path_radius = u.path_radius,
+            team = u.team, moving = u.moving, arrived = u.arrived, group = u.group,
+            goal_x = u.goal_x, goal_y = u.goal_y, blocked_id = u.blocked_id,
+            nudged_at = u.nudged_at, backing = u.backing, back_offs = u.back_offs,
+            no_progress = u.no_progress, speed = u.speed,
+        }
+        snap[id] = r
+        local k = bucket_key(self, r.x, r.y)
+        local b = buckets[k]
+        if not b then b = {}; buckets[k] = b end
+        b[#b + 1] = r
+    end
+    self.snap, self.snap_buckets = snap, buckets
+end
+-- }}}
+
 -- {{{ function crowd:stand(u, gave_up)
 function crowd:stand(u, gave_up)
     u.moving, u.path, u.step = false, nil, 0
     u.vx, u.vy = 0, 0
     u.gave_up = gave_up
     u.arrived = not gave_up
-    u.orbit, u.blocked_by, u.mutual, u.settle = 0, nil, 0, 0
+    u.orbit, u.blocked_id, u.mutual, u.settle = 0, nil, 0, 0
+    u.proposed = false
     u.path_changed = true
 end
 -- }}}
 
 -- {{{ function crowd:try_step(u, dx, dy)
--- Takes the step if it ends clear of walls and units. Returns true if
--- taken; otherwise the unit in the way, or false for a wall.
+-- Proposes the step if it ends clear of walls and of the units as they
+-- stood at the tick's start; settling takes it if it is still clear then.
+-- Returns true if proposed; otherwise the unit in the way (its snapshot
+-- record), or false for a wall.
 function crowd:try_step(u, dx, dy)
     local nx, ny = u.x + dx, u.y + dy
     if not self:clear_of_walls(nx, ny, u.radius) then return false end
     local o = self:overlapping(u, nx, ny)
     if o then return o end
-    u.x, u.y = nx, ny
-    u.step_x, u.step_y = dx, dy
-    self:rebucket(u)
+    u.step_x, u.step_y, u.proposed = dx, dy, true
     return true
 end
 -- }}}
@@ -619,7 +659,8 @@ end
 -- {{{ function crowd:nudge(o, u, dx, dy)
 -- An idle unit of u's side in u's way steps aside: sideways from u's line
 -- of travel (dx, dy), just far enough to clear it, on the side it is
--- already on (the far side if that's a wall).
+-- already on (the far side if that's a wall). Decided by u from o's
+-- snapshot record, asked for as a request, done when u settles.
 function crowd:nudge(o, u, dx, dy)
     if o.moving or o.team ~= u.team or self.tick_count - o.nudged_at < crowd.NUDGE_EVERY then return end
     local d = length(dx, dy)
@@ -632,10 +673,7 @@ function crowd:nudge(o, u, dx, dy)
         local shift = u.radius + o.radius + crowd.GAP - s * across
         local tx, ty = o.x - uy * s * shift, o.y + ux * s * shift
         if self:clear_of_walls(tx, ty, o.radius) then
-            o.nudged_at = self.tick_count
-            o.closest, o.no_progress = math.huge, 0
-            o.goal_x, o.goal_y = tx, ty
-            o.path, o.step, o.exact, o.moving, o.path_changed = { { x = tx, y = ty } }, 1, true, true, true
+            u.requests[#u.requests + 1] = { "nudge", o.id, tx, ty }
             return
         end
     end
@@ -675,15 +713,15 @@ end
 -- dense moving crowd everything was one bundle, no way round it existed,
 -- and the units that tried stopped.)
 function crowd:bundle_of(o)
-    local bundle, seen, queue = {}, { [o] = true }, { o }
+    local bundle, seen, queue = {}, { [o.id] = true }, { o }
     while #queue > 0 do
         local a = table.remove(queue)
         bundle[#bundle + 1] = { x = a.x, y = a.y, radius = a.radius }
         self:near(a.x, a.y, function(b)
-            if not seen[b] and not b.moving then
+            if not seen[b.id] and not b.moving then
                 local reach = a.radius + b.radius + crowd.BUNDLE_GAP
                 if (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < reach * reach then
-                    seen[b] = true
+                    seen[b.id] = true
                     queue[#queue + 1] = b
                 end
             end
@@ -790,7 +828,7 @@ function crowd:steer(u, wx, wy, reach, ahead)
     local ux, uy = wx / d, wy / d
     local best, best_along
     self:near(u.x, u.y, function(o)
-        if o == u then return end
+        if o.id == u.id then return end
         if o.arrived and o.group == u.group then return end
         -- an idle ally isn't steered round: it will be nudged aside (in a
         -- corridor narrower than two pathing radii, steering round it
@@ -839,7 +877,7 @@ end
 function crowd:back_off(u)
     local ax, ay, n = 0, 0, 0
     self:near(u.x, u.y, function(o)
-        if o ~= u and length(o.x - u.x, o.y - u.y) < u.radius + o.radius + crowd.BUNDLE_GAP then
+        if o.id ~= u.id and length(o.x - u.x, o.y - u.y) < u.radius + o.radius + crowd.BUNDLE_GAP then
             ax, ay, n = ax + o.x, ay + o.y, n + 1
         end
     end)
@@ -865,11 +903,17 @@ function crowd:back_off(u)
 end
 -- }}}
 
--- {{{ function crowd:advance(u, dt)
--- One moving unit's tick. The branches are the ones at the top of the file.
-function crowd:advance(u, dt)
+-- {{{ function crowd:decide(u, dt)
+-- One moving unit decides its tick, alone: from its own state and the
+-- others' snapshot records, it changes only its own state, proposes a
+-- step, and asks for anything it would do to another unit. So units can
+-- decide in any order, or at once, and the tick comes out the same. The
+-- branches are the ones at the top of the file.
+function crowd:decide(u, dt)
     local t = self.tick_count
     u.vx, u.vy = 0, 0
+    u.proposed = false
+    u.requests = {}
     -- giving way: standing still a moment
     if u.wait_until > t then return end
 
@@ -886,10 +930,10 @@ function crowd:advance(u, dt)
     if not u.backing and u.back_offs < crowd.BACK_OFFS and u.no_progress >= crowd.GRIDLOCK_TICKS * (u.back_offs + 1) then
         self:back_off(u)
         self:near(u.x, u.y, function(o)
-            if o ~= u and o.moving and not o.backing and o.back_offs < crowd.BACK_OFFS
+            if o.id ~= u.id and o.moving and not o.backing and o.back_offs < crowd.BACK_OFFS
                and o.no_progress >= crowd.GRIDLOCK_TICKS / 2
                and length(o.x - u.x, o.y - u.y) < u.radius + o.radius + 1.0 then
-                self:back_off(o)
+                u.requests[#u.requests + 1] = { "back_off", o.id }
             end
         end)
     end
@@ -909,9 +953,10 @@ function crowd:advance(u, dt)
     -- steer round others' pathing radius before touching their collision one
     if not u.backing and self.look_ahead > 0 then wx, wy = self:steer(u, wx, wy, reach, math.min(dist, self.look_ahead)) end
 
+    u.target_step = u.step
     local moved = self:try_step(u, wx, wy)
     if moved == true then
-        u.orbit, u.blocked_by, u.mutual = 0, nil, 0
+        u.orbit, u.blocked_id, u.mutual = 0, nil, 0
     elseif moved == false then
         -- a wall: slide along its edge; stuck even so -> the path clips a
         -- wall it didn't expect (sliding took it off its line): plan again.
@@ -923,7 +968,7 @@ function crowd:advance(u, dt)
         end
     else
         local o = moved
-        u.blocked_by = o
+        u.blocked_id = o.id
         -- Arriving, before anything else. Two paths:
         --   o is a groupmate that has arrived -> slide on toward the point
         --     while that gets closer; once it hasn't for a moment (or can't
@@ -948,8 +993,6 @@ function crowd:advance(u, dt)
             -- patience again: counting small gains, one unit circled a
             -- group bigger than its estimate for 20 s and gave up
             if u.no_progress == 0 then u.settle = 0 end
-            u.vx, u.vy = u.step_x / dt, u.step_y / dt
-            u.facing = math.atan2(u.vy, u.vx)
             return
         end
         if not o.moving and to_goal < u.radius + 2 * o.radius + crowd.GAP then
@@ -959,7 +1002,7 @@ function crowd:advance(u, dt)
         -- an idle unit of its own side: nudge it aside
         if not o.moving then self:nudge(o, u, wx, wy) end
         -- two moving units in each other's way: the higher id gives way
-        if o.moving and o.blocked_by == u then
+        if o.moving and o.blocked_id == u.id then
             u.mutual = u.mutual + 1
             if u.mutual >= crowd.GIVE_WAY_TICKS and u.id > o.id then
                 -- Two paths: room beside o's line -> step aside into it (then
@@ -983,35 +1026,111 @@ function crowd:advance(u, dt)
         end
         if not slid then return end
     end
-
-    u.vx, u.vy = u.step_x / dt, u.step_y / dt
-    u.facing = math.atan2(u.vy, u.vx)
-    -- at the waypoint: on to the next, or arrived
-    if abs(u.x - target.x) < crowd.ARRIVE and abs(u.y - target.y) < crowd.ARRIVE then
-        u.step = u.step + 1
-        if u.step > #u.path then
-            -- Two paths: backed off -> head for the goal again; otherwise
-            -- -> arrived
-            if u.backing then
-                u.backing = false
-                u.planned_at = nil
-                self:head_for(u, u.goal_x, u.goal_y)
-                return
-            end
-            self:stand(u, false)
-        end
-    end
 end
 -- }}}
 
--- {{{ function crowd:tick(dt)
--- One tick of `dt` seconds for every unit, in id order.
-function crowd:tick(dt)
+-- {{{ function crowd:settle(u, dt, last_try)
+-- One unit settles its tick, in id order: its proposed step is taken if
+-- it is still clear of walls and of the units as they stand now (those
+-- settled already this tick have moved), else half of it. Refused both,
+-- it gets a second try after everyone else (`last_try`): the unit ahead
+-- of it in a column may settle after it, and only then is its old place
+-- free. Arriving at a waypoint is noticed here, from where it actually
+-- got to. Returns true once the step is done with.
+function crowd:settle(u, dt, last_try)
+    local moved = false
+    for _, f in ipairs({ 1, 0.5 }) do
+        local nx, ny = u.x + u.step_x * f, u.y + u.step_y * f
+        if self:clear_of_walls(nx, ny, u.radius) and not self:overlapping(u, nx, ny) then
+            u.x, u.y = nx, ny
+            self:rebucket(u)
+            u.vx, u.vy = u.step_x * f / dt, u.step_y * f / dt
+            u.facing = math.atan2(u.vy, u.vx)
+            moved = true
+            break
+        end
+    end
+    if not moved and not last_try then return false end
+    u.proposed = false
+    local target = moved and u.path and u.path[u.target_step]
+    if target and abs(u.x - target.x) < crowd.ARRIVE and abs(u.y - target.y) < crowd.ARRIVE then
+        u.step = u.target_step + 1
+        if u.step > #u.path then
+            -- Three paths: backed off -> head for the goal again (planned
+            -- when it next decides); the path stopped short of the goal
+            -- (planned only as close as it could, round a bundle) -> plan
+            -- again when it next decides; otherwise -> arrived. (Arriving
+            -- at a short path's end stood units mid-field as "arrived",
+            -- their groupmates settled against them, and the gap jammed.)
+            if u.backing then
+                u.backing = false
+                u.path, u.planned_at = nil, nil
+            elseif not u.exact then
+                u.path = nil
+            else
+                self:stand(u, false)
+                local b = u.before_nudge
+                if b then
+                    u.arrived, u.gave_up, u.goal_x, u.goal_y = b.arrived, b.gave_up, b.goal_x, b.goal_y
+                    u.before_nudge = nil
+                end
+            end
+        end
+    end
+    return true
+end
+-- }}}
+
+-- {{{ function crowd:do_requests(u)
+-- What u asked of others while deciding, checked again now (they may
+-- have changed) and done, in u's turn of the id order.
+function crowd:do_requests(u)
+    for _, r in ipairs(u.requests) do
+        local o = self.units[r[2]]
+        if r[1] == "nudge" then
+            if not o.moving and self.tick_count - o.nudged_at >= crowd.NUDGE_EVERY then
+                -- what it was before the nudge, restored once it has stepped
+                -- aside: a unit that had given up, nudged, used to count as
+                -- arrived (at the nudge spot) and its groupmates settled
+                -- against it in the middle of the field
+                o.before_nudge = { arrived = o.arrived, gave_up = o.gave_up, goal_x = o.goal_x, goal_y = o.goal_y }
+                o.nudged_at = self.tick_count
+                o.closest, o.no_progress = math.huge, 0
+                o.goal_x, o.goal_y = r[3], r[4]
+                o.path, o.step, o.exact, o.moving, o.path_changed = { { x = r[3], y = r[4] } }, 1, true, true, true
+            end
+        elseif o.moving and not o.backing and o.back_offs < crowd.BACK_OFFS then   -- "back_off"
+            self:back_off(o)
+        end
+    end
+    u.requests = nil
+end
+-- }}}
+
+-- {{{ function crowd:tick(dt, deciding_order)
+-- One tick of `dt` seconds. Two phases:
+--   decide  every moving unit, alone, from the snapshot (any order: the
+--           result is the same; `deciding_order`, a list of ids, lets a
+--           test prove it; a threaded runner splits this phase)
+--   settle  every unit in id order, from where they stand now
+function crowd:tick(dt, deciding_order)
     self.tick_count = self.tick_count + 1
+    self:snapshot()
+    self.buckets = self.snap_buckets
+    for _, id in ipairs(deciding_order or self.order) do
+        local u = self.units[id]
+        if u.moving then self:decide(u, dt) end
+    end
     self:rehash()
     for _, id in ipairs(self.order) do
         local u = self.units[id]
-        if u.moving then self:advance(u, dt) end
+        if u.proposed then self:settle(u, dt, false) end
+        if u.requests then self:do_requests(u) end
+    end
+    -- the second try, for steps refused the first time
+    for _, id in ipairs(self.order) do
+        local u = self.units[id]
+        if u.proposed then self:settle(u, dt, true) end
     end
 end
 -- }}}

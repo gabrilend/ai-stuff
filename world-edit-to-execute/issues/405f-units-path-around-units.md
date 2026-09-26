@@ -69,6 +69,20 @@ What building it taught, each now a rule or number in the file:
     Back-off helps; steering by the larger radius slows two head-on armies
     and is sensitive to its numbers. It suits sparse scenes. The demo can
     run with it off (`run-crossing.sh "" window-one-radius`) to compare.
+- **The tick in two phases (for issue 515k, 2026-09-25):** every unit
+  decides alone from a snapshot of the tick's start, then steps settle in
+  id order (a refused step gets a second try after everyone else). A test
+  proves deciding in any order gives the same positions, bit for bit.
+  Units now react to each other a tick late: the crossing went from
+  39.7 s to 47.0 s (back-off on, larger radius off), nobody giving up.
+  - **The larger pathing radius is now off by default:** with the
+    two-phase tick it took the crossing to 64.7 s with 10 giving up. The
+    demo shows it with `run-crossing.sh "" window-two-radii`.
+  - **Found on the way:** a unit that had given up, nudged aside, counted
+    as arrived at the nudge spot, and its groupmates settled against it in
+    the middle of the field; a nudge now restores what the unit was. A
+    path planned only as close as it could get no longer counts as
+    arrived at its end.
 - **Steering lessons:** the side it steers to is kept while anyone is in
   the way (choosing afresh each tick dithered left and right, and between
   a bundle's members); idle allies aren't steered round, they're nudged

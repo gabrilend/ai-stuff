@@ -10,7 +10,12 @@
 
 ## Current Behavior
 
-Nothing of this exists. The ceramic engine has been measured on uniform
+Being built (2026-09-25). **Step 1 done:** the Lua crowd's tick is in two
+phases (decide from a snapshot, then settle in id order), and a test
+proves deciding in any order gives the same positions bit for bit; the
+crossing takes 47.0 s with nobody giving up (405f has the details).
+
+Before this: the ceramic engine has been measured on uniform
 work (515a) and on a fabricated frame whose costs were chosen (515h, 515j).
 The crowd (405f) is real game work whose cost nobody chose: most units take
 a cheap step each tick, a few re-plan their path (about a hundred times the

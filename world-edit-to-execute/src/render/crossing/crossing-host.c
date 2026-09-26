@@ -317,11 +317,11 @@ static void *receiver_run(void *arg)
              "link = require('net.renderer_link')", project_dir, project_dir);
     lua_must(L, luaL_dostring(L, setup), "loading the link");
 
-    /* the map: rows, cell size; CROSSING_ONE_RADIUS=1 turns the larger
-     * pathing radius off, to compare the two by eye */
+    /* the map: rows, cell size; CROSSING_TWO_RADII=1 turns the larger
+     * pathing radius on, to compare the two by eye */
     lua_pushstring(L, project_dir);
-    const char *one = getenv("CROSSING_ONE_RADIUS");
-    lua_pushboolean(L, one && strcmp(one, "1") == 0);
+    const char *two = getenv("CROSSING_TWO_RADII");
+    lua_pushboolean(L, two && strcmp(two, "1") == 0);
     call_link(L, "start", 2, 2);
     map.cell_size = (float)lua_tonumber(L, -1);
     lua_pop(L, 1);

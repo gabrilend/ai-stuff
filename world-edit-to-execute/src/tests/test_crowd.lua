@@ -99,6 +99,7 @@ do
     -- the same scene; with a pathing radius larger than the collision one,
     -- the mover passes without ever touching the standing unit
     local c = open_field(14, 7)
+    c.look_ahead = 0.8                  -- the pathing radius on (off by default)
     c:add(1, 2.5, 3.5, 0.5, 3, "west")
     c:add(2, 6.5, 3.5, 0.5, 3, "east")
     c:move(1, 11.5, 3.5)
@@ -199,8 +200,10 @@ do
     -- area needs. Arrivals take the free spot a little toward their own
     -- side and nudge each other as they come in, so the packing is looser
     -- than the tightest; 3.97 against the sizes' 1.8x was measured first,
-    -- and steering round pathing radii loosens it a little more (4.67)
-    local snug = math.sqrt(area) * 2.3
+    -- steering round pathing radii loosened it a little more (4.67), and
+    -- deciding from the tick's snapshot a little more again (5.37: more of
+    -- the slides round the group are refused when they settle)
+    local snug = math.sqrt(area) * 2.6
     test("all stand, packed round the point", ticks < 2000 and furthest <= snug,
         string.format("reaches %.2f from the point; snug is %.2f", furthest, snug))
 end
@@ -248,6 +251,9 @@ do
     end
     local took = os.clock() - t0
     test("no overlap, no wall", faults == nil, faults)
+    -- (deciding from the tick's snapshot, units react to each other a tick
+    -- late; the first crossing took 39.7 s when they moved one after
+    -- another, and 47 s this way)
     test("the first crossing ends within a minute", sim.crossings >= 1, ticks .. " ticks")
     print(string.format("    (%d units, %.1f s of game in %.2f s: %.2f ms a tick; %d gave up)",
         #c.order, ticks / 62.5, took, took / ticks * 1000, sim.gave_up_last or 0))
@@ -256,6 +262,28 @@ do
     test("at most two gave up", (sim.gave_up_last or 0) <= 2, tostring(sim.gave_up_last))
     test("gridlocked units backed off and tried again", (c.back_offs_total or 0) > 0, tostring(c.back_offs_total))
     print(string.format("    (%d back-offs)", c.back_offs_total or 0))
+end
+
+print("\n=== Deciding in any order gives the same tick ===")
+do
+    -- the same crossing run three times for 20 s, the units deciding in id
+    -- order, in reverse, and interleaved; every position must match exactly
+    -- (a threaded runner splits the deciding however it likes)
+    local function positions(order_of)
+        package.loaded["net.crossing_sim"] = nil
+        local sim = require("net.crossing_sim").new({})
+        local c = sim.crowd
+        local order = order_of(c.order)
+        for t = 1, 62.5 * 20 do c:tick(1 / 62.5, order) end
+        local out = {}
+        for _, id in ipairs(c.order) do out[#out + 1] = string.format("%.17g,%.17g", c.units[id].x, c.units[id].y) end
+        return table.concat(out, ";")
+    end
+    local forward = positions(function(o) return o end)
+    local backward = positions(function(o) local r = {} for i = #o, 1, -1 do r[#r + 1] = o[i] end return r end)
+    local woven = positions(function(o) local r = {} for i = 1, #o, 2 do r[#r + 1] = o[i] end for i = 2, #o, 2 do r[#r + 1] = o[i] end return r end)
+    test("in reverse: every position the same, bit for bit", backward == forward)
+    test("interleaved: every position the same, bit for bit", woven == forward)
 end
 
 print(string.format("\n%d/%d passed", pass_count, test_count))
