@@ -77,7 +77,8 @@ in full there.
 | Date | Decision | Recorded in |
 |------|----------|-------------|
 | 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
-| 2026-09-26 | **Community models first; Blizzard's only for compatibility; placeholders otherwise.** The owner: "use the models posted online rather than the ones in the game. We want to respect and honor Warcraft 3 and the most respectful way to do that I can think of is to use their models only when we are building in compatibility with their formats. For the rest of it, we can use placeholders." The engine gets a WC3 model reader, a texture reader and an in-engine model renderer ("Why use capsules when you could use footmen and grunts?"). | issues 116, 117, 516 |
+| 2026-09-26 | **Backend in ceramic, renderer in raylib, a page between them.** The owner: "We are building the backend in ceramic, and the renderer in raylib, with C being used (probably as soramech boxes) to create the 'page' that the renderer will draw from with a single thread to display on the screen." Readers that run once (such as the model reader) stay in Lua and hand their data to C, which keeps it for the map. | issues 515, 516, 116 |
+| 2026-09-26 | **Draw the model the map asks for; players override it on their own machine; placeholders otherwise.** The owner: "use the models that the map requests. Even if they're stock. The user will build per-stock-model overrides that they can then have rendered on their end." This settles how the owner's earlier answer the same day applies in play: "use the models posted online rather than the ones in the game... use their models only when we are building in compatibility with their formats" (drawing what a map asks for is that compatibility). Stock models come from the player's own install; nothing Blizzard-made is shipped. WC3 textures are decoded by the same shared reader as WoW's. The WoW path's model chooser (W03) is the design for both systems; a stand-in is used until it exists. | issues 116, 117, 516, W03 |
 | 2026-09-26 | **Fetching and browsing are split, generation from viewing.** Issue 603 is the fetcher: it finds maps and models on public hosting sites and downloads one over HTTP when a player asks. Issue 1001 is the catalogue: it shows what 603 found and never fetches. The file server (607) is retired; nothing in the project serves files. | issues 603, 1001, `issues/superseded/607-file-server-application.md` |
 | 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | issue 603 |
 | 2026-09-25 | **One host holds the truth; lockstep is dropped.** The host's machine runs the one simulation and every other player is its client. | `docs/wc3-engine-architecture.md` (Multiplayer Strategy), issue 803 |
@@ -133,9 +134,14 @@ the C renderer.
 **Reshapes:** the rewrites from Q-3
 
 - Does the UI framework (506) live in C next to the existing panel code, or
-  in Lua writing into a buffer the C side draws?
-- Do terrain, unit and minimap features target the current C renderer, the
-  ceramic path, or both?
+  in Lua writing into a buffer the C side draws? Given the split decided on
+  2026-09-26 (section 2), the likely answer is: its per-frame layout is
+  written into the page by C boxes, and the renderer draws it. Still to be
+  confirmed by the owner.
+- ~~Do terrain, unit and minimap features target the current C renderer,
+  the ceramic path, or both?~~ Answered 2026-09-26: the backend is ceramic,
+  the renderer is raylib, and C boxes build the page the renderer draws
+  (section 2).
 
 ### Q-5: May the patch programs be downloaded?
 **Blocks:** 112b's completion, 112d
@@ -225,7 +231,7 @@ Places where a document disagrees with the code or with another document.
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
 | 801b-801h | headers say Phase 7 | Phase 8; 801h's dependency names "701 sub-issues", which are archived |
 | 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped |
-| 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | for models the order is now a map's own imported files, then installed community models, then placeholders (516, the owner's rule of 2026-09-26); the player's WC3 install supplies stock *data* (112), not models in play; the WoW client belongs only in Phase W's order (W03); the roadmap says `~/.wc3-engine/` |
+| 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | for models the order is now the player's override for a model path, then the model the map requests (imported, or stock from the player's own install), then a placeholder (516, decided 2026-09-26); the player's install also supplies stock data (112); the roadmap says `~/.wc3-engine/` |
 | Current Behavior sections | 112 says there is no reader for the stock tables; 515k says only steps 1-2 are done; 803 has met criteria unticked | the reader exists (`src/gamedata/`); step 3 is committed; 3 of 4 criteria are met |
 
 ---

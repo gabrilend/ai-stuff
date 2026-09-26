@@ -72,7 +72,7 @@ Order: `W03a → W03b → W03c`, `W03d` after `W03b`.
 1. **Team colour**: WoW models have no team-colour texture slot. Options: (a) tint by a per-model mask made once per model; (b) a coloured ground ring and glow only; (c) both. Which does the owner want WC3's look to rely on?
 2. **"Mimic exactly"**: should our engine mimic how *WC3* would behave (the plan above), or how the *WoW client* animates these models (idle fidgets, emotes)? They conflict in places; WC3 is assumed.
 3. ~~Should the custom-client project reuse W03c's skinning code?~~ Superseded by the merge: skinning is built once, in the W client (its issues 403-404).
-4. Does this project's renderer (`src/render/`) remain a second place WoW models are drawn (useful for W04's comparisons and for the engine's own WC3 play), or does the W client become the only renderer for WoW models, leaving `src/render/` to the asset-free engine?
+4. Does this project's renderer (`src/render/`) remain a second place WoW models are drawn (useful for W04's comparisons and for the engine's own WC3 play), or does the W client become the only renderer for WoW models, leaving `src/render/` to the asset-free engine? (Note, 2026-09-26: `src/render/` is no longer asset-free in plan. Issue 516 draws WC3 models there: the model a map asks for, with the player's own overrides. And the owner named this issue's model chooser as "the desired path for both systems"; 516 uses a stand-in with the same three steps until W03a exists.)
 
 ## Related Documents
 

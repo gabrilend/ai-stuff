@@ -6,7 +6,7 @@
 **Dependencies:** None open
 **Builds on (completed):** our MPQ reader and PKWARE decompression (phase 1)
 **Built in:** the W client, `/mnt/mtwo/games/azeroth-core/custom-client/`, issues 104, 105, 106, 107 (and 401 for models)
-**Unlocks:** W02, W03
+**Blocks:** W02, W03, W05b, W05c, and 117 (WC3's older BLP1 textures are decoded by the same shared reader, owner 2026-09-26)
 
 ---
 

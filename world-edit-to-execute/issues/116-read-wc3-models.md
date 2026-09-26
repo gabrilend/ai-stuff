@@ -29,6 +29,15 @@ A parser, `src/parsers/mdx.lua`, that turns a binary WC3 model into a Lua
 table the renderer (516) can draw from, and that the fetcher (603) and the
 catalogue (1001) can read facts from.
 
+**Written in Lua, run once per model** (owner, 2026-09-26): "the model
+reader should only need to be run once, to pull the model's data into memory
+for C. That part can be lua. It just has to return data to the renderer,
+which stores it for the duration of the map." The reader runs when a map
+loads, once for each model the map uses; the renderer copies the result into
+its own memory and keeps it until the map ends. Nothing reads model files
+while frames are being drawn, so the reader's speed matters only to load
+time.
+
 **The format.** A binary `.mdx` file starts with the four bytes `MDLX`, then
 a series of chunks. Each chunk is a four-byte tag, a 32-bit little-endian
 byte length, and that many bytes. The chunks that matter first:
@@ -80,11 +89,12 @@ versions (900 and later) are listed in `docs/versions-we-leave-alone.md` and
 are refused with an error that names the version, not guessed at. The text
 form of the format (`.mdl`) is not read by this issue.
 
-**Where test models come from.** Models posted by the community, fetched
-through 603, are the default test material. The stock models inside the
-player's own WC3 install are read only as compatibility checks, to prove the
-reader handles Blizzard's own files (see the owner's rule in 516). Neither
-kind is committed to the repository.
+**What it reads.** Whatever model a map asks for: a model imported into the
+map, or a stock model from the player's own WC3 install (516, the owner's
+rule of 2026-09-26), and the community models the player installs as
+overrides. The stock models are therefore real input, not only test
+material. None of them is committed to the repository; tests build their
+own small models.
 
 ## Suggested Implementation Steps
 
@@ -114,9 +124,8 @@ kind is committed to the repository.
 
 ## Open Questions
 
-1. Should the reader be written in Lua (like every other parser here), in C
-   beside the renderer (which will draw from it every frame), or in both
-   (the `polyglot-source` pattern: two hand-written versions, one live)?
+1. ~~Lua, C, or both?~~ Answered 2026-09-26: Lua, run once per model at
+   map load, handing its data to the renderer (see Intended Behavior).
 
 ## Related Documents
 
