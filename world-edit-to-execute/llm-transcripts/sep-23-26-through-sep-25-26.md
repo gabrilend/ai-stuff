@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 18:16:12
+Generated on: 2026-09-25 19:39:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -146,6 +146,10 @@ Models: claude-opus-5-5
     enough for a renderer's per-frame work; the lock-free task queue now takes
     one unit per task from 10.8 ms to 1.0 ms and is delivered to soramech. Next:
     say whether I should update the stale Phase 5 progress table.
+34. 2026-09-25 18:48, after Request 73 - We're measuring how the ceramic engine
+    performs so we can build the renderer on it, and all three reports are
+    published and copied to soramech. Next, you choose between prototyping named
+    priority queues and starting the real renderer's host loop.
 
 --------------------------------------------------------------------------------
 
@@ -7240,6 +7244,268 @@ issue 107), so this test would give that issue real numbers too.
 Which would you rather start with: the synthetic frame graph (controllable, and
 ready now), or real map loading (real data and the parsers we already have, but
 most of that code is Lua, which can't run inside boxes yet)?
+
+--------------------------------------------------------------------------------
+
+### User Request 71
+
+Great, can we build that? I think we should split this into three reports - one
+with the lock-free design, so we can show the soramech developers and compare,
+and then a new one with the fabricated realistic workload.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 71
+
+> Yes. I'm reading "three reports" as:
+> 1. the **stock-engine analysis** we have (five approaches);
+> 2. the **lock-free design**, on its own, for the soramech developers to
+>    compare;
+> 3. a new one on the **fabricated realistic frame**.
+>
+> I'll split the current page into the first two, then build the third. The
+> frame test needs its issue first. One design point decides everything: how a
+> frame's dependencies can be drawn in the ceramic engine's own terms.
+> - **One value per task**: a box returns one answer.
+> - **Joins pair values**: a station with two inputs runs when both have one.
+> - **Constants sit on static ports**: e.g. which player a fog station is for.
+>
+> So "the simulation's result feeds every pose chunk" becomes **fixed lanes**.
+> The sim station's output is wired to eight pose stations, and each pose
+> station also takes the renderer's request for its share of units. Each lane
+> then feeds its own cull station, so pose and cull form a pipeline within the
+> frame.
+
+> The opening sentence is set as plain text, so the `<em>` tags would show
+> literally; removing them. Then checking the seams where sections were cut:
+
+> Now the report tool fills both pages from one function, splicing the kit into
+> each. (Plus a small style for the new page's subheadings.)
+
+Both pages are generated. One look at the new one:
+
+--------------------------------------------------------------------------------
+
+### User Request 72
+
+[Image: original 1000x5200, displayed at 385x2000. Multiply coordinates by 2.60
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 72
+
+> Both are published. Committing the split before building the frame test:
+
+> Now the boxes. They get appended to the pose box file, whose value types are
+> spliced in as before, so the pose lanes use the real pose math:
+
+> (Those diagnostics are expected: the file is only compiled after the splice,
+> with the rounds constant given.) Does the map format allow `#` comments?
+> Checking rather than guessing:
+
+> Now the hand-written programs:
+
+> Now the runner: calibrate, build all three programs, run everything, and count
+> the threading code:
+
+> Fixing the argument order in the ceramic host's output line (the name has to
+> come first), then testing the spinning variants:
+
+The third report's page is generated. I'm taking one look at it before
+publishing:
+
+--------------------------------------------------------------------------------
+
+### User Request 73
+
+[Image: original 1000x5600, displayed at 357x2000. Multiply coordinates by 2.80
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 73
+
+> Two layout flaws: the "poses, 8 lanes" label collides with the fourth fog box,
+> and the longest background bar's label is cut off at the right edge. Fixing
+> both, then publishing:
+
+> The docs build cleanly (0 unresolved references). Committing to soramech:
+
+> Now this project's side: the `.info.md` files, and the issue completed as a
+> blueprint:
+
+> All claimed. Now 515h: rewritten as the blueprint of what was built, then
+> completed:
+
+The three reports are done and published. Each is also committed to the soramech
+repository, and the frame issue is complete.
+
+1. **[Ceramic Frame
+   Budget](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc)**: the stock
+   engine on uniform skeleton work, five approaches (soramech case study 151).
+2. **[Lockless Task Queue](https://claude.ai/artifact/46pysVA4YdVCxvv8MfNpcy)**:
+   written for the soramech developers. It covers why the stock queue is slow,
+   the design (a slot-state table, the steps in and out, and why no wake-up is
+   lost), what it measured, and the costs it pays against their guarantees (sits
+   beside their note 152).
+3. **[Frame as a Graph](https://claude.ai/artifact/8syLBAZ6BL4oGmKzMhPedn)**:
+   the new flexibility test (soramech case study 153).
+
+The three share one look and one colour per approach, so a reader can move
+between them.
+
+**The fabricated frame:** a simulation step feeds fog of war for four players
+and eight lanes of skeleton poses. Each lane feeds its culling. Alongside,
+20–60 pathfinding requests run from 10 µs to 2 ms, and two decodes a frame
+run in the background. Every run of every way agreed on every frame's checksum.
+
+| Way (mean frame) | Sleeping | Spinning |
+|---|---|---|
+| One thread | 21.6 ms | |
+| Hand-written, one stage after another | 12.0 ms | 5.0 ms |
+| Hand-written, by dependency level (the best barrier design) | 3.45 ms | 3.6–3.9 ms |
+| **Ceramic graph** | **2.81 ms** | 2.87 ms |
+| Fastest possible (from the plan) | 2.05 ms | |
+
+- **Your hypothesis holds.** On work that isn't uniform, the graph beat the best
+  hand-written barrier design by 23% and came within 37% of the fastest possible
+  frame, with the steadiest worst frames. A barrier makes every stage wait for
+  its longest task; in the graph, a slow 2 ms pathfinding request occupies one
+  worker while everything else flows past.
+- **A surprise:** this machine's power settings slow idle cores to 1.2 GHz.
+  Threads that sleep between stages keep waking on cold cores, which is why "one
+  stage after another" takes 12 ms. Spinning keeps cores warm but wrecks worst
+  frames (99th percentile: 4.8 → 19 ms). The graph barely cares, because its
+  workers are rarely idle long enough to cool.
+- **The one weakness found:** background decodes cost the graph 9%, because they
+  share its single first-come task queue with frame work. The hand-written
+  design's dedicated thread lost almost nothing. That puts a number on
+  soramech's open design for several queues (their issue 107).
+- **Threading code:** 118 lines hand-written, against 52 in the ceramic host
+  plus a 92-line map produced by a 37-line generator.
+
+A question back: the priority gap is the engine's clearest remaining weakness.
+Would you rather see it attacked next, with a prototype of named queues (frame
+work vs. background) in our engine copy measured on this same frame? Or should
+we move on to the real renderer, the host loop, and let the priority question
+wait until it bites there?
+
+--------------------------------------------------------------------------------
+
+### User Request 74
+
+Is there a way to ask the OS not to interrupt a thread when it's started, but to
+instead queue it's work after it's done? I'm thinking, if we could get the OS
+tasks to run inbetween the task queue calls, it might end up being faster... But
+it could reduce responsiveness so that's probably not the best idea.
+
+Yeah I think we'll need the priority queue. Can we build it in this project,
+then either make a 4th HTML artifact or add to these with the comparison? We
+want to compare before and after, so make sure that we can deploy it in such a
+way that it can go unused if we don't want. Well, I'm not sure how important
+that concern is, but it feels more scientific somehow. Can you think of any
+updates to the hand-threaded code we could make, to adversarially increase the
+difficulty of our benchmarks?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 74
+
+> **On the OS question:** yes, several ways exist, and your instinct about
+> responsiveness is exactly their catch.
+> - **Real-time scheduling** (`SCHED_FIFO` on Linux): a thread runs until it
+>   yields or blocks, and ordinary threads can't interrupt it. It needs elevated
+>   privileges, and a spinning real-time thread can starve the system. Linux
+>   caps real-time threads at 95% of each second as a safety valve.
+> - **Giving the OS its own core** (the `isolcpus` / `nohz_full` boot options):
+>   the kernel's own housekeeping moves to chosen cores, and the rest run only
+>   your threads. That's close to what you described, but it's a boot-time
+>   setting for the whole machine.
+> - **Cheap and available now:** pin the workers to cores and leave one hardware
+>   thread free for the OS; run background work at low priority (`SCHED_IDLE`).
+>   The frame test already hinted this matters: twelve spinning threads on
+>   twelve hardware threads were what wrecked the worst frames.
+>
+> Priority queues next. Soramech already has a design for this (issue 107), so
+> I'll read it first and build to it rather than invent a parallel one:
+
+> The map keeps its station names in `station_names`; checking how it's indexed:
+
+> Names are indexed by station number. First the issue, then the engine change:
+
+> Now the engine change. The current ring code first, so the refactor replaces
+> it exactly:
+
+> Now the task's destination field, the station's, and the two map-level calls:
+
+> It compiles cleanly. One thing must be true for "names nothing = default": a
+> new station's `destination` must start at 0. Checking how stations are
+> allocated:
+
+> Stations come from zeroed memory, so new ones start at the default. A removed
+> station's slot could be *reused*, though, so I'll check whether reuse resets
+> it:
+
+> A reused place is assumed to hold "nothing stale", so removing a station must
+> clear its destination too, or a new station could inherit the old one's.
+> Finding where removal clears a station:
+
+> Both test programs pass. The race detector on the new test:
+
+> While the run finishes, the fork's notes and the new test's `.info.md`:
+
+The run is still going (about four minutes left). I'll finish the reports when
+it lands.
+
+**Your adversarial question.** Ways to make the hand-written side harder to
+beat, strongest first:
+1. **A hand-written job system with dependencies.** This is the strongest
+   possible opponent, and what shipping engines actually use. Each job carries a
+   count of unfinished inputs; when a job finishes, it lowers its dependents'
+   counts and queues any that reach zero, onto per-thread queues with work
+   stealing. It does exactly what the graph does, with no general engine in the
+   way. If the ceramic engine stays close to *that*, its flexibility is nearly
+   free.
+2. **Hybrid barriers: spin briefly, then sleep.** Spinning fixed the cold-core
+   problem but wrecked worst frames; spinning for a few microseconds before
+   sleeping gets most of both. It's cheap to add, and it's the standard fix.
+3. **Leave the OS a core, and pin threads to cores.** Your OS idea, applied
+   fairly to both sides: 11 pinned hand-written threads plus the OS core,
+   against 10 ceramic workers plus the host. It should shrink everyone's worst
+   frames and show who gains most.
+4. **Background work at low OS priority.** Run the hand-written background
+   thread under `SCHED_IDLE` (or nice 19), so it never competes with frame
+   threads at all. That's the hand-written answer to what destinations just gave
+   the engine.
+5. **Knowledge the graph doesn't have:** sorting pathfinding requests
+   longest-first by an estimate. It's unfair (a real engine can only estimate),
+   but it shows how much better scheduling foresight could buy.
+
+I'd build 1 and 2 first, since they're the opponents a shipping engine would
+actually field. They go in the same frame harness, so the fourth-run comparison
+stays apples to apples.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/frame/run-frame.sh
+"" 300 3 &gt;
+/tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-world-edit-to-execute/ddf5eee1-6121-4262-9ca9-dc62c638a62e/scratchpad/frame-run2.log
+2&gt;&amp;1" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 74 (continued)
+
+> It runs in the background (about six minutes). Meanwhile, the issue's Current
+> Behavior, written to what was built. I'll fill in the final numbers when the
+> run lands.
+
+The full run is still going. When it finishes I'll:
+- regenerate and publish the frame report with the before-and-after section;
+- write what the build taught into a note for soramech's issue 107;
+- complete the issue and commit both repositories.
 
 --------------------------------------------------------------------------------
 

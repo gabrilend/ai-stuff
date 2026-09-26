@@ -360,6 +360,10 @@ static void        map_scrap_free_all(cera_map_t *m);
  */
 #define POOL_DEFAULT_SLOTS 65536
 
+/* FORK (issue 515i): how many destinations (task queues) a pool may
+ * hold. Destination 0 is the default and always exists. */
+#define POOL_MAX_DESTINATIONS 8
+
 /* {{{ struct queue_slot */
 /*
  * One place in the ring: its sequence number (the state, above) and
@@ -373,6 +377,28 @@ struct queue_slot {
 };
 /* }}} */
 
+/* {{{ struct ring */
+/*
+ * One destination's queue: `capacity` slots, a power of two, addressed by
+ * position & `mask`, and the two positions. Every hand-in writes `tail`
+ * and every take-out writes `head`, so each sits alone on its own cache
+ * line: two counters sharing one would make every hand-in and every
+ * take-out fight over the same line, which is the contention this
+ * replaces. (FORK issue 515i: it was fields of the pool while the pool
+ * had one queue.)
+ */
+struct ring {
+    struct queue_slot *slots;
+    uint64_t           capacity;
+    uint64_t           mask;
+    char               pad_before_tail[64];
+    _Atomic uint64_t   tail;
+    char               pad_after_tail[64 - sizeof(_Atomic uint64_t)];
+    _Atomic uint64_t   head;
+    char               pad_after_head[64 - sizeof(_Atomic uint64_t)];
+};
+/* }}} */
+
 /* {{{ type worker_t */
 /*
  * One worker thread's identity: which pthread it is, which index it
@@ -383,6 +409,11 @@ typedef struct worker {
     pthread_t thread;
     int       index;
     cera_pool_t   *pool;
+    /* FORK (issue 515i): the destinations this worker serves, in the
+     * order it looks at them (soramech issue 107: the order is the
+     * policy). [0], the default only, unless a program says otherwise. */
+    int       sources[POOL_MAX_DESTINATIONS];
+    int       n_sources;
 } worker_t;
 /* }}} */
 
@@ -413,22 +444,16 @@ struct pool_epoch {
 
 /* {{{ struct pool */
 struct pool {
-    /* The ring (see the section's opening). `ring_capacity` slots, a
-     * power of two, addressed by position & `ring_mask`. */
-    struct queue_slot *ring;
-    uint64_t           ring_capacity;
-    uint64_t           ring_mask;
-
-    /* The next position a hand-in will reserve, and the next a worker
-     * will take. Every hand-in writes `tail` and every take-out writes
-     * `head`, so each sits alone on its own cache line: two counters
-     * sharing one would make every hand-in and every take-out fight
-     * over the same line, which is the contention this replaces. */
-    char               pad_before_tail[64];
-    _Atomic uint64_t   tail;
-    char               pad_after_tail[64 - sizeof(_Atomic uint64_t)];
-    _Atomic uint64_t   head;
-    char               pad_after_head[64 - sizeof(_Atomic uint64_t)];
+    /* The destinations (FORK issue 515i): one ring each (see the
+     * section's opening). rings[0] is the default and always exists;
+     * more are added before the workers are released. */
+    struct ring *rings[POOL_MAX_DESTINATIONS];
+    int          n_destinations;
+    /* Whether every worker serves the same destinations. Decided at
+     * release. When they do, any sleeping worker can take any task, so a
+     * hand-in wakes one per task; when they don't, the one woken might
+     * not serve it, so a hand-in wakes them all. */
+    int          uniform_service;
 
     pthread_mutex_t mutex;
 
@@ -516,11 +541,28 @@ struct pool {
  * Sequentially consistent, because the sleep decision depends on it
  * (see wake_for).
  */
+static int ring_held(struct ring *r)
+{
+    uint64_t t = atomic_load_explicit(&r->tail, memory_order_seq_cst);
+    uint64_t h = atomic_load_explicit(&r->head, memory_order_seq_cst);
+    return t > h ? (int)(t - h) : 0;
+}
+
+/* Every destination together: what completion and "queued" mean. */
 static int queue_held(cera_pool_t *p)
 {
-    uint64_t t = atomic_load_explicit(&p->tail, memory_order_seq_cst);
-    uint64_t h = atomic_load_explicit(&p->head, memory_order_seq_cst);
-    return t > h ? (int)(t - h) : 0;
+    int held = 0;
+    for (int d = 0; d < p->n_destinations; d++) held += ring_held(p->rings[d]);
+    return held;
+}
+
+/* The destinations one worker serves: what its decision to sleep means.
+ * A task in a destination it doesn't serve is somebody else's to take. */
+static int worker_held(cera_pool_t *p, const worker_t *w)
+{
+    int held = 0;
+    for (int i = 0; i < w->n_sources; i++) held += ring_held(p->rings[w->sources[i]]);
+    return held;
 }
 /* }}} */
 
@@ -555,21 +597,21 @@ static __thread int this_worker_index;
  * with a compare-and-swap on `tail`, retried when another hand-in got
  * there first.
  */
-static uint64_t reserve_positions(cera_pool_t *p, uint64_t n)
+static uint64_t reserve_positions(struct ring *r, uint64_t n)
 {
-    uint64_t pos = atomic_load_explicit(&p->tail, memory_order_seq_cst);
+    uint64_t pos = atomic_load_explicit(&r->tail, memory_order_seq_cst);
     for (;;) {
-        uint64_t h = atomic_load_explicit(&p->head, memory_order_seq_cst);
+        uint64_t h = atomic_load_explicit(&r->head, memory_order_seq_cst);
         /* Workers have taken past the tail read above: other hand-ins
          * moved it on meanwhile. Read it again rather than subtract a
          * larger number from a smaller one. */
         if (h > pos) {
-            pos = atomic_load_explicit(&p->tail, memory_order_seq_cst);
+            pos = atomic_load_explicit(&r->tail, memory_order_seq_cst);
             continue;
         }
-        if (pos + n - h > p->ring_capacity)
+        if (pos + n - h > r->capacity)
             return UINT64_MAX;
-        if (atomic_compare_exchange_weak_explicit(&p->tail, &pos, pos + n,
+        if (atomic_compare_exchange_weak_explicit(&r->tail, &pos, pos + n,
                                                   memory_order_seq_cst,
                                                   memory_order_seq_cst))
             return pos;
@@ -588,14 +630,14 @@ static uint64_t reserve_positions(cera_pool_t *p, uint64_t n)
  * marking the slot empty, a matter of nanoseconds, so wait for it.
  * Anything else is the engine contradicting itself, and stops.
  */
-static void ring_place(cera_pool_t *p, uint64_t pos, cera_task_t *t)
+static void ring_place(struct ring *r, uint64_t pos, cera_task_t *t)
 {
-    struct queue_slot *s = &p->ring[pos & p->ring_mask];
+    struct queue_slot *s = &r->slots[pos & r->mask];
     for (;;) {
         uint64_t seq = atomic_load_explicit(&s->seq, memory_order_acquire);
         if (seq == pos)
             break;
-        if (atomic_load_explicit(&p->head, memory_order_acquire) > pos - p->ring_capacity)
+        if (atomic_load_explicit(&r->head, memory_order_acquire) > pos - r->capacity)
             continue;
         cera_bug("pool: position %llu was reserved while its slot still holds an unclaimed "
                  "task from one lap ago\n", (unsigned long long)pos);
@@ -613,21 +655,21 @@ static void ring_place(cera_pool_t *p, uint64_t pos, cera_task_t *t)
  * next position is reserved and not yet published: the caller treats
  * both the same, and the sleep path below is what tells them apart.
  */
-static cera_task_t *ring_take(cera_pool_t *p)
+static cera_task_t *ring_take(struct ring *r)
 {
     for (;;) {
-        uint64_t pos = atomic_load_explicit(&p->head, memory_order_acquire);
-        struct queue_slot *s = &p->ring[pos & p->ring_mask];
+        uint64_t pos = atomic_load_explicit(&r->head, memory_order_acquire);
+        struct queue_slot *s = &r->slots[pos & r->mask];
         uint64_t seq = atomic_load_explicit(&s->seq, memory_order_acquire);
         if (seq == pos + 1) {
             /* Ready: claim it by moving head past it. Losing the race
              * means another worker claimed it; look again. */
-            if (atomic_compare_exchange_weak_explicit(&p->head, &pos, pos + 1,
+            if (atomic_compare_exchange_weak_explicit(&r->head, &pos, pos + 1,
                                                       memory_order_acq_rel,
                                                       memory_order_relaxed)) {
                 cera_task_t *t = s->task;
                 /* Empty for the hand-in one lap later. */
-                atomic_store_explicit(&s->seq, pos + p->ring_capacity, memory_order_release);
+                atomic_store_explicit(&s->seq, pos + r->capacity, memory_order_release);
                 return t;
             }
             continue;
@@ -640,10 +682,48 @@ static cera_task_t *ring_take(cera_pool_t *p)
 }
 /* }}} */
 
-/* {{{ note_high_water() */
-static void note_high_water(cera_pool_t *p, uint64_t tail_after)
+/* {{{ take_for() */
+/*
+ * FORK (issue 515i): the oldest ready task in the first of this worker's
+ * destinations that has one, in the worker's order, or NULL.
+ */
+static cera_task_t *take_for(cera_pool_t *p, const worker_t *w)
 {
-    uint64_t h = atomic_load_explicit(&p->head, memory_order_relaxed);
+    for (int i = 0; i < w->n_sources; i++) {
+        cera_task_t *t = ring_take(p->rings[w->sources[i]]);
+        if (t) return t;
+    }
+    return NULL;
+}
+/* }}} */
+
+/* {{{ ring_new() */
+/* A ring of `capacity` slots, every slot empty for its first lap. */
+static struct ring *ring_new(uint64_t capacity)
+{
+    struct ring *r = calloc(1, sizeof *r);
+    if (!r)
+        cera_fail(CERA_EXIT_NO_RESOURCE, "pool: out of memory for a task queue\n");
+    r->capacity = capacity;
+    r->mask = capacity - 1;
+    r->slots = malloc((size_t)capacity * sizeof *r->slots);
+    if (!r->slots)
+        cera_fail(CERA_EXIT_NO_RESOURCE, "pool: the task queue's %llu slots could not be allocated\n",
+                  (unsigned long long)capacity);
+    for (uint64_t i = 0; i < capacity; i++) {
+        atomic_init(&r->slots[i].seq, i);
+        r->slots[i].task = NULL;
+    }
+    atomic_init(&r->tail, 0);
+    atomic_init(&r->head, 0);
+    return r;
+}
+/* }}} */
+
+/* {{{ note_high_water() */
+static void note_high_water(cera_pool_t *p, struct ring *r, uint64_t tail_after)
+{
+    uint64_t h = atomic_load_explicit(&r->head, memory_order_relaxed);
     int held = tail_after > h ? (int)(tail_after - h) : 0;
     if (held > atomic_load_explicit(&p->high_water, memory_order_relaxed))
         atomic_store_explicit(&p->high_water, held, memory_order_relaxed);
@@ -672,8 +752,10 @@ static void wake_for(cera_pool_t *p, int handed_in)
     pthread_mutex_lock(&p->mutex);
     int asleep = atomic_load_explicit(&p->sleeping, memory_order_relaxed);
     /* One per task: more would wake workers with nothing to take,
-     * which is the herd this replaces. */
-    if (handed_in >= asleep)
+     * which is the herd this replaces. Unless the workers serve
+     * different destinations: then the one woken might not serve this
+     * task's, so all are woken (FORK issue 515i). */
+    if (handed_in >= asleep || !p->uniform_service)
         pthread_cond_broadcast(&p->wake);
     else
         for (int i = 0; i < handed_in; i++)
@@ -695,13 +777,6 @@ static _Thread_local int           batch_n;
 static _Thread_local int           batch_room;
 /* }}} */
 
-/* {{{ cera_pool_push_many() */
-/*
- * Hand in `n` tasks with one reservation: one atomic add claims the
- * positions tail .. tail + n - 1, then each is placed and published in
- * order. Workers can start on the first while the last is still being
- * written.
- */
 /* {{{ run_here() */
 /*
  * A worker that finds no room runs the task itself: the same call,
@@ -717,12 +792,19 @@ static void run_here(cera_pool_t *p, cera_task_t *t)
 }
 /* }}} */
 
-void cera_pool_push_many(cera_pool_t *p, cera_task_t **tasks, int n)
+/* {{{ push_run() */
+/*
+ * Hand in `n` tasks bound for one destination's ring with one
+ * reservation: one compare-and-swap claims the positions, then each is
+ * placed and published in order. Workers can start on the first while
+ * the last is still being written.
+ */
+static void push_run(cera_pool_t *p, struct ring *r, cera_task_t **tasks, int n)
 {
     while (n > 0) {
         /* A batch larger than the ring goes in ring-sized pieces. */
-        int take = (uint64_t)n > p->ring_capacity ? (int)p->ring_capacity : n;
-        uint64_t pos = reserve_positions(p, (uint64_t)take);
+        int take = (uint64_t)n > r->capacity ? (int)r->capacity : n;
+        uint64_t pos = reserve_positions(r, (uint64_t)take);
         if (pos == UINT64_MAX) {
             /* No room. Two paths, by who is handing in: a worker (of
              * any pool: it is inside a box) runs the first task itself
@@ -738,11 +820,33 @@ void cera_pool_push_many(cera_pool_t *p, cera_task_t **tasks, int n)
             continue;
         }
         for (int i = 0; i < take; i++)
-            ring_place(p, pos + (uint64_t)i, tasks[i]);
-        note_high_water(p, pos + (uint64_t)take);
+            ring_place(r, pos + (uint64_t)i, tasks[i]);
+        note_high_water(p, r, pos + (uint64_t)take);
         wake_for(p, take);
         tasks += take;
         n -= take;
+    }
+}
+/* }}} */
+
+/* {{{ cera_pool_push_many() */
+/*
+ * Hand in `n` tasks, each to its own destination (`task->dest`, 0 when
+ * nobody named one): consecutive tasks bound for the same destination go
+ * in as one reservation, so a batch keeps its order within each
+ * destination.
+ */
+void cera_pool_push_many(cera_pool_t *p, cera_task_t **tasks, int n)
+{
+    while (n > 0) {
+        int d = tasks[0]->dest;
+        if (d < 0 || d >= p->n_destinations)
+            cera_bug("pool: a task bound for destination %d, and this pool has %d\n", d, p->n_destinations);
+        int run = 1;
+        while (run < n && tasks[run]->dest == d) run++;
+        push_run(p, p->rings[d], tasks, run);
+        tasks += run;
+        n -= run;
     }
 }
 /* }}} */
@@ -788,10 +892,70 @@ void cera_pool_batch_end(cera_pool_t *p)
 }
 /* }}} */
 
+/* {{{ cera_pool_add_destination() */
+/*
+ * FORK (issue 515i). Another task queue, the same size as the default.
+ * Only before the workers are released, since a worker reads its list of
+ * destinations once it passes the gate. Returns the destination's number.
+ */
+int cera_pool_add_destination(cera_pool_t *p)
+{
+    pthread_mutex_lock(&p->mutex);
+    if (p->released)
+        cera_fail(CERA_EXIT_BAD_CALL, "pool: destinations are added before the workers are released\n");
+    if (p->n_destinations == POOL_MAX_DESTINATIONS)
+        cera_fail(CERA_EXIT_BAD_CALL, "pool: at most %d destinations\n", POOL_MAX_DESTINATIONS);
+    int d = p->n_destinations;
+    p->rings[d] = ring_new(p->rings[0]->capacity);
+    p->n_destinations = d + 1;
+    pthread_mutex_unlock(&p->mutex);
+    return d;
+}
+/* }}} */
+
+/* {{{ cera_pool_set_worker_sources() / cera_pool_set_sources() */
+/*
+ * FORK (issue 515i). Which destinations a worker serves, in the order it
+ * looks at them -- the order is the policy (soramech 107): earlier first.
+ * Each must exist and appear once. Only before release.
+ */
+void cera_pool_set_worker_sources(cera_pool_t *p, int worker, const int *order, int n)
+{
+    pthread_mutex_lock(&p->mutex);
+    if (p->released)
+        cera_fail(CERA_EXIT_BAD_CALL, "pool: a worker's destinations are set before the workers are released\n");
+    if (worker < 0 || worker >= p->n_workers)
+        cera_fail(CERA_EXIT_BAD_CALL, "pool: there is no worker %d\n", worker);
+    if (n < 1 || n > p->n_destinations)
+        cera_fail(CERA_EXIT_BAD_CALL, "pool: a worker serves 1 to %d destinations, not %d\n", p->n_destinations, n);
+    for (int i = 0; i < n; i++) {
+        if (order[i] < 0 || order[i] >= p->n_destinations)
+            cera_fail(CERA_EXIT_BAD_CALL, "pool: there is no destination %d\n", order[i]);
+        for (int j = 0; j < i; j++)
+            if (order[j] == order[i])
+                cera_fail(CERA_EXIT_BAD_CALL, "pool: destination %d named twice in one worker's order\n", order[i]);
+        p->workers[worker].sources[i] = order[i];
+    }
+    p->workers[worker].n_sources = n;
+    pthread_mutex_unlock(&p->mutex);
+}
+
+void cera_pool_set_sources(cera_pool_t *p, const int *order, int n)
+{
+    for (int w = 0; w < p->n_workers; w++) cera_pool_set_worker_sources(p, w, order, n);
+}
+/* }}} */
+
 /* {{{ cera_pool_pop() */
+/* Tests and whoever owns the pool: the oldest ready task in the first
+ * destination (by number) that has one. */
 cera_task_t *cera_pool_pop(cera_pool_t *p)
 {
-    return ring_take(p);
+    for (int d = 0; d < p->n_destinations; d++) {
+        cera_task_t *t = ring_take(p->rings[d]);
+        if (t) return t;
+    }
+    return NULL;
 }
 /* }}} */
 
@@ -859,14 +1023,14 @@ static void *worker_main(void *arg)
         if (atomic_load_explicit(&p->stop, memory_order_acquire))
             break;
 
-        cera_task_t *t = ring_take(p);
+        cera_task_t *t = take_for(p, w);
         /* Nothing yet: look again for a while before sleeping, if this
          * pool was asked to (spin_rounds). */
         for (int i = 0; !t && i < p->spin_rounds; i++) {
 #if defined(__x86_64__) || defined(__i386__)
             __builtin_ia32_pause();
 #endif
-            t = ring_take(p);
+            t = take_for(p, w);
         }
         if (t) {
 
@@ -929,14 +1093,17 @@ static void *worker_main(void *arg)
             pthread_mutex_unlock(&p->mutex);
             break;
         }
-        if (queue_held(p) > 0) {
-            /* Work arrived, or is a store away from arriving. */
+        if (worker_held(p, w) > 0) {
+            /* Work arrived in a destination this worker serves, or is a
+             * store away from arriving. */
             atomic_fetch_sub_explicit(&p->sleeping, 1, memory_order_seq_cst);
             pthread_mutex_unlock(&p->mutex);
             continue;
         }
-        if (asleep == p->n_workers && p->outside == 0) {
-            /* Every worker is now asleep, nothing is queued, and
+        if (asleep == p->n_workers && p->outside == 0 && queue_held(p) == 0) {
+            /* Every worker is now asleep, nothing is queued in any
+             * destination (every destination is served by somebody, so
+             * nothing waits for a worker still awake), and
              * nobody outside can hand anything in: nobody is left who
              * could. Stop by broadcast, never by breaking out alone --
              * a worker left parked in a wait turns shutdown into a
@@ -1100,20 +1267,10 @@ cera_pool_t *cera_pool_create(int n_workers, cera_pool_finish_t finish, void *fi
         cera_fail(CERA_EXIT_NO_RESOURCE, "pool: allocation failed\n");
     }
 
-    p->ring_capacity = ring_capacity_from_env();
-    p->ring_mask = p->ring_capacity - 1;
-    p->ring = malloc((size_t)p->ring_capacity * sizeof *p->ring);
-    if (!p->ring) {
-        cera_fail(CERA_EXIT_NO_RESOURCE, "pool: the task queue's %llu slots could not be allocated\n",
-                  (unsigned long long)p->ring_capacity);
-    }
-    /* Every slot empty for its first lap: slot i waits for position i. */
-    for (uint64_t i = 0; i < p->ring_capacity; i++) {
-        atomic_init(&p->ring[i].seq, i);
-        p->ring[i].task = NULL;
-    }
-    atomic_init(&p->tail, 0);
-    atomic_init(&p->head, 0);
+    /* The default destination, which always exists (FORK issue 515i). */
+    p->rings[0] = ring_new(ring_capacity_from_env());
+    p->n_destinations = 1;
+    p->uniform_service = 1;
     atomic_init(&p->sleeping, 0);
     atomic_init(&p->stop, 0);
     atomic_init(&p->high_water, 0);
@@ -1154,6 +1311,9 @@ cera_pool_t *cera_pool_create(int n_workers, cera_pool_finish_t finish, void *fi
     for (int i = 0; i < p->n_workers; i++) {
         p->workers[i].index = i;
         p->workers[i].pool = p;
+        /* the default destination only, until a program says otherwise */
+        p->workers[i].sources[0] = 0;
+        p->workers[i].n_sources = 1;
         int err = pthread_create(&p->workers[i].thread, NULL,
                                  worker_main, &p->workers[i]);
         if (err != 0) {
@@ -1170,6 +1330,24 @@ cera_pool_t *cera_pool_create(int n_workers, cera_pool_finish_t finish, void *fi
 void cera_pool_release(cera_pool_t *p)
 {
     pthread_mutex_lock(&p->mutex);
+    /* FORK (issue 515i): a destination nobody serves would hold its
+     * tasks forever, and the program would never finish; refused. And
+     * whether every worker serves the same destinations decides how a
+     * hand-in wakes (wake_for). */
+    for (int d = 0; d < p->n_destinations; d++) {
+        int served = 0;
+        for (int w = 0; w < p->n_workers && !served; w++)
+            for (int i = 0; i < p->workers[w].n_sources; i++)
+                if (p->workers[w].sources[i] == d) served = 1;
+        if (!served)
+            cera_fail(CERA_EXIT_BAD_CALL, "pool: destination %d is served by no worker, so its tasks would never run\n", d);
+    }
+    p->uniform_service = 1;
+    for (int w = 1; w < p->n_workers; w++) {
+        if (p->workers[w].n_sources != p->workers[0].n_sources) p->uniform_service = 0;
+        for (int i = 0; p->uniform_service && i < p->workers[0].n_sources; i++)
+            if (p->workers[w].sources[i] != p->workers[0].sources[i]) p->uniform_service = 0;
+    }
     p->released = 1;
     pthread_cond_broadcast(&p->start_gate);
     pthread_mutex_unlock(&p->mutex);
@@ -1248,7 +1426,10 @@ void cera_pool_destroy(cera_pool_t *p)
     pthread_cond_destroy(&p->start_gate);
     free(p->workers);
     free(p->epochs);
-    free(p->ring);
+    for (int d = 0; d < p->n_destinations; d++) {
+        free(p->rings[d]->slots);
+        free(p->rings[d]);
+    }
     free(p);
 }
 /* }}} */
@@ -1263,7 +1444,7 @@ int cera_pool_worker_count(cera_pool_t *p)
 /* {{{ cera_pool_queue_stats() */
 void cera_pool_queue_stats(cera_pool_t *p, int *capacity, int *high_water, int *growths)
 {
-    if (capacity)   *capacity = p->ring_capacity > 0x7fffffff ? 0x7fffffff : (int)p->ring_capacity;
+    if (capacity)   *capacity = p->rings[0]->capacity > 0x7fffffff ? 0x7fffffff : (int)p->rings[0]->capacity;
     if (high_water) *high_water = atomic_load(&p->high_water);
     if (growths)    *growths = p->growths;
 }
@@ -2544,6 +2725,38 @@ const char *cera_map_deliver_arguments(cera_map_t *m, int station, int port,
                                             (const unsigned char *)values + (size_t)i * (size_t)size, size);
     cera_pool_batch_end(m->pool);
     return refused;
+}
+/* }}} */
+
+/* {{{ cera_map_station_find() */
+/* FORK (issue 515i). A station by the name the map gave it, or -1. */
+int cera_map_station_find(cera_map_t *m, const char *name)
+{
+    int n = atomic_load(&m->n_stations);
+    for (int i = 0; i < n && i < m->n_named; i++)
+        if (m->station_names && m->station_names[i] && strcmp(m->station_names[i], name) == 0)
+            return i;
+    return -1;
+}
+/* }}} */
+
+/* {{{ cera_map_station_set_destination() */
+/*
+ * FORK (issue 515i). The destination a station's tasks are handed in to.
+ * Nothing is inferred: a station goes anywhere but the default only by
+ * being told, here. The pool must exist (the map started) and hold the
+ * destination; set it before the workers are released.
+ */
+const char *cera_map_station_set_destination(cera_map_t *m, int station, int destination)
+{
+    if (station < 0 || station >= atomic_load(&m->n_stations))
+        return "there is no such station";
+    if (!m->pool)
+        return "the program has no pool yet; start it first";
+    if (destination < 0 || destination >= m->pool->n_destinations)
+        return "the pool has no such destination";
+    cera_map_station(m, station)->destination = destination;
+    return NULL;
 }
 /* }}} */
 
@@ -4079,6 +4292,7 @@ static cera_task_t *task_build(cera_map_t *m, int station_index,
     t->call = s->call;
     t->station = station_index;
     t->port = port;
+    t->dest = s->destination;   /* FORK (issue 515i) */
     t->n_in = s->n_in_ports;
     /* Zero rather than left over: with timing compiled out nothing
      * ever writes it, and the delivery walk adds it to the station
@@ -8440,6 +8654,7 @@ static void reclaim_station(void *p)
     s->out_size = 0;
     s->compare = NULL;
     s->cursor = 0;
+    s->destination = 0;   /* FORK (issue 515i): a reused place starts at the default */
     s->call = NULL;
     atomic_store_explicit(&s->removed, 0, memory_order_release);
 
