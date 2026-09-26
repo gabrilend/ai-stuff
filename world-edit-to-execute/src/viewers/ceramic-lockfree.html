@@ -1,0 +1,222 @@
+<title>Lockless Task Queue</title>
+<!--
+  ceramic-lockfree.html - the second ceramic report: a task queue without a lock (issue 515g)
+
+  For the soramech project's developers: the stock engine's task queue, the
+  design built in World Edit to Execute's kept copy of the engine, what it
+  measured, and what it costs. A template: analysis-report.lua splices in
+  the shared kit (ceramic-kit.css / .js), the measurement rows and this
+  machine's processor, and writes the filled page to
+  tmp/shared-memory/ceramic/. Every number is computed from the data.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/*@@KIT-CSS@@*/
+table.states { border-collapse: collapse; font-size: 14px; width: 100%; }
+table.states th, table.states td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.states th { font: 600 12px/1.3 var(--mono); color: var(--muted); letter-spacing: .04em; }
+table.states td code, p code, li code { font: 13px var(--mono); }
+.tablewrap { overflow-x: auto; }
+section h3 { font: 600 17px/1.3 var(--body); margin: 8px 0 0; }
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 68ch; }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">World Edit to Execute · issue 515g · for the soramech project</div>
+    <h1>Lockless Task Queue</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section aria-labelledby="h-why">
+    <h2 id="h-why">Why</h2>
+    <p>The first report, <em>Ceramic Frame Budget</em>, measured the stock engine doing a renderer's per-frame work. Where the renderer hands in thousands of small tasks per frame, one at a time, almost all of the frame goes to handing them in to the task queue:</p>
+    <div class="flow" aria-label="The stock path of one hand-in">
+      <span>renderer hands in a request</span><b>→</b><span>task built</span><b>→</b><span class="lock">the task queue's one mutex: taken by every hand-in and every take-out</span><b>→</b><span>wake every sleeping worker</span>
+    </div>
+    <p id="why-text"></p>
+  </section>
+
+  <section aria-labelledby="h-design">
+    <h2 id="h-design">The design</h2>
+    <p>The engine's input ports already solve this problem for values. Each port slot moves through four states, and the code beside them says <em>“counted after it is published, never before”</em>. The task queue becomes a ring of such slots, each carrying a sequence number with the ring's lap folded in, so that a position-addressed ring can tell this lap's empty slot from the last lap's. Positions are 64-bit and only count up.</p>
+    <div class="tablewrap"><table class="states">
+      <thead><tr><th>state of the slot at position pos</th><th>its sequence number</th><th>who may touch it</th></tr></thead>
+      <tbody>
+        <tr><td>empty, waiting for the hand-in at pos</td><td><code>pos</code></td><td>nobody yet</td></tr>
+        <tr><td>reserved</td><td>still <code>pos</code></td><td>the one hand-in that claimed pos: it writes the task pointer</td></tr>
+        <tr><td>ready</td><td><code>pos + 1</code> (release)</td><td>any worker may try to claim it</td></tr>
+        <tr><td>claimed</td><td>still <code>pos + 1</code></td><td>the one worker whose compare-and-swap moved head past pos</td></tr>
+        <tr><td>empty, one lap on</td><td><code>pos + capacity</code> (release)</td><td>nobody yet</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Handing n tasks in to the task queue</h3>
+    <ol class="steps">
+      <li>Read <code>tail</code>, then <code>head</code>. If <code>tail + n − head</code> is more than the ring holds, there is no room (see <em>a full ring</em>).</li>
+      <li>Claim positions <code>tail … tail + n − 1</code> with one compare-and-swap on <code>tail</code>; if another hand-in moved it first, read again and retry.</li>
+      <li>For each claimed position: if the slot still says “ready” from one lap ago, a worker has already claimed it (step 1 saw head move past it) and is two stores from emptying it, so wait out those nanoseconds. Write the task pointer, then publish: sequence ← <code>pos + 1</code>.</li>
+      <li>Wake sleepers: only if any are asleep, and only as many as tasks were handed in.</li>
+    </ol>
+    <h3>Taking a task out</h3>
+    <ol class="steps">
+      <li>Read <code>head</code> and that slot's sequence.</li>
+      <li>Says ready (<code>pos + 1</code>): claim it with a compare-and-swap on <code>head</code>, read the task, set the sequence to <code>pos + capacity</code>.</li>
+      <li>Says less: empty, or reserved and not yet published; nothing to take.</li>
+      <li>Says more: another worker took it meanwhile; read <code>head</code> again.</li>
+    </ol>
+    <h3>Sleeping without losing a wake-up</h3>
+    <p>A worker with nothing to take locks the mutex, raises <code>sleeping</code>, then looks at the ring again. A hand-in raises <code>tail</code>, then reads <code>sleeping</code>. All four operations are sequentially consistent, so one raise comes first in the single order everyone agrees on: either the worker sees the task and doesn't sleep, or the hand-in sees the sleeper and signals it — and the worker holds the mutex from raising <code>sleeping</code> until it is waiting, so the signal can't arrive before it listens. Completion is decided exactly as before, by the last worker to go to sleep.</p>
+    <dl class="terms">
+      <dt>batched hand-in</dt><dd>a whole frame of requests handed in to the task queue in one call: the positions for all of them are claimed with one compare-and-swap, then filled and published in order, and sleeping workers are woken once. Workers start on the first task while the last is still being written.</dd>
+      <dt>waking</dt><dd>the copy wakes a sleeping worker only when one is asleep, and only as many as there are new tasks; the stock engine woke every sleeper on every hand-in.</dd>
+      <dt>spinning</dt><dd>an idle worker looks at the ring again a thousand times (a few microseconds) before it sleeps. A worker still looking when the next task arrives just takes it, and nobody has to be woken. It keeps that core busy, which can slow the other thread sharing it.</dd>
+      <dt>a full ring</dt><dd>the ring doesn't grow. A thread outside the engine (the renderer) waits for room; a worker, which must never wait, runs the task itself.</dd>
+      <dt>landing</dt><dd>the count of collected answers now rises after each answer is copied in, so the renderer can trust it with no workaround wait.</dd>
+    </dl>
+  </section>
+
+  <section aria-labelledby="h-results">
+    <h2 id="h-results">What it measured</h2>
+    <p id="fork-text"></p>
+    <div class="key"><span><i style="background:var(--one)"></i>one unit per task</span><span><i style="background:var(--chunk)"></i>chunked</span><span><i style="background:var(--ink)"></i>stock engine: solid</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 10px)"></i>lock-free copy: dashed</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px)"></i>+ batched hand-in: dotted</span><span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 8px,transparent 8px 11px,var(--ink) 11px 13px,transparent 13px 16px)"></i>+ spinning: dash-dot</span></div>
+    <div class="chart" id="fork-bars"></div>
+    <p id="fork-chunk-text"></p>
+    <div class="chart" id="fork-chunk"></div>
+    <p id="fork-scale-text"></p>
+    <div class="chart" id="fork-scale"></div>
+    <p id="fork-check"></p>
+  </section>
+
+  <section aria-labelledby="h-cost">
+    <h2 id="h-cost">What it costs</h2>
+    <div class="findings">
+      <div class="finding"><span class="chip bad">P1, G9</span><div><h3>The full-ring rule bends two guarantees.</h3><p>The ring doesn't grow. With no room, a thread outside the pool waits; a worker, which must never wait, runs the task itself. Guarantee P1 says in its cost column that a full ring doubles “rather than making the pusher run a task”, and G9 says every box runs on a worker that picked up a task for it. A chain of rings — link a larger ring when one fills, drain the old one, retire it through the scrapyard once no worker's epoch can be inside it — would keep both, at one more branch on the take-out path.</p></div></div>
+      <div class="finding"><span class="chip warn">P2, P3</span><div><h3>The ring never moves, and a task run in place overtakes the queue.</h3><p>P2 (“the ring's storage can move with nothing dangling”) no longer applies as written; first-in, first-out (P3) holds except for the task a worker runs itself when the ring is full.</p></div></div>
+      <div class="finding"><span class="chip warn">cores</span><div><h3>Spinning costs a core.</h3><p>A spinning worker occupies its core, and with two threads per core it slows its sibling: chunked frames ran a few percent slower with spinning on. Off by default; it suits a steady stream of hand-ins.</p></div></div>
+      <div class="finding"><span class="chip warn">contention</span><div><h3>A compare-and-swap on tail can be contended too.</h3><p>Many threads handing in at once retry against each other — no lock and no sleep, but not free. Batching answers it as well: one compare-and-swap per batch.</p></div></div>
+      <div class="finding"><span class="chip warn">memory</span><div><h3>Slots are sixteen bytes and allocated up front.</h3><p>Neighbouring slots share a cache line, so a hand-in and a take-out on adjacent slots touch one line (padding to 64 bytes would cost four times the memory; not measured). The ring's 65536 slots, one megabyte, are allocated and numbered at creation; the stock queue started at eight entries.</p></div></div>
+      <div class="finding"><span class="chip good">fix</span><div><h3>The landing counter is a fix, not a choice.</h3><p>Counting collected answers after they are copied in should be adopted whatever happens to the queue.</p></div></div>
+    </div>
+  </section>
+
+  <div class="method" id="method"></div>
+</main>
+
+<script>
+const ROWS = /*@@DATA@@*/[];
+const MACHINE = /*@@MACHINE@@*/{};
+const FRAME = 16667;
+
+/*@@KIT-JS@@*/
+
+const units = 2048;
+
+// {{{ the lede and why
+(() => {
+  const stock = pick("chunk", "pose_chunk_1"), batch = pick("batch", "pose_chunk_1+batch");
+  const solo = all("herd", "pose_fold").find(r => r.workers === 1);
+  const crowd = all("herd", "pose_fold").filter(r => r.workers === Math.max(...all("herd", "pose_fold").map(q => q.workers))).pop();
+  el("lede").textContent = `A ring of slots whose numbers carry the input ports' own four states, claimed by counting forward instead of taking a lock. ` +
+    `Built and measured in a kept copy of the ceramic engine: a renderer handing in ${units.toLocaleString()} one-unit tasks a frame went from ${fmtUs(stock.mean)} to ${fmtUs(batch.mean)}.`;
+  el("why-text").textContent = `With one worker, a hand-in costs ${(solo.deliver / units).toFixed(2)} µs; with ${crowd.workers}, ${(crowd.deliver / units).toFixed(1)} µs, ` +
+    `because the renderer and every worker take the same mutex and, past the machine's ${MACHINE.cores} physical cores, whoever holds it shares a core with threads waiting for it. ` +
+    `Separately, the count of collected answers rose before each answer was copied in, so large answers could be read half-written.`;
+})();
+// }}}
+
+// {{{ taking the lock out
+(() => {
+  const STYLE = { stock: undefined, fork: "7 5", batch: "2 4", spin: "9 4 2 4" };
+  const NAME = { stock: "stock engine", fork: "lock-free copy", batch: "+ batched hand-in", spin: "+ spinning" };
+  // one unit per task, 2048 units, 11 workers, four engines
+  const one = {
+    stock: pick("chunk", "pose_chunk_1"),
+    fork: pick("chunk@fork", "pose_chunk_1"),
+    batch: pick("batch", "pose_chunk_1+batch"),
+    spin: pick("spin", "pose_chunk_1"),
+  };
+  const best = r => r.mean;
+  el("fork-text").textContent = `One unit per task, ${units.toLocaleString()} units, ${one.stock.workers} workers. Taking the lock out alone takes the frame from ${fmtUs(one.stock.mean)} to ${fmtUs(one.fork.mean)}: ` +
+    `most of what is left is waking sleeping workers, one call into the operating system per hand-in. Handing the frame in as one batch wakes them once (${fmtUs(one.batch.mean)}); ` +
+    `spinning means there is rarely anyone asleep to wake (${fmtUs(one.spin.mean)}). Either way, the finest-grained way to write it now fits in ${(100 * Math.max(one.batch.mean, one.spin.mean) / FRAME).toFixed(0)}% of a frame instead of ${(100 * one.stock.mean / FRAME).toFixed(0)}%.`;
+  // bars: frame split into handing in and the rest
+  (() => {
+    const order = ["stock", "fork", "batch", "spin"];
+    const W = 860, rowH = 40, L = 190, R = 90, T = 10, H = T + order.length * rowH + 30;
+    const svgEl = svg(W, H), max = Math.max(...order.map(e => one[e].mean));
+    const x = scale(0, max, L, W - R);
+    for (const t of [0, 2500, 5000, 7500, 10000].filter(t => t <= max)) {
+      add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+      add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+    }
+    order.forEach((e, i) => {
+      const r = one[e], yy = T + i * rowH + 8, rest = Math.max(0, r.mean - r.deliver);
+      add(svgEl, "text", { x: L - 10, y: yy + 16, "text-anchor": "end", class: "label" }, NAME[e]);
+      tip(add(svgEl, "rect", { x: x(0), y: yy, width: Math.max(0.5, x(r.deliver) - x(0)), height: 22, fill: "var(--budget)" }), `handing in to the task queue: ${fmtUs(r.deliver)}`);
+      tip(add(svgEl, "rect", { x: x(r.deliver), y: yy, width: Math.max(0.5, x(r.mean) - x(r.deliver)), height: 22, fill: "var(--one)" }), `workers finishing: ${fmtUs(rest)}`);
+      add(svgEl, "text", { x: x(r.mean) + 8, y: yy + 16, class: "strong" }, fmtUs(r.mean));
+    });
+    el("fork-bars").replaceChildren(svgEl);
+  })();
+  // units per task, four engines
+  const curve = (sweep, wayOf) => [1, 2, 4, 8, 16, 32, 64, 128, 256].map(k => pick(sweep, wayOf(k))).filter(Boolean);
+  const curves = {
+    stock: curve("chunk", k => `pose_chunk_${k}`),
+    fork: curve("chunk@fork", k => `pose_chunk_${k}`),
+    batch: curve("batch", k => `pose_chunk_${k}+batch`),
+    spin: curve("spin", k => `pose_chunk_${k}`),
+  };
+  const bestOf = list => list.reduce((a, b) => (b.mean < a.mean ? b : a));
+  el("fork-chunk-text").textContent = `By units per task. The lock mattered most where tasks are small: at 2 units per task the stock engine takes ${fmtUs(curves.stock[1].mean)}, the batched copy ${fmtUs(curves.batch[1].mean)}. ` +
+    `Where tasks are already chunky, the engines meet: best frames ${fmtUs(bestOf(curves.stock).mean)} (stock), ${fmtUs(bestOf(curves.fork).mean)} (lock-free), ${fmtUs(bestOf(curves.batch).mean)} (batched), ${fmtUs(bestOf(curves.spin).mean)} (spinning).`;
+  lineChart(el("fork-chunk"), {
+    x: { min: 0.8, max: 320, log: true, ticks: [1, 2, 4, 8, 16, 32, 64, 128, 256], fmt: t => t, title: "units per task (log scale)" },
+    y: { min: 300, max: 12000, log: true, ticks: [500, 1000, 2000, 5000, 10000], fmt: t => t >= 1000 ? `${t / 1000} ms` : `${t} µs`, title: "time per frame (log)" },
+    series: Object.keys(curves).map(e => ({ color: "var(--chunk)", dash: STYLE[e], points: curves[e].map(r => [r.per, r.mean, `${NAME[e]}, ${r.per} per task: ${fmtUs(r.mean)}`]) })),
+    after: (s2, x, y) => {
+      for (const e of Object.keys(curves)) {
+        const r = curves[e][0];
+        add(s2, "circle", { cx: x(1), cy: y(r.mean), r: 5, fill: "var(--one)", stroke: "var(--sheet)", "stroke-width": 1.5 });
+      }
+    },
+  });
+  // adding workers, one unit per task
+  const ws = [1, 2, 3, 4, 6, 8, 11];
+  const byW = {
+    stock: ws.map(w => pick("scale", "pose_fold", units, w)),
+    fork: ws.map(w => pick("scale@fork", "pose_fold", units, w)),
+    batch: ws.map(w => pick("batch", "pose_fold+batch", units, w)),
+    spin: ws.map(w => pick("spin", "pose_fold", units, w)),
+  };
+  const base = pick("scale", "plain-loop").mean;
+  el("fork-scale-text").textContent = `Adding workers, one unit per task. The stock engine collapses past ${MACHINE.cores} physical cores; ` +
+    `the batched copy reaches ${(base / byW.batch[byW.batch.length - 1].mean).toFixed(1)}× and the spinning copy ${(base / byW.spin[byW.spin.length - 1].mean).toFixed(1)}× with ${ws[ws.length - 1]} workers, ` +
+    `against ${(base / byW.stock[byW.stock.length - 1].mean).toFixed(2)}× for the stock engine.`;
+  lineChart(el("fork-scale"), {
+    x: { min: 0.5, max: 12, ticks: ws, fmt: t => t, title: "workers" },
+    y: { min: 0, max: 5, ticks: [0, 1, 2, 3, 4, 5], fmt: t => `${t}×`, title: "speed-up over one thread" },
+    before: (s2, x, y, g) => {
+      add(s2, "line", { x1: x(MACHINE.cores), x2: x(MACHINE.cores), y1: g.T, y2: g.H - g.B, stroke: "var(--budget)", "stroke-width": 1.5, "stroke-dasharray": "4 4" });
+      add(s2, "text", { x: x(MACHINE.cores) + 6, y: g.T + 12, class: "label", style: "fill:var(--budget)" }, `${MACHINE.cores} physical cores`);
+    },
+    series: Object.keys(byW).map(e => ({ color: "var(--one)", dash: STYLE[e], points: byW[e].map(r => [r.workers, base / r.mean, `${NAME[e]}, ${r.workers} workers: ${(base / r.mean).toFixed(2)}× (${fmtUs(r.mean)})`]) })),
+  });
+  // the landing check
+  const trusted = all("landing");
+  const truth = pick("anatomy", "plain-loop", units);
+  const agree = trusted.filter(r => r.check === truth.check).length;
+  el("fork-check").textContent = `Landing: ${agree} of ${trusted.length} runs that trusted the copy's count of collected answers, with no workaround wait, produced exactly the one-thread loop's poses — including 120 KB answers, which the stock engine let the renderer read half-written. ` +
+    `Soramech's own test suite, run against the copy, passes except for two tests: one that requires the task queue to grow (this ring doesn't, by design), and one that depends on where the repository sits and fails the same way on the stock engine.`;
+})();
+// }}}
+
+// {{{ method
+el("method").innerHTML = "";
+for (const line of [
+  `Measured on ${MACHINE.model}: ${MACHINE.cores} physical cores, ${MACHINE.threads} hardware threads online. Each run is ${MACHINE.frames} frames, every frame timed, every answer checked against a one-thread loop.`,
+  `The kept copy is soramech 059487d with the task queue replaced; every change is marked in its source (World Edit to Execute, src/render/ceramic/engine/). Its own test hands in a million tasks from four threads and from inside workers — each ran exactly once, on a normal ring and on a 16-slot ring full nearly all the time, with spinning on and off, and under ThreadSanitizer with no reports. Soramech's suite passes against it except the test that requires the queue to grow.`,
+  `The written design, with the same measurements, is soramech's implementation note 152, “A task queue without a lock”.`,
+]) { const p = document.createElement("p"); p.textContent = line; el("method").appendChild(p); }
+// }}}
+</script>

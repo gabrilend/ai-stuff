@@ -1,6 +1,6 @@
 # ceramic-analysis.html
 
-The viewer template for the ceramic engine's performance analysis (issue
+The first ceramic report: the stock engine's performance analysis (issue
 515a). `analysis-report.lua` fills `/*@@DATA@@*/[]` (the measurement rows)
 and `/*@@MACHINE@@*/{}` (the processor). The filled page draws everything
 offline, with hand-built SVG and no libraries:

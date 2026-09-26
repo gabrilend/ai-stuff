@@ -5,7 +5,7 @@
 **Priority:** Medium
 **Parent:** 515 (the render graph on the ceramic engine)
 **Dependencies:** 515a (the measurements that found the problem, and the harness that measures the fix)
-**Blocks:** 515b (the host loop builds on whichever engine copy this settles on)
+**Blocks:** 515b (the host loop builds on whichever engine copy this settles on), 515h (the frame graph runs on this copy)
 
 ---
 

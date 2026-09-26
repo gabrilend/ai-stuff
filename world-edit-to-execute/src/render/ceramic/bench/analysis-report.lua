@@ -6,13 +6,15 @@
 -- person wants rather than the raw ones: what one task costs, how much of
 -- a frame goes to handing work in, how the time falls as cores are added,
 -- how steady the frames are. It also writes the same numbers as JSON, and
--- fills the viewer page (src/viewers/ceramic-analysis.html) with them and
--- with this machine's processor, so the page draws them offline. It
+-- fills the two viewer pages -- ceramic-analysis.html (the stock engine)
+-- and ceramic-lockfree.html (the kept copy's task queue) -- with them, the
+-- shared kit (ceramic-kit.css / .js) and this machine's processor, so each
+-- page draws offline as one self-contained file. It
 -- measures nothing itself.
 --
 -- Usage: luajit analysis-report.lua [TSV] [OUT DIR]
 --   defaults: tmp/shared-memory/ceramic/analysis.tsv, same folder
---   writes analysis.md, analysis.json, ceramic-analysis.html
+--   writes analysis.md, analysis.json, ceramic-analysis.html, ceramic-lockfree.html
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 local tsv = arg[1] or (DIR .. "/tmp/shared-memory/ceramic/analysis.tsv")
@@ -218,16 +220,36 @@ local per_core = tonumber(info:match("Thread%(s%) per core:%s*(%d+)")) or 1
 local online = io.popen("nproc"):read("*l")
 local machine = string.format('{"model":"%s","cores":%d,"threads":%s,"per_core":%d,"frames":%d}',
     model:gsub('"', "'"), cores * sockets, online, per_core, rows[1].frames)
-local tf = assert(io.open(DIR .. "/src/viewers/ceramic-analysis.html", "r"))
-local page = tf:read("*a")
-tf:close()
 local data = "[" .. table.concat(json, ",") .. "]"
-local filled, n1 = page:gsub("/%*@@DATA@@%*/%[%]", function() return data end)
-local filled2, n2 = filled:gsub("/%*@@MACHINE@@%*/{}", function() return machine end)
-assert(n1 == 1 and n2 == 1, "the viewer page's data or machine marker is missing")
-local hf = assert(io.open(out_dir .. "/ceramic-analysis.html", "w"))
-hf:write(filled2)
-hf:close()
+-- {{{ local function read_file
+local function read_file(path)
+    local f = assert(io.open(path, "r"))
+    local text = f:read("*a")
+    f:close()
+    return text
+end
+-- }}}
+-- {{{ local function fill
+-- A viewer template filled: the shared kit spliced in, then the rows and
+-- the machine. Every marker must be found once, or the page is broken.
+local function fill(name)
+    local page = read_file(DIR .. "/src/viewers/" .. name)
+    local count
+    for marker, text in pairs({ ["/%*@@KIT%-CSS@@%*/"] = read_file(DIR .. "/src/viewers/ceramic-kit.css"),
+                                ["/%*@@KIT%-JS@@%*/"] = read_file(DIR .. "/src/viewers/ceramic-kit.js"),
+                                ["/%*@@DATA@@%*/%[%]"] = data,
+                                ["/%*@@MACHINE@@%*/{}"] = machine }) do
+        page, count = page:gsub(marker, function() return text end)
+        assert(count == 1, name .. ": marker " .. marker .. " found " .. count .. " times")
+    end
+    local hf = assert(io.open(out_dir .. "/" .. name, "w"))
+    hf:write(page)
+    hf:close()
+end
+-- }}}
+-- the first report (the stock engine) and the second (the lock-free copy)
+fill("ceramic-analysis.html")
+fill("ceramic-lockfree.html")
 -- }}}
 print(table.concat(lines, "\n"))
 if #disagree > 0 then os.exit(1) end
