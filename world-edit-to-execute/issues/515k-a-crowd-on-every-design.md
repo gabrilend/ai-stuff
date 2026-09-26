@@ -14,6 +14,12 @@ Being built (2026-09-25). **Step 1 done:** the Lua crowd's tick is in two
 phases (decide from a snapshot, then settle in id order), and a test
 proves deciding in any order gives the same positions bit for bit; the
 crossing takes 47.0 s with nobody giving up (405f has the details).
+**Step 2 done:** the crowd in C (`src/render/ceramic/crowd/crowd.c`) moves
+every unit exactly as the Lua crowd does, digit for digit, at 80 units for
+3,000 ticks and 500 units for 1,500 (`test-crowd-c.sh`); it runs about 7.5
+times faster than LuaJIT. The scene (the scaled crossing map,
+`net/arenas/crossing_scaled.lua`, and each unit's start) is written by
+`crowd-scene.lua` from the Lua game's own placement, so both start alike.
 
 Before this: the ceramic engine has been measured on uniform
 work (515a) and on a fabricated frame whose costs were chosen (515h, 515j).

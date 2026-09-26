@@ -39,21 +39,14 @@ function crossing_sim.map(map_module, per_army)
 end
 -- }}}
 
--- {{{ function crossing_sim.new(config)
--- config.map: the map module's name (optional); config.per_army: build
--- the scaled map with this many units per army instead. config.two_radii: true
--- to turn the larger pathing radius on (units steer round others before
--- touching; off by default, as it slowed the crossing; for comparing the
--- two by eye). Returns the server's four
--- functions, plus `crowd` (the crowd itself), `crossings` (how many have
--- ended) and `gave_up_last` (how many gave up in the last one), for tests.
-function crossing_sim.new(config)
+-- {{{ function crossing_sim.place(config)
+-- The map, and a crowd with both armies standing at home (no orders yet):
+-- map, crowd, and each army's unit ids. The benchmark writes this out as a
+-- scene for the C crowd.
+function crossing_sim.place(config)
     local map, grid = crossing_sim.map(config and config.map, config and config.per_army)
     local c = crowd.new(grid, map.cell)
-    local two_radii = config and config.two_radii
-    if two_radii then c.look_ahead = 0.8 end
-    local sim = { crowd = c, crossings = 0, gave_up_last = 0 }
-    local owner, army_ids = {}, { {}, {} }
+    local army_ids = { {}, {} }
     local id = 0
     for army = 1, 2 do
         local radii, speeds = {}, {}
@@ -68,11 +61,28 @@ function crossing_sim.new(config)
         for i, place in ipairs(places) do
             id = id + 1
             c:add(id, place[1], place[2], radii[i], speeds[i], army)
-            owner[id] = army - 1
             army_ids[army][#army_ids[army] + 1] = id
         end
     end
-    local count = id
+    return map, c, army_ids
+end
+-- }}}
+
+-- {{{ function crossing_sim.new(config)
+-- config.map: the map module's name (optional); config.per_army: build
+-- the scaled map with this many units per army instead. config.two_radii:
+-- true to turn the larger pathing radius on (units steer round others
+-- before touching; off by default, as it slowed the crossing; for
+-- comparing the two by eye). Returns the server's four functions, plus
+-- `crowd` (the crowd itself), `crossings` (how many have ended) and
+-- `gave_up_last` (how many gave up in the last one), for tests.
+function crossing_sim.new(config)
+    local map, c, army_ids = crossing_sim.place(config)
+    if config and config.two_radii then c.look_ahead = 0.8 end
+    local sim = { crowd = c, crossings = 0, gave_up_last = 0 }
+    local owner = {}
+    for army = 1, 2 do for _, id in ipairs(army_ids[army]) do owner[id] = army - 1 end end
+    local count = #c.order
 
     -- {{{ local function send_across(to_home)
     -- Each army, as one group, to the other's home point, or back to its own.
