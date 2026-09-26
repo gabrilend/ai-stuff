@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 15:20:18
+Generated on: 2026-09-25 16:41:12
 Models: claude-opus-5-5
 
 ## Contents
@@ -6515,6 +6515,113 @@ only after the copy, which the count then reports, plus a test there with a
 large result. I haven't touched that repository. Should I make the fix there,
 following its own issue and test conventions? Once it's in, I'd re-run the
 benchmark with the 4-byte variant added, which finishes the first part.
+
+--------------------------------------------------------------------------------
+
+### User Request 64
+
+Okay I'm going to need a performance analysis because what you've shown me is
+so, so interesting! Please, show me more! Tell me how the system performs! I'd
+love to know.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 64
+
+> Here's a fuller analysis: what a task costs, split into its parts; how cost
+> grows with result size; the best chunk size; how it scales with cores; and how
+> steady frame times are. First I need a correct "all results fully landed"
+> signal that doesn't touch the soramech repository. Checking whether the engine
+> can report idle workers:
+
+> Now the analysis host, which feeds any one variant, times each frame, and
+> waits correctly for results to land:
+
+> Now the plain program gets a thread-count argument and the same percentile
+> output, so both sides line up column for column:
+
+> Now the runner, with six sweeps: the cost of a task taken apart, result size,
+> chunk size, core scaling, army size, and frame-time steadiness.
+
+> Running in the background. It checks its correctness as it goes: every pose
+> variant must produce the same checksum as the plain loop. Checking early rows:
+
+> Testing whether the per-task slowdown comes from waking every worker. My first
+> patch didn't match the unpacked file's text, so I'll patch by line instead:
+
+> My replacements put the closing lines in the wrong places; I'll rewrite that
+> block:
+
+> Removing the herd rows on a rerun must also remove the "herd-wake-one" rows:
+
+> Now the viewer page itself. It's hand-drawn SVG with no libraries, themed for
+> light and dark, and every number comes from the embedded data:
+
+> The findings list has four numbers typed in by hand, which breaks the page's
+> own rule. I'll compute them from the data:
+
+The page is generated. One look at it before publishing, with a Firefox headless
+screenshot:
+
+--------------------------------------------------------------------------------
+
+### User Request 65
+
+[Image: original 1000x4200, displayed at 476x2000. Multiply coordinates by 2.10
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 65
+
+> Published. Now the issue gets the analysis's findings, and each new source
+> file gets its `.info.md`:
+
+> Now the issue's Current Behavior, rewritten to what the analysis found:
+
+The analysis is published as a page with charts: **[Ceramic Frame
+Budget](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc)**. It measures the
+ceramic engine doing a renderer's per-frame skeleton work across six sweeps.
+Every way was checked to compute exactly the same poses. The findings are
+committed and recorded in the issue.
+
+**What it shows:**
+
+1. **Copying a 2 KB pose is free.** Answers from 16 bytes to 16 KB cost the same
+   per task; only 120 KB shows any copying at all. So the copy rule isn't the
+   problem.
+2. **Handing tasks in one at a time is the problem.** The host and every worker
+   share the engine's one queue lock:
+   - with one worker, handing in a task costs **0.2 µs**;
+   - with 11 workers it costs **5 µs**, more than the pose work itself (1.9
+     µs).
+   - The cliff sits exactly where the thread count passes this machine's **6
+     physical cores**. Past that, whoever holds the lock shares a core with
+     threads waiting for it, so the lock is passed around slowly (a "lock
+     convoy").
+   - One unit per task gets *slower* with every worker added past four.
+3. **Chunking fixes it.** With 8–64 units per task, 2,048 skeletons take
+   **0.67 ms (4% of a 60 fps frame)**, and 8,192 take 2.6 ms.
+4. **Chunked ceramic beats a hand-written thread loop by about 2×.** The
+   hand-written loop gives each thread a fixed slice and waits for the slowest,
+   and two threads sharing a core always finish late. The ceramic queue hands
+   the next chunk to whichever worker is free, so it balances itself. That's the
+   dataflow design earning its keep.
+5. **Waking one worker instead of all** (a one-line change in a scratch copy)
+   cut the one-per-task case by up to 30%, but the lock is still the main cost.
+6. **Repeated runs vary by about a third**, so the page states that spread and
+   treats smaller differences as noise.
+
+The page ends with the findings for soramech: the early-count fault, the shared
+lock, waking every worker, no number arrays, and serac's missing `--main` and
+linker flags. I still haven't touched that repository; the offer to fix the
+early-count fault there with a test is open.
+
+A question to think over: the collapse starts exactly where threads outnumber
+physical cores. What do you predict if we pinned the engine to **one worker per
+physical core** (6, not 11)? Would chunked tasks get faster or slower, and would
+one-per-task stop collapsing? I have a guess, but the machine can answer it in
+about a minute.
 
 --------------------------------------------------------------------------------
 
