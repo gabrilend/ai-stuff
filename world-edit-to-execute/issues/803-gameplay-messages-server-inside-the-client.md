@@ -16,7 +16,12 @@ Being built (2026-09-25).
   `src/tests/test_net_messages.lua` passes (every message round-trips and
   re-encodes to the same bytes; bad input is refused with a reason). A unit
   record is 38 bytes on the wire.
-- Steps 2 to 5: not yet.
+- **Step 2, the server's rules: built.** `src/net/server.lua` (plain
+  logic, driven by whoever runs it) with `src/tests/test_net_server.lua`
+  passing: ticks, orders and their answers, the pause and resuming with
+  nothing rewound, the strictest slider in force, and the drop vote. A vote
+  on oneself is refused before any other check.
+- Steps 3 to 5: not yet.
 
 Before this, there was no network code in the project (no sockets, no
 protocol for play; 801 stops at the lobby). The simulation
