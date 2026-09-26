@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 19:55:12
+Generated on: 2026-09-25 20:02:56
 Models: claude-opus-5-5
 
 ## Contents
@@ -7736,6 +7736,65 @@ Each got its best spin length from a timed trial that the run records.
 The next open step on this path is the real renderer's host loop (the mailbox
 buffer, extrapolation and the asset table), which would test all of this on
 actual frames instead of a fabricated one.
+
+--------------------------------------------------------------------------------
+
+### User Request 78
+
+Okay yeah let's work on that then. Great reports!
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 78
+
+> Thank you! On to the renderer's host loop, issue 515b. I'll read its blueprint
+> and check how the existing renderer links raylib:
+
+> The blueprint for 515b is thin (a one-paragraph stub from planning), so first
+> it gets rewritten concretely, before any code:
+
+> The blueprint is rewritten and validates. Checking which raylib calls this
+> version has for saving a frame as a picture, and whether it supports hidden
+> windows:
+
+> raylib 5.1 has everything needed. Now the host's pieces, starting with the
+> value type and the boxes:
+
+> Now the host: the raylib window on the main thread, with the `--check` and
+> `--shot` modes so it can be verified without anyone watching:
+
+> It works on the first build. The check passed: over 600 frames, every one of
+> 2,048 units matched the direct computation, with about 114 µs from hand-in to
+> landed. The picture:
+
+The first real frame drawn from the ceramic engine is working and committed.
+Here is its picture:
+- **2,048 units** circle the centre in team colours. Each frame, the raylib
+  thread hands the engine one batch (a tick plus eight lane requests), waits for
+  the eight lanes to land, and draws.
+- **The check passed:** over 600 frames, every unit the engine placed matched
+  the same arithmetic done directly.
+- **The engine is no longer the slow part.** It takes about **0.15 ms** a frame,
+  while drawing takes about **1.3 ms**, because that's 2,048 separate cube draw
+  calls. Drawing them all in one instanced call is the obvious later
+  improvement.
+- **One snag, fixed:** saving a picture from a hidden window came out black.
+  Drawing into an off-screen texture and saving that works.
+
+**Could you try the live window?** It's the one thing I can't verify without a
+person at the screen:
+
+```
+! /mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/render/ceramic/host/run-host.sh "" window
+```
+
+You should see the camera orbiting slowly and the numbers top-left updating
+live. Close the window, or press Esc, to end it. If it looks right, I'll mark
+that criterion and close the issue.
+
+Next is the **mailbox triple buffer** (515c). It lets the engine work out frame
+N+1 while the raylib thread draws frame N, so computing and drawing overlap
+instead of taking turns.
 
 --------------------------------------------------------------------------------
 
