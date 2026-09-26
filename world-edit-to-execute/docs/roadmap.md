@@ -21,9 +21,14 @@ phases 1-10. See the Phase W section below and `docs/wow-client-bridge.md`.
 
 ### Phase 5 (Rendering) in progress
 
-The vertical slice (508a-i), render profiler (511) and threading rewrite (512,
-513) are done; the abstract render interface, terrain, sprites, UI and minimap
-issues (501-507) are open.
+The vertical slice (508), render profiler (511) and threading rewrite (512,
+513) are done. The ceramic render path (515) is in progress: the game's
+backend on the ceramic engine, C boxes building each frame's page, and raylib
+drawing it on one thread. Reading and drawing real WC3 models is planned
+(116, 117, 516). The January plan for a Lua renderer interface with terrain,
+sprite, UI and minimap sub-issues (501-507) was replaced by the vertical
+slice's split (C draws, Lua writes render slots) and waits to be re-cut;
+see `issues/CRITICAL-PATH.md`, question Q-3.
 
 ### ⚡ Architectural Pivot (2026-01-07)
 
@@ -110,7 +115,7 @@ Designed to be project-abstract and usable as both CLI tools and libraries.
 
 ---
 
-## Phase 0: Tooling/Infrastructure (23/32 Complete)
+## Phase 0: Tooling/Infrastructure (In Progress)
 
 Development infrastructure and shared systems.
 
@@ -159,23 +164,28 @@ src/runtime/currency/
 
 ---
 
-## Phase 1: Foundation - File Format Parsing ✓ COMPLETED
+## Phase 1: Foundation - File Format Parsing (In Progress)
 
-All 12 issues completed. Core parsing infrastructure established.
+The map file formats are read. Still open: the stock object tables and
+their game-version layers (112, 112b, 112d, 112e), and the readers for WC3
+models and textures (116, 117). Phase numbers group functionality rather
+than mark time, so a foundation phase gaining new readers late is expected.
 
 ### Module Structure
 
 ```
 src/
 ├── compat.lua           # Lua 5.1/LuaJIT ↔ Lua 5.3+ compatibility
-├── mpq/                 # MPQ archive system
+├── mpq/                 # MPQ archives, read through StormLib since 114
 │   ├── init.lua         # Unified API: mpq.open(), archive:extract()
-│   ├── header.lua       # Header parsing (HM3W wrapper support)
-│   ├── hash.lua         # Hash algorithm and crypto table
-│   ├── hashtable.lua    # File lookup
-│   ├── blocktable.lua   # Block table parsing
-│   ├── extract.lua      # File extraction (zlib)
-│   └── pkware.lua       # PKWARE DCL decompression
+│   ├── stormlib.lua     # LuaJIT binding to StormLib
+│   ├── map_wrapper.lua  # The 512-byte HM3W header before a map
+│   └── standard_names.lua # Names a map normally holds, for maps with no listfile
+├── gamedata/            # Stock object tables by game version (112)
+│   ├── chain.lua        # Which version's layers a map reads
+│   ├── patch_layer.lua  # One patch's tables as a layer
+│   ├── stock_rows.lua   # Route A: stock rows under a map's changed objects
+│   └── route_b*.lua     # Route B: published values as a cross-check
 ├── parsers/
 │   ├── w3i.lua          # Map info (name, players, forces, fog)
 │   ├── wts.lua          # Trigger strings (TRIGSTR_xxx)
@@ -206,6 +216,23 @@ src/
 | 107 | Build CLI metadata dump tool | - |
 | 108 | Phase 1 integration test | - |
 | 109 | Implement PKWARE DCL decompression | - |
+| 110 | Object data parsers | 110a |
+| 111 | Cross-reference validation | - |
+| 112a, 112c | StormLib build script; Route A stock rows | (of 112) |
+| 113 | Remaining MPQ compressions | - |
+| 114 | Read maps through StormLib; the own MPQ reader retired | - |
+| 115 | Balance history explorer | 115a-b |
+
+### Open Issues
+
+| ID | Name |
+|----|------|
+| 112 | Stock object tables, read two ways and cross-checked |
+| 112b | Game-version layers, chosen per map |
+| 112d | Older patch program shapes (1.01 to 1.20e) |
+| 112e | Route B: published values as a cross-check |
+| 116 | Read WC3 models (.mdx) |
+| 117 | Read WC3 textures (BLP1, in the shared texture reader) |
 
 ---
 
@@ -450,9 +477,10 @@ All 34 issues complete. Core game execution environment operational.
 
 ---
 
-## Phase 5: Rendering - Visual Abstraction (Issues Created)
+## Phase 5: Rendering - Visual Abstraction (In Progress)
 
-49+ issues created. Design decisions made (see CRITICAL-PATH.md).
+Decisions and open questions: `issues/CRITICAL-PATH.md`. Counts: the
+dashboard command under Current Focus.
 
 **Architecture:** See `docs/render-architecture.md` and `docs/wc3-engine-architecture.md` for:
 - Threading model (Updater → Workers → Sync → Draw)
@@ -465,20 +493,28 @@ All 34 issues complete. Core game execution environment operational.
 
 | ID | Name | Sub-Issues | Status |
 |----|------|------------|--------|
-| 500 | Dual interface rendering considerations | - | Design doc |
-| 501 | Create abstract render interface | 5 (501a-e) | 501a complete |
-| 502 | Implement terrain rendering | 5 (502a-e) | Created |
-| 503 | Build sprite/placeholder system | 5 (503a-e) | Created |
-| 504 | Create asset pack specification | - | Planned |
-| 505 | Implement default visual mode | 6 (505a-f) | Created |
-| 506 | Build UI framework | 6 (506a-f) | Created |
-| 507 | Create minimap renderer | 6 (507a-f) | Created |
-| **508** | **Vertical slice testing room** | **8 (508a-h)** | **Priority** |
-| 510 | Dual perspective camera system | 5 (510a-e) | Created |
+| 500 | Dual interface rendering considerations | - | Archived 2026-01-08 (WoW mode) |
+| 501 | Create abstract render interface | 5 (501a-e) | Never built; replaced by the slot split (508); to be re-cut |
+| 502 | Implement terrain rendering | 5 (502a-e) | Colour grid built in 508; heights, water, fog open; to be re-cut |
+| 503 | Build sprite/placeholder system | 5 (503a-e) | Placeholder shapes and team colour built in 508; to be re-cut |
+| 504 | Create asset pack specification | - | Open; overlaps Phase 6 |
+| 505 | Implement default visual mode | 6 (505a-f) | Mostly done by 508; movable camera open; to be re-cut |
+| 506 | Build UI framework | 6 (506a-f) | Open; where it lives is question Q-4 |
+| 507 | Create minimap renderer | 6 (507a-f) | Open; to be re-cut |
+| 508 | Vertical slice testing room | 9 (508a-i) | **Completed** |
+| 509 | Player-customizable visual effects | 5 planned (509a-e) | Open |
+| 510 | Dual perspective camera system | 5 (510a-e) | Archived 2026-01-08 (WoW mode) |
+| 511 | Render profiler | 5 (511a-e) | **Completed** |
+| 512 | Threading architecture rewrite | 6 (512a-f) | **Completed** |
+| 513 | Threading architecture demo | - | **Completed** |
+| 514 | 3D rotation frames | 4 planned (514a-d) | Open |
+| 515 | Render graph on the ceramic engine | 11 (515a-k) | In progress |
+| 516 | Draw WC3 models in the engine | - | Open |
 
-### Priority Path: 508 Vertical Slice
+### Priority Path: 508 Vertical Slice (completed)
 
-Fast-track to playable demo:
+Fast-track to playable demo, all done (508i fixed ray picking on chunked
+terrain):
 1. **508a** Threading infrastructure (C worker pool, sync thread)
 2. **508b** Entity render slots (ComponentSlot, mise en place pattern)
 3. **508c** Lua-C bridge (ECS ↔ render connection)
@@ -488,8 +524,9 @@ Fast-track to playable demo:
 7. **508g** Minimal UI (resources, selection panel)
 8. **508h** Integration test (complete vertical slice)
 
-This validates the architecture before completing 501-507 infrastructure.
-A working demo proves the system; refinement comes after.
+It validated the architecture, and its split (C draws, Lua writes render
+slots) became the architecture; the 501-507 plan is what now has to be
+re-cut to fit it.
 
 ### Key Decisions (OQ-001 through OQ-004)
 
@@ -497,7 +534,10 @@ A working demo proves the system; refinement comes after.
 - **Coordinates:** WC3-style (Y-up, center origin, 128 units/tile)
 - **Architecture:** Pure standalone engine (no server dependency)
 
-### Dual Perspective Camera (Issue 510)
+### Dual Perspective Camera (Issue 510, archived 2026-01-08)
+
+Archived with the WoW-mode issues (`issues/archive/wow-mode-2026-01-08/`).
+Kept here as the record of the idea:
 
 ```
 WC3 TACTICAL MODE (RTS)        3D ADVENTURE MODE (Optional)
@@ -585,9 +625,16 @@ Same map, different experience:
 
 ---
 
-## Phase 7: Gameplay - Core Mechanics (Issues Created)
+## Phase 7: Gameplay - Core Mechanics (Archived)
 
-7 root issues created for core WC3 gameplay systems.
+The death system (701) and profession system (702) were archived on
+2026-01-08 with the WoW-mode issues (`issues/archive/wow-mode-2026-01-08/`);
+only the core profession component (702a) was completed first. Issues 703-707
+were planned but never written. WC3 gameplay mechanics (combat, abilities,
+buffs, training, fog of war) have no live issues; when they come back they
+start from this list. The rest of this section is the record of the plan.
+
+7 root issues were planned for core WC3 gameplay systems.
 
 **Focus:** Pure WC3 behavior - replicate original game mechanics faithfully.
 
@@ -664,6 +711,12 @@ simulation; lockstep was dropped (2026-09-25, see
 | 801f | Asset mirror integration | Distribute common asset packs | 801b, Phase 6 |
 | 801g | CLI server application | Run and monitor server | 801b, 801f |
 | 801h | Integration tests | End-to-end testing | All 801 sub-issues |
+| 802 | Render system moved onto the shared thread-pool library | Waits on 515f's verdict (question Q-6); rendering work filed under Phase 8 | my-libs threadpool |
+| 803 | Gameplay messages, with the server inside the client | The host's simulation and the messages between it and players; steps 1-4 built | 401, 515c |
+| 804 | Crossing armies, drawn from across the network | The crowd demo over the network; built, waiting on the owner's viewing | 405f, 803, 515c |
+
+How the 801 family relates to 803 and to Phase W's servers is open
+(`issues/CRITICAL-PATH.md`, question Q-1).
 
 ### Implementation Notes
 
@@ -760,18 +813,28 @@ and reasoning: `docs/wow-client-bridge.md`. Progress: `issues/phase-W-progress.m
 | ID | Name | Role of the WoW client |
 |----|------|------------------------|
 | W01 | Read the WoW client's archives (MPQ chain, DBC, BLP, M2; MPQ writer) | Foundation |
-| W02 | Build WC3 maps into the WoW client (terrain → ADT, placements, map registration, server data, triggers in Eluna, launcher + loader, control addon) | Alternate host |
+| W02 | Build WC3 maps into the WoW client (terrain → ADT, placements, map registration, server data, triggers in ALE (Eluna's successor), launcher + loader, control addon) | Alternate host |
 | W03 | Show WoW models with WC3 unit behavior (model resolver, WC3 animation timing, skinning, replay) | Model source |
 | W04 | Compare the real client against the open client (scripted server scenes, recording, image statistics, vision-LLM notes) | Reference |
 | W05 | Asset forge: find or generate a replacement model (licensed search, ComfyUI image-to-3D) | Replacing it |
+| W05a | Similarity-to-original score (the forge's progress measure) | Replacing it |
+| W05b | Borrowed skeleton and animation sets | Replacing it |
+| W05c | "Default client compatible" seal | Replacing it |
+| W05d | Clean-room loop: describe, build, check (the default route for every replacement) | Replacing it |
+| W05e | Body-structure fit check and body-plan standards | Replacing it |
 | W06 | Restyle every model in one theme (e.g. "neopunk"; GPU batch) | Replacing it |
 | W07 | Phase W demo | Capstone |
+| W08 | Our own server, speaking the same protocol (design research; decides the licence of the whole stack) | Replacing the server |
 
 ```
-W01 ──┬──▶ W02 ──┬──▶ W04 ──┐
-      └──▶ W03 ──┼──▶ W05 ──┼──▶ W06 ──▶ W07
-                 └──────────┘
+W01 ──┬──▶ W02 ──┬──▶ W04 ──┬──────────────▶ W08
+      │          │          │
+      └──▶ W03 ──┼──▶ W05 (a-e) ──┼──▶ W06 ──▶ W07
+                 └────────────────┘
 ```
+
+W07's dependencies in its issue file name W02-W06 only; whether W05a-e and
+W08 belong in the demo is still to be written into it.
 
 Datapaths: `docs/datapath-wc3-map-into-wow-client.md`,
 `docs/datapath-wow-models-in-engine.md`,
