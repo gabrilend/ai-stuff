@@ -23,6 +23,7 @@ struct task {
     void       *owner;
     int32_t     station;
     int32_t     port;
+    int32_t     dest;       /* FORK (issue 515i): the destination it is handed in to; 0, the default */
     int32_t     n_in;
     void      **in;
     void       *out;
@@ -42,6 +43,11 @@ void cera_pool_push_many(cera_pool_t *p, cera_task_t **tasks, int n);
 void cera_pool_push(cera_pool_t *p, cera_task_t *t);
 void cera_pool_batch_begin(cera_pool_t *p);
 void cera_pool_batch_end(cera_pool_t *p);
+/* FORK (issue 515i): several destinations (task queues); a worker serves
+ * an ordered list of them. Before the workers are released. */
+int cera_pool_add_destination(cera_pool_t *p);
+void cera_pool_set_worker_sources(cera_pool_t *p, int worker, const int *order, int n);
+void cera_pool_set_sources(cera_pool_t *p, const int *order, int n);
 cera_task_t *cera_pool_pop(cera_pool_t *p);
 int cera_pool_worker_index(void);
 uint64_t cera_pool_worker_epoch(cera_pool_t *p, int worker);
@@ -188,6 +194,7 @@ typedef struct station {
     _Atomic long produced;
     _Atomic long box_ns;
     _Atomic long mutex_wait_ns;
+    int          destination;   /* FORK (issue 515i): where its tasks go; 0, the default, unless named */
 } cera_station_t;
 
 #define CERA_STATIONS_PER_SHELF 64
@@ -278,6 +285,10 @@ int cera_map_result_at(cera_map_t *m, int nth, int *station, int *port);
  * one batch at the end. */
 const char *cera_map_deliver_arguments(cera_map_t *m, int station, int port,
                                        const void *values, int count, int size);
+/* FORK (issue 515i): a station by its name (-1 when none has it), and the
+ * destination a station's tasks go to (NULL when taken, or why not). */
+int cera_map_station_find(cera_map_t *m, const char *name);
+const char *cera_map_station_set_destination(cera_map_t *m, int station, int destination);
 const char *cera_map_deliver_argument(cera_map_t *m, int station, int port,
                                  const void *value, int size);
 

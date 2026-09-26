@@ -15,7 +15,9 @@
 # one, run each way with and without background work, and count the lines
 # marked as threading code.
 #
-# Each parallel way runs sleeping and spinning (threads that sleep between
+# The ceramic graph also runs "after" (issue 515i): its frame stations in a
+# destination every worker serves before the default, where background
+# decoding stays. Each parallel way runs sleeping and spinning (threads that sleep between
 # stages wake on cores the power governor has slowed; see frame-hand.c),
 # with and without background work, REPEATS times, since runs this short
 # wander. frame-bounds works out the floor: the frame's longest chain of
@@ -90,6 +92,10 @@ for repeat in $(seq "${REPEATS}"); do
         done
         "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"
         CERAMIC_SPIN=10000 "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"
+        # after: the frame's stations in their own destination (issue 515i)
+        FRAME_DESTINATIONS=1 "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"
+        # and with only one worker serving the background
+        FRAME_DESTINATIONS=2 "${BUILD}/frame-ceramic" "${FRAMES}" "${W}" "${bg}" >> "${T}"
     done
 done
 printf 'rounds\t%s\n' "${ROUNDS}" >> "${T}"

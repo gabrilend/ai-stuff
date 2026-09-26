@@ -77,6 +77,13 @@ blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--ch
     <div class="chart" id="bg"></div>
   </section>
 
+  <section aria-labelledby="h-lanes">
+    <h2 id="h-lanes">After: a lane for the frame</h2>
+    <p id="lanes-text"></p>
+    <div class="key"><span><i style="background:var(--chunk)"></i>ceramic graph, one task queue (before)</span><span><i style="background:repeating-linear-gradient(90deg,var(--chunk) 0 3px,transparent 3px 5px)"></i>ceramic graph, the frame's own destination (after)</span><span><i style="background:repeating-linear-gradient(45deg,var(--chunk) 0 2px,transparent 2px 6px)"></i>…and one worker serving the background</span><span><i style="background:var(--counter)"></i>hand-written, by level</span><span>lighter: with background work</span></div>
+    <div class="chart" id="lanes"></div>
+  </section>
+
   <section aria-labelledby="h-code">
     <h2 id="h-code">Threading code</h2>
     <p id="code-text"></p>
@@ -273,6 +280,52 @@ function hatch(svgEl, id, color) {
 })();
 // }}}
 
+// {{{ after: the frame's own destination
+(() => {
+  const before0 = summary("ceramic-graph", 0), before1 = summary("ceramic-graph", 1);
+  const after0 = summary("ceramic-graph-lanes", 0), after1 = summary("ceramic-graph-lanes", 1);
+  const one0 = summary("ceramic-graph-lanes-one", 0), one1 = summary("ceramic-graph-lanes-one", 1);
+  const l0 = summary("hand-levels", 0), l1 = summary("hand-levels", 1);
+  if (!after0 || !after1 || !one0 || !one1) { el("lanes-text").textContent = "No after runs in this data."; return; }
+  const cost = (b, a0) => `${(100 * (b.mean / a0.mean - 1)).toFixed(0)}%`;
+  el("lanes-text").textContent = `The kept engine copy can now hold several task queues — destinations, following the soramech project's design (its issue 107): a station may name one, each worker serves an ordered list of them, and a program that names none behaves exactly as before. ` +
+    `Here the frame's own stations name a “frame” destination that every worker serves first; background decoding stays in the default. ` +
+    `Serving the frame first only decides what a free worker takes next — it can't interrupt a decode already running, and at the start of each frame, while the simulation step runs, idle workers pick the decodes up and are tied up for ${fmtUs(P.DECODE_US)}. ` +
+    `So the second arrangement also says who serves the background: only one worker, so at most one is ever inside a decode. ` +
+    `With background work the background's cost went from ${cost(before1, before0)} (one task queue) to ${cost(after1, before0)} (a frame lane) to ${cost(one1, before0)} (a frame lane and one worker for the background), while the worst frames stayed about where they were (${fmtUs(before1.p99)}, ${fmtUs(one1.p99)}). ` +
+    `Without background work, neither arrangement changes much (${fmtUs(before0.mean)}, ${fmtUs(after0.mean)}, ${fmtUs(one0.mean)}): the same tasks, one more list to look at.`;
+  const rowsL = [
+    { name: "Ceramic, before", a: before0, b: before1, fill: "var(--chunk)" },
+    { name: "Ceramic, frame lane", a: after0, b: after1, fill: "url(#lanes-hatch)" , stroke: "var(--chunk)" },
+    { name: "…one worker for background", a: one0, b: one1, fill: "url(#lanes-diag)", stroke: "var(--chunk)" },
+    { name: "By level", a: l0, b: l1, fill: "var(--counter)" },
+  ];
+  const W = 860, rowH = 50, L = 200, R = 190, T = 10, H = T + rowsL.length * rowH + 34;
+  const svgEl = svg(W, H), max = Math.max(...rowsL.map(r => Math.max(r.a.mean, r.b.mean)));
+  const defs = add(svgEl, "defs", {});
+  const pat = add(defs, "pattern", { id: "lanes-hatch", width: 5, height: 5, patternUnits: "userSpaceOnUse" });
+  add(pat, "rect", { width: 5, height: 5, fill: "var(--sheet)" });
+  add(pat, "rect", { width: 3, height: 5, fill: "var(--chunk)" });
+  const pat2 = add(defs, "pattern", { id: "lanes-diag", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  add(pat2, "rect", { width: 6, height: 6, fill: "var(--sheet)" });
+  add(pat2, "rect", { width: 2, height: 6, fill: "var(--chunk)" });
+  const x = scale(0, max, L, W - R);
+  for (const t of [0, 1000, 2000, 3000, 4000].filter(t => t <= max)) {
+    add(svgEl, "line", { x1: x(t), x2: x(t), y1: T, y2: H - 30, stroke: "var(--grid)" });
+    add(svgEl, "text", { x: x(t), y: H - 12, "text-anchor": "middle" }, `${t / 1000} ms`);
+  }
+  rowsL.forEach((r, i) => {
+    const yy = T + i * rowH + 4;
+    add(svgEl, "text", { x: L - 10, y: yy + 20, "text-anchor": "end", class: "label" }, r.name);
+    add(svgEl, "rect", { x: x(0), y: yy, width: x(r.a.mean) - x(0), height: 16, fill: r.fill, stroke: r.stroke || "none" });
+    add(svgEl, "text", { x: x(r.a.mean) + 8, y: yy + 12, class: "strong" }, fmtUs(r.a.mean));
+    add(svgEl, "rect", { x: x(0), y: yy + 20, width: x(r.b.mean) - x(0), height: 16, fill: r.fill, stroke: r.stroke || "none", opacity: 0.45 });
+    add(svgEl, "text", { x: x(r.b.mean) + 8, y: yy + 32 }, `${fmtUs(r.b.mean)} with background`);
+  });
+  el("lanes").replaceChildren(svgEl);
+})();
+// }}}
+
 // {{{ threading code
 el("code-text").textContent = `Counted by a tool, from regions marked in the source: the hand-written program needs ${EXTRA.loc.hand} lines of threading — thread start-up, the stage lists, the shared counter, two kinds of barrier, the background queue and its thread. ` +
   `The ceramic host needs ${EXTRA.loc.host}: start the engine, find its doors, hand a frame in as a batch, wait for the answers. The frame's shape lives in a ${EXTRA.loc.map}-line map, written by a ${EXTRA.loc.gen}-line generator; changing which stage waits for which is editing the map, not the threading.`;
@@ -284,8 +337,12 @@ el("code-text").textContent = `Counted by a tool, from regions marked in the sou
   const findings = [
     ["good", "Flexibility", "Where the work isn't uniform, the graph wins.", `Stages that wait on each other, tasks whose length isn't known in advance, and a long tail of slow requests: the graph ran this frame ${(100 * (l.mean / g.mean - 1)).toFixed(0)}% faster than the best barrier design and within ${(100 * (g.mean / B.best - 1)).toFixed(0)}% of the floor, with the steadiest worst frames. Nothing in it was tuned; the dependencies were drawn and the engine did the rest.`],
     ["good", "Machines", "It keeps cores busy, and busy cores stay fast.", "A design that sleeps between stages pays twice on a machine that saves power: once for the wait and again for the cold core after it. The graph's workers rarely wait long enough to cool."],
-    ["warn", "Priorities", "Background work competes with the frame.", `One task queue, first come first served: background decodes cost the graph ${(100 * (gb.mean / g.mean - 1)).toFixed(0)}% here, where a dedicated thread cost the hand-written design almost nothing. Several queues a station may name (soramech issue 107) would give frame work its own lane.`],
-    ["warn", "Honesty", "This is one fabricated frame on one machine.", "The costs are chosen to look like a real frame, not measured from one; the renderer's real frame is the next test (issue 515f). Runs were repeated and agree closely, and every way produced the same answer every frame."],
+    (() => {
+      const la = summary("ceramic-graph-lanes-one", 1);
+      if (!la) return ["warn", "Priorities", "Background work competes with the frame.", `One task queue, first come first served: background decodes cost the graph ${(100 * (gb.mean / g.mean - 1)).toFixed(0)}% here.`];
+      return ["good", "Priorities", "A lane for the frame answers the background's cost.", `With one task queue, background decodes cost the graph ${(100 * (gb.mean / g.mean - 1)).toFixed(0)}%; with the frame's stations in their own destination and one worker serving the background, the frame with background work runs in ${fmtUs(la.mean)} against ${fmtUs(g.mean)} with none. Priority alone wasn't enough — a queue's order can't interrupt a running task, so who serves the background mattered as much as what is served first. Built in the kept engine copy after soramech's design 107; a program that names no destination behaves exactly as before.`];
+    })(),
+    ["warn", "Honesty", "This is one fabricated frame on one machine.", "The costs are chosen to look like a real frame, not measured from one; the renderer's real frame is the next test (issue 515f). Runs were repeated and interleaved, and every way produced the same answer every frame; differences of a few percent between runs far apart in time were noise until interleaved."],
   ];
   for (const [sev, tag, head, body] of findings) {
     const d = document.createElement("div");

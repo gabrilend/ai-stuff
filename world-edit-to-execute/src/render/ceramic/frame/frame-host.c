@@ -21,8 +21,17 @@
  *
  * Usage: ./frame-ceramic FRAMES WORKERS BACKGROUND
  *   With CERAMIC_SPIN set, the engine's idle workers look at the task queue
- *   that many times before sleeping, and the way is reported as
- *   "ceramic-graph-spin" (see frame-hand.c on why spinning matters here).
+ *   that many times before sleeping, and the way is reported with "-spin"
+ *   (see frame-hand.c on why spinning matters here).
+ *   With FRAME_DESTINATIONS=1 (issue 515i), the frame's own stations --
+ *   simulation, fog, pose lanes, culling, pathfinding -- hand their tasks
+ *   in to a "frame" destination that every worker serves before the
+ *   default, and background decoding stays in the default. Reported with
+ *   "-lanes". With FRAME_DESTINATIONS=2, the same, except only the last
+ *   worker serves the default (every worker still serves the frame): at
+ *   most one worker is ever inside a background task. Reported with
+ *   "-lanes-one". Without it, nothing names a destination and the engine
+ *   behaves exactly as before: the before of the before-and-after.
  */
 #include <sched.h>
 #include <stdint.h>
@@ -117,6 +126,35 @@ int main(int argc, char **argv)
     for (int p = 0; p < FRAME_PLAYERS; p++) must(cera_map_collect(m, fog_at[p], fog_p[p], &fog_in[p], 1, (int)sizeof(done)), "fog's landing");
     for (int l = 0; l < FRAME_LANES; l++) must(cera_map_collect(m, cull_at[l], cull_p[l], &cull_in[l], 1, (int)sizeof(done)), "culling's landing");
     must(cera_map_collect(m, pathr_at, pathr_p, path_in, FRAME_PATHS_MAX, (int)sizeof(done)), "pathfinding's landing");
+
+    /* Two paths: with FRAME_DESTINATIONS=1 the frame's stations name a
+     * destination served first; otherwise nothing is named. */
+    const char *lanes_env = getenv("FRAME_DESTINATIONS");
+    int lanes = lanes_env ? atoi(lanes_env) : 0;
+    if (lanes != 0 && lanes != 1 && lanes != 2) { fprintf(stderr, "FRAME_DESTINATIONS is 1 or 2\n"); return 64; }
+    if (lanes) {
+        int frame_dest = cera_pool_add_destination(m->pool);
+        int order[] = { frame_dest, 0 };
+        cera_pool_set_sources(m->pool, order, 2);
+        /* 2: only the last worker also serves the default (the background) */
+        if (lanes == 2)
+            for (int w = 0; w < workers - 1; w++) cera_pool_set_worker_sources(m->pool, w, order, 1);
+        char name[16];
+        const char *fixed[] = { "sim", "paths" };
+        for (int i = 0; i < 2; i++) {
+            int st = cera_map_station_find(m, fixed[i]);
+            if (st < 0) { fprintf(stderr, "frame.map has no station %s\n", fixed[i]); return 70; }
+            must(cera_map_station_set_destination(m, st, frame_dest), "a frame station's destination");
+        }
+        for (int k = 0; k < FRAME_PLAYERS + 2 * FRAME_LANES; k++) {
+            if (k < FRAME_PLAYERS) snprintf(name, sizeof name, "fog%d", k);
+            else if (k < FRAME_PLAYERS + FRAME_LANES) snprintf(name, sizeof name, "pose%d", k - FRAME_PLAYERS);
+            else snprintf(name, sizeof name, "cull%d", k - FRAME_PLAYERS - FRAME_LANES);
+            int st = cera_map_station_find(m, name);
+            if (st < 0) { fprintf(stderr, "frame.map has no station %s\n", name); return 70; }
+            must(cera_map_station_set_destination(m, st, frame_dest), "a frame station's destination");
+        }
+    }
     cera_pool_release(m->pool);
     /* } THREADING */
 
@@ -174,8 +212,10 @@ int main(int argc, char **argv)
     qsort(took, (size_t)frames, sizeof *took, by_value);
 #define PCT(q) took[(int)((frames - 1) * (q))]
     const char *spin = getenv("CERAMIC_SPIN");
+    char way[64];
+    snprintf(way, sizeof way, "ceramic-graph%s%s", lanes == 1 ? "-lanes" : lanes == 2 ? "-lanes-one" : "", spin && atoi(spin) > 0 ? "-spin" : "");
     printf("%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%08x\t%d\n",
-           spin && atoi(spin) > 0 ? "ceramic-graph-spin" : "ceramic-graph", background, frames, workers,
+           way, background, frames, workers,
            total / frames, PCT(0.50), PCT(0.95), PCT(0.99), took[frames - 1], check, decoded);
     cera_pool_submitter_unregister(m->pool);
     cera_pool_join(m->pool);

@@ -36,6 +36,24 @@ What changed, and why (issue 515g; measured by
 7. `#define CERA_FORK_TASK_QUEUE 1` in the header, so a program can tell
    which engine it was built against.
 
+8. **Destinations** (issue 515i, after soramech's design 107): several
+   task queues. Each is a ring of its own (`struct ring`); destination 0 is
+   the default. The new calls:
+   - `cera_pool_add_destination` adds one;
+   - `cera_pool_set_sources` / `_set_worker_sources` set each worker's
+     ordered list (the order is the policy);
+   - `cera_map_station_set_destination` points a station's tasks at one;
+   - `cera_map_station_find` finds a station by name.
+
+   How it behaves:
+   - A task carries its destination (`task->dest`, copied from its
+     station), and a batch keeps one reservation per run of the same
+     destination.
+   - A destination nobody serves is refused at release.
+   - When workers serve different lists, a hand-in wakes every sleeper
+     (the one woken might not serve it).
+   - **A program that names no destination behaves exactly as before.**
+
 The mutex remains for the starting gate, going to sleep, stopping, and
 outside submitters; termination is decided as before.
 
