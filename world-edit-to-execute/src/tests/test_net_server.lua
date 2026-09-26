@@ -171,6 +171,17 @@ do
     test("and with no one silent, play resumes", not s.paused)
 end
 
+print("\n=== A clock with fractions of a millisecond ===")
+do
+    -- the real clock (net/clock.lua) has fractions; the waiting message
+    -- carries whole milliseconds, and once refused to encode them
+    local s, inbox = make_game(2)
+    local ok, why = pcall(function()
+        for now = 0.37, 2600, 16.01 do beat(s, { 0 }, now); s:step(now) end
+    end)
+    test("the waiting news goes out with a fractional clock", ok and s.paused and last(inbox[0], "waiting") ~= nil, tostring(why))
+end
+
 print("\n=== What a client may not send ===")
 do
     local s = make_game(1)
