@@ -32,10 +32,10 @@ its folders, and checks afterwards that it stayed there.
 | Kind | About | Reads | Writes | Crafts it is handed |
 |---|---|---|---|---|
 | `outline` | `-` | source, survey | `blueprint/outline.tsv` | issue-lifecycle |
-| `describe` | an issue id | source, survey, `blueprint/outline.tsv` | `blueprint/issues/` | issue-lifecycle |
-| `build` | an issue id | blueprint, design | `design/` | project-init, polyglot-source when the target asks for more than one language |
+| `describe` | an issue id | source, survey, `blueprint/outline.tsv` | `blueprint/issues/<id>-…` only | issue-lifecycle |
+| `build` | an issue id | blueprint, design | `design/` | whatever the person lists in the case's `input/crafts` (canvas-and-paintbrush, polyglot-source, …) |
 | `repair` | an issue id | blueprint, design, the failing test output | `design/` | same as build |
-| `locate` | a request | the request, blueprint | `turns/…/touched` | none |
+| `locate` | a request | the request, blueprint | its own turn folder (`touched`) | none |
 | `amend` | a request | the request, blueprint | `blueprint/issues/` | issue-lifecycle |
 
 **The clean room:** no turn of kind `build` or `repair` can read the source.
@@ -65,8 +65,10 @@ One row per harness, the same fields each. Adding a harness is adding a row.
 |---|---|---|
 | `name` | string | `claude-code`, `stand-in` |
 | `needs` | array of strings | programs that must be on the path |
-| `start` | function | given a turn folder and its confinement, returns the command line that runs one turn |
+| `command` | function | given the project and a turn, returns the program line that runs one turn; the machine wraps it with `timeout` and sends its output to the turn folder |
 | `cost` | string | `subscription`, `per-token` or `free` |
+| `pool` | number | turns at once by default: 4 for `claude-code`, 8 for `stand-in` |
+| `limit` | number | seconds before a turn is stopped: 1800 for `claude-code`, 60 for `stand-in` |
 
 **`claude-code`** runs `claude -p` with the prompt, the instructions appended
 to its system prompt, single-JSON output, restricted mode, only the file tools
@@ -84,8 +86,12 @@ exit non-zero) so the checks can be tested too.
 
 A craft is one of the owner's skill files
 (`~/.claude/skills/<name>/SKILL.md`). The turn kinds table names which crafts
-each kind receives; the hands read each file and place it in
-`instructions.md`. If a named craft's file is missing, the turn is refused,
+each kind receives; build and repair turns also receive every skill the
+person names, one per line, in the case's `input/crafts` — that file is how
+the person says which of their crafts a design should be built with. The
+hands read each file and place it in `instructions.md`, which is refused
+above 120 KiB (Claude Code receives it as one argument, and the kernel holds
+one argument to 128 KiB). If a named craft's file is missing, the turn is refused,
 naming it — a turn that was meant to build the owner's way and cannot is not
 started without saying so.
 
@@ -94,10 +100,22 @@ started without saying so.
 Turns that do not depend on each other — the describe turns of a blueprint,
 the build turns of one wave — run at the same time, in a pool of worker
 threads each starting one harness process and waiting for it. The pool's
-size is a setting (default 4 for a subscription harness, every hardware
-thread for the stand-in). Snapshots are taken once before the whole set and
+size is a setting (the harness row's `pool` unless a run says otherwise). Snapshots are taken once before the whole set and
 once after it, and each changed path is charged to the turn whose writable
-folder holds it; two turns in one set never share a writable folder that is
-not split by issue, so the charge is never ambiguous for `describe`. For
-`build`, whose turns share `design/`, a path is charged to the whole wave,
-and a breach stops the wave.
+prefix holds it most specifically; describe turns each write only their own
+`blueprint/issues/<id>-` prefix, so their files are charged exactly. Build
+turns share `design/`, so their files are charged to the whole wave. A change
+that no turn of the set may write cannot be traced to one turn — they ran
+together — so it makes every turn of the set a breach.
+
+Snapshots hash every file once, on every core, and later reuse the checksum
+of any file whose size and time have not moved (kept between runs in
+`turns/snapshot.tsv`). Files over 64 MiB are known by size and time alone:
+one 943 MB git pack file in a source made a first snapshot take 14 seconds
+instead of 1.5. The cost: such a file rewritten with identical bytes counts
+as a change.
+
+The folders a Claude Code turn can reach are named with a trailing slash in
+the kinds table. Without it a folder is reached through its parent — the
+whole case, including `turns/`, where earlier turns' records can quote the
+source. The phase 3 demo found this; a check now holds it.

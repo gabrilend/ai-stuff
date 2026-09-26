@@ -5,7 +5,7 @@ What a turn is on disk, and the table of turn kinds
 
 ## Current Behavior
 
-Nothing starts a model.
+Built as `src/034-turn-kinds.lua`. Each kind's prompt template is written out in full (what to plan, describe, build, repair, locate or amend, and the exact file form expected back). Folder paths in the table end with `/`: named without it, a folder was reached through its parent — the whole case, `turns/` included, where earlier turns' records can quote the source. The phase 3 demo showed the leak; tests/040 now checks that no build or describe turn can reach the whole case or `turns/`, and that only outline and describe list the source.
 
 ## Intended Behavior
 

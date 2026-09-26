@@ -5,7 +5,7 @@ Running a set of independent turns at once, then judging each
 
 ## Current Behavior
 
-Turns run one at a time, with no verdicts.
+Built as `src/039-the-turn-pool.lua`. A pool of effil threads takes shell lines from a channel until it is empty. Snapshots are taken once around the set. A change outside every writable path makes every turn of the set a breach — the design cannot say which of several simultaneous turns wrote it — so the check in step 2 is that the breach is caught and named in the ledger, and the whole set is marked. Exit 124 or 137 reads as "ran past its limit". Eight one-second stand-in turns in a pool of four take about two seconds; 48 quick turns run at about 380 a second in a pool of eight (phase 3 demo). Checked by tests/040.
 
 ## Intended Behavior
 
