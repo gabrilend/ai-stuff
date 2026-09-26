@@ -12,6 +12,12 @@
 Demos exist for phases 0-5 (`issues/completed/demos/run_phase*.sh`, chosen
 through `run-demo.sh`). None exists for phase W.
 
+Since this issue was written, W05 was split into W05a-e (the similarity
+score, borrowed skeletons, the compatibility seal, the clean-room loop and
+the body-structure check), and W08 (our own server speaking the same
+protocol) was added. The dependencies above name neither; see the open
+question below.
+
 ## Intended Behavior
 
 `issues/completed/demos/run_phaseW.sh`, reachable from `run-demo.sh`, shows
@@ -42,6 +48,13 @@ states, phase 6 storage holding W05's candidates.
 - [ ] `run-demo.sh` offers phase W
 - [ ] Every section shows measured numbers from a real run
 - [ ] Missing prerequisites are reported, never silently skipped
+
+## Open Questions
+
+1. Does the demo wait on W05a-e and W08? W05a (the similarity score) and
+   W05d (the clean-room loop) are what the forge section would measure; W08
+   is design research and may have nothing to run by then. (Asked
+   2026-09-26.)
 
 ## Related Documents
 
