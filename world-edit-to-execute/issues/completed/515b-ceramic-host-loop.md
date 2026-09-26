@@ -31,8 +31,9 @@ Built (2026-09-25), in `src/render/ceramic/host/`.
 - **One lesson for picture mode:** reading a hidden window's screen back
   after the frame is shown gives a black picture. Drawing into an
   off-screen texture and saving that is dependable.
-- **Still to confirm:** the interactive window (the orbiting camera and the
-  numbers updating live). It needs a person at the screen.
+- **The window, confirmed by the owner (2026-09-25):** the camera orbits and
+  the numbers update live. The owner: "The demo looks delightful, I can't
+  wait to see more. :)"
 
 ## Intended Behavior
 
@@ -89,7 +90,7 @@ the render graph.
       direct computation
 - [x] `--shot` produces a picture of the units, drawn by the host from the
       landed answers
-- [ ] The window runs interactively, with the numbers on screen
+- [x] The window runs interactively, with the numbers on screen
 - [x] `.info.md` beside each new source file; what it taught recorded in 515
 
 ## Related Documents
