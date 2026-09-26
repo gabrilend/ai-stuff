@@ -3,7 +3,7 @@
 **Phase:** 7 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** Medium
-**Dependencies:** Issue 801b (server core), **Phase 6 (Asset System - Issue 607 file server)**
+**Dependencies:** Issue 801b (server core). (Issue 607, the file server, was retired 2026-09-26: files between people move over rmail, issue 609.)
 **Parent:** Issue 801 (Matchmaking Server)
 
 ---
@@ -87,7 +87,7 @@ return {
 
 ## Suggested Implementation Steps
 
-1. Integrate Issue 607 file server into matchmaking server
+1. ~~Integrate Issue 607 file server into matchmaking server~~ (607 retired 2026-09-26; a mirror is an rmail contact)
 2. Add asset mirror configuration to server config
 3. Implement pack registry (which packs are available)
 4. Add `ASSET_PACKS_AVAILABLE` message type to protocol
@@ -112,10 +112,10 @@ return {
 
 ## Related Documents
 
-- Issue 607 - File server application (asset distribution)
+- Issue 607 - File server application (retired 2026-09-26, `issues/superseded/`)
 - Issue 801b - Server core (integration point)
 - Issue 801c - Client library (download orchestration)
-- Issue 603 - Asset download protocol
+- Issue 603 - Fetch maps and models from public sites (was: asset download protocol)
 
 ## Open Questions
 

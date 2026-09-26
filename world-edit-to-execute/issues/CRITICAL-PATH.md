@@ -77,7 +77,8 @@ in full there.
 | Date | Decision | Recorded in |
 |------|----------|-------------|
 | 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
-| 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | This document; to be written into 603 and 1001 |
+| 2026-09-26 | **Fetching and browsing are split, generation from viewing.** Issue 603 is the fetcher: it finds maps and models on public hosting sites and downloads one over HTTP when a player asks. Issue 1001 is the catalogue: it shows what 603 found and never fetches. The file server (607) is retired; nothing in the project serves files. | issues 603, 1001, `issues/superseded/607-file-server-application.md` |
+| 2026-09-26 | Files are still downloaded over HTTP from the public websites that host WC3 maps and models. rmail is for passing files between people; it does not replace fetching from those sites. | issue 603 |
 | 2026-09-25 | **One host holds the truth; lockstep is dropped.** The host's machine runs the one simulation and every other player is its client. | `docs/wc3-engine-architecture.md` (Multiplayer Strategy), issue 803 |
 | 2026-09-25 | The owner's personal details are never sent to an outside service unless the owner names that detail for that purpose. | `CLAUDE.md` (Privacy) |
 | 2026-09-23 | **Assets pass between people over rmail**, "the only connection protocol for assets that I trust". 603's own transfer protocol is not built. | issue 609 |
@@ -114,16 +115,6 @@ authority and differ only in the wire format. If they are one simulation
 with two front ends, the matchmaking protocol (801a) should reuse 803's
 message layer instead of defining its own, and NAT traversal (801d) serves
 only the open-client route.
-
-### Q-2: Which HTTP fetching belongs where?
-**Reshapes:** 603, 607, 1001, 601
-
-Files still come over HTTP from public hosting sites (decided 2026-09-26),
-and rmail carries them between people. What remains open:
-- Does 603 become "fetch from public sites", or does the map browser (1001)
-  own all fetching and 603 retire?
-- Does anything still need this project to *serve* files over HTTP (607's
-  file server), now that people pass files over rmail?
 
 ### Q-3: What happens to the old renderer-interface issues (501-507)?
 **Reshapes:** about 40 issues in Phase 5
@@ -225,7 +216,6 @@ Places where a document disagrees with the code or with another document.
 |-------|------|---------|
 | `docs/roadmap.md`, Phase 5 | the renderer interface (501a) is complete | it was never built; the slot split replaced it |
 | `docs/roadmap.md`, Phase 5 | lists 500 and 510 | both archived 2026-01-08 |
-| `docs/roadmap.md`, Phase 6 table | 603 is "asset pack format", 607 is "asset browser" | 603 is the download protocol, 607 the file server; 609 is missing |
 | `docs/roadmap.md`, Phase 7 | issues created, active | archived 2026-01-08 |
 | `docs/roadmap.md`, Phase W | triggers in Eluna; no W05a-e, no W08 | ALE; W05a-e and W08 exist |
 | `issues/progress.md` | Phase 1 completed | 112, 112b, 112d, 112e are open |

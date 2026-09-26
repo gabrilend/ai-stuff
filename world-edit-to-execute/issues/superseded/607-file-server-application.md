@@ -4,8 +4,19 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 603 (download protocol), Issue 604 (deduplication)
+**Status:** Retired 2026-09-26, moved to `issues/superseded/`
 
 ---
+
+> **Why retired.** This was the server half of the January plan: a host
+> serves its asset packs to every client, over 603's own protocol. Both
+> halves were replaced. Files between people move over rmail (issue 609,
+> owner, 2026-09-23: "the only connection protocol for assets that I
+> trust"), and a player's art is never chosen by the host. Files from the
+> public sites that post maps and models are fetched over HTTP by issue 603,
+> which was rewritten on 2026-09-26 as that fetcher. Nothing is left for this
+> project to serve over HTTP. The owner agreed to retire it (2026-09-26).
+> The design below is kept as the record.
 
 ## Current Behavior
 

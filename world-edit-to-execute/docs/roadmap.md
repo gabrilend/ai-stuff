@@ -527,12 +527,13 @@ Same map, different experience:
 |----|------|-------------|
 | 601 | Asset loader and resolution | Load models/textures from asset packs |
 | 602 | Wire-frame fallback renderer | Debug visuals for missing assets |
-| 603 | Asset pack format | Manifest-based pack structure |
+| 603 | Fetch maps and models from public sites | Finds items on public hosting sites and downloads one when a player asks (HTTP) |
 | 604 | Asset deduplication system | Content-addressed storage |
 | 605 | Local storage manager | Per-pack tracking, cleanup UI |
 | 606 | Hot-reload system | Development-time asset refresh |
-| 607 | Asset browser/manager | UI for installing/managing packs |
+| 607 | ~~File server application~~ | Retired 2026-09-26 (`issues/superseded/`): nothing is served over HTTP |
 | 608 | Phase 6 integration test | End-to-end validation |
+| 609 | Shared map-and-model list | A player shares their list; files pass between people over rmail |
 
 ### Design Decisions
 
@@ -742,7 +743,7 @@ Developer and player experience improvements.
 - In-game console for Lua commands
 - Debug visualization modes
 - Performance profiling tools
-- Map browser/launcher UI (issue 1001: lists freely posted maps instead of bundling any)
+- Map browser/launcher UI (issue 1001: a catalogue of freely posted maps and models, read from what issue 603 fetches, instead of bundling any)
 - Settings and configuration UI
 - Documentation and tutorials
 - Asset pack browser

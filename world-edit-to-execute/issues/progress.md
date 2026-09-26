@@ -509,28 +509,30 @@ Recorded in CRITICAL-PATH.md:
 |----|------|--------|--------------|
 | 601 | Asset loader and resolution | Pending | Phase 1 (MPQ), Phase 5 (render) |
 | 602 | Wire-frame fallback renderer | Pending | Phase 5, 601 |
-| 603 | Server asset download protocol | Pending | 601, 604 |
+| 603 | Fetch maps and models from public sites | Pending | 604, 605 |
 | 604 | Asset deduplication system | Pending | 601 |
 | 605 | Local storage manager | Pending | 604 |
 | 606 | Hot-reload system | Pending | 601, Phase 5 |
-| 607 | File server application | Pending | 603, 604 |
-| 608 | Phase 6 integration test | Pending | 601-607 |
+| 607 | File server application | Retired (superseded/) | — |
+| 608 | Phase 6 integration test | Pending | 601-606 |
+| 609 | Shared map-and-model list | Pending | 604, 605 |
 
 ### Overview
 
 Phase 6 enables community content distribution:
 - **Asset Loading:** Unified loader for textures, models, audio, UI from maps/servers
 - **Wire-frame Fallback:** Debug rendering when assets are missing
-- **Download Protocol:** Custom protocol for on-connect asset transfer
+- **Fetching:** Finds maps and models on public hosting sites and downloads one when a player asks, over HTTP (603)
+- **Sharing:** A player shares their map-and-model list; files pass between people over rmail (609)
 - **Deduplication:** Hash-based storage to prevent duplicate downloads
 - **Storage Manager:** User control over per-server/map asset storage
 - **Hot-Reload:** Development feature for asset iteration
-- **File Server:** Standalone application for hosts to distribute assets
+- ~~**File Server:**~~ Retired 2026-09-26; nothing in the project serves files
 
 ### Design Decisions
 
 - **Asset Source:** Maps (MPQ) and servers (directory-based), NOT overlay packs
-- **Download:** Custom protocol, host-distributed (no centralized CDN)
+- **Download:** Over HTTP from public hosting sites, only on the player's request (603); between people over rmail (609, decided 2026-09-23). The earlier custom host-distributed protocol was not built.
 - **Fallback:** Wire-frame/debug visuals, not placeholder textures
 - **Hot-Reload:** Development-only feature
 
@@ -539,9 +541,9 @@ Phase 6 enables community content distribution:
 ```
 601 Asset Loader ──┬──▶ 602 Wire-frame Fallback
                    │
-                   └──▶ 604 Deduplication ──▶ 603 Download Protocol
-                                          │
-                                          └──▶ 607 File Server
+                   └──▶ 604 Deduplication ──┬──▶ 603 Fetch from public sites ──▶ 1001 Catalogue
+                                            │
+                                            └──▶ 609 Shared list (rmail)
 
                    └──▶ 605 Storage Manager
 
