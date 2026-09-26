@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-25 21:22:14
+Generated on: 2026-09-25 21:46:34
 Models: claude-opus-5-5
 
 ## Contents
@@ -170,6 +170,11 @@ Models: claude-opus-5-5
     the server's game state to the screen, and I just planned gameplay
     networking with a pause when a player goes silent. Next: answer the four
     open questions, and say whether to commit the documentation now.
+40. 2026-09-25 21:37, after Request 87 - We're building multiplayer, with a
+    server that holds the game's truth; the messages, the server's rules and the
+    server on its own thread are done, with all tests passing. Next, you choose
+    how the renderer receives states: build Lua into the renderer (my pick) or
+    connect over a local socket.
 
 --------------------------------------------------------------------------------
 
@@ -8917,6 +8922,178 @@ right to me.
 If you'd rather decide those when we build it, the next step is the gameplay
 networking work, starting with how each message is encoded and a test that
 encoding and decoding gives back the same message.
+
+--------------------------------------------------------------------------------
+
+### User Request 87
+
+> 1. What range do the sliders cover, and where do they start? Also, how long
+> does the countdown
+>      run before a drop vote opens?
+
+I dunno, pick reasonable numbers and we'll adjust if necessary.
+
+> 2. Does the slider appear only on the waiting dialog, or also in the lobby and
+> a menu during
+>      play? If only on the dialog, nobody can set it before the first pause.
+
+only on the dialogue.
+
+> 3. What wins a drop vote: a majority of the players still connected, or every
+> other player?
+
+3/4th of the players still connected, rounded down.
+
+then, let's start a builder round. :)
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 87
+
+> Recording your three answers in the networking issue, then building its first
+> piece: the message encodings.
+
+> Writing the message encoder: each message is described once as a list of
+> fields, and one routine encodes or decodes any of them from that description.
+
+> Messages are done, with 33 passing tests, and committed. Now the server's
+> rules: ticks, orders, the pause, the sliders and the vote.
+
+> Step 3: the server on its own thread, joined to the client by in-memory
+> queues, with a switch that adds delay, jitter, loss or silence.
+
+> Encoding 2,048 units takes 9.6 ms, more than half a tick. I'm switching the
+> byte handling to a raw buffer before building on it.
+
+> Now the clock, the disturbed link, the stand-in game, and the server's own
+> thread.
+
+> The strict encoder caught a real bug: the server's clock has fractions of a
+> millisecond, and the waiting message sent them as whole numbers. Fixing it,
+> with a test.
+
+The builder round got through three of the networking issue's five steps. All 81
+tests pass, and each step is committed.
+
+**1. The messages.** All ten kinds of message are written down once, each as an
+ordered list of fields. One routine turns any of them into bytes and one turns
+bytes back.
+- Anything damaged or impossible is refused, with the reason naming the exact
+  field, for example "the third unit's id is missing".
+- A unit's record is 38 bytes on the wire. Encoding 2,048 units took 9.6 ms at
+  first, more than half a tick. I rewrote the byte handling and it now takes
+  about 1 ms.
+
+**2. The server's rules.** The server is plain logic: whoever runs it feeds it
+the arriving messages and the time. It:
+- runs 62.5 ticks a second;
+- answers each order as kept or refused, and says which tick it takes effect on;
+- pauses everyone when a player has been silent longer than the strictest slider
+  allows, refuses orders while paused, and resumes from the tick it paused on;
+- after the 30-second countdown, drops a silent player on three quarters of the
+  connected players' votes, rounded down but at least one. Each voter counts
+  once, and nobody can vote on themselves.
+
+**3. The server on its own thread.** Offline play runs it this way. Each player
+has a queue in each direction that carries real bytes, and each queue can be set
+to delay, jitter, lose messages, or go silent for a span. For something to run,
+there's a stand-in game whose units circle the same way the renderer's test
+cubes do. Tests play against it in real time:
+- a clean connection;
+- 100 ms of delay;
+- half of all messages lost;
+- a player dropping out for 1.3 s. With the starting 2 s slider the game doesn't
+  pause. With one player's slider at 0.5 s it pauses about half a second into
+  the silence and resumes from the paused tick once the player is back.
+
+**A bug the strict refusals caught.** The real clock counts fractions of a
+millisecond, but the waiting message carries whole milliseconds. The encoder
+refused to send "500.0006 ms" rather than quietly rounding it. The server now
+rounds, and a test covers it.
+
+**Next is step 4: the renderer receiving these states.** Turning 2,048 units
+from bytes into Lua data takes 1.7 ms, so the renderer should unpack them in C,
+straight into the mailbox. Two ways to connect the C renderer to the Lua server:
+
+1. **Build Lua into the renderer program (my recommendation).**
+   - A receiving thread inside the C program runs the Lua server exactly as the
+     tests do, and hands the arriving bytes to a C unpacker.
+   - The C unpacker would be generated from the same Lua message descriptions,
+     so the two can't drift apart.
+   - This is what "the server inside the client" means.
+2. **Run the server as a separate program and connect over a local socket.**
+   - The first real network code, so later internet play is closer.
+   - But offline play then needs two programs running.
+
+Which do you want?
+
+--------------------------------------------------------------------------------
+
+### User Request 88
+
+in Warcraft 3, units path around each other and don't walk into the same area
+that another unit is in. Can we build a render demo that displays this
+pathfinding? And maybe integrate it into the network test somehow, even if it's
+just simulated?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 88
+
+Yes, and it can do both at once. The demo can be the first thing to use the
+renderer-receiving step: a real unit simulation runs on the server thread, and
+the raylib window draws what arrives over the queues. There are two choices to
+make first.
+
+**What exists already:**
+- A* pathfinding over a walkability grid built from terrain.
+- Unit-to-unit handling that is looser than Warcraft III's:
+  - a moving unit that bumps into another slides along it or stops;
+  - overlapping units are pushed apart afterwards;
+  - a "separation" force steers nearby units away from each other.
+- The Phase 4 demo shows this top-down in LÖVE (2D).
+
+What's missing is the behaviour you describe: routing around other units instead
+of into them and then being shoved out. In A* terms, other units aren't
+obstacles; only terrain is.
+
+**The demo as I'd build it:**
+- **The scene:** an arena with walls and a narrow gap. Two armies, 30 to 50
+  units each, are ordered to swap sides through the gap. That's the classic
+  test, because every unit has to route around the others.
+- **The simulation:** the real movement system replaces the stand-in circling
+  game on the server thread. The window draws units in 3D as coloured cylinders,
+  with each unit's planned path as a line.
+- **The network, live:** keys add delay, jitter, loss or a silent player to the
+  queues while it runs. You'd see units frozen in place after the cap, the
+  waiting dialog with its sliders and countdown, and the resume from the paused
+  tick.
+  - Frozen units won't show a running animation until extrapolation is built.
+    That's the next render issue.
+
+**Two decisions:**
+
+1. **How units treat each other.**
+   - **a. Warcraft III-like (my recommendation).** Standing units occupy their
+     spot on the pathing grid, so paths route around them. A moving unit blocked
+     by another moving unit waits briefly, then re-plans. Nobody is shoved. This
+     is new work in the movement system.
+   - **b. Keep today's behaviour.** Slide, push apart and separate. It works
+     now, but units visibly squeeze through and push each other.
+
+   One thing I'm not sure of is exactly what Warcraft III does when a moving
+   unit meets a friendly unit standing still. Does it path around, or nudge it
+   aside? If you remember, tell me. Otherwise I'll do "path around" and note it
+   as unverified.
+
+2. **How the C renderer gets the states.** This is the question from before; the
+   demo needs an answer.
+   - **a. Build Lua into the renderer (my recommendation).** The server thread
+     runs inside the renderer, and a C unpacker, generated from the same message
+     descriptions, writes states into the mailbox.
+   - **b. Run the server as a separate program on a local socket.**
+
+Once you've picked, I'll write the issue and build it.
 
 --------------------------------------------------------------------------------
 

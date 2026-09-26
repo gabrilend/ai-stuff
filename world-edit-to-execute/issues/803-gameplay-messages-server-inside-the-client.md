@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 401 (the fixed-rate game loop), 515c (the mailbox the client's states arrive in)
-**Related:** 515d (drawing late states), 801 (matchmaking; finds the host this connects to), W08 (the WoW-protocol server, which also carries time as ticks)
+**Related:** 804 (the first renderer fed by it), 515d (drawing late states), 801 (matchmaking; finds the host this connects to), W08 (the WoW-protocol server, which also carries time as ticks)
 
 ---
 
@@ -38,8 +38,14 @@ Being built (2026-09-25).
 - **Found by the strict encoder:** the real clock has fractions of a
   millisecond, and the waiting message's times are whole; the server now
   rounds them, with a test.
-- Steps 4 and 5: not yet (the receiver into the renderer's mailbox; the
-  tests of a refused order cancelling a local answer, which need the
+- **Step 4, how the renderer receives: decided with the owner
+  (2026-09-25): Lua built into the renderer.** A receiving thread in the C
+  program holds a Lua state running the server on its own thread, as the
+  tests do; a C unpacker generated from `messages.lua` writes states into
+  the mailbox. Chosen over a separate server program on a local socket,
+  which would make offline play two programs. Built as part of issue 804
+  (the crossing-armies demo).
+- Step 5: not yet (a refused order cancelling a local answer needs the
   client side).
 
 Before this, there was no network code in the project (no sockets, no
