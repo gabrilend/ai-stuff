@@ -127,9 +127,12 @@ One model's meshes and textures are shared by every unit that uses it.
    players make their own overrides.
 3. ~~One chooser with W03, or two?~~ Answered 2026-09-26: W03's design, for
    both, when it exists; a stand-in until then.
-4. How does a player make an override? A folder of models named by the path
-   they replace, a table mapping paths to files, or a screen in the
-   catalogue (1001) that sets one from a downloaded model?
+4. ~~How does a player make an override?~~ Answered 2026-09-26: through the
+   game's UI ("we'll do it through the UI we haven't planned yet"). The UI
+   framework (506) will carry an override screen; until it exists, this
+   issue's chooser reads overrides from a plain data file the screen will
+   later write. Whether an override applies to every map or to one is
+   decided with that screen.
 
 ## Related Documents
 

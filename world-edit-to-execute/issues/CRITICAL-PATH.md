@@ -59,8 +59,8 @@ watching a demo.
 
  STOCK DATA FOR CONVERTED MAPS
  game-version layers (112b) ──▶ the converter refuses a map whose stock table
-   built; waits on patch          is unchecked (112, its last box)
-   downloads (question Q-5)     older patch program shapes (112d), and the
+   built; its hunt for the        is unchecked (112, its last box)
+   missing versions (Q-5)       older patch program shapes (112d), and the
                                 published-values cross-check (112e), beside it
 ```
 
@@ -76,6 +76,7 @@ in full there.
 
 | Date | Decision | Recorded in |
 |------|----------|-------------|
+| 2026-09-26 | **The editor saves `.w3x`, for now** ("We are already building compatibility for that system so we might as well"). **Player data lives in the project directory** by default, movable by a config file. **Model overrides are made through the game's UI**, not yet planned. | issues 911, 601, 516 |
 | 2026-09-26 | A map with no weather holds four zero bytes in its weather code, and the map-info parser keeps them as read: correct data, not something to warn about (owner). The map-info test now prints the code escaped, so the test runner no longer sees raw null bytes. | `src/tests/test_w3i.lua` |
 | 2026-09-26 | **Backend in ceramic, renderer in raylib, a page between them.** The owner: "We are building the backend in ceramic, and the renderer in raylib, with C being used (probably as soramech boxes) to create the 'page' that the renderer will draw from with a single thread to display on the screen." Readers that run once (such as the model reader) stay in Lua and hand their data to C, which keeps it for the map. | issues 515, 516, 116 |
 | 2026-09-26 | **Draw the model the map asks for; players override it on their own machine; placeholders otherwise.** The owner: "use the models that the map requests. Even if they're stock. The user will build per-stock-model overrides that they can then have rendered on their end." This settles how the owner's earlier answer the same day applies in play: "use the models posted online rather than the ones in the game... use their models only when we are building in compatibility with their formats" (drawing what a map asks for is that compatibility). Stock models come from the player's own install; nothing Blizzard-made is shipped. WC3 textures are decoded by the same shared reader as WoW's. The WoW path's model chooser (W03) is the design for both systems; a stand-in is used until it exists. | issues 116, 117, 516, W03 |
@@ -143,13 +144,18 @@ the C renderer.
   the renderer is raylib, and C boxes build the page the renderer draws
   (section 2).
 
-### Q-5: May the patch programs be downloaded?
-**Blocks:** 112b's completion, 112d
+### Q-5: What closes the hunt for the remaining patch versions?
+**Blocks:** 112b's completion
 
-The version layers need each patch's game data. Public mirrors that are not
-Blizzard's servers have been found (the Internet Archive's `wc3_patches`,
-about 9.9 GB, and others listed in 112b); downloading waits on the owner's
-go-ahead on source and size.
+~~May the patch programs be downloaded?~~ Already done (the owner,
+2026-09-26: "I thought we already downloaded most of them?"): layers are
+built for 23 Frozen Throne versions and 20 Reign of Chaos versions
+(`wc3-installs/patch-layers/`, `patch-layers-roc/`). What remains is 112b's
+standing hunt ("hunt down every patch you can find"): the English Frozen
+Throne versions 1.10, 1.12, 1.13, 1.15-1.18, 1.28.0-1.28.3 and 1.29.0, and
+some Reign of Chaos ones, found on no mirror so far. Does 112b stay open
+until they turn up, or does the hunt move to an issue of its own so 112b
+can close on what is built?
 
 ### Q-6: Is the thread-pool library move (802) kept?
 **Depends on:** 515f
@@ -222,8 +228,8 @@ Places where a document disagrees with the code or with another document.
 | Where | Says | Reality |
 |-------|------|---------|
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
-| 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped; both issues now say so at the top, and 911 asks what the editor saves instead (its open question 1) |
-| 601 | lookup order: map, then community packs; folder `~/.world-edit-engine/` | for models the order is now the player's override for a model path, then the model the map requests (imported, or stock from the player's own install), then a placeholder (516, decided 2026-09-26); the player's install also supplies stock data (112); the roadmap says `~/.wc3-engine/` |
+| 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped; the editor saves `.w3x` (decided 2026-09-26); the design text is rewritten when Phase 9 starts |
+| 601, `docs/wc3-engine-architecture.md`, `docs/roadmap.md` | player data in `~/.world-edit-engine/` or `~/.wc3-engine/` | player data lives in the project directory, movable by a config file (decided 2026-09-26); the paths wait on the folder's name inside the project |
 
 ---
 
