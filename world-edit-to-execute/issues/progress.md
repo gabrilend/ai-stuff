@@ -338,6 +338,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 405b | Spatial hash grid | **Completed** | 405a |
 | 405c | Collision queries | **Completed** | 405a, 405b |
 | 405d | Movement collision integration | **Completed** | 404 |
+| 405f | Units path around units | In progress (built; one question open) | 403, 405d |
 | 405e | Projectile and picking | **Completed** | 405a, 405b |
 | 406 | Build resource management system | **Completed** | 401, 402, 407 |
 | 406a | Core resource storage | **Completed** | None |
@@ -612,6 +613,14 @@ All ─────────────────────────�
 | 800d | Threadpool test suite | Pending | my-libs/issues/ |
 | 800e | Render system migration | Pending | my-libs/issues/ |
 | 800f | Windows support planning | Pending | my-libs/issues/ |
+
+Phase 8 issues kept in this project (gameplay networking; the matchmaking
+issues 801a-h are not yet tracked here):
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 803 | Gameplay messages, with the server inside the client | In progress (steps 1-4 built) | 401, 515c |
+| 804 | Crossing armies, drawn from across the network | In progress (built; the owner to try the window) | 405f, 803, 515c |
 
 ### Dependency Graph
 

@@ -20,6 +20,11 @@ sends it:
 The receiver keeps messages that have come through the queue but aren't
 due yet, and hands them over when their time comes.
 
+A receiver can be disturbed too (its own delay_ms, jitter_ms, loss and
+seed, which may be changed while it runs): the fate is then decided when a
+message comes out of the queue. That's how a renderer turns a bad network
+on and off live, from its own thread, without reaching into the server's.
+
 Every time here is clock.now_ms(), which both threads read alike.
 ]]
 
@@ -78,10 +83,17 @@ end
 local receiver = {}
 receiver.__index = receiver
 
--- {{{ function link.receiver(channel)
--- The receiving end.
-function link.receiver(channel)
-    return setmetatable({ channel = channel, waiting = {} }, receiver)
+-- {{{ function link.receiver(channel, disturbance)
+-- The receiving end. `disturbance` (optional): delay_ms, jitter_ms, loss,
+-- seed; the fields stay changeable on the receiver.
+function link.receiver(channel, disturbance)
+    local d = disturbance or {}
+    return setmetatable({
+        channel = channel, waiting = {},
+        delay_ms = d.delay_ms or 0, jitter_ms = d.jitter_ms or 0, loss = d.loss or 0,
+        random = d.seed and link.random_from(d.seed) or math.random,
+        received = 0, lost = 0,
+    }, receiver)
 end
 -- }}}
 
@@ -93,7 +105,15 @@ function receiver:take(now_ms)
     while true do
         local due, bytes = self.channel:pop(0)
         if due == nil then break end
-        self.waiting[#self.waiting + 1] = { due = due, bytes = bytes }
+        self.received = self.received + 1
+        -- Two paths: lost on the way in -> dropped; otherwise -> held for
+        -- this end's own delay and jitter as well as the sender's
+        if self.loss > 0 and self.random() < self.loss then
+            self.lost = self.lost + 1
+        else
+            local held = now_ms + self.delay_ms + (self.jitter_ms > 0 and self.random() * self.jitter_ms or 0)
+            self.waiting[#self.waiting + 1] = { due = math.max(due, held), bytes = bytes }
+        end
     end
     table.sort(self.waiting, function(a, b) return a.due < b.due end)
     local ready, kept = {}, {}

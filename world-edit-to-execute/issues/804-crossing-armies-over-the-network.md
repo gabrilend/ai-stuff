@@ -9,9 +9,23 @@
 
 ## Current Behavior
 
-Nothing of this exists. The server can run on its own thread (803) but
-only its stand-in game (circling units); the raylib renderer (515c) draws
-states worked out by the ceramic engine, not received from a server.
+Built (2026-09-25); waiting on the owner to try the window.
+`src/render/crossing/run-crossing.sh` builds and checks it:
+- **A clean connection** (8 s): about 500 states, ticks only rising, no two
+  units overlapping in any state, nothing refused.
+- **100 ms delay, 60 ms jitter, 20% loss** (8 s): the same promises hold;
+  about 115 states arrive after a newer one and are dropped.
+- **Two pictures:** the armies weaving through the gap with their paths
+  drawn, and the waiting dialog (the stand-in silent, the countdown to the
+  vote, both sliders, the one in force marked).
+- **Found on the way:** with jitter, messages overtake each other, and the
+  first receiver published whatever came last; the picture jumped
+  backwards 96 times in 8 s. The receiver now drops a state older than the
+  newest it has shown, and the check counts ticks going backwards.
+- The server now sends every player's slider when a pause begins, so the
+  dialog opens with them.
+- Paths messages lost on a lossy connection leave a unit's drawn path
+  stale until its next re-plan; they are for drawing only.
 
 ## Intended Behavior
 
@@ -60,10 +74,10 @@ the owner, 2026-09-25):
 
 ## Acceptance Criteria
 
-- [ ] `--check` passes with and without a disturbed connection
-- [ ] `--shot` shows the armies mid-crossing
+- [x] `--check` passes with and without a disturbed connection
+- [x] `--shot` shows the armies mid-crossing
 - [ ] The window runs interactively (the owner confirms)
-- [ ] `.info.md` beside each new source file
+- [x] `.info.md` beside each new source file
 
 ## Related Documents
 

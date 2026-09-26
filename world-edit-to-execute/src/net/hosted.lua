@@ -94,7 +94,7 @@ function hosted:player(p)
     local out = link.sender(self.up[p], d)
     local inbox = link.receiver(self.down[p])
     return {
-        link = out,
+        link = out, inbox = inbox,   -- both ends, whose disturbances may be changed live
         send = function(_, bytes) out:send(bytes) end,
         take = function() return inbox:take(clock.now_ms()) end,
     }

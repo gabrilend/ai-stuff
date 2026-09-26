@@ -9,8 +9,10 @@ byte strings), which can be made to behave like a bad network (issue 803).
   `start_ms`, when nothing arrives), `seed` (repeatable draws), `start_ms`.
 - **`sender:send(bytes)`:** decides the message's fate and queues it with
   the moment it is due. Counts `sent` and `lost`.
-- **`link.receiver(channel) -> receiver`**; **`receiver:take(now_ms) ->
+- **`link.receiver(channel, disturbance) -> receiver`**; **`receiver:take(now_ms) ->
   list of bytes`:** every message due by then, earliest due first (jitter
-  can make a later message due sooner).
+  can make a later message due sooner). The receiver's own `delay_ms`,
+  `jitter_ms` and `loss` (optional, changeable while running) are applied
+  as messages come out of the queue; it counts `received` and `lost`.
 - **`link.random_from(seed) -> function`:** a small repeatable random
   sequence, 0 up to 1.
