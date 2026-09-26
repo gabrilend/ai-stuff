@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** Medium
 **Dependencies:** 201, 202, 203, 204, 205
+**Blocks:** 208b, 208d
 **Parent Issue:** 208-phase-2-integration-test
 
 ---

@@ -603,6 +603,7 @@ local CLASS_BASE_STATS = {
 
 **Status:** Complete
 **Dependencies:** 016a, 016e
+**Blocks:** 016h
 
 ---
 

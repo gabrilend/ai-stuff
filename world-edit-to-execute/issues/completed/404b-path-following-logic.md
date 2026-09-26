@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 404-create-unit-movement-system.md
 **Dependencies:** 404a-core-movement-system, 403-implement-basic-pathfinding
+**Blocks:** 404, 404c, 404d
 
 ---
 

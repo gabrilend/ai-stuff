@@ -5,6 +5,7 @@
 **Priority:** High
 **Affects:** src/cli/lib/tui.sh
 **Dependencies:** 004b (checkbox), 004c (multistate), 004d (inputs)
+**Blocks:** 004, 004f
 
 ---
 

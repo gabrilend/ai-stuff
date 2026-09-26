@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 206a (module structure), 205 (sounds parser for input format)
+**Blocks:** 206, 206g
 **Parent:** 206-design-game-object-types.md
 
 ---

@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 508d (map integration)
+**Blocks:** 508f
 
 ---
 

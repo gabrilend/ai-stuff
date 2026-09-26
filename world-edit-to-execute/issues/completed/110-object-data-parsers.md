@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 102 (MPQ parser)
+**Blocks:** 111, 503b, 506e, 903, 906
 
 ---
 

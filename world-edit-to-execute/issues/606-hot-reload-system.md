@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** Issue 601 (asset loader), Phase 5 (render interface)
+**Blocks:** 608
 
 ---
 

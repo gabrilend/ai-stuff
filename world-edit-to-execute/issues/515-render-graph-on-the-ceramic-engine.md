@@ -4,6 +4,7 @@
 **Type:** Implementation (a bounded experiment beside the existing renderer)
 **Priority:** Medium
 **Dependencies:** 508 (the vertical slice), 512 (the thread pool it is measured against)
+**Blocks:** 501
 **Related:** 512f (the thread pool's own integration), W08 (the server, also planned as a soramech map)
 
 ---

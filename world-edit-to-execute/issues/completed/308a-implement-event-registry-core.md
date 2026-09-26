@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 307-implement-trigger-framework
+**Blocks:** 308, 308b, 308c, 308d, 308e
 **Parent Issue:** 308-build-event-dispatch-system
 
 ---

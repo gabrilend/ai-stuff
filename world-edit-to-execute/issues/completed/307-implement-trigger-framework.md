@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 306-create-jass-lua-transpiler
+**Blocks:** 308, 308a, 309, 309e, 309f
 
 ---
 

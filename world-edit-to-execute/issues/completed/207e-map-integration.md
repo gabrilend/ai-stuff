@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 207a-core-registry-class, 201-205 (parsers)
+**Blocks:** 207, 207f
 **Parent Issue:** 207-build-object-registry-system
 
 ---

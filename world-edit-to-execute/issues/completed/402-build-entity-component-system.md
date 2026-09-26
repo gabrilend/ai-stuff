@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Critical
 **Dependencies:** 401-implement-game-tick-update-loop
+**Blocks:** 403, 404, 404a, 405, 405a, 406, 406c, 407, 407d, 408a, 702a
 
 ---
 

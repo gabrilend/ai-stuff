@@ -4,6 +4,7 @@
 **Type:** Architecture
 **Priority:** High
 **Dependencies:** 206-design-game-object-types
+**Blocks:** 208, 208c
 
 ---
 

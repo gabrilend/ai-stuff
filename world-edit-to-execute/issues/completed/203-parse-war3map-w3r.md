@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Medium
 **Dependencies:** 102-implement-mpq-archive-parser
+**Blocks:** 206, 206d, 208, 208a
 
 ---
 

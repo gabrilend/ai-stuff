@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 404-create-unit-movement-system.md
 **Dependencies:** 401-implement-game-tick-update-loop, 402-build-entity-component-system
+**Blocks:** 404, 404b
 
 ---
 

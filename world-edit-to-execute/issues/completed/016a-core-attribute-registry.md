@@ -278,6 +278,7 @@ AttributeRegistry.register_bulk({
 
 **Status:** Completed
 **Dependencies:** None (first in chain)
+**Blocks:** 016b, 016c, 016d, 016e, 016f, 016g, 016i
 
 ---
 

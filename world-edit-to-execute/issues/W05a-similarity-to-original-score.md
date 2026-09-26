@@ -4,6 +4,7 @@
 **Type:** Sub-issue of W05
 **Priority:** High (the forge's progress measure)
 **Dependencies:** W03 (renders models from fixed cameras)
+**Blocks:** W05c, W05d
 
 ---
 

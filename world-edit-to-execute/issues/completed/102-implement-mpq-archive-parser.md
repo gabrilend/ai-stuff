@@ -6,6 +6,7 @@
 **Type:** Feature (Core Infrastructure)
 **Priority:** Critical
 **Dependencies:** 101-research-wc3-file-formats
+**Blocks:** 103, 104, 105, 110, 201, 202, 202a, 203, 204, 205, 301, 301a, 302, 303
 
 ---
 

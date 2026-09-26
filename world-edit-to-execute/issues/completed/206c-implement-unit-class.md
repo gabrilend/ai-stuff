@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 206a-create-gameobjects-module-structure, 202-parse-war3map-units-doo
+**Blocks:** 206, 206g
 **Parent Issue:** 206-design-game-object-types
 
 ---

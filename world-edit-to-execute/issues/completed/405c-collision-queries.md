@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 405-implement-basic-collision-detection.md
 **Dependencies:** 405a-collision-primitives-and-shapes, 405b-spatial-hash-grid
+**Blocks:** 405, 405d, 405e
 
 ---
 

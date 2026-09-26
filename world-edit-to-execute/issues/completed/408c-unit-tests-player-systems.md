@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** High
 **Dependencies:** 408a (core system tests), 406 (resources), 407 (player state)
+**Blocks:** 408, 408d
 
 ---
 

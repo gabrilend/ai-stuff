@@ -4,6 +4,7 @@
 **Type:** Test
 **Priority:** High
 **Dependencies:** 408a (core tests), 408b (entity tests), 408c (player tests)
+**Blocks:** 408, 408e
 
 ---
 

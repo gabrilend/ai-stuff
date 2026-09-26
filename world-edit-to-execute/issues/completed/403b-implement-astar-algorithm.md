@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 403-implement-basic-pathfinding.md
 **Dependencies:** None (can be developed with mock grid)
+**Blocks:** 403, 403d, 403e
 
 ---
 

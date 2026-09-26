@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** 401 (the fixed-rate game loop), 515c (the mailbox the client's states arrive in)
+**Blocks:** 507f, 804
 **Related:** 804 (the first renderer fed by it), 515d (drawing late states), 801 (matchmaking; finds the host this connects to), W08 (the WoW-protocol server, which also carries time as ticks)
 
 ---

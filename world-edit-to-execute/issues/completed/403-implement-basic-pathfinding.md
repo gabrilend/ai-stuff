@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 401, 402, 105-parse-war3map-w3e (terrain data)
+**Blocks:** 404, 404b, 404c, 405f, 408a, 409
 
 ---
 

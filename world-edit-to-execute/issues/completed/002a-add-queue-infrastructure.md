@@ -4,6 +4,7 @@
 **Type:** Sub-Issue of 002
 **Priority:** Medium
 **Dependencies:** None (within 002)
+**Blocks:** 002b, 002c, 002d
 
 ---
 

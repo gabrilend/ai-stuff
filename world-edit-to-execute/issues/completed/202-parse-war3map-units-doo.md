@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 102-implement-mpq-archive-parser, 201-parse-war3map-doo
+**Blocks:** 111, 206, 206c, 208, 208a
 
 ---
 

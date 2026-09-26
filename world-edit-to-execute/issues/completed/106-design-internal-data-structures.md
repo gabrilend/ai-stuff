@@ -4,6 +4,7 @@
 **Type:** Architecture
 **Priority:** High
 **Dependencies:** 103, 104, 105 (parser outputs inform structure design)
+**Blocks:** 107, 207
 
 ---
 

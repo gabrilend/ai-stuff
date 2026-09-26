@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 305-build-jass-parser
+**Blocks:** 306, 306b, 306c, 306d, 306e, 306f
 **Parent Issue:** 306-create-jass-lua-transpiler
 
 ---

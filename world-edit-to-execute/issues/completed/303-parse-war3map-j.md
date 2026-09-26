@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** High
 **Dependencies:** 102-implement-mpq-archive-parser
+**Blocks:** 304, 304a, 309, 309a
 
 ---
 

@@ -287,6 +287,7 @@ end
 
 **Status:** Completed
 **Dependencies:** 016a (Core Attribute Registry)
+**Blocks:** 016d
 
 ---
 

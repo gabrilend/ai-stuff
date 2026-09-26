@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Parent:** 309-phase-3-integration-test
 **Dependencies:** 307-implement-trigger-framework, 308-build-event-dispatch-system
+**Blocks:** 309, 309g
 
 ---
 

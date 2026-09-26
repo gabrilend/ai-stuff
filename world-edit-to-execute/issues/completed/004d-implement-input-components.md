@@ -5,6 +5,7 @@
 **Priority:** Medium
 **Affects:** src/cli/lib/tui.sh
 **Dependencies:** 004a (uses key reading)
+**Blocks:** 004, 004e, 004f
 
 ---
 

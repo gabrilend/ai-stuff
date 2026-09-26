@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** Issue 604 (deduplication), Issue 601 (asset loader)
-**Blocks:** 603 (the fetcher's downloads land in the storage this manages)
+**Blocks:** 603 (the fetcher's downloads land in the storage this manages), 608, 609
 
 ---
 

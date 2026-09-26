@@ -4,6 +4,7 @@
 **Type:** Testing
 **Priority:** Critical
 **Dependencies:** 512a, 512b, 512c, 512d (all implementation complete)
+**Blocks:** 512f
 **Parent:** 512-threading-architecture-rewrite.md
 
 ---

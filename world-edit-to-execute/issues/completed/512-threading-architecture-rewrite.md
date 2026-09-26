@@ -4,7 +4,7 @@
 **Type:** Architecture / Refactor
 **Priority:** Critical
 **Dependencies:** 508a (current threading prototype)
-**Blocks:** 515 (measured against this pool)
+**Blocks:** 515 (measured against this pool), 511a
 
 ---
 

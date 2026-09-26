@@ -4,6 +4,7 @@
 **Type:** Feature
 **Priority:** Critical
 **Dependencies:** Phase 2 complete (data model), Phase 3 complete (triggers/JASS)
+**Blocks:** 402, 402a, 403, 404, 404a, 405, 406, 407, 408a, 803
 
 ---
 

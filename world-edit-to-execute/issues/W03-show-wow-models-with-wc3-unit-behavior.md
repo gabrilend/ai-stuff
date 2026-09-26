@@ -4,6 +4,7 @@
 **Type:** Implementation (root; expected to split into W03a-W03d)
 **Priority:** High
 **Dependencies:** W01, 508 (vertical slice renderer), 601 (asset loader), 602 (wireframe fallback)
+**Blocks:** W04, W05, W05a, W05b, W05d, W05e, W07
 **Unlocks:** W04, W05, W07
 
 ---

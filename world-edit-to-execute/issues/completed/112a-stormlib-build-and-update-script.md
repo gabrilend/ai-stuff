@@ -4,6 +4,7 @@
 **Type:** Sub-issue of 112
 **Priority:** High (blocks reading patch archives)
 **Dependencies:** 113 (completed)
+**Blocks:** 112b, 114
 
 ---
 

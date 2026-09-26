@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 407-create-player-state-management.md
 **Dependencies:** 103 (w3i parser provides player/force data)
+**Blocks:** 407, 407b, 407c, 407d, 407e, 407f
 
 ---
 

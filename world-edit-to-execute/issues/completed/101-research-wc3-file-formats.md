@@ -4,6 +4,7 @@
 **Type:** Research
 **Priority:** Critical (Blocker for all other Phase 1 issues)
 **Dependencies:** None
+**Blocks:** 102, 102a
 
 ---
 

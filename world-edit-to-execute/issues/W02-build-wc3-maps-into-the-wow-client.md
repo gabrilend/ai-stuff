@@ -4,6 +4,7 @@
 **Type:** Implementation (root; expected to split into W02a-W02g)
 **Priority:** High
 **Dependencies:** W01
+**Blocks:** W04, W07, W08
 **Builds on (completed):** terrain, doodad and unit parsers (phases 1-2), JASS → Lua transpiler (phase 3)
 **Unlocks:** W04, W07
 

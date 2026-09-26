@@ -5,6 +5,7 @@
 **Priority:** High
 **Parent:** 407-create-player-state-management.md
 **Dependencies:** 407a (player data structure)
+**Blocks:** 407, 407d, 407e
 
 ---
 

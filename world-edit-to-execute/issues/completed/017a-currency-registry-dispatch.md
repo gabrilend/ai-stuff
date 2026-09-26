@@ -4,6 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** None (foundation for 017b-017i)
+**Blocks:** 017b
 
 ---
 
