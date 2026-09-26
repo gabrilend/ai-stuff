@@ -34,6 +34,16 @@ No asset download system exists. Players cannot receive community asset packs fr
 > assets with hashes), and "don't send what the receiver already has" (the
 > sender attaches only the hashes the receiver reports missing). The protocol
 > sketch below is kept as the record of the earlier design.
+>
+> **HTTP stays for public hosting sites (owner, 2026-09-26).** "we will still
+> need to download files from the websites that are hosting the WC3 maps /
+> models". rmail carries files between people; it does not replace fetching
+> maps and models from the public sites that post them. The map browser
+> (issue 1001) already designs fetching *maps* from those sites, on the
+> player's request only. Fetching *models* from model-hosting sites has no
+> issue yet. Open question: does this issue become "fetch from public
+> sites" for both, or does 1001 take all fetching and this issue retire?
+> (`issues/CRITICAL-PATH.md`, Q-2)
 
 A peer-to-peer asset download protocol that:
 1. Transfers community asset packs from LAN host to clients on connect

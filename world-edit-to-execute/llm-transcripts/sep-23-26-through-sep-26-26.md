@@ -1,6 +1,6 @@
 # Conversation Summary: ddf5eee1-6121-4262-9ca9-dc62c638a62e
 
-Generated on: 2026-09-26 00:01:43
+Generated on: 2026-09-26 12:47:57
 Models: claude-opus-5-5
 
 ## Contents
@@ -179,6 +179,10 @@ Models: claude-opus-5-5
     III's in the networked crossing-armies demo, and the rebuilt movement plus
     the fan fix are committed. Next, watch it with run-crossing.sh "" window and
     tell me what still looks wrong.
+42. 2026-09-26 00:04, after Request 93 - The goal is to benchmark the crowd
+    movement on every threading design, including the ceramic engine, and
+    publish a report page with GIFs. The benchmark is running at 2,000 and 5,000
+    units; next I'll make the GIFs and build the page.
 
 --------------------------------------------------------------------------------
 
