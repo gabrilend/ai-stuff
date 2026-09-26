@@ -54,12 +54,15 @@ function projects_in() {
 # }}}
 
 # -- {{{ is_stale
-# Whether a project's pages are behind: no front page yet, a transcript
-# newer than it, or a commit to the project made after it was written.
+# Whether a project's pages are behind: no front page yet, the font missing
+# from beside them (pages built before the builder shipped it), a transcript
+# newer than the front page, or a commit to the project made after it.
 function is_stale() {
    local project="$1"
    local index="$project/llm-transcripts/HTML/index.html"
    [ -f "$index" ] || return 0
+   [ -f "$project/llm-transcripts/HTML/fonts/HackNerdFont-Regular.ttf" ] || return 0
+   [ -f "$project/llm-transcripts/HTML/fonts/HackNerdFont-Bold.ttf" ] || return 0
    if find "$project/llm-transcripts" -maxdepth 1 -name '*.md' -newer "$index" | grep -q .; then
       return 0
    fi
