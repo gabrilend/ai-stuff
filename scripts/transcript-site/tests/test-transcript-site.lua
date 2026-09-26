@@ -253,6 +253,8 @@ check("the bulk re-save and the bare code say no conversation is recorded",
   select(2, index:gsub("No conversation is recorded", "")) == 1, true)
 check("the front page shows the commit subject", index:find("Recorded work", 1, true) ~= nil, true)
 check("the conversation's page exists", io.open(out .. "/sep-1-26.html") ~= nil, true)
+check("the font is written beside the pages", io.open(out .. "/fonts/HackNerdFont-Regular.ttf") ~= nil
+  and io.open(out .. "/fonts/HackNerdFont-Bold.ttf") ~= nil, true)
 
 print("== the push hook ==")
 

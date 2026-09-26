@@ -104,23 +104,54 @@ RECORDERS.NotebookEdit = function(input, records)
 end
 -- }}}
 
+-- {{{ local function command_names()
+-- Whether a shell command's text names a file: its path as reported, its
+-- resolved path, or its bare file name (a command run from the file's folder,
+-- or `sed -i ... notes.md`). Plain text search, no patterns.
+local function command_names(command, reported, resolved)
+    if type(command) ~= "string" then return false end
+    local base = resolved:match("([^/]+)$") or resolved
+    return command:find(reported, 1, true) ~= nil
+        or command:find(resolved, 1, true) ~= nil
+        or command:find(base, 1, true) ~= nil
+end
+-- }}}
+
 -- {{{ RECORDERS.Bash
+-- Claude Code reports every tracked file that changed on disk while a command
+-- ran -- including files ANOTHER session saved in that time, since it cannot
+-- tell which process wrote them. Recorded as this session's, a read-only test
+-- run once took five files another session saved into its next commit
+-- (2026-09-26, issue 032 open question 5). So a reported change is recorded
+-- only for a file the command's own text names; every other file is listed in
+-- the note, to be claimed out loud if it is this session's. Two paths per
+-- file: named, recorded line by line; not named, noted.
 RECORDERS.Bash = function(input, records)
     local response = input.tool_response
     local diff = type(response) == "table" and response.bashEditDiff
     -- most shell commands edit nothing the harness tracks: nothing to record
     if type(diff) ~= "table" then return {}, {} end
-    local recorded = {}
+    local command = type(input.tool_input) == "table" and input.tool_input.command or nil
+    local recorded, unnamed = {}, {}
     for _, f in ipairs(diff.files or {}) do
         local path = ledger.realpath(f.filePath)
-        ledger.records_from_hunks(path, f.hunks, records)
-        recorded[path] = true
+        if command_names(command, f.filePath, path) then
+            ledger.records_from_hunks(path, f.hunks, records)
+            recorded[path] = true
+        else
+            unnamed[path] = true
+        end
     end
     local notes = {}
     for _, changed in ipairs(diff.changedFiles or {}) do
         local path = ledger.realpath(changed)
-        if not recorded[path] then notes[#notes + 1] = path end
+        if not recorded[path] then
+            notes[#notes + 1] = path
+            unnamed[path] = nil
+        end
     end
+    -- a file with a diff but not named, and not in changedFiles either
+    for path in pairs(unnamed) do notes[#notes + 1] = path end
     if (tonumber(diff.moreFiles) or 0) > 0 then
         notes[#notes + 1] = tostring(diff.moreFiles) .. " more file(s) the harness did not list"
     end
@@ -150,7 +181,7 @@ local function main()
     if #notes > 0 then
         output.hookSpecificOutput = {
             hookEventName = "PostToolUse",
-            additionalContext = "That command changed files without a line-by-line diff, so they are not in the own-lines ledger: "
+            additionalContext = "These files changed while that command ran, but either without a line-by-line diff or without the command naming them (so another session may have written them), and they are not in the own-lines ledger: "
                 .. table.concat(notes, ", ")
                 .. ". If they are this session's own work and will be committed, claim them out loud with: claim-own-change <file>...",
         }

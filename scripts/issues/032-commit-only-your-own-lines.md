@@ -150,16 +150,24 @@ fallback, and it is announced every time rather than taken silently.
 - **A shell command that edits files the harness was not tracking reports no
   diff.** Those files need `claim-own-change`, or the gate refuses them. That is
   the right direction to fail.
-- **A shell command is credited with every tracked file that changed while it
-  ran, whoever changed it.** Claude Code's `bashEditDiff` lists the files that
+- **Claude Code credits a shell command with every tracked file that changed
+  while it ran, whoever changed it.** Its `bashEditDiff` lists the files that
   changed on disk during a command among those the session has read; it does
   not know which process wrote them. Seen 2026-09-26: a world-edit-to-execute
   session ran its read-only test suite at 12:57 while another session saved
   five files (four `scripts/transcript-site/*.md` and a note at the top of
   `neocities-modernization/libs/markdown.lua`); the hook recorded them in the
   test-running session's ledger, and that session's next commit, 8e67ba20c
-  "Stop the map-info test from printing raw zero bytes", carried them. See
-  open question 5.
+  "Stop the map-info test from printing raw zero bytes", carried them. Since
+  the same day the hook records a reported file only when the command's text
+  names it (open question 5); a file the command does not name is left for
+  `claim-own-change`. `tests/test-own-lines.sh` covers it.
+- **Two diffs can pair repeated lines differently** (a blank line, a lone
+  `end`): the edit's own diff and git's diff against the branch tip. Since
+  2026-09-26 a removal git reports of such a line counts as ours when the
+  session added the same text in that file's diff and the block holds our
+  lines (open question 6); before, it stopped the commit as tangled.
+  `tests/test-own-lines.sh` covers it.
 - **A command piped into a shell** (`echo '...' | bash`) is not read by the
   gates. Heredocs fed to a shell interpreter, `eval` and `bash -c` are.
 - **Not a security boundary**, like the gates before it: the session can write
@@ -185,14 +193,31 @@ fallback, and it is announced every time rather than taken silently.
    and the project of each committed file — plus this conversation's own
    wherever they are. "Only this conversation's" was tried first and left
    finished sessions' last lines stranded.
-5. **How should a shell command's reported file changes be trusted?** (Known
-   limits, 2026-09-26.) A command that only reads — a test run, a search —
-   is credited with any tracked file another session saved meanwhile. Ideas,
-   most likely first: record a shell command's changes only for files the
-   command's own text names or writes into; or hold them as unconfirmed until
-   `claim-own-change` confirms them, as untracked files already are; or drop
-   a file from the record when another session's ledger already holds the
-   same lines.
+5. ~~How should a shell command's reported file changes be trusted?~~
+   Settled 2026-09-26 (the owner asked for this to be worked on): only for
+   files the command's own text names, by path or by file name. A command
+   that names a file it rewrites (`sed -i ... notes.md`) is recorded as
+   before; any other file that changed while it ran is listed in the note
+   the session already gets for files it cannot record, to be claimed out
+   loud with `claim-own-change` if it is the session's own. A generator that
+   writes files it does not name is claimed by hand — the same direction of
+   failure as an untracked file, and the right one. Built in
+   `record-own-edits` (its shell-command recorder).
+6. **Identical lines paired differently** (found 2026-09-26, same review).
+   Claude Code's diff of an edit and git's diff against the branch tip may
+   pair repeated identical lines — blank lines, a lone `end` — differently:
+   the edit's diff calls one "unchanged", git's calls it "removed here, added
+   there". The ledger then holds git's addition (the session typed that text)
+   but not git's removal, and the block reads as tangled with somebody else.
+   Both tangles in the 2026-09-26 commits were this and nothing else: a
+   removed blank line in `skills/transcript-care/SKILL.md`, a removed
+   `                end` in `libs/conversation-parser.lua`; no other session
+   had touched either file. Settled the same day: within one file's diff, an
+   unclaimed removal whose exact text the session ADDED somewhere in that
+   diff counts as the session's, one addition covering one removal — but only
+   inside a block that already holds claimed lines, so a block that is
+   wholly someone else's stays theirs. Built in `own-changes-patch.lua`
+   (the block judge).
 
 ## Related
 

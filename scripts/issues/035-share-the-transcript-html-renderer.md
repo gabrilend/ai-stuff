@@ -230,13 +230,11 @@ rebuilds stale pages (`build-pages-before-push`) and a `.gitignore` line for
 
 ## Open questions
 
-1. **The font.** The pages ask for a shipped monospace font
-   (`HackNerdFont-Regular.ttf` and `-Bold.ttf`, 5.3 MB together) in a
-   `fonts/` folder beside them. Copying it into every project's
-   `llm-transcripts/HTML/` puts 5.3 MB into each repository; not copying it
-   means each reader sees their own monospace font (the pages name Hack
-   first, so on this machine they look the same if Hack is installed). Not
-   copied until decided.
+1. ~~The font.~~ Settled 2026-09-26 by the owner: the builder keeps its own
+   copy (`transcript-site/fonts/`, 5.3 MB, with a note on origin and
+   licence) and writes it into a project's `llm-transcripts/HTML/fonts/`
+   whenever a file is missing there — the first build, in practice. The
+   pages are not committed, so the copies cost disk space only.
 2. ~~Are the pages committed?~~ No (owner, 2026-09-26): rebuildable output,
    ignored by git.
 3. ~~When are they rebuilt?~~ Before every push (owner, 2026-09-26), by the
