@@ -1,0 +1,17 @@
+# greeting.map — the smallest program that is unmistakably a program (issue 312)
+#
+# A fixed text goes in, is made upper-case, and is said on the developer's
+# line. Nothing in the kernel knows what a greeting is.
+
+boxes = ../boxes/
+
+station greeting (boxes/063-text.c:constant_text)
+  in 0 = "world"
+  out 0 - shout.0
+
+station shout (boxes/063-text.c:to_upper)
+  in 0 - greeting.0
+  out 0 - speak.0
+
+station speak (boxes/063-text.c:say)
+  in 0 - shout.0

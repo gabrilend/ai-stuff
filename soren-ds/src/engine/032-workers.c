@@ -43,6 +43,10 @@ void engine_init(int cores)
     engine.free_capacity = 1024;
     engine.free_places = block_alloc(OWNER_OUTSIDE, (size_t)engine.free_capacity * sizeof(int32_t));
     ring_init(&engine.ring, OWNER_OUTSIDE, 256);
+#ifdef SOREN_DEBUG
+    /* A debug build's last words are its recent history (issue 311). */
+    platform_set_last_words(transcript_dump);
+#endif
     if (!engine.free_places) {
         platform_halt("engine_init: no memory for the free-place list");
     }
@@ -71,7 +75,15 @@ struct core_ctx *engine_enter(void)
     int id = platform_core_id();
     struct core_ctx *c;
     if (id < 0) {
-        spin_lock(&engine.outside_lock);
+        /* A caller already holding the outside turn (a loader calling the
+         * engine's own operations) goes straight in; any other waits its
+         * turn. Reading the holder without the lock is safe: it can only
+         * equal our token if we wrote it ourselves. */
+        uintptr_t token = platform_caller_token();
+        if (atomic_load_acquire(&engine.outside_holder) != token) {
+            spin_lock(&engine.outside_lock);
+            atomic_store_release(&engine.outside_holder, token);
+        }
         c = &engine.ctx[OWNER_OUTSIDE];
     } else {
         c = &engine.ctx[id];
@@ -89,7 +101,8 @@ void engine_leave(struct core_ctx *c)
     if (--c->depth == 0 && !c->in_task) {
         atomic_add(&c->epoch, 1);
     }
-    if (c->number == OWNER_OUTSIDE) {
+    if (c->number == OWNER_OUTSIDE && c->depth == 0) {
+        atomic_store_release(&engine.outside_holder, (uintptr_t)0);
         spin_unlock(&engine.outside_lock);
     }
 }
@@ -218,6 +231,8 @@ static void run_task(struct core_ctx *c, struct task *t)
     struct station *s = station_at(t->station);
 
 #ifdef SOREN_DEBUG
+    uint64_t started_ns = platform_now_ns();
+    transcript_record(TRANSCRIPT_STARTED, t->station, c->number, 0, 0, s->name);
     /* Debug builds survive a box that faults: the platform returns here
      * instead of panicking, the station is named from `inside`, and it is
      * taken out of service. Ordinary builds pay nothing for this. */
@@ -240,6 +255,10 @@ static void run_task(struct core_ctx *c, struct task *t)
     } else if (c->refused == 0) {
         deliver_task(c, t);
     }
+#ifdef SOREN_DEBUG
+    transcript_record(TRANSCRIPT_FINISHED, t->station, (int32_t)t->out_bytes, c->refused,
+                      (int64_t)(platform_now_ns() - started_ns), s->name);
+#endif
     atomic_add(&s->runs, 1);
     atomic_sub(&s->in_flight, 1);
     task_free(c, t);
@@ -289,6 +308,7 @@ static void go_idle(struct core_ctx *c)
         return;
     }
     c->stats.sleeps++;
+    transcript_drain_some();
     uint64_t deadline = atomic_load_acquire(&engine.next_deadline);
     if (parked == engine.cores && deadline != ~0ull) {
         platform_wait_until(deadline);
@@ -308,6 +328,7 @@ void engine_core_main(int core)
     struct core_ctx *c = &engine.ctx[core];
     c->number = core;
     c->inside = -1;
+    c->random = platform_entropy();
 
     /* The starting gate: nothing runs until every core exists and whoever
      * is building the first program has said go. */

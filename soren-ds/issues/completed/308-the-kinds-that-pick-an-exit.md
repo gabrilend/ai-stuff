@@ -2,10 +2,23 @@
 
 ## Current behavior
 
-**Every station has one exit and sends everything down it.**
+**Built and tested on the twin.** All six kinds are rows of one table in
+`036-delivery.c`; a kind is consulted only when choosing an exit.
+Comparator (against a threshold port typed as the return value, using the
+value type's own ordering or integer order), iterator (cursor advanced at
+claim time, the exit carried in the task), random (a per-core random
+stream), weighted (weights in a static port, one 32-bit number per
+exit), spread (the destination furthest behind). The seventh kind is two
+boxes and an arrow: `src/boxes/065-calibration.c`.
 
-Phase 2's delivery walk chooses an exit through a table with one row
-filled in, deliberately, so that adding the rest is adding rows.
+Measured in 075 and the phase 3 demo: comparator and iterator exact,
+random and weighted within a few percent of their expectation.
+
+**Found while building:** spread first looked only at values waiting in
+the destination's port, and split evenly even when one destination was
+far slower — the readiness check turns a waiting value into a queued run
+almost at once, so the backlog sits in the task ring. Spread now counts
+the destination's runs in flight too, and favours the one that keeps up.
 
 ## Intended behavior
 
@@ -126,6 +139,16 @@ learn it.
   wired to three exits and an iterator wired to one are both valid, and
   the second is almost certainly a mistake. That is a report rather
   than a refusal, and it belongs with 307's unfinished-work list.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Does spread see enough?* Now it counts waiting values plus queued
+   runs; it still sees only one hop ahead.
+2. *The chip's generator per value?* Not per value: each core keeps its
+   own stream, seeded once from the platform.
+3. *Check exit counts against the map?* An iterator with one exit wired
+   is reported only by `program_unfinished` in a future revision; not
+   built.
 
 ## Blocked by
 

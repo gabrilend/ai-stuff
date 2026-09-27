@@ -65,6 +65,7 @@ int port_init(struct core_ctx *c, struct port *p, int32_t elem_size)
 {
     bytes_zero(p, sizeof *p);
     p->tag       = PORT_NONE;
+    p->door      = -1;
     p->elem_size = elem_size;
     p->stride    = (int32_t)(CELL_HEADER + round_up_pow2((size_t)(elem_size ? elem_size : 1), 8));
     /* Start as deep as one page holds (issue 208's open question: "as
@@ -357,6 +358,7 @@ static int build_and_push(struct core_ctx *c, struct station *s, int32_t index, 
     }
     engine_wake_sleepers();
     c->stats.tasks_built++;
+    transcript_record(TRANSCRIPT_QUEUED, index, (int32_t)t->in_bytes, 0, 0, s->name);
     return 1;
 }
 /* }}} */
@@ -411,6 +413,48 @@ void station_check(struct core_ctx *c, int32_t index)
             return;
         }
     }
+}
+/* }}} */
+
+/* {{{ port_take_value */
+/* Take one ready value out of a port, as a reader outside any station
+ * would: claim a cell, copy it out, empty it. Answers 1 if a value was
+ * taken. Used for a program's held results (issue 309). */
+int port_take_value(struct port *p, void *out)
+{
+    uint8_t *cell;
+    if (!take_ring(p, &cell)) {
+        return 0;
+    }
+    bytes_copy(out, cell_value(cell), (size_t)p->elem_size);
+    atomic_store_release(cell_state(cell), CELL_EMPTY);
+    return 1;
+}
+/* }}} */
+
+/* {{{ engine_port_reserve */
+/* Grow a port now so it holds at least `cells` values without growing
+ * later: a map's "in N x64". Ports grow on their own, so this is only for
+ * somebody who knows better (issue 305). */
+int engine_port_reserve(int32_t index, int port, int cells)
+{
+    struct core_ctx *c = engine_enter();
+    struct station *s = station_live(index);
+    int r = ENGINE_OK;
+    if (!s) {
+        r = ENGINE_NO_STATION;
+    } else if (port < 0 || port >= s->n_ports) {
+        r = ENGINE_NO_PORT;
+    } else {
+        struct port *p = &s->ports[port];
+        while (r == ENGINE_OK && atomic_load_acquire(&p->n_pages) * p->cells_per_page < cells) {
+            if (!port_grow(c, s, p, atomic_load_acquire(&p->n_pages))) {
+                r = ENGINE_NO_MEMORY;
+            }
+        }
+    }
+    engine_leave(c);
+    return r;
 }
 /* }}} */
 

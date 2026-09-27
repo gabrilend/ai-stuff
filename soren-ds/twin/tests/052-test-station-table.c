@@ -13,7 +13,8 @@
  */
 #define _GNU_SOURCE
 #include "../../src/engine/031-engine-internal.h"
-#include "../../src/engine/038-starter-boxes.h"
+#include "catalogue-boxes.h"
+#include "../../src/engine/038-tallies.h"
 #include "../041-twin-engine.h"
 #include "../046-metrics.h"
 #include "047-check.h"
@@ -34,7 +35,7 @@ static _Atomic int place_failures;
 static int64_t placer_fn(int64_t n)
 {
     for (int64_t i = 0; i < n; i++) {
-        int32_t s = engine_place(&box_pass, "placed-by-a-box", KIND_PLAIN, 1);
+        int32_t s = engine_place(&box__arithmetic__pass, "placed-by-a-box", KIND_PLAIN, 1);
         if (s < 0) {
             atomic_fetch_add(&place_failures, 1);
             continue;
@@ -67,11 +68,11 @@ int main(void)
     int32_t first[FIRST];
     struct station *where[FIRST];
     for (int i = 0; i < FIRST; i++) {
-        first[i] = PLACE(box_pass, "early", KIND_PLAIN, 1);
+        first[i] = PLACE(box__arithmetic__pass, "early", KIND_PLAIN, 1);
         where[i] = station_at(first[i]);
     }
     for (int i = 0; i < 1000; i++) {
-        PLACE(box_pass, "later", KIND_PLAIN, 1);
+        PLACE(box__arithmetic__pass, "later", KIND_PLAIN, 1);
     }
     int moved = 0;
     for (int i = 0; i < FIRST; i++) {
@@ -80,8 +81,8 @@ int main(void)
     CHECK(moved == 0, "adding %d shelves moved no station (%d moved)", 1000 / STATIONS_PER_SHELF, moved);
 
     /* --- flooding one port grows it, and still moves nothing ----------- */
-    int32_t sink = PLACE(box_discard, "pair-sink", KIND_PLAIN, 0);
-    int32_t pair = PLACE(box_add, "pair", KIND_PLAIN, 1);
+    int32_t sink = PLACE(box__arithmetic__discard, "pair-sink", KIND_PLAIN, 0);
+    int32_t pair = PLACE(box__arithmetic__add, "pair", KIND_PLAIN, 1);
     MUST(engine_wire(pair, 0, ONE_WIRE(sink, 0)));
     MUST(configure_ring(sink, 0));
     MUST(configure_ring(pair, 0));
@@ -113,7 +114,7 @@ int main(void)
     }
     CHECK(twin_engine_settle(4000), "settled after the other side caught up");
     uint64_t count; int64_t sum;
-    starter_discard_tally(sink, &count, &sum);
+    tally_read(sink, &count, &sum);
     CHECK(count == (uint64_t)FLOOD && sum == expect_sum, "every pair ran once and summed right (%llu runs)",
           (unsigned long long)count);
     metric_record("ports.cells_per_page.int64", cells_per_page, "cells", "ports-depth",
@@ -141,20 +142,20 @@ int main(void)
     CHECK(dupes == 0, "no two stations placed at once shared an index (%d did)", dupes);
 
     /* --- a removed place: refused until reclaimed, then reused ---------- */
-    int32_t doomed = PLACE(box_pass, "doomed", KIND_PLAIN, 1);
+    int32_t doomed = PLACE(box__arithmetic__pass, "doomed", KIND_PLAIN, 1);
     MUST(engine_remove(doomed));
     /* The outside caller was inside its own engine call when it filed the
      * station, so its own sweep could not free it: still waiting. */
-    CHECK(engine_place_at(doomed, &box_pass, "too-soon", KIND_PLAIN, 1) == ENGINE_PLACE_BUSY,
+    CHECK(engine_place_at(doomed, &box__arithmetic__pass, "too-soon", KIND_PLAIN, 1) == ENGINE_PLACE_BUSY,
           "placing into a removed place before the sweep reclaimed it is refused");
     engine_sweep();
     CHECK(station_at(doomed)->state == STATION_FREE, "the sweep reclaimed the place");
-    int32_t reborn = engine_place(&box_pass, "reborn", KIND_PLAIN, 1);
+    int32_t reborn = engine_place(&box__arithmetic__pass, "reborn", KIND_PLAIN, 1);
     CHECK(reborn == doomed, "the next placement reused the reclaimed place (%d, was %d)", reborn, doomed);
 
     /* --- removing a station while values flow into it ------------------- */
-    int32_t tail = PLACE(box_discard, "tail", KIND_PLAIN, 0);
-    int32_t pipe = PLACE(box_chew, "pipe", KIND_PLAIN, 1);
+    int32_t tail = PLACE(box__arithmetic__discard, "tail", KIND_PLAIN, 0);
+    int32_t pipe = PLACE(box__arithmetic__chew, "pipe", KIND_PLAIN, 1);
     MUST(engine_wire(pipe, 0, ONE_WIRE(tail, 0)));
     MUST(configure_ring(tail, 0));
     MUST(configure_static(pipe, 1, 2000));

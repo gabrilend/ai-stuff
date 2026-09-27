@@ -257,7 +257,7 @@ int engine_restart(int handle, int *values_lost)
         }
     }
     if (rebuilt) {
-        say("engine: a parked program of %d stations had to be rebuilt empty — its memory was "
+        say_line("engine: a parked program of %d stations had to be rebuilt empty — its memory was "
             "handed to something else while it was parked; %d waiting values were lost",
             (int)k->count, lost);
     }

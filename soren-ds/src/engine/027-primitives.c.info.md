@@ -77,9 +77,9 @@ int text_format_va(char *out, size_t size, const char *fmt, va_list args)
 int text_format(char *out, size_t size, const char *fmt, ...)
 ```
 
-### say
+### say_line
 
 ```c
-void say(const char *fmt, ...)
+void say_line(const char *fmt, ...)
 ```
 

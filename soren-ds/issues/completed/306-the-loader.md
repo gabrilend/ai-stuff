@@ -2,8 +2,21 @@
 
 ## Current behavior
 
-**A map file can be read into a description and nothing builds from
-it.**
+**Built and tested on the twin.** `src/engine/068-programs.c`. Loading
+plans first — reads the map and every map placed inside it, looks every
+box up, checks port and exit numbers, contradictory sources, values,
+both ends of every wire and every wire's width — and builds only if
+there are no problems, in four sweeps over the whole tree: place, wire
+(one whole exit at a time), sources and door marks, then fixed values
+(which start it). Every sweep calls the engine's own operations. The
+program record keeps the stations' names (scoped per program), their
+addresses, the doors, and the programs placed inside. `program_bring_up`
+is the repeatable fourth act: it checks door numbering and looks once at
+any station not yet looked at, never twice. `program_write` (069) writes
+a running program back out.
+
+A misspelled box — the most common mistake — names the function, the
+file it looked in, and every box that file holds.
 
 ## Intended behavior
 
@@ -151,6 +164,17 @@ widths alone do not tell anybody why they disagree.
   across everything running, or the name table is scoped to something.
   This is the same question 213's parking asked from the other side,
   and both want one answer.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Does the name table survive loading?* Yes — the program record keeps
+   it.
+2. *A load that fails halfway?* It cannot: all checks run before
+   anything is placed, so a refused file places nothing. The only
+   failure after checking is running out of memory, and then the program
+   is removed whole.
+3. *Two maps with the same station names?* Allowed: names are scoped to
+   the program that placed them.
 
 ## Blocked by
 

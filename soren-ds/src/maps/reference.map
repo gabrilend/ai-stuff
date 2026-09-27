@@ -1,0 +1,52 @@
+# reference.map — every line form a map can say, once (issue 305).
+#
+# Kept as test material: the maps test loads it and the writer writes it
+# back. It does little of interest when it runs; it exists to be read.
+
+# a shortcut: a short name for the first segment of an address
+maths = ../boxes/062-arithmetic.c
+text = ../boxes/063-text.c
+
+# include: a box source (or a directory of them) that belongs to the
+# program whether or not a station places a box from it
+include ../boxes/064-launch.c
+include ../boxes/
+
+# a station: kind, name, (file:function)
+station start (maths:constant)
+  in 0 = 3                         # a fixed value
+  out 0 - grow.0                   # a wire, from this end
+
+station grow (maths:add)
+  in 0 - start.0                   # the same wire, from that end
+  in 1 - 0$                        # the program's argument 0 arrives here
+  out 0 - choose.0
+
+comparator choose (maths:below)    # three exits: below, equal, above its threshold
+  in 0 - grow.0
+  in 1 = 10                        # the threshold
+  out 0 - small.0
+  out 1 - 0$                       # result 0 leaves here when the value equals 10
+  out 2 - 1$                       # result 1 when it is above
+
+station small (maths:discard)
+  in 0 - choose.0
+
+iterator deal (maths:pass)         # exits taken in turn
+  in 0 x64                         # a queue that starts 64 deep
+  out 0 - left.0
+  out 1 - right.0
+
+station left (maths:discard)
+  in 0 - deal.0
+
+station right (maths:discard)
+  in 0 - deal.1
+
+station greeting (text:constant_text)
+  in 0 = {
+      "a braced value may cross lines"
+  }
+
+station unfinished (maths:increment)
+  in 0 -                           # no source yet: this station can never run

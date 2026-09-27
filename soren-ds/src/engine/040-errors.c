@@ -54,7 +54,7 @@ void error_record(struct station *s, int32_t index, int kind, uint64_t detail)
     }
     spin_unlock(&s->lock);
     if (first) {
-        say("station %d \"%s\" (%s): %s, detail %llu",
+        say_line("station %d \"%s\" (%s): %s, detail %llu",
             (int)index, s->name ? s->name : "", s->box ? s->box->name : "",
             engine_error_kind_text(kind), (unsigned long long)detail);
     }
@@ -76,6 +76,7 @@ void error_take_out_of_service(struct core_ctx *c, struct station *s, int32_t in
     }
     station_recount_open(s);
     spin_unlock(&s->lock);
+    transcript_record(TRANSCRIPT_OUT_OF_SERVICE, index, (int32_t)s->error.kind, 0, (int64_t)s->error.detail, s->name);
 }
 /* }}} */
 

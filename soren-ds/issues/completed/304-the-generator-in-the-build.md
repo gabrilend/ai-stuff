@@ -2,7 +2,20 @@
 
 ## Current behavior
 
-**The generator exists and nothing runs it.**
+**Built and tested on the twin.** The generator is a C program:
+`twin/tools/061-generate.c` wraps the portable generator as a laptop tool,
+built by itself from only those two files before anything it writes
+exists. Both builds run it first — the twin's Makefile directly, the
+kernel's Makefile through the twin's `generated` target — and both list
+the generator's own sources among what the catalogue depends on, so
+changing the generator rebuilds the catalogue even when no box source
+changed. A failing run writes nothing: output goes to `<name>.partial`
+and is renamed over the old file only on success. Test 074 breaks a box
+source in a scratch directory and confirms the previous catalogue is
+byte-for-byte untouched and no partial file is left.
+
+Both build variants (ordinary and debug) compile against the one
+catalogue.
 
 ## Intended behavior
 
@@ -102,6 +115,15 @@ both flavours compile against it.
   a second way of reporting what the parser saw is a second thing that
   can disagree — but the laptop reads a terminal and the device has a
   touchscreen, and nobody has decided what that looks like.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Where does the on-device build put its output?* The RAM tier, as the
+   question leans — phase 4's compile pipeline (409) writes generated C
+   and the compiled page there, and nothing half-written is ever
+   loadable, because the catalogue row is added only after the page is
+   complete.
+2. *The same describe mode on the device?* Yes; see 302.
 
 ## Blocked by
 

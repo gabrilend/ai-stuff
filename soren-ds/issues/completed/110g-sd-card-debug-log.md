@@ -71,6 +71,11 @@ first hardware run captures a readable log from the SD card,
 this issue closes. The implementation has not been observed
 working because we have not yet booted.
 
+**Phase 3 (issue 311) decided to keep this log for now.** The transcript
+ring that was to replace it is built (debug builds), but it reaches the
+developer only through the USB serial line, which does not yet work on
+hardware (109b). This log goes when the serial line is proven.
+
 ## Intended behavior
 
 A small persistent log buffer in DRAM accumulates every

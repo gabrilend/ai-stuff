@@ -23,7 +23,7 @@ for _, a in ipairs({ ... }) do
     if a == "--check" then CHECK = true else DIR = a end
 end
 
-local FOLDERS = { "src/engine", "src/system", "src/device", "twin", "twin/tests", "twin/programs" }
+local FOLDERS = { "src/engine", "src/system", "src/device", "src/boxes", "twin", "twin/tools", "twin/tests", "twin/programs" }
 
 -- {{{ local function read_file
 local function read_file(path)

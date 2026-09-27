@@ -15,7 +15,8 @@
 #define _GNU_SOURCE
 #include "../../src/engine/025-platform.h"
 #include "../../src/engine/031-engine.h"
-#include "../../src/engine/038-starter-boxes.h"
+#include "catalogue-boxes.h"
+#include "../../src/engine/038-tallies.h"
 #include "../041-twin-engine.h"
 #include "../046-metrics.h"
 #include "047-check.h"
@@ -71,14 +72,14 @@ static void sleep_ms(int ms)
 static uint64_t tally_count(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return count;
 }
 
 static int64_t tally_sum(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return sum;
 }
 /* }}} */
@@ -91,16 +92,16 @@ static int64_t tally_sum(int32_t station)
  * destination exists. Answers the sink. */
 static int32_t build_adder(int wiring_first, int64_t a, int64_t b)
 {
-    int32_t sink = PLACE(box_discard, "sum-sink", KIND_PLAIN, 0);
-    int32_t adder = PLACE(box_add, "adder", KIND_PLAIN, 1);
+    int32_t sink = PLACE(box__arithmetic__discard, "sum-sink", KIND_PLAIN, 0);
+    int32_t adder = PLACE(box__arithmetic__add, "adder", KIND_PLAIN, 1);
     if (wiring_first) {
         MUST(engine_wire(adder, 0, ONE_WIRE(sink, 0)));
         MUST(configure_ring(sink, 0));
         MUST(configure_ring(adder, 0));
         MUST(configure_ring(adder, 1));
     }
-    int32_t left = PLACE(box_constant, "left", KIND_PLAIN, 1);
-    int32_t right = PLACE(box_constant, "right", KIND_PLAIN, 1);
+    int32_t left = PLACE(box__arithmetic__constant, "left", KIND_PLAIN, 1);
+    int32_t right = PLACE(box__arithmetic__constant, "right", KIND_PLAIN, 1);
     MUST(engine_wire(left, 0, ONE_WIRE(adder, 0)));
     MUST(engine_wire(right, 0, ONE_WIRE(adder, 1)));
     if (!wiring_first) {
@@ -122,10 +123,10 @@ int main(void)
     metrics_open("051-workers-and-delivery");
 
     /* --- nothing runs before the gate --------------------------------- */
-    int32_t sink = PLACE(box_discard, "chain-end", KIND_PLAIN, 0);
-    int32_t mid2 = PLACE(box_increment, "second", KIND_PLAIN, 1);
-    int32_t mid1 = PLACE(box_increment, "first", KIND_PLAIN, 1);
-    int32_t head = PLACE(box_constant, "head", KIND_PLAIN, 1);
+    int32_t sink = PLACE(box__arithmetic__discard, "chain-end", KIND_PLAIN, 0);
+    int32_t mid2 = PLACE(box__arithmetic__increment, "second", KIND_PLAIN, 1);
+    int32_t mid1 = PLACE(box__arithmetic__increment, "first", KIND_PLAIN, 1);
+    int32_t head = PLACE(box__arithmetic__constant, "head", KIND_PLAIN, 1);
     MUST(engine_wire(head, 0, ONE_WIRE(mid1, 0)));
     MUST(engine_wire(mid1, 0, ONE_WIRE(mid2, 0)));
     MUST(engine_wire(mid2, 0, ONE_WIRE(sink, 0)));
@@ -149,12 +150,12 @@ int main(void)
     struct destination fan[20];
     int32_t fan_sinks[20];
     for (int i = 0; i < 20; i++) {
-        fan_sinks[i] = PLACE(box_discard, "fan-sink", KIND_PLAIN, 0);
+        fan_sinks[i] = PLACE(box__arithmetic__discard, "fan-sink", KIND_PLAIN, 0);
         MUST(configure_ring(fan_sinks[i], 0));
         fan[i].station = fan_sinks[i];
         fan[i].port = 0;
     }
-    int32_t spout = PLACE(box_constant, "spout", KIND_PLAIN, 1);
+    int32_t spout = PLACE(box__arithmetic__constant, "spout", KIND_PLAIN, 1);
     MUST(engine_wire(spout, 0, fan, 20));
     MUST(configure_static(spout, 0, 7));
     CHECK(twin_engine_settle(2000), "the fan-out settled");
@@ -187,9 +188,9 @@ int main(void)
     /* --- N static writes, N runs, spread across cores ------------------ */
     struct engine_core_stats before[CORES], after[CORES];
     for (int c = 0; c < CORES; c++) engine_core_stats(c, &before[c]);
-    int32_t counter_sink = PLACE(box_discard, "counter-sink", KIND_PLAIN, 0);
+    int32_t counter_sink = PLACE(box__arithmetic__discard, "counter-sink", KIND_PLAIN, 0);
     MUST(configure_ring(counter_sink, 0));
-    int32_t chewer = PLACE(box_chew, "chewer", KIND_PLAIN, 1);
+    int32_t chewer = PLACE(box__arithmetic__chew, "chewer", KIND_PLAIN, 1);
     MUST(engine_wire(chewer, 0, ONE_WIRE(counter_sink, 0)));
     MUST(configure_static(chewer, 1, 20000));
     const int N = 2000;
@@ -220,9 +221,9 @@ int main(void)
 
     /* --- a trickle lets the cores park, and loses nothing --------------- */
     for (int c = 0; c < CORES; c++) engine_core_stats(c, &before[c]);
-    int32_t drip_sink = PLACE(box_discard, "drip-sink", KIND_PLAIN, 0);
+    int32_t drip_sink = PLACE(box__arithmetic__discard, "drip-sink", KIND_PLAIN, 0);
     MUST(configure_ring(drip_sink, 0));
-    int32_t drip = PLACE(box_pass, "drip", KIND_PLAIN, 1);
+    int32_t drip = PLACE(box__arithmetic__pass, "drip", KIND_PLAIN, 1);
     MUST(engine_wire(drip, 0, ONE_WIRE(drip_sink, 0)));
     MUST(configure_ring(drip, 0));
     for (int i = 0; i < 40; i++) {
@@ -252,7 +253,7 @@ int main(void)
           (long long)tally_sum(s1), (long long)tally_sum(s2));
 
     /* --- placed but never wired never runs ------------------------------ */
-    int32_t lonely = PLACE(box_increment, "lonely", KIND_PLAIN, 1);
+    int32_t lonely = PLACE(box__arithmetic__increment, "lonely", KIND_PLAIN, 1);
     CHECK(twin_engine_settle(2000), "settled with a lonely station");
     CHECK(engine_station_runs(lonely) == 0 && engine_port_tag(lonely, 0) == PORT_NONE,
           "a station placed and never given a source never ran");

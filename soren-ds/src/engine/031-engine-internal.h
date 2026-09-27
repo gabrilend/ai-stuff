@@ -17,6 +17,7 @@
 #include "029-blocks.h"
 #include "030-task-ring.h"
 #include "031-engine.h"
+#include "071-transcript.h"
 
 /* {{{ sizes */
 #define STATIONS_PER_SHELF 64          /* a power of two: index → shelf is a shift, slot is a mask */
@@ -57,7 +58,7 @@ enum cell_state {
 struct port {
     uint8_t   tag;                     /* enum port_tag: which of ring / static / none is in effect */
     uint8_t   extra;                   /* 1: a routing port (threshold, weights), never passed to the box */
-    uint16_t  unused;
+    int16_t   door;                    /* issue 309: argument number N of the program, or -1 */
     int32_t   elem_size;               /* bytes in one value; from the box's parameter type */
     int32_t   stride;                  /* bytes from one cell to the next: header + value, rounded to 8 */
     int32_t   cells_per_page;
@@ -92,6 +93,8 @@ struct dest_list {
 
 struct exit {
     struct dest_list *list;            /* NULL: wired to nothing — values leaving here are discarded */
+    int32_t           door;            /* issue 309: result number N of the program, or -1 */
+    struct port      *held;            /* a marked exit's results, kept when nothing is wired beyond it */
 };
 /* }}} */
 
@@ -207,6 +210,7 @@ struct engine {
     int32_t          n_free_places;
     int32_t          free_capacity;
     spin_lock_t      outside_lock;     /* callers that are not a core take turns as the outside owner */
+    uintptr_t        outside_holder;   /* the token of the caller holding that turn, or 0 */
     spin_lock_t      timer_lock;
     uint64_t         next_deadline;    /* earliest active timer, or all ones */
     struct timer     timers[MAX_TIMERS];
@@ -244,6 +248,7 @@ void             port_read_static(const struct port *p, void *out);
 int              port_waiting(const struct port *p);
 void             station_check(struct core_ctx *c, int32_t index);
 void             station_recount_open(struct station *s);
+int              port_take_value(struct port *p, void *out);
 
 /* 035-tasks.c */
 struct task     *task_build(struct core_ctx *c, struct station *s, int32_t index, void **claimed_cells);

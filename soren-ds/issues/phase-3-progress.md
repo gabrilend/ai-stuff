@@ -88,11 +88,29 @@ because some station once placed a box from it.
 
 ## Completed issues
 
-None yet.
+Built as portable C in `src/engine/` and `src/boxes/`, and proven on the
+laptop twin. Counts: `progress-dashboard.lua <project> -m`.
+
+- **301** box sources in `src/boxes/`, rules beside them.
+- **302** the generator: adapters, records, field tables, catalogue.
+- **303** width checks; orderings; field tables in both directions.
+- **304** the generator in both builds; a failing run writes nothing.
+- **305** the map reader and the one address resolver.
+- **306** the loader: check everything, then place-wire-configure-values.
+- **307** every problem in one list; no cycle detector.
+- **308** six exit kinds as table rows; spread fixed to see the backlog.
+- **309** doors on ports and exits; maps placed inside maps.
+- **310** the launch box library.
+
+Tests: `twin/tests/072`, `074`, `075` (79 checks), with phase 2's still
+passing.
 
 ## Open issues
 
-All of 301 through 312.
+- **311** — the transcript ring is built; removing phase 1's SD-card log
+  waits for the USB serial line to work on hardware.
+- **312** — the demo passes on the twin (`./run-demo 3`); the device run
+  waits on phase 2's 201 and 202.
 
 ## Open questions still to work through
 
@@ -151,11 +169,21 @@ is settled, the issues in this phase describe a catalogue**, which is what
 they always described; the only thing the map-file change did to it is
 make its key a file-and-function address rather than a bare name (305).
 
+### Proposed answers (UNVERIFIED — see each issue)
+
+| question | proposed answer |
+|---|---|
+| does this device keep a catalogue at all? | **yes** — the middle option: every width is a compile-time constant in the box's generated record (the half of the parent's design that transfers), and what is stored is one row per box, an address and a pointer to its record. The parent leaned on an operating system's symbol table; this device is the operating system, and a table it writes is the catalogue (`070-catalogue.h` says so) |
+| does a map file with errors load partially? | no — nothing is placed unless there are no problems |
+| what records that stations belong together? | the program record (068) |
+| a path for a map that is a string in the image? | the path it was read from, kept beside it |
+| two copies of one sub-program? | names prefixed with the placing station's name |
+
 ## Phase demo
 
-`issues/completed/demos/phase-3/run.sh` will exist once the phase
-closes. It builds and flashes the image, reads a three-line greeting map
-out of the kernel, and shows eight scenes: the round trip, three
-refusals and their messages, a counter built out of a loop, every way of
-choosing an exit, a program placed inside a program, and a box taking
-itself out of service while everything else keeps running.
+`issues/completed/demos/phase-3/run.sh` (also `./run-demo 3`) exists and
+passes on the laptop twin: it builds (the generator first), lists the
+boxes the generator found, and plays the nine scenes, writing the two
+screens as a picture and keeping the developer's line as a log. The
+device version waits on phase 2's device issues.
+

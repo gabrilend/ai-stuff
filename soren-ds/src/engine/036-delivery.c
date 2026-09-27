@@ -34,6 +34,17 @@ uint64_t core_random(struct core_ctx *c)
 }
 /* }}} */
 
+/* {{{ engine_random */
+uint64_t engine_random(void)
+{
+    struct core_ctx *c = engine_here();
+    if (c->number == OWNER_OUTSIDE) {
+        platform_halt("engine_random: only a core has a random stream");
+    }
+    return core_random(c);
+}
+/* }}} */
+
 /* {{{ read_integer */
 /* Widen a value of `size` bytes to 64 bits, as signed or unsigned. */
 static uint64_t read_integer(const uint8_t *bytes, uint32_t size, int is_signed)
@@ -86,6 +97,12 @@ static int32_t exit_comparator(struct core_ctx *c, struct station *s, struct tas
         return -1;
     }
     port_read_static(p, threshold);
+    /* Two kinds of ordering: the box's value type brings its own, or the
+     * return value is an integer and is compared as one. */
+    if (s->box->return_order) {
+        int r = s->box->return_order(t->out, threshold);
+        return r < 0 ? 0 : (r == 0 ? 1 : 2);
+    }
     return compare_by_order(s->order, t->out, threshold, t->out_bytes);
 }
 /* }}} */
@@ -160,7 +177,13 @@ static int32_t exit_spread(struct core_ctx *c, struct station *s, struct task *t
         if (!d) {
             continue;
         }
-        int waiting = port_waiting(&d->ports[list->to[0].port]);
+        /* How far behind the destination is: values waiting in its port,
+         * plus runs of it already queued or running. The port alone is not
+         * enough — measured in issue 308's test: the readiness check turns
+         * a waiting value into a queued run almost at once, so a slow
+         * destination's backlog sits in the task ring, where a look at the
+         * port never sees it, and spread split evenly. */
+        int waiting = port_waiting(&d->ports[list->to[0].port]) + atomic_load_relaxed(&d->in_flight);
         if (waiting < best_waiting) {
             best_waiting = waiting;
             best = e;
@@ -292,6 +315,7 @@ int deliver_value(struct core_ctx *c, int32_t index, int32_t port, const void *v
     int r = write_by_tag[tag](c, s, index, p, value);
     if (r == ENGINE_OK) {
         c->stats.deliveries++;
+        transcript_record(TRANSCRIPT_DELIVERED, index, c->inside, port, 0, s->name);
     } else {
         error_record(s, index, ERROR_NO_MEMORY, (uint64_t)port);
         c->stats.discarded++;
@@ -315,8 +339,18 @@ void deliver_task(struct core_ctx *c, struct task *t)
     /* One read of the list's address. Whatever list that is, nobody will
      * ever change it, so it is walked with no lock and no copy. */
     struct dest_list *list = atomic_load_acquire(&s->exits[exit].list);
-    if (!list) {
-        c->stats.discarded++;                     /* wired to nothing: discard */
+    if (!list || list->count == 0) {
+        /* Wired to nothing. Two cases: an ordinary exit discards (an
+         * unwired comparator branch is the everyday example); an exit
+         * marked as one of the program's results holds the value for
+         * whoever asks for it (issue 309), because discarding a program's
+         * results would mean the program did nothing. */
+        struct port *held = atomic_load_acquire(&s->exits[exit].held);
+        if (held && port_write_cell(c, s, held, t->out) == ENGINE_OK) {
+            c->stats.deliveries++;
+            return;
+        }
+        c->stats.discarded++;
         return;
     }
     for (int32_t d = 0; d < list->count; d++) {

@@ -43,6 +43,36 @@ int32_t engine_place_at(int32_t index, const struct box *box, const char *name, 
 int engine_configure(int32_t index, int port, int tag, const void *value, size_t size)
 ```
 
+### engine_mark_argument
+
+```c
+int engine_mark_argument(int32_t index, int port, int door)
+```
+
+### engine_mark_result
+
+```c
+int engine_mark_result(int32_t index, int exit, int door)
+```
+
+### engine_port_door
+
+```c
+int engine_port_door(int32_t index, int port)
+```
+
+### engine_exit_door
+
+```c
+int engine_exit_door(int32_t index, int exit)
+```
+
+### engine_take_result
+
+```c
+int engine_take_result(int32_t index, int exit, void *out, size_t size)
+```
+
 ### engine_wire
 
 ```c

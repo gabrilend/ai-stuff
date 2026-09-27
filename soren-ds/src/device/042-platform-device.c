@@ -102,6 +102,14 @@ void device_platform_init(void)
 }
 /* }}} */
 
+/* {{{ platform_caller_token */
+/* The boot code is the only caller on the device that is not a core. */
+uintptr_t platform_caller_token(void)
+{
+    return 1;
+}
+/* }}} */
+
 /* {{{ platform_core_count */
 int platform_core_count(void)
 {
@@ -275,9 +283,22 @@ void platform_write(const char *text, size_t len)
 }
 /* }}} */
 
+static void (*last_words)(void);
+static int halting;
+
+/* {{{ platform_set_last_words */
+void platform_set_last_words(void (*words)(void))
+{
+    last_words = words;
+}
+/* }}} */
+
 /* {{{ platform_halt */
 void platform_halt(const char *why)
 {
+    if (__atomic_exchange_n(&halting, 1, __ATOMIC_ACQ_REL) == 0 && last_words) {
+        last_words();
+    }
     debug_write("HALT: ");
     debug_write(why);
     debug_write("\n");

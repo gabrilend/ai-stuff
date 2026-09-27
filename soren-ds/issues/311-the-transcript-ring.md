@@ -2,17 +2,20 @@
 
 ## Current behavior
 
-**The device remembers what went wrong and not what was happening.**
+**Built and tested on the twin; one step deliberately not taken.**
+`src/engine/071-transcript.c`: 4,096 fixed records, one counter, no lock,
+debug builds only (in an ordinary build every call is nothing and the
+ring does not exist). Events recorded: queued, started, finished (with
+its time), delivered, placed, wired, out of service. The live stream is
+drained by a core about to park, only while switched on; the crash dump
+is the platform's "last words" before halting.
 
-Phase 2's error records are one fixed slot per station, written in
-place and counted rather than appended, so the same failure a million
-times is one slot reading a million. That is the right shape for an
-ordinary build: bounded by construction, no allocation, no growth, and
-it answers *what failed and how often* exactly.
-
-What it cannot answer is *what was going on just before the first
-one* — which is the question somebody actually has when a device that
-ran for six hours stops.
+**Not done: removing phase 1's SD-card log (110g).** The USB serial line
+does not work yet (109b is reopened), and the SD log is the only way the
+developer reads the device's words on hardware today. Removing it now
+would blind phase 1's bring-up. Proposed: remove it in the same commit
+that proves the USB serial line on hardware. Until then this issue stays
+open.
 
 ## Intended behavior
 
@@ -106,6 +109,14 @@ that removal is part of this issue rather than a loose end after it.
   They should, or two events cannot be ordered against a measurement
   taken elsewhere. Phase 1's clock work has the answer and it wants
   writing down here.
+
+### Proposed answers (UNVERIFIED)
+
+1. *How many entries?* 4,096; the endurance run keeps up on the twin.
+2. *Where is the drain?* The idle path, as the question proposes: a busy
+   device streams nothing until it goes quiet, and the stream never
+   competes with work.
+3. *Which clock?* The platform clock everything else uses.
 
 ## Blocked by
 

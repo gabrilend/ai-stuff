@@ -190,6 +190,11 @@ int text_format_va(char *out, size_t size, const char *fmt, va_list args)
         char pad = ' ';
         int width = 0;
         int longs = 0;
+        int left = 0;
+        if (*f == '-') {             /* left-align: pad after, not before */
+            left = 1;
+            f++;
+        }
         if (*f == '0') {
             pad = '0';
             f++;
@@ -236,11 +241,14 @@ int text_format_va(char *out, size_t size, const char *fmt, va_list args)
         case 's': {
             const char *str = va_arg(args, const char *);
             size_t len = text_length(str);
-            for (size_t i = len; i < (size_t)width; i++) {
+            for (size_t i = len; !left && i < (size_t)width; i++) {
                 sink_put(&s, ' ');
             }
             while (*str) {
                 sink_put(&s, *str++);
+            }
+            for (size_t i = len; left && i < (size_t)width; i++) {
+                sink_put(&s, ' ');
             }
             break;
         }
@@ -278,7 +286,7 @@ int text_format(char *out, size_t size, const char *fmt, ...)
 /* }}} */
 
 /* {{{ say */
-void say(const char *fmt, ...)
+void say_line(const char *fmt, ...)
 {
     char line[512];
     va_list args;

@@ -15,7 +15,8 @@
  */
 #define _GNU_SOURCE
 #include "../../src/engine/031-engine-internal.h"
-#include "../../src/engine/038-starter-boxes.h"
+#include "catalogue-boxes.h"
+#include "../../src/engine/038-tallies.h"
 #include "../041-twin-engine.h"
 #include "../046-metrics.h"
 #include "047-check.h"
@@ -99,14 +100,14 @@ BOX_3_1(sum3, a * 100 + b * 10 + c);
 static uint64_t tally_count(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return count;
 }
 
 static int64_t tally_sum(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return sum;
 }
 /* }}} */
@@ -121,7 +122,7 @@ int main(void)
     static const int orders[6][3] = { {0,1,2}, {0,2,1}, {1,0,2}, {1,2,0}, {2,0,1}, {2,1,0} };
     int early = 0, wrong = 0;
     for (int o = 0; o < 6; o++) {
-        int32_t sink = PLACE(box_discard, "order-sink", KIND_PLAIN, 0);
+        int32_t sink = PLACE(box__arithmetic__discard, "order-sink", KIND_PLAIN, 0);
         int32_t st = PLACE(sum3, "three-inputs", KIND_PLAIN, 1);
         MUST(engine_wire(st, 0, ONE_WIRE(sink, 0)));
         MUST(configure_ring(sink, 0));
@@ -140,8 +141,8 @@ int main(void)
 
     /* --- four cores spraying both sides of an adder -------------------- */
     const int64_t PER = 50000;
-    int32_t sink = PLACE(box_discard, "hammer-sink", KIND_PLAIN, 0);
-    int32_t adder = PLACE(box_add, "hammered", KIND_PLAIN, 1);
+    int32_t sink = PLACE(box__arithmetic__discard, "hammer-sink", KIND_PLAIN, 0);
+    int32_t adder = PLACE(box__arithmetic__add, "hammered", KIND_PLAIN, 1);
     MUST(engine_wire(adder, 0, ONE_WIRE(sink, 0)));
     MUST(configure_ring(sink, 0));
     MUST(configure_ring(adder, 0));
@@ -195,8 +196,8 @@ int main(void)
           (long long)atomic_load(&checked_runs), atomic_load(&torn));
 
     /* --- an unconfigured port holds its station back -------------------- */
-    int32_t wait_sink = PLACE(box_discard, "wait-sink", KIND_PLAIN, 0);
-    int32_t waiter = PLACE(box_add, "waiter", KIND_PLAIN, 1);
+    int32_t wait_sink = PLACE(box__arithmetic__discard, "wait-sink", KIND_PLAIN, 0);
+    int32_t waiter = PLACE(box__arithmetic__add, "waiter", KIND_PLAIN, 1);
     MUST(engine_wire(waiter, 0, ONE_WIRE(wait_sink, 0)));
     MUST(configure_ring(wait_sink, 0));
     MUST(configure_ring(waiter, 0));
@@ -211,7 +212,7 @@ int main(void)
           "giving the port a source ran it at once, with the value that had been waiting");
 
     /* --- a built task keeps its own copies ------------------------------ */
-    int32_t held = PLACE(box_add, "copy-source", KIND_PLAIN, 1);
+    int32_t held = PLACE(box__arithmetic__add, "copy-source", KIND_PLAIN, 1);
     MUST(configure_static(held, 0, 11));
     MUST(configure_static(held, 1, 22));
     twin_engine_settle(1000);

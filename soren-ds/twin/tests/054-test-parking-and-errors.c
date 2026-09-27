@@ -15,7 +15,8 @@
  */
 #define _GNU_SOURCE
 #include "../../src/engine/031-engine-internal.h"
-#include "../../src/engine/038-starter-boxes.h"
+#include "catalogue-boxes.h"
+#include "../../src/engine/038-tallies.h"
 #include "../026-platform-twin.h"
 #include "../041-twin-engine.h"
 #include "../046-metrics.h"
@@ -59,14 +60,14 @@ static void sleep_ms(int ms)
 static uint64_t tally_count(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return count;
 }
 
 static int64_t tally_sum(int32_t station)
 {
     uint64_t count; int64_t sum;
-    starter_discard_tally(station, &count, &sum);
+    tally_read(station, &count, &sum);
     return sum;
 }
 /* }}} */
@@ -117,8 +118,8 @@ int main(void)
     metrics_open("054-parking-and-errors");
 
     /* --- a parked program costs no core and no cycle -------------------- */
-    int32_t ticks_sink = PLACE(box_discard, "tick-sink", KIND_PLAIN, 0);
-    int32_t ticker = PLACE(box_increment, "ticker", KIND_PLAIN, 1);
+    int32_t ticks_sink = PLACE(box__arithmetic__discard, "tick-sink", KIND_PLAIN, 0);
+    int32_t ticker = PLACE(box__arithmetic__increment, "ticker", KIND_PLAIN, 1);
     MUST(engine_wire(ticker, 0, ONE_WIRE(ticks_sink, 0)));
     MUST(configure_ring(ticks_sink, 0));
     MUST(configure_ring(ticker, 0));
@@ -153,8 +154,8 @@ int main(void)
     twin_engine_settle(2000);
 
     /* --- parked and restarted at once: every buffered value survives ---- */
-    int32_t pair_sink = PLACE(box_discard, "pair-sink", KIND_PLAIN, 0);
-    int32_t pair = PLACE(box_add, "pair", KIND_PLAIN, 1);
+    int32_t pair_sink = PLACE(box__arithmetic__discard, "pair-sink", KIND_PLAIN, 0);
+    int32_t pair = PLACE(box__arithmetic__add, "pair", KIND_PLAIN, 1);
     MUST(engine_wire(pair, 0, ONE_WIRE(pair_sink, 0)));
     MUST(configure_ring(pair_sink, 0));
     MUST(configure_ring(pair, 0));
@@ -207,10 +208,10 @@ int main(void)
     }
 
     /* --- a refusing box takes itself out; its neighbours carry on ------- */
-    int32_t fussy_sink = PLACE(box_discard, "fussy-sink", KIND_PLAIN, 0);
-    int32_t fussy = PLACE(box_picky, "fussy", KIND_PLAIN, 1);
-    int32_t calm_sink = PLACE(box_discard, "calm-sink", KIND_PLAIN, 0);
-    int32_t calm = PLACE(box_increment, "calm", KIND_PLAIN, 1);
+    int32_t fussy_sink = PLACE(box__arithmetic__discard, "fussy-sink", KIND_PLAIN, 0);
+    int32_t fussy = PLACE(box__arithmetic__picky, "fussy", KIND_PLAIN, 1);
+    int32_t calm_sink = PLACE(box__arithmetic__discard, "calm-sink", KIND_PLAIN, 0);
+    int32_t calm = PLACE(box__arithmetic__increment, "calm", KIND_PLAIN, 1);
     MUST(engine_wire(fussy, 0, ONE_WIRE(fussy_sink, 0)));
     MUST(engine_wire(calm, 0, ONE_WIRE(calm_sink, 0)));
     MUST(configure_ring(fussy_sink, 0));
@@ -242,7 +243,7 @@ int main(void)
     CHECK(report.kind == ERROR_NONE, "giving its input back reset the error slot");
 
     /* --- a million of the same error: one slot, one line --------------- */
-    int32_t target = PLACE(box_increment, "target-of-a-million", KIND_PLAIN, 1);
+    int32_t target = PLACE(box__arithmetic__increment, "target-of-a-million", KIND_PLAIN, 1);
     MUST(configure_ring(target, 0));
     int32_t small = 7;
     for (int i = 0; i < 1000000; i++) {
@@ -258,7 +259,7 @@ int main(void)
 
 #ifdef SOREN_DEBUG
     /* --- a box that faults is caught, named, and taken out -------------- */
-    int32_t crash_sink = PLACE(box_discard, "crash-sink", KIND_PLAIN, 0);
+    int32_t crash_sink = PLACE(box__arithmetic__discard, "crash-sink", KIND_PLAIN, 0);
     int32_t crash = PLACE(crasher, "crasher", KIND_PLAIN, 1);
     MUST(engine_wire(crash, 0, ONE_WIRE(crash_sink, 0)));
     MUST(configure_ring(crash_sink, 0));

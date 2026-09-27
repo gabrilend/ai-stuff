@@ -51,6 +51,11 @@ struct box {
     uint32_t                in_bytes;     /* the packed input area's size */
     uint32_t                return_size;  /* 0: returns nothing — a sink */
     const char             *return_type;
+    /* How two return values compare, for a comparator (issue 303): a
+     * generated adapter to the value type's own ordering, or NULL — in
+     * which case an integer return type is ordered as an integer and any
+     * other return type cannot be a comparator. */
+    int                   (*return_order)(const void *a, const void *b);
 };
 /* }}} */
 
@@ -155,12 +160,31 @@ int engine_configure(int32_t station, int port, int tag, const void *value, size
  * same instant). An empty list unwires the exit. */
 int engine_wire(int32_t station, int exit, const struct destination *to, int count);
 
+/* Does any wire, from any station, feed this port? */
+int engine_port_fed(int32_t station, int port);
+
+/* Grow a port now so it holds at least `cells` values at once. */
+int engine_port_reserve(int32_t station, int port, int cells);
+
 /* Push one value into a port from outside any box, exactly as a wire
  * would: into a cell for a ring port, over the dial for a static one. */
 int engine_deliver(int32_t station, int port, const void *value, size_t size);
 
 /* Take a station out of existence and give its place back (issue 207). */
 int engine_remove(int32_t station);
+
+/* Doors (issue 309). Mark a port as the program's argument N, or an exit
+ * as its result N (-1 clears the mark). A marked port that no wire feeds
+ * is where the outside delivers that argument; a marked exit with nothing
+ * wired beyond it holds its values for whoever takes them, instead of
+ * discarding them. */
+int engine_mark_argument(int32_t station, int port, int door);
+int engine_mark_result(int32_t station, int exit, int door);
+int engine_port_door(int32_t station, int port);
+int engine_exit_door(int32_t station, int exit);
+/* Take one held result out of a marked exit: 1 if taken, 0 if none is
+ * waiting, or a negative error. */
+int engine_take_result(int32_t station, int exit, void *out, size_t size);
 
 /* Free whatever retired things no core can still be inside. The engine
  * does this itself on every rewire and removal; this is for a caller that
@@ -203,6 +227,11 @@ void engine_refuse(uint64_t detail);
 
 /* Which station is running on this core right now, or -1. */
 int32_t engine_current_station(void);
+
+/* 64 random bits from this core's own stream (seeded once from the
+ * platform). Per-core state, so a box asking for randomness breaks no rule
+ * about boxes remembering. */
+uint64_t engine_random(void);
 /* }}} */
 
 /* {{{ asked to stop, and parking (issue 213) */

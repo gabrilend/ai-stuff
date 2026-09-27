@@ -2,14 +2,29 @@
 
 ## Current behavior
 
-**The engine has one place where it calls a box, and one line of C
-cannot be every signature at once.**
+**Built and tested on the twin.** `src/engine/060-generator.c` is the
+generator: blank comments, literals and preprocessor lines (keeping every
+newline), then walk the outermost level for function definitions (box,
+helper if `static`/`inline`, ordering if its name ends in `__compare`)
+and struct definitions (value types, with field tables). It fails rather
+than guesses and collects every problem, with file and line, before
+reporting. It depends on nothing else in the engine; all its memory comes
+from a function the caller supplies.
 
-A worker holds a task and must call the function it names. In C,
-calling through a function pointer requires the signature written
-literally at the call site — the compiler has to know what goes in
-which register and what comes back. The worker cannot learn that at
-runtime, and every box has a different signature.
+What it writes (into the RAM work directory, `tmp/build/generated/`):
+`catalogue.c` — every box source included once with its functions
+renamed while included (so two files may share a name), one adapter per
+box that copies the task's bytes into real arguments and the return back
+out, a record per box, a field table per value type, the type table, and
+the catalogue rows keyed by address (`src/boxes/062-arithmetic.c:add`);
+`catalogue-boxes.h` — the name of every box record, for C code that
+places boxes directly; `maps.c` — the maps compiled in as strings.
+Every size and offset is a `sizeof` or `offsetof`.
+
+`make -C twin describe-boxes` prints what the reader saw. Test 074 reads
+several declarations in one file, a struct by value, a sink, a
+declaration over three lines, a brace in a string and in a comment, and
+checks a generated adapter answers as the function does.
 
 ## Intended behavior
 
@@ -123,6 +138,14 @@ print what it saw rather than by staring at what it emitted.
   which four-bytes-versus-eight cannot say. That is a size on the
   device's memory budget, small but not zero, and it may want to be
   debug-build only.
+
+### Proposed answers (UNVERIFIED)
+
+1. *The describe mode on the device?* Keep it; it is a function the
+   device already has. On the device its text goes to the developer's
+   line and, from phase 8, into the editor's second pane.
+2. *How much type text?* The type name as written, per parameter, in
+   every build. It is a few hundred bytes across the whole library.
 
 ## Blocked by
 
