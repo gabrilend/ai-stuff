@@ -66,15 +66,21 @@ MAPS_C        := $(GEN)/maps.c
 
 $(GENERATOR): $(DIR)/twin/tools/061-generate.c $(DIR)/src/engine/060-generator.c $(DIR)/src/engine/060-generator.h
 	@mkdir -p $(dir $@)
+	@$(HOST_CC) -std=gnu11 -O2 -Wall -Wextra -Werror $(DIR)/twin/tools/061-generate.c $(DIR)/src/engine/060-generator.c -o $@
 
 # The generated files depend on the program that writes them, not only on
 # what it reads — change the generator and the catalogue is rebuilt.
 $(CATALOGUE_C) $(CATALOGUE_H) &: $(BOX_SOURCES) $(GENERATOR)
+	@mkdir -p $(GEN)
+	@$(GENERATOR) --root $(DIR) --boxes $(DIR)/src/boxes --out $(CATALOGUE_C) --header $(CATALOGUE_H)
 
 $(MAPS_C): $(MAP_SOURCES) $(GENERATOR)
+	@mkdir -p $(GEN)
+	@$(GENERATOR) --root $(DIR) --maps $(DIR)/src/maps --out $(MAPS_C)
 
 .PHONY: describe-boxes
 describe-boxes: $(GENERATOR)
+	@$(GENERATOR) --root $(DIR) --boxes $(DIR)/src/boxes --describe
 
 # --- stage two: the library --------------------------------------------
 PORTABLE := $(shell find $(DIR)/src/engine $(DIR)/src/system -name '*.c' 2>/dev/null | sort)
@@ -124,6 +130,7 @@ $(LIB): $(PORTABLE_OBJS) $(SUPPORT_OBJS) $(GENERATED_OBJS)
 # a box record out; that omission is deliberate, so the warning is off here.
 $(BUILD)/tests/%: $(DIR)/twin/tests/%.c $(LIB) $(HEADERS)
 	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) -Wno-missing-field-initializers $< $(LIB) -o $@ $(LDLIBS)
 
 # Programs may open a window, so they are the only things linked against
 # SDL2; a machine without it can still build and run every test.
@@ -132,3 +139,4 @@ $(BUILD)/programs/%: $(DIR)/twin/programs/%.c $(LIB) $(HEADERS)
 	@$(CC) $(CFLAGS) $(SDL_CFLAGS) $< $(LIB) -o $@ $(LDLIBS) $(SDL_LIBS)
 
 clean:
+	rm -rf $(BUILD) $(GEN) $(TOOLS)
