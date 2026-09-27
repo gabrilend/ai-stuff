@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>110i — dynamic hardware probe (compiled in under `--probes`) — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details open><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class="here done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="110i-dynamic-hardware-probe-compiled-in-under-probes"><a class="self" href="#110i-dynamic-hardware-probe-compiled-in-under-probes">§</a> 110i — dynamic hardware probe (compiled in under <code>--probes</code>)<span class="status done">completed</span></h1>
+<blockquote>Delivery note: this probe battery began life as an SD-card-driven
+interpreter that a lab tech wrote scripts onto and the kernel read
+back at boot (preserved at the bottom under &quot;Superseded design&quot;).
+It is being rebuilt to compile the probes straight into the kernel
+under a build flag. The interpreter and the probe-script language
+survive unchanged; only <em>how the probes reach the kernel</em> changed —
+from data living on the card to a blob baked into the image.</blockquote>
+<h2 id="current-behavior"><a class="self" href="#current-behavior">§</a> Current behavior</h2>
+<p>The built-in design below is implemented and both build variants are
+green. <code>scripts/build</code> produces a lean kernel whose
+<code>019-probe-engine.o</code> is an empty object — no probe code in the image.
+<code>scripts/build --probes</code> runs the generator (<code>scripts/embed-probes</code>),
+which embeds the seven <code>#AUTO</code>-marked probes from <code>input/probes/</code> into
+the kernel in priority order, and the engine walks them on boot. This
+is verified at build time: the probe symbols and the embedded probe
+text are present in the <code>--probes</code> ELF and absent from the lean ELF.
+The interpreter (<code>R</code>/<code>W</code>/<code>DUMP</code>/<code>DELAY</code>/<code>EXPECT</code>/<code>POLL</code>/<code>CALL</code>/<code>LOG</code>)
+and its <code>CALL</code> targets (<code>sd_init</code>, <code>emmc_init</code>, <code>emmc_read0</code>,
+<code>backup200</code>, <code>memtest</code>, <code>pmic_dump</code>) are unchanged from the version
+already exercised; only the front end that fetches probes changed.</p>
+<p>The old SD-card delivery is retired. <code>load_probe_catalog</code> is gone from
+<code>flash-sd</code> (back to unmount → one <code>dd</code> → eject); <code>select-probe</code>,
+<code>write-probe</code>, and <code>probe-common.sh</code> are archived under
+<code>scripts/lab-side/retired/</code>; <code>push-to-usb</code> no longer syncs
+<code>input/probes/</code> to the drive; and the SD probe-region notes are out of
+<a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a>.</p>
+<p>Verified on real hardware (2026-06-29). A <code>--probes</code> image flashed and
+booted ran all seven probes start to finish — each bracketed by its
+START/END banner, none hung — and parked at the done LED (top red +
+bottom amber, <em>not</em> the long backup grind), confirming the boot-time
+hand-off (kernel_main → embedded sweep → park) works. <code>dump-from-sd</code>
+split the swept log into seven per-probe files.</p>
+<p>The sweep doubled as a phase-1 health report: DRAM memtest PASS; eMMC
+alive (CID 0x00010AA9, caps 0x226DC881, block 0 reads real data); the
+<strong>eMMC DLL locks at 200 MHz</strong> (DLL_STATUS0 = 0x13B, lock value 0x3B —
+this greenlights the HS200 fast path, filed as 110j); USB2 PHY in
+OTG-normal state (0x0C52); DWC3 core readable (GSNPSID 0x5533300A). It
+also surfaced three leads for other issues: the VOP2 display reads
+version 0x40158023 (alive — the probe's expected value was corrected
+from a TRM guess), the SARADC converts channel 0 but times out on 1–5,
+and the RK817 PMIC does not answer over i2c0. The probe engine itself
+is done; those three are inputs to their own subsystem work, not to
+this issue.</p>
+<p>One bug surfaced and was fixed in the read-back tooling, not the
+engine: <code>dump-from-sd</code>'s log-splitter ran its file-writing <code>awk</code>
+without <code>sudo</code>, so it could not create the per-probe files in the
+root-owned <code>lab-output/</code> on the drive (&quot;cannot redirect … Permission
+denied&quot;). The <code>awk</code> now runs under <code>sudo</code>, matching the <code>dd</code> dumps
+beside it.</p>
+<h2 id="intended-behavior"><a class="self" href="#intended-behavior">§</a> Intended behavior</h2>
+<p>Probes are compiled into the kernel as part of the build. A normal
+<code>scripts/build</code> produces a lean, probe-free kernel. A
+<code>scripts/build --probes</code> build embeds every probe in <code>input/probes/</code>
+and, on boot, runs them all — the whole battery, in priority order —
+then parks with the log preserved. No card writes, no lab-side
+selection, no SD probe regions. The diagnostic kernel is a *build
+variant*, not a data payload carried on the card.</p>
+<p>This is the right shape because the two ideas that justified the
+SD-card design are both gone:</p>
+<ul>
+<li>The interpreter existed so a probe could change *without a kernel
+rebuild*. A build flag <strong>is</strong> a rebuild, so that benefit no longer
+applies — we rebuild either way.</li>
+<li>The catalog existed so a lab tech could <em>select</em> which probes to
+ship. We decided to run them all every time (they are quick), so
+there is nothing left to select.</li>
+</ul>
+<p>What stays worth keeping is the interpreter itself and the
+probe-script text format: writing a probe as a few <code>R</code>/<code>W</code>/<code>EXPECT</code>
+lines is more pleasant than hand-writing MMIO accessors in C, and the
+eight existing probes are already in that form. So the language
+stays; only the transport changes.</p>
+<h3 id="the-probe-script-language-unchanged"><a class="self" href="#the-probe-script-language-unchanged">§</a> The probe script language (unchanged)</h3>
+<p>A tiny line-oriented interpreter. One command per line; <code>#</code> begins a
+comment; blank lines ignored. The minimum useful set:</p>
+<ul>
+<li><code>R &lt;addr&gt;</code> — read a 32-bit word at <code>addr</code>, log <code>addr = value</code>.</li>
+<li><code>RH &lt;addr&gt;</code> / <code>RB &lt;addr&gt;</code> — 16-bit / 8-bit read.</li>
+<li><code>W &lt;addr&gt; &lt;val&gt;</code> — write a 32-bit word.</li>
+<li><code>WH</code> / <code>WB</code> — 16-bit / 8-bit write.</li>
+<li><code>DUMP &lt;addr&gt; &lt;count&gt;</code> — log <code>count</code> consecutive 32-bit words.</li>
+<li><code>DELAY &lt;n&gt;</code> — busy-delay roughly <code>n</code> loop units.</li>
+<li><code>EXPECT &lt;addr&gt; &lt;val&gt; &lt;mask&gt;</code> — read, AND with mask, compare to
+val, log <code>PASS</code>/<code>FAIL</code>. Lets a script be a self-checking test.</li>
+<li><code>CALL &lt;name&gt;</code> — invoke a named built-in routine from a small
+dispatch table (<code>sd_init</code>, <code>emmc_init</code>, <code>emmc_read0</code>, etc.) so
+scripts can exercise whole driver entry points, not just raw
+registers.</li>
+<li><code>LABEL</code> / <code>LOG &lt;text&gt;</code> — emit a literal marker into the log so
+the output is readable.</li>
+</ul>
+<p>The address and value tokens are hex. The interpreter is
+deliberately dumb — no arithmetic, no variables, no control flow
+beyond top-to-bottom. Anything more complex belongs in C.</p>
+<h3 id="how-the-probes-are-embedded"><a class="self" href="#how-the-probes-are-embedded">§</a> How the probes are embedded</h3>
+<p>At <code>--probes</code> build time a small generator (Lua, LuaJIT-compatible
+per project convention) reads every <code>input/probes/*.probe</code>, orders
+them by their <code>#AUTO</code> priority (lower runs first), and bakes each one
+— name, writes-enabled flag, and the raw script text as a byte array
+— into a generated C source file. That file declares a
+<code>builtin_probes[]</code> array and a count the engine walks.</p>
+<p>The generator writes its output into the RAM-backed build directory
+(<code>tmp/build/</code>), <strong>outside</strong> <code>src/</code>, for two reasons: the Makefile's
+<code>find $(SRC_DIR) -name '*.c'</code> glob never picks it up in a normal
+build (so no stale blob from a previous <code>--probes</code> run can leak into
+a production image), and the RAM directory keeps the derived artifact
+off the SSD. The build is told to compile the probe engine and the
+generated blob, and to define <code>-DSOREN_PROBES</code>, only when the flag is
+present.</p>
+<p>A probe still joins the battery — and gets its run order — through an
+<code>#AUTO [N]</code> marker line; its writes-enabled bit still comes from a
+<code>#WRITES</code> marker. The difference is <em>when</em> those markers are read:
+the generator reads them at build time, where the lab tooling used to
+read them at flash time. (The marker-parsing logic that lived in
+<code>probe-common.sh</code> moves into the generator.)</p>
+<h3 id="running-the-battery"><a class="self" href="#running-the-battery">§</a> Running the battery</h3>
+<p>On a <code>--probes</code> boot, after the SD block driver and the debug log are
+up, the kernel walks the embedded array in order, runs each probe
+through the interpreter bracketed by <code>===== PROBE name =====</code>
+banners, and flushes the log after each one. Because the engine is
+single-threaded and cannot preempt, a probe that hangs leaves
+everything before it already safe on the card — the stuck probe is
+the last START banner with no matching END. When the battery
+finishes, the core parks; the developer pulls the card and reads the
+log with <code>dump-from-sd</code>, which still splits the swept log into one
+file per probe.</p>
+<h3 id="the-safety-boundary-unchanged"><a class="self" href="#the-safety-boundary-unchanged">§</a> The safety boundary (unchanged)</h3>
+<p>The probe interpreter can read and write arbitrary MMIO, which is
+powerful and dangerous. Guard rails:</p>
+<ul>
+<li>An allowlist of address ranges the interpreter will touch (the
+peripheral register windows from <a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a>);
+a <code>W</code> outside the allowlist is logged and skipped, not executed.</li>
+<li>Write commands are only honoured if the probe carries an explicit
+&quot;writes enabled&quot; flag (the <code>#WRITES</code> marker), so a read-only probe
+cannot accidentally poke a register.</li>
+<li>The interpreter never touches the eMMC or SD storage regions by raw
+<code>W</code> — those go through the block drivers' own calls via <code>CALL</code>,
+which carry their own bounds checks.</li>
+</ul>
+<h2 id="why-a-build-flag-and-not-the-card"><a class="self" href="#why-a-build-flag-and-not-the-card">§</a> Why a build flag and not the card</h2>
+<p>The eMMC bring-up was the original argument for SD delivery: a
+one-line clock-source fix took a dozen reflash cycles to find because
+each hypothesis needed a recompile. But the cure we built — writing
+probe data onto the card after the flash — turned out to have its own
+fragile, <em>invisible</em> step: the post-flash whole-disk write that the
+laptop's automounter keeps breaking, failing silently. Several flash
+cycles were then burned not on hypotheses but on the delivery
+mechanism itself.</p>
+<p>Compiling the probes in trades the SD write (which we cannot see or
+test on the air-gapped laptop) for an extra build flag (which we run
+and verify on the main machine, where the bytes are inspectable
+before they ship). The image is written by one large <code>dd</code> that
+already works on every boot — it is what puts the kernel on the card
+— so the probe blob rides in on the transport we trust. The slow
+edit-rebuild loop the interpreter was meant to avoid is still avoided
+<em>for register tweaks</em>: editing a <code>.probe</code> text file and rebuilding is
+far cheaper than editing and rebuilding C, even though both are
+rebuilds.</p>
+<h2 id="relationship-to-the-live-usb-console-future"><a class="self" href="#relationship-to-the-live-usb-console-future">§</a> Relationship to the live USB console (future)</h2>
+<p>The richer form — a genuinely interactive console where the developer
+types probe commands over USB CDC-ACM and sees results live while the
+kernel runs — depends on the USB device stack (109a/109b) coming up.
+When it does, the same interpreter core can be fed from the USB
+channel instead of (or in addition to) the embedded array. The
+language and the dispatch table are shared; only the input source
+differs. This is the same separation the SD design relied on; moving
+the default source from &quot;card region&quot; to &quot;embedded blob&quot; does not
+disturb it.</p>
+<h2 id="suggested-implementation-steps"><a class="self" href="#suggested-implementation-steps">§</a> Suggested implementation steps</h2>
+<ol>
+<li>Rewrite this issue to the built-in design (this document) before
+touching code.</li>
+<li>Add a <code>--probes</code> flag to <code>scripts/build</code> (treated as a flag, not a
+make target) that runs the generator and passes <code>-DSOREN_PROBES</code>
+plus the generated object through the Makefile.</li>
+<li>Write the generator: read <code>input/probes/*.probe</code>, sort by <code>#AUTO</code>,
+emit <code>builtin_probes[]</code> (name, writes flag, byte array) into
+<code>tmp/build/</code>.</li>
+<li>Wrap <code>src/019-probe-engine.c</code>'s body in <code>#ifdef SOREN_PROBES</code> so a
+normal build compiles it to an empty object — no probe code in a
+production image.</li>
+<li>Replace the engine's SD-card front end (<code>probe_engine_run</code> /
+the catalog-manifest reader) with one that walks <code>builtin_probes[]</code>
+in order; keep the interpreter and every <code>CALL</code> target as-is.</li>
+<li>Guard the <code>kernel_main</code> probe call with <code>#ifdef SOREN_PROBES</code>: run
+the battery and park on a <code>--probes</code> build; go straight to the
+normal flow otherwise.</li>
+<li>Retire the SD-driven machinery: <code>load_probe_catalog</code> (flash-sd
+returns to unmount → one <code>dd</code> → eject), <code>select-probe</code>,
+<code>write-probe</code>, <code>probe-common.sh</code>, and the SD probe-region notes in
+<a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a>. Archive, don't silently delete;
+grep for stragglers.</li>
+</ol>
+<h2 id="superseded-design-sd-card-delivery"><a class="self" href="#superseded-design-sd-card-delivery">§</a> Superseded design: SD-card delivery</h2>
+<p>Kept as the story of how this came to be, and because the safety
+model and the script language carried straight over.</p>
+<p>The kernel read its one active probe from a reserved microSD region
+(LBA <code>0x100000</code>), with a magic header selecting the mode: <code>SPRB</code> =
+one embedded script follows, <code>SPRA</code> = run the whole catalog. The
+<strong>catalog</strong> at LBA <code>0x180000</code> held every probe in numbered 32-block
+slots, slot 0 a plain-text manifest (<code>name slot writes auto</code>) led by
+an <code>SPCT</code> sentinel. <code>flash-sd</code> wrote the entire catalog on every
+flash and armed an <code>SPRA</code> run-all sweep by default; <code>select-probe</code>
+narrowed to one probe or re-armed the sweep; <code>write-probe</code> pushed a
+single ad-hoc script. The LBA constants lived once in
+<code>scripts/lab-side/probe-common.sh</code>, matched to the kernel and to
+<a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a>.</p>
+<p>It died on the post-flash write race described under &quot;Current
+behavior&quot;: modern kernels refuse whole-disk writes while a partition
+is mounted, and the laptop's automounter kept re-mounting the card
+between the tool's <code>dd</code>s. A held-open-fd workaround was attempted
+(hold one writer open across the whole catalog write, which both
+blocks the automounter and suppresses the per-close partition rescan)
+and its byte layout was verified off-device, but by then the simpler
+truth was clear: with run-all as the only mode and a rebuild required
+regardless, the card never needed to carry the probes at all.</p>
+<h2 id="related-documents"><a class="self" href="#related-documents">§</a> Related documents</h2>
+<ul>
+<li><a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a> — the MMIO allowlist ranges the
+interpreter enforces. (Its SD probe-region layout notes are removed
+as part of step 7.)</li>
+<li><a class="src" href="issue-110h.html"><code>issues/110h-phase-1-bringup-test-suite.md</code></a> — the static test
+runner this generalizes; the suite is one built-in <code>CALL</code> target.</li>
+<li><a class="src" href="issue-110g.html"><code>issues/110g-sd-card-debug-log.md</code></a> — the output channel the probe
+results still flow through.</li>
+</ul>
+<h2 id="blocked-by"><a class="self" href="#blocked-by">§</a> Blocked by</h2>
+<p>110g (SD-card debug log) — the probe results are written there; it is
+working. The probe engine no longer needs SD <em>reads</em> now that probes
+are compiled in, so the old dependency on 110f's read path is gone
+(the log still uses 110f's write path).</p><p class="filter-note">source: <code>issues/completed/110i-dynamic-hardware-probe.md</code></p><div class="pager"><span>← <a href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a></span><span><a href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a> →</span></div></main></div></body></html>

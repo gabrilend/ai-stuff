@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Physical memory map — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details open><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="here" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="physical-memory-map"><a class="self" href="#physical-memory-map">§</a> Physical memory map</h1>
+<p>The Anbernic RG DS is a Rockchip RK3568 with 3 GB of LPDDR4
+DRAM. Like every modern SoC, the chip exposes that DRAM and a
+large collection of peripheral register windows in a single
+unified 64-bit physical address space. This document catalogues
+the whole space — the DRAM region the page allocator hands out,
+the reserved sub-regions of DRAM that lower-layer firmware
+keeps for itself, and every peripheral register block we have
+identified.</p>
+<p>Why pin all of it down here, even the peripherals we won't
+touch for many issues: each peripheral driver later in phase 1
+and beyond will need its register base address, and finding
+those addresses one-at-a-time in the datasheet across many
+sessions is wasteful. Doing the harvest once, here, lets every
+later driver reference a known authoritative catalogue. The
+peripheral bases also serve as a safety net for the page
+allocator — it explicitly knows where DRAM ends, and every
+peripheral region is outside that bound, but documenting the
+boundary in both directions is cheap insurance against a
+copy-paste mistake.</p>
+<p>This document and the linker script in <code>src/kernel.ld</code> together
+fully describe where everything in the system lives.</p>
+<h2 id="dram-regions"><a class="self" href="#dram-regions">§</a> DRAM regions</h2>
+<p>DRAM sits at the bottom of the physical address space, starting
+at zero. The RK3568's memory controller maps up to 8 GB; this
+particular device populates 3 GB. So the DRAM range is:</p>
+<div class="table-wrap"><table>
+<tr><th>Range</th><th>Notes</th></tr>
+<tr><td><code>0x0000_0000</code> – <code>0xC000_0000</code></td><td>Three gigabytes of LPDDR4, populated.</td></tr>
+<tr><td><code>0xC000_0000</code> – <code>0x2_0000_0000</code></td><td>Unpopulated. Bus errors if accessed.</td></tr>
+</table></div>
+<p>Within the populated DRAM, lower-layer firmware claims the
+bottom slice for its own use. The page allocator must stay
+above this slice.</p>
+<div class="table-wrap"><table>
+<tr><th>Range</th><th>Owner</th></tr>
+<tr><td><code>0x0000_0000</code> – <code>0x0020_0000</code></td><td>Secure firmware (BL31 / ATF). Untouchable.</td></tr>
+<tr><td><code>0x0020_0000</code> – <code>0x0200_0000</code></td><td>Bootloader working set. The bootloader on the active path lives somewhere here along with its heap, its decompression scratch, and any framebuffer it set up. Treated as opaque pre-kernel territory.</td></tr>
+<tr><td><code>0x0200_0000</code> – <code>__stack_top</code></td><td>SoreOS kernel image, including its stack.</td></tr>
+<tr><td><code>__stack_top</code> – <code>0xC000_0000</code></td><td>Free DRAM. This is what the page allocator hands out.</td></tr>
+</table></div>
+<p><code>__stack_top</code> is the linker symbol defined in <code>src/kernel.ld</code>;
+right now it sits a few KB above <code>0x0200_0000</code> because the
+kernel itself is small. As the kernel grows it pushes
+<code>__stack_top</code> upward; the allocator's pool starts wherever
+<code>__stack_top</code> lands at the end of a particular build.</p>
+<h3 id="caveats-and-open-questions"><a class="self" href="#caveats-and-open-questions">§</a> Caveats and open questions</h3>
+<p>The kernel's load address of <code>0x0200_0000</code> is the address
+ROCKNIX's u-boot uses on the SD-card development boot path
+(its compiled-in <code>kernel_addr_r</code> environment value). The same
+address is baked into the Android boot.img header the
+boot-partition writer in <code>src/013-boot-image.c</code> emits, so once
+the eMMC takeover lands Anbernic's u-boot loads our kernel to
+the same place. The linker pins the kernel at that address;
+both boot paths produce the same in-memory layout, and the
+literal-pool addresses the linker resolved match the physical
+addresses the running kernel actually inhabits.</p>
+<p>The pre-kernel boundary moved from <code>0x0028_0000</code> to
+<code>0x0200_0000</code> in issue <a class="issue done" href="issue-103d.html" title="103d — Kernel load address matches what the SD-boot bootloader actually uses">103d</a>. The earlier value was a guess
+inherited from Anbernic's Android conventions; ROCKNIX's
+mainline-derived u-boot uses the higher value, and the first
+SD-boot hardware test surfaced the mismatch as a kernel that
+loaded and was jumped to but read its own data from the wrong
+memory. The new boundary is verified against the u-boot
+binary's compiled-in defaults rather than guessed. If a future
+boot shows allocator corruption near the bottom of the pool,
+the actual u-boot reserved region may extend higher than
+<code>0x0200_0000</code>; the answer would be to bump that boundary up
+and rebuild.</p>
+<p>The 3 GB DRAM size is from Anbernic's spec sheet. The RK3568
+memory controller can report the populated size at boot through
+the CRU and DDR controller registers, but we have no reason to
+trust the spec sheet less than that hardware report. If DRAM
+faults appear in the upper part of the range, that is the next
+place to look.</p>
+<p>The GPU has a memory carve-out we have not located. The phase 1
+demo does not use the GPU, so the carve-out is irrelevant until
+a phase that does. When the day comes, the place to look is the
+Rockchip Android u-boot configuration on the Anbernic image —
+it pins the carve-out address as a boot argument.</p>
+<h2 id="peripheral-register-windows"><a class="self" href="#peripheral-register-windows">§</a> Peripheral register windows</h2>
+<p>All RK3568 peripherals live above DRAM, in the address range
+roughly <code>0xFC00_0000</code> to <code>0xFF00_0000</code>. Bus accesses outside
+this range and outside DRAM produce bus faults.</p>
+<p>Addresses below are from the upstream device tree at
+<code>arch/arm64/boot/dts/rockchip/rk356x-base.dtsi</code> in Heiko
+Stuebner's <code>linux-rockchip</code> tree (the same source the hardware
+overview at <a class="src" href="doc-014-hardware-overview.html"><code>014-hardware-overview.md</code></a> harvested from).</p>
+<h3 id="interrupt-and-clock-infrastructure"><a class="self" href="#interrupt-and-clock-infrastructure">§</a> Interrupt and clock infrastructure</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFD40_0000</code></td><td><code>0x10000</code></td><td>GIC distributor</td></tr>
+<tr><td><code>0xFD46_0000</code></td><td><code>0x80000</code></td><td>GIC redistributors</td></tr>
+<tr><td><code>0xFDD9_0000</code></td><td><code>0x1000</code></td><td>PMU (power-management) — earlier version of this doc had this row at <code>0xFD80_0000</code> (the address of USB2 host 0 EHCI per the device tree). Crossed with the USB-controller transcription errors caught alongside the DWC3 controller's address bug; corrected against the device tree we extracted from ROCKNIX.</td></tr>
+<tr><td><code>0xFDC2_0000</code></td><td><code>0x10000</code></td><td>PMU GRF</td></tr>
+<tr><td><code>0xFDC5_0000</code></td><td><code>0x1000</code></td><td>Pipe GRF</td></tr>
+<tr><td><code>0xFDC6_0000</code></td><td><code>0x10000</code></td><td>General Register File (GRF)</td></tr>
+<tr><td><code>0xFDC8_0000</code></td><td><code>0x1000</code></td><td>Pipe PHY GRF 1</td></tr>
+<tr><td><code>0xFDC9_0000</code></td><td><code>0x1000</code></td><td>Pipe PHY GRF 2</td></tr>
+<tr><td><code>0xFDCA_0000</code></td><td><code>0x8000</code></td><td>USB2 PHY 0 GRF</td></tr>
+<tr><td><code>0xFDCA_8000</code></td><td><code>0x8000</code></td><td>USB2 PHY 1 GRF</td></tr>
+<tr><td><code>0xFDD0_0000</code></td><td><code>0x1000</code></td><td>PMU CRU (clock controller for the PMU domain)</td></tr>
+<tr><td><code>0xFDD2_0000</code></td><td><code>0x1000</code></td><td>Main CRU (clock controller for the main domain)</td></tr>
+</table></div>
+<p>The GRF blocks are the &quot;general register files&quot; — they hold
+chip-wide iomux and miscellaneous control registers that are
+not part of any single peripheral. The pinctrl driver writes
+into these to change pin functions.</p>
+<h3 id="gpio-banks"><a class="self" href="#gpio-banks">§</a> GPIO banks</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Bank</th><th>Location</th></tr>
+<tr><td><code>0xFDD6_0000</code></td><td><code>0x100</code></td><td>GPIO0</td><td>PMU domain (always-on)</td></tr>
+<tr><td><code>0xFE74_0000</code></td><td><code>0x100</code></td><td>GPIO1</td><td>Main domain</td></tr>
+<tr><td><code>0xFE75_0000</code></td><td><code>0x100</code></td><td>GPIO2</td><td>Main domain</td></tr>
+<tr><td><code>0xFE76_0000</code></td><td><code>0x100</code></td><td>GPIO3</td><td>Main domain</td></tr>
+<tr><td><code>0xFE77_0000</code></td><td><code>0x100</code></td><td>GPIO4</td><td>Main domain</td></tr>
+</table></div>
+<p>Each bank exposes 32 pins. GPIO0 is in the PMU domain so it
+stays alive during sleep — relevant to the Hall switch wake-up
+input on GPIO0 PC3 (per the hardware overview).</p>
+<h3 id="storage-and-external-connectivity"><a class="self" href="#storage-and-external-connectivity">§</a> Storage and external connectivity</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE00_0000</code></td><td><code>0x4000</code></td><td>SDMMC2 (WiFi SDIO on this device)</td></tr>
+<tr><td><code>0xFE01_0000</code></td><td><code>0x10000</code></td><td>GMAC1 (gigabit Ethernet MAC)</td></tr>
+<tr><td><code>0xFE26_0000</code></td><td><code>0x4000</code></td><td>PCIe 2.x lane</td></tr>
+<tr><td><code>0xFE2B_0000</code></td><td><code>0x4000</code></td><td>SDMMC0 (external microSD slot)</td></tr>
+<tr><td><code>0xFE2C_0000</code></td><td><code>0x4000</code></td><td>SDMMC1</td></tr>
+<tr><td><code>0xFE30_0000</code></td><td><code>0x4000</code></td><td>SFC (serial flash controller)</td></tr>
+<tr><td><code>0xFE31_0000</code></td><td><code>0x10000</code></td><td>SDHCI (internal eMMC, 8-bit non-removable)</td></tr>
+</table></div>
+<p>The Anbernic RG DS uses SDHCI for the eMMC, SDMMC0 for the
+external microSD, and SDMMC2 for the WiFi SDIO — per the
+hardware overview. GMAC1, PCIe, SDMMC1, and SFC are present in
+the chip but not wired up on this board.</p>
+<h3 id="audio-interfaces"><a class="self" href="#audio-interfaces">§</a> Audio interfaces</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE40_0000</code></td><td><code>0x1000</code></td><td>I2S0 (8-channel)</td></tr>
+<tr><td><code>0xFE41_0000</code></td><td><code>0x1000</code></td><td>I2S1 (8-channel)</td></tr>
+<tr><td><code>0xFE42_0000</code></td><td><code>0x1000</code></td><td>I2S2 (2-channel)</td></tr>
+<tr><td><code>0xFE43_0000</code></td><td><code>0x1000</code></td><td>I2S3 (2-channel)</td></tr>
+<tr><td><code>0xFE44_0000</code></td><td><code>0x1000</code></td><td>PDM</td></tr>
+<tr><td><code>0xFE46_0000</code></td><td><code>0x1000</code></td><td>SPDIF</td></tr>
+</table></div>
+<h3 id="direct-memory-access"><a class="self" href="#direct-memory-access">§</a> Direct memory access</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE53_0000</code></td><td><code>0x4000</code></td><td>DMAC0</td></tr>
+<tr><td><code>0xFE55_0000</code></td><td><code>0x4000</code></td><td>DMAC1</td></tr>
+</table></div>
+<h3 id="i-c"><a class="self" href="#i-c">§</a> I²C</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Bus</th><th>Notes</th></tr>
+<tr><td><code>0xFDD4_0000</code></td><td><code>0x1000</code></td><td>I2C0</td><td>PMU domain — RK817 PMIC, SYR827 CPU regulator, CW2015 (disabled)</td></tr>
+<tr><td><code>0xFE5A_0000</code></td><td><code>0x1000</code></td><td>I2C1</td><td></td></tr>
+<tr><td><code>0xFE5B_0000</code></td><td><code>0x1000</code></td><td>I2C2</td><td>AW87391 audio amplifiers</td></tr>
+<tr><td><code>0xFE5C_0000</code></td><td><code>0x1000</code></td><td>I2C3</td><td>Goodix GT911 (bottom touch panel)</td></tr>
+<tr><td><code>0xFE5D_0000</code></td><td><code>0x1000</code></td><td>I2C4</td><td></td></tr>
+<tr><td><code>0xFE5E_0000</code></td><td><code>0x1000</code></td><td>I2C5</td><td>Goodix GT911 (top touch panel)</td></tr>
+</table></div>
+<h3 id="uart"><a class="self" href="#uart">§</a> UART</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Port</th><th>Notes</th></tr>
+<tr><td><code>0xFDD5_0000</code></td><td><code>0x100</code></td><td>UART0</td><td>PMU domain</td></tr>
+<tr><td><code>0xFE65_0000</code></td><td><code>0x100</code></td><td>UART1</td><td>RTL8821CS Bluetooth</td></tr>
+<tr><td><code>0xFE66_0000</code></td><td><code>0x100</code></td><td>UART2</td><td>Often the debug UART on RK3568 boards (we don't use it; RG DS exposes no header for it)</td></tr>
+<tr><td><code>0xFE67_0000</code></td><td><code>0x100</code></td><td>UART3</td><td></td></tr>
+<tr><td><code>0xFE68_0000</code></td><td><code>0x100</code></td><td>UART4</td><td></td></tr>
+<tr><td><code>0xFE69_0000</code></td><td><code>0x100</code></td><td>UART5</td><td></td></tr>
+<tr><td><code>0xFE6A_0000</code></td><td><code>0x100</code></td><td>UART6</td><td></td></tr>
+<tr><td><code>0xFE6B_0000</code></td><td><code>0x100</code></td><td>UART7</td><td></td></tr>
+<tr><td><code>0xFE6C_0000</code></td><td><code>0x100</code></td><td>UART8</td><td></td></tr>
+<tr><td><code>0xFE6D_0000</code></td><td><code>0x100</code></td><td>UART9</td><td></td></tr>
+</table></div>
+<h3 id="spi"><a class="self" href="#spi">§</a> SPI</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Bus</th></tr>
+<tr><td><code>0xFE61_0000</code></td><td><code>0x1000</code></td><td>SPI0</td></tr>
+<tr><td><code>0xFE62_0000</code></td><td><code>0x1000</code></td><td>SPI1</td></tr>
+<tr><td><code>0xFE63_0000</code></td><td><code>0x1000</code></td><td>SPI2</td></tr>
+<tr><td><code>0xFE64_0000</code></td><td><code>0x1000</code></td><td>SPI3</td></tr>
+</table></div>
+<h3 id="pwm-controllers-and-channels"><a class="self" href="#pwm-controllers-and-channels">§</a> PWM controllers and channels</h3>
+<p>Each &quot;PWM&quot; block on the RK3568 is a single channel; four
+channels share a controller block. The arrangement:</p>
+<div class="table-wrap"><table>
+<tr><th>Controller block</th><th>Base</th><th>Channels</th><th>Notes (RG DS)</th></tr>
+<tr><td>PWM0 controller</td><td><code>0xFDD7_0000</code></td><td>PWM0-PWM3</td><td>—</td></tr>
+<tr><td>PWM1 controller</td><td><code>0xFE6E_0000</code></td><td>PWM4-PWM7</td><td>PWM5/6/7 drive the three LEDs (green / amber / red)</td></tr>
+<tr><td>PWM2 controller</td><td><code>0xFE6F_0000</code></td><td>PWM8-PWM11</td><td>—</td></tr>
+<tr><td>PWM3 controller</td><td><code>0xFE70_0000</code></td><td>PWM12-PWM15</td><td>—</td></tr>
+</table></div>
+<p>Each channel within a controller is 0x10 bytes from the
+controller base:</p>
+<div class="table-wrap"><table>
+<tr><th>Channel</th><th>Address</th><th>Used for</th></tr>
+<tr><td>PWM0</td><td><code>0xFDD7_0000</code></td><td></td></tr>
+<tr><td>PWM1</td><td><code>0xFDD7_0010</code></td><td></td></tr>
+<tr><td>PWM2</td><td><code>0xFDD7_0020</code></td><td></td></tr>
+<tr><td>PWM3</td><td><code>0xFDD7_0030</code></td><td></td></tr>
+<tr><td>PWM4</td><td><code>0xFE6E_0000</code></td><td></td></tr>
+<tr><td>PWM5</td><td><code>0xFE6E_0010</code></td><td>green LED</td></tr>
+<tr><td>PWM6</td><td><code>0xFE6E_0020</code></td><td>amber LED</td></tr>
+<tr><td>PWM7</td><td><code>0xFE6E_0030</code></td><td>red LED</td></tr>
+<tr><td>PWM8</td><td><code>0xFE6F_0000</code></td><td></td></tr>
+<tr><td>PWM9</td><td><code>0xFE6F_0010</code></td><td></td></tr>
+<tr><td>PWM10</td><td><code>0xFE6F_0020</code></td><td></td></tr>
+<tr><td>PWM11</td><td><code>0xFE6F_0030</code></td><td></td></tr>
+<tr><td>PWM12</td><td><code>0xFE70_0000</code></td><td></td></tr>
+<tr><td>PWM13</td><td><code>0xFE70_0010</code></td><td></td></tr>
+<tr><td>PWM14</td><td><code>0xFE70_0020</code></td><td></td></tr>
+<tr><td>PWM15</td><td><code>0xFE70_0030</code></td><td></td></tr>
+</table></div>
+<p>Within each PWM channel, the 16-byte register window is:
+<code>+0x00</code> counter, <code>+0x04</code> duty, <code>+0x08</code> period, <code>+0x0C</code> control.
+The LED driver in <code>src/003-pwm.c</code> hard-codes these offsets.</p>
+<h3 id="sensors"><a class="self" href="#sensors">§</a> Sensors</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE60_0000</code></td><td><code>0x100</code></td><td>Watchdog</td></tr>
+<tr><td><code>0xFE71_0000</code></td><td><code>0x100</code></td><td>TSADC (thermal sensor)</td></tr>
+<tr><td><code>0xFE72_0000</code></td><td><code>0x100</code></td><td>SARADC (general-purpose ADC, drives the HOME and PLAY ADC buttons per the hardware overview)</td></tr>
+</table></div>
+<p>The watchdog is the hardware piece the safety document
+(<a class="src" href="note-safety-000-bricking-and-recovery-md.html"><code>notes/safety/000-bricking-and-recovery.md</code></a>) requires us to pet
+once it is configured. Phase 1 does not yet configure it; the
+issue that does will reference this base address.</p>
+<h3 id="usb-controllers-and-phys"><a class="self" href="#usb-controllers-and-phys">§</a> USB controllers and PHYs</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE83_0000</code></td><td><code>0x100</code></td><td>combphy1 (USB / PCIe combo PHY)</td></tr>
+<tr><td><code>0xFE84_0000</code></td><td><code>0x100</code></td><td>combphy2 (USB / PCIe combo PHY)</td></tr>
+<tr><td><code>0xFE8A_0000</code></td><td><code>0x10000</code></td><td>USB2 PHY 0</td></tr>
+<tr><td><code>0xFE8B_0000</code></td><td><code>0x10000</code></td><td>USB2 PHY 1</td></tr>
+<tr><td><code>0xFCC0_0000</code></td><td><code>0x40_0000</code></td><td>USB3 OTG controller (DWC3) — wired to USB-C. The first iteration of this document said <code>0xFEC0_0000</code>, copied from an earlier Rockchip BSP version that used a different bus mapping; the actual address on this device, per the device tree we extracted from ROCKNIX, is <code>0xFCC0_0000</code>. The wrong address was the fault site for the USB cycling we hit during phase-1 hardware testing.</td></tr>
+<tr><td><code>0xFD00_0000</code></td><td><code>0x40_0000</code></td><td>USB3 host 1 (xHCI) — not wired on RG DS</td></tr>
+<tr><td><code>0xFD80_0000</code></td><td><code>0x4_0000</code></td><td>USB2 host 0 EHCI</td></tr>
+<tr><td><code>0xFD84_0000</code></td><td><code>0x4_0000</code></td><td>USB2 host 0 OHCI</td></tr>
+<tr><td><code>0xFD88_0000</code></td><td><code>0x4_0000</code></td><td>USB2 host 1 EHCI</td></tr>
+<tr><td><code>0xFD8C_0000</code></td><td><code>0x4_0000</code></td><td>USB2 host 1 OHCI</td></tr>
+</table></div>
+<p>The USB controller issue <a class="issue" href="issue-109.html" title="109 — USB controller and device-mode bring-up (parent / index)">109</a> will bring up will be USB3 host 0
+in device (OTG) mode, since that is the controller connected to
+the USB-C port.</p>
+<h3 id="display-and-video"><a class="self" href="#display-and-video">§</a> Display and video</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFE85_0000</code></td><td><code>0x10000</code></td><td>DSI D-PHY 0 (bottom panel)</td></tr>
+<tr><td><code>0xFE86_0000</code></td><td><code>0x10000</code></td><td>DSI D-PHY 1 (top panel)</td></tr>
+<tr><td><code>0xFE87_0000</code></td><td><code>0x10000</code></td><td>CSI D-PHY (camera, unused here)</td></tr>
+<tr><td><code>0xFEA0_0000</code></td><td><code>0x3000</code></td><td>VOP2 (Video Output Processor)</td></tr>
+<tr><td><code>0xFEA0_4000</code></td><td><code>0x1000</code></td><td>VOP2 gamma LUT</td></tr>
+<tr><td><code>0xFEA4_0000</code></td><td><code>0x20000</code></td><td>HDMI (not wired on the RG DS)</td></tr>
+</table></div>
+<p>Issues <a class="issue" href="issue-111a.html" title="111a — VOP2 display controller bring-up">111a</a> and <a class="issue" href="issue-111b.html" title="111b — MIPI DSI controller and PHY bring-up">111b</a> will bring up VOP2 and both DSI D-PHYs to
+drive the two panels.</p>
+<h3 id="graphics-video-encode-decode"><a class="self" href="#graphics-video-encode-decode">§</a> Graphics, video encode/decode</h3>
+<div class="table-wrap"><table>
+<tr><th>Base</th><th>Size</th><th>Block</th></tr>
+<tr><td><code>0xFDE6_0000</code></td><td><code>0x4000</code></td><td>Mali-G52 GPU</td></tr>
+<tr><td><code>0xFDEA_A000</code></td><td><code>0x800</code></td><td>VPU (video decoder)</td></tr>
+<tr><td><code>0xFDEB_0000</code></td><td><code>0x180</code></td><td>RGA (2D graphics accelerator)</td></tr>
+<tr><td><code>0xFDEE_E000</code></td><td><code>0x800</code></td><td>VEPU (video encoder)</td></tr>
+<tr><td><code>0xFDFF_E000</code></td><td><code>0x200</code></td><td>VICAP (video input capture)</td></tr>
+</table></div>
+<p>Phase 1 does not bring up any of these. They are catalogued so a
+later phase that wants hardware video encode or 2D blits knows
+where to look.</p>
+<h2 id="why-we-do-not-use-the-address-space-above-the-peripheral-range"><a class="self" href="#why-we-do-not-use-the-address-space-above-the-peripheral-range">§</a> Why we do not use the address space above the peripheral range</h2>
+<p>Anything above the documented peripheral range (<code>&gt; 0xFEFF_FFFF</code>
+or so) on the RK3568 is either reserved by the chip vendor for
+future use or aliased to other regions. Touching it produces
+bus faults at best and undefined behaviour at worst. The page
+allocator's pool is bounded above by <code>0xC000_0000</code> (the end of
+populated DRAM); the peripheral range above that is the
+hardware's, not ours.</p>
+<h2 id="microsd-card-region-layout-lbas-not-chip-addresses"><a class="self" href="#microsd-card-region-layout-lbas-not-chip-addresses">§</a> microSD card region layout (LBAs, not chip addresses)</h2>
+<p>Separate from the chip's physical address space, the kernel
+reserves two regions <em>on the external microSD card</em> for its own
+use. These are logical block addresses (512-byte sectors) on the
+card, both chosen to sit far above the bootable FAT partition (the
+first ~272 MB) so the card stays bootable. Each constant is
+mirrored between the kernel source and a lab-side script; the two
+must change together.</p>
+<div class="table-wrap"><table>
+<tr><th>SD LBA</th><th>Offset</th><th>Region</th><th>Kernel source</th><th>Lab script</th></tr>
+<tr><td><code>0x20_0000</code></td><td>~1 GB</td><td>eMMC backup destination — the eMMC→SD dump lands here</td><td><code>emmc_backup_to_sd</code> arg in <code>src/002-main.c</code></td><td><code>dump-from-sd</code> (<code>BACKUP_LBA</code>)</td></tr>
+<tr><td><code>0x40_0000</code></td><td>~2 GB</td><td>Debug log ring — <code>debug_write</code> flushes narration here</td><td><code>LOG_SD_REGION_START</code> in <code>src/017-debug-log.c</code></td><td><code>dump-from-sd</code> (<code>DEBUG_LOG_LBA</code>)</td></tr>
+</table></div>
+<p>The hardware-probe battery used to claim two more card regions here —
+an &quot;active probe&quot; at <code>0x10_0000</code> and a &quot;catalog&quot; at <code>0x18_0000</code> that
+lab-side tooling wrote onto the card after flashing. Those are gone:
+the probes are compiled into the kernel now (a <code>scripts/build --debug</code>
+build embeds every <code>input/probes/*.probe</code> and runs them all on boot),
+so nothing probe-related lives on the card any more. The probe results
+still flow through the debug-log region above, and <code>dump-from-sd</code> still
+splits the swept log into one file per probe. See issue <a class="issue done" href="issue-110i.html" title="110i — dynamic hardware probe (compiled in under `--probes`)">110i</a> for why
+the delivery moved in-tree.</p><p class="filter-note">source: <code>docs/016-physical-memory-map.md</code></p><div class="pager"><span>← <a href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a></span><span><a href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a> →</span></div></main></div></body></html>

@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>110f — microSD controller driver — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details open><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class="here done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="110f-microsd-controller-driver"><a class="self" href="#110f-microsd-controller-driver">§</a> 110f — microSD controller driver<span class="status done">completed</span></h1>
+<blockquote><strong>RESOLVED on hardware.</strong> SD writes work: the kernel flushes its
+debug log to the card's reserved region, and the 110i probe sweep's
+seven per-probe logs were read back off that region with
+<code>dump-from-sd</code> — proof the SDMMC0 driver writes real blocks that
+survive a power cycle. The night-shift playbook all landed and held
+(CRU ungate/reset, the HCON discriminator, the post-reset <code>RINTSTS</code>
+clear, the <code>FIFOTH</code> value, the update-clock no-op dance, the HLE
+error bit). Closed alongside 110a as the eMMC/SD base.</blockquote>
+<h2 id="current-behavior"><a class="self" href="#current-behavior">§</a> Current behavior</h2>
+<p><code>src/015-sdmmc.c</code> brings up the SDMMC0 controller — Synopsys
+DW MSHC, distinct in IP from the SDHCI we drive the eMMC with.</p>
+<p>The very first thing the driver does is wake the controller
+out of the CRU's gated/asserted post-reset state. Unlike the
+eMMC's intermittent failure, the SD controller is *entirely
+untouched* by the SD-card boot path's bootloader — the
+BootROM reads the kernel from the SD card through fixed-offset
+reads, bypassing the SDMMC0 protocol stack — so every first
+MMIO access panics unless we ungate the clocks and pulse the
+resets ourselves. A single write to CLKGATE_CON(15) ungates
+HCLK_SDMMC0 and CLK_SDMMC0 at bits 0-1; two writes to
+SOFTRST_CON(13) assert and then deassert the two matching
+soft-resets at bits 3-4. A read of the controller's hardware-
+config register at offset 0x70 then acts as a diagnostic
+discriminator: a sensible value (the chip designer baked in
+roughly 0x0003_E47A) means the bus came up; zero means the
+SDMMC0 reset is stuck asserted; ones means the AHB clock is
+still gated.</p>
+<p>The controller is then software-reset through its CTRL
+register. The very next write clears the raw-interrupt-status
+register — the DW MSHC's interrupt-status bits survive
+controller reset, so without this write the first command's
+CMD_DONE poll fires on stale state before the controller has
+even seen our command. The FIFO threshold register is set to
+0x207F_0080 (RX watermark 0x7F, TX watermark 0x80, multiple-
+transaction size 2) from upstream Linux's setup for this
+controller variant. The card slot is powered through PWREN,
+interrupts masked in INTMASK, timeouts set generous in TMOUT,
+and the bus type set to one bit for identification.</p>
+<p>The clock divider is set for an identification-rate ~400 kHz
+and then bumped to transfer-rate after card-init completes.
+Every clock change goes through the &quot;update clock&quot; no-op
+command dance — CMD register write of <code>0xA0202000</code> followed
+by polling bit 31 to clear — without which the CLKDIV / CLKENA
+writes silently fail to take effect. The driver polls RINTSTS
+for command-done, data-over, and an error mask that includes
+HW_LOCKED_WERR (bit 12) — the indicator that fires when a
+clock-change dance was missed.</p>
+<p>The SD card walks through the standard SD-spec init sequence:
+CMD0, CMD8 to confirm 2.0+ support, ACMD41 in a loop (wrapped in
+CMD55) until the card reports ready, CMD2 to retrieve CID, CMD3
+to receive the card-published RCA, CMD9 for capacity descriptor,
+CMD7 to select the card into transfer state. The sequence
+differs from the eMMC sequence in the three places the issue
+called out (CMD8, ACMD41/CMD55, host-receives-RCA-vs-host-
+assigns-RCA).</p>
+<p>Two block-IO operations are exposed: <code>sd_read_block</code> (CMD17
+single-block read) and <code>sd_write_block</code> (CMD24 single-block
+write). Each polls the controller's FIFO at offset <code>0x200</code>,
+draining 128 32-bit words for reads or filling them for writes,
+and waits for DATA_OVER to confirm transfer completion. Errors
+roll up into a return value the caller can act on.</p>
+<p><code>kernel_main</code> now calls <code>sd_init</code> after <code>emmc_init</code>, followed by
+<code>emmc_backup_to_sd(0, 0x200000, 409600)</code> — 200 MB of eMMC
+content written to the microSD card starting at LBA <code>0x200000</code>
+(~1 GB offset, well above any region the Rockchip BootROM cares
+about). The LED stage advances to <code>STAGE_BACKUP_COMPLETE</code> (all
+three LEDs solid) when the backup finishes. The diagnostic-
+codes table is updated to match.</p>
+<p>The closing evidence on real hardware — the backup running to
+completion on the device and a <code>dd</code>-readable dump on the
+pulled microSD card — has not yet been observed because the
+new CRU bring-up hasn't been flashed and tested yet. That
+validation lands on the next hardware run. If the backup hangs
+or the SD card has no dump <em>after</em> the CRU discriminator
+passes (HCON reads roughly 0x0003_E47A but a later command
+still hangs), the suspect list shifts to the clock divider
+math (the source-clock rate the chip is currently running at
+may be a different number than the ~50 MHz the divider math
+assumes) or the FIFOTH watermark choice.</p>
+<h2 id="reopened-cru-clock-and-reset-setup-missing-plus-polling-loop-and-clock-update-fixes"><a class="self" href="#reopened-cru-clock-and-reset-setup-missing-plus-polling-loop-and-clock-update-fixes">§</a> Reopened — CRU clock and reset setup missing, plus polling-loop and clock-update fixes</h2>
+<p>Phase-1 hardware testing surfaced multiple problems the
+original implementation did not address. Symptom on
+hardware: the SD bring-up panics at the very first MMIO
+access <em>every time</em>, in contrast to the eMMC bring-up
+(which is intermittently OK because u-boot uses the eMMC
+to load the kernel and leaves its clocks on). The SD
+controller is <em>untouched by u-boot</em> — it boots from the
+SD card's bootable region via the BootROM and the
+idbloader, not through the SDMMC0 controller at all — so
+the controller arrives at our kernel with its clocks
+gated and its resets asserted, the same way it left the
+chip reset state. The driver's first MMIO access either
+reads back <code>0x00000000</code> (block reset asserted),
+<code>0xFFFFFFFF</code> (AHB clock gated), or stalls the bus enough
+to trigger an exception the bootloader catches and resets
+us on.</p>
+<p>Two driver-side issues also need fixing — a missing error-
+bit check in the command-completion poll, and a missing
+&quot;update clock&quot; command sandwich around every clock change.
+Both are subtle but bite in specific failure modes.</p>
+<h3 id="fix-piece-one-cru-clock-and-reset-bring-up"><a class="self" href="#fix-piece-one-cru-clock-and-reset-bring-up">§</a> Fix piece one — CRU clock-and-reset bring-up</h3>
+<p>Before any MMIO write to the controller at <code>0xFE2B_0000</code>,
+ungate the two clocks and pulse the two resets. Both live
+in the main CRU at <code>0xFDD2_0000</code>; the relevant registers
+are <code>CLKGATE_CON(15)</code> at offset <code>0x33C</code> (bits 0-1 for
+HCLK_SDMMC0 / CLK_SDMMC0) and <code>SOFTRST_CON(13)</code> at offset
+<code>0x434</code> (bits 3-4 for SRST_H_SDMMC0 / SRST_SDMMC0). Four
+writes:</p>
+<pre class="code">
+mmio_write32(0xFDD2033Cu, 0x00030000u);  <span class="cm">/* ungate HCLK_SDMMC0 / CLK_SDMMC0 */</span>
+mmio_write32(0xFDD20434u, 0x00180018u);  <span class="cm">/* assert SRST_H_SDMMC0 / SRST_SDMMC0 */</span>
+rough_delay(1000);
+mmio_write32(0xFDD20434u, 0x00180000u);  <span class="cm">/* deassert both resets */</span>
+</pre>
+<p>Unlike the eMMC, both resets are essential here — u-boot
+doesn't pulse either of them. The SDMMC0_DRV / SDMMC0_SAMPLE
+clocks are phase shifters, not gates; they sit on top of
+CLK_SDMMC0 and are only programmed during tuning. Bring-up
+does not need them.</p>
+<h3 id="fix-piece-two-diagnostic-discriminator"><a class="self" href="#fix-piece-two-diagnostic-discriminator">§</a> Fix piece two — diagnostic discriminator</h3>
+<p>Before issuing the controller reset, read <code>SDMMC_HCON</code> at
+<code>0xFE2B_0070</code> (4-byte read). Three possible reads tell us
+where we are:</p>
+<ul>
+<li><em>Roughly <code>0x0003_E47A</code></em>. Controller is reachable. Bus-level
+setup worked. Proceed.</li>
+<li>*<code>0x00000000</code>*. SD0 reset is still asserted —
+<code>SOFTRST_CON(13)</code> bit 3 or 4 needs clearing. Bring-up step
+panics.</li>
+<li>*<code>0xFFFFFFFF</code>*. AHB (HCLK) clock is gated —
+<code>CLKGATE_CON(15)</code> bit 0 needs clearing. Bring-up step
+panics.</li>
+</ul>
+<h3 id="fix-piece-three-controller-reset-and-the-rintsts-clear"><a class="self" href="#fix-piece-three-controller-reset-and-the-rintsts-clear">§</a> Fix piece three — controller-reset and the RINTSTS clear</h3>
+<p>The first writes after the CRU setup land at the controller
+itself. The original driver's first write was the controller
+reset (<code>CTRL</code> register at offset <code>0x00</code>, write
+<code>CTRL_RESET | FIFO_RESET | DMA_RESET = 0x07</code>, poll for the
+bits to clear). That is correct. But the <em>next</em> write must
+clear <code>RINTSTS</code> (the raw-interrupt-status register) at offset
+<code>0x44</code> with <code>0xFFFFFFFF</code>, before any later code reads
+<code>RINTSTS</code> to check for CMD_DONE. The DW MSHC's <code>RINTSTS</code> bits
+<em>survive controller reset</em> — if any bits were set from
+before (likely after a SoC reset where the controller block
+keeps its RINTSTS state), the CMD_DONE poll fires immediately
+on a stale bit and the driver thinks the very first command
+succeeded when the controller has not even seen it yet.</p>
+<p>After the RINTSTS clear, the rest of the first-writes
+sequence:</p>
+<pre class="code">
+mmio_write32(0xFE2B0024u, 0u);            <span class="cm">/* INTMASK = 0 (mask all) */</span>
+mmio_write32(0xFE2B0014u, 0xFFFFFFFFu);   <span class="cm">/* TMOUT — max response/data timeout */</span>
+mmio_write32(0xFE2B004Cu, 0x207F0080u);   <span class="cm">/* FIFOTH — watermark for fifo-depth 256 */</span>
+mmio_write32(0xFE2B0010u, 0u);            <span class="cm">/* CLKENA = 0 before any clock change */</span>
+mmio_write32(0xFE2B000Cu, 0u);            <span class="cm">/* CLKSRC = 0 */</span>
+mmio_write32(0xFE2B0004u, 1u);            <span class="cm">/* PWREN = 1 */</span>
+</pre>
+<p>The <code>FIFOTH</code> value comes from upstream Linux's FIFO setup
+for the rk3568 case — fifo-depth shown by the chip is
+<code>0x100</code>, watermark threshold is <code>fifo-depth/2 - 1 = 0x7F</code>
+for receive, <code>fifo-depth/2 = 0x80</code> for transmit, with
+multiple-transaction-size 2 = 0x2 in bits 28-30. Combined
+value <code>0x207F_0080</code>.</p>
+<h3 id="fix-piece-four-the-update-clock-dance-around-every-clock-change"><a class="self" href="#fix-piece-four-the-update-clock-dance-around-every-clock-change">§</a> Fix piece four — the &quot;update clock&quot; dance around every clock change</h3>
+<p>Every clock change on the DW MSHC requires a sandwich of
+&quot;update clock&quot; no-op commands. Without them, the CLKENA /
+CLKDIV / CLKSRC writes do not take effect and subsequent
+CMD0 hangs forever — the controller silently rejects every
+later command because the previous one is &quot;still in flight.&quot;</p>
+<p>The dance is: write CMD register at offset <code>0x2C</code> with the
+no-op encoding, then poll bit 31 (<code>START_CMD</code>) until it
+clears. The no-op encoding is:</p>
+<pre class="code">
+CMD register value = (1 &lt;&lt; 31)   <span class="cm">/* START_CMD */</span>
+                   | (1 &lt;&lt; 29)   <span class="cm">/* USE_HOLD_REG */</span>
+                   | (1 &lt;&lt; 21)   <span class="cm">/* UPDATE_CLK_ONLY */</span>
+                   | (1 &lt;&lt; 13)   <span class="cm">/* PRV_DAT_WAIT */</span>
+                   = 0xA0202000
+</pre>
+<p>A full clock-change sequence:</p>
+<pre class="code">
+mmio_write32(0xFE2B0010u, 0u);            <span class="cm">/* CLKENA off */</span>
+issue_update_clock_no_op();
+mmio_write32(0xFE2B0008u, divider);       <span class="cm">/* CLKDIV */</span>
+mmio_write32(0xFE2B000Cu, source);        <span class="cm">/* CLKSRC */</span>
+issue_update_clock_no_op();
+mmio_write32(0xFE2B0010u, 1u);            <span class="cm">/* CLKENA on */</span>
+issue_update_clock_no_op();
+</pre>
+<p>The original driver writes CLKDIV and CLKENA but does not
+issue the update-clock no-ops. That is the most common
+&quot;card never responds&quot; bug in DW MSHC bring-up code.</p>
+<h3 id="fix-piece-five-polling-loop-error-checks"><a class="self" href="#fix-piece-five-polling-loop-error-checks">§</a> Fix piece five — polling-loop error checks</h3>
+<p>The current driver's command-completion poll watches for
+<code>RINTSTS</code> bit 2 (CMD_DONE) and returns on it. That's not
+enough. The polling loop also needs to check:</p>
+<ul>
+<li><em>Bit 1 (RE — Response Error)</em>. Card returned a malformed
+response.</li>
+<li><em>Bit 6 (RCRC — Response CRC Error)</em>. Response failed CRC.
+Card present but unhappy.</li>
+<li><em>Bit 8 (RTO — Response Timeout)</em>. The <em>expected</em> indicator
+for a missing card. Not a wedged-controller indicator.</li>
+<li><em>Bit 12 (HLE — Hardware Locked Error)</em>. <strong>This one means
+the controller is wedged</strong>: the host tried to write the
+CMD register while a previous command was still in flight.
+Almost always means the update-clock dance was skipped
+somewhere. If HLE fires, the controller needs a full
+CTRL_RESET to recover.</li>
+</ul>
+<p>A 500 ms wall-clock timeout wrapping the whole poll catches
+a wedged controller before the kernel watchdog does.</p>
+<p>Also useful for diagnostics: <code>STATUS</code> register at offset
+<code>0x48</code>. Bit 9 (<code>data_busy</code>) and bit 10 (<code>data_state_mc_busy</code>)
+both stuck high after reset indicates the BIU clock is
+gated.</p>
+<h3 id="note-on-the-divider-math"><a class="self" href="#note-on-the-divider-math">§</a> Note on the divider math</h3>
+<p>The DW MSHC controller's CCLK source has a fixed extra <code>/2</code>
+divider built into the IP, plus the divider you program into
+<code>CLKDIV</code> at offset <code>0x08</code>. The effective card clock is
+<code>source_clock / (2 * (CLKDIV + 1))</code> if CLKDIV is non-zero,
+or <code>source_clock / 1</code> if CLKDIV is zero (pass-through). So
+to target the SD identification rate of 400 kHz, the source
+clock must already be 800 kHz (or the closest divisible
+value); CLKDIV=0 then yields 400 kHz at the card. If the
+source clock is at a higher rate, set CLKDIV accordingly.</p>
+<h2 id="why-we-need-this-driver-specifically"><a class="self" href="#why-we-need-this-driver-specifically">§</a> Why we need this driver specifically</h2>
+<p>The threat model the project committed to during issue <a class="issue done" href="issue-101.html" title="101 — Hardware specification research">101</a>'s
+research requires us to overwrite the internal eMMC with our own
+code before we trust the device with a USB-C connection to any
+machine that holds anything of value. To overwrite the eMMC
+safely we first need to confirm where the boot partition lives,
+which means dumping the eMMC's first ~200 MB and parsing the
+partition table.</p>
+<p>The dump destination cannot be a USB-C connection (would
+violate the trust posture) and cannot be the eMMC itself (would
+not survive the boot we are trying to bootstrap). The only
+remaining surface is the microSD card the device is already
+booting from. We write the dump there, eject the SD card from
+the device, and analyze it on a trusted machine via a raw <code>dd</code>
+copy that never executes anything from the card.</p>
+<p>That entire flow blocks on this driver existing.</p>
+<h2 id="intended-behavior"><a class="self" href="#intended-behavior">§</a> Intended behavior</h2>
+<p>SoreOS brings up the SDMMC0 controller in polled, blocking,
+read-and-write-blocks-by-index mode — the same shape as 110a's
+eMMC driver. The driver exposes exactly two operations:</p>
+<ul>
+<li><em>read block.</em> Inputs are an LBA block number and a 512-byte
+buffer pointer. The function returns when the block has been
+read into the buffer or the controller has reported an error.</li>
+<li><em>write block.</em> Inputs are an LBA block number and a 512-byte
+buffer pointer. The function returns when the block has been
+written and acknowledged or the controller has reported an
+error.</li>
+</ul>
+<p>Block size is the SD spec's fixed 512 bytes. The driver does not
+buffer, does not cache, does not retry. Each call is one
+transaction.</p>
+<p>The driver's bring-up sequence follows the SD card initialization
+protocol — distinct from the eMMC protocol the SDHCI driver
+implements:</p>
+<ol>
+<li>Software-reset the DW MSHC controller through its reset
+register.</li>
+<li>Set the internal clock divider for identification (~400 kHz).</li>
+<li>Power-cycle the card slot via the controller's power-enable
+register.</li>
+<li>Issue CMD0 (GO_IDLE_STATE).</li>
+<li>Issue CMD8 to check 2.0+ spec compatibility (eMMC skipped
+this; SD requires it).</li>
+<li>Loop ACMD41 (SD_SEND_OP_COND, an application command preceded
+by CMD55) until the card reports ready in its OCR response.</li>
+<li>Issue CMD2 (ALL_SEND_CID) to retrieve the card's identifying
+info.</li>
+<li>Issue CMD3 — for SD cards this is PUBLISH_RCA, where the
+<em>card</em> returns the relative address it has chosen (the
+opposite of eMMC's SET_RELATIVE_ADDR where we assign the
+address).</li>
+<li>Issue CMD9 (SEND_CSD) for capacity information.</li>
+<li>Issue CMD7 (SELECT_CARD) with the published RCA to put the
+card in transfer state.</li>
+<li>Bump the clock to a transfer-mode rate.</li>
+</ol>
+<p>After this sequence the kernel can issue CMD17 / CMD24 for
+single-block read / write the same way the eMMC driver does.</p>
+<h2 id="why-this-is-its-own-issue-rather-than-an-extension-of-110a"><a class="self" href="#why-this-is-its-own-issue-rather-than-an-extension-of-110a">§</a> Why this is its own issue rather than an extension of 110a</h2>
+<p>The IP block is different. The register set is different. The
+command-issue protocol is different (DW MSHC uses one register
+for both command and data; SDHCI separates them). The
+initialization sequence has different commands (SD's ACMD41 vs
+eMMC's CMD1; SD's PUBLISH_RCA semantic vs eMMC's
+SET_RELATIVE_ADDR). The transfer-mode mechanism is different
+(DW MSHC uses a FIFO drained word by word; SDHCI uses a
+buffer-data port).</p>
+<p>Nothing in <code>src/012-emmc.c</code> translates. The DW MSHC driver is a
+separate ~300-400 lines of file written from upstream Linux
+references.</p>
+<h2 id="suggested-implementation-steps"><a class="self" href="#suggested-implementation-steps">§</a> Suggested implementation steps</h2>
+<ol>
+<li>Pull DW MSHC register layout from upstream Linux's
+<code>drivers/mmc/host/dw_mmc.c</code> and the Rockchip-specific
+adaptation in <code>dw_mmc-rockchip.c</code>. Note that the Rockchip
+variant may have a small wrapper around the standard DW MSHC
+register set; check what's required.</li>
+<li>Bring the controller out of reset through its reset register.</li>
+<li>Set clock divider for identification, power on the card slot,
+wait for the slot to come up.</li>
+<li>Implement the SD card initialization sequence above. Differs
+from the eMMC sequence in 110a in three places: CMD8 instead
+of being skipped, ACMD41 instead of CMD1, RCA is reported by
+the card instead of assigned by us.</li>
+<li>Implement single-block read and write using the controller's
+FIFO transfer mechanism. The FIFO is drained word-by-word for
+read and filled word-by-word for write — similar shape to
+SDHCI's buffer-data port but at a different register.</li>
+<li>Bring-up status flows through the CDC-ACM debug stream from
+110.</li>
+<li>Round-trip test: read a known block, write a different known
+block, read it back, confirm.</li>
+</ol>
+<h2 id="what-this-is-deliberately-not"><a class="self" href="#what-this-is-deliberately-not">§</a> What this is deliberately not</h2>
+<p>The eventual phase 4 work that wraps an FAT32 filesystem around
+this driver (per <a class="src" href="doc-011-filesystem.html"><code>011-filesystem.md</code></a>) is separate. This is the
+raw block driver. The filesystem layer comes later.</p>
+<h2 id="related-documents"><a class="self" href="#related-documents">§</a> Related documents</h2>
+<ul>
+<li><a class="src" href="doc-014-hardware-overview.html"><code>docs/014-hardware-overview.md</code></a> — confirms microSD lives on
+SDMMC0.</li>
+<li><a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a> — SDMMC0 register base
+(<code>0xFE2B_0000</code>).</li>
+<li><a class="src" href="note-safety-000-bricking-and-recovery-md.html"><code>notes/safety/000-bricking-and-recovery.md</code></a> — why writing to
+the microSD is the safest dump destination during phase 1
+bring-up.</li>
+</ul>
+<h2 id="blocked-by"><a class="self" href="#blocked-by">§</a> Blocked by</h2>
+<p>108 (page allocator for buffers), 110 (CDC-ACM for bring-up
+narration).</p>
+<h2 id="blocks"><a class="self" href="#blocks">§</a> Blocks</h2>
+<p>110e (the eMMC-to-microSD backup that 110e's safety gate
+depends on).</p><p class="filter-note">source: <code>issues/completed/110f-microsd-controller-driver.md</code></p><div class="pager"><span>← <a href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a></span><span><a href="issue-110g.html">110g — SD card debug log</a> →</span></div></main></div></body></html>

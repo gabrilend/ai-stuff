@@ -22,6 +22,7 @@
 
 #include <pthread.h>
 #include <stdatomic.h>
+#include <unistd.h>
 
 #define CORES 4
 #define ROUNDS 200000
@@ -52,7 +53,12 @@ static void barrier(int total)
         atomic_store(&barrier_arrived, 0);
         atomic_fetch_add(&barrier_generation, 1);
     } else {
+        /* Wait by sleeping, not spinning: on a laptop whose cores are
+         * shared by two threads each, a spinning waiter steals half of the
+         * core the one-core measurement is running on, and made one core
+         * look four times dearer than four. */
         while (atomic_load(&barrier_generation) == generation) {
+            usleep(50);
         }
     }
 }
@@ -202,6 +208,10 @@ static void entry(int core)
     barrier(CORES);
     measuring_cores = 1;
     barrier(CORES);
+    /* Measured twice and the second kept: the first pass is the one that
+     * pays for cold caches and the first touch of the pool's memory, and
+     * it made one core look four times dearer than four. */
+    measure(core, one_core_ns);
     measure(core, one_core_ns);
     barrier(CORES);
     if (core == 0) {

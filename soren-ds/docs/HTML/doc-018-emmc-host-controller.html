@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Soren DS — eMMC host controller (dwcmshc) bring-up notes — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details open><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="here" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="soren-ds-emmc-host-controller-dwcmshc-bring-up-notes"><a class="self" href="#soren-ds-emmc-host-controller-dwcmshc-bring-up-notes">§</a> Soren DS — eMMC host controller (dwcmshc) bring-up notes</h1>
+<p>The internal eMMC is owned by the RK3568's dwcmshc — a Synopsys
+SD Host Controller (SDHCI-compatible base register set plus a
+Rockchip vendor-area extension). This document is the
+authoritative bring-up reference: it merges what phase-1 hardware
+testing observed (the diagnostic dumps from
+<code>src/018-bringup-test-suite.c</code>) with the register definitions
+from the <strong>RK3568 TRM Part 2, Chapter 7</strong> (PDF in
+<code>docs/datasheets/</code>). Where an earlier version of this doc
+recorded a guess, the TRM-confirmed fact has replaced it.</p>
+<p>Base address: <code>0xFE31_0000</code> (see <a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a>).</p>
+<h2 id="resolved-the-controller-ignores-the-sdhci-clock-divider"><a class="self" href="#resolved-the-controller-ignores-the-sdhci-clock-divider">§</a> RESOLVED — the controller ignores the SDHCI clock divider</h2>
+<p><strong>Root cause (verified on hardware):</strong> the rk3568 dwcmshc does
+<strong>not</strong> honour the SDHCI internal clock divider. The card clock is
+whatever <code>CCLK_EMMC</code> is set to, full stop. For many flash
+iterations the driver ran <code>CCLK_EMMC</code> at 200 MHz and set the
+SDHCI divider to ~0xFF expecting ~390 kHz at the card — but the
+divider does nothing, so the card was actually clocked at
+<strong>200 MHz</strong>, far beyond the ~400 kHz identification limit, and
+never responded. Every register being &quot;correct&quot; was a red herring
+because the one thing that mattered — the actual card clock — was
+~530× too fast.</p>
+<p><strong>The fix:</strong> drive <code>CCLK_EMMC</code> itself at the target rate via the
+CRU source mux (<code>CLKSEL_CON28</code>, bits 14:12), and leave the SDHCI
+divider at pass-through (0):</p>
+<ul>
+<li>Identification: <code>cclk_emmc_sel = 0x5</code> (<code>clk_osc0_div_375k</code>,
+375 kHz).</li>
+<li>Transfer (legacy mode, no CMD6): <code>cclk_emmc_sel = 0x0</code>
+(<code>xin_osc0</code>, 24 MHz — inside the 26 MHz legacy ceiling).</li>
+</ul>
+<p>This matches u-boot's <code>rockchip_sdhci.c</code>, which sets the card
+clock with <code>clk_set_rate</code> on this same clock rather than the
+SDHCI divider. With the fix the card answers immediately:
+<code>CID[0]</code> reads a real value (<code>0x00010AA9</code> on the test unit, not
+<code>0xFFFFFFFF</code>), <code>emmc_init</code> passes, and <code>emmc_read_block(0)</code>
+returns real data.</p>
+<p>Everything below this section is the investigation history that
+led here — kept because the dead ends (and the confirmations of
+what was <em>not</em> the cause) are themselves useful reference.</p>
+<h2 id="the-card-is-silent-failure-investigation-history"><a class="self" href="#the-card-is-silent-failure-investigation-history">§</a> The &quot;card is silent&quot; failure — investigation history</h2>
+<p>For many flash iterations the eMMC bring-up has failed the same
+way: CMD0/CMD1/CMD2 report completion at the controller, but the
+response registers all read the floating-bus pattern
+<code>0xFFFFFFFF</code>, and CMD3 (the first command with an index check)
+times out. Diagnostic dumps have since confirmed that <strong>every
+controller-side register is correctly configured</strong> — pinmux
+(function 1), pull-up, drive strength (level 2), input-enable,
+the five CRU clocks + the 200 MHz <code>CCLK_EMMC</code> source mux,
+<code>POWER_CONTROL</code> (3.0 V on), <code>CLOCK_CONTROL</code> (<code>0xFF07</code>, stable),
+<code>HOST_CONTROL_1</code> (card-detect test), <code>INT_ENABLE</code>, <code>HOST_CTRL3</code>
+(conflict-check off, clock-gating off), <code>EMMC_CONTROL</code>
+(<code>CARD_IS_EMMC</code> set, card not held in reset). And yet the card
+does not answer.</p>
+<h3 id="hypotheses-tried-and-ruled-out"><a class="self" href="#hypotheses-tried-and-ruled-out">§</a> Hypotheses tried and ruled out</h3>
+<ul>
+<li><strong>RX clock inversion (<code>EMMC_DLL_RXCLK</code> bit 29).</strong> The TRM says
+this bit &quot;should be set to 1 for normal operation,&quot; which looked
+like the answer. A flash that confirmed the no-inverter bit
+applied (<code>DLL_RXCLK = 0x20000000</code> in the dump) <strong>did not</strong> fix
+the symptom. Upstream Linux's rk3568 low-speed path in fact
+writes <code>DLL_RXCLK = 0</code> (inverted) and works — the TRM note
+applies to the high-speed DLL-active path, not the
+identification clock. So the driver now writes 0 here to match
+upstream. <em>Not the cause.</em></li>
+<li><strong>3.0 V vs 3.3 V slot voltage.</strong> A real, necessary fix (see
+below), but on its own it did not make the card respond.</li>
+<li><strong>Drive strength / input-enable register confusion.</strong> A real
+self-inflicted bug (we wrote drive-strength patterns into the
+input-enable registers), now fixed — but the symptom predated
+that bug, so fixing it did not resolve the silence either.</li>
+</ul>
+<h3 id="current-hypothesis-card-state-hardware-reset"><a class="self" href="#current-hypothesis-card-state-hardware-reset">§</a> Current hypothesis — card-state / hardware reset</h3>
+<p>With controller configuration exhausted, the remaining
+explanation is the card's own state. On the SD-boot path the
+eMMC is never reset by anything: its VCC is a hardwired always-on
+rail (so it cannot be power-cycled in software), and it keeps
+whatever state the BootROM's probe or a prior boot left it in.
+The one card-level reset available is the dwcmshc's <code>EMMC_RST_N</code>
+output (<code>EMMC_EMMC_CTRL</code> bit 2), which drives the card's RST_n
+pin. The driver <strong>pulses it low→high</strong> (spec-mandated &gt;1 µs
+assert, &gt;200 µs recovery) before CMD0. <strong>Result: no change</strong> —
+the pulse executed (confirmed by readback) and the card stayed
+silent. So card-state is ruled out too.</p>
+<p>The I/O-domain voltage was also checked and ruled out: the
+eMMC/flash pins sit in the <code>vccio2</code> domain, which on RK3568 is
+<strong>not</strong> software-configured (it's absent from the device tree's
+<code>io-domains</code> node) — its voltage is strapped by the
+<code>FLASH_VOLSEL</code> pin (GPIO0_A7) in hardware, not by a register we
+could have wrong.</p>
+<h3 id="the-actual-fix-dll-bypass-start-from-u-boot-ground-truth"><a class="self" href="#the-actual-fix-dll-bypass-start-from-u-boot-ground-truth">§</a> The actual fix — DLL bypass+start (from u-boot ground truth)</h3>
+<p>After register configuration, card-reset, and I/O-domain were all
+ruled out, the answer came from reading the <strong>working</strong> driver:
+u-boot's <code>drivers/mmc/rockchip_sdhci.c</code> (fetched to
+<code>tmp/uboot-ref/</code>), which probes this exact eMMC successfully. Its
+rk3568 <code>config_dll</code> for card clocks <strong>below 100 MHz</strong> (our
+identification case) does NOT leave the DLL registers at zero —
+it writes:</p>
+<div class="table-wrap"><table>
+<tr><th>Register</th><th>Value</th><th>Constituent bits</th></tr>
+<tr><td><code>DLL_CTRL</code> (0x800)</td><td><code>0x01000001</code></td><td><code>BYPASS</code> (bit 24) \</td><td><code>START</code> (bit 0)</td></tr>
+<tr><td><code>DLL_RXCLK</code> (0x804)</td><td><code>0x80000000</code></td><td><code>RXCLK_ORI_GATE</code> (bit 31)</td></tr>
+<tr><td><code>DLL_TXCLK</code> (0x808)</td><td><code>0x00000000</code></td><td>—</td></tr>
+<tr><td><code>DLL_STRBIN</code> (0x80C)</td><td><code>0x0C100000</code></td><td><code>DLYENA</code> (27) \</td><td><code>DELAY_NUM_SEL</code> (26) \</td><td><code>0x10 &lt;&lt; 16</code></td></tr>
+</table></div>
+<p>The u-boot comment is explicit: *&quot;the bypass bit and start bit
+need to be set if DLL is not locked.&quot;* At the identification
+clock the DLL cannot lock, and without BYPASS+START the dwcmshc
+does not generate valid sample/drive clocks — so the card never
+sees a usable clock and never answers. <strong>We had been writing all
+four DLL registers to 0</strong> through every prior iteration, which is
+precisely the broken state. <code>src/012-emmc.c</code> now writes the
+u-boot low-speed values in <code>dwcmshc_vendor_config</code>.</p>
+<p>Two notes: (1) <code>DLL_RXCLK</code> bit 31 (<code>ORI_GATE</code>) is marked
+&quot;reserved&quot; in the TRM register table, but the working driver
+writes it — the reference driver is ground truth over the doc.
+(2) This is why the earlier RX-clock-inversion lead (bit 29) was
+a dead end: the relevant RX bit at low speed is bit 31, and the
+real prerequisite is the DLL_CTRL bypass+start that we were
+missing entirely.</p>
+<p>This fix is implemented and pending its first flash. If it works,
+the long silent-card saga closes here.</p>
+<h3 id="if-it-still-fails"><a class="self" href="#if-it-still-fails">§</a> If it still fails</h3>
+<p>The remaining explanation would be physical/board-level (clock or
+commands not reaching the card pads — a level shifter, an enable,
+or a depopulated part) — not diagnosable without test equipment.
+But note the eMMC has never blocked anything else: SoreOS boots
+and runs from the SD card, so eMMC bring-up can be deferred
+regardless.</p>
+<h2 id="the-dwcmshc-register-map-what-we-actually-touch"><a class="self" href="#the-dwcmshc-register-map-what-we-actually-touch">§</a> The dwcmshc register map (what we actually touch)</h2>
+<p>Standard SDHCI registers (offsets <code>0x00</code>-<code>0xFF</code>) follow the SDHCI
+spec (<code>docs/datasheets/sdhci-host-controller-spec.pdf</code>). The
+Rockchip vendor-area registers (confirmed in TRM Part 2 Ch7):</p>
+<div class="table-wrap"><table>
+<tr><th>Offset</th><th>Name</th><th>Width</th><th>Reset</th><th>Purpose</th></tr>
+<tr><td><code>0x500</code></td><td><code>EMMC_VER_ID</code></td><td>W</td><td>—</td><td>host version id</td></tr>
+<tr><td><code>0x508</code></td><td><code>EMMC_HOST_CTRL3</code></td><td><strong>byte</strong></td><td><code>0x01</code></td><td>cmd-conflict-check enable (bit 0)</td></tr>
+<tr><td><code>0x52C</code></td><td><code>EMMC_EMMC_CTRL</code></td><td>half</td><td><code>0x0C</code></td><td>eMMC control (see below)</td></tr>
+<tr><td><code>0x52E</code></td><td><code>EMMC_BOOT_CTRL</code></td><td>half</td><td><code>0x00</code></td><td>boot-mode ack</td></tr>
+<tr><td><code>0x800</code></td><td><code>EMMC_DLL_CTRL</code></td><td>word</td><td><code>0x00</code></td><td>DLL global control</td></tr>
+<tr><td><code>0x804</code></td><td><code>EMMC_DLL_RXCLK</code></td><td>word</td><td><code>0x00</code></td><td><strong>RX clock — bit 29 must be set</strong></td></tr>
+<tr><td><code>0x808</code></td><td><code>EMMC_DLL_TXCLK</code></td><td>word</td><td><code>0x00</code></td><td>TX clock phase</td></tr>
+<tr><td><code>0x80C</code></td><td><code>EMMC_DLL_STRBIN</code></td><td>word</td><td><code>0x00</code></td><td>data-strobe phase (HS400)</td></tr>
+<tr><td><code>0x840</code></td><td><code>EMMC_DLL_STATUS0</code></td><td>word</td><td><code>0x00</code></td><td>DLL lock status</td></tr>
+</table></div>
+<h3 id="emmc-emmc-ctrl-0x52c-bit-decode-reset-0x0c"><a class="self" href="#emmc-emmc-ctrl-0x52c-bit-decode-reset-0x0c">§</a> <code>EMMC_EMMC_CTRL</code> (0x52C) bit decode — reset <code>0x0C</code></h3>
+<div class="table-wrap"><table>
+<tr><th>Bit</th><th>Name</th><th>Reset</th><th>Meaning</th></tr>
+<tr><td>0</td><td><code>CARD_IS_EMMC</code></td><td>0</td><td>1 = device is eMMC (we must set this)</td></tr>
+<tr><td>1</td><td><code>DISABLE_DATA_CRC_CHK</code></td><td>0</td><td>bus-test only; leave 0</td></tr>
+<tr><td>2</td><td><code>EMMC_RST_N</code></td><td><strong>1</strong></td><td>card hardware-reset output; <strong>1 = reset deasserted (card running)</strong></td></tr>
+<tr><td>3</td><td><code>EMMC_RST_N_OE</code></td><td>1</td><td>reset-pin output enable</td></tr>
+<tr><td>8</td><td><code>ENH_STROBE_ENABLE</code></td><td>0</td><td>HS400 enhanced strobe</td></tr>
+</table></div>
+<p><strong>Correction to an earlier theory:</strong> a previous version of this
+doc and the driver guessed the card hardware-reset was &quot;bit 12 of
+EMMC_CONTROL&quot; and tried pulsing it. That was wrong — bit 12 is a
+CQE prefetch field. The real card-reset control is <strong>bit 2</strong>, and
+its reset value is <strong>1 (card NOT held in reset)</strong>. So the
+floating-bus symptom was never a card-reset problem; it was the
+RX clock inversion above. We set <code>CARD_IS_EMMC</code> and otherwise
+leave <code>EMMC_EMMC_CTRL</code> at its reset default (the card stays out
+of reset). The board's device tree has no <code>reset-gpios</code> for the
+eMMC — the RST_N line is driven by the controller through
+GPIO1_C7, not a software GPIO.</p>
+<h3 id="vendor-area-access-width-matters"><a class="self" href="#vendor-area-access-width-matters">§</a> Vendor-area access width matters</h3>
+<p><code>EMMC_HOST_CTRL3</code> (<code>0x508</code>) is a single byte inside a 32-bit
+word. A 32-bit write clobbers neighbour bytes (the dump showed
+<code>HOST_CTRL3 = 0x000F0001</code> after a word write of 0). Use a
+<strong>byte-width</strong> write. General rule: write each vendor register at
+its natural width (the table above lists each).</p>
+<h2 id="clocks-and-the-200-mhz-vs-24-mhz-trap"><a class="self" href="#clocks-and-the-200-mhz-vs-24-mhz-trap">§</a> Clocks and the 200-MHz-vs-24-MHz trap</h2>
+<p>The five eMMC clocks and five resets, and the <strong>card-clock source
+mux</strong>, are catalogued in <a class="src" href="doc-017-clocks-and-timers.html"><code>docs/017-clocks-and-timers.md</code></a>. The
+trap worth repeating here:</p>
+<p><code>CAPABILITIES</code> bits 15:8 = <code>0xC8</code> = <strong>advertised</strong> 200 MHz base
+clock. That is a static chip-integration constant. But the actual
+<code>CCLK_EMMC</code> source mux (<code>CLKSEL_CON28</code>, <code>0xFDD20170</code>, bits 14:12)
+sits at its <strong>24 MHz reset default</strong> on the SD-boot path because
+the bootloader never programs it. The SDHCI divider math assumes
+the advertised 200 MHz, so without setting the mux the real card
+clock is ~8× too slow. <code>src/012-emmc.c</code> sets <code>cclk_emmc_sel = 001</code>
+(200 MHz) during CRU bring-up so the two agree.</p>
+<p>With base = 200 MHz, the SDHCI divisor formula
+<code>card_clock = base / (2 * divisor)</code> gives <code>0xFF</code> (255) → 392 kHz
+for the identification phase (inside the eMMC 100-400 kHz range).</p>
+<h2 id="speed-modes-and-the-dll-phase-1-vs-later"><a class="self" href="#speed-modes-and-the-dll-phase-1-vs-later">§</a> Speed modes and the DLL (phase 1 vs. later)</h2>
+<p>The DLL configuration is tied to the card clock, and getting it
+wrong is what kept the card silent. There are two regimes, drawn
+straight from u-boot's <code>config_dll</code> (the working reference):</p>
+<div class="table-wrap"><table>
+<tr><th>Regime</th><th>Card clock</th><th>DLL config</th><th>Notes</th></tr>
+<tr><td><strong>Low speed</strong> (phase 1)</td><td>&lt; 100 MHz</td><td>`DLL_CTRL = BYPASS\</td><td>START<code> (</code>0x01000001<code>), </code>DLL_RXCLK = ORI_GATE<code> (</code>0x80000000<code>), </code>DLL_STRBIN = 0x0C100000`</td><td>DLL cannot lock at low clocks; it must be bypassed-but-started or no sample/drive clock is produced.</td></tr>
+<tr><td><strong>High speed</strong> (future)</td><td>≥ 100 MHz</td><td>DLL reset → program <code>START_POINT</code>/<code>INC</code> → start → poll <code>DLL_STATUS0</code> for lock → set RXCLK/TXCLK/STRBIN tap values from the lock value</td><td>Needs a CMD6 switch into HS200/HS400, 1.8 V signaling, and a tuning pass.</td></tr>
+</table></div>
+<p>Phase 1 stays entirely in the low-speed regime:</p>
+<ul>
+<li><strong>Identification</strong>: 392 kHz (divisor <code>0xFF</code>), DLL bypass.</li>
+<li><strong>Transfer</strong>: 25 MHz (divisor <code>0x04</code>), DLL bypass. We do <strong>not</strong>
+issue CMD6, so the card stays in backward-compatible (legacy)
+mode, which tops out at 26 MHz — 25 MHz is the safe target.
+Anything ≥ 100 MHz would need the high-speed DLL-lock path and a
+CMD6 switch.</li>
+</ul>
+<p>The high-speed regime is what a later issue brings up for the
+fast eMMC backup (with DMA instead of PIO). The full register
+sequence — DLL lock, tap-value math, the HS200/HS400 CMD6 switch,
+the tuning loop — is in u-boot's <code>rockchip_sdhci.c</code>
+(<code>rk3568_sdhci_config_dll</code> for the <code>clock &gt;= 100 * MHz</code> branch,
+plus <code>rockchip_sdhci_execute_tuning</code>). That driver is the
+ground-truth reference; the TRM register tables alone proved
+insufficient (they even mislabel the RXCLK <code>ORI_GATE</code> bit as
+reserved).</p>
+<h2 id="slot-voltage-3-0-v-not-3-3-v"><a class="self" href="#slot-voltage-3-0-v-not-3-3-v">§</a> Slot voltage — 3.0 V, not 3.3 V</h2>
+<p>The slot does not support 3.3 V on this board. <code>CAPABILITIES</code>
+(<code>0x226DC881</code>) voltage bits: bit 24 (3.3 V) = 0, bit 25 (3.0 V) =
+1, bit 26 (1.8 V) = 0. Writing the Power Control voltage field to
+3.3 V leaves the slot unpowered; write 3.0 V:
+<code>POWER_CONTROL = (6 &lt;&lt; 1) | 1 = 0x0D</code>. (This was a real, necessary
+fix, but on its own it did not make the card respond — the RX
+clock inversion was the remaining blocker.)</p>
+<h2 id="pinmux-pull-drive-strength-and-the-input-enable-trap"><a class="self" href="#pinmux-pull-drive-strength-and-the-input-enable-trap">§</a> Pinmux, pull, drive strength — and the input-enable trap</h2>
+<p>eMMC pins are all in GPIO1 banks B/C on function 1 (TRM Part 2
+§7.5.1 confirms exactly this table):</p>
+<div class="table-wrap"><table>
+<tr><th>Signal</th><th>Pin</th><th>IOMUX register</th></tr>
+<tr><td>D0-D3</td><td>GPIO1_B4-B7</td><td><code>GRF_GPIO1B_IOMUX_H</code> (<code>0xFDC6000C</code>)</td></tr>
+<tr><td>D4-D7</td><td>GPIO1_C0-C3</td><td><code>GRF_GPIO1C_IOMUX_L</code> (<code>0xFDC60010</code>)</td></tr>
+<tr><td>CMD/CLK/DS/RSTn</td><td>GPIO1_C4-C7</td><td><code>GRF_GPIO1C_IOMUX_H</code> (<code>0xFDC60014</code>)</td></tr>
+</table></div>
+<p>The bootloader does not set the eMMC pinmux on the SD-boot path,
+so the kernel must. Pull-up is already applied by the BootROM;
+drive strength resets to level 3 (adequate). <strong>Do not write
+<code>0xC4</code>/<code>0xC8</code> thinking they are drive-strength — they are the pad
+input-enable registers</strong> (<code>GRF_GPIO1x_IE</code>); clobbering them
+disables the pins' input buffers and is a second way to get the
+floating-bus symptom. The real drive-strength block starts at
+<code>0x200</code>. Full layout in <a class="src" href="doc-019-board-pinmux.html"><code>docs/019-board-pinmux.md</code></a>.</p>
+<h2 id="bring-up-order-as-implemented-in-src-012-emmc-c"><a class="self" href="#bring-up-order-as-implemented-in-src-012-emmc-c">§</a> Bring-up order (as implemented in <code>src/012-emmc.c</code>)</h2>
+<ol>
+<li>Pinmux (function 1 on the eMMC pins).</li>
+<li>Pad config: confirm pull-up; leave drive strength and
+input-enable at reset.</li>
+<li>CRU bring-up: ungate the 5 clocks, set <code>cclk_emmc_sel</code> to
+200 MHz, pulse the 5 resets, read <code>CAPABILITIES</code> as a
+reachability discriminator.</li>
+<li>SDHCI software reset (<code>RESET_ALL</code> → <code>0x2F</code>).</li>
+<li><code>dwcmshc_vendor_config</code> (after the reset): <code>HOST_CTRL3</code>=0
+byte-write, all four DLL registers = 0 (upstream low-speed
+values), <code>CARD_IS_EMMC</code> set, then an <strong><code>EMMC_RST_N</code> hardware-
+reset pulse</strong> (assert &gt;1 µs, deassert, recover &gt;200 µs).</li>
+<li>Post-reset SDHCI state: <code>INT_ENABLE</code>=all, <code>HOST_CONTROL_1</code>=0xC0
+(card-detect test level), <code>TIMEOUT</code>=0x0E, power-cycle the slot
+to 3.0 V.</li>
+<li>Set the identification clock (divisor <code>0xFF</code> → ~392 kHz).</li>
+<li>JEDEC card init: CMD0 (+ pre-idle), CMD1, CMD2, CMD3, CMD9,
+CMD7.</li>
+</ol>
+<h2 id="diagnostic-snapshot-phase-1-reference-values"><a class="self" href="#diagnostic-snapshot-phase-1-reference-values">§</a> Diagnostic snapshot — phase-1 reference values</h2>
+<p>Captured by <code>emmc_dump_controller_state</code> post-reset, pre-card-init:</p>
+<div class="table-wrap"><table>
+<tr><th>Register</th><th>Value</th><th>Meaning</th></tr>
+<tr><td>CAPABILITIES</td><td><code>0x226DC881</code></td><td>advertised base 200 MHz, 3.0 V only, 8-bit, embedded, ADMA2/SDMA</td></tr>
+<tr><td>CAPABILITIES_HIGH</td><td><code>0x08000007</code></td><td>SDR50/SDR104/DDR50</td></tr>
+<tr><td>HOST_CONTROL_1</td><td><code>0xC0</code></td><td>card-detect test level = present</td></tr>
+<tr><td>POWER_CONTROL</td><td><code>0x0D</code></td><td>3.0 V + power on</td></tr>
+<tr><td>INT_ENABLE</td><td><code>0xFFFF7FFF</code></td><td>status bits enabled</td></tr>
+<tr><td>PRESENT_STATE</td><td><code>0x03F700F0</code></td><td>card stable, CMD/DAT lines high</td></tr>
+<tr><td>HOST_CTRL3</td><td><code>0x01</code> (byte)</td><td>conflict-check at reset default</td></tr>
+<tr><td>EMMC_CONTROL</td><td><code>0x0D</code></td><td>CARD_IS_EMMC set; RST_N deasserted, RST_N_OE on</td></tr>
+<tr><td>DLL_RXCLK</td><td><code>0x00000000</code></td><td>upstream low-speed value (RX inverted)</td></tr>
+<tr><td>SDHCI_VERSION</td><td><code>0x0005</code></td><td>SDHCI spec 4.10</td></tr>
+</table></div>
+<p>(The <code>DLL_RXCLK = 0x20000000</code> no-inverter value appears in some
+earlier dumps — that was a hypothesis since reverted; see the
+status section above.)</p>
+<p>Re-run the test suite to capture a fresh dump if any of these
+surprise you on a later cycle.</p>
+<h2 id="related-documents"><a class="self" href="#related-documents">§</a> Related documents</h2>
+<ul>
+<li><code>docs/datasheets/INDEX.md</code> — the TRM and spec PDFs; TRM Part 2
+Ch7 is the eMMC chapter, Ch6 the SDMMC0 (DW MSHC) chapter.</li>
+<li><a class="src" href="doc-016-physical-memory-map.html"><code>docs/016-physical-memory-map.md</code></a> — the <code>0xFE31_0000</code> base.</li>
+<li><a class="src" href="doc-017-clocks-and-timers.html"><code>docs/017-clocks-and-timers.md</code></a> — the 5 clocks, 5 resets, and
+the <code>CCLK_EMMC</code> source mux.</li>
+<li><a class="src" href="doc-019-board-pinmux.html"><code>docs/019-board-pinmux.md</code></a> — pinmux / pull / drive-strength /
+input-enable register layout.</li>
+<li><a class="src" href="issue-110a.html"><code>issues/110a-emmc-controller-driver.md</code></a> — the bring-up issue.</li>
+<li><a class="src" href="issue-110h.html"><code>issues/110h-phase-1-bringup-test-suite.md</code></a> — the diagnostic
+runner that produced these dumps.</li>
+</ul><p class="filter-note">source: <code>docs/018-emmc-host-controller.md</code></p><div class="pager"><span>← <a href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a></span><span><a href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a> →</span></div></main></div></body></html>
