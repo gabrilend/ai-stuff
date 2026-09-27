@@ -1,6 +1,6 @@
 # Conversation Summary: e8e4c82c-c417-4a78-b8c0-ac2908436973
 
-Generated on: 2026-09-27 12:27:57
+Generated on: 2026-09-27 12:54:44
 Models: claude-opus-5-5
 
 ## Contents
@@ -14,6 +14,10 @@ Models: claude-opus-5-5
    decide whether to restructure it around your
    other-people's-software-as-a-rubric strategem, and how a describe turn should
    tell rules from choices.
+3. 2026-09-27 12:31, after Request 13 - The goal is a machine that rebuilds any
+   software from its name, with your tweaks; the prototype is built and its live
+   Claude Code turn passed. Next: tell me what should prove a rebuilt program
+   really behaves like the original.
 
 --------------------------------------------------------------------------------
 
@@ -940,6 +944,99 @@ A question back: once a blueprint describes behavior rather than code, what
 proves a rebuilt "Dropbox" actually behaves like Dropbox? Rules written from
 documentation can be wrong or incomplete, and nothing would catch that unless
 something compares against the real product. What would you accept as the check?
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+> The referee problem still stands whatever the input is: build turns currently
+> write their own tests. That needs fixing before anything built here can be
+> trusted.
+
+okay
+
+> A question back: once a blueprint describes behavior rather than code, what
+> proves a rebuilt "Dropbox" actually behaves like Dropbox? Rules written from
+> documentation can be wrong or incomplete, and nothing would catch that unless
+> something compares against the real product. What
+>   would you accept as the check?
+
+the user is expected to test their own application. The system should make
+workflows that use the same types of input that the user would provide, to test
+behavior from end-to-end. We don't have to test against the real product, we
+just have to describe how it works, and then utilize that description to build
+our own to solve the same problem, but in our own way, that is customizable as
+we go. Protocols, not procedures.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+> Understood: the check is end-to-end workflows that feed the design the same
+> kinds of input a person would, written from the blueprint's description of
+> behavior (protocols, not procedures), and the person tests their own
+> application after that. Taking your "okay" as the go-ahead to fix the referee
+> problem that way. Saving your words, then writing the issue before building
+> anything:
+
+> The issue validates. Building it now, starting with the new turn kind, the
+> case's `workflows/` folder, and the new ledger kinds:
+
+> While in the case module I spotted a real bug: the person's `input/crafts`
+> file (the skills to build with) would have been treated as a change request.
+> Fixing that too. Then the workflows module:
+
+> Now the smaller edits to the fixture script, with no nested brackets this
+> time:
+
+> Every existing check still passes with referees in place. Now the checks for
+> the referee work itself:
+
+*[commit] b57d2ce4c in ai-stuff - Check designs with workflows the builder never sees*
+
+The referee fix is built and committed, and all 12 check files pass.
+
+**How it works now:** before anything is built, a separate turn that reads only
+the blueprint (never the source, never the design) writes workflows. Each one
+uses the program the way a person would: it types commands, reads what gets
+printed, and looks in the files the program saves. The workflows sit in a folder
+the builders can't see or write to.
+
+- **A workflow with no teeth is thrown out.** Each one must fail against an
+  empty folder; one that passes with nothing built checks nothing.
+- **Delivery trusts only the workflows.** The builder's own tests are kept, but
+  only as a repair aid.
+- **Every change request rewrites the workflows** from the amended blueprint, so
+  the rebuilt program is checked against the new behaviour.
+
+**Proof it catches the real problem:** the fixture now has a builder that drops
+tags from listings and weakens its own test to match. Its own check passes. The
+tags workflow fails it, a repair fixes it, and only then is it delivered. That's
+case three of `./run-phase-demo 5`.
+
+**Fixed along the way:** your `input/crafts` file (the list of skills to build
+with) would have been read as a change request.
+
+**Not built yet, because you haven't said to:**
+- The rules/choices split in issues, for customization.
+- Describing software from a name instead of from source.
+- The shared platform for trading blueprints.
+
+Your words on all three are saved in the vision.
+
+**A new open question** came out of this work (question 9 in the open-questions
+doc). One workflow usually exercises several issues. The tags workflow, for
+example, touches tag parsing, showing notes, and the notes command. When it
+fails, all three get a repair turn, though only one was at fault. A repair turn
+on innocent code can break working code for no reason.
+
+How should the machine decide which one is guilty?
+1. **Narrower workflows**, one issue each. This conflicts with end-to-end, since
+   a person's action crosses several pieces.
+2. **A judging turn** that reads the failure output and the covered issues, then
+   picks one, like locating a request.
+3. **Repair the highest issue in the build order first**, since it's built on
+   the others, and widen only if it still fails.
 
 --------------------------------------------------------------------------------
 

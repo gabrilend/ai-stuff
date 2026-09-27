@@ -36,6 +36,8 @@ its folders, and checks afterwards that it stayed there.
 | `build` | an issue id | blueprint, design | `design/` | whatever the person lists in the case's `input/crafts` (canvas-and-paintbrush, polyglot-source, …) |
 | `repair` | an issue id | blueprint, design, the failing test output | `design/` | same as build |
 | `referee` | `-` | blueprint only | `workflows/` | none |
+| `audit` | an issue id | blueprint, design, a failing workflow's output | `design/` (only its own part; changing nothing means "not here") | none |
+| `inspect` | a group, `201+301` | blueprint, design, a failing workflow's output | its own turn folder (`finding`) | none |
 | `locate` | a request | the request, blueprint | its own turn folder (`touched`) | none |
 | `amend` | a request | the request, blueprint | `blueprint/issues/` | issue-lifecycle |
 

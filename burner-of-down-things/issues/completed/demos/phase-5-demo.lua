@@ -133,25 +133,42 @@ print("")
 print("CASE THREE — a builder grades itself: 201 is built with the tags quietly dropped,")
 print("and its own test weakened to match. Only the referee's workflows, written from")
 print("the blueprint by a turn that never saw the design, can catch it.")
+-- {{{ local function show_search
+-- The path each search took: narrow audits, wider looks, the fix.
+local function show_search(report)
+    for _, search in ipairs(report.searches or {}) do
+        print("  workflow " .. search.workflow .. " failed; the search went:")
+        for i, step in ipairs(search.path) do
+            print(string.format("    %d. %s", i, step))
+        end
+        print("    → " .. (search.fixed and "fixed" or "not found"))
+    end
+end
+-- }}}
+
 local quiet = described_case("notes-quiet", 'quiet_bug = { ["201"] = 1 }')
 local report3 = building.step(demo_project, quiet, {})
-for _, line in ipairs(ledger.read(quiet.ledger)) do
-    if (line.kind == "built" and line.about == "201") or line.kind == "refereed" or line.kind == "delivered"
-        or (line.kind == "turn-started" and line.about:find("-repair-", 1, true)) then
-        print(string.format("  %-14s %-22s %s", line.kind, line.about, line.text:sub(1, 50)))
+print("  201's own acceptance: " .. ledger.index(ledger.read(quiet.ledger)).built["201"].text)
+show_search(report3)
+print(string.format("  delivered: %s — the search stopped as soon as the workflow passed",
+    report3.delivered and "yes" or "no"))
+
+print("")
+print("CASE FOUR — the same bug, but no part looked at alone shows it: the view widens")
+print("to pairs chosen at random (the odd one out skipped), then to everything, until")
+print("a look names the part; then it narrows back to that one part to fix it.")
+local hidden = described_case("notes-hidden", 'quiet_bug = { ["201"] = 1 }, hidden_bug = true')
+local report4 = building.step(demo_project, hidden, {})
+show_search(report4)
+for _, line in ipairs(ledger.read(hidden.ledger)) do
+    if line.kind == "inspected" then
+        print(string.format("  inspected %-12s named %s", line.about, line.text))
     end
 end
-for _, name in ipairs(fs.list(quiet.turns)) do
-    if name:match("%-repair%-201$") then
-        local prompt = fs.read(quiet.turns .. "/" .. name .. "/prompt.md")
-        print("  the repair of 201 was told: " .. (prompt:match("The failing command:%s*([^\n]+)") or "?"))
-    end
-end
-print(string.format("  delivered: %s — the builder's own test passed the bug; the workflow did not",
-    report3.delivered and "yes, after the repair" or "no"))
+print("  delivered: " .. (report4.delivered and "yes" or "no") .. " — dynamic re-abstraction")
 
 -- The designs' own scratch space lives outside the demo folder.
-for _, r in ipairs({ record, broken, quiet }) do
+for _, r in ipairs({ record, broken, quiet, hidden }) do
     local key = design_folder.scratch_key(r)
     fs.remove_tree("/tmp/burner-of-down-things/cases/" .. key)
     fs.remove_tree("/dev/shm/burner-of-down-things/cases/" .. key)

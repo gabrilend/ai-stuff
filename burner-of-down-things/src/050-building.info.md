@@ -20,6 +20,7 @@ Referees (issue 506): before the first wave, if the case has no `refereed`
 line, the workflows are written from the blueprint. Delivery needs them: a
 case whose referee failed is not delivered. After every issue's own
 acceptance passes, every workflow runs in the design; a failing workflow's
-name and output go to repair turns for every issue it covers, up to 2
-rounds; still failing → `workflow-failed` per workflow, not delivered. The
+fault is found by dynamic re-abstraction (065, issue 507); still failing →
+`workflow-failed` per workflow, not delivered. The report gains `searches`
+(workflow, fixed, path). The
 report gains `refereed`, `referee_turns`, `workflow_failures`.

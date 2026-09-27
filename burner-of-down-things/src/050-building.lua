@@ -13,8 +13,10 @@
 -- from the blueprint alone by a referee turn that never saw the design. The
 -- issues' own acceptance commands run tests the builder wrote for itself —
 -- useful to the builder, but a referee that shares code with what it checks
--- grades nothing, so delivery trusts the workflows. A failing workflow gets
--- repair turns for the issues it covers; only when every workflow passes is
+-- grades nothing, so delivery trusts the workflows. A failing workflow's
+-- fault is found by dynamic re-abstraction (065, issue 507): each covered
+-- issue audited alone, then wider groups, then back to the one part named;
+-- only when every workflow passes is
 -- the design delivered, with the ledger's head hash as the fingerprint of
 -- its history.
 --
@@ -32,6 +34,7 @@ local issue_files = require("044-issue-files")
 local design_folder = require("048-the-design-folder")
 local acceptance = require("049-acceptance")
 local workflows = require("063-workflows")
+local re_abstraction = require("065-re-abstraction")
 
 local building = {}
 
@@ -283,32 +286,25 @@ function building.step(project, record, options)
         all_built = false
     elseif all_built and fresh then
         local failures = workflows.run_all(record, options.limit)
-        for round = 1, building.MOST_REPAIRS do
-            if #failures == 0 then
-                break
+        -- One search per failing workflow, in name order; a fix found for one
+        -- can mend another, so each is run again before its own search.
+        report.searches = {}
+        for _, fail in ipairs(failures) do
+            local passes, output = workflows.run_one(fail.workflow, record.design, options.limit)
+            if not passes then
+                local found = re_abstraction.search(project, record, { workflow = fail.workflow, output = output },
+                    target, options.pool)
+                report.turns = report.turns + found.turns
+                report.searches[#report.searches + 1] = { workflow = fail.workflow.name, fixed = found.fixed, path = found.path }
             end
-            -- Each failing workflow's output goes to the repair of every
-            -- issue it covers; the workflow's text does not.
-            local to_repair, why = {}, {}
-            for _, fail in ipairs(failures) do
-                for _, id in ipairs(fail.workflow.covers) do
-                    if g.nodes[id] and not why[id] then
-                        why[id] = { command = "the end-to-end workflow " .. fail.workflow.name, output = fail.output }
-                        to_repair[#to_repair + 1] = id
-                    end
-                end
-            end
-            table.sort(to_repair)
-            run_turns("repair", to_repair, why)
-            failures = workflows.run_all(record, options.limit)
         end
+        failures = workflows.run_all(record, options.limit)
         report.workflow_failures = failures
         if #failures > 0 then
             all_built = false
             for _, fail in ipairs(failures) do
                 ledger.append(record.ledger, "workflow-failed", fail.workflow.name,
-                    "covers " .. table.concat(fail.workflow.covers, " ") .. "; still failing after "
-                    .. building.MOST_REPAIRS .. " rounds of repair")
+                    "covers " .. table.concat(fail.workflow.covers, " ") .. "; no look, narrow or wide, found the fault")
             end
         else
             -- A repair made for a workflow can break an issue's own checks.

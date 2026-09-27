@@ -202,6 +202,59 @@ kinds.TABLE = {
             "{{findings}}"
         ),
     },
+    -- Dynamic re-abstraction (issue 507): when a workflow fails, an audit
+    -- looks at one issue's part and fixes it only if the fault is there; an
+    -- inspection looks at a group of issues, writes no code, and names the
+    -- one part that needs the fix.
+    audit = {
+        reads = { "blueprint/", "design/" },
+        writes = { "design/" },
+        crafts = {},
+        template = lines(
+            "turn: audit {{about}}",
+            "",
+            "An end-to-end workflow fails on the design (your working folder). Audit the",
+            "part of the design that issue {{about}} describes: does it do what the issue",
+            "says? If the fault is in this part, fix it here and nowhere else. If this part",
+            "is right, CHANGE NOTHING: an unchanged design is how you say the fault is",
+            "elsewhere. The original source does not exist for you.",
+            "",
+            "What the design should be: {{target}}",
+            "",
+            "The failing workflow: {{workflow}}",
+            "What it printed (last lines):",
+            "{{output}}",
+            "",
+            "A wider look found: {{finding}}",
+            "",
+            "The issue:",
+            "{{issue_text}}"
+        ),
+    },
+    inspect = {
+        reads = { "blueprint/", "design/" },
+        writes = { "turn" },
+        crafts = {},
+        template = lines(
+            "turn: inspect {{about}}",
+            "",
+            "An end-to-end workflow fails on the design, and auditing each of these issues'",
+            "parts alone found nothing. Look at them together — how they meet, what one",
+            "assumes of another — and name the ONE issue whose part needs the fix. Do not",
+            "write the fix and do not change the design.",
+            "",
+            "The failing workflow: {{workflow}}",
+            "What it printed (last lines):",
+            "{{output}}",
+            "",
+            "Write the file {{finding_path}}: its first line is the issue id (one of",
+            "{{group}}) or the word none; the lines after it say why, for the audit that",
+            "will fix it.",
+            "",
+            "The issues, whole:",
+            "{{group_texts}}"
+        ),
+    },
     locate = {
         reads = { "request", "blueprint/" },
         writes = { "turn" },

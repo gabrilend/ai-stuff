@@ -74,11 +74,11 @@ local idx = ledger.index(ledger.read(r4.ledger))
 kit.equal(idx.built["201"].text, "acceptance passed", "201's own acceptance passed on the buggy build")
 local repair_prompt
 for _, name in ipairs(fs.list(r4.turns)) do
-    if name:match("%-repair%-201$") then repair_prompt = fs.read(r4.turns .. "/" .. name .. "/prompt.md") end
+    if name:match("%-audit%-201$") then repair_prompt = fs.read(r4.turns .. "/" .. name .. "/prompt.md") end
 end
-kit.check(repair_prompt and repair_prompt:find("end-to-end workflow 02-tags.sh", 1, true) ~= nil,
-    "201 was repaired because of the tags workflow")
-kit.check(repair_prompt and not repair_prompt:find("covers:", 1, true), "the repair saw the workflow's output, not its text")
+kit.check(repair_prompt and repair_prompt:find("The failing workflow: 02-tags.sh", 1, true) ~= nil,
+    "201 was audited because of the tags workflow (issue 507)")
+kit.check(repair_prompt and not repair_prompt:find("covers:", 1, true), "the audit saw the workflow's output, not its text")
 
 -- A build turn that writes a workflow is a breach.
 local p5, r5 = described_case("build-writes-referee", "")

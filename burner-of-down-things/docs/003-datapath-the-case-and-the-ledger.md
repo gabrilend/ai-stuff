@@ -68,6 +68,8 @@ writes the file.
 | `refereed` | a referee turn's workflows pass their checks | `-` |
 | `referee-failed` | three referee turns' workflows all fail their checks | `-` |
 | `workflow-failed` | a workflow still fails after two rounds of repair | the workflow's file name |
+| `audited` | an audit turn looked at one issue's part for a failing workflow | the issue id; text `changed` or `unchanged` |
+| `inspected` | an inspection looked at a group of issues | the group, e.g. `201+301`; text the issue named, or `none`, and why |
 | `delivered` | every issue is built, the final acceptance run passes, and every workflow passes | `-` |
 | `graded` | a request's grade is decided | the request file |
 | `held` | a graded request waits for the person's `--go` | the request file |
