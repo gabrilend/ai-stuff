@@ -5,7 +5,7 @@ Letting the center decide order, and telling every turn what it says
 
 ## Current Behavior
 
-The center can be computed; nothing uses it.
+Built in `src/058-the-center.lua` (`order_requests`, `order_ids`, `paragraph`, `options_for`) and wired into the describe, build, update, grade and run commands, so every turn's instructions carry the paragraph and every request queue and wave is ordered by the center. A request's own weight counts toward its order, so the most recently noticed request goes first unless an older one touches heavier issues (docs/009). Checked by tests/062: a newer request touching a heavy issue goes first; ties go to the oldest; a wave starts with its heaviest issue; a build turn's instructions carry the paragraph.
 
 ## Intended Behavior
 

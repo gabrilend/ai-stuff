@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# phase-7-demo - the whole machine at once. A fresh copy of the notes
+# program is taken from source code to a delivered, working design with one
+# command (`machine run`), through the real launcher, exactly as a person
+# would use it. Then requests arrive one by one in the person's own words;
+# after each, `run` handles it and the machine's center — its personality,
+# computed from nothing but its own record — is drawn as bars, shifting
+# toward what is being asked about. Two requests arrive together to show the
+# center choosing which goes first. Last, the case is written as one HTML
+# page and opened in Firefox when a display is present (set NO_BROWSER=1 to
+# skip opening it).
+#
+# Usage: phase-7-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-7-demo.lua" "${DIR}"

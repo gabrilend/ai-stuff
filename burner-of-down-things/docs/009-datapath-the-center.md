@@ -58,6 +58,16 @@ every run: the ten heaviest things with their weights, the ledger line count
 it was computed from, and the ledger's head hash. It is a view — deleting it
 changes nothing, and the machine never reads it back.
 
+## Ordering
+
+A waiting request's score is its own weight plus the weights of the issues
+its `graded` line touched (nothing, until it is graded). Since a request's
+own weight fades from the moment it is noticed, the most recently noticed
+request goes first — what the person just asked for — unless an older one
+touches issues that weigh more. Issues within a wave are started heaviest
+first. Every step of a run takes its order and its paragraph from the center
+through one function, recomputed from the ledger each time it is asked.
+
 | Decision | What each path leads to |
 |---|---|
 | Two waiting requests weigh the same | The older one (smaller ledger seq of its `request-received`) goes first |

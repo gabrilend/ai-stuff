@@ -10,6 +10,7 @@ local fs = require("017-the-filesystem")
 local outline = require("042-the-outline")
 local graph = require("043-the-graph")
 local describing = require("045-describing")
+local center = require("058-the-center")
 
 local commands = {}
 
@@ -49,8 +50,10 @@ commands.rows = {
         usage = "<case>",
         what = "plan the outline, then write every issue file",
         run = function(run)
-            local rows = commands.outline_rows(run.project, run.case, {})
-            local report = describing.step(run.project, run.case, rows, {})
+            -- Every turn is handed the center's paragraph (phase 7).
+            local guided = center.options_for(run.case)
+            local rows = commands.outline_rows(run.project, run.case, guided.pool)
+            local report = describing.step(run.project, run.case, rows, guided.pool)
             local g = graph.build(rows)
             run.say(graph.text(g, commands.marks(run.case)))
             run.say(string.format("described %d, failed %d, %d turns",

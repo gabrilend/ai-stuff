@@ -5,7 +5,7 @@ One command that does whatever a case is waiting for, start to end —
 
 ## Current Behavior
 
-Each step is its own command.
+Built as `src/059-running.lua`, with the `run` command in `src/061-the-center-commands.lua`. Held requests are the person's: `run` never passes the hold and does not count a held request as waiting, and while an issue stays build-failed `run` does not build again (it would fail the same way). Checked by tests/062 (a surveyed case waits for describe, build, update; one run does all three; a second run changes nothing; a foundation request is held and then left to the person) and through the launcher in the phase 7 demo.
 
 ## Intended Behavior
 

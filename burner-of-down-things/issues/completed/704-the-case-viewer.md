@@ -6,7 +6,7 @@ everything, built from the case folder alone.
 
 ## Current Behavior
 
-A case is read through the text commands.
+Built as `src/060-the-case-viewer.lua`, with the `view` command. Test step 2 went further than planned: the page's own script is run outside a browser with a stand-in document, under whichever JavaScript engine starts. On this machine node is installed but cannot start (a system library mismatch — `undefined symbol: sqlite3session_attach`), so the check names and uses gjs. It confirms the page's chain check agrees with the machine's head hash, its center matches the machine's heaviest entry, and a one-character change to ledger line 2 inside the page is found at line 2. Checked by tests/062.
 
 ## Intended Behavior
 
