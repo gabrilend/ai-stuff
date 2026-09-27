@@ -87,11 +87,31 @@ and repair turns can neither see nor write them.
                                                    (a workflow that passes with
                                                     nothing built checks nothing)
   … waves, each issue's own acceptance …
-  every workflow, run in the design ──fail──► repair every issue it covers (output only, not the text)
-            │ pass                              up to 2 rounds, then workflow-failed: not delivered
+  every workflow, run in the design ──fail──► dynamic re-abstraction (below)
+            │ pass                              nothing found: workflow-failed, not delivered
             ▼
         delivered
 ```
+
+### Finding the fault: dynamic re-abstraction
+
+> Once we identify the part that needs a fix, not what the fix is just the
+> part that needs it, then we reduce our view again until we're within
+> fixing range. Then we apply the fix. Dynamic re-abstraction.
+>
+> — the owner, 2026-09-27
+
+A workflow usually exercises several issues. When it fails, each covered
+issue is first **audited alone**, in an order seeded from the ledger's head
+hash: the audit fixes its own part or changes nothing, and a checksum of
+the design before and after tells which. After a change the workflow runs
+again; passing ends the search, so innocent parts are left alone. If no
+audit changed anything, the view **widens**: the issues are paired at
+random (an odd one out is left out, already looked at alone) and each pair
+is **inspected** — no code written, the one part needing the fix named, or
+none. Groups merge again until one holds everything the workflow covers.
+The first part named is audited again **alone, with the finding**: back
+within fixing range. If the widest look names nothing, `workflow-failed`.
 
 After a request's amend the workflows are written again from the amended
 blueprint, so the rebuilt design is checked against the changed behaviour.

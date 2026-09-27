@@ -24,6 +24,10 @@
 --                    write code that quietly drops the tags from listings AND a
 --                    test of its own that passes anyway — a builder grading
 --                    itself; only the referee's workflows can catch it
+--   hidden_bug       true: with quiet_bug, an audit of 201 alone does not see
+--                    the fault; only an inspection of a group holding 201 names
+--                    it, and the audit handed that finding fixes it (issue 507)
+--   unfindable_bug   true: with quiet_bug, no audit or inspection finds it
 --   toothless_referee number: the first N referee turns also write a workflow
 --                    that passes with nothing built
 --   with_requests    true: play the requests in tests/fixtures/tiny-notes-requests/,
@@ -211,6 +215,34 @@ return function(options)
             writes["workflows/09-always.sh"] = "#!/usr/bin/env bash\n# covers: 301\nexit 0\n"
         end
         return { writes = writes }
+    end
+
+    -- Dynamic re-abstraction (issue 507). The fault the fixture can hold is
+    -- the quiet bug in 201's show.lua; an audit fixes it when it can see it.
+    -- {{{ local function quiet_bug_present
+    local function quiet_bug_present(turn)
+        local handle = io.open(turn.case_folder .. "/design/src/show.lua", "rb")
+        if not handle then return false end
+        local text = handle:read("*a")
+        handle:close()
+        return text:find("if false then", 1, true) ~= nil
+    end
+    -- }}}
+    script.audit = function(turn)
+        if turn.about ~= "201" or not quiet_bug_present(turn) or options.unfindable_bug then
+            return { say = "this part is right; nothing changed" }
+        end
+        if options.hidden_bug and not turn.prompt:find("A wider look found: 201", 1, true) then
+            return { say = "looked alone, 201 seemed right; nothing changed" }
+        end
+        return { writes = build_writes(turn, 99) }
+    end
+    script.inspect = function(turn)
+        local holds_201 = ("+" .. turn.about .. "+"):find("+201+", 1, true) ~= nil
+        if holds_201 and quiet_bug_present(turn) and not options.unfindable_bug then
+            return { writes = { ["turn/finding"] = "201\nshowing notes drops the tags the notes command hands it\n" } }
+        end
+        return { writes = { ["turn/finding"] = "none\nthese parts agree with each other\n" } }
     end
 
     script.locate = function(turn)
