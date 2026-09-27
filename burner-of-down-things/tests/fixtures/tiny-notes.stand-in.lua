@@ -20,6 +20,12 @@
 --   also_writes      { [id] = { [design path] = text } }: that issue's first
 --                    build also writes these files — a later build breaking
 --                    an earlier issue's code, for the regression check
+--   quiet_bug        { [id] = N }: the first N builds of that issue (201 only)
+--                    write code that quietly drops the tags from listings AND a
+--                    test of its own that passes anyway — a builder grading
+--                    itself; only the referee's workflows can catch it
+--   toothless_referee number: the first N referee turns also write a workflow
+--                    that passes with nothing built
 --   with_requests    true: play the requests in tests/fixtures/tiny-notes-requests/,
 --                    one folder each: `request` (the person's words), `touched`
 --                    (what a locate turn answers), `marker` (text the amended
@@ -150,6 +156,15 @@ return function(options)
             if path:sub(1, 6) ~= "tests/" and kind_attempt <= ((options.broken_build or {})[turn.about] or 0) then
                 text = "error('a broken build of issue " .. turn.about .. "')\n" .. text
             end
+            -- The quiet bug: tags dropped from listings, and the builder's
+            -- own test weakened to match, so its acceptance still passes.
+            if turn.about == "201" and kind_attempt <= ((options.quiet_bug or {})["201"] or 0) then
+                if path == "src/show.lua" then
+                    text = text:gsub("if #note%.tags > 0 then", "if false then")
+                elseif path == "tests/201-showing-notes.lua" then
+                    text = "print('201 ok')\n"
+                end
+            end
             writes["design/" .. path] = text
         end
         return writes
@@ -174,6 +189,26 @@ return function(options)
         local writes = build_writes(turn, turn.attempt + 1)
         if not writes then
             return { exit = 7, say = "no fixture design for " .. turn.about }
+        end
+        return { writes = writes }
+    end
+
+    -- The referee: workflows from the blueprint as the case now holds it
+    -- (tests/fixtures/tiny-notes-referee.lua).
+    local referee_workflows = dofile(root .. "/tiny-notes-referee.lua")
+    script.referee = function(turn)
+        local blueprint_now = {}
+        for id, name in pairs(ISSUE_FILES) do
+            local handle = io.open(turn.case_folder .. "/blueprint/issues/" .. name, "rb")
+            blueprint_now[id] = handle and handle:read("*a") or ""
+            if handle then handle:close() end
+        end
+        local writes = {}
+        for name, text in pairs(referee_workflows(blueprint_now)) do
+            writes["workflows/" .. name] = text
+        end
+        if turn.attempt <= (options.toothless_referee or 0) then
+            writes["workflows/09-always.sh"] = "#!/usr/bin/env bash\n# covers: 301\nexit 0\n"
         end
         return { writes = writes }
     end

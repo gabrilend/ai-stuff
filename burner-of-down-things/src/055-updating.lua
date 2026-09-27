@@ -20,6 +20,7 @@ local graph = require("043-the-graph")
 local grading = require("053-grading")
 local amending = require("054-amending")
 local building = require("050-building")
+local workflows = require("063-workflows")
 
 local updating = {}
 
@@ -101,6 +102,13 @@ function updating.step(project, record, options)
         if not amended.ok then
             ledger.append(record.ledger, "request-failed", request, "the blueprint could not be amended: " .. amended.findings)
             return { name = request, grade = grade, outcome = "failed", why = amended.findings }
+        end
+        -- The referees are written again from the amended blueprint, so the
+        -- rebuilt design is checked against the changed behaviour (506).
+        local refereed = workflows.write(project, record, building.target_text(record), options.pool)
+        if not refereed.ok then
+            ledger.append(record.ledger, "request-failed", request, "the workflows could not be rewritten: " .. refereed.findings)
+            return { name = request, grade = grade, outcome = "failed", why = refereed.findings }
         end
         -- The reach is taken again on the amended blueprint: an amend may
         -- add issues, and those must be built too.

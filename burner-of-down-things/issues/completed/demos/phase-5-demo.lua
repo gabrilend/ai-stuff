@@ -129,8 +129,29 @@ end
 print(string.format("  built %d, failed %d, held %d, %d repairs — delivered: %s",
     #report2.built, #report2.failed, #report2.held, report2.repairs, report2.delivered and "yes" or "no"))
 
+print("")
+print("CASE THREE — a builder grades itself: 201 is built with the tags quietly dropped,")
+print("and its own test weakened to match. Only the referee's workflows, written from")
+print("the blueprint by a turn that never saw the design, can catch it.")
+local quiet = described_case("notes-quiet", 'quiet_bug = { ["201"] = 1 }')
+local report3 = building.step(demo_project, quiet, {})
+for _, line in ipairs(ledger.read(quiet.ledger)) do
+    if (line.kind == "built" and line.about == "201") or line.kind == "refereed" or line.kind == "delivered"
+        or (line.kind == "turn-started" and line.about:find("-repair-", 1, true)) then
+        print(string.format("  %-14s %-22s %s", line.kind, line.about, line.text:sub(1, 50)))
+    end
+end
+for _, name in ipairs(fs.list(quiet.turns)) do
+    if name:match("%-repair%-201$") then
+        local prompt = fs.read(quiet.turns .. "/" .. name .. "/prompt.md")
+        print("  the repair of 201 was told: " .. (prompt:match("The failing command:%s*([^\n]+)") or "?"))
+    end
+end
+print(string.format("  delivered: %s — the builder's own test passed the bug; the workflow did not",
+    report3.delivered and "yes, after the repair" or "no"))
+
 -- The designs' own scratch space lives outside the demo folder.
-for _, r in ipairs({ record, broken }) do
+for _, r in ipairs({ record, broken, quiet }) do
     local key = design_folder.scratch_key(r)
     fs.remove_tree("/tmp/burner-of-down-things/cases/" .. key)
     fs.remove_tree("/dev/shm/burner-of-down-things/cases/" .. key)

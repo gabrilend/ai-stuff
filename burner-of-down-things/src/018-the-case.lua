@@ -23,10 +23,11 @@ local fs = require("017-the-filesystem")
 local case = {}
 
 -- The folders inside every case, made when it opens.
-local CASE_FOLDERS = { "input", "output", "survey", "blueprint", "blueprint/issues", "design", "turns" }
+local CASE_FOLDERS = { "input", "output", "survey", "blueprint", "blueprint/issues", "design", "workflows", "turns" }
 
--- Files in input/ that are settings, not requests.
-local NOT_REQUESTS = { target = true, README = true }
+-- Files in input/ that are settings, not requests: the target (what the
+-- design should be) and the crafts (the skills to build it with, 035).
+local NOT_REQUESTS = { target = true, crafts = true, README = true }
 
 -- {{{ local function check_name
 local function check_name(name)
@@ -52,6 +53,7 @@ local function fill_paths(record, cases_folder)
     record.blueprint = folder .. "/blueprint"
     record.issues = folder .. "/blueprint/issues"
     record.design = folder .. "/design"
+    record.workflows = folder .. "/workflows"
     record.turns = folder .. "/turns"
     return record
 end

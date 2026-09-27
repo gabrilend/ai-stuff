@@ -35,6 +35,7 @@ its folders, and checks afterwards that it stayed there.
 | `describe` | an issue id | source, survey, `blueprint/outline.tsv` | `blueprint/issues/<id>-…` only | issue-lifecycle |
 | `build` | an issue id | blueprint, design | `design/` | whatever the person lists in the case's `input/crafts` (canvas-and-paintbrush, polyglot-source, …) |
 | `repair` | an issue id | blueprint, design, the failing test output | `design/` | same as build |
+| `referee` | `-` | blueprint only | `workflows/` | none |
 | `locate` | a request | the request, blueprint | its own turn folder (`touched`) | none |
 | `amend` | a request | the request, blueprint | `blueprint/issues/` | issue-lifecycle |
 

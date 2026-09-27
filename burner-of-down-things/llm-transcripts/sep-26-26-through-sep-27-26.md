@@ -1,7 +1,19 @@
 # Conversation Summary: e8e4c82c-c417-4a78-b8c0-ac2908436973
 
-Generated on: 2026-09-27 12:00:49
+Generated on: 2026-09-27 12:27:57
 Models: claude-opus-5-5
+
+## Contents
+
+1. 2026-09-27 12:03, after Request 11 - I built the machine that turns someone's
+   software into a blueprint and rebuilds it, and all seven phases pass their
+   checks. Next, I need your yes or no on running one real Claude Code turn,
+   which spends a little of your subscription.
+2. 2026-09-27 12:15, after Request 12 - The machine that turns software into
+   blueprints and back is built, and one real Claude Code turn passed. Next, you
+   decide whether to restructure it around your
+   other-people's-software-as-a-rubric strategem, and how a describe turn should
+   tell rules from choices.
 
 --------------------------------------------------------------------------------
 
@@ -777,6 +789,157 @@ isn't finished. The first one, since it decides whether issue 305 can close:
 May I run one real Claude Code turn? It would describe a two-file program, cost
 one small turn of your subscription, and prove the confinement holds against a
 real model.
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+> 2. Plans a blueprint as issue files, checks the plan itself, and writes every
+> issue in parallel. Your own issue validator passes the result.
+
+what does it use to write the issues?
+
+do you have the strategem at /home/ritz/programs/rao-chat/strategem/ that
+suggests other people's software be viewed as a rubric?
+
+> 4. Takes change requests in plain words, grades each one (surface, middle, or
+> foundation) by how much of the design it would rebuild, and holds foundation
+> changes until you say go.
+
+applies changes to issue files, or behavior, or both?
+
+> May I run one real Claude Code turn? It would describe a two-file program,
+> cost one small turn of your subscription, and prove the confinement holds
+> against a real model.
+
+sure. I don't have many API credits so I prefer using the subscription.
+
+> 1. Reads the code without a model: every file, its language, and which file
+> includes which. This runs across all 12 cores and takes 0.6 seconds on the
+> 8,500-file AzerothCore tree.
+
+eventually, all we should need to give is a name. In the interim, we can give
+compiled binaries and such. For this prototype, source-code is fine.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12
+
+> No, the machine doesn't use that strategem, and reading it exposed a real
+> flaw. More on that below. First, the live run you approved:
+
+*[commit] 66eca6510 in ai-stuff - Run one real Claude Code turn, and close the harness*
+
+Issue 305 is closed and committed, and your notes about names and binaries are
+saved in the vision.
+
+**What writes the issues?** A model, one turn per issue: Claude Code by default,
+now proven live. Each turn gets the source files its issue covers, the outline,
+and your issue-lifecycle skill file as its guide to the house format. The
+machine never writes issue content itself; it only checks what comes back. The
+earlier demos used the stand-in, which played back issues I wrote by hand.
+
+**Does a change go into the issue files, the behavior, or both?** Both, always
+in that order. First the request is written into the issue files. Then the
+design is rebuilt from those issues, only as far as the change reaches. The code
+is never edited directly, so the blueprint and the design can't drift apart.
+
+**Other people's software as a rubric:** no, and the machine currently breaks
+that strategem in two ways.
+
+1. **It copies answers.** A describe turn writes down everything the source
+   does, as one flat specification. It never separates the rules (what must hold
+   for anyone: file formats, ordering, what the platform refuses) from the
+   choices (defaults, structure, anything that could have been otherwise). So
+   the design inherits every choice, which is the "cheating" the strategem warns
+   about.
+2. **Its referee shares code with the thing it grades.** An issue's acceptance
+   command runs a test file, and the build turn writes that test file itself, in
+   the same turn as the code it checks. By the strategem's own words, that
+   grades nothing: a build turn could write broken code with a test that passes.
+
+**A rough fix, for you to judge before I write any issue:**
+- **Describe in two parts per issue:** rules and choices. Build turns keep the
+  rules and are asked to make the choices differently ("different each time").
+- **Referees come from the rules alone,** written by a separate turn that sees
+  neither the source nor the design. The machine proves each referee has teeth
+  by running it against a deliberately broken build and requiring a failure,
+  like the talent referee in wow-chat.
+
+Here's the hard part, and I'd like your view on it. The source is the only thing
+that shows what the rules are, yet the source is also one particular answer. How
+can a describe turn tell which of the source's behaviors are rules and which are
+its author's choices, when both look the same in code? A second, different
+implementation of the same kind of software would expose the difference, since
+whatever the two agree on is likely a rule. Is that where "eventually, all we
+should need to give is a name" leads? A name would point to many implementations
+at once, not one.
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+> - Describe in two parts per issue: rules and choices. Build turns keep the
+> rules and are asked to make the choices differently ("different each time").
+
+doesn't necessarily have to be different each time. We're looking for
+customization, not provenance.
+
+the goal is to be able to say "hello, I'd like my own version of dropbox with
+these tweaks" and the system would build it from scratch. The behavior of
+dropbox would be understood, and it would be reproducible just from name. Then,
+we can create a shared platform (like rmail) that allows people to share and
+develop things. You can't copyright a picture, and this gives us memes. You
+can't copyright a software, and this gives us these.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+I saved your words to the vision. Understood: customization, not novelty. That
+changes what the two-part split is for:
+
+- **Rules** are the behavior that makes it "Dropbox": files sync across
+  machines, a conflict keeps both copies, a shared folder shows up for everyone
+  invited.
+- **Choices** are the knobs. "With these tweaks" becomes a set of changed
+  choices, graded like any other request, and most tweaks should land as
+  surface-grade.
+- **Name-only** means the describe step writes the rules from what's publicly
+  known about the software (its documentation and observable behavior) instead
+  of from its source. The rest of the machine doesn't change.
+- **The shared platform** trades blueprints, not code. Someone's "Dropbox, but
+  with LAN-only sync" is a blueprint plus a set of choices, and anyone can build
+  their own copy from it.
+
+One correction, because the plan depends on it. Pictures and software code *are*
+copyrightable. What copyright doesn't cover is behavior: ideas, methods, and how
+a program functions. So the plan works, for a different reason than the one you
+gave:
+- **Copyright protects expression.** Describing what Dropbox *does* and building
+  it fresh is the clean-room method. Phoenix used it in the 1980s to clone the
+  IBM PC BIOS legally, and the machine's rule that build turns never see the
+  source is that same wall.
+- **Patents can cover behavior itself.** Some specific features would be off
+  limits regardless of how they were built.
+- **Trademarks cover the name.** You can build "your own Dropbox", but you can't
+  ship or share it *called* Dropbox. The shared platform would need its own
+  names for things. That fits your "never name such a thing".
+- **Terms of service** sometimes forbid reverse engineering, which matters once
+  binaries become an input.
+
+This isn't legal advice. For memes, the reality is that sharing mostly goes
+unenforced, not that it's legally free. Your blueprint platform would stand on
+firmer ground than memes do, because behavior really is free to copy.
+
+The referee problem still stands whatever the input is: build turns currently
+write their own tests. That needs fixing before anything built here can be
+trusted.
+
+A question back: once a blueprint describes behavior rather than code, what
+proves a rebuilt "Dropbox" actually behaves like Dropbox? Rules written from
+documentation can be wrong or incomplete, and nothing would catch that unless
+something compares against the real product. What would you accept as the check?
 
 --------------------------------------------------------------------------------
 

@@ -164,6 +164,44 @@ kinds.TABLE = {
             "{{blocker_texts}}"
         ),
     },
+    -- The referee sees the blueprint and nothing else: not the source (it
+    -- checks behaviour, not a copy), not the design (a referee that shares
+    -- anything with what it grades grades nothing). It writes outside the
+    -- design folder, where no build or repair turn may write (issue 506).
+    referee = {
+        reads = { "blueprint/" },
+        writes = { "workflows/" },
+        crafts = {},
+        template = lines(
+            "turn: referee {{about}}",
+            "",
+            "Write end-to-end workflows that check a design built from this blueprint the",
+            "way a person using it would: with the same kinds of input a person gives it",
+            "(the commands they type, the files they hand it) and checking only what a",
+            "person could see (what it prints, the files it writes, how it exits).",
+            "Protocols, not procedures: never call its internal functions by name, never",
+            "read its source. You have not seen the design and must not assume anything",
+            "about it beyond what the blueprint says.",
+            "",
+            "What the design is meant to be: {{target}}",
+            "",
+            "Write each workflow as a shell script in your working folder named",
+            "NN-<words-with-dashes>.sh (NN two digits). Each is run with bash from the",
+            "design's folder and must exit 0 exactly when the behaviour holds. Its second",
+            "line must be a comment naming the issues whose behaviour it exercises:",
+            "# covers: 201 301",
+            "Use temporary files for anything the design stores; leave nothing behind.",
+            "Every workflow will first be run against an empty folder and must FAIL",
+            "there — a workflow that passes with nothing built checks nothing.",
+            "Write as many as it takes to exercise every issue's behaviour at least once.",
+            "",
+            "The blueprint, every issue whole:",
+            "{{blueprint_text}}",
+            "",
+            "Findings from an earlier attempt that must be fixed:",
+            "{{findings}}"
+        ),
+    },
     locate = {
         reads = { "request", "blueprint/" },
         writes = { "turn" },

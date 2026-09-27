@@ -9,7 +9,14 @@
 -- issue built so far is run again, because a later build can break an
 -- earlier one; anything that now fails is repaired before the next level.
 -- When every issue has passed and a final full run passes, the design is
--- delivered, with the ledger's head hash as the fingerprint of its history.
+-- checked by the case's workflows (issue 506): end-to-end scripts written
+-- from the blueprint alone by a referee turn that never saw the design. The
+-- issues' own acceptance commands run tests the builder wrote for itself —
+-- useful to the builder, but a referee that shares code with what it checks
+-- grades nothing, so delivery trusts the workflows. A failing workflow gets
+-- repair turns for the issues it covers; only when every workflow passes is
+-- the design delivered, with the ledger's head hash as the fingerprint of
+-- its history.
 --
 -- Which issues are wanted: those with no `built` line, plus a rebuild set
 -- (from an update, phase 6) whose `built` lines are stale. Held from the
@@ -24,6 +31,7 @@ local graph = require("043-the-graph")
 local issue_files = require("044-issue-files")
 local design_folder = require("048-the-design-folder")
 local acceptance = require("049-acceptance")
+local workflows = require("063-workflows")
 
 local building = {}
 
@@ -121,6 +129,16 @@ function building.step(project, record, options)
     end
     local target = building.target_text(record)
     local turn_folder_of = {}
+    -- The referees are written before anything is built: they come from the
+    -- blueprint alone, and a design with no referees cannot be delivered.
+    if not ledger.has(index, "refereed", "-") then
+        local written = workflows.write(project, record, target, options.pool)
+        report.referee_turns = 1
+        report.refereed = written.ok
+        report.referee_findings = written.findings
+    else
+        report.refereed = true
+    end
 
     -- {{{ local function run_turns
     -- Runs build or repair turns for `ids` as one set; returns results by id.
@@ -255,6 +273,50 @@ function building.step(project, record, options)
             if not acceptance.run(record, issue_of(record, id), nil, options.limit).ok then
                 all_built = false
                 report.failed[#report.failed + 1] = id
+            end
+        end
+    end
+    -- The workflows: the checks delivery trusts. Only run on a design that
+    -- has something new in it, or has never been delivered.
+    local fresh = report.turns > 0 or not ledger.has(index, "delivered", "-")
+    if all_built and not report.refereed then
+        all_built = false
+    elseif all_built and fresh then
+        local failures = workflows.run_all(record, options.limit)
+        for round = 1, building.MOST_REPAIRS do
+            if #failures == 0 then
+                break
+            end
+            -- Each failing workflow's output goes to the repair of every
+            -- issue it covers; the workflow's text does not.
+            local to_repair, why = {}, {}
+            for _, fail in ipairs(failures) do
+                for _, id in ipairs(fail.workflow.covers) do
+                    if g.nodes[id] and not why[id] then
+                        why[id] = { command = "the end-to-end workflow " .. fail.workflow.name, output = fail.output }
+                        to_repair[#to_repair + 1] = id
+                    end
+                end
+            end
+            table.sort(to_repair)
+            run_turns("repair", to_repair, why)
+            failures = workflows.run_all(record, options.limit)
+        end
+        report.workflow_failures = failures
+        if #failures > 0 then
+            all_built = false
+            for _, fail in ipairs(failures) do
+                ledger.append(record.ledger, "workflow-failed", fail.workflow.name,
+                    "covers " .. table.concat(fail.workflow.covers, " ") .. "; still failing after "
+                    .. building.MOST_REPAIRS .. " rounds of repair")
+            end
+        else
+            -- A repair made for a workflow can break an issue's own checks.
+            for _, id in ipairs(g.ids) do
+                if not acceptance.run(record, issue_of(record, id), nil, options.limit).ok then
+                    all_built = false
+                    report.failed[#report.failed + 1] = id
+                end
             end
         end
     end

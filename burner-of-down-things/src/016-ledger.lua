@@ -35,6 +35,7 @@ local KINDS = {
     ["outlined"] = true, ["outline-failed"] = true,
     ["described"] = true, ["describe-failed"] = true,
     ["built"] = true, ["build-failed"] = true, ["delivered"] = true,
+    ["refereed"] = true, ["referee-failed"] = true, ["workflow-failed"] = true,
     ["graded"] = true, ["held"] = true, ["request-done"] = true,
     ["request-failed"] = true, ["goodbye"] = true,
 }

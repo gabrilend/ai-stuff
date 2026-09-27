@@ -64,6 +64,38 @@ time a case builds.
 | An issue has no Acceptance commands | Not built: it goes back to a describe turn. An issue with no checks cannot be said to pass |
 | A build turn changed a file that an already-built issue's acceptance depends on | Found when the whole design's acceptance is re-run at the end of every wave: every built issue is checked again, and any that now fail are repaired first |
 
+## Workflows: the checks delivery trusts
+
+> the user is expected to test their own application. The system should
+> make workflows that use the same types of input that the user would
+> provide, to test behavior from end-to-end. […] Protocols, not procedures.
+>
+> — the owner, 2026-09-27
+
+An issue's acceptance commands run tests the build turn wrote in the same
+turn as its code. That is the builder's own check, useful for repair, but
+a referee that shares anything with what it grades grades nothing (the
+strategem *other people's software as a rubric*, rao-chat). So before the
+first wave a **referee** turn, which reads the blueprint and nothing else,
+writes end-to-end **workflows** into the case's `workflows/` folder: shell
+scripts that use the design as a person would — the commands they type,
+the files they hand it — and check only what a person could see. Build
+and repair turns can neither see nor write them.
+
+```
+  blueprint ──referee turn──► workflows/NN-*.sh ──each must FAIL on an empty folder──► refereed
+                                                   (a workflow that passes with
+                                                    nothing built checks nothing)
+  … waves, each issue's own acceptance …
+  every workflow, run in the design ──fail──► repair every issue it covers (output only, not the text)
+            │ pass                              up to 2 rounds, then workflow-failed: not delivered
+            ▼
+        delivered
+```
+
+After a request's amend the workflows are written again from the amended
+blueprint, so the rebuilt design is checked against the changed behaviour.
+
 ## Why waves
 
 Level by level is the only order in which every build turn can be handed

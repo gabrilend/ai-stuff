@@ -80,3 +80,13 @@ eventually, all we should need to give is a name. In the interim, we can give co
   May I run one real Claude Code turn?
 
 sure. I don't have many API credits so I prefer using the subscription.
+
+  - Describe in two parts per issue: rules and choices. Build turns keep the rules and are asked to make the choices differently ("different each time").
+
+doesn't necessarily have to be different each time. We're looking for customization, not provenance.
+
+the goal is to be able to say "hello, I'd like my own version of dropbox with these tweaks" and the system would build it from scratch. The behavior of dropbox would be understood, and it would be reproducible just from name. Then, we can create a shared platform (like rmail) that allows people to share and develop things. You can't copyright a picture, and this gives us memes. You can't copyright a software, and this gives us these.
+
+  A question back: once a blueprint describes behavior rather than code, what proves a rebuilt "Dropbox" actually behaves like Dropbox?
+
+the user is expected to test their own application. The system should make workflows that use the same types of input that the user would provide, to test behavior from end-to-end. We don't have to test against the real product, we just have to describe how it works, and then utilize that description to build our own to solve the same problem, but in our own way, that is customizable as we go. Protocols, not procedures.

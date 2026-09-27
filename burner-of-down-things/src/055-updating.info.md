@@ -11,3 +11,6 @@ Per request: grade it if not yet graded (a locate that never answers fails
 the request; a breach stops the run); at or above the case's `hold`
 without `go` → `held` (recorded once); else amend, rebuild the reach taken
 on the amended graph, and record `request-done` or `request-failed`.
+
+After a successful amend the workflows are written again from the amended
+blueprint before the reach is rebuilt; if they cannot be, the request fails.

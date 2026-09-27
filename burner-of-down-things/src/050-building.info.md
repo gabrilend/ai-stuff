@@ -15,3 +15,11 @@ acceptance runs again and anything a later build broke is repaired. All
 built and a final full run passing → `delivered` and `output/delivered`.
 Issues that could not be described hold their reach from the start. A
 breach raises an error.
+
+Referees (issue 506): before the first wave, if the case has no `refereed`
+line, the workflows are written from the blueprint. Delivery needs them: a
+case whose referee failed is not delivered. After every issue's own
+acceptance passes, every workflow runs in the design; a failing workflow's
+name and output go to repair turns for every issue it covers, up to 2
+rounds; still failing → `workflow-failed` per workflow, not delivered. The
+report gains `refereed`, `referee_turns`, `workflow_failures`.
