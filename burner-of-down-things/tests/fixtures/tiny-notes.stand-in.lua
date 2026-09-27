@@ -20,8 +20,14 @@
 --   also_writes      { [id] = { [design path] = text } }: that issue's first
 --                    build also writes these files — a later build breaking
 --                    an earlier issue's code, for the regression check
---   requests         phase 6: { [request file] = { touched = "201\n", amend = {
---                    [issue file name] = new text }, design = { [path] = text } } }
+--   with_requests    true: play the requests in tests/fixtures/tiny-notes-requests/,
+--                    one folder each: `request` (the person's words), `touched`
+--                    (what a locate turn answers), `marker` (text the amended
+--                    issue holds), `amend/<issue file>` (the amended issue),
+--                    `design/<path>` (the code a rebuild writes once the blueprint
+--                    holds the marker). Builds follow the blueprint: an issue whose
+--                    file in the case holds a request's marker is built with that
+--                    request's code.
 
 -- {{{ local function read
 local function read(path)
@@ -47,11 +53,52 @@ local ISSUE_FILES = {
     ["201"] = "201-showing-notes.md", ["202"] = "202-searching-notes.md", ["301"] = "301-the-notes-command.md",
 }
 
+-- {{{ local function list
+local function list(folder)
+    local pipe = io.popen("find '" .. folder .. "' -type f -printf '%P\\n' 2>/dev/null")
+    local out = {}
+    for name in pipe:read("*a"):gmatch("[^\n]+") do
+        out[#out + 1] = name
+    end
+    pipe:close()
+    table.sort(out)
+    return out
+end
+-- }}}
+
+-- {{{ local function load_requests
+-- Every request folder, as { [name] = { touched, marker, amend = { [file] =
+-- text }, design = { [path] = text } } }.
+local function load_requests(folder)
+    local requests = {}
+    for _, file in ipairs(list(folder)) do
+        local name, rest = file:match("^([^/]+)/(.+)$")
+        if name then
+            local r = requests[name] or { amend = {}, design = {} }
+            requests[name] = r
+            if rest == "touched" then
+                r.touched = read(folder .. "/" .. file)
+            elseif rest == "marker" then
+                r.marker = read(folder .. "/" .. file)
+            elseif rest:sub(1, 6) == "amend/" then
+                r.amend[rest:sub(7)] = read(folder .. "/" .. file)
+            elseif rest:sub(1, 7) == "design/" then
+                r.design[rest:sub(8)] = read(folder .. "/" .. file)
+            end
+        end
+    end
+    return requests
+end
+-- }}}
+
 return function(options)
     local root = options.root
     local blueprint = root .. "/tiny-notes-blueprint"
     local design = root .. "/tiny-notes-design"
     local script = {}
+    if options.with_requests then
+        options.requests = load_requests(root .. "/tiny-notes-requests")
+    end
 
     script.outline = function(turn)
         local text = read(blueprint .. "/outline.tsv")
@@ -80,9 +127,22 @@ return function(options)
         if not files then
             return nil
         end
+        -- The issue as the case's blueprint holds it now: after an amend it
+        -- holds a request's marker, and the build follows it.
+        local issue_now = ""
+        local handle = io.open(turn.case_folder .. "/blueprint/issues/" .. ISSUE_FILES[turn.about], "rb")
+        if handle then
+            issue_now = handle:read("*a")
+            handle:close()
+        end
         local writes = {}
         for _, path in ipairs(files) do
             local text = read(design .. "/" .. path)
+            for _, request in pairs(options.requests or {}) do
+                if request.marker and request.design[path] and issue_now:find(request.marker, 1, true) then
+                    text = request.design[path]
+                end
+            end
             local override = options.design_overrides and options.design_overrides[path]
             if override then
                 text = override

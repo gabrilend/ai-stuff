@@ -5,7 +5,7 @@ fails ([008](../docs/008-datapath-the-update.md)).
 
 ## Current Behavior
 
-A request can be graded; nothing changes the blueprint.
+Built as `src/054-amending.lua`. Each failed attempt puts the blueprint back before the next one starts, so every amend turn starts from the blueprint as it was, not from a half-done edit. The copies are kept in each amend turn's `before/` folder. Besides the outline's and issues' own checks, every outline row must have its file. Checked by tests/057: three bad amends (one writing an issue with no sections, one adding a stray file) leave the blueprint byte-identical and the stray file gone.
 
 ## Intended Behavior
 

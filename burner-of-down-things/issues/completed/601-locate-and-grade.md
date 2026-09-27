@@ -5,7 +5,7 @@ graph ([008](../docs/008-datapath-the-update.md), *the grade*).
 
 ## Current Behavior
 
-Requests are noticed (`request-received`) and nothing else.
+Built as `src/053-grading.lua`, with the `grade` command in `src/056-the-update-commands.lua`. The grade line lives in one table (`RULE`: foundation at level 0 or at half the blueprint). The `graded` line's text is parsed back when a held request is released, so a grade is decided once. Checked by tests/057 at every edge of the rule on six-issue graphs (a level-1 leaf is surface; a reach of 2 of 6 is middle; exactly half is foundation), plus a locate turn answering an unknown id first and a good id second.
 
 ## Intended Behavior
 
