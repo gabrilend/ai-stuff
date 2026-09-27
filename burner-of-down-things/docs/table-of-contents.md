@@ -34,6 +34,8 @@ name is where it lives.
     ledger alone.
 - docs/010-open-questions.md - every question waiting on the owner.
 - docs/011-roadmap.md - the seven phases and their demos.
+- docs/balance-updates.md - append-only record of every change to the numbers
+  the machine weighs by (grade lines, the center's weights), with reasons.
 
 ## Phases
 Phases group related functionality, not calendar time. It is normal for the

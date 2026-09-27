@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-6-demo` and `phase-6-demo.lua`. The rebuilt notes program takes the three fixture requests in turn: each shown in the person's words, graded, its touched issue (●) and reach (○) drawn on the graph by level, the foundation one held with its grade file shown and released with `--go`, then `notes list` run to show the change (and the notes file's header appearing on the next save). Ends with the share of the design each grade rebuilt as bars, the turns each took, and the ledger's verification.
 
 ## Intended Behavior
 

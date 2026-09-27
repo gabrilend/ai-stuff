@@ -49,6 +49,11 @@ request against the same blueprint always gets the same grade.
 A request that needs a new issue (the locate turn answers `new`) is graded
 by where the new issue will sit: an issue nothing builds on yet is surface.
 
+The `graded` ledger line's text is the machine's own record of the grade —
+`middle; touched 201; reach 201 301` — and is read back when a held
+request is released, so a grade is decided once. A request held twice is
+recorded `held` once.
+
 The grades are the first draft of *update grades as we go along*. The rule
 is kept in one table in the source so that when real updates show the lines
 are in the wrong places, moving them is a one-row change, recorded in
@@ -72,6 +77,6 @@ must be located against the blueprint as the last one left it.
 | Decision | What each path leads to |
 |---|---|
 | The locate turn names an id that is not in the blueprint | A new locate turn, told which ids exist. Three failures stop the request, with the reason in `output/` |
-| The amend turn writes outside `blueprint/issues/` | Breach ([005](005-datapath-the-hands.md)); the request stops |
-| The amended blueprint fails its checks | A new amend turn, given the findings. Three failures stop the request, and the blueprint is put back as it was before the amend — the machine keeps a copy of each touched issue file in the turn folder before the amend turn starts |
-| The rebuild fails | As for any build ([007](007-datapath-the-design.md)); the request is left open, not done |
+| The amended blueprint fails its checks | The blueprint is put back, and a new amend turn starts from it, given the findings. Three failures fail the request with the blueprint byte-identical to before — the machine keeps a copy of the outline and every issue file in each amend turn's `before/` folder |
+| A locate or amend turn writes outside its folders | Breach: the blueprint is put back and the whole run stops, not just the request |
+| The rebuild fails | As for any build ([007](007-datapath-the-design.md)): failed issues are recorded and their reach held. The request is `request-failed`, with how many failed and were held |

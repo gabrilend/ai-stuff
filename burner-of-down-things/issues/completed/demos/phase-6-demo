@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# phase-6-demo - shows change requests being graded by how deep they reach
+# and rebuilt outward. The notes program, rebuilt from its blueprint, gets
+# three requests in the person's own words: a small one that touches only
+# the top of the program, one in the middle, and one in its foundation.
+# Each is located in the blueprint and graded before anything changes; its
+# reach is drawn on the blueprint's graph; the foundation one waits for the
+# person's go-ahead. After each, the program is run to show the change.
+#
+# Usage: phase-6-demo [project folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/burner-of-down-things"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+exec luajit "${DIR}/issues/completed/demos/phase-6-demo.lua" "${DIR}"

@@ -114,6 +114,7 @@ local LATER_COMMAND_MODULES = {
     "031-the-survey-commands",
     "046-the-blueprint-commands",
     "051-the-design-commands",
+    "056-the-update-commands",
 }
 
 -- {{{ local function load_later_commands
