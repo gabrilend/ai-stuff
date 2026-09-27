@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-No demo.
+Built: `issues/completed/demos/phase-7-demo` and `phase-7-demo.lua`. Uses the real launcher on a scratch copy of the machine: `open`, then one `run` from source to delivered design (with one repair), a second `run` that finds nothing waiting, the design used; the center drawn as bars after the first build and after each request; two requests arriving together, shown in the order noticed and the order the center handled them; the foundation one held and released with `update --go`; the design used again; the ledger's totals as a chart; `view` writing the page, kept in the scratch space and opened in Firefox when a display is present (`NO_BROWSER=1` skips opening).
 
 ## Intended Behavior
 

@@ -5,8 +5,7 @@ The personality: weights computed from the ledger alone
 
 ## Current Behavior
 
-Everything is done in age and id order; nothing remembers what the person
-attends to.
+Built as `src/058-the-center.lua`, with the `center` command in `src/061-the-center-commands.lua`. The numbers live in one table (`BALANCE`), recorded with reasons in `docs/balance-updates.md`. Checked by tests/062 against a hand computation to 1e-9, for determinism, and — through the case viewer — against the page's own recomputation in JavaScript.
 
 ## Intended Behavior
 

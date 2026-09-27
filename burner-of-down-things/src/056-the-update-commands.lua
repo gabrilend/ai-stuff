@@ -11,6 +11,7 @@ local fs = require("017-the-filesystem")
 local graph = require("043-the-graph")
 local grading = require("053-grading")
 local updating = require("055-updating")
+local center = require("058-the-center")
 
 local commands = {}
 
@@ -21,7 +22,11 @@ commands.rows = {
         what = "handle waiting requests in input/ (--go: past the hold)",
         run = function(run)
             local go = run.args[1] == "--go"
-            local results = updating.step(run.project, run.case, { go = go })
+            -- The center orders the waiting requests and each wave (phase 7).
+            local guided = center.options_for(run.case)
+            local results = updating.step(run.project, run.case, {
+                go = go, order = guided.order, build_order = guided.build_order, pool = guided.pool,
+            })
             if #results == 0 then
                 run.say("no requests are waiting")
             end
@@ -55,7 +60,7 @@ commands.rows = {
             local index = ledger.index(ledger.read(run.case.ledger))
             if not ledger.has(index, "graded", request) then
                 local g = graph.build((text_tables.read(run.case.blueprint .. "/outline.tsv")))
-                local touched, new_phases = grading.locate(run.project, run.case, g, request, {})
+                local touched, new_phases = grading.locate(run.project, run.case, g, request, center.options_for(run.case).pool)
                 local grade, reach = grading.grade(g, touched, new_phases)
                 grading.record(run.case, request, grade, touched, new_phases, reach, #g.ids)
             end
