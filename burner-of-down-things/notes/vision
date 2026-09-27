@@ -67,3 +67,16 @@ this is only a reading of them):
              the blueprint they reach; the grades are defined as real updates
              arrive
   name       none, ever. The folder's name is a place, not a name
+
+
+---
+
+2026-09-27, on what the machine is handed:
+
+  1. Reads the code without a model: every file, its language, and which file includes which. This runs across all 12 cores and takes 0.6 seconds on the 8,500-file AzerothCore tree.
+
+eventually, all we should need to give is a name. In the interim, we can give compiled binaries and such. For this prototype, source-code is fine.
+
+  May I run one real Claude Code turn?
+
+sure. I don't have many API credits so I prefer using the subscription.
