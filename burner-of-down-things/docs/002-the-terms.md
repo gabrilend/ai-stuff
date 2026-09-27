@@ -22,6 +22,8 @@ the data behind each one, down to plain strings and numbers.
 | **a harness** | The program that runs a turn: Claude Code, or the stand-in used by tests |
 | **confinement** | The rule of which folders a turn may read and write, and the check after it ends that it kept to it |
 | **a breach** | A turn that changed something outside what it was allowed to write |
+| **a referee** | A turn that reads only the blueprint and writes workflows; it never sees the source or the design |
+| **a workflow** | An end-to-end script, written by a referee, that uses the design the way a person would and checks only what a person could see. Delivery trusts these, not the builder's own tests |
 | **a request** | A change the person asks for, written as a file in the case's `input/` |
 | **a grade** | How deep a request reaches into the graph: surface, middle or foundation |
 | **the ledger** | The case's append-only record of everything that happened, each line chained to the one before it by a checksum |
@@ -42,6 +44,7 @@ only when the person changes the harness or the target.
 | `opened` | string | date and time the case was opened, `YYYY-MM-DD HH:MM:SS` |
 | `harness` | string | a row name in the harness table: `claude-code` or `stand-in` |
 | `target` | string | the person's words for what the design should be — language, platform, anything. Empty means "the same kind of thing as the source" |
+| `hold` | string | `none`, `middle` or `foundation`: the update grade at and above which a request waits for the person ([008](008-datapath-the-update.md)); `foundation` unless changed |
 
 ### A ledger line — `ledger`
 

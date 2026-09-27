@@ -65,7 +65,10 @@ writes the file.
 | `describe-failed` | an issue's describe turns all fail their checks | the issue id |
 | `built` | an issue's tests pass in the design | the issue id |
 | `build-failed` | an issue's tests still fail after its retries | the issue id |
-| `delivered` | every issue is built and the final acceptance run passes | `-` |
+| `refereed` | a referee turn's workflows pass their checks | `-` |
+| `referee-failed` | three referee turns' workflows all fail their checks | `-` |
+| `workflow-failed` | a workflow still fails after two rounds of repair | the workflow's file name |
+| `delivered` | every issue is built, the final acceptance run passes, and every workflow passes | `-` |
 | `graded` | a request's grade is decided | the request file |
 | `held` | a graded request waits for the person's `--go` | the request file |
 | `request-failed` | a request's locate, amend or rebuild gave up | the request file |

@@ -12,6 +12,8 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 504 delivery — the design delivered with the fingerprint of its history, and never delivered twice for nothing.
 - 505 phase 5 demo — the notes program rebuilt from its blueprint alone, and run.
 
+- 506 workflows written from the blueprint alone — referees that never see the design; delivery trusts them, not the builder's own tests.
+
 The phase's goal is met with the stand-in: a blueprint becomes running code
 without the builder ever seeing the source. Run `tests/run-tests design` and
 `./run-phase-demo 5`.

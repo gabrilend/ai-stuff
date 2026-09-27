@@ -6,7 +6,8 @@ A **kind row**: `reads`, `writes` (arrays of path names resolved against the
 case — `source`, folders ending in `/`, single files, `blueprint/issues/{{about}}-`
 prefixes, `turn`, `request`), `crafts` (array of skill names), `template`
 (prompt text with `{{slot}}` marks; first line `turn: <kind> <about>`).
-Kinds: `outline`, `describe`, `build`, `repair`, `locate`, `amend`.
+Kinds: `outline`, `describe`, `build`, `repair`, `referee` (reads only the
+blueprint, writes only `workflows/`, issue 506), `locate`, `amend`.
 
 A **turn table**: `id` (`NNNN-kind-about`), `kind`, `about`, `folder`,
 `case_folder` (strings); `reads`, `writes` (arrays of absolute paths; writes
