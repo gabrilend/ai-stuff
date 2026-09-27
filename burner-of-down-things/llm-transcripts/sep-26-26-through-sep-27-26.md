@@ -1,6 +1,6 @@
 # Conversation Summary: e8e4c82c-c417-4a78-b8c0-ac2908436973
 
-Generated on: 2026-09-26 14:58:28
+Generated on: 2026-09-27 12:00:49
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -420,6 +420,363 @@ No name, ever. I'll treat `burner-of-down-things` as the folder's location, not
 as the thing's name.
 
 Say "init" when you want the skeleton, docs, roadmap, and issues.
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+init
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+Base directory for this skill: /home/ritz/.claude/skills/project-init
+
+# Project init
+
+The owner's CLAUDE.md defines what a project is made of and how it is
+initialised, and it is the authority throughout; where it and this skill ever
+disagree, CLAUDE.md wins and this skill is the thing to fix. This skill adds
+only what CLAUDE.md leaves open: which tool builds the skeleton, in what order
+the loop runs, and when each step is finished.
+
+## 1. Lay out the skeleton with the tool, not by hand
+
+    /mnt/mtwo/programming/ai-stuff/scripts/init-project.sh --skeleton-only <project-path>
+
+It works for any folder, inside the monorepo or not, existing or not, and adds
+only what is missing: the standard folders and intent folders, `docs/HTML/`,
+`issues/completed/demos/`, `llm-transcripts/`, `docs/table-of-contents.md`,
+`.file-index-counter`, `issues/phase-1-progress.md`, the root `run-phase-demo`
+picker, the RAM scratch tiers behind `tmp/`, `tmp` in `.gitignore`, and a
+plain-text `README` in every folder it leaves empty, saying what the folder is
+for (git keeps no empty folder, so without it the folder never reaches a
+remote). Those notes are part of the first commit. It is safe to re-run; on a
+project that already has everything it changes nothing.
+Read its report: it names what it built.
+
+A project the owner wants to run an agent inside with permission checks off
+gets the full form instead (a bare project name, inside the monorepo), which
+adds a RAM sandbox. That is the owner's call, never a default; ask.
+
+Anything the skeleton does not cover and CLAUDE.md asks for is a gap in the
+tool. Make it by hand only if the owner says to, and note it in
+`scripts/issues/026-skeleton-without-a-monorepo.md` so the tool learns it.
+
+The `tmp/` link opens onto RAM, which a reboot empties. Scripts written for the
+project that write into `tmp/` start by sourcing
+`/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers` and calling
+`ensure_ram_tiers "${DIR}"` (Lua programs: `libs/ensure-ram-tiers.lua`), so the
+tiers are rebuilt before they are needed rather than failing after a restart.
+
+## 2. The documentation loop
+
+Start from `notes/vision` (or whatever the vision file is called in `notes/`).
+If there is none, stop and ask for one: everything after this point is
+derived from it, and inventing a vision would make the whole project a guess.
+
+Then follow CLAUDE.md's initialisation loop. The parts that are easy to get
+wrong:
+
+- **Repeat until there is nothing reasonable left to write.** Each pass reads
+  the vision and everything already in `docs/`, then writes what is missing
+  or improves what is thin. A pass that finds nothing new to create re-reads
+  and sharpens the existing documents instead; that is the stopping signal
+  approaching, not a reason to stop immediately.
+- **Every new document goes into `docs/table-of-contents.md`** in the same
+  pass that creates it.
+- **Phases are clusters of functionality, not calendar stages**, and they are
+  named in the table of contents from the start. Foundational pieces get low
+  phase numbers because others build on them, not because they come first in
+  time.
+- **One datapath document per major feature**, showing how data moves through
+  it. These are the documents later issue work updates, so write them as the
+  current design, not as a plan.
+- **The roadmap is split into phases**, and each phase says what it ends with
+  (its demo).
+
+## 3. Roadmap into issues
+
+Break the roadmap into issue files following the issue-lifecycle skill, which
+owns naming, numbering, the required sections, sub-issues, and phase progress
+files. Number by foundation, not by the order you think of them: the issue
+others build on gets the lower number. Give each phase's
+`issues/phase-N-progress.md` its goals from the roadmap as the phase is
+written.
+
+## 4. Finish
+
+- Run `run-phase-demo` once: with no demos yet it should say so and exit
+  cleanly, which proves the picker and the demos folder are wired.
+- Commit following issue-lifecycle's commit rules, with the transcripts.
+- Report what was created, what the tool did versus what was written, and
+  every open question met along the way. CLAUDE.md treats a task holding an
+  unanswered open question as unfinished, so say plainly which questions are
+  still waiting.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+> Setting up the project now: the skeleton is laid, and I'm reading your house
+> tools before writing the docs, roadmap, and issues. Then I'll build it phase
+> by phase.
+
+> Writing the design documents now: what it is, the core terms, one datapath per
+> major part, then the roadmap.
+
+> Docs are half written: what it is, the terms, and the case, survey, hands,
+> blueprint, and design datapaths. The update, center, open questions, and
+> roadmap are next.
+
+> Docs are done; writing the issue files next, phase by phase.
+
+> Adding `delivered` to the ledger kinds now rather than later, then phases
+> 6–7.
+
+> Docs, roadmap, and 39 issue files are written and they validate clean.
+> Committing the initialization now.
+
+*[commit] 0fdefd4d7 in ai-stuff - Lay out the machine that turns software into blueprints and back*
+
+> Initialization is committed. Starting phase 1: the launcher, text tables,
+> SHA-256, the ledger, the case folder, and the dispatcher.
+
+> Phase 1 code is nearly done. I'm fixing the order of operations so nothing is
+> written to the ledger before the lock is held and the ledger has been checked.
+
+> Phase 1 checks mostly pass. Two small fixes: the RAM scratch space won't
+> execute scripts directly, so the check runs the launcher through bash, and a
+> harmless error line gets tidied.
+
+> Phase 1 is built: 355 checks pass and the demo runs. Closing out its issues
+> now.
+
+> Moving the phase 1 issues to completed and updating the progress file.
+
+*[commit] 0e6c7c17c in ai-stuff - Give the machine a memory it cannot quietly rewrite*
+
+> The warnings come from my own `git mv` staging. Resetting those index entries
+> to match the commit:
+
+> Phase 1 is committed and the tree is clean. Starting phase 2, the survey:
+> reading a source tree across all cores without a model.
+
+> The count was my arithmetic, not the survey: there are 13 files. Correcting
+> the check:
+
+> Phase 2 checks pass (50 new). Building the phase 2 demo next: surveying your
+> own projects side by side.
+
+> The AzerothCore source (8,518 files) makes a good speed test, but it's C++,
+> which the language table doesn't know yet. Adding C++ rows:
+
+> Dealing files round-robin brought 12 threads down to about 3.3 seconds.
+> Single-thread time is still high, so I'm checking where it goes.
+
+> Line counting was nearly all of it: `gsub` copies each file while counting.
+> Replacing it with a plain search loop:
+
+> The survey went from 11.4 seconds to 1.7 on one thread and 0.63 on twelve.
+> Fixing the demo's column padding to count characters instead of bytes:
+
+> Writing the phase 2 info files and closing its issues.
+
+> I'm writing a small tool to close issues, since each phase repeats the same
+> steps: rewrite the current behavior as built, then move the file to completed.
+
+*[commit] 38d84c6db in ai-stuff - Teach the machine to read a source tree without a model*
+
+> Writing the turn kinds and their prompt templates, the instructions each turn
+> gets, and the snapshot comparison.
+
+> Links get special handling: a symbolic link's checksum should be where it
+> points, not the bytes behind it, and the snapshot must never follow a link
+> into the RAM scratch space.
+
+> Next: the harness table (stand-in and Claude Code), the stand-in program
+> itself, and the pool.
+
+> Now the checks for phase 3, covering the clean-room rule, snapshots, the
+> harness table, and the pool, including misbehaving turns.
+
+> All 56 phase 3 checks pass on the first run. Writing the phase 3 demo, plus a
+> live Claude Code check that stays unrun until you say so.
+
+> Phase 3 checks: 60 pass. Re-running the demo to confirm the fixes:
+
+> The first snapshot of the 1.9 GB tree takes 14 seconds. Checking whether one
+> huge file dominates:
+
+> First snapshot went from 14 seconds to 1.5. Adding a check for the size limit,
+> then info files, doc updates, and closing phase 3.
+
+> The check's files are exactly 2 bytes, so a limit of 2 doesn't exceed them.
+> Setting the limit to 1:
+
+> Reopening 305. Its live check hasn't run, and by your rule an issue with
+> deferred work stays in progress.
+
+*[commit] 8877b178c in ai-stuff - Give the machine hands that stay inside their folders*
+
+> The house validator works on a blueprint folder and catches dangling blockers.
+> Writing the phase 4 modules:
+
+> The fixture program works. Now its hand-written blueprint: the outline and six
+> issue files, the kind a good describe turn would produce.
+
+> Now the fixture design: the code and tests a build turn would write from that
+> blueprint alone.
+
+> The fixture design passes all six of its own acceptance tests. Now the
+> stand-in script that plays this blueprint and design back, with switches to
+> make chosen turns fail first:
+
+> Writing the phase 4 checks:
+
+> Phase 4 checks: 39 pass. Writing the phase 4 demo: the fixture described with
+> a bad first outline and a failing issue caught and retried, the graph drawn as
+> columns, and the coverage map.
+
+> The phase 4 demo works: the bad outline and the twice-failing issue are caught
+> and retried, and the house validator passes the whole blueprint. Closing phase
+> 4:
+
+*[commit] d8cda538e in ai-stuff - Write software down as a blueprint the house validator accepts*
+
+> Phase 4 is committed. Starting phase 5, the design. First checking how the
+> house RAM-tier helper names the second tier behind an existing link, since
+> every case's design folder is called `design`:
+
+> All checks still pass. Now the build step: waves, repairs, holds, and
+> delivery.
+
+> My shell's `%q` doesn't make Lua quotes. The machine handled it properly:
+> three failed outline turns, each with the stand-in's error. Rerunning with a
+> correct script line:
+
+> Adding the fixture-case helper to the check kit, then the phase 5 checks:
+
+> Phase 5 checks: 39 pass. Checks also leave each case's design scratch space
+> behind in RAM, so the kit will now remove those at the end:
+
+> Clean. Now the phase 5 demo:
+
+> The demo works end to end, and the delivered program runs. One small count is
+> off: it included the skeleton's README files. Fixing that, then closing phase
+> 5:
+
+*[commit] fb66efd84 in ai-stuff - Build new software from a blueprint alone, and deliver it*
+
+> Now the rebuilt code for each request, derived from the fixture design:
+
+> Now the update modules: locating and grading, amending with a way back, and
+> the update loop.
+
+> Replacing the `goto` with a function per request (LuaJIT allows `goto`, but a
+> function reads more plainly), and letting a breach stop the run rather than
+> just failing one request:
+
+> Now the command rows for `update` and `grade`:
+
+> One check at the end always passed (`or true`). Making it real:
+
+> Phase 6 checks: 34 pass. Writing the phase 6 demo:
+
+> That "touches" line is tangled. Simplifying it before running:
+
+> The phase 6 demo shows each grade's reach on the graph, the foundation request
+> held until `--go`, and the program changing after each request. Closing phase
+> 6:
+
+*[commit] 744d890e8 in ai-stuff - Grade change requests by how deep they reach, and rebuild outward*
+
+> Wiring the center into the describe, build, update, and grade commands:
+
+> Now the `run` logic, which reads what a case is waiting for from its ledger
+> alone:
+
+> Two gaps in `run`'s bookkeeping: an unsurveyed case skipped waiting requests,
+> and held requests would make every `run` look unfinished. Held requests wait
+> for the person, not for `run`:
+
+> Node is present, so the checks can run the page's script with a minimal
+> stand-in document and confirm its own chain check agrees with the machine.
+> Writing the phase 7 checks:
+
+> The installed node is broken on this system: a library mismatch unrelated to
+> this project, so node can't start at all. Looking for another JavaScript
+> engine:
+
+> gjs (GNOME's JavaScript engine) is installed. The page check will build one
+> self-contained script and run it with whichever engine actually starts, saying
+> which one it used:
+
+> The ledger lines sit in the page as JSON, where tabs are written `\t`, so the
+> raw line never matches. Tampering with line 2's text as it appears in the JSON
+> instead:
+
+> Closing phase 7: info files, docs, the balance record, the issues.
+
+> Everything except issue 305 is closed. All 11 check files pass. Committing
+> phase 7:
+
+*[commit] 0fd9249b3 in ai-stuff - Give the machine a personality it can only earn from its record*
+
+The machine is built: all seven phases, with every piece except one tested and
+demonstrated.
+
+**What it does now**
+
+You hand it a folder of someone's source code and run one command. It:
+1. Reads the code without a model: every file, its language, and which file
+   includes which. This runs across all 12 cores and takes 0.6 seconds on the
+   8,500-file AzerothCore tree.
+2. Plans a blueprint as issue files, checks the plan itself, and writes every
+   issue in parallel. Your own issue validator passes the result.
+3. Builds new code from the blueprint alone. The build turns cannot see the
+   original source. Each piece is checked by running its own tests, repaired up
+   to twice, or held back along with everything built on it.
+4. Takes change requests in plain words, grades each one (surface, middle, or
+   foundation) by how much of the design it would rebuild, and holds foundation
+   changes until you say go.
+
+Every event goes into a chained, append-only record, so editing any past line is
+caught at that exact line. The machine's personality is computed from that
+record and nothing else; it decides what gets done first. Each case can also be
+written as one HTML page that checks its own record.
+
+**How to see it:** run `./run-phase-demo`, then pick 1–7. Phase 7 is the whole
+machine at once, and it opens the case page in Firefox. `tests/run-tests` runs
+all the checks, and all 11 check files pass.
+
+**Things you should know**
+- **Every demo used a free stand-in instead of a real model.** It plays back a
+  hand-written blueprint and design of a small notes program. The Claude Code
+  connection is built and its command line is checked, but it has never run for
+  real, because that spends your subscription. Its issue stays open for that
+  reason.
+- **Node is broken on this system.** It fails to start with `undefined symbol:
+  sqlite3session_attach`, a library mismatch unrelated to this project. The page
+  check falls back to gjs, and the check output says so.
+- **The original `vision` file at the project root is still untracked.** Your
+  words are safely in `notes/vision`. I didn't move the root copy, because your
+  rule says both versions must be in git first.
+- **Real bugs the demos caught along the way:**
+  - The C include scanner had been silently finding nothing.
+  - A Claude Code turn could have read earlier turns' records, which can quote
+    the source.
+  - The shared command-runner misread exit codes.
+
+  All are fixed, and checks now hold them.
+
+**Eight open questions** are listed in `docs/010`, so by your rule the task
+isn't finished. The first one, since it decides whether issue 305 can close:
+
+May I run one real Claude Code turn? It would describe a two-file program, cost
+one small turn of your subscription, and prove the confinement holds against a
+real model.
 
 --------------------------------------------------------------------------------
 
