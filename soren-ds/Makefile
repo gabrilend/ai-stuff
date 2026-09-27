@@ -101,8 +101,12 @@ BOX_SRCS := $(wildcard $(SRC_DIR)/boxes/*.c)
 MAP_SRCS := $(wildcard $(SRC_DIR)/maps/*.map)
 
 $(CATALOGUE_DIR)/catalogue.c $(CATALOGUE_DIR)/maps.c &: $(BOX_SRCS) $(MAP_SRCS) $(SRC_DIR)/engine/060-generator.c $(DIR)/twin/tools/061-generate.c
+	@$(MAKE) -s -C $(DIR)/twin DIR=$(DIR) generated
 
 $(BUILD_DIR)/generated/%.o: $(CATALOGUE_DIR)/%.c | check-toolchain
+	@mkdir -p $(dir $@)
+	@echo "compiling generated $(notdir $<)..."
+	@$(CC) $(CFLAGS) -I$(SRC_DIR)/engine -I$(SRC_DIR)/system -I$(CATALOGUE_DIR) -c $< -o $@
 
 # Under --debug, the probe engine #includes the generated probe list.
 # Make cannot see an #include, so name the dependency explicitly and
