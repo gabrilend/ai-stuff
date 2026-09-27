@@ -1,0 +1,878 @@
+#!/usr/bin/env luajit
+--
+-- build-docs — the documentation and the measurements, as one linked site.
+--
+-- General description: reads every Markdown document in the project — the
+-- design documents in docs/, the notes, every issue open and completed,
+-- every phase's progress file, and the .info.md reference beside every
+-- source file — and writes them as HTML pages into docs/HTML/, each with
+-- the same look and a table of contents down the left that reaches every
+-- other page. Issue numbers, document links and source file names become
+-- links wherever they appear.
+--
+-- It also reads the measurements the tests and demo programs wrote while
+-- they ran (tmp/shared-memory/metrics/*.tsv) and builds a dashboard of
+-- them: every number is a link to the paragraph in docs/027 that explains
+-- it, and that paragraph lists the numbers that point at it, so the two
+-- can be walked either way. A few charts and calculators on the dashboard
+-- are driven by the measured numbers themselves.
+--
+-- Gathering and showing are kept apart: this tool never measures
+-- anything; it only shows what was measured. With --measure it first runs
+-- the tests and demos (which do the measuring) and then builds.
+--
+-- Usage: scripts/build-docs [project-dir] [--measure]
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/soren-ds"
+local MEASURE = false
+for _, a in ipairs({ ... }) do
+    if a == "--measure" then MEASURE = true else DIR = a end
+end
+local OUT = DIR .. "/docs/HTML"
+local METRICS_DIR = DIR .. "/tmp/shared-memory/metrics"
+local EXPLAINED = "doc-027-metrics-explained.html"
+
+-- {{{ local function run
+-- Run a command, showing its output; answers true if it succeeded.
+local function run(command)
+    local ok = os.execute(command)
+    return ok == true or ok == 0
+end
+-- }}}
+
+if MEASURE then
+    print("build-docs: measuring first — every test, then the demos")
+    if not run("'" .. DIR .. "/scripts/test-twin' '" .. DIR .. "'") then
+        io.stderr:write("build-docs: the tests failed; the pages are built anyway, and show the failures\n")
+    end
+    for phase = 2, 20 do
+        local demo = DIR .. "/issues/completed/demos/phase-" .. phase .. "/run.sh"
+        local f = io.open(demo, "r")
+        if f then
+            f:close()
+            print("build-docs: running the phase " .. phase .. " demo")
+            run("DISPLAY= WAYLAND_DISPLAY= '" .. demo .. "' '" .. DIR .. "' > '" .. DIR ..
+                "/tmp/shared-memory/demo-" .. phase .. ".log' 2>&1")
+        end
+    end
+end
+
+-- {{{ file helpers
+-- {{{ local function read_file
+local function read_file(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local text = f:read("*a")
+    f:close()
+    return text
+end
+-- }}}
+
+-- {{{ local function write_file
+local function write_file(path, text)
+    local f = io.open(path, "w")
+    if not f then
+        io.stderr:write("build-docs: cannot write " .. path .. "\n")
+        os.exit(1)
+    end
+    f:write(text)
+    f:close()
+end
+-- }}}
+
+-- {{{ local function list
+-- The names in one directory matching a pattern, sorted. `ls` is a
+-- read-only use of the shell.
+local function list(path, pattern)
+    local names = {}
+    local p = io.popen("ls -1 '" .. path .. "' 2>/dev/null")
+    for name in p:lines() do
+        if not pattern or name:match(pattern) then names[#names + 1] = name end
+    end
+    p:close()
+    table.sort(names)
+    return names
+end
+-- }}}
+-- }}}
+
+-- {{{ the pages
+local pages = {}          -- in sidebar order
+local by_out = {}
+local by_source = {}      -- a file's base name -> page
+local by_issue = {}       -- "204", "201a" -> page
+
+-- {{{ local function title_of
+local function title_of(text, fallback)
+    local t = text and text:match("^%s*#%s+([^\n]+)")
+    return t or fallback
+end
+-- }}}
+
+-- {{{ local function add_page
+local function add_page(section, src, out, title, extra)
+    local page = { section = section, src = src, out = out, title = title }
+    if extra then for k, v in pairs(extra) do page[k] = v end end
+    pages[#pages + 1] = page
+    by_out[out] = page
+    local base = src and src:match("([^/]+)$")
+    if base then by_source[base] = page end
+    return page
+end
+-- }}}
+
+-- {{{ local function slug
+local function slug(s)
+    return (s:lower():gsub("[^%w]+", "-"):gsub("^-+", ""):gsub("-+$", ""))
+end
+-- }}}
+
+-- Documents, in their reading order.
+for _, name in ipairs(list(DIR .. "/docs", "%.md$")) do
+    local path = DIR .. "/docs/" .. name
+    local text = read_file(path)
+    add_page("Documents", path, "doc-" .. name:gsub("%.md$", "") .. ".html", title_of(text, name))
+end
+
+-- Notes: every markdown file under notes/, grouped by its folder.
+do
+    local p = io.popen("cd '" .. DIR .. "/notes' 2>/dev/null && find . -type f \\( -name '*.md' -o -name '*' \\) -not -name '.*' | sort")
+    for rel in p:lines() do
+        rel = rel:gsub("^%./", "")
+        local path = DIR .. "/notes/" .. rel
+        local text = read_file(path)
+        if text and not rel:match("%.png$") and not rel:match("%.jpg$") then
+            add_page("Notes", path, "note-" .. slug(rel) .. ".html", title_of(text, rel), { plain = not rel:match("%.md$") })
+        end
+    end
+    p:close()
+end
+
+-- Issues, by phase: the progress file first, then every issue open or done.
+local phases = {}
+local function phase_of(number)
+    local digits = number:match("^(%d+)")
+    if not digits then return nil end
+    if #digits >= 4 then return tonumber(digits:sub(1, 2)) end
+    return tonumber(digits:sub(1, 1))
+end
+for _, folder in ipairs({ "", "completed/", "superseded/" }) do
+    for _, name in ipairs(list(DIR .. "/issues/" .. folder, "%.md$")) do
+        local number = name:match("^(%d+%a?)%-")
+        local progress = name:match("^phase%-(%d+)%-progress%.md$")
+        local path = DIR .. "/issues/" .. folder .. name
+        local text = read_file(path)
+        if progress then
+            local ph = tonumber(progress)
+            phases[ph] = phases[ph] or {}
+            phases[ph].progress = { path = path, text = text }
+        elseif number and folder ~= "superseded/" then
+            local ph = phase_of(number)
+            phases[ph] = phases[ph] or {}
+            local list_ = phases[ph].issues or {}
+            phases[ph].issues = list_
+            list_[#list_ + 1] = { number = number, path = path, text = text, done = folder == "completed/", name = name }
+        end
+    end
+end
+local phase_numbers = {}
+for ph in pairs(phases) do phase_numbers[#phase_numbers + 1] = ph end
+table.sort(phase_numbers)
+for _, ph in ipairs(phase_numbers) do
+    local section = "Phase " .. ph
+    if phases[ph].progress then
+        add_page(section, phases[ph].progress.path, "progress-phase-" .. ph .. ".html",
+                 title_of(phases[ph].progress.text, "Phase " .. ph .. " progress"), { progress = ph })
+    end
+    local issues = phases[ph].issues or {}
+    table.sort(issues, function(a, b)
+        local na, nb = tonumber(a.number:match("%d+")), tonumber(b.number:match("%d+"))
+        if na ~= nb then return na < nb end
+        return a.number < b.number
+    end)
+    for _, issue in ipairs(issues) do
+        local page = add_page(section, issue.path, "issue-" .. issue.number .. ".html",
+                              title_of(issue.text, issue.name), { issue = issue.number, done = issue.done })
+        by_issue[issue.number] = page
+    end
+end
+
+-- The source reference: every .info.md, grouped by folder.
+for _, folder in ipairs({ "src/engine", "src/boxes", "src/system", "src/device", "twin", "twin/tools", "twin/tests", "twin/programs" }) do
+    for _, name in ipairs(list(DIR .. "/" .. folder, "%.info%.md$")) do
+        local path = DIR .. "/" .. folder .. "/" .. name
+        local source = name:gsub("%.info%.md$", "")
+        local page = add_page("Source: " .. folder, path, "info-" .. slug(folder .. "/" .. source) .. ".html",
+                              folder .. "/" .. source, { source = source })
+        by_source[source] = page
+    end
+end
+-- }}}
+
+-- {{{ the measurements
+local metrics = {}        -- name -> { value, unit, anchor, description, file }
+local metric_order = {}
+local by_anchor = {}      -- anchor -> list of metric names
+
+-- {{{ local function load_metrics
+local function load_metrics()
+    for _, name in ipairs(list(METRICS_DIR, "%.tsv$")) do
+        local text = read_file(METRICS_DIR .. "/" .. name) or ""
+        for line in text:gmatch("[^\n]+") do
+            local key, value, unit, anchor, description = line:match("^([^\t]+)\t([^\t]*)\t([^\t]*)\t([^\t]*)\t(.*)$")
+            if key then
+                if not metrics[key] then metric_order[#metric_order + 1] = key end
+                metrics[key] = { value = tonumber(value), unit = unit, anchor = anchor, description = description,
+                                 file = name:gsub("%.tsv$", "") }
+            end
+        end
+    end
+    table.sort(metric_order)
+    for _, key in ipairs(metric_order) do
+        local a = metrics[key].anchor
+        by_anchor[a] = by_anchor[a] or {}
+        table.insert(by_anchor[a], key)
+    end
+end
+-- }}}
+load_metrics()
+if #metric_order == 0 then
+    io.stderr:write("build-docs: no measurements in " .. METRICS_DIR .. " — run with --measure (or scripts/test-twin) first\n")
+    os.exit(1)
+end
+
+-- Derived numbers, each computed from two measured ones and saying so.
+-- {{{ local function derive
+local function derive(key, a, b, unit, anchor, description, how)
+    local x, y = metrics[a], metrics[b]
+    if x and y and x.value and y.value and y.value ~= 0 then
+        metrics[key] = { value = how(x.value, y.value), unit = unit, anchor = anchor, description = description,
+                         file = "derived", from = { a, b } }
+        metric_order[#metric_order + 1] = key
+        by_anchor[anchor] = by_anchor[anchor] or {}
+        table.insert(by_anchor[anchor], key)
+    end
+end
+-- }}}
+derive("endurance.speedup_four_over_one", "endurance.4core.runs_per_s", "endurance.1core.runs_per_s", "x",
+       "endurance-speedup", "four-core runs per second divided by one-core runs per second",
+       function(a, b) return a / b end)
+
+-- {{{ local function format_value
+local function format_value(m)
+    local v = m.value
+    if not v then return "?" end
+    if m.unit == "bool" then return v ~= 0 and "yes" or "NO" end
+    if v == math.floor(v) and math.abs(v) < 1e12 then
+        local s = tostring(math.floor(v))
+        return s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""):gsub("^%-,", "-")
+    end
+    if math.abs(v) >= 100 then return string.format("%.0f", v) end
+    if math.abs(v) >= 1 then return string.format("%.2f", v) end
+    return string.format("%.3f", v)
+end
+-- }}}
+-- }}}
+
+-- {{{ turning Markdown into HTML
+-- {{{ local function escape
+local function escape(s)
+    return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+-- }}}
+
+-- {{{ local function highlight
+-- Enough highlighting for code to read as code: comments, strings,
+-- keywords. C and Lua keywords both, since the project writes both.
+local KEYWORDS = {}
+for w in ([[if else for while return switch case break continue typedef struct enum static const extern
+    sizeof void int char long short unsigned signed uint8_t uint16_t uint32_t uint64_t int8_t int16_t int32_t
+    int64_t size_t local function end then do elseif nil true false station comparator iterator random
+    weighted spread in out include]]):gmatch("%S+") do KEYWORDS[w] = true end
+
+local function highlight(escaped)
+    local saved = {}
+    local function save(class, text)
+        saved[#saved + 1] = '<span class="' .. class .. '">' .. text .. "</span>"
+        return "\1" .. #saved .. "\1"
+    end
+    escaped = escaped:gsub("(/%*.-%*/)", function(c) return save("cm", c) end)
+    escaped = escaped:gsub("(//[^\n]*)", function(c) return save("cm", c) end)
+    escaped = escaped:gsub("(%-%-[^\n]*)", function(c) return save("cm", c) end)
+    escaped = escaped:gsub("(#[^\n]*)", function(c)
+        if c:match("^#include") or c:match("^#define") or c:match("^#if") then return c end
+        return save("cm", c)
+    end)
+    escaped = escaped:gsub("(&quot;.-&quot;)", function(s) return save("st", s) end)
+    escaped = escaped:gsub("([%a_][%w_]*)", function(w)
+        if KEYWORDS[w] then return '<span class="kw">' .. w .. "</span>" end
+        return w
+    end)
+    return (escaped:gsub("\1(%d+)\1", function(i) return saved[tonumber(i)] end))
+end
+-- }}}
+
+local unresolved = {}
+
+-- {{{ local function issue_link
+local function issue_link(number)
+    local page = by_issue[number]
+    if page then
+        return '<a class="issue' .. (page.done and " done" or "") .. '" href="' .. page.out .. '" title="' ..
+               escape(page.title) .. '">' .. number .. "</a>"
+    end
+    return number
+end
+-- }}}
+
+-- {{{ local function linkify
+-- Issue numbers after the word "issue(s)", in runs like "201, 202 and
+-- 203"; a table cell that is only an issue number; a bold issue number;
+-- Markdown links to other documents; and source file names written as
+-- code. Unresolvable document links are collected and reported.
+local function linkify(html, page)
+    -- After "issue" or "issues", a run of numbers joined by commas,
+    -- "and", "or" or "through" — every number in the run is linked.
+    html = html:gsub("([Ii]ssues?)(%s+)(%d%d%d%d?%a?)", function(word, space, first)
+        return word .. space .. "\2" .. first .. "\3"
+    end)
+    for _ = 1, 8 do
+        html = html:gsub("(\3)(,?%s+[ao][nr]d?%s+)(%d%d%d%d?%a?)", "%1%2\2%3\3")
+        html = html:gsub("(\3)(,%s+)(%d%d%d%d?%a?)", "%1%2\2%3\3")
+        html = html:gsub("(\3)(%s+through%s+)(%d%d%d%d?%a?)", "%1%2\2%3\3")
+    end
+    html = html:gsub("\2(%d%d%d%d?%a?)\3", function(n) return issue_link(n) end)
+    html = html:gsub("<td>(%d%d%d%d?%a?)</td>", function(n)
+        if by_issue[n] then return "<td>" .. issue_link(n) .. "</td>" end
+        return "<td>" .. n .. "</td>"
+    end)
+    html = html:gsub("<strong>(%d%d%d%d?%a?)</strong>", function(n)
+        if by_issue[n] then return "<strong>" .. issue_link(n) .. "</strong>" end
+        return "<strong>" .. n .. "</strong>"
+    end)
+    html = html:gsub("%[([^%]]+)%]%(([^%)]+)%)", function(text, target)
+        if target:match("^https?://") then
+            return '<a href="' .. target .. '">' .. text .. "</a>"
+        end
+        local base = target:match("([^/#]+)") and target:match("([^/]+)$") or target
+        local anchor = base:match("#(.*)$")
+        base = base:gsub("#.*$", "")
+        local found = by_source[base]
+        if found then
+            return '<a href="' .. found.out .. (anchor and ("#" .. anchor) or "") .. '">' .. text .. "</a>"
+        end
+        unresolved[#unresolved + 1] = (page.src or page.out) .. " -> " .. target
+        return text
+    end)
+    html = html:gsub("<code>([^<]-)</code>", function(code)
+        local base = code:match("([^/]+)$")
+        local found = base and by_source[base]
+        if found and found ~= page then
+            return '<a class="src" href="' .. found.out .. '"><code>' .. code .. "</code></a>"
+        end
+        return "<code>" .. code .. "</code>"
+    end)
+    return html
+end
+-- }}}
+
+-- {{{ local function markdown
+local function markdown(text, page)
+    local out = {}
+    local in_code, in_table, list_kind = false, false, nil
+    local paragraph, item, quote = {}, {}, {}
+    local header_row = false
+
+    local function inline(s)
+        s = escape(s)
+        local saved = {}
+        s = s:gsub("`([^`]+)`", function(code)
+            saved[#saved + 1] = "<code>" .. code .. "</code>"
+            return "\1" .. #saved .. "\1"
+        end)
+        s = s:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
+        s = s:gsub("%*([%w][^%*\n]-)%*", "<em>%1</em>")
+        return (s:gsub("\1(%d+)\1", function(i) return saved[tonumber(i)] end))
+    end
+    local function flush_paragraph()
+        if #paragraph > 0 then
+            out[#out + 1] = "<p>" .. inline(table.concat(paragraph, "\n")) .. "</p>"
+            paragraph = {}
+        end
+    end
+    local function flush_item()
+        if #item > 0 then
+            out[#out + 1] = "<li>" .. inline(table.concat(item, "\n")) .. "</li>"
+            item = {}
+        end
+    end
+    local function close_list()
+        if list_kind then
+            flush_item()
+            out[#out + 1] = "</" .. list_kind .. ">"
+            list_kind = nil
+        end
+    end
+    local function close_quote()
+        if #quote > 0 then
+            out[#out + 1] = "<blockquote>" .. inline(table.concat(quote, "\n")) .. "</blockquote>"
+            quote = {}
+        end
+    end
+    local function close_table()
+        if in_table then out[#out + 1] = "</table></div>"; in_table = false end
+    end
+    local function close_all()
+        flush_paragraph(); close_quote(); close_list(); close_table()
+    end
+
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        if in_code then
+            if line:match("^%s*```") then
+                out[#out + 1] = "</pre>"
+                in_code = false
+            else
+                out[#out + 1] = highlight(escape(line))
+            end
+        elseif line:match("^%s*```") then
+            close_all()
+            out[#out + 1] = '<pre class="code">'
+            in_code = true
+        elseif line:match("^#+%s") then
+            close_all()
+            local hashes, title = line:match("^(#+)%s*(.-)%s*$")
+            local anchor = title:match("{#([%w%-_]+)}%s*$")
+            title = title:gsub("%s*{#[%w%-_]+}%s*$", "")
+            anchor = anchor or slug(title)
+            local level = math.min(#hashes, 4)
+            local measured = ""
+            if anchor and by_anchor[anchor] and page.out == EXPLAINED then
+                local cells = {}
+                for _, key in ipairs(by_anchor[anchor]) do
+                    local m = metrics[key]
+                    cells[#cells + 1] = '<a class="metric-chip" href="metrics.html#m-' .. slug(key) .. '">' ..
+                        escape(key) .. " = <b>" .. format_value(m) .. "</b> " .. escape(m.unit ~= "bool" and m.unit or "") .. "</a>"
+                end
+                measured = '<div class="measured">measured: ' .. table.concat(cells, " ") .. "</div>"
+            end
+            out[#out + 1] = ('<h%d id="%s"><a class="self" href="#%s">§</a> %s</h%d>%s'):format(
+                level, anchor, anchor, inline(title), level, measured)
+        elseif line:match("^%s*|") then
+            flush_paragraph(); close_quote(); close_list()
+            if line:match("^%s*|[%s%-:|]*$") then
+                header_row = false
+            else
+                if not in_table then
+                    out[#out + 1] = '<div class="table-wrap"><table>'
+                    in_table = true
+                    header_row = true
+                end
+                local cells = {}
+                local body = line:match("^%s*|(.*)$"):gsub("|%s*$", "")
+                for cell in (body .. "|"):gmatch("([^|]*)|") do
+                    local tag = header_row and "th" or "td"
+                    cells[#cells + 1] = "<" .. tag .. ">" .. inline(cell:match("^%s*(.-)%s*$")) .. "</" .. tag .. ">"
+                end
+                out[#out + 1] = "<tr>" .. table.concat(cells) .. "</tr>"
+                header_row = false
+            end
+        elseif line:match("^%s*[-*]%s+") or line:match("^%s*%d+%.%s+") then
+            flush_paragraph(); close_quote(); close_table()
+            local kind = line:match("^%s*%d+%.") and "ol" or "ul"
+            if list_kind ~= kind then
+                close_list()
+                out[#out + 1] = "<" .. kind .. ">"
+                list_kind = kind
+            end
+            flush_item()
+            item[1] = line:gsub("^%s*[-*]%s+", ""):gsub("^%s*%d+%.%s+", "")
+        elseif list_kind and #item > 0 and line:match("^%s+%S") then
+            item[#item + 1] = line:match("^%s*(.-)%s*$")
+        elseif line:match("^%s*$") then
+            close_all()
+        elseif line:match("^>%s?") then
+            flush_paragraph(); close_list(); close_table()
+            quote[#quote + 1] = (line:gsub("^>%s?", ""))
+        else
+            paragraph[#paragraph + 1] = line
+        end
+    end
+    close_all()
+    if in_code then out[#out + 1] = "</pre>" end
+    return linkify(table.concat(out, "\n"), page)
+end
+-- }}}
+-- }}}
+
+-- {{{ the shared look
+local STYLE = [[
+:root {
+  --bg: #16161c; --panel: #1e1f27; --raise: #262833; --rule: #3a3a48;
+  --ink: #e8e6e3; --dim: #9a9aa6; --amber: #e0a040; --blue: #5a9ae6;
+  --good: #60c080; --bad: #e06060; --code: #121217;
+}
+* { box-sizing: border-box; }
+html { font-size: 15px; scroll-padding-top: 20px; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 1rem/1.62 'Iosevka Aile', 'DejaVu Sans', system-ui, sans-serif; }
+.wrap { display: flex; min-height: 100vh; }
+nav { width: 300px; flex-shrink: 0; background: var(--panel); height: 100vh; position: sticky; top: 0;
+  overflow-y: auto; padding: 16px 14px 60px; border-right: 1px solid var(--rule);
+  font: 0.8rem/1.45 'DejaVu Sans Mono', Menlo, monospace; }
+nav .brand { color: var(--amber); font-size: 1rem; letter-spacing: 2px; margin-bottom: 4px; }
+nav .sub { color: var(--dim); margin-bottom: 12px; }
+nav input { width: 100%; background: var(--code); border: 1px solid var(--rule); color: var(--ink);
+  padding: 5px 8px; border-radius: 4px; font: inherit; margin-bottom: 8px; }
+nav details { margin: 4px 0; }
+nav summary { color: var(--amber); cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+  font-size: 0.72rem; padding: 4px 0; }
+nav a { display: block; color: var(--dim); text-decoration: none; padding: 1px 0 1px 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 2px solid transparent; }
+nav a:hover { color: var(--blue); }
+nav a.here { color: var(--ink); border-left-color: var(--amber); }
+nav a.open::after { content: " ○"; color: var(--amber); }
+nav a.done::after { content: " ●"; color: var(--good); }
+main { padding: 32px 48px 80px; max-width: 920px; flex: 1; min-width: 0; }
+h1, h2, h3, h4 { font-family: 'DejaVu Sans Mono', Menlo, monospace; color: var(--amber); line-height: 1.3; }
+h1 { font-size: 1.55rem; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+h2 { font-size: 1.2rem; margin-top: 36px; } h3 { font-size: 1.05rem; margin-top: 28px; }
+h1 .self, h2 .self, h3 .self, h4 .self { color: var(--rule); text-decoration: none; font-size: 0.8em; }
+:target { animation: glow 2.4s ease-out; }
+@keyframes glow { 0% { background: #5a4a20; } 100% { background: transparent; } }
+a { color: var(--blue); }
+a.issue { font-family: 'DejaVu Sans Mono', monospace; text-decoration: none; border-bottom: 1px dotted var(--blue); }
+a.issue.done { color: var(--good); border-bottom-color: var(--good); }
+a.src { text-decoration: none; }
+code { background: var(--code); padding: 1px 5px; border-radius: 3px; font: 0.86rem 'DejaVu Sans Mono', monospace; color: #9fd8a8; }
+pre.code { background: var(--code); padding: 14px 16px; border-radius: 6px; overflow-x: auto;
+  font: 0.84rem/1.5 'DejaVu Sans Mono', monospace; border-left: 3px solid var(--blue); }
+pre.code .kw { color: var(--blue); } pre.code .cm { color: var(--dim); font-style: italic; } pre.code .st { color: var(--good); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; margin: 14px 0; font-size: 0.93rem; }
+td, th { border: 1px solid var(--rule); padding: 5px 11px; vertical-align: top; text-align: left; }
+th { color: var(--amber); font: 600 0.84rem 'DejaVu Sans Mono', monospace; background: var(--raise); }
+blockquote { border-left: 3px solid var(--amber); margin: 14px 0; padding: 6px 18px; color: var(--amber); background: var(--panel); }
+.status { display: inline-block; font: 0.78rem 'DejaVu Sans Mono', monospace; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--rule); margin-left: 6px; vertical-align: middle; }
+.status.done { color: var(--good); border-color: var(--good); } .status.open { color: var(--amber); border-color: var(--amber); }
+.measured { font: 0.8rem 'DejaVu Sans Mono', monospace; color: var(--dim); margin: -6px 0 10px; }
+.metric-chip { display: inline-block; background: var(--raise); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 1px 9px; margin: 2px 2px; color: var(--ink); text-decoration: none; }
+.metric-chip:hover { border-color: var(--blue); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 14px 0; }
+.card { display: block; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px;
+  text-decoration: none; color: var(--ink); transition: border-color .15s; }
+.card:hover { border-color: var(--blue); }
+.card .v { font: 600 1.35rem 'DejaVu Sans Mono', monospace; color: var(--amber); }
+.card .u { color: var(--dim); font-size: 0.85rem; margin-left: 4px; }
+.card .k { font: 0.72rem 'DejaVu Sans Mono', monospace; color: var(--dim); word-break: break-all; }
+.card .d { font-size: 0.86rem; margin-top: 4px; }
+.card.bad .v { color: var(--bad); } .card.good .v { color: var(--good); }
+.widget { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; margin: 22px 0; }
+.widget h3 { margin-top: 0; }
+.widget input[type=range] { width: 260px; vertical-align: middle; }
+.widget .note { color: var(--dim); font-size: 0.88rem; }
+.bar-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; font: 0.82rem 'DejaVu Sans Mono', monospace; }
+.bar-row .label { width: 190px; flex-shrink: 0; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .track { flex: 1; background: var(--code); border-radius: 3px; height: 16px; position: relative; }
+.bar-row .fill { height: 16px; border-radius: 3px; background: var(--blue); }
+.bar-row .fill.good { background: var(--good); } .bar-row .fill.bad { background: var(--bad); } .bar-row .fill.amber { background: var(--amber); }
+.bar-row .num { width: 110px; text-align: right; }
+.filter-note { color: var(--dim); font-size: 0.85rem; }
+.pager { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 14px; border-top: 1px solid var(--rule);
+  font: 0.85rem 'DejaVu Sans Mono', monospace; }
+.shot { max-width: 100%; border: 1px solid var(--rule); border-radius: 6px; }
+@media (max-width: 800px) { .wrap { display: block; } nav { width: auto; height: auto; position: static; }
+  main { padding: 20px 16px; } }
+]]
+
+local SCRIPT = [[
+// The sidebar filter: typing narrows the list to matching page names,
+// opening every section that still has a match.
+function filterNav(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('nav details').forEach(function (d) {
+    var any = false;
+    d.querySelectorAll('a').forEach(function (a) {
+      var hit = !q || a.textContent.toLowerCase().indexOf(q) >= 0;
+      a.style.display = hit ? '' : 'none';
+      any = any || hit;
+    });
+    d.style.display = any ? '' : 'none';
+    if (q && any) d.open = true;
+  });
+}
+// Keep the sidebar scrolled to the page you are on.
+window.addEventListener('load', function () {
+  var here = document.querySelector('nav a.here');
+  if (here) here.scrollIntoView({ block: 'center' });
+});
+]]
+-- }}}
+
+-- {{{ local function sidebar
+local function sidebar(current)
+    local out = { '<nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>',
+                  '<input placeholder="filter pages…" oninput="filterNav(this.value)">' }
+    local function link(out_name, text, class)
+        local c = (out_name == current.out) and "here" or ""
+        if class then c = c .. " " .. class end
+        return '<a class="' .. c .. '" href="' .. out_name .. '">' .. escape(text) .. "</a>"
+    end
+    out[#out + 1] = '<details open><summary>Start here</summary>' .. link("index.html", "Overview") ..
+        link("metrics.html", "Measurements") .. link(EXPLAINED, "What the numbers mean") .. "</details>"
+    local section = nil
+    for _, page in ipairs(pages) do
+        if page.section ~= section then
+            if section then out[#out + 1] = "</details>" end
+            section = page.section
+            local open = current.section == section and " open" or ""
+            out[#out + 1] = "<details" .. open .. "><summary>" .. escape(section) .. "</summary>"
+        end
+        local text = page.title
+        if page.issue then text = page.title end
+        local class = page.issue and (page.done and "done" or "open") or nil
+        out[#out + 1] = link(page.out, text, class)
+    end
+    if section then out[#out + 1] = "</details>" end
+    out[#out + 1] = "</nav>"
+    return table.concat(out, "\n")
+end
+-- }}}
+
+-- {{{ local function shell
+local function shell(page, title, body)
+    local index = 0
+    for i, p in ipairs(pages) do if p == page then index = i end end
+    local prev = pages[index - 1]
+    local next = pages[index + 1]
+    local pager = '<div class="pager"><span>' ..
+        (prev and ('← <a href="' .. prev.out .. '">' .. escape(prev.title) .. "</a>") or "") .. "</span><span>" ..
+        (next and ('<a href="' .. next.out .. '">' .. escape(next.title) .. "</a> →") or "") .. "</span></div>"
+    return "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">" ..
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ..
+        "<title>" .. escape(title) .. " — Soren DS</title><link rel=\"stylesheet\" href=\"style.css\">" ..
+        "<script src=\"site.js\"></script></head><body><div class=\"wrap\">" ..
+        sidebar(page) .. "<main>" .. body .. (index > 0 and pager or "") .. "</main></div></body></html>\n"
+end
+-- }}}
+
+-- {{{ the pages from Markdown
+os.execute("mkdir -p '" .. OUT .. "'")
+write_file(OUT .. "/style.css", STYLE)
+write_file(OUT .. "/site.js", SCRIPT)
+
+for _, page in ipairs(pages) do
+    local text = read_file(page.src) or ""
+    local body
+    if page.plain then
+        body = "<h1>" .. escape(page.title) .. "</h1><pre class=\"code\">" .. escape(text) .. "</pre>"
+    else
+        body = markdown(text, page)
+    end
+    -- An issue page says where it stands, and where its file lives.
+    if page.issue then
+        local status = page.done and '<span class="status done">completed</span>' or '<span class="status open">open</span>'
+        body = body:gsub("(</h1>)", status .. "%1", 1)
+    end
+    local rel = page.src:sub(#DIR + 2)
+    body = body .. '<p class="filter-note">source: <code>' .. escape(rel) .. "</code></p>"
+    write_file(OUT .. "/" .. page.out, shell(page, page.title, body))
+end
+-- }}}
+
+-- {{{ the measurements page
+-- {{{ local function card
+local function card(key)
+    local m = metrics[key]
+    local class = ""
+    if m.unit == "bool" then class = m.value ~= 0 and " good" or " bad" end
+    if key:match("%.failed$") and m.value and m.value > 0 then class = " bad" end
+    return '<a class="card' .. class .. '" id="m-' .. slug(key) .. '" href="' .. EXPLAINED .. "#" .. m.anchor ..
+        '" title="what this number means"><div class="k">' .. escape(key) .. '</div><div><span class="v">' ..
+        format_value(m) .. '</span><span class="u">' .. escape(m.unit ~= "bool" and m.unit or "") .. "</span></div>" ..
+        '<div class="d">' .. escape(m.description) .. "</div></a>"
+end
+-- }}}
+
+-- {{{ local function bars
+-- A small bar chart, drawn with HTML so it scales with the text.
+local function bars(rows, max, class)
+    local out = {}
+    for _, r in ipairs(rows) do
+        local width = max > 0 and math.max(0, math.min(100, 100 * r.value / max)) or 0
+        out[#out + 1] = '<div class="bar-row"><a class="label" href="' .. (r.href or "#") .. '">' .. escape(r.label) ..
+            '</a><div class="track"><div class="fill ' .. (r.class or class or "") .. '" style="width:' ..
+            string.format("%.1f", width) .. '%"></div></div><div class="num">' .. escape(r.text) .. "</div></div>"
+    end
+    return table.concat(out, "\n")
+end
+-- }}}
+
+-- {{{ local function value
+local function value(key)
+    return metrics[key] and metrics[key].value
+end
+-- }}}
+
+local groups = {}
+local group_order = {}
+for _, key in ipairs(metric_order) do
+    local g = key:match("^([^.]+)")
+    if not groups[g] then groups[g] = {}; group_order[#group_order + 1] = g end
+    table.insert(groups[g], key)
+end
+local group_titles = {
+    stripes = "Memory each core owns", ring = "The task ring", workers = "Workers", ports = "Ports",
+    stations = "The station table", scrap = "The scrapyard", claim = "The claim", endurance = "The endurance run",
+    kinds = "Choosing an exit", written_down = "A program written down", tests = "Tests",
+}
+
+local body = {}
+body[#body + 1] = "<h1>Measurements</h1>"
+body[#body + 1] = "<p>Every number here was written by a test or demo program as it ran on the laptop twin, and " ..
+    "gathered when these pages were built. <strong>Click any number</strong> to go to the paragraph that explains " ..
+    "what it is, how it is measured, and what a healthy value looks like. To refresh them, run " ..
+    "<code>scripts/build-docs --measure</code>.</p>"
+
+-- Tests at a glance.
+do
+    local rows, total_pass, total_fail = {}, 0, 0
+    for _, key in ipairs(groups.tests or {}) do
+        local name = key:match("^tests%.(.-)%.passed$")
+        if name then
+            local passed = value(key) or 0
+            local failed = value("tests." .. name .. ".failed") or 0
+            total_pass, total_fail = total_pass + passed, total_fail + failed
+            local info = by_source[name .. ".c"]
+            rows[#rows + 1] = { label = name, value = passed, text = passed .. " / " .. (passed + failed),
+                                class = failed > 0 and "bad" or "good", href = info and info.out or "#" }
+        end
+    end
+    if #rows > 0 then
+        local max = 0
+        for _, r in ipairs(rows) do if r.value > max then max = r.value end end
+        body[#body + 1] = '<div class="widget"><h3><a href="' .. EXPLAINED .. '#tests-results">Tests</a>: ' ..
+            total_pass .. " checks passed, " .. total_fail .. " failed</h3>" .. bars(rows, max) ..
+            '<p class="note">Each name opens the test\'s own page, which says what it checks.</p></div>'
+    end
+end
+
+-- Scaling: one core against four.
+do
+    local one, four = value("endurance.1core.runs_per_s"), value("endurance.4core.runs_per_s")
+    if one and four then
+        body[#body + 1] = '<div class="widget"><h3><a href="' .. EXPLAINED .. '#endurance-speedup">Four cores against one</a></h3>' ..
+            bars({ { label = "1 core", value = one, text = format_value(metrics["endurance.1core.runs_per_s"]) .. " runs/s", href = "#m-endurance-1core-runs-per-s" },
+                   { label = "4 cores", value = four, text = format_value(metrics["endurance.4core.runs_per_s"]) .. " runs/s", href = "#m-endurance-4core-runs-per-s" },
+                   { label = "perfect 4 cores", value = one * 4, text = format_value({ value = one * 4 }) .. " runs/s", class = "amber" } },
+                 one * 4) ..
+            '<p class="note">Engine-bound work (boxes that do almost nothing). The gap between the second and third bar ' ..
+            "is the single shared task ring's lock — issue 204's open question, measured.</p></div>"
+    end
+end
+
+-- The coarseness calculator, driven by the measured engine cost.
+do
+    local pass_ns = value("endurance.4core.pass_run_ns") or value("endurance.1core.pass_run_ns")
+    local round_ns = value("endurance.4core.round_ns") or value("endurance.1core.round_ns")
+    if pass_ns and round_ns then
+        body[#body + 1] = string.format([[
+<div class="widget"><h3><a href="%s#endurance-coarseness">How coarse should a box be?</a></h3>
+<p>Measured: one run costs <b>%.0f ns</b> of core time in the engine; one round of real work costs <b>%.2f ns</b>.
+Slide to choose how much work a box does per run, and see what share of the core's time goes to the engine.</p>
+<p><input type="range" min="0" max="4" step="0.01" value="2" id="coarse" oninput="coarseness()">
+ <span id="coarse-rounds"></span> rounds per run</p>
+<div class="bar-row"><span class="label">engine's share</span><div class="track"><div class="fill amber" id="coarse-engine"></div></div><span class="num" id="coarse-engine-n"></span></div>
+<div class="bar-row"><span class="label">work's share</span><div class="track"><div class="fill good" id="coarse-work"></div></div><span class="num" id="coarse-work-n"></span></div>
+<p class="note">The break-even point, where the engine and the work cost the same, is <b>%.0f rounds</b>: the
+design rule issue 215 was built to produce.</p></div>
+<script>
+function coarseness() {
+  var rounds = Math.round(Math.pow(10, document.getElementById('coarse').value));
+  var engine = %.3f, work = rounds * %.5f;
+  var share = engine / (engine + work);
+  document.getElementById('coarse-rounds').textContent = rounds;
+  document.getElementById('coarse-engine').style.width = (100 * share) + '%%';
+  document.getElementById('coarse-work').style.width = (100 * (1 - share)) + '%%';
+  document.getElementById('coarse-engine-n').textContent = (100 * share).toFixed(1) + '%%';
+  document.getElementById('coarse-work-n').textContent = (100 * (1 - share)).toFixed(1) + '%%';
+}
+window.addEventListener('load', coarseness);
+</script>]], EXPLAINED, pass_ns, round_ns, pass_ns / round_ns, pass_ns, round_ns)
+    end
+end
+
+-- Pictures the demos drew, if they are there.
+do
+    local shots = { { "demos/phase-2/four-cores.png", "phase 2 — the endurance run, four cores" },
+                    { "demos/phase-3/written-down.png", "phase 3 — a program written down" } }
+    local found = {}
+    for _, s in ipairs(shots) do
+        local from = DIR .. "/tmp/shared-memory/" .. s[1]
+        local f = io.open(from, "rb")
+        if f then
+            local data = f:read("*a")
+            f:close()
+            local name = "shot-" .. slug(s[1]) .. ".png"
+            local w = io.open(OUT .. "/" .. name, "wb")
+            w:write(data)
+            w:close()
+            found[#found + 1] = '<figure><img class="shot" src="' .. name .. '" alt="' .. escape(s[2]) ..
+                '"><figcaption class="note">' .. escape(s[2]) .. " (the twin's two screens, as the demo drew them)</figcaption></figure>"
+        end
+    end
+    if #found > 0 then
+        body[#body + 1] = '<div class="widget"><h3>What the demos drew</h3>' .. table.concat(found, "\n") .. "</div>"
+    end
+end
+
+-- Every number, by group.
+body[#body + 1] = '<div class="widget"><input placeholder="filter numbers…" oninput="filterCards(this.value)" ' ..
+    'style="width:100%;background:#121217;border:1px solid #3a3a48;color:#e8e6e3;padding:6px 9px;border-radius:4px">' ..
+    "<script>function filterCards(q){q=q.toLowerCase();document.querySelectorAll('.card').forEach(function(c){" ..
+    "c.style.display=c.textContent.toLowerCase().indexOf(q)>=0?'':'none';});}</script></div>"
+for _, g in ipairs(group_order) do
+    body[#body + 1] = '<h2 id="group-' .. slug(g) .. '">' .. escape(group_titles[g] or g) .. "</h2><div class=\"cards\">"
+    for _, key in ipairs(groups[g]) do body[#body + 1] = card(key) end
+    body[#body + 1] = "</div>"
+end
+local metrics_page = { out = "metrics.html", section = "Start here", title = "Measurements" }
+write_file(OUT .. "/metrics.html", shell(metrics_page, "Measurements", table.concat(body, "\n")))
+-- }}}
+
+-- {{{ the overview page
+do
+    local body = { "<h1>Soren DS</h1>" }
+    local vision = read_file(DIR .. "/notes/vision/000-vision.md") or ""
+    body[#body + 1] = "<p>A handheld operating system for the Anbernic RG DS. Its vision, in its own words:</p>"
+    body[#body + 1] = "<blockquote>" .. escape(vision:sub(1, 600)):gsub("\n", "<br>") .. "…</blockquote>"
+    body[#body + 1] = '<p>Read <a href="' .. (by_source["000-vision.md"] and by_source["000-vision.md"].out or "#") ..
+        '">the whole vision</a>, then <a href="doc-001-architecture-overview.html">the architecture</a> and ' ..
+        '<a href="doc-002-roadmap.html">the roadmap</a>.</p>'
+    body[#body + 1] = "<h2>Where each phase stands</h2><div class=\"table-wrap\"><table><tr><th>phase</th><th>issues done</th><th>open</th><th></th></tr>"
+    for _, ph in ipairs(phase_numbers) do
+        local done, open = 0, 0
+        for _, i in ipairs(phases[ph].issues or {}) do
+            if i.done then done = done + 1 else open = open + 1 end
+        end
+        local total = done + open
+        local width = total > 0 and math.floor(100 * done / total) or 0
+        body[#body + 1] = '<tr><td><a href="progress-phase-' .. ph .. '.html">phase ' .. ph .. "</a></td><td>" .. done ..
+            "</td><td>" .. open .. '</td><td style="width:260px"><div class="bar-row"><div class="track"><div class="fill good" style="width:' ..
+            width .. '%"></div></div></div></td></tr>'
+    end
+    body[#body + 1] = "</table></div>"
+    body[#body + 1] = '<p>Every number on <a href="metrics.html">the measurements page</a> links to ' ..
+        'the paragraph explaining it. Open issues are marked <span style="color:var(--amber)">○</span> in the ' ..
+        'sidebar, completed ones <span style="color:var(--good)">●</span>.</p>'
+    local index_page = { out = "index.html", section = "Start here", title = "Overview" }
+    write_file(OUT .. "/index.html", shell(index_page, "Overview", table.concat(body, "\n")))
+end
+-- }}}
+
+print(string.format("build-docs: %d pages, %d measurements, written to %s", #pages + 2, #metric_order, OUT))
+if #unresolved > 0 then
+    print("build-docs: " .. #unresolved .. " document links could not be resolved:")
+    for i = 1, math.min(#unresolved, 40) do print("  " .. unresolved[i]) end
+end

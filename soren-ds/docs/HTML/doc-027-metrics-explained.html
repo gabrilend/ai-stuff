@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>What every measured number means — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="here" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details open><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="here" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="what-every-measured-number-means"><a class="self" href="#what-every-measured-number-means">§</a> What every measured number means</h1>
+<p>Every number on the metrics pages comes from a test or a demo program
+run on the laptop twin (issue <a class="issue done" href="issue-200.html" title="200 — The laptop twin">200</a>), written by the program as it ran and
+gathered when the pages were built. None is typed in by hand. To get
+current numbers, run <code>scripts/build-docs --measure</code>, which runs every
+test and every demo first; <code>scripts/test-twin</code> alone refreshes the test
+numbers.</p>
+<p><strong>These are laptop numbers.</strong> The twin runs the same engine code the
+kernel runs, but on a laptop's cores, caches and operating system. A
+ratio (four cores against one, a cost against a unit of work) travels to
+the device far better than an absolute time does, and every section
+below says which kind of number it is. The device's own numbers wait on
+issues <a class="issue" href="issue-201.html" title="201 — The memory map that turns the caches on">201</a> and <a class="issue" href="issue-202.html" title="202 — Waking the other cores">202</a>.</p>
+<p>Each section: what the number is, how it is measured, what a healthy
+value looks like, and what it says about the design.</p>
+<h2 id="memory-each-core-owns"><a class="self" href="#memory-each-core-owns">§</a> Memory each core owns</h2>
+<p>The page allocator (issue <a class="issue done" href="issue-203.html" title="203 — Memory each core owns">203</a>) gives every core its own stripes of the
+page bitmap — one cache line of bitmap, 512 pages, per stripe — so
+allocating never meets another core.</p>
+<h3 id="stripes-pair-cost"><a class="self" href="#stripes-pair-cost">§</a> Allocate-and-free cost</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stripes-pair-ns-four-cores">stripes.pair_ns.four_cores = <b>31</b> ns</a> <a class="metric-chip" href="metrics.html#m-stripes-pair-ns-one-core">stripes.pair_ns.one_core = <b>25</b> ns</a></div>
+<p>The time for one page to be allocated and freed again, measured by
+<a class="src" href="info-twin-tests-048-test-memory-each-core-owns-c.html"><code>twin/tests/048-test-memory-each-core-owns.c</code></a> twice: with one core
+allocating and three idle, then with all four allocating at once. It is
+an absolute laptop time; its use is the comparison between the two
+numbers, which is the next entry.</p>
+<h3 id="stripes-contention"><a class="self" href="#stripes-contention">§</a> Four cores against one</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stripes-contention-ratio">stripes.contention_ratio = <b>1.24</b> x</a></div>
+<p>The four-core cost per pair divided by the one-core cost. <strong>1.0 means
+nothing is shared</strong>: four cores allocating at once each pay exactly what
+one pays alone, which is the whole promise of striping. A number well
+above 1 would mean two cores' bitmap bits were landing in one cache line
+(false sharing) — the stripe width would be wrong, and issue <a class="issue done" href="issue-203.html" title="203 — Memory each core owns">203</a> says
+the measurement is how that would be found.</p>
+<h3 id="stripes-foreign-free"><a class="self" href="#stripes-foreign-free">§</a> Pages handed back</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stripes-foreign-frees">stripes.foreign_frees = <b>85,189</b> pages</a> <a class="metric-chip" href="metrics.html#m-stripes-pages-freed-by-owner">stripes.pages_freed_by_owner = <b>1,042,790</b> pages</a></div>
+<p>Pages freed by a core that did not own them, routed home through the
+owner's returns list rather than written into the owner's bitmap line.
+The churn test hands a quarter of its pages to a neighbour on purpose, so
+this number being large is the path being exercised, not a problem. The
+companion number is pages freed by their own owner, which need no hand-back.</p>
+<h3 id="stripes-taking"><a class="self" href="#stripes-taking">§</a> Stripes taken after startup</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stripes-stripes-taken">stripes.stripes_taken = <b>0</b> stripes</a></div>
+<p>Stripes an owner claimed from the unowned pool because its own ran dry.
+Each owner starts with a quarter of the pool dealt out; a busy run that
+takes more is the on-demand half of issue <a class="issue done" href="issue-203.html" title="203 — Memory each core owns">203</a>'s answer at work. Zero in a
+short test is normal.</p>
+<h3 id="stripes-churn"><a class="self" href="#stripes-churn">§</a> The churn</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stripes-churn-ms">stripes.churn_ms = <b>98.64</b> ms</a> <a class="metric-chip" href="metrics.html#m-stripes-pages-allocated">stripes.pages_allocated = <b>1,128,140</b> pages</a></div>
+<p>The whole allocator test's wall time and total allocations, for
+orientation rather than judgement.</p>
+<h2 id="the-task-ring"><a class="self" href="#the-task-ring">§</a> The task ring</h2>
+<p>One ring of task pointers shared by every core, under a ticket spin lock
+(issue <a class="issue done" href="issue-204.html" title="204 — The task ring">204</a>). It is the single most contended thing in the engine by
+construction, which is why issue <a class="issue done" href="issue-204.html" title="204 — The task ring">204</a> asked for it to be measured before
+anybody redesigned it.</p>
+<h3 id="ring-cost"><a class="self" href="#ring-cost">§</a> Push and pop cost</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-ring-push-pop-ns">ring.push_pop_ns = <b>315</b> ns</a></div>
+<p><a class="src" href="info-twin-tests-049-test-task-ring-c.html"><code>049-test-task-ring.c</code></a>: four cores each push and pop 250,000 times at
+once; the number is wall time per push-and-pop. A laptop time; compare
+across runs, not with the device.</p>
+<h3 id="ring-high-water"><a class="self" href="#ring-high-water">§</a> Most tasks waiting</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-ring-high-water">ring.high_water = <b>4</b> tasks</a></div>
+<p>The deepest the ring got during a run. In the ring test it is a measure
+of how far producers ran ahead of consumers; in the endurance demo
+(below) it is the answer to &quot;is the program falling behind?&quot; — a
+high-water mark that keeps climbing over a long run is a program the
+cores cannot keep up with.</p>
+<h3 id="ring-growth"><a class="self" href="#ring-growth">§</a> Doublings</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-ring-growths">ring.growths = <b>0</b> doublings</a></div>
+<p>How many times the ring replaced itself with one twice the size. It
+starts at eight slots, so a handful of doublings is normal on first use;
+the number should then stay put.</p>
+<h2 id="workers-and-the-run-loop"><a class="self" href="#workers-and-the-run-loop">§</a> Workers and the run loop</h2>
+<h3 id="workers-spread"><a class="self" href="#workers-spread">§</a> Spread across cores</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-workers-spread-least-over-most">workers.spread_least_over_most = <b>0.617</b> ratio</a></div>
+<p>In <a class="src" href="info-twin-tests-051-test-workers-and-delivery-c.html"><code>051-test-workers-and-delivery.c</code></a>, 2,000 heavy runs are queued at
+once and every core takes some. The number is the least-busy core's runs
+divided by the busiest core's. <strong>1.0 is perfectly even.</strong> Anything above
+about 0.5 means no core is starving; a much lower number with work
+waiting would mean the ring or the waking is unfair (issue <a class="issue done" href="issue-205.html" title="205 — Workers and the run loop">205</a> says the
+worker knows nothing about boxes precisely so that it cannot be).</p>
+<h3 id="workers-throughput"><a class="self" href="#workers-throughput">§</a> Throughput of heavy runs</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-workers-chew20k-runs-per-s">workers.chew20k_runs_per_s = <b>46629</b> runs/s</a></div>
+<p>Runs per second of a box doing 20,000 rounds of mixing work — work-bound,
+so it mostly measures the laptop.</p>
+<h3 id="workers-parking"><a class="self" href="#workers-parking">§</a> Parking between values</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-workers-parks-per-drip">workers.parks_per_drip = <b>6.22</b> parks</a></div>
+<p>Values are fed 5 ms apart; the number is how many times a core parked
+per value. It must be at least one: a core that never parks between
+values 5 ms apart is spinning, which is the battery-draining behaviour
+issue <a class="issue" href="issue-206.html" title="206 — Sleeping and waking">206</a> exists to prevent.</p>
+<h2 id="ports-and-stations"><a class="self" href="#ports-and-stations">§</a> Ports and stations</h2>
+<h3 id="ports-depth"><a class="self" href="#ports-depth">§</a> Starting depth</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-ports-cells-per-page-int64">ports.cells_per_page.int64 = <b>252</b> cells</a></div>
+<p>How many 8-byte values one port page holds: a port starts as deep as one
+page, as issue <a class="issue done" href="issue-208.html" title="208 — What an input port is">208</a> proposed, rather than at a fixed ten.</p>
+<h3 id="ports-growth"><a class="self" href="#ports-growth">§</a> Growth under imbalance</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-ports-growths-for-5000-unmatched">ports.growths_for_5000_unmatched = <b>19</b> pages</a></div>
+<p>A two-input station fed 5,000 values on one side and none on the other:
+the pages its port added. The test checks the number exactly against
+the imbalance (values waiting ÷ values per page, minus the first page),
+because a port that keeps growing is a signal — one input fed faster
+than its sibling — and the count has to be trustworthy to be a signal.</p>
+<h3 id="stations-table"><a class="self" href="#stations-table">§</a> Places in the table</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-stations-placed-total">stations.placed_total = <b>2,409</b> places</a></div>
+<p>Places in the station table at the end of the station test, free ones
+included. For orientation.</p>
+<h3 id="scrapyard"><a class="self" href="#scrapyard">§</a> The scrapyard</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-scrap-freed">scrap.freed = <b>5</b> items</a> <a class="metric-chip" href="metrics.html#m-scrap-waiting">scrap.waiting = <b>0</b> items</a></div>
+<p>Retired things (replaced wire lists, removed stations) that the sweep has
+freed, and those still waiting for every core to move past them. Waiting
+items at the end of a test are ones retired by the last few calls; a
+number that grows without bound over a long run would be a leak.</p>
+<h2 id="the-claim"><a class="self" href="#the-claim">§</a> The claim</h2>
+<h3 id="claim-throughput"><a class="self" href="#claim-throughput">§</a> Pairs per second</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-claim-pairs-per-s">claim.pairs_per_s = <b>213,055</b> pairs/s</a></div>
+<p>Four cores spray 200,000 values into both inputs of one adder; the
+number is complete pairs claimed and run per second. The test around it
+checks the property that matters more than the speed: runs equal
+complete pairs exactly, and none is left sitting unrun.</p>
+<h3 id="claim-merging"><a class="self" href="#claim-merging">§</a> Checks handed over</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-claim-merged-fraction">claim.merged_fraction = <b>0.938</b> fraction</a></div>
+<p>The fraction of readiness checks a core handed to another core already
+checking the same station (issue <a class="issue done" href="issue-209.html" title="209 — The readiness check and the claim">209</a>'s addition, which closes a
+lost-set race). A high fraction under a hammering test is expected; it
+is the mechanism working, with nobody waiting.</p>
+<h2 id="the-endurance-run"><a class="self" href="#the-endurance-run">§</a> The endurance run</h2>
+<p><a class="src" href="info-twin-programs-059-endurance-c.html"><code>twin/programs/059-endurance.c</code></a> (issue <a class="issue" href="issue-215.html" title="215 — Phase 2 demo: the endurance test">215</a>), run for a number of seconds
+on four cores and on one by the phase 2 demo. Each value fans out to one
+chain of 24 increment stations per core and back to a counting sink;
+halfway through the whole program is parked and restarted; a box refuses
+a value and is put back into service; one station is fed unevenly.</p>
+<h3 id="endurance-throughput"><a class="self" href="#endurance-throughput">§</a> Runs per second</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-runs-per-s">endurance.1core.runs_per_s = <b>948,291</b> runs/s</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-runs-per-s">endurance.4core.runs_per_s = <b>1,874,120</b> runs/s</a></div>
+<p>Box runs completed per second across the whole program. Engine-bound:
+the boxes do almost nothing, so this is the engine's own speed on the
+laptop.</p>
+<h3 id="endurance-speedup"><a class="self" href="#endurance-speedup">§</a> Four cores against one</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-speedup-four-over-one">endurance.speedup_four_over_one = <b>1.98</b> x</a></div>
+<p>Four-core runs per second divided by one-core runs per second. <strong>Four
+would be perfect scaling.</strong> The measured number is about two, which is
+the answer to issue <a class="issue done" href="issue-204.html" title="204 — The task ring">204</a>'s first open question: with every run going
+through one shared ring, the ring's lock is the ceiling on engine-bound
+work. Work-bound programs (boxes that do real work per run) scale much
+further, because they touch the ring less often per unit of work. The
+coarseness calculator on the metrics page shows the trade.</p>
+<h3 id="endurance-run-cost"><a class="self" href="#endurance-run-cost">§</a> What one run costs</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-pass-run-ns">endurance.1core.pass_run_ns = <b>703</b> ns</a> <a class="metric-chip" href="metrics.html#m-endurance-1core-round-ns">endurance.1core.round_ns = <b>2.33</b> ns</a> <a class="metric-chip" href="metrics.html#m-endurance-1core-run-cost-ns">endurance.1core.run_cost_ns = <b>703</b> ns</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-pass-run-ns">endurance.4core.pass_run_ns = <b>1598</b> ns</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-round-ns">endurance.4core.round_ns = <b>3.11</b> ns</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-run-cost-ns">endurance.4core.run_cost_ns = <b>1598</b> ns</a></div>
+<p>Core time per run of a box that does nothing at all (a chain of <code>pass</code>
+boxes), and core time per round of <code>chew</code>'s mixing work. The first is the
+engine's price for one run; the second is a unit of real work to
+measure it against.</p>
+<h3 id="endurance-coarseness"><a class="self" href="#endurance-coarseness">§</a> How coarse a box should be</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-coarse-ms">endurance.1core.coarse_ms = <b>244</b> ms</a> <a class="metric-chip" href="metrics.html#m-endurance-1core-coarseness-rounds">endurance.1core.coarseness_rounds = <b>301</b> rounds</a> <a class="metric-chip" href="metrics.html#m-endurance-1core-fine-ms">endurance.1core.fine_ms = <b>256</b> ms</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-coarseness-rounds">endurance.4core.coarseness_rounds = <b>514</b> rounds</a> <a class="metric-chip" href="metrics.html#m-endurance-ncore-coarse-ms">endurance.ncore.coarse_ms = <b>81.48</b> ms</a> <a class="metric-chip" href="metrics.html#m-endurance-ncore-fine-ms">endurance.ncore.fine_ms = <b>69.83</b> ms</a></div>
+<p>The first divided by the second: how many rounds of real work a box must
+do per run before the work costs as much as the engine does. <strong>This is
+the design rule issue <a class="issue" href="issue-215.html" title="215 — Phase 2 demo: the endurance test">215</a> was built to produce</strong>: a box doing less work
+than this per run spends more of its time being scheduled than working,
+and should be merged with its neighbour. The two arrangement times (the
+same total work as one big box, and as 64 small ones) are shown beside
+it.</p>
+<h3 id="endurance-arithmetic"><a class="self" href="#endurance-arithmetic">§</a> The arithmetic</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-count-ok">endurance.1core.count_ok = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-endurance-1core-sum-ok">endurance.1core.sum_ok = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-endurance-1core-values-sent">endurance.1core.values_sent = <b>297,856</b> values</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-count-ok">endurance.4core.count_ok = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-endurance-4core-sum-ok">endurance.4core.sum_ok = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-endurance-4core-values-sent">endurance.4core.values_sent = <b>170,432</b> values</a></div>
+<p>Values pumped in, and whether the sink's count and sum matched the
+closed-form expectation exactly — every value arrives once per chain,
+plus 24 from the chain, minus exactly the values the picky box refused.
+A count too low is a lost value; too high a doubled one; right count and
+wrong sum a torn copy. These must be true, every run.</p>
+<h3 id="endurance-spread"><a class="self" href="#endurance-spread">§</a> Spread across cores</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-spread-least-over-most">endurance.1core.spread_least_over_most = <b>1</b> ratio</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-spread-least-over-most">endurance.4core.spread_least_over_most = <b>0.970</b> ratio</a></div>
+<p>As for the workers test, over the whole endurance run.</p>
+<h3 id="endurance-growth"><a class="self" href="#endurance-growth">§</a> Growth under imbalance</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-port-growths-uneven">endurance.1core.port_growths_uneven = <b>886</b> pages</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-port-growths-uneven">endurance.4core.port_growths_uneven = <b>507</b> pages</a></div>
+<p>Pages added by the station fed four values on one input for every one on
+the other; checked against the number of unmatched values waiting.</p>
+<h3 id="endurance-memory"><a class="self" href="#endurance-memory">§</a> Memory after warm-up</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-pages-drift">endurance.1core.pages_drift = <b>527</b> pages</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-pages-drift">endurance.4core.pages_drift = <b>363</b> pages</a></div>
+<p>Free pages lost between a quarter of the way through and the end. The
+uneven station is made to hold unmatched values on purpose, so its pages
+are allowed for; beyond that, a number that keeps growing with the
+length of the run is a leak.</p>
+<h3 id="endurance-ring"><a class="self" href="#endurance-ring">§</a> Ring depth</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-ring-high-water">endurance.1core.ring_high_water = <b>20,000</b> tasks</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-ring-high-water">endurance.4core.ring_high_water = <b>20,000</b> tasks</a></div>
+<p>The ring's high-water mark over the run.</p>
+<h3 id="endurance-drain"><a class="self" href="#endurance-drain">§</a> Draining</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-drain-ms">endurance.1core.drain_ms = <b>30.82</b> ms</a> <a class="metric-chip" href="metrics.html#m-endurance-4core-drain-ms">endurance.4core.drain_ms = <b>28.45</b> ms</a></div>
+<p>Time for everything in flight to finish after the pump stopped.</p>
+<h3 id="endurance-verdict"><a class="self" href="#endurance-verdict">§</a> The verdict</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-endurance-1core-pass">endurance.1core.pass = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-endurance-4core-pass">endurance.4core.pass = <b>yes</b> </a></div>
+<p>Every check above passed.</p>
+<h2 id="choosing-an-exit"><a class="self" href="#choosing-an-exit">§</a> Choosing an exit</h2>
+<h3 id="kinds-random"><a class="self" href="#kinds-random">§</a> Random, against even</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-kinds-random-worst-deviation">kinds.random_worst_deviation = <b>0.780</b> %</a></div>
+<p>40,000 values through a random station with four exits; the number is
+the largest distance of any exit's share from an even quarter, in
+percent. A few percent is expected chance; a large number would be a
+biased picker (issue <a class="issue done" href="issue-308.html" title="308 — The kinds that pick an exit">308</a>).</p>
+<h3 id="kinds-spread"><a class="self" href="#kinds-spread">§</a> Spread, against a slow destination</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-kinds-spread-quick-share">kinds.spread_quick_share = <b>0.502</b> fraction</a></div>
+<p>Values through a spread station with one slow destination and one quick
+one; the number is the quick one's share. Above one half means spread
+sees the slow one falling behind — which, as issue <a class="issue done" href="issue-308.html" title="308 — The kinds that pick an exit">308</a> now records, it
+only did once it counted queued runs as well as waiting values.</p>
+<h2 id="a-program-written-down"><a class="self" href="#a-program-written-down">§</a> A program written down</h2>
+<h3 id="written-down-scenes"><a class="self" href="#written-down-scenes">§</a> The nine scenes</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-written-down-scene1-passed">written_down.scene1_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene2-passed">written_down.scene2_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene3-passed">written_down.scene3_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene4-passed">written_down.scene4_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene5-passed">written_down.scene5_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene6-passed">written_down.scene6_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene7-passed">written_down.scene7_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene8-passed">written_down.scene8_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scene9-passed">written_down.scene9_passed = <b>yes</b> </a> <a class="metric-chip" href="metrics.html#m-written-down-scenes-passed">written_down.scenes_passed = <b>9</b> scenes</a></div>
+<p>The phase 3 demo (issue <a class="issue" href="issue-312.html" title="312 — Phase 3 demo: a program written down">312</a>): each scene passes or fails — the round trip,
+the catalogue refusal, both ends of a wire, the wire check, all problems
+at once, the counter, every exit kind, a map inside a map, and a box
+taking itself out.</p>
+<h2 id="tests"><a class="self" href="#tests">§</a> Tests</h2>
+<h3 id="tests-results"><a class="self" href="#tests-results">§</a> Test results</h3><div class="measured">measured: <a class="metric-chip" href="metrics.html#m-tests-048-test-memory-each-core-owns-failed">tests.048-test-memory-each-core-owns.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-048-test-memory-each-core-owns-passed">tests.048-test-memory-each-core-owns.passed = <b>4</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-049-test-task-ring-failed">tests.049-test-task-ring.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-049-test-task-ring-passed">tests.049-test-task-ring.passed = <b>4</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-051-test-workers-and-delivery-failed">tests.051-test-workers-and-delivery.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-051-test-workers-and-delivery-passed">tests.051-test-workers-and-delivery.passed = <b>27</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-052-test-station-table-failed">tests.052-test-station-table.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-052-test-station-table-passed">tests.052-test-station-table.passed = <b>16</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-053-test-ports-and-claims-failed">tests.053-test-ports-and-claims.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-053-test-ports-and-claims-passed">tests.053-test-ports-and-claims.passed = <b>11</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-054-test-parking-and-errors-failed">tests.054-test-parking-and-errors.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-054-test-parking-and-errors-passed">tests.054-test-parking-and-errors.passed = <b>26</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-072-test-maps-failed">tests.072-test-maps.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-072-test-maps-passed">tests.072-test-maps.passed = <b>33</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-074-test-generator-failed">tests.074-test-generator.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-074-test-generator-passed">tests.074-test-generator.passed = <b>27</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-075-test-kinds-doors-launch-failed">tests.075-test-kinds-doors-launch.failed = <b>0</b> checks</a> <a class="metric-chip" href="metrics.html#m-tests-075-test-kinds-doors-launch-passed">tests.075-test-kinds-doors-launch.passed = <b>19</b> checks</a></div>
+<p>Every test program under <code>twin/tests/</code>, its checks passed and failed, as
+of the last <code>scripts/test-twin</code>. Each test's own page (from the source
+reference) says what it checks, in its opening description.</p><p class="filter-note">source: <code>docs/027-metrics-explained.md</code></p><div class="pager"><span>← <a href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a></span><span><a href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a> →</span></div></main></div></body></html>

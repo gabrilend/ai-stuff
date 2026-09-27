@@ -37,6 +37,14 @@ done
 BUILD="$(make -s -C "${DIR}/twin" VARIANT=debug DIR="${DIR}" print-build)"
 failed=0
 ran=0
+# Each test's result is also a measurement, for the documentation pages:
+# one line per test program, in the same shape the programs write theirs.
+METRICS_DIR="${DIR}/tmp/shared-memory/metrics"
+mkdir -p "${METRICS_DIR}"
+RESULTS="${METRICS_DIR}/tests.tsv"
+if [ -z "${FILTER}" ]; then
+    : > "${RESULTS}"
+fi
 for test in "${BUILD}"/tests/*; do
     name="$(basename "${test}")"
     if [ -n "${FILTER}" ] && [[ "${name}" != *"${FILTER}"* ]]; then
@@ -49,6 +57,15 @@ for test in "${BUILD}"/tests/*; do
         tail -n 30 "${LOG_DIR}/${name}.log"
     else
         tail -n 1 "${LOG_DIR}/${name}.log"
+    fi
+    summary="$(tail -n 1 "${LOG_DIR}/${name}.log")"
+    passed_checks="$(sed -n 's/.*(\([0-9]*\) passed, \([0-9]*\) failed).*/\1/p' <<< "${summary}")"
+    failed_checks="$(sed -n 's/.*(\([0-9]*\) passed, \([0-9]*\) failed).*/\2/p' <<< "${summary}")"
+    if [ -n "${passed_checks}" ]; then
+        printf 'tests.%s.passed\t%s\tchecks\ttests-results\t%s\n' "${name}" "${passed_checks}" "checks passed" >> "${RESULTS}"
+        printf 'tests.%s.failed\t%s\tchecks\ttests-results\t%s\n' "${name}" "${failed_checks}" "checks failed" >> "${RESULTS}"
+    else
+        printf 'tests.%s.failed\t1\tchecks\ttests-results\t%s\n' "${name}" "the test did not finish" >> "${RESULTS}"
     fi
 done
 

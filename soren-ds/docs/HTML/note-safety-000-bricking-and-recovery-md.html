@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bricking risks and recovery — Soren DS development safety — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details open><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="here" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="bricking-risks-and-recovery-soren-ds-development-safety"><a class="self" href="#bricking-risks-and-recovery-soren-ds-development-safety">§</a> Bricking risks and recovery — Soren DS development safety</h1>
+<p>This document enumerates every way the Anbernic RG DS could be made
+unusable as a result of our development, ranks each scenario by how
+likely it is to happen and how bad it would be, explains the
+mechanism, and prescribes a design rule that prevents it.</p>
+<p>A constraint from the project that frames everything: <strong>the device
+cannot be opened.</strong> Any recovery procedure that requires physical
+access to the inside of the case is not available to us. This
+makes the question &quot;can we trigger the chip's ROM-level recovery
+mode without opening the case?&quot; the single most important
+unknown in this entire phase, because it determines whether we
+have a safety net beneath every other risk in this document.</p>
+<h2 id="what-brick-means-here"><a class="self" href="#what-brick-means-here">§</a> What &quot;brick&quot; means here</h2>
+<p>A device is <strong>bricked</strong> when it has no path back to a working state
+through normal user-accessible means. We distinguish three levels
+of severity, and our design must keep us in the first two at worst.</p>
+<ul>
+<li><strong>Soft brick.</strong> The device is in a bad state but still responds
+to a recovery procedure. A reflash using the standard
+development tools fixes it. Annoying but not catastrophic.</li>
+<li><strong>Hard brick.</strong> The standard procedure no longer works, but a
+lower-level recovery (Maskrom) does. Reflashing through Maskrom
+fixes it. Requires us to know how to reach Maskrom.</li>
+<li><strong>Permanent brick.</strong> Even Maskrom is gone, or the silicon itself
+is damaged. Repair is hardware-level. The device is dead.</li>
+</ul>
+<h2 id="the-boot-and-firmware-layers-lowest-to-highest"><a class="self" href="#the-boot-and-firmware-layers-lowest-to-highest">§</a> The boot and firmware layers, lowest to highest</h2>
+<p>Damage at each layer has a different recovery path. Understanding
+where in this stack a brick happened is the foundation of
+designing safe code.</p>
+<h3 id="layer-0-chip-rom-maskrom"><a class="self" href="#layer-0-chip-rom-maskrom">§</a> Layer 0 — Chip ROM (Maskrom)</h3>
+<p>A small bootloader burned into the RK3568's silicon at the
+factory. Cannot be erased, cannot be rewritten, cannot be
+disabled by software (with one exception we cover under secure
+boot below). When the chip is reset:</p>
+<ul>
+<li>It checks whether the next layer (the loader on eMMC) is intact
+by reading a magic number.</li>
+<li>If yes, it hands control to the loader.</li>
+<li>If no, OR if a GPIO held during reset forces it, it enters
+Maskrom mode and waits on USB for a host to upload code.</li>
+</ul>
+<p>Because this ROM lives in silicon, <strong>Maskrom is the unbrickable
+safety net — as long as we can trigger it from outside the case.</strong>
+Whether we can do that on the RG DS is the open question this
+document keeps returning to.</p>
+<h3 id="layer-1-loader-rkddrbin-miniloader"><a class="self" href="#layer-1-loader-rkddrbin-miniloader">§</a> Layer 1 — Loader (RKDDRBin + miniloader)</h3>
+<p>Lives in a fixed area of eMMC. Initializes the chip's DDR memory
+controller and loads u-boot. If corrupted, layer 0 falls back to
+Maskrom.</p>
+<h3 id="layer-2-u-boot"><a class="self" href="#layer-2-u-boot">§</a> Layer 2 — u-boot</h3>
+<p>Reads the partition table, picks a kernel image, loads it into RAM,
+and jumps to it. Also supports its own USB-based flashing modes
+(fastboot, DFU) and its own command shell if a console is reachable.</p>
+<h3 id="layer-3-boot-partition"><a class="self" href="#layer-3-boot-partition">§</a> Layer 3 — Boot partition</h3>
+<p>Kernel image plus initial ramdisk. This is where our Soren DS
+kernel will live. If corrupted, u-boot can fall back to a recovery
+partition if one exists.</p>
+<h3 id="layer-4-recovery-partition"><a class="self" href="#layer-4-recovery-partition">§</a> Layer 4 — Recovery partition</h3>
+<p>An alternate kernel and ramdisk for emergency recovery. Standard
+Android devices ship one. If our setup preserves it, we get a
+free fallback path.</p>
+<h3 id="layer-5-system-partition"><a class="self" href="#layer-5-system-partition">§</a> Layer 5 — System partition</h3>
+<p>Android system files on stock firmware. We replace this entirely.</p>
+<h3 id="layer-6-userdata"><a class="self" href="#layer-6-userdata">§</a> Layer 6 — Userdata</h3>
+<p>Apps and user settings. Not relevant to bricking.</p>
+<h3 id="layer-7-partition-table-misc-efuses"><a class="self" href="#layer-7-partition-table-misc-efuses">§</a> Layer 7 — Partition table, misc, eFuses</h3>
+<p>Metadata about partitions and boot flags. eFuses are one-time
+programmable silicon registers — touching the wrong one is
+permanent. We treat this layer as off-limits.</p>
+<p>---</p>
+<h2 id="bricking-scenarios-ranked"><a class="self" href="#bricking-scenarios-ranked">§</a> Bricking scenarios, ranked</h2>
+<p>For each: the cause, the mechanism (why it happens), the recovery
+path, the severity, and the design rule that prevents it.</p>
+<h3 id="s1-power-loss-during-flash"><a class="self" href="#s1-power-loss-during-flash">§</a> S1 — Power loss during flash</h3>
+<p><strong>Likelihood:</strong> Medium. Will happen at least once in a project
+this long.</p>
+<p><strong>Cause:</strong> Battery dies or USB cable disconnects while a kernel
+image is being written to eMMC. The boot partition is half-old,
+half-new — corrupt.</p>
+<p><strong>Mechanism:</strong> eMMC writes are atomic at the small-block level
+but not at the partition level. Writing a 4 MB kernel image takes
+hundreds of milliseconds, and an interruption mid-way leaves
+partial data with no way for u-boot to know.</p>
+<p><strong>Recovery:</strong> Boot from the recovery partition and re-flash. OR
+enter Maskrom and re-flash. Both work.</p>
+<p><strong>Severity:</strong> Soft brick. Recoverable.</p>
+<p><strong>Design rule:</strong> A/B partition scheme. Two boot slots, A and B.
+We write to the inactive slot, verify the write checksum, then
+flip the active-slot flag — which is itself a single atomic write
+to the misc partition. If power dies mid-write, the previously
+active slot still works because it was never touched.</p>
+<h3 id="s2-bad-kernel-image-doesn-t-boot"><a class="self" href="#s2-bad-kernel-image-doesn-t-boot">§</a> S2 — Bad kernel image, doesn't boot</h3>
+<p><strong>Likelihood:</strong> Very high. This will happen routinely during
+development, because writing a kernel that doesn't boot the first
+time is the default outcome of writing a kernel.</p>
+<p><strong>Cause:</strong> A bug in our kernel causes it to crash before the
+device is usable, or it hangs in an infinite loop.</p>
+<p><strong>Mechanism:</strong> The kernel runs for some duration after u-boot
+hands off, then hits a fault — a bad pointer, a divide-by-zero,
+an unhandled exception — or it enters a loop with no exit. The
+screen stays dark, the LEDs may or may not blink, the device
+sits there.</p>
+<p><strong>Recovery:</strong> Watchdog reboot. A/B slot revert. Re-flash via
+Maskrom.</p>
+<p><strong>Severity:</strong> Soft brick.</p>
+<p><strong>Design rule:</strong> Watchdog always on. Configure the hardware
+watchdog as soon as the kernel can. Pet it every iteration of
+the main scheduler loop. A boot-success flag is written by our
+kernel only after the system is verifiably usable — at minimum,
+the LEDs are responding and the USB debug stream is up. If
+u-boot sees N reboots without a success flag, it reverts to the
+previous slot.</p>
+<h3 id="s3-wrong-target-image"><a class="self" href="#s3-wrong-target-image">§</a> S3 — Wrong-target image</h3>
+<p><strong>Likelihood:</strong> Low if the build script validates targets, high
+if it doesn't.</p>
+<p><strong>Cause:</strong> A build accidentally picks up the wrong toolchain or
+the wrong linker script and produces an image for a different
+chip family. Flashing it bricks the boot partition.</p>
+<p><strong>Mechanism:</strong> u-boot tries to load and execute the image. Either
+it fails a magic-number check and refuses to boot, or it tries
+to execute and the CPU faults on the first instruction.</p>
+<p><strong>Recovery:</strong> Same as S2.</p>
+<p><strong>Severity:</strong> Soft brick.</p>
+<p><strong>Design rule:</strong> The build system embeds a chip-ID magic number
+into the image header at compile time. Our boot code (or u-boot,
+if configured) checks the magic before executing. Mismatch means
+refuse to boot, do not jump.</p>
+<h3 id="s4-driving-a-gpio-to-a-dangerous-configuration"><a class="self" href="#s4-driving-a-gpio-to-a-dangerous-configuration">§</a> S4 — Driving a GPIO to a dangerous configuration</h3>
+<p><strong>Likelihood:</strong> Medium during early driver development.</p>
+<p><strong>Cause:</strong> Our driver code configures a GPIO as an output and
+drives it to a level that conflicts with what's wired to the other
+end of that pin. For example, driving a power-rail-enable pin to
+the wrong state, or shorting an input pin against a fixed level
+through a low-impedance output.</p>
+<p><strong>Mechanism:</strong> A GPIO output driver inside the SoC can typically
+source or sink a few milliamps. If the pin is wired to something
+that fights the SoC's driver — a strong external pull-up against
+a SoC driving low, for instance — current flows through the SoC's
+internal output transistor. Most modern SoCs have internal current
+limits, but pushing them long enough degrades transistors.</p>
+<p><strong>Recovery:</strong> Hard to determine. May still work but be degraded.
+May fail intermittently.</p>
+<p><strong>Severity:</strong> Possible long-term chip damage.</p>
+<p><strong>Design rule:</strong> Only configure a GPIO as an output after we have
+explicit documentation of what's wired to it. Until 101's
+research has confirmed a pin's wiring, we read it but do not
+drive it. Inputs are safe; outputs are committed.</p>
+<h3 id="s5-misconfiguring-the-pmic"><a class="self" href="#s5-misconfiguring-the-pmic">§</a> S5 — Misconfiguring the PMIC</h3>
+<p><strong>Likelihood:</strong> Low if we follow the rule below.</p>
+<p><strong>Cause:</strong> Our code writes to the power management IC's registers
+and sets a voltage rail to a value outside the documented safe
+range. For example, telling the rail that powers the RAM to
+deliver 1.8V when the RAM is rated for 1.5V.</p>
+<p><strong>Mechanism:</strong> PMICs expose their output voltages as I2C
+registers. The PMIC will obey what we tell it. Components
+downstream of the rail receive whatever voltage we've configured;
+they have no way to refuse a bad voltage. Silicon outside its
+operating range fails — sometimes immediately, sometimes after
+some time of mistreatment.</p>
+<p><strong>Recovery:</strong> None for damaged silicon. The chip is permanently
+degraded or destroyed.</p>
+<p><strong>Severity:</strong> Permanent damage if it happens.</p>
+<p><strong>Design rule:</strong> Never write to PMIC voltage-setting registers.
+Use only the documented read commands (battery percentage, USB
+power presence, temperature) and the documented sleep/shutdown
+control commands. Voltage configuration was set at the factory
+to match the components on this board and should never change
+under our software.</p>
+<h3 id="s6-thermal-abuse"><a class="self" href="#s6-thermal-abuse">§</a> S6 — Thermal abuse</h3>
+<p><strong>Likelihood:</strong> Low. Modern silicon is well protected.</p>
+<p><strong>Cause:</strong> Our kernel keeps the CPU at maximum clock without
+sleeping or throttling, and we don't read the thermal sensor.
+The chip overheats.</p>
+<p><strong>Mechanism:</strong> The RK3568 includes a hardware thermal sensor that
+triggers an emergency shutdown above a critical temperature
+(typically around 110°C). Immediate hard brick is unlikely
+because the silicon protects itself. But sustained operation just
+below the shutdown threshold accelerates silicon degradation over
+time — transistors wear out faster, the chip becomes less
+reliable.</p>
+<p><strong>Recovery:</strong> None for accumulated wear. Immediate damage is
+prevented by the silicon's own protection.</p>
+<p><strong>Severity:</strong> Long-term degradation.</p>
+<p><strong>Design rule:</strong> Sample the thermal sensor periodically. Throttle
+the CPU clock or sleep idle cores when temperature exceeds a
+documented safe operating threshold. Never disable the chip's
+built-in thermal protection.</p>
+<h3 id="s7-battery-deep-discharge"><a class="self" href="#s7-battery-deep-discharge">§</a> S7 — Battery deep discharge</h3>
+<p><strong>Likelihood:</strong> High during development if not designed against,
+because a kernel that doesn't sleep will burn the battery.</p>
+<p><strong>Cause:</strong> Our kernel runs a tight loop that never sleeps and
+never monitors battery level. The battery drains below the safe
+discharge threshold (typically 2.5V per lithium cell).</p>
+<p><strong>Mechanism:</strong> Lithium-ion cells discharged below the safe
+threshold develop internal short circuits as the copper anode
+begins to dissolve into the electrolyte. The PMIC may refuse to
+recharge a cell discharged this deeply, as a safety feature.</p>
+<p><strong>Recovery:</strong> Replace the battery. On a sealed device this
+requires opening the case, which we have already said we can't
+do.</p>
+<p><strong>Severity:</strong> Functionally hard brick if the user cannot open the
+device — the cell is dead and not coming back.</p>
+<p><strong>Design rule:</strong> Monitor battery voltage every few seconds.
+Request a PMIC sleep (which preserves battery state) at a defined
+safe threshold, typically 3.4V per cell — well above the danger
+zone. Never override the PMIC's built-in discharge cutoff.</p>
+<h3 id="s8-display-panel-damage-closed-2026-07-02"><a class="self" href="#s8-display-panel-damage-closed-2026-07-02">§</a> S8 — Display panel damage — CLOSED (2026-07-02)</h3>
+<p><strong>Likelihood:</strong> Negligible. Both damage mechanisms are removed by
+what the board hardware and device tree actually are — see below.</p>
+<p><strong>Cause (as originally feared):</strong> Driving the display controller at
+frequencies or voltages outside the panel's documented range, or
+setting the backlight LED current above its rated value.</p>
+<p><strong>Mechanism:</strong> LCD panels are tolerant of many input variations
+but can be damaged by sustained out-of-spec timing. Backlight
+LEDs burn out if driven above their rated forward current for
+sustained periods.</p>
+<p><strong>Why this is closed:</strong></p>
+<ul>
+<li><strong>No software path to burn the backlight.</strong> The backlight is a
+<code>pwm-backlight</code> (device tree: <code>backlight0</code>/<code>backlight1</code>, PWM
+channels at <code>0xFE700000</code> / <code>0xFE700010</code>, 40 kHz, enabled via a
+gpio4 line). Brightness is PWM <em>duty only</em>; the LED forward
+current is fixed in hardware by the boost stage's design. A PWM
+duty can dim the string but physically cannot push current past
+the hardware-set limit — so there is no &quot;rated current&quot; for
+software to exceed and no way for us to over-drive the LEDs.</li>
+<li><strong>Panel timing comes from documented modes.</strong> The panel's exact
+timing (640×480, 42.134 MHz pixel clock, porches) and its full
+DCS init sequence are embedded in the board device tree
+(<code>panel_description</code>) and used verbatim — we do not synthesize
+out-of-spec timing. See <a class="src" href="doc-023-display-controller.html"><code>docs/023-display-controller.md</code></a>.</li>
+</ul>
+<p><strong>Recovery:</strong> N/A (no realistic damage path remains).</p>
+<p><strong>Severity:</strong> Was functional component damage; now not reachable
+from software.</p>
+<p><strong>Design rule (retained):</strong> Drive the panel only with the
+device-tree timing and init sequence; drive the backlight only
+through its PWM duty. Both are already the only paths the driver
+takes, so the rule is structural, not a caution to remember.</p>
+<h3 id="s9-efuse-otp-writes"><a class="self" href="#s9-efuse-otp-writes">§</a> S9 — eFuse / OTP writes</h3>
+<p><strong>Likelihood:</strong> Very low unless we explicitly invoke a fuse-write
+command, which we never should.</p>
+<p><strong>Cause:</strong> Our kernel or our build process accidentally invokes a
+command that writes to the chip's one-time-programmable
+security memory.</p>
+<p><strong>Mechanism:</strong> eFuses are physical fuses inside the silicon.
+Writing them blows the fuse. They cannot be reset. The chip's
+behavior is permanently changed — typically to lock the bootloader
+to a specific signing key or to require secure boot.</p>
+<p><strong>Recovery:</strong> None. The chip is changed forever. Replace device.</p>
+<p><strong>Severity:</strong> Permanent brick.</p>
+<p><strong>Design rule:</strong> Our kernel never contains code that writes to
+the eFuse controller address range. Our flashing scripts never
+invoke any <code>rkdeveloptool</code> subcommand that writes fuses (commands
+prefixed <code>wf</code>, <code>wsf</code>, or similar). This is enforced by code
+review and by a deny-list in the build system.</p>
+<h3 id="s10-accidental-secure-boot-enable"><a class="self" href="#s10-accidental-secure-boot-enable">§</a> S10 — Accidental secure-boot enable</h3>
+<p><strong>Likelihood:</strong> Very low if S9's rule is followed.</p>
+<p><strong>Cause:</strong> We accidentally enable the secure-boot eFuse without
+having an authorized signing key on the chip.</p>
+<p><strong>Mechanism:</strong> Secure boot is one of the eFuses described above.
+Once enabled, the chip's bootloader only executes images signed
+by a specific key. If we don't have that key set up, every
+subsequent flash is rejected.</p>
+<p><strong>Recovery:</strong> None. Same as S9.</p>
+<p><strong>Severity:</strong> Permanent brick.</p>
+<p><strong>Design rule:</strong> Same as S9. Secure boot is an eFuse; we don't
+touch eFuses.</p>
+<h3 id="s11-watchdog-absence-plus-kernel-hang"><a class="self" href="#s11-watchdog-absence-plus-kernel-hang">§</a> S11 — Watchdog absence plus kernel hang</h3>
+<p><strong>Likelihood:</strong> Very high during development.</p>
+<p><strong>Cause:</strong> The kernel enters a state where nothing happens (an
+infinite loop, a deadlock between threads, a panic that doesn't
+trigger reboot). The device appears dead.</p>
+<p><strong>Mechanism:</strong> Without a watchdog, nothing tells the chip to
+reset. The kernel sits at zero throughput while the battery
+drains in the background (compounding into scenario S7).</p>
+<p><strong>Recovery:</strong> Force a hardware power-off, usually by holding the
+power button for many seconds — the PMIC treats this as an
+emergency-off signal, even when software is unresponsive.</p>
+<p><strong>Severity:</strong> Soft brick at most, usually just an annoyance.</p>
+<p><strong>Design rule:</strong> Configure the hardware watchdog as soon as the
+kernel is able to. The scheduler pets it every iteration. If the
+scheduler hangs, the watchdog kicks the device after its timeout.</p>
+<h3 id="s12-emmc-wear"><a class="self" href="#s12-emmc-wear">§</a> S12 — eMMC wear</h3>
+<p><strong>Likelihood:</strong> Very low in normal use, but worth noting.</p>
+<p><strong>Cause:</strong> Our kernel writes to flash storage at a high rate (a
+log file flushed every millisecond, for instance).</p>
+<p><strong>Mechanism:</strong> eMMC cells have a finite write-endurance count.
+Modern eMMC is good for thousands to hundreds of thousands of
+write cycles per cell, with wear-leveling distributing writes
+across the chip. A pathologically write-heavy kernel can still
+wear cells faster than expected.</p>
+<p><strong>Recovery:</strong> None for worn cells. Bad blocks accumulate over
+time and the storage becomes less reliable.</p>
+<p><strong>Severity:</strong> Long-term degradation.</p>
+<p><strong>Design rule:</strong> Logs and ephemeral writes go to the RAM-backed
+<code>tmp/</code> directory (the symlink in the project root points there),
+not to eMMC. Persistent writes happen only when the user changes
+something they explicitly intend to save.</p>
+<p>---</p>
+<h2 id="the-maskrom-access-question"><a class="self" href="#the-maskrom-access-question">§</a> The Maskrom access question</h2>
+<p>Every &quot;soft brick&quot; scenario in this document is recoverable
+through Maskrom. Maskrom is reachable only by:</p>
+<ol>
+<li><strong>A physical button or pad on the PCB</strong> held during power-on.
+On the RG DS specifically, where this button is and whether
+it's accessible from outside the case is not documented in
+any community resource we could find. <strong>This is the open
+question.</strong></li>
+<li><strong>A software request from a running u-boot.</strong> If we can reach
+a u-boot shell — over USB serial, over UART, or by interpreting
+onscreen u-boot output — we can run a command that triggers
+Maskrom on the next reset.</li>
+<li><strong>An ADB / fastboot chain from running Android.</strong> If the stock
+OS is reachable and ADB is enabled, <code>adb reboot bootloader</code>
+may put the device in fastboot mode, and from there
+<code>fastboot reboot-bootloader</code> may chain into Maskrom on some
+Rockchip implementations.</li>
+</ol>
+<p>If none of those three paths works from outside the case on the
+RG DS, <strong>we cannot recover from a hard brick.</strong> Every flash
+becomes a one-way operation. The design rules above must be
+followed strictly. There is no safety net beneath them.</p>
+<p><strong>Before any low-level flashing experimentation, we must confirm
+at least one of those three paths works.</strong> This is the highest
+priority research item — higher than the chip details we already
+have, higher than the display registers, higher than any other
+hardware research.</p>
+<p>The most likely path to confirm without opening the case is path
+3 (ADB chain through running Android). This requires running the
+stock OS once with the device connected to the laptop — exactly
+the thing we wanted to avoid for malware reasons. The malware
+concern and the safety-net concern are in direct conflict. A
+practical compromise: run the stock OS with the laptop's USB
+permissions restricted to ADB only (no mass storage mount), and
+confirm the ADB-to-fastboot-to-Maskrom path works once. After
+that, we have a safety net and the stock OS doesn't need to be
+plugged in again.</p>
+<p>---</p>
+<h2 id="what-to-never-do"><a class="self" href="#what-to-never-do">§</a> What to never do</h2>
+<ol>
+<li>Never invoke any <code>rkdeveloptool</code> command that writes fuses
+(commands beginning with <code>wf</code>, <code>wsf</code>, or any documented as
+modifying secure memory).</li>
+<li>Never write to the chip's eFuse controller address range from
+kernel code.</li>
+<li>Never write to PMIC voltage-setting registers from kernel code.</li>
+<li>Never disable the hardware watchdog after it's been configured.</li>
+<li>Never disable the chip's built-in thermal protection.</li>
+<li>Never override the PMIC's battery low-voltage cutoff.</li>
+<li>Never drive a GPIO as an output until its wiring is documented.</li>
+<li>Never use display timings outside the panel's datasheet
+specification.</li>
+<li>Never overwrite the partition holding u-boot during normal
+kernel updates. Update only the boot partition.</li>
+<li>Never flash without first confirming the build image's
+chip-ID magic matches the target.</li>
+</ol>
+<h2 id="what-to-be-extra-careful-about"><a class="self" href="#what-to-be-extra-careful-about">§</a> What to be extra careful about</h2>
+<ol>
+<li><strong>The boot-success flag</strong> for the A/B slot scheme. Write it
+only after the kernel is verifiably usable — the LEDs respond,
+the USB debug stream is open, the framebuffer is producing
+pixels. Writing it earlier defeats the whole revert-on-failure
+mechanism.</li>
+<li><strong>The PMIC sleep command.</strong> Triggering sleep without a wake
+source means the device never wakes. Always configure at least
+one wake source (a button press, a USB connection event)
+before requesting sleep.</li>
+<li><strong>The first-ever flash of a new feature.</strong> This is the
+operation we have the least practice with and the lowest
+confidence in. Do it with the device fully charged, with the
+USB cable held in firmly (not just plugged), with no other
+heavy load on the laptop that might disconnect USB.</li>
+</ol>
+<p>---</p>
+<h2 id="summary-recommendation"><a class="self" href="#summary-recommendation">§</a> Summary recommendation</h2>
+<p>The single most important action before phase 1's flashing work
+begins: <strong>confirm that Maskrom or fastboot is reachable from
+outside the device's closed case.</strong> Until that confirmation
+exists, every flash is a potential one-way trip. After it exists,
+every other risk in this document is manageable through the
+design rules above.</p>
+<p>If no Maskrom-from-outside path can be confirmed, the project's
+risk profile changes substantially: we move to an ultra-conservative
+flashing model where we only ever touch the boot partition (never
+u-boot, never the loader, never the partition table), we always
+keep a known-good boot image we can revert to, and the A/B slot
+scheme becomes mandatory rather than optional. This is workable,
+but it removes most of the freedom to experiment.</p><p class="filter-note">source: <code>notes/safety/000-bricking-and-recovery.md</code></p><div class="pager"><span>← <a href="note-names.html">names</a></span><span><a href="note-vision-000-vision-md.html">vision/000-vision.md</a> →</span></div></main></div></body></html>

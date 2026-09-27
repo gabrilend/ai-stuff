@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>The runtime — the Soren DS subset — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details open><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="here" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class=" open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="the-runtime-the-soren-ds-subset"><a class="self" href="#the-runtime-the-soren-ds-subset">§</a> The runtime — the Soren DS subset</h1>
+<p>Below the waterline, Soren DS is a small C kernel. Above it, everything
+is a program made of boxes. <a class="src" href="doc-003-threading-model.html"><code>003-threading-model.md</code></a> describes the
+engine that runs one. This document describes what sits on top: how a
+box gets to exist, how a program gets written down, how it gets written
+back out again, and how the two halves of the device meet.</p>
+<p>The design is the one built and measured in
+<code>/home/ritz/programming/ai-playground/minimal-soramech/</code>, narrowed to
+fit a handheld. Where the two differ, it is because a handheld's
+constraints differ and the difference is stated — and <strong>one difference is
+still undecided</strong>: the parent deleted its catalogue entirely, leaning on
+a symbol table every process on a workstation already carries, and this
+device is the operating system and has no such table. See
+<a class="src" href="progress-phase-3.html"><code>../issues/phase-3-progress.md</code></a>.</p>
+<h2 id="two-halves-that-meet-in-one-table"><a class="self" href="#two-halves-that-meet-in-one-table">§</a> Two halves that meet in one table</h2>
+<pre class="code">
+   the C half                                the written half
+   ──────────                                ────────────────
+   box sources                               map files
+   compiled, typed, checked                  text, names, arrows
+        │                                          │
+        │  read by the generator                   │  read by the loader
+        ▼                                          ▼
+   ┌───────────────────────────────────────────────────────┐
+   │                     the catalogue                     │
+   │   name │ call site │ each input's type and size │     │
+   │        │ <span class="kw">return</span> type and size │ exact task size       │
+   └───────────────────────────────────────────────────────┘
+</pre>
+<p><strong>The catalogue is the only place both halves are described</strong>, and it is
+derived entirely from the C, which is what actually runs. A map file
+therefore never mentions a type: the loader knows both ends of every
+wire already, and a file that declared them would be a second source of
+truth able to disagree with the first — always losing, because the
+compiler enforces the C and nothing enforces the file.</p>
+<p><strong>A wire is legal when both sides count the same number of bytes.</strong>
+Nothing else is consulted. Names ride along for the message — *&quot;returns
+a colour, slot takes a point — 16 bytes against 12&quot;* — but the decision
+is one number against another, because that number is what the engine
+actually runs on: cells are that wide, a delivery copies that many, a
+task is allocated for exactly that.</p>
+<p>The cost is stated rather than discovered: <strong>two types of the same width
+are interchangeable, silently and completely.</strong> A 32-bit float into a
+32-bit integer slot arrives as a very large integer, with no error
+anywhere. Two structs with the same fields in a different order wire and
+scramble. What is bought is that C somebody already had goes through
+unchanged, and that nobody ever writes a box that takes one type,
+returns another, and does nothing.</p>
+<p><strong>The generator is a C program with no dependency on the engine.</strong> That
+is what lets the device call it — a build tool written in a scripting
+language is a build tool forever, and phase 4 needs the same parser
+reachable at runtime. A second parser would eventually disagree with the
+first about what a box is.</p>
+<h2 id="what-we-keep-and-what-we-cut"><a class="self" href="#what-we-keep-and-what-we-cut">§</a> What we keep and what we cut</h2>
+<div class="table-wrap"><table>
+<tr><th>kept</th><th>why</th></tr>
+<tr><td>the map model — boxes, wires, one firing rule</td><td>it is the whole idea</td></tr>
+<tr><td>ways of choosing an exit</td><td>pure routing; nothing about them needs a desktop</td></tr>
+<tr><td>a map placed inside a map</td><td>without it, any program past a dozen stations stops being readable</td></tr>
+<tr><td>the compile pipeline</td><td>on-device authoring is impossible without it</td></tr>
+<tr><td>old code outliving the boxes that used it</td><td>what makes rebuilding safe under a running app</td></tr>
+</table></div>
+<div class="table-wrap"><table>
+<tr><th>cut</th><th>why</th></tr>
+<tr><td>boxes written in Lua or Bash</td><td>C only at launch. The kernel hosts no other language.</td></tr>
+<tr><td>wires that cross languages</td><td>one language means one representation, no tagging per value</td></tr>
+<tr><td>the on-disk transcript</td><td>the storage is small and write-precious. In RAM, in debug builds.</td></tr>
+<tr><td>the pull path</td><td>nothing is ever pulled. See below.</td></tr>
+</table></div>
+<p><strong>There is no pull path</strong>, and it is worth naming because the parent
+project had one. Nothing reaches upstream to produce a value on demand;
+every value arrives because something pushed it. What used to be pulled
+is now written into a fixed-value port by an ordinary arrow, and writing
+one runs the readiness check on its station. The cost is that no value
+is ever fresh at the instant it is used — a box that needs the current
+time asks for the current time inside itself.</p>
+<h2 id="how-a-box-gets-to-exist"><a class="self" href="#how-a-box-gets-to-exist">§</a> How a box gets to exist</h2>
+<p><strong>A box is a C function.</strong> Not a function plus a description of it —
+just the function. The generator reads the box sources, emits one call
+site per box, and emits the catalogue with every size as a <code>sizeof</code>
+expression the compiler computes. Nothing is written down twice, so
+nothing can disagree.</p>
+<p>Two paths produce a box, and the catalogue cannot tell them apart:</p>
+<div class="table-wrap"><table>
+<tr><th>path</th><th>when</th></tr>
+<tr><td>compiled into the kernel image</td><td>the launch library, and everything phases 3 through 8 ship</td></tr>
+<tr><td>compiled on the device</td><td>anything somebody writes at the touchscreen (phase 4)</td></tr>
+</table></div>
+<p>The static path is a bootstrap, not the end state. As more of the system
+moves up into programs — the compositor, the input router, eventually
+the drivers — the C bottom keeps shrinking and the on-device tree keeps
+growing.</p>
+<h2 id="how-a-program-gets-written-down"><a class="self" href="#how-a-program-gets-written-down">§</a> How a program gets written down</h2>
+<p>One text file, line-oriented, first word dispatching. It is the parent
+project's format, not a narrowed one — the two were never far apart, and
+everything this format has that an earlier draft of it lacked was paid for
+by somebody running into the thing it prevents.</p>
+<pre class="code">
+   boxes = boxes/                      ← a <span class="kw">short</span> name <span class="kw">for</span> a place
+
+   <span class="kw">station</span> greeting (boxes/text.c:constant)
+     <span class="kw">in</span> 0 = <span class="st">&quot;world&quot;</span>                    ← a port holding a fixed value
+     <span class="kw">out</span> 0 - shout.0                   ← an arrow, from this <span class="kw">end</span>
+
+   <span class="kw">station</span> shout (boxes/text.c:to_upper)
+     <span class="kw">in</span> 0 - greeting.0                 ← the same arrow, from that <span class="kw">end</span>
+     <span class="kw">out</span> 0 - speak.0
+
+   <span class="kw">station</span> speak (boxes/text.c:say)
+     <span class="kw">in</span> 0 - shout.0
+     <span class="kw">out</span> 0 - 0$                        ← result 0 leaves the program here
+</pre>
+<p>No types, because the catalogue has them. No buffer sizes, because ports
+grow on their own. No grammar and no nesting. <a class="src" href="issue-305.html"><code>305-the-map-file.md</code></a> is
+the whole of it; four things are worth having here.</p>
+<p><strong>The first word is always a keyword and the second is always a name</strong>, so
+no word is reserved and the format can gain a keyword later without taking
+a name away from a map somebody already wrote. The kind is that first word:
+<code>station</code>, <code>comparator</code>, <code>iterator</code>.</p>
+<p><strong>A box address names the file its function is in.</strong> <code>boxes/text.c:say</code>,
+never <code>say</code>. Two box sources may each define a <code>read</code>, so a bare name is a
+name in a namespace nobody wrote down — and <strong>on this device that is not a
+tidiness argument</strong>: a box compiled at the touchscreen has to say which
+file it came from, or a program's description says nothing about what the
+program is made of and cannot be rebuilt from. Every path is relative to
+the file it is written in and nothing is searched for; a shortcut line
+gives a long path a short name, standing in for the first segment of an
+address.</p>
+<p><strong>Every wire is written at both ends.</strong> <code>greeting</code> says its port zero
+feeds <code>shout</code>, and <code>shout</code> says its port zero is fed by <code>greeting</code>.
+Reading one station then tells the whole truth about that station, where
+one-ended arrows mean scanning the file for every line that names it. At
+run time the wire still exists once — the second declaration is checked
+and dropped, because delivery only ever asks where a value goes.</p>
+<p><strong>A <code>$</code> on a port line is a door</strong>, which is the next section.</p>
+<p><strong><code>include</code> compiles a file whether or not a station places anything from
+it</strong>, and that is how the launch library works: boxes compiled into the
+kernel image, placed later by name, by a map, needing no compiler at the
+moment of placing. Without it a program handed a description naming a box
+it does not hold has to reach for a toolchain to serve a decision already
+made at build time.</p>
+<p><strong>The loader is a caller, not a mechanism.</strong> It turns each line into one
+of the three operations the engine already exposes — place a station,
+configure a port, draw a wire — which are the same three a person calls
+while editing a running program. There is no state a file can reach that
+a person cannot, and none a person can reach that a file cannot.</p>
+<p><strong>Then somebody says the program is finished.</strong> That is a fourth act and
+it is separate on purpose: the <code>$</code> numbering can only be checked once
+every line has been read, and so can everything else that is a fact about
+a whole program rather than a line. It is <strong>repeatable</strong> — a station added
+to a running program is checked and started by the next call, and one
+already started is not started twice — which is why editing a running
+program and loading a file end the same way.</p>
+<h2 id="how-a-program-runs"><a class="self" href="#how-a-program-runs">§</a> How a program runs</h2>
+<pre class="code">
+   place every <span class="kw">station</span>        nothing runs yet
+        │
+   draw every arrow           nothing runs yet
+        │
+   write the fixed values ──→ ✦ running
+</pre>
+<p><strong>There is no fourth step.</strong> Writing a fixed value runs the ordinary
+readiness check on its station; a station whose inputs are all fixed
+values is ready the moment the last one lands. So the writes that finish
+building a program are the writes that set it going. No entry-station
+list, no submit call, nothing that has to be told what goes first.</p>
+<p><strong>Nothing polls, ever.</strong> The readiness check runs as the tail of a
+write, on exactly one station — the one just written to. A station whose
+inputs have not changed cannot have become ready.</p>
+<p><strong>A program ends because it was asked to.</strong> Running out of work is not
+an ending on a handheld; it means the user has not pressed anything yet.
+The tail of a pipeline is a station whose input has no source, so it can
+never become ready and costs nothing while it waits. Parking releases
+its buffers back to the allocator with a checksum remembered, so
+restarting resumes in place if nobody needed the pages and rebuilds
+loudly if somebody did.</p>
+<p><strong>A loop is not an error.</strong> A box cannot remember anything between calls
+— two cores can be inside it at once — so routing an output back around
+to an input is the only way a program carries state. Counting to ten is
+a loop. There is no cycle detection and there must not be.</p>
+<h2 id="a-program-s-outside"><a class="self" href="#a-program-s-outside">§</a> A program's outside</h2>
+<p><strong>A door is a port, not a station.</strong> A mark on an input port says the
+outside delivers argument <em>N</em> here; a mark on an output port says result
+<em>N</em> leaves here. No station is special, and no station has to exist for an
+argument to.</p>
+<div class="table-wrap"><table>
+<tr><th>a marked input port</th><th>a marked output port</th></tr>
+<tr><td>the outside delivers argument <em>N</em> here</td><td>result <em>N</em> leaves here</td></tr>
+<tr><td>a station holding one may check or reshape what arrives — by choice, not by mechanism</td><td>and may shape results for whoever receives them</td></tr>
+</table></div>
+<p><strong>An argument costs nothing.</strong> This is why the mark is on the port. A
+designated <em>station</em> means every argument pays for a station running the
+identity function — a station record, a mutex, a ring buffer, and per
+value a task allocated, a dispatch through the pool, a call that returns
+its own argument, a readiness check and a second delivery — all to move a
+value one hop for no reason. Four cores and 3 GB is exactly the machine
+where that is worth not paying.</p>
+<p><strong>Which argument a port is, is stated rather than positional.</strong> The mark
+carries a number chosen by whoever wrote the line, so reordering every
+line in the file changes nothing. A gap or a repeat is refused when the
+program is brought up, which a scheme taking the order from wherever the
+stations happened to sit in the table cannot even detect — moving two
+lines in a sub-program would silently swap two of the parent's arguments.</p>
+<p><strong>Being an argument slot is derived, not stored</strong>: a port is one when it
+is marked and nothing feeds it. A port both marked and wired is fed both
+ways and simply is not one. Nothing is stored, so nothing can go stale,
+and there is no bookkeeping at the moment an enclosing program wires in.</p>
+<p><strong>A station may hold ports of both kinds</strong>, which was a mistake only
+while the mark sat on the station, because a station is one thing and a
+port is a smaller one.</p>
+<p>The only behaviour a mark adds is at the result end: when nothing is
+wired beyond a marked output port, values are <strong>held</strong> rather than
+discarded. Everywhere else an exit wired to nothing discards, which is
+right for an unwired comparator branch and wrong for a program's results.</p>
+<p><strong>A map is a box.</strong> Once a program has doors, placing one inside another
+is wiring to those two stations — no splicing, no flattening pass, no
+renaming a sub-program's stations into a parent's namespace, and nothing
+that has to detect when a sub-program is finished. The parent cannot
+tell whether the thing behind the port is a graph or a C function, and
+has no reason to care.</p>
+<p><strong>Several arguments are several marked ports</strong>, which need not sit on one
+station. What stays true is at the exit: a box returns one value, so a
+station has one output port, so several results are several marked output
+ports. Faking several returns with a struct that something downstream
+takes apart means writing a function to satisfy the engine, which is what
+nobody adopting this should ever have to do. Fan-out is free and
+separate: one marked port's value feeds as many interior stations as you
+wire it to.</p>
+<p><strong>Two values arriving at two ports of one station are not a pair.</strong> A
+station with an object port and a colour port, fed by two callers, may
+pair the first caller's object with the second caller's colour. Values may
+leave a port in a different order than they arrived, so correspondence
+across two ports is certainly not promised. <strong>Anything that must arrive
+as a unit is one struct on one port</strong> — which the engine supports all
+the way down, since the generator emits a field table per struct and the
+reader lays out brace text using offsets the compiler computed.</p>
+<h2 id="writing-a-box-while-the-program-runs"><a class="self" href="#writing-a-box-while-the-program-runs">§</a> Writing a box while the program runs</h2>
+<p>This is what makes on-device authoring possible, and the shape of it is
+not what an earlier draft of this document said.</p>
+<p><strong>A station's box cannot be changed.</strong> A station is one placement of one
+box, and its input ports were sized from that box's parameter widths when
+it was placed — they may be holding values right now. Storing a different
+function over the top means the next run hands those bytes to something
+expecting a different shape, and there is no moment at which that is safe.</p>
+<p><strong>A station can be removed, though, and its place reused.</strong> Reclaiming an
+index looks like it must mean either a hole every walk learns to skip or a
+renumbering that invalidates every wire at once. It means neither, because
+of where a wire lives: <strong>a wire exists only as a destination record on
+some station's output port.</strong> Cut every wire that names the station — one
+walk, because there is nowhere else for one to be — and nothing stale
+survives to be followed, so no wire needs a generation tag and delivery
+pays nothing for the possibility. The parts then go to the same scrapyard
+an old destination array goes to, and the same per-core sweep frees them.</p>
+<p>So replacing a box is:</p>
+<div class="table-wrap"><table>
+<tr><th>step</th><th>what happens</th></tr>
+<tr><td>1</td><td>somebody saves an edited box source</td></tr>
+<tr><td>2</td><td>the generator runs over it — the same generator, which is why it is a C program</td></tr>
+<tr><td>3</td><td>a compiler turns that into loadable code; <strong>there is no version of this that skips the compiler</strong>, because sizes and offsets are what the engine runs on and only a compiler computes them</td></tr>
+<tr><td>4</td><td>a row is added to the catalogue, which grows by adding a block rather than by moving what is there</td></tr>
+<tr><td>5</td><td>a <strong>new station</strong> is placed running the new box, and the arrows are moved to it as one batch</td></tr>
+<tr><td>6</td><td>the old station is <strong>removed</strong>, and its place is available to whatever is added next</td></tr>
+</table></div>
+<p><strong>Arrows move in batches</strong>, and that matters most here. Attach one arrow
+into the new station and values start arriving; attach the next a moment
+later and it has already missed everything the first one got.</p>
+<p><strong>Step 6 used to leave the old station standing, unwired.</strong> Three things
+came of changing it: the table stops growing by one dead station per edit,
+on a device whose whole purpose is being edited while it runs; the page of
+code the old box lived in becomes reclaimable rather than reachable
+forever; and a program written back out no longer carries a dead station
+per save, so its shape stops drifting from what somebody wrote.</p>
+<p>Values in the old station's ports go with it, and so does any value
+already in flight toward it — which is what this engine does with any
+value that has nowhere to go. Somebody who wants them to survive an edit
+wires the old station's output somewhere that keeps them and removes it
+after they drain.</p>
+<p>The <em>no source</em> state is still what parks a program and what a failing box
+uses to take itself out of service. Those want a station that stops running
+and <strong>stays</strong>, which is a different thing from one that goes away.</p>
+<p><strong>A box arriving late asks nothing the type system cannot answer.</strong> It
+reports the width of each input and of its output, by the same <code>sizeof</code>
+the compiler computes for every other box. So it introduces no new kind
+of error — two same-width structs with different layouts already wire at
+build time, and a box compiled later only makes that likelier, not
+different.</p>
+<p><strong>Unloading the old code</strong> waits until no core can still be inside it.
+Each core keeps a private counter bumped at the start and end of a whole
+task, so it reads odd while inside one and even while not; retiring code
+files it with a snapshot of all four; a later sweep frees it once every
+core reads even or differs from its snapshot. A core with nothing to do
+is asleep and therefore even, so an idle device does not stall the
+sweep. This is the same mechanism that reclaims an old destination array
+after rewiring, and it is deliberately one mechanism rather than two.</p>
+<p>Nothing in the launch system uses any of this. The four apps ship boxes
+compiled into the image. It matters first in the authoring loop: write a
+box, place it, wire it in, watch it run — without the device restarting
+and without anything else losing what it was holding.</p>
+<h2 id="how-a-program-gets-written-back-out"><a class="self" href="#how-a-program-gets-written-back-out">§</a> How a program gets written back out</h2>
+<p><strong>What a running program writes down is everything needed to build it
+again.</strong> Two things: a map file, and a directory of C beside it named
+after the map, holding the source of every box its stations place.</p>
+<pre class="code">
+   drawing.map
+   drawing.functions/
+       shapes.c
+       smooth.c
+</pre>
+<p><strong>Every station line addresses its box inside that directory</strong>, so the
+addresses in what a program wrote are relative to what a program wrote,
+the same way any description's paths are relative to itself. The directory
+takes the map's name rather than being called <code>functions</code>, so two saved
+programs in one place cannot take each other's code.</p>
+<p><strong>A box compiled into the kernel image and a box compiled at the
+touchscreen are written out identically.</strong> By the time a program is
+written down, the difference between them is a fact about how the program
+came to be rather than about what it is, and a file saying what a program
+<em>is</em> should not record it. This is also the only way the second kind can
+be written down at all: a box compiled while the device was running lives
+wherever that compile put it, and nothing about that location will still be
+true next boot — but the directory gives it a file that exists, because
+saving just wrote it.</p>
+<p><strong>A source is written out when a station places one of its boxes, and not
+otherwise.</strong> A device holding a launch library of forty boxes and a program
+placing three writes out the files holding those three. The unit is the
+file rather than the function, and it has to be: a box's source may need a
+struct, a helper, or an include sitting beside it, and a file cut down to
+one function is a file that may not compile. Basenames are kept, because
+somebody opening a saved program wants to see <code>shapes.c</code>; two sources
+sharing a basename are told apart by a number before the extension.</p>
+<p><strong>Why this shape matters on this device specifically.</strong> A program saved
+any other way is a description <em>plus</em> a running system that already holds
+the code — which is fine until the thing you want is to hand somebody your
+program, or to open next year what you drew today, or to recover after a
+box you were editing stopped compiling. Written this way, what is on the
+SD card is the program, and rebuilding it needs the generator and a
+compiler (phase 4) and nothing that knows anything about the system that
+wrote it.</p>
+<p><strong>There is also a text-only form</strong>, which writes the map and no sources,
+with each address exactly as its station holds it. That is the right thing
+when what you want is to look at the shape of a running program — the
+transcript, the editor's view — and the wrong thing to call saving.</p>
+<h2 id="what-the-parent-ships-as-one-command-and-what-that-means-here"><a class="self" href="#what-the-parent-ships-as-one-command-and-what-that-means-here">§</a> What the parent ships as one command, and what that means here</h2>
+<p>The parent project's whole toolchain is one executable, <code>serac</code>, that
+carries the engine's own source inside it as text. Hand it a description
+and it reads which C files the description names, emits the construction
+code, assembles the header, the engine, that code and a <code>main</code> as one
+piece of text in memory, and hands the text to a C compiler down a pipe —
+writing nothing to disk but the program. The machine it runs on needs a C
+compiler and nothing else.</p>
+<p><strong>This device is not that shape and the reason is worth stating.</strong> There is
+no <code>main</code> to emit, no host toolchain to invoke, and no filesystem to write
+a program into at phase 3. What transfers is the property rather than the
+program: <strong>nothing is written down twice, and nothing is written to disk
+that does not have to be.</strong> The generator being a C program with no
+dependency on the engine is the same decision from the same reasoning, and
+it is what lets phase 4 reach the same parser at runtime.</p>
+<p>What is worth borrowing when phase 4 arrives is the concatenation trick. An
+<code>#include</code> is a filesystem lookup, so a header that exists only inside a
+running image forces a directory to exist somewhere with a copy of it in
+it. Putting the header's text in front of the body's and deleting the line
+that included it puts the same declarations in scope by the same rule with
+no file involved — which on a device with 3 GB of RAM and a
+write-precious card is the difference between compiling a box and
+maintaining a private copy of the kernel's headers on storage.</p>
+<h2 id="how-a-program-produces-visible-output"><a class="self" href="#how-a-program-produces-visible-output">§</a> How a program produces visible output</h2>
+<p>Each app composes a program ending in display-surface boxes. A
+display-surface box is a sink — a box that returns nothing — which hands
+its input bytes to the compositor as the new contents of a named
+surface. The surface marks itself dirty, the compositor's damage scan
+copies pixels into the right screen's framebuffer, and scan-out makes
+them visible.</p>
+<p>Apps never call the compositor. They draw an arrow to a box that does.
+Same shape as the filesystem boxes: a program expresses intent as
+wiring, and the boxes at the edges turn it into kernel work.</p>
+<h2 id="what-the-device-remembers"><a class="self" href="#what-the-device-remembers">§</a> What the device remembers</h2>
+<div class="table-wrap"><table>
+<tr><th>always</th><th>in debug builds</th></tr>
+<tr><td>one error slot per station — the kind, a count, one detail word</td><td>the same, plus a timestamp</td></tr>
+<tr><td>the first occurrence of each error, out the serial line</td><td>a rolling ring of recent events, dumped on a crash</td></tr>
+<tr><td></td><td>a saved return point before every box call, so a fault can name its station and remove it</td></tr>
+</table></div>
+<p><strong>Errors are counted in place, never appended.</strong> The same failure a
+million times is one slot reading a million — not a million records, not
+a growing buffer that eventually becomes the actual problem.</p>
+<p><strong>A box that cannot continue takes itself out of service.</strong> Its inputs
+are set to no source, so it can never become ready. Nothing is deleted;
+the hole is visible when the running program is written back out. Then
+somebody writes the box better and wires it back.</p>
+<h2 id="what-s-next"><a class="self" href="#what-s-next">§</a> What's next</h2>
+<div class="table-wrap"><table>
+<tr><th>phase</th><th>what it adds here</th></tr>
+<tr><td>3</td><td>the generator, the map file, the loader, ways of choosing an exit, maps inside maps</td></tr>
+<tr><td>4</td><td>the filesystem under map files, the generator and a compiler running on the device, and the sweep that frees code nobody placed</td></tr>
+<tr><td>5</td><td>the polled input programs, fed by the engine's own idle wake</td></tr>
+<tr><td>6</td><td>the display surfaces this speaks to, and the editor that calls the loader's operations directly</td></tr>
+<tr><td>9</td><td>the memory protection that turns a stray write from silent corruption into a trap</td></tr>
+</table></div>
+<p><a class="src" href="doc-013-background-app-lifecycle.html"><code>013-background-app-lifecycle.md</code></a> describes how a running program is
+parked without being killed, and what wakes it.</p><p class="filter-note">source: <code>docs/012-soramech-runtime.md</code></p><div class="pager"><span>← <a href="doc-011-filesystem.html">Filesystem</a></span><span><a href="doc-013-background-app-lifecycle.html">Background app lifecycle</a> →</span></div></main></div></body></html>

@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>110m — descriptor-driven (DMA) storage transfers — Soren DS</title><link rel="stylesheet" href="style.css"><script src="site.js"></script></head><body><div class="wrap"><nav><div class="brand">SOREN DS</div><div class="sub">documentation &amp; measurements</div>
+<input placeholder="filter pages…" oninput="filterNav(this.value)">
+<details open><summary>Start here</summary><a class="" href="index.html">Overview</a><a class="" href="metrics.html">Measurements</a><a class="" href="doc-027-metrics-explained.html">What the numbers mean</a></details>
+<details><summary>Documents</summary>
+<a class="" href="doc-000-table-of-contents.html">Soren DS — documentation table of contents</a>
+<a class="" href="doc-001-architecture-overview.html">Architecture overview</a>
+<a class="" href="doc-002-roadmap.html">Roadmap</a>
+<a class="" href="doc-003-threading-model.html">Threading model</a>
+<a class="" href="doc-004-input-model.html">Input model</a>
+<a class="" href="doc-005-display-and-compositor.html">Display and compositor</a>
+<a class="" href="doc-006-transport-and-networking.html">Transport and networking</a>
+<a class="" href="doc-007-memory-model.html">Memory model</a>
+<a class="" href="doc-008-apps-overview.html">Apps overview</a>
+<a class="" href="doc-009-deferred-work.html">Deferred work</a>
+<a class="" href="doc-010-modeller.html">Modeller</a>
+<a class="" href="doc-011-filesystem.html">Filesystem</a>
+<a class="" href="doc-012-soramech-runtime.html">The runtime — the Soren DS subset</a>
+<a class="" href="doc-013-background-app-lifecycle.html">Background app lifecycle</a>
+<a class="" href="doc-014-hardware-overview.html">Hardware overview — Anbernic RG DS</a>
+<a class="" href="doc-015-led-diagnostic-codes.html">LED diagnostic codes</a>
+<a class="" href="doc-016-physical-memory-map.html">Physical memory map</a>
+<a class="" href="doc-017-clocks-and-timers.html">Clocks, resets, and timers</a>
+<a class="" href="doc-018-emmc-host-controller.html">Soren DS — eMMC host controller (dwcmshc) bring-up notes</a>
+<a class="" href="doc-019-board-pinmux.html">Soren DS — board pinmux reference</a>
+<a class="" href="doc-020-sdmmc0-host-controller.html">Soren DS — SDMMC0 host controller (DW MSHC) bring-up notes</a>
+<a class="" href="doc-021-pmic-and-regulators.html">Soren DS — PMIC and regulator rails</a>
+<a class="" href="doc-022-usb-device-controller.html">Soren DS — USB device controller and USB2 PHY</a>
+<a class="" href="doc-023-display-controller.html">Soren DS — display controller reconnaissance (VOP2 / MIPI DSI)</a>
+<a class="" href="doc-024-emmc-partition-map.html">Soren DS — stock eMMC partition map</a>
+<a class="" href="doc-025-recovery-and-download-modes.html">Recovery and download-mode access</a>
+<a class="" href="doc-026-chip-scripts.html">Chip-scripts — the interactive-tool datapath</a>
+<a class="" href="doc-027-metrics-explained.html">What every measured number means</a>
+<a class="" href="doc-028-datapath-engine.html">Datapath: a value's journey through the engine</a>
+<a class="" href="doc-029-datapath-programs.html">Datapath: from a map file to a running program, and back</a>
+</details>
+<details><summary>Notes</summary>
+<a class="" href="note-3c-model.html">3c-model</a>
+<a class="" href="note-names.html">names</a>
+<a class="" href="note-safety-000-bricking-and-recovery-md.html">Bricking risks and recovery — Soren DS development safety</a>
+<a class="" href="note-vision-000-vision-md.html">vision/000-vision.md</a>
+</details>
+<details open><summary>Phase 1</summary>
+<a class="" href="progress-phase-1.html">Phase 1 progress — hardware bring-up</a>
+<a class=" done" href="issue-101.html">101 — Hardware specification research</a>
+<a class=" done" href="issue-102.html">102 — Cross-compilation toolchain</a>
+<a class=" done" href="issue-103.html">103 — Project build system</a>
+<a class=" done" href="issue-103a.html">103a — Air-gapped SD card flash workflow</a>
+<a class=" done" href="issue-103b.html">103b — Bootable SD card image assembly</a>
+<a class=" done" href="issue-103c.html">103c — Kernel image gains the bootloader-recognition header</a>
+<a class=" done" href="issue-103d.html">103d — Kernel load address matches what the SD-boot bootloader actually uses</a>
+<a class=" done" href="issue-103e.html">103e — Direct-GPIO LED probe at the kernel's entry point</a>
+<a class=" done" href="issue-103f.html">103f — Kernel does not use the chip's floating-point and SIMD unit yet</a>
+<a class=" open" href="issue-103g.html">103g — Watchdog handling</a>
+<a class=" done" href="issue-104.html">104 — Boot and reset vector</a>
+<a class=" done" href="issue-105.html">105 — Exception and interrupt vectors</a>
+<a class=" done" href="issue-106.html">106 — LED earliest-boot signal</a>
+<a class=" done" href="issue-106a.html">106a — Visible heartbeat during long operations</a>
+<a class=" open" href="issue-106b.html">106b — LED layer drives the indicator lights through GPIO for phase 1</a>
+<a class=" done" href="issue-106c.html">106c — Bring up the PWM controllers properly for phase 1</a>
+<a class=" done" href="issue-107.html">107 — Flat memory layout</a>
+<a class=" done" href="issue-108.html">108 — Flat page allocator</a>
+<a class=" open" href="issue-109.html">109 — USB controller and device-mode bring-up (parent / index)</a>
+<a class=" open" href="issue-109a.html">109a — USB PHY and controller register bring-up</a>
+<a class=" open" href="issue-109b.html">109b — USB descriptors, dispatcher, and endpoint-zero configuration</a>
+<a class=" done" href="issue-109c.html">109c — USB control transfer plumbing</a>
+<a class=" done" href="issue-110.html">110 — USB CDC-ACM debug channel</a>
+<a class=" done" href="issue-110a.html">110a — eMMC controller driver</a>
+<a class=" done" href="issue-110b.html">110b — Bootable eMMC overwrite</a>
+<a class=" open" href="issue-110c.html">110c — USB-C flash protocol</a>
+<a class=" done" href="issue-110d.html">110d — Bootstrap eMMC-overwrite trigger (button held at boot)</a>
+<a class=" open" href="issue-110e.html">110e — eMMC layout probe (via microSD dump)</a>
+<a class=" done" href="issue-110f.html">110f — microSD controller driver</a>
+<a class=" done" href="issue-110g.html">110g — SD card debug log</a>
+<a class=" open" href="issue-110h.html">110h — phase-1 hardware bring-up test suite</a>
+<a class=" done" href="issue-110i.html">110i — dynamic hardware probe (compiled in under `--probes`)</a>
+<a class=" open" href="issue-110j.html">110j — fast eMMC path (HS200 waypoint → HS400 target)</a>
+<a class=" done" href="issue-110k.html">110k — per-probe run-list (select which compiled-in probes run)</a>
+<a class=" open" href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a>
+<a class="here open" href="issue-110m.html">110m — descriptor-driven (DMA) storage transfers</a>
+<a class=" open" href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a>
+<a class=" open" href="issue-110o.html">110o — probes leave hardware as-found, and flag registers off their reset value</a>
+<a class=" open" href="issue-110p.html">110p — an RNG entropy-quality sweep: turn the sample-rate knob, watch it whiten</a>
+<a class=" done" href="issue-110q.html">110q — one-shot eMMC wipe (temporary, delete after use)</a>
+<a class=" open" href="issue-111.html">111 — Framebuffer driver (parent / index)</a>
+<a class=" open" href="issue-111a.html">111a — VOP2 display controller bring-up</a>
+<a class=" open" href="issue-111b.html">111b — MIPI DSI controller and PHY bring-up</a>
+<a class=" open" href="issue-111c.html">111c — JD9365DA-H3 panel initialization</a>
+<a class=" open" href="issue-111d.html">111d — Framebuffer allocation and scan-out</a>
+<a class=" open" href="issue-112.html">112 — Draw one pixel</a>
+<a class=" open" href="issue-113.html">113 — Phase 1 demo</a>
+<a class=" done" href="issue-114.html">114 — i2c0 and the RK817 PMIC</a>
+<a class=" open" href="issue-115.html">115 — interactive I/O device validation utility</a>
+<a class=" open" href="issue-116.html">116 — chip-scripts: an interactive-tool category, and the console I/O it stands on</a>
+</details>
+<details><summary>Phase 2</summary>
+<a class="" href="progress-phase-2.html">Phase 2 progress — the ceramic core engine</a>
+<a class=" done" href="issue-200.html">200 — The laptop twin</a>
+<a class=" open" href="issue-201.html">201 — The memory map that turns the caches on</a>
+<a class=" open" href="issue-201a.html">201a — Run the CPU at its rated speed</a>
+<a class=" open" href="issue-202.html">202 — Waking the other cores</a>
+<a class=" done" href="issue-203.html">203 — Memory each core owns</a>
+<a class=" done" href="issue-204.html">204 — The task ring</a>
+<a class=" done" href="issue-205.html">205 — Workers and the run loop</a>
+<a class=" open" href="issue-206.html">206 — Sleeping and waking</a>
+<a class=" done" href="issue-207.html">207 — The station table</a>
+<a class=" done" href="issue-208.html">208 — What an input port is</a>
+<a class=" done" href="issue-209.html">209 — The readiness check and the claim</a>
+<a class=" done" href="issue-210.html">210 — The task</a>
+<a class=" done" href="issue-211.html">211 — The delivery walk</a>
+<a class=" done" href="issue-212.html">212 — Maps built by hand</a>
+<a class=" done" href="issue-213.html">213 — Asked to stop, and parking</a>
+<a class=" done" href="issue-214.html">214 — When a box removes itself</a>
+<a class=" open" href="issue-215.html">215 — Phase 2 demo: the endurance test</a>
+</details>
+<details><summary>Phase 3</summary>
+<a class="" href="progress-phase-3.html">Phase 3 progress — a program you can write down</a>
+<a class=" done" href="issue-301.html">301 — What a box source is</a>
+<a class=" done" href="issue-302.html">302 — The generator: one call site per box, and a catalogue</a>
+<a class=" done" href="issue-303.html">303 — Types compared by width</a>
+<a class=" done" href="issue-304.html">304 — The generator in the build</a>
+<a class=" done" href="issue-305.html">305 — The map file</a>
+<a class=" done" href="issue-306.html">306 — The loader</a>
+<a class=" done" href="issue-307.html">307 — Everything wrong with a map, said at once</a>
+<a class=" done" href="issue-308.html">308 — The kinds that pick an exit</a>
+<a class=" done" href="issue-309.html">309 — The two doors</a>
+<a class=" done" href="issue-310.html">310 — The launch box library</a>
+<a class=" open" href="issue-311.html">311 — The transcript ring</a>
+<a class=" open" href="issue-312.html">312 — Phase 3 demo: a program written down</a>
+</details>
+<details><summary>Phase 4</summary>
+<a class="" href="progress-phase-4.html">Phase 4 progress — SD card, filesystem, compile pipeline</a>
+<a class=" open" href="issue-401.html">401 — SD card block driver</a>
+<a class=" open" href="issue-402.html">402 — FAT partition reader</a>
+<a class=" open" href="issue-403.html">403 — FAT directory walker</a>
+<a class=" open" href="issue-404.html">404 — FAT cluster chain follower</a>
+<a class=" open" href="issue-405.html">405 — Path resolution and symlinks</a>
+<a class=" open" href="issue-406.html">406 — read-path and write-path boxes</a>
+<a class=" open" href="issue-407.html">407 — list-directory, delete-path, path-exists, make-symlink boxes</a>
+<a class=" open" href="issue-408.html">408 — Persistence convention</a>
+<a class=" open" href="issue-409.html">409 — Compiling a box on the device</a>
+<a class=" open" href="issue-410.html">410 — Code that outlives the boxes that used it</a>
+<a class=" open" href="issue-411.html">411 — Replacing a box in a running program</a>
+<a class=" open" href="issue-412.html">412 — Phase 4 demo</a>
+</details>
+<details><summary>Phase 5</summary>
+<a class="" href="progress-phase-5.html">Phase 5 progress — Input drivers</a>
+<a class=" open" href="issue-501.html">501 — Polling-loop map structure</a>
+<a class=" open" href="issue-502.html">502 — Button surface</a>
+<a class=" open" href="issue-503.html">503 — Analog stick surface</a>
+<a class=" open" href="issue-504.html">504 — Touch panel surface</a>
+<a class=" open" href="issue-505.html">505 — Chord detection</a>
+<a class=" open" href="issue-506.html">506 — Radial menu chord box</a>
+<a class=" open" href="issue-507.html">507 — Settings application</a>
+<a class=" open" href="issue-508.html">508 — Phase 5 demo</a>
+</details>
+<details><summary>Phase 6</summary>
+<a class="" href="progress-phase-6.html">Phase 6 progress — Compositor, drawers, and inter-app linkage</a>
+<a class=" open" href="issue-601.html">601 — Surface allocation and ownership</a>
+<a class=" open" href="issue-602.html">602 — Damage tracking</a>
+<a class=" open" href="issue-603.html">603 — Compositor render loop</a>
+<a class=" open" href="issue-604.html">604 — Per-screen foreground</a>
+<a class=" open" href="issue-605.html">605 — Boot foreground restoration</a>
+<a class=" open" href="issue-606.html">606 — Drawer surface mechanism</a>
+<a class=" open" href="issue-607.html">607 — Drawer button activation</a>
+<a class=" open" href="issue-608.html">608 — Drawer content delegation</a>
+<a class=" open" href="issue-609.html">609 — Inter-app link declarations</a>
+<a class=" open" href="issue-610.html">610 — Link transition</a>
+<a class=" open" href="issue-611.html">611 — Phase 6 demo</a>
+</details>
+<details><summary>Phase 7</summary>
+<a class="" href="progress-phase-7.html">Phase 7 progress — Ad-hoc radio, USB transport, rmail</a>
+<a class=" open" href="issue-701.html">701 — WiFi controller bring-up</a>
+<a class=" open" href="issue-702.html">702 — IBSS mode and association</a>
+<a class=" open" href="issue-703.html">703 — Link-local IP addressing</a>
+<a class=" open" href="issue-704.html">704 — Peer discovery broadcast</a>
+<a class=" open" href="issue-705.html">705 — Peer table and aging</a>
+<a class=" open" href="issue-706.html">706 — USB-C virtual ethernet</a>
+<a class=" open" href="issue-707.html">707 — USB mass storage inbox/outbox</a>
+<a class=" open" href="issue-708.html">708 — USB inbox watcher</a>
+<a class=" open" href="issue-709.html">709 — Transport abstraction</a>
+<a class=" open" href="issue-710.html">710 — rmail port</a>
+<a class=" open" href="issue-711.html">711 — Phase 7 demo</a>
+</details>
+<details><summary>Phase 8</summary>
+<a class="" href="progress-phase-8.html">Phase 8 progress — The four apps</a>
+<a class=" open" href="issue-801.html">801 — Editor: rendering and input</a>
+<a class=" open" href="issue-802.html">802 — Editor: persistence and inter-app integration</a>
+<a class=" open" href="issue-803.html">803 — Programming environment: HTTP server and editor canvas</a>
+<a class=" open" href="issue-804.html">804 — Programming environment: Run and inter-app integration</a>
+<a class=" open" href="issue-805.html">805 — Messenger: UI</a>
+<a class=" open" href="issue-806.html">806 — Messenger: send, receive, persistence</a>
+<a class=" open" href="issue-807.html">807 — Messenger: drawer and inter-app exits</a>
+<a class=" open" href="issue-808.html">808 — Paint: canvas and stylus</a>
+<a class=" open" href="issue-809.html">809 — Paint: tools, colors, handedness</a>
+<a class=" open" href="issue-810.html">810 — Paint: persistence and the messenger handoff</a>
+<a class=" open" href="issue-811.html">811 — Phase 8 demo</a>
+</details>
+<details><summary>Phase 9</summary>
+<a class="" href="progress-phase-9.html">Phase 9 progress — Memory protection and background lifecycle</a>
+<a class=" open" href="issue-901.html">901 — MMU protection mode</a>
+<a class=" open" href="issue-902.html">902 — Per-app memory region</a>
+<a class=" open" href="issue-903.html">903 — MMU fault handler</a>
+<a class=" open" href="issue-904.html">904 — App fault recovery</a>
+<a class=" open" href="issue-905.html">905 — Per-app work queue</a>
+<a class=" open" href="issue-906.html">906 — Always-on input box suppression</a>
+<a class=" open" href="issue-907.html">907 — Background state transitions</a>
+<a class=" open" href="issue-908.html">908 — Asleep state and wake signals</a>
+<a class=" open" href="issue-909.html">909 — Explicit app close</a>
+<a class=" open" href="issue-910.html">910 — Phase 9 demo: the capstone</a>
+</details>
+<details><summary>Phase 10</summary>
+<a class="" href="progress-phase-10.html">Phase 10 progress — The modeller</a>
+<a class=" open" href="issue-1001.html">1001 — Vertex grid representation</a>
+<a class=" open" href="issue-1002.html">1002 — Cursor and vertex placement</a>
+<a class=" open" href="issue-1003.html">1003 — Face formation</a>
+<a class=" open" href="issue-1004.html">1004 — Face color and roughness</a>
+<a class=" open" href="issue-1005.html">1005 — Model persistence</a>
+<a class=" open" href="issue-1006.html">1006 — Model loading</a>
+<a class=" open" href="issue-1007.html">1007 — Model merge</a>
+<a class=" open" href="issue-1008.html">1008 — Interior detail options</a>
+<a class=" open" href="issue-1009.html">1009 — Modeller UI: perspective view and inspector</a>
+<a class=" open" href="issue-1010.html">1010 — Modeller: drawer and inter-app integration</a>
+<a class=" open" href="issue-1011.html">1011 — Phase 10 demo</a>
+</details>
+<details><summary>Source: src/engine</summary>
+<a class="" href="info-src-engine-025-platform-h.html">src/engine/025-platform.h</a>
+<a class="" href="info-src-engine-027-primitives-c.html">src/engine/027-primitives.c</a>
+<a class="" href="info-src-engine-027-primitives-h.html">src/engine/027-primitives.h</a>
+<a class="" href="info-src-engine-028-page-stripes-c.html">src/engine/028-page-stripes.c</a>
+<a class="" href="info-src-engine-028-page-stripes-h.html">src/engine/028-page-stripes.h</a>
+<a class="" href="info-src-engine-029-blocks-c.html">src/engine/029-blocks.c</a>
+<a class="" href="info-src-engine-029-blocks-h.html">src/engine/029-blocks.h</a>
+<a class="" href="info-src-engine-030-task-ring-c.html">src/engine/030-task-ring.c</a>
+<a class="" href="info-src-engine-030-task-ring-h.html">src/engine/030-task-ring.h</a>
+<a class="" href="info-src-engine-031-engine-internal-h.html">src/engine/031-engine-internal.h</a>
+<a class="" href="info-src-engine-031-engine-h.html">src/engine/031-engine.h</a>
+<a class="" href="info-src-engine-032-workers-c.html">src/engine/032-workers.c</a>
+<a class="" href="info-src-engine-033-stations-c.html">src/engine/033-stations.c</a>
+<a class="" href="info-src-engine-034-ports-c.html">src/engine/034-ports.c</a>
+<a class="" href="info-src-engine-035-tasks-c.html">src/engine/035-tasks.c</a>
+<a class="" href="info-src-engine-036-delivery-c.html">src/engine/036-delivery.c</a>
+<a class="" href="info-src-engine-037-build-c.html">src/engine/037-build.c</a>
+<a class="" href="info-src-engine-038-tallies-c.html">src/engine/038-tallies.c</a>
+<a class="" href="info-src-engine-038-tallies-h.html">src/engine/038-tallies.h</a>
+<a class="" href="info-src-engine-039-parking-c.html">src/engine/039-parking.c</a>
+<a class="" href="info-src-engine-040-errors-c.html">src/engine/040-errors.c</a>
+<a class="" href="info-src-engine-060-generator-c.html">src/engine/060-generator.c</a>
+<a class="" href="info-src-engine-060-generator-h.html">src/engine/060-generator.h</a>
+<a class="" href="info-src-engine-066-map-read-c.html">src/engine/066-map-read.c</a>
+<a class="" href="info-src-engine-066-map-read-h.html">src/engine/066-map-read.h</a>
+<a class="" href="info-src-engine-067-values-c.html">src/engine/067-values.c</a>
+<a class="" href="info-src-engine-067-values-h.html">src/engine/067-values.h</a>
+<a class="" href="info-src-engine-068-programs-c.html">src/engine/068-programs.c</a>
+<a class="" href="info-src-engine-068-programs-h.html">src/engine/068-programs.h</a>
+<a class="" href="info-src-engine-069-map-write-c.html">src/engine/069-map-write.c</a>
+<a class="" href="info-src-engine-070-catalogue-c.html">src/engine/070-catalogue.c</a>
+<a class="" href="info-src-engine-070-catalogue-h.html">src/engine/070-catalogue.h</a>
+<a class="" href="info-src-engine-071-transcript-c.html">src/engine/071-transcript.c</a>
+<a class="" href="info-src-engine-071-transcript-h.html">src/engine/071-transcript.h</a>
+</details>
+<details><summary>Source: src/boxes</summary>
+<a class="" href="info-src-boxes-062-arithmetic-c.html">src/boxes/062-arithmetic.c</a>
+<a class="" href="info-src-boxes-063-text-c.html">src/boxes/063-text.c</a>
+<a class="" href="info-src-boxes-064-launch-c.html">src/boxes/064-launch.c</a>
+<a class="" href="info-src-boxes-065-calibration-c.html">src/boxes/065-calibration.c</a>
+<a class="" href="info-src-boxes-073-shapes-c.html">src/boxes/073-shapes.c</a>
+</details>
+<details><summary>Source: src/system</summary>
+<a class="" href="info-src-system-056-font-8x16-c.html">src/system/056-font-8x16.c</a>
+<a class="" href="info-src-system-056-font-8x16-h.html">src/system/056-font-8x16.h</a>
+<a class="" href="info-src-system-058-draw-c.html">src/system/058-draw.c</a>
+<a class="" href="info-src-system-058-draw-h.html">src/system/058-draw.h</a>
+</details>
+<details><summary>Source: src/device</summary>
+<a class="" href="info-src-device-042-platform-device-c.html">src/device/042-platform-device.c</a>
+<a class="" href="info-src-device-043-cores-s.html">src/device/043-cores.s</a>
+<a class="" href="info-src-device-044-identity-map-c.html">src/device/044-identity-map.c</a>
+<a class="" href="info-src-device-045-compiler-support-c.html">src/device/045-compiler-support.c</a>
+</details>
+<details><summary>Source: twin</summary>
+<a class="" href="info-twin-026-platform-twin-c.html">twin/026-platform-twin.c</a>
+<a class="" href="info-twin-026-platform-twin-h.html">twin/026-platform-twin.h</a>
+<a class="" href="info-twin-041-twin-engine-c.html">twin/041-twin-engine.c</a>
+<a class="" href="info-twin-041-twin-engine-h.html">twin/041-twin-engine.h</a>
+<a class="" href="info-twin-046-metrics-c.html">twin/046-metrics.c</a>
+<a class="" href="info-twin-046-metrics-h.html">twin/046-metrics.h</a>
+<a class="" href="info-twin-057-screens-twin-c.html">twin/057-screens-twin.c</a>
+<a class="" href="info-twin-057-screens-twin-h.html">twin/057-screens-twin.h</a>
+</details>
+<details><summary>Source: twin/tools</summary>
+<a class="" href="info-twin-tools-061-generate-c.html">twin/tools/061-generate.c</a>
+</details>
+<details><summary>Source: twin/tests</summary>
+<a class="" href="info-twin-tests-047-check-h.html">twin/tests/047-check.h</a>
+<a class="" href="info-twin-tests-048-test-memory-each-core-owns-c.html">twin/tests/048-test-memory-each-core-owns.c</a>
+<a class="" href="info-twin-tests-049-test-task-ring-c.html">twin/tests/049-test-task-ring.c</a>
+<a class="" href="info-twin-tests-050-test-boxes-h.html">twin/tests/050-test-boxes.h</a>
+<a class="" href="info-twin-tests-051-test-workers-and-delivery-c.html">twin/tests/051-test-workers-and-delivery.c</a>
+<a class="" href="info-twin-tests-052-test-station-table-c.html">twin/tests/052-test-station-table.c</a>
+<a class="" href="info-twin-tests-053-test-ports-and-claims-c.html">twin/tests/053-test-ports-and-claims.c</a>
+<a class="" href="info-twin-tests-054-test-parking-and-errors-c.html">twin/tests/054-test-parking-and-errors.c</a>
+<a class="" href="info-twin-tests-072-test-maps-c.html">twin/tests/072-test-maps.c</a>
+<a class="" href="info-twin-tests-074-test-generator-c.html">twin/tests/074-test-generator.c</a>
+<a class="" href="info-twin-tests-075-test-kinds-doors-launch-c.html">twin/tests/075-test-kinds-doors-launch.c</a>
+</details>
+<details><summary>Source: twin/programs</summary>
+<a class="" href="info-twin-programs-059-endurance-c.html">twin/programs/059-endurance.c</a>
+<a class="" href="info-twin-programs-076-written-down-c.html">twin/programs/076-written-down.c</a>
+</details>
+</nav><main><h1 id="110m-descriptor-driven-dma-storage-transfers"><a class="self" href="#110m-descriptor-driven-dma-storage-transfers">§</a> 110m — descriptor-driven (DMA) storage transfers<span class="status open">open</span></h1>
+<p>The throughput half of fast storage, and the thing that makes a <strong>full
+eMMC dump</strong> practical. The speed <em>modes</em> are done (110j: HS200/HS400 read
+proven) and the SD fast-write path is filed (110l), but every transfer
+still moves through the CPU one word at a time. For a multi-GB dump of the
+whole eMMC onto the SD card (to pull and examine on the dev machine —
+expected mostly zeroes), that CPU copy is the wall.</p>
+<h2 id="current-behavior"><a class="self" href="#current-behavior">§</a> Current behavior</h2>
+<p>Both DMA engines are built and proven on hardware, and together they carry a
+working <strong>full eMMC dump</strong>, captured and verified end to end:</p>
+<ul>
+<li><strong>eMMC ADMA2 multi-block read</strong> (<code>emmc_read_blocks_dma</code>, <code>src/012-emmc.c</code>)
+— reads 128 blocks (64 KB) per call; the DMA fingerprint matches the PIO
+path at legacy, HS200, and HS400.</li>
+<li><strong>microSD IDMAC multi-block write</strong> (<code>sd_write_blocks_dma</code>,
+<code>src/015-sdmmc.c</code>) — one <code>CMD25</code> writes a whole run described by a <em>chain</em>
+of descriptors (each ≤ 8 KB, the 13-bit BS1 limit), with the controller's
+auto-stop sending the trailing <code>CMD12</code>. Validated by a 24-block (three
+chained descriptors) write read back through PIO.</li>
+<li><strong>Full linear dump</strong> (<code>emmc_dump_to_sd</code>) — copies every sector of the card
+to the SD's dump region in order, eMMC sector N → SD <code>DUMP_DEST_LBA + N</code>.
+No map and no zero-skipping: the dev side simply concatenates the pulled
+pieces, so nothing has to be reconstructed and nothing can tear across a
+log flush. It moves the whole card (~29 GiB, zeros and all), so it is
+gzip-compressed on the way off the SD (the ~75% zeros collapse to almost
+nothing). Its one machine-parsed line — the <code>complete total=… packed=…</code>
+summary — is built into a single buffer and emitted with one <code>debug_write</code>
+so it, too, cannot tear.</li>
+<li><strong>Layout recon</strong> (<code>emmc_scan_map</code>) — a separate read-only pass that logs
+the non-zero LBA ranges (block-level run-length encoding) without writing
+gigabytes, for when the card's real layout is wanted cheaply. It no longer
+drives the dump.</li>
+<li><strong>Pull + archive</strong> — <code>scripts/lab-side/dump-from-sd</code> reads the dump region
+back off the SD, gzips it, and splits the stream into &lt; 4 GiB pieces (a
+FAT32 USB drive caps files at 4 GiB). The dev side reassembles with
+<code>cat pieces | gunzip</code> — no MAP replay. <code>scripts/lab-side/reconstruct-emmc</code>
+is retained for the optional sparse path, keeping its torn-record-skip
+parse and integrity cross-check.</li>
+</ul>
+<p>The first full dump has been pulled and verified end to end: the gzip stream
+tests clean (CRC + length), and it decodes to the card's real 15-partition
+factory GPT (<code>security</code>/<code>uboot</code>/<code>trust</code>/…/<code>super</code>/<code>userdata</code>).</p>
+<p>Still deferred: double-buffering (overlap read run N+1 with write run N), a
+throughput readout, the eMMC ADMA2 <em>write-back</em> path, and the caches/MMU
+work that would make even the PIO paths fast. Until caches come on, the CPU
+runs near 800 MHz but stalls on DRAM every instruction (201a recon) — which
+is why DMA, keeping the CPU out of the copy loop, matters now.</p>
+<h2 id="intended-behavior"><a class="self" href="#intended-behavior">§</a> Intended behavior</h2>
+<p>Hand the controllers a <strong>descriptor</strong> — &quot;move N bytes to/from this
+address&quot; — and let each one move the data on its own while the CPU waits
+(or, later, does other work). The copy then runs at <em>bus</em> speed, not CPU
+speed, and the caches-off penalty on the copy disappears (the CPU isn't in
+the inner loop). Two different DMA engines, one per controller:</p>
+<ul>
+<li><strong>eMMC (SDHCI) → ADMA2.</strong> The SD Host Controller standard's Advanced DMA
+v2: a table of <code>{attributes, length, address}</code> descriptors the
+controller walks. Set the host-control DMA-select to ADMA2, point the
+ADMA address register at the table, enable DMA in the transfer mode, and
+issue a multi-block command (<code>CMD18</code> read / <code>CMD25</code> write). The
+controller bursts the whole run. The eMMC's CAPABILITIES advertises
+ADMA2 (bit 19 set on this part), so it's available.</li>
+<li><strong>microSD (DW MSHC) → IDMAC.</strong> The DesignWare controller's <em>internal</em>
+DMA controller, a different descriptor format and its own
+enable/bus-mode/descriptor-base registers (BMOD, DBADDR, IDSTS). Same
+idea, different plumbing.</li>
+</ul>
+<p>Coherency is free here, unusually: with the MMU and caches off (phase 1),
+DMA writes land in DRAM and the CPU reads DRAM directly — no cache flush
+or invalidate needed. (This must be revisited when caches come on: the
+buffers will then need flush-before-write / invalidate-after-read.)</p>
+<h3 id="the-driving-use-case-getting-the-entire-emmc-onto-the-dev-machine"><a class="self" href="#the-driving-use-case-getting-the-entire-emmc-onto-the-dev-machine">§</a> The driving use case — getting the entire eMMC onto the dev machine</h3>
+<p>The point is to get the <strong>entire eMMC</strong> onto the dev machine to examine it.
+Two shapes were built. The <strong>plain full copy</strong> (every sector eMMC→SD in
+order, no map) is what shipped: it moves all ~29 GiB but has nothing to
+reconstruct and nothing to corrupt. A <strong>sparse</strong> variant was also explored —
+copy only the non-zero 64 KB chunks packed end to end, plus a MAP (one record
+per run, <code>orig</code> eMMC LBA → <code>packed</code> SD LBA + <code>len</code> sectors, block-level
+run-length encoding) that <code>reconstruct-emmc</code> replays into a sparse image.</p>
+<p>The sparse variant was parked in favour of the full copy, for the reason the
+next reader should keep in mind: the sparse trick only saves <em>transfer time</em>
+(~7 GiB vs 29 GiB over the slow SD write). It does <strong>not</strong> shrink the archive
+— gzip collapses the zeros of a full dump just as well — and a card big enough
+for the full dump needs no map at all. The plain full copy is simpler and has
+no map to corrupt (see the tearing lesson below, which is what settled it);
+prefer it unless transfer time is the real constraint.</p>
+<h3 id="lesson-a-machine-parsed-log-record-must-be-one-debug-write"><a class="self" href="#lesson-a-machine-parsed-log-record-must-be-one-debug-write">§</a> Lesson: a machine-parsed log record must be one <code>debug_write</code></h3>
+<p>The MAP rides through the SD-backed debug log (<code>src/017-debug-log.c</code>), a
+4 KB RAM ring that flushes to the card at 75% full and zero-pads the page
+tail. A MAP record emitted as several <code>debug_write</code> calls (label, hex,
+label, hex, …) could have that flush fall <em>between</em> the calls, splitting the
+record across two zero-padded pages; <code>strings(1)</code> on readback then treats
+the zero gap as a line break and the record comes back torn in two. 10 of
+742 records tore this way and the reconstruction lost them. The rule that
+settled it: any machine-parsed line is built into one buffer and emitted with
+a <strong>single</strong> <code>debug_write</code> — a ≤ 61-char string can't cross the 4 KB page
+(<code>log_buffer_pos</code> is always &lt; 3072 at the start of a write), so a flush can
+only land at the trailing newline, between records. This is why the shipped
+dump is the linear copy — its sole parsed line, the <code>complete …</code> summary,
+follows the rule — rather than the sparse one; the sparse MAP emitter must
+obey the same discipline for every record if it is ever re-enabled.
+<code>reconstruct-emmc</code> additionally skips any malformed record and cross-checks
+the surviving count against the dump's own <code>ranges=</code>/<code>packed=</code> summary, so a
+torn map is <em>reported loudly</em>, never silently under-filled.</p>
+<h3 id="microsd-idmac-distilled-from-the-rk3568-trm-section-6-3-3"><a class="self" href="#microsd-idmac-distilled-from-the-rk3568-trm-section-6-3-3">§</a> microSD IDMAC — distilled from the RK3568 TRM (section 6.3.3)</h3>
+<p>No external driver needed: the TRM documents the DW MSHC's internal DMA
+engine in full. The pieces to build step 3 from:</p>
+<ul>
+<li><strong>Descriptor</strong> (chain mode, 32-bit bus): 16 bytes = four 32-bit words.</li>
+<li><code>DES0</code> (control): bit31 OWN (1 = IDMAC owns it, it clears OWN when
+done), bit5 ER (end of ring), bit4 CH (chained — <code>DES3</code> is the *next
+descriptor* address, not a 2nd buffer), bit3 FS (first), bit2 LD
+(last), bit1 DIC (disable completion interrupt); bit30 CES mirrors the
+error bits.</li>
+<li><code>DES1</code>: BS1 (bits 12:0) = buffer-1 byte size — <strong>13 bits, so ~8 KB max
+per descriptor</strong>, so big transfers chain many (the dump links a lot).
+BS2 (25:13) = 0 in chain mode.</li>
+<li><code>DES2</code>: buffer-1 physical address.</li>
+<li><code>DES3</code>: next-descriptor address (chain mode).</li>
+<li><strong>Registers</strong> (DW MSHC CSR, 0x80–0x98): <code>CTRL</code> bit25 = enable IDMAC
+(USE_INTERNAL_DMAC); <code>BMOD @0x80</code> = bus mode (bit0 SWR reset, bit1 FB
+fixed-burst, bit7 DE DMA-enable, bits10:8 PBL burst, bits6:2 DSL);
+<code>PLDMND @0x84</code> = poll demand (un-suspend the engine); <code>DBADDR @0x88</code> =
+descriptor-list base; <code>IDSTS @0x8C</code> = status; <code>IDINTEN @0x90</code> =
+interrupt enable.</li>
+<li><strong>Init</strong>: software-reset the IDMAC (BMOD SWR), program BMOD, mask
+interrupts (IDINTEN — we poll), build the descriptor list with OWN set,
+write its base to DBADDR, enable via CTRL bit25 + BMOD DE, then issue the
+read/write command. Completion is DATA_OVER + the IDSTS TI/RI bit; errors
+land in IDSTS and the descriptor's CES.</li>
+<li><strong>Coherency</strong>: same as the eMMC side — free while caches are off, must be
+revisited when they come on.</li>
+</ul>
+<h2 id="suggested-implementation-steps"><a class="self" href="#suggested-implementation-steps">§</a> Suggested implementation steps</h2>
+<ol>
+<li><strong>eMMC ADMA2 read</strong> — a multi-block read (<code>emmc_read_blocks_dma</code>),
+validated by fingerprint-matching the PIO path at legacy, HS200, and
+HS400. *(Done.)*</li>
+<li><strong>microSD IDMAC multi-block write</strong> — <code>sd_write_blocks_dma</code>: one <code>CMD25</code>
+over a chain of ≤ 8 KB descriptors + auto-stop, built from the TRM 6.3.3
+distillation below. Validated by a 24-block (three-chain) write read back
+through PIO. *(Done — the write direction is all the dump needs.)*</li>
+<li><strong>Full linear dump</strong> — <code>emmc_dump_to_sd</code>: copy every sector to the SD dump
+region in order (eMMC N → <code>DUMP_DEST_LBA + N</code>), no map, with the one
+<code>complete …</code> summary line emitted atomically. This is the shipped dump —
+proven end to end (pull → gzip verify → factory GPT decodes). A sparse
+MAP variant was explored and parked (see the driving-use-case and tearing
+notes above). *(Done.)*</li>
+<li><strong>Pull + archive toolchain</strong> — <code>dump-from-sd</code> reads the dump region back,
+gzips it, and splits into &lt; 4 GiB FAT32-safe pieces; the dev side does
+<code>cat pieces | gunzip</code>. <code>reconstruct-emmc</code> (MAP replay + torn-record-skip +
+integrity cross-check) is retained for the optional sparse path. *(Done.)*</li>
+<li><strong>eMMC ADMA2 write-back</strong> — <code>CMD25</code> multi-block write on the <em>eMMC</em> side,
+for writing images back to the card later. *(Deferred.)*</li>
+<li><strong>Double-buffer + throughput</strong> — read run N+1 while writing run N to
+overlap the two engines, and a <code>CNTPCT</code> timer so the dump reports MB/s
+instead of a guess. *(Deferred.)*</li>
+</ol>
+<h2 id="related-documents-and-tools"><a class="self" href="#related-documents-and-tools">§</a> Related documents and tools</h2>
+<ul>
+<li><code>src/012-emmc.c</code> / <code>src/015-sdmmc.c</code> — the two drivers gaining DMA.</li>
+<li><a class="src" href="issue-110j.html"><code>issues/110j-fast-emmc-hs200.md</code></a> — the eMMC speed modes the DMA read
+rides on; this is the ADMA2 deferral that issue named.</li>
+<li><a class="src" href="issue-110l.html"><code>issues/110l-fast-sd-uhs.md</code></a> — the SD fast-write side; the dump's write
+half needs both this and the IDMAC engine.</li>
+<li><a class="src" href="issue-201a.html"><code>issues/201a-cpu-clock-bring-up.md</code></a> — why PIO is so slow now (caches off
+more than clock); DMA sidesteps it for the copy.</li>
+<li>The microSD IDMAC reference is the RK3568 TRM section 6.3.3 (we have it
+as text under <code>tmp/datasheet-text/</code>); the relevant bits are distilled
+into this issue above, so no external driver extraction is needed.</li>
+</ul>
+<h2 id="blocked-by"><a class="self" href="#blocked-by">§</a> Blocked by</h2>
+<p>Nothing — the eMMC controller advertises ADMA2 and the fast read modes are
+proven (step 1), and the microSD IDMAC is fully documented in the TRM (step
+3 reference resolved and distilled above).</p><p class="filter-note">source: <code>issues/110m-dma-storage-transfers.md</code></p><div class="pager"><span>← <a href="issue-110l.html">110l — fast SD path (4-bit, High-Speed, and UHS-I where the board allows)</a></span><span><a href="issue-110n.html">110n — a callable run_probes() over a mutable run-flag array</a> →</span></div></main></div></body></html>

@@ -129,6 +129,19 @@ tour; jump in by topic if you already know where you're going.
   chip registry, and the data flow from a device driver out to a
   human's yes-or-no and back to the log. Covers the I/O device
   validation chip (issue 115) and the framework (issue 116).
+- `027-metrics-explained.md` — what every number on the measurements
+  page means: how it is measured on the laptop twin, what a healthy
+  value looks like, and what it says about the design. Each section is
+  the target of the numbers that link to it.
+- `028-datapath-engine.md` — a value's journey through the engine, from
+  one box returning it to the next box running on it, step by step with
+  the file that does each step.
+- `029-datapath-programs.md` — from box sources to catalogue, from a map
+  file to a running program, and back to text.
+- `HTML/index.html` — all of the above, the notes, every issue and every
+  source file's reference, as one linked site with the measurements;
+  built by `scripts/build-docs` (`--measure` runs the tests and demos
+  first).
 - `datasheets/INDEX.md` — catalogue of the chip and
   standards PDFs downloaded to `docs/datasheets/`: RK3568 TRM
   Parts 1 & 2, RK3568 brief datasheet, SDHCI v4.20 spec,
