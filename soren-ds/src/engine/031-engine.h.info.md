@@ -131,6 +131,22 @@ Replace one exit's destinations with this whole list, at once (issue
 207: arrows are drawn in batches so every destination starts from the
 same instant). An empty list unwires the exit.
 
+### engine_port_fed
+
+```c
+int engine_port_fed(int32_t station, int port)
+```
+
+Does any wire, from any station, feed this port?
+
+### engine_port_reserve
+
+```c
+int engine_port_reserve(int32_t station, int port, int cells)
+```
+
+Grow a port now so it holds at least `cells` values at once.
+
 ### engine_deliver
 
 ```c
@@ -147,6 +163,45 @@ int engine_remove(int32_t station)
 ```
 
 Take a station out of existence and give its place back (issue 207).
+
+### engine_mark_argument
+
+```c
+int engine_mark_argument(int32_t station, int port, int door)
+```
+
+Doors (issue 309). Mark a port as the program's argument N, or an exit
+as its result N (-1 clears the mark). A marked port that no wire feeds
+is where the outside delivers that argument; a marked exit with nothing
+wired beyond it holds its values for whoever takes them, instead of
+discarding them.
+
+### engine_mark_result
+
+```c
+int engine_mark_result(int32_t station, int exit, int door)
+```
+
+### engine_port_door
+
+```c
+int engine_port_door(int32_t station, int port)
+```
+
+### engine_exit_door
+
+```c
+int engine_exit_door(int32_t station, int exit)
+```
+
+### engine_take_result
+
+```c
+int engine_take_result(int32_t station, int exit, void *out, size_t size)
+```
+
+Take one held result out of a marked exit: 1 if taken, 0 if none is
+waiting, or a negative error.
 
 ### engine_sweep
 
@@ -267,6 +322,16 @@ int32_t engine_current_station(void)
 ```
 
 Which station is running on this core right now, or -1.
+
+### engine_random
+
+```c
+uint64_t engine_random(void)
+```
+
+64 random bits from this core's own stream (seeded once from the
+platform). Per-core state, so a box asking for randomness breaks no rule
+about boxes remembering.
 
 ### engine_park_begin
 

@@ -2,12 +2,14 @@
 
 ## Current behavior
 
-**The loader refuses one thing at a time, so fixing a new map is a
-sequence of runs.**
-
-Every check in 306 stops at the first failure. Somebody who has just
-written a map with four mistakes in it finds them one per run, and each
-run is a build and a flash.
+**Built and tested on the twin.** Every problem the reader and the
+loader find goes into one list, sorted by file and line, under a heading
+("6 problems in src/maps/everything.map:"). Nothing is placed unless the
+list is empty. The unfinished-work report is asked for, never
+volunteered (`program_unfinished`): ports with no source, and queued
+ports nothing feeds that are not marked as arguments. There is no cycle
+detector, and the reasoning is written at the top of `068-programs.c`;
+`src/maps/counting.map` counts through a loop.
 
 ## Intended behavior
 
@@ -121,6 +123,13 @@ operation is how it ends.
   Somebody authoring at a touchscreen with no laptop attached is
   exactly who it is for, and the serial line is exactly where they
   cannot see it.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Partial load or none?* None (see 306): the list of problems is what
+   the person needs, and a half-program is available by building by hand.
+2. *The report on the device's screen?* Yes — phase 8's editor shows it
+   in its second pane; until then it goes to the developer's line.
 
 ## Blocked by
 

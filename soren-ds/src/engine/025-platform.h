@@ -35,6 +35,12 @@ int platform_core_count(void);
  * before the gate opens is such a caller. */
 int platform_core_id(void);
 
+/* A number that differs between any two callers that are not cores (and
+ * is never 0), so the engine can tell whether the caller asking for the
+ * outside owner's turn already holds it. On the device the only caller
+ * that is not a core is the boot code, so it may answer a constant. */
+uintptr_t platform_caller_token(void);
+
 /* Start `count` cores, each entering `entry(core_number)` on its own
  * stack. The calling core becomes core 0 and enters `entry(0)` itself, so
  * this call does not return until every core's entry has returned. On the
@@ -94,6 +100,10 @@ void platform_write(const char *text, size_t len);
 /* Something is wrong below the level any box could have caused. Say so
  * and never return: red LED and park on the device, abort on the twin. */
 void platform_halt(const char *why) __attribute__((noreturn));
+
+/* Something to say before halting — the engine's transcript (issue 311)
+ * in a debug build. Called once, by the first core to halt. */
+void platform_set_last_words(void (*words)(void));
 /* }}} */
 
 /* {{{ screens */

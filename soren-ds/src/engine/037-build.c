@@ -103,7 +103,7 @@ static int check_shape(const struct box *box, int kind, int n_exits)
             return ENGINE_BAD_KIND;
         }
     }
-    if (kind == KIND_COMPARATOR && ordering_of(box->return_type) == ORDER_NONE) {
+    if (kind == KIND_COMPARATOR && !box->return_order && ordering_of(box->return_type) == ORDER_NONE) {
         return ENGINE_UNORDERED;
     }
     if (box->n_params + engine_kind_extra_ports(kind) > 64) {
@@ -155,6 +155,9 @@ static int fill_station(struct core_ctx *c, struct station *s, const struct box 
         bytes_copy(copy, name, name_len);
     }
     copy[name_len] = '\0';
+    for (int e = 0; e < n_exits; e++) {
+        exits[e].door = -1;                /* no exit is a program's result until marked */
+    }
 
     spin_lock_t fresh_lock = SPIN_LOCK_INIT;
     s->lock        = fresh_lock;
@@ -226,7 +229,7 @@ static int32_t place_into(struct core_ctx *c, int32_t wanted, const struct box *
             struct station *s = station_at(wanted);
             if (s->state != STATION_FREE) {
                 spin_unlock(&engine.table_lock);
-                say("engine: refused to place \"%s\" at %d: that place is %s", name ? name : "",
+                say_line("engine: refused to place \"%s\" at %d: that place is %s", name ? name : "",
                     (int)wanted, s->state == STATION_REMOVING ? "removed but not yet reclaimed" : "in use");
                 return ENGINE_PLACE_BUSY;
             }
@@ -279,6 +282,7 @@ static int32_t place_into(struct core_ctx *c, int32_t wanted, const struct box *
         atomic_store_release(&engine.count, index + 1);
     }
     spin_unlock(&engine.table_lock);
+    transcript_record(TRANSCRIPT_PLACED, index, kind, n_exits, 0, s->name);
     return index;
 }
 /* }}} */
@@ -354,6 +358,97 @@ int engine_configure(int32_t index, int port, int tag, const void *value, size_t
 }
 /* }}} */
 
+/* {{{ engine_mark_argument */
+int engine_mark_argument(int32_t index, int port, int door)
+{
+    struct core_ctx *c = engine_enter();
+    struct station *s = station_live(index);
+    int r = ENGINE_OK;
+    if (!s) {
+        r = ENGINE_NO_STATION;
+    } else if (port < 0 || port >= s->n_box_ports) {
+        r = ENGINE_NO_PORT;
+    } else {
+        atomic_store_release(&s->ports[port].door, (int16_t)(door < 0 ? -1 : door));
+    }
+    engine_leave(c);
+    return r;
+}
+/* }}} */
+
+/* {{{ engine_mark_result */
+int engine_mark_result(int32_t index, int exit, int door)
+{
+    struct core_ctx *c = engine_enter();
+    struct station *s = station_live(index);
+    int r = ENGINE_OK;
+    if (!s) {
+        r = ENGINE_NO_STATION;
+    } else if (exit < 0 || exit >= s->n_exits) {
+        r = ENGINE_NO_EXIT;
+    } else {
+        spin_lock(&s->lock);
+        s->exits[exit].door = door < 0 ? -1 : door;
+        /* The holding port is made once, the first time the exit is
+         * marked, and kept: values already held survive the mark being
+         * cleared and set again. */
+        if (door >= 0 && !s->exits[exit].held) {
+            struct port *held = block_alloc_zero(c->number, sizeof *held);
+            if (!held || port_init(c, held, (int32_t)s->box->return_size) != ENGINE_OK) {
+                r = ENGINE_NO_MEMORY;
+            } else {
+                held->tag = PORT_RING;
+                atomic_store_release(&s->exits[exit].held, held);
+            }
+        }
+        spin_unlock(&s->lock);
+    }
+    engine_leave(c);
+    return r;
+}
+/* }}} */
+
+/* {{{ engine_port_door */
+int engine_port_door(int32_t index, int port)
+{
+    struct station *s = station_live(index);
+    if (!s) return ENGINE_NO_STATION;
+    if (port < 0 || port >= s->n_ports) return ENGINE_NO_PORT;
+    return atomic_load_acquire(&s->ports[port].door);
+}
+/* }}} */
+
+/* {{{ engine_exit_door */
+int engine_exit_door(int32_t index, int exit)
+{
+    struct station *s = station_live(index);
+    if (!s) return ENGINE_NO_STATION;
+    if (exit < 0 || exit >= s->n_exits) return ENGINE_NO_EXIT;
+    return atomic_load_acquire(&s->exits[exit].door);
+}
+/* }}} */
+
+/* {{{ engine_take_result */
+int engine_take_result(int32_t index, int exit, void *out, size_t size)
+{
+    struct core_ctx *c = engine_enter();
+    struct station *s = station_live(index);
+    int r;
+    if (!s) {
+        r = ENGINE_NO_STATION;
+    } else if (exit < 0 || exit >= s->n_exits) {
+        r = ENGINE_NO_EXIT;
+    } else if (size != s->box->return_size) {
+        r = ENGINE_WRONG_SIZE;
+    } else {
+        struct port *held = atomic_load_acquire(&s->exits[exit].held);
+        r = held ? port_take_value(held, out) : 0;
+    }
+    engine_leave(c);
+    return r;
+}
+/* }}} */
+
 /* {{{ engine_wire */
 int engine_wire(int32_t index, int exit, const struct destination *to, int count)
 {
@@ -407,6 +502,7 @@ int engine_wire(int32_t index, int exit, const struct destination *to, int count
      * scrapyard until no core can still be inside it. */
     atomic_store_release(&s->exits[exit].list, fresh);
     spin_unlock(&s->lock);
+    transcript_record(TRANSCRIPT_WIRED, index, exit, count, 0, s->name);
     if (old) {
         scrap_retire(c, scrap_release_block, old, 0);
     }

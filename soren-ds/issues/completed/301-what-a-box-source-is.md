@@ -2,14 +2,24 @@
 
 ## Current behavior
 
-**A box is described twice, and the two descriptions can disagree.**
+**Built and tested on the twin.** Box sources live in `src/boxes/`, found
+by where they live: the generator reads every `.c` directly in that
+directory, so a box the build did not see cannot exist. The rules are in
+the directory's own `src/boxes/000-README.md`, beside the files somebody
+adding a box will be looking at. Phase 2's hand-written starter library
+is gone; its functions are now `src/boxes/062-arithmetic.c`, and their
+records are written by the generator. Beside them: `063-text.c` (text as
+a 64-character value type, with an ordering), `064-launch.c` (310),
+`065-calibration.c` (308's two boxes), and `073-shapes.c` (303's width
+demonstration).
 
-Phase 2 places a station by handing the engine a box's shape — how many
-inputs, how many bytes each — written out by hand beside the C
-function. Nothing checks that the hand-written shape matches the
-function it sits next to. Change the function's second parameter from a
-32-bit integer to a 64-bit one and the engine keeps copying four bytes
-into an eight-byte slot, forever, silently.
+Box sources are never compiled on their own. The generated catalogue
+includes each one exactly once, and both the kernel's and the twin's
+builds skip the directory — so the four files compile into the kernel
+image with the cross-compiler, which checks every box against the
+kernel's rules (no floating point, no standard library) on every build.
+
+Test material for every broken rule is in `twin/tests/074-test-generator.c`.
 
 ## Intended behavior
 
@@ -85,6 +95,16 @@ somebody has been bitten once.
   parameter's type has to carry a "was this given" flag beside the
   value, because no spare number inside an integer honestly means
   absent. Worth having, worth its own issue.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Same rules on the device?* Yes — the generator that enforces them is
+   the same C file on both (304); phase 4 runs it on the device, so a
+   refusal there is word for word the refusal here.
+2. *Optional parameters?* Not built. Proposed: a value type with a
+   `given` byte beside the value (`struct maybe_int { int64_t value;
+   uint8_t given; }`), written by whoever wants optionality, rather than
+   an engine feature — it needs nothing new and says what it means.
 
 ## Blocked by
 

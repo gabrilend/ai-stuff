@@ -2,11 +2,22 @@
 
 ## Current behavior
 
-**Issues 301 through 311 turn a program from something you build by
-calling into the engine into something you write down.**
+**Runs on the twin and passes; not yet run on the device.**
+`twin/programs/076-written-down.c`, run by
+`issues/completed/demos/phase-3/run.sh` (and `./run-demo 3`): nine
+scenes, each measured into a record and then told — the round trip
+(identical when written twice), the catalogue as the joint, both ends of
+a wire, the wire check, all at once, the counter, every exit kind with
+its distribution, a map inside a map, and a box taking itself out. The
+top screen lists the scenes; the bottom shows greeting.map written back
+out.
 
-Phase 2's endurance test proved the engine. Nothing yet proves the
-round trip: text in, program running, program back out as text.
+**One claim in the text below turned out false, and the map changed:**
+"ten lines, 1 through 10, in order, because only one value is in flight"
+holds only if the saying station sits on the loop's path. Fanned out
+beside the loop, it runs at the same time as the next increment and its
+lines come out of order. `counting.map` now says each number with `echo`,
+on the loop.
 
 ## Intended behavior
 
@@ -112,6 +123,14 @@ top, overridable as the first argument, every path relative to it.
   the compile pipeline arrives, so at least the first scene is rewritten
   rather than kept. Knowing that now means writing the scenes so the
   story survives the mechanism changing underneath it.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Dump the running program, or its own issue?* Built here
+   (`program_write`, 069) because the demo needed it; it can take its
+   own issue when the editor (phase 8) grows it.
+2. *Which scenes survive into phase 4?* The refusal scenes and the
+   counter unchanged; the round trip gains a file on the SD card.
 
 ## Blocked by
 

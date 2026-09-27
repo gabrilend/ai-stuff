@@ -235,7 +235,7 @@ void *page_alloc(int owner)
         o->bookmark = o->n_stripes - 1;
         return alloc_in_stripe(owner, stripe);
     }
-    say("page allocator: owner %d is out of pages and no unowned stripe is left (%u of %u pages free elsewhere)",
+    say_line("page allocator: owner %d is out of pages and no unowned stripe is left (%u of %u pages free elsewhere)",
         owner, (unsigned)stripes_free_pages(), (unsigned)total_pages);
     return (void *)0;
 }
@@ -297,7 +297,7 @@ void *pages_alloc_run(int owner, int count)
         return page_alloc(owner);
     }
     if (count < 1 || count > STRIPE_PAGES) {
-        say("page allocator: a run of %d pages was asked for; runs are 1..%d", count, STRIPE_PAGES);
+        say_line("page allocator: a run of %d pages was asked for; runs are 1..%d", count, STRIPE_PAGES);
         return (void *)0;
     }
     struct owner_state *o = &owners[owner];
@@ -312,7 +312,7 @@ void *pages_alloc_run(int owner, int count)
     if (stripe >= 0) {
         return alloc_run_in_stripe(owner, stripe, count);
     }
-    say("page allocator: owner %d found no run of %d pages and no unowned stripe is left", owner, count);
+    say_line("page allocator: owner %d found no run of %d pages and no unowned stripe is left", owner, count);
     return (void *)0;
 }
 /* }}} */

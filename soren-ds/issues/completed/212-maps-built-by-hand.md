@@ -14,6 +14,14 @@ Each is written in the shape phase 3's generator will emit.
 Test 051: the same program built placement-first and wiring-first gives
 the same answer; a station placed and never given a source never runs.
 
+**Since phase 3 (issue 301):** the starter library's functions live in
+`src/boxes/062-arithmetic.c` and their records are written by the
+generator; the hand-written records this issue described are gone, as
+the issue's own first open question expected. C code places them by the
+generated names (`box__arithmetic__add`, declared in the generated
+`catalogue-boxes.h`), and the tallies the sinks write to are
+`src/engine/038-tallies.c`.
+
 ## Intended behavior
 
 **Three operations, and everything that builds a program uses them.**

@@ -37,6 +37,17 @@ is read from the per-core register the core's startup stub filled in
 a thread the platform did not start answers -1 — the twin's main thread
 before the gate opens is such a caller.
 
+### platform_caller_token
+
+```c
+uintptr_t platform_caller_token(void)
+```
+
+A number that differs between any two callers that are not cores (and
+is never 0), so the engine can tell whether the caller asking for the
+outside owner's turn already holds it. On the device the only caller
+that is not a core is the boot code, so it may answer a constant.
+
 ### platform_start_cores
 
 ```c
@@ -136,6 +147,15 @@ void platform_halt(const char *why) __attribute__((noreturn))
 
 Something is wrong below the level any box could have caused. Say so
 and never return: red LED and park on the device, abort on the twin.
+
+### platform_set_last_words
+
+```c
+void platform_set_last_words(void (*words)(void))
+```
+
+Something to say before halting — the engine's transcript (issue 311)
+in a debug build. Called once, by the first core to halt.
 
 ### platform_screen
 

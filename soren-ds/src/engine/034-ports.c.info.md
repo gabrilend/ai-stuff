@@ -91,6 +91,26 @@ Called holding the station's lock after a port's tag changes.
 void station_check(struct core_ctx *c, int32_t index)
 ```
 
+### port_take_value
+
+```c
+int port_take_value(struct port *p, void *out)
+```
+
+Take one ready value out of a port, as a reader outside any station
+would: claim a cell, copy it out, empty it. Answers 1 if a value was
+taken. Used for a program's held results (issue 309).
+
+### engine_port_reserve
+
+```c
+int engine_port_reserve(int32_t index, int port, int cells)
+```
+
+Grow a port now so it holds at least `cells` values without growing
+later: a map's "in N x64". Ports grow on their own, so this is only for
+somebody who knows better (issue 305).
+
 ### engine_port_waiting
 
 ```c

@@ -139,6 +139,12 @@ void station_check(struct core_ctx *c, int32_t index)
 void station_recount_open(struct station *s)
 ```
 
+### port_take_value
+
+```c
+int port_take_value(struct port *p, void *out)
+```
+
 ### task_build
 
 ```c

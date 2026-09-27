@@ -32,6 +32,14 @@ void device_platform_init(void)
 
 Called once from kernel_main on the boot core, before the engine.
 
+### platform_caller_token
+
+```c
+uintptr_t platform_caller_token(void)
+```
+
+The boot code is the only caller on the device that is not a core.
+
 ### platform_core_count
 
 ```c
@@ -105,6 +113,12 @@ size_t platform_pool_size(void)
 
 ```c
 void platform_write(const char *text, size_t len)
+```
+
+### platform_set_last_words
+
+```c
+void platform_set_last_words(void (*words)(void))
 ```
 
 ### platform_halt

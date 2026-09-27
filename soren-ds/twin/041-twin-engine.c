@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 #include "../src/engine/025-platform.h"
 #include "../src/engine/031-engine.h"
+#include "../src/engine/068-programs.h"
 #include "026-platform-twin.h"
 #include "041-twin-engine.h"
 
@@ -30,11 +31,42 @@ static void *launch(void *arg)
 }
 /* }}} */
 
+/* {{{ disk_reader */
+/* Map files on the laptop come from the project directory itself, so a
+ * map can be edited and reloaded without rebuilding anything. Paths are
+ * project-relative, exactly as on the device. The text is kept until the
+ * process ends; loading is rare. */
+static const char *disk_reader(const char *path, size_t *length, void *ctx)
+{
+    (void)ctx;
+    const char *dir = getenv("SOREN_DIR");
+    if (!dir) {
+        return NULL;
+    }
+    char full[4096];
+    snprintf(full, sizeof full, "%s/%s", dir, path);
+    FILE *f = fopen(full, "rb");
+    if (!f) {
+        return NULL;
+    }
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *text = malloc((size_t)n + 1);
+    size_t got = fread(text, 1, (size_t)n, f);
+    fclose(f);
+    text[got] = 0;
+    *length = got;
+    return text;
+}
+/* }}} */
+
 /* {{{ twin_engine_start */
 void twin_engine_start(int cores, size_t pool_bytes)
 {
     twin_platform_init(cores, pool_bytes);
     engine_init(cores);
+    program_set_reader(disk_reader, NULL);
     launched_cores = cores;
     if (pthread_create(&launcher, NULL, launch, NULL) != 0) {
         fprintf(stderr, "twin: could not start the engine's cores\n");

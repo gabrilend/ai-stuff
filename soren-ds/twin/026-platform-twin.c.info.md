@@ -35,6 +35,12 @@ void twin_platform_set_log(const char *path, int also_stdout)
 void twin_platform_shutdown(void)
 ```
 
+### platform_caller_token
+
+```c
+uintptr_t platform_caller_token(void)
+```
+
 ### platform_core_count
 
 ```c
@@ -99,6 +105,12 @@ size_t platform_pool_size(void)
 
 ```c
 void platform_write(const char *text, size_t len)
+```
+
+### platform_set_last_words
+
+```c
+void platform_set_last_words(void (*words)(void))
 ```
 
 ### platform_halt

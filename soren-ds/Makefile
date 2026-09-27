@@ -82,10 +82,27 @@ endif
 # protection it is informational and not actionable.
 LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib --no-warn-rwx-segments
 
-C_SRCS := $(shell find $(SRC_DIR) -name '*.c' 2>/dev/null)
+# The generator rules below appear before `all`; name the default goal so
+# a plain `make` still builds the image.
+.DEFAULT_GOAL := all
+
+# src/boxes/ is never compiled on its own: every box source is included,
+# once, by the catalogue the box generator writes (issue 304). The
+# generator is a laptop program built by the twin's Makefile; it runs
+# first, and a failing run leaves the previous catalogue in place.
+C_SRCS := $(shell find $(SRC_DIR) -path $(SRC_DIR)/boxes -prune -o -name '*.c' -print 2>/dev/null)
 S_SRCS := $(shell find $(SRC_DIR) -name '*.s' 2>/dev/null)
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SRCS)) \
-        $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(S_SRCS))
+        $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(S_SRCS)) \
+        $(BUILD_DIR)/generated/catalogue.o $(BUILD_DIR)/generated/maps.o
+
+CATALOGUE_DIR := $(TMP_REAL)/build/generated
+BOX_SRCS := $(wildcard $(SRC_DIR)/boxes/*.c)
+MAP_SRCS := $(wildcard $(SRC_DIR)/maps/*.map)
+
+$(CATALOGUE_DIR)/catalogue.c $(CATALOGUE_DIR)/maps.c &: $(BOX_SRCS) $(MAP_SRCS) $(SRC_DIR)/engine/060-generator.c $(DIR)/twin/tools/061-generate.c
+
+$(BUILD_DIR)/generated/%.o: $(CATALOGUE_DIR)/%.c | check-toolchain
 
 # Under --debug, the probe engine #includes the generated probe list.
 # Make cannot see an #include, so name the dependency explicitly and

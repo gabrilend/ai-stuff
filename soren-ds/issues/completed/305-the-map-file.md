@@ -2,23 +2,24 @@
 
 ## Current behavior
 
-**A program can only be built by calling into the engine, so it exists
-only while the device is on.**
+**Built and tested on the twin.** `src/engine/066-map-read.c` reads the
+format as the issue describes it — the first word says what the line is
+(`station`, `comparator`, `iterator`, `random`, `weighted`, `spread`,
+`in`, `out`, `include`, or `name = path`), indentation means nothing, `#`
+comments except inside strings, braced values across lines — into a
+description, constructing nothing. Every malformed line becomes a
+problem naming its line, and reading carries on. `map_resolve` is the one
+address resolver. The four ways both ends of a wire can disagree are
+told apart by the loader (306), which is where the whole description is
+at hand.
 
-Phase 2's three operations — place a station, configure a port, draw a
-wire — are enough to build anything. They are not enough to *keep*
-anything. Nothing can be written down, read back, edited, or sent to
-somebody else.
-
-An earlier draft of this issue said the parent project's format was a
-directory of files, one per box, designed for a machine with a
-filesystem and a text editor, and that a device with a touchscreen
-wanted something else. **The first half of that was never true and the
-second half did not need it to be.** The parent's format is one
-line-oriented text file as well. The two designs were never far apart,
-and this issue now takes the parent's, because everything it has that
-this draft lacked was paid for by somebody running into the thing it
-prevents.
+Maps shipped with the system are `src/maps/*.map`; the generator
+compiles them into the image as strings for the device (no filesystem
+yet), and the twin reads them from the project directory.
+`src/maps/reference.map` says every line form once and is loaded by
+test 072. `include` is checked (it must name something the catalogue
+holds) and otherwise does nothing, because every box source is already
+in the image.
 
 ## Intended behavior
 
@@ -236,6 +237,19 @@ has not got. See `phase-3-progress.md`.
   ten and clearly wrong at ten thousand. Encapsulation (309) is the
   answer for the middle, and where the number sits wants finding out
   by writing real maps rather than by guessing here.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Where does a map live before there is a filesystem?* In the image,
+   as a string the generator wrote from `src/maps/`.
+2. *What is a path relative to, for a string in the image?* The path it
+   was read from, kept beside the string ("src/maps/greeting.map"), so its
+   addresses resolve exactly as they would from the file — the parent's
+   answer ("give the text a home") without anywhere to copy it to.
+3. *One program per file?* One per file, as a convention; nothing
+   enforces it.
+4. *Flat at a thousand stations?* Unmeasured; placing maps inside maps
+   (309) is the answer for the middle and it works.
 
 ## Blocked by
 

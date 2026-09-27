@@ -2,14 +2,20 @@
 
 ## Current behavior
 
-**After the C is compiled there is no type information left anywhere.**
+**Built and tested on the twin.** A wire is legal when both ends are the
+same number of bytes; the loader (`068-programs.c`) and the engine's own
+wire operation both check it, and a refusal names both types and both
+widths ("constant_text returns struct text (64 bytes), the port takes
+int64_t (8 bytes)"). Orderings are recognised by name (`text__compare`)
+and carried in the box record as `return_order`; a comparator over a type
+with no ordering is refused at placement. Field tables are emitted per
+value type and used both ways: `067-values.c` reads `{ 5, "hey" }` into
+bytes at the compiler's offsets and writes bytes back as text.
 
-A wire is two numbers. A port is a byte count. Nothing in the running
-engine can tell a 32-bit integer from a 32-bit float, so nothing can
-notice a wire carrying one into a slot expecting the other. The values
-land, are read as the wrong thing, and produce answers nobody can trace.
-
-The catalogue from 302 is the last place that information still exists.
+`073-shapes.c` holds the demonstration: a `point` wires into a `pair`
+(same layout, different name) and the bytes arrive unchanged; a `point`
+wires into a `flipped` (same width, fields reversed) and the fields
+arrive scrambled — tested on purpose, in 074, as a decision.
 
 ## Intended behavior
 
@@ -122,6 +128,14 @@ unconsulted.
   reader should refuse loudly rather than partially fill. It is the
   shape of error somebody hits while editing on the device, so the
   message matters more than usual.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Type names in the ordinary build?* Kept — the person holding the
+   device is exactly who the message is for.
+2. *A fixed value for a struct whose fields changed?* Refused loudly:
+   the value reader refuses too many or too few fields ("struct text has
+   1 fields and the value has more"), never a partial fill.
 
 ## Blocked by
 

@@ -178,6 +178,14 @@ void twin_platform_shutdown(void)
 }
 /* }}} */
 
+/* {{{ platform_caller_token */
+static __thread char caller_token_home;
+uintptr_t platform_caller_token(void)
+{
+    return (uintptr_t)&caller_token_home;
+}
+/* }}} */
+
 /* {{{ platform_core_count */
 int platform_core_count(void)
 {
@@ -359,9 +367,22 @@ void platform_write(const char *text, size_t len)
 }
 /* }}} */
 
+static void (*last_words)(void);
+static _Atomic int halting;
+
+/* {{{ platform_set_last_words */
+void platform_set_last_words(void (*words)(void))
+{
+    last_words = words;
+}
+/* }}} */
+
 /* {{{ platform_halt */
 void platform_halt(const char *why)
 {
+    if (atomic_exchange(&halting, 1) == 0 && last_words) {
+        last_words();
+    }
     fprintf(stderr, "HALT (core %d): %s\n", this_core, why);
     fflush(stderr);
     abort();

@@ -67,7 +67,7 @@ void scrap_retire(struct core_ctx *c, void (*release)(struct core_ctx *c, void *
     if (!s) {
         /* No memory to remember it by: leaking it is the only safe
          * choice, because freeing it now might free something in use. */
-        say("scrapyard: no memory to file a retired item; it is leaked rather than freed early");
+        say_line("scrapyard: no memory to file a retired item; it is leaked rather than freed early");
         return;
     }
     s->release = release;
@@ -173,6 +173,10 @@ static void release_station(struct core_ctx *c, void *thing, int64_t index)
     for (int e = 0; e < s->n_exits; e++) {
         if (s->exits[e].list) {
             block_free(c->number, s->exits[e].list);
+        }
+        if (s->exits[e].held) {
+            port_release(c, s->exits[e].held);
+            block_free(c->number, s->exits[e].held);
         }
     }
     block_free(c->number, s->ports);

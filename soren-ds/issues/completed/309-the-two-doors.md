@@ -2,22 +2,21 @@
 
 ## Current behavior
 
-**A program has no outside.**
+**Built and tested on the twin.** A door is a mark on a port (argument
+N) or an exit (result N) — `engine_mark_argument`, `engine_mark_result`
+— written `in N - K$` / `out N - K$`. An argument slot is derived: marked
+and fed by no wire. A marked exit with nothing wired beyond it holds its
+values for `program_result` instead of discarding them. Numbering gaps
+and repeats are refused at bring-up. A station line whose address is a
+`.map` file places that program inside this one; wires go straight to
+the inner ports and exits the doors name, however deep. Station names
+inside are prefixed with the placing station's name.
 
-Values get in exactly one way: somebody who already knows the program's
-insides names a station and a port and writes to it. Values get out
-only as side effects — a box that draws to a surface, writes a file, or
-says something down the serial line. Nothing anywhere is designated as
-*where this program's arguments arrive* or *where its results come
-from*.
-
-Three things follow, and the third is the expensive one:
-
-| | |
-|---|---|
-| **a program cannot be composed** | a parent has to reach in and name a station by whatever its author called it. Rename that station and every parent breaks. |
-| **a program cannot take arguments** | nothing corresponds to a parameter list; running one with a different input means editing its file |
-| **a leaf box and a composite do not look alike** | a C function announces what it takes and returns in its signature. A program announces neither, so "a program can be used as a box" is aspiration rather than fact. |
+Tests (072, 075): a program fed through its argument doors and read
+through its result door; one map placed twice with two independent
+copies; a marked port that is also wired; renumbering by editing marks
+changes which argument goes where while moving lines changes nothing;
+and the pairing trap, pinned on purpose.
 
 ## Intended behavior
 
@@ -228,6 +227,14 @@ colour become one value, indivisible by anything the scheduler does.
   wants by number. The question only looked hard while a door was a
   station, because then two doors out meant two stations each claiming to
   be the end.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Two copies, distinct names?* A prefix — the placing station's name
+   and a dot — visible in error messages, so the same sub-program's
+   failure reads differently in two parents.
+2. *What records that stations came from one file?* The program record
+   (068): one mechanism for 213, 306 and 309.
 
 ## Blocked by
 

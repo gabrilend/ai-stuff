@@ -32,6 +32,12 @@ uint64_t core_random(struct core_ctx *c)
 xorshift64*: a core's own stream, seeded once. Per-core state, never
 box state, so it breaks no rule about boxes remembering.
 
+### engine_random
+
+```c
+uint64_t engine_random(void)
+```
+
 ### engine_kind_extra_ports
 
 ```c

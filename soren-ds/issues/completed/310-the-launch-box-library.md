@@ -2,11 +2,15 @@
 
 ## Current behavior
 
-**The box library is the eight boxes phase 2 wrote to exercise the
-engine with.**
-
-Enough to prove nothing is lost and to measure how much a run costs.
-Not enough to write a program anybody wants.
+**Built and tested on the twin.** `src/boxes/064-launch.c`: `say_number`
+(and `say` for text, in `063-text.c`), `echo` (says and passes on — for
+putting a report on a path rather than beside it), `clock`,
+`random_number`, `refuse`, `stop_everything`; the calibration pair is
+`065-calibration.c`. Each source takes a trigger it ignores. There is no
+timer box: a timer is `engine_timer`, the engine waking and writing a
+port. Test 075 runs each: the clock, 64 random numbers, a refusal that
+names its value, and a forked machine halted on purpose that says why
+and (debug build) writes out its transcript first.
 
 ## Intended behavior
 
@@ -101,6 +105,14 @@ write.
   this value". Whether that carries a reason a person can read, or only
   a kind, decides what the error slot can hold. This box is the first
   caller and therefore the one that settles it.
+
+### Proposed answers (UNVERIFIED)
+
+1. *Does say need a label?* The engine tells it which station it is
+   running as; the label is the station's name.
+2. *random_byte's width?* 64 bits, the machine's width.
+3. *What does refuse refuse about?* A kind (refused) and a detail (the
+   value); the error slot holds no free text.
 
 ## Blocked by
 

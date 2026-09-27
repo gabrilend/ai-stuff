@@ -99,7 +99,7 @@ int text_format_va(char *out, size_t size, const char *fmt, va_list args);
 
 /* Format one line and hand it to the developer's line (platform_write).
  * A newline is appended if the text does not end in one. */
-void say(const char *fmt, ...);
+void say_line(const char *fmt, ...);
 /* }}} */
 
 /* {{{ small arithmetic */

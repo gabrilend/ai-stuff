@@ -24,7 +24,8 @@
  */
 #define _GNU_SOURCE
 #include "../../src/engine/031-engine-internal.h"
-#include "../../src/engine/038-starter-boxes.h"
+#include "catalogue-boxes.h"
+#include "../../src/engine/038-tallies.h"
 #include "../../src/system/058-draw.h"
 #include "../026-platform-twin.h"
 #include "../041-twin-engine.h"
@@ -57,7 +58,7 @@ static void sleep_us(long us)
 /* {{{ sink_totals */
 static void sink_totals(int32_t sink, uint64_t *count, int64_t *sum)
 {
-    starter_discard_tally(sink, count, sum);
+    tally_read(sink, count, sum);
 }
 /* }}} */
 
@@ -73,8 +74,8 @@ static double measure_box_cost(double *round_ns, double *pass_ns)
 {
     const int VALUES = 400;
     /* coarse */
-    int32_t coarse_sink = engine_place(&box_discard, "coarse-sink", KIND_PLAIN, 0);
-    int32_t coarse = engine_place(&box_chew, "coarse", KIND_PLAIN, 1);
+    int32_t coarse_sink = engine_place(&box__arithmetic__discard, "coarse-sink", KIND_PLAIN, 0);
+    int32_t coarse = engine_place(&box__arithmetic__chew, "coarse", KIND_PLAIN, 1);
     engine_wire(coarse, 0, (struct destination[]){ { coarse_sink, 0 } }, 1);
     engine_configure(coarse_sink, 0, PORT_RING, NULL, 0);
     int64_t rounds = CHEW_TOTAL;
@@ -88,13 +89,13 @@ static double measure_box_cost(double *round_ns, double *pass_ns)
     uint64_t coarse_ns = platform_now_ns() - t0;
 
     /* fine */
-    int32_t fine_sink = engine_place(&box_discard, "fine-sink", KIND_PLAIN, 0);
+    int32_t fine_sink = engine_place(&box__arithmetic__discard, "fine-sink", KIND_PLAIN, 0);
     engine_configure(fine_sink, 0, PORT_RING, NULL, 0);
     int32_t next = fine_sink;
     int32_t first = -1;
     int64_t slice = CHEW_TOTAL / FINE_STEPS;
     for (int i = 0; i < FINE_STEPS; i++) {
-        int32_t s = engine_place(&box_chew, "fine-step", KIND_PLAIN, 1);
+        int32_t s = engine_place(&box__arithmetic__chew, "fine-step", KIND_PLAIN, 1);
         engine_wire(s, 0, (struct destination[]){ { next, 0 } }, 1);
         engine_configure(s, 1, PORT_STATIC, &slice, sizeof slice);
         engine_configure(s, 0, PORT_RING, NULL, 0);
@@ -109,11 +110,11 @@ static double measure_box_cost(double *round_ns, double *pass_ns)
     uint64_t fine_ns = platform_now_ns() - t0;
 
     /* pure engine: a chain of pass boxes, no work at all */
-    int32_t pass_sink = engine_place(&box_discard, "pass-sink", KIND_PLAIN, 0);
+    int32_t pass_sink = engine_place(&box__arithmetic__discard, "pass-sink", KIND_PLAIN, 0);
     engine_configure(pass_sink, 0, PORT_RING, NULL, 0);
     next = pass_sink;
     for (int i = 0; i < FINE_STEPS; i++) {
-        int32_t s = engine_place(&box_pass, "pass-step", KIND_PLAIN, 1);
+        int32_t s = engine_place(&box__arithmetic__pass, "pass-step", KIND_PLAIN, 1);
         engine_wire(s, 0, (struct destination[]){ { next, 0 } }, 1);
         engine_configure(s, 0, PORT_RING, NULL, 0);
         next = s;
@@ -165,21 +166,21 @@ struct program {
 static void build_program(struct program *p, int64_t limit)
 {
     memset(p, 0, sizeof *p);
-    p->sink = engine_place(&box_discard, "endurance-sink", KIND_PLAIN, 0);
+    p->sink = engine_place(&box__arithmetic__discard, "endurance-sink", KIND_PLAIN, 0);
     engine_configure(p->sink, 0, PORT_RING, NULL, 0);
     p->all[p->n_all++] = p->sink;
     struct destination fan[17];
     for (int c = 0; c < cores; c++) {
         int32_t next = p->sink;
         for (int i = 0; i < CHAIN_LENGTH; i++) {
-            int32_t s = engine_place(&box_increment, "inc", KIND_PLAIN, 1);
+            int32_t s = engine_place(&box__arithmetic__increment, "inc", KIND_PLAIN, 1);
             engine_wire(s, 0, (struct destination[]){ { next, 0 } }, 1);
             engine_configure(s, 0, PORT_RING, NULL, 0);
             p->all[p->n_all++] = s;
             next = s;
         }
         if (c == 0) {
-            p->picky = engine_place(&box_picky, "picky", KIND_PLAIN, 1);
+            p->picky = engine_place(&box__arithmetic__picky, "picky", KIND_PLAIN, 1);
             engine_wire(p->picky, 0, (struct destination[]){ { next, 0 } }, 1);
             engine_configure(p->picky, 1, PORT_STATIC, &limit, sizeof limit);
             engine_configure(p->picky, 0, PORT_RING, NULL, 0);
@@ -190,9 +191,9 @@ static void build_program(struct program *p, int64_t limit)
         fan[c].station = next;
         fan[c].port = 0;
     }
-    p->uneven_sink = engine_place(&box_discard, "uneven-sink", KIND_PLAIN, 0);
+    p->uneven_sink = engine_place(&box__arithmetic__discard, "uneven-sink", KIND_PLAIN, 0);
     engine_configure(p->uneven_sink, 0, PORT_RING, NULL, 0);
-    p->uneven = engine_place(&box_add, "uneven", KIND_PLAIN, 1);
+    p->uneven = engine_place(&box__arithmetic__add, "uneven", KIND_PLAIN, 1);
     engine_wire(p->uneven, 0, (struct destination[]){ { p->uneven_sink, 0 } }, 1);
     engine_configure(p->uneven, 0, PORT_RING, NULL, 0);
     engine_configure(p->uneven, 1, PORT_RING, NULL, 0);
@@ -201,7 +202,7 @@ static void build_program(struct program *p, int64_t limit)
     fan[cores].station = p->uneven;
     fan[cores].port = 0;
 
-    p->head = engine_place(&box_pass, "head", KIND_PLAIN, 1);
+    p->head = engine_place(&box__arithmetic__pass, "head", KIND_PLAIN, 1);
     engine_wire(p->head, 0, fan, cores + 1);
     engine_configure(p->head, 0, PORT_RING, NULL, 0);
     p->all[p->n_all++] = p->head;
@@ -411,7 +412,7 @@ int main(int argc, char **argv)
      * one it turns away to an outside tally, so the loss is exact. */
     uint64_t refused_count;
     int64_t refused_sum;
-    starter_refused_tally(p.picky, &refused_count, &refused_sum);
+    tally_refusals(p.picky, &refused_count, &refused_sum);
     uint64_t expect_count = (uint64_t)sent * (uint64_t)cores - refused_count;
     int64_t expect_sum = (sum_sent + sent * CHAIN_LENGTH) * cores
                        - (refused_sum + (int64_t)refused_count * CHAIN_LENGTH);
