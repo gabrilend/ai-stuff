@@ -279,9 +279,13 @@ When a better path to an already-open node is found:
 | Decrease-key | Update priority in heap | Requires heap modification |
 | Lazy deletion | Allow duplicates, skip closed | Uses more memory |
 
-**Decision:** _pending_
-**Decided by:** _pending_
-**Date:** _pending_
+**Decision:** Lazy deletion: each entry carries the g it was pushed with,
+and entries whose g is out of date are skipped when popped. Ties on f go to
+the higher g. No heap index to maintain; ghost entries are bounded by the
+number of path improvements. Reversible if decrease-key is wanted later.
+**Decided by:** Claude, implementing Bounty B01 (for owner review)
+**Date:** 2026-09-29
+**Implementation:** Bounty B01 (`issues/completed/B01-the-phantom-priority.md`)
 
 ---
 
@@ -314,6 +318,8 @@ A* doesn't update priority when better path to same node is found. Old entry rem
 
 **Resolution:** Implement decrease-key or lazy deletion (see OQ-006)
 **Tracking:** Bounty B01
+**Status:** Resolved 2026-09-29 by lazy deletion. The stale priorities also
+made A* return longer-than-shortest paths; see the B01 implementation notes.
 
 ---
 
