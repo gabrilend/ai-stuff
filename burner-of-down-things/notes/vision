@@ -90,3 +90,22 @@ the goal is to be able to say "hello, I'd like my own version of dropbox with th
   A question back: once a blueprint describes behavior rather than code, what proves a rebuilt "Dropbox" actually behaves like Dropbox?
 
 the user is expected to test their own application. The system should make workflows that use the same types of input that the user would provide, to test behavior from end-to-end. We don't have to test against the real product, we just have to describe how it works, and then utilize that description to build our own to solve the same problem, but in our own way, that is customizable as we go. Protocols, not procedures.
+
+
+---
+
+2026-09-29, the studio, the switchboard, the story:
+
+now that we have software that can make software, we should make some "asset generation utilities" - they can be for different filetypes. So one for .png, one for .mp4, one for .txt, and various source-code files under .src (language and version printed at first line of each source-code file) my preferred look is raylib painting lines and surfaces. Usually black background, or gray. Sometimes white and vibrant colors, but only if it's mostly not for night. lots of texturing tricks, like drawing a slightly different color, lighter in 1 quadrant, half and half in two others, and darker in a fourth. But just the line around the middle, as a visual flair. Lots of charts and diagrams with lines drawn and arrows pointed there - here. things like an src file with a string at the beginning that says "language model prompt 14597: something something yadda yadda." then, a light llm decides what to do with it. "draw a circle? Well, it looks like I'm being handed a circle, so here I'll hand this to the place that needs a circle."
+
+let's just plan them out now, ways to create rapid planning structures with arbitrary inputs and outputs. "hmmm, I gotta take this integer array and this string of text and create an image off of it? Great!" "so it looks like an analysis machine, I ran it and I got these results [error error dettected]" "so it looks like the sheep are out of the barn because they pushed through the door. Let's make that heavier to move from the other side."
+
+then, with the ability to create software as we please...
+
+we can write a story to ourselves
+
+narrative like a child
+
+learn lessons, see the sovereignty of others, watch mechanisms
+
+study and develop your strategems

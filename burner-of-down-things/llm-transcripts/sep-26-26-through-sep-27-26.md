@@ -1,6 +1,6 @@
 # Conversation Summary: e8e4c82c-c417-4a78-b8c0-ac2908436973
 
-Generated on: 2026-09-27 12:54:44
+Generated on: 2026-09-27 13:10:26
 Models: claude-opus-5-5
 
 ## Contents
@@ -18,6 +18,10 @@ Models: claude-opus-5-5
    software from its name, with your tweaks; the prototype is built and its live
    Claude Code turn passed. Next: tell me what should prove a rebuilt program
    really behaves like the original.
+4. 2026-09-27 12:57, after Request 14 - We're building a machine that turns
+   software into blueprints and rebuilds customizable versions from them. The
+   check that uses workflows the builder never sees is done and committed. Next,
+   you choose how a failing workflow decides which issue to repair.
 
 --------------------------------------------------------------------------------
 
@@ -1037,6 +1041,110 @@ How should the machine decide which one is guilty?
    picks one, like locating a request.
 3. **Repair the highest issue in the build order first**, since it's built on
    the others, and widen only if it still fails.
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+<pasted_content id="ea37">
+> A new open question came out of this work (question 9 in the open-questions
+> doc). One workflow usually exercises several issues. The tags workflow, for
+> example, touches tag parsing, showing notes, and the notes command. When it
+> fails, all three get a repair turn, though only one
+> was at fault. A repair turn on innocent code can break working code for no
+> reason.
+>
+>   How should the machine decide which one is guilty?
+</pasted_content id="ea37">
+
+
+do a small audit of the functionality to ensure that we didn't design it wrong.
+If no fixes are required, then the code won't change. Compare a before/after
+checksum of just that component, and if it's the same for all three, then
+combine them into groups of 2 (if there's one left over, then ignore it, because
+it's already been analyzed) and try again. The grouping is to see if there's a
+relationship between two of the components, selected randomly. If no, then try
+merging again. At this point in the example of three, there'd be one group. We'd
+then try and find the flaw in the one, massive group, which is harder, but, this
+is what happens when we can't fix it individually, we gotta look at the bigger
+picture. Once we identify the part that needs a fix, not what the fix is just
+the part that needs it, then we reduce our view again until we're within fixing
+range. Then we apply the fix. Dynamic re-abstraction.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+> I read this as your answer to question 9, and as the design to build: widen
+> the view only when the narrow look finds nothing, then narrow back to fix.
+> Here's how I'll implement it:
+>
+> 1. **Audit each covered issue alone**, one at a time. The audit turn fixes its
+>    own part only if the fault is there. A checksum of the design before and
+>    after says whether it changed anything. After each change, the failing
+>    workflow runs again, and the audits stop once it passes.
+> 2. **If no single audit changed anything:** pair the issues at random (an odd
+>    one out is skipped, since it was already audited alone). Each pair gets an
+>    inspection turn that only names which part holds the flaw and why. It
+>    writes no code.
+> 3. **If no pair names one:** merge into bigger groups, and finally one group
+>    holding everything the workflow covers.
+> 4. **Once a part is named:** narrow back down, and audit that one issue with
+>    the finding in hand.
+>
+> The random pairing is seeded from the ledger's head hash, so anyone holding
+> the ledger gets the same pairs. Writing the issue first:
+
+> Now the code: two new turn kinds, two ledger kinds, and the search itself.
+
+> Wiring the search into delivery, in place of repairing every covered issue:
+
+> Now the fixture's audit and inspect turns, with two new switches: a bug that
+> no single audit finds (only a wider look names it), and a bug nobody finds.
+
+> Those two failures are expected: the old check looked for repair turns, and
+> now it's an audit. Updating that check, then writing the checks for the search
+> itself:
+
+*[commit] e37b167c9 in ai-stuff - Find a failing workflow's fault by dynamic re-abstraction*
+
+Dynamic re-abstraction is built and committed, and all 13 check files pass.
+
+**What happens now when a workflow fails:**
+1. **Each part it covers is audited alone.** An audit fixes its own part or
+   changes nothing. A checksum of the design before and after says which. The
+   search stops the moment the workflow passes, so innocent parts are never
+   touched after the fix.
+2. **If no audit changed anything**, the parts are paired at random (the odd one
+   out is skipped), then merged into bigger groups, until one group holds
+   everything. These wider looks write no code; each only names the part that
+   needs fixing.
+3. **The first part named is audited again, alone, with the finding in hand.**
+   That's where the fix is made.
+4. **If even the widest look finds nothing**, the workflow is recorded as failed
+   and the design isn't delivered.
+
+The random order is seeded from the ledger's head, so the same history always
+gives the same search.
+
+**Demonstrated in `./run-phase-demo 5`:**
+- **Case three:** one audit of 201 fixes the fault, and nothing else is touched.
+- **Case four:** the fault is hidden from every part looked at alone. All three
+  audits find nothing, then the pair 201+301 names 201, and narrowing back to
+  201 with that finding fixes it.
+
+**One decision I made beyond your words:** if an audit changes the design but
+the workflow still fails, the machine repeats the single-part audits once more
+before widening. My reasoning was that a change means a narrow look did find
+something, so the narrow range deserves one more try.
+
+Here's the question that decision rests on: when a narrow fix changes something
+but doesn't cure the failure, is that evidence the fault is local and needs
+another pass, or evidence the fault spans parts and the view should widen right
+away? One could argue either way. Which does your picture of the process say?
+
+Still waiting on your answers: open questions 1–6 and 8 in the open-questions
+doc.
 
 --------------------------------------------------------------------------------
 
