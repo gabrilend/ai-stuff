@@ -34,6 +34,7 @@ local layout = require("ui.wc3.layout")
 local commands = require("ui.wc3.commands")
 local icons = require("ui.wc3.icons")
 local designs = require("geometry.designs")
+local script_ui = require("ui.wc3.script_ui")
 
 local Hud = {}
 Hud.__index = Hud
@@ -106,7 +107,7 @@ end
 function Hud:heroes()
     local list = {}
     for _, u in ipairs(self.game.units) do
-        if self:own(u) and u.spec.hero and u.alive ~= false then list[#list + 1] = u end
+        if self:own(u) and u.spec.hero and not u.hidden and not u.removed then list[#list + 1] = u end
     end
     return list
 end
@@ -161,7 +162,7 @@ function Hud:pick(mx, my)
     local best, best_d = nil, math.huge
     for _, u in ipairs(self.game.units) do
         local sx, sy
-        if u.alive ~= false then sx, sy = screen_point(self.game, u) end
+        if u.alive ~= false and not u.hidden then sx, sy = screen_point(self.game, u) end
         if sx then
             local reach = u.spec.design == "building" and 44 or 22
             local d = (sx - mx) ^ 2 + (sy - my) ^ 2
@@ -179,7 +180,7 @@ function Hud:box_select(x0, y0, x1, y1)
     if y0 > y1 then y0, y1 = y1, y0 end
     local mobile, buildings = {}, {}
     for _, u in ipairs(self.game.units) do
-        if self:own(u) and u.alive ~= false then
+        if self:own(u) and u.alive ~= false and not u.hidden then
             local sx, sy = screen_point(self.game, u)
             if sx and sx >= x0 and sx <= x1 and sy >= y0 and sy <= y1 then
                 table.insert(u.spec.design == "building" and buildings or mobile, u)
@@ -272,8 +273,10 @@ end
 function Hud:update(input, dt)
     self.time = self.time + (dt or 0)
     local r, game = self.r, self.game
-    local mx, my = input.mx or 0, input.my or 0
     self.alt = input.alt
+    -- the map's script: chat typing, its dialogs, Esc (ui/wc3/script_ui.lua)
+    script_ui.update(self, input)
+    local mx, my = input.mx or 0, input.my or 0
 
     -- the dead leave selections and groups
     local function living(list)
@@ -532,6 +535,7 @@ function Hud:draw(ui)
         text(ui, "Select a target (right click or Esc to cancel)", r.messages.x, r.console.y - 28, 18, C.yellow)
     end
     if self.panel then self:draw_panel(ui) end
+    script_ui.draw(self, ui)
 end
 -- }}}
 
@@ -546,7 +550,7 @@ function Hud:draw_health(ui)
     local chosen = {}
     for _, u in ipairs(self.selection) do chosen[u] = true end
     for _, u in ipairs(game.units) do
-        if u.alive ~= false and u.hp_max and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
+        if u.alive ~= false and not u.hidden and u.hp_max and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
             and (self.alt or chosen[u] or (u.hp or u.hp_max) < u.hp_max) then
             local building = u.spec.design == "building"
             local sx, sy, ahead = game.to_screen(u.x, u.y, u.z + (building and 280 or 120))
@@ -618,7 +622,7 @@ function Hud:draw_console(ui)
         rect(ui, mm.x, mm.y, mm.w, mm.h, { 8, 8, 10 })
     end
     for _, u in ipairs(game.units) do
-        if u.alive ~= false and (self.toggles.creeps or u.player ~= 12) then
+        if u.alive ~= false and not u.hidden and (self.toggles.creeps or u.player ~= 12) then
             local px, py = self:world_to_minimap(u.x, u.y)
             local c = team_of(u)
             if self.toggles.ally_colors then
@@ -778,16 +782,29 @@ end
 -- {{{ Hud:draw_messages
 function Hud:draw_messages(ui)
     local r = self.r
+    -- the interface's own notes (8 seconds) and the script's (as long as
+    -- it asked), oldest first, as screen lines
     local shown = {}
     for _, m in ipairs(self.messages) do
-        if self.time - m.at < 8 then shown[#shown + 1] = m end
+        if self.time - m.at < 8 then shown[#shown + 1] = { text = m.text, at = m.at, fade = 8 - (self.time - m.at) } end
     end
-    local first = math.max(1, #shown - 5)
-    for i = first, #shown do
-        local m = shown[i]
-        local fade = math.max(0, math.min(1, 8 - (self.time - m.at)))
-        ui.ui_text(m.text, r.messages.x, r.messages.y + (i - first) * r.messages.line, 18,
-                   C.text[1], C.text[2], C.text[3], math.floor(255 * fade))
+    local V = self.game.script
+    if V then
+        for _, m in ipairs(V.messages) do shown[#shown + 1] = { text = m.text, at = m.at, fade = m.ends - V.time } end
+    end
+    table.sort(shown, function(a, b) return a.at < b.at end)
+    local lines = {}
+    for _, m in ipairs(shown) do
+        for _, line in ipairs(script_ui.lines(ui, m.text, 18, r.messages.w)) do
+            lines[#lines + 1] = { text = line, fade = m.fade }
+        end
+    end
+    local first = math.max(1, #lines - 7)
+    local y0 = r.messages.y - math.max(0, math.min(8, #lines) - 6) * r.messages.line
+    for i = first, #lines do
+        local l = lines[i]
+        local alpha = math.floor(255 * math.max(0, math.min(1, l.fade)))
+        script_ui.text(ui, l.text, r.messages.x, y0 + (i - first) * r.messages.line, 18, C.text, alpha)
     end
 end
 -- }}}
@@ -865,7 +882,11 @@ function Hud:draw_panel(ui)
                 text(ui, pl.name, p.x + 42, y, 16, C.text)
                 for k = 0, 2 do
                     frame(ui, p.x + 268 + k * 70, y, 16, 16, 2, C.trim_dark)
-                    if pl.team == game.team and k < 2 then rect(ui, p.x + 272 + k * 70, y + 4, 8, 8, C.green) end
+                    local on
+                    local sp = game.script and game.script.players[game.player]
+                    if sp then on = (k == 0 and sp.ally[pl.number]) or (k == 1 and sp.vision[pl.number])
+                    else on = pl.team == game.team and k < 2 end
+                    if on then rect(ui, p.x + 272 + k * 70, y + 4, 8, 8, C.green) end
                 end
                 y = y + 24
             end

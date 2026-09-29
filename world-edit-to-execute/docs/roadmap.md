@@ -282,7 +282,9 @@ src/
 ├── jass/
 │   ├── lexer.lua        # JASS tokenization
 │   ├── parser.lua       # JASS AST generation
-│   └── transpiler.lua   # JASS-to-Lua transpilation
+│   ├── transpiler.lua   # JASS-to-Lua transpilation
+│   ├── vm.lua           # Runs a map's war3map.j: threads, waits, events, timers (520)
+│   └── natives/         # common.j natives and our own Blizzard.j functions (520)
 ├── runtime/
 │   ├── triggers/        # Trigger framework
 │   │   ├── init.lua     # Trigger API

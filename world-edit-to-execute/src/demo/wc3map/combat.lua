@@ -76,37 +76,39 @@ end
 -- }}}
 
 -- {{{ combat.init
--- Give every unit hit points and an attack (or none)
-function combat.init(game)
-    for _, u in ipairs(game.units) do
-        local s
-        if u.spec.design == "building" then
-            s = u.spec.size == "tower" and combat.TOWER or nil
-            u.hp_max = u.hp_max or combat.BUILDING_HP[u.spec.size or "medium"] or 1000
-            u.armor = u.armor or 5
-        else
-            s = combat.STANDINS[u.spec.archetype or "infantry"] or combat.STANDINS.infantry
-            u.hp_max = u.hp_max or (u.spec.hero and s.hp * 1.6 or s.hp)
-            u.armor = u.armor or (u.spec.hero and s.armor + 2 or s.armor)
-        end
-        u.hp = u.hp_max
-        u.alive = true
-        if s and u.attacks ~= 0 then
-            u.weapon = {
-                dmg_lo = u.dmg_base and (u.dmg_base + (u.dmg_dice or 1)) or (u.spec.hero and s.dmg_lo + 10 or s.dmg_lo),
-                dmg_hi = u.dmg_base and (u.dmg_base + (u.dmg_dice or 1) * (u.dmg_sides or 1))
-                    or (u.spec.hero and s.dmg_hi + 14 or s.dmg_hi),
-                cooldown = u.cooldown_field or s.cooldown,
-                range = u.range_field or s.range,
-                acquire = u.acquire_field or s.acquire,
-                attack_point = s.attack_point, backswing = s.backswing,
-                missile = s.missile,
-            }
-            u.weapon.acquire = math.max(u.weapon.acquire, u.weapon.range)
-        end
-        u.cooldown = 0
-        u.home = { x = u.x, y = u.y }
+-- Give a unit (or every unit) hit points and an attack (or none)
+function combat.init_unit(u)
+    local s
+    if u.spec.design == "building" then
+        s = u.spec.size == "tower" and combat.TOWER or nil
+        u.hp_max = u.hp_max or combat.BUILDING_HP[u.spec.size or "medium"] or 1000
+        u.armor = u.armor or 5
+    else
+        s = combat.STANDINS[u.spec.archetype or "infantry"] or combat.STANDINS.infantry
+        u.hp_max = u.hp_max or (u.spec.hero and s.hp * 1.6 or s.hp)
+        u.armor = u.armor or (u.spec.hero and s.armor + 2 or s.armor)
     end
+    u.hp = u.hp_max
+    u.alive = true
+    if s and u.attacks ~= 0 then
+        u.weapon = {
+            dmg_lo = u.dmg_base and (u.dmg_base + (u.dmg_dice or 1)) or (u.spec.hero and s.dmg_lo + 10 or s.dmg_lo),
+            dmg_hi = u.dmg_base and (u.dmg_base + (u.dmg_dice or 1) * (u.dmg_sides or 1))
+                or (u.spec.hero and s.dmg_hi + 14 or s.dmg_hi),
+            cooldown = u.cooldown_field or s.cooldown,
+            range = u.range_field or s.range,
+            acquire = u.acquire_field or s.acquire,
+            attack_point = s.attack_point, backswing = s.backswing,
+            missile = s.missile,
+        }
+        u.weapon.acquire = math.max(u.weapon.acquire, u.weapon.range)
+    end
+    u.cooldown = 0
+    u.home = { x = u.x, y = u.y }
+end
+
+function combat.init(game)
+    for _, u in ipairs(game.units) do combat.init_unit(u) end
     game.volley = behaviors.volley()
 end
 -- }}}
@@ -117,6 +119,7 @@ function combat.hostile(game, a, b)
     local pa, pb = a.player, b.player
     if pa >= 13 or pb >= 13 then return false end   -- neutral passive and others
     if pa == 12 or pb == 12 then return true end    -- neutral hostile
+    if game.allied then return not game.allied(pa, pb) end   -- as a running script says
     return game.team_of(pa) ~= game.team_of(pb)
 end
 -- }}}
@@ -147,7 +150,7 @@ local function nearest_hostile(game, u, r)
             local list = game.buckets[bx * 65536 + by]
             if list then
                 for _, v in ipairs(list) do
-                    if v.alive and combat.hostile(game, u, v) then
+                    if v.alive and not v.invulnerable and not v.hidden and combat.hostile(game, u, v) then
                         local d = (v.x - u.x) ^ 2 + (v.y - u.y) ^ 2
                         if d < best_d then best, best_d = v, d end
                     end
@@ -174,18 +177,23 @@ end
 -- }}}
 
 -- {{{ damage
-function combat.damage(game, attacker, target, amount)
+function combat.kill(game, target, attacker)
     if not target.alive then return end
+    target.hp = 0
+    target.alive = false
+    target.died_at = game.time
+    target.order, target.route, target.target, target.swing = nil, nil, nil, nil
+    game.deaths = (game.deaths or 0) + 1
+    if target.spec.design == "building" then game.buildings_changed = true end
+    if game.on_death then game.on_death(target, attacker) end
+end
+
+function combat.damage(game, attacker, target, amount)
+    if not target.alive or target.invulnerable then return end
     target.hp = target.hp - combat.reduce(amount, target.armor)
     target.last_hit = game.time
     if target.hp <= 0 then
-        target.hp = 0
-        target.alive = false
-        target.died_at = game.time
-        target.order, target.route = nil, nil
-        game.deaths = (game.deaths or 0) + 1
-        if target.spec.design == "building" then game.buildings_changed = true end
-        if game.on_death then game.on_death(target, attacker) end
+        combat.kill(game, target, attacker)
         return
     end
     -- struck: turn on the attacker if not already busy, and not told to move
@@ -216,7 +224,7 @@ end
 function combat.update(game, dt)
     build_buckets(game)
     for _, u in ipairs(game.units) do
-        if u.alive and u.weapon then
+        if u.alive and u.weapon and not u.paused then
             u.cooldown = math.max(0, u.cooldown - dt)
             local o = u.order
             local moving = o and o.kind == "move"
@@ -224,7 +232,7 @@ function combat.update(game, dt)
 
             -- drop a target that died, turned friendly, or (creeps) led too far
             local t = u.target
-            if t and (not t.alive or not combat.hostile(game, u, t)) then
+            if t and (not t.alive or t.invulnerable or not combat.hostile(game, u, t)) then
                 u.target, t = nil, nil
                 if o and o.kind == "attack_unit" then u.order = nil end
             end
@@ -275,6 +283,7 @@ function combat.update(game, dt)
                     elseif u.cooldown <= 0 and (off <= math.rad(20) or u.spec.design == "building") then
                         u.swing, u.struck = 0, false
                         u.cooldown = u.weapon.cooldown
+                        if game.on_attack then game.on_attack(u, t) end
                     end
                 end
             end

@@ -1,5 +1,5 @@
 --[[
-WC3 Map Scene Script (Issues 517e, 518c)
+WC3 Map Scene Script (Issues 517e, 518c, 520)
 
 Run by src/render/scene_viewer.c (see src/render/run-map). Loads a map
 (SCENE_ARG, else WC3_MAP, else the project's DAoW 5.4b), builds its
@@ -16,6 +16,12 @@ Unattended runs (screenshots, tests) can script input with SCENE_ACTIONS:
     click:x,y  rclick:x,y  drag:x0,y0,x1,y1  hover:x,y   (screen pixels)
     ground:ACTION:x,y  the same at the screen point over WC3 point x, y
     camera:x,y[,d]
+    chat:TEXT          the local player says TEXT (to the map's script)
+    dialog:N           press button N of the dialog showing
+    wait:              (nothing; a marker)
+
+WC3_SCRIPT=0 reads the units from the script's text instead of running it
+(issue 520); WC3_SCRIPT_VERBOSE=1 prints the script's errors as they come.
 ]]
 
 local render = require("render")
@@ -42,7 +48,22 @@ local chunks = render.land_build(t.width, t.height, t.offset_x, t.offset_y, 128,
 -- }}}
 
 -- {{{ the game and its interface
-local game = game_mod.new(s, { player = tonumber(os.getenv("WC3_PLAYER") or "0") })
+-- the map's own script runs (jass/vm.lua) and makes its units, unless
+-- WC3_SCRIPT=0 (then the units are read from the script's text)
+local player = tonumber(os.getenv("WC3_PLAYER") or "0")
+local game
+if os.getenv("WC3_SCRIPT") ~= "0" then
+    game = game_mod.new(s, { player = player, placed = false })
+    local V, err = game.run_script({ verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1" })
+    if V then
+        print(string.format("[script] running: %d units made, %d quests, load %.2fs, main %.2fs",
+            #game.units, #V.quests, V.stats.load_seconds, V.stats.main_seconds))
+    else
+        print("[script] couldn't run the map's script (" .. tostring(err) .. "); units read from its text")
+        game = nil
+    end
+end
+game = game or game_mod.new(s, { player = player })
 local sw, sh = render.ui_screen()
 game.minimap.image = render.ui_image_load(game.minimap.size, game.minimap.size, game.minimap.rgba)
 game.to_screen = viewer.to_screen
@@ -87,7 +108,7 @@ local function bake_buildings()
     render.geo_unbake(BUILDINGS)
     local list = {}
     for _, u in ipairs(game.units) do
-        if u.spec.design == "building" and u.alive then
+        if u.spec.design == "building" and u.alive and not u.hidden then
             for _, p in ipairs(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1)) do list[#list + 1] = p end
         end
     end
@@ -139,6 +160,21 @@ end
 
 -- turn one scripted action into this frame's input
 local function scripted(what, input)
+    local said = what:match("^chat:(.*)$")
+    if said then
+        if game.script then
+            hud:message(game.script:player(game.player).name .. ": " .. said)
+            game.script:chat(game.player, said)
+        end
+        return
+    end
+    local pressed = what:match("^dialog:(%d+)$")
+    if pressed then
+        local d = game.script and game.script:shown_dialogs()[1]
+        local b = d and d.buttons[tonumber(pressed)]
+        if b then game.script:click(b, game.player) end
+        return
+    end
     local kind, rest = what:match("^(%a+):?(.*)$")
     if kind == "ground" then
         local inner, gx, gy = rest:match("^(%a+):([%-%d%.]+),([%-%d%.]+)$")
@@ -210,6 +246,7 @@ function scene_paint()
     else
         local mx, my, lp, ld, lr, rp = viewer.mouse()
         input = { mx = mx, my = my, lp = lp, ld = ld, lr = lr, rp = rp, keys = viewer.keys(),
+                  chars = viewer.chars and viewer.chars() or "",
                   shift = viewer.key_down("SHIFT"), ctrl = viewer.key_down("CTRL"), alt = viewer.key_down("ALT") }
     end
     hud:update(input, 0)
@@ -221,7 +258,7 @@ function scene_paint()
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
     for _, u in ipairs(game.units) do
-        if u.spec.design ~= "building" and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
+        if u.spec.design ~= "building" and not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
             -- the fallen lie flat until they go
             add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, u.alive and 1 or { 1, 1, 0.2 }))
         end
