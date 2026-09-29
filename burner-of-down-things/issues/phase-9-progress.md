@@ -6,4 +6,18 @@ The switchboard: parcels with arbitrary inputs, routed by a light local model to
 Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/burner-of-down-things -m`.
 
 ## Completed Issues
-(None yet.)
+- 903a the row — a harness-table row for `ollama` (037): free per call,
+  local, refuses a turn with no model named rather than guess one.
+- 901a the parcel folder — reading every file dropped in a switchboard
+  folder as one parcel; an empty folder is nothing arrived, not an error.
+- 902a scalar types — recognisers for `integer-array`, `number-array` and
+  `text`, without a model, tried in that order; the closed list of all
+  eleven shape types.
+- 905a the shape graph — a station table (any table shaped like one) read
+  as nodes (shapes) and edges (stations), built generically so it did not
+  have to wait on 902d.
+
+903b-d, 901b-d, 902b-d and 905b-d remain: the needs check, model-name
+resolution and confinement; tag parsing, number issuance and reuse
+refusal; structured and remaining types plus the real station table;
+shortest-chain search, joint checking and plan execution.

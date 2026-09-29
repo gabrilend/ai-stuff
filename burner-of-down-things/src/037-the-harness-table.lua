@@ -143,6 +143,24 @@ harnesses.TABLE = {
             return table.concat(parts, " ")
         end,
     },
+    -- The switchboard's router (docs/068, issue 903): a small local model,
+    -- free per call. `turn.model` names which one; this row does not choose
+    -- it (903c resolves that) and refuses rather than guess.
+    ollama = {
+        name = "ollama",
+        needs = { "ollama" },
+        cost = "local",
+        pool = 2,
+        limit = 120,
+        command = function(project, turn)
+            if not turn.model then
+                error("harnesses: an ollama turn must name turn.model (903c resolves this)")
+            end
+            -- The prompt arrives on standard input, like every other row.
+            return "ollama run " .. fs.quote(turn.model)
+                .. " < " .. fs.quote(turn.folder .. "/prompt.md")
+        end,
+    },
 }
 
 -- {{{ function harnesses.row

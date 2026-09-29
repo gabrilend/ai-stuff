@@ -4,7 +4,10 @@
 
 ## Current Behavior
 
-A parcel can be routed to one station.
+905a is built (issues/completed/905a-shape-graph.md): a station table (any
+table of that shape) reads as a graph. 905b (shortest-chain search), 905c
+(joint checking) and 905d (plan execution) are not yet built, so a parcel
+can still only be routed to one station.
 
 ## Intended Behavior
 
@@ -16,6 +19,13 @@ A parcel can be routed to one station.
 
 1. Finding plans. **Test:** `integer-array + text → image` becomes table → chart → png; an impossible shape says which type cannot be reached.
 2. Running a plan. **Test:** a two-station plan runs end to end and every intermediate parcel is kept.
+
+## Sub-issues
+
+- 905a — the shape graph
+- 905b — shortest-chain search
+- 905c — joint checking
+- 905d — plan execution
 
 ## Blocked by
 

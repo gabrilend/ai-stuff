@@ -4,11 +4,14 @@ The programs that run a turn. A **row**: `name`, `needs` (programs),
 `cost` (`free`, `subscription`), `pool` (default turns at once), `limit`
 (seconds), `command(project, turn)` → the program line.
 
-Rows: `stand-in` (038, no model) and `claude-code` (`claude -p`, restricted
+Rows: `stand-in` (038, no model); `claude-code` (`claude -p`, restricted
 to file tools, reaching only the turn's folders through `--add-dir`, writes
 into read-only folders denied by a settings rule, anything that would ask
 refused, instructions appended to the system prompt, prompt on standard
-input, single JSON result).
+input, single JSON result); `ollama` (issue 903, docs/068 — the switchboard's
+router; `ollama run <turn.model>`, prompt on standard input; refuses a turn
+with no `turn.model` rather than guess one — 903c resolves that name, this
+row only runs it).
 
 | Function | In | Out |
 |---|---|---|
