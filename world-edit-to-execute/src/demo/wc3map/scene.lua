@@ -199,7 +199,8 @@ function map_scene.load(path)
         local spec = classify.doodad(d.id, info)
         if spec then
             spec.variant = d.variation
-            s.doodads[#s.doodads + 1] = { spec = spec, x = d.position.x, y = d.position.y,
+            s.doodads[#s.doodads + 1] = { spec = spec, id = d.id, variation = d.variation,
+                x = d.position.x, y = d.position.y,
                 z = d.position.z, facing = d.angle or 0,
                 scale = { d.scale.x or 1, d.scale.y or 1, d.scale.z or 1 } }
             s.counts.doodads = s.counts.doodads + 1

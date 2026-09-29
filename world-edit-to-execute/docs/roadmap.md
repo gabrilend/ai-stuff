@@ -222,7 +222,13 @@ src/
 │   ├── unitsdoo.lua     # Units/buildings (UnitTable class)
 │   ├── w3r.lua          # Regions (RegionTable class)
 │   ├── w3c.lua          # Cameras (CameraTable class)
-│   └── w3s.lua          # Sounds (SoundTable class)
+│   ├── w3s.lua          # Sounds (SoundTable class)
+│   ├── jpeg.lua         # JPEG, baseline and progressive (522)
+│   ├── blp.lua          # BLP1 textures: JPEG and paletted (522)
+│   ├── tga.lua          # TGA images (522)
+│   ├── png.lua          # PNG images (522)
+│   ├── mdx.lua          # MDX models, every chunk (522)
+│   └── gltf.lua         # glTF/GLB models, in and out (522)
 ├── gameobjects/
 │   ├── init.lua         # Module documentation and exports
 │   ├── doodad.lua       # Doodad class
@@ -285,6 +291,11 @@ src/
 │   ├── transpiler.lua   # JASS-to-Lua transpilation
 │   ├── vm.lua           # Runs a map's war3map.j: threads, waits, events, timers (520)
 │   └── natives/         # common.j natives and our own Blizzard.j functions (520)
+├── assets/              # Art: where it comes from and how it's drawn (522)
+│   ├── init.lua         # The map's archive, then the install; which model a type uses
+│   ├── gpu.lua          # MDX (and glTF) onto the renderer
+│   ├── tool.lua         # texture -> PNG, model -> GLB
+│   └── comfy.lua        # ComfyUI workflows (comfyui/): write, check, export
 ├── ai/                  # Computer players (521)
 │   ├── init.lua         # One AI per computer player: map-started, melee or filled in
 │   ├── player.lua       # The mechanism: captains, counts, targets, fleeing, defending

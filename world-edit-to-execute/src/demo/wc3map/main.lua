@@ -106,12 +106,58 @@ end
 local hud = hud_mod.new(game, sw, sh)
 -- }}}
 
+-- {{{ models: the map's and the install's (issue 522); WC3_MODELS=0 for
+-- the geometry designs only
+local assets_mod = require("assets")
+local gpu = require("assets.gpu")
+local A = os.getenv("WC3_MODELS") ~= "0" and assets_mod.open(path, { root = ROOT }) or nil
+local model_cache = A and gpu.new(render, A)
+local model_ids = {}
+local object_data = s.map.object_data
+local function model_of(kind, id, variation)
+    if not A then return nil end
+    local key = kind .. ":" .. id .. ":" .. tostring(variation or "")
+    local v = model_ids[key]
+    if v == nil then
+        local m, mpath = A:model_for(kind, id, variation, object_data)
+        v = m and model_cache:build(m, mpath) or false
+        model_ids[key] = v
+    end
+    return v or nil
+end
+local function team_rgb(player)
+    local c = designs.TEAM[player] or designs.TEAM[15] or { 200, 200, 200 }
+    return c[1], c[2], c[3]
+end
+-- placed doodads drawn as models, and those left to the designs
+local doodad_models, designed_doodads = {}, {}
+for _, d in ipairs(s.doodads) do
+    local id = d.id and model_of("placed", d.id, d.variation)
+    if id then
+        doodad_models[#doodad_models + 1] = { id = id, d = d }
+    else
+        designed_doodads[#designed_doodads + 1] = d
+    end
+end
+if A then
+    local r = A:report()
+    local typed, drawn = 0, 0
+    for _, u in ipairs(game.units) do
+        if model_of("unit", u.id) then drawn = drawn + 1 end
+    end
+    for _, v in pairs(model_ids) do if v then typed = typed + 1 end end
+    print(string.format("[models] install: %s%s; %d model types; placed with models: %d of %d units, %d of %d doodads",
+        r.install or "none (the map's own imports only)", r.chain_note and (" (" .. r.chain_note .. ")") or "",
+        typed, drawn, #game.units, #doodad_models, #s.doodads))
+end
+-- }}}
+
 -- {{{ bake doodads (group 0) and buildings (group 1: re-baked when one
 -- falls); mobile units are drawn each frame
 local DOODADS, BUILDINGS = 0, 1
 local statics = {}
 local function add(list) for _, p in ipairs(list) do statics[#statics + 1] = p end end
-for _, d in ipairs(s.doodads) do add(designs.build(d.spec, d.x, d.y, d.z, d.facing, d.scale)) end
+for _, d in ipairs(designed_doodads) do add(designs.build(d.spec, d.x, d.y, d.z, d.facing, d.scale)) end
 local painted = kit.emit_prims(statics, render, false, 0)
 local baked = render.geo_bake(16, DOODADS)
 
@@ -119,7 +165,7 @@ local function bake_buildings()
     render.geo_unbake(BUILDINGS)
     local list = {}
     for _, u in ipairs(game.units) do
-        if u.spec.design == "building" and u.alive and not u.hidden then
+        if u.spec.design == "building" and u.alive and not u.hidden and not model_of("unit", u.id) then
             for _, p in ipairs(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1)) do list[#list + 1] = p end
         end
     end
@@ -269,9 +315,22 @@ function scene_paint()
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
     for _, u in ipairs(game.units) do
-        if u.spec.design ~= "building" and not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
-            -- the fallen lie flat until they go
-            add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, u.alive and 1 or { 1, 1, 0.2 }))
+        if not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
+            local mid = model_of("unit", u.id)
+            if mid then
+                -- the fallen fade until they go
+                local r, g, b = team_rgb(u.player)
+                render.model_draw(mid, u.x, u.y, u.z, u.facing or 0, u.model_scale or 1, r, g, b, u.alive and 1 or 0.45)
+            elseif u.spec.design ~= "building" then
+                -- the fallen lie flat until they go
+                add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, u.alive and 1 or { 1, 1, 0.2 }))
+            end
+        end
+    end
+    for _, dm in ipairs(doodad_models) do
+        local d = dm.d
+        if math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
+            render.model_draw(dm.id, d.x, d.y, d.z, d.facing or 0, d.scale and d.scale[1] or 1, 255, 255, 255)
         end
     end
     for _, a in ipairs(game.volley.arrows) do

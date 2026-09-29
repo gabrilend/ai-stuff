@@ -15,6 +15,7 @@
 #include "geometry.h"
 #include "landscape.h"
 #include "ui2d.h"
+#include "models.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -377,6 +378,12 @@ static const luaL_Reg render_funcs[] = {
     {"ui_image", l_ui_image},
     {"ui_portrait", l_ui_portrait},
     {"ui_screen", l_ui_screen},
+    /* Textured models (522c) */
+    {"tex_create", l_tex_create},
+    {"mesh_create", l_mesh_create},
+    {"model_create", l_model_create},
+    {"model_draw", l_model_draw},
+    {"model_stats", l_model_stats},
     {NULL, NULL}
 };
 
