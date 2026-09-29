@@ -111,7 +111,10 @@ end
 -- {{{ map_renderer.load_terrain
 -- Converts terrain data to render commands.
 -- Creates a terrain grid and sets tile colors from w3e data.
-function map_renderer.load_terrain(map)
+-- north_up: lay tile row y at render z = -y (north toward -z), which keeps
+-- the map from being drawn mirror-imaged; see geometry/kit.lua to_render.
+-- Off by default, so the threaded demo draws as it always has.
+function map_renderer.load_terrain(map, north_up)
     local terrain = map.terrain
     if not terrain then
         print("[map_renderer] No terrain data in map")
@@ -149,7 +152,8 @@ function map_renderer.load_terrain(map)
             local tile = terrain:get_tile(x, y)
             if tile then
                 local color = get_tile_color(tile, terrain.ground_tilesets)
-                table.insert(tiles_data, { x, y, color[1], color[2], color[3] })
+                local row = north_up and (h - 1 - y) or y
+                table.insert(tiles_data, { x, row, color[1], color[2], color[3] })
             end
         end
     end
