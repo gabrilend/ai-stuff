@@ -25,7 +25,7 @@
 #include "raylib.h"
 
 #define GEO_MAX_STATIC  400000   /* grows as needed up to this */
-#define GEO_MAX_DYNAMIC 16384
+#define GEO_MAX_DYNAMIC 65536
 
 typedef enum {
     GEO_BOX,
@@ -56,6 +56,12 @@ void geometry_draw(void);   /* static, then dynamic; empties dynamic */
 int  geometry_bake(float chunk_size);
 void geometry_set_view(float cx, float cz, float radius);
 
+/* Portrait layer (518a): while the target is the portrait, primitives go to
+ * a list that ui2d draws into the portrait texture, then empties */
+#define GEO_MAX_PORTRAIT 1024
+void geometry_set_portrait_target(bool on);
+void geometry_draw_portrait(void);
+
 /* The flat shade of a face with corners a, b, c (shared with landscape.c) */
 Color geometry_shade(Vector3 a, Vector3 b, Vector3 c, Color col);
 /* }}} */
@@ -67,6 +73,7 @@ Color geometry_shade(Vector3 a, Vector3 b, Vector3 c, Color col);
  * render.geo_clear([dynamic])     (no argument: both layers, and baked chunks)
  * render.geo_count([dynamic]) -> n
  * render.geo_bake(chunk_size) -> chunks   (517b)
+ * render.geo_target("portrait" | "world")  (518a)
  */
 int l_geo_box(lua_State* L);
 int l_geo_wedge(lua_State* L);
@@ -74,6 +81,7 @@ int l_geo_quad(lua_State* L);
 int l_geo_clear(lua_State* L);
 int l_geo_count(lua_State* L);
 int l_geo_bake(lua_State* L);
+int l_geo_target(lua_State* L);
 /* }}} */
 
 #endif /* GEOMETRY_H */

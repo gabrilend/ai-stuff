@@ -14,6 +14,7 @@
 #include "ui.h"
 #include "geometry.h"
 #include "landscape.h"
+#include "ui2d.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -362,6 +363,19 @@ static const luaL_Reg render_funcs[] = {
     /* Landscape (517b) */
     {"land_build", l_land_build},
     {"land_free", l_land_free},
+    {"geo_target", l_geo_target},
+    /* 2D interface (518a) */
+    {"ui_rect", l_ui_rect},
+    {"ui_frame", l_ui_frame},
+    {"ui_line", l_ui_line},
+    {"ui_tri", l_ui_tri},
+    {"ui_circle", l_ui_circle},
+    {"ui_text", l_ui_text},
+    {"ui_text_width", l_ui_text_width},
+    {"ui_image_load", l_ui_image_load},
+    {"ui_image", l_ui_image},
+    {"ui_portrait", l_ui_portrait},
+    {"ui_screen", l_ui_screen},
     {NULL, NULL}
 };
 

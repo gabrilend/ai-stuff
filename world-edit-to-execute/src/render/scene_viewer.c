@@ -14,8 +14,14 @@
  * scene_key(name), and may define scene_ground(x, y) (WC3 ground height,
  * for the camera) and the global CAMERA_START = { x, y, distance }.
  *
- * Keys: arrows/WASD pan, mouse wheel zoom, 1 WC3 default camera distance,
- *       R "rings" (the fort's range rings), Esc quit.
+ * A scene with an interface also defines scene_ui(), drawn over the view
+ * with render.ui_*; it reads input through the global table `viewer` (see
+ * register_viewer below). Such a scene owns the keyboard (letters are its
+ * hotkeys, Esc its cancel) and quits through viewer.quit().
+ *
+ * Keys without an interface: arrows/WASD pan, mouse wheel zoom, 1 WC3
+ *       default camera distance, R "rings" (the fort's range rings), Esc
+ *       quit. With one: arrows and the screen edges pan, wheel zooms.
  *
  * For unattended runs:
  *   SCENE_SHOTS="4,12,24"  save the screen at these simulated seconds
@@ -36,6 +42,7 @@
 #include "terrain.h"
 #include "geometry.h"
 #include "landscape.h"
+#include "ui2d.h"
 
 /* {{{ Camera
  * WC3's default game camera (Blizzard.j's bj_CAMERA_DEFAULT_* constants)
@@ -114,6 +121,145 @@ static void parse_shots(const char* spec) {
 }
 /* }}} */
 
+/* {{{ Viewer state shared with Lua */
+static ViewCamera g_fc;
+static Camera3D g_camera;
+static bool g_quit = false;
+
+static const struct { int key; const char* name; } KEY_NAMES[] = {
+    { KEY_ESCAPE, "ESCAPE" }, { KEY_TAB, "TAB" }, { KEY_ENTER, "ENTER" },
+    { KEY_BACKSPACE, "BACKSPACE" }, { KEY_SPACE, "SPACE" }, { KEY_DELETE, "DELETE" },
+    { KEY_F1, "F1" }, { KEY_F2, "F2" }, { KEY_F3, "F3" }, { KEY_F4, "F4" },
+    { KEY_F5, "F5" }, { KEY_F6, "F6" }, { KEY_F7, "F7" }, { KEY_F8, "F8" },
+    { KEY_F9, "F9" }, { KEY_F10, "F10" }, { KEY_F11, "F11" }, { KEY_F12, "F12" },
+    { KEY_KP_1, "KP_1" }, { KEY_KP_2, "KP_2" }, { KEY_KP_4, "KP_4" },
+    { KEY_KP_5, "KP_5" }, { KEY_KP_7, "KP_7" }, { KEY_KP_8, "KP_8" },
+};
+
+/* {{{ viewer.camera() -> x, y, distance (WC3) */
+static int lv_camera(lua_State* L) {
+    lua_pushnumber(L, g_fc.x * WC3_UNITS_PER_TILE);
+    lua_pushnumber(L, -g_fc.z * WC3_UNITS_PER_TILE);
+    lua_pushnumber(L, g_fc.distance);
+    return 3;
+}
+/* }}} */
+
+/* {{{ viewer.set_camera(x, y [, distance]) */
+static int lv_set_camera(lua_State* L) {
+    g_fc.x = (float)luaL_checknumber(L, 1) / WC3_UNITS_PER_TILE;
+    g_fc.z = -(float)luaL_checknumber(L, 2) / WC3_UNITS_PER_TILE;
+    if (lua_isnumber(L, 3)) g_fc.distance = (float)lua_tonumber(L, 3);
+    return 0;
+}
+/* }}} */
+
+/* {{{ viewer.to_screen(x, y, z) -> sx, sy, in_front */
+static int lv_to_screen(lua_State* L) {
+    Vector3 p = { (float)luaL_checknumber(L, 1) / WC3_UNITS_PER_TILE,
+                  (float)luaL_checknumber(L, 3) / WC3_UNITS_PER_TILE,
+                  -(float)luaL_checknumber(L, 2) / WC3_UNITS_PER_TILE };
+    Vector2 v = GetWorldToScreen(p, g_camera);
+    Vector3 f = { g_camera.target.x - g_camera.position.x, g_camera.target.y - g_camera.position.y,
+                  g_camera.target.z - g_camera.position.z };
+    float ahead = f.x * (p.x - g_camera.position.x) + f.y * (p.y - g_camera.position.y)
+                + f.z * (p.z - g_camera.position.z);
+    lua_pushnumber(L, v.x);
+    lua_pushnumber(L, v.y);
+    lua_pushboolean(L, ahead > 0);
+    return 3;
+}
+/* }}} */
+
+/* {{{ viewer.to_ground(sx, sy) -> x, y (WC3), where the screen point's ray
+ * meets the level of the ground under the camera's target */
+static int lv_to_ground(lua_State* L) {
+    Ray ray = GetScreenToWorldRay((Vector2){ (float)luaL_checknumber(L, 1),
+                                             (float)luaL_checknumber(L, 2) }, g_camera);
+    if (fabsf(ray.direction.y) < 1e-6f) return 0;
+    float t = (g_fc.y - ray.position.y) / ray.direction.y;
+    if (t < 0) return 0;
+    lua_pushnumber(L, (ray.position.x + ray.direction.x * t) * WC3_UNITS_PER_TILE);
+    lua_pushnumber(L, -(ray.position.z + ray.direction.z * t) * WC3_UNITS_PER_TILE);
+    return 2;
+}
+/* }}} */
+
+/* {{{ viewer.mouse() -> x, y, left_pressed, left_down, left_released,
+ * right_pressed */
+static int lv_mouse(lua_State* L) {
+    Vector2 m = GetMousePosition();
+    lua_pushnumber(L, m.x);
+    lua_pushnumber(L, m.y);
+    lua_pushboolean(L, IsMouseButtonPressed(MOUSE_BUTTON_LEFT));
+    lua_pushboolean(L, IsMouseButtonDown(MOUSE_BUTTON_LEFT));
+    lua_pushboolean(L, IsMouseButtonReleased(MOUSE_BUTTON_LEFT));
+    lua_pushboolean(L, IsMouseButtonPressed(MOUSE_BUTTON_RIGHT));
+    return 6;
+}
+/* }}} */
+
+/* {{{ viewer.keys() -> { names pressed this frame } */
+static int lv_keys(lua_State* L) {
+    lua_newtable(L);
+    int n = 0;
+    int k;
+    while ((k = GetKeyPressed()) != 0) {
+        const char* name = NULL;
+        char buf[2] = { 0, 0 };
+        if ((k >= KEY_A && k <= KEY_Z) || (k >= KEY_ZERO && k <= KEY_NINE)) {
+            buf[0] = (char)k;
+            name = buf;
+        } else {
+            for (size_t i = 0; i < sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]); i++) {
+                if (KEY_NAMES[i].key == k) name = KEY_NAMES[i].name;
+            }
+        }
+        if (name) {
+            lua_pushstring(L, name);
+            lua_rawseti(L, -2, ++n);
+        }
+    }
+    return 1;
+}
+/* }}} */
+
+/* {{{ viewer.key_down("SHIFT" | "CTRL" | "ALT") -> held */
+static int lv_key_down(lua_State* L) {
+    const char* m = luaL_checkstring(L, 1);
+    bool down = false;
+    if (strcmp(m, "SHIFT") == 0) down = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    else if (strcmp(m, "CTRL") == 0) down = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    else if (strcmp(m, "ALT") == 0) down = IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
+    lua_pushboolean(L, down);
+    return 1;
+}
+/* }}} */
+
+static int lv_quit(lua_State* L) {
+    (void)L;
+    g_quit = true;
+    return 0;
+}
+
+/* {{{ register_viewer */
+static void register_viewer(lua_State* L) {
+    static const luaL_Reg fns[] = {
+        { "camera", lv_camera }, { "set_camera", lv_set_camera },
+        { "to_screen", lv_to_screen }, { "to_ground", lv_to_ground },
+        { "mouse", lv_mouse }, { "keys", lv_keys }, { "key_down", lv_key_down },
+        { "quit", lv_quit }, { NULL, NULL },
+    };
+    lua_newtable(L);
+    for (const luaL_Reg* f = fns; f->name; f++) {
+        lua_pushcfunction(L, f->func);
+        lua_setfield(L, -2, f->name);
+    }
+    lua_setglobal(L, "viewer");
+}
+/* }}} */
+/* }}} */
+
 /* {{{ ground_under
  * The scene's ground height at the camera's target (render units), via
  * its scene_ground(x, y) in WC3 units; 0 without one. */
@@ -184,6 +330,7 @@ int main(int argc, char** argv) {
     lua_pop(L, 1);
     lua_pushstring(L, root);
     lua_setglobal(L, "SCENE_ROOT");
+    register_viewer(L);
     if (argc > 3) {
         lua_pushstring(L, argv[3]);
         lua_setglobal(L, "SCENE_ARG");
@@ -197,34 +344,50 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    ViewCamera fc = { 0.0f, 1.0f, 0.0f, 2600.0f };
-    start_camera(L, &fc);
-    Camera3D camera = { 0 };
+    g_fc = (ViewCamera){ 0.0f, 1.0f, 0.0f, 2600.0f };
+    start_camera(L, &g_fc);
+    lua_getglobal(L, "scene_ui");
+    bool has_ui = lua_isfunction(L, -1);
+    lua_pop(L, 1);
+    if (has_ui) SetExitKey(KEY_NULL);   /* Esc is the interface's cancel */
     const float tick = 0.02f;   /* 50 Hz simulation */
     float pending = 0.0f, sim_time = 0.0f;
     char status[256];
+    bool unattended = g_shot_count > 0 || quit_at > 0;
 
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && !g_quit) {
         float dt = GetFrameTime();
         if (dt > 0.1f) dt = 0.1f;
 
-        /* {{{ input */
-        float pan = CAM_PAN_SPEED / WC3_UNITS_PER_TILE * dt * (fc.distance / CAM_DEFAULT_DISTANCE);
-        if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))  fc.x -= pan;
-        if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) fc.x += pan;
-        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))    fc.z -= pan;
-        if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))  fc.z += pan;
-        fc.distance -= GetMouseWheelMove() * 150.0f;
-        if (IsKeyPressed(KEY_ONE)) fc.distance = CAM_DEFAULT_DISTANCE;
-        if (fc.distance < CAM_MIN_DISTANCE) fc.distance = CAM_MIN_DISTANCE;
-        if (fc.distance > CAM_MAX_DISTANCE) fc.distance = CAM_MAX_DISTANCE;
-        if (IsKeyPressed(KEY_R)) call_lua(L, "scene_key", "rings", 0, false);
+        /* {{{ camera input */
+        float pan = CAM_PAN_SPEED / WC3_UNITS_PER_TILE * dt * (g_fc.distance / CAM_DEFAULT_DISTANCE);
+        bool left = IsKeyDown(KEY_LEFT), right = IsKeyDown(KEY_RIGHT);
+        bool up = IsKeyDown(KEY_UP), down = IsKeyDown(KEY_DOWN);
+        if (!has_ui) {
+            left |= IsKeyDown(KEY_A); right |= IsKeyDown(KEY_D);
+            up |= IsKeyDown(KEY_W); down |= IsKeyDown(KEY_S);
+        } else if (!unattended && IsWindowFocused()) {
+            /* the screen edges scroll, as in WC3 */
+            Vector2 m = GetMousePosition();
+            left |= m.x <= 2; right |= m.x >= GetScreenWidth() - 3;
+            up |= m.y <= 2; down |= m.y >= GetScreenHeight() - 3;
+        }
+        if (left) g_fc.x -= pan;
+        if (right) g_fc.x += pan;
+        if (up) g_fc.z -= pan;
+        if (down) g_fc.z += pan;
+        g_fc.distance -= GetMouseWheelMove() * 150.0f;
+        if (!has_ui) {
+            if (IsKeyPressed(KEY_ONE)) g_fc.distance = CAM_DEFAULT_DISTANCE;
+            if (IsKeyPressed(KEY_R)) call_lua(L, "scene_key", "rings", 0, false);
+        }
+        if (g_fc.distance < CAM_MIN_DISTANCE) g_fc.distance = CAM_MIN_DISTANCE;
+        if (g_fc.distance > CAM_MAX_DISTANCE) g_fc.distance = CAM_MAX_DISTANCE;
         /* }}} */
 
         /* {{{ simulation: fixed ticks, as WC3 steps its game */
         /* unattended runs advance a fixed 1/60 s per frame, so a slow
          * machine takes longer but reaches the same scene at each second */
-        bool unattended = g_shot_count > 0 || quit_at > 0;
         pending += unattended ? 1.0f / 60.0f : dt;
         int steps = 0;
         while (pending >= tick && steps < 5) {
@@ -236,29 +399,34 @@ int main(int argc, char** argv) {
         /* }}} */
 
         /* the target glides to the ground under it */
-        float ground = ground_under(L, &fc);
-        fc.y += (ground - fc.y) * (unattended ? 1.0f : fminf(1.0f, dt * 8.0f));
-        apply_camera(&fc, &camera);
+        float ground = ground_under(L, &g_fc);
+        g_fc.y += (ground - g_fc.y) * (unattended ? 1.0f : fminf(1.0f, dt * 8.0f));
+        apply_camera(&g_fc, &g_camera);
         call_lua(L, "scene_paint", NULL, 0, false);
 
         /* draw what the camera can see: out to about twice its distance */
-        float view = fc.distance / WC3_UNITS_PER_TILE * 2.0f;
-        geometry_set_view(fc.x, fc.z, view);
+        float view = g_fc.distance / WC3_UNITS_PER_TILE * 2.0f;
+        geometry_set_view(g_fc.x, g_fc.z, view);
+        ui2d_render_portrait();
 
         BeginDrawing();
             ClearBackground((Color){ 24, 28, 40, 255 });
-            BeginMode3D(camera);
-                terrain_draw_region(terrain_get_global(), fc.x, fc.z, view * 0.9f);
-                landscape_draw(fc.x, fc.z, view);
+            BeginMode3D(g_camera);
+                terrain_draw_region(terrain_get_global(), g_fc.x, g_fc.z, view * 0.9f);
+                landscape_draw(g_fc.x, g_fc.z, view);
                 geometry_draw();
             EndMode3D();
 
-            read_status(L, status, sizeof(status));
-            DrawRectangle(0, 0, 1280, 30, (Color){ 0, 0, 0, 150 });
-            DrawText(status, 12, 7, 18, (Color){ 250, 190, 110, 255 });
-            DrawText(TextFormat("camera %.0f  |  arrows/WASD pan  wheel zoom  1 default  R rings  |  %d FPS",
-                                fc.distance, GetFPS()),
-                     12, 696, 16, (Color){ 200, 205, 220, 255 });
+            if (has_ui) {
+                call_lua(L, "scene_ui", NULL, 0, false);
+            } else {
+                read_status(L, status, sizeof(status));
+                DrawRectangle(0, 0, 1280, 30, (Color){ 0, 0, 0, 150 });
+                DrawText(status, 12, 7, 18, (Color){ 250, 190, 110, 255 });
+                DrawText(TextFormat("camera %.0f  |  arrows/WASD pan  wheel zoom  1 default  R rings  |  %d FPS",
+                                    g_fc.distance, GetFPS()),
+                         12, 696, 16, (Color){ 200, 205, 220, 255 });
+            }
 
             if (g_next_shot < g_shot_count && sim_time >= g_shots[g_next_shot]) {
                 rlDrawRenderBatchActive();
@@ -276,6 +444,7 @@ int main(int argc, char** argv) {
     }
 
     lua_close(L);
+    ui2d_free();
     landscape_free();
     slot_array_destroy(slots);
     CloseWindow();

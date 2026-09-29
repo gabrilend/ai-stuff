@@ -18,6 +18,9 @@ static int g_static_cap = 0;
 static int g_static_count = 0;
 static GeoPrim g_dynamic[GEO_MAX_DYNAMIC];
 static int g_dynamic_count = 0;
+static GeoPrim g_portrait[GEO_MAX_PORTRAIT];
+static int g_portrait_count = 0;
+static bool g_portrait_target = false;
 
 /* Baked chunks (517b) */
 typedef struct {
@@ -76,6 +79,11 @@ static const Vector3 LIGHT = { 0.45f, 1.0f, -0.3f };
 
 /* {{{ add_prim */
 static int add_prim(bool dynamic, GeoPrim prim) {
+    if (g_portrait_target) {
+        if (g_portrait_count >= GEO_MAX_PORTRAIT) return -1;
+        g_portrait[g_portrait_count] = prim;
+        return g_portrait_count++;
+    }
     if (dynamic) {
         if (g_dynamic_count >= GEO_MAX_DYNAMIC) return -1;
         g_dynamic[g_dynamic_count] = prim;
@@ -382,6 +390,27 @@ int l_geo_clear(lua_State* L) {
     } else {
         geometry_clear(lua_toboolean(L, 1));
     }
+    return 0;
+}
+/* }}} */
+
+/* {{{ Portrait layer */
+void geometry_set_portrait_target(bool on) {
+    g_portrait_target = on;
+}
+
+void geometry_draw_portrait(void) {
+    rlDrawRenderBatchActive();
+    rlDisableBackfaceCulling();
+    for (int i = 0; i < g_portrait_count; i++) draw_prim(&g_portrait[i]);
+    rlDrawRenderBatchActive();
+    rlEnableBackfaceCulling();
+    g_portrait_count = 0;
+}
+
+int l_geo_target(lua_State* L) {
+    const char* t = luaL_checkstring(L, 1);
+    geometry_set_portrait_target(t[0] == 'p');
     return 0;
 }
 /* }}} */
