@@ -4,7 +4,11 @@ The third piece of 903.
 
 ## Current Behavior
 
-No setting says which model `ollama` should run.
+The switchboard-wide half exists: `src/090-switchboard-settings.lua` holds
+`router_model` (docs/010 open question 12's groundwork — it does not pick
+a model, only builds the slot). The case-level setting, the fallback
+order between the two, and the refusal when neither is present are not
+yet built — this piece is still open.
 
 ## Intended Behavior
 
