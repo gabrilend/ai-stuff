@@ -43,6 +43,7 @@
 #include "geometry.h"
 #include "landscape.h"
 #include "ui2d.h"
+#include "models.h"
 
 /* {{{ Camera
  * WC3's default game camera (Blizzard.j's bj_CAMERA_DEFAULT_* constants)
@@ -442,6 +443,7 @@ int main(int argc, char** argv) {
                 terrain_draw_region(terrain_get_global(), g_fc.x, g_fc.z, view * 0.9f);
                 landscape_draw(g_fc.x, g_fc.z, view);
                 geometry_draw();
+                models_draw(g_fc.x, g_fc.z, view * 1.1f);
             EndMode3D();
 
             if (has_ui) {
