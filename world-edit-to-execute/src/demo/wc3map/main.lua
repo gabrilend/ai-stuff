@@ -11,6 +11,7 @@ right clicks; the units walk by WC3's movement rules.
 Unattended runs (screenshots, tests) can script input with SCENE_ACTIONS:
 "time:action;..." where action is one of
     select:hero | select:worker | select:building | select:army
+    order:attack_nearest   the selection attack-moves on the nearest enemy
     key:NAME           a key press (hotkeys, F9-F12, ESCAPE, TAB, ...)
     click:x,y  rclick:x,y  drag:x0,y0,x1,y1  hover:x,y   (screen pixels)
     ground:ACTION:x,y  the same at the screen point over WC3 point x, y
@@ -24,6 +25,7 @@ local figures = require("geometry.figures")
 local map_scene = require("demo.wc3map.scene")
 local game_mod = require("demo.wc3map.game")
 local hud_mod = require("ui.wc3.hud")
+local combat = require("demo.wc3map.combat")
 
 local ROOT = SCENE_ROOT or "."
 local path = SCENE_ARG or os.getenv("WC3_MAP") or (ROOT .. "/assets/DAoW-5.4b-PUBLIC-TEST.w3x")
@@ -72,23 +74,31 @@ end
 local hud = hud_mod.new(game, sw, sh)
 -- }}}
 
--- {{{ bake doodads and buildings; mobile units are drawn each frame
+-- {{{ bake doodads (group 0) and buildings (group 1: re-baked when one
+-- falls); mobile units are drawn each frame
+local DOODADS, BUILDINGS = 0, 1
 local statics = {}
 local function add(list) for _, p in ipairs(list) do statics[#statics + 1] = p end end
 for _, d in ipairs(s.doodads) do add(designs.build(d.spec, d.x, d.y, d.z, d.facing, d.scale)) end
-local mobile = {}
-for _, u in ipairs(game.units) do
-    if u.spec.design == "building" then
-        add(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1))
-    else
-        mobile[#mobile + 1] = u
-    end
-end
 local painted = kit.emit_prims(statics, render, false, 0)
-local baked = render.geo_bake(16)
+local baked = render.geo_bake(16, DOODADS)
+
+local function bake_buildings()
+    render.geo_unbake(BUILDINGS)
+    local list = {}
+    for _, u in ipairs(game.units) do
+        if u.spec.design == "building" and u.alive then
+            for _, p in ipairs(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1)) do list[#list + 1] = p end
+        end
+    end
+    kit.emit_prims(list, render, false, 0)
+    return render.geo_bake(16, BUILDINGS), #list
+end
+local building_chunks, building_prims = bake_buildings()
+local last_rebake = 0
 statics = nil
-print(string.format("[map] %d land chunks, %d primitives baked in %d chunks, %d mobile units, %.1fs",
-    chunks, painted, baked, #mobile, os.clock() - clock))
+print(string.format("[map] %d land chunks, %d doodad primitives in %d chunks, %d building primitives in %d chunks, %.1fs",
+    chunks, painted, baked, building_prims, building_chunks, os.clock() - clock))
 -- }}}
 
 -- {{{ start: the local player's start location, else the middle of the map
@@ -162,6 +172,18 @@ local function scripted(what, input)
         input.mx, input.my, input.lr = n[3], n[4], true
     elseif kind == "camera" then
         viewer.set_camera(n[1], n[2], n[3])
+    elseif kind == "order" and rest == "attack_nearest" then
+        local own = hud:own_selection()
+        if own[1] then
+            local foe, best
+            for _, u in ipairs(game.units) do
+                if u.alive and u.spec.design == "unit" and combat.hostile(game, own[1], u) then
+                    local d = (u.x - own[1].x) ^ 2 + (u.y - own[1].y) ^ 2
+                    if not best or d < best then foe, best = u, d end
+                end
+            end
+            if foe then game.order(own, "attack", foe.x, foe.y) end
+        end
     end
 end
 -- }}}
@@ -170,6 +192,10 @@ end
 local last_hover = { 0, 0 }
 function scene_tick(dt)
     game.tick(dt)
+    if game.buildings_changed and game.time - last_rebake > 1 then
+        game.buildings_changed, last_rebake = false, game.time
+        bake_buildings()
+    end
 end
 
 function scene_paint()
@@ -194,9 +220,15 @@ function scene_paint()
     local reach = dist * 2.4
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
-    for _, u in ipairs(mobile) do
-        if math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
-            add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1))
+    for _, u in ipairs(game.units) do
+        if u.spec.design ~= "building" and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
+            -- the fallen lie flat until they go
+            add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, u.alive and 1 or { 1, 1, 0.2 }))
+        end
+    end
+    for _, a in ipairs(game.volley.arrows) do
+        if math.abs(a.x - cx) < reach and math.abs(a.y - cy) < reach then
+            add_list(figures.arrow(a.x, a.y, a.z, a.dx, a.dy, a.dz))
         end
     end
     for _, u in ipairs(hud.selection) do

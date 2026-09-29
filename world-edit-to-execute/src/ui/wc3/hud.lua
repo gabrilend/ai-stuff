@@ -106,7 +106,7 @@ end
 function Hud:heroes()
     local list = {}
     for _, u in ipairs(self.game.units) do
-        if self:own(u) and u.spec.hero then list[#list + 1] = u end
+        if self:own(u) and u.spec.hero and u.alive ~= false then list[#list + 1] = u end
     end
     return list
 end
@@ -114,7 +114,7 @@ end
 function Hud:idle_workers()
     local list = {}
     for _, u in ipairs(self.game.units) do
-        if self:own(u) and u.spec.archetype == "worker" and not u.order then list[#list + 1] = u end
+        if self:own(u) and u.spec.archetype == "worker" and not u.order and u.alive ~= false then list[#list + 1] = u end
     end
     return list
 end
@@ -160,7 +160,8 @@ end
 function Hud:pick(mx, my)
     local best, best_d = nil, math.huge
     for _, u in ipairs(self.game.units) do
-        local sx, sy = screen_point(self.game, u)
+        local sx, sy
+        if u.alive ~= false then sx, sy = screen_point(self.game, u) end
         if sx then
             local reach = u.spec.design == "building" and 44 or 22
             local d = (sx - mx) ^ 2 + (sy - my) ^ 2
@@ -178,7 +179,7 @@ function Hud:box_select(x0, y0, x1, y1)
     if y0 > y1 then y0, y1 = y1, y0 end
     local mobile, buildings = {}, {}
     for _, u in ipairs(self.game.units) do
-        if self:own(u) then
+        if self:own(u) and u.alive ~= false then
             local sx, sy = screen_point(self.game, u)
             if sx and sx >= x0 and sx <= x1 and sy >= y0 and sy <= y1 then
                 table.insert(u.spec.design == "building" and buildings or mobile, u)
@@ -222,10 +223,12 @@ end
 
 -- {{{ Hud:target
 -- A world point chosen while targeting
-function Hud:target(x, y)
+function Hud:target(x, y, unit)
     local order = self.targeting
     self.targeting = nil
-    if order == "move" or order == "attack" or order == "patrol" then
+    if order == "attack" and unit and unit.alive ~= false and not self:own(unit) then
+        self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
+    elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
     else
         self:message(commands.STOCK[order].label .. ": not simulated in this viewer yet")
@@ -270,6 +273,20 @@ function Hud:update(input, dt)
     self.time = self.time + (dt or 0)
     local r, game = self.r, self.game
     local mx, my = input.mx or 0, input.my or 0
+    self.alt = input.alt
+
+    -- the dead leave selections and groups
+    local function living(list)
+        local out = {}
+        for _, u in ipairs(list) do if u.alive ~= false then out[#out + 1] = u end end
+        return out
+    end
+    if #self.selection > 0 then
+        local before = #self.selection
+        self.selection = living(self.selection)
+        if #self.selection ~= before then self.subgroup, self.mode = 1, "main" end
+    end
+    for k, g in pairs(self.groups) do self.groups[k] = living(g) end
 
     -- keys
     for _, key in ipairs(input.keys or {}) do self:key(key, input) end
@@ -295,8 +312,11 @@ function Hud:update(input, dt)
             elseif not over_ui then x, y = game.to_ground(mx, my) end
             if x then
                 local target = not over_ui and self:pick(mx, my)
-                local order = (target and not self:own(target) and target.player ~= 15) and "attack" or "move"
-                game.order(self:own_selection(), order, x, y)
+                if target and target.alive ~= false and not self:own(target) and target.player < 13 then
+                    game.order(self:own_selection(), "attack_unit", target.x, target.y, target)
+                else
+                    game.order(self:own_selection(), "move", x, y)
+                end
             end
         end
     end
@@ -379,7 +399,7 @@ function Hud:click(mx, my, input, over_ui)
                 self.targeting = nil
                 table.insert(self.pings, { x = x, y = y, at = self.time })
             else
-                self:target(x, y)
+                self:target(x, y, self:pick(mx, my))
             end
         end
         return
@@ -496,6 +516,7 @@ local function team_of(u) return designs.TEAM[u.player] or designs.TEAM[15] end
 -- {{{ Hud:draw
 function Hud:draw(ui)
     local r = self.r
+    self:draw_health(ui)
     self:draw_top(ui)
     self:draw_console(ui)
     self:draw_side(ui)
@@ -511,6 +532,33 @@ function Hud:draw(ui)
         text(ui, "Select a target (right click or Esc to cancel)", r.messages.x, r.console.y - 28, 18, C.yellow)
     end
     if self.panel then self:draw_panel(ui) end
+end
+-- }}}
+
+-- {{{ Hud:draw_health
+-- Bars over units that are hurt, selected, or all of them while Alt is
+-- held, as WC3 shows them
+function Hud:draw_health(ui)
+    local game = self.game
+    if not game.camera then return end
+    local cx, cy, dist = game.camera()
+    local reach = (dist or 1650) * 1.6
+    local chosen = {}
+    for _, u in ipairs(self.selection) do chosen[u] = true end
+    for _, u in ipairs(game.units) do
+        if u.alive ~= false and u.hp_max and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
+            and (self.alt or chosen[u] or (u.hp or u.hp_max) < u.hp_max) then
+            local building = u.spec.design == "building"
+            local sx, sy, ahead = game.to_screen(u.x, u.y, u.z + (building and 280 or 120))
+            if ahead and sy > self.r.top.h and sy < self.r.console.y then
+                local w = building and 70 or 36
+                local frac = math.max(0, (u.hp or u.hp_max) / u.hp_max)
+                local c = frac > 0.66 and C.green or (frac > 0.33 and C.yellow or C.red)
+                rect(ui, sx - w / 2 - 1, sy - 1, w + 2, 7, { 0, 0, 0 }, 200)
+                rect(ui, sx - w / 2, sy, w * frac, 5, c)
+            end
+        end
+    end
 end
 -- }}}
 
@@ -570,7 +618,7 @@ function Hud:draw_console(ui)
         rect(ui, mm.x, mm.y, mm.w, mm.h, { 8, 8, 10 })
     end
     for _, u in ipairs(game.units) do
-        if self.toggles.creeps or u.player ~= 12 then
+        if u.alive ~= false and (self.toggles.creeps or u.player ~= 12) then
             local px, py = self:world_to_minimap(u.x, u.y)
             local c = team_of(u)
             if self.toggles.ally_colors then
@@ -613,7 +661,7 @@ function Hud:draw_console(ui)
     if lead then ui.ui_portrait(r.portrait.x, r.portrait.y, r.portrait.w, r.portrait.h) end
     if lead and #self.selection == 1 then
         local v = r.vitals
-        text(ui, lead.hp_max and string.format("%d / %d", lead.hp or lead.hp_max, lead.hp_max) or "- / -",
+        text(ui, lead.hp_max and string.format("%d / %d", math.ceil(lead.hp or lead.hp_max), lead.hp_max) or "- / -",
              v.x + 8, v.y + 4, 16, C.green)
         if lead.mana_max and lead.mana_max > 0 then
             text(ui, string.format("%d / %d", lead.mana or lead.mana_max, lead.mana_max), v.x + 8, v.y + 24, 16, C.blue)
@@ -635,7 +683,7 @@ function Hud:draw_console(ui)
             bevel(ui, { x = ix, y = iy, w = 58, h = 58 }, mine and C.hover or C.slot)
             icons.draw(ui, u.spec.design == "building" and "structure" or (u.spec.hero and "hero" or "unit"),
                        ix + 4, iy + 2, 50, { team = team_of(u), archetype = u.spec.archetype })
-            bar(ui, ix + 4, iy + 52, 50, 4, 1, C.green)
+            bar(ui, ix + 4, iy + 52, 50, 4, u.hp_max and (u.hp or u.hp_max) / u.hp_max or 1, C.green)
         end
         text(ui, string.format("%d selected  (Tab: next group)", #self.selection), info.x + 10, info.y + 10, 16, C.dim)
     end
@@ -713,7 +761,7 @@ function Hud:draw_side(ui)
         if not b then break end
         bevel(ui, b, self.selection[1] == hero and C.hover or C.slot)
         icons.draw(ui, "hero", b.x + 4, b.y + 2, b.w - 8, { team = team_of(hero), archetype = hero.spec.archetype })
-        bar(ui, b.x, b.y + b.h + 2, b.w, 6, 1, C.green)
+        bar(ui, b.x, b.y + b.h + 2, b.w, 6, hero.hp_max and (hero.hp or hero.hp_max) / hero.hp_max or 1, C.green)
         bar(ui, b.x, b.y + b.h + 9, b.w, 6, 1, C.blue)
         text(ui, b.key, b.x + b.w + 4, b.y + 2, 12, C.dim)
     end

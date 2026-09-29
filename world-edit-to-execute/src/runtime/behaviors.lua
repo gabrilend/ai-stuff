@@ -147,9 +147,10 @@ end
 -- }}}
 
 -- {{{ Volley:update
--- Move every arrow. Returns the list of targets hit this tick.
+-- Move every arrow. Returns the targets hit this tick, and the arrows
+-- that hit them (with whatever the caller stored on them, e.g. damage).
 function Volley:update(dt)
-    local hits = {}
+    local hits, arrived = {}, {}
     local keep = {}
     for _, a in ipairs(self.arrows) do
         local t = a.target
@@ -167,12 +168,13 @@ function Volley:update(dt)
         a.x, a.y, a.z = px, py, pz
         if frac >= 1 then
             hits[#hits + 1] = t
+            arrived[#arrived + 1] = a
         else
             keep[#keep + 1] = a
         end
     end
     self.arrows = keep
-    return hits
+    return hits, arrived
 end
 -- }}}
 -- }}}

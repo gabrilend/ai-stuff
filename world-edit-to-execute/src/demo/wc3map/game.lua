@@ -29,6 +29,8 @@ local loco = require("runtime.locomotion")
 local names = require("ui.wc3.names")
 local mpq = require("mpq")
 local classify = require("demo.wc3map.classify")
+local pathing_mod = require("demo.wc3map.pathing")
+local combat = require("demo.wc3map.combat")
 
 local game_mod = {}
 
@@ -116,6 +118,11 @@ local function unit_stats(m, id)
     s.armor = field(t, id, "udef")
     s.level = field(t, id, "ulev")
     s.str, s.agi, s.int = field(t, id, "ustr"), field(t, id, "uagi"), field(t, id, "uint")
+    s.dmg_base, s.dmg_dice, s.dmg_sides = base, field(t, id, "ua1d"), field(t, id, "ua1s")
+    s.cooldown_field = field(t, id, "ua1c")
+    s.range_field = field(t, id, "ua1r")
+    s.acquire_field = field(t, id, "uacq")
+    s.attacks = field(t, id, "uaen")
     s.speed = field(t, id, "umvs")
     s.turn_rate = field(t, id, "umvr")
     s.food = field(t, id, "ufoo")
@@ -209,13 +216,20 @@ function game_mod.new(scene, opts)
         local name = resolve(m, p.name) or ("Player " .. (p.number + 1))
         g.players[#g.players + 1] = { number = p.number, name = name, team = p.number }
     end
+    -- a force's players are allies only when its "allied" flag is set
+    -- (issue 519: sharing a force alone put enemies on one side)
     for fi, f in ipairs(m.forces or {}) do
-        for _, pn in pairs(f.players or {}) do
-            for _, p in ipairs(g.players) do
-                if p.number == pn then p.team = 100 + fi end
+        if f.flags and f.flags.allied then
+            for _, pn in pairs(f.players or {}) do
+                for _, p in ipairs(g.players) do
+                    if p.number == pn then p.team = 100 + fi end
+                end
             end
         end
     end
+    local team_by = {}
+    for _, p in ipairs(g.players) do team_by[p.number] = p.team end
+    function g.team_of(n) return team_by[n] or n end
     for _, p in ipairs(g.players) do if p.number == g.player then g.team = p.team end end
 
     g.quests, g.start_resources = script_extras(m, scene.path, g.player)
@@ -230,7 +244,7 @@ function game_mod.new(scene, opts)
     function g.resources(player)
         local food, cap, unknown = 0, 0, 0
         for _, u in ipairs(g.units) do
-            if u.player == player then
+            if u.player == player and u.alive ~= false then
                 if u.food then food = food + u.food elseif u.spec.design == "unit" then unknown = unknown + 1 end
                 if u.food_made then cap = cap + u.food_made end
             end
@@ -246,29 +260,59 @@ function game_mod.new(scene, opts)
         return (game_mod.DAY_START + g.time / game_mod.DAY_SECONDS * 24) % 24
     end
 
+    -- {{{ movement
+    g.pathing = opts.pathing ~= false and pathing_mod.new(t) or nil
+
+    local function ensure_mover(u)
+        if not u.mover then
+            u.mover = loco.new({ speed = u.speed or 270, turn_rate = u.turn_rate or 0.6, propwin = 60 },
+                               u.x, u.y, u.z, u.facing)
+        end
+        return u.mover
+    end
+
+    -- Set u walking to (x, y): flyers straight, the rest by a route around
+    -- cliffs and deep water (as close as they can get)
+    function g.walk_to(u, x, y)
+        if u.spec.design ~= "unit" then return end
+        local mv = ensure_mover(u)
+        local route
+        if u.spec.archetype == "flyer" or not g.pathing then
+            route = { { x = x, y = y } }
+        else
+            route = g.pathing:route(u.x, u.y, x, y)
+        end
+        u.route = route
+        if route then loco.set_route(mv, route) end
+    end
+    -- }}}
+
     -- {{{ g.order
-    -- Formation: units keep their places relative to the group's middle,
-    -- as WC3's formation movement keeps a group together
-    function g.order(list, kind, x, y)
+    -- kind: move | attack (to a point, fighting on the way) | attack_unit
+    -- (target) | patrol | stop | hold. Point orders keep a group's
+    -- formation: units keep their places around the group's middle.
+    function g.order(list, kind, x, y, target)
         local cx, cy, n = 0, 0, 0
         for _, u in ipairs(list) do
-            if u.spec.design == "unit" then cx, cy, n = cx + u.x, cy + u.y, n + 1 end
+            if u.spec.design == "unit" and u.alive ~= false then cx, cy, n = cx + u.x, cy + u.y, n + 1 end
         end
         if n == 0 then return end
         cx, cy = cx / n, cy / n
         for _, u in ipairs(list) do
-            if u.spec.design == "unit" then
+            if u.spec.design == "unit" and u.alive ~= false then
+                u.target, u.swing = nil, nil
                 if kind == "stop" or kind == "hold" then
                     u.order = kind == "hold" and { kind = "hold" } or nil
+                    u.route = nil
+                elseif kind == "attack_unit" then
+                    u.order = { kind = "attack_unit" }
+                    u.target = target
                 else
                     local ox, oy = u.x - cx, u.y - cy
                     local spread = math.sqrt(ox * ox + oy * oy)
                     if spread > 300 then ox, oy = ox / spread * 300, oy / spread * 300 end
-                    if not u.mover then
-                        u.mover = loco.new({ speed = u.speed or 270, turn_rate = u.turn_rate or 0.6, propwin = 60 },
-                                           u.x, u.y, u.z, u.facing)
-                    end
                     u.order = { kind = kind, x = x + ox, y = y + oy, fx = u.x, fy = u.y }
+                    g.walk_to(u, u.order.x, u.order.y)
                 end
             end
         end
@@ -276,21 +320,18 @@ function game_mod.new(scene, opts)
     -- }}}
 
     -- {{{ g.tick
+    combat.init(g)
     function g.tick(dt)
         g.time = g.time + dt
+        if opts.combat ~= false then combat.update(g, dt) end
+
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
+        local keep = {}
         for _, u in ipairs(g.units) do
-            local o = u.order
-            if o and o.x then
+            if u.alive and u.route and not u.swing then
                 local mv = u.mover
                 mv.x, mv.y, mv.facing = u.x, u.y, u.facing
-                if loco.step(mv, o.x, o.y, dt, ground) then
-                    if o.kind == "patrol" then
-                        o.x, o.y, o.fx, o.fy = o.fx, o.fy, o.x, o.y
-                    else
-                        u.order = nil
-                    end
-                end
+                local done = loco.follow(mv, nil, dt, ground)
                 u.x, u.y, u.facing = mv.x, mv.y, mv.facing
                 if u.spec.archetype == "ship" then
                     u.z = math.max(scene.sample.ground_at(u.x, u.y), scene.sample.water_at(u.x, u.y))
@@ -298,8 +339,25 @@ function game_mod.new(scene, opts)
                     u.z = scene.sample.ground_at(u.x, u.y)
                 end
                 u.moved = true
+                if done then
+                    u.route = nil
+                    local o = u.order
+                    if o and o.kind == "patrol" then
+                        o.x, o.y, o.fx, o.fy = o.fx, o.fy, o.x, o.y
+                        g.walk_to(u, o.x, o.y)
+                    elseif o and (o.kind == "move" or o.kind == "attack") then
+                        u.order = nil
+                    end
+                end
+            end
+            -- the fallen lie a while, then go
+            if u.alive or g.time - u.died_at < combat.CORPSE_TIME then
+                keep[#keep + 1] = u
+            elseif g.on_remove then
+                g.on_remove(u)
             end
         end
+        g.units = keep
     end
     -- }}}
     return g
