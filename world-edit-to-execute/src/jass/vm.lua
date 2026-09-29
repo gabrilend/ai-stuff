@@ -40,7 +40,8 @@ local transpiler = require("jass.transpiler")
 
 local vm = {}
 
-vm.NATIVE_MODULES = { "jass.natives.core", "jass.natives.world", "jass.natives.interface", "jass.natives.bj" }
+vm.NATIVE_MODULES = { "jass.natives.core", "jass.natives.world", "jass.natives.interface", "jass.natives.bj",
+                      "jass.natives.ai_host" }
 vm.RECT_CHECK_EVERY = 0.1    -- seconds between enter/leave rect checks
 vm.MAX_TIMER_FIRES = 50      -- per timer per tick (a 0-period timer can't hang a tick)
 
@@ -176,6 +177,11 @@ function vm.new(world, opts)
     V.world.on_attack = function(u, target)
         if chained_attack then chained_attack(u, target) end
         V:unit_event("ATTACKED", target, { attacker = u })
+    end
+    local chained_trained = V.world.on_trained
+    V.world.on_trained = function(b, u)
+        if chained_trained then chained_trained(b, u) end
+        V:unit_event("TRAIN_FINISH", b, { trained = u })
     end
     if V.init_world then V:init_world() end
     return V

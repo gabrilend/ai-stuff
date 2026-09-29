@@ -209,6 +209,17 @@ function Hud:press(b)
         self.mode = "learn"
     elseif a == "cancel" then
         self.mode, self.targeting = "main", nil
+    elseif a == "train" and self.game.train then
+        -- the first selected building of its kind that can take it
+        local why
+        for _, u in ipairs(sel) do
+            if u.spec.design == "building" then
+                local ok, reason = self.game.train(u, b.target)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't train that") .. ".")
     else
         -- train, ability, structure: shown as the map defines them, not yet simulated
         self:message(b.label .. ": not simulated in this viewer yet")
@@ -231,6 +242,10 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "rally" and self.game.set_rally then
+        for _, u in ipairs(self:own_selection()) do
+            if u.spec.design == "building" then self.game.set_rally(u, x, y) end
+        end
     else
         self:message(commands.STOCK[order].label .. ": not simulated in this viewer yet")
     end
