@@ -4,7 +4,7 @@ A row of the harness table (005) for a model running on this machine: light, fre
 
 ## Current Behavior
 
-ollama is installed (`/usr/local/bin/ollama`); its server is not running, and no model is chosen. Turns run only through Claude Code or the stand-in.
+ollama is installed (`/usr/local/bin/ollama`); its server is not running, and no model is chosen. 903a is built (issues/completed/903a-the-row.md): the harness-table row exists and runs `ollama run <turn.model>`, refusing a turn with no model named. 903b (the needs check), 903c (model name resolution) and 903d (confinement) are not yet built, so turns still run only through Claude Code or the stand-in.
 
 ## Intended Behavior
 
@@ -16,6 +16,13 @@ ollama is installed (`/usr/local/bin/ollama`); its server is not running, and no
 
 1. The row and its needs check. **Test:** with the server stopped, a turn is refused by name.
 2. One real question, run by hand when the owner starts the server and picks a model (docs/010).
+
+## Sub-issues
+
+- 903a — the row
+- 903b — the needs check
+- 903c — model name resolution
+- 903d — confinement
 
 ## Blocked by
 

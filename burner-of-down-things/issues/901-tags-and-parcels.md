@@ -4,7 +4,10 @@ What arrives at the switchboard, and how it asks ([068](../docs/068-datapath-the
 
 ## Current Behavior
 
-Nothing is handed to the machine but whole sources and change requests.
+901a is built (issues/completed/901a-parcel-folder.md): a folder of files
+reads as one parcel. 901b (tag parsing), 901c (number issuance) and 901d
+(reuse refusal) are not yet built, so nothing is handed to the machine but
+whole sources and change requests.
 
 ## Intended Behavior
 
@@ -16,6 +19,13 @@ Nothing is handed to the machine but whole sources and change requests.
 
 1. Reading a tag. **Test:** the number and the wish are read; a malformed tag is a finding that shows the right form.
 2. Numbers. **Test:** the next number is one more than the highest recorded; a reused number is refused.
+
+## Sub-issues
+
+- 901a — the parcel folder
+- 901b — tag parsing
+- 901c — number issuance
+- 901d — reuse refusal
 
 ## Blocked by
 
