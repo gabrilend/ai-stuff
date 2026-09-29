@@ -174,8 +174,12 @@ static int lv_to_screen(lua_State* L) {
 /* {{{ viewer.to_ground(sx, sy) -> x, y (WC3), where the screen point's ray
  * meets the level of the ground under the camera's target */
 static int lv_to_ground(lua_State* L) {
-    Ray ray = GetScreenToWorldRay((Vector2){ (float)luaL_checknumber(L, 1),
-                                             (float)luaL_checknumber(L, 2) }, g_camera);
+    Vector2 at = { (float)luaL_checknumber(L, 1), (float)luaL_checknumber(L, 2) };
+#if RAYLIB_VERSION_MAJOR > 5 || (RAYLIB_VERSION_MAJOR == 5 && RAYLIB_VERSION_MINOR >= 5)
+    Ray ray = GetScreenToWorldRay(at, g_camera);
+#else
+    Ray ray = GetMouseRay(at, g_camera);   /* the same, before raylib 5.5 */
+#endif
     if (fabsf(ray.direction.y) < 1e-6f) return 0;
     float t = (g_fc.y - ray.position.y) / ray.direction.y;
     if (t < 0) return 0;

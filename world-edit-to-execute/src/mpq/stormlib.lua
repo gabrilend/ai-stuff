@@ -64,7 +64,27 @@ local SFILE_OPEN_FROM_MPQ = 0x00000000
 assert(ffi.sizeof("SFILE_FIND_DATA") == 1024 + 8 + 8 * 4,
     "SFILE_FIND_DATA layout does not match StormLib v9.40 on 64-bit Linux")
 
-local DEFAULT_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/deps/stormlib/lib/libstorm.so"
+local OWNER_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/deps/stormlib/lib/libstorm.so"
+
+-- The library built into this checkout's deps/ (this file is src/mpq/),
+-- else the owner's usual place; STORMLIB_PATH overrides both
+local function default_lib()
+    local env = os.getenv("STORMLIB_PATH")
+    if env and env ~= "" then return env end
+    -- "@/abs/root/src/mpq/stormlib.lua" or, loaded by a relative path,
+    -- "@src/mpq/stormlib.lua" (root = the current directory)
+    local here = debug.getinfo(1, "S").source:match("^@(.-)src/mpq/[^/]*$")
+    if here then
+        local candidate = here .. "deps/stormlib/lib/libstorm.so"
+        local f = io.open(candidate, "rb")
+        if f then
+            f:close()
+            return candidate
+        end
+    end
+    return OWNER_LIB
+end
+local DEFAULT_LIB = default_lib()
 
 local M = {}
 local lib = nil
