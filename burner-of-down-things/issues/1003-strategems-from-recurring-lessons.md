@@ -4,7 +4,7 @@
 
 ## Current Behavior
 
-`strategems/` holds the two the machine's own building taught (a referee never sees the answer; dynamic re-abstraction), written by hand.
+`strategems/` holds the two the machine's own building taught (a referee never sees the answer; dynamic re-abstraction), written by hand. 1003a is built (issues/completed/1003a-recurrence-trigger.md): the recurrence check itself, taking any counts table shaped like 1002d's output. 1003b (the draft form), 1003c (the drafts folder) and 1003d (the promotion gate) are not yet built, so nothing is drafted automatically yet.
 
 ## Intended Behavior
 
@@ -16,6 +16,13 @@
 
 1. Drafting on recurrence. **Test:** one lesson drafts nothing; a second of the same mechanism drafts one.
 2. Keeping. **Test:** a draft never appears in `strategems/` without a person's move.
+
+## Sub-issues
+
+- 1003a — the recurrence trigger
+- 1003b — the draft form
+- 1003c — the drafts folder
+- 1003d — the promotion gate
 
 ## Blocked by
 

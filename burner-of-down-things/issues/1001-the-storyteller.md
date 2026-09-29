@@ -4,7 +4,7 @@ A case's ledger told back as chapters in plain words, *narrative like a child*, 
 
 ## Current Behavior
 
-The ledger is read by the machine and by the case viewer; nothing tells it as a story.
+1001a is built (issues/completed/1001a-turn-kind.md): the `storyteller` turn kind, reading only the ledger and requests. 1001b (turning points), 1001c (no line told twice) and 1001d (whose it was) are not yet built, so nothing yet tells the ledger back as a story.
 
 ## Intended Behavior
 
@@ -17,6 +17,13 @@ The ledger is read by the machine and by the case viewer; nothing tells it as a 
 
 1. With the stand-in. **Test:** every chapter's first line names ledger line numbers it tells; no line is told twice.
 2. Whose each thing was. **Test:** a request's chapter names the person as its author.
+
+## Sub-issues
+
+- 1001a — the turn kind
+- 1001b — turning points
+- 1001c — no line told twice
+- 1001d — whose it was
 
 ## Blocked by
 
