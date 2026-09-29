@@ -125,6 +125,10 @@ local function model_of(kind, id, variation)
     end
     return v or nil
 end
+-- their own animations (issue 523); WC3_ANIMATE=0 for the rest pose
+local animate = require("demo.wc3map.animate")
+local ANIMATE = os.getenv("WC3_ANIMATE") ~= "0"
+local last_paint = nil
 local function team_rgb(player)
     local c = designs.TEAM[player] or designs.TEAM[15] or { 200, 200, 200 }
     return c[1], c[2], c[3]
@@ -312,15 +316,20 @@ function scene_paint()
     -- units near the camera, and rings under the selected ones
     local cx, cy, dist = viewer.camera()
     local reach = dist * 2.4
+    local adt = last_paint and math.max(0, game.time - last_paint) or 0
+    last_paint = game.time
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
     for _, u in ipairs(game.units) do
         if not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
             local mid = model_of("unit", u.id)
             if mid then
-                -- the fallen fade until they go
                 local r, g, b = team_rgb(u.player)
-                render.model_draw(mid, u.x, u.y, u.z, u.facing or 0, u.model_scale or 1, r, g, b, u.alive and 1 or 0.45)
+                local rig = ANIMATE and model_cache:rig(mid)
+                local pose = rig and animate.unit(rig, u, adt)
+                -- posed, the fallen play their death; unposed, they fade
+                render.model_draw(mid, u.x, u.y, u.z, u.facing or 0, u.model_scale or 1, r, g, b,
+                    (u.alive or pose) and 1 or 0.45, pose)
             elseif u.spec.design ~= "building" then
                 -- the fallen lie flat until they go
                 add_list(designs.build(u.spec, u.x, u.y, u.z, u.facing, u.alive and 1 or { 1, 1, 0.2 }))
@@ -330,7 +339,9 @@ function scene_paint()
     for _, dm in ipairs(doodad_models) do
         local d = dm.d
         if math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
-            render.model_draw(dm.id, d.x, d.y, d.z, d.facing or 0, d.scale and d.scale[1] or 1, 255, 255, 255)
+            local rig = ANIMATE and model_cache:rig(dm.id)
+            render.model_draw(dm.id, d.x, d.y, d.z, d.facing or 0, d.scale and d.scale[1] or 1, 255, 255, 255,
+                1, rig and animate.still(rig, dm, adt))
         end
     end
     for _, a in ipairs(game.volley.arrows) do

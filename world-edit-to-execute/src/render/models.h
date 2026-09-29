@@ -8,11 +8,16 @@
  *
  * Lua (render.*):
  *   tex_create(w, h, rgba [, wrap])        -> texture id
- *   mesh_create(verts, indices)            -> mesh id
+ *   mesh_create(verts, indices [, skin])   -> mesh id
  *        verts: floats x y z nx ny nz u v per vertex (model space, WC3 units)
  *        indices: uint16 triangle list
- *   model_create({ {mesh=, tex=, filter=, two_sided=, team=, unshaded=, alpha=}, ... }) -> model id
- *   model_draw(id, x, y, z, facing, scale, r, g, b [, alpha])   queue one for this frame
+ *        skin: uint16 per vertex, its matrix group (Issue 523)
+ *   model_create({ {mesh=, tex=, filter=, two_sided=, team=, unshaded=, alpha=, skin=}, ... }
+ *                [, { groups of skin 1, groups of skin 2, ... }]) -> model id
+ *   model_draw(id, x, y, z, facing, scale, r, g, b [, alpha [, pose]])   queue one for this frame
+ *        pose: floats: one alpha per part given, then per skin a 3 x 4
+ *        row-major matrix per group (model space); drawn in rest pose
+ *        without one
  *   model_stats() -> textures, meshes, models, instances drawn last frame
  */
 #ifndef MODELS_H

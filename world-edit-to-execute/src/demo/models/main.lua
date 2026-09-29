@@ -14,6 +14,13 @@ MODEL_GALLERY_SPACING (default 420) sets the distance between models;
 MODEL_GALLERY_TEXTURED=1 keeps only models whose textures are all found;
 MODEL_GALLERY_GLB="a.glb b.glb" adds glTF models (MODEL_GALLERY_GLB_HEIGHT
 fits them to a height).
+
+Animation (Issue 523): the models play their own sequences, all asked
+for the same one in turn (Stand, Walk, Attack, Spell, Death ...), a few
+seconds each; a model without the one asked for stands. Every other
+sequence a model has (Stand Ready, Attack Slam ...) comes round after
+the common ones. MODEL_GALLERY_ANIM=walk plays one only;
+MODEL_GALLERY_ANIM=none leaves them in their rest pose.
 ]]
 
 local render = require("render")
@@ -21,6 +28,7 @@ local mpq = require("mpq")
 local assets_mod = require("assets")
 local gpu = require("assets.gpu")
 local mdx = require("parsers.mdx")
+local anim = require("assets.anim")
 
 local ROOT = SCENE_ROOT or "."
 local path = SCENE_ARG or (ROOT .. "/assets/DAoW-5.4b-PUBLIC-TEST.w3x")
@@ -83,7 +91,8 @@ for i, e in ipairs(entries) do
     local id = cache:build(e.m, e.name)
     if id then
         local c, r = (i - 1) % cols, math.floor((i - 1) / cols)
-        placed[#placed + 1] = { id = id, x = c * spacing, y = -r * spacing, name = e.m.name }
+        placed[#placed + 1] = { id = id, x = c * spacing, y = -r * spacing, name = e.m.name,
+                                rig = cache:rig(id), st = anim.state(i * 0.37) }
     end
 end
 for _, e in ipairs(glb_list) do
@@ -99,21 +108,73 @@ print(string.format("[gallery] %d models in the map, %d drawable, %d parts, %d t
 
 CAMERA_START = { spacing * 3, -spacing * 3, 1600 }
 
+-- {{{ the programme: the common sequences first, then every other name
+-- any model has
+local only = os.getenv("MODEL_GALLERY_ANIM")
+local programme = { "stand", "walk", "attack", "spell", "stand ready", "death" }
+if only and only ~= "" then
+    programme = only ~= "none" and { only:lower() } or {}
+else
+    local listed = {}
+    for _, n in ipairs(programme) do listed[n] = true end
+    local extra = {}
+    for _, p in ipairs(placed) do
+        for name in pairs(p.rig and p.rig.by_name or {}) do
+            if not listed[name] and not name:find("portrait") then listed[name] = true; extra[#extra + 1] = name end
+        end
+    end
+    table.sort(extra)
+    for _, n in ipairs(extra) do programme[#programme + 1] = n end
+end
+local step, step_time, STEP_LENGTH = 1, 0, 4
+local function start_step()
+    local name = programme[step]
+    local having = 0
+    for _, p in ipairs(placed) do
+        if p.rig then
+            if anim.play(p.rig, p.st, name, { restart = true, fallback = "stand" }) and p.st.name == name then
+                having = having + 1
+            end
+        end
+    end
+    print(string.format("[gallery] playing %s (%d of %d models have it)", name, having, #placed))
+end
+if #programme > 0 then start_step() end
+-- }}}
+
 local t = 0
-function scene_tick(dt) t = t + dt end
+function scene_tick(dt)
+    t = t + dt
+    if #programme == 0 then return end
+    step_time = step_time + dt
+    if step_time >= STEP_LENGTH then
+        step_time, step = 0, step % #programme + 1
+        start_step()
+    end
+    for _, p in ipairs(placed) do
+        if p.rig then anim.step(p.rig, p.st, dt) end
+    end
+end
 
 function scene_paint()
     for k, p in ipairs(placed) do
         -- a slow turn, each its own way round, to show every side
         local facing = t * 0.35 + k
         local team = (k % 12)
-        render.model_draw(p.id, p.x, p.y, 0, facing, 1, 60 + (team * 53) % 196, 90 + (team * 97) % 166, 200 - (team * 31) % 150)
+        local pose = #programme > 0 and p.rig and anim.pose(p.rig, p.st) or nil
+        render.model_draw(p.id, p.x, p.y, 0, facing, 1, 60 + (team * 53) % 196, 90 + (team * 97) % 166, 200 - (team * 31) % 150,
+            1, pose)
     end
 end
 
 function scene_status()
     local tx, meshes, models, drawn = render.model_stats()
-    return string.format("model gallery: %d models, %d drawn this frame, %d textures", #placed, drawn, tx)
+    return string.format("model gallery: %d models, %d drawn this frame, %d textures%s", #placed, drawn, tx,
+        #programme > 0 and (", playing " .. programme[step]) or "")
+end
+
+function scene_ui()
+    if #programme > 0 then render.ui_text(programme[step], 20, 20, 28, 255, 235, 160) end
 end
 
 function scene_key(_) end
