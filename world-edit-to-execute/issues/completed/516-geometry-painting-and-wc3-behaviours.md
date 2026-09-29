@@ -112,3 +112,14 @@ uses WC3's default angle of attack (304 degrees) and distance.
 how it was checked here (Xvfb, software GL, screenshots at 3, 10, 22, 28 s):
 the column files through the gate and up the ramp, all 25 posts are manned
 by about 20 s, and the bowmen turn, draw and shoot at the passing dummies.
+
+---
+
+## Note (2026-09-29, issue 517)
+
+`src/render/fort_demo.c` is now `src/render/scene_viewer.c`, which runs any
+scene script; `run-fort` still runs the fort. Its entry points are
+`scene_tick/paint/status/key` (were `fort_*`) and the unattended-run
+variables are `SCENE_SHOTS`, `SCENE_SHOT_DIR`, `SCENE_QUIT_AT`,
+`SCENE_CAMERA` (were `FORT_*`). With the terrain parser fixed in 517a, the
+fort's default ground (the centre of the DAoW 5.4b map) reads as open sea.

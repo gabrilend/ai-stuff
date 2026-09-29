@@ -232,6 +232,52 @@ end
 -- }}}
 -- }}}
 
+-- {{{ test_field_meanings
+-- The tilepoint's packed nibbles, checked against what they must mean on
+-- real maps (issue 517: they were read swapped, and every test above still
+-- passed). Every map: textures index the map's tilesets, cliff textures
+-- index its cliff tilesets or are 15 (none). Daow4.4, whose author kept its
+-- water flags tidy: the water flag agrees with where the water surface is
+-- above the ground.
+local function test_field_meanings()
+    print("Testing tilepoint field meanings...")
+    for _, name in ipairs({ "Daow4.4.w3x", "DAoW-5.4b-PUBLIC-TEST.w3x" }) do
+        local archive = mpq.open(TEST_MAPS_DIR .. "/" .. name)
+        local terrain = w3e.parse(archive:extract("war3map.w3e"))
+        archive:close()
+        local ground_sets = #terrain.ground_tilesets
+        local cliff_sets = #terrain.cliff_tilesets
+        local wet, wet_flagged, layers = 0, 0, {}
+        for y = 0, terrain.height - 1 do
+            for x = 0, terrain.width - 1 do
+                local tp = terrain:get_tile(x, y)
+                assert(tp.ground_texture < ground_sets,
+                    name .. ": ground texture " .. tp.ground_texture .. " of " .. ground_sets)
+                assert(tp.cliff_texture < cliff_sets or tp.cliff_texture == 15,
+                    name .. ": cliff texture " .. tp.cliff_texture .. " of " .. cliff_sets)
+                layers[tp.layer_height] = (layers[tp.layer_height] or 0) + 1
+                if w3e.water_z(tp) > w3e.ground_z(tp) then
+                    wet = wet + 1
+                    if tp.has_water then wet_flagged = wet_flagged + 1 end
+                end
+            end
+        end
+        local most, most_n = nil, -1
+        for layer, n in pairs(layers) do
+            if n > most_n then most, most_n = layer, n end
+        end
+        assert(most >= 1 and most <= 4, name .. ": most common layer " .. most)
+        if name == "Daow4.4.w3x" then
+            assert(wet_flagged >= wet * 0.95,
+                string.format("%s: %d of %d wet tilepoints flagged", name, wet_flagged, wet))
+        end
+        print(string.format("  %s: most common layer %d, %d wet (%d flagged)",
+            name, most, wet, wet_flagged))
+    end
+    print("  PASS: Field meanings hold on real maps")
+end
+-- }}}
+
 -- {{{ Main
 local function main()
     print("=== W3E Terrain Parser Tests ===\n")
@@ -242,6 +288,7 @@ local function main()
     test_coordinate_conversion()
     test_format_output()
     test_real_maps()
+    test_field_meanings()
 
     print("\n=== All tests completed ===")
 end

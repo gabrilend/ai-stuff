@@ -1,14 +1,15 @@
 --[[
 Fort Demo Harness (Issue 516e)
 
-Loaded by src/render/fort_demo.c after it has registered the "render"
-module. Lays the ground (a real map's terrain when it loads, else plain
-grass), paints the fort once, and gives the C side four functions:
+Run by src/render/scene_viewer.c (its default scene) after it has
+registered the "render" module. Lays the ground (a real map's terrain when
+it loads, else plain grass), paints the fort once, and gives the viewer
+four functions:
 
-    fort_tick(dt)      one simulation tick (the C side calls it at 50 Hz)
-    fort_paint()       paint this frame's units and arrows
-    fort_status()      a line for the HUD
-    fort_key(name)     "rings": cycle range rings
+    scene_tick(dt)     one simulation tick (the viewer calls it at 50 Hz)
+    scene_paint()      paint this frame's units and arrows
+    scene_status()     a line for the HUD
+    scene_key(name)    "rings": cycle range rings
 
 Environment:
     FORT_MAP   path of a .w3x/.w3m for the ground ("none": plain grass;
@@ -18,7 +19,7 @@ Environment:
 local render = require("render")
 local fort = require("demo.fort.scene")
 
-local ROOT = FORT_ROOT or "."
+local ROOT = SCENE_ROOT or "."
 local GROUND = 0.05   -- render height of the terrain's top
 
 -- {{{ lay_ground
@@ -59,19 +60,19 @@ local painted = scene.world:emit(render, GROUND)
 print(string.format("[fort] %d stones painted, %d posts", painted, #scene.posts))
 
 -- {{{ C entry points
-function fort_tick(dt)
+function scene_tick(dt)
     fort.update(scene, dt)
 end
 
-function fort_paint()
+function scene_paint()
     fort.paint(scene, render, GROUND)
 end
 
-function fort_status()
+function scene_status()
     return fort.status(scene)
 end
 
-function fort_key(name)
+function scene_key(name)
     if name == "rings" then fort.cycle_rings(scene) end
 end
 -- }}}
