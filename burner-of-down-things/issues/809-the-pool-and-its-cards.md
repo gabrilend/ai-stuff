@@ -4,7 +4,9 @@ Every asset ever made, kept, each beside a `.card`: what, category, each paramet
 
 ## Current Behavior
 
-Assets are written and forgotten.
+809a is built (issues/completed/809a-card-schema.md): the card schema and a
+single write. 809b (concurrent append), 809c (the count utility) and 809d
+(floors) are not yet built.
 
 ## Intended Behavior
 
@@ -18,6 +20,13 @@ Assets are written and forgotten.
 1. Cards written with every asset. **Test:** a card holds every field; two appends at once both survive.
 2. The count utility. **Test:** counts match the cards; nothing is read from any asset.
 3. Floors. **Test:** raising a floor reports how many remain.
+
+## Sub-issues
+
+- 809a — the card schema
+- 809b — concurrent append
+- 809c — the count utility
+- 809d — floors
 
 ## Blocked by
 

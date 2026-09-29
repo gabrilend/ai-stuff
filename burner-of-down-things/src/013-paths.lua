@@ -43,6 +43,9 @@ function paths.for_project(dir)
         input = dir .. "/input",
         output = dir .. "/output",
         docs = dir .. "/docs",
+        -- The studio's pool (docs/067, open question 13): kept in the
+        -- project, outside git, until the owner decides otherwise.
+        pool = dir .. "/pool",
         -- tmp/ points at /tmp/<project>; shared-memory/ inside it points at
         -- /dev/shm/<project>, which is where logs and throwaway artifacts go.
         scratch = dir .. "/tmp/shared-memory",

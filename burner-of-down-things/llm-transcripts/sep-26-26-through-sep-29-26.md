@@ -1,6 +1,6 @@
 # Conversation Summary: e8e4c82c-c417-4a78-b8c0-ac2908436973
 
-Generated on: 2026-09-27 13:10:26
+Generated on: 2026-09-29 00:24:07
 Models: claude-opus-5-5
 
 ## Contents
@@ -22,6 +22,10 @@ Models: claude-opus-5-5
    software into blueprints and rebuilds customizable versions from them. The
    check that uses workflows the builder never sees is done and committed. Next,
    you choose how a failing workflow decides which issue to repair.
+5. 2026-09-27 13:13, after Request 15 - We're building the machine that turns
+   software into blueprints and back, and failing workflows are now traced to
+   the faulty part by dynamic re-abstraction. Next: tell me whether a partial
+   fix should get another narrow pass or widen right away.
 
 --------------------------------------------------------------------------------
 
@@ -1145,6 +1149,754 @@ away? One could argue either way. Which does your picture of the process say?
 
 Still waiting on your answers: open questions 1–6 and 8 in the open-questions
 doc.
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+now that we have software that can make software, we should make some "asset
+generation utilities" - they can be for different filetypes. So one for .png,
+one for .mp4, one for .txt, and various source-code files under .src (language
+and version printed at first line of each source-code file) my preferred look is
+raylib painting lines and surfaces. Usually black background, or gray. Sometimes
+white and vibrant colors, but only if it's mostly not for night. lots of
+texturing tricks, like drawing a slightly different color, lighter in 1
+quadrant, half and half in two others, and darker in a fourth. But just the line
+around the middle, as a visual flair. Lots of charts and diagrams with lines
+drawn and arrows pointed there - here. things like an src file with a string at
+the beginning that says "language model prompt 14597: something something yadda
+yadda." then, a light llm decides what to do with it. "draw a circle? Well, it
+looks like I'm being handed a circle, so here I'll hand this to the place that
+needs a circle."
+
+let's just plan them out now, ways to create rapid planning structures with
+arbitrary inputs and outputs. "hmmm, I gotta take this integer array and this
+string of text and create an image off of it? Great!" "so it looks like an
+analysis machine, I ran it and I got these results [error error dettected]" "so
+it looks like the sheep are out of the barn because they pushed through the
+door. Let's make that heavier to move from the other side."
+
+then, with the ability to create software as we please...
+
+we can write a story to ourselves
+
+narrative like a child
+
+learn lessons, see the sovereignty of others, watch mechanisms
+
+study and develop your strategems
+
+--------------------------------------------------------------------------------
+
+*Login expired · Please run /login*
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+Base directory for this skill: /home/ritz/.claude/skills/canvas-and-paintbrush
+
+# Canvas and Paintbrush
+
+A method for building **a studio**: the part of a project that produces
+the thing you can look at, keeps everything it has ever produced, and
+gets better at the job because you told it what you liked.
+
+This describes a machine to build. It doesn't know what your project
+makes; its first stage is reading the project to find out. Where the
+project owner's standing instructions differ from anything here — where
+generated files live, how files are named and numbered, how work is
+split into issues, what goes in the scratch directories — their
+instructions win, and the apparatus adapts to them.
+
+---
+
+## The vocabulary
+
+Five words the rest of the document assumes.
+
+**Paintbrush** — what you are *allowed* to make it with. An integration
+into a particular project: the engine's API, the format's grammar, the
+layout the project demands. A **closed** set of legal moves, derived
+from the project directory, never invented.
+
+**Canvas** — what you are *asked* to make. The description of the task,
+handed to whatever is doing the making.
+
+The pairing is inverted from the usual one, where a canvas is a surface
+and a brush is a tool. Here the canvas is the brief and the brush is the
+capability, which makes the pair complete: **the canvas says what, the
+paintbrush says with-what.** A job needs nothing else to be specified.
+
+**Category** — what kind of thing an artifact is, inside this project.
+"dandelion sprite", "title card", "loop transition". The unit quality
+gets discussed in, because quality is never discussed globally — it is
+always *these* that are looking bad.
+
+**Tier** — how good one artifact is, on a five-step scale, written by a
+person or by a machine, both using the same steps.
+
+**The pool** — every artifact ever generated, with its category, its
+tier, and where that tier came from. Nothing is ever deleted from it.
+
+---
+
+## Stage zero: read the project before deciding anything
+
+This is what makes the skill general. The apparatus below is fixed; what
+flows through it is decided here, by reading, before any file is
+written. Ask the project in this order, stopping when the answer is
+unambiguous:
+
+| Where to look | What it tells you |
+|---|---|
+| The founding note (`notes/vision` or equivalent) | The founding intent in the author's own words. Outranks everything below. If it says "out to .gif", the argument is over. |
+| The table of contents | The phase structure, and which decisions already have names. |
+| `input/` | Existing descriptions, if any. They are canvases already written, and evidence of the vocabulary: extract the words they use rather than inventing a second vocabulary beside them. |
+| `output/` | What has already been emitted. Existing artifacts are a decision already taken. |
+| `src/` and any per-file description files | What machinery exists to be driven. Read the description files first; open source only when chasing a specific behaviour. |
+| `issues/`, including completed ones | The blueprint. A generator may already be specified there and half-built. |
+| Earlier studios in the same environment | A previous generator (a gif generator, a sprite tool) is the best worked example there is. Read it before designing. |
+| The runtime actually installed | Constrains the encoder. Probe it: which language runtimes and versions (`luajit -v`, `cc --version`), which libraries. |
+| What inference the project can reach | Decides whether a machine grader is possible at all. Probe it: a local model server answering on its port, an API key in the environment, a vision-capable model. Don't carry an answer over from another project. |
+| What the machine can carry | Cores and memory (`nproc`, `free -g`), a usable accelerator (`nvidia-smi`, `vulkaninfo --summary`). A grader that cannot be run is not a grader. |
+
+**Infrastructure is project-specific.** What one project has says nothing
+about the next. Use what is there; if what is needed isn't there, work
+out what to add with the person whose project it is. An apparatus
+designed around a stack that turns out not to exist is worse than one
+designed around none, because the second knows what it is.
+
+**When two signals disagree** — the founding note says one thing and the
+input directory another — raise it with the person rather than resolving
+it silently. **When the project is bare**, the question is genuinely open
+and is asked outright.
+
+## Choosing the artifact
+
+A dispatch table, because a chain of conditionals here becomes a chain
+of conditionals in the generated code too:
+
+| What the project is about | Artifact | What owning the encoder costs |
+|---|---|---|
+| Motion, animation, anything with a time axis | `.gif` (GIF89a) | A few hundred lines. Header, palette, per-frame blocks, LZW. Frozen since 1989. |
+| A still raster image | `.ppm`/`.pam`, or `.png` | PPM is a text header then raw bytes — nearly free. PNG written with uncompressed ("stored") deflate blocks costs about a hundred lines: the chunk layout, a CRC-32 and an Adler-32. |
+| Sound, waveforms, synthesis | `.wav` (RIFF PCM) | Trivial. Forty-odd bytes of header, then samples. |
+| Vector line-work, diagrams, plots | `.svg` | A text format. You are writing strings. Free. |
+| A report, a gallery, anything to be read | `.html` | Text. Free, and doubles as the viewer. |
+| Terminal motion | ANSI frame sequence, or an asciicast | Text. Free. |
+| 3D geometry | `.obj` (text) or `.stl` (small binary) | Both nearly free. |
+| Typography | `.ttf` | Expensive: tables, checksums, glyph outlines. Only if the project *is* about fonts. |
+
+- **Take the cheapest encoder that still carries the project's meaning.**
+  An SVG that says the thing beats a PNG that says the thing, because you
+  can read an SVG in a text editor when it goes wrong.
+- **Reject any format needing a dependency you would not otherwise
+  have.** A borrowed encoder converts your errors into someone else's
+  silence.
+
+## What to build now
+
+The whole studio is rarely needed on day one. Build in this order, and
+stop where the project stops needing more:
+
+1. **Always:** the spine (description → wall → model → buffers → encoder
+   →
+   file) and a viewer. This alone answers "make it output something I can
+   look at".
+2. **When artifacts will pile up:** the pool — the card beside each
+   artifact, the five tiers, the count utility.
+3. **When stage zero found inference that can perceive the artifact:** a
+   machine grader and algorithm A. Otherwise algorithm B, or ratings by
+   hand only.
+4. **When exact reproduction is proven** (the same description and seed
+   give the same bytes, tested): tier-bought elaboration.
+
+Say which of these you are building, and why the rest can wait.
+
+---
+
+## The paintbrush
+
+The paintbrush is a **closed set of legal moves, published**. Two halves
+that must not drift apart:
+
+- **The document half** — every word the project's descriptions may
+  speak, and what each one means. A contract, readable by a person.
+- **The executable half** — the sandbox table of permitted constructors.
+  If the host language can run a description file directly (Lua is very
+  good at this), then the language *is* the parser and this table *is*
+  the grammar. No parser to write or debug, and real syntax errors with
+  real line numbers, for free.
+
+**Closed is the whole point.** A paintbrush is defined by what it
+refuses. Hand something a long reference describing an API and it will
+invent plausible neighbouring calls that do not exist, confidently and in
+good style — true of people working fast and much truer of language
+models. A short allowlist has nowhere for the analogy to go. **Prefer a
+closed allowlist over a complete reference, most of all exactly when the
+temptation to document everything is strongest.**
+
+Where the project already has an interface — an engine, a format, a
+layout — the paintbrush is *extracted*, not designed. What exists is the
+vocabulary. Adding words the project doesn't have is how a paintbrush
+stops describing its project.
+
+## The wall
+
+Between the paintbrush and everything downstream sits a **wall, not a
+net**. A net catches some things and shrugs the rest through.
+
+- **Every error is named and located.** Which entry, which field, what
+  was wrong. "invalid input" is not an error message, it is an apology.
+- **Every error carries the nearest legal word.** The vocabulary is
+  closed and small, so edit distance to the legal words is computable and
+  one of them is almost certainly what was meant. Say so.
+- **All errors are reported together, in one pass.** Stopping at the
+  first turns fixing a description into a guessing game, one round per
+  run.
+- **Nothing is quietly filled in.** A malformed field is an error. An
+  *absent optional* field taking a documented default is different — that
+  is vocabulary, published in the document half. A default that appears
+  in the paintbrush document is vocabulary; a default that appears only
+  in code is a fallback, and a fallback is a warning, and a warning is an
+  error. If one ever fires, it says so loudly on the way past and gets
+  recorded as work to remove it.
+
+---
+
+## The spine the paintbrush drives
+
+A description in, one self-contained artifact out. The properties the
+rest of the studio depends on live here.
+
+```
+  a written description        text a person can author and diff
+        │
+  the wall                     refuse early, loudly, all at once
+        │
+  a compiled model             names resolved to numbers, once
+        │
+  evaluation                   the model asked one question repeatedly
+        │
+  buffers                      raw values, not yet a file
+        │
+  an encoder you own           bytes, to a frozen specification
+        │
+  one self-contained artifact
+```
+
+**Compilation resolves names to numbers exactly once.** If one entry
+refers to another — borrowing a landmark, inheriting a colour, continuing
+where something ended — that lookup happens at compile time and what
+lands in the model is a plain number. The evaluation loop runs thousands
+of times and never does a name lookup inside itself.
+
+**Allocate memory first, then work through it.** Whatever the project's
+many-small-things are — particles, samples, cells, rays — allocate the
+pool once, up front, as **parallel flat arrays**: all the first fields
+together, all the second fields together, not an array of records. The
+inner loop then walks contiguous memory instead of fetching cache lines
+mostly full of fields it isn't using, and a worker thread can later own a
+*span of indices* with nothing shared to lock, which makes threading a
+loop bound rather than a rewrite.
+
+**Accumulate wide, reduce narrow, deliberately.** Accumulate in floating
+point where contributions genuinely add and can exceed any maximum, then
+tone-map or limit down to what the format can represent, and **design the
+narrow target on purpose** knowing what this project's data looks like. A
+generic quantiser is always worse than one built for glowing particles on
+black. An accumulator that saturates silently at the output maximum has
+destroyed the information that would have said by how much.
+
+**Parallel work merges in a fixed order.** Floating-point addition is not
+associative — `(a + b) + c` and `a + (b + c)` can round differently — so
+partial sums combined in whatever order the workers finish produce
+different bytes on different runs. Give each worker a fixed span of
+indices and its own partial buffer, and combine the partials in index
+order, never in completion order.
+
+**Write the file format yourself.** Frozen specifications don't move. The
+cost is a few hundred lines once, mostly laying out headers in order, and
+the palette and sample rate become yours to design. The failure mode is
+the real argument: your own broken encoder fails loudly in code you can
+read, while a borrowed one falls back silently into a path you've never
+seen and produces a file subtly wrong in a way noticed weeks later. If a
+system library for the format exists, record in the architecture document
+the decision not to use it — an unwritten decision gets re-litigated.
+
+**Test the encoder with a round trip.** Write an independent decoder in
+the test file, decode the file you wrote, and check that the decoded
+values equal the buffers that went into the encoder *after* quantisation
+(the pre-quantisation values will legitimately differ). It is the only
+test that catches an encoder that is confidently wrong: a compression loop
+that grows its code width one entry late produces a file that *mostly*
+works, and only a decoder notices. Where an outside tool can open the
+output, run that too. Two independent readers is proof; one is an opinion.
+
+**The same description gives byte-identical output.** The seed is an
+explicit, named field of the description, never read from the clock or
+the environment. If descriptions may omit it, the default seed is
+published in the paintbrush document like any other default. Test it by
+running twice and comparing the files byte for byte. This is what lets
+tests assert on bytes instead of on someone squinting, and what makes
+every rating in the pool refer to something reproducible.
+
+---
+
+## The wall between making and looking
+
+**The program that makes the artifact and the program that shows it are
+separate programs that share no code.** The viewer reads only the
+finished file, exactly as a stranger would see it — no access to the
+compiled model, the buffers or the simulation state.
+
+This is error containment, not tidiness. A bug in one can't hide inside
+the other. When the viewer shows something wrong, "is the file wrong or
+the display?" is answered by opening the file in a third-party tool, and
+the answer is definitive. Share code between them and that question
+becomes unanswerable.
+
+The rating interface is a viewer. It shows artifacts and collects tiers;
+it never reaches back into the machinery that made them. A grader with
+access to the generator's internals grades the intent rather than the
+result, and the result is all anyone else will ever see. The viewer is
+usually the cheapest thing in the project — a page pointing at the output
+directory is often enough — and should stay that way.
+
+---
+
+## The pool
+
+Everything the studio has ever generated, kept.
+
+**Where it lives.** In a persistent directory of the project, never in a
+RAM-backed or scratch directory: those are emptied on reboot, and the
+pool is the one thing here that can't be regenerated, because the ratings
+in it are human judgment. Whether the pool is tracked in git, stored with
+git-LFS, or ignored and backed up separately is a decision for the owner
+(see the open questions) — thousands of binary files in ordinary git
+history is its own problem.
+
+## Nothing is ever deleted
+
+Not the bad ones. A low tier is information — it records what missed and
+by how much. Re-rating can promote something mis-scored in a hurry. And a
+pool you prune is a pool whose history can't be reconstructed, which makes
+every later question about *why the outputs drifted* unanswerable.
+Storage is cheap; judgment is expensive. Never throw away the expensive
+thing to save the cheap one.
+
+## Five tiers
+
+| Tier | Meaning |
+|---|---|
+| 5 | Love it. Reach for this first. Show it to people. |
+| 4 | Good. Use freely. |
+| 3 | Okay. Fine among others, not on its own. |
+| 2 | Weak. Kept, not reached for. |
+| 1 | No. Kept as the record of what missed. |
+
+## Two ways of rating, and they are different machines
+
+**Build both** when the project needs ratings at all. Which one runs is a
+setting, and switching costs nothing because they write the same field.
+Select between them by dispatch — a table of two rating machines chosen by
+key — rather than a branch inside the rating code, because a branch there
+sprouts a second branch and the two designs start borrowing each other's
+assumptions. A project may want A for one category and B for another,
+which is another reason the choice is a key and not a global mode.
+
+### Algorithm A — rate on arrival, correct on inspection
+
+The machine rates **everything** the moment it exists. A person rates a
+little, whenever they feel like it. Both write the same field; the
+person's rating wins and is marked as a person's.
+
+It solves an arithmetic problem: if everything is kept and only a little
+is looked at, the pool is overwhelmingly unrated, and a floor of "tier 4
+or better" excludes nearly the whole library. Rating on arrival means
+floors work from the first day. It also pays a second time: wherever a
+machine tier and a person's tier exist for the same artifact, that is a
+free measurement of **how often the machine agrees with you**, collected
+continuously as a by-product of use. A machine grader nobody has measured
+is a rumour, not a grader.
+
+**What the grader is, is a project question**, answered by stage zero's
+probes. Two constraints bind whatever is chosen:
+
+- **It perceives the artifact as the artifact.** A grader that sees one
+  still frame of an animation is rating an illustration. This applies to
+  the agent running this skill too: an image-reading tool shows an
+  animated GIF as one still picture. So when the agent grades, give it
+  motion as a frame strip (a contact sheet of every Nth frame, in order)
+  or as per-frame statistics, and give it sound as a spectrogram plus
+  numeric features (loudness over time, pitch, onsets). A grading
+  subagent can be started without the owner's long-form instructions
+  loaded, where the platform allows it, so its judgment isn't coloured by
+  them.
+- **It answers the same question a person answers, in the same five
+  steps.** That is what makes agreement measurable.
+
+**If no adequate grader can be run, algorithm A is not available.** That
+is a real outcome: without the grader, A degrades into an unrated pool
+with a floor that excludes everything. Find this out before building A.
+
+Its shape: **large pool, thin judgment, measured.**
+
+### Algorithm B — judge the pool once, then curate in use
+
+A person passes over the whole library once and gives everything a tier.
+From then on **the rating happens during use**: the moment somebody
+working with the thing thinks *that one is wrong*, they change its tier
+right there and carry on.
+
+- **Every rating is a person's**, so provenance is uniform. There's no
+  agreement rate because there's nothing to compare against — which
+  removes an apparatus, and also removes the safety measurement it gave.
+- **The judgment happens in context, which is a better question.** In a
+  gallery an artifact is judged as a picture; mid-use it is judged on
+  *did that do its job, at that size, next to those things, when I needed
+  it.* That question can't be asked in a gallery, and it's the one that
+  matters.
+- **The pool is bounded by patience.** The library is only as large as
+  somebody will sit through — a real ceiling, and also where the quality
+  comes from.
+
+Its shape: **small pool, complete judgment, contextual.** B has an
+architectural consequence: **the rating store must be reachable from the
+running program**, because the re-rate happens mid-use. Where the program
+is a server, the rating arrives through the same door as every other
+command.
+
+Neither is better. **A is for ten thousand generated dandelions; B is for
+the forty things that actually show up in the work.** A side-by-side
+table is in `reference.md`.
+
+## Every artifact carries a card
+
+Beside every artifact in the pool sits a small plain-text card describing
+it, with the same stem and its own suffix:
+
+```
+goblin-walk-0042.svg     the artifact
+goblin-walk-0042.card    everything true about it
+```
+
+The suffix is deliberately not one the project already uses for
+documentation (such as a per-source-file description convention), so a
+documentation build that collects those files doesn't sweep thousands of
+cards into the docs. **The pool is the filesystem**: no database, no
+index file, no schema; each entry is two files that travel together.
+
+### What the card holds
+
+The purpose is not only to reproduce this artifact but to **make more
+like it**, so parameters are recorded individually and by name, not
+rolled into one blob. One fact per line, `key: value`, with repeated keys
+for the lists:
+
+| Line | Holds | Why |
+|---|---|---|
+| `what:` | one line of prose | so a person can tell what this is without opening it |
+| `category:` | one string from the project's declared set | every quality query starts here |
+| `param <name>:` | one per parameter, each a number, string, or a paintbrush enum word | the axes of variation made visible; turns "reproduce it" into "make more like it" |
+| `seed:` | one integer, separate from the parameters | varying the seed alone gives a sibling; varying one parameter gives a variation — different requests |
+| `paintbrush:` | name and version | a changed vocabulary makes old and new artifacts not honestly comparable |
+| `canvas:` | the brief, inline | tells a bad score from an impossible brief |
+| `rating:` | `<tier> <who> <timestamp>`, one line per rating, appended | never overwritten; the current tier is the last line |
+| `elaboration:` | `<parameter>=<value> -> <file>`, one line each | the extra work bought by a high tier, traced to this origin |
+
+**Ratings are appended, one line in one write, in append mode.** Under
+algorithm A the grader writes at arrival; under B a person re-rates from
+the running program; both can hit the same card at the same moment. A
+read-modify-write loses one of them. A single short append doesn't, and
+it needs no lock.
+
+The **seed/parameter separation** is the load-bearing detail: *same
+parameters, new seed* is another one of these; *same seed, one parameter
+changed* is this exact one, seen differently. Elaboration runs on the
+second, and only works if the parameter is separately addressable.
+
+What this buys: **the history survives** (you can see a machine's guess
+sitting under a person's later correction, and the agreement rate is
+computed straight from these lines); **queries never open an artifact**
+(a request for goblins at tier 4 or better reads cards only — small,
+greppable text — never decodes an image); and **nothing gets separated
+from its meaning** (two files with the same stem in one directory travel
+together, where a central store drifts the first time someone moves one
+without the other).
+
+### Counts come from a utility
+
+How many goblins exist at tier 4, how often the machine agrees with a
+person, how many elaborations are outstanding — none of these are written
+into any document. A small utility walks the cards and reports. A typed
+number was true once; a utility is true when asked.
+
+---
+
+## The quality-versus-variety dial
+
+The pool is also **a live asset library queried at generation time**, and
+the tier is the filter. The exchange it is built for:
+
+> *"The dandelion sprites are looking pretty bad — can we increase their
+> quality?"*
+> "Yes. Raising the floor for that category from 3 to 4 leaves 31 to draw
+> from instead of 214, so expect them to start resembling each other."
+> *"That's okay."*
+> "Do you want to look through the unreviewed ones and set some ratings
+> yourself?"
+> *"No, not now, thanks."*
+
+1. **The floor is per-category and set at run time** — quality is turned
+   up on *the dandelions* because *the dandelions* are what's bothering
+   you.
+2. **Raising the floor costs variety, and the system says so first** —
+   the surviving set's size at the current and proposed floor, reported
+   at the moment of choosing.
+3. **A second dial: provenance.** "Tier 4 or better" and "tier 4 or
+   better *as judged by a person*" are different requests; offer both.
+4. **Re-rating is offered, never pressed, and declining is free.** The
+   offer carries its cost ("31 unreviewed at this floor"). "Not now"
+   costs nothing and isn't asked again in the same breath.
+
+Retrieved entries have two uses: **shown to the generator as examples of
+what good looks like here**, and **used directly**, because reuse is
+cheaper than regeneration and often better.
+
+---
+
+## Tier buys elaboration
+
+The tier is also a budget for *how much more* gets spent on each
+artifact. Isometric sprites make it obvious: a sprite is born with one
+viewing angle; the highest-rated ones earn eight or sixteen more, while a
+tier-2 sprite keeps the one it was born with. Effort concentrates where
+quality already is, and the library grows **deeper** rather than wider.
+(Per-artifact examples are in `reference.md`.)
+
+- **Cost lands where it is deserved.**
+- **The elaboration queue is computed, not stored.** It is every artifact
+  whose current tier entitles it to more elaborations than its card
+  records — produced by the same count utility, on demand. Promoting an
+  artifact from 3 to 5 puts it in the queue by that fact alone; there is
+  no separate work-order file to fall out of step with the cards. Show the
+  queue's length wherever tiers are shown, so promotion visibly creates
+  work.
+- **Demotion never destroys.** It stops further investment; the
+  elaboration already paid for stays in the pool at the new tier.
+
+## Elaboration extends, never regenerates
+
+Adding an angle to a rated artifact **extends that artifact** — same
+description, same seed, one parameter differing — and never re-rolls it.
+A regenerated artifact is a different thing wearing the old one's tier,
+and a few of those make every tier in the library a statement about
+something that no longer exists. Exact reproduction is what makes this
+safe, which is why a project that can't yet reproduce an old artifact
+byte for byte doesn't offer elaboration until it can.
+
+---
+
+## Learning: the invariant, and the choice left open
+
+**The invariant:**
+
+> Poor examples are filtered away. Excellent ones are elevated.
+
+The floor filters the poor out of what gets used; the tier budget
+elevates the excellent. **How a project actually learns is its own
+decision** — retrieval, direct reuse, brief refinement, vocabulary
+tightening, or training on preferences, with costs listed in
+`reference.md`. Two things hold whichever is chosen:
+
+- **The cheapest mechanisms need no training at all.** Retrieval and reuse
+  deliver "it gets better as we use it" on day one, and for many projects
+  they are the whole answer.
+- **Anything learning from a machine grader needs a person anchoring it.**
+  Under algorithm A, if a person's ratings become rare, the apparatus
+  converges smoothly on *the grader's* taste with no error raised, found
+  months later by not liking the output. So a minimum fraction gets a
+  person's rating, and the agreement rate is shown where it can be seen.
+  Algorithm B can't fail this way.
+
+---
+
+## How to build it: parallel uniform descent
+
+Build all the components at once, at the same level of abstraction, and
+lower that level across the whole system in passes.
+
+- **Pass zero** is one document: the entire dataflow in pseudocode, every
+  component present and none detailed. If the project already keeps a
+  dataflow or datapath document for each feature, pass zero *is* that
+  document — don't write two.
+- **Each later pass expands every part by one level**, never one part to
+  completion while another is still a sentence.
+- **The final pass is running code.**
+
+**Why uniform descent**, mechanically: an interface between two
+components is decided at whatever level of detail both sides are at when
+they meet. Finish one first and its interface is concrete, so everything
+else must accommodate whatever it happened to do, at the cost of a
+refactor. Keep everything level and every interface is negotiated while
+both sides are still a sentence, where changing it costs a sentence.
+
+The document and the program become the same artifact at different
+levels of expansion; the pseudocode is pass zero of the thing itself, not
+a plan that goes stale. **Don't stop descending early** — the pass where
+it's *almost* code feels finished and isn't. A level that hides a
+decision behind a phrase still has that decision unmade.
+
+## The language at the bottom
+
+**Ask: does the hot loop need real parallelism, or only concurrency?**
+
+| Shape | Example | Parallel? |
+|---|---|---|
+| Many independent jobs from one brief | Generating N candidates | Fully. Each touches nothing another touches. |
+| One artifact evolving along its axis | Stepping a simulation forward | No. Each step depends on the last. Say so plainly. |
+| Independent finishing work on finished pieces | Encoding frames already computed | Fully. The producer-then-workers shape. |
+
+If the heavy work is only the middle row, the project keeps whatever
+language it has. If the first or third row carries the cost — usually,
+since those scale with how much you generate — the question is whether
+the runtime gives **real operating-system threads over shared memory**. C
+does, directly: the flat-array pool exists so a worker takes a span of
+indices and touches nothing anyone else touches. A coroutine runtime gives
+concurrency but not parallelism, and reaching real threads from one costs
+a library, a serialisation boundary, or both. C at the bottom is a
+conclusion some projects reach and others don't; only the hot inner work
+is ever in question.
+
+**File layout.** A single-file core is fine while it can be read whole;
+read it whole or not at all, because in one translation unit a fragment
+hides the declarations and lifetimes its meaning depends on. When it no
+longer fits in one reading, split it. How the project's files are
+numbered and ordered for reading is the project's convention (the
+documentation-refactor skill covers renumbering), and keeping a Lua and a
+C version of the same core side by side is the polyglot-source skill's
+subject.
+
+---
+
+## Failure modes worth knowing before they happen
+
+The full table is in `reference.md`. The ones that aren't obvious from
+the sections above:
+
+| Symptom | What is actually wrong | The fix |
+|---|---|---|
+| Output differs between runs only when threads are on | Partials merged in completion order | Fixed spans, per-worker buffers, merged in index order. |
+| A one-off flag appears on the command line | The paintbrush was missing a word and someone routed around it | Add the word to the vocabulary and the document. Flags don't compose. |
+| The paintbrush document and the sandbox disagree | The vocabulary has two homes | The document is the contract; derive the table from it, or test them against each other. |
+| One component is finished and the others are prose | Uniform descent abandoned | Bring the rest up to that level before going further down. |
+| The pool vanished after a reboot | It lived in a scratch or RAM directory | A persistent project directory. |
+| Two ratings at once, one lost | Read-modify-write on the card | One-line append in one write. |
+
+---
+
+## Open questions to put to whoever invoked this
+
+Ask only the ones stage zero couldn't answer, one at a time, most
+consequential first. Each changes the shape of what gets built.
+
+1. **What does this project emit, in the author's words?** Confirm what
+   stage zero found. If it found two answers, settle that first.
+2. **Does a studio already exist here in partial form?** Half a studio in
+   a document or a completed issue is something to extend, not duplicate.
+3. **What are the categories?** The units quality will be discussed in;
+   wrong categories make the floor useless.
+4. **How much of the studio is wanted now?** The spine and a viewer only,
+   or the pool and ratings too (see "What to build now").
+5. **Which rating machine, and is it the same for every category?**
+6. **Where does the pool live, and is it tracked in git, stored with
+   git-LFS, or ignored and backed up?**
+7. **What does a higher tier buy here?** If there's no axis of
+   elaboration, tier is a filter only — say so.
+8. **What is the axis of the artifact itself?** Time, sequence, depth,
+   frequency. Often assumed to be time when it isn't.
+9. **What units does the description speak, and to what precision?** A
+   format measuring delays in hundredths of a second can't honestly
+   accept thirty frames per second.
+10. **Who rates, how often, and what is the human floor?**
+11. **How do the passes of uniform descent map onto the project's issue
+    files** — one issue per pass across all components, or one issue per
+    component with a sub-issue per pass?
+12. **What is the visible proof?** The demo is part of the deliverable;
+    decide what it shows before building toward it.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+> Planning, not building. First, stage zero: checking what this machine actually
+> has, since that decides the plan's shape.
+
+> Docs for all three phases are written. Now the issue files for phases 8, 9,
+> and 10:
+
+> The issues validate clean. Issue 1003 says `strategems/` already holds the two
+> strategems this project's own building taught, and you asked to study and
+> develop them. Writing those two now:
+
+> Now the roadmap, table of contents, and the open questions this plan raises,
+> then the commit:
+
+*[commit] 00560be3e in ai-stuff - Plan the studio, the switchboard, and the story*
+
+The plan is written and committed. Nothing is built yet, as you asked.
+
+**Phase 8, the studio:** one small generator per file kind, all painting in your
+look.
+
+| Kind | How it's made |
+|---|---|
+| `.png` | raylib paints lines and surfaces in a hidden window; our own code writes the file |
+| `.mp4` | the same painter, frame by frame |
+| `.txt` | tables, lists, and boxes-and-arrows made of line characters |
+| source files | written by a model turn; the first line names the language and version, and the language's own parser checks the file |
+
+- **The look lives in one table:** black or gray ground, white and vibrant only
+  when not for night, the four-quarter flair on each surface's middle line only,
+  and arrows labelled at both ends ("there → here").
+- **Charts and diagrams are words in the vocabulary**, not separate tools. The
+  first things to draw are the machine's own blueprint graphs, centers, and
+  ledgers.
+- **Each asset is described in a small closed vocabulary.** An unknown word is
+  refused and the nearest legal one is named.
+- **Every asset is kept** beside a card of facts and a 1–5 rating, viewed in a
+  raylib gallery.
+
+**Phase 9, the switchboard:** your "language model prompt 14597:" files.
+- **A light local model (ollama) does one job:** name what a parcel is and which
+  station it goes to, like "I'm handed a circle, so it goes to the place that
+  needs circles." The machine checks that answer against the station table.
+- **Multi-step jobs are planned by input and output type**, so "integer array +
+  text → image" becomes a chain of stations.
+- **Results that report an error become a change request** against the mechanism
+  at fault ("make the door heavier"). The existing update machinery handles
+  those.
+
+**Phase 10, the story:** each case's ledger told back as plain chapters, naming
+whose each thing was. Lessons come from the turning points, each naming a
+mechanism. A strategem is drafted when a mechanism recurs, and you decide
+whether to keep it.
+
+**Studying the strategems:** I wrote the two that this project's own building
+taught, a referee never sees the answer and dynamic re-abstraction, in the
+rao-chat form.
+
+**Five new open questions** are recorded (10–14 in the open-questions doc).
+The most consequential first, since the rest of the studio leans on it:
+
+Owning a file format is your house rule, but `.mp4` needs an H.264 encoder,
+which is a whole codec, not a few hundred lines. The plan hands our own
+byte-exact frames to ffmpeg for the `.mp4`, and writes every clip as a `.gif`
+with the house encoder too, so one path never borrows bytes. Is that acceptable,
+or would you rather the studio make only `.gif` clips?
 
 --------------------------------------------------------------------------------
 
