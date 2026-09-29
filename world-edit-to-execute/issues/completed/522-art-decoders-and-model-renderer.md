@@ -178,3 +178,7 @@ Tools:
 - **No sound:** audio decoding and playback aren't here (WAV/MP3).
 - **Reforged formats:** MDX 900+ materials beyond version 800's, and BLP2/DDS, are not handled.
 - **Tested only here:** stock models could only be tested with the maps' imports in this container. The install path is written against `gamedata.chain`, which has its own tests, but hasn't been run against a real install here.
+
+### Follow-up (2026-09-29)
+
+- **Animation:** done in issue 523 (`issues/completed/523-models-play-their-animations.md`): skinning, sequences, and geoset and layer alpha.

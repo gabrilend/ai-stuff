@@ -5,9 +5,10 @@ A parsed MDX (parsers/mdx.lua) into the renderer's model (render/models.c):
 one part per geoset and material layer, with its texture uploaded once
 per path.
 
-  shown       geosets their geoset animation hides at the start of the
-              Stand sequence (alpha 0) are left out: death and alternate
-              parts
+  shown       every geoset is a part; those their geoset animation hides
+              at the start of Stand (death and alternate parts) have
+              alpha 0 when drawn without a pose, and show when a
+              sequence brings them in (Issue 523)
   textures    a path is read and decoded through the asset source
               (assets/init.lua); replaceable id 1 is the team colour (a
               white texture the draw tints), 2 the team glow (a soft
@@ -16,18 +17,22 @@ per path.
               neutral grey on solid layers, so the shape still shows, and
               left out on blended ones (a glow without its texture would
               light up its whole quad)
-  pose        the model's own vertices (its rest pose); animation isn't
-              played yet
+  skins       a geoset's vertices carry their matrix group, so a pose
+              (assets/anim.lua) moves them; without one they stand in the
+              model's rest pose. A geoset with more groups than the
+              renderer takes (anim.MAX_GROUPS) stays in its rest pose
 
     local gpu = require("assets.gpu")
     local cache = gpu.new(render, A)                  -- A: assets.open(...)
     local id = cache:build(m, path)                   -- a model id, or nil (nothing drawable)
     render.model_draw(id, x, y, z, facing, scale, r, g, b)
+    local rig = cache:rig(id)                         -- to animate it (assets/anim.lua)
 ]]
 
 local ffi = require("ffi")
 local bit = require("bit")
 local mdx = require("parsers.mdx")
+local anim = require("assets.anim")
 
 local gpu = {}
 
@@ -49,7 +54,8 @@ gpu.REPLACEABLE = {
 
 -- {{{ gpu.new
 function gpu.new(render, assets)
-    local self = setmetatable({ render = render, assets = assets, tex = {}, models = {}, built = 0, parts = 0 }, C)
+    local self = setmetatable({ render = render, assets = assets, tex = {}, models = {}, built = 0, parts = 0,
+                                meta = {}, rigs = {} }, C)
     return self
 end
 -- }}}
@@ -106,16 +112,16 @@ function C:texture(t)
 end
 -- }}}
 
--- {{{ Geoset visibility at the start of Stand
-local function hidden_geosets(m)
-    local hidden = {}
+-- {{{ Geoset alpha at the start of Stand (how it's drawn without a pose)
+local function stand_alphas(m)
+    local alphas = {}
     local stand = mdx.sequence(m, "stand")
     local frame = stand and stand.start or 0
     for _, a in ipairs(m.geoset_animations) do
         local alpha = mdx.sample(a.tracks.KGAO, frame, a.alpha, stand and stand.start, stand and stand.finish)
-        if (tonumber(alpha) or 1) <= 0.01 then hidden[a.geoset] = true end
+        alphas[a.geoset] = tonumber(alpha) or 1
     end
-    return hidden
+    return alphas
 end
 -- }}}
 
@@ -151,7 +157,19 @@ local function geoset_arrays(g)
     if ni < 3 then return nil end
     local idx = ffi.new("uint16_t[?]", ni)
     for i = 0, ni - 1 do idx[i] = tris[i + 1] end
-    return ffi.string(verts, nv * 32), ffi.string(idx, ni * 2)
+    -- each vertex's matrix group, when the renderer can pose them all
+    local skin
+    local groups = #g.group_sizes
+    if groups >= 1 and groups <= anim.MAX_GROUPS and #g.vertex_groups >= nv then
+        local sk = ffi.new("uint16_t[?]", nv)
+        for i = 0, nv - 1 do
+            local k = g.vertex_groups[i + 1]
+            if k >= groups then sk = nil; break end
+            sk[i] = k
+        end
+        if sk then skin = ffi.string(sk, nv * 2) end
+    end
+    return ffi.string(verts, nv * 32), ffi.string(idx, ni * 2), skin, groups
 end
 -- }}}
 
@@ -161,64 +179,70 @@ end
 function C:build(m, path)
     local key = path and path:lower() or tostring(m)
     if self.models[key] ~= nil then return self.models[key] or nil end
-    local hidden = hidden_geosets(m)
-    local parts = {}
+    local shown = stand_alphas(m)
+    local parts, meta, skins, skin_groups = {}, {}, {}, {}
     local stand = mdx.sequence(m, "stand")
     for gi, g in ipairs(m.geosets) do
-        if not hidden[gi - 1] then
-            local verts, idx = geoset_arrays(g)
-            if verts then
-                local mesh = self.render.mesh_create(verts, idx)
-                local mat = m.materials[g.material + 1]
-                local layers = mat and mat.layers or { { filter_mode = 0, shading = 0, texture = 0, alpha = 1, tracks = {} } }
-                -- a body: team colour under a blended skin (WC3's usual
-                -- layering). With the skin missing, a solid grey body
-                -- stands in (the team colour would show as a flat fill)
-                local has_team = false
+        local verts, idx, skin, groups = geoset_arrays(g)
+        if verts then
+            local mesh = self.render.mesh_create(verts, idx, skin)
+            local slot = 0
+            if skin then
+                skins[#skins + 1] = gi - 1
+                skin_groups[#skin_groups + 1] = groups
+                slot = #skins
+            end
+            local mat = m.materials[g.material + 1]
+            local layers = mat and mat.layers or { { filter_mode = 0, shading = 0, texture = 0, alpha = 1, tracks = {} } }
+            -- a body: team colour under a blended skin (WC3's usual
+            -- layering). With the skin missing, a solid grey body
+            -- stands in (the team colour would show as a flat fill)
+            local has_team = false
+            for _, layer in ipairs(layers) do
+                local t = m.textures[layer.texture + 1]
+                if t and t.replaceable == 1 then has_team = true end
+            end
+            if has_team then
+                local body = {}
+                local skin_missing = false
                 for _, layer in ipairs(layers) do
                     local t = m.textures[layer.texture + 1]
-                    if t and t.replaceable == 1 then has_team = true end
+                    if t and t.replaceable ~= 1 and t.replaceable ~= 2 then
+                        local _, _, missing = self:texture(t)
+                        if missing then skin_missing = true end
+                    end
                 end
-                if has_team then
-                    local body = {}
-                    local skin_missing = false
+                if skin_missing then
                     for _, layer in ipairs(layers) do
                         local t = m.textures[layer.texture + 1]
-                        if t and t.replaceable ~= 1 and t.replaceable ~= 2 then
-                            local _, _, missing = self:texture(t)
-                            if missing then skin_missing = true end
+                        if not (t and t.replaceable == 1) then
+                            local copy = {}
+                            for k, v in pairs(layer) do copy[k] = v end
+                            copy.filter_mode = 0
+                            body[#body + 1] = copy
                         end
                     end
-                    if skin_missing then
-                        for _, layer in ipairs(layers) do
-                            local t = m.textures[layer.texture + 1]
-                            if not (t and t.replaceable == 1) then
-                                local copy = {}
-                                for k, v in pairs(layer) do copy[k] = v end
-                                copy.filter_mode = 0
-                                body[#body + 1] = copy
-                            end
-                        end
-                        layers = body
-                    end
+                    layers = body
                 end
-                for _, layer in ipairs(layers) do
-                    local tex, team, missing = self:texture(m.textures[layer.texture + 1])
-                    local alpha = mdx.sample(layer.tracks.KMTA, stand and stand.start or 0, layer.alpha,
-                        stand and stand.start, stand and stand.finish)
-                    -- a stand-in colour only where the layer is solid: a
-                    -- blended one (glows, runes, auras) without its texture
-                    -- would light up its whole quad
-                    if missing and layer.filter_mode >= 2 then
-                        self.skipped = (self.skipped or 0) + 1
-                    elseif (tonumber(alpha) or 1) > 0.01 then
-                        parts[#parts + 1] = {
-                            mesh = mesh, tex = tex, team = team, filter = layer.filter_mode,
-                            two_sided = bit.band(layer.shading, 16) ~= 0,
-                            unshaded = bit.band(layer.shading, 1) ~= 0,
-                            alpha = tonumber(alpha) or 1,
-                        }
-                    end
+            end
+            for _, layer in ipairs(layers) do
+                local tex, team, missing = self:texture(m.textures[layer.texture + 1])
+                local alpha = mdx.sample(layer.tracks.KMTA, stand and stand.start or 0, layer.alpha,
+                    stand and stand.start, stand and stand.finish)
+                -- a stand-in colour only where the layer is solid: a
+                -- blended one (glows, runes, auras) without its texture
+                -- would light up its whole quad
+                if missing and layer.filter_mode >= 2 then
+                    self.skipped = (self.skipped or 0) + 1
+                else
+                    parts[#parts + 1] = {
+                        mesh = mesh, tex = tex, team = team, filter = layer.filter_mode,
+                        two_sided = bit.band(layer.shading, 16) ~= 0,
+                        unshaded = bit.band(layer.shading, 1) ~= 0,
+                        alpha = (tonumber(alpha) or 1) * (shown[gi - 1] or 1),
+                        skin = slot,
+                    }
+                    meta[#meta + 1] = { geoset = gi - 1, layer = layer }
                 end
             end
         end
@@ -227,11 +251,27 @@ function C:build(m, path)
         self.models[key] = false
         return nil
     end
-    local id = self.render.model_create(parts)
+    local id = self.render.model_create(parts, skin_groups)
     self.models[key] = id
+    self.meta[id] = { m = m, parts = meta, skins = skins }
     self.built = self.built + 1
     self.parts = self.parts + #parts
     return id
+end
+-- }}}
+
+-- {{{ C:rig
+-- The model's rig for animation (assets/anim.lua), built when first asked;
+-- nil for models that aren't MDX
+function C:rig(id)
+    if not id then return nil end
+    local r = self.rigs[id]
+    if r == nil then
+        local meta = self.meta[id]
+        r = meta and anim.rig(meta.m, meta.parts, meta.skins) or false
+        self.rigs[id] = r
+    end
+    return r or nil
 end
 -- }}}
 

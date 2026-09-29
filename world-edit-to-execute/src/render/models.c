@@ -10,6 +10,14 @@
  * 2 blend, 3 additive, 4 add-alpha, 5 modulate, 6 modulate 2x. Opaque and
  * alpha-tested parts are drawn first with depth writes; blended ones
  * after, without writing depth (unsorted: close enough for a first pass).
+ *
+ * Animation (Issue 523): a mesh may carry one skin index per vertex (its
+ * WC3 matrix group, in the vertex colour's first two bytes). An instance
+ * drawn with a pose gives, per skin (a geoset), one 3 x 4 matrix per
+ * group (the average of its bones' matrices, worked out in Lua), and an
+ * alpha per part (geoset and layer animation); the vertex shader moves
+ * each vertex by its group's matrix. Without a pose a model stands in its
+ * rest pose with its parts' own alphas.
  */
 #include "models.h"
 #include "raylib.h"
@@ -22,14 +30,22 @@
 
 #define WC3_UNITS 128.0f
 
+#define MAX_GROUPS 128   /* matrix groups one skin may have (3 vec4 uniforms each) */
+
 typedef struct {
     int mesh, tex, filter, team, two_sided, unshaded;
+    int skin;        /* 1-based skin slot in the model's pose, 0 for none */
+    int index;       /* its place in the list given (its alpha in a pose) */
     float alpha;
 } Part;
 
 typedef struct {
     Part* parts;
     int part_count;
+    int skin_count;
+    int* skin_groups;   /* groups per skin */
+    int* skin_offset;   /* floats into a pose, per skin */
+    int pose_floats;    /* part alphas, then 12 floats per group of every skin */
 } ModelDef;
 
 typedef struct {
@@ -38,6 +54,7 @@ typedef struct {
     Color team;
     float alpha;
     float x, z;
+    int pose;          /* offset into g_pose, or -1 */
 } Instance;
 
 static Texture2D* g_tex = NULL;
@@ -49,9 +66,12 @@ static int g_model_count = 0, g_model_cap = 0;
 static Instance* g_inst = NULL;
 static int g_inst_count = 0, g_inst_cap = 0;
 static int g_last_drawn = 0;
+static float* g_pose = NULL;        /* this frame's poses, one after another */
+static int g_pose_count = 0, g_pose_cap = 0;
 
 static Shader g_shader;
 static int g_loc_alpha_test = -1, g_loc_unshaded = -1, g_loc_light = -1;
+static int g_loc_skinned = -1, g_loc_bones = -1;
 static Material g_material;
 static Texture2D g_white;
 static int g_ready = 0;
@@ -59,13 +79,22 @@ static int g_ready = 0;
 /* {{{ shader */
 static const char* VS =
     "#version 330\n"
-    "in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal;\n"
+    "in vec3 vertexPosition; in vec2 vertexTexCoord; in vec3 vertexNormal; in vec4 vertexColor;\n"
     "uniform mat4 mvp; uniform mat4 matModel;\n"
+    "uniform int skinned; uniform vec4 bones[384];\n"
     "out vec2 uv; out vec3 normal;\n"
     "void main() {\n"
     "  uv = vertexTexCoord;\n"
-    "  normal = normalize(mat3(matModel) * vertexNormal);\n"
-    "  gl_Position = mvp * vec4(vertexPosition, 1.0);\n"
+    "  vec3 p = vertexPosition; vec3 n = vertexNormal;\n"
+    "  if (skinned == 1) {\n"
+    "    int g = int(vertexColor.r * 255.0 + 0.5) + 256 * int(vertexColor.g * 255.0 + 0.5);\n"
+    "    vec4 r0 = bones[g * 3], r1 = bones[g * 3 + 1], r2 = bones[g * 3 + 2];\n"
+    "    vec4 h = vec4(p, 1.0);\n"
+    "    p = vec3(dot(r0, h), dot(r1, h), dot(r2, h));\n"
+    "    n = vec3(dot(r0.xyz, n), dot(r1.xyz, n), dot(r2.xyz, n));\n"
+    "  }\n"
+    "  normal = normalize(mat3(matModel) * n);\n"
+    "  gl_Position = mvp * vec4(p, 1.0);\n"
     "}\n";
 
 static const char* FS =
@@ -94,6 +123,9 @@ void models_init(void) {
     g_shader.locs[SHADER_LOC_VERTEX_POSITION] = GetShaderLocationAttrib(g_shader, "vertexPosition");
     g_shader.locs[SHADER_LOC_VERTEX_TEXCOORD01] = GetShaderLocationAttrib(g_shader, "vertexTexCoord");
     g_shader.locs[SHADER_LOC_VERTEX_NORMAL] = GetShaderLocationAttrib(g_shader, "vertexNormal");
+    g_shader.locs[SHADER_LOC_VERTEX_COLOR] = GetShaderLocationAttrib(g_shader, "vertexColor");
+    g_loc_skinned = GetShaderLocation(g_shader, "skinned");
+    g_loc_bones = GetShaderLocation(g_shader, "bones");
     g_loc_alpha_test = GetShaderLocation(g_shader, "alphaTest");
     g_loc_unshaded = GetShaderLocation(g_shader, "unshaded");
     g_loc_light = GetShaderLocation(g_shader, "lightDir");
@@ -143,7 +175,8 @@ int l_tex_create(lua_State* L) {
 }
 /* }}} */
 
-/* {{{ l_mesh_create: (verts, indices) -> id */
+/* {{{ l_mesh_create: (verts, indices [, skin]) -> id
+ * skin: uint16 per vertex, its matrix group (for posing) */
 int l_mesh_create(lua_State* L) {
     models_init();
     size_t vlen, ilen;
@@ -168,6 +201,20 @@ int l_mesh_create(lua_State* L) {
     for (int i = 0; i < ni; i++) {
         mesh.indices[i] = idx[i] < nv ? idx[i] : 0;
     }
+    if (lua_isstring(L, 3)) {
+        size_t slen;
+        const unsigned short* skin = (const unsigned short*)lua_tolstring(L, 3, &slen);
+        if (slen >= (size_t)nv * sizeof(unsigned short)) {
+            mesh.colors = MemAlloc(nv * 4);
+            for (int i = 0; i < nv; i++) {
+                unsigned short g = skin[i] < MAX_GROUPS ? skin[i] : 0;
+                mesh.colors[i * 4] = (unsigned char)(g & 255);
+                mesh.colors[i * 4 + 1] = (unsigned char)(g >> 8);
+                mesh.colors[i * 4 + 2] = 0;
+                mesh.colors[i * 4 + 3] = 255;
+            }
+        }
+    }
     UploadMesh(&mesh, false);
     g_mesh = grow(g_mesh, &g_mesh_cap, g_mesh_count + 1, sizeof(Mesh));
     g_mesh[g_mesh_count++] = mesh;
@@ -176,7 +223,7 @@ int l_mesh_create(lua_State* L) {
 }
 /* }}} */
 
-/* {{{ l_model_create: ({ parts }) -> id */
+/* {{{ l_model_create: ({ parts } [, { groups per skin }]) -> id */
 static int field_int(lua_State* L, int t, const char* k, int def) {
     lua_getfield(L, t, k);
     int v = lua_isnil(L, -1) ? def : (lua_isboolean(L, -1) ? lua_toboolean(L, -1) : (int)lua_tointeger(L, -1));
@@ -198,10 +245,29 @@ int l_model_create(lua_State* L) {
         p.team = field_int(L, t, "team", 0);
         p.two_sided = field_int(L, t, "two_sided", 0);
         p.unshaded = field_int(L, t, "unshaded", 0);
+        p.skin = field_int(L, t, "skin", 0);
+        p.index = i - 1;
         lua_getfield(L, t, "alpha");
         p.alpha = lua_isnil(L, -1) ? 1.0f : (float)lua_tonumber(L, -1);
         lua_pop(L, 2);
         if (p.mesh >= 1 && p.mesh <= g_mesh_count) def.parts[def.part_count++] = p;
+    }
+    /* poses: the parts' alphas (every part given, kept or not, so Lua's
+       numbering holds), then each skin's group matrices */
+    def.pose_floats = n;
+    if (lua_istable(L, 2)) {
+        def.skin_count = (int)lua_objlen(L, 2);
+        def.skin_groups = calloc(def.skin_count + 1, sizeof(int));
+        def.skin_offset = calloc(def.skin_count + 1, sizeof(int));
+        for (int i = 1; i <= def.skin_count; i++) {
+            lua_rawgeti(L, 2, i);
+            int g = (int)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+            if (g < 0 || g > MAX_GROUPS) g = 0;
+            def.skin_groups[i - 1] = g;
+            def.skin_offset[i - 1] = def.pose_floats;
+            def.pose_floats += g * 12;
+        }
     }
     g_models = grow(g_models, &g_model_cap, g_model_count + 1, sizeof(ModelDef));
     g_models[g_model_count++] = def;
@@ -210,7 +276,8 @@ int l_model_create(lua_State* L) {
 }
 /* }}} */
 
-/* {{{ l_model_draw: (id, x, y, z, facing, scale, r, g, b [, alpha]) */
+/* {{{ l_model_draw: (id, x, y, z, facing, scale, r, g, b [, alpha [, pose]])
+ * pose: floats, as l_model_create describes (ignored if not that size) */
 int l_model_draw(lua_State* L) {
     int id = (int)luaL_checkinteger(L, 1);
     if (id < 1 || id > g_model_count) return 0;
@@ -226,14 +293,39 @@ int l_model_draw(lua_State* L) {
     m.m1 = 0;       m.m5 = 0;       m.m9 = k;  m.m13 = z / WC3_UNITS;
     m.m2 = -k * sn; m.m6 = -k * c;  m.m10 = 0; m.m14 = -y / WC3_UNITS;
     m.m15 = 1;
+    int pose = -1;
+    if (lua_isstring(L, 11)) {
+        size_t plen;
+        const char* pd = lua_tolstring(L, 11, &plen);
+        int nf = g_models[id - 1].pose_floats;
+        if (plen == (size_t)nf * sizeof(float) && nf > 0) {
+            g_pose = grow(g_pose, &g_pose_cap, g_pose_count + nf, sizeof(float));
+            memcpy(g_pose + g_pose_count, pd, plen);
+            pose = g_pose_count;
+            g_pose_count += nf;
+        }
+    }
     g_inst = grow(g_inst, &g_inst_cap, g_inst_count + 1, sizeof(Instance));
-    g_inst[g_inst_count++] = (Instance){ id, m, team, alpha, x / WC3_UNITS, -y / WC3_UNITS };
+    g_inst[g_inst_count++] = (Instance){ id, m, team, alpha, x / WC3_UNITS, -y / WC3_UNITS, pose };
     return 0;
 }
 /* }}} */
 
 /* {{{ models_draw */
-static void draw_part(const Part* p, const Instance* in) {
+static void draw_part(const ModelDef* d, const Part* p, const Instance* in) {
+    float part_alpha = p->alpha;
+    int skinned = 0;
+    if (in->pose >= 0) {
+        const float* pose = g_pose + in->pose;
+        part_alpha = pose[p->index];
+        if (p->skin >= 1 && p->skin <= d->skin_count && d->skin_groups[p->skin - 1] > 0) {
+            skinned = 1;
+            SetShaderValueV(g_shader, g_loc_bones, pose + d->skin_offset[p->skin - 1],
+                            SHADER_UNIFORM_VEC4, d->skin_groups[p->skin - 1] * 3);
+        }
+    }
+    if (part_alpha * in->alpha <= 0.004f) return;
+    SetShaderValue(g_shader, g_loc_skinned, &skinned, SHADER_UNIFORM_INT);
     int alpha_test = p->filter == 1;
     SetShaderValue(g_shader, g_loc_alpha_test, &alpha_test, SHADER_UNIFORM_INT);
     SetShaderValue(g_shader, g_loc_unshaded, &p->unshaded, SHADER_UNIFORM_INT);
@@ -241,13 +333,13 @@ static void draw_part(const Part* p, const Instance* in) {
     g_material.maps[MATERIAL_MAP_DIFFUSE].texture = t;
     Color col = WHITE;
     if (p->team) col = in->team;
-    col.a = (unsigned char)fmaxf(0.0f, fminf(255.0f, 255.0f * p->alpha * in->alpha));
+    col.a = (unsigned char)fmaxf(0.0f, fminf(255.0f, 255.0f * part_alpha * in->alpha));
     g_material.maps[MATERIAL_MAP_DIFFUSE].color = col;
     DrawMesh(g_mesh[p->mesh - 1], g_material, in->m);
 }
 
 void models_draw(float view_x, float view_z, float radius) {
-    if (!g_ready || g_inst_count == 0) { g_last_drawn = 0; return; }
+    if (!g_ready || g_inst_count == 0) { g_last_drawn = 0; g_pose_count = 0; return; }
     rlDrawRenderBatchActive();
     rlDisableBackfaceCulling();
     int drawn = 0;
@@ -261,7 +353,7 @@ void models_draw(float view_x, float view_z, float radius) {
         drawn++;
         ModelDef* d = &g_models[in->model - 1];
         for (int j = 0; j < d->part_count; j++) {
-            if (d->parts[j].filter <= 1) draw_part(&d->parts[j], in);
+            if (d->parts[j].filter <= 1) draw_part(d, &d->parts[j], in);
         }
     }
     rlEnableColorBlend();
@@ -278,7 +370,7 @@ void models_draw(float view_x, float view_z, float radius) {
             if (p->filter == 3 || p->filter == 4) BeginBlendMode(BLEND_ADDITIVE);
             else if (p->filter == 5 || p->filter == 6) BeginBlendMode(BLEND_MULTIPLIED);
             else BeginBlendMode(BLEND_ALPHA);
-            draw_part(p, in);
+            draw_part(d, p, in);
             EndBlendMode();
         }
     }
@@ -287,6 +379,7 @@ void models_draw(float view_x, float view_z, float radius) {
     rlEnableBackfaceCulling();
     g_last_drawn = drawn;
     g_inst_count = 0;
+    g_pose_count = 0;
 }
 /* }}} */
 
