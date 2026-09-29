@@ -44,6 +44,7 @@ int l_ui_circle(lua_State* L);
 int l_ui_text(lua_State* L);
 int l_ui_text_width(lua_State* L);
 int l_ui_image_load(lua_State* L);
+int l_ui_image_update(lua_State* L);
 int l_ui_image(lua_State* L);
 int l_ui_portrait(lua_State* L);
 int l_ui_screen(lua_State* L);

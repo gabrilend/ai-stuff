@@ -44,6 +44,7 @@
 #include "landscape.h"
 #include "ui2d.h"
 #include "models.h"
+#include "fog.h"
 
 /* {{{ Camera
  * WC3's default game camera (Blizzard.j's bj_CAMERA_DEFAULT_* constants)
@@ -439,12 +440,18 @@ int main(int argc, char** argv) {
 
         BeginDrawing();
             ClearBackground((Color){ 24, 28, 40, 255 });
+            /* with fog of war the world is drawn off screen, then shaded
+             * onto it (fog.c) */
+            int fogged = fog_active();
+            if (fogged) fog_begin();
             BeginMode3D(g_camera);
                 terrain_draw_region(terrain_get_global(), g_fc.x, g_fc.z, view * 0.9f);
                 landscape_draw(g_fc.x, g_fc.z, view);
                 geometry_draw();
                 models_draw(g_fc.x, g_fc.z, view * 1.1f);
+                if (fogged) fog_capture();
             EndMode3D();
+            if (fogged) fog_end();
 
             if (has_ui) {
                 call_lua(L, "scene_ui", NULL, 0, false);

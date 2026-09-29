@@ -50,6 +50,8 @@ return function(V, N, T)
                 if n ~= m and n < 12 and m < 12 and W.team_of and W.team_of(n) == W.team_of(m) then
                     p.ally[m] = true
                 end
+                -- and forces flagged to share vision share it
+                if n ~= m and W.shares_vision and W.shares_vision(n, m) then p.vision[m] = true end
             end
         end
         for _, wp in ipairs(W.players or {}) do
@@ -64,6 +66,12 @@ return function(V, N, T)
             if a == b then return true end
             local pa = self.players[a]
             return pa ~= nil and pa.ally[b] == true
+        end
+        -- does a share its sight with b (fog of war: demo/wc3map/vision.lua)
+        W.shares_vision = function(a, b)
+            if a == b then return true end
+            local pa = self.players[a]
+            return pa ~= nil and pa.vision[b] == true
         end
         W.script = self
     end

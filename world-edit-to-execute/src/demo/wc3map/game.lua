@@ -19,6 +19,9 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   clock      the day starts at 8:00 and lasts 480 seconds (from memory of
              the game; see 516d)
   players, forces, quests (CreateQuestBJ titles from the script), minimap
+  vision     fog of war per player (demo/wc3map/vision.lua; opts.vision =
+             false for none): g.shown(u) says whether the local player
+             sees u (Issue 524)
 
     local game = require("demo.wc3map.game").new(scene_data, { player = 0 })
     game.order(units, "move", x, y)
@@ -33,6 +36,7 @@ local pathing_mod = require("demo.wc3map.pathing")
 local combat = require("demo.wc3map.combat")
 local map_scene = require("demo.wc3map.scene")
 local production = require("demo.wc3map.production")
+local vision_mod = require("demo.wc3map.vision")
 
 local game_mod = {}
 
@@ -126,6 +130,8 @@ local function unit_stats(m, id)
     s.acquire_field = field(t, id, "uacq")
     s.attacks = field(t, id, "uaen")
     s.speed = field(t, id, "umvs")
+    s.sight_day = field(t, id, "usid")
+    s.sight_night = field(t, id, "usin")
     s.turn_rate = field(t, id, "umvr")
     s.food = field(t, id, "ufoo")
     s.food_made = field(t, id, "ufma")
@@ -238,6 +244,17 @@ function game_mod.new(scene, opts)
     local team_by = {}
     for _, p in ipairs(g.players) do team_by[p.number] = p.team end
     function g.team_of(n) return team_by[n] or n end
+    -- a force flagged to share vision shares it among its players (a
+    -- running script's alliances replace this: jass/natives/world.lua)
+    local vision_team = {}
+    for fi, f in ipairs(m.forces or {}) do
+        if f.flags and f.flags.share_vision then
+            for _, pn in pairs(f.players or {}) do vision_team[pn] = fi end
+        end
+    end
+    function g.shares_vision(a, b)
+        return a == b or (vision_team[a] ~= nil and vision_team[a] == vision_team[b])
+    end
     for _, p in ipairs(g.players) do if p.number == g.player then g.team = p.team end end
 
     g.quests, g.start_resources = script_extras(m, scene.path, g.player)
@@ -408,8 +425,14 @@ function game_mod.new(scene, opts)
     -- {{{ g.tick
     combat.init(g)
     production.init(g)
+    if opts.vision ~= false then g.vision = vision_mod.new(g) end
+    -- whether the local player sees u (always, without fog of war)
+    function g.shown(u)
+        return not g.vision or g.vision:sees(g.player, u)
+    end
     function g.tick(dt)
         g.time = g.time + dt
+        if g.vision then g.vision:update(dt) end
         if g.script then g.script:tick(dt) end
         if g.ai_manager then g.ai_manager:update(dt) end
         if opts.combat ~= false then combat.update(g, dt) end

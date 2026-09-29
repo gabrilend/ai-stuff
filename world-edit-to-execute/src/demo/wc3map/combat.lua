@@ -18,6 +18,10 @@ Units and towers that fight, the way WC3's do:
   sides      players are hostile unless their force is allied; neutral
              hostile fights everyone; neutral passive fights no one and is
              never picked as a target
+  sight      with fog of war (demo/wc3map/vision.lua), only what a unit's
+             player can see is picked, and a target lost in the fog is
+             let go, unless it struck the unit in the last two seconds
+             (Issue 524)
 
 Stats come from the map's object data where it sets them (hit points,
 damage dice, cooldown, range, acquisition range, armour, whether it
@@ -150,7 +154,8 @@ local function nearest_hostile(game, u, r)
             local list = game.buckets[bx * 65536 + by]
             if list then
                 for _, v in ipairs(list) do
-                    if v.alive and not v.invulnerable and not v.hidden and combat.hostile(game, u, v) then
+                    if v.alive and not v.invulnerable and not v.hidden and combat.hostile(game, u, v)
+                        and (not game.vision or game.vision:sees(u.player, v, true)) then
                         local d = (v.x - u.x) ^ 2 + (v.y - u.y) ^ 2
                         if d < best_d then best, best_d = v, d end
                     end
@@ -192,6 +197,7 @@ function combat.damage(game, attacker, target, amount)
     if not target.alive or target.invulnerable then return end
     target.hp = target.hp - combat.reduce(amount, target.armor)
     target.last_hit = game.time
+    target.last_attacker = attacker
     if target.hp <= 0 then
         combat.kill(game, target, attacker)
         return
@@ -232,7 +238,9 @@ function combat.update(game, dt)
 
             -- drop a target that died, turned friendly, or (creeps) led too far
             local t = u.target
-            if t and (not t.alive or t.invulnerable or not combat.hostile(game, u, t)) then
+            local lost = t and game.vision and not game.vision:sees(u.player, t, true)
+                and not (u.last_attacker == t and game.time - (u.last_hit or -99) < 2)
+            if t and (not t.alive or t.invulnerable or not combat.hostile(game, u, t) or lost) then
                 u.target, t = nil, nil
                 if o and o.kind == "attack_unit" then u.order = nil end
             end

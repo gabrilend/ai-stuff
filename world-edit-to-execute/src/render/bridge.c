@@ -15,6 +15,7 @@
 #include "geometry.h"
 #include "landscape.h"
 #include "ui2d.h"
+#include "fog.h"
 #include "models.h"
 
 /* {{{ Module State
@@ -375,6 +376,7 @@ static const luaL_Reg render_funcs[] = {
     {"ui_text", l_ui_text},
     {"ui_text_width", l_ui_text_width},
     {"ui_image_load", l_ui_image_load},
+    {"ui_image_update", l_ui_image_update},
     {"ui_image", l_ui_image},
     {"ui_portrait", l_ui_portrait},
     {"ui_screen", l_ui_screen},
@@ -384,6 +386,9 @@ static const luaL_Reg render_funcs[] = {
     {"model_create", l_model_create},
     {"model_draw", l_model_draw},
     {"model_stats", l_model_stats},
+    /* Fog of war (524) */
+    {"fog_set", l_fog_set},
+    {"fog_off", l_fog_off},
     {NULL, NULL}
 };
 

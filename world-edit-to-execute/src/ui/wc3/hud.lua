@@ -147,6 +147,13 @@ function Hud:select(list, add)
 end
 -- }}}
 
+-- {{{ shown
+-- Whether the local player sees u (the game's fog of war, Issue 524)
+local function shown(game, u)
+    return not game.shown or game.shown(u)
+end
+-- }}}
+
 -- {{{ screen_point
 -- Where a unit shows on screen (its middle), or nil when off screen/behind
 local function screen_point(game, u)
@@ -162,7 +169,7 @@ function Hud:pick(mx, my)
     local best, best_d = nil, math.huge
     for _, u in ipairs(self.game.units) do
         local sx, sy
-        if u.alive ~= false and not u.hidden then sx, sy = screen_point(self.game, u) end
+        if u.alive ~= false and not u.hidden and shown(self.game, u) then sx, sy = screen_point(self.game, u) end
         if sx then
             local reach = u.spec.design == "building" and 44 or 22
             local d = (sx - mx) ^ 2 + (sy - my) ^ 2
@@ -565,7 +572,7 @@ function Hud:draw_health(ui)
     local chosen = {}
     for _, u in ipairs(self.selection) do chosen[u] = true end
     for _, u in ipairs(game.units) do
-        if u.alive ~= false and not u.hidden and u.hp_max and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
+        if u.alive ~= false and not u.hidden and u.hp_max and shown(game, u) and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
             and (self.alt or chosen[u] or (u.hp or u.hp_max) < u.hp_max) then
             local building = u.spec.design == "building"
             local sx, sy, ahead = game.to_screen(u.x, u.y, u.z + (building and 280 or 120))
@@ -633,11 +640,12 @@ function Hud:draw_console(ui)
     bevel(ui, { x = mm.x - 3, y = mm.y - 3, w = mm.w + 6, h = mm.h + 6 }, C.frame)
     if self.toggles.terrain and game.minimap.image then
         ui.ui_image(game.minimap.image, mm.x, mm.y, mm.w, mm.h)
+        if game.minimap.fog then ui.ui_image(game.minimap.fog, mm.x, mm.y, mm.w, mm.h) end
     else
         rect(ui, mm.x, mm.y, mm.w, mm.h, { 8, 8, 10 })
     end
     for _, u in ipairs(game.units) do
-        if u.alive ~= false and not u.hidden and (self.toggles.creeps or u.player ~= 12) then
+        if u.alive ~= false and not u.hidden and (self.toggles.creeps or u.player ~= 12) and shown(game, u) then
             local px, py = self:world_to_minimap(u.x, u.y)
             local c = team_of(u)
             if self.toggles.ally_colors then
