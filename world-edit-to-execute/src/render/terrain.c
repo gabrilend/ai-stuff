@@ -5,6 +5,7 @@
  * as a series of flat colored quads (DrawPlane) positioned in 3D space.
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -152,6 +153,35 @@ void terrain_draw(TerrainGrid* t) {
 
             /* Draw as flat cube (very thin in Y) for visibility */
             DrawCube((Vector3){ wx, wy, wz },
+                     t->tile_size * 0.98f, 0.1f, t->tile_size * 0.98f, col);
+        }
+    }
+}
+/* }}} */
+
+/* {{{ terrain_draw_region
+ * Draw only the tiles within radius of (cx, cz), in world units. A whole map
+ * is hundreds of thousands of tiles; a close camera sees a few thousand. */
+void terrain_draw_region(TerrainGrid* t, float cx, float cz, float radius) {
+    if (!t || !t->colors || !t->initialized) return;
+
+    int x0 = (int)floorf((cx - radius - t->offset_x) / t->tile_size);
+    int x1 = (int)ceilf((cx + radius - t->offset_x) / t->tile_size);
+    int y0 = (int)floorf((cz - radius - t->offset_z) / t->tile_size);
+    int y1 = (int)ceilf((cz + radius - t->offset_z) / t->tile_size);
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > t->width - 1) x1 = t->width - 1;
+    if (y1 > t->height - 1) y1 = t->height - 1;
+
+    float half_tile = t->tile_size * 0.5f;
+    for (int y = y0; y <= y1; y++) {
+        for (int x = x0; x <= x1; x++) {
+            size_t idx = ((size_t)y * t->width + x) * 3;
+            Color col = { t->colors[idx], t->colors[idx + 1], t->colors[idx + 2], 255 };
+            float wx = t->offset_x + x * t->tile_size + half_tile;
+            float wz = t->offset_z + y * t->tile_size + half_tile;
+            DrawCube((Vector3){ wx, 0.0f, wz },
                      t->tile_size * 0.98f, 0.1f, t->tile_size * 0.98f, col);
         }
     }

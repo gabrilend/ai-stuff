@@ -31,6 +31,7 @@
 #include "terrain.h"
 #include "input.h"
 #include "ui.h"
+#include "geometry.h"
 #include "profiler.h"
 #include "demo_threading.h"
 
@@ -1449,6 +1450,9 @@ int main(void) {
 
                 /* 508c: Render Lua-created entities */
                 render_lua_entities();
+
+                /* 516a: Geometry painted from Lua */
+                geometry_draw();
 
                 /* 508e: Selection circles under selected entities */
                 draw_selection_circles(g_primary.slots);
