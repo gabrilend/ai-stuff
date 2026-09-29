@@ -364,24 +364,23 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
     float half = size / 2.0f;
     float chunk = chunk_size;
 
-    /* Count chunks */
-    int count = 0;
-    for (float x = -half; x < half; x += chunk) {
-        for (float y = -half; y < half; y += chunk) {
-            for (float z = -half; z < half; z += chunk) {
-                count++;
-            }
-        }
-    }
+    /* Count chunks. Stepped by integer: adding chunk to a float over and over
+     * lands just short of half (0.99999994 for 2.0/0.2) and took an eleventh
+     * step, giving 1331 chunks, past the end of g_chunk_states. */
+    int per_axis = (int)lroundf(size / chunk);
+    int count = per_axis * per_axis * per_axis;
 
     mesh->chunks = (ChunkData*)malloc(count * sizeof(ChunkData));
     mesh->chunk_count = count;
 
     /* Pre-compute chunks */
     int i = 0;
-    for (float x = -half; x < half; x += chunk) {
-        for (float y = -half; y < half; y += chunk) {
-            for (float z = -half; z < half; z += chunk) {
+    for (int ix = 0; ix < per_axis; ix++) {
+        for (int iy = 0; iy < per_axis; iy++) {
+            for (int iz = 0; iz < per_axis; iz++) {
+                float x = -half + ix * chunk;
+                float y = -half + iy * chunk;
+                float z = -half + iz * chunk;
                 ChunkData* c = &mesh->chunks[i];
                 c->x = x + chunk / 2.0f;
                 c->y = y + chunk / 2.0f;
@@ -393,9 +392,9 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
                 c->g = 90;
                 c->b = 200;
 
-                bool surface = (x <= -half + chunk || x >= half - chunk ||
-                                y <= -half + chunk || y >= half - chunk ||
-                                z <= -half + chunk || z >= half - chunk);
+                bool surface = (ix == 0 || ix == per_axis - 1 ||
+                                iy == 0 || iy == per_axis - 1 ||
+                                iz == 0 || iz == per_axis - 1);
                 c->is_solid = surface;
                 i++;
             }
@@ -457,7 +456,7 @@ int find_chunk_at_ray(Ray ray, RenderSlot* slot, MeshData* mesh) {
     int closest = -1;
     float closest_dist = 1000.0f;
 
-    for (int i = 0; i < mesh->chunk_count; i++) {
+    for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNKS; i++) {
         if (!mesh->chunks[i].is_solid) continue;
         if (g_chunk_states[i].destroyed) continue;
 
@@ -558,7 +557,7 @@ void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
  * Renders chunks using parallel-computed world positions.
  * Each chunk's transform was computed by a worker thread. */
 void render_chunks_parallel(MeshData* mesh) {
-    for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNK_TASKS; i++) {
+    for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNK_TASKS && i < MAX_CHUNKS; i++) {
         ChunkData* c = &mesh->chunks[i];
         if (!c->is_solid) continue;
         if (g_chunk_states[i].destroyed) continue;
