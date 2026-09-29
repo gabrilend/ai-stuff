@@ -142,6 +142,14 @@ local function object_info(m, table_name, id, name_code, model_code, depth)
 end
 -- }}}
 
+-- {{{ map_scene.unit_spec
+-- The design spec for a unit type (a new table each call: callers set
+-- its team)
+function map_scene.unit_spec(m, id)
+    return classify.unit(id, object_info(m, "units", id, "unam", "umdl"))
+end
+-- }}}
+
 -- {{{ Terrain sampling
 -- Ground (and water) height at WC3 (x, y), bilinear between tilepoints
 local function sampler(t)
@@ -206,9 +214,9 @@ function map_scene.load(path)
     local script = archive:has("war3map.j") and archive:extract("war3map.j")
         or (archive:has("scripts\\war3map.j") and archive:extract("scripts\\war3map.j")) or ""
     archive:close()
+    s.script = script
     for _, u in ipairs(map_scene.script_units(script)) do
-        local info = object_info(m, "units", u.id, "unam", "umdl")
-        local spec = classify.unit(u.id, info)
+        local spec = map_scene.unit_spec(m, u.id)
         spec.team = u.player
         local ground = s.sample.ground_at(u.x, u.y)
         local z = ground

@@ -31,6 +31,7 @@ local mpq = require("mpq")
 local classify = require("demo.wc3map.classify")
 local pathing_mod = require("demo.wc3map.pathing")
 local combat = require("demo.wc3map.combat")
+local map_scene = require("demo.wc3map.scene")
 
 local game_mod = {}
 
@@ -198,16 +199,22 @@ function game_mod.new(scene, opts)
     g.db = make_db(m)
 
     local stats_cache = {}
-    for _, su in ipairs(scene.units) do
-        local st = stats_cache[su.id]
+    local function make_unit(id, spec, player, x, y, z, facing)
+        local st = stats_cache[id]
         if not st then
-            st = unit_stats(m, su.id)
-            stats_cache[su.id] = st
+            st = unit_stats(m, id)
+            stats_cache[id] = st
         end
-        local u = { id = su.id, spec = su.spec, player = su.player, x = su.x, y = su.y, z = su.z,
-                    facing = su.facing }
+        local u = { id = id, spec = spec, player = player, x = x, y = y, z = z, facing = facing }
         for k, v in pairs(st) do u[k] = v end
-        g.units[#g.units + 1] = u
+        return u
+    end
+    -- the units the script places, as read from it (opts.placed == false:
+    -- none, for when the script itself runs and makes them; see g.spawn)
+    if opts.placed ~= false then
+        for _, su in ipairs(scene.units) do
+            g.units[#g.units + 1] = make_unit(su.id, su.spec, su.player, su.x, su.y, su.z, su.facing)
+        end
     end
 
     -- players and forces
@@ -249,11 +256,51 @@ function game_mod.new(scene, opts)
                 if u.food_made then cap = cap + u.food_made end
             end
         end
+        local ps = g.script and g.script.players[player]
         return {
-            gold = g.start_resources.gold or 500, lumber = g.start_resources.lumber or 150,
+            gold = ps and ps.gold or g.start_resources.gold or 500,
+            lumber = ps and ps.lumber or g.start_resources.lumber or 150,
             food = food, food_cap = math.min(game_mod.FOOD_MAX, cap), food_unknown = unknown,
         }
     end
+    -- }}}
+
+    -- {{{ Units made and unmade (by the script: jass/vm.lua)
+    g.bounds = { x0 = t.offset_x, y0 = t.offset_y,
+                 x1 = t.offset_x + (t.width - 1) * 128, y1 = t.offset_y + (t.height - 1) * 128 }
+    function g.ground_at(x, y) return scene.sample.ground_at(x, y) end
+
+    local spec_cache = {}
+    -- A new unit of type id (4 characters) for player at (x, y), facing
+    -- in radians
+    function g.spawn(id, player, x, y, facing)
+        local base = spec_cache[id]
+        if not base then
+            base = map_scene.unit_spec(m, id)
+            spec_cache[id] = base
+        end
+        local spec = {}
+        for k, v in pairs(base) do spec[k] = v end
+        spec.team = player
+        local z = scene.sample.ground_at(x, y)
+        if spec.archetype == "ship" then z = math.max(z, scene.sample.water_at(x, y)) end
+        local u = make_unit(id, spec, player, x, y, z, facing or 0)
+        combat.init_unit(u)
+        g.units[#g.units + 1] = u
+        g.spawned = (g.spawned or 0) + 1
+        if spec.design == "building" then g.buildings_changed = true end
+        return u
+    end
+
+    -- Gone at once, no corpse (RemoveUnit)
+    function g.remove(u)
+        u.removed, u.alive = true, false
+        u.order, u.route, u.target = nil, nil, nil
+        if u.spec.design == "building" then g.buildings_changed = true end
+    end
+
+    function g.kill(u, killer) combat.kill(g, u, killer) end
+    function g.damage(source, target, amount) combat.damage(g, source or target, target, amount) end
     -- }}}
 
     function g.time_of_day()
@@ -319,16 +366,36 @@ function game_mod.new(scene, opts)
     end
     -- }}}
 
+    -- {{{ g.run_script
+    -- Run the map's own war3map.j (jass/vm.lua): config() and main() now,
+    -- its triggers and timers with every tick after. Use with
+    -- opts.placed = false, as the script makes the map's units itself.
+    -- Returns the VM, or nil and why not.
+    function g.run_script(vm_opts)
+        local vm = require("jass.vm")
+        vm_opts = vm_opts or {}
+        vm_opts.player = vm_opts.player or g.player
+        vm_opts.strings = vm_opts.strings or function(k) return m.strings and m.strings:resolve(k) end
+        local V = vm.new(g, vm_opts)
+        local ok, err = V:load(scene.script or "")
+        if not ok then return nil, err end
+        g.script = V
+        V:run_main()
+        return V
+    end
+    -- }}}
+
     -- {{{ g.tick
     combat.init(g)
     function g.tick(dt)
         g.time = g.time + dt
+        if g.script then g.script:tick(dt) end
         if opts.combat ~= false then combat.update(g, dt) end
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}
         for _, u in ipairs(g.units) do
-            if u.alive and u.route and not u.swing then
+            if u.alive and u.route and not u.swing and not u.paused then
                 local mv = u.mover
                 mv.x, mv.y, mv.facing = u.x, u.y, u.facing
                 local done = loco.follow(mv, nil, dt, ground)
@@ -350,8 +417,9 @@ function game_mod.new(scene, opts)
                     end
                 end
             end
-            -- the fallen lie a while, then go
-            if u.alive or g.time - u.died_at < combat.CORPSE_TIME then
+            -- the fallen lie a while, then go (heroes wait to be revived);
+            -- removed units go at once
+            if not u.removed and (u.alive or u.spec.hero or g.time - u.died_at < combat.CORPSE_TIME) then
                 keep[#keep + 1] = u
             elseif g.on_remove then
                 g.on_remove(u)

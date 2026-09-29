@@ -478,6 +478,8 @@ local function scan_string(state, start_line, start_col)
         ["n"] = "\n",
         ["r"] = "\r",
         ["t"] = "\t",
+        ["b"] = "\b",
+        ["f"] = "\f",
         ["\\"] = "\\",
         ['"'] = '"',
     }
@@ -491,13 +493,8 @@ local function scan_string(state, start_line, start_col)
             return true
         end
 
-        if char == "\n" then
-            error(string.format(
-                "Unterminated string at line %d, column %d",
-                start_line, start_col
-            ))
-        end
-
+        -- a string may run over a line break (the game takes it as part
+        -- of the text; map optimizers leave long texts that way)
         if char == "\\" then
             advance(state)  -- consume backslash
             local escape_char = advance(state)
@@ -533,6 +530,18 @@ end
 local function scan_rawcode(state, start_line, start_col)
     advance(state)  -- consume opening quote
     local chars = {}
+
+    -- a single character in quotes is an integer too: 'd' is 100
+    -- (issue 520; the four-character form is the object id)
+    if not is_at_end(state) and peek(state) ~= "'" then
+        local after = state.source and state.source:sub(state.pos + 1, state.pos + 1)
+        if after == "'" then
+            chars[1] = advance(state)
+            advance(state)  -- consume closing quote
+            add_token(state, TOKEN.RAWCODE, chars[1], start_line, start_col)
+            return true
+        end
+    end
 
     for i = 1, 4 do
         if is_at_end(state) then
@@ -648,6 +657,10 @@ end
 -- Main entry point: tokenizes source code into a list of tokens.
 -- Returns the token list on success, or throws an error on invalid input.
 function lexer.tokenize(source)
+    -- Line endings: CRLF and a lone CR (some map optimizers write only
+    -- CRs) both end a line; JASS statements end at line breaks, so a CR
+    -- read as mere whitespace ran a whole script together (issue 520)
+    source = source:gsub("\r\n", "\n"):gsub("\r", "\n")
     local state = create_state(source)
 
     while not is_at_end(state) do

@@ -228,6 +228,29 @@ static int lv_keys(lua_State* L) {
 }
 /* }}} */
 
+/* {{{ viewer.chars() -> the text typed this frame (UTF-8), for chat */
+static int lv_chars(lua_State* L) {
+    char buf[256];
+    int n = 0;
+    int c;
+    while ((c = GetCharPressed()) != 0) {
+        if (n > (int)sizeof(buf) - 5) continue;
+        if (c < 0x80) {
+            buf[n++] = (char)c;
+        } else if (c < 0x800) {
+            buf[n++] = (char)(0xC0 | (c >> 6));
+            buf[n++] = (char)(0x80 | (c & 0x3F));
+        } else if (c < 0x10000) {
+            buf[n++] = (char)(0xE0 | (c >> 12));
+            buf[n++] = (char)(0x80 | ((c >> 6) & 0x3F));
+            buf[n++] = (char)(0x80 | (c & 0x3F));
+        }
+    }
+    lua_pushlstring(L, buf, (size_t)n);
+    return 1;
+}
+/* }}} */
+
 /* {{{ viewer.key_down("SHIFT" | "CTRL" | "ALT") -> held */
 static int lv_key_down(lua_State* L) {
     const char* m = luaL_checkstring(L, 1);
@@ -251,7 +274,7 @@ static void register_viewer(lua_State* L) {
     static const luaL_Reg fns[] = {
         { "camera", lv_camera }, { "set_camera", lv_set_camera },
         { "to_screen", lv_to_screen }, { "to_ground", lv_to_ground },
-        { "mouse", lv_mouse }, { "keys", lv_keys }, { "key_down", lv_key_down },
+        { "mouse", lv_mouse }, { "keys", lv_keys }, { "chars", lv_chars }, { "key_down", lv_key_down },
         { "quit", lv_quit }, { NULL, NULL },
     };
     lua_newtable(L);
