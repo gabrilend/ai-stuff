@@ -17,7 +17,15 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   as nodes (shapes) and edges (stations), built generically so it did not
   have to wait on 902d.
 
-903b-d, 901b-d, 902b-d and 905b-d remain: the needs check, model-name
-resolution and confinement; tag parsing, number issuance and reuse
-refusal; structured and remaining types plus the real station table;
-shortest-chain search, joint checking and plan execution.
+- 903c model name resolution — a case's own `router-model` file, then the
+  switchboard's own setting; refuses naming both places when neither
+  names one.
+- 902d the station table — the real table (grows as more studio ends
+  land) and the shape-matching function; proved to feed 905a's shape
+  graph unchanged, the first working example of
+  strategems/build-to-the-shape-not-the-neighbor.md.
+
+903b and 903d, 901b-d, 902b-c and 905b-d remain: the needs check and
+confinement; tag parsing, number issuance and reuse refusal; structured
+and remaining types; shortest-chain search, joint checking and plan
+execution.

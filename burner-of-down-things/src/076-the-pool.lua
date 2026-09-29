@@ -5,6 +5,7 @@
 -- card safely under two writers (809b), counting cards (809c) and floors
 -- (809d) are later pieces of the same pool.
 
+local fs = require("017-the-filesystem")
 local text_tables = require("014-text-tables")
 
 local pool = {}
@@ -43,6 +44,42 @@ end
 -- {{{ function pool.read_card
 function pool.read_card(asset_path)
     return text_tables.read_record(asset_path .. ".card")
+end
+-- }}}
+
+-- {{{ local function card_paths
+-- Every ".card" file found under `dir`, walking its folders. Never opens
+-- anything but ".card" files, and never the asset a card sits beside.
+local function card_paths(dir)
+    local paths = {}
+    if not fs.is_folder(dir) then
+        return paths
+    end
+    for _, name in ipairs(fs.list(dir)) do
+        local path = dir .. "/" .. name
+        if fs.is_folder(path) then
+            for _, nested in ipairs(card_paths(path)) do
+                paths[#paths + 1] = nested
+            end
+        elseif name:match("%.card$") then
+            paths[#paths + 1] = path
+        end
+    end
+    return paths
+end
+-- }}}
+
+-- {{{ function pool.counts
+-- Per-category counts (issue 809c), read from cards alone. Per-tier
+-- counting waits on 809b's rating-append format, which decides what a
+-- card's `ratings` array resolves to as one tier number.
+function pool.counts(pool_dir)
+    local counts = {}
+    for _, path in ipairs(card_paths(pool_dir)) do
+        local card = text_tables.read_record(path)
+        counts[card.category] = (counts[card.category] or 0) + 1
+    end
+    return counts
 end
 -- }}}
 
