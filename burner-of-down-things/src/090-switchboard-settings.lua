@@ -38,4 +38,28 @@ function settings.write(project, fields)
 end
 -- }}}
 
+-- {{{ function settings.resolve_model
+-- The model an ollama turn should run (issue 903c): the case's own
+-- override first (a `router-model` file in its folder, one line), then
+-- the switchboard's own setting (read/write above). Refuses when neither
+-- names one, saying both places checked — never a silent default model.
+function settings.resolve_model(project, record)
+    local override_path = record.folder .. "/router-model"
+    local file = io.open(override_path, "rb")
+    if file then
+        local model = file:read("*l")
+        file:close()
+        if model and model ~= "" then
+            return model
+        end
+    end
+    local switchboard = settings.read(project)
+    if switchboard.router_model then
+        return switchboard.router_model
+    end
+    error("switchboard settings: no model named for the router -- neither "
+        .. override_path .. " nor router_model in " .. settings.path(project))
+end
+-- }}}
+
 return settings

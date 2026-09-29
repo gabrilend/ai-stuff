@@ -15,4 +15,5 @@ empty until 809b appends to it).
 | `card(fields)` | a table naming every field but `ratings` | a card table, `ratings` defaulted to `{}`; refuses a missing field by name |
 | `write_card(asset_path, card)` | an asset's path; a card table | writes `<asset_path>.card` (014's record writer: neighbour file, then rename) |
 | `read_card(asset_path)` | an asset's path | the card at `<asset_path>.card` |
+| `counts(pool_dir)` | the pool's folder | `{[category] = count}`, walked from `.card` files alone — never opens an asset. Per-tier counting waits on 809b's rating format |
 | `FIELDS` | | the closed list of a card's own field names |
