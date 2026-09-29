@@ -81,6 +81,7 @@ Generate text embeddings from image filenames:
 | 10-042a | Gallery Pages | None |
 | 10-042b | Chronological Interleaving | 10-042a |
 | 10-042c | Filename Embeddings | 10-042b |
+| 10-042e | Shape Gifs Gallery Source | 10-042a |
 
 ## Files to Modify
 
