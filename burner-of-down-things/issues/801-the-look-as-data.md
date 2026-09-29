@@ -4,7 +4,10 @@ The owner's style in one table every paintbrush reads ([067](../docs/067-datapat
 
 ## Current Behavior
 
-Nothing is drawn.
+801a is built (issues/completed/801a-the-look-table.md): the look table and
+its defaults exist. 801b (canvas overrides), 801c (the flair's quarter
+colours) and 801d (`day` refused on a night-only category) are not yet
+built.
 
 ## Intended Behavior
 
@@ -17,6 +20,13 @@ A function gives the four quarter colours of a midline from its base colour, so 
 1. The table and its defaults, published in the paintbrush document. **Test:** every default in the table appears in the document.
 2. The flair's quarter colours. **Test:** quarter one lighter than the base, quarter four darker, two and three each split; the same colour always gives the same four.
 3. `day` refused with a night-only category. **Test:** the refusal names the rule.
+
+## Sub-issues
+
+- 801a — the look table
+- 801b — canvas overrides
+- 801c — the flair's quarter colours
+- 801d — `day` refused on a night-only category
 
 ## Blocked by
 

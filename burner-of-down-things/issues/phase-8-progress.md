@@ -6,4 +6,20 @@ The studio: asset generation utilities for .png, .mp4, .txt and source files, pa
 Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/burner-of-down-things -m`.
 
 ## Completed Issues
-(None yet.)
+- 801a the look table — the owner's style as one Lua table (`ground`,
+  `flair`, `line_weight`, `arrow`), `palette` resolved from `ground` rather
+  than stored, checked against docs/067's own words so the two cannot drift.
+- 807a tables — the `.txt` end's first word: columns padded to their widest
+  cell, measured in characters rather than bytes.
+- 805a bar charts — the `chart` word's geometry: bar heights in pixels,
+  proportional to their data, still unpainted (804) and unflaired (801c).
+- 809a card schema — the pool's card: what an asset is, its category and
+  parameters, its seed, its paintbrush, its canvas, and an empty ratings
+  list, written beside the asset through 014's neighbour-file-and-rename
+  writer. The pool's own folder (`project.pool`) is kept in the project,
+  outside git, per open question 13's stated default.
+
+801b-d, 807b-d, 805b-d and 809b-d remain: overrides and the flair's colour
+math, lists/trees/box-diagrams/prose, line-and-dot charts and diagrams by
+level and the machine drawing itself, and safe concurrent appends, counts
+and floors.

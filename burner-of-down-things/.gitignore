@@ -1,3 +1,6 @@
 tmp
 cases/
 output/goodbye
+# The studio's asset pool (docs/010 open question 13): ratings are judgment
+# and cannot be regenerated, but the pool itself is kept out of git.
+pool/
