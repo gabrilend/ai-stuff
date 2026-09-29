@@ -19,13 +19,17 @@ BOLD='\033[1m'
 save_current_state() {
     echo -e "${CYAN}Saving current state...${NC}"
 
-    mkdir -p "${DIR}/tmp"
+    # These snapshots are the way back if a migration goes wrong, so they go
+    # to the on-disk archive, dated by month. tmp/ is RAM, and a reboot
+    # between the migration and noticing a problem would erase them.
+    local snapshots="${DIR}/archive/branch-snapshots-$(date +%Y-%m)"
+    mkdir -p "$snapshots"
 
-    git -C "$REPO_ROOT" branch --list '*/dev' > "${DIR}/tmp/dev-branches-before.txt"
-    git -C "$REPO_ROOT" log --all --oneline --graph -30 > "${DIR}/tmp/git-graph-before.txt"
-    git -C "$REPO_ROOT" branch -vv > "${DIR}/tmp/all-branches-before.txt"
+    git -C "$REPO_ROOT" branch --list '*/dev' > "${snapshots}/dev-branches-before.txt"
+    git -C "$REPO_ROOT" log --all --oneline --graph -30 > "${snapshots}/git-graph-before.txt"
+    git -C "$REPO_ROOT" branch -vv > "${snapshots}/all-branches-before.txt"
 
-    echo -e "${GREEN}✓ State saved to ${DIR}/tmp/${NC}"
+    echo -e "${GREEN}✓ State saved to ${snapshots}/${NC}"
     echo "  - dev-branches-before.txt"
     echo "  - git-graph-before.txt"
     echo "  - all-branches-before.txt"

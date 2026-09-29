@@ -1,0 +1,4 @@
+Snapshots of the repository's branches taken in January 2026, just before the
+development branches were migrated. They used to sit in delta-version/tmp/,
+which is now the RAM scratch-space symlink and is emptied by every reboot, so
+they were moved here, where they are kept on disk and in git.

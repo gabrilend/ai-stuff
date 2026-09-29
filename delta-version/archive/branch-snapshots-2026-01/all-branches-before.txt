@@ -1,0 +1,9 @@
+  adroit            d0a0ec8e [origin/adroit] Initial commit: Complete Adroit RPG character system
+* dv/dev            bc2b0858 Fix: Remove hardcoded 'dv' path in initialize-issue.sh dry-run mode
+  dv/issue-042      c66056d8 Issue 043: Add specification for issue initialization workflow script
+  handheld-office   cf40f2b9 [origin/handheld-office] adding some leftover transcripts
+  magic-rumble      89ee180c [origin/magic-rumble] feat: Initial implementation of Magic Rumble v0.1
+  master            9599c077 [origin/master: ahead 43] Fix: Add authorship-tool to manage-worktree.sh valid projects
+  progress-ii       c121808e [origin/progress-ii] Complete Phase 1 Implementation: Core Game Foundation
+  risc-v-university f6f42647 [origin/risc-v-university] Fix export-conversations script to run from parent directory
+  wete/dev          0103fc8f Fix load balancing to account for repeat_count

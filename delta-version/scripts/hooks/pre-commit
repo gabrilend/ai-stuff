@@ -1,0 +1,51 @@
+#!/bin/bash
+# pre-commit - the front page cannot be committed with stale figures.
+#
+# In general terms: the repository's front page (README.md) carries numbers
+# that a counting tool keeps current -- how many projects, how many issues are
+# done, which projects have been busiest. Whenever a commit includes the front
+# page, this check asks the counting tool whether every one of those numbers
+# is still true. If any has gone stale, the commit is refused, with the list
+# of stale figures and the one command that fixes them.
+#
+# Commits that do not touch README.md are never checked: a new issue file in
+# any project moves the totals, and refusing every such commit until someone
+# rewrote the front page would make the check a tax on all other work.
+#
+# It checks the README as it is *staged* (the version about to be committed),
+# not the copy on disk, which may hold someone else's unstaged edits. The
+# commit-own-changes tool runs this hook against its private staging list;
+# GIT_INDEX_FILE, which that tool sets, is inherited, so `git show :README.md`
+# reads the right staging list either way.
+#
+# Installed as .git/hooks/pre-commit by a symlink to this tracked file.
+
+DIR="/mnt/mtwo/programming/ai-stuff"
+[ -n "${1:-}" ] && [ -d "$1" ] && DIR="$1"
+
+CENSUS="$DIR/delta-version/scripts/census-projects.lua"
+
+# Two paths: README.md is in this commit (check it), or it is not (let the
+# commit through untouched).
+staged=$(git -C "$DIR" diff --cached --name-only -- README.md)
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+source "$DIR/scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "$DIR/delta-version" || exit 1
+staged_copy="$DIR/delta-version/tmp/shared-memory/pre-commit-README.md"
+git -C "$DIR" show :README.md > "$staged_copy" || exit 1
+
+report=$(luajit "$CENSUS" --check-readme --readme="$staged_copy" 2>&1)
+status=$?
+rm -f "$staged_copy"
+
+if [ "$status" -ne 0 ]; then
+    echo "pre-commit: the front page has stale census figures:"
+    echo "$report" | sed 's/^/  /'
+    echo "Run: luajit $CENSUS --write-readme"
+    echo "then commit README.md again."
+    exit 1
+fi
+exit 0
