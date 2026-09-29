@@ -2,7 +2,10 @@
 
 ## Current Behavior
 
-No demo.
+No demo. All four of 1004a-d are blocked: the story (1001), lessons
+(1002) and strategem drafting (1003) they would show are themselves only
+one piece each (a) into their own four, so there is nothing whole yet to
+demonstrate.
 
 ## Intended Behavior
 
@@ -11,6 +14,13 @@ No demo.
 ## Suggested Implementation Steps
 
 1. The demo script. **Test:** runs through `./run-phase-demo 10`.
+
+## Sub-issues
+
+- 1004a — the story shown
+- 1004b — the lessons shown
+- 1004c — recurrence and the strategem shown
+- 1004d — the demo script
 
 ## Blocked by
 

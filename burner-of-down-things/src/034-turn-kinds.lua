@@ -307,6 +307,33 @@ kinds.TABLE = {
             "{{findings}}"
         ),
     },
+    -- The storyteller (docs/069, issue 1001a): reads one case's ledger and
+    -- its requests, in the person's own words, and nothing else; writes
+    -- only the story file. Segmenting it into per-turning-point chapters
+    -- (1001b), never telling a line twice (1001c) and naming whose each
+    -- thing was (1001d) are later pieces built on this reading turn.
+    storyteller = {
+        reads = { "ledger", "input/" },
+        writes = { "output/story/{{about}}.md" },
+        crafts = {},
+        template = lines(
+            "turn: storyteller {{about}}",
+            "",
+            "Tell case {{about}}'s ledger back as a story, in plain words, the way a",
+            "child tells what happened today: who did what, what went wrong, what was",
+            "learned. Name whose each thing was -- the person, the referee, the",
+            "builder, the stand-in or a named model -- reading who the ledger already",
+            "says did it.",
+            "",
+            "Write only {{story_path}}. Do not touch anything else.",
+            "",
+            "The ledger, whole:",
+            "{{ledger_text}}",
+            "",
+            "The person's own requests, in their own words:",
+            "{{requests_text}}"
+        ),
+    },
 }
 
 -- {{{ function kinds.fill

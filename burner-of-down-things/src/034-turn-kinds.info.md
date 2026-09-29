@@ -8,7 +8,9 @@ prefixes, `turn`, `request`), `crafts` (array of skill names), `template`
 (prompt text with `{{slot}}` marks; first line `turn: <kind> <about>`).
 Kinds: `outline`, `describe`, `build`, `repair`, `audit` and `inspect` (issue
 507), `referee` (reads only the
-blueprint, writes only `workflows/`, issue 506), `locate`, `amend`.
+blueprint, writes only `workflows/`, issue 506), `locate`, `amend`,
+`storyteller` (issue 1001a — reads only the ledger and `input/`, writes
+only `output/story/{{about}}.md`).
 
 A **turn table**: `id` (`NNNN-kind-about`), `kind`, `about`, `folder`,
 `case_folder` (strings); `reads`, `writes` (arrays of absolute paths; writes
