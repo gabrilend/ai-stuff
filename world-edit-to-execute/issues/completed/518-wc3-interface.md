@@ -105,3 +105,16 @@ and forces; quests; the minimap picture.
 - No combat: Attack walks to the point.
 - Hit points of stock units show "- / -" (no stock data here).
 - Save, Load, Options, Help and Tips answer "not in this viewer yet".
+
+---
+
+## Note (2026-09-29): building it elsewhere
+
+Found while writing the build steps for the owner:
+
+- `scene_viewer.c` used `GetScreenToWorldRay`, which raylib added in 5.5;
+  it now uses `GetMouseRay` on older raylib (built against 5.0 and 5.5).
+- `src/mpq/stormlib.lua` only looked for `libstorm.so` at the owner's
+  path; it now tries the loading checkout's `deps/` first, and
+  `STORMLIB_PATH` overrides. A fresh checkout's `run-map` loads and draws
+  DAoW 5.4b with the owner's path hidden.
