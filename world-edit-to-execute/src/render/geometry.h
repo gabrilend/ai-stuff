@@ -24,7 +24,7 @@
 #include <lauxlib.h>
 #include "raylib.h"
 
-#define GEO_MAX_STATIC  32768
+#define GEO_MAX_STATIC  400000   /* grows as needed up to this */
 #define GEO_MAX_DYNAMIC 16384
 
 typedef enum {
@@ -49,20 +49,31 @@ int  geometry_add_quad(bool dynamic, const Vector3 corners[4], Color color);
 void geometry_clear(bool dynamic);
 int  geometry_count(bool dynamic);
 void geometry_draw(void);   /* static, then dynamic; empties dynamic */
+
+/* Baking (517b): move every static primitive into GPU meshes, grouped in
+ * square chunks of chunk_size render units, and draw only the chunks within
+ * the view set by geometry_set_view. Returns the number of chunks. */
+int  geometry_bake(float chunk_size);
+void geometry_set_view(float cx, float cz, float radius);
+
+/* The flat shade of a face with corners a, b, c (shared with landscape.c) */
+Color geometry_shade(Vector3 a, Vector3 b, Vector3 c, Color col);
 /* }}} */
 
 /* {{{ Lua API (registered by luaopen_render)
  * render.geo_box(x, y, z, sx, sy, sz, yaw, r, g, b [, dynamic]) -> index | -1
  * render.geo_wedge(x, y, z, sx, sy, sz, yaw, r, g, b [, dynamic]) -> index | -1
  * render.geo_quad(x1,y1,z1, x2,y2,z2, x3,y3,z3, x4,y4,z4, r, g, b [, dynamic]) -> index | -1
- * render.geo_clear([dynamic])     (no argument: both layers)
+ * render.geo_clear([dynamic])     (no argument: both layers, and baked chunks)
  * render.geo_count([dynamic]) -> n
+ * render.geo_bake(chunk_size) -> chunks   (517b)
  */
 int l_geo_box(lua_State* L);
 int l_geo_wedge(lua_State* L);
 int l_geo_quad(lua_State* L);
 int l_geo_clear(lua_State* L);
 int l_geo_count(lua_State* L);
+int l_geo_bake(lua_State* L);
 /* }}} */
 
 #endif /* GEOMETRY_H */

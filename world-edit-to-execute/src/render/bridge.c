@@ -13,6 +13,7 @@
 #include "input.h"
 #include "ui.h"
 #include "geometry.h"
+#include "landscape.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -357,6 +358,10 @@ static const luaL_Reg render_funcs[] = {
     {"geo_quad", l_geo_quad},
     {"geo_clear", l_geo_clear},
     {"geo_count", l_geo_count},
+    {"geo_bake", l_geo_bake},
+    /* Landscape (517b) */
+    {"land_build", l_land_build},
+    {"land_free", l_land_free},
     {NULL, NULL}
 };
 

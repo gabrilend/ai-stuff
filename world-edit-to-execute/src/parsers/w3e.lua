@@ -78,23 +78,26 @@ local function parse_tilepoint(data, pos)
     tp.water_level = water.level
     tp.boundary = water.boundary
 
-    -- Byte 4: Flags (low nibble) + Ground texture (high nibble)
+    -- Byte 4: Ground texture (low nibble) + Flags (high nibble: 0x10 ramp,
+    -- 0x20 blight, 0x40 water, 0x80 boundary). Until issue 517 these two
+    -- nibbles were read the other way round (see its notes for the check).
     local byte4 = data:byte(pos + 4)
-    tp.ground_texture = band(rshift(byte4, 4), 0x0F)
-    tp.is_ramp = band(byte4, 0x01) ~= 0      -- Bit 0
-    tp.is_blight = band(byte4, 0x02) ~= 0    -- Bit 1
-    tp.has_water = band(byte4, 0x04) ~= 0    -- Bit 2
-    tp.is_boundary = band(byte4, 0x08) ~= 0  -- Bit 3
+    tp.ground_texture = band(byte4, 0x0F)
+    tp.is_ramp = band(byte4, 0x10) ~= 0
+    tp.is_blight = band(byte4, 0x20) ~= 0
+    tp.has_water = band(byte4, 0x40) ~= 0
+    tp.is_boundary = band(byte4, 0x80) ~= 0
 
     -- Byte 5: Texture details (5 bits) + Cliff variation (3 bits)
     local byte5 = data:byte(pos + 5)
     tp.texture_details = band(byte5, 0x1F)
     tp.cliff_variation = band(rshift(byte5, 5), 0x07)
 
-    -- Byte 6: Cliff texture (low nibble) + Layer height (high nibble)
+    -- Byte 6: Layer height (low nibble; 2 is the usual ground level) +
+    -- Cliff texture (high nibble; 15 = none). Also swapped until issue 517.
     local byte6 = data:byte(pos + 6)
-    tp.cliff_texture = band(byte6, 0x0F)
-    tp.layer_height = band(rshift(byte6, 4), 0x0F)
+    tp.layer_height = band(byte6, 0x0F)
+    tp.cliff_texture = band(rshift(byte6, 4), 0x0F)
 
     return tp
 end
@@ -414,6 +417,28 @@ function w3e.format(terrain)
     return table.concat(lines, "\n")
 end
 -- }}}
+-- }}}
+
+-- {{{ Heights in the world
+-- WC3 z of a tilepoint's ground: its height plus 128 for each cliff layer
+-- above layer 2 (the usual ground level)
+function w3e.ground_z(tp)
+    return tp.height + (tp.layer_height - 2) * 128
+end
+
+-- WC3 z of a tilepoint's water surface. The 89.6 drop is the offset map
+-- tools use between the stored level and the drawn surface; with it the
+-- test maps' water meets their coastlines (issue 517).
+w3e.WATER_OFFSET = 89.6
+function w3e.water_z(tp)
+    return tp.water_level - w3e.WATER_OFFSET
+end
+
+-- True where water shows: the water flag is set and its surface is above
+-- the ground
+function w3e.is_wet(tp)
+    return tp.has_water and w3e.water_z(tp) > w3e.ground_z(tp)
+end
 -- }}}
 
 -- {{{ Module exports

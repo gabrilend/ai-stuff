@@ -95,3 +95,9 @@ not been run; treat it as a sketch.
 Footage of play could stand in for steps 1 and 4 (count frames while a
 unit turns about, or while the view pans a known distance), but the logging
 map is more exact and needs no video.
+
+## Note (2026-09-29, issue 517)
+
+The camera numbers now live in `src/render/scene_viewer.c` (renamed from
+`fort_demo.c`), and its zoom-out limit is 9000 so a whole map region fits
+on screen; WC3's own limit is still to be measured.
