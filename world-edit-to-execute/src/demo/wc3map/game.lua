@@ -32,6 +32,7 @@ local classify = require("demo.wc3map.classify")
 local pathing_mod = require("demo.wc3map.pathing")
 local combat = require("demo.wc3map.combat")
 local map_scene = require("demo.wc3map.scene")
+local production = require("demo.wc3map.production")
 
 local game_mod = {}
 
@@ -256,10 +257,9 @@ function game_mod.new(scene, opts)
                 if u.food_made then cap = cap + u.food_made end
             end
         end
-        local ps = g.script and g.script.players[player]
+        local purse = g.purse(player)
         return {
-            gold = ps and ps.gold or g.start_resources.gold or 500,
-            lumber = ps and ps.lumber or g.start_resources.lumber or 150,
+            gold = purse.gold or 0, lumber = purse.lumber or 0,
             food = food, food_cap = math.min(game_mod.FOOD_MAX, cap), food_unknown = unknown,
         }
     end
@@ -376,21 +376,44 @@ function game_mod.new(scene, opts)
         vm_opts = vm_opts or {}
         vm_opts.player = vm_opts.player or g.player
         vm_opts.strings = vm_opts.strings or function(k) return m.strings and m.strings:resolve(k) end
+        -- files the script names (an imported .ai) are read from the map
+        vm_opts.read_file = vm_opts.read_file or function(name)
+            local ok, archive = pcall(mpq.open, scene.path)
+            if not ok or not archive then return nil end
+            local data
+            for _, n in ipairs({ name, (name:gsub("/", "\\")), "war3mapImported\\" .. name }) do
+                if not data and archive:has(n) then data = archive:extract(n) end
+            end
+            archive:close()
+            return data
+        end
         local V = vm.new(g, vm_opts)
         local ok, err = V:load(scene.script or "")
         if not ok then return nil, err end
         g.script = V
         V:run_main()
+        -- computer players: vm_opts.ai = "auto" (default: an AI for every
+        -- computer player the map leaves without one, from vm_opts.ai_dir's
+        -- profile files or derived), "script" (only what the map starts,
+        -- as WC3 does) or "none"
+        local mode = vm_opts.ai or "auto"
+        if mode ~= "none" then
+            local manager = require("ai").manager(V)
+            manager:fill(mode, vm_opts.ai_dir)
+        end
         return V
     end
     -- }}}
 
     -- {{{ g.tick
     combat.init(g)
+    production.init(g)
     function g.tick(dt)
         g.time = g.time + dt
         if g.script then g.script:tick(dt) end
+        if g.ai_manager then g.ai_manager:update(dt) end
         if opts.combat ~= false then combat.update(g, dt) end
+        production.update(g, dt)
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}

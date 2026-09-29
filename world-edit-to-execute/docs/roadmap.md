@@ -285,6 +285,15 @@ src/
 │   ├── transpiler.lua   # JASS-to-Lua transpilation
 │   ├── vm.lua           # Runs a map's war3map.j: threads, waits, events, timers (520)
 │   └── natives/         # common.j natives and our own Blizzard.j functions (520)
+├── ai/                  # Computer players (521)
+│   ├── init.lua         # One AI per computer player: map-started, melee or filled in
+│   ├── player.lua       # The mechanism: captains, counts, targets, fleeing, defending
+│   ├── natives.lua      # The AI natives a map's .ai script runs on
+│   ├── profile.lua      # The AI Editor's model (its tabs as a Lua table)
+│   ├── editor_ai.lua    # Plays a profile
+│   ├── melee.lua        # Default melee profiles per race
+│   ├── faction.lua      # Profiles for custom-map factions; profile files
+│   └── tool.lua         # luajit src/ai/tool.lua write MAP | check DIR
 ├── runtime/
 │   ├── triggers/        # Trigger framework
 │   │   ├── init.lua     # Trigger API

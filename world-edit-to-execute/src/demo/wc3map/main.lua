@@ -22,6 +22,10 @@ Unattended runs (screenshots, tests) can script input with SCENE_ACTIONS:
 
 WC3_SCRIPT=0 reads the units from the script's text instead of running it
 (issue 520); WC3_SCRIPT_VERBOSE=1 prints the script's errors as they come.
+Computer players (issue 521): WC3_AI=auto (default) gives every computer
+player the map leaves idle an AI, from ai-profiles/<map>/ when a file is
+there, else derived from its faction; WC3_AI=script only runs AI the map
+starts itself (as WC3 does); WC3_AI=none, none at all.
 ]]
 
 local render = require("render")
@@ -54,10 +58,17 @@ local player = tonumber(os.getenv("WC3_PLAYER") or "0")
 local game
 if os.getenv("WC3_SCRIPT") ~= "0" then
     game = game_mod.new(s, { player = player, placed = false })
-    local V, err = game.run_script({ verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1" })
+    local V, err = game.run_script({
+        verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1",
+        ai = os.getenv("WC3_AI") or "auto",
+        ai_dir = ROOT .. "/ai-profiles/" .. require("ai.faction").map_key(path),
+    })
     if V then
         print(string.format("[script] running: %d units made, %d quests, load %.2fs, main %.2fs",
             #game.units, #V.quests, V.stats.load_seconds, V.stats.main_seconds))
+        for _, r in ipairs(game.ai_manager and game.ai_manager:report() or {}) do
+            print(string.format("[ai] player %d: %s (%s)", r.player, tostring(r.name), tostring(r.how)))
+        end
     else
         print("[script] couldn't run the map's script (" .. tostring(err) .. "); units read from its text")
         game = nil
