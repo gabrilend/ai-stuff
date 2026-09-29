@@ -1,0 +1,29 @@
+#!/bin/bash
+# view-gifs - Opens a window that plays a folder of gifs.
+#
+# In general terms: shows the shape animations (or any folder of gifs) in a
+# black window. Left and right step through them, space goes to the next, g
+# shows them all at once in a grid, and esc or q closes the window. The
+# viewer itself is a small LÖVE program in this same folder.
+#
+# Usage:
+#   view-gifs                      -- the shape gifs in /home/ritz/pictures/shape-gifs
+#   view-gifs /some/other/folder   -- any other folder of gifs
+#   view-gifs --selftest           -- load everything, report, and quit (tests)
+
+DIR="/mnt/mtwo/programming/ai-stuff/delta-version/scripts/gif-viewer"
+FOLDER="/home/ritz/pictures/shape-gifs"
+
+# Two paths: a folder argument replaces the default; anything else (such as
+# --selftest) is passed through to the viewer untouched.
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    FOLDER="$1"
+    shift
+fi
+
+if [ ! -d "$FOLDER" ]; then
+    echo "view-gifs: $FOLDER is not a folder" >&2
+    exit 1
+fi
+
+exec love "$DIR" "$FOLDER" "$@"

@@ -1,0 +1,36 @@
+* bc2b0858 Fix: Remove hardcoded 'dv' path in initialize-issue.sh dry-run mode
+* eabc7343 Fix: Add authorship-tool to manage-worktree.sh valid projects
+* 73c0ec40 Issue 043: Implement issue initialization workflow script
+*   67e4d39d Merge branch 'master' into dv/dev
+|\  
+* | c66056d8 Issue 043: Add specification for issue initialization workflow script
+* | 4d486f46 Issue 042: Implement utility health checker and project integration auditor
+| | * 9599c077 Fix: Add authorship-tool to manage-worktree.sh valid projects
+| |/  
+| | * 0103fc8f Fix load balancing to account for repeat_count
+| | * 3234ab88 Fix: Add authorship-tool to manage-worktree.sh valid projects
+| | * f079873c Update threading system to use WC3 tick rate (62.5 Hz / 16ms)
+| | * 0791e869 Clean up Phase 0/1 issues: move completed to archive, update counts
+| | * da731a6d Move vision document to notes directory
+| |/  
+| | * c8e0e875 On master: Stash unrelated changes before merging issue-042
+| |/| 
+| | * 0631cde0 index on master: 0f6db22a Update worktree documentation with root issue vs sub-issue guidance
+| |/  
+| * 0f6db22a Update worktree documentation with root issue vs sub-issue guidance
+| * d8ce2a4e Split matchmaking server into Phase 8 with 9 sub-issues (801-801h)
+| * 8fd99c1e Archive WoW-mode issues and update asset system for pure WC3 engine
+| *   9e52540f Merge wete/issue-702a: Archive WoW profession system
+| |\  
+| | * 3f37eafe Archive WoW profession system (issues 702a-702e)
+| | * fae77dfd Issue 702e: Add WoW-mode profession configuration
+| | * 2e2f0503 Issue 702b: Add gathering profession system
+| | * ce4b01cc Issue 702c: Add crafting profession system
+| | * 8a182d55 Issue 702d: Add recipe and schematic system
+| | * a631e288 Issue 702a: Complete profession system with registry and cooldowns
+| * | 50d47c28 Update all documentation to reflect pure WC3 engine pivot
+| * | 72fcefcb Pivot: Archive AzerothCore integration, return to pure WC3 engine
+| * | fc696e69 Add AzerothCore integration architecture design documents
+| * | fe185342 Phase A migration: Move infrastructure tools tracking to delta-version
+| * | 8ccc0149 Update roadmap: Phase 4 complete
+| * | 652c1a7e Mark Phase 4 complete: 34/34 issues done

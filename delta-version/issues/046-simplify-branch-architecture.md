@@ -630,9 +630,13 @@ All acceptance criteria met:
 7. Tested hook enforcement
 
 **Rollback capability**: Original branch state saved in:
-- `delta-version/tmp/dev-branches-before.txt`
-- `delta-version/tmp/git-graph-before.txt`
-- `delta-version/tmp/all-branches-before.txt`
+- `delta-version/archive/branch-snapshots-2026-01/dev-branches-before.txt`
+- `delta-version/archive/branch-snapshots-2026-01/git-graph-before.txt`
+- `delta-version/archive/branch-snapshots-2026-01/all-branches-before.txt`
+
+(Written to `delta-version/tmp/` originally; moved to the archive on
+2026-09-23 when `tmp/` became the RAM scratch symlink, and the migration
+script now writes there directly.)
 
 All changes are also in git reflog.
 
