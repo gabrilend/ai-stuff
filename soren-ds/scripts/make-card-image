@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# make-card-image — a blank SD card, as a file, for the laptop twin.
+#
+# General description: makes a disk-image file laid out exactly the way a
+# consumer SD card is — a partition table with one FAT32 partition — so
+# the twin's filesystem code reads and writes the same structures it will
+# meet on the handheld's card, and so the laptop's own tools (mdir, mcopy,
+# fsck.fat) can read, check and repair whatever the twin wrote. The
+# partition starts 1 MB in, as card formatting tools place it.
+#
+# Usage: scripts/make-card-image [project-dir] [image-path] [size-in-MB]
+#   image-path  defaults to tmp/shared-memory/card.img
+#   size-in-MB  defaults to 96 (FAT32 needs at least about 33)
+
+DIR="/mnt/mtwo/programming/ai-stuff/soren-ds"
+if [ -n "$1" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+"${DIR}/scripts/ensure-tmp" "${DIR}" || exit 1
+IMAGE="${1:-${DIR}/tmp/shared-memory/card.img}"
+SIZE_MB="${2:-96}"
+START=2048
+
+rm -f "${IMAGE}"
+truncate -s "${SIZE_MB}M" "${IMAGE}" || exit 1
+# One partition, type 0x0C (FAT32, addressed by block number), from 1 MB.
+printf 'label: dos\nstart=%d, type=c\n' "${START}" | sfdisk --quiet "${IMAGE}" || exit 1
+SECTORS=$(( SIZE_MB * 2048 - START ))
+mkfs.fat -F 32 -n SORENCARD --offset "${START}" "${IMAGE}" $(( SECTORS / 2 )) > /dev/null || exit 1
+echo "${IMAGE}"

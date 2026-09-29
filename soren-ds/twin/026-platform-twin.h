@@ -24,6 +24,10 @@ void twin_platform_init(int cores, size_t pool_bytes);
  * for tests that produce a great deal of expected chatter. */
 void twin_platform_set_log(const char *path, int also_stdout);
 
+/* Use this disk-image file as the SD card. It must already be formatted
+ * (scripts/make-card-image makes one). */
+void twin_card_open(const char *path);
+
 /* Give the memory pool back. Only the twin ever does this. */
 void twin_platform_shutdown(void);
 

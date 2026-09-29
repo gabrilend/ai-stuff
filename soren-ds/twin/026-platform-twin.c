@@ -16,7 +16,9 @@
 #include "../src/engine/025-platform.h"
 #include "026-platform-twin.h"
 
+#include <dlfcn.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <linux/futex.h>
 #include <pthread.h>
@@ -418,6 +420,120 @@ void platform_screen_present(int which)
 uint64_t twin_screen_presents(int which)
 {
     return atomic_load(&twin_presents[which]);
+}
+/* }}} */
+
+/* The card: one disk-image file (twin_card_open). */
+static int card_fd = -1;
+static uint64_t card_blocks;
+
+/* {{{ twin_card_open */
+void twin_card_open(const char *path)
+{
+    if (card_fd >= 0) {
+        close(card_fd);
+    }
+    card_fd = open(path, O_RDWR);
+    if (card_fd < 0) {
+        fprintf(stderr, "twin: cannot open the card image %s: %s\n", path, strerror(errno));
+        exit(2);
+    }
+    off_t size = lseek(card_fd, 0, SEEK_END);
+    card_blocks = (uint64_t)size / PLATFORM_BLOCK_BYTES;
+}
+/* }}} */
+
+/* {{{ platform_card_blocks */
+uint64_t platform_card_blocks(void)
+{
+    return card_fd >= 0 ? card_blocks : 0;
+}
+/* }}} */
+
+/* {{{ platform_card_read */
+int platform_card_read(uint64_t block, uint32_t count, void *buffer)
+{
+    size_t n = (size_t)count * PLATFORM_BLOCK_BYTES;
+    if (card_fd < 0 || block + count > card_blocks) {
+        return 1;
+    }
+    return pread(card_fd, buffer, n, (off_t)(block * PLATFORM_BLOCK_BYTES)) != (ssize_t)n;
+}
+/* }}} */
+
+/* {{{ platform_card_write */
+int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
+{
+    size_t n = (size_t)count * PLATFORM_BLOCK_BYTES;
+    if (card_fd < 0 || block + count > card_blocks) {
+        return 1;
+    }
+    return pwrite(card_fd, buffer, n, (off_t)(block * PLATFORM_BLOCK_BYTES)) != (ssize_t)n;
+}
+/* }}} */
+
+/* {{{ platform_compile */
+/* The laptop's compiler: write the C to the RAM tier, compile it into a
+ * loadable object against the engine's headers, and load it. The object
+ * finds the engine's own functions in this program (which is linked so
+ * that its symbols are visible to what it loads). */
+void *platform_compile(const char *c_text, size_t length, const char *entry_name,
+                       void **entry, char *why, size_t why_size)
+{
+    static _Atomic int units;
+    *entry = NULL;
+    const char *dir = getenv("SOREN_DIR");
+    if (!dir) {
+        snprintf(why, why_size, "twin: SOREN_DIR is not set, so the compiler cannot find the engine's headers");
+        return NULL;
+    }
+    int n = atomic_fetch_add(&units, 1);
+    char work[1024], c_path[1100], so_path[1100], err_path[1100], command[5000];
+    snprintf(work, sizeof work, "%s/tmp/shared-memory/compiled", dir);
+    mkdir(work, 0755);
+    snprintf(c_path, sizeof c_path, "%s/unit-%d-%d.c", work, (int)getpid(), n);
+    snprintf(so_path, sizeof so_path, "%s/unit-%d-%d.so", work, (int)getpid(), n);
+    snprintf(err_path, sizeof err_path, "%s/unit-%d-%d.err", work, (int)getpid(), n);
+    FILE *f = fopen(c_path, "w");
+    if (!f || fwrite(c_text, 1, length, f) != length) {
+        snprintf(why, why_size, "twin: cannot write %s", c_path);
+        if (f) fclose(f);
+        return NULL;
+    }
+    fclose(f);
+    snprintf(command, sizeof command,
+             "gcc -std=gnu11 -O2 -g -shared -fPIC -Wall -I'%s/src/engine' -I'%s/src/system' '%s' -o '%s' 2> '%s'",
+             dir, dir, c_path, so_path, err_path);
+    int status = system(command);
+    if (status != 0) {
+        FILE *e = fopen(err_path, "r");
+        size_t got = e ? fread(why, 1, why_size - 1, e) : 0;
+        if (e) fclose(e);
+        why[got] = 0;
+        if (!got) snprintf(why, why_size, "the compiler failed and said nothing");
+        return NULL;
+    }
+    void *handle = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        snprintf(why, why_size, "twin: cannot load %s: %s", so_path, dlerror());
+        return NULL;
+    }
+    *entry = dlsym(handle, entry_name);
+    if (!*entry) {
+        snprintf(why, why_size, "twin: %s has no %s", so_path, entry_name);
+        dlclose(handle);
+        return NULL;
+    }
+    return handle;
+}
+/* }}} */
+
+/* {{{ platform_unload */
+void platform_unload(void *handle)
+{
+    if (handle) {
+        dlclose(handle);
+    }
 }
 /* }}} */
 

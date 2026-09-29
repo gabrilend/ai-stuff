@@ -129,6 +129,30 @@ struct platform_screen platform_screen(int which);
 void platform_screen_present(int which);
 /* }}} */
 
+/* {{{ the card (issue 401) */
+/* The SD card as numbered 512-byte blocks. The device answers through
+ * phase 1's card driver (issue 110f); the twin through a disk-image file
+ * formatted exactly as a real card is, so a laptop can read what the
+ * twin wrote with its own tools. Reads and writes answer 0, or nonzero
+ * for a failed transfer. */
+#define PLATFORM_BLOCK_BYTES 512
+uint64_t platform_card_blocks(void);            /* 0: no card */
+int      platform_card_read(uint64_t block, uint32_t count, void *buffer);
+int      platform_card_write(uint64_t block, uint32_t count, const void *buffer);
+/* }}} */
+
+/* {{{ loading compiled code (issue 409) */
+/* Compile one C text and load the result, answering an opaque handle
+ * and, through `entry`, the address of the function named `entry_name`
+ * in it — or NULL with the compiler's own words in `why`. The twin runs
+ * the laptop's C compiler and loads the result; the device has no
+ * compiler yet (issue 409's open question) and says so. */
+void *platform_compile(const char *c_text, size_t length, const char *entry_name,
+                       void **entry, char *why, size_t why_size);
+/* Unload code a platform_compile loaded. Nothing may be running in it. */
+void  platform_unload(void *handle);
+/* }}} */
+
 /* {{{ surviving a box that faults (issue 214, debug builds only) */
 /* A snapshot is a place to come back to. The engine takes one before
  * calling into a box; if the box faults, the platform returns to it with

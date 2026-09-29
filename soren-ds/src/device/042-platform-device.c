@@ -309,6 +309,66 @@ void platform_halt(const char *why)
 }
 /* }}} */
 
+extern int      sd_read_block(uint32_t lba, uint8_t *buffer);         /* 015-sdmmc.c */
+extern int      sd_write_block(uint32_t lba, const uint8_t *buffer);
+extern uint32_t sd_sector_count(void);
+
+/* {{{ platform_card_blocks */
+uint64_t platform_card_blocks(void)
+{
+    return sd_sector_count();
+}
+/* }}} */
+
+/* {{{ platform_card_read */
+/* One block at a time through phase 1's driver; the multi-block DMA path
+ * it also has (110m) is left for when a measurement asks for it. */
+int platform_card_read(uint64_t block, uint32_t count, void *buffer)
+{
+    uint8_t *b = buffer;
+    for (uint32_t i = 0; i < count; i++) {
+        if (sd_read_block((uint32_t)(block + i), b + (size_t)i * PLATFORM_BLOCK_BYTES) != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+/* }}} */
+
+/* {{{ platform_card_write */
+int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
+{
+    const uint8_t *b = buffer;
+    for (uint32_t i = 0; i < count; i++) {
+        if (sd_write_block((uint32_t)(block + i), b + (size_t)i * PLATFORM_BLOCK_BYTES) != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+/* }}} */
+
+/* {{{ platform_compile */
+/* The device has no C compiler yet. Which one to embed is issue 409's
+ * open question; until it is answered this refuses, in so many words,
+ * rather than pretending. */
+void *platform_compile(const char *c_text, size_t length, const char *entry_name,
+                       void **entry, char *why, size_t why_size)
+{
+    (void)c_text; (void)length; (void)entry_name;
+    *entry = (void *)0;
+    text_format(why, why_size, "this device has no C compiler yet (issue 409's open question)");
+    return (void *)0;
+}
+/* }}} */
+
+/* {{{ platform_unload */
+void platform_unload(void *handle)
+{
+    (void)handle;
+}
+/* }}} */
+
 extern uint64_t display_fb_top;          /* 024-display.c */
 extern uint64_t display_fb_bottom;
 
