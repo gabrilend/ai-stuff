@@ -38,7 +38,9 @@ SDL_LIBS   := $(shell pkg-config --libs sdl2 2>/dev/null)
 CFLAGS := -std=gnu11 -O2 -g -Wall -Wextra -Werror -pthread -fno-strict-aliasing \
           -I$(DIR)/src/engine -I$(DIR)/src/system -I$(DIR)/twin -I$(GEN) \
           $(shell pkg-config --cflags libpng 2>/dev/null)
-LDLIBS := -pthread -lm $(shell pkg-config --libs libpng 2>/dev/null)
+# -rdynamic makes the engine's own functions visible to box code the twin
+# compiles and loads at run time (issue 409); -ldl is the loader.
+LDLIBS := -pthread -lm -ldl -rdynamic $(shell pkg-config --libs libpng 2>/dev/null)
 
 # The debug variant switches on the engine's fault catcher (issue 214):
 # every box call runs under a snapshot the platform can return to.
