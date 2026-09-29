@@ -4,11 +4,12 @@ Each turning point of a story — a failure, a repair, a hold, a wider look's fi
 
 ## Current Behavior
 
-1002a is built (issues/completed/1002a-lesson-schema.md): a lesson's
-fields and the shape check on `mechanism`. 1002b (append-only write),
-1002c (the fuller mood-vs-mechanism refusal) and 1002d (mechanism
-counting) are not yet built, so turning points are still ledger lines
-only — nothing writes a lesson yet.
+1002a, 1002b and 1002d are built (issues/completed/1002a-lesson-schema.md,
+1002b-append-only-write.md, 1002d-mechanism-counting.md): a lesson's
+fields and shape check, an append-only writer (one Markdown section per
+lesson, no reader yet), and a mechanism counter proved to feed 1003a's
+trigger unchanged. 1002c (the fuller mood-vs-mechanism refusal) is not yet
+built.
 
 ## Intended Behavior
 

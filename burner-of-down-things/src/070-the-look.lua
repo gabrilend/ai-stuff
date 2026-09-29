@@ -46,4 +46,31 @@ function the_look.defaults()
 end
 -- }}}
 
+-- {{{ function the_look.with_overrides
+-- A canvas's own look (801b): defaults() with the given overrides laid on
+-- top, by name. Every name is checked against FIELDS before any of them are
+-- merged, so a refusal never leaves a half-applied look sitting around; the
+-- refusal names the fields a canvas is allowed to give.
+function the_look.with_overrides(overrides)
+    for name in pairs(overrides) do
+        local known = false
+        for _, field in ipairs(the_look.FIELDS) do
+            if field == name then
+                known = true
+                break
+            end
+        end
+        if not known then
+            error("the_look.with_overrides: unknown field '" .. tostring(name)
+                .. "' (fields are " .. table.concat(the_look.FIELDS, ", ") .. ")")
+        end
+    end
+    local look = the_look.defaults()
+    for name, value in pairs(overrides) do
+        look[name] = value
+    end
+    return look
+end
+-- }}}
+
 return the_look

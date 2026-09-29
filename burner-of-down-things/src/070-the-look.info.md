@@ -10,3 +10,4 @@ stored), `flair` (boolean), `line_weight` (pixels), `arrow` (`there-here`).
 | `defaults()` | | a fresh table of every field, `palette` resolved |
 | `DEFAULTS` | | the stored fields and their values (not `palette`) |
 | `FIELDS` | | the closed list of every field name a canvas may override (801b) |
+| `with_overrides(overrides)` | a table of field name to new value | `defaults()` with those fields replaced; an unknown name is refused, naming the legal fields |
