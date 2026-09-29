@@ -4,10 +4,11 @@ What arrives at the switchboard, and how it asks ([068](../docs/068-datapath-the
 
 ## Current Behavior
 
-901a is built (issues/completed/901a-parcel-folder.md): a folder of files
-reads as one parcel. 901b (tag parsing), 901c (number issuance) and 901d
-(reuse refusal) are not yet built, so nothing is handed to the machine but
-whole sources and change requests.
+901a and 901b are built (issues/completed/901a-parcel-folder.md,
+901b-tag-parsing.md): a folder of files reads as one parcel, and its tag
+(if any) reads as a well-formed number and wish, no tag at all, or a
+malformed finding. 901c (number issuance) and 901d (reuse refusal) are not
+yet built.
 
 ## Intended Behavior
 

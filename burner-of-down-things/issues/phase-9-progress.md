@@ -24,8 +24,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   land) and the shape-matching function; proved to feed 905a's shape
   graph unchanged, the first working example of
   strategems/build-to-the-shape-not-the-neighbor.md.
+- 901b tag parsing — a parcel's first line, read as a well-formed tag, no
+  tag at all (ordinary), or a malformed attempt (a finding naming the
+  right form) — a word-boundary check keeps "promptly" from misreading as
+  a broken tag.
 
-903b and 903d, 901b-d, 902b-c and 905b-d remain: the needs check and
-confinement; tag parsing, number issuance and reuse refusal; structured
-and remaining types; shortest-chain search, joint checking and plan
-execution.
+903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
+confinement; number issuance and reuse refusal; structured and remaining
+types; shortest-chain search, joint checking and plan execution.

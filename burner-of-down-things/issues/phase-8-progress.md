@@ -21,8 +21,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 
 - 809c the count utility — per-category counts read from `.card` files
   alone, never an asset; per-tier counting waits on 809b's rating format.
+- 801b canvas overrides — a canvas's own look, `defaults()` with named
+  fields laid on top; an unknown field is refused before any of it merges.
+- 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
+  indented, no bullets — a deliberate contrast), joined into 807a's file.
 
-801b-d, 807b-d, 805b-d, and 809b and 809d remain: overrides and the
-flair's colour math, lists/trees/box-diagrams/prose, line-and-dot charts
-and diagrams by level and the machine drawing itself, and safe concurrent
-appends and floors.
+801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
+and the night-only palette rule; box diagrams and prose templates;
+line-and-dot charts, diagrams by level and the machine drawing itself; and
+safe concurrent appends and floors.

@@ -4,10 +4,11 @@ The owner's style in one table every paintbrush reads ([067](../docs/067-datapat
 
 ## Current Behavior
 
-801a is built (issues/completed/801a-the-look-table.md): the look table and
-its defaults exist. 801b (canvas overrides), 801c (the flair's quarter
-colours) and 801d (`day` refused on a night-only category) are not yet
-built.
+801a and 801b are built (issues/completed/801a-the-look-table.md,
+801b-canvas-overrides.md): the look table, its defaults, and a canvas's
+own override on top of them, refusing an unknown field. 801c (the flair's
+quarter colours) and 801d (`day` refused on a night-only category) are not
+yet built.
 
 ## Intended Behavior
 

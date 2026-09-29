@@ -4,9 +4,10 @@ Text assets: `table`, `list`, `tree`, `box-diagram` (boxes of line characters, a
 
 ## Current Behavior
 
-807a is built (issues/completed/807a-tables.md): the `table` word, with the
-character-width discipline the rest of this end reuses. 807b (lists and
-trees), 807c (box diagrams) and 807d (prose templates) are not yet built.
+807a and 807b are built (issues/completed/807a-tables.md,
+807b-lists-and-trees.md): `table`, `list` and `tree`, all sharing one
+file and its character-width discipline. 807c (box diagrams) and 807d
+(prose templates) are not yet built.
 
 ## Intended Behavior
 
