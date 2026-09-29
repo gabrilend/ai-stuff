@@ -34,6 +34,12 @@ name is where it lives.
     ledger alone.
 - docs/010-open-questions.md - every question waiting on the owner.
 - docs/011-roadmap.md - the seven phases and their demos.
+- docs/067-datapath-the-studio.md - asset generation utilities: .png, .mp4,
+  .txt, source files, in the owner's look; the pool and its cards.
+- docs/068-datapath-the-switchboard.md - parcels of arbitrary inputs, routed
+  by a light model, planned by shape; observations and adjustments.
+- docs/069-the-story.md - the ledger told back as a story; lessons;
+  strategems.
 - docs/balance-updates.md - append-only record of every change to the numbers
   the machine weighs by (grade lines, the center's weights), with reasons.
 
@@ -50,6 +56,15 @@ last issue completed in a project to belong to phase 1.
 - Phase 6 - The update: requests graded by depth and rebuilt outward.
 - Phase 7 - The center, and the whole loop: the personality, `run`, and the
   case viewer.
+- Phase 8 - The studio: asset generation utilities in the owner's look.
+- Phase 9 - The switchboard: routing and planning arbitrary inputs.
+- Phase 10 - The story: narrative, lessons, strategems.
+
+## Strategems
+- strategems/a-referee-never-sees-the-answer.md - checks are made from the
+  description, by someone who has not seen the work.
+- strategems/dynamic-re-abstraction.md - narrow first, widen only when
+  nothing is found, narrow again to fix.
 
 ## Project files
 - .file-index-counter - the highest reading-order index used by any file in
