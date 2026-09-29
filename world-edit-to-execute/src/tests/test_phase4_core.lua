@@ -526,13 +526,16 @@ local function make_mock_terrain(width, height, blocked_tiles)
             local key = x .. "," .. y
             local is_blocked = blocked_set[key]
 
-            -- WC3 blocks tiles using deep water (water_level > 64 = WADE_DEPTH)
-            -- The grid construction checks has_water and water_level
+            -- WC3 blocks tiles using deep water (over 64 = WADE_DEPTH).
+            -- water_level is the water's height, not its depth (issue 519):
+            -- ground at height 0, layer 2 is 0, and the surface stands
+            -- WATER_OFFSET below the stored level, so this is 100 deep
             return {
                 is_boundary = false,
                 has_water = is_blocked,          -- Deep water blocks
-                water_level = is_blocked and 100 or 0,  -- Above WADE_DEPTH (64)
-                layer_height = 0,
+                height = 0,
+                water_level = is_blocked and (100 + require("parsers.w3e").WATER_OFFSET) or 0,
+                layer_height = 2,
                 is_ramp = false,
                 is_blight = false,
             }

@@ -171,7 +171,7 @@ o = g.orders[#g.orders]
 test("right click on the ground: move", o.kind == "move" and o.x == 4500)
 local gx, gy = at(grunt)
 frame({ mx = gx, my = gy, rp = true })
-test("right click on an enemy: attack", g.orders[#g.orders].kind == "attack")
+test("right click on an enemy: attack that unit", g.orders[#g.orders].kind == "attack_unit")
 
 frame({ keys = { "A" } })
 frame({ keys = { "ESCAPE" } })
@@ -262,7 +262,7 @@ test_section("Game state on Daow4.4")
 local map_scene = require("demo.wc3map.scene")
 local game_mod = require("demo.wc3map.game")
 local scene = map_scene.load(DIR .. "/assets/Daow4.4.w3x")
-local game = game_mod.new(scene, { player = 0, minimap = false })
+local game = game_mod.new(scene, { player = 0, minimap = false, combat = false })
 test("units carry names", game.units[1].name ~= nil)
 test("players", #game.players > 1)
 local res = game.resources(0)
@@ -274,12 +274,19 @@ for _, u in ipairs(game.units) do
     if u.player == 0 and u.spec.design == "unit" then mover = u; break end
 end
 local x0, y0 = mover.x, mover.y
-game.order({ mover }, "move", x0 + 600, y0)
+-- a point it can reach: the walkable cell of its own region nearest 600
+-- east (issue 519: orders now path around cliffs and water)
+local pi, pj = game.pathing:cell(x0, y0)
+local ti, tj = game.pathing:nearest(pi + 5, pj, game.pathing:region_at(game.pathing:nearest(pi, pj)))
+local gx, gy = game.pathing:world(ti, tj)
+game.order({ mover }, "move", gx, gy)
 for _ = 1, 50 do game.tick(0.02) end
-test("a moved unit walks", mover.x > x0 + 50, string.format("%.0f", mover.x - x0))
+test("a moved unit walks", math.abs(mover.x - x0) + math.abs(mover.y - y0) > 50,
+    string.format("%.0f, %.0f", mover.x - x0, mover.y - y0))
 test("on the ground", math.abs(mover.z - scene.sample.ground_at(mover.x, mover.y)) < 1e-6)
 for _ = 1, 500 do game.tick(0.02) end
-test("and arrives", math.abs(mover.x - (x0 + 600)) < 1 and mover.order == nil)
+test("and arrives", math.abs(mover.x - gx) < 1 and math.abs(mover.y - gy) < 1 and mover.order == nil,
+    string.format("%.0f, %.0f off", mover.x - gx, mover.y - gy))
 game.order({ mover }, "patrol", x0, y0)
 for _ = 1, 400 do game.tick(0.02) end
 test("patrol keeps going", mover.order ~= nil and mover.order.kind == "patrol")

@@ -247,6 +247,8 @@ end
 --   heuristic: "manhattan" | "euclidean" | "chebyshev" (default: "manhattan")
 --   max_iterations: search iteration limit (default: 10000)
 --   diagonal: allow diagonal movement (default: false)
+--   corner_cutting: let a diagonal step pass between two blocked cells
+--     that touch at a corner (default: true)
 -- @return path Array of {x, y} waypoints, or nil if no path
 -- @return cost Total path cost, or nil if no path
 -- @return error Error message if no path (optional)
@@ -269,6 +271,7 @@ function astar.find_path(grid, start_x, start_y, goal_x, goal_y, options)
 
     local max_iterations = options.max_iterations or 10000
     local diagonal = options.diagonal or false
+    local corner_cutting = options.corner_cutting ~= false
 
     -- Validate start position
     if not can_pass(start_x, start_y) then
@@ -332,7 +335,14 @@ function astar.find_path(grid, start_x, start_y, goal_x, goal_y, options)
             for _, neighbor in ipairs(neighbors) do
                 local nx, ny = neighbor.x, neighbor.y
 
-                if can_pass(nx, ny) then
+                -- corner_cutting = false: a diagonal step needs both of
+                -- the cells it passes between open, as WC3's pathing does
+                -- (519a; default true, the old behaviour)
+                local diag_ok = true
+                if not corner_cutting and nx ~= cx and ny ~= cy then
+                    diag_ok = can_pass(nx, cy) and can_pass(cx, ny)
+                end
+                if diag_ok and can_pass(nx, ny) then
                     local tentative_g = current_g + neighbor.cost
                     local neighbor_g = (g_score[ny] and g_score[ny][nx]) or math.huge
 

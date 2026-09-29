@@ -53,7 +53,8 @@ void geometry_draw(void);   /* static, then dynamic; empties dynamic */
 /* Baking (517b): move every static primitive into GPU meshes, grouped in
  * square chunks of chunk_size render units, and draw only the chunks within
  * the view set by geometry_set_view. Returns the number of chunks. */
-int  geometry_bake(float chunk_size);
+int  geometry_bake(float chunk_size, int group);
+void geometry_unbake(int group);   /* 519c */
 void geometry_set_view(float cx, float cz, float radius);
 
 /* Portrait layer (518a): while the target is the portrait, primitives go to
@@ -72,7 +73,8 @@ Color geometry_shade(Vector3 a, Vector3 b, Vector3 c, Color col);
  * render.geo_quad(x1,y1,z1, x2,y2,z2, x3,y3,z3, x4,y4,z4, r, g, b [, dynamic]) -> index | -1
  * render.geo_clear([dynamic])     (no argument: both layers, and baked chunks)
  * render.geo_count([dynamic]) -> n
- * render.geo_bake(chunk_size) -> chunks   (517b)
+ * render.geo_bake(chunk_size [, group]) -> chunks   (517b; group 519c)
+ * render.geo_unbake(group)
  * render.geo_target("portrait" | "world")  (518a)
  */
 int l_geo_box(lua_State* L);
@@ -81,6 +83,7 @@ int l_geo_quad(lua_State* L);
 int l_geo_clear(lua_State* L);
 int l_geo_count(lua_State* L);
 int l_geo_bake(lua_State* L);
+int l_geo_unbake(lua_State* L);
 int l_geo_target(lua_State* L);
 /* }}} */
 

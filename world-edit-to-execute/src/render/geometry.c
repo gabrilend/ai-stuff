@@ -26,6 +26,7 @@ static bool g_portrait_target = false;
 typedef struct {
     Mesh mesh;
     float cx, cz;
+    int group;           /* bake group (519c): re-bake one without the others */
 } BakedChunk;
 static BakedChunk* g_baked = NULL;
 static int g_baked_count = 0;
@@ -236,8 +237,20 @@ static int cmp_chunk_key(const void* a, const void* b) {
     return (ka > kb) - (ka < kb);
 }
 
+/* {{{ geometry_unbake
+ * Drop the baked chunks of one group */
+void geometry_unbake(int group) {
+    int keep = 0;
+    for (int i = 0; i < g_baked_count; i++) {
+        if (g_baked[i].group == group) UnloadMesh(g_baked[i].mesh);
+        else g_baked[keep++] = g_baked[i];
+    }
+    g_baked_count = keep;
+}
+/* }}} */
+
 /* {{{ geometry_bake */
-int geometry_bake(float chunk_size) {
+int geometry_bake(float chunk_size, int group) {
     if (chunk_size <= 0.0f || g_static_count == 0) return g_baked_count;
     if (!g_bake_material_ready) {
         g_bake_material = LoadMaterialDefault();
@@ -273,6 +286,7 @@ int geometry_bake(float chunk_size) {
                 BakedChunk* ch = &g_baked[g_baked_count++];
                 long long gx = (keys[start * 2] >> 21) - (1 << 20);
                 long long gz = (keys[start * 2] & ((1 << 21) - 1)) - (1 << 20);
+                ch->group = group;
                 ch->cx = (gx + 0.5f) * chunk_size;
                 ch->cz = (gz + 0.5f) * chunk_size;
                 /* hand the buffers to raylib, which frees them with the mesh */
@@ -294,7 +308,7 @@ int geometry_bake(float chunk_size) {
     free(keys);
 
     /* a primitive can reach past its chunk; allow a chunk and a half */
-    g_baked_reach = chunk_size * 1.5f;
+    if (chunk_size * 1.5f > g_baked_reach) g_baked_reach = chunk_size * 1.5f;
     g_static_count = 0;
     return g_baked_count;
 }
@@ -417,8 +431,13 @@ int l_geo_target(lua_State* L) {
 
 /* {{{ l_geo_bake */
 int l_geo_bake(lua_State* L) {
-    lua_pushinteger(L, geometry_bake((float)luaL_checknumber(L, 1)));
+    lua_pushinteger(L, geometry_bake((float)luaL_checknumber(L, 1), (int)luaL_optinteger(L, 2, 0)));
     return 1;
+}
+
+int l_geo_unbake(lua_State* L) {
+    geometry_unbake((int)luaL_checkinteger(L, 1));
+    return 0;
 }
 /* }}} */
 

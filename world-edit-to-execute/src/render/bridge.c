@@ -360,6 +360,7 @@ static const luaL_Reg render_funcs[] = {
     {"geo_clear", l_geo_clear},
     {"geo_count", l_geo_count},
     {"geo_bake", l_geo_bake},
+    {"geo_unbake", l_geo_unbake},
     /* Landscape (517b) */
     {"land_build", l_land_build},
     {"land_free", l_land_free},
