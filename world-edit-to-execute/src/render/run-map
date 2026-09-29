@@ -22,7 +22,7 @@ LUAJIT_LIBS=$(pkg-config --libs luajit 2>/dev/null || echo "-lluajit-5.1")
 
 cd "${PROJECT_PATH}" || exit 1
 if ! gcc -Wall -Wextra -O2 -o "${BIN}" \
-        scene_viewer.c geometry.c landscape.c ui2d.c models.c bridge.c slots.c terrain.c input.c ui.c \
+        scene_viewer.c geometry.c landscape.c ui2d.c models.c fog.c bridge.c slots.c terrain.c input.c ui.c \
         -I"${RAYLIB_PATH}" ${LUAJIT_CFLAGS} \
         -L"${RAYLIB_PATH}" -lraylib ${LUAJIT_LIBS} \
         -lGL -lm -lpthread -ldl -lrt -lX11; then

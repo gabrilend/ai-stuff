@@ -55,9 +55,11 @@ local chunks = render.land_build(t.width, t.height, t.offset_x, t.offset_y, 128,
 -- the map's own script runs (jass/vm.lua) and makes its units, unless
 -- WC3_SCRIPT=0 (then the units are read from the script's text)
 local player = tonumber(os.getenv("WC3_PLAYER") or "0")
+-- fog of war (issue 524); WC3_FOG=0 for none
+local FOG = os.getenv("WC3_FOG") ~= "0"
 local game
 if os.getenv("WC3_SCRIPT") ~= "0" then
-    game = game_mod.new(s, { player = player, placed = false })
+    game = game_mod.new(s, { player = player, placed = false, vision = FOG })
     local V, err = game.run_script({
         verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1",
         ai = os.getenv("WC3_AI") or "auto",
@@ -74,9 +76,37 @@ if os.getenv("WC3_SCRIPT") ~= "0" then
         game = nil
     end
 end
-game = game or game_mod.new(s, { player = player })
+game = game or game_mod.new(s, { player = player, vision = FOG })
 local sw, sh = render.ui_screen()
 game.minimap.image = render.ui_image_load(game.minimap.size, game.minimap.size, game.minimap.rgba)
+
+-- {{{ fog of war onto the renderer and the minimap, after each update of
+-- what the player sees
+local FOG_MAP = 128
+local fog_version
+if game.vision then
+    game.minimap.fog = render.ui_image_load(FOG_MAP, FOG_MAP, string.rep("\0", FOG_MAP * FOG_MAP * 4))
+end
+local function show_fog()
+    local V = game.vision
+    if not V or V.version == fog_version then return end
+    fog_version = V.version
+    if not V.fog then render.fog_off() return end
+    local shades = V:mask(game.player)
+    render.fog_set(V.w, V.h, V.x0, V.y0, 128, shades)
+    local ffi = require("ffi")
+    local buf = ffi.new("uint8_t[?]", FOG_MAP * FOG_MAP * 4)
+    for py = 0, FOG_MAP - 1 do
+        local j = math.floor((FOG_MAP - 1 - py) / FOG_MAP * V.h)
+        for px = 0, FOG_MAP - 1 do
+            local i = math.floor(px / FOG_MAP * V.w)
+            local v = shades:byte(j * V.w + i + 1)
+            buf[(py * FOG_MAP + px) * 4 + 3] = math.floor((255 - v) * 0.9)
+        end
+    end
+    render.ui_image_update(game.minimap.fog, FOG_MAP, FOG_MAP, ffi.string(buf, FOG_MAP * FOG_MAP * 4))
+end
+-- }}}
 game.to_screen = viewer.to_screen
 game.to_ground = viewer.to_ground
 game.camera = viewer.camera
@@ -169,7 +199,7 @@ local function bake_buildings()
     render.geo_unbake(BUILDINGS)
     local list = {}
     for _, u in ipairs(game.units) do
-        if u.spec.design == "building" and u.alive and not u.hidden and not model_of("unit", u.id) then
+        if u.spec.design == "building" and u.alive and not u.hidden and not model_of("unit", u.id) and game.shown(u) then
             for _, p in ipairs(designs.build(u.spec, u.x, u.y, u.z, u.facing, 1)) do list[#list + 1] = p end
         end
     end
@@ -289,6 +319,7 @@ end
 local last_hover = { 0, 0 }
 function scene_tick(dt)
     game.tick(dt)
+    show_fog()
     if game.buildings_changed and game.time - last_rebake > 1 then
         game.buildings_changed, last_rebake = false, game.time
         bake_buildings()
@@ -321,7 +352,7 @@ function scene_paint()
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
     for _, u in ipairs(game.units) do
-        if not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach then
+        if not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach and game.shown(u) then
             local mid = model_of("unit", u.id)
             if mid then
                 local r, g, b = team_rgb(u.player)

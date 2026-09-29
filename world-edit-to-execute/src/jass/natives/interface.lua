@@ -6,8 +6,8 @@ defeat are kept on the VM for the interface to show (ui/wc3/hud.lua reads
 V.messages, V:shown_dialogs(), V.timer_dialogs, V.quests,
 V.multiboards). Only what the local player would see is shown.
 
-Sound, music, camera, fog, weather, special effects, cinematics and
-floating text do nothing yet (there is no system for them) and are
+Fog of war is in natives/fog.lua (Issue 524). Sound, music, camera,
+weather, special effects, cinematics and floating text do nothing yet (there is no system for them) and are
 counted in V.noops.
 ]]
 
@@ -171,8 +171,7 @@ return function(V, N, T)
       .. "AttachSoundToUnit StartSound StopSound KillSoundWhenDone SetSoundPlayPosition RegisterStackedSound "
       .. "UnregisterStackedSound PlaySoundBJ StopSoundBJ PlaySoundAtPointBJ PlaySoundOnUnitBJ PlaySoundFromOffsetBJ "
       .. "SetSoundVolumeBJ KillSoundWhenDoneBJ StartSoundForPlayerBJ SetStackedSound "
-      .. "FogEnable FogMaskEnable FogModifierStart FogModifierStop DestroyFogModifier SetFogStateRect "
-      .. "SetFogStateRadius SetFogStateRadiusLoc SetTerrainFogEx ResetTerrainFog EnableWorldFogBoundary "
+      .. "SetTerrainFogEx ResetTerrainFog EnableWorldFogBoundary "
       .. "DestroyEffect SetUnitTypeSlots AddWeatherEffect EnableWeatherEffect RemoveWeatherEffect "
       .. "SetTerrainType SetTerrainTypeBJ SetTerrainPathable AddLightning DestroyLightning MoveLightning "
       .. "PingMinimap PingMinimapEx PingMinimapLocForForce PingMinimapForForce PingMinimapForForceEx "
@@ -189,8 +188,8 @@ return function(V, N, T)
       .. "SetIntegerGameState SetPlayerSlotAvailable SetDefaultDifficulty ShowUnitTeamGlow SetPortraitLight "
       .. "SetWaterBaseColor SetWaterDeforms SetBlight SetBlightRect SetBlightPoint SetBlightLoc Preload PreloadEnd "
       .. "PreloadStart PreloadRefresh PreloadEndEx PreloadGenClear PreloadGenStart PreloadGenEnd Preloader")
-    noop("CreateSound CreateSoundFromLabel CreateSoundFilenameWithLabel CreateMIDISound CreateFogModifierRect "
-      .. "CreateFogModifierRadius CreateFogModifierRadiusLoc CreateFogModifierRectBJ CreateCameraSetup "
+    noop("CreateSound CreateSoundFromLabel CreateSoundFilenameWithLabel CreateMIDISound "
+      .. "CreateCameraSetup "
       .. "AddSpecialEffect AddSpecialEffectLoc AddSpecialEffectTarget AddSpecialEffectLocBJ AddSpecialEffectTargetUnitBJ "
       .. "CreateTextTag CreateTextTagLocBJ CreateTextTagUnitBJ CreateTrackable CreateUbersplat CreateImage CreateBlightedGoldmine",
       nil)
@@ -201,14 +200,6 @@ return function(V, N, T)
     N.GetCameraTargetPositionX = function() return 0 end
     N.GetCameraTargetPositionY = function() return 0 end
     N.GetTimeOfDay = function() return V.world.time_of_day and V.world.time_of_day() or 12 end
-    N.IsFogEnabled = function() return false end
-    N.IsMaskEnabled = function() return false end
-    N.IsFogMaskEnabled = function() return false end
-    N.IsUnitVisible = function() return true end
-    N.IsUnitFogged = function() return false end
-    N.IsUnitMasked = function() return false end
-    N.IsLocationVisibleToPlayer = function() return true end
-    N.IsVisibleToPlayer = function() return true end
     N.IsUnitSelected = function(u) return u ~= nil and u.selected == true end
     N.GetFloatGameState = function(s)
         if s == "GAME_STATE_TIME_OF_DAY" then return N.GetTimeOfDay() end

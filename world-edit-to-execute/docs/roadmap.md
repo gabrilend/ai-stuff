@@ -623,7 +623,7 @@ Same map, different experience:
 | 704 | Ability system framework | - | Planned |
 | 705 | Buff/debuff system | - | Planned |
 | 706 | Build queue and training | - | Planned |
-| 707 | Fog of war | - | Planned |
+| 707 | Fog of war | - | Done as issue 524 (`demo/wc3map/vision.lua`) |
 
 ### Death System (701)
 

@@ -91,6 +91,21 @@ int l_ui_image_load(lua_State* L) {
     return 1;
 }
 
+/* (id, w, h, rgba): new pixels for an image of that size (Issue 524: the
+ * minimap's fog) */
+int l_ui_image_update(lua_State* L) {
+    int id = (int)luaL_checkinteger(L, 1);
+    int w = (int)luaL_checkinteger(L, 2), h = (int)luaL_checkinteger(L, 3);
+    size_t len;
+    const char* rgba = luaL_checklstring(L, 4, &len);
+    if (id < 0 || id >= g_image_count) return 0;
+    if (g_images[id].width != w || g_images[id].height != h || len < (size_t)w * h * 4) {
+        return luaL_error(L, "ui_image_update: image %d is %d x %d", id, g_images[id].width, g_images[id].height);
+    }
+    UpdateTexture(g_images[id], rgba);
+    return 0;
+}
+
 int l_ui_image(lua_State* L) {
     int id = (int)luaL_checkinteger(L, 1);
     if (id < 0 || id >= g_image_count) return 0;
