@@ -219,7 +219,7 @@ end
 
 | Bounty | Monster | Threat |
 |--------|---------|--------|
-| B01 | [The Phantom Priority](B01-the-phantom-priority.md) | ████████░░ |
+| B01 | [The Phantom Priority](completed/B01-the-phantom-priority.md) | ████████░░ |
 | B02 | [The Eternal Timer](B02-the-eternal-timer.md) | ███████░░░ |
 | B03 | [The Hivemind Component](B03-the-hivemind-component.md) | ███████░░░ |
 
