@@ -33,7 +33,7 @@ return function(V, N, T)
         local p = self.players[n]
         if not p then
             p = self:handle({ kind = "player", id = n, name = "Player " .. (n + 1), color = n,
-                              team = n, gold = 0, lumber = 0, food_cap = 0, food_max = 100,
+                              team = n, gold = 0, lumber = 0, food_cap = 0,
                               controller = n >= 12 and "MAP_CONTROL_NEUTRAL" or "MAP_CONTROL_USER",
                               slot = n < 12 and "PLAYER_SLOT_STATE_PLAYING" or "PLAYER_SLOT_STATE_EMPTY",
                               race = "RACE_HUMAN", ally = {}, vision = {}, tech_max = {}, abilities_off = {},
@@ -118,16 +118,80 @@ return function(V, N, T)
         end
     end
 
-    -- states: gold, lumber, food
+    -- states: gold, lumber, food ... (the player handle is the game's
+    -- player state: demo/wc3map/economy.lua, issue 527)
     local STATE = { PLAYER_STATE_RESOURCE_GOLD = "gold", PLAYER_STATE_RESOURCE_LUMBER = "lumber",
                     PLAYER_STATE_RESOURCE_FOOD_CAP = "food_cap", PLAYER_STATE_FOOD_CAP_CEILING = "food_max",
                     PLAYER_STATE_GIVES_BOUNTY = "bounty", PLAYER_STATE_ALLIED_VICTORY = "allied_victory",
-                    PLAYER_STATE_OBSERVER = "observer", PLAYER_STATE_RESOURCE_HERO_TOKENS = "hero_tokens" }
-    N.GetPlayerState = function(p, s)
-        local k = STATE[s] or s
-        return p and tonumber(p[k]) or 0
+                    PLAYER_STATE_OBSERVER = "observer", PLAYER_STATE_RESOURCE_HERO_TOKENS = "hero_tokens",
+                    PLAYER_STATE_GOLD_GATHERED = "gold_gathered", PLAYER_STATE_LUMBER_GATHERED = "lumber_gathered",
+                    PLAYER_STATE_NO_CREEP_SLEEP = "no_creep_sleep", PLAYER_STATE_PLACED = "placed" }
+    -- worked out by the game rather than stored
+    local COMPUTED = {
+        PLAYER_STATE_RESOURCE_FOOD_USED = function(p) return W.food and (W.food(p.id)) or 0 end,
+        PLAYER_STATE_RESOURCE_FOOD_CAP = function(p)
+            if not W.food then return tonumber(p.food_cap) or 0 end
+            local _, cap = W.food(p.id)
+            return cap
+        end,
+        PLAYER_STATE_FOOD_CAP_CEILING = function(p) return W.food_ceiling and W.food_ceiling(p.id) or (tonumber(p.food_max) or 100) end,
+        PLAYER_STATE_GOLD_UPKEEP_RATE = function(p)
+            if not W.upkeep then return 0 end
+            local _, g = W.upkeep(p.id)
+            return math.floor(g * 100 + 0.5)
+        end,
+        PLAYER_STATE_LUMBER_UPKEEP_RATE = function(p)
+            if not W.upkeep then return 0 end
+            local _, _, l = W.upkeep(p.id)
+            return math.floor(l * 100 + 0.5)
+        end,
+    }
+    local function state_of(p)
+        if W.state then W.state(p.id) end   -- fills in the game's fields
+        return p
     end
-    N.SetPlayerState = function(p, s, v) if p then p[STATE[s] or s] = v end end
+    N.GetPlayerState = function(p, s)
+        if not p then return 0 end
+        state_of(p)
+        if COMPUTED[s] then return COMPUTED[s](p) end
+        local k = STATE[s] or s
+        return tonumber(p[k]) or 0
+    end
+    N.SetPlayerState = function(p, s, v)
+        if not p then return end
+        state_of(p)
+        if s == "PLAYER_STATE_RESOURCE_FOOD_USED" then return end
+        local k = STATE[s] or s
+        local was = p[k]
+        p[k] = v
+        if was ~= v and V.player_state_changed then V:player_state_changed(p.id, k) end
+    end
+    -- scores (GetPlayerScore's kinds, as the economy counts them)
+    local SCORE = { PLAYER_SCORE_UNITS_TRAINED = "units_trained", PLAYER_SCORE_UNITS_KILLED = "units_killed",
+                    PLAYER_SCORE_STRUCT_BUILT = "structures_built", PLAYER_SCORE_STRUCT_RAZED = "structures_razed",
+                    PLAYER_SCORE_HEROES_KILLED = "heroes_killed", PLAYER_SCORE_MERCS_HIRED = "mercs_hired",
+                    PLAYER_SCORE_GOLD_MINED_TOTAL = "gold_gathered", PLAYER_SCORE_LUMBER_TOTAL = "lumber_gathered",
+                    PLAYER_SCORE_GOLD_LOST_UPKEEP = "gold_upkeep_lost", PLAYER_SCORE_LUMBER_LOST_UPKEEP = "lumber_upkeep_lost",
+                    PLAYER_SCORE_ITEMS_GAINED = "items_gained" }
+    N.GetPlayerScore = function(p, kind)
+        if not p then return 0 end
+        state_of(p)
+        if kind == "PLAYER_SCORE_GOLD_MINED_UPKEEP" then
+            return (p.score and ((p.score.gold_gathered or 0) + (p.score.gold_upkeep_lost or 0))) or 0
+        end
+        if kind == "PLAYER_SCORE_FOOD_MAXUSED" or kind == "PLAYER_SCORE_FOOD_MAXPROD" then
+            local used, cap = W.food and W.food(p.id) or 0, 0
+            return kind == "PLAYER_SCORE_FOOD_MAXUSED" and used or cap
+        end
+        local k = SCORE[kind]
+        return k and p.score and p.score[k] or 0
+    end
+    typed("integer", "GetPlayerScore")
+    -- gold mines' gold
+    N.GetResourceAmount = function(u) return u and (u.gold or (W.is_mine and W.is_mine(u) and 12500) or 0) or 0 end
+    N.SetResourceAmount = function(u, n) if u then u.gold = n end end
+    N.AddResourceAmount = function(u, n) if u then u.gold = (u.gold or N.GetResourceAmount(u)) + n end end
+    typed("integer", "GetResourceAmount")
     N.GetPlayerStructureCount = function(p, done)
         local n = 0
         for _, u in ipairs(W.units) do
@@ -528,7 +592,8 @@ return function(V, N, T)
 
     -- {{{ Orders
     local ORDER = { smart = 851971, stop = 851972, attack = 851983, move = 851986, patrol = 851990,
-                    holdposition = 851993, attackground = 851984 }
+                    holdposition = 851993, attackground = 851984, harvest = 852018, resumeharvesting = 852017,
+                    returnresources = 852020 }
     local ORDER_NAME = {}
     for k, v in pairs(ORDER) do ORDER_NAME[v] = k end
     N.OrderId = function(s) return ORDER[s] or 0 end
@@ -549,6 +614,10 @@ return function(V, N, T)
     local function target_order(u, name, t)
         if not alive(u) or not t or u.paused then return false end
         name = type(name) == "number" and ORDER_NAME[name] or name
+        if (name == "harvest" or name == "smart") and W.gather and W.is_mine and W.is_mine(t)
+            and u.spec and u.spec.archetype == "worker" then
+            return W.order({ u }, "gather", t.x, t.y, t) and true or false
+        end
         if name == "attack" or (name == "smart" and W.allied and not W.allied(u.player, t.player)) then
             W.order({ u }, "attack_unit", nil, nil, t)
         elseif name == "move" or name == "smart" then
@@ -785,7 +854,7 @@ return function(V, N, T)
       .. "SetUnitPathing SetUnitCreepGuard SetUnitRescuable SetUnitRescueRange UnitSuspendDecay "
       .. "UnitAddSleep UnitAddSleepPerm UnitIgnoreAlarm UnitWakeUp SetUnitUseFood UnitSetUsesAltIcon "
       .. "SelectUnit ClearSelection SetUnitMoveSpeedBJ UnitAddType UnitRemoveType UnitResetCooldown "
-      .. "SetResourceAmount AddResourceAmount SetUnitPathingBJ UnitSetConstructionProgress "
+      .. "SetUnitPathingBJ UnitSetConstructionProgress "
       .. "UnitSetUpgradeProgress UnitPauseTimedLife SetAllItemTypeSlots SetAllUnitTypeSlots SetItemTypeSlots "
       .. "SetUnitTypeSlots AddItemToAllStock AddUnitToAllStock AddItemToStock AddUnitToStock "
       .. "RemoveItemFromAllStock RemoveUnitFromAllStock RemoveItemFromStock RemoveUnitFromStock "

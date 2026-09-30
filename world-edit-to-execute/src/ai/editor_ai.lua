@@ -21,7 +21,8 @@ STEP seconds:
             repeat_from
   options   the General tab's checkboxes, onto the player
 
-Upgrades, expansions and harvesting are kept in the profile but not
+Harvesting follows the profile's worker counts (ai/player.lua, issue
+527). Upgrades and expansions are kept in the profile but not
 played: the game has no research, construction or gathering yet. Each is
 noted once in the AI's log.
 
@@ -45,6 +46,7 @@ function editor_ai.start(V, ai, p)
     self.noted = {}
     for k, v in pairs(self.p.options) do ai.options[k] = v end
     ai.profile_name = self.p.name
+    ai.harvest_plan = self.p.harvest
     self.thread = V:run_thread(function()
         while not self.stopped do
             local ok, err = pcall(self.step, self)

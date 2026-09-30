@@ -400,6 +400,33 @@ function V_mt:unit_event(what, u, data)
     end
 end
 
+-- A player's state changed (gold, lumber ...: issue 527): each
+-- TriggerRegisterPlayerStateEvent(trig, player, state, opcode, limit)
+-- for that player fires when its comparison turns true
+-- common.j's limitops, by name or number (ConvertLimitOp(0..5))
+local COMPARE = {
+    LESS_THAN = function(a, b) return a < b end, LESS_THAN_OR_EQUAL = function(a, b) return a <= b end,
+    EQUAL = function(a, b) return a == b end, GREATER_THAN_OR_EQUAL = function(a, b) return a >= b end,
+    GREATER_THAN = function(a, b) return a > b end, NOT_EQUAL = function(a, b) return a ~= b end,
+}
+local LIMITOP = { [0] = "LESS_THAN", "LESS_THAN_OR_EQUAL", "EQUAL", "GREATER_THAN_OR_EQUAL", "GREATER_THAN", "NOT_EQUAL" }
+function V_mt:player_state_changed(player_id)
+    local list = self.listeners.PLAYER_STATE
+    if not list then return end
+    local p = self:player(player_id)
+    for _, reg in ipairs(list) do
+        local a = reg.args or {}
+        if a[1] == p then
+            local cmp = COMPARE[LIMITOP[a[3]] or tostring(a[3])] or COMPARE.EQUAL
+            local now = cmp(self.natives.GetPlayerState(p, a[2]) or 0, tonumber(a[4]) or 0)
+            if now and not reg.was_true then
+                self:fire_trigger(reg.trig, { player = p, event = "PLAYER_STATE" })
+            end
+            reg.was_true = now
+        end
+    end
+end
+
 -- A player typed text into chat
 function V_mt:chat(player_id, text)
     local p = self:player(player_id)

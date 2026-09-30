@@ -249,6 +249,10 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "gather" and self.game.gather then
+        if not self.game.order(self:own_selection(), "gather", x, y, unit) then
+            self:message("Nothing to gather there.")
+        end
     elseif order == "rally" and self.game.set_rally then
         for _, u in ipairs(self:own_selection()) do
             if u.spec.design == "building" then self.game.set_rally(u, x, y) end
@@ -337,7 +341,22 @@ function Hud:update(input, dt)
             elseif not over_ui then x, y = game.to_ground(mx, my) end
             if x then
                 local target = not over_ui and self:pick(mx, my)
-                if target and target.alive ~= false and not self:own(target) and target.player < 13 then
+                -- workers: a gold mine, or ground among trees, is gathering
+                local workers = {}
+                for _, u in ipairs(self:own_selection()) do
+                    if u.spec.archetype == "worker" then workers[#workers + 1] = u end
+                end
+                local gathered = false
+                if #workers > 0 and game.gather then
+                    if target and game.is_mine and game.is_mine(target) then
+                        gathered = game.order(workers, "gather", target.x, target.y, target)
+                    elseif not target and game.nearest_tree and game.nearest_tree(x, y, 120) then
+                        gathered = game.order(workers, "gather", x, y)
+                    end
+                end
+                if gathered then
+                    -- (the rest of the selection moves)
+                elseif target and target.alive ~= false and not self:own(target) and target.player < 13 then
                     game.order(self:own_selection(), "attack_unit", target.x, target.y, target)
                 else
                     game.order(self:own_selection(), "move", x, y)
@@ -621,9 +640,12 @@ function Hud:draw_top(ui)
     text(ui, tostring(res.lumber), x + 132, 7, 18, { 120, 220, 120 })
     rect(ui, x + 220, 8, 14, 14, { 200, 60, 60 })
     text(ui, string.format("%d/%d", res.food, res.food_cap), x + 240, 7, 18, C.text)
+    -- upkeep: the game's tier (its gameplay constants), else WC3's usual 50 / 80
+    local tier = res.upkeep
+    if tier == nil then tier = res.food > 80 and 2 or (res.food > 50 and 1 or 0) end
     local upkeep, uc = "No Upkeep", C.green
-    if res.food > 80 then upkeep, uc = "High Upkeep", C.red
-    elseif res.food > 50 then upkeep, uc = "Low Upkeep", C.yellow end
+    if tier >= 2 then upkeep, uc = "High Upkeep", C.red
+    elseif tier == 1 then upkeep, uc = "Low Upkeep", C.yellow end
     text(ui, upkeep, x + 340, 7, 18, uc)
 end
 -- }}}
