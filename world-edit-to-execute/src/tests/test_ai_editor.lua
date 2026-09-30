@@ -159,5 +159,77 @@ do
 end
 -- }}}
 
+-- {{{ The panel
+test_section("The AI editor's panel")
+do
+    local ui = require("editor.ui").new(E, 1280, 800, { run_tests = false, root = DIR })
+    local function click(b)
+        ui:update({ mx = b.x + 2, my = b.y + 2, lp = true, keys = {}, chars = "" }, 0.016)
+    end
+    local function press(label)
+        local b
+        for _, x in ipairs(ui.buttons) do if x.label == label then b = x end end
+        if not b and ui.tui then b = ui.tui:button(label) end
+        if not b then return false end
+        click(b)
+        return true
+    end
+    local function find(action, test_arg)
+        for _, b in ipairs(ui.tui.buttons) do
+            if b.action == action and (not test_arg or test_arg(b.arg)) then return b end
+        end
+    end
+    local function type_in(text)
+        ui:update({ keys = {}, chars = text }, 0.016)
+        ui:update({ keys = { "ENTER" }, chars = "" }, 0.016)
+    end
+    test("opened from the toolbar", press("AI") and ui.panel == "ai")
+    local aui = ui.tui
+    aui:press({ action = "entry", arg = e })
+    test("the players listed, the Scourge chosen", aui.entry == e)
+    press("Build")
+    local p = e.profile
+    local n = #p.build
+    press("+ Unit")
+    test("a build line added", #p.build == n + 1)
+    -- its type picked from what the buildings train
+    click(find("pick", function(a) return a[2] == n + 1 end))
+    test("the picker lists trained types", aui.picker ~= nil and find("picked") ~= nil)
+    local choice = find("picked")
+    click(choice)
+    test("picked", p.build[n + 1].id == choice.arg)
+    click(find("number", function(a) return a[1][2] == n + 1 and a[1][3] == "count" and a[2] > 0 end))
+    test("its count stepped up", p.build[n + 1].count == 2)
+    click(find("field", function(a) return a.key == "build." .. (n + 1) .. ".condition" end))
+    type_in('{ "gold", ">=", 300 }')
+    test("a condition typed", type(p.build[n + 1].condition) == "table" and p.build[n + 1].condition[3] == 300)
+    click(find("field", function(a) return a.key == "build." .. (n + 1) .. ".condition" end))
+    type_in("os.exit()")
+    test("code refused as a condition", p.build[n + 1].condition[3] == 300)
+    press("Waves")
+    local d = p.waves.delay
+    click(find("number", function(a) return a[1][2] == "delay" and a[2] > 0 end))
+    test("the delay between waves up by ten", p.waves.delay == d + 10)
+    press("General")
+    local was = p.options.take_items == true
+    press("take items")
+    test("an option ticked", (p.options.take_items == true) ~= was)
+    ui:update({ keys = { "Z" }, ctrl = true, chars = "" }, 0.016)
+    test("Ctrl+Z undoes it", (p.options.take_items == true) == was)
+    press("Groups")
+    press("+ Group")
+    test("a new group", aui.group and p.groups[aui.group] ~= nil)
+    press("Conditions")
+    press("+ Condition")
+    test("a new condition", p.conditions.condition1 ~= nil)
+    local drawn = {}
+    ui:draw(setmetatable({ ui_text = function(s) drawn[#drawn + 1] = s end },
+        { __index = function() return function() return 0 end end }))
+    test("drawn", #drawn > 10)
+    press("AI")
+    test("closed", ui.tui == nil)
+end
+-- }}}
+
 print(string.format("\n%d/%d tests passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)
