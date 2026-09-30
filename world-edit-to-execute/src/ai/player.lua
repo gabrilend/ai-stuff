@@ -7,7 +7,9 @@ units it has asked for, its home, the options the AI Editor's General tab
 sets, and commands sent to it with CommandAI.
 
 Everything here is mechanism: nothing decides what to build or when to
-attack. That's an AI script's job: a map's own .ai (through
+attack. How things get made (built, upgraded, hired) and what units do
+by themselves (spells, potions, shopping, repair) is ai/acts.lua (issue
+540). That's an AI script's job: a map's own .ai (through
 ai/natives.lua) or an AI Editor profile (ai/editor_ai.lua).
 
     local ai_player = require("ai.player")
@@ -81,7 +83,8 @@ function AI:count(id)
             for _, q in ipairs(u.queue or {}) do if q.id == id then n = n + 1 end end
         end
     end
-    return n
+    -- ordered built, upgrading to it, being hired (issue 540)
+    return n + (self.coming and self:coming(id) or 0)
 end
 
 -- finished units of id only (GetUnitCountDone)
@@ -121,11 +124,20 @@ end
 -- }}}
 
 -- {{{ Production
--- Train one `id` at the owned building that trains it with the shortest
--- queue. true, or false and why not (the first reason met).
+-- Make one `id` however it's made (issue 540): upgrading a building to
+-- it, training it at the owned building with the shortest queue, hiring
+-- it at a shop, or building it with a worker. true, or false and why not
+-- (the first reason met).
 function AI:produce(id)
     local g = self.game
     if not g.train then return false, "no production" end
+    local up = self.upgrader and self:upgrader(id)
+    if up then return g.upgrade(up, id) end
+    if self.builders and not self:trainable(id) then
+        if #self:builders(id) > 0 then return self:construct(id) end
+        local shop = self:seller(id)
+        if shop then return self:hire(id, shop) end
+    end
     local best, best_q, why
     for _, b in ipairs(self:units(function(u) return u.spec.design == "building" end)) do
         local ok, reason = g.can_train(b, id)
@@ -325,6 +337,9 @@ function AI:update(dt)
     local g = self.game
     local o = self.options
 
+    -- spells, items, skills, shopping, repair (issue 540)
+    self:acts(dt)
+
     -- a wave that has taken its target moves on to the next enemy nearby,
     -- and comes home when there's none
     local att = self.captains.attack
@@ -436,6 +451,8 @@ function AI:assign_workers()
     end
 end
 -- }}}
+
+require("ai.acts")(AI)
 
 function AI:note(text)
     if #self.log < 200 then self.log[#self.log + 1] = { time = self.game.time, text = text } end

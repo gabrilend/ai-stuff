@@ -626,6 +626,14 @@ Same map, different experience:
 | 706 | Build queue and training | - | Done as issue 521a (`demo/wc3map/production.lua`); economy 527, heroes 528 |
 | 707 | Fog of war | - | Done as issue 524 (`demo/wc3map/vision.lua`) |
 
+Also done in `demo/wc3map/`, outside the 70x numbering:
+- spell art, effects, missiles and lightning (`effects.lua`, issues 530 and 538);
+- construction, repair, helping and upgrades (`construction.lua`, 531, 534 and 535);
+- building footprints (`footprint.lua`, 536);
+- items and drops (`items.lua`, 532 and 537);
+- shops and taverns (`shops.lua`, 533 and 539);
+- computer players building, hiring, buying and casting (`ai/acts.lua`, 540).
+
 ### Death System (701)
 
 ```

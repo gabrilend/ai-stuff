@@ -8,11 +8,10 @@ and the rest): one profile per race, ours, in the AI Editor's shape
 or copied; these play the same broad game (workers, an army from the
 barracks, a hero, attack waves that grow) with stock ids from memory.
 
-Until the game can construct buildings and gather, a melee AI can only
-train from the buildings it starts with: on a melee map that's workers
-from the hall, so its waves never form. The profiles are here so a map
-that starts AI gets the right shape now and plays fully when
-construction and harvesting arrive.
+With harvesting (issue 527) and construction (issues 531, 540) a melee
+AI gathers, builds its farms, barracks and altar with its workers, trains
+its army and hero there, and its waves form. Research ("upgrade"
+entries) is still kept, not played.
 
     local melee = require("ai.melee")
     local p = melee.profile("human")      -- or by a script path: melee.race_of("scripts\\orc.ai")
