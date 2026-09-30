@@ -25,6 +25,8 @@ A card is indexed 1-12 by slot (row * 4 + column + 1, rows from the top).
     db.ability_button(id)     -> { name, hotkey, x, y, tip, hero }
     db.can_learn(hero, id)    -> whether a hero can learn a skill now (optional)
     db.revivable(building)    -> the fallen heroes an altar can revive (optional)
+    db.shop_stock(unit)       -> what a shop sells: { {id, kind, count, max}, ... } (optional)
+    db.item_button(id)        -> { name, hotkey, x, y, tip } for an item (optional)
     db.castable(unit)         -> its abilities: { {id, level, target}, ... } (optional)
     db.ability_ready(unit, id) -> ok, why not, cooldown share left (optional)
 ]]
@@ -137,6 +139,19 @@ function commands.card(unit, db, mode)
     if spec.design == "building" and unit.building_up then
         place(card, { id = "cancel_build", label = "Cancel", hotkey = "ESCAPE", icon = "cancel",
                       action = "cancel_build", tip = "Stop building it, and get most of its cost back." }, 3, 2)
+        return card
+    end
+    -- a shop or tavern: what it sells, with how many are in stock (issue 533)
+    local stock = db.shop_stock and db.shop_stock(unit) or {}
+    if #stock > 0 then
+        for _, e in ipairs(stock) do
+            local info = (e.kind == "unit" and db.unit_button(e.id)) or (db.item_button and db.item_button(e.id)) or {}
+            place(card, { id = e.id, label = string.format("%s %s (%d)", e.kind == "unit" and "Hire" or "Buy",
+                                                           info.name or e.id, e.count),
+                          hotkey = info.hotkey, icon = e.kind == "unit" and "train" or "ability",
+                          action = "buy", target = e.id, tip = info.tip, disabled = e.count <= 0 or nil },
+                  info.x, info.y, { 0, 1, 2 })
+        end
         return card
     end
     if spec.design == "building" then
