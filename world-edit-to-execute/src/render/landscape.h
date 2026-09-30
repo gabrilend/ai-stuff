@@ -32,4 +32,8 @@ void landscape_free(void);
 int l_land_build(lua_State* L);
 int l_land_free(lua_State* L);
 
+/* render.land_tiles(textures, cells): ground textures over the land
+ * (Issue 526); see landscape.c for the layout -> triangles built */
+int l_land_tiles(lua_State* L);
+
 #endif /* LANDSCAPE_H */

@@ -295,6 +295,7 @@ src/
 │   ├── init.lua         # The map's archive, then the install; which model a type uses
 │   ├── gpu.lua          # MDX (and glTF) onto the renderer
 │   ├── anim.lua         # Plays a model's sequences: nodes, matrix groups, part alphas (523)
+│   ├── ground.lua       # Ground textures: tileset layers per cell, stand-in tilesets (526)
 │   ├── tool.lua         # texture -> PNG, model -> GLB
 │   └── comfy.lua        # ComfyUI workflows (comfyui/): write, check, export
 ├── ai/                  # Computer players (521)

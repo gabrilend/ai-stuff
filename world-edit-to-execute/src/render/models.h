@@ -24,9 +24,12 @@
 #define MODELS_H
 
 #include "lua.h"
+#include "raylib.h"
 
 void models_init(void);
 void models_draw(float view_x, float view_z, float radius);   /* the queued instances; clears the queue */
+
+int models_texture(int id, Texture2D* out);   /* a tex_create texture, 1-based; 0 if none */
 
 int l_tex_create(lua_State* L);
 int l_mesh_create(lua_State* L);
