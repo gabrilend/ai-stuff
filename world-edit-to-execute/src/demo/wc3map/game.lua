@@ -269,6 +269,19 @@ function game_mod.new(scene, opts)
         upgrades = object_stock.new(opts.chain, od.upgrades, "upgrades"),
     }
     if not opts.stock then opts.stock = g.data.units end
+    -- a stock source that only answers value() (tests, simple ones) gets
+    -- list() from it
+    if not g.data.units.list then
+        local src = g.data.units
+        function src.list(self, id, code, level)
+            local v = self:value(id, code, level)
+            local out = {}
+            if type(v) == "string" then
+                for x in v:gmatch("[^,%s]+") do if #x == 4 then out[#out + 1] = x end end
+            end
+            return out
+        end
+    end
     -- the command card's lists: the map's, else the stock tables', else
     -- the names module's
     do

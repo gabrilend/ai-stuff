@@ -107,3 +107,7 @@ Abilities as WC3 runs them:
 - **Magic immunity,** spell steal and dispels by type (positive / negative), and buff levels.
 - **Targets allowed** (`atar`: air, ground, structure, organic ...): only enemy or ally is checked.
 - **Computer players** don't cast.
+
+### Follow-up (2026-09-30)
+
+A stock source that only answers `value()` (the stats test's stand-in) broke the game's command-card lists, which call `list()`. `game.lua` now gives such a source a `list()` built from `value()`. The full suite passes: 118 files.
