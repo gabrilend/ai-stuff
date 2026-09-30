@@ -22,9 +22,10 @@ STEP seconds:
   options   the General tab's checkboxes, onto the player
 
 Harvesting follows the profile's worker counts (ai/player.lua, issue
-527). Upgrades and expansions are kept in the profile but not
-played: the game has no research, construction or gathering yet. Each is
-noted once in the AI's log.
+527). Buildings are built (or upgraded to, or hired) and expansions put
+a hall at a free mine (issue 540, ai/acts.lua); heroes learn their
+profile's skill order. Research ("upgrade" entries) is kept but not
+played: the game has no research yet; it's noted once in the AI's log.
 
     local runner = editor_ai.start(V, ai, profile)
 ]]
@@ -96,8 +97,8 @@ function R:heroes()
                 if not taken then self.state.heroes[slot] = u break end
             end
         end
-        if h.skills and #h.skills > 0 then
-            self:note_once("skills", "hero skill orders are kept, not used: heroes don't learn skills yet")
+        if h.skills and #h.skills > 0 and self.ai.set_skills then
+            self.ai:set_skills(h.id, h.skills)   -- (issue 540: learned in this order)
         end
     end
 end
@@ -114,9 +115,19 @@ function R:build()
                 local h = self.p.heroes[b.slot or 1]
                 id, want = h and h.id, 1
                 if id and self.state.heroes[b.slot or 1] then want = 0 end
-            elseif kind == "upgrade" or kind == "expansion" or kind == "building" then
-                self:note_once(kind, kind .. " entries are kept, not played: the game has no "
-                    .. (kind == "upgrade" and "research" or "construction") .. " yet")
+            elseif kind == "upgrade" then
+                self:note_once(kind, "upgrade entries are kept, not played: the game has no research yet")
+                id = nil
+            elseif kind == "expansion" then
+                -- a hall at a free mine: counted as halls beyond the first
+                local hall = id or (ai.hall_type and ai:hall_type())
+                local halls = hall and (#ai:units(function(u)
+                    return u.spec.design == "building" and u.spec.size == "hall" end) + ai:coming(hall)) or 0
+                if hall and halls < want + 1 and ai.expand then
+                    local ok, why = ai:expand(hall)
+                    if not ok and (why == "not enough gold" or why == "not enough lumber") then return end
+                    if not ok then self:note_once("cant:expand", "can't expand: " .. tostring(why)) end
+                end
                 id = nil
             end
             if id and ai:count(id) < want then
