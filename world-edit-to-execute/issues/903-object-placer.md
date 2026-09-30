@@ -197,14 +197,14 @@ unit.waygate_dest = nil  -- For waygates
 
 - [ ] All object types placeable (units, doodads, items, destructibles)
 - [ ] Palette shows objects filtered by race/category
-- [ ] Player assignment works for units
+- [x] Player assignment works for units
 - [ ] All placement modes work (single, brush, line, fill, random)
-- [ ] Selection works (click, marquee, shift+click)
-- [ ] Transform tools work (move, rotate, scale)
+- [x] Selection works (click, marquee, shift+click)
+- [x] Transform tools work (move, rotate, scale)
 - [ ] Multi-select alignment/distribution works
-- [ ] Clipboard operations work
+- [x] Clipboard operations work
 - [ ] Unit properties editable
-- [ ] All operations support undo/redo
+- [x] All operations support undo/redo
 - [ ] Object preview follows cursor before placement
 
 ## Related Documents
@@ -221,3 +221,27 @@ unit.waygate_dest = nil  -- For waygates
 - Doodad randomization important for natural-looking forests
 - May want "object lock" to prevent accidental selection
 - Consider "layers" for organizing objects
+
+## Implementation Notes
+
+*(2026-09-30, first pass)*
+
+`src/editor/objects.lua` holds every object as one kind of record.
+
+- **Doodads and destructibles** (war3map.doo).
+- **Placed units** (war3mapUnits.doo; a new one copies the bytes of a unit of its kind).
+- **Units the script makes with literal CreateUnit calls:**
+  - moving one writes new numbers into its call;
+  - deleting takes the call out ("set u = null", else DoNothing());
+  - found by position in the script, which DAoW's protected script allows.
+- **Units placed in the editor:** made by an added EditorPlacedUnits function called at the end of main.
+- **Selection and editing:** click, Shift-click and box select; move (drag), turn, scale (doodads) and delete, each one undo step; copy and paste at the pointer.
+- **Palettes:** the map's own doodad and unit types, in pages; a player for new units.
+- **Checked end to end:** DAoW 5.4b saved with a script unit moved, one deleted and a footman placed. Its own script then made the moved unit at its new place, didn't make the deleted one, and made the footman.
+
+**Not done yet:**
+- **Placing:** items, and brush, line, fill and random placement.
+- **Palette:** filtering by race and category.
+- **Arranging:** alignment and distribution.
+- **Unit properties:** hit points, items, abilities.
+- **Preview:** a model or design following the pointer (there's a ring).
