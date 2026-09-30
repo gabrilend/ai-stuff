@@ -42,7 +42,8 @@ local vm = {}
 
 vm.NATIVE_MODULES = { "jass.natives.core", "jass.natives.world", "jass.natives.interface", "jass.natives.bj",
                       "jass.natives.ai_host", "jass.natives.fog",
-                      "jass.natives.art" }
+                      "jass.natives.art", "jass.natives.sound",
+                      "jass.natives.camera" }
 vm.RECT_CHECK_EVERY = 0.1    -- seconds between enter/leave rect checks
 vm.MAX_TIMER_FIRES = 50      -- per timer per tick (a 0-period timer can't hang a tick)
 

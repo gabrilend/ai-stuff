@@ -188,7 +188,7 @@ function TUI:layout_trigger(t, add, label, rx, ry, rw)
             if pk == "integer" or pk == "real" or pk == "player" then
                 add(rx + 478, y, 30, "-", "step", { key, pk, -1 })
                 add(rx + 514, y, 30, "+", "step", { key, pk, 1 })
-            elseif pk == "unit" or pk == "region" or pk == "trigger" or pk == "variable" or pk == "compare"
+            elseif pk == "unit" or pk == "region" or pk == "trigger" or pk == "variable" or pk == "compare" or pk == "sound" or pk == "camera"
                 or pk == "op" or pk == "boolean" or pk == "force" then
                 add(rx + 478, y, 30, "<", "cycle", { key, pk, -1 })
                 add(rx + 514, y, 30, ">", "cycle", { key, pk, 1 })
@@ -203,6 +203,8 @@ function TUI:shown(pk, v)
     if v == nil then return "(none)" end
     if pk == "player" and type(v) == "number" then return "Player " .. (v + 1) end
     if pk == "region" then return (tostring(v):gsub("^gg_rct_", "")) end
+    if pk == "sound" then return (tostring(v):gsub("^gg_snd_", "")) end
+    if pk == "camera" then return (tostring(v):gsub("^gg_cam_", "")) end
     return tostring(v)
 end
 
@@ -254,6 +256,8 @@ local function cycle_list(self, pk)
     if pk == "region" then for _, r in ipairs(E:regions()) do out[#out + 1] = r.var end end
     if pk == "trigger" then for _, t in ipairs(E:triggers()) do out[#out + 1] = t.name end end
     if pk == "variable" then for _, v in ipairs(E:variables()) do out[#out + 1] = v.name end end
+    if pk == "sound" then for _, s in ipairs(E:sounds()) do out[#out + 1] = s.var end end
+    if pk == "camera" then for _, c in ipairs(E:cameras()) do out[#out + 1] = c.var end end
     return out
 end
 

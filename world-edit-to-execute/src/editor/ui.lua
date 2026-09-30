@@ -7,7 +7,8 @@ window itself (editor/main.lua) so tests can drive it:
   toolbar     the tools (select, the terrain brushes, doodads, units) and
               Triggers (the trigger editor over the view: editor/trigger_ui.lua),
               AI (the AI editor over the view: editor/ai_ui.lua), Files
-              (the import manager: editor/imports_ui.lua),
+              (the import manager: editor/imports_ui.lua), Sounds (the
+              sound editor: editor/sounds_ui.lua),
               Undo, Redo, Save, Test
   palette     on the left, for the tool in hand: brush size and strength,
               the map's ground textures, its doodad types or unit types
@@ -20,6 +21,8 @@ window itself (editor/main.lua) so tests can drive it:
   mouse       a terrain tool paints while the button is held (one undo
               step a stroke); select picks (Shift adds), drags what's
               picked (one step), or boxes; the placing tools place
+  cameras     the Cameras tool: the map's cameras picked and dragged,
+              made from the view, looked through, stepped (issue 904b)
   keys        Ctrl+Z / Ctrl+Y undo and redo, Ctrl+C / Ctrl+V copy and
               paste at the pointer, Delete, Ctrl+S save, F5 test,
               [ and ] brush size, 1-9 tools, Esc drops the selection
@@ -39,12 +42,13 @@ editor_ui.TOOLBAR = {
     { "select", "Select" }, { "raise", "Raise" }, { "lower", "Lower" }, { "smooth", "Smooth" },
     { "flatten", "Flatten" }, { "paint", "Paint" }, { "water", "Water" }, { "dry", "Dry" },
     { "cliff_up", "Cliff +" }, { "cliff_down", "Cliff -" }, { "blight", "Blight" },
-    { "place_doodad", "Doodads" }, { "place_unit", "Units" }, { "regions", "Regions" },
+    { "place_doodad", "Doodads" }, { "place_unit", "Units" }, { "regions", "Regions" }, { "cameras", "Cameras" },
 }
-editor_ui.COMMANDS = { { "triggers", "Triggers" }, { "ai", "AI" }, { "files", "Files" }, { "undo", "Undo" },
-                       { "redo", "Redo" }, { "save", "Save" }, { "test", "Test" } }
+editor_ui.COMMANDS = { { "triggers", "Triggers" }, { "ai", "AI" }, { "files", "Files" }, { "sounds", "Sounds" },
+                       { "undo", "Undo" }, { "redo", "Redo" }, { "save", "Save" }, { "test", "Test" } }
 -- the panels over the view each command opens
-editor_ui.PANELS = { triggers = "editor.trigger_ui", ai = "editor.ai_ui", files = "editor.imports_ui" }
+editor_ui.PANELS = { triggers = "editor.trigger_ui", ai = "editor.ai_ui", files = "editor.imports_ui",
+                     sounds = "editor.sounds_ui" }
 editor_ui.PAGE = 18
 editor_ui.STROKE_EVERY = 0.05
 
@@ -71,15 +75,17 @@ function EUI:layout()
     local b = {}
     local x = 8
     for _, t in ipairs(editor_ui.TOOLBAR) do
-        b[#b + 1] = { x = x, y = 6, w = 56, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
-        x = x + 60
+        local w = math.max(40, #t[2] * 7 + 8)      -- as wide as its name
+        b[#b + 1] = { x = x, y = 6, w = w, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1],
+                      small = true }
+        x = x + w + 4
     end
-    local widths = { triggers = 72, ai = 36, files = 48 }
+    local widths = { triggers = 70, ai = 30, files = 46, sounds = 58 }
     local total = 0
-    for _, c in ipairs(editor_ui.COMMANDS) do total = total + (widths[c[1]] or 52) + 4 end
+    for _, c in ipairs(editor_ui.COMMANDS) do total = total + (widths[c[1]] or 46) + 4 end
     x = self.w - 4 - total
     for _, c in ipairs(editor_ui.COMMANDS) do
-        local w = widths[c[1]] or 52
+        local w = widths[c[1]] or 46
         b[#b + 1] = { x = x, y = 6, w = w, h = 26, label = c[2], action = c[1], active = self.tui ~= nil and self.panel == c[1] }
         x = x + w + 4
     end
@@ -118,6 +124,31 @@ function EUI:layout()
             if id then pb(id, "pick_type", id, id == cur) end
         end
     end
+    -- regions: the editor's own can go (issue 904b)
+    if E.tool == "regions" and self.region and self.region.editor then
+        py = 96
+        pb("Delete region", "delete_region")
+    end
+    -- cameras: made from the view, looked through, set from the view,
+    -- their fields stepped (issue 904b)
+    if E.tool == "cameras" then
+        pb("+ Camera from the view", "camera_new")
+        local c = self.camera
+        if c then
+            py = 122      -- below its name and where it looks
+            pb("View through it", "camera_view")
+            pb("Set it from the view", "camera_set")
+            for _, f in ipairs({ { "distance", 100 }, { "rotation", 5 }, { "aoa", 2 }, { "fov", 2 }, { "zoffset", 20 } }) do
+                local v = c[f[1]]
+                b[#b + 1] = { x = px, y = py, w = 124, h = 22, label = f[1] .. " " .. (v and string.format("%.0f", v) or "-"),
+                              action = "none" }
+                b[#b + 1] = { x = px + 128, y = py, w = 34, h = 22, label = "-", action = "camera_step", arg = { f[1], -f[2] } }
+                b[#b + 1] = { x = px + 166, y = py, w = 34, h = 22, label = "+", action = "camera_step", arg = { f[1], f[2] } }
+                py = py + 26
+            end
+            if c.kind == "editor" then pb("Delete camera", "camera_delete") end
+        end
+    end
     -- the selection's buttons
     if #E.selection > 0 then
         local rx, ry = self.w - 208, 44 + 7 * 20
@@ -153,7 +184,7 @@ function EUI:over_ui(mx, my)
     if self.tui then return true end
     if my < 38 or my > self.h - 28 then return true end
     for _, b in ipairs(self.buttons or {}) do if inside(b, mx, my) then return true end end
-    if mx < 216 and (self.E:is_terrain_tool() or self.E.tool:match("^place")) then return true end
+    if mx < 216 and (self.E:is_terrain_tool() or self.E.tool:match("^place") or self.E.tool == "cameras") then return true end
     if mx > self.w - 216 and #self.E.selection > 0 then return true end
     return false
 end
@@ -167,7 +198,11 @@ function EUI:press(b)
         -- a panel over the view (the trigger editor, the AI editor, the
         -- import manager); its button again closes it
         if self.tui and self.panel == a then self.tui, self.panel = nil, nil
-        else self.tui, self.panel = require(editor_ui.PANELS[a]).new(E, self.w, self.h, { root = self.opts.root }), a end
+        else
+            self.tui = require(editor_ui.PANELS[a]).new(E, self.w, self.h, { root = self.opts.root,
+                play = self.opts.play_sound, stop = self.opts.stop_sound })
+            self.panel = a
+        end
     elseif a == "tool" then E:set_tool(b.arg); self.page = 0; self.tui, self.panel = nil, nil
     elseif a == "undo" then E:undo()
     elseif a == "redo" then E:redo()
@@ -180,6 +215,26 @@ function EUI:press(b)
     elseif a == "player" then self.player = (self.player + 1) % 16
     elseif a == "pick_type" then
         if E.tool == "place_doodad" then self.doodad = b.arg else self.unit = b.arg end
+    elseif a == "delete_region" and self.region then
+        if E:delete_region(self.region) then self.region = nil end
+    elseif a == "camera_new" then
+        local cam = self.opts.camera and { self.opts.camera() } or { 0, 0 }
+        local c = E:new_camera("Camera", cam[1], cam[2])
+        if cam[3] then E:camera_from_view(c, cam[1], cam[2], cam[3], cam[4], cam[5], cam[6]) end
+        self.camera = c
+    elseif a == "camera_view" and self.camera and self.opts.set_camera then
+        local c = self.camera
+        self.opts.set_camera(c.x, c.y, c.distance, c.rotation, c.aoa, c.fov)
+    elseif a == "camera_set" and self.camera and self.opts.camera then
+        local x, y, d, rot, aoa, fov = self.opts.camera()
+        E:camera_from_view(self.camera, x, y, d, rot, aoa, fov)
+    elseif a == "camera_step" and self.camera then
+        local k, step = b.arg[1], b.arg[2]
+        local v = (tonumber(self.camera[k]) or require("editor.cameras").DEFAULT[k] or 0) + step
+        if k == "rotation" or k == "aoa" then v = v % 360 end
+        E:set_camera(self.camera, k, v)
+    elseif a == "camera_delete" and self.camera then
+        if E:delete_camera(self.camera) then self.camera = nil end
     elseif a == "turn" then E:rotate_selection(math.rad(b.arg))
     elseif a == "scale" then E:scale_selection(b.arg)
     elseif a == "delete" then E:delete_selection()
@@ -255,7 +310,10 @@ function EUI:update(input, dt)
         elseif input.ctrl and k == "V" then if gx then E:paste(gx, gy) end
         elseif input.ctrl and k == "S" then self:save()
         elseif k == "F5" then self:test()
-        elseif k == "DELETE" then E:delete_selection()
+        elseif k == "DELETE" then
+            if E.tool == "regions" and self.region and self.region.editor then
+                if E:delete_region(self.region) then self.region = nil end
+            else E:delete_selection() end
         elseif k == "ESCAPE" then E:select({})
         elseif k == "LEFT_BRACKET" or k == "[" then E.brush.size = math.max(0, E.brush.size - 1)
         elseif k == "RIGHT_BRACKET" or k == "]" then E.brush.size = math.min(8, E.brush.size + 1)
@@ -295,11 +353,29 @@ function EUI:press_world(gx, gy, input)
         E:place_doodad(self.doodad, gx, gy)
     elseif E.tool == "place_unit" and self.unit then
         E:place_unit(self.unit, self.player, gx, gy, math.rad(270))
+    elseif E.tool == "cameras" then
+        -- the camera looking nearest the pointer (within 400); dragging
+        -- moves where it looks
+        local best, bd
+        for _, c in ipairs(E:cameras()) do
+            local d = (c.x - gx) ^ 2 + (c.y - gy) ^ 2
+            if d < 400 ^ 2 and (not bd or d < bd) then best, bd = c, d end
+        end
+        self.camera = best
+        if best then self.drag = { kind = "camera", x0 = gx, y0 = gy } end
     elseif E.tool == "regions" then
         -- a region: its corner nearest the pointer (within 96) resizes it,
-        -- anywhere else inside moves it (issue 904)
-        local r = E:region_at(gx, gy) or self.region
+        -- anywhere else inside moves it (issue 904); on open ground a drag
+        -- makes a new one (issue 904b)
+        local r = E:region_at(gx, gy)
+        if not r and self.region then
+            local o = self.region
+            for _, c in ipairs({ { "left", "bottom" }, { "right", "bottom" }, { "left", "top" }, { "right", "top" } }) do
+                if (o[c[1]] - gx) ^ 2 + (o[c[2]] - gy) ^ 2 < 96 ^ 2 then r = o end
+            end
+        end
         self.region = r
+        if not r then self.drag = { kind = "new_region", x0 = gx, y0 = gy } end
         if r then
             local corner
             for _, c in ipairs({ { "left", "bottom" }, { "right", "bottom" }, { "left", "top" }, { "right", "top" } }) do
@@ -335,7 +411,18 @@ function EUI:release_world(gx, gy, input)
     if E.stroke_now then E:stroke_end() end
     local d = self.drag
     self.drag = nil
-    if d and gx and self.region and (d.kind == "region" or d.kind == "corner") then
+    if d and gx and d.kind == "camera" and self.camera then
+        if (gx - d.x0) ^ 2 + (gy - d.y0) ^ 2 > 16 then
+            E.history:begin("Move camera " .. self.camera.name)
+            E:set_camera(self.camera, "x", self.camera.x + gx - d.x0)
+            E:set_camera(self.camera, "y", self.camera.y + gy - d.y0)
+            E.history:finish()
+        end
+    elseif d and gx and d.kind == "new_region" then
+        if math.abs(gx - d.x0) >= 64 and math.abs(gy - d.y0) >= 64 then
+            self.region = E:new_region("Region", d.x0, d.y0, gx, gy)
+        end
+    elseif d and gx and self.region and (d.kind == "region" or d.kind == "corner") then
         local r = self.region
         if (gx - d.x0) ^ 2 + (gy - d.y0) ^ 2 > 16 then
             if d.kind == "region" then
@@ -367,14 +454,14 @@ function EUI:draw(ui)
     local function rect(x, y, w, h, c, a) ui.ui_rect(x, y, w, h, c[1], c[2], c[3], a or 255) end
     local function text(s, x, y, size, c) ui.ui_text(s, x, y, size, c[1], c[2], c[3], 255) end
     rect(0, 0, self.w, 38, C.panel, 235)
-    if E:is_terrain_tool() or E.tool:match("^place") then rect(0, 38, 216, self.h - 66, C.panel, 220) end
+    if E:is_terrain_tool() or E.tool:match("^place") or E.tool == "cameras" then rect(0, 38, 216, self.h - 66, C.panel, 220) end
     if #E.selection > 0 then rect(self.w - 216, 38, 216, self.h - 66, C.panel, 220) end
     rect(0, self.h - 28, self.w, 28, C.panel, 235)
     if self.tui then self.tui:draw(ui) end
     for _, b in ipairs(self.buttons) do
         rect(b.x, b.y, b.w, b.h, b.active and C.active or C.button)
         ui.ui_frame(b.x, b.y, b.w, b.h, 1, C.edge[1], C.edge[2], C.edge[3], 255)
-        text(b.label, b.x + 6, b.y + 5, 13, C.text)
+        text(b.label, b.x + (b.small and 4 or 6), b.y + (b.small and 6 or 5), b.small and 12 or 13, C.text)
     end
     -- the selection
     if #E.selection > 0 then
@@ -388,6 +475,13 @@ function EUI:draw(ui)
             o.player and ("player " .. o.player) or "",
         }
         for _, l in ipairs(lines) do text(l, x, y, 14, C.text); y = y + 20 end
+    end
+    -- the camera in hand
+    if E.tool == "cameras" then
+        local c = self.camera
+        text(c and (c.name .. (c.kind == "editor" and "  (new)" or "")) or (#E:cameras() .. " cameras: click one"),
+            8, 74, 14, C.gold)
+        if c then text(string.format("looks at %.0f, %.0f", c.x, c.y), 8, 94, 14, C.text) end
     end
     -- the region in hand
     if E.tool == "regions" and self.region then

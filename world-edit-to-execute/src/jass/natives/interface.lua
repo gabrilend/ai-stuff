@@ -6,8 +6,9 @@ defeat are kept on the VM for the interface to show (ui/wc3/hud.lua reads
 V.messages, V:shown_dialogs(), V.timer_dialogs, V.quests,
 V.multiboards). Only what the local player would see is shown.
 
-Fog of war is in natives/fog.lua (Issue 524). Sound, music, camera,
-weather, special effects, cinematics and floating text do nothing yet (there is no system for them) and are
+Fog of war is in natives/fog.lua (Issue 524); sounds and music are kept
+by natives/sound.lua (Issue 907) and cameras by natives/camera.lua (Issue
+904), which replace the no-ops below. Weather, special effects, cinematics and floating text do nothing yet (there is no system for them) and are
 counted in V.noops.
 ]]
 

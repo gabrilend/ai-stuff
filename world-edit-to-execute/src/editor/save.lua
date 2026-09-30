@@ -67,6 +67,10 @@ return function(E)
         end
         -- regions' Rect calls (issue 904)
         for _, e in ipairs(self.region_edits and self:region_edits() or {}) do edits[#edits + 1] = e end
+        -- sounds and music (issue 907)
+        for _, e in ipairs(self.sound_edits and self:sound_edits() or {}) do edits[#edits + 1] = e end
+        -- cameras (issue 904)
+        for _, e in ipairs(self.camera_edits and self:camera_edits() or {}) do edits[#edits + 1] = e end
         -- the map's own triggers: functions rewritten, triggers switched
         -- off (issue 905); a rewritten function's text wins over the other
         -- edits inside it

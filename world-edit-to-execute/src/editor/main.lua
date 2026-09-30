@@ -180,6 +180,10 @@ local sw, sh = render.ui_screen()
 local out = os.getenv("EDITOR_OUT")
 local ui = editor_ui.new(E, sw, sh, {
     to_ground = function(mx, my) return viewer.to_ground(mx, my) end,
+    -- the sound editor's preview (issue 907)
+    play_sound = viewer.play_sound, stop_sound = viewer.stop_sound,
+    -- the camera tool (issue 904b)
+    camera = viewer.camera, set_camera = viewer.set_camera,
     save_path = out, root = ROOT, viewer = os.getenv("WC3_VIEWER"),
 })
 local t = E.terrain
@@ -193,6 +197,7 @@ end
 --   tool:NAME  stroke:x,y (a whole stroke there)  place_doodad:x,y
 --   place_unit:x,y  select:x,y  move:dx,dy  camera:x,y[,d]  save:  undo:
 --   press:LABEL (a button)  type:TEXT  key:NAME (to the trigger editor)
+--   pick_camera:N (the Nth camera, with the cameras tool)
 local actions = {}
 for item in (os.getenv("SCENE_ACTIONS") or ""):gmatch("[^;]+") do
     local at, what = item:match("^%s*([%d%.]+)%s*:(.+)$")
@@ -212,6 +217,8 @@ local function scripted(what)
     elseif kind == "camera" then viewer.set_camera(n[1], n[2], n[3])
     elseif kind == "save" then ui:save()
     elseif kind == "undo" then E:undo()
+    elseif kind == "pick_camera" then
+        ui.camera = E:cameras()[n[1]]
     elseif kind == "press" then
         -- a button of the interface by its label (the trigger editor's too)
         local b
@@ -332,6 +339,24 @@ function scene_paint()
                 edge(r.left, r.bottom, r.right, r.bottom); edge(r.right, r.bottom, r.right, r.top)
                 edge(r.right, r.top, r.left, r.top); edge(r.left, r.top, r.left, r.bottom)
             end
+        end
+    end
+    -- cameras: where each looks, and a line back toward its eye (issue 904b)
+    if E.tool == "cameras" then
+        for _, c in ipairs(E:cameras()) do
+            local z = scene_ground(c.x, c.y) + 10
+            local col = c == ui.camera and { 240, 200, 90 } or (c.kind == "editor" and { 150, 200, 255 } or { 230, 120, 230 })
+            add(figures.ring(c.x, c.y, z, 64, col, 16, 6))
+            local rot = math.rad(c.rotation or 90)
+            local back = math.min(900, (c.distance or 1650) * 0.5)
+            local ex, ey = c.x - math.cos(rot) * back, c.y - math.sin(rot) * back
+            local nx, ny = -math.sin(rot) * 6, math.cos(rot) * 6
+            prims[#prims + 1] = { kind = "quad", color = col, pts = {
+                { c.x + nx, c.y + ny, z }, { ex + nx, ey + ny, z + back * 0.6 },
+                { ex - nx, ey - ny, z + back * 0.6 }, { c.x - nx, c.y - ny, z } } }
+            prims[#prims + 1] = { kind = "quad", color = col, pts = {     -- the other face
+                { c.x - nx, c.y - ny, z }, { ex - nx, ey - ny, z + back * 0.6 },
+                { ex + nx, ey + ny, z + back * 0.6 }, { c.x + nx, c.y + ny, z } } }
         end
     end
     kit.emit_prims(prims, render, true, 0)

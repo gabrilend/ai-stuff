@@ -248,3 +248,13 @@ cameras.draw_frustum(camera)
 - **Regions:** making and removing them, since the script's triggers refer to them by variable (with the trigger editor, 905), and circle regions.
 - **Region properties:** editing weather, ambient sound and names; a list with folders.
 - **Cameras:** the script's CameraSetup calls, moving them, set from and apply to the view, the frustum.
+
+## Implementation Notes (2)
+
+**2026-09-30, sub-issue 904b (completed).**
+- The script's cameras are edited.
+- New cameras and regions are made for the editor's triggers.
+- A Cameras tool.
+- The game follows the script's camera requests (`jass/natives/camera.lua`).
+- The window's view can turn, tilt and change field of view.
+- Still open: circular regions, region weather and sound, camera bounds and cinematic paths.

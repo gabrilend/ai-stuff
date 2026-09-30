@@ -469,15 +469,25 @@ local function install(E)
     -- nil when there is nothing to write
     function E:trigger_code()
         local ts, vs = self.trig.triggers, self.trig.variables
-        if #ts == 0 and #vs == 0 then return nil end
+        -- the editor's regions, cameras and sounds (editor/regions.lua,
+        -- cameras.lua, sounds.lua) are made first
+        local made = {}
+        for _, fn in ipairs({ "region_code", "camera_code", "sound_code" }) do
+            local piece = self[fn] and self[fn](self)
+            if piece then made[#made + 1] = piece end
+        end
+        if #ts == 0 and #vs == 0 and #made == 0 then return nil end
         local g = {}
+        for _, piece in ipairs(made) do g[#g + 1] = piece.globals end
         for _, v in ipairs(vs) do g[#g + 1] = variable_decl(v) end
         for _, t in ipairs(ts) do g[#g + 1] = "trigger " .. blocks.trigger_var(t.name) .. " = null" end
         local f = {}
+        for _, piece in ipairs(made) do f[#f + 1] = piece.functions end
         for i, t in ipairs(ts) do f[#f + 1] = triggers.jass(t, i) end
         -- arrays with a size and an initial value, then each trigger made,
         -- then the map-initialization ones run
         local init = { "function EditorInitTriggers takes nothing returns nothing" }
+        for _, piece in ipairs(made) do init[#init + 1] = "    call " .. piece.call .. "()" end
         for _, v in ipairs(vs) do
             if v.array and v.initial ~= nil and v.initial ~= "" then
                 local val = v.type == "string" and blocks.quote(v.initial) or tostring(v.initial)
@@ -524,13 +534,16 @@ local function install(E)
     end
 
     function E:trigger_file()
-        if #self.trig.triggers == 0 and #self.trig.variables == 0 and not self.dirty.triggers then return nil end
+        if #self.trig.triggers == 0 and #self.trig.variables == 0 and #(self.trig.sounds or {}) == 0
+            and #(self.trig.cameras or {}) == 0 and #(self.trig.regions or {}) == 0
+            and not self.dirty.triggers then return nil end
         return triggers.serialize(self.trig)
     end
     -- }}}
 
     -- {{{ checking
-    local REQUIRED = { region = "a region", trigger = "a trigger", variable = "a variable" }
+    local REQUIRED = { region = "a region", trigger = "a trigger", variable = "a variable", sound = "a sound",
+                       camera = "a camera" }
 
     function E:check_triggers(opts)
         opts = opts or {}
@@ -559,6 +572,12 @@ local function install(E)
                                 bad(t, "no trigger " .. tostring(v))
                             elseif p[2] == "variable" and v ~= nil and not self:variable_named(v) then
                                 bad(t, "no variable " .. tostring(v))
+                            elseif p[2] == "sound" and type(v) == "string" and self.sound_named
+                                and not self:sound_named(v) then
+                                bad(t, "no sound " .. v)
+                            elseif p[2] == "camera" and type(v) == "string" and self.camera_named
+                                and not self:camera_named(v) then
+                                bad(t, "no camera " .. v)
                             end
                         end
                         for _, hold in ipairs(spec.holds or {}) do walk(hold, b[hold]) end

@@ -94,6 +94,8 @@ function blocks.value(kind, v, ctx)
         return blocks.trigger_var(v)
     elseif kind == "variable" then
         return blocks.variable_var(v)
+    elseif kind == "sound" or kind == "camera" then
+        return tostring(v or "null")
     elseif kind == "compare" or kind == "order" then
         return tostring(v)
     end
@@ -242,6 +244,18 @@ blocks.ACTIONS = {
     disable_trigger = act("Turn off {trigger}", { { "trigger", "trigger", nil } }, "call DisableTrigger({trigger})"),
     run_trigger = act("Run {trigger} (checking conditions)", { { "trigger", "trigger", nil } },
         "call ConditionalTriggerExecute({trigger})"),
+    apply_camera = act("Apply {camera} for {player} over {seconds} seconds",
+        { { "camera", "camera", nil }, { "player", "player", 0 }, { "seconds", "real", 0 } },
+        "call CameraSetupApplyForPlayer(true, {camera}, {player}, {seconds})"),
+    pan_camera = act("Pan the camera for {player} to {region} over {seconds} seconds",
+        { { "player", "player", 0 }, { "region", "region", nil }, { "seconds", "real", 1 } },
+        "call PanCameraToTimedLocForPlayer({player}, GetRectCenter({region}), {seconds})"),
+    reset_camera = act("Reset the game camera for {player} over {seconds} seconds",
+        { { "player", "player", 0 }, { "seconds", "real", 0 } }, "call ResetToGameCameraForPlayer({player}, {seconds})"),
+    play_sound = act("Play {sound}", { { "sound", "sound", nil } }, "call PlaySoundBJ({sound})"),
+    stop_sound = act("Stop {sound}", { { "sound", "sound", nil } }, "call StopSoundBJ({sound}, false)"),
+    play_music = act("Play music {file}", { { "file", "string", "Sound\\Music\\mp3Music\\Comradeship.mp3" } },
+        "call PlayMusicBJ({file})"),
     comment = { label = "-- {text}", params = { { "text", "text", "" } },
                 jass = function(a) return { "// " .. tostring(a.text or ""):gsub("\n", " ") } end },
     custom = { label = "Custom script: {code}", params = { { "code", "code", "" } },
@@ -262,7 +276,8 @@ blocks.ACTIONS = {
 }
 blocks.ACTION_ORDER = { "display_text", "create_units", "kill_unit", "remove_unit", "move_unit", "order_unit",
                         "gold", "lumber", "set_variable", "victory", "defeat", "wait", "enable_trigger",
-                        "disable_trigger", "run_trigger", "if_then_else", "for_loop", "pick_units", "comment",
+                        "disable_trigger", "run_trigger", "apply_camera", "pan_camera", "reset_camera", "play_sound", "stop_sound", "play_music",
+                        "if_then_else", "for_loop", "pick_units", "comment",
                         "custom" }
 -- }}}
 
@@ -303,6 +318,8 @@ function blocks.describe(section, b)
         if kinds[k] == "player" and type(v) == "number" then return "Player " .. (v + 1) end
         if kinds[k] == "string" and type(v) == "string" then return '"' .. v .. '"' end
         if kinds[k] == "region" and type(v) == "string" then return (v:gsub("^gg_rct_", "")) end
+        if kinds[k] == "sound" and type(v) == "string" then return (v:gsub("^gg_snd_", "")) end
+        if kinds[k] == "camera" and type(v) == "string" then return (v:gsub("^gg_cam_", "")) end
         return shown(v)
     end))
 end
