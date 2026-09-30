@@ -42,10 +42,11 @@ function units:value(id, code)
     if code == "urac" then return RACE[id], RACE[id] and "stock" or nil end
     if code == "uhpm" then return 1000, "stock" end
     if code == "ufma" and id == "zbar" then return 10, "stock" end
+    if code == "utyp" and id == "zanc" then return "ancient", "stock" end
     return nil
 end
 function units:list(id, code)
-    if code == "ubui" and RACE[id] then return { "zbar" } end
+    if code == "ubui" and RACE[id] then return { "zbar", "zanc" } end
     return {}
 end
 local g = game_mod.new(s, { player = 0, placed = false, minimap = false, vision = false, stock = units, combat = false })
@@ -183,9 +184,18 @@ do
 
     sp = spots[5]
     local wisp = worker("zwsp", sp[1] - 400, sp[2])
-    g.build(wisp, "zbar", sp[1], sp[2])
+    g.build(wisp, "zanc", sp[1], sp[2])
     run(2.5)
-    test("a night elf worker becomes the building", wisp.removed == true)
+    test("a wisp becomes a living building (an Ancient)", wisp.removed == true)
+    sp = spots[7]
+    local wisp2 = worker("zwsp", sp[1] - 400, sp[2])
+    g.build(wisp2, "zbar", sp[1], sp[2])
+    run(2.5)
+    rising = nil
+    for _, u in ipairs(g.units) do if u.building_up and (u.x - sp[1]) ^ 2 + (u.y - sp[2]) ^ 2 < 10 then rising = u end end
+    test("but only starts the others (a moon well), and is free", not wisp2.removed and wisp2.construct == nil
+        and rising and rising.builder == nil)
+    test("which grow alone", rising and rising.progress > 0)
 end
 -- }}}
 
