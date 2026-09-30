@@ -115,6 +115,23 @@ do
 end
 -- }}}
 
+-- {{{ Regions (none of the test maps has a war3map.w3r: a made-up one)
+do
+    local w3r = require("parsers.w3r")
+    local made = { version = 5, regions = {
+        { bounds = { left = -512, bottom = -256, right = 512, top = 256 }, name = "Arena", creation_number = 0,
+          weather_id = "RAhr", ambient_sound = "gg_snd_Rain", color = { r = 10, g = 20, b = 30, a = 255 } },
+        { bounds = { left = 0, bottom = 0, right = 64, top = 64 }, name = "Tiny", creation_number = 1,
+          color = { r = 255, g = 255, b = 255, a = 255 } } } }
+    local bytes = w3r.write(made)
+    local back = w3r.parse(bytes)
+    test("regions (war3map.w3r): written, read back, written the same",
+        back and #back.regions == 2 and back.regions[1].name == "Arena" and back.regions[1].weather_id == "RAhr"
+        and back.regions[1].ambient_sound == "gg_snd_Rain" and back.regions[2].bounds.right == 64
+        and back.regions[1].color.g == 20 and w3r.write(back) == bytes)
+end
+-- }}}
+
 -- {{{ Saving a copy
 test_section("Saving a copy")
 local function every_file(path)

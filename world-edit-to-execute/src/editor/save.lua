@@ -58,6 +58,8 @@ return function(E)
                     o.who, o.id, num(o.x), num(o.y), num(math.deg(o.facing) % 360)) }
             end
         end
+        -- regions' Rect calls (issue 904)
+        for _, e in ipairs(self.region_edits and self:region_edits() or {}) do edits[#edits + 1] = e end
         table.sort(edits, function(a, b) return a.at > b.at end)
         for _, e in ipairs(edits) do text = text:sub(1, e.at - 1) .. e.text .. text:sub(e.to + 1) end
         -- units placed here: a function of their own, called at the end of main
@@ -139,6 +141,7 @@ return function(E)
         if self.dirty.doodads then files["war3map.doo"] = doo.write(self.doodads) end
         if self.dirty.units and self.units_doo then files["war3mapUnits.doo"] = unitsdoo.write(self.units_doo) end
         if self.object_files then self:object_files(files) end
+        if self.dirty.w3r and self.w3r then files["war3map.w3r"] = require("parsers.w3r").write(self.w3r) end
         if (self.dirty.script or #self.new_units > 0) and self.script_name then
             local text, why = self:script_text()
             if not text then return nil, why end

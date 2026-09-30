@@ -264,6 +264,35 @@ do
 end
 -- }}}
 
+-- {{{ Regions
+test_section("Regions")
+do
+    local E4 = assert(editor.open(DIR .. "/assets/DAoW-5.4b-PUBLIC-TEST.w3x"))
+    local regs = E4:regions()
+    test("the script's rects, as regions", #regs > 50, tostring(#regs))
+    local r = regs[1]
+    local l, b, rt, t = r.left, r.bottom, r.right, r.top
+    test("found by a point inside", E4:region_at((l + rt) / 2, (b + t) / 2) ~= nil)
+    E4:move_region(r, 256, -128)
+    test("moved", r.left == l + 256 and r.top == t - 128)
+    E4:set_region_bounds(r, r.left, r.bottom, r.right + 512, r.top)
+    test("resized", r.right == rt + 256 + 512)
+    E4:undo()
+    test("undone: moved only", r.right == rt + 256)
+    local text = E4:script_text()
+    test("the Rect call has the new numbers", text:find(string.format("Rect(%.1f,%.1f,%.1f,%.1f)", r.left, r.bottom, r.right, r.top), 1, true) ~= nil)
+    local TMP4 = os.tmpname() .. ".w3x"
+    assert(E4:save(TMP4))
+    local s4 = require("demo.wc3map.scene").load(TMP4)
+    local g4 = require("demo.wc3map.game").new(s4, { player = 0, placed = false, minimap = false, vision = false, combat = false })
+    local V4 = g4.run_script({ ai = "none" })
+    local rv = V4.env[r.var]
+    test("the game's rect is where it was put", type(rv) == "table" and rv.minx == r.left and rv.maxy == r.top,
+        type(rv) == "table" and (rv.minx .. "," .. rv.maxy) or tostring(rv))
+    os.remove(TMP4)
+end
+-- }}}
+
 -- {{{ The interface
 test_section("The editor's interface")
 do
