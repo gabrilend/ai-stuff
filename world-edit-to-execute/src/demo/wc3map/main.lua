@@ -444,6 +444,16 @@ function scene_paint()
         end
     end
     draw_fx:draw(game, cx, cy, reach, adt, add_list, A and unit_model)
+    -- a structure being placed: its footprint, green where it fits (issue 531)
+    if hud.targeting == "place" and hud.place_id and input.mx then
+        local gx, gy = viewer.to_ground(input.mx, input.my)
+        if gx then
+            gx, gy = game.snap(gx, gy)
+            local ok = game.placeable(hud.place_id, gx, gy)
+            local r = require("demo.wc3map.construction").footprint(game.unit_spec(hud.place_id))
+            add_list(figures.ring(gx, gy, s.sample.ground_at(gx, gy) + 4, r, ok and { 80, 230, 90 } or { 230, 70, 60 }, 32, 5))
+        end
+    end
     -- a spell being aimed: its area under the pointer (issue 530)
     if hud.targeting == "cast" and hud.spell and input.mx then
         local gx, gy = viewer.to_ground(input.mx, input.my)

@@ -705,6 +705,19 @@ return function(V, N, T)
         else return false end
         return true
     end
+    -- build orders (issue 531): by type id, or its four-character string
+    local function build_order(u, what, x, y)
+        if not alive(u) or not W.build then return false end
+        local id = type(what) == "number" and vm.id2s(what) or tostring(what or "")
+        if #id ~= 4 then return false end
+        return (W.build(u, id, x, y)) and true or false
+    end
+    N.IssueBuildOrder = build_order
+    N.IssueBuildOrderById = build_order
+    N.IssueBuildOrderByIdLoc = function(u, id, l) return build_order(u, id, l and l.x or 0, l and l.y or 0) end
+    N.UnitSetConstructionProgress = function(u, pct)
+        if u and u.building_up then u.progress = math.max(0, math.min(1, (pct or 0) / 100)) end
+    end
     N.IssuePointOrder = point_order
     N.IssuePointOrderById = point_order
     N.IssuePointOrderLoc = function(u, name, l) return point_order(u, name, l.x, l.y) end
@@ -924,7 +937,7 @@ return function(V, N, T)
       .. "SetUnitPathing SetUnitCreepGuard SetUnitRescuable SetUnitRescueRange UnitSuspendDecay "
       .. "UnitAddSleep UnitAddSleepPerm UnitIgnoreAlarm UnitWakeUp SetUnitUseFood UnitSetUsesAltIcon "
       .. "SelectUnit ClearSelection SetUnitMoveSpeedBJ UnitAddType UnitRemoveType "
-      .. "SetUnitPathingBJ UnitSetConstructionProgress "
+      .. "SetUnitPathingBJ "
       .. "UnitSetUpgradeProgress UnitPauseTimedLife SetAllItemTypeSlots SetAllUnitTypeSlots SetItemTypeSlots "
       .. "SetUnitTypeSlots AddItemToAllStock AddUnitToAllStock AddItemToStock AddUnitToStock "
       .. "RemoveItemFromAllStock RemoveUnitFromAllStock RemoveItemFromStock RemoveUnitFromStock "

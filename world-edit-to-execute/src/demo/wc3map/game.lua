@@ -22,6 +22,8 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
              the map's changes are known
+  building   workers place and raise structures (demo/wc3map/
+             construction.lua, issue 531)
   abilities  casting with the script's spell events, cooldowns, mana,
              regeneration, auras, attack passives, buffs (demo/wc3map/
              abilities.lua, buffs.lua; issue 529)
@@ -54,6 +56,7 @@ local economy = require("demo.wc3map.economy")
 local heroes = require("demo.wc3map.heroes")
 local abilities = require("demo.wc3map.abilities")
 local effects = require("demo.wc3map.effects")
+local construction = require("demo.wc3map.construction")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -401,6 +404,15 @@ function game_mod.new(scene, opts)
     function g.ground_at(x, y) return scene.sample.ground_at(x, y) end
 
     local spec_cache = {}
+    -- the design spec of a unit type (its kind, size ...), without making one
+    function g.unit_spec(id)
+        local base = spec_cache[id]
+        if not base then
+            base = map_scene.unit_spec(m, id)
+            spec_cache[id] = base
+        end
+        return base
+    end
     -- A new unit of type id (4 characters) for player at (x, y), facing
     -- in radians
     function g.spawn(id, player, x, y, facing)
@@ -548,6 +560,7 @@ function game_mod.new(scene, opts)
     economy.init(g)
     production.init(g)
     heroes.init(g)
+    construction.init(g)
     effects.init(g)
     abilities.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
@@ -574,6 +587,7 @@ function game_mod.new(scene, opts)
         if opts.combat ~= false then combat.update(g, dt) end
         production.update(g, dt)
         economy.update(g, dt)
+        construction.update(g, dt)
         abilities.update(g, dt)
         effects.update(g, dt)
 

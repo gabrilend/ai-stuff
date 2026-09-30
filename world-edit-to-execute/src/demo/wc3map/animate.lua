@@ -4,6 +4,7 @@ Units' Animations (Issue 523)
 Which of its model's sequences a unit plays, from what it's doing in the
 game (demo/wc3map/game.lua, combat.lua), as WC3 picks them:
 
+  building   Birth, at the point its construction has reached (issue 531)
   dead       Death, once, then its last frame held while the corpse lies
   casting    Spell (Spell Channel while channelling), issue 529
   attacking  Attack, from its start at each swing, sped up or slowed so
@@ -30,7 +31,16 @@ function animate.unit(rig, u, dt)
         st = anim.state()
         u.anim = st
     end
-    if not u.alive then
+    if u.building_up then
+        -- going up (issue 531): Birth, held at how far along it is
+        if anim.play(rig, st, "birth", { fallback = "stand" }) and st.name == "birth" then
+            local sq = rig.sequences[st.seq]
+            st.t = (sq.finish - sq.start) * (u.progress or 0)
+            st.rate = 0
+        end
+        st.swing = nil
+        return anim.pose(rig, st)
+    elseif not u.alive then
         anim.play(rig, st, "death", { fallback = "stand" })
     elseif u.casting and u.casting.phase ~= "approach" then
         -- casting (issue 529): Spell (Spell Channel while channelling)
