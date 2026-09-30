@@ -5,9 +5,14 @@ Run by src/render/scene_viewer.c (see src/render/run-editor): opens a map
 (SCENE_ARG, else the project's Daow 4.4) for editing through the
 editor's core (src/editor/init.lua) and interface (src/editor/ui.lua).
 The ground is drawn from the terrain being edited and drawn again after
-each change; doodads and units are drawn with the geometry designs,
-baked in blocks of the map, and a block is baked again when an object in
-it changes. The camera is the viewer's: arrows and the screen's edges
+each change, textured with the tilesets' own textures (the map's and the
+owner's install, else stand-ins; laid again when a stroke ends).
+Doodads and units are drawn with their models (the map's imports and
+the install's, through the assets module, as the game draws them) where
+one is found, types edited in the editor included; the rest with the
+geometry designs, baked in blocks of the map, a block baked again when an
+object in it changes. WC3_MODELS=0 draws the designs only, WC3_TILES=0
+plain colours. The camera is the viewer's: arrows and the screen's edges
 pan, the wheel zooms.
 
 Saving writes EDITOR_OUT, else <map>-edited.w3x beside the map; testing
@@ -32,14 +37,30 @@ local s0 = map_scene.load(path)
 print(string.format("[editor] %s: %d objects, %d of them units the script places (%.1fs)",
     path, #E:objects(), #E.script_units, os.clock() - clock))
 
+-- {{{ the art: the map's and the install's (issue 522)
+local A
+if os.getenv("WC3_MODELS") ~= "0" or os.getenv("WC3_TILES") ~= "0" then
+    local ok, got = pcall(require("assets").open, path, { root = ROOT })
+    if ok then A = got end
+end
+-- }}}
+
 -- {{{ the ground
 local view = { terrain = E.terrain, sample = map_scene.sampler(E.terrain) }
-local function build_ground()
+local ground = require("assets.ground")
+local tiles_ids, tiles_ext
+if os.getenv("WC3_TILES") ~= "0" then
+    local r
+    tiles_ids, tiles_ext, r = ground.textures(render, A, E.terrain, { standins = os.getenv("WC3_TILES") == "standin" })
+    print(string.format("[editor] %d ground tilesets: %d from the map or install, %d stand-ins", r.tilesets, r.real, r.standin))
+end
+local function build_ground(textured)
     local t = E.terrain
     local heights, colors, water = map_scene.terrain_arrays(view)
     render.land_build(t.width, t.height, t.offset_x, t.offset_y, 128, kit.RENDER_SCALE, heights, colors, water)
+    if textured and tiles_ids then ground.lay(render, t, tiles_ids, tiles_ext) end
 end
-build_ground()
+build_ground(true)
 local ground_dirty, ground_at = false, 0
 local w3e = require("parsers.w3e")
 local function take_ground_changes()
@@ -54,7 +75,32 @@ local function take_ground_changes()
 end
 -- }}}
 
--- {{{ objects, baked in blocks
+-- {{{ models: the object's type, as the editor has it now
+local gpu = require("assets.gpu")
+local animate = require("demo.wc3map.animate")
+local MODELS = A and os.getenv("WC3_MODELS") ~= "0"
+local model_cache = MODELS and gpu.new(render, A)
+local live_types = setmetatable({}, { __index = function(_, kind) return E:object_table(kind) end })
+local model_ids = {}
+local function model_of(o)
+    if not model_cache then return nil end
+    local kind = o.kind == "doodad" and "placed" or "unit"
+    local key = kind .. ":" .. o.id .. ":" .. tostring(o.variation or "")
+    local v = model_ids[key]
+    if v == nil then
+        local m, mpath = A:model_for(kind, o.id, o.variation, live_types)
+        v = m and model_cache:build(m, mpath) or false
+        model_ids[key] = v
+    end
+    return v or nil
+end
+local function team_rgb(player)
+    local c = designs.TEAM[player] or designs.TEAM[15] or { 200, 200, 200 }
+    return c[1], c[2], c[3]
+end
+-- }}}
+
+-- {{{ objects without models, baked in blocks
 local BLOCK = 2048
 local specs = {}
 local function spec_of(o)
@@ -77,7 +123,7 @@ local function bake_block(b)
     render.geo_unbake(100 + b)
     local list = {}
     for _, o in ipairs(E.objs) do
-        if not o.deleted and block_of(o.x, o.y) == b then
+        if not o.deleted and block_of(o.x, o.y) == b and not model_of(o) then
             local sp = spec_of(o)
             if sp then
                 local spec = sp
@@ -120,6 +166,11 @@ local function rebake_changed()
     -- selected ones may have turned or scaled in place
     for _, o in ipairs(E.selection) do blocks[block_of(o.x, o.y)] = true end
     for b in pairs(blocks) do bake_block(b) end
+end
+do
+    local with = 0
+    for _, o in ipairs(E.objs) do if model_of(o) then with = with + 1 end end
+    print(string.format("[editor] %d of %d objects drawn with models", with, #E.objs))
 end
 print(string.format("[editor] ready in %.1fs", os.clock() - clock))
 -- }}}
@@ -168,6 +219,7 @@ local started = os.clock()
 
 -- {{{ Viewer entry points
 local objects_at = 0
+local last_steps, last_draw
 local sim = 0
 function scene_tick(dt)
     sim = sim + dt
@@ -183,14 +235,42 @@ function scene_paint()
     local now = os.clock()
     -- the ground again: at once after a stroke, else now and then during one
     if ground_dirty and (not E.stroke_now or now - ground_at > 0.4) then
-        build_ground()
+        -- textured again once the stroke is done (laying them takes a while)
+        build_ground(not E.stroke_now)
         ground_dirty, ground_at = false, now
         E.objects_changed = true   -- objects sit on the new ground
+    end
+    -- a type edited: its model may have changed
+    local steps = #E.history.done + #E.history.undone
+    if steps ~= (last_steps or -1) then
+        local any = false
+        for _, v in pairs(E.dirty.objects) do any = any or v end
+        if any then model_ids = {} end
+        last_steps = steps
     end
     if E.objects_changed and now - objects_at > 0.15 then
         E.objects_changed = false
         objects_at = now
         rebake_changed()
+    end
+    -- the objects with models, near the camera
+    local cx, cy, dist = viewer.camera()
+    local reach = dist * 2.4
+    local dt = now - (last_draw or now)
+    last_draw = now
+    if model_cache then
+        for _, o in ipairs(E.objs) do
+            if not o.deleted and math.abs(o.x - cx) < reach and math.abs(o.y - cy) < reach then
+                local mid = model_of(o)
+                if mid then
+                    local rig = model_cache:rig(mid)
+                    local r, g, b = 255, 255, 255
+                    if o.player then r, g, b = team_rgb(o.player) end
+                    render.model_draw(mid, o.x, o.y, E:ground_z(o.x, o.y), o.facing or 0, o.scale or 1, r, g, b, 1,
+                        rig and animate.still(rig, o, dt))
+                end
+            end
+        end
     end
     local prims = {}
     local function add(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
