@@ -7,7 +7,7 @@ Shared library infrastructure for reusable components across projects.
 | Library | Status | Issues |
 |---------|--------|--------|
 | threadpool | In Progress | 5/7 |
-| zip | In Progress | 0/1 |
+| zip | Complete | 1/1 |
 
 ---
 
@@ -69,7 +69,7 @@ neither calls the zip programs.
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 801 | Zip library | In Progress | None |
+| 801 | Zip library | **Completed** | None |
 
 ### Consumer Projects
 

@@ -34,7 +34,7 @@ General-purpose threading infrastructure with:
 
 **Origin:** Extracted from world-edit-to-execute render system (Phase 8)
 
-### zip (In Progress)
+### zip (Complete)
 
 A zip packer and reader in plain Lua (LuaJIT and Lua 5.3/5.4), so no
 project needs the `zip` or `unzip` programs:
