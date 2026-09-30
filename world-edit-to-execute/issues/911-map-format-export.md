@@ -280,3 +280,15 @@ EXPORT VALIDATION: WC3
 **The editor saves through it:** `E:save`, in `src/editor/save.lua`, writes a map's changed files into a copy. That covers terrain, the pathing map under changed ground, doodads, placed units and the script. DAoW 5.4b saves in well under a second.
 
 **The unified project format isn't started:** mode-specific data, validation and lightweight export.
+
+*(2026-09-30, second part: 911b)*
+
+**New maps from scratch** (sub-issue 911b):
+- `editor/new_map.lua` makes a new map, from Lua or the command line: map info, ground, pathing, shadows, doodads, a generated script (melee or custom), and a new archive with its header.
+- `w3i.write` round-trips every test map byte for byte.
+- `MeleeStartingUnits` now works.
+- The lobby plays only the slots the map lists.
+
+**Still open:**
+- The unified project format.
+- Checking `war3mapUnits.doo`'s record layout against a map with placed units.

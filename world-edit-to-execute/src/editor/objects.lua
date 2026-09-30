@@ -34,7 +34,8 @@ return function(E)
 
     -- {{{ loading
     local NUM = "(%-?[%d]*%.?[%d]*)"
-    local CALL = "CreateUnit%(%s*([^,%(%)]-)%s*,%s*'(....)'%s*,%s*" .. NUM .. "%s*,%s*" .. NUM .. "%s*,%s*" .. NUM .. "%s*%)"
+    -- the owner: a variable, or Player(n) / Player(PLAYER_NEUTRAL_PASSIVE)
+    local CALL = "CreateUnit%(%s*([%w_]+%(?[%w_ ]*%)?)%s*,%s*'(....)'%s*,%s*" .. NUM .. "%s*,%s*" .. NUM .. "%s*,%s*" .. NUM .. "%s*%)"
 
     -- the player a script expression names ("Player(3)", or a variable
     -- last set to one before the call)

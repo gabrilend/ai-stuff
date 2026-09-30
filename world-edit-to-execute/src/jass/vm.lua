@@ -625,11 +625,22 @@ end
 -- {{{ V:apply_lobby
 -- Who sits where once the lobby closes: the local player (and
 -- opts.humans) are users, the rest of the map's player slots that are
--- playing (opts.playing, default all twelve) are computers. config()
--- only says what each slot may be.
+-- playing (opts.playing, default the slots the map lists) are computers.
+-- config() only says what each slot may be.
 function V_mt:apply_lobby()
     local humans = { [self.local_id] = true }
     for _, n in ipairs(self.opts.humans or {}) do humans[n] = true end
+    -- the lobby has the slots the map lists (war3map.w3i's players, as the
+    -- world has them); without opts.playing, the others are empty (issue
+    -- 911b: a new two-player map is two players, not twelve)
+    local listed = self.world and self.world.players
+    if not self.opts.playing and listed and #listed > 0 then
+        local has = {}
+        for _, wp in ipairs(listed) do if wp.number then has[wp.number] = true end end
+        for n = 0, 11 do
+            if not has[n] then self:player(n).slot = "PLAYER_SLOT_STATE_EMPTY" end
+        end
+    end
     for n = 0, 11 do
         local p = self:player(n)
         if p.slot == "PLAYER_SLOT_STATE_PLAYING" then

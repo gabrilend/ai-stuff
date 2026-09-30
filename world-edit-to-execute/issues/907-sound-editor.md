@@ -207,3 +207,8 @@ sound_editor.move_to_category(sound, "Combat")
 - 3D placement on the map.
 - Ambient sounds on regions.
 - Sound heard in the game view: hook the world's `on_sound` to the window's audio. It needs several voices at once, not the preview's one.
+
+*(2026-09-30, sub-issue 907b, completed)*
+- The game plays what the script plays: sounds (from the map or the install, with volume, and distance and pan for 3D sounds) and music, through the window's audio.
+- `WC3_AUDIO=0` turns it off.
+- Units' own sounds are still open.
