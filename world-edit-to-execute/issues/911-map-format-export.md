@@ -244,14 +244,14 @@ EXPORT VALIDATION: WC3
 
 - [ ] Unified format saves all map data
 - [ ] Unified format loads correctly
-- [ ] WC3 export produces valid .w3x files
+- [x] WC3 export produces valid .w3x files
 - [ ] WC3 import converts to unified format
-- [ ] Round-trip (load → save → load) preserves data
+- [x] Round-trip (load → save → load) preserves data
 - [ ] Mode-specific data handled correctly
 - [ ] Validation reports export issues
 - [ ] Lightweight export excludes assets
 - [ ] Format is version-controlled friendly
-- [ ] Large maps save in reasonable time
+- [x] Large maps save in reasonable time
 
 ## Related Documents
 
@@ -268,3 +268,15 @@ EXPORT VALIDATION: WC3
 - Consider checksums for asset integrity
 - Format version important for future compatibility
 - May want "map optimization" (strip unused assets)
+
+## Implementation Notes
+
+*(2026-09-30, first part: 911a)*
+
+**Writing WC3's own formats back** is done in issue 911a:
+- terrain, doodads and placed units, written back byte for byte on the test maps;
+- copies saved in place in the map's own archive, protected maps included.
+
+**The editor saves through it:** `E:save`, in `src/editor/save.lua`, writes a map's changed files into a copy. That covers terrain, the pathing map under changed ground, doodads, placed units and the script. DAoW 5.4b saves in well under a second.
+
+**The unified project format isn't started:** mode-specific data, validation and lightweight export.

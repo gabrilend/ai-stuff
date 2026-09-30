@@ -180,6 +180,16 @@ local function sampler(t)
 end
 -- }}}
 
+-- the sampler, and a doodad type's design spec, for the editor (issue 901)
+map_scene.sampler = sampler
+function map_scene.doodad_spec(m, id, variation)
+    local info = object_info(m, "destructibles", id, "bnam", "bfil")
+        or object_info(m, "doodads", id, "dnam", "dfil")
+    local spec = classify.doodad(id, info)
+    if spec then spec.variant = variation or 0 end
+    return spec
+end
+
 -- {{{ map_scene.load
 function map_scene.load(path)
     local m = Map.load(path)
