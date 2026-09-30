@@ -11,8 +11,10 @@ One AI per computer player, on a running map script (jass/vm.lua):
                         game's melee AI
   filled in             mode "auto": every computer player the map left
                         without an AI gets its profile file from the
-                        profiles folder if there is one, else a profile
-                        derived from its faction (ai/faction.lua); WC3
+                        profiles folder if there is one, else the one the
+                        map carries (war3mapAI\\pNN.lua, saved by the
+                        editor: issue 909), else a profile derived from
+                        its faction (ai/faction.lua); WC3
                         itself leaves such players idle (mode "script")
   commanded             CommandAI(player, command, data) queues for the
                         player's AI (common.ai's CommandsWaiting and
@@ -125,7 +127,8 @@ function M:fill(mode, dir)
                 if u.player == n and u.alive ~= false then owns = true break end
             end
             if owns then
-                local ok, prof, where = pcall(faction.load_or_derive, dir, self.game, n, self.V:text(pl.name))
+                local ok, prof, where = pcall(faction.load_or_derive, dir, self.game, n, self.V:text(pl.name),
+                    self.V.opts.read_file)
                 if ok then
                     self:start_profile(n, prof, where)
                     started[#started + 1] = n

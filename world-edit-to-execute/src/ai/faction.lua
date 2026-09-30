@@ -129,9 +129,27 @@ function faction.find_file(dir, player)
     return found
 end
 
--- The player's profile file from dir if there is one, else derived.
--- Returns profile, where ("file" path, or "derived")
-function faction.load_or_derive(dir, game, player, name)
+-- The name a player's profile has inside a map (issue 909: the editor
+-- saves profiles into the map, so they travel with it)
+function faction.map_file(player)
+    return string.format("war3mapAI\\p%02d.lua", player)
+end
+
+-- A profile's text read as data: no globals, so a map's file can't do
+-- anything but return its table
+function faction.read_profile(text, where)
+    local chunk, err = loadstring(text, "=" .. tostring(where))
+    if not chunk then error("AI profile " .. tostring(where) .. ": " .. tostring(err)) end
+    setfenv(chunk, {})
+    local ok, p = pcall(chunk)
+    if not ok or type(p) ~= "table" then error("AI profile " .. tostring(where) .. ": " .. tostring(ok and "not a table" or p)) end
+    return p
+end
+
+-- The player's profile: its file in dir if there is one (the owner's own,
+-- first), else the one the map carries (read_map(name) -> text), else
+-- derived.
+function faction.load_or_derive(dir, game, player, name, read_map)
     local file = dir and faction.find_file(dir, player)
     if file then
         local chunk, err = loadfile(file)
@@ -140,6 +158,14 @@ function faction.load_or_derive(dir, game, player, name)
         local problems = profile_mod.check(p)
         if #problems > 0 then error("AI profile " .. file .. ": " .. problems[1]) end
         return p, file
+    end
+    local text = read_map and read_map(faction.map_file(player))
+    if text then
+        local where = "map:" .. faction.map_file(player)
+        local p = profile_mod.normalize(faction.read_profile(text, where))
+        local problems = profile_mod.check(p)
+        if #problems > 0 then error("AI profile " .. where .. ": " .. problems[1]) end
+        return p, where
     end
     return faction.derive(game, player, name), "derived"
 end

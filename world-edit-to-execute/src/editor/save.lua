@@ -18,7 +18,12 @@ written):
   the script        units its CreateUnit calls make: moved ones' numbers
                     written in, deleted ones' calls taken out; and units
                     placed in the editor made by an added EditorPlacedUnits
-                    function, called at the end of main
+                    function, called at the end of main; its triggers'
+                    functions rewritten or switched off, and the triggers
+                    made in the editor (editor/triggers.lua)
+  war3mapEditor.lua the editor's triggers and variables, as blocks
+  war3mapAI\pNN.lua the computer players' AI profiles edited
+                    (editor/ai.lua)
 
     require("editor.save")(E)     -- editor/init.lua does this
     E:save(path)                  -- true and a report, or nil and why
@@ -60,11 +65,35 @@ return function(E)
         end
         -- regions' Rect calls (issue 904)
         for _, e in ipairs(self.region_edits and self:region_edits() or {}) do edits[#edits + 1] = e end
+        -- the map's own triggers: functions rewritten, triggers switched
+        -- off (issue 905); a rewritten function's text wins over the other
+        -- edits inside it
+        if self.map_trigger_edits then
+            local mine, spans = self:map_trigger_edits()
+            local kept = {}
+            for _, e in ipairs(edits) do
+                local inside = false
+                for _, sp in ipairs(spans) do if e.at >= sp.at and e.to <= sp.to then inside = true end end
+                if not inside then kept[#kept + 1] = e end
+            end
+            edits = kept
+            for _, e in ipairs(mine) do
+                local inside = false
+                for _, sp in ipairs(spans) do if e.at > sp.at and e.to <= sp.to then inside = true end end
+                if not inside then
+                    if e.text == "DoNothing()" and not text:sub(1, e.at - 1):match("call%s*$") then e.text = "null" end
+                    edits[#edits + 1] = e
+                end
+            end
+        end
         table.sort(edits, function(a, b) return a.at > b.at end)
         for _, e in ipairs(edits) do text = text:sub(1, e.at - 1) .. e.text .. text:sub(e.to + 1) end
         -- units placed here: a function of their own, called at the end of main
         if #self.new_units > 0 then
-            local lines = { "function EditorPlacedUnits takes nothing returns nothing" }
+            -- a map saved here before already has one
+            local fname, n = "EditorPlacedUnits", 1
+            while text:find("function%s+" .. fname .. "%s+takes") do n = n + 1; fname = "EditorPlacedUnits" .. n end
+            local lines = { "function " .. fname .. " takes nothing returns nothing" }
             for _, u in ipairs(self.new_units) do
                 lines[#lines + 1] = string.format("call CreateUnit(Player(%d),'%s',%s,%s,%s)",
                     u.player, u.id, num(u.x), num(u.y), num(math.deg(u.facing) % 360))
@@ -75,8 +104,10 @@ return function(E)
             if not ms then return nil, "the script has no main function" end
             local es = text:find("endfunction", me + 1, true)
             if not es then return nil, "main never ends" end
-            text = text:sub(1, ms - 1) .. fn .. text:sub(ms, es - 1) .. "\ncall EditorPlacedUnits()\n" .. text:sub(es)
+            text = text:sub(1, ms - 1) .. fn .. text:sub(ms, es - 1) .. "\ncall " .. fname .. "()\n" .. text:sub(es)
         end
+        -- triggers made in the editor (issue 905)
+        if self.insert_trigger_code then return self:insert_trigger_code(text) end
         return text
     end
     -- }}}
@@ -141,11 +172,15 @@ return function(E)
         if self.dirty.doodads then files["war3map.doo"] = doo.write(self.doodads) end
         if self.dirty.units and self.units_doo then files["war3mapUnits.doo"] = unitsdoo.write(self.units_doo) end
         if self.object_files then self:object_files(files) end
+        if self.ai_files then self:ai_files(files) end
         if self.dirty.w3r and self.w3r then files["war3map.w3r"] = require("parsers.w3r").write(self.w3r) end
         if (self.dirty.script or #self.new_units > 0) and self.script_name then
             local text, why = self:script_text()
             if not text then return nil, why end
             files[self.script_name] = text
+        end
+        if self.dirty.triggers and self.trigger_file then
+            files["war3mapEditor.lua"] = self:trigger_file()
         end
         return files
     end

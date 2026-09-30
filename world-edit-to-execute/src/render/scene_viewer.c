@@ -136,7 +136,17 @@ static const struct { int key; const char* name; } KEY_NAMES[] = {
     { KEY_F9, "F9" }, { KEY_F10, "F10" }, { KEY_F11, "F11" }, { KEY_F12, "F12" },
     { KEY_KP_1, "KP_1" }, { KEY_KP_2, "KP_2" }, { KEY_KP_4, "KP_4" },
     { KEY_KP_5, "KP_5" }, { KEY_KP_7, "KP_7" }, { KEY_KP_8, "KP_8" },
+    { KEY_LEFT, "LEFT" }, { KEY_RIGHT, "RIGHT" }, { KEY_UP, "UP" }, { KEY_DOWN, "DOWN" },
+    { KEY_HOME, "HOME" }, { KEY_END, "END" }, { KEY_PAGE_UP, "PAGE_UP" }, { KEY_PAGE_DOWN, "PAGE_DOWN" },
 };
+
+/* keys held down repeat (text editing) */
+static const int REPEATING[] = { KEY_BACKSPACE, KEY_DELETE, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+                                 KEY_ENTER, KEY_PAGE_UP, KEY_PAGE_DOWN };
+
+/* the interface holds the camera still (a panel over the whole view) */
+static bool g_hold_camera = false;
+static float g_wheel = 0.0f;
 
 /* {{{ viewer.camera() -> x, y, distance (WC3) */
 static int lv_camera(lua_State* L) {
@@ -226,6 +236,15 @@ static int lv_keys(lua_State* L) {
             lua_rawseti(L, -2, ++n);
         }
     }
+    for (size_t r = 0; r < sizeof(REPEATING) / sizeof(REPEATING[0]); r++) {
+        if (!IsKeyPressedRepeat(REPEATING[r])) continue;
+        for (size_t i = 0; i < sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]); i++) {
+            if (KEY_NAMES[i].key == REPEATING[r]) {
+                lua_pushstring(L, KEY_NAMES[i].name);
+                lua_rawseti(L, -2, ++n);
+            }
+        }
+    }
     return 1;
 }
 /* }}} */
@@ -265,6 +284,20 @@ static int lv_key_down(lua_State* L) {
 }
 /* }}} */
 
+/* {{{ viewer.wheel() -> the mouse wheel's turn this frame */
+static int lv_wheel(lua_State* L) {
+    lua_pushnumber(L, g_wheel);
+    return 1;
+}
+/* }}} */
+
+/* {{{ viewer.hold_camera(held): no panning or zooming while held */
+static int lv_hold_camera(lua_State* L) {
+    g_hold_camera = lua_toboolean(L, 1);
+    return 0;
+}
+/* }}} */
+
 static int lv_quit(lua_State* L) {
     (void)L;
     g_quit = true;
@@ -277,7 +310,7 @@ static void register_viewer(lua_State* L) {
         { "camera", lv_camera }, { "set_camera", lv_set_camera },
         { "to_screen", lv_to_screen }, { "to_ground", lv_to_ground },
         { "mouse", lv_mouse }, { "keys", lv_keys }, { "chars", lv_chars }, { "key_down", lv_key_down },
-        { "quit", lv_quit }, { NULL, NULL },
+        { "wheel", lv_wheel }, { "hold_camera", lv_hold_camera }, { "quit", lv_quit }, { NULL, NULL },
     };
     lua_newtable(L);
     for (const luaL_Reg* f = fns; f->name; f++) {
@@ -401,11 +434,13 @@ int main(int argc, char** argv) {
             left |= m.x <= 2; right |= m.x >= GetScreenWidth() - 3;
             up |= m.y <= 2; down |= m.y >= GetScreenHeight() - 3;
         }
+        g_wheel = GetMouseWheelMove();
+        if (g_hold_camera) left = right = up = down = false;
         if (left) g_fc.x -= pan;
         if (right) g_fc.x += pan;
         if (up) g_fc.z -= pan;
         if (down) g_fc.z += pan;
-        g_fc.distance -= GetMouseWheelMove() * 150.0f;
+        if (!g_hold_camera) g_fc.distance -= g_wheel * 150.0f;
         if (!has_ui) {
             if (IsKeyPressed(KEY_ONE)) g_fc.distance = CAM_DEFAULT_DISTANCE;
             if (IsKeyPressed(KEY_R)) call_lua(L, "scene_key", "rings", 0, false);
