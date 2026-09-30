@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# install-into — copies the zip library into a project's libs/ folder, and
+# records which version of the library the copy is.
+#
+# Projects carry a copy rather than a link: rmail is installed on other
+# machines, where a link into this library's folder would point at
+# nothing.  The copy is kept honest by `check-copy`, which every consumer's
+# test run calls: a copy that differs from the library fails the tests,
+# and running this again brings it back in line.
+#
+# What it writes into the target folder:
+#   zip-compat.lua, zip-inflate.lua, zip-reader.lua, zip-writer.lua
+#   zip-library.version   one line per file: "<sha256>  <file>", then the
+#                         library's git commit ("commit <hash>", or
+#                         "commit uncommitted" when the library has changes
+#                         not yet committed)
+#
+# Usage: install-into <project libs folder> [library folder]
+
+DIR="/home/ritz/programming/ai-stuff/my-libs/zip"
+TARGET="$1"
+if [ -n "$2" ]; then
+    DIR="$2"
+fi
+if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
+    echo "usage: install-into <project libs folder> [library folder]" >&2
+    exit 1
+fi
+
+FILES="zip-compat.lua zip-inflate.lua zip-reader.lua zip-writer.lua"
+for file in $FILES; do
+    cp "$DIR/src/$file" "$TARGET/$file"
+done
+
+COMMIT=$(git -C "$DIR" log -1 --format=%H -- .)
+CHANGED=$(git -C "$DIR" status --porcelain -- src)
+# Path: the library's sources match a commit — named.  Else — said so.
+if [ -n "$CHANGED" ]; then
+    COMMIT="uncommitted"
+fi
+(
+    cd "$TARGET" || exit 1
+    sha256sum $FILES
+    echo "commit $COMMIT"
+) > "$TARGET/zip-library.version"
+echo "zip library copied into $TARGET (commit $COMMIT)"

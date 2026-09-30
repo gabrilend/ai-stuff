@@ -33,17 +33,20 @@ changes while being read.
 | `src/zip-writer.lua` | `pack(path, zip_path)` |
 | `tests/test-zip.lua` | 23 checks: round trips, hand-built hostile zips, compression-table damage |
 | `tests/run-tests` | runs the checks under every interpreter present |
+| `install-into` | copies the library into a project's `libs/`, with `zip-library.version` (file hashes, library commit) |
+| `check-copy` | fails when a project's copy differs from the library (consumers call it in their tests) |
 
 Each source file has a `.info.md` beside it with its functions, inputs and
 outputs.
 
 ## Using it
 
-Link the four source files into a project's `libs/` folder (which is on
-the project's `package.path`), then `require("zip-reader")` and
+Copy the four source files into a project's `libs/` folder (which is on
+the project's `package.path`) with `install-into`, then `require("zip-reader")` and
 `require("zip-writer")`:
 
-    ln -s /home/ritz/programming/ai-stuff/my-libs/zip/src/zip-*.lua <project>/libs/
+    install-into <project>/libs     # copies, and writes zip-library.version
+    check-copy <project>/libs       # in the project's tests: fails when the copy drifts
 
 Consumers: rao-chat (`src/attachments/`, issue 216e) and rmail (#405).
 
