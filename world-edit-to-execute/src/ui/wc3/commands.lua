@@ -133,6 +133,12 @@ function commands.card(unit, db, mode)
         return card
     end
 
+    -- a building going up: only Cancel (issue 531)
+    if spec.design == "building" and unit.building_up then
+        place(card, { id = "cancel_build", label = "Cancel", hotkey = "ESCAPE", icon = "cancel",
+                      action = "cancel_build", tip = "Stop building it, and get most of its cost back." }, 3, 2)
+        return card
+    end
     if spec.design == "building" then
         local trains = db.unit_list(unit.id, "utra")
         for _, id in ipairs(trains) do

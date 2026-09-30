@@ -210,8 +210,14 @@ function Hud:press(b)
         self.targeting = a
     elseif a == "stop" or a == "hold" then
         self.game.order(sel, a)
+    elseif a == "build" and b.target and self.game.build then
+        -- a structure picked from the build menu: place it (issue 531)
+        self.targeting, self.place_id = "place", b.target
+        self.mode = "main"
     elseif a == "build" then
         self.mode = "build"
+    elseif a == "cancel_build" and self.game.cancel_build then
+        for _, u in ipairs(sel) do if u.building_up then self.game.cancel_build(u) end end
     elseif a == "learn" and b.target and self.game.learn then
         -- a skill picked from the hero's list
         local hero = self:leader()
@@ -282,6 +288,16 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "place" and self.game.build then
+        local why
+        for _, u in ipairs(self:own_selection()) do
+            if u.spec.archetype == "worker" or u.spec.design == "unit" then
+                local ok, reason = self.game.build(u, self.place_id, x, y)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't build there") .. ".")
     elseif order == "cast" and self.game.cast then
         local why
         for _, u in ipairs(self:own_selection()) do

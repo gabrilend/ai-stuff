@@ -625,6 +625,8 @@ return function(V, N, T)
     N.GetLearnedSkillLevel = from("learned_level")
     N.GetLearnedSkillBJ = N.GetLearnedSkill
     N.GetRevivingUnit = from("unit")
+    N.GetConstructingStructure = from("unit")
+    N.GetCancelledStructure = from("unit")
     N.GetRevivableUnit = from("unit")
     N.GetSummoningUnit = from("summoner")
     N.GetTrainedUnitType = from("trained_type")
