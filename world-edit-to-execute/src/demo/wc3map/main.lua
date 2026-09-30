@@ -55,11 +55,25 @@ local chunks = render.land_build(t.width, t.height, t.offset_x, t.offset_y, 128,
 -- the map's own script runs (jass/vm.lua) and makes its units, unless
 -- WC3_SCRIPT=0 (then the units are read from the script's text)
 local player = tonumber(os.getenv("WC3_PLAYER") or "0")
+-- the art and the stock tables: the map's, then the owner's install
+-- (issues 522, 525); WC3_MODELS=0 draws the geometry designs only
+local assets_mod = require("assets")
+local A = assets_mod.open(path, { root = ROOT })
+local stock = require("gamedata.unit_stock").new(A.chain, s.map.object_data and s.map.object_data.units)
+-- the ground's textures (issue 526): the install's tilesets, else
+-- stand-ins drawn in their layout; WC3_TILES=0 for plain colours
+if os.getenv("WC3_TILES") ~= "0" then
+    local ground = require("assets.ground")
+    local r = ground.apply(render, A, s, { standins = os.getenv("WC3_TILES") == "standin" })
+    print(string.format("[ground] %d tilesets: %d from the install, %d stand-ins; %d cells textured, %d triangles",
+        r.tilesets, r.real, r.standin, r.cells, r.triangles))
+end
+if os.getenv("WC3_MODELS") == "0" then A = nil end
 -- fog of war (issue 524); WC3_FOG=0 for none
 local FOG = os.getenv("WC3_FOG") ~= "0"
 local game
 if os.getenv("WC3_SCRIPT") ~= "0" then
-    game = game_mod.new(s, { player = player, placed = false, vision = FOG })
+    game = game_mod.new(s, { player = player, placed = false, vision = FOG, stock = stock })
     local V, err = game.run_script({
         verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1",
         ai = os.getenv("WC3_AI") or "auto",
@@ -76,7 +90,13 @@ if os.getenv("WC3_SCRIPT") ~= "0" then
         game = nil
     end
 end
-game = game or game_mod.new(s, { player = player, vision = FOG })
+game = game or game_mod.new(s, { player = player, vision = FOG, stock = stock })
+do
+    local r = game.stats_report()
+    print(string.format("[stats] stock tables: %s; %d unit types: %d with stock values, %d with the map's, %d stand-ins only",
+        stock.available and "read" or ("none (" .. tostring(stock.error or "no install") .. ")"),
+        r.types, r.stock, r.map, r.neither))
+end
 local sw, sh = render.ui_screen()
 game.minimap.image = render.ui_image_load(game.minimap.size, game.minimap.size, game.minimap.rgba)
 
@@ -138,9 +158,7 @@ local hud = hud_mod.new(game, sw, sh)
 
 -- {{{ models: the map's and the install's (issue 522); WC3_MODELS=0 for
 -- the geometry designs only
-local assets_mod = require("assets")
 local gpu = require("assets.gpu")
-local A = os.getenv("WC3_MODELS") ~= "0" and assets_mod.open(path, { root = ROOT }) or nil
 local model_cache = A and gpu.new(render, A)
 local model_ids = {}
 local object_data = s.map.object_data

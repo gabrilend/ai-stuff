@@ -383,6 +383,15 @@ void models_draw(float view_x, float view_z, float radius) {
 }
 /* }}} */
 
+/* {{{ models_texture: a texture made by tex_create (1-based), for other
+ * parts of the renderer (the ground's tiles, Issue 526) */
+int models_texture(int id, Texture2D* out) {
+    if (id < 1 || id > g_tex_count) return 0;
+    *out = g_tex[id - 1];
+    return 1;
+}
+/* }}} */
+
 /* {{{ l_model_stats */
 int l_model_stats(lua_State* L) {
     lua_pushinteger(L, g_tex_count);

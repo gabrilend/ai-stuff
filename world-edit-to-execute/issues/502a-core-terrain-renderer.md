@@ -149,3 +149,9 @@ tile = {
 - issues/105-parse-war3map-w3e.md (terrain data source)
 - src/parsers/w3e.lua (parser implementation)
 - issues/501d-implement-camera-system.md (coordinate conversion)
+
+## Implementation Notes
+
+**Date:** 2026-09-30
+
+The ground is drawn by `render/landscape.c` (issue 517b), a different path from the plan above. Issue 526 (`issues/completed/526-ground-textures.md`) textures it with the tilesets: the install's when present, else stand-ins drawn in the same layout.

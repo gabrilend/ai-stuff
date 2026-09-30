@@ -366,6 +366,7 @@ static const luaL_Reg render_funcs[] = {
     /* Landscape (517b) */
     {"land_build", l_land_build},
     {"land_free", l_land_free},
+    {"land_tiles", l_land_tiles},
     {"geo_target", l_geo_target},
     /* 2D interface (518a) */
     {"ui_rect", l_ui_rect},
