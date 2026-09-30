@@ -173,7 +173,7 @@ return function(V, N, T)
       .. "SetSoundVolumeBJ KillSoundWhenDoneBJ StartSoundForPlayerBJ SetStackedSound "
       .. "SetTerrainFogEx ResetTerrainFog EnableWorldFogBoundary "
       .. "SetUnitTypeSlots AddWeatherEffect EnableWeatherEffect RemoveWeatherEffect "
-      .. "SetTerrainType SetTerrainTypeBJ SetTerrainPathable AddLightning DestroyLightning MoveLightning "
+      .. "SetTerrainType SetTerrainTypeBJ SetTerrainPathable "
       .. "PingMinimap PingMinimapEx PingMinimapLocForForce PingMinimapForForce PingMinimapForForceEx "
       .. "SetTextTagText SetTextTagPos SetTextTagPosUnit SetTextTagColor SetTextTagVelocity SetTextTagVisibility "
       .. "SetTextTagSuspended SetTextTagPermanent SetTextTagAge SetTextTagLifespan SetTextTagFadepoint DestroyTextTag "

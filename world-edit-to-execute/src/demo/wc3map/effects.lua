@@ -28,6 +28,18 @@ model isn't found); tests and the script see the same records.
     game.launch(path, from_unit, { unit = target } or { x =, y = }, speed, arc, on_arrive)
     game.ability_art(id, level, "caster")  -- { paths }, attach point
     effects.update(game, dt)
+
+Lightning (issue 538): a bolt between two units or points, of a type by
+its four-letter code ("CLPB" chain lightning, "DRAL" drain life ...):
+its colour, width and segment length from the install's
+Splats\LightningData.slk, else STAND-INS from memory. Abilities with a
+lightning (alig) show it from the caster to the target when the spell
+happens, for as long as it channels. The script's AddLightning(Ex),
+MoveLightning(Ex), SetLightningColor, DestroyLightning work on the same
+records (g.lightnings), which the viewer draws as jagged strips.
+
+    local l = game.add_lightning("CLPB", { unit = a }, { unit = b } or { x, y, z }, { duration = 0.5 })
+    game.move_lightning(l, from, to); game.destroy_lightning(l)
 ]]
 
 local effects = {}
@@ -49,6 +61,18 @@ effects.BUFF_ART = {
     target = { "ftat", "TargetArt", "fta0", "Targetattach" },
     effect = { "feat", "EffectArt", nil, nil },
     special = { "fsat", "SpecialArt", "fspt", "Specialattach" },
+}
+
+-- lightning types when the install's table isn't there (colour 0-1, width,
+-- average segment length): stand-ins from memory
+effects.LIGHTNING = {
+    CLPB = { 0.6, 0.8, 1.0, 1, 30, 64 }, CLSB = { 0.5, 0.7, 1.0, 1, 18, 64 },   -- chain lightning
+    DRAB = { 0.6, 0.3, 0.9, 1, 22, 96 }, DRAL = { 0.9, 0.2, 0.2, 1, 22, 96 },   -- drain, drain life
+    DRAM = { 0.3, 0.4, 1.0, 1, 22, 96 }, AFOD = { 0.8, 0.1, 0.1, 1, 34, 80 },   -- drain mana, finger of death
+    FORK = { 0.6, 0.8, 1.0, 1, 26, 64 }, HWPB = { 0.4, 1.0, 0.5, 1, 30, 80 },   -- forked, healing wave
+    HWSB = { 0.4, 1.0, 0.5, 1, 18, 80 }, CHIM = { 0.8, 0.4, 1.0, 1, 30, 64 },   -- chimaera
+    LEAS = { 0.9, 0.8, 0.5, 1, 12, 96 }, MBUR = { 0.3, 0.5, 1.0, 1, 26, 80 },   -- aerial shackles, mana burn
+    MFPB = { 0.5, 0.6, 1.0, 1, 26, 80 }, SPLK = { 0.8, 0.8, 1.0, 1, 12, 128 },  -- mana flare, spirit link
 }
 
 -- {{{ Reading art
@@ -149,6 +173,67 @@ function effects.init(g)
     end
     -- }}}
 
+    -- {{{ lightning (issue 538)
+    local types
+    function g.lightning_type(code)
+        code = tostring(code or ""):upper()
+        if not types then
+            types = {}
+            local ok, bytes = pcall(function() return g.chain and g.chain:read("Splats\\LightningData.slk") end)
+            if ok and bytes then
+                local ok2, t = pcall(require("parsers.slk").parse, bytes)
+                if ok2 and t and t.rows then
+                    for name, row in pairs(t.rows) do
+                        local function n(k, d) return tonumber(row[k]) or d end
+                        types[tostring(name):upper()] = { code = tostring(name):upper(), r = n("R", 1), g = n("G", 1),
+                            b = n("B", 1), a = n("A", 1), width = n("Width", 20), seg = n("AvgSegLen", 64),
+                            noise = n("NoiseScale", 0.1), texture = row.Dir, stock = true }
+                    end
+                end
+            end
+        end
+        local t = types[code]
+        if t then return t end
+        local d = effects.LIGHTNING[code] or { 0.8, 0.8, 1.0, 1, 20, 64 }
+        t = { code = code, r = d[1], g = d[2], b = d[3], a = d[4], width = d[5], seg = d[6], noise = 0.1,
+              standin = true }
+        types[code] = t
+        return t
+    end
+
+    g.lightnings = {}
+    local function point(w)
+        if w.unit then return w.unit.x, w.unit.y, (w.unit.z or 0) + (w.height or 60) end
+        return w.x, w.y, w.z or ((g.ground_at and g.ground_at(w.x, w.y) or 0) + 60)
+    end
+    effects.lightning_point = point
+    function g.add_lightning(code, from, to, opts)
+        opts = opts or {}
+        local t = g.lightning_type(code)
+        local l = { code = t.code, type = t, from = from, to = to, r = t.r, g = t.g, b = t.b, a = t.a,
+                    born = g.time, ends = opts.duration and (g.time + opts.duration) or nil,
+                    seed = math.random(1, 1000000), kind = opts.kind }
+        g.lightnings[#g.lightnings + 1] = l
+        return l
+    end
+    function g.move_lightning(l, from, to)
+        if not l then return false end
+        l.from, l.to = from or l.from, to or l.to
+        return true
+    end
+    function g.destroy_lightning(l)
+        if not l or l.gone then return false end
+        l.gone = true
+        return true
+    end
+    -- the two ends, now
+    function g.lightning_ends(l)
+        local x1, y1, z1 = point(l.from)
+        local x2, y2, z2 = point(l.to)
+        return x1, y1, z1, x2, y2, z2
+    end
+    -- }}}
+
     -- buffs show their art while they last (buffs.lua calls these)
     function g.on_buff_added(u, b)
         if b.art ~= nil or not b.id then return end
@@ -180,6 +265,15 @@ function effects.update(g, dt)
         if not (fx.dying and g.time - fx.dying >= effects.DEATH_LINGER) then keep[#keep + 1] = fx end
     end
     g.effects = keep
+    -- lightning: timed bolts end, and those tied to a unit that's gone
+    local bolts = {}
+    for _, l in ipairs(g.lightnings or {}) do
+        if l.ends and g.time >= l.ends then l.gone = true end
+        if (l.from.unit and l.from.unit.removed) or (l.to.unit and l.to.unit.removed) then l.gone = true end
+        if l.channel and not (l.channel.caster.casting == l.channel) then l.gone = true end
+        if not l.gone then bolts[#bolts + 1] = l end
+    end
+    g.lightnings = bolts
     -- missiles: fly, home, arc, land
     local flying = {}
     for _, m in ipairs(g.missiles) do

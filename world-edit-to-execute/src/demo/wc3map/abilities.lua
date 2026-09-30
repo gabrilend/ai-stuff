@@ -572,6 +572,17 @@ function abilities.land(g, c)
         local paths, attach = g.ability_art(c.id, c.level, "caster")
         g.play_art(paths, { unit = u, attach = attach or "origin" }, 1.5, "caster")
     end
+    -- its lightning (issue 538): caster to target, while it channels, else
+    -- for a moment
+    if art and c.target and g.add_lightning then
+        local code = (g.ability_art(c.id, c.level, "lightning"))[1]
+        if code then
+            local channels = c.base and c.base.channel
+            local l = g.add_lightning(code, { unit = u }, { unit = c.target },
+                { duration = not channels and 0.6 or nil, kind = "ability" })
+            if channels then l.channel = c end
+        end
+    end
     local function arrive()
         if art then
             if c.target then

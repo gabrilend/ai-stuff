@@ -190,7 +190,8 @@ local draw_fx = require("demo.wc3map.draw_effects").new(render, model_cache, A)
 local function unit_model(u)
     local mid = model_of("unit", u.id)
     local meta = mid and model_cache.meta[mid]
-    return meta and meta.m, u.model_scale or 1
+    -- its rig too, for where its animation has its attachment points (issue 538)
+    return meta and meta.m, u.model_scale or 1, ANIMATE and mid and model_cache:rig(mid) or nil
 end
 -- placed doodads drawn as models, and those left to the designs
 local doodad_models, designed_doodads = {}, {}
@@ -315,6 +316,27 @@ local function scripted(what, input)
         for i = 1, math.min(take, #list) do chosen[i] = list[i] end
         hud:select(chosen)
         if chosen[1] then viewer.set_camera(chosen[1].x, chosen[1].y - 200) end
+    elseif kind == "lightning" then
+        -- a bolt of that type from the selected unit (else the player's
+        -- nearest the camera) to the nearest other unit (issue 538), for a
+        -- few seconds
+        -- (or between two points: lightning:CODE:x1,y1,x2,y2)
+        local code, pts = rest:match("^(%w+):(.+)$")
+        if pts then
+            local p = {}
+            for v in pts:gmatch("[%-%d%.]+") do p[#p + 1] = tonumber(v) end
+            game.add_lightning(code, { x = p[1], y = p[2] }, { x = p[3], y = p[4] }, { duration = 4 })
+            return
+        end
+        local h = hud:leader() or nearest_to_camera(pick_own(function(u) return u.spec.design == "unit" end))[1]
+        local best, bd
+        for _, u in ipairs(game.units) do
+            if h and u ~= h and u.alive and not u.hidden then
+                local d = (u.x - h.x) ^ 2 + (u.y - h.y) ^ 2
+                if not bd or d < bd then best, bd = u, d end
+            end
+        end
+        if h and best then game.add_lightning(rest ~= "" and rest or "CLPB", { unit = h }, { unit = best }, { duration = 4 }) end
     elseif kind == "herolevel" then
         -- the selected hero to a level, learning every skill it can
         local h = hud:leader()
