@@ -73,3 +73,7 @@ Buildings sell, as in WC3:
 - **Shop rules:** marketplaces' random stock by level, goblin merchants' per-hero rules.
 - **Stock slots per shop** (SetItemTypeSlots, SetUnitTypeSlots) are kept as no-ops.
 - **Computer players** don't buy.
+
+### Follow-up (2026-09-30)
+
+The shop listing in `commands.lua` named its list `stock`, shadowing the card's `stock()` helper: every non-shop unit's card failed (test_abilities, test_wc3_interface). Renamed to `sold`. The full suite passes: 122 files.

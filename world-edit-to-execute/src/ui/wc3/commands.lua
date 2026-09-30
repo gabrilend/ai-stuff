@@ -142,9 +142,9 @@ function commands.card(unit, db, mode)
         return card
     end
     -- a shop or tavern: what it sells, with how many are in stock (issue 533)
-    local stock = db.shop_stock and db.shop_stock(unit) or {}
-    if #stock > 0 then
-        for _, e in ipairs(stock) do
+    local sold = db.shop_stock and db.shop_stock(unit) or {}
+    if #sold > 0 then
+        for _, e in ipairs(sold) do
             local info = (e.kind == "unit" and db.unit_button(e.id)) or (db.item_button and db.item_button(e.id)) or {}
             place(card, { id = e.id, label = string.format("%s %s (%d)", e.kind == "unit" and "Hire" or "Buy",
                                                            info.name or e.id, e.count),
