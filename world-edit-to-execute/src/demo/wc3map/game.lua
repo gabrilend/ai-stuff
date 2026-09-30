@@ -22,6 +22,8 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
              the map's changes are known
+  heroes     experience, levels, attributes, skills, revival, limits
+             (demo/wc3map/heroes.lua, issue 528)
   economy    player state, food and upkeep, gathering, bounty, scores
              (demo/wc3map/economy.lua, issue 527); gameplay constants
              in g.constants (the map's war3mapMisc.txt over the
@@ -46,6 +48,7 @@ local map_scene = require("demo.wc3map.scene")
 local production = require("demo.wc3map.production")
 local vision_mod = require("demo.wc3map.vision")
 local economy = require("demo.wc3map.economy")
+local heroes = require("demo.wc3map.heroes")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -147,8 +150,11 @@ local function unit_stats(m, id, stock)
     s.mana_max = get("umpm")
     local base, dice, sides = get("ua1b"), get("ua1d"), get("ua1s")
     s.armor = get("udef")
+    -- before attributes (heroes work their own out by level: heroes.lua)
+    s.hp_raw, s.mana_raw, s.armor_raw, s.dmg_raw = s.hp_max, s.mana_max, s.armor, base
     s.level = get("ulev")
     s.str, s.agi, s.int = get("ustr"), get("uagi"), get("uint")
+    s.str_type, s.agi_type, s.int_type = s.str, s.agi, s.int
     s.primary = get("upra")
     -- heroes: attributes add hit points, mana, armour and damage
     if s.str or s.agi or s.int then
@@ -259,6 +265,18 @@ function game_mod.new(scene, opts)
         upgrades = object_stock.new(opts.chain, od.upgrades, "upgrades"),
     }
     if not opts.stock then opts.stock = g.data.units end
+    -- the command card's lists: the map's, else the stock tables', else
+    -- the names module's
+    do
+        local map_list = g.db.unit_list
+        function g.db.unit_list(id, code)
+            local t = m.object_data and m.object_data.units
+            if t and t:has(id) and t:get_modification(id, code) ~= nil then return map_list(id, code) end
+            local stock_list = g.data.units:list(id, code)
+            if #stock_list > 0 then return stock_list end
+            return map_list(id, code)
+        end
+    end
     g.constants = opts.constants
     if not g.constants then
         local misc
@@ -269,8 +287,9 @@ function game_mod.new(scene, opts)
         end
         g.constants = game_constants.load({ chain = opts.chain, map_text = misc })
     end
-    -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how)
-    g.death_listeners, g.made_listeners = {}, {}
+    -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how),
+    -- g.spawn_listeners (u)
+    g.death_listeners, g.made_listeners, g.spawn_listeners = {}, {}, {}
     function g.made(u, how)
         for _, f in ipairs(g.made_listeners) do f(u, how) end
     end
@@ -379,6 +398,7 @@ function game_mod.new(scene, opts)
         local u = make_unit(id, spec, player, x, y, z, facing or 0)
         combat.init_unit(u)
         g.units[#g.units + 1] = u
+        for _, f in ipairs(g.spawn_listeners) do f(u) end
         g.spawned = (g.spawned or 0) + 1
         if spec.design == "building" then g.buildings_changed = true end
         return u
@@ -508,6 +528,7 @@ function game_mod.new(scene, opts)
     combat.init(g)
     economy.init(g)
     production.init(g)
+    heroes.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
     function g.stats_report()

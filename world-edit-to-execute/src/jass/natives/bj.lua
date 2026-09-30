@@ -623,6 +623,10 @@ return function(V, N, T)
     N.GetSoldUnit = from("sold")
     N.GetLearningUnit = from("unit")
     N.GetLearnedSkill = from("ability")
+    N.GetLearnedSkillLevel = from("learned_level")
+    N.GetLearnedSkillBJ = N.GetLearnedSkill
+    N.GetRevivingUnit = from("unit")
+    N.GetRevivableUnit = from("unit")
     N.GetSummoningUnit = from("summoner")
     N.GetTrainedUnitType = from("trained_type")
     N.GetOrderPointX = function() local c = V.ctx return c and c.point and c.point.x or 0 end
@@ -642,7 +646,7 @@ return function(V, N, T)
     N.CosBJ = function(d) return math.cos(math.rad(d)) end
     N.TanBJ = function(d) return math.tan(math.rad(d)) end
     N.Atan2BJ = function(y, x) return math.deg(math.atan2(y, x)) end
-    typed("integer", "PercentTo255 PercentToInt GetIssuedOrderIdBJ String2OrderIdBJ GetHandleIdBJ GetTrainedUnitType GetLearnedSkill")
+    typed("integer", "PercentTo255 PercentToInt GetIssuedOrderIdBJ String2OrderIdBJ GetHandleIdBJ GetTrainedUnitType GetLearnedSkill GetLearnedSkillLevel GetLearnedSkillBJ")
     typed("real", "GetOrderPointX GetOrderPointY GetRandomDirectionDeg GetRandomPercentageBJ SinBJ CosBJ TanBJ Atan2BJ")
     typed("string", "OrderId2StringBJ UnitId2StringBJ")
     -- regions and terrain
@@ -811,7 +815,18 @@ return function(V, N, T)
     N.InitNeutralBuildings = none
     N.InitBlizzardGlobals = none
     N.MeleeStartingVisibility = none
-    N.MeleeStartingHeroLimit = none
+    -- Blizzard.j's: 3 heroes, one of each type (issue 528)
+    N.SetPlayerMaxHeroesAllowed = function(max, p) if p then p.tech_max.HERO = max end end
+    N.MeleeStartingHeroLimit = function()
+        for n = 0, 11 do
+            local p = V:player(n)
+            p.tech_max.HERO = 3
+            for _, id in ipairs({ "Hamg", "Hmkg", "Hpal", "Hblm", "Obla", "Ofar", "Otch", "Oshd", "Edem", "Ekee",
+                                   "Emoo", "Ewar", "Udea", "Udre", "Ulic", "Ucrl" }) do
+                p.tech_max[id] = 1
+            end
+        end
+    end
     N.MeleeGrantHeroItems = none
     N.MeleeStartingResources = function()
         for n = 0, 11 do

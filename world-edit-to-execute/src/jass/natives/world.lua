@@ -552,33 +552,66 @@ return function(V, N, T)
     typed("integer", "UnitId")
     -- }}}
 
-    -- {{{ Heroes
+    -- {{{ Heroes (the game's: demo/wc3map/heroes.lua, issue 528, when it
+    -- has them; else kept on the unit)
     N.GetHeroLevel = function(u) return u and (u.level or 1) or 0 end
     N.SetHeroLevel = function(u, lvl, show)
         if not u then return end
+        if W.set_hero_level and u.hero then return W.set_hero_level(u, lvl) end
         local was = u.level or 1
         u.level = lvl
         if lvl > was then V:unit_event("HERO_LEVEL", u) end
     end
-    N.UnitStripHeroLevel = function(u, n) if u then u.level = math.max(1, (u.level or 1) - n) end end
-    N.GetHeroXP = function(u) return u and u.xp or 0 end
-    N.SetHeroXP = function(u, xp) if u then u.xp = xp end end
-    N.AddHeroXP = function(u, xp) if u then u.xp = (u.xp or 0) + xp end end
-    N.GetHeroStr = function(u) return u and u.str or 0 end
-    N.GetHeroAgi = function(u) return u and u.agi or 0 end
-    N.GetHeroInt = function(u) return u and u.int or 0 end
-    N.SetHeroStr = function(u, v) if u then u.str = v end end
-    N.SetHeroAgi = function(u, v) if u then u.agi = v end end
-    N.SetHeroInt = function(u, v) if u then u.int = v end end
+    N.UnitStripHeroLevel = function(u, n)
+        if not u then return false end
+        N.SetHeroLevel(u, math.max(1, (u.level or 1) - n))
+        return true
+    end
+    N.GetHeroXP = function(u) return u and math.floor(u.xp or 0) or 0 end
+    N.SetHeroXP = function(u, xp, show)
+        if not u then return end
+        if W.set_xp and u.hero then W.set_xp(u, xp) else u.xp = xp end
+    end
+    N.AddHeroXP = function(u, xp, show)
+        if not u then return end
+        if W.add_xp and u.hero then W.add_xp(u, xp) else u.xp = (u.xp or 0) + xp end
+    end
+    local function attr(name)
+        N["GetHero" .. name] = function(u, bonuses) return u and (u[name:lower()] or 0) or 0 end
+        N["SetHero" .. name] = function(u, v, permanent)
+            if not u then return end
+            local k = name:lower()
+            if u.hero and W.refresh_hero then
+                -- the bonus that brings it to v at this level
+                local h = u.hero
+                local lv = (u.level or 1) - 1
+                h[k .. "_bonus"] = v - (h[k] + h[k .. "_plus"] * lv)
+                W.refresh_hero(u)
+            else
+                u[k] = v
+            end
+        end
+    end
+    attr("Str"); attr("Agi"); attr("Int")
     N.GetHeroProperName = function(u) return u and (u.proper_name or u.name or "") or "" end
     N.GetHeroSkillPoints = function(u) return u and u.skill_points or 0 end
-    N.UnitModifySkillPoints = function(u, n) if u then u.skill_points = (u.skill_points or 0) + n end return true end
+    N.UnitModifySkillPoints = function(u, n)
+        if not u then return false end
+        u.skill_points = math.max(0, (u.skill_points or 0) + n)
+        return true
+    end
     N.SelectHeroSkill = function(u, id)
-        if u then u.skills = u.skills or {}; local k = vm.id2s(id) u.skills[k] = (u.skills[k] or 0) + 1 end
+        if not u then return end
+        local k = vm.id2s(id)
+        if W.learn and u.hero then W.learn(u, k) return end
+        u.abilities = u.abilities or {}
+        u.abilities[k] = (u.abilities[k] or 0) + 1
     end
     N.SuspendHeroXP = function(u, flag) if u then u.xp_suspended = flag end end
+    N.IsSuspendedXP = function(u) return u ~= nil and u.xp_suspended == true end
     N.ReviveHero = function(u, x, y, fx)
         if not u or alive(u) or u.removed then return false end
+        if W.revive_now then return W.revive_now(u, x, y) end
         u.alive, u.hp, u.died_at = true, u.hp_max or 100, nil
         u.mana = u.mana_max
         place(u, x, y)
@@ -587,6 +620,7 @@ return function(V, N, T)
     end
     N.ReviveHeroLoc = function(u, l, fx) return N.ReviveHero(u, l.x, l.y, fx) end
     typed("integer", "GetHeroLevel GetHeroXP GetHeroStr GetHeroAgi GetHeroInt GetHeroSkillPoints")
+    typed("boolean", "IsSuspendedXP")
     typed("string", "GetHeroProperName")
     -- }}}
 

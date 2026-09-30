@@ -23,6 +23,8 @@ A card is indexed 1-12 by slot (row * 4 + column + 1, rows from the top).
     db.unit_list(id, code)    -> list of ids (abilities, trains, builds)
     db.unit_button(id)        -> { name, hotkey, x, y, tip, archetype } for a trainable
     db.ability_button(id)     -> { name, hotkey, x, y, tip, hero }
+    db.can_learn(hero, id)    -> whether a hero can learn a skill now (optional)
+    db.revivable(building)    -> the fallen heroes an altar can revive (optional)
 ]]
 
 local commands = {}
@@ -112,9 +114,18 @@ function commands.card(unit, db, mode)
             or db.unit_list(unit.id, "uhab")
         for _, id in ipairs(list) do
             local info = (mode == "build" and db.unit_button(id) or db.ability_button(id)) or {}
-            place(card, { id = id, label = info.name or id, hotkey = info.hotkey,
+            local label = info.name or id
+            -- a hero skill: its next level, and whether it can be learned now
+            local learnable
+            if mode == "learn" and db.can_learn then
+                local have = unit.abilities and unit.abilities[id] or 0
+                label = string.format("%s (level %d)", label, have + 1)
+                learnable = db.can_learn(unit, id)
+            end
+            place(card, { id = id, label = label, hotkey = info.hotkey,
                           icon = mode == "build" and "structure" or "ability",
-                          action = mode, target = id, tip = info.tip },
+                          action = mode, target = id, tip = info.tip,
+                          disabled = mode == "learn" and db.can_learn and not learnable or nil },
                   mode == "learn" and info.rx or info.x, mode == "learn" and info.ry or info.y, { 0, 1, 2 })
         end
         return card
@@ -129,7 +140,12 @@ function commands.card(unit, db, mode)
                           archetype = info.archetype },
                   info.x, info.y, { 0, 1 })
         end
-        if #trains > 0 then stock(card, "rally") end
+        -- an altar's fallen heroes (issue 528)
+        for _, hero in ipairs(db.revivable and db.revivable(unit) or {}) do
+            place(card, { id = hero.id, label = "Revive " .. (hero.name or hero.id), icon = "train",
+                          action = "revive", target = hero, tip = "Bring this hero back." }, nil, nil, { 0, 1 })
+        end
+        if #trains > 0 or (db.revivable and #db.revivable(unit) > 0) then stock(card, "rally") end
     else
         for _, key in ipairs({ "move", "stop", "hold", "attack", "patrol" }) do stock(card, key) end
         if spec.archetype == "worker" then

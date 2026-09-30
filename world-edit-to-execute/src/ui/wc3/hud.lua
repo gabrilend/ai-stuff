@@ -212,8 +212,24 @@ function Hud:press(b)
         self.game.order(sel, a)
     elseif a == "build" then
         self.mode = "build"
+    elseif a == "learn" and b.target and self.game.learn then
+        -- a skill picked from the hero's list
+        local hero = self:leader()
+        local ok, why = self.game.learn(hero, b.target)
+        if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
+        if ok and (hero.skill_points or 0) <= 0 then self.mode = "main" end
     elseif a == "learn" then
         self.mode = "learn"
+    elseif a == "revive" and self.game.revive then
+        local why
+        for _, u in ipairs(sel) do
+            if u.spec.design == "building" then
+                local ok, reason = self.game.revive(u, b.target)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't revive") .. ".")
     elseif a == "cancel" then
         self.mode, self.targeting = "main", nil
     elseif a == "train" and self.game.train then
@@ -762,6 +778,12 @@ function Hud:draw_console(ui)
                 rect(ui, slot.x + slot.w - 16, slot.y + 2, 14, 16, { 0, 0, 0 }, 170)
                 text(ui, b.hotkey:sub(1, 1), slot.x + slot.w - 13, slot.y + 3, 14, C.gold)
             end
+            -- not usable now (a skill not yet learnable, an ability
+            -- cooling down): darkened, the cooldown as a shade
+            if b.disabled then rect(ui, slot.x, slot.y, slot.w, slot.h, { 0, 0, 0 }, 140) end
+            if b.cooldown and b.cooldown > 0 then
+                rect(ui, slot.x, slot.y, slot.w, slot.h * math.min(1, b.cooldown), { 0, 0, 0 }, 150)
+            end
         end
     end
 end
@@ -773,7 +795,19 @@ function Hud:draw_unit_info(ui, u)
     text(ui, u.name or u.id, info.x + 12, info.y + 10, 22, C.gold)
     local kind
     if u.spec.design == "building" then kind = "Building"
-    elseif u.spec.hero then kind = string.format("Level %d Hero", u.level or 1)
+    elseif u.spec.hero then
+        kind = string.format("Level %d Hero", u.level or 1)
+        -- experience toward the next level, and unspent skill points
+        if game.constants and u.xp then
+            local now = game.constants:hero_xp_needed(u.level or 1)
+            local nxt = game.constants:hero_xp_needed((u.level or 1) + 1)
+            kind = kind .. string.format("   XP %d / %d", math.floor(u.xp), nxt)
+            if nxt > now then
+                bar(ui, info.x + 12, info.y + 76, 180, 5, (u.xp - now) / (nxt - now), C.gold)
+            end
+        end
+        if (u.skill_points or 0) > 0 then kind = kind .. string.format("   (%d skill point%s)", u.skill_points,
+            u.skill_points == 1 and "" or "s") end
     else kind = ({ infantry = "Melee", ranged = "Ranged", gunner = "Ranged", caster = "Caster",
                    mounted = "Cavalry", heavy = "Heavy", flyer = "Flying", siege = "Siege",
                    ship = "Naval", worker = "Worker", beast = "Beast" })[u.spec.archetype or "infantry"] or "Unit" end
@@ -811,7 +845,9 @@ function Hud:draw_side(ui)
         bevel(ui, b, self.selection[1] == hero and C.hover or C.slot)
         icons.draw(ui, "hero", b.x + 4, b.y + 2, b.w - 8, { team = team_of(hero), archetype = hero.spec.archetype })
         bar(ui, b.x, b.y + b.h + 2, b.w, 6, hero.hp_max and (hero.hp or hero.hp_max) / hero.hp_max or 1, C.green)
-        bar(ui, b.x, b.y + b.h + 9, b.w, 6, 1, C.blue)
+        bar(ui, b.x, b.y + b.h + 9, b.w, 6, (hero.mana_max or 0) > 0 and (hero.mana or 0) / hero.mana_max or 0, C.blue)
+        text(ui, tostring(hero.level or 1), b.x + 4, b.y + b.h - 16, 14, C.gold)
+        if hero.alive == false then rect(ui, b.x, b.y, b.w, b.h, { 0, 0, 0 }, 150) end
         text(ui, b.key, b.x + b.w + 4, b.y + 2, 12, C.dim)
     end
     local idle = #self:idle_workers()
