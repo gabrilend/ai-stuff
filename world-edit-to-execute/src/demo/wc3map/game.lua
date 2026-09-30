@@ -106,6 +106,7 @@ local function make_db(m)
         if #list > 0 then return list end
         if code == "ubui" and names.BUILDS[id] then return names.BUILDS[id] end
         if code == "utra" and names.TRAINS[id] then return names.TRAINS[id] end
+        if code == "uupt" and names.UPGRADES[id] then return names.UPGRADES[id] end
         return {}
     end
 
@@ -318,6 +319,7 @@ function game_mod.new(scene, opts)
     -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how),
     -- g.spawn_listeners (u)
     g.death_listeners, g.made_listeners, g.spawn_listeners, g.damage_listeners = {}, {}, {}, {}
+    g.morph_listeners = {}   -- (u): u changed type (g.morph)
     function g.made(u, how)
         for _, f in ipairs(g.made_listeners) do f(u, how) end
     end
@@ -437,6 +439,35 @@ function game_mod.new(scene, opts)
         g.units[#g.units + 1] = u
         for _, f in ipairs(g.spawn_listeners) do f(u) end
         g.spawned = (g.spawned or 0) + 1
+        if spec.design == "building" then g.buildings_changed = true end
+        return u
+    end
+
+    -- Becomes another type where it stands (a hall's upgrade, issue 535):
+    -- the new type's stats and spec, its hit points and mana in proportion
+    function g.morph(u, id)
+        local hp_share = u.hp_max and u.hp_max > 0 and u.hp / u.hp_max or 1
+        local mana_share = u.mana_max and u.mana_max > 0 and (u.mana or 0) / u.mana_max or 1
+        local old = stats_cache[u.id]
+        if old then for k in pairs(old) do u[k] = nil end end
+        local base = spec_cache[id]
+        if not base then
+            base = map_scene.unit_spec(m, id)
+            spec_cache[id] = base
+        end
+        local spec = {}
+        for k, v in pairs(base) do spec[k] = v end
+        spec.team = u.player
+        local fresh = make_unit(id, spec, u.player, u.x, u.y, u.z, u.facing)
+        for k, v in pairs(fresh) do u[k] = v end
+        u.hp_max, u.armor, u.weapon = fresh.hp_max, fresh.armor, nil
+        local x, y = u.x, u.y
+        combat.init_unit(u)
+        u.home = { x = x, y = y }
+        u.hp = u.hp_max * hp_share
+        u.anim = nil   -- another model's sequences
+        if u.mana_max then u.mana = u.mana_max * mana_share end
+        for _, f in ipairs(g.morph_listeners) do f(u) end
         if spec.design == "building" then g.buildings_changed = true end
         return u
     end

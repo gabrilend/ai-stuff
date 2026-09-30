@@ -25,6 +25,22 @@ Workers put up buildings, as in WC3:
   cancel    the structure goes, the worker comes back, and 75% of the cost
             is refunded (CONSTRUCT_CANCEL)
 
+Repair, helping and upgrades (issue 535):
+
+  repair    a worker that repairs (the Ahrp / Arep / Aren abilities, else
+            human and orc workers and wisps) mends its own or an ally's
+            building or machine (classed "mechanical"): the whole of its
+            hit points over RepairTimeRatio (1.5) times its build time, at
+            RepairCostRatio (0.35) of its cost, paid as it goes; it stops
+            when the purse is empty. Repairers stack
+  helping   a human building going up takes more workers: its builder at
+            the full rate, each helper at the repair rate, paid as repair
+  upgrades  a building upgrades to a type in its uupt list (Town Hall to
+            Keep to Castle, towers): the new type's cost and build time,
+            its requirements; it can't train meanwhile; cancelling refunds
+            everything. When done it becomes the new type (g.morph), its
+            hit points in proportion (UPGRADE_START / _CANCEL / _FINISH)
+
 Footprints are STAND-INS by building size (the pathing textures, upat,
 aren't read yet).
 
@@ -32,6 +48,8 @@ aren't read yet).
     game.can_build(worker, id, x, y) -> true, or false and why
     game.build(worker, id, x, y)      -- the order
     game.cancel_build(building)
+    game.can_repair(worker, target), game.repair(worker, target)
+    game.upgrades(building), game.can_upgrade(b, id), game.upgrade(b, id), game.cancel_upgrade(b)
     construction.update(game, dt)
 ]]
 
@@ -65,6 +83,17 @@ local function living(g, id)
     return ANCIENTS[id] == true
 end
 construction.living = living
+
+-- a unit type's list: the map's (or the command card's stock lists), else
+-- the stock tables
+local function list(g, id, code)
+    local l = g.db.unit_list(id, code)
+    if #l > 0 then return l end
+    local D = g.data and g.data.units
+    return D and D.list and D:list(id, code) or {}
+end
+
+local REPAIRS = { Ahrp = true, Arep = true, Aren = true }
 
 local function race_of(g, u)
     local r = g.data and g.data.units:value(u.id, "urac")
@@ -128,7 +157,7 @@ function construction.init(g)
     function g.can_build(w, id, x, y)
         if not w or w.alive == false or w.spec.design ~= "unit" then return false, "can't build" end
         local listed = false
-        for _, b in ipairs(g.db.unit_list(w.id, "ubui")) do if b == id then listed = true end end
+        for _, b in ipairs(list(g, w.id, "ubui")) do if b == id then listed = true end end
         if not listed then return false, "can't build that" end
         local c = g.unit_cost(id)
         for _, r in ipairs(c.requires) do
@@ -177,26 +206,122 @@ function construction.init(g)
     end
     -- }}}
 
+    -- {{{ repair, and helping a building up
+    local function mechanical(u)
+        local t = g.data and g.data.units:value(u.id, "utyp")
+        return type(t) == "string" and t:lower():find("mechanical") ~= nil
+    end
+
+    function g.can_repair(w, t)
+        if not w or w.alive == false or w.spec.design ~= "unit" then return false, "can't repair" end
+        local able = false
+        for id in pairs(REPAIRS) do
+            if w.abilities and (w.abilities[id] or 0) > 0 then able = true end
+        end
+        if not able and w.spec.archetype == "worker" then
+            local r = race_of(g, w)
+            able = r == "human" or r == "orc" or r == "nightelf"
+        end
+        if not able then return false, "can't repair" end
+        if not t or t.alive == false or t.removed then return false, "nothing to repair" end
+        if t.player ~= w.player and not (g.allied and g.allied(t.player, w.player)) then
+            return false, "not yours"
+        end
+        if t.building_up then
+            if t.build_style ~= "human" or race_of(g, w) ~= "human" then return false, "can't help build that" end
+            return true
+        end
+        if t.spec.design ~= "building" and not mechanical(t) then return false, "only buildings and machines" end
+        if (t.hp or 0) >= (t.hp_max or 0) then return false, "not damaged" end
+        return true
+    end
+
+    function g.repair(w, t)
+        local ok, why = g.can_repair(w, t)
+        if not ok then return false, why end
+        g.order({ w }, "stop")
+        w.repair = { target = t }
+        w.order = { kind = "repair", target = t }
+        g.walk_to(w, t.x, t.y)
+        return true
+    end
+    -- }}}
+
+    -- {{{ upgrades
+    function g.upgrades(b) return list(g, b.id, "uupt") end
+
+    function g.can_upgrade(b, id)
+        if not b or b.alive == false or b.removed or b.spec.design ~= "building" then return false, "can't" end
+        if b.building_up then return false, "under construction" end
+        if b.upgrading then return false, "already upgrading" end
+        local listed = false
+        for _, u in ipairs(g.upgrades(b)) do if u == id then listed = true end end
+        if not listed then return false, "doesn't upgrade to that" end
+        if b.queue and #b.queue > 0 then return false, "busy training" end
+        local c = g.unit_cost(id)
+        for _, r in ipairs(c.requires) do
+            if not g.has_tech(b.player, r) then return false, "requires " .. r end
+        end
+        if g.tech_limit then
+            local max = g.tech_limit(b.player, id)
+            if max == 0 then return false, "not allowed" end
+            if max and g.tech_count(b.player, id) >= max then return false, "limit reached" end
+        end
+        local s = g.state(b.player)
+        if (s.gold or 0) < c.gold then return false, "not enough gold" end
+        if (s.lumber or 0) < c.lumber then return false, "not enough lumber" end
+        return true
+    end
+
+    function g.upgrade(b, id)
+        local ok, why = g.can_upgrade(b, id)
+        if not ok then return false, why end
+        local c = g.unit_cost(id)
+        local s = g.state(b.player)
+        s.gold, s.lumber = s.gold - c.gold, s.lumber - c.lumber
+        local t = math.max(1, c.time or 60)
+        b.upgrading = { to = id, left = t, time = t, gold = c.gold, lumber = c.lumber }
+        if g.script then g.script:unit_event("UPGRADE_START", b) end
+        return true
+    end
+
+    function g.cancel_upgrade(b)
+        local up = b and b.upgrading
+        if not up then return false end
+        local s = g.state(b.player)
+        s.gold, s.lumber = (s.gold or 0) + up.gold, (s.lumber or 0) + up.lumber
+        b.upgrading = nil
+        if g.script then g.script:unit_event("UPGRADE_CANCEL", b) end
+        return true
+    end
+    -- }}}
+
     -- any other order ends a worker's part (a human's building waits)
     local order = g.order
-    function g.order(list, kind, ...)
+    function g.order(units, kind, ...)
         if kind ~= "build" then
-            for _, u in ipairs(list) do
+            for _, u in ipairs(units) do
                 if u.construct and u.construct.phase ~= "inside" then
                     if u.construct.building then u.construct.building.builder = nil end
                     u.construct = nil
                 end
             end
         end
-        return order(list, kind, ...)
+        if kind ~= "repair" then
+            for _, u in ipairs(units) do u.repair = nil end
+        end
+        return order(units, kind, ...)
     end
 
-    -- a building going up can't train
+    -- a building going up, or upgrading, can't train
     local can_train = g.can_train
     function g.can_train(b, id)
         if b and b.building_up then return false, "under construction" end
+        if b and b.upgrading then return false, "upgrading" end
         return can_train(b, id)
     end
+
+    g.db.upgrades = function(b) return g.upgrades(b) end
 
     -- the natives ask what the structure being built is
     g.construction_events = true
@@ -274,16 +399,90 @@ function construction.step_worker(g, w, dt, fresh)
     end
 end
 
+-- {{{ repairers, a step at a time
+-- pay for a share of a unit's worth (fractions carried over); false when
+-- the purse can't
+local function charge(g, player, id, share)
+    local c = g.unit_cost(id)
+    local ratio = g.constants:get("RepairCostRatio") or 0.35
+    local s = g.state(player)
+    s.repair_owed = s.repair_owed or { gold = 0, lumber = 0 }
+    local o = s.repair_owed
+    local gold, lumber = o.gold + c.gold * ratio * share, o.lumber + c.lumber * ratio * share
+    local pay_g, pay_l = math.floor(gold), math.floor(lumber)
+    if (s.gold or 0) < pay_g or (s.lumber or 0) < pay_l then return false end
+    s.gold, s.lumber = s.gold - pay_g, s.lumber - pay_l
+    o.gold, o.lumber = gold - pay_g, lumber - pay_l
+    return true
+end
+
+function construction.step_repair(g, w, dt)
+    local r = w.repair
+    local t = r.target
+    local function done()
+        w.repair = nil
+        if w.order and w.order.kind == "repair" then w.order = nil end
+    end
+    if w.alive == false or not t or t.alive == false or t.removed then return done() end
+    local reach = (t.spec.design == "building" and footprint(t.spec) or 40) + construction.REACH
+    if (w.x - t.x) ^ 2 + (w.y - t.y) ^ 2 > reach * reach then
+        if not w.route then g.walk_to(w, t.x, t.y) end
+        return
+    end
+    w.route = nil
+    if w.mover then w.mover.dest = nil end
+    local time_ratio = g.constants:get("RepairTimeRatio") or 1.5
+    if t.building_up then
+        -- helping it up: counted by the building's step
+        t.helpers = (t.helpers or 0) + 1
+        return
+    end
+    if (t.hp or 0) >= (t.hp_max or 0) then return done() end
+    local c = g.unit_cost(t.id)
+    local share = dt / (math.max(1, c.time or 60) * time_ratio)
+    share = math.min(share, (t.hp_max - t.hp) / t.hp_max)
+    if not charge(g, w.player, t.id, share) then return done() end
+    t.hp = math.min(t.hp_max, t.hp + t.hp_max * share)
+    r.working = true
+end
+-- }}}
+
 function construction.update(g, dt)
     for _, u in ipairs(g.units) do
+        if u.building_up then u.helpers = 0 end
+    end
+    for _, u in ipairs(g.units) do
+        if u.repair then construction.step_repair(g, u, dt) end
+    end
+    local time_ratio = g.constants:get("RepairTimeRatio") or 1.5
+    for _, u in ipairs(g.units) do
+        -- an upgrade under way
+        local up = u.upgrading
+        if up and (u.alive == false or u.removed) then
+            u.upgrading = nil
+        elseif up then
+            up.left = up.left - dt
+            if up.left <= 0 then
+                u.upgrading = nil
+                g.morph(u, up.to)
+                if g.made then g.made(u, "upgraded") end
+                if g.script then g.script:unit_event("UPGRADE_FINISH", u) end
+            end
+        end
         if u.construct then construction.step_worker(g, u, dt, false) end
         if u.building_up and u.alive ~= false and not u.removed then
-            -- a human building rises only while its worker is at it
-            local working = u.build_style ~= "human" or (u.builder and u.builder.alive ~= false
-                and u.builder.construct and u.builder.construct.building == u)
+            -- a human building rises only while its worker (or a helper) is at it
+            local builder = u.builder and u.builder.alive ~= false
+                and u.builder.construct and u.builder.construct.building == u
+            local working = u.build_style ~= "human" or builder or (u.helpers or 0) > 0
             if u.build_style == nil then working = true end
             if working then
-                local share = dt / u.build_time
+                local share = (u.build_style ~= "human" or builder) and dt / u.build_time or 0
+                -- helpers: each at the repair rate, paid as repair
+                for _ = 1, u.helpers or 0 do
+                    local extra = dt / (u.build_time * time_ratio)
+                    if charge(g, u.player, u.id, extra) then share = share + extra end
+                end
                 u.progress = math.min(1, u.progress + share)
                 u.hp = math.min(u.hp_max or u.hp, u.hp + (u.hp_max or 0) * (1 - construction.START_HP) * share)
                 if u.progress >= 1 then

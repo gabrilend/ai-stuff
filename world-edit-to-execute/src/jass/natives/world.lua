@@ -648,7 +648,7 @@ return function(V, N, T)
     -- {{{ Orders
     local ORDER = { smart = 851971, stop = 851972, attack = 851983, move = 851986, patrol = 851990,
                     holdposition = 851993, attackground = 851984, harvest = 852018, resumeharvesting = 852017,
-                    returnresources = 852020 }
+                    returnresources = 852020, repair = 852024, cancel = 851976 }
     local ORDER_NAME = {}
     for k, v in pairs(ORDER) do ORDER_NAME[v] = k end
     N.OrderId = function(s) return ORDER[s] or 0 end
@@ -686,6 +686,10 @@ return function(V, N, T)
             and u.spec and u.spec.archetype == "worker" then
             return W.order({ u }, "gather", t.x, t.y, t) and true or false
         end
+        -- repair (issue 535): a building or machine, or helping one up
+        if name == "repair" or (name == "smart" and W.can_repair and u.player == t.player and (W.can_repair(u, t))) then
+            return (W.repair and W.repair(u, t)) and true or false
+        end
         if name == "attack" or (name == "smart" and W.allied and not W.allied(u.player, t.player)) then
             W.order({ u }, "attack_unit", nil, nil, t)
         elseif name == "move" or name == "smart" then
@@ -700,8 +704,20 @@ return function(V, N, T)
         name = type(name) == "number" and ORDER_NAME[name] or name
         local spell = type(name) == "string" and spell_for(u, name)
         if spell then return (W.cast(u, spell)) and true or false end
+        -- a unit type's id: a building's upgrade, else training it
+        if type(name) == "number" and W.upgrade then
+            local id = vm.id2s(name)
+            if W.can_upgrade and W.can_upgrade(u, id) then return (W.upgrade(u, id)) and true or false end
+            if W.train then return (W.train(u, id)) and true or false end
+            return false
+        end
         if name == "stop" then W.order({ u }, "stop")
         elseif name == "holdposition" then W.order({ u }, "hold")
+        elseif name == "cancel" then
+            if u.upgrading and W.cancel_upgrade then return W.cancel_upgrade(u) end
+            if u.building_up and W.cancel_build then return W.cancel_build(u) end
+            if u.queue and #u.queue > 0 and W.cancel_train then return W.cancel_train(u) end
+            return false
         else return false end
         return true
     end

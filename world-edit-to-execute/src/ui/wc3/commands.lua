@@ -141,6 +141,12 @@ function commands.card(unit, db, mode)
                       action = "cancel_build", tip = "Stop building it, and get most of its cost back." }, 3, 2)
         return card
     end
+    -- a building upgrading: only Cancel (issue 535)
+    if spec.design == "building" and unit.upgrading then
+        place(card, { id = "cancel_upgrade", label = "Cancel", hotkey = "ESCAPE", icon = "cancel",
+                      action = "cancel_upgrade", tip = "Stop the upgrade, and get its cost back." }, 3, 2)
+        return card
+    end
     -- a shop or tavern: what it sells, with how many are in stock (issue 533)
     local sold = db.shop_stock and db.shop_stock(unit) or {}
     if #sold > 0 then
@@ -169,6 +175,13 @@ function commands.card(unit, db, mode)
                           action = "revive", target = hero, tip = "Bring this hero back." }, nil, nil, { 0, 1 })
         end
         if #trains > 0 or (db.revivable and #db.revivable(unit) > 0) then stock(card, "rally") end
+        -- what it upgrades to (a hall's Keep, a tower's kinds: issue 535)
+        for _, id in ipairs(db.upgrades and db.upgrades(unit) or {}) do
+            local info = db.unit_button(id) or {}
+            place(card, { id = id, label = "Upgrade to " .. (info.name or id), hotkey = info.hotkey,
+                          icon = "structure", action = "upgrade", target = id, tip = info.tip },
+                  info.x, info.y, { 0, 1, 2 })
+        end
     else
         for _, key in ipairs({ "move", "stop", "hold", "attack", "patrol" }) do stock(card, key) end
         if spec.archetype == "worker" then

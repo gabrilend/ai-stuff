@@ -43,6 +43,7 @@ gc.DEFAULTS = {
     ReviveMaxFactor = 4, ReviveTimeFactor = 0.65, ReviveMaxTimeFactor = 2,
     HeroReviveManaFactor = 0, HeroReviveLifeFactor = 1,
     HeroAbilityLevelSkip = 2,
+    RepairCostRatio = 0.35, RepairTimeRatio = 1.5,
     -- the damage table: per attack type, one factor per armour type in
     -- ARMOR order
     DamageBonusNormal = { 1.00, 1.50, 1.00, 0.70, 1.00, 1.00, 0.05, 1.00 },
