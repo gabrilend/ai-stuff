@@ -24,6 +24,8 @@ written):
   war3mapEditor.lua the editor's triggers and variables, as blocks
   war3mapAI\pNN.lua the computer players' AI profiles edited
                     (editor/ai.lua)
+  imports           files imported, replaced, renamed or taken out
+                    (editor/imports.lua)
 
     require("editor.save")(E)     -- editor/init.lua does this
     E:save(path)                  -- true and a report, or nil and why
@@ -173,6 +175,7 @@ return function(E)
         if self.dirty.units and self.units_doo then files["war3mapUnits.doo"] = unitsdoo.write(self.units_doo) end
         if self.object_files then self:object_files(files) end
         if self.ai_files then self:ai_files(files) end
+        if self.import_files then self:import_files(files) end
         if self.dirty.w3r and self.w3r then files["war3map.w3r"] = require("parsers.w3r").write(self.w3r) end
         if (self.dirty.script or #self.new_units > 0) and self.script_name then
             local text, why = self:script_text()

@@ -12,6 +12,8 @@ archive, the changed files go in the old one's way:
   added     likewise, with a new block table entry (the block table is
             written again at the end, longer) and a hash entry in the
             first free slot on the name's probe
+  removed   (issue 908) its hash entries marked deleted, its block
+            entries emptied
   header    the archive size, and where the block table now is
 
 The tables are found through the archive's header (at a 512-byte step:
@@ -95,8 +97,9 @@ end
 -- }}}
 
 -- {{{ patch.apply
--- files: { name = bytes }. The archive's new bytes, and a report
--- { replaced = n, added = n }; or nil and a message.
+-- files: { name = bytes, or false to take the file out }. The
+-- archive's new bytes, and a report { replaced = n, added = n,
+-- removed = n }; or nil and a message.
 function patch.apply(bytes, files)
     -- the header: "MPQ\26" at a 512-byte step
     local base
@@ -130,9 +133,41 @@ function patch.apply(bytes, files)
     local names = {}
     for name in pairs(files) do names[#names + 1] = name end
     table.sort(names)
+    local removed = 0
     for _, name in ipairs(names) do
         local data = files[name]
         local a, b = hash(name, 1), hash(name, 2)
+        if data == false then
+            -- taken out: its hash entries marked deleted (the probe goes on
+            -- past them), its block entries emptied
+            local start = hash(name, 0) % hash_n
+            for k = 0, hash_n - 1 do
+                local slot = (start + k) % hash_n
+                local blk = unsigned(H[slot * 4 + 3])
+                if blk == 0xFFFFFFFF then break end
+                if blk ~= 0xFFFFFFFE and unsigned(H[slot * 4]) == a and unsigned(H[slot * 4 + 1]) == b then
+                    blocks[blk] = { 0, 0, 0, 0 }
+                    H[slot * 4 + 3] = tobit(0xFFFFFFFE)
+                    if not how[name] then removed = removed + 1 end
+                    how[name] = "removed"
+                end
+            end
+            -- a file with no known name, as StormLib lists it
+            -- ("File00000041.mdx": its block): every hash entry for that block
+            local blk_named = name:match("^File(%d+)%.[^.\\]*$")
+            if not how[name] and blk_named then
+                local want = tonumber(blk_named)
+                for slot = 0, hash_n - 1 do
+                    if unsigned(H[slot * 4 + 3]) == want then
+                        H[slot * 4 + 3] = tobit(0xFFFFFFFE)
+                        blocks[want] = { 0, 0, 0, 0 }
+                        if not how[name] then removed = removed + 1 end
+                        how[name] = "removed"
+                    end
+                end
+            end
+            goto continue
+        end
         local start = hash(name, 0) % hash_n
         -- the name's entries along its probe (every locale), and the first free slot
         local found, free = {}, nil
@@ -163,6 +198,7 @@ function patch.apply(bytes, files)
             added = added + 1
             how[name] = "added"
         end
+        ::continue::
     end
     -- the block table again, at the end
     local B = ffi.new("int32_t[?]", math.max(1, block_n * 4))
@@ -183,7 +219,7 @@ function patch.apply(bytes, files)
     all = all:sub(1, base + 8) .. u32_str(size - base) .. all:sub(base + 13)
     all = all:sub(1, base + 20) .. u32_str(new_block_pos) .. all:sub(base + 25)
     all = all:sub(1, base + 28) .. u32_str(block_n) .. all:sub(base + 33)
-    return all, { replaced = replaced, added = added, names = how }
+    return all, { replaced = replaced, added = added, removed = removed, names = how }
 end
 -- }}}
 

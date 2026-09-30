@@ -722,7 +722,7 @@ Also done in `demo/wc3map/`, outside the 70x numbering:
 | 905 | Trigger editor | GUI + Lua with bidirectional sync | First pass (905a): blocks written as JASS, the map's own triggers edited as code |
 | 906 | Object editor | Modify unit/ability/item stats | First pass: fields, custom types, all 7 kinds |
 | 907 | Sound editor | 3D sounds, music, ambience | |
-| 908 | Import manager | Custom asset management | |
+| 908 | Import manager | Custom asset management | First pass (908a): files named, checked, imported, renamed, deleted |
 | 909 | AI editor | Computer player behavior | First pass (909a): AI Editor profiles edited, saved into the map |
 | 910 | Campaign editor | Multi-map storylines | |
 | 911 | Map format and export | Standard .w3x export | 911a done: WC3 files written back, copies saved in place |

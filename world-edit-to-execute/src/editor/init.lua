@@ -20,6 +20,8 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              (editor/triggers.lua)
   AI         the computer players' AI Editor profiles, saved into the map
              (editor/ai.lua)
+  imports    the files the map carries: imported, replaced, renamed,
+             taken out, exported, checked (editor/imports.lua)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -91,6 +93,7 @@ function editor.open(path, opts)
     require("editor.object_data")(E)
     require("editor.regions")(E)
     require("editor.ai")(E)
+    require("editor.imports")(E)
     self:load_objects()
     self:load_regions()
     return self

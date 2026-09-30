@@ -6,7 +6,8 @@ window itself (editor/main.lua) so tests can drive it:
 
   toolbar     the tools (select, the terrain brushes, doodads, units) and
               Triggers (the trigger editor over the view: editor/trigger_ui.lua),
-              AI (the AI editor over the view: editor/ai_ui.lua),
+              AI (the AI editor over the view: editor/ai_ui.lua), Files
+              (the import manager: editor/imports_ui.lua),
               Undo, Redo, Save, Test
   palette     on the left, for the tool in hand: brush size and strength,
               the map's ground textures, its doodad types or unit types
@@ -40,8 +41,10 @@ editor_ui.TOOLBAR = {
     { "cliff_up", "Cliff +" }, { "cliff_down", "Cliff -" }, { "blight", "Blight" },
     { "place_doodad", "Doodads" }, { "place_unit", "Units" }, { "regions", "Regions" },
 }
-editor_ui.COMMANDS = { { "triggers", "Triggers" }, { "ai", "AI" }, { "undo", "Undo" }, { "redo", "Redo" },
-                       { "save", "Save" }, { "test", "Test" } }
+editor_ui.COMMANDS = { { "triggers", "Triggers" }, { "ai", "AI" }, { "files", "Files" }, { "undo", "Undo" },
+                       { "redo", "Redo" }, { "save", "Save" }, { "test", "Test" } }
+-- the panels over the view each command opens
+editor_ui.PANELS = { triggers = "editor.trigger_ui", ai = "editor.ai_ui", files = "editor.imports_ui" }
 editor_ui.PAGE = 18
 editor_ui.STROKE_EVERY = 0.05
 
@@ -68,12 +71,15 @@ function EUI:layout()
     local b = {}
     local x = 8
     for _, t in ipairs(editor_ui.TOOLBAR) do
-        b[#b + 1] = { x = x, y = 6, w = 60, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
-        x = x + 64
+        b[#b + 1] = { x = x, y = 6, w = 56, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
+        x = x + 60
     end
-    x = self.w - 8 - (72 + 40 + 4 * 56 + 6 * 4)
+    local widths = { triggers = 72, ai = 36, files = 48 }
+    local total = 0
+    for _, c in ipairs(editor_ui.COMMANDS) do total = total + (widths[c[1]] or 52) + 4 end
+    x = self.w - 4 - total
     for _, c in ipairs(editor_ui.COMMANDS) do
-        local w = c[1] == "triggers" and 72 or (c[1] == "ai" and 40 or 56)
+        local w = widths[c[1]] or 52
         b[#b + 1] = { x = x, y = 6, w = w, h = 26, label = c[2], action = c[1], active = self.tui ~= nil and self.panel == c[1] }
         x = x + w + 4
     end
@@ -157,12 +163,11 @@ end
 function EUI:press(b)
     local E = self.E
     local a = b.action
-    if a == "triggers" or a == "ai" then
-        -- a panel over the view: the trigger editor or the AI editor; its
-        -- button again closes it
+    if editor_ui.PANELS[a] then
+        -- a panel over the view (the trigger editor, the AI editor, the
+        -- import manager); its button again closes it
         if self.tui and self.panel == a then self.tui, self.panel = nil, nil
-        elseif a == "triggers" then self.tui, self.panel = require("editor.trigger_ui").new(E, self.w, self.h), a
-        else self.tui, self.panel = require("editor.ai_ui").new(E, self.w, self.h, { root = self.opts.root }), a end
+        else self.tui, self.panel = require(editor_ui.PANELS[a]).new(E, self.w, self.h, { root = self.opts.root }), a end
     elseif a == "tool" then E:set_tool(b.arg); self.page = 0; self.tui, self.panel = nil, nil
     elseif a == "undo" then E:undo()
     elseif a == "redo" then E:redo()
@@ -391,7 +396,7 @@ function EUI:draw(ui)
         text(string.format("%.0f, %.0f  to  %.0f, %.0f", r.left, r.bottom, r.right, r.top), 8, 66, 14, C.text)
     end
     -- the status line
-    local ai_changed = next(E.dirty.ai or {}) ~= nil
+    local ai_changed = next(E.dirty.ai or {}) ~= nil or E.dirty.imports
     local dirty = (E.dirty.terrain or E.dirty.doodads or E.dirty.units or E.dirty.script or ai_changed)
         and "  (unsaved)" or ""
     local where = self.ground and string.format("%.0f, %.0f", self.ground[1], self.ground[2]) or "-"
