@@ -725,7 +725,7 @@ Also done in `demo/wc3map/`, outside the 70x numbering:
 | 908 | Import manager | Custom asset management | First pass (908a): files named, checked, imported, renamed, deleted |
 | 909 | AI editor | Computer player behavior | First pass (909a): AI Editor profiles edited, saved into the map |
 | 910 | Campaign editor | Multi-map storylines | |
-| 911 | Map format and export | Standard .w3x export | 911a: WC3 files written back, copies saved in place; 911b: new maps from scratch |
+| 911 | Map format and export | Standard .w3x export | 911a: WC3 files written back, copies saved in place; 911b: new maps from scratch; 911c: map projects (.wex) |
 | 912 | Phase 9 integration test | Full editor workflow testing | 912a: one new map through every part of the editor, saved, reopened, played |
 
 ### Key Features

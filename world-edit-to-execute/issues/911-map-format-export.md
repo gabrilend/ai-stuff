@@ -292,3 +292,20 @@ EXPORT VALIDATION: WC3
 **Still open:**
 - The unified project format.
 - Checking `war3mapUnits.doo`'s record layout against a map with placed units.
+
+*(2026-09-30, third part: 911c)*
+
+**The unified format** (sub-issue 911c): `editor/mapfile.lua`.
+- A map becomes a project folder (or one `.wex` file). Its data is text where it can be: map info, terrain rows, doodads, units, regions, object types, scripts.
+- Assets, other files and unnamed files are kept as they are, and the archive's hash table is kept too.
+- Building gives back a map that finds every file, named or not, where it did.
+- Lightweight projects, validation, and the WoW layer reserved (left out of a WC3 build).
+- The editor opens and saves projects.
+- Checks passed:
+  - Unified format saves all map data.
+  - Unified format loads correctly.
+  - WC3 import converts to the unified format.
+  - Validation reports export issues.
+  - Lightweight export excludes assets.
+  - The format is version-control friendly.
+- **Still open:** mode-specific data, since there's no WoW layer yet.

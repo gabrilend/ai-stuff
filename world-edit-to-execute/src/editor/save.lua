@@ -193,6 +193,23 @@ return function(E)
     end
 
     function E:save(path)
+        -- a project (issue 911c): the map saved, then written back as the project
+        if not path and self.project then
+            local tmp = os.tmpname() .. ".w3x"
+            local ok, rep = self:save(tmp)
+            if not ok then return nil, rep end
+            local mapfile = require("editor.mapfile")
+            local m = mapfile.read_data(io.open(self.project_dir .. "/manifest.lua"):read("*a"), "manifest")
+            local eok, err = mapfile.export(tmp, self.project_dir, { lightweight = m and m.lightweight })
+            os.remove(tmp)
+            if not eok then return nil, err end
+            if self.project_packed then
+                local pok, perr = mapfile.pack(self.project_dir, self.project)
+                if not pok then return nil, perr end
+            end
+            self:say("Saved the project " .. self.project)
+            return true, rep
+        end
         local files, why = self:files()
         if not files then return nil, why end
         local ok, report = mpq.save_copy(self.path, path, files)
