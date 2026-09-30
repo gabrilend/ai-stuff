@@ -220,6 +220,23 @@ function Hud:press(b)
         if ok and (hero.skill_points or 0) <= 0 then self.mode = "main" end
     elseif a == "learn" then
         self.mode = "learn"
+    elseif a == "ability" and self.game.cast then
+        -- a spell: at once when it needs no target, else pick one
+        if b.target_kind == "none" then
+            local why
+            for _, u in ipairs(sel) do
+                if u.abilities and (u.abilities[b.target] or 0) > 0 then
+                    local ok, reason = self.game.cast(u, b.target)
+                    if ok then return end
+                    why = why or reason
+                end
+            end
+            self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't cast that") .. ".")
+        else
+            self.targeting, self.spell = "cast", b.target
+        end
+    elseif a == "passive" then
+        self:message(b.label .. " works on its own.")
     elseif a == "revive" and self.game.revive then
         local why
         for _, u in ipairs(sel) do
@@ -265,6 +282,16 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "cast" and self.game.cast then
+        local why
+        for _, u in ipairs(self:own_selection()) do
+            if u.abilities and (u.abilities[self.spell] or 0) > 0 then
+                local ok, reason = self.game.cast(u, self.spell, unit, x, y)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't cast that") .. ".")
     elseif order == "gather" and self.game.gather then
         if not self.game.order(self:own_selection(), "gather", x, y, unit) then
             self:message("Nothing to gather there.")

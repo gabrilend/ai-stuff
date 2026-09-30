@@ -178,6 +178,11 @@ function vm.new(world, opts)
         if chained_attack then chained_attack(u, target) end
         V:unit_event("ATTACKED", target, { attacker = u })
     end
+    local chained_damaged = V.world.on_damaged
+    V.world.on_damaged = function(t, src, amount)
+        if chained_damaged then chained_damaged(t, src, amount) end
+        V:unit_event("DAMAGED", t, { damage = amount, attacker = src })
+    end
     local chained_trained = V.world.on_trained
     V.world.on_trained = function(b, u)
         if chained_trained then chained_trained(b, u) end

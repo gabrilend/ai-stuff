@@ -159,7 +159,7 @@ local function nearest_hostile(game, u, r)
             local list = game.buckets[bx * 65536 + by]
             if list then
                 for _, v in ipairs(list) do
-                    if v.alive and not v.invulnerable and not v.hidden and combat.hostile(game, u, v)
+                    if v.alive and not v.invulnerable and not v.buff_invulnerable and not v.hidden and combat.hostile(game, u, v)
                         and (not game.vision or game.vision:sees(u.player, v, true)) then
                         local d = (v.x - u.x) ^ 2 + (v.y - u.y) ^ 2
                         if d < best_d then best, best_d = v, d end
@@ -199,9 +199,17 @@ function combat.kill(game, target, attacker)
     if game.on_death then game.on_death(target, attacker) end
 end
 
-function combat.damage(game, attacker, target, amount)
-    if not target.alive or target.invulnerable then return end
-    target.hp = target.hp - combat.reduce(amount, target.armor)
+-- opts.spell: a spell's damage (armour doesn't reduce it; the caller has
+-- applied the damage table)
+function combat.damage(game, attacker, target, amount, opts)
+    if not target.alive or target.invulnerable or target.buff_invulnerable then return end
+    local dealt = amount
+    if not (opts and opts.spell) then
+        dealt = combat.reduce(amount, (target.armor or 0) + (target.armor_bonus or 0))
+    end
+    target.hp = target.hp - dealt
+    for _, f in ipairs(game.damage_listeners or {}) do f(target, attacker, dealt) end
+    if game.on_damaged then game.on_damaged(target, attacker, dealt) end
     target.last_hit = game.time
     target.last_attacker = attacker
     if target.hp <= 0 then
@@ -220,6 +228,8 @@ end
 local function strike(game, u, t)
     local w = u.weapon
     local amount = w.dmg_lo + math.random() * (w.dmg_hi - w.dmg_lo)
+    -- attack passives and damage buffs (issue 529)
+    if game.modify_strike then amount = game.modify_strike(u, t, amount) end
     if w.missile > 0 then
         local a = game.volley:loose(u.x, u.y, u.z + 60, t, w.missile, 0.15, t.spec.design == "building" and 80 or 45)
         a.damage, a.source = amount, u
@@ -236,7 +246,7 @@ end
 function combat.update(game, dt)
     build_buckets(game)
     for _, u in ipairs(game.units) do
-        if u.alive and u.weapon and not u.paused then
+        if u.alive and u.weapon and not u.paused and not u.stunned and not u.casting then
             u.cooldown = math.max(0, u.cooldown - dt)
             local o = u.order
             local moving = o and o.kind == "move"
@@ -246,7 +256,7 @@ function combat.update(game, dt)
             local t = u.target
             local lost = t and game.vision and not game.vision:sees(u.player, t, true)
                 and not (u.last_attacker == t and game.time - (u.last_hit or -99) < 2)
-            if t and (not t.alive or t.invulnerable or not combat.hostile(game, u, t) or lost) then
+            if t and (not t.alive or t.invulnerable or t.buff_invulnerable or not combat.hostile(game, u, t) or lost) then
                 u.target, t = nil, nil
                 if o and o.kind == "attack_unit" then u.order = nil end
             end
@@ -296,7 +306,7 @@ function combat.update(game, dt)
                         end
                     elseif u.cooldown <= 0 and (off <= math.rad(20) or u.spec.design == "building") then
                         u.swing, u.struck = 0, false
-                        u.cooldown = u.weapon.cooldown
+                        u.cooldown = u.weapon.cooldown / (u.attack_mult or 1)
                         if game.on_attack then game.on_attack(u, t) end
                     end
                 end

@@ -174,7 +174,9 @@ do
     test("not twice", not g.revive(altar, hero))
     for _ = 1, math.ceil(time * 60) + 5 do g.tick(1 / 60) end
     test("back on its feet", hero.alive == true and hero.hp == hero.hp_max)
-    test("with DAoW's revival mana (25%)", near(hero.mana, hero.mana_max * 0.25))
+    -- (regeneration adds a little over the frames after)
+    test("with DAoW's revival mana (25%, and regenerating)", hero.mana >= hero.mana_max * 0.25
+        and hero.mana < hero.mana_max * 0.3, hero.mana .. " of " .. hero.mana_max)
     test("the script heard it", revived == 1)
 end
 -- }}}
