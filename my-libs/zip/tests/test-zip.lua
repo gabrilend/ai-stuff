@@ -341,7 +341,7 @@ end)
 kit.check("a link becomes a one-line note, even with a line break in its target", function()
     local folder = extract_built("note", build({ { name = "x", data = "/tmp/a\nb", type = 0xA000, mode = 511 } }))
     local note = kit.read_file(folder .. "/x.symlink.txt")
-    kit.same(note:match("^[^\n]*"), "This was a symbolic link to: /tmp/a\\x0ab", "one line")
+    kit.same(note:match("^[^\n]*"), "This was a symbolic link to: /tmp/a\\x0Ab", "one line")
     -- a link name that fits alone but not with ".symlink.txt" after it
     refused("long-link", build({ { name = string.rep("n", 235), data = "/x", type = 0xA000, mode = 511 } }), "bad-name")
 end)
@@ -414,6 +414,10 @@ kit.check("the packer refuses what it cannot send, and a file that changes while
     kit.refuses(function() writer.pack(folder, fresh("pipe-zip") .. ".zip") end, "device, pipe or socket")
     -- a /proc file is listed with 0 bytes and reads as more: the torn case
     kit.refuses(function() writer.pack("/proc/version", fresh("proc-zip") .. ".zip") end, "changed while it was packed")
+    -- a path that is not there makes no zip at all, not an empty one
+    local gone = fresh("gone")
+    kit.refuses(function() writer.pack(gone .. "/nothing-here", gone .. ".zip") end, "could not list")
+    kit.same(io.open(gone .. ".zip", "rb"), nil, "no zip left behind")
 end)
 
 -- {{{ local function bits_to_bytes

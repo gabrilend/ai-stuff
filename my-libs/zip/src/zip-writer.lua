@@ -79,13 +79,18 @@ end
 -- The tree under path, parents before children: find -H follows path
 -- itself when it is a link and no link below it.  Each item: { type
 -- ("f" | "d" | "l" | other), mode (permission bits), time (whole
--- seconds), size, relative (path below the top, "" for the top), target
--- (a link's target) }.  Fields travel NUL-separated, so any name is safe.
+-- seconds), stamp (the modified time as find wrote it, to the fraction of
+-- a second: what the changed-while-packing check compares), size,
+-- relative (path below the top, "" for the top), target (a link's
+-- target) }.  Fields travel NUL-separated, so any name is safe.
 local function listing(path)
     local pipe = io.popen("find -H " .. quote(path) .. " -printf '%y\\0%m\\0%T@\\0%s\\0%P\\0%l\\0'")
     local all = pipe:read("*a")
-    local ok = pipe:close()
-    if not ok then
+    pipe:close()
+    -- Nothing listed: the path is gone or unreadable (find says why on its
+    -- error stream).  Checked by what was printed, since LuaJIT's close
+    -- of a pipe does not report the program's exit status.
+    if all == "" then
         error("zip-writer: could not list " .. path, 0)
     end
     local fields = {}
@@ -98,7 +103,7 @@ local function listing(path)
     local items = {}
     for at = 1, #fields, 6 do
         items[#items + 1] = { type = fields[at], mode = tonumber(fields[at + 1], 8),
-                              time = math.floor(tonumber(fields[at + 2])), size = tonumber(fields[at + 3]),
+                              time = math.floor(tonumber(fields[at + 2])), stamp = fields[at + 2], size = tonumber(fields[at + 3]),
                               relative = fields[at + 4], target = fields[at + 5] }
     end
     return items
@@ -194,7 +199,7 @@ function writer.pack(path, zip_path)
         local same = #after == #before
         for index = 1, #before do
             local a, b = before[index], after[index]
-            if not same or a.relative ~= b.relative or a.size ~= b.size or a.time ~= b.time
+            if not same or a.relative ~= b.relative or a.size ~= b.size or a.stamp ~= b.stamp
                     or a.type ~= b.type or a.target ~= b.target then
                 same = false
                 break

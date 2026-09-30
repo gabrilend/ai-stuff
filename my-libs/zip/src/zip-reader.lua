@@ -359,14 +359,15 @@ end
 -- }}}
 
 -- {{{ local function note_text
--- A link's note: where it pointed, as one readable line (control bytes
--- shown as \xNN), and why it was not made.
+-- A link's note, two lines, word for word as rmail #404a first wrote it:
+-- where it pointed, as one readable line (control bytes and backslashes
+-- shown as \xNN in capitals), then why it was not made.
 local function note_text(target)
     local shown = target:gsub("[%z\1-\31\127\\]", function(c)
-        return string.format("\\x%02x", c:byte())
+        return string.format("\\x%02X", c:byte())
     end)
     return "This was a symbolic link to: " .. shown .. "\n"
-        .. "It was not recreated, because a link can point at any file on this\n"
+        .. "It was not recreated, because a link can point at any file on this "
         .. "computer. If it is valid here, make it by hand.\n"
 end
 -- }}}
