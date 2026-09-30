@@ -184,6 +184,17 @@ function commands.card(unit, db, mode)
                           action = "revive", target = hero, tip = "Bring this hero back." }, nil, nil, { 0, 1 })
         end
         if #trains > 0 or (db.revivable and #db.revivable(unit) > 0) then stock(card, "rally") end
+        -- what it researches, with the level next (issue 542)
+        for _, id in ipairs(db.researches and db.researches(unit) or {}) do
+            local info = db.research_button(id) or {}
+            local lvl = db.next_research_level and db.next_research_level(unit, id) or 1
+            local done = info.max and lvl > info.max
+            place(card, { id = id, label = "Research " .. (info.name or id)
+                              .. ((info.max or 1) > 1 and not done and (" (level " .. lvl .. ")") or ""),
+                          hotkey = info.hotkey, icon = "ability", action = "research", target = id, tip = info.tip,
+                          disabled = done or nil },
+                  info.x, info.y, { 0, 1, 2 })
+        end
         -- what it upgrades to (a hall's Keep, a tower's kinds: issue 535)
         for _, id in ipairs(db.upgrades and db.upgrades(unit) or {}) do
             local info = db.unit_button(id) or {}

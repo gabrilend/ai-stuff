@@ -63,6 +63,7 @@ local effects = require("demo.wc3map.effects")
 local construction = require("demo.wc3map.construction")
 local items = require("demo.wc3map.items")
 local shops = require("demo.wc3map.shops")
+local research = require("demo.wc3map.research")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -604,6 +605,7 @@ function game_mod.new(scene, opts)
     abilities.init(g)
     items.init(g)
     shops.init(g)
+    research.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
     function g.stats_report()

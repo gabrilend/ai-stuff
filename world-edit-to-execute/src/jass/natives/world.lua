@@ -216,11 +216,30 @@ return function(V, N, T)
     -- tech limits (training lists aren't driven by the script yet: kept)
     N.SetPlayerTechMaxAllowed = function(p, id, max) if p then p.tech_max[vm.id2s(id)] = max end end
     N.GetPlayerTechMaxAllowed = function(p, id) return p and p.tech_max[vm.id2s(id)] or -1 end
+    -- research (issue 542): the game's levels, applied to the player's units
     N.SetPlayerTechResearched = function(p, id, level)
-        if p then p.research = p.research or {}; p.research[vm.id2s(id)] = level end
+        if not p then return end
+        if W.set_research then W.set_research(p.id, vm.id2s(id), level)
+        else p.research = p.research or {}; p.research[vm.id2s(id)] = level end
     end
+    N.AddPlayerTechResearched = function(p, id, levels)
+        if not p then return end
+        local s = vm.id2s(id)
+        local have = W.research_level and W.research_level(p.id, s) or (p.research and p.research[s]) or 0
+        N.SetPlayerTechResearched(p, id, have + (levels or 1))
+    end
+    -- a research's level, else how many of a unit type the player has
     N.GetPlayerTechCount = function(p, id, specific)
-        return p and p.research and p.research[vm.id2s(id)] or 0
+        if not p then return 0 end
+        local s = vm.id2s(id)
+        local lvl = W.research_level and W.research_level(p.id, s) or (p.research and p.research[s]) or 0
+        if lvl > 0 then return lvl end
+        if W.tech_count and #s == 4 and not s:match("^R") then return W.tech_count(p.id, s) end
+        return 0
+    end
+    N.GetPlayerTechResearched = function(p, id, specific)
+        local s = vm.id2s(id)
+        return p ~= nil and ((W.research_level and W.research_level(p.id, s)) or 0) > 0
     end
     N.SetPlayerAbilityAvailable = function(p, id, avail) if p then p.abilities_off[vm.id2s(id)] = not avail or nil end end
     N.SetPlayerHandicap = function(p, h) if p then p.handicap = h end end
@@ -708,6 +727,7 @@ return function(V, N, T)
         if type(name) == "number" and W.upgrade then
             local id = vm.id2s(name)
             if W.can_upgrade and W.can_upgrade(u, id) then return (W.upgrade(u, id)) and true or false end
+            if W.can_research and W.can_research(u, id) then return (W.research(u, id)) and true or false end
             if W.train then return (W.train(u, id)) and true or false end
             return false
         end

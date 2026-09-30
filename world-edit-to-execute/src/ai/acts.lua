@@ -5,7 +5,8 @@ The game's construction, shops, heroes' skills, items and spells, for a
 computer player (ai/player.lua). Scripts still decide what to make; this
 is how it gets made, and what units do by themselves in a fight:
 
-  making     AI:produce(id) makes id however it's made: upgrading a
+  making     AI:produce(id) makes id however it's made: researching it
+             where it's researched (issue 542), upgrading a
              building that upgrades to it (a Keep), training it where it's
              trained, hiring it at a tavern or camp that sells it to the
              player (a unit walks there first), else building it with a
@@ -78,6 +79,23 @@ return function(AI)
             end
         end
         return nil
+    end
+
+    -- a building of ours that researches id, the shortest queue first (issue 542)
+    function AI:researcher(id)
+        local g = self.game
+        if not g.can_research then return nil end
+        local best, bq, why
+        for _, b in ipairs(self:units(function(u) return u.spec.design == "building" end)) do
+            local listed = false
+            for _, r in ipairs(g.researches(b)) do if r == id then listed = true end end
+            if listed then
+                local ok, reason = g.can_research(b, id)
+                if ok and (not bq or #(b.queue or {}) < bq) then best, bq = b, #(b.queue or {}) end
+                why = why or (not ok and reason)
+            end
+        end
+        return best, why
     end
 
     -- a shop that sells id to us (a tavern's hero, a camp's mercenary)
@@ -212,6 +230,8 @@ return function(AI)
             if u.upgrading and u.upgrading.to == id then n = n + 1 end
         end
         for _, h in ipairs(self.hiring or {}) do if h.id == id then n = n + 1 end end
+        -- a research: its level counts (issue 542)
+        if self.game.research_level then n = n + self.game.research_level(self.player, id) end
         return n
     end
     -- }}}

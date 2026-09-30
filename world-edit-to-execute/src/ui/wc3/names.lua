@@ -94,6 +94,16 @@ names.UPGRADES = {
     etol = { "etoa" }, etoa = { "etoe" },
 }
 
+-- what stock buildings research (from memory, as above; the install's
+-- tables say for certain)
+names.RESEARCHES = {
+    hbla = { "Rhme", "Rhar", "Rhra", "Rhla" }, hbar = { "Rhde", "Rhri", "Rhan" },
+    hars = { "Rhpt", "Rhst" }, hlum = { "Rhlh", "Rhac" },
+    ofor = { "Rome", "Roar", "Rora" }, obar = { "Robs", "Rotr", "Ropg" },
+    ugrv = { "Rume", "Ruar", "Rura" }, uslh = { "Rusp", "Rupc" },
+    edob = { "Resm", "Resw", "Rerh" }, eaom = { "Reib", "Remk" },
+}
+
 -- {{{ names.unit / names.ability
 function names.unit(id) return names.UNITS[id] end
 function names.ability(id) return names.ABILITIES[id] end

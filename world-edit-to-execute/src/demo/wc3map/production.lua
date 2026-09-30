@@ -83,6 +83,7 @@ function production.init(g)
 
     -- {{{ requirements: a living unit (or finished research) of each id
     function g.has_tech(player, id)
+        if g.research_level and g.research_level(player, id) > 0 then return true end
         local ps = g.script and g.script.players[player]
         if ps and ps.research and (ps.research[id] or 0) > 0 then return true end
         for _, u in ipairs(g.units) do
@@ -159,6 +160,7 @@ function production.init(g)
         purse.gold, purse.lumber = purse.gold + q.gold, purse.lumber + q.lumber
         if q.token then purse.hero_tokens = (tonumber(purse.hero_tokens) or 0) + 1 end
         if q.revive then q.revive.reviving = nil end
+        if q.research and g.research_cancelled then g.research_cancelled(b, q) end
         return true
     end
 
@@ -177,7 +179,11 @@ function production.update(g, dt)
             else
                 local head = q[1]
                 head.left = head.left - dt
-                if head.left <= 0 and head.revive then
+                if head.left <= 0 and head.research then
+                    -- a research done (issue 542)
+                    table.remove(q, 1)
+                    if g.research_done then g.research_done(b, head) end
+                elseif head.left <= 0 and head.revive then
                     -- a hero back from the altar (issue 528)
                     table.remove(q, 1)
                     local a = math.atan2(-1, 0)

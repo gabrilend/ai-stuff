@@ -133,6 +133,11 @@ function AI:produce(id)
     if not g.train then return false, "no production" end
     local up = self.upgrader and self:upgrader(id)
     if up then return g.upgrade(up, id) end
+    if self.researcher then
+        local b, why = self:researcher(id)
+        if b then return g.research(b, id) end
+        if why then return false, why end
+    end
     if self.builders and not self:trainable(id) then
         if #self:builders(id) > 0 then return self:construct(id) end
         local shop = self:seller(id)
