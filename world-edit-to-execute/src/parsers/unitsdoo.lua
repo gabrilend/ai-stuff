@@ -469,11 +469,52 @@ function unitsdoo.parse(data)
         end
 
         local unit, new_pos = parse_unit_entry(data, pos, result.version)
+        -- its bytes as read, for writing back (issue 911a)
+        unit.raw = data:sub(pos, new_pos - 1)
         result.units[i] = unit
         pos = new_pos
     end
+    result.tail_raw = data:sub(pos)
 
     return result
+end
+-- }}}
+
+-- {{{ unitsdoo.write (issue 911a)
+-- The units back as war3mapUnits.doo bytes. Each entry is its bytes as
+-- read, with its fixed-place fields written over from the table: type,
+-- variation, position, angle, scale, flags, player (the first 41 bytes)
+-- and creation number (the last 4). A unit made in the editor copies the
+-- bytes of a unit of its kind (hero or not; unitsdoo.template) and is
+-- written over the same way. Its other parts (drops, abilities, hero
+-- data) are the template's.
+function unitsdoo.template(result, hero)
+    for _, u in ipairs(result.units) do
+        if u.raw and (u.is_hero == (hero == true)) and not u.random_unit then
+            return u.raw
+        end
+    end
+    return nil
+end
+
+function unitsdoo.write(result)
+    local bw = require("parsers.binwrite")
+    local b = bw.new()
+    b:str(FILE_ID):i32(result.version):i32(result.subversion):i32(#result.units)
+    for _, u in ipairs(result.units) do
+        local raw = u.raw or unitsdoo.template(result, is_hero(u.id))
+        if not raw then error("unitsdoo.write: no bytes to copy for a new " .. tostring(u.id)) end
+        local head = bw.new()
+        head:str(u.id):i32(u.variation or 0)
+        head:f32(u.position.x):f32(u.position.y):f32(u.position.z)
+        head:f32(u.angle or 0)
+        head:f32(u.scale.x):f32(u.scale.y):f32(u.scale.z)
+        head:u8(u.flags or 2):i32(u.player or 0)
+        local tail = bw.new():i32(u.creation_number or 0):done()
+        b:str(head:done() .. raw:sub(42, #raw - 4) .. tail)
+    end
+    b:str(result.tail_raw or "")
+    return b:done()
 end
 -- }}}
 
