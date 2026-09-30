@@ -209,6 +209,61 @@ do
 end
 -- }}}
 
+-- {{{ Object types
+test_section("Object types")
+do
+    local E3 = assert(editor.open(DIR .. "/assets/Daow4.4.w3x"))
+    local units = E3:object_table("units")
+    -- a custom unit type the map has, with a numeric change
+    local ut, field
+    for _, o in ipairs(units.custom_list) do
+        for _, m in ipairs(o.modifications) do
+            if not ut and m.var_type == 0 and m.field_id == "uhpm" then ut, field = o, m end
+        end
+    end
+    test("the map's unit types and their changes", ut ~= nil, tostring(#units.custom_list))
+    local hp0 = field.value
+    E3:set_field("units", ut.id, "uhpm", hp0 + 100)
+    test("a change changed", field.value == hp0 + 100 and E3.dirty.objects.units)
+    E3:undo()
+    test("and undone", field.value == hp0)
+    local id = E3:new_type("units", "hfoo")
+    test("a new type copying a stock one: h and three more", id and id:match("^h%w%w%w$") and units.custom[id]
+        and units.custom[id].parent_id == "hfoo", tostring(id))
+    E3:set_field("units", id, "uhpm", 1234)
+    E3:set_field("units", id, "unam", "Editor Footman")
+    E3:set_field("units", id, "umvs", 350.5)
+    local f = E3:type_fields("units", id)
+    test("its fields, each of its own type", #f == 3 and f[1].var_type == 0 and f[2].var_type == 3 and f[3].var_type == 1)
+    local n_before = #E3:type_fields("abilities", "AHbz")
+    E3:set_field("abilities", "AHbz", "Hbz9", 12, 2)
+    local got
+    for _, m in ipairs(E3:type_fields("abilities", "AHbz")) do if m.field_id == "Hbz9" then got = m end end
+    test("a levelled kind's field at a level", got and got.level == 2 and got.value == 12)
+    E3:undo()
+    test("undone: the field gone again", #E3:type_fields("abilities", "AHbz") == n_before)
+    local o = E3:place_unit(id, 0, E3.terrain.offset_x + 64 * E3.terrain.width, E3.terrain.offset_y + 64 * E3.terrain.height, 0)
+    local TMP3 = os.tmpname() .. ".w3x"
+    local ok = E3:save(TMP3)
+    test("saved with the unit types", ok and E3:files()["war3map.w3u"] ~= nil)
+    local s3 = require("demo.wc3map.scene").load(TMP3)
+    local t3 = s3.map.object_data.units
+    test("the copy's unit types have it", t3:get(id) ~= nil and t3:get_modification(id, "uhpm") == 1234
+        and t3:get_modification(id, "unam") == "Editor Footman")
+    local g3 = require("demo.wc3map.game").new(s3, { player = 0, placed = false, minimap = false, vision = false, combat = false })
+    local V3 = g3.run_script({ ai = "none" })
+    local made
+    for _, u in ipairs(g3.units) do if u.id == id then made = u end end
+    test("the game makes the new type, with its hit points", made and made.hp_max == 1234 and made.name == "Editor Footman",
+        made and (tostring(made.hp_max) .. " " .. tostring(made.name)))
+    E3:delete_type("units", id)
+    test("a custom type deleted", units.custom[id] == nil)
+    E3:undo()
+    test("and back", units.custom[id] ~= nil)
+    os.remove(TMP3)
+end
+-- }}}
+
 -- {{{ The interface
 test_section("The editor's interface")
 do

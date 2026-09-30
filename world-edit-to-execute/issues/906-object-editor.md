@@ -213,17 +213,17 @@ OBJECT IDS
 
 ## Acceptance Criteria
 
-- [ ] All 7 object types editable
+- [x] All 7 object types editable
 - [ ] Object tree shows originals and custom objects
-- [ ] Custom objects creatable from any base
+- [x] Custom objects creatable from any base
 - [ ] All field types have appropriate editors
 - [ ] Modified fields visually distinguished
 - [ ] Field inheritance works correctly
-- [ ] Level-based fields work for abilities/upgrades
+- [x] Level-based fields work for abilities/upgrades
 - [ ] Copy/paste objects works
 - [ ] Search/filter works
 - [ ] Reset field/reset all works
-- [ ] All operations support undo/redo
+- [x] All operations support undo/redo
 
 ## Related Documents
 
@@ -241,3 +241,23 @@ OBJECT IDS
 - May want "compare objects" feature
 - Field tooltips should explain what each field does
 - Some fields are interdependent (changing one affects another's valid range)
+
+## Implementation Notes
+
+*(2026-09-30, first pass)*
+
+- **Writing the object files back:** `parsers/objectdata.lua` gains `objectdata.write`. The parser now also keeps the objects in file order, the raw ids and the values as stored before clamping. All 106 object files of the 16 test maps (w3u, w3t, w3a, w3b, w3d, w3h, w3q) write back byte for byte (test_map_save).
+- **Editing:** `src/editor/object_data.lua`, for all seven kinds.
+  - **Fields:** change or add a field (at a level for abilities, doodads and upgrades). A new field takes the value's type; an existing one keeps its own. Fields can also be cleared.
+  - **Custom types:** new ones copy any parent, with the next free id of the kind's letter (h000, A000, I000, R000 ...); custom types can be deleted.
+  - **Undo:** each change is one step.
+  - **Saving:** changed kinds are written into the saved copy.
+  - **Placed objects** can be switched to another type (`E:set_type_of_selection`); script-placed units get the new id written into their CreateUnit call.
+- **In the window:** the properties panel lists the selected object's type changes, with − and + for numbers (10% steps, whole steps for integers). "New type from this" makes a custom type from the selected object's and switches the object to it.
+- **Checked end to end:** a custom footman (1,234 hit points, a name, a move speed) placed and saved into Daow 4.4. The game on the copy makes it with those hit points and that name (test_editor).
+
+**Not done yet:**
+- **Browsing:** the tree of all types, search and filter.
+- **Editing fields:** editors by field type (text, lists, booleans, from the metadata); only numbers can be stepped in the window, and names can't be typed there yet.
+- **Inheritance:** field inheritance shown from the stock tables, which need the install.
+- **Types:** copy and paste of types, and reset all.

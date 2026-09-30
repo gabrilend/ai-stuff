@@ -12,6 +12,8 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              texture, water, cliffs up and down, blight (editor/terrain.lua)
   objects    doodads and units placed, moved, turned, scaled, deleted,
              copied and pasted (editor/objects.lua)
+  types      the map's changes to object types, and its custom types
+             (editor/object_data.lua)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -68,13 +70,14 @@ function editor.open(path, opts)
     self.brush = { size = 2, strength = 32, texture = 0, level = nil }
     self.selection = {}
     self.clipboard = nil
-    self.dirty = { terrain = false, doodads = false, units = false, script = false }
+    self.dirty = { terrain = false, doodads = false, units = false, script = false, objects = {} }
     self.changed_tiles = {}          -- tile key -> true, for the window to redraw
     self.terrain_touched = {}        -- every tile key changed since opening (saving asks)
     self.objects_changed = false
     require("editor.terrain")(E)
     require("editor.objects")(E)
     require("editor.save")(E)
+    require("editor.object_data")(E)
     self:load_objects()
     return self
 end

@@ -74,6 +74,22 @@ do
     test("terrain (war3map.w3e)", ok_w3e == #maps and #maps >= 10, ok_w3e .. " of " .. #maps)
     test("doodads (war3map.doo)", ok_doo == #maps, ok_doo .. " of " .. #maps)
     test("placed units (war3mapUnits.doo)", ok_units == n_units and n_units > 0, ok_units .. " of " .. n_units)
+    -- object types (w3u, w3t, w3a, w3b, w3d, w3h, w3q)
+    local od = require("parsers.objectdata")
+    local ok_od, n_od = 0, 0
+    for _, f in ipairs(maps) do
+        local a = mpq.open(f)
+        for ext, cfg in pairs(od.FILE_CONFIG) do
+            local d = a:extract("war3map." .. ext)
+            if d then
+                n_od = n_od + 1
+                local p = od.parse(d, { has_level_column = cfg.has_level_column })
+                if p and od.write(p) == d then ok_od = ok_od + 1 end
+            end
+        end
+        a:close()
+    end
+    test("object types (w3u, w3t, w3a, w3b, w3d, w3h, w3q)", ok_od == n_od and n_od > 50, ok_od .. " of " .. n_od)
 end
 do
     -- an edited terrain: what's changed reads back changed, the rest as it was
