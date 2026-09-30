@@ -5,6 +5,7 @@ What the editor's window shows and how it takes input, apart from the
 window itself (editor/main.lua) so tests can drive it:
 
   toolbar     the tools (select, the terrain brushes, doodads, units) and
+              Triggers (the trigger editor over the view: editor/trigger_ui.lua),
               Undo, Redo, Save, Test
   palette     on the left, for the tool in hand: brush size and strength,
               the map's ground textures, its doodad types or unit types
@@ -38,7 +39,8 @@ editor_ui.TOOLBAR = {
     { "cliff_up", "Cliff +" }, { "cliff_down", "Cliff -" }, { "blight", "Blight" },
     { "place_doodad", "Doodads" }, { "place_unit", "Units" }, { "regions", "Regions" },
 }
-editor_ui.COMMANDS = { { "undo", "Undo" }, { "redo", "Redo" }, { "save", "Save" }, { "test", "Test" } }
+editor_ui.COMMANDS = { { "triggers", "Triggers" }, { "undo", "Undo" }, { "redo", "Redo" }, { "save", "Save" },
+                       { "test", "Test" } }
 editor_ui.PAGE = 18
 editor_ui.STROKE_EVERY = 0.05
 
@@ -68,10 +70,17 @@ function EUI:layout()
         b[#b + 1] = { x = x, y = 6, w = 64, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
         x = x + 68
     end
-    x = self.w - 4 * 60 - 8
+    x = self.w - 4 * 60 - 8 - 76
     for _, c in ipairs(editor_ui.COMMANDS) do
-        b[#b + 1] = { x = x, y = 6, w = 56, h = 26, label = c[2], action = c[1] }
-        x = x + 60
+        local w = c[1] == "triggers" and 72 or 56
+        b[#b + 1] = { x = x, y = 6, w = w, h = 26, label = c[2], action = c[1], active = c[1] == "triggers" and self.tui ~= nil }
+        x = x + w + 4
+    end
+    -- the trigger editor over the view (issue 905): only the toolbar besides
+    if self.tui then
+        self.buttons = b
+        self.tui:layout()
+        return b
     end
     -- the palette
     local px, py = 8, 44
@@ -134,6 +143,7 @@ end
 local function inside(b, x, y) return x >= b.x and x < b.x + b.w and y >= b.y and y < b.y + b.h end
 
 function EUI:over_ui(mx, my)
+    if self.tui then return true end
     if my < 38 or my > self.h - 28 then return true end
     for _, b in ipairs(self.buttons or {}) do if inside(b, mx, my) then return true end end
     if mx < 216 and (self.E:is_terrain_tool() or self.E.tool:match("^place")) then return true end
@@ -146,7 +156,9 @@ end
 function EUI:press(b)
     local E = self.E
     local a = b.action
-    if a == "tool" then E:set_tool(b.arg); self.page = 0
+    if a == "triggers" then
+        self.tui = not self.tui and require("editor.trigger_ui").new(E, self.w, self.h) or nil
+    elseif a == "tool" then E:set_tool(b.arg); self.page = 0; self.tui = nil
     elseif a == "undo" then E:undo()
     elseif a == "redo" then E:redo()
     elseif a == "save" then self:save()
@@ -209,6 +221,22 @@ function EUI:update(input, dt)
     local gx, gy
     if self.opts.to_ground then gx, gy = self.opts.to_ground(mx, my) end
     self.ground = gx and { gx, gy } or nil
+    -- the trigger editor takes the keys it uses, and the mouse below the toolbar
+    if self.tui then
+        local used = self.tui:update(input)
+        if input.lp and my < 38 then
+            for _, b in ipairs(self.buttons) do if inside(b, mx, my) then self:press(b) end end
+        end
+        if not used then
+            for _, k in ipairs(input.keys or {}) do
+                if input.ctrl and k == "Z" then E:undo(); self.tui:layout()
+                elseif input.ctrl and k == "Y" then E:redo(); self.tui:layout()
+                elseif input.ctrl and k == "S" then self:save()
+                elseif k == "F5" then self:test() end
+            end
+        end
+        return
+    end
     -- keys
     for _, k in ipairs(input.keys or {}) do
         if input.ctrl and k == "Z" then E:undo()
@@ -332,6 +360,7 @@ function EUI:draw(ui)
     if E:is_terrain_tool() or E.tool:match("^place") then rect(0, 38, 216, self.h - 66, C.panel, 220) end
     if #E.selection > 0 then rect(self.w - 216, 38, 216, self.h - 66, C.panel, 220) end
     rect(0, self.h - 28, self.w, 28, C.panel, 235)
+    if self.tui then self.tui:draw(ui) end
     for _, b in ipairs(self.buttons) do
         rect(b.x, b.y, b.w, b.h, b.active and C.active or C.button)
         ui.ui_frame(b.x, b.y, b.w, b.h, 1, C.edge[1], C.edge[2], C.edge[3], 255)

@@ -192,6 +192,7 @@ end
 -- {{{ scripted input for unattended runs (SCENE_ACTIONS="t:what;...")
 --   tool:NAME  stroke:x,y (a whole stroke there)  place_doodad:x,y
 --   place_unit:x,y  select:x,y  move:dx,dy  camera:x,y[,d]  save:  undo:
+--   press:LABEL (a button)  type:TEXT  key:NAME (to the trigger editor)
 local actions = {}
 for item in (os.getenv("SCENE_ACTIONS") or ""):gmatch("[^;]+") do
     local at, what = item:match("^%s*([%d%.]+)%s*:(.+)$")
@@ -211,6 +212,19 @@ local function scripted(what)
     elseif kind == "camera" then viewer.set_camera(n[1], n[2], n[3])
     elseif kind == "save" then ui:save()
     elseif kind == "undo" then E:undo()
+    elseif kind == "press" then
+        -- a button of the interface by its label (the trigger editor's too)
+        local b
+        for _, x in ipairs(ui.buttons) do if x.label == rest then b = x end end
+        if b then ui:press(b)
+        elseif ui.tui then
+            b = ui.tui:button(rest)
+            if b then ui.tui:press(b) end
+        end
+    elseif kind == "type" and ui.tui then
+        ui.tui:update({ chars = rest, keys = {} })
+    elseif kind == "key" and ui.tui then
+        ui.tui:update({ keys = { rest }, chars = "" })
     end
     ui:layout()
 end
@@ -229,8 +243,11 @@ end
 function scene_paint()
     local mx, my, lp, ld, lr = viewer.mouse()
     local input = { mx = mx, my = my, lp = lp, ld = ld, lr = lr, keys = viewer.keys(),
-                    shift = viewer.key_down("SHIFT"), ctrl = viewer.key_down("CTRL") }
+                    shift = viewer.key_down("SHIFT"), ctrl = viewer.key_down("CTRL"),
+                    chars = viewer.chars and viewer.chars() or "", wheel = viewer.wheel and viewer.wheel() or 0 }
     ui:update(input, 1 / 60)
+    -- the trigger editor covers the view: the camera stays put under it
+    if viewer.hold_camera then viewer.hold_camera(ui.tui ~= nil) end
     take_ground_changes()
     local now = os.clock()
     -- the ground again: at once after a stroke, else now and then during one

@@ -15,6 +15,11 @@ draws: src/editor/main.lua is the window; tests drive this directly.
   types      the map's changes to object types, and its custom types
              (editor/object_data.lua)
   regions    the script's rects moved and resized (editor/regions.lua)
+  triggers   triggers made from blocks, written into the script as JASS;
+             the script's own triggers listed, rewritten, switched off
+             (editor/triggers.lua)
+  AI         the computer players' AI Editor profiles, saved into the map
+             (editor/ai.lua)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -64,6 +69,8 @@ function editor.open(path, opts)
     local wpm = a:extract("war3map.wpm")
     self.path_map = wpm and require("demo.wc3map.footprint").parse_wpm(wpm) or nil
     if self.path_map then self.path_map.header = wpm:sub(1, 16) end
+    require("editor.triggers")(E)
+    self:load_triggers(a)
     a:close()
 
     self.history = history_mod.new(opts.history_limit or 200)
@@ -71,7 +78,10 @@ function editor.open(path, opts)
     self.brush = { size = 2, strength = 32, texture = 0, level = nil }
     self.selection = {}
     self.clipboard = nil
-    self.dirty = { terrain = false, doodads = false, units = false, script = false, objects = {} }
+    self.dirty = self.dirty or {}
+    self.dirty.terrain, self.dirty.doodads, self.dirty.units, self.dirty.objects = false, false, false, {}
+    self.dirty.ai = {}
+    self.dirty.script = self.dirty.script or false
     self.changed_tiles = {}          -- tile key -> true, for the window to redraw
     self.terrain_touched = {}        -- every tile key changed since opening (saving asks)
     self.objects_changed = false
@@ -80,6 +90,7 @@ function editor.open(path, opts)
     require("editor.save")(E)
     require("editor.object_data")(E)
     require("editor.regions")(E)
+    require("editor.ai")(E)
     self:load_objects()
     self:load_regions()
     return self
