@@ -192,6 +192,32 @@ do
     frame({ mx = 461, my = 239, rp = true })
     test("on the item: the one with an inventory fetches it", fetched and fetched.u == pal and fetched.it == chest)
     g.items, g.pick_up = nil, nil
+
+    -- an inventory item onto the cursor (right click), then a slot, a unit
+    -- or the ground (issue 537)
+    local ring = { id = "rin1", type = { name = "Ring" }, owner = pal, slot = 0 }
+    pal.inventory = { [0] = ring }
+    local calls = {}
+    g.move_item = function(u, it, slot) calls[#calls + 1] = { "move", u, it, slot } return true end
+    g.hand_item = function(u, it, t) calls[#calls + 1] = { "hand", u, it, t } return true end
+    g.drop_item_at = function(u, it, x, y) calls[#calls + 1] = { "drop", u, it, x, y } return true end
+    g.use_item = function() calls[#calls + 1] = { "use" } return true end
+    hud:select({ pal })
+    local s0, s3 = r.inventory[1], r.inventory[4]
+    frame({ mx = s0.x + 5, my = s0.y + 5, rp = true })
+    test("right click on an item: onto the cursor", hud.targeting == "move_item" and hud.moving == ring)
+    click(s3.x + 5, s3.y + 5)
+    test("then a slot: moved there", calls[1] and calls[1][1] == "move" and calls[1][4] == 3 and hud.targeting == nil)
+    frame({ mx = s0.x + 5, my = s0.y + 5, rp = true })
+    local fx, fy = at(foot)
+    click(fx, fy)
+    test("or a unit: handed to it", calls[2] and calls[2][1] == "hand" and calls[2][4] == foot)
+    frame({ mx = s0.x + 5, my = s0.y + 5, rp = true })
+    click(470, 250)
+    test("or the ground: dropped there", calls[3] and calls[3][1] == "drop" and calls[3][4] == 4700)
+    click(s0.x + 5, s0.y + 5)
+    test("a left click still uses it", calls[4] and calls[4][1] == "use")
+    pal.inventory, g.move_item, g.hand_item, g.drop_item_at, g.use_item = nil, nil, nil, nil, nil
 end
 
 frame({ keys = { "A" } })

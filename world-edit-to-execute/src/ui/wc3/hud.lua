@@ -330,6 +330,13 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "move_item" and self.game.hand_item then
+        -- an item on the cursor: to a unit, else to the ground there
+        local lead = self:leader()
+        local ok, why
+        if unit and unit ~= lead then ok, why = self.game.hand_item(lead, self.moving, unit)
+        else ok, why = self.game.drop_item_at(lead, self.moving, x, y) end
+        if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
     elseif order == "use_item" and self.game.use_item then
         local lead = self:leader()
         local ok, why = self.game.use_item(lead, self.use_item, unit, x, y)
@@ -444,9 +451,18 @@ function Hud:update(input, dt)
         or layout.inside(r.idle, mx, my) or (self.panel and layout.inside(r.panel, mx, my))
     for _, h in ipairs(r.heroes) do over_ui = over_ui or layout.inside(h, mx, my) end
 
-    -- right click: cancel targeting, or a move/attack order
+    -- right click: an inventory item onto the cursor (issue 537), cancel
+    -- targeting, or a move/attack order
+    local on_slot
+    for i, slot in ipairs(r.inventory) do
+        local lead = self:leader()
+        local it = lead and self:own(lead) and lead.inventory and lead.inventory[i - 1]
+        if it and layout.inside(slot, mx, my) then on_slot = it end
+    end
     if input.rp then
-        if self.targeting then
+        if on_slot and game.move_item then
+            self.targeting, self.moving = "move_item", on_slot
+        elseif self.targeting then
             self.targeting = nil
         elseif #self:own_selection() > 0 then
             local x, y
@@ -541,6 +557,18 @@ function Hud:click(mx, my, input, over_ui)
     for i, h in ipairs(r.heroes) do
         local hero = self:heroes()[i]
         if hero and layout.inside(h, mx, my) then self:select({ hero }); return end
+    end
+    -- an item on the cursor (issue 537): into a slot (swapping)
+    if self.targeting == "move_item" then
+        for i, slot in ipairs(r.inventory) do
+            local lead = self:leader()
+            if lead and layout.inside(slot, mx, my) then
+                self.targeting = nil
+                local ok, why = game.move_item(lead, self.moving, i - 1)
+                if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
+                return
+            end
+        end
     end
     -- an item in the inventory: use it (issue 532)
     for i, slot in ipairs(r.inventory) do
@@ -890,6 +918,10 @@ function Hud:draw_console(ui)
             rect(ui, slot.x + 4, slot.y + 4, slot.w - 8, slot.h - 8, { 90 + (#name * 37) % 120, 80, 60 + (#name * 53) % 150 })
             text(ui, name:sub(1, 5), slot.x + 5, slot.y + 6, 12, C.text)
             if (it.charges or 0) > 0 then text(ui, tostring(it.charges), slot.x + slot.w - 16, slot.y + slot.h - 16, 12, C.gold) end
+            -- on the cursor, being moved (issue 537)
+            if self.targeting == "move_item" and self.moving == it then
+                frame(ui, slot.x + 1, slot.y + 1, slot.w - 2, slot.h - 2, 3, C.gold)
+            end
         end
         if not (lead and self:own(lead)) or i > size then
             rect(ui, slot.x + 2, slot.y + 2, slot.w - 4, slot.h - 4, { 0, 0, 0 }, 120)

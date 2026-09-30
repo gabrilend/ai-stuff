@@ -253,7 +253,12 @@ return function(V, N, T)
     N.GetEnteringUnit = from("unit")
     N.GetLeavingUnit = from("unit")
     N.GetTriggeringRegion = from("region")
-    N.GetChangingUnit = from("unit")
+    -- only in a change of owner (the World Editor's drop tables ask it
+    -- during deaths too, and must get null: issue 537)
+    N.GetChangingUnit = function()
+        local c = V.ctx
+        return c and c.event and tostring(c.event):find("CHANGE_OWNER", 1, true) and c.unit or nil
+    end
     N.GetChangingUnitPrevOwner = from("prev_owner")
     N.GetAttacker = from("attacker")
     N.GetAttackedUnitBJ = from("unit")

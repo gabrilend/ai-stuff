@@ -35,6 +35,21 @@ none of them gives nothing (the rest of the item still works).
     local it = game.create_item("ratf", x, y)
     game.give_item(hero, it), game.drop_item(hero, it, x, y), game.use_item(hero, it, target, x, y)
     game.pick_up(hero, it)      -- walks there first
+
+Moving, dropping on death, random items (issue 537):
+
+  moving     an item moves to another slot (swapping with what's there),
+             is handed to one's own or an ally's unit with room (walking
+             to it first), or dropped at a point (walking there first)
+  death      a unit's items fall where it dies: a hero keeps its own
+             except those "dropped when the carrier dies" (idrp)
+  random     ChooseRandomItem(Ex): an item of a level (and class) that
+             may be a random choice (iprn), from the stock and the map's
+             items. The map's own drop tables are compiled into its
+             script by the World Editor and run there
+
+    game.move_item(u, it, slot), game.hand_item(u, it, target), game.drop_item_at(u, it, x, y)
+    game.random_item(level, class)   -- an item id, or nil
     items.update(game, dt)
 ]]
 
@@ -70,6 +85,7 @@ function items.init(g)
             class = v("icla") or "Permanent", level = num(v("ilev"), 1),
             charges = num(v("iuse"), 0), usable = flag(v("iusa"), false), perishable = flag(v("iper"), false),
             powerup = flag(v("ipow"), false), droppable = flag(v("idro"), true), pawnable = flag(v("ipaw"), true),
+            drops_on_death = flag(v("idrp"), false), random_choice = flag(v("iprn"), true),
             gold = num(v("igol"), 0), lumber = num(v("ilum"), 0),
             model = v("ifil") or (D.profile_field and D:profile_field(id, "file")) or items.DEFAULT_MODEL,
             stock_max = num(v("isto"), 1), stock_replenish = num(v("istr"), 30), stock_start = num(v("isst"), 0),
@@ -217,6 +233,105 @@ function items.init(g)
     end
     -- }}}
 
+    -- {{{ moving (issue 537)
+    -- to another of its slots, swapping with what's there
+    function g.move_item(u, it, slot)
+        if not it or it.owner ~= u then return false, "not carried" end
+        if not slot or slot < 0 or slot >= g.inventory_size(u) then return false, "no such slot" end
+        if slot == it.slot then return true end
+        local other = u.inventory[slot]
+        u.inventory[it.slot] = other
+        if other then other.slot = it.slot end
+        u.inventory[slot], it.slot = it, slot
+        return true
+    end
+
+    local function can_hand(u, it, t)
+        if not it or it.owner ~= u then return false, "not carried" end
+        if it.droppable == false then return false, "can't drop that" end
+        if not t or t == u or t.alive == false or t.removed then return false, "no one to give it to" end
+        if t.player ~= u.player and not (g.allied and g.allied(u.player, t.player)) then
+            return false, "not to an enemy"
+        end
+        local size = g.inventory_size(t)
+        if size == 0 then return false, "it can't carry items" end
+        local room = false
+        for k = 0, size - 1 do if not (t.inventory and t.inventory[k]) then room = true end end
+        if not room and not it.type.powerup then return false, "its inventory is full" end
+        return true
+    end
+
+    local function hand_now(u, it, t)
+        g.take_item(u, it)
+        local ok = g.give_item(t, it)
+        if not ok then
+            it.x, it.y = u.x, u.y
+            it.z = g.ground_at and g.ground_at(it.x, it.y) or 0
+        end
+        return ok
+    end
+
+    -- to another unit (its own or an ally's), walking to it first
+    function g.hand_item(u, it, t)
+        local ok, why = can_hand(u, it, t)
+        if not ok then return false, why end
+        if (u.x - t.x) ^ 2 + (u.y - t.y) ^ 2 <= items.REACH ^ 2 then return hand_now(u, it, t) end
+        g.order({ u }, "stop")
+        u.handing = { item = it, target = t }
+        u.order = { kind = "give" }
+        g.walk_to(u, t.x, t.y)
+        return true
+    end
+
+    -- to the ground at a point, walking there first
+    function g.drop_item_at(u, it, x, y)
+        if not it or it.owner ~= u then return false, "not carried" end
+        if it.droppable == false then return false, "can't drop that" end
+        if (u.x - x) ^ 2 + (u.y - y) ^ 2 <= items.REACH ^ 2 then return g.drop_item(u, it, x, y) end
+        g.order({ u }, "stop")
+        u.handing = { item = it, x = x, y = y }
+        u.order = { kind = "give" }
+        g.walk_to(u, x, y)
+        return true
+    end
+    items.hand_now, items.can_hand = hand_now, can_hand
+    -- }}}
+
+    -- {{{ random items
+    local CLASSES = { permanent = "Permanent", charged = "Charged", powerup = "PowerUp", artifact = "Artifact",
+                      purchasable = "Purchasable", campaign = "Campaign", miscellaneous = "Miscellaneous" }
+    function g.random_item(level, class)
+        local D = g.data.items
+        if class then class = CLASSES[tostring(class):lower()] or class end
+        local pool = {}
+        for _, id in ipairs(D.ids and D:ids() or {}) do
+            local t = g.item_type(id)
+            if t.random_choice and (level == nil or level < 0 or t.level == level)
+                and (not class or tostring(t.class):lower() == class:lower()) then
+                pool[#pool + 1] = id
+            end
+        end
+        if #pool == 0 then return nil end
+        return pool[math.random(1, #pool)]
+    end
+    -- }}}
+
+    -- {{{ a carrier's death: its items fall (a hero keeps its own but
+    -- those dropped when the carrier dies)
+    table.insert(g.death_listeners, function(u)
+        if not u.inventory then return end
+        for k = 0, 5 do
+            local it = u.inventory[k]
+            if it and (not u.spec.hero or it.type.drops_on_death) then
+                g.take_item(u, it)
+                local a = math.random() * math.pi * 2
+                it.x, it.y = u.x + math.cos(a) * 40, u.y + math.sin(a) * 40
+                it.z = g.ground_at and g.ground_at(it.x, it.y) or 0
+            end
+        end
+    end)
+    -- }}}
+
     -- {{{ using
     function g.use_item(u, it, target, x, y)
         if not it or it.owner ~= u then return false, "not carried" end
@@ -265,11 +380,14 @@ function items.init(g)
     end
     -- }}}
 
-    -- a unit fetching an item stops when told otherwise
+    -- a unit fetching or handing an item stops when told otherwise
     local order = g.order
     function g.order(list, kind, ...)
         if kind ~= "pickup" then
             for _, u in ipairs(list) do u.fetch = nil end
+        end
+        if kind ~= "give" then
+            for _, u in ipairs(list) do u.handing = nil end
         end
         return order(list, kind, ...)
     end
@@ -290,6 +408,35 @@ function items.update(g, dt)
                 g.give_item(u, it)
             elseif not u.route then
                 g.walk_to(u, it.x, it.y)
+            end
+        end
+    end
+    -- handing an item over, or carrying it to where it's dropped
+    for _, u in ipairs(g.units) do
+        local h = u.handing
+        if h then
+            local it, t = h.item, h.target
+            local function done()
+                u.handing, u.route = nil, nil
+                if u.order and u.order.kind == "give" then u.order = nil end
+            end
+            if u.alive == false or it.owner ~= u then
+                done()
+            elseif t then
+                if not items.can_hand(u, it, t) then
+                    done()
+                elseif (u.x - t.x) ^ 2 + (u.y - t.y) ^ 2 <= items.REACH ^ 2 then
+                    done()
+                    items.hand_now(u, it, t)
+                elseif not u.route or (h.tx and (h.tx - t.x) ^ 2 + (h.ty - t.y) ^ 2 > 100 ^ 2) then
+                    h.tx, h.ty = t.x, t.y
+                    g.walk_to(u, t.x, t.y)
+                end
+            elseif (u.x - h.x) ^ 2 + (u.y - h.y) ^ 2 <= items.REACH ^ 2 then
+                done()
+                g.drop_item(u, it, h.x, h.y)
+            elseif not u.route then
+                g.walk_to(u, h.x, h.y)
             end
         end
     end
