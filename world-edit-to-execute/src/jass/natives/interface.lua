@@ -172,7 +172,7 @@ return function(V, N, T)
       .. "UnregisterStackedSound PlaySoundBJ StopSoundBJ PlaySoundAtPointBJ PlaySoundOnUnitBJ PlaySoundFromOffsetBJ "
       .. "SetSoundVolumeBJ KillSoundWhenDoneBJ StartSoundForPlayerBJ SetStackedSound "
       .. "SetTerrainFogEx ResetTerrainFog EnableWorldFogBoundary "
-      .. "DestroyEffect SetUnitTypeSlots AddWeatherEffect EnableWeatherEffect RemoveWeatherEffect "
+      .. "SetUnitTypeSlots AddWeatherEffect EnableWeatherEffect RemoveWeatherEffect "
       .. "SetTerrainType SetTerrainTypeBJ SetTerrainPathable AddLightning DestroyLightning MoveLightning "
       .. "PingMinimap PingMinimapEx PingMinimapLocForForce PingMinimapForForce PingMinimapForForceEx "
       .. "SetTextTagText SetTextTagPos SetTextTagPosUnit SetTextTagColor SetTextTagVelocity SetTextTagVisibility "
@@ -190,7 +190,6 @@ return function(V, N, T)
       .. "PreloadStart PreloadRefresh PreloadEndEx PreloadGenClear PreloadGenStart PreloadGenEnd Preloader")
     noop("CreateSound CreateSoundFromLabel CreateSoundFilenameWithLabel CreateMIDISound "
       .. "CreateCameraSetup "
-      .. "AddSpecialEffect AddSpecialEffectLoc AddSpecialEffectTarget AddSpecialEffectLocBJ AddSpecialEffectTargetUnitBJ "
       .. "CreateTextTag CreateTextTagLocBJ CreateTextTagUnitBJ CreateTrackable CreateUbersplat CreateImage CreateBlightedGoldmine",
       nil)
     N.GetSoundDuration = function() return 0 end

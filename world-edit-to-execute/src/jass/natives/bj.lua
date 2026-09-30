@@ -604,7 +604,6 @@ return function(V, N, T)
     -- }}}
 
     -- {{{ Last-created handles for systems that don't exist yet
-    N.GetLastCreatedEffectBJ = function() return get("bj_lastCreatedEffect") end
     N.GetLastCreatedTextTag = function() return get("bj_lastCreatedTextTag") end
     N.GetLastPlayedSound = function() return get("bj_lastPlayedSound") end
     -- }}}
@@ -780,7 +779,7 @@ return function(V, N, T)
     N.UnitHasBuffBJ = function(u, id) return N.GetUnitAbilityLevel(u, id) > 0 end
     quiet("SetTextTagLifespanBJ SetTextTagPermanentBJ SetTextTagTextBJ SetTextTagFadepointBJ DestroyTextTagBJ SetTextTagAgeBJ "
       .. "SetTextTagColorBJ SetTextTagVelocityBJ SetTextTagPosBJ SetTextTagPosUnitBJ ShowTextTagForceBJ "
-      .. "DestroyEffectBJ SyncSelections Cheat DoNotSaveReplay "
+      .. "SyncSelections Cheat DoNotSaveReplay "
       .. "SetCameraPositionForPlayer SetCameraPositionLocForPlayer VolumeGroupSetVolumeBJ SetBlightRectBJ SetBlightRadiusLocBJ "
       .. "SetItemDropOnDeathBJ SetSoundPositionLocBJ AddWeatherEffectSaveLast RemoveWeatherEffectBJ EnableWeatherEffect "
       .. "SelectUnitAddForPlayer SelectUnitForPlayerSingle SelectUnitRemoveForPlayer ClearSelectionForPlayer "

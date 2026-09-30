@@ -53,6 +53,7 @@ local vision_mod = require("demo.wc3map.vision")
 local economy = require("demo.wc3map.economy")
 local heroes = require("demo.wc3map.heroes")
 local abilities = require("demo.wc3map.abilities")
+local effects = require("demo.wc3map.effects")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -267,6 +268,7 @@ function game_mod.new(scene, opts)
         abilities = object_stock.new(opts.chain, od.abilities, "abilities"),
         items = object_stock.new(opts.chain, od.items, "items"),
         upgrades = object_stock.new(opts.chain, od.upgrades, "upgrades"),
+        buffs = object_stock.new(opts.chain, od.buffs, "buffs"),
     }
     if not opts.stock then opts.stock = g.data.units end
     -- a stock source that only answers value() (tests, simple ones) gets
@@ -546,6 +548,7 @@ function game_mod.new(scene, opts)
     economy.init(g)
     production.init(g)
     heroes.init(g)
+    effects.init(g)
     abilities.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
@@ -572,6 +575,7 @@ function game_mod.new(scene, opts)
         production.update(g, dt)
         economy.update(g, dt)
         abilities.update(g, dt)
+        effects.update(g, dt)
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}

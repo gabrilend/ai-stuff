@@ -42,13 +42,24 @@ function buffs.add(g, u, spec)
         if old.id == b.id then
             -- the same buff again: the longer lasting stays
             if old.ends == nil or (b.ends and old.ends > b.ends and not b.aura) then return old end
+            -- an aura refreshing keeps its art playing
+            if old.art and old.aura and b.aura then
+                b.art = old.art
+                u.buffs[i] = b
+                buffs.sum(u)
+                return b
+            end
+            if g.on_buff_removed then g.on_buff_removed(u, old) end
             u.buffs[i] = b
             buffs.sum(u)
+            if g.on_buff_added then g.on_buff_added(u, b) end
             return b
         end
     end
     u.buffs[#u.buffs + 1] = b
     buffs.sum(u)
+    -- its art while it lasts (effects.lua, issue 530)
+    if g.on_buff_added then g.on_buff_added(u, b) end
     return b
 end
 
@@ -56,7 +67,12 @@ function buffs.remove(g, u, id)
     if not u or not u.buffs then return 0 end
     local keep, n = {}, 0
     for _, b in ipairs(u.buffs) do
-        if id == nil or b.id == id then n = n + 1 else keep[#keep + 1] = b end
+        if id == nil or b.id == id then
+            n = n + 1
+            if g and g.on_buff_removed then g.on_buff_removed(u, b) end
+        else
+            keep[#keep + 1] = b
+        end
     end
     u.buffs = keep
     buffs.sum(u)
@@ -107,6 +123,9 @@ function buffs.update(g, dt)
         local list = u.buffs
         if list and #list > 0 then
             if u.alive == false then
+                for _, b in ipairs(list) do
+                    if g.on_buff_removed then g.on_buff_removed(u, b) end
+                end
                 u.buffs = {}
                 buffs.sum(u)
             else
@@ -117,6 +136,7 @@ function buffs.update(g, dt)
                     end
                     if b.ends and g.time >= b.ends then
                         changed = true
+                        if g.on_buff_removed then g.on_buff_removed(u, b) end
                         if b.on_end then b.on_end(g, u, b) end
                     else
                         keep[#keep + 1] = b
