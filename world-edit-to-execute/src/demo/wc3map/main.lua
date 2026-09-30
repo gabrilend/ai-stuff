@@ -137,6 +137,36 @@ game.camera = viewer.camera
 game.set_camera = viewer.set_camera
 game.quit = viewer.quit
 
+-- {{{ the script moves the view (issue 904: jass/natives/camera.lua):
+-- to where it asks, over the time it asks, keeping what it doesn't name
+local glide
+local GAME_CAMERA = { distance = 1650, rotation = 90, aoa = 304, fov = 70 }
+function game.on_camera(req)
+    local x, y, dist, rot, aoa, fov = viewer.camera()
+    local from = { x = x, y = y, distance = dist, rotation = rot, aoa = aoa, fov = fov }
+    local to = {}
+    for k, v in pairs(from) do to[k] = v end
+    if req.reset then for k, v in pairs(GAME_CAMERA) do to[k] = v end end
+    for _, k in ipairs({ "x", "y", "distance", "rotation", "aoa", "fov" }) do
+        if type(req[k]) == "number" then to[k] = req[k] end
+    end
+    glide = { from = from, to = to, t = 0, duration = math.max(0, tonumber(req.duration) or 0) }
+end
+local function glide_camera(dt)
+    if not glide then return end
+    glide.t = glide.t + dt
+    local f = glide.duration > 0 and math.min(1, glide.t / glide.duration) or 1
+    local a, b = glide.from, glide.to
+    local function mix(k)
+        local d = b[k] - a[k]
+        if k == "rotation" then d = (d + 180) % 360 - 180 end
+        return a[k] + d * f
+    end
+    viewer.set_camera(mix("x"), mix("y"), mix("distance"), mix("rotation"), mix("aoa"), mix("fov"))
+    if f >= 1 then glide = nil end
+end
+-- }}}
+
 -- the portrait: the unit's design, turned to face the viewer and sized to
 -- fill the frame
 function game.portrait(u)
@@ -398,6 +428,7 @@ end
 local last_hover = { 0, 0 }
 function scene_tick(dt)
     game.tick(dt)
+    glide_camera(dt)
     show_fog()
     if game.buildings_changed and game.time - last_rebake > 1 then
         game.buildings_changed, last_rebake = false, game.time

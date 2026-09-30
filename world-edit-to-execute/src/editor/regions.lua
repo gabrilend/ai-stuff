@@ -17,8 +17,10 @@ script.
                                     (editor/save.lua); the w3r, when the
                                     map has one, the new bounds
 
-Regions aren't made or removed here: the script's triggers refer to them
-by variable (that's the trigger editor's, issue 905).
+The script's regions aren't removed here: its triggers refer to them by
+variable. New regions (E:new_region, E:delete_region) are the editor's
+own, kept with the triggers in war3mapEditor.lua and made by
+EditorInitRegions for the editor's triggers (issue 904b).
 
     require("editor.regions")(E)    -- editor/init.lua does this
 ]]
@@ -59,9 +61,74 @@ return function(E)
             end
             pos = e + 1
         end
+        -- the editor's own (kept with the triggers in war3mapEditor.lua)
+        self.trig.regions = self.trig.regions or {}
+        for _, r in ipairs(self.trig.regions) do
+            r.kind, r.editor = "region", true
+            self.region_list[#self.region_list + 1] = r
+        end
     end
 
     function E:regions() return self.region_list or {} end
+
+    -- a new region, for the triggers (made by EditorInitRegions)
+    function E:new_region(name, l, b, rt, t)
+        local blocks = require("editor.trigger_blocks")
+        if rt < l then l, rt = rt, l end
+        if t < b then b, t = t, b end
+        local base, n = blocks.safe(name or "Region"), 1
+        local var = "gg_rct_" .. base
+        local function taken(v)
+            for _, r in ipairs(self:regions()) do if r.var == v then return true end end
+            return (self.script or ""):find(v, 1, true) ~= nil
+        end
+        while taken(var) do n = n + 1; var = "gg_rct_" .. base .. n end
+        local r = { kind = "region", editor = true, var = var, name = var:gsub("^gg_rct_", ""),
+                    left = l, bottom = b, right = rt, top = t }
+        local list, kept, me = self.region_list, self.trig.regions, self
+        self.history:run({ name = "New region " .. r.name,
+            redo = function()
+                list[#list + 1] = r; kept[#kept + 1] = r
+                me.dirty.script, me.dirty.triggers, me.regions_changed = true, true, true
+            end,
+            undo = function()
+                for i, x in ipairs(list) do if x == r then table.remove(list, i) break end end
+                for i, x in ipairs(kept) do if x == r then table.remove(kept, i) break end end
+                me.dirty.script, me.dirty.triggers, me.regions_changed = true, true, true
+            end })
+        return r
+    end
+
+    function E:delete_region(r)
+        if not r.editor then return false, "the script's own regions stay (its triggers use them)" end
+        local list, kept, me = self.region_list, self.trig.regions, self
+        local at, kat
+        for i, x in ipairs(list) do if x == r then at = i end end
+        for i, x in ipairs(kept) do if x == r then kat = i end end
+        if not at then return false end
+        self.history:run({ name = "Delete region " .. r.name,
+            redo = function()
+                table.remove(list, at); if kat then table.remove(kept, kat) end
+                me.dirty.script, me.dirty.triggers, me.regions_changed = true, true, true
+            end,
+            undo = function()
+                table.insert(list, at, r); if kat then table.insert(kept, kat, r) end
+                me.dirty.script, me.dirty.triggers, me.regions_changed = true, true, true
+            end })
+        return true
+    end
+
+    function E:region_code()
+        local list = self.trig.regions or {}
+        if #list == 0 then return nil end
+        local g, f = {}, { "function EditorInitRegions takes nothing returns nothing" }
+        for _, r in ipairs(list) do
+            g[#g + 1] = "rect " .. r.var .. " = null"
+            f[#f + 1] = string.format("    set %s = Rect(%.1f, %.1f, %.1f, %.1f)", r.var, r.left, r.bottom, r.right, r.top)
+        end
+        f[#f + 1] = "endfunction"
+        return { globals = table.concat(g, "\n"), functions = table.concat(f, "\n"), call = "EditorInitRegions" }
+    end
 
     function E:region_at(x, y)
         local best, area
@@ -82,6 +149,7 @@ return function(E)
             self.dirty.w3r = true
         end
         self.dirty.script = true
+        if r.editor then self.dirty.triggers = true end
         self.regions_changed = true
     end
 
@@ -104,7 +172,7 @@ return function(E)
     function E:region_edits()
         local out = {}
         for _, r in ipairs(self:regions()) do
-            local o = r.orig
+            local o = r.orig or { r.left, r.bottom, r.right, r.top }   -- the editor's own: made, not edited
             if r.left ~= o[1] or r.bottom ~= o[2] or r.right ~= o[3] or r.top ~= o[4] then
                 out[#out + 1] = { at = r.at, to = r.to, text = string.format("Rect(%.1f,%.1f,%.1f,%.1f)",
                     r.left, r.bottom, r.right, r.top) }

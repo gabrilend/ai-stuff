@@ -56,7 +56,7 @@
 #define CAM_PITCH_DEG        56.0f
 #define CAM_FOV_DEG          70.0f
 #define CAM_DEFAULT_DISTANCE 1650.0f
-#define CAM_MIN_DISTANCE     700.0f
+#define CAM_MIN_DISTANCE     250.0f    /* map cameras come close (DAoW's: 400) */
 #define CAM_MAX_DISTANCE     9000.0f
 #define CAM_PAN_SPEED        1400.0f   /* WC3 units per second */
 
@@ -64,16 +64,23 @@ typedef struct {
     float x, z;          /* target, render units */
     float y;             /* ground height under the target, render units */
     float distance;      /* WC3 units */
+    float rotation;      /* degrees, WC3's: 90 looks north */
+    float pitch;         /* degrees down from level (WC3's angle of attack 304 = 56 down) */
+    float fov;           /* degrees */
 } ViewCamera;
 
-/* Place a raylib camera looking north (render -z) at the target */
+/* Place a raylib camera at the target, looking the camera's way (WC3's
+ * default: north, 56 degrees down) */
 static void apply_camera(const ViewCamera* fc, Camera3D* cam) {
     float d = fc->distance / WC3_UNITS_PER_TILE;
-    float pitch = CAM_PITCH_DEG * DEG2RAD;
+    float pitch = fc->pitch * DEG2RAD;
+    float rot = fc->rotation * DEG2RAD;
+    /* the way it looks, on the ground: WC3 (cos, sin) is render (cos, -sin) */
+    float fx = cosf(rot), fz = -sinf(rot);
     cam->target = (Vector3){ fc->x, fc->y, fc->z };
-    cam->position = (Vector3){ fc->x, fc->y + d * sinf(pitch), fc->z + d * cosf(pitch) };
+    cam->position = (Vector3){ fc->x - fx * d * cosf(pitch), fc->y + d * sinf(pitch), fc->z - fz * d * cosf(pitch) };
     cam->up = (Vector3){ 0.0f, 1.0f, 0.0f };
-    cam->fovy = CAM_FOV_DEG;
+    cam->fovy = fc->fov;
     cam->projection = CAMERA_PERSPECTIVE;
 }
 /* }}} */
@@ -148,20 +155,32 @@ static const int REPEATING[] = { KEY_BACKSPACE, KEY_DELETE, KEY_LEFT, KEY_RIGHT,
 static bool g_hold_camera = false;
 static float g_wheel = 0.0f;
 
-/* {{{ viewer.camera() -> x, y, distance (WC3) */
+/* {{{ viewer.camera() -> x, y, distance, rotation, angle of attack, field
+ * of view (WC3's: degrees, the angle of attack 360 less the pitch down) */
 static int lv_camera(lua_State* L) {
     lua_pushnumber(L, g_fc.x * WC3_UNITS_PER_TILE);
     lua_pushnumber(L, -g_fc.z * WC3_UNITS_PER_TILE);
     lua_pushnumber(L, g_fc.distance);
-    return 3;
+    lua_pushnumber(L, g_fc.rotation);
+    lua_pushnumber(L, 360.0f - g_fc.pitch);
+    lua_pushnumber(L, g_fc.fov);
+    return 6;
 }
 /* }}} */
 
-/* {{{ viewer.set_camera(x, y [, distance]) */
+/* {{{ viewer.set_camera(x, y [, distance [, rotation, angle of attack, field of view]]) */
 static int lv_set_camera(lua_State* L) {
     g_fc.x = (float)luaL_checknumber(L, 1) / WC3_UNITS_PER_TILE;
     g_fc.z = -(float)luaL_checknumber(L, 2) / WC3_UNITS_PER_TILE;
     if (lua_isnumber(L, 3)) g_fc.distance = (float)lua_tonumber(L, 3);
+    if (lua_isnumber(L, 4)) g_fc.rotation = (float)lua_tonumber(L, 4);
+    if (lua_isnumber(L, 5)) {
+        /* the angle of attack: 304 looks 56 down; kept between level and straight down */
+        float pitch = 360.0f - fmodf((float)lua_tonumber(L, 5) + 360.0f, 360.0f);
+        if (pitch >= 360.0f) pitch -= 360.0f;
+        g_fc.pitch = fmaxf(1.0f, fminf(89.0f, pitch));
+    }
+    if (lua_isnumber(L, 6)) g_fc.fov = fmaxf(20.0f, fminf(120.0f, (float)lua_tonumber(L, 6)));
     return 0;
 }
 /* }}} */
@@ -284,6 +303,52 @@ static int lv_key_down(lua_State* L) {
 }
 /* }}} */
 
+/* {{{ viewer.play_sound(bytes, ext) / viewer.stop_sound(): one sound at a
+ * time, for the editor's preview (issue 907); false when there's no audio
+ * device or the file can't be read (raylib reads WAV, MP3, OGG) */
+static bool g_audio_tried = false;
+static bool g_sound_loaded = false;
+static Sound g_sound;
+
+static int lv_stop_sound(lua_State* L) {
+    (void)L;
+    if (g_sound_loaded) {
+        StopSound(g_sound);
+        UnloadSound(g_sound);
+        g_sound_loaded = false;
+    }
+    return 0;
+}
+
+static int lv_play_sound(lua_State* L) {
+    size_t len;
+    const char* data = luaL_checklstring(L, 1, &len);
+    const char* ext = luaL_optstring(L, 2, ".wav");
+    if (!g_audio_tried) {
+        g_audio_tried = true;
+        InitAudioDevice();
+    }
+    if (!IsAudioDeviceReady()) {
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, "no audio device");
+        return 2;
+    }
+    lv_stop_sound(L);
+    Wave w = LoadWaveFromMemory(ext, (const unsigned char*)data, (int)len);
+    if (w.data == NULL) {
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, "can't read the sound");
+        return 2;
+    }
+    g_sound = LoadSoundFromWave(w);
+    UnloadWave(w);
+    g_sound_loaded = true;
+    PlaySound(g_sound);
+    lua_pushboolean(L, 1);
+    return 1;
+}
+/* }}} */
+
 /* {{{ viewer.wheel() -> the mouse wheel's turn this frame */
 static int lv_wheel(lua_State* L) {
     lua_pushnumber(L, g_wheel);
@@ -310,7 +375,8 @@ static void register_viewer(lua_State* L) {
         { "camera", lv_camera }, { "set_camera", lv_set_camera },
         { "to_screen", lv_to_screen }, { "to_ground", lv_to_ground },
         { "mouse", lv_mouse }, { "keys", lv_keys }, { "chars", lv_chars }, { "key_down", lv_key_down },
-        { "wheel", lv_wheel }, { "hold_camera", lv_hold_camera }, { "quit", lv_quit }, { NULL, NULL },
+        { "wheel", lv_wheel }, { "hold_camera", lv_hold_camera }, { "quit", lv_quit },
+        { "play_sound", lv_play_sound }, { "stop_sound", lv_stop_sound }, { NULL, NULL },
     };
     lua_newtable(L);
     for (const luaL_Reg* f = fns; f->name; f++) {
@@ -406,7 +472,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    g_fc = (ViewCamera){ 0.0f, 1.0f, 0.0f, 2600.0f };
+    g_fc = (ViewCamera){ 0.0f, 1.0f, 0.0f, 2600.0f, 90.0f, CAM_PITCH_DEG, CAM_FOV_DEG };
     start_camera(L, &g_fc);
     lua_getglobal(L, "scene_ui");
     bool has_ui = lua_isfunction(L, -1);
@@ -442,7 +508,10 @@ int main(int argc, char** argv) {
         if (down) g_fc.z += pan;
         if (!g_hold_camera) g_fc.distance -= g_wheel * 150.0f;
         if (!has_ui) {
-            if (IsKeyPressed(KEY_ONE)) g_fc.distance = CAM_DEFAULT_DISTANCE;
+            if (IsKeyPressed(KEY_ONE)) {
+                g_fc.distance = CAM_DEFAULT_DISTANCE;
+                g_fc.rotation = 90.0f; g_fc.pitch = CAM_PITCH_DEG; g_fc.fov = CAM_FOV_DEG;
+            }
             if (IsKeyPressed(KEY_R)) call_lua(L, "scene_key", "rings", 0, false);
         }
         if (g_fc.distance < CAM_MIN_DISTANCE) g_fc.distance = CAM_MIN_DISTANCE;

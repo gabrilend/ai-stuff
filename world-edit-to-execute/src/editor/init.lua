@@ -14,7 +14,9 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              copied and pasted (editor/objects.lua)
   types      the map's changes to object types, and its custom types
              (editor/object_data.lua)
-  regions    the script's rects moved and resized (editor/regions.lua)
+  regions    the script's rects moved and resized, new ones for the
+             triggers (editor/regions.lua); cameras likewise
+             (editor/cameras.lua)
   triggers   triggers made from blocks, written into the script as JASS;
              the script's own triggers listed, rewritten, switched off
              (editor/triggers.lua)
@@ -22,6 +24,8 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              (editor/ai.lua)
   imports    the files the map carries: imported, replaced, renamed,
              taken out, exported, checked (editor/imports.lua)
+  sounds     the script's sounds and music changed, new sounds for the
+             triggers (editor/sounds.lua)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -48,7 +52,7 @@ local history_mod = require("editor.history")
 local editor = {}
 
 editor.TOOLS = { "select", "raise", "lower", "smooth", "flatten", "paint", "water", "dry", "cliff_up",
-                 "cliff_down", "blight", "unblight", "place_doodad", "place_unit", "regions" }
+                 "cliff_down", "blight", "unblight", "place_doodad", "place_unit", "regions", "cameras" }
 
 local E = {}
 E.__index = E
@@ -94,8 +98,12 @@ function editor.open(path, opts)
     require("editor.regions")(E)
     require("editor.ai")(E)
     require("editor.imports")(E)
+    require("editor.sounds")(E)
+    require("editor.cameras")(E)
     self:load_objects()
     self:load_regions()
+    self:load_sounds()
+    self:load_cameras()
     return self
 end
 -- }}}
