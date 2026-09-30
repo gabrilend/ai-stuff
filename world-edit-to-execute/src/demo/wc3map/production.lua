@@ -42,6 +42,13 @@ production.STANDINS = {
 }
 -- }}}
 
+-- {{{ production.is_hero
+function production.is_hero(g, id)
+    -- a hero's type id starts with a capital letter (WC3's convention)
+    return type(id) == "string" and id:sub(1, 1):match("%u") ~= nil
+end
+-- }}}
+
 -- {{{ production.init
 function production.init(g)
     local m = g.scene.map
@@ -95,15 +102,28 @@ function production.init(g)
         for _, t in ipairs(g.db.unit_list(b.id, "utra")) do if t == id then listed = true end end
         if not listed then return false, "doesn't train that" end
         if #(b.queue or {}) >= production.QUEUE_MAX then return false, "queue full" end
-        local ps = g.script and g.script.players[b.player]
-        if ps and ps.tech_max[id] == 0 then return false, "not allowed" end
+        -- limits: the type's (tech max), and heroes' (tech max of 'HERO',
+        -- issue 528)
+        if g.tech_limit then
+            local max = g.tech_limit(b.player, id)
+            if max == 0 then return false, "not allowed" end
+            if max and g.tech_count(b.player, id) >= max then return false, "limit reached" end
+            if production.is_hero(g, id) then
+                local hmax = g.tech_limit(b.player, "HERO")
+                if hmax and g.tech_count(b.player, "HERO") >= hmax then return false, "hero limit reached" end
+            end
+        else
+            local ps = g.script and g.script.players[b.player]
+            if ps and ps.tech_max[id] == 0 then return false, "not allowed" end
+        end
         local c = g.unit_cost(id)
         for _, r in ipairs(c.requires) do
             if not g.has_tech(b.player, r) then return false, "requires " .. r end
         end
         local purse = g.purse(b.player)
-        if (purse.gold or 0) < c.gold then return false, "not enough gold" end
-        if (purse.lumber or 0) < c.lumber then return false, "not enough lumber" end
+        local free = production.is_hero(g, id) and (tonumber(purse.hero_tokens) or 0) > 0
+        if not free and (purse.gold or 0) < c.gold then return false, "not enough gold" end
+        if not free and (purse.lumber or 0) < c.lumber then return false, "not enough lumber" end
         local used, cap = g.food(b.player)
         if c.food > 0 and used + c.food > cap then return false, "not enough food" end
         return true
@@ -116,10 +136,17 @@ function production.init(g)
         if not ok then return false, why end
         local c = g.unit_cost(id)
         local purse = g.purse(b.player)
-        purse.gold, purse.lumber = purse.gold - c.gold, purse.lumber - c.lumber
+        local hero = production.is_hero(g, id)
+        local gold, lumber, token = c.gold, c.lumber, false
+        -- a hero token pays for a hero
+        if hero and (tonumber(purse.hero_tokens) or 0) > 0 then
+            purse.hero_tokens = purse.hero_tokens - 1
+            gold, lumber, token = 0, 0, true
+        end
+        purse.gold, purse.lumber = purse.gold - gold, purse.lumber - lumber
         b.queue = b.queue or {}
         b.queue[#b.queue + 1] = { id = id, left = c.time, time = c.time, food = c.food,
-                                  gold = c.gold, lumber = c.lumber }
+                                  gold = gold, lumber = lumber, hero = hero, token = token }
         if g.script then g.script:unit_event("TRAIN_START", b, { trained_type = require("jass.vm").s2id(id) }) end
         return true
     end
@@ -130,6 +157,8 @@ function production.init(g)
         local q = table.remove(b.queue, k or #b.queue)
         local purse = g.purse(b.player)
         purse.gold, purse.lumber = purse.gold + q.gold, purse.lumber + q.lumber
+        if q.token then purse.hero_tokens = (tonumber(purse.hero_tokens) or 0) + 1 end
+        if q.revive then q.revive.reviving = nil end
         return true
     end
 
@@ -148,7 +177,14 @@ function production.update(g, dt)
             else
                 local head = q[1]
                 head.left = head.left - dt
-                if head.left <= 0 then
+                if head.left <= 0 and head.revive then
+                    -- a hero back from the altar (issue 528)
+                    table.remove(q, 1)
+                    local a = math.atan2(-1, 0)
+                    local r = ({ small = 150, medium = 210, hall = 280, tower = 110, altar = 190 })[b.spec.size] or 200
+                    if g.revive_now then g.revive_now(head.revive, b.x + math.cos(a) * r, b.y + math.sin(a) * r) end
+                    if b.rally and head.revive.alive then g.order({ head.revive }, "move", b.rally.x, b.rally.y) end
+                elseif head.left <= 0 then
                     table.remove(q, 1)
                     -- out beside the building, toward the rally point (else south)
                     local tx, ty = b.x, b.y - 1

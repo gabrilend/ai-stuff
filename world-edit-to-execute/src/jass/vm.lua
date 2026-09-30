@@ -391,7 +391,9 @@ function V_mt:unit_event(what, u, data)
         if data then for k, v in pairs(data) do c[k] = v end end
         return c
     end
-    self:dispatch("EVENT_PLAYER_UNIT_" .. what, function(reg)
+    -- hero events are EVENT_PLAYER_HERO_LEVEL, not ..._UNIT_HERO_...
+    local player_event = what:match("^HERO_") and ("EVENT_PLAYER_" .. what) or ("EVENT_PLAYER_UNIT_" .. what)
+    self:dispatch(player_event, function(reg)
         return reg.player == owner or (also and reg.player == also)
     end, ctx)
     self:dispatch("EVENT_UNIT_" .. what, function(reg) return reg.unit == u end, ctx)
