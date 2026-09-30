@@ -456,7 +456,7 @@ return function(V, N, T)
     N.ShowUnit = function(u, show)
         if not u or (not show) == (u.hidden == true) then return end
         u.hidden = not show or nil
-        if u.spec and u.spec.design == "building" then W.buildings_changed = true end
+        if u.spec and u.spec.design == "building" then W.buildings_changed, W.blockers_stale = true, true end
     end
     N.IsUnitHidden = function(u) return u ~= nil and u.hidden == true end
     N.PauseUnit = function(u, flag)

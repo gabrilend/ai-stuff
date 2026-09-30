@@ -156,7 +156,7 @@ do
     g.cast(caster, "A001", far)
     run(0.2)
     test("out of range: walking, not yet cast", caster.casting and caster.casting.phase == "approach" and far.hp == 5000)
-    run(6)
+    run(9)   -- (round DAoW's buildings since issue 541)
     test("in range, cast", far.hp < 5000)
     g.remove(far)
     g.remove(t)

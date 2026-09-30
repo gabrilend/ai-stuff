@@ -291,9 +291,14 @@ function economy.step_worker(g, u, dt, fresh)
             src = h.tree
             fresh = true
         end
-        local reach = h.kind == "gold" and body(h.mine) + economy.MINE_REACH or economy.TREE_REACH
-        local d = dist(u, src.x, src.y)
-        if d <= reach then
+        -- a mine: from its footprint's edge (issue 541); a tree: its middle
+        local near
+        if h.kind == "gold" then
+            near = require("demo.wc3map.footprint").gap(g, h.mine, u.x, u.y) <= economy.MINE_REACH
+        else
+            near = dist(u, src.x, src.y) <= economy.TREE_REACH
+        end
+        if near then
             u.route = nil
             if h.kind == "gold" then
                 -- one worker in a mine at a time
@@ -349,7 +354,7 @@ function economy.step_worker(g, u, dt, fresh)
     if h.phase == "to_drop" then
         local b = g.dropoff(u, h.kind)
         if not b then return end
-        if dist(u, b.x, b.y) <= body(b) + 60 then
+        if require("demo.wc3map.footprint").gap(g, b, u.x, u.y) <= 60 then
             u.route = nil
             if h.carry > 0 then g.income(u.player, h.kind, h.carry) end
             h.carry = 0

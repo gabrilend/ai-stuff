@@ -176,6 +176,8 @@ end
 -- Distance at which u can strike v: its range plus both bodies
 local function body(u)
     if u.spec.design == "building" then
+        -- its footprint's half-width, once the pathing has measured it (issue 541)
+        if u.body then return u.body end
         return ({ small = 110, medium = 170, hall = 230, tower = 70, altar = 150, special = 150 })[u.spec.size] or 150
     end
     return u.spec.hero and 32 or 24
@@ -194,7 +196,7 @@ function combat.kill(game, target, attacker)
     target.died_at = game.time
     target.order, target.route, target.target, target.swing = nil, nil, nil, nil
     game.deaths = (game.deaths or 0) + 1
-    if target.spec.design == "building" then game.buildings_changed = true end
+    if target.spec.design == "building" then game.buildings_changed, game.blockers_stale = true, true end
     for _, f in ipairs(game.death_listeners or {}) do f(target, attacker) end
     if game.on_death then game.on_death(target, attacker) end
 end
@@ -283,6 +285,10 @@ function combat.update(game, dt)
 
             if t then
                 local d = loco.distance(u, t)
+                -- a building: from its footprint's edge (issue 541)
+                if t.spec.design == "building" and t.body then
+                    d = require("demo.wc3map.footprint").gap(game, t, u.x, u.y) + body(t)
+                end
                 if d > reach(u, t) then
                     -- chase (buildings and holders stay put and let go)
                     u.swing = nil

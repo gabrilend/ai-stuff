@@ -26,6 +26,8 @@ The shape comes from, in order:
     local x, y = fp.snap(sh, x, y)
     local ok, why, marks = fp.check(g, "hbar", x, y)   -- marks: per cell, for drawing
     fp.radius(g, id)                      -- half its larger side, in world units
+    fp.gap(g, b, x, y)                    -- from a point to building b's footprint (0 inside)
+    fp.gap_at(g, id, bx, by, x, y)        -- the same for type id standing at (bx, by)
 ]]
 
 local footprint = {}
@@ -130,6 +132,17 @@ function footprint.radius(g, id)
     return math.max(sh.w, sh.h) * footprint.CELL / 2
 end
 -- }}}
+
+-- how far a point is from a footprint's rectangle: what "beside the
+-- building" is measured by (issue 541: units stop at its edge)
+function footprint.gap_at(g, id, bx, by, x, y)
+    local sh = footprint.shape(g, id)
+    local hw, hh = sh.w * footprint.CELL / 2, sh.h * footprint.CELL / 2
+    local dx = math.max(0, math.abs(x - bx) - hw)
+    local dy = math.max(0, math.abs(y - by) - hh)
+    return math.sqrt(dx * dx + dy * dy)
+end
+function footprint.gap(g, b, x, y) return footprint.gap_at(g, b.id, b.x, b.y, x, y) end
 
 -- {{{ placing on the cells
 -- the centre that lines the texture up with the 32-unit cells
