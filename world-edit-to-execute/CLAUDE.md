@@ -478,9 +478,17 @@ Run phase completion demos to verify functionality:
 # Run Phase 1 validation tests
 ./issues/completed/demos/run_phase1.sh
 
-# Phase selector (interactive)
+# Demo menu: categories (with counts), then demos; one demo per run
 ./run-demo.sh
+./run-demo.sh -l              # every demo by id
+./run-demo.sh tour-kingdoms   # one demo directly (or CAT.N, e.g. 2.1)
+./run-demo.sh -c              # check the graphical demos unattended (screenshots)
 ```
+
+The demos are a registry in `run-demo.sh` (`DEMOS`): one line each, `id |
+category | title | blurb | one line of bash`. Add a demo by adding a line
+(issue 1002). `ATTENTION(local)` comments there mark work for the owner's
+machine (raylib version, the install's art, Phase W demos to come).
 
 ---
 
