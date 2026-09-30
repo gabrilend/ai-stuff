@@ -137,6 +137,51 @@ game.camera = viewer.camera
 game.set_camera = viewer.set_camera
 game.quit = viewer.quit
 
+-- {{{ the game heard (issue 907b): the sounds the script plays and its
+-- music, through the window's audio, their files from the map or the
+-- install (assets); a 3D sound fades with its distance from the view.
+-- WC3_AUDIO=0 keeps it quiet.
+local sound_ids, sound_reader = {}, nil
+local function sound_bytes(file)
+    if not sound_reader then
+        sound_reader = A or assets_mod.open(path, { root = ROOT })
+    end
+    local ok, d = pcall(sound_reader.read, sound_reader, file)
+    return ok and d or nil
+end
+local function ext_of(file) return "." .. ((file:match("%.(%w+)$") or "wav"):lower()) end
+function game.on_sound(ev)
+    if os.getenv("WC3_AUDIO") == "0" or not viewer.sound_load then return end
+    if ev.music then
+        -- a playlist label ("Music") has no file of its own: the game's own list
+        if type(ev.music) == "string" and ev.music:match("%.%w+$") then
+            local d = sound_bytes(ev.music)
+            if d then viewer.music_play(d, ext_of(ev.music), true) end
+        end
+        return
+    end
+    local file = ev.file
+    if type(file) ~= "string" or file == "" then return end
+    local id = sound_ids[file]
+    if id == nil then
+        local d = sound_bytes(file)
+        id = d and viewer.sound_load(d, ext_of(file)) or false
+        sound_ids[file] = id
+    end
+    if not id then return end
+    local s = ev.sound or {}
+    local volume = math.max(0, math.min(1, (tonumber(s.volume) or 127) / 127))
+    local pan = 0.5
+    if s.is3d and ev.x and ev.y then
+        local cx, cy, dist = viewer.camera()
+        local d = math.sqrt((ev.x - cx) ^ 2 + (ev.y - cy) ^ 2)
+        volume = volume * math.max(0, 1 - d / (3000 + (dist or 1650)))
+        pan = math.max(0, math.min(1, 0.5 - (ev.x - cx) / 4000))
+    end
+    if volume > 0.01 then viewer.sound_play(id, volume, tonumber(s.pitch) or 1, pan) end
+end
+-- }}}
+
 -- {{{ the script moves the view (issue 904: jass/natives/camera.lua):
 -- to where it asks, over the time it asks, keeping what it doesn't name
 local glide

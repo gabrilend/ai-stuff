@@ -349,6 +349,95 @@ static int lv_play_sound(lua_State* L) {
 }
 /* }}} */
 
+/* {{{ the game's sounds and music (issue 907b): sounds loaded once each
+ * (viewer.sound_load(bytes, ext) -> id), played with a volume (0-1),
+ * pitch and pan (0 left, 0.5 middle, 1 right), up to SOUND_VOICES at once
+ * each; one piece of music streamed (its bytes kept here) */
+#define MAX_SOUNDS 512
+#define SOUND_VOICES 4
+typedef struct { Sound voice[SOUND_VOICES]; int next; } GameSound;
+static GameSound g_sounds[MAX_SOUNDS];
+static int g_sound_count = 0;
+static Music g_music;
+static bool g_music_on = false;
+static unsigned char* g_music_bytes = NULL;
+
+static bool audio_ready(void) {
+    if (!g_audio_tried) {
+        g_audio_tried = true;
+        InitAudioDevice();
+    }
+    return IsAudioDeviceReady();
+}
+
+static int lv_sound_load(lua_State* L) {
+    size_t len;
+    const char* data = luaL_checklstring(L, 1, &len);
+    const char* ext = luaL_optstring(L, 2, ".wav");
+    if (!audio_ready()) { lua_pushnil(L); lua_pushstring(L, "no audio device"); return 2; }
+    if (g_sound_count >= MAX_SOUNDS) { lua_pushnil(L); lua_pushstring(L, "too many sounds"); return 2; }
+    Wave w = LoadWaveFromMemory(ext, (const unsigned char*)data, (int)len);
+    if (w.data == NULL) { lua_pushnil(L); lua_pushstring(L, "can't read the sound"); return 2; }
+    GameSound* gs = &g_sounds[g_sound_count];
+    gs->voice[0] = LoadSoundFromWave(w);
+    UnloadWave(w);
+    for (int i = 1; i < SOUND_VOICES; i++) gs->voice[i] = LoadSoundAlias(gs->voice[0]);
+    gs->next = 0;
+    lua_pushinteger(L, g_sound_count++);
+    return 1;
+}
+
+static int lv_sound_play(lua_State* L) {
+    int id = (int)luaL_checkinteger(L, 1);
+    if (id < 0 || id >= g_sound_count) return 0;
+    GameSound* gs = &g_sounds[id];
+    Sound v = gs->voice[gs->next];
+    gs->next = (gs->next + 1) % SOUND_VOICES;
+    SetSoundVolume(v, (float)luaL_optnumber(L, 2, 1.0));
+    SetSoundPitch(v, (float)luaL_optnumber(L, 3, 1.0));
+    SetSoundPan(v, (float)luaL_optnumber(L, 4, 0.5));
+    PlaySound(v);
+    return 0;
+}
+
+static int lv_music_stop(lua_State* L) {
+    (void)L;
+    if (g_music_on) {
+        StopMusicStream(g_music);
+        UnloadMusicStream(g_music);
+        g_music_on = false;
+    }
+    free(g_music_bytes);
+    g_music_bytes = NULL;
+    return 0;
+}
+
+static int lv_music_play(lua_State* L) {
+    size_t len;
+    const char* data = luaL_checklstring(L, 1, &len);
+    const char* ext = luaL_optstring(L, 2, ".mp3");
+    if (!audio_ready()) { lua_pushboolean(L, 0); lua_pushstring(L, "no audio device"); return 2; }
+    lv_music_stop(L);
+    g_music_bytes = malloc(len);
+    if (!g_music_bytes) { lua_pushboolean(L, 0); return 1; }
+    memcpy(g_music_bytes, data, len);
+    g_music = LoadMusicStreamFromMemory(ext, g_music_bytes, (int)len);
+    if (g_music.stream.buffer == NULL) {
+        free(g_music_bytes);
+        g_music_bytes = NULL;
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, "can't read the music");
+        return 2;
+    }
+    g_music.looping = lua_isnoneornil(L, 3) ? true : lua_toboolean(L, 3);
+    SetMusicVolume(g_music, (float)luaL_optnumber(L, 4, 0.6));
+    PlayMusicStream(g_music);
+    g_music_on = true;
+    lua_pushboolean(L, 1);
+    return 1;
+}
+/* }}} */
+
 /* {{{ viewer.wheel() -> the mouse wheel's turn this frame */
 static int lv_wheel(lua_State* L) {
     lua_pushnumber(L, g_wheel);
@@ -376,7 +465,9 @@ static void register_viewer(lua_State* L) {
         { "to_screen", lv_to_screen }, { "to_ground", lv_to_ground },
         { "mouse", lv_mouse }, { "keys", lv_keys }, { "chars", lv_chars }, { "key_down", lv_key_down },
         { "wheel", lv_wheel }, { "hold_camera", lv_hold_camera }, { "quit", lv_quit },
-        { "play_sound", lv_play_sound }, { "stop_sound", lv_stop_sound }, { NULL, NULL },
+        { "play_sound", lv_play_sound }, { "stop_sound", lv_stop_sound },
+        { "sound_load", lv_sound_load }, { "sound_play", lv_sound_play },
+        { "music_play", lv_music_play }, { "music_stop", lv_music_stop }, { NULL, NULL },
     };
     lua_newtable(L);
     for (const luaL_Reg* f = fns; f->name; f++) {
@@ -501,6 +592,7 @@ int main(int argc, char** argv) {
             up |= m.y <= 2; down |= m.y >= GetScreenHeight() - 3;
         }
         g_wheel = GetMouseWheelMove();
+        if (g_music_on) UpdateMusicStream(g_music);
         if (g_hold_camera) left = right = up = down = false;
         if (left) g_fc.x -= pan;
         if (right) g_fc.x += pan;

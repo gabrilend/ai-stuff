@@ -93,3 +93,4 @@ deps/*
 
 # Maps saved by the editor beside the map they were opened from (issue 901)
 *-edited.w3x
+maps-demo-*.w3x

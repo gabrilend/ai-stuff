@@ -855,7 +855,45 @@ return function(V, N, T)
         end
     end
     N.MeleeClearExcessUnits = none
-    N.MeleeStartingUnits = none
+    -- Blizzard.j's: each playing player with a start location gets its
+    -- race's town hall there and its workers between the hall and the
+    -- nearest gold mine (or in a row below the hall when there's none
+    -- within reach) (issue 911b: new melee maps)
+    local MELEE_START = {
+        RACE_HUMAN = { hall = "htow", workers = { "hpea", "hpea", "hpea", "hpea", "hpea" } },
+        RACE_ORC = { hall = "ogre", workers = { "opeo", "opeo", "opeo", "opeo", "opeo" } },
+        RACE_UNDEAD = { hall = "unpl", workers = { "uaco", "uaco", "uaco", "ugho" } },
+        RACE_NIGHTELF = { hall = "etol", workers = { "ewsp", "ewsp", "ewsp", "ewsp", "ewsp" } },
+    }
+    N.MeleeStartingUnits = function()
+        for n = 0, 11 do
+            local p = V:player(n)
+            local loc = V.start_locs[p.start]
+            if p.slot == "PLAYER_SLOT_STATE_PLAYING" and loc then
+                local kit = MELEE_START[p.race] or MELEE_START.RACE_HUMAN
+                N.CreateUnit(p, kit.hall, loc.x, loc.y, 270)
+                local mine, md
+                for _, u in ipairs(V.world.units or {}) do
+                    if u.id == "ngol" and u.alive ~= false then
+                        local d = (u.x - loc.x) ^ 2 + (u.y - loc.y) ^ 2
+                        if d < 1500 ^ 2 and (not md or d < md) then mine, md = u, d end
+                    end
+                end
+                for i, id in ipairs(kit.workers) do
+                    local x, y
+                    if mine then
+                        local mx, my = (loc.x + mine.x) / 2, (loc.y + mine.y) / 2
+                        local ang = math.atan2(mine.y - loc.y, mine.x - loc.x) + math.pi / 2
+                        local off = (i - (#kit.workers + 1) / 2) * 64
+                        x, y = mx + math.cos(ang) * off, my + math.sin(ang) * off
+                    else
+                        x, y = loc.x + (i - (#kit.workers + 1) / 2) * 64, loc.y - 320
+                    end
+                    N.CreateUnit(p, id, x, y, 270)
+                end
+            end
+        end
+    end
     N.MeleeStartingAI = none
     N.MeleeInitVictoryDefeat = none
     N.SetMapDescription = N.SetMapDescription

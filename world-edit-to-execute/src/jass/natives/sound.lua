@@ -106,7 +106,7 @@ return function(V, N, T)
         V.music = file
         hear({ music = file, at = V.time })
     end
-    N.SetMapMusic = function(file) V.map_music = file end
+    N.SetMapMusic = function(file) V.map_music = file; hear({ music = file, at = V.time, map = true }) end
     N.PlayMusic = music
     N.PlayMusicEx = music
     N.PlayMusicBJ = music

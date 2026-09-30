@@ -150,6 +150,14 @@ end
 -- first), else the one the map carries (read_map(name) -> text), else
 -- derived.
 function faction.load_or_derive(dir, game, player, name, read_map)
+    local p, where = faction.find_profile(dir, player, read_map)
+    if p then return p, where end
+    return faction.derive(game, player, name), "derived"
+end
+
+-- The player's own profile, from the folder or the map, or nil when
+-- there is none (then the melee AI or a derived one plays: ai/init.lua)
+function faction.find_profile(dir, player, read_map)
     local file = dir and faction.find_file(dir, player)
     if file then
         local chunk, err = loadfile(file)
@@ -167,7 +175,7 @@ function faction.load_or_derive(dir, game, player, name, read_map)
         if #problems > 0 then error("AI profile " .. where .. ": " .. problems[1]) end
         return p, where
     end
-    return faction.derive(game, player, name), "derived"
+    return nil
 end
 
 -- Write each player's derived profile into dir (made if missing), not

@@ -4,6 +4,8 @@ Computer Players (Issue 521)
 One AI per computer player, on a running map script (jass/vm.lua):
 
   started by the map    StartMeleeAI / StartCampaignAI(player, path): the
+                        player's own profile if there is one (the profiles
+                        folder's, or the map's: issue 909), else the
                         map's own .ai script if the map holds that file
                         (run through ai/natives.lua), else our melee
                         profile for the race the path names (ai/melee.lua),
@@ -101,6 +103,16 @@ end
 -- our melee profile for the race the path names (or the player's)
 function M:start_script(p, path, campaign)
     local V = self.V
+    -- a profile made for this player (the profiles folder's, or the one
+    -- the map carries: the editor's AI editor, issue 909) plays instead
+    -- of the stock melee AI
+    local okp, prof, where = pcall(faction.find_profile, V.opts.ai_dir, p, V.opts.read_file)
+    if okp and prof then
+        self:start_profile(p, prof, where)
+        return true
+    elseif not okp then
+        V:error(tostring(prof))
+    end
     local source = V.opts.read_file and path and V.opts.read_file(path)
     if source then
         local ok, err = self:start_jass(p, source, path)
