@@ -19,6 +19,9 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   clock      the day starts at 8:00 and lasts 480 seconds (from memory of
              the game; see 516d)
   players, forces, quests (CreateQuestBJ titles from the script), minimap
+  stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
+             values under the map's changes (Issue 525); without it only
+             the map's changes are known
   vision     fog of war per player (demo/wc3map/vision.lua; opts.vision =
              false for none): g.shown(u) says whether the local player
              sees u (Issue 524)
@@ -110,31 +113,64 @@ end
 -- }}}
 
 -- {{{ unit_stats
--- Display name and the stats the map defines for a unit type
-local function unit_stats(m, id)
+-- Display name and stats for a unit type: the map's changes, else the
+-- stock tables (stock: gamedata/unit_stock.lua, when the install is
+-- there; Issue 525), else nothing (combat's stand-ins fill in)
+local unit_stats_mod = {}
+-- WC3's gameplay constants for heroes' attributes (1.21's)
+unit_stats_mod.HP_PER_STR, unit_stats_mod.MANA_PER_INT, unit_stats_mod.ARMOR_PER_AGI = 25, 15, 0.3
+
+local function unit_stats(m, id, stock)
     local t = m.object_data.units
-    local s = { name = resolve(m, field(t, id, "unam")) or names.unit(id) or id }
-    s.hp_max = field(t, id, "uhpm")
-    s.mana_max = field(t, id, "umpm")
-    local base, dice, sides = field(t, id, "ua1b"), field(t, id, "ua1d"), field(t, id, "ua1s")
+    local from = { map = 0, stock = 0 }
+    local function get(code)
+        local v, origin
+        if stock then
+            v, origin = stock:value(id, code)
+        else
+            v = field(t, id, code)
+            origin = v ~= nil and "map" or nil
+        end
+        if origin then from[origin] = from[origin] + 1 end
+        return v
+    end
+    local s = { name = resolve(m, get("unam")) or names.unit(id) or id }
+    s.hp_max = get("uhpm")
+    s.mana_max = get("umpm")
+    local base, dice, sides = get("ua1b"), get("ua1d"), get("ua1s")
+    s.armor = get("udef")
+    s.level = get("ulev")
+    s.str, s.agi, s.int = get("ustr"), get("uagi"), get("uint")
+    s.primary = get("upra")
+    -- heroes: attributes add hit points, mana, armour and damage
+    if s.str or s.agi or s.int then
+        local K = unit_stats_mod
+        if s.hp_max and s.str then s.hp_max = s.hp_max + s.str * K.HP_PER_STR end
+        if s.int then s.mana_max = (s.mana_max or 0) + s.int * K.MANA_PER_INT end
+        if s.armor and s.agi then s.armor = s.armor + s.agi * K.ARMOR_PER_AGI end
+        local main = ({ STR = s.str, AGI = s.agi, INT = s.int })[tostring(s.primary or ""):upper()]
+        if base and main then base = base + main end
+    end
     if base then
         dice, sides = dice or 1, sides or 1
         s.damage = string.format("%d - %d", base + dice, base + dice * sides)
     end
-    s.armor = field(t, id, "udef")
-    s.level = field(t, id, "ulev")
-    s.str, s.agi, s.int = field(t, id, "ustr"), field(t, id, "uagi"), field(t, id, "uint")
-    s.dmg_base, s.dmg_dice, s.dmg_sides = base, field(t, id, "ua1d"), field(t, id, "ua1s")
-    s.cooldown_field = field(t, id, "ua1c")
-    s.range_field = field(t, id, "ua1r")
-    s.acquire_field = field(t, id, "uacq")
-    s.attacks = field(t, id, "uaen")
-    s.speed = field(t, id, "umvs")
-    s.sight_day = field(t, id, "usid")
-    s.sight_night = field(t, id, "usin")
-    s.turn_rate = field(t, id, "umvr")
-    s.food = field(t, id, "ufoo")
-    s.food_made = field(t, id, "ufma")
+    s.dmg_base, s.dmg_dice, s.dmg_sides = base, dice, sides
+    s.cooldown_field = get("ua1c")
+    s.range_field = get("ua1r")
+    s.acquire_field = get("uacq")
+    s.attacks = get("uaen")
+    s.attack_point_field = get("udp1")
+    s.backswing_field = get("ubs1")
+    s.missile_field = get("ua1z")
+    s.weapon_type = get("ua1w")
+    s.speed = get("umvs")
+    s.turn_rate = get("umvr")
+    s.sight_day = get("usid")
+    s.sight_night = get("usin")
+    s.food = get("ufoo")
+    s.food_made = get("ufma")
+    s.stats_from = from
     return s
 end
 -- }}}
@@ -206,10 +242,11 @@ function game_mod.new(scene, opts)
     g.db = make_db(m)
 
     local stats_cache = {}
+    g.stock = opts.stock
     local function make_unit(id, spec, player, x, y, z, facing)
         local st = stats_cache[id]
         if not st then
-            st = unit_stats(m, id)
+            st = unit_stats(m, id, opts.stock)
             stats_cache[id] = st
         end
         local u = { id = id, spec = spec, player = player, x = x, y = y, z = z, facing = facing }
@@ -426,6 +463,17 @@ function game_mod.new(scene, opts)
     combat.init(g)
     production.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
+    -- how many unit types' stats came from where
+    function g.stats_report()
+        local r = { types = 0, stock = 0, map = 0, neither = 0 }
+        for _, st in pairs(stats_cache) do
+            r.types = r.types + 1
+            if st.stats_from.stock > 0 then r.stock = r.stock + 1 end
+            if st.stats_from.map > 0 then r.map = r.map + 1 end
+            if st.stats_from.stock + st.stats_from.map == 0 then r.neither = r.neither + 1 end
+        end
+        return r
+    end
     -- whether the local player sees u (always, without fog of war)
     function g.shown(u)
         return not g.vision or g.vision:sees(g.player, u)

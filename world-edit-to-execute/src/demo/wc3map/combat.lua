@@ -23,9 +23,11 @@ Units and towers that fight, the way WC3's do:
              let go, unless it struck the unit in the last two seconds
              (Issue 524)
 
-Stats come from the map's object data where it sets them (hit points,
-damage dice, cooldown, range, acquisition range, armour, whether it
-attacks at all); the rest are STAND-INS by archetype below, chosen to
+Stats come from the map's object data where it sets them, else the
+stock tables from the owner's install (hit points, damage dice,
+cooldown, range, acquisition range, armour, attack point, backswing,
+missile speed, weapon type, whether it attacks at all: Issue 525); only
+what neither gives falls to the STAND-INS by archetype below, chosen to
 play plausibly, not stock values.
 
     local combat = require("demo.wc3map.combat")
@@ -102,9 +104,12 @@ function combat.init_unit(u)
             cooldown = u.cooldown_field or s.cooldown,
             range = u.range_field or s.range,
             acquire = u.acquire_field or s.acquire,
-            attack_point = s.attack_point, backswing = s.backswing,
-            missile = s.missile,
+            attack_point = u.attack_point_field or s.attack_point,
+            backswing = u.backswing_field or s.backswing,
+            missile = u.missile_field or s.missile,
         }
+        -- a "normal" weapon strikes at once (melee); the others fly
+        if u.weapon_type == "normal" or u.weapon_type == "instant" then u.weapon.missile = 0 end
         u.weapon.acquire = math.max(u.weapon.acquire, u.weapon.range)
     end
     u.cooldown = 0
