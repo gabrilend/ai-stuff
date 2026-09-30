@@ -106,9 +106,25 @@ function EUI:layout()
     if #E.selection > 0 then
         local rx, ry = self.w - 208, 44 + 7 * 20
         for _, s in ipairs({ { "Turn -15", "turn", -15 }, { "Turn +15", "turn", 15 }, { "Scale -", "scale", 1 / 1.1 },
-                             { "Scale +", "scale", 1.1 }, { "Delete", "delete" } }) do
+                             { "Scale +", "scale", 1.1 }, { "Delete", "delete" }, { "New type from this", "new_type" } }) do
             b[#b + 1] = { x = rx, y = ry, w = 200, h = 22, label = s[1], action = s[2], arg = s[3] }
             ry = ry + 26
+        end
+        -- its type's numeric changes, each a step down or up (issue 906)
+        local o = E.selection[1]
+        local kind = self:kind_of(o)
+        ry = ry + 8
+        local shown = 0
+        for _, m in ipairs(kind and E:type_fields(kind, o.id) or {}) do
+            if type(m.value) == "number" and shown < 8 then
+                shown = shown + 1
+                local lvl = (m.level or 0) > 0 and ("/" .. m.level) or ""
+                b[#b + 1] = { x = rx, y = ry, w = 128, h = 22, label = m.field_id .. lvl .. " " .. string.format(
+                    m.var_type == 0 and "%d" or "%.2f", m.value), action = "none" }
+                b[#b + 1] = { x = rx + 132, y = ry, w = 32, h = 22, label = "-", action = "field", arg = { kind, o.id, m, -1 } }
+                b[#b + 1] = { x = rx + 168, y = ry, w = 32, h = 22, label = "+", action = "field", arg = { kind, o.id, m, 1 } }
+                ry = ry + 26
+            end
         end
     end
     self.buttons = b
@@ -145,8 +161,30 @@ function EUI:press(b)
     elseif a == "turn" then E:rotate_selection(math.rad(b.arg))
     elseif a == "scale" then E:scale_selection(b.arg)
     elseif a == "delete" then E:delete_selection()
+    elseif a == "field" then
+        local kind, id, m, dir = b.arg[1], b.arg[2], b.arg[3], b.arg[4]
+        local step = m.var_type == 0 and math.max(1, math.floor(math.abs(m.value) * 0.1 + 0.5)) or math.max(0.01, math.abs(m.value) * 0.1)
+        E:set_field(kind, id, m.field_id, m.value + dir * step, m.level)
+    elseif a == "new_type" then
+        local o = E.selection[1]
+        local kind = self:kind_of(o)
+        local id = kind and E:new_type(kind, o.id)
+        if id then E:set_type_of_selection(id); E:say("New type " .. id .. " from " .. o.id) end
     end
     self:layout()
+end
+
+-- the object-data kind a placed object's type is in
+function EUI:kind_of(o)
+    if not o then return nil end
+    if o.kind == "doodad" then
+        local E = self.E
+        if E:object_table("destructibles")._by_id[o.id] then return "destructibles" end
+        if E:object_table("doodads")._by_id[o.id] then return "doodads" end
+        -- stock: trees and destructibles are the ones with life
+        return (o.entry and (o.entry.life or 100) > 0 and o.entry.flags ~= 0) and "destructibles" or "doodads"
+    end
+    return "units"
 end
 
 function EUI:save()

@@ -170,6 +170,7 @@ local function parse_modification(data, pos, has_level_column)
     field_id, pos, err = read_char4(data, pos)
     if not field_id then return nil, pos, err end
     mod.field_id = id_to_string(field_id) or field_id
+    mod.field_raw = field_id
 
     -- Variable type
     local var_type
@@ -200,6 +201,7 @@ local function parse_modification(data, pos, has_level_column)
         value, pos, err = read_float(data, pos)
         if not value then return nil, pos, err end
         mod.value = value
+        mod.value_read = value   -- (as stored, before clamping: for writing back, issue 906)
         -- Clamp unreal to 0.0-1.0 if needed
         if var_type == objectdata.VAR_TYPE.UNREAL then
             if mod.value < 0 then mod.value = 0 end
@@ -224,6 +226,7 @@ local function parse_modification(data, pos, has_level_column)
     end_marker, pos, err = read_char4(data, pos)
     if not end_marker then return nil, pos, err end
     mod.source_id = id_to_string(end_marker)
+    mod.source_raw = end_marker
 
     return mod, pos
 end
@@ -245,12 +248,14 @@ local function parse_object(data, pos, is_custom, has_level_column)
     original_id, pos, err = read_char4(data, pos)
     if not original_id then return nil, pos, err end
     obj.original_id = id_to_string(original_id)
+    obj.original_raw = original_id
 
     -- New object ID (only meaningful for custom table)
     local new_id
     new_id, pos, err = read_char4(data, pos)
     if not new_id then return nil, pos, err end
     obj.new_id = id_to_string(new_id)
+    obj.new_raw = new_id
 
     -- For original table entries, new_id should be null
     if not is_custom and not is_null_id(new_id) then
@@ -358,6 +363,11 @@ function objectdata.parse(data, options)
         original = {},
         custom = {},
         _by_id = {},
+        -- in file order, for writing back (issue 906)
+        original_list = original_objects,
+        custom_list = custom_objects,
+        has_level_column = has_level_column,
+        tail_raw = data:sub(pos),
     }
 
     -- Index original objects
@@ -376,6 +386,63 @@ function objectdata.parse(data, options)
     setmetatable(result, { __index = objectdata.ObjectDataTable })
 
     return result
+end
+-- }}}
+
+-- {{{ objectdata.write (issue 906)
+-- The table back as bytes: objects in the order read (then any added),
+-- each modification as read unless changed. A changed value is written
+-- as its type; ids given as text are padded to four bytes.
+local function id4(raw, text)
+    if raw then return raw end
+    if not text then return "\0\0\0\0" end
+    if text:match("^0x%x%x%x%x%x%x%x%x$") then
+        return (text:sub(3):gsub("%x%x", function(h) return string.char(tonumber(h, 16)) end))
+    end
+    return (text .. "\0\0\0\0"):sub(1, 4)
+end
+objectdata.id4 = id4
+
+function objectdata.write(result)
+    local b = require("parsers.binwrite").new()
+    b:i32(result.version or 2)
+    local levels = result.has_level_column
+    local function table_of(list, custom)
+        b:i32(#list)
+        for _, obj in ipairs(list) do
+            if custom then
+                b:str(id4(obj.original_raw, obj.parent_id or obj.original_id))
+                b:str(id4(obj.new_raw, obj.id))
+            else
+                b:str(id4(obj.original_raw, obj.id)):str(obj.new_raw or "\0\0\0\0")
+            end
+            b:i32(#obj.modifications)
+            for _, m in ipairs(obj.modifications) do
+                b:str(m.field_raw and id_to_string(m.field_raw) == m.field_id and m.field_raw or id4(nil, m.field_id))
+                b:i32(m.var_type)
+                if levels then b:i32(m.level or 0):i32(m.column or 0) end
+                local t = m.var_type
+                if t == objectdata.VAR_TYPE.REAL or t == objectdata.VAR_TYPE.UNREAL then
+                    local v = m.value
+                    if m.value_read ~= nil then
+                        local clamped = m.value_read
+                        if t == objectdata.VAR_TYPE.UNREAL then clamped = math.max(0, math.min(1, clamped)) end
+                        if clamped == v then v = m.value_read end
+                    end
+                    b:f32(v)
+                elseif t == objectdata.VAR_TYPE.STRING then
+                    b:cstr(tostring(m.value))
+                else
+                    b:i32(math.floor(tonumber(m.value) or 0))
+                end
+                b:str(m.source_raw or id4(nil, m.source_id or (custom and obj.id or obj.id)))
+            end
+        end
+    end
+    table_of(result.original_list or {}, false)
+    table_of(result.custom_list or {}, true)
+    b:str(result.tail_raw or "")
+    return b:done()
 end
 -- }}}
 

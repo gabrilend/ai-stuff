@@ -48,6 +48,7 @@ return function(E)
         local edits = {}
         for _, o in ipairs(self.script_units) do
             local moved = o.x ~= o.orig.x or o.y ~= o.orig.y or math.abs(o.facing - o.orig.facing) > 1e-9
+                or o.id ~= o.orig.id
             if o.deleted then
                 local before = text:sub(1, o.at - 1)
                 local call_prefix = before:match("call%s*$")
@@ -137,6 +138,7 @@ return function(E)
         end
         if self.dirty.doodads then files["war3map.doo"] = doo.write(self.doodads) end
         if self.dirty.units and self.units_doo then files["war3mapUnits.doo"] = unitsdoo.write(self.units_doo) end
+        if self.object_files then self:object_files(files) end
         if (self.dirty.script or #self.new_units > 0) and self.script_name then
             local text, why = self:script_text()
             if not text then return nil, why end

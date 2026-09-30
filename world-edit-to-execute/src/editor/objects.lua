@@ -78,7 +78,7 @@ return function(E)
                     end
                     local o = { kind = "script_unit", id = id, who = who, x = nx, y = ny, facing = math.rad(nf),
                                 player = player or 15, at = s, to = e,
-                                orig = { x = nx, y = ny, facing = math.rad(nf) } }
+                                orig = { x = nx, y = ny, facing = math.rad(nf), id = id } }
                     self.objs[#self.objs + 1] = o
                     self.script_units[#self.script_units + 1] = o
                 end
@@ -231,6 +231,28 @@ return function(E)
         self.history:record({ name = "Delete " .. #list,
             redo = function() set_deleted(me, list, true) end,
             undo = function() set_deleted(me, list, false) end })
+        return true
+    end
+    -- }}}
+
+    -- {{{ a different type for the selection (a custom one, say)
+    function E:set_type_of_selection(id)
+        local list = { unpack(self.selection) }
+        if #list == 0 then return false end
+        local before = {}
+        for i, o in ipairs(list) do before[i] = o.id end
+        local me = self
+        local function put(ids)
+            for i, o in ipairs(list) do
+                o.id = ids[i] or ids[1]
+                if o.entry then o.entry.id = o.id end
+                if o.doo_entry then o.doo_entry.id = o.id end
+                mark(me, o)
+            end
+        end
+        put({ id })
+        self.history:record({ name = "Type " .. id .. " for " .. #list,
+            redo = function() put({ id }) end, undo = function() put(before) end })
         return true
     end
     -- }}}
