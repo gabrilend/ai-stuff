@@ -103,6 +103,12 @@ function buffs.sum(u)
         hpr = hpr + (b.hp_regen or 0)
         mpr = mpr + (b.mana_regen or 0)
     end
+    -- carried items' bonuses count with the buffs (issue 532)
+    local it = u.item_stats
+    if it then
+        move, attack, armor = move + it.move, attack + it.attack, armor + it.armor
+        hpr, mpr = hpr + it.hp_regen, mpr + it.mana_regen
+    end
     u.stunned = stun or nil
     u.buff_invulnerable = inv or nil
     -- (a unit invisible by its own nature stays so)

@@ -345,8 +345,15 @@ function abilities.init(g)
 
     -- whether an ability can be cast now, and why not; with the share of
     -- its cooldown left
-    function g.ability_ready(u, id)
+    -- an ability's level on a unit: its own, else one its items give
+    function g.ability_level(u, id)
         local level = u.abilities and u.abilities[id] or 0
+        if level <= 0 and u.item_abilities then level = u.item_abilities[id] or 0 end
+        return level
+    end
+
+    function g.ability_ready(u, id)
+        local level = g.ability_level(u, id)
         if level <= 0 then return false, "not learned", 0 end
         local _, target, i = g.ability_spec(id, level)
         local left = 0
@@ -390,7 +397,7 @@ function abilities.init(g)
         if not u or u.alive == false then return false, "dead" end
         local ok, why = g.ability_ready(u, id)
         if not ok then return false, why end
-        local level = u.abilities[id]
+        local level = g.ability_level(u, id)
         local b, kind, i = g.ability_spec(id, level)
         if kind == "unit" and not target then return false, "needs a unit target" end
         if kind == "point" and not x then
@@ -452,6 +459,7 @@ function abilities.init(g)
             amount = amount + (ww.backstab or 0)
             buffs.remove(g, u, "BOwk")
         end
+        amount = amount + (u.item_stats and u.item_stats.damage or 0)
         return amount * (u.damage_mult or 1)
     end
 

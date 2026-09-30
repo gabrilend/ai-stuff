@@ -22,6 +22,8 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
              the map's changes are known
+  items      ground items, inventories, pick up / drop / use, item
+             bonuses (demo/wc3map/items.lua, issue 532)
   building   workers place and raise structures (demo/wc3map/
              construction.lua, issue 531)
   abilities  casting with the script's spell events, cooldowns, mana,
@@ -57,6 +59,7 @@ local heroes = require("demo.wc3map.heroes")
 local abilities = require("demo.wc3map.abilities")
 local effects = require("demo.wc3map.effects")
 local construction = require("demo.wc3map.construction")
+local items = require("demo.wc3map.items")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -563,6 +566,7 @@ function game_mod.new(scene, opts)
     construction.init(g)
     effects.init(g)
     abilities.init(g)
+    items.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
     function g.stats_report()
@@ -590,6 +594,7 @@ function game_mod.new(scene, opts)
         construction.update(g, dt)
         abilities.update(g, dt)
         effects.update(g, dt)
+        items.update(g, dt)
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}

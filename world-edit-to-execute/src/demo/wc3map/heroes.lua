@@ -45,13 +45,14 @@ function heroes.refresh(g, u)
     if not h then return end
     local C = g.constants
     local lv = (u.level or 1) - 1
-    u.str = math.floor(h.str + h.str_plus * lv + h.str_bonus)
-    u.agi = math.floor(h.agi + h.agi_plus * lv + h.agi_bonus)
-    u.int = math.floor(h.int + h.int_plus * lv + h.int_bonus)
+    local it = u.item_stats or {}
+    u.str = math.floor(h.str + h.str_plus * lv + h.str_bonus + (it.str or 0))
+    u.agi = math.floor(h.agi + h.agi_plus * lv + h.agi_bonus + (it.agi or 0))
+    u.int = math.floor(h.int + h.int_plus * lv + h.int_bonus + (it.int or 0))
     local hp_share = (u.hp and u.hp_max and u.hp_max > 0) and u.hp / u.hp_max or 1
     local mana_share = (u.mana and u.mana_max and u.mana_max > 0) and u.mana / u.mana_max or 1
-    if h.hp_raw then u.hp_max = h.hp_raw + u.str * (C:get("StrHitPointBonus") or 25) end
-    u.mana_max = (h.mana_raw or 0) + u.int * (C:get("IntManaBonus") or 15)
+    if h.hp_raw then u.hp_max = h.hp_raw + u.str * (C:get("StrHitPointBonus") or 25) + (it.hp or 0) end
+    u.mana_max = (h.mana_raw or 0) + u.int * (C:get("IntManaBonus") or 15) + (it.mana or 0)
     if h.armor_raw then u.armor = h.armor_raw + u.agi * (C:get("AgiDefenseBonus") or 0.3) end
     local main = ({ STR = u.str, AGI = u.agi, INT = u.int })[h.primary]
     if h.dmg_raw and main then
