@@ -49,6 +49,13 @@ do
     for name, k in pairs(rules) do
         object_stock.KINDS[name] = { metadata = k.metadata, tables = k.tables, profiles = k.profiles }
     end
+    -- buffs and effects (their art: Issue 530); their text lives in the
+    -- abilities' profile files
+    object_stock.KINDS.buffs = {
+        metadata = "Units\\AbilityBuffMetaData.slk",
+        tables = { AbilityBuffData = "Units\\AbilityBuffData.slk" },
+        profiles = object_stock.KINDS.abilities and object_stock.KINDS.abilities.profiles or {},
+    }
     object_stock.KINDS.upgrades = {
         metadata = "Units\\UpgradeMetaData.slk",
         tables = { UpgradeData = "Units\\UpgradeData.slk" },
@@ -201,6 +208,22 @@ function S:value(id, code, level)
     end
     self.cache[key] = { v, origin }
     return v, origin
+end
+-- }}}
+
+-- {{{ S:profile_field
+-- A text profile's field by its name ("CasterArt"), for the object (its
+-- base's section): for when a field code isn't known
+function S:profile_field(id, name)
+    local sec = self:profile()[self:base(id)] or self:profile()[id]
+    local v = sec and sec[name]
+    if v == nil then
+        -- profile keys aren't consistently capitalised
+        local low = name:lower()
+        for k, x in pairs(sec or {}) do if k:lower() == low then v = x break end end
+    end
+    if type(v) == "string" then v = v:gsub('^"(.*)"$', "%1") end
+    return v
 end
 -- }}}
 

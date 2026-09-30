@@ -99,7 +99,7 @@ end
 local B = {}
 abilities.BASES = B
 
-B.AHtb = { target = "unit", enemies = true, order = "thunderbolt",
+B.AHtb = { target = "unit", enemies = true, order = "thunderbolt", missile = true,
     effect = function(g, c)
         local i = c.info
         g.spell_damage(c.caster, c.target, i.data("Htb1", 100))
@@ -124,6 +124,15 @@ B.AHbz = { target = "point", order = "blizzard", channel = true,
         if c.wave_at <= 0 and (c.waves or 0) > 0 then
             c.waves = c.waves - 1
             c.wave_at = c.wave_at + 1
+            -- its shards fall where the wave does (the ability's EffectArt)
+            if g.play_art then
+                local paths = g.ability_art(c.id, c.level, "effect")
+                local r = (c.info.area or 200) * 0.6
+                for k = 1, 3 do
+                    local a, d = math.random() * math.pi * 2, math.random() * r
+                    g.play_art(paths, { x = c.x + math.cos(a) * d, y = c.y + math.sin(a) * d }, 1.2, "effect")
+                end
+            end
             for _, u in ipairs(units_in(g, c.x, c.y, c.info.area or 200, enemy_of(g, c.caster))) do
                 local dmg = c.info.data("Hbz2", 30)
                 if u.spec.design == "building" then dmg = dmg * (1 - c.info.data("Hbz4", 0.5)) end
@@ -203,7 +212,7 @@ B.AOwk = { target = "none", order = "windwalk",
         buffs.add(g, c.caster, { id = "BOwk", source = c.caster, invisible = true, move = i.data("Owk2", 0.1),
                                  backstab = i.data("Owk3", 40), duration = i.duration or 20 })
     end }
-B.AUdc = { target = "unit", allies = true, enemies = true, order = "deathcoil",
+B.AUdc = { target = "unit", allies = true, enemies = true, order = "deathcoil", missile = true,
     effect = function(g, c)
         local amount = c.info.data("Udc1", 100)
         if enemy_of(g, c.caster)(c.target) then
@@ -388,11 +397,9 @@ function abilities.init(g)
             if target then x, y = target.x, target.y else return false, "needs a point" end
         end
         if kind == "unit_or_point" and not target and not x then return false, "needs a target" end
-        if target and b then
-            local enemy = enemy_of(g, u)(target)
-            if enemy and not b.enemies then return false, "can't target an enemy" end
-            if not enemy and not b.allies then return false, "can't target an ally" end
-            if target.alive == false then return false, "target is dead" end
+        if target and (kind == "unit" or kind == "unit_or_point") then
+            local ok_t, why_t = abilities.target_ok(g, u, target, i, b)
+            if not ok_t then return false, why_t end
         end
         if kind == "none" then target, x, y = nil, nil, nil end
         if kind == "point" then target = nil end
@@ -465,6 +472,76 @@ function abilities.init(g)
 end
 -- }}}
 
+-- {{{ abilities.target_ok
+-- Whether a unit may be a spell's target: the ability's "targets allowed"
+-- (atar: air, ground, structure, ward, enemies, friend, allies, player,
+-- neutral, self, notself, hero, nonhero, organic, mechanical, alive, dead,
+-- invulnerable, vulnerable ...), else its base's enemies / allies.
+-- Each group named in the list must match (any one of its flags)
+local GROUPS = {
+    kind = { air = true, ground = true, structure = true, ward = true, item = true, tree = true, debris = true,
+             wall = true, decoration = true, bridge = true },
+    side = { enemies = true, enemy = true, friend = true, allies = true, ally = true, player = true,
+             neutral = true, self = true, notself = true },
+    hero = { hero = true, nonhero = true },
+    body = { organic = true, mechanical = true },
+    life = { alive = true, dead = true },
+    vuln = { invulnerable = true, vulnerable = true },
+}
+
+function abilities.target_ok(g, caster, t, i, b)
+    local raw = i and (g.data.abilities:value(i.id, "atar", i.level))
+    local flags = {}
+    if type(raw) == "string" then
+        for f in raw:lower():gmatch("[^,%s]+") do flags[f] = true end
+    end
+    local enemy = t.player ~= caster.player and enemy_of(g, caster)(t)
+    local function has_group(name)
+        for f in pairs(flags) do if GROUPS[name][f] then return true end end
+        return false
+    end
+    -- alive unless the list says dead
+    if has_group("life") then
+        if t.alive ~= false and not flags.alive then return false, "must target a dead unit" end
+        if t.alive == false and not flags.dead then return false, "target is dead" end
+    elseif t.alive == false then
+        return false, "target is dead"
+    end
+    if has_group("side") then
+        local ok = (flags.enemies or flags.enemy) and enemy
+            or ((flags.friend or flags.allies or flags.ally) and not enemy and t.player ~= caster.player)
+            or (flags.player and t.player == caster.player)
+            or (flags.neutral and t.player >= 12)
+            or (flags.self and t == caster)
+        if flags.friend and not enemy then ok = true end
+        if flags.notself and t == caster then ok = false end
+        if not ok then return false, enemy and "can't target an enemy" or "can't target an ally" end
+    elseif b then
+        if enemy and not b.enemies then return false, "can't target an enemy" end
+        if not enemy and not b.allies then return false, "can't target an ally" end
+    end
+    if has_group("kind") then
+        local building = t.spec.design == "building"
+        local air = t.spec.archetype == "flyer"
+        local ok = (flags.structure and building) or (flags.air and air and not building)
+            or (flags.ground and not air and not building)
+        if not ok then return false, building and "can't target a building" or (air and "can't target air" or "can't target ground") end
+    end
+    if has_group("hero") then
+        if t.spec.hero and not flags.hero then return false, "can't target a hero" end
+        if not t.spec.hero and not flags.nonhero then return false, "must target a hero" end
+    end
+    if has_group("vuln") then
+        local inv = t.invulnerable or t.buff_invulnerable
+        if inv and not flags.invulnerable then return false, "target is invulnerable" end
+        if not inv and not flags.vulnerable then return false, "must target an invulnerable unit" end
+    elseif t.invulnerable or t.buff_invulnerable then
+        return false, "target is invulnerable"
+    end
+    return true
+end
+-- }}}
+
 -- {{{ Casting, a step at a time
 function abilities.interrupt(g, u)
     local c = u.casting
@@ -475,6 +552,42 @@ function abilities.interrupt(g, u)
         if g.spell_event then g.spell_event("SPELL_ENDCAST", c) end
     end
 end
+
+-- {{{ abilities.land
+-- The spell happens: its art (issue 530), then its effect; a missile
+-- spell's effect waits for its missile to arrive
+function abilities.land(g, c)
+    local u = c.caster
+    local art = g.ability_art ~= nil
+    if art then
+        local paths, attach = g.ability_art(c.id, c.level, "caster")
+        g.play_art(paths, { unit = u, attach = attach or "origin" }, 1.5, "caster")
+    end
+    local function arrive()
+        if art then
+            if c.target then
+                local paths, attach = g.ability_art(c.id, c.level, "target")
+                g.play_art(paths, { unit = c.target, attach = attach or "origin" }, 2, "target")
+            end
+            if c.x and not c.target then
+                g.play_art((g.ability_art(c.id, c.level, "effect")), { x = c.x, y = c.y }, 2, "effect")
+                g.play_art((g.ability_art(c.id, c.level, "area")), { x = c.x, y = c.y }, 2, "area")
+            end
+        end
+        if c.base and c.base.effect then
+            if not c.target or c.target.alive ~= false then c.base.effect(g, c) end
+        end
+    end
+    local missile = art and (g.ability_art(c.id, c.level, "missile"))[1]
+    if c.target and g.launch and (missile or (c.base and c.base.missile)) then
+        c.in_flight = true
+        g.launch(missile, u, { unit = c.target }, g.missile_speed(c.id, c.level), g.missile_arc(c.id, c.level),
+            function() c.in_flight = nil; arrive() end)
+    else
+        arrive()
+    end
+end
+-- }}}
 
 local function finish(g, u, c)
     if g.spell_event then
@@ -521,7 +634,7 @@ function abilities.step_cast(g, u, dt, fresh)
         u.cooldowns[c.id] = g.time + i.cooldown
         g.spell_event("SPELL_EFFECT", c)
         if u.casting ~= c then return end
-        if c.base and c.base.effect then c.base.effect(g, c) end
+        abilities.land(g, c)
         g.casts = (g.casts or 0) + 1
         local chan = c.base and c.base.channel and (c.base.channel_time and c.base.channel_time(i) or i.duration or 0) or 0
         if chan > 0 then
@@ -563,6 +676,7 @@ function abilities.update(g, dt)
                         if target == "aura" and b.aura then
                             local spec = b.aura(g, u, i)
                             spec.aura, spec.source = true, u
+                            if g.ability_art then spec.art_paths, spec.art_attach = g.ability_art(id, level, "target") end
                             spec.ends = g.time + abilities.AURA_EVERY * 2.2
                             local test = b.enemies and enemy_of(g, u) or ally_of(g, u)
                             for _, v in ipairs(units_in(g, u.x, u.y, i.area or 900, test)) do

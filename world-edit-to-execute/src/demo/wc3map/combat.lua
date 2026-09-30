@@ -233,6 +233,11 @@ local function strike(game, u, t)
     if w.missile > 0 then
         local a = game.volley:loose(u.x, u.y, u.z + 60, t, w.missile, 0.15, t.spec.design == "building" and 80 or 45)
         a.damage, a.source = amount, u
+        -- its missile's model (the unit's missile art, ua1m: issue 530)
+        if game.data and game.data.units then
+            local art = game.data.units:value(u.id, "ua1m")
+            if type(art) == "string" and art ~= "" then a.art = art:match("^[^,]+") end
+        end
     else
         combat.damage(game, u, t, amount)
     end

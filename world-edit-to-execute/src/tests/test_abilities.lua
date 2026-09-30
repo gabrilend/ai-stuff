@@ -129,6 +129,10 @@ do
     test("the events know the spell, caster and target", seen[3].id == vm.s2id("A001") and seen[3].target == t
         and seen[3].unit == caster)
     test("mana spent", caster.mana == 1000 - 75)
+    -- a Storm Bolt flies: its damage lands when it arrives (issue 530)
+    test("a missile in flight, nothing landed yet", #g.missiles == 1 and t.hp == 5000)
+    run(0.5)
+    test("landed", #g.missiles == 0)
     test("100 damage (spells against normal armour: DAoW's table 1.0)", t.hp == 4900, tostring(t.hp))
     test("stunned (a buff)", t.stunned and buffs.has(t, "BPSE") and N.GetUnitAbilityLevel(t, vm.s2id("BPSE")) == 1)
     local ok, why = g.cast(caster, "A001", t)
@@ -259,7 +263,7 @@ do
     test("UnitResetCooldown", (g.ability_ready(caster, "A001")))
     seen = {}
     test("IssueTargetOrder with the spell's order string", N.IssueTargetOrder(caster, "thunderbolt", t))
-    run(0.4)
+    run(0.9)
     test("cast", t.hp == 4900 and events():find("EFFECT") ~= nil)
     test("UnitHasBuffBJ sees the stun", N.UnitHasBuffBJ(t, vm.s2id("BPSE")))
     N.UnitRemoveBuffs(t, true, true)

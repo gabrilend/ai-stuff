@@ -11,6 +11,8 @@ right clicks; the units walk by WC3's movement rules.
 Unattended runs (screenshots, tests) can script input with SCENE_ACTIONS:
 "time:action;..." where action is one of
     select:hero | select:worker | select:building | select:army
+    herolevel:N            the selected hero to level N, learning all it can
+    cast:A0AI              the selected unit casts an ability at the nearest enemy
     order:attack_nearest   the selection attack-moves on the nearest enemy
     key:NAME           a key press (hotkeys, F9-F12, ESCAPE, TAB, ...)
     click:x,y  rclick:x,y  drag:x0,y0,x1,y1  hover:x,y   (screen pixels)
@@ -182,6 +184,13 @@ local function team_rgb(player)
     local c = designs.TEAM[player] or designs.TEAM[15] or { 200, 200, 200 }
     return c[1], c[2], c[3]
 end
+-- effects and missiles (issue 530)
+local draw_fx = require("demo.wc3map.draw_effects").new(render, model_cache, A)
+local function unit_model(u)
+    local mid = model_of("unit", u.id)
+    local meta = mid and model_cache.meta[mid]
+    return meta and meta.m, u.model_scale or 1
+end
 -- placed doodads drawn as models, and those left to the designs
 local doodad_models, designed_doodads = {}, {}
 for _, d in ipairs(s.doodads) do
@@ -305,6 +314,34 @@ local function scripted(what, input)
         for i = 1, math.min(take, #list) do chosen[i] = list[i] end
         hud:select(chosen)
         if chosen[1] then viewer.set_camera(chosen[1].x, chosen[1].y - 200) end
+    elseif kind == "herolevel" then
+        -- the selected hero to a level, learning every skill it can
+        local h = hud:leader()
+        if h and game.set_hero_level then
+            game.set_hero_level(h, n[1] or 10)
+            local learned = true
+            while learned do
+                learned = false
+                for _, id in ipairs(game.hero_skills(h)) do
+                    if game.learn(h, id) then learned = true end
+                end
+            end
+        end
+    elseif kind == "cast" then
+        -- cast:<ability>: the selected unit casts it at the nearest enemy
+        -- (or there, or at once), as the game lets it
+        local h = hud:leader()
+        if h and game.cast then
+            local foe, best = nil, math.huge
+            for _, u in ipairs(game.units) do
+                if u.alive and u.player ~= h.player and u.player < 13 and require("demo.wc3map.combat").hostile(game, h, u) then
+                    local d = (u.x - h.x) ^ 2 + (u.y - h.y) ^ 2
+                    if d < best then foe, best = u, d end
+                end
+            end
+            local ok, why = game.cast(h, rest, foe, foe and foe.x, foe and foe.y)
+            print(string.format("[cast] %s %s: %s", h.id, rest, ok and "cast" or tostring(why)))
+        end
     elseif kind == "key" then
         input.keys[#input.keys + 1] = rest
     elseif kind == "click" then
@@ -397,7 +434,25 @@ function scene_paint()
     end
     for _, a in ipairs(game.volley.arrows) do
         if math.abs(a.x - cx) < reach and math.abs(a.y - cy) < reach then
-            add_list(figures.arrow(a.x, a.y, a.z, a.dx, a.dy, a.dz))
+            -- the unit's missile model when there is one (issue 530)
+            local mod = a.art and draw_fx:model(a.art)
+            if mod then
+                render.model_draw(mod.id, a.x, a.y, a.z, math.atan2(a.dy, a.dx), 1, 255, 255, 255)
+            else
+                add_list(figures.arrow(a.x, a.y, a.z, a.dx, a.dy, a.dz))
+            end
+        end
+    end
+    draw_fx:draw(game, cx, cy, reach, adt, add_list, A and unit_model)
+    -- a spell being aimed: its area under the pointer (issue 530)
+    if hud.targeting == "cast" and hud.spell and input.mx then
+        local gx, gy = viewer.to_ground(input.mx, input.my)
+        if gx then
+            local lead = hud:leader()
+            local level = lead and lead.abilities and lead.abilities[hud.spell] or 1
+            local info = game.ability_info(hud.spell, level)
+            local r = info.area or 60
+            add_list(figures.ring(gx, gy, s.sample.ground_at(gx, gy) + 4, r, { 120, 200, 255 }, 32, 4))
         end
     end
     for _, u in ipairs(hud.selection) do
