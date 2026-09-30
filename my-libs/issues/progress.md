@@ -7,6 +7,7 @@ Shared library infrastructure for reusable components across projects.
 | Library | Status | Issues |
 |---------|--------|--------|
 | threadpool | In Progress | 5/7 |
+| zip | In Progress | 0/1 |
 
 ---
 
@@ -55,3 +56,22 @@ specific to the world-edit-to-execute project.
 ### Consumer Projects
 
 - world-edit-to-execute (Phase 8 consumer, origin of implementation)
+
+---
+
+## Zip Library (801)
+
+**Location:** `/home/ritz/programming/ai-stuff/my-libs/zip/`
+
+**Purpose:** a zip packer and a metered zip reader in plain Lua, running on
+LuaJIT and Lua 5.3/5.4, so that rao-chat and rmail share one reader and
+neither calls the zip programs.
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 801 | Zip library | In Progress | None |
+
+### Consumer Projects
+
+- rao-chat (origin: issue 216e)
+- rmail (#405)
