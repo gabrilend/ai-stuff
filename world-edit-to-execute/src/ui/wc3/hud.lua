@@ -255,6 +255,16 @@ function Hud:press(b)
         for _, u in ipairs(sel) do if u.building_up then self.game.cancel_build(u) end end
     elseif a == "cancel_upgrade" and self.game.cancel_upgrade then
         for _, u in ipairs(sel) do if u.upgrading then self.game.cancel_upgrade(u) end end
+    elseif a == "research" and self.game.research then
+        local why
+        for _, u in ipairs(sel) do
+            if u.spec.design == "building" then
+                local ok, reason = self.game.research(u, b.target)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't research that") .. ".")
     elseif a == "upgrade" and self.game.upgrade then
         -- the first selected building that can
         local why

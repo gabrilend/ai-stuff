@@ -10,8 +10,8 @@ barracks, a hero, attack waves that grow) with stock ids from memory.
 
 With harvesting (issue 527) and construction (issues 531, 540) a melee
 AI gathers, builds its farms, barracks and altar with its workers, trains
-its army and hero there, and its waves form. Research ("upgrade"
-entries) is still kept, not played.
+its army and hero there, and its waves form. "upgrade" entries are
+researched (issue 542); these profiles don't list any yet.
 
     local melee = require("ai.melee")
     local p = melee.profile("human")      -- or by a script path: melee.race_of("scripts\\orc.ai")

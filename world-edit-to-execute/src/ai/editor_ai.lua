@@ -24,8 +24,8 @@ STEP seconds:
 Harvesting follows the profile's worker counts (ai/player.lua, issue
 527). Buildings are built (or upgraded to, or hired) and expansions put
 a hall at a free mine (issue 540, ai/acts.lua); heroes learn their
-profile's skill order. Research ("upgrade" entries) is kept but not
-played: the game has no research yet; it's noted once in the AI's log.
+profile's skill order; "upgrade" entries are researched to their count's
+level (issue 542).
 
     local runner = editor_ai.start(V, ai, profile)
 ]]
@@ -116,8 +116,11 @@ function R:build()
                 id, want = h and h.id, 1
                 if id and self.state.heroes[b.slot or 1] then want = 0 end
             elseif kind == "upgrade" then
-                self:note_once(kind, "upgrade entries are kept, not played: the game has no research yet")
-                id = nil
+                -- research to that level (issue 542): produce researches it
+                if not ai.researcher then
+                    self:note_once(kind, "upgrade entries are kept, not played: the game has no research")
+                    id = nil
+                end
             elseif kind == "expansion" then
                 -- a hall at a free mine: counted as halls beyond the first
                 local hall = id or (ai.hall_type and ai:hall_type())
