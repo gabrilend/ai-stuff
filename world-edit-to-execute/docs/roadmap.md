@@ -719,11 +719,11 @@ Also done in `demo/wc3map/`, outside the 70x numbering:
 | 902 | Terrain editor | Height, textures, cliffs, water | First pass: raise, lower, smooth, flatten, paint, water, cliffs, blight |
 | 903 | Object placer | Units, doodads, items, destructibles | First pass: doodads, placed and script units |
 | 904 | Region and camera editor | Regions, camera presets | First pass: the script's rects moved and resized |
-| 905 | Trigger editor | GUI + Lua with bidirectional sync | |
+| 905 | Trigger editor | GUI + Lua with bidirectional sync | First pass (905a): blocks written as JASS, the map's own triggers edited as code |
 | 906 | Object editor | Modify unit/ability/item stats | First pass: fields, custom types, all 7 kinds |
 | 907 | Sound editor | 3D sounds, music, ambience | |
 | 908 | Import manager | Custom asset management | |
-| 909 | AI editor | Computer player behavior | |
+| 909 | AI editor | Computer player behavior | First pass (909a): AI Editor profiles edited, saved into the map |
 | 910 | Campaign editor | Multi-map storylines | |
 | 911 | Map format and export | Standard .w3x export | 911a done: WC3 files written back, copies saved in place |
 | 912 | Phase 9 integration test | Full editor workflow testing | |

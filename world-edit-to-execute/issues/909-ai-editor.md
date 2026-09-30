@@ -240,3 +240,25 @@ local ai = ai_editor.import(script_path)
 - May want AI difficulty scaling (easy → insane)
 - Consider "AI templates" for common strategies
 - Behavioral trees might be more powerful than script-based AI
+
+## Implementation Notes
+
+**2026-09-30, first pass (sub-issue 909a, completed).**
+
+**What was built:**
+- The computer players' AI Editor profiles (`ai/profile.lua`) edited in a panel with the AI Editor's tabs:
+  - General (options, workers, targets);
+  - Heroes;
+  - Build;
+  - Groups;
+  - Waves;
+  - Conditions.
+- Undo for every change, and checking.
+- Profiles saved into the map as `war3mapAI\pNN.lua`, which the game now reads.
+- Profiles exported to the `ai-profiles/<map>/` folder.
+
+**Still open here:**
+- Difficulty presets that scale aggression and expansion.
+- Defense regions and defenders (the profile model has no defense tab yet).
+- Import and export of WC3's own `.wai` / `.ai` files.
+- A test-simulation view inside the editor. Play-testing the saved copy (F5) runs the edited AI.
