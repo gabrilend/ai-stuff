@@ -77,6 +77,7 @@ local function parse_tilepoint(data, pos)
     tp.water_raw = water.raw
     tp.water_level = water.level
     tp.boundary = water.boundary
+    tp.water_flags = band(water_raw, 0xC000)   -- (kept for writing back: issue 911a)
 
     -- Byte 4: Ground texture (low nibble) + Flags (high nibble: 0x10 ramp,
     -- 0x20 blight, 0x40 water, 0x80 boundary). Until issue 517 these two
@@ -359,6 +360,40 @@ function w3e.parse(data)
     return terrain
 end
 -- }}}
+-- }}}
+
+-- {{{ w3e.write (issue 911a)
+-- The terrain back as war3map.w3e bytes. Heights and water levels are
+-- written from tp.height and tp.water_level (world units), so an editor
+-- changes those; the rest from the fields the parser reads.
+function w3e.write(terrain)
+    local b = require("parsers.binwrite").new()
+    b:str(MAGIC):i32(terrain.version or EXPECTED_VERSION)
+    b:str(terrain.tileset_code ~= "" and terrain.tileset_code or "L")
+    b:i32(terrain.custom_tileset and 1 or 0)
+    b:i32(#terrain.ground_tilesets)
+    for _, t in ipairs(terrain.ground_tilesets) do b:str(t) end
+    b:i32(#terrain.cliff_tilesets)
+    for _, t in ipairs(terrain.cliff_tilesets) do b:str(t) end
+    b:i32(terrain.width):i32(terrain.height)
+    b:f32(terrain.offset_x):f32(terrain.offset_y)
+    local function raw(world) return math.floor(world * 4 + 8192 + 0.5) end
+    for y = 0, terrain.height - 1 do
+        local row = terrain.tilepoints[y]
+        for x = 0, terrain.width - 1 do
+            local tp = row[x]
+            b:i16(raw(tp.height))
+            b:u16(raw(tp.water_level) % 0x4000 + (tp.water_flags or (tp.boundary and 0x4000 or 0)))
+            local flags = tp.ground_texture % 16
+                + (tp.is_ramp and 0x10 or 0) + (tp.is_blight and 0x20 or 0)
+                + (tp.has_water and 0x40 or 0) + (tp.is_boundary and 0x80 or 0)
+            b:u8(flags)
+            b:u8(tp.texture_details % 32 + (tp.cliff_variation % 8) * 32)
+            b:u8(tp.layer_height % 16 + (tp.cliff_texture % 16) * 16)
+        end
+    end
+    return b:done()
+end
 -- }}}
 
 -- {{{ Format function
