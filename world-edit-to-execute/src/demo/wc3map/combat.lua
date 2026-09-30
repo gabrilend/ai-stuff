@@ -195,6 +195,7 @@ function combat.kill(game, target, attacker)
     target.order, target.route, target.target, target.swing = nil, nil, nil, nil
     game.deaths = (game.deaths or 0) + 1
     if target.spec.design == "building" then game.buildings_changed = true end
+    for _, f in ipairs(game.death_listeners or {}) do f(target, attacker) end
     if game.on_death then game.on_death(target, attacker) end
 end
 

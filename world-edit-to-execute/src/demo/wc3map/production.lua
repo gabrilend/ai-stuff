@@ -12,8 +12,8 @@ rest are STAND-INS by archetype below, chosen to play plausibly, not the
 game's values. Which building trains what is db.unit_list(id, "utra")
 (game.lua).
 
-A player's gold and lumber are the running script's (jass/vm.lua player
-state) when a script runs, else a purse started at WC3's melee 500 / 150.
+A player's gold, lumber and food are the economy's (demo/wc3map/economy.lua,
+issue 527): the running script's player state when a script runs.
 
     production.init(game)             -- installs game.train and friends
     game.train(building, "hfoo")      -- true, or false and why not
@@ -23,7 +23,6 @@ state) when a script runs, else a purse started at WC3's melee 500 / 150.
 local production = {}
 
 production.QUEUE_MAX = 7
-production.FOOD_MAX = 100
 
 -- {{{ Stand-ins (see the header)
 -- gold, lumber, seconds, food
@@ -74,35 +73,6 @@ function production.init(g)
         cost_cache[id] = c
         return c
     end
-
-    -- {{{ purses
-    g.purses = {}
-    function g.purse(player)
-        if g.script then return g.script:player(player) end
-        local p = g.purses[player]
-        if not p then
-            p = { gold = g.start_resources.gold or 500, lumber = g.start_resources.lumber or 150 }
-            g.purses[player] = p
-        end
-        return p
-    end
-    -- }}}
-
-    -- {{{ food
-    function g.food(player)
-        local used, cap = 0, 0
-        for _, u in ipairs(g.units) do
-            if u.player == player and u.alive ~= false and not u.removed then
-                used = used + (u.food or 0)
-                cap = cap + (u.food_made or 0)
-                for _, q in ipairs(u.queue or {}) do used = used + (q.food or 0) end
-            end
-        end
-        local ps = g.script and g.script.players[player]
-        if ps and (ps.food_cap or 0) > 0 then cap = math.max(cap, ps.food_cap) end
-        return used, math.min(production.FOOD_MAX, cap)
-    end
-    -- }}}
 
     -- {{{ requirements: a living unit (or finished research) of each id
     function g.has_tech(player, id)
@@ -189,6 +159,7 @@ function production.update(g, dt)
                     u.trained_by = b
                     if b.rally then g.order({ u }, "move", b.rally.x, b.rally.y) end
                     g.trained = (g.trained or 0) + 1
+                    if g.made then g.made(u, "trained") end
                     if g.on_trained then g.on_trained(b, u) end
                 end
             end

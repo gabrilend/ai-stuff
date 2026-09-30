@@ -59,6 +59,7 @@ local player = tonumber(os.getenv("WC3_PLAYER") or "0")
 -- (issues 522, 525); WC3_MODELS=0 draws the geometry designs only
 local assets_mod = require("assets")
 local A = assets_mod.open(path, { root = ROOT })
+local chain = A.chain
 local stock = require("gamedata.unit_stock").new(A.chain, s.map.object_data and s.map.object_data.units)
 -- the ground's textures (issue 526): the install's tilesets, else
 -- stand-ins drawn in their layout; WC3_TILES=0 for plain colours
@@ -73,7 +74,7 @@ if os.getenv("WC3_MODELS") == "0" then A = nil end
 local FOG = os.getenv("WC3_FOG") ~= "0"
 local game
 if os.getenv("WC3_SCRIPT") ~= "0" then
-    game = game_mod.new(s, { player = player, placed = false, vision = FOG, stock = stock })
+    game = game_mod.new(s, { player = player, placed = false, vision = FOG, stock = stock, chain = chain })
     local V, err = game.run_script({
         verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1",
         ai = os.getenv("WC3_AI") or "auto",
@@ -90,7 +91,7 @@ if os.getenv("WC3_SCRIPT") ~= "0" then
         game = nil
     end
 end
-game = game or game_mod.new(s, { player = player, vision = FOG, stock = stock })
+game = game or game_mod.new(s, { player = player, vision = FOG, stock = stock, chain = chain })
 do
     local r = game.stats_report()
     print(string.format("[stats] stock tables: %s; %d unit types: %d with stock values, %d with the map's, %d stand-ins only",
@@ -370,7 +371,8 @@ function scene_paint()
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
     for _, u in ipairs(game.units) do
-        if not u.hidden and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach and game.shown(u) then
+        if not u.hidden and not u.hidden_in_mine and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
+            and game.shown(u) then
             local mid = model_of("unit", u.id)
             if mid then
                 local r, g, b = team_rgb(u.player)
@@ -387,7 +389,7 @@ function scene_paint()
     end
     for _, dm in ipairs(doodad_models) do
         local d = dm.d
-        if math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
+        if not d.fallen and math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
             local rig = ANIMATE and model_cache:rig(dm.id)
             render.model_draw(dm.id, d.x, d.y, d.z, d.facing or 0, d.scale and d.scale[1] or 1, 255, 255, 255,
                 1, rig and animate.still(rig, dm, adt))

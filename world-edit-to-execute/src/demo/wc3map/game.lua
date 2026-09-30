@@ -22,6 +22,11 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
              the map's changes are known
+  economy    player state, food and upkeep, gathering, bounty, scores
+             (demo/wc3map/economy.lua, issue 527); gameplay constants
+             in g.constants (the map's war3mapMisc.txt over the
+             install's), object tables in g.data (units, abilities,
+             items, upgrades: stock under the map's changes)
   vision     fog of war per player (demo/wc3map/vision.lua; opts.vision =
              false for none): g.shown(u) says whether the local player
              sees u (Issue 524)
@@ -40,6 +45,9 @@ local combat = require("demo.wc3map.combat")
 local map_scene = require("demo.wc3map.scene")
 local production = require("demo.wc3map.production")
 local vision_mod = require("demo.wc3map.vision")
+local economy = require("demo.wc3map.economy")
+local object_stock = require("gamedata.object_stock")
+local game_constants = require("gamedata.game_constants")
 
 local game_mod = {}
 
@@ -241,6 +249,32 @@ function game_mod.new(scene, opts)
     local g = { scene = scene, player = opts.player or 0, units = {}, time = 0 }
     g.db = make_db(m)
 
+    -- the object tables, stock under the map's changes, and the gameplay
+    -- constants (issues 525, 527): opts.chain is the install's game data
+    local od = m.object_data or {}
+    g.data = {
+        units = opts.stock or object_stock.new(opts.chain, od.units, "units"),
+        abilities = object_stock.new(opts.chain, od.abilities, "abilities"),
+        items = object_stock.new(opts.chain, od.items, "items"),
+        upgrades = object_stock.new(opts.chain, od.upgrades, "upgrades"),
+    }
+    if not opts.stock then opts.stock = g.data.units end
+    g.constants = opts.constants
+    if not g.constants then
+        local misc
+        local ok, archive = pcall(mpq.open, scene.path)
+        if ok and archive then
+            if archive:has("war3mapMisc.txt") then misc = archive:extract("war3mapMisc.txt") end
+            archive:close()
+        end
+        g.constants = game_constants.load({ chain = opts.chain, map_text = misc })
+    end
+    -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how)
+    g.death_listeners, g.made_listeners = {}, {}
+    function g.made(u, how)
+        for _, f in ipairs(g.made_listeners) do f(u, how) end
+    end
+
     local stats_cache = {}
     g.stock = opts.stock
     local function make_unit(id, spec, player, x, y, z, facing)
@@ -303,18 +337,22 @@ function game_mod.new(scene, opts)
     if opts.minimap ~= false then g.minimap.rgba = minimap_image(scene, g.minimap.size) end
 
     -- {{{ g.resources
+    -- The top bar's numbers: gold, lumber, food used / made (capped by the
+    -- ceiling), upkeep tier (issue 527)
     function g.resources(player)
-        local food, cap, unknown = 0, 0, 0
+        local unknown = 0
         for _, u in ipairs(g.units) do
-            if u.player == player and u.alive ~= false then
-                if u.food then food = food + u.food elseif u.spec.design == "unit" then unknown = unknown + 1 end
-                if u.food_made then cap = cap + u.food_made end
+            if u.player == player and u.alive ~= false and not u.food and u.spec.design == "unit" then
+                unknown = unknown + 1
             end
         end
-        local purse = g.purse(player)
+        local s = g.state(player)
+        local used, cap = g.food(player)
+        local tier, gtax = g.upkeep(player)
         return {
-            gold = purse.gold or 0, lumber = purse.lumber or 0,
-            food = food, food_cap = math.min(game_mod.FOOD_MAX, cap), food_unknown = unknown,
+            gold = s.gold or 0, lumber = s.lumber or 0,
+            food = used, food_cap = cap, food_ceiling = g.food_ceiling(player), food_unknown = unknown,
+            upkeep = tier, upkeep_tax = gtax,
         }
     end
     -- }}}
@@ -393,6 +431,13 @@ function game_mod.new(scene, opts)
     -- (target) | patrol | stop | hold. Point orders keep a group's
     -- formation: units keep their places around the group's middle.
     function g.order(list, kind, x, y, target)
+        if kind == "gather" then
+            local any = false
+            for _, u in ipairs(list) do any = g.gather(u, target, x, y) or any end
+            return any
+        end
+        -- any other order ends gathering
+        for _, u in ipairs(list) do u.harvest = nil; u.hidden_in_mine = nil end
         local cx, cy, n = 0, 0, 0
         for _, u in ipairs(list) do
             if u.spec.design == "unit" and u.alive ~= false then cx, cy, n = cx + u.x, cy + u.y, n + 1 end
@@ -461,6 +506,7 @@ function game_mod.new(scene, opts)
 
     -- {{{ g.tick
     combat.init(g)
+    economy.init(g)
     production.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
@@ -485,6 +531,7 @@ function game_mod.new(scene, opts)
         if g.ai_manager then g.ai_manager:update(dt) end
         if opts.combat ~= false then combat.update(g, dt) end
         production.update(g, dt)
+        economy.update(g, dt)
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}

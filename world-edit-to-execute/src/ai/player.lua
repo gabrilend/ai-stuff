@@ -363,6 +363,14 @@ function AI:update(dt)
         self:go_home()
     end
 
+    -- harvesting (issue 527): idle workers to gold, then lumber, up to the
+    -- profile's counts (the AI Editor's "workers on gold / lumber")
+    self.harvest_clock = (self.harvest_clock or 0) + dt
+    if self.harvest_clock >= 2 and g.gather then
+        self.harvest_clock = 0
+        self:assign_workers()
+    end
+
     -- defending: anything of ours struck near home calls the defense
     -- captain and every free fighter at home
     self.defend_clock = (self.defend_clock or 0) + dt
@@ -389,6 +397,41 @@ function AI:update(dt)
                 if #list > 0 then g.order(list, "attack", near.x, near.y) end
                 self.defending = g.time
             end
+        end
+    end
+end
+-- }}}
+
+-- {{{ AI:assign_workers
+function AI:assign_workers()
+    local g = self.game
+    local plan = self.harvest_plan or { gold = 5, lumber = 3 }
+    local on = { gold = 0, lumber = 0 }
+    local idle = {}
+    for _, u in ipairs(self:units()) do
+        if u.spec.archetype == "worker" and u.spec.design == "unit" then
+            if u.harvest then
+                on[u.harvest.kind] = on[u.harvest.kind] + 1
+            elseif not u.order and not u.ai_captain then
+                idle[#idle + 1] = u
+            end
+        end
+    end
+    if #idle == 0 then return end
+    local hx, hy = self.home.x, self.home.y
+    -- the mine nearest home with gold left
+    local mine, md = nil, math.huge
+    for _, u in ipairs(g.units) do
+        if u.alive and g.is_mine and g.is_mine(u) and (u.gold == nil or u.gold > 0) then
+            local d = (u.x - hx) ^ 2 + (u.y - hy) ^ 2
+            if d < md then mine, md = u, d end
+        end
+    end
+    for _, u in ipairs(idle) do
+        if mine and on.gold < (plan.gold or 0) and g.gather(u, mine) then
+            on.gold = on.gold + 1
+        elseif on.lumber < (plan.lumber or 0) and g.gather(u, nil, hx, hy) then
+            on.lumber = on.lumber + 1
         end
     end
 end
