@@ -587,6 +587,10 @@ function game_mod.new(scene, opts)
     function g.shown(u)
         return not g.vision or g.vision:sees(g.player, u)
     end
+    -- whether the local player sees a place (an item lying there)
+    function g.shown_at(x, y)
+        return not g.vision or g.vision:state(g.player, x, y) == 2
+    end
     function g.tick(dt)
         g.time = g.time + dt
         if g.vision then g.vision:update(dt) end

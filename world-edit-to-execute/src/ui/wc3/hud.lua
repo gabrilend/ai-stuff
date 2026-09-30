@@ -186,6 +186,26 @@ function Hud:pick(mx, my)
 end
 -- }}}
 
+-- {{{ Hud:pick_item
+-- The item on the ground under a screen point (its treasure icon), when
+-- the local player can see where it lies
+function Hud:pick_item(mx, my)
+    local game = self.game
+    local best, best_d = nil, 20 * 20
+    for _, it in ipairs(game.items or {}) do
+        if not it.owner and not it.removed and not it.hidden
+            and (not game.shown_at or game.shown_at(it.x, it.y)) then
+            local sx, sy, ahead = game.to_screen(it.x, it.y, (it.z or 0) + 20)
+            if ahead then
+                local d = (sx - mx) ^ 2 + (sy - my) ^ 2
+                if d < best_d then best, best_d = it, d end
+            end
+        end
+    end
+    return best
+end
+-- }}}
+
 -- {{{ Hud:box_select
 -- Your units inside a screen rectangle (units before buildings), up to 12
 function Hud:box_select(x0, y0, x1, y1)
@@ -419,11 +439,12 @@ function Hud:update(input, dt)
                     if u.spec.archetype == "worker" then workers[#workers + 1] = u end
                 end
                 local gathered = false
-                -- an item on the ground: the first who can carry it fetches it
-                local item = not target and game.item_at and game.item_at(x, y, 100)
+                -- an item's treasure icon clicked on: the first selected unit
+                -- with an inventory fetches it (walking over one does nothing)
+                local item = not target and not over_ui and game.pick_up and self:pick_item(mx, my)
                 if item then
                     for _, u in ipairs(self:own_selection()) do
-                        if game.pick_up(u, item) then gathered = true break end
+                        if game.inventory_size(u) > 0 and game.pick_up(u, item) then gathered = true break end
                     end
                 end
                 if not gathered and #workers > 0 and game.gather then

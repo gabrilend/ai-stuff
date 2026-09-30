@@ -16,7 +16,10 @@ Workers put up buildings, as in WC3:
               human      stays and works; the building waits while it's away
               orc        goes inside until it's done
               undead     starts it and is free (the building rises alone)
-              night elf  is used up (a wisp becomes the building)
+              night elf  a living building (an Ancient: classed "ancient",
+                         or able to uproot) takes its wisp in for good; the
+                         rest (moon wells, hunter's halls ...) the wisp only
+                         starts, and grows alone
             (from the builder's race, urac; others build the human way)
   finished  CONSTRUCT_FINISH; its food made and training count from now
   cancel    the structure goes, the worker comes back, and 75% of the cost
@@ -46,6 +49,22 @@ local function footprint(spec)
     return construction.FOOTPRINT[spec and spec.size or "medium"] or 128
 end
 construction.footprint = footprint
+
+-- a night elf Ancient: a living building, the wisp its spirit
+-- (the stock Ancients by id, for when the tables don't say)
+local UPROOT = { Aro1 = true, Aro2 = true }
+local ANCIENTS = { etol = true, etoa = true, etoe = true, eaom = true, eaoe = true, eaow = true, etrp = true,
+                   eden = true }
+local function living(g, id)
+    local D = g.data and g.data.units
+    if D then
+        local t = D:value(id, "utyp")
+        if type(t) == "string" then return t:lower():find("ancient") ~= nil end
+        for _, a in ipairs(D.list and D:list(id, "uabi") or {}) do if UPROOT[a] then return true end end
+    end
+    return ANCIENTS[id] == true
+end
+construction.living = living
 
 local function race_of(g, u)
     local r = g.data and g.data.units:value(u.id, "urac")
@@ -223,7 +242,7 @@ function construction.start(g, w, c)
         w.hidden_before, w.hidden = w.hidden, true
         w.hidden_in_building = b
         w.route = nil
-    elseif race == "undead" then
+    elseif race == "undead" or (race == "nightelf" and not living(g, c.id)) then
         b.builder = nil
         w.construct, w.order = nil, nil
     elseif race == "nightelf" then

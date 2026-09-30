@@ -173,6 +173,27 @@ local gx, gy = at(grunt)
 frame({ mx = gx, my = gy, rp = true })
 test("right click on an enemy: attack that unit", g.orders[#g.orders].kind == "attack_unit")
 
+-- items: only a right click on the item itself, by a unit that can carry it
+do
+    local pal
+    for _, u in ipairs(g.units) do if u.id == "Hpal" then pal = u end end
+    local chest = { x = 4600, y = -2400, z = 0 }
+    g.items = { chest }
+    local fetched
+    g.inventory_size = function(u) return u.spec.hero and 6 or 0 end
+    g.pick_up = function(u, it) fetched = { u = u, it = it } return true end
+    hud:select({ foot })
+    frame({ mx = 460, my = 238, rp = true })
+    test("an item right-clicked by a unit without an inventory: just a move",
+        not fetched and g.orders[#g.orders].kind == "move")
+    hud:select({ foot, pal })
+    frame({ mx = 460 + 40, my = 238, rp = true })
+    test("a right click beside the item: a move, no pickup", not fetched)
+    frame({ mx = 461, my = 239, rp = true })
+    test("on the item: the one with an inventory fetches it", fetched and fetched.u == pal and fetched.it == chest)
+    g.items, g.pick_up = nil, nil
+end
+
 frame({ keys = { "A" } })
 frame({ keys = { "ESCAPE" } })
 test("Esc cancels targeting", hud.targeting == nil)
