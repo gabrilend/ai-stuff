@@ -36,7 +36,7 @@ editor_ui.TOOLBAR = {
     { "select", "Select" }, { "raise", "Raise" }, { "lower", "Lower" }, { "smooth", "Smooth" },
     { "flatten", "Flatten" }, { "paint", "Paint" }, { "water", "Water" }, { "dry", "Dry" },
     { "cliff_up", "Cliff +" }, { "cliff_down", "Cliff -" }, { "blight", "Blight" },
-    { "place_doodad", "Doodads" }, { "place_unit", "Units" },
+    { "place_doodad", "Doodads" }, { "place_unit", "Units" }, { "regions", "Regions" },
 }
 editor_ui.COMMANDS = { { "undo", "Undo" }, { "redo", "Redo" }, { "save", "Save" }, { "test", "Test" } }
 editor_ui.PAGE = 18
@@ -65,13 +65,13 @@ function EUI:layout()
     local b = {}
     local x = 8
     for _, t in ipairs(editor_ui.TOOLBAR) do
-        b[#b + 1] = { x = x, y = 6, w = 68, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
-        x = x + 72
+        b[#b + 1] = { x = x, y = 6, w = 64, h = 26, label = t[2], action = "tool", arg = t[1], active = E.tool == t[1] }
+        x = x + 68
     end
-    x = self.w - 4 * 64 - 8
+    x = self.w - 4 * 60 - 8
     for _, c in ipairs(editor_ui.COMMANDS) do
-        b[#b + 1] = { x = x, y = 6, w = 60, h = 26, label = c[2], action = c[1] }
-        x = x + 64
+        b[#b + 1] = { x = x, y = 6, w = 56, h = 26, label = c[2], action = c[1] }
+        x = x + 60
     end
     -- the palette
     local px, py = 8, 44
@@ -257,6 +257,18 @@ function EUI:press_world(gx, gy, input)
         E:place_doodad(self.doodad, gx, gy)
     elseif E.tool == "place_unit" and self.unit then
         E:place_unit(self.unit, self.player, gx, gy, math.rad(270))
+    elseif E.tool == "regions" then
+        -- a region: its corner nearest the pointer (within 96) resizes it,
+        -- anywhere else inside moves it (issue 904)
+        local r = E:region_at(gx, gy) or self.region
+        self.region = r
+        if r then
+            local corner
+            for _, c in ipairs({ { "left", "bottom" }, { "right", "bottom" }, { "left", "top" }, { "right", "top" } }) do
+                if (r[c[1]] - gx) ^ 2 + (r[c[2]] - gy) ^ 2 < 96 ^ 2 then corner = c end
+            end
+            self.drag = { kind = corner and "corner" or "region", corner = corner, x0 = gx, y0 = gy }
+        end
     elseif E.tool == "select" then
         local o = E:pick(gx, gy)
         if o then
@@ -285,7 +297,18 @@ function EUI:release_world(gx, gy, input)
     if E.stroke_now then E:stroke_end() end
     local d = self.drag
     self.drag = nil
-    if d and gx then
+    if d and gx and self.region and (d.kind == "region" or d.kind == "corner") then
+        local r = self.region
+        if (gx - d.x0) ^ 2 + (gy - d.y0) ^ 2 > 16 then
+            if d.kind == "region" then
+                E:move_region(r, gx - d.x0, gy - d.y0)
+            else
+                local nb = { left = r.left, bottom = r.bottom, right = r.right, top = r.top }
+                nb[d.corner[1]], nb[d.corner[2]] = gx, gy
+                E:set_region_bounds(r, nb.left, nb.bottom, nb.right, nb.top)
+            end
+        end
+    elseif d and gx then
         if d.kind == "move" and ((gx - d.x0) ^ 2 + (gy - d.y0) ^ 2) > 16 then
             E:move_selection(gx - d.x0, gy - d.y0)
         elseif d.kind == "box" then
@@ -326,6 +349,12 @@ function EUI:draw(ui)
             o.player and ("player " .. o.player) or "",
         }
         for _, l in ipairs(lines) do text(l, x, y, 14, C.text); y = y + 20 end
+    end
+    -- the region in hand
+    if E.tool == "regions" and self.region then
+        local r = self.region
+        text(string.format("region %s", r.name), 8, 46, 14, C.gold)
+        text(string.format("%.0f, %.0f  to  %.0f, %.0f", r.left, r.bottom, r.right, r.top), 8, 66, 14, C.text)
     end
     -- the status line
     local dirty = (E.dirty.terrain or E.dirty.doodads or E.dirty.units or E.dirty.script) and "  (unsaved)" or ""

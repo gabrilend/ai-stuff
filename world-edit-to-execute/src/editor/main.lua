@@ -211,6 +211,32 @@ function scene_paint()
             end
         end
     end
+    -- regions: their outlines while the region tool is in hand (issue 904)
+    if E.tool == "regions" then
+        local cx, cy, dist = viewer.camera()
+        local reach = dist * 2.4
+        for _, r in ipairs(E:regions()) do
+            if r.right > cx - reach and r.left < cx + reach and r.top > cy - reach and r.bottom < cy + reach then
+                local c = r == ui.region and { 240, 200, 90 } or { 120, 170, 255 }
+                local function edge(x0, y0, x1, y1)
+                    local n = math.max(1, math.floor(math.sqrt((x1 - x0) ^ 2 + (y1 - y0) ^ 2) / 128))
+                    for k = 0, n - 1 do
+                        local ax, ay = x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n
+                        local bx, by = x0 + (x1 - x0) * (k + 1) / n, y0 + (y1 - y0) * (k + 1) / n
+                        local za, zb = scene_ground(ax, ay) + 8, scene_ground(bx, by) + 8
+                        local w = 6
+                        local dx, dy = bx - ax, by - ay
+                        local l = math.sqrt(dx * dx + dy * dy)
+                        local nx, ny = -dy / l * w, dx / l * w
+                        prims[#prims + 1] = { kind = "quad", color = c, pts = {
+                            { ax + nx, ay + ny, za }, { bx + nx, by + ny, zb }, { bx - nx, by - ny, zb }, { ax - nx, ay - ny, za } } }
+                    end
+                end
+                edge(r.left, r.bottom, r.right, r.bottom); edge(r.right, r.bottom, r.right, r.top)
+                edge(r.right, r.top, r.left, r.top); edge(r.left, r.top, r.left, r.bottom)
+            end
+        end
+    end
     kit.emit_prims(prims, render, true, 0)
 end
 
