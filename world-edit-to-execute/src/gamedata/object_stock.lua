@@ -30,6 +30,7 @@ Hotkey...); the level's entry is given (the last when there are fewer).
     local S = object_stock.new(chain, map.object_data.abilities, "abilities")
     S:value("AHtb", "Hbz1", 2)       -- a value, and "map" or "stock"
     S:base("A00X")                   -- the stock object it copies
+    S:ids()                          -- every object of the kind, stock and the map's
     S.available                      -- whether the stock tables were read
 
 Without a chain only the map's changes are known.
@@ -118,6 +119,32 @@ function S:profile()
         end
     end
     return self.profiles
+end
+-- }}}
+
+-- {{{ S:ids
+-- Every object of the kind: the stock tables' rows and the map's own
+-- (issue 537: random items by level and class)
+function S:ids()
+    if self.all_ids then return self.all_ids end
+    local seen, out = {}, {}
+    local function add(id)
+        if type(id) == "string" and #id == 4 and not seen[id] then seen[id] = true; out[#out + 1] = id end
+    end
+    if self.available then
+        for name in pairs(self.spec.tables or {}) do
+            local t = self:table(name)
+            if t and t.rows then for id in pairs(t.rows) do add(id) end end
+        end
+    end
+    local o = self.objects
+    if o then
+        for id in pairs(o.custom or {}) do add(id) end
+        for id in pairs(o._by_id or {}) do add(id) end
+    end
+    table.sort(out)
+    self.all_ids = out
+    return out
 end
 -- }}}
 

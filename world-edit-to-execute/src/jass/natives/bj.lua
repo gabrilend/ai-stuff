@@ -313,8 +313,11 @@ return function(V, N, T)
         return 0
     end
     N.GetLastRemovedItem = function() return get("bj_lastRemovedItem") end
+    -- a little way off the widget, as Blizzard.j scatters them
     N.WidgetDropItem = function(u, id)
-        local it = N.CreateItem(id, u and u.x or 0, u and u.y or 0)
+        local r = 32
+        local it = N.CreateItem(id, (u and u.x or 0) + (math.random() * 2 - 1) * r,
+                                (u and u.y or 0) + (math.random() * 2 - 1) * r)
         return it
     end
     N.SetItemPositionLoc = function(it, l) N.SetItemPosition(it, l.x, l.y) end
@@ -711,13 +714,33 @@ return function(V, N, T)
     V.constants.filterIssueHauntOrderAtLocBJ = N.Filter(N.IssueHauntOrderAtLocBJFilter)
     -- items
     N.UnitDropItem = function(u, id)
-        local it = N.CreateItem(id, u and u.x or 0, u and u.y or 0)
+        if id == nil or id == -1 then return nil end
+        local r = 32
+        local it = N.CreateItem(id, (u and u.x or 0) + (math.random() * 2 - 1) * r,
+                                (u and u.y or 0) + (math.random() * 2 - 1) * r)
         set("bj_lastCreatedItem", it)
         return it
     end
     N.GetItemLoc = function(it) return N.Location(N.GetItemX(it), N.GetItemY(it)) end
-    N.ChooseRandomItemEx = function() return -1 end
-    N.ChooseRandomItem = function() return -1 end
+    -- an item of a level (and type) that may be a random choice (issue 537)
+    local W = V.world
+    local ITEM_TYPES = { [0] = "permanent", "charged", "powerup", "artifact", "purchasable", "campaign",
+                         "miscellaneous", "unknown", "any" }
+    local function item_class(t)
+        if type(t) == "table" then t = t.value or t.name end
+        if type(t) == "string" then t = t:gsub("^ITEM_TYPE_", ""):lower() end
+        if type(t) == "number" then t = ITEM_TYPES[t] end
+        if t == "any" or t == "unknown" then return nil end
+        return t
+    end
+    N.ChooseRandomItemEx = function(kind, level)
+        local id = W and W.random_item and W.random_item(level, item_class(kind))
+        return id and vm.s2id(id) or -1
+    end
+    N.ChooseRandomItem = function(level)
+        local id = W and W.random_item and W.random_item(level)
+        return id and vm.s2id(id) or -1
+    end
     typed("integer", "ChooseRandomItemEx ChooseRandomItem")
     -- destructables
     N.CreateDestructableLoc = function(id, l, facing, scale, variation)

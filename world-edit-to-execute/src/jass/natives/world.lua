@@ -965,12 +965,14 @@ return function(V, N, T)
     end
     N.UnitDropItemSlot = function(u, it, slot)
         if not u or not it or it.owner ~= u then return false end
+        if W.move_item then return (W.move_item(u, it, slot)) and true or false end
         if u.inventory[slot] then return false end
         u.inventory[it.slot], u.inventory[slot], it.slot = nil, it, slot
         return true
     end
     N.UnitDropItemTarget = function(u, it, target)
         if not game_items() or not u or not it or it.owner ~= u then return false end
+        if W.hand_item then return (W.hand_item(u, it, target)) and true or false end
         return (W.give_item(target, it)) and true or false
     end
     N.UnitUseItem = function(u, it) return W.use_item ~= nil and (W.use_item(u, it)) and true or false end
