@@ -29,6 +29,18 @@ Buildings that sell, as in WC3:
     game.buy(shop, player, id)  -- true, or false and why
     game.pawn(unit, item, shop)
     shops.update(game, dt)
+
+Which unit buys (issue 539), as the shop's Select Hero / Select Unit:
+each player may have a chosen buyer at a shop (its patron): the unit the
+player picked there (the shop's buyer button cycles through its units in
+range; a unit selected just before the shop is picked; a unit sent to
+the shop with a right click is picked when it arrives). The patron buys
+while it's alive, in range and able (an inventory for items); otherwise
+the player's nearest unit in range does.
+
+    game.shop_candidates(shop, player, needs_inventory)   -- nearest first
+    game.set_patron(shop, unit), game.patron(shop, player), game.next_patron(shop, player)
+    game.visit_shop(unit, shop)     -- walk there; the patron on arrival
 ]]
 
 local shops = {}
@@ -104,18 +116,63 @@ function shops.init(g)
         return shop.player == player or (g.allied and g.allied(shop.player, player)) or false
     end
 
-    -- the player's unit nearest the shop within range (with an inventory
-    -- when buying items)
-    function g.buyer_for(shop, player, needs_inventory)
-        local best, bd = nil, shops.RANGE ^ 2
+    -- the player's units in range of the shop, nearest first (with an
+    -- inventory when buying items)
+    local function able(shop, u, player, needs_inventory)
+        return u and u.player == player and u.alive and not u.removed and u ~= shop and u.spec.design == "unit"
+            and not u.hidden and (not needs_inventory or (g.inventory_size and g.inventory_size(u) > 0))
+            and (u.x - shop.x) ^ 2 + (u.y - shop.y) ^ 2 <= shops.RANGE ^ 2
+    end
+    function g.shop_candidates(shop, player, needs_inventory)
+        local list = {}
         for _, u in ipairs(g.units) do
-            if u.player == player and u.alive and not u.removed and u ~= shop and u.spec.design == "unit"
-                and (not needs_inventory or (g.inventory_size and g.inventory_size(u) > 0)) then
-                local d = (u.x - shop.x) ^ 2 + (u.y - shop.y) ^ 2
-                if d <= bd then best, bd = u, d end
-            end
+            if able(shop, u, player, needs_inventory) then list[#list + 1] = u end
         end
-        return best
+        table.sort(list, function(a, b)
+            return (a.x - shop.x) ^ 2 + (a.y - shop.y) ^ 2 < (b.x - shop.x) ^ 2 + (b.y - shop.y) ^ 2
+        end)
+        return list
+    end
+
+    -- the chosen buyer (issue 539)
+    function g.set_patron(shop, u)
+        if not u or not able(shop, u, u.player, false) then return false, "not in range of the shop" end
+        shop.patrons = shop.patrons or {}
+        shop.patrons[u.player] = u
+        return true
+    end
+    function g.patron(shop, player, needs_inventory)
+        local p = shop.patrons and shop.patrons[player]
+        if able(shop, p, player, needs_inventory) then return p end
+        return nil
+    end
+    -- the next of the player's units in range (heroes and carriers first
+    -- when the shop sells items)
+    function g.next_patron(shop, player)
+        local items = false
+        for _, e in ipairs(g.stock(shop)) do if e.kind == "item" then items = true end end
+        local list = g.shop_candidates(shop, player, items)
+        if #list == 0 then return nil end
+        local cur = g.buyer_for(shop, player, items)
+        local at = 0
+        for i, u in ipairs(list) do if u == cur then at = i end end
+        local nxt = list[at % #list + 1]
+        g.set_patron(shop, nxt)
+        return nxt
+    end
+    -- walk to the shop; the patron when it arrives
+    function g.visit_shop(u, shop)
+        if not u or u.spec.design ~= "unit" or not g.is_shop(shop) or not g.sells_to(shop, u.player) then
+            return false
+        end
+        g.order({ u }, "move", shop.x, shop.y)
+        u.visiting = shop
+        return true
+    end
+
+    -- who buys: the patron, else the nearest able unit in range
+    function g.buyer_for(shop, player, needs_inventory)
+        return g.patron(shop, player, needs_inventory) or g.shop_candidates(shop, player, needs_inventory)[1]
     end
     -- }}}
 
@@ -209,6 +266,19 @@ function shops.init(g)
 
     -- the command card asks
     g.db.shop_stock = function(u) return g.is_shop(u) and g.stock(u) or {} end
+    -- the local player's buyer at a shop, for the card (issue 539)
+    g.db.shop_buyer = function(shop)
+        local items = false
+        for _, e in ipairs(g.stock(shop)) do if e.kind == "item" then items = true end end
+        return g.buyer_for(shop, g.player, items), items
+    end
+
+    -- a unit sent to a shop stops being on its way when told otherwise
+    local order = g.order
+    function g.order(list, kind, ...)
+        for _, u in ipairs(list) do u.visiting = nil end
+        return order(list, kind, ...)
+    end
     g.db.item_button = function(id)
         local t = g.item_type(id)
         local D = g.data.items
@@ -221,6 +291,19 @@ end
 -- {{{ shops.update
 -- stock comes back, one per interval, up to its maximum
 function shops.update(g, dt)
+    -- units sent to a shop: its patron when in range (issue 539)
+    for _, u in ipairs(g.units) do
+        local shop = u.visiting
+        if shop then
+            if u.alive == false or shop.alive == false or shop.removed then
+                u.visiting = nil
+            elseif (u.x - shop.x) ^ 2 + (u.y - shop.y) ^ 2 <= (shops.RANGE * 0.8) ^ 2 then
+                u.visiting = nil
+                g.set_patron(shop, u)
+                g.order({ u }, "stop")
+            end
+        end
+    end
     g.shop_clock = (g.shop_clock or 0) + dt
     if g.shop_clock < 0.5 then return end
     g.shop_clock = 0

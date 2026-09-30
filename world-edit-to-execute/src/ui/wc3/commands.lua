@@ -158,6 +158,15 @@ function commands.card(unit, db, mode)
                           action = "buy", target = e.id, tip = info.tip, disabled = e.count <= 0 or nil },
                   info.x, info.y, { 0, 1, 2 })
         end
+        -- who buys here: the button cycles through your units in range (issue 539)
+        if db.shop_buyer then
+            local buyer, items = db.shop_buyer(unit)
+            local name = buyer and (buyer.name or (db.unit_button(buyer.id) or {}).name or buyer.id)
+            place(card, { id = "next_buyer", label = buyer and ("Buyer: " .. name)
+                              or (items and "No hero near" or "No unit near"),
+                          hotkey = "U", icon = "select", action = "next_buyer",
+                          tip = "Which of your units near the shop buys. Pick another." }, 0, 2)
+        end
         return card
     end
     if spec.design == "building" then
