@@ -132,7 +132,9 @@ do
     N.TriggerRegisterPlayerStateEvent(trig, p, "PLAYER_STATE_RESOURCE_GOLD", "GREATER_THAN_OR_EQUAL", gold0 + 10)
     N.TriggerAddAction(trig, function() fired = fired + 1 end)
     test("a worker takes a gather order on a mine", g.order({ worker }, "gather", mine.x, mine.y, mine))
-    for _ = 1, 60 * 20 do g.tick(1 / 60) end
+    -- (45 s: DAoW's base stands between the mine and the hall, and its
+    -- buildings are walked round since issue 541)
+    for _ = 1, 60 * 45 do g.tick(1 / 60) end
     local gold1 = N.GetPlayerState(p, "PLAYER_STATE_RESOURCE_GOLD")
     test("gold comes back from the mine", gold1 >= gold0 + 20, gold0 .. " -> " .. gold1)
     test("the mine runs dry and falls", (mine.gold or 0) <= 0 and not mine.alive)

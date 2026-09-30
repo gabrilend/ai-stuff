@@ -171,7 +171,7 @@ function construction.init(g)
         if g.script then g.script:unit_event("CONSTRUCT_CANCEL", b) end
         g.remove(b)
         construction.release(g, b, w)
-        g.buildings_changed = true
+        g.buildings_changed, g.blockers_stale = true, true
         return true
     end
     -- }}}
@@ -330,7 +330,7 @@ function construction.start(g, w, c)
     c.building = b
     local race = race_of(g, w)
     b.build_style = race
-    g.buildings_changed = true
+    g.buildings_changed, g.blockers_stale = true, true
     if g.script then g.script:unit_event("CONSTRUCT_START", b) end
     if race == "orc" then
         c.phase = "inside"
@@ -359,8 +359,7 @@ function construction.step_worker(g, w, dt, fresh)
         return
     end
     if c.phase == "to_site" then
-        local reach = footprint(g, c.id) + construction.REACH
-        if (w.x - c.x) ^ 2 + (w.y - c.y) ^ 2 <= reach * reach then
+        if fp.gap_at(g, c.id, c.x, c.y, w.x, w.y) <= construction.REACH then
             construction.start(g, w, c)
         elseif fresh or not w.route then
             g.walk_to(w, c.x, c.y)
@@ -393,8 +392,10 @@ function construction.step_repair(g, w, dt)
         if w.order and w.order.kind == "repair" then w.order = nil end
     end
     if w.alive == false or not t or t.alive == false or t.removed then return done() end
-    local reach = (t.spec.design == "building" and footprint(g, t.id) or 40) + construction.REACH
-    if (w.x - t.x) ^ 2 + (w.y - t.y) ^ 2 > reach * reach then
+    local far
+    if t.spec.design == "building" then far = fp.gap(g, t, w.x, w.y) > construction.REACH
+    else far = (w.x - t.x) ^ 2 + (w.y - t.y) ^ 2 > (40 + construction.REACH) ^ 2 end
+    if far then
         if not w.route then g.walk_to(w, t.x, t.y) end
         return
     end
@@ -457,7 +458,7 @@ function construction.update(g, dt)
                 if u.progress >= 1 then
                     u.building_up = nil
                     u.progress = nil
-                    g.buildings_changed = true
+                    g.buildings_changed, g.blockers_stale = true, true
                     local w = u.builder
                     u.builder = nil
                     construction.release(g, u, w)

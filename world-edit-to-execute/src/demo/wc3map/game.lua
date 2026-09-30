@@ -440,7 +440,7 @@ function game_mod.new(scene, opts)
         g.units[#g.units + 1] = u
         for _, f in ipairs(g.spawn_listeners) do f(u) end
         g.spawned = (g.spawned or 0) + 1
-        if spec.design == "building" then g.buildings_changed = true end
+        if spec.design == "building" then g.buildings_changed, g.blockers_stale = true, true end
         return u
     end
 
@@ -469,7 +469,7 @@ function game_mod.new(scene, opts)
         u.anim = nil   -- another model's sequences
         if u.mana_max then u.mana = u.mana_max * mana_share end
         for _, f in ipairs(g.morph_listeners) do f(u) end
-        if spec.design == "building" then g.buildings_changed = true end
+        if spec.design == "building" then g.buildings_changed, g.blockers_stale = true, true end
         return u
     end
 
@@ -477,7 +477,7 @@ function game_mod.new(scene, opts)
     function g.remove(u)
         u.removed, u.alive = true, false
         u.order, u.route, u.target = nil, nil, nil
-        if u.spec.design == "building" then g.buildings_changed = true end
+        if u.spec.design == "building" then g.buildings_changed, g.blockers_stale = true, true end
     end
 
     function g.kill(u, killer) combat.kill(g, u, killer) end
@@ -508,6 +508,7 @@ function game_mod.new(scene, opts)
         if u.spec.archetype == "flyer" or not g.pathing then
             route = { { x = x, y = y } }
         else
+            if g.blockers_stale or not g.pathing.fine_blocked then g.update_blockers() end
             route = g.pathing:route(u.x, u.y, x, y)
         end
         u.route = route
@@ -623,8 +624,44 @@ function game_mod.new(scene, opts)
     function g.shown_at(x, y)
         return not g.vision or g.vision:state(g.player, x, y) == 2
     end
+    -- buildings into the pathing when they come or go (issue 541): at
+    -- once when something marks them stale (a building made, gone, shown,
+    -- hidden, changed), and a cheap signature of the standing buildings
+    -- looked at twice a second besides. Walks a new building cuts across
+    -- are planned again
+    local building_sig
+    function g.update_blockers(force)
+        if not g.pathing then return end
+        local n, sx, sy = 0, 0, 0
+        for _, u in ipairs(g.units) do
+            if u.spec.design == "building" and u.alive ~= false and not u.removed and not u.hidden then
+                n, sx, sy = n + 1, sx + u.x * (n % 7 + 1), sy + u.y + #u.id
+            end
+        end
+        local sig = n .. ":" .. sx .. ":" .. sy
+        g.blockers_stale = false
+        if not force and sig == building_sig then return end
+        building_sig = sig
+        g.pathing:set_blockers(g)
+        for _, u in ipairs(g.units) do
+            local r = u.route
+            if r and #r > 0 and u.alive ~= false and u.spec.archetype ~= "flyer" then
+                local px, py, cut = u.x, u.y, false
+                for _, p in ipairs(r) do
+                    if not g.pathing:fine_clear(px, py, p.x, p.y) then cut = true break end
+                    px, py = p.x, p.y
+                end
+                if cut then g.walk_to(u, r[#r].x, r[#r].y) end
+            end
+        end
+    end
     function g.tick(dt)
         g.time = g.time + dt
+        g.blocker_clock = (g.blocker_clock or 1) + dt
+        if g.blockers_stale or g.blocker_clock >= 0.5 then
+            g.blocker_clock = 0
+            g.update_blockers()
+        end
         if g.vision then g.vision:update(dt) end
         if g.script then g.script:tick(dt) end
         if g.ai_manager then g.ai_manager:update(dt) end
@@ -644,7 +681,23 @@ function game_mod.new(scene, opts)
                 local mv = u.mover
                 mv.speed = (u.speed or 270) * (u.speed_mult or 1)
                 mv.x, mv.y, mv.facing = u.x, u.y, u.facing
+                local ox, oy = u.x, u.y
                 local done = loco.follow(mv, nil, dt, ground)
+                -- buildings keep walkers out (issue 541): slide along the
+                -- wall, else stop; stuck a while, the walk ends
+                local P = g.pathing
+                if P and P.fine_blocked and u.spec.archetype ~= "flyer" and P:blocked(mv.x, mv.y)
+                    and not P:blocked(ox, oy) then
+                    if not P:blocked(mv.x, oy) then mv.y = oy
+                    elseif not P:blocked(ox, mv.y) then mv.x = ox
+                    else mv.x, mv.y = ox, oy end
+                end
+                if (mv.x - ox) ^ 2 + (mv.y - oy) ^ 2 < (0.05 * dt * mv.speed) ^ 2 then
+                    u.stuck_for = (u.stuck_for or 0) + dt
+                    if u.stuck_for > 1.5 then done, u.stuck_for = true, 0 end
+                else
+                    u.stuck_for = 0
+                end
                 u.x, u.y, u.facing = mv.x, mv.y, mv.facing
                 if u.spec.archetype == "ship" then
                     u.z = math.max(scene.sample.ground_at(u.x, u.y), scene.sample.water_at(u.x, u.y))
