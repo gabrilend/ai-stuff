@@ -45,8 +45,10 @@ zip reader and packer in my-libs: *"yes please"*.
   - The meter holds every entry to its own claimed size either way.
 - `tests/test-zip.lua`: 216e's checks, standalone (no project kit), run by
   `tests/run-tests` under every interpreter present (luajit, lua5.4).
-- Each project links the four source files into its `libs/` folder, so both
-  use the same copy.
+- Each project carries a copy in its `libs/` folder, made by `install-into`
+  and checked by `check-copy` in its tests. A link would not survive rmail
+  being installed on another machine. Both projects therefore run
+  identical code.
 
 Known limit: the packer lists trees with GNU `find -printf`, so it does not
 run on macOS or BSD (rmail #384).
@@ -58,9 +60,9 @@ run on macOS or BSD (rmail #384).
 2. Port 216e's test to run standalone. Run it under luajit and lua5.4.
 3. Write the info notes and a README for the library; update my-libs'
    README and progress.
-4. rao-chat: links in `libs/`, requires renamed, its copies removed, its
+4. rao-chat: a copy in `libs/`, requires renamed, its own files removed, its
    runner runs the library's test (rao-chat 216e is updated).
-5. rmail: links in `libs/`. Received contact zips and phone uploads are
+5. rmail: a copy in `libs/`. Received contact zips and phone uploads are
    unpacked by the reader, which replaces `unzip`, the `zipinfo` link
    check and the `unzip -p | head -c` size count. Packing by the writer
    replaces `zip` (rmail issue filed there). rmail's tests are run.

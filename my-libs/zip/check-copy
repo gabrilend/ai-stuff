@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# check-copy — does a project's copy of the zip library match the library?
+#
+# Each consumer (rao-chat, rmail) carries a copy made by `install-into`.
+# Its test run calls this, so a copy edited by hand, or left behind when
+# the library moved on, fails the tests instead of drifting silently.
+# Prints one line per file that differs or is missing; exits non-zero if
+# any does.
+#
+# Usage: check-copy <project libs folder> [library folder]
+
+DIR="/home/ritz/programming/ai-stuff/my-libs/zip"
+TARGET="$1"
+if [ -n "$2" ]; then
+    DIR="$2"
+fi
+if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
+    echo "usage: check-copy <project libs folder> [library folder]" >&2
+    exit 1
+fi
+
+status=0
+for file in zip-compat.lua zip-inflate.lua zip-reader.lua zip-writer.lua; do
+    # Path: missing — named.  Differs — named.  Same — nothing said.
+    if [ ! -f "$TARGET/$file" ]; then
+        echo "zip library copy: $file is missing from $TARGET (run install-into)"
+        status=1
+    elif ! cmp -s "$DIR/src/$file" "$TARGET/$file"; then
+        echo "zip library copy: $TARGET/$file differs from $DIR/src/$file (run install-into)"
+        status=1
+    fi
+done
+if [ "$status" -eq 0 ]; then
+    echo "zip library copy: identical to $DIR"
+fi
+exit "$status"
