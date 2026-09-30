@@ -620,6 +620,8 @@ return function(V, N, T)
     N.GetKillingUnitBJ = N.GetKillingUnit
     N.GetDyingDestructable = from("destructable")
     N.GetSoldUnit = from("sold")
+    N.AddUnitToStockBJ = function(id, shop, current, max) N.AddUnitToStock(shop, id, current, max) end
+    N.AddItemToStockBJ = function(id, shop, current, max) N.AddItemToStock(shop, id, current, max) end
     N.GetLearningUnit = from("unit")
     N.GetLearnedSkill = from("ability")
     N.GetLearnedSkillLevel = from("learned_level")
@@ -776,7 +778,7 @@ return function(V, N, T)
       .. "SetCameraPositionForPlayer SetCameraPositionLocForPlayer VolumeGroupSetVolumeBJ SetBlightRectBJ SetBlightRadiusLocBJ "
       .. "SetItemDropOnDeathBJ SetSoundPositionLocBJ AddWeatherEffectSaveLast RemoveWeatherEffectBJ EnableWeatherEffect "
       .. "SelectUnitAddForPlayer SelectUnitForPlayerSingle SelectUnitRemoveForPlayer ClearSelectionForPlayer "
-      .. "AddUnitToStockBJ AddItemToStockBJ UpdateEachStockBuildingEnum EnableDawnDusk SetItemDropID "
+      .. "UpdateEachStockBuildingEnum EnableDawnDusk SetItemDropID "
       .. "TriggerWaitForSound WaitForSoundBJ PlayMusicBJ PlayMusicExBJ EndThematicMusicBJ "
       .. "StopMusicBJ PlayThematicMusicBJ SetMusicVolumeBJ SetCineFilterEndUV SetCineFilterTexMapFlags SetCineFilterStartUV "
       .. "SetCineFilterBlendMode SetCineFilterStartColor SetCineFilterEndColor SetCineFilterDuration SetCineFilterTexture "

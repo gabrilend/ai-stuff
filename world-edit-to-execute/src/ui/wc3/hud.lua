@@ -98,7 +98,13 @@ end
 -- The command card now showing (empty for units you don't control)
 function Hud:card()
     local u = self:leader()
-    if not u or not self:own(u) then return {} end
+    if not u then return {} end
+    -- a shop that sells to us shows what it sells, whoever owns it (issue 533)
+    if not self:own(u) then
+        local g = self.game
+        if g.is_shop and g.is_shop(u) and g.sells_to(u, g.player) then return commands.card(u, g.db, "main") end
+        return {}
+    end
     return commands.card(u, self.game.db, self.mode)
 end
 -- }}}
@@ -241,6 +247,9 @@ function Hud:press(b)
         else
             self.targeting, self.spell = "cast", b.target
         end
+    elseif a == "buy" and self.game.buy then
+        local ok, why = self.game.buy(self:leader(), self.game.player, b.target)
+        if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
     elseif a == "passive" then
         self:message(b.label .. " works on its own.")
     elseif a == "revive" and self.game.revive then

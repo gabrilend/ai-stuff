@@ -1,0 +1,207 @@
+--[[
+Tests for taverns and shops (Issue 533): what a building sells and its
+stock (start delay, maximum, replenishing), buying heroes and units
+(a unit of the buyer near, cost, hero limits, hero tokens), buying items
+(into an inventory, or beside a full one), pawning, who a shop sells to,
+the script's stock natives and SELL / SELL_ITEM / PAWN_ITEM events, and
+the command card. Made-up tables are this test's own.
+]]
+
+-- {{{ Setup paths
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
+local vm = require("jass.vm")
+-- }}}
+
+-- {{{ Test infrastructure
+local test_count, pass_count = 0, 0
+
+local function test(name, condition, msg)
+    test_count = test_count + 1
+    if condition then
+        pass_count = pass_count + 1
+        print("  [PASS] " .. name)
+    else
+        print("  [FAIL] " .. name .. (msg and ": " .. msg or ""))
+    end
+end
+
+local function test_section(name)
+    print("\n=== " .. name .. " ===")
+end
+-- }}}
+
+-- {{{ The game, with made-up tables
+local map_scene = require("demo.wc3map.scene")
+local game_mod = require("demo.wc3map.game")
+local s = map_scene.load(DIR .. "/assets/DAoW-5.4b-PUBLIC-TEST.w3x")
+
+local UNITS = {
+    ztav = { useu = "Hzz1,Hzz2" }, zshp = { usei = "zpot,zclw" }, zown = { useu = "zmer" },
+    Hzz1 = { usma = 1, usrg = 10, usst = 0, uhpm = 100, ustr = 10, uagi = 10, uint = 10, upra = "STR" },
+    Hzz2 = { usma = 1, usrg = 10, usst = 5, uhpm = 100, ustr = 10, uagi = 10, uint = 10, upra = "STR" },
+    zmer = { usma = 3, usrg = 20, usst = 0 },
+}
+local units = { available = true }
+function units:value(id, code) local v = (UNITS[id] or {})[code] return v, v ~= nil and "stock" or nil end
+function units:list(id, code)
+    local v = self:value(id, code)
+    local out = {}
+    if type(v) == "string" then for x in v:gmatch("[^,]+") do out[#out + 1] = x end end
+    return out
+end
+local ITEMS = {
+    zpot = { unam = "Potion", igol = 100, isto = 2, istr = 20, isst = 0, iuse = 2, iusa = 1, iper = 1 },
+    zclw = { unam = "Claws", igol = 400, isto = 1, istr = 60, isst = 0 },
+}
+local items_data = { available = true }
+function items_data:value(id, code) local v = (ITEMS[id] or {})[code] return v, v ~= nil and "stock" or nil end
+function items_data:list() return {} end
+
+local g = game_mod.new(s, { player = 0, placed = false, minimap = false, vision = false, stock = units, combat = false })
+g.data.items = items_data
+local VM = g.run_script({ ai = "none" })
+local N = VM.natives
+local p0 = N.Player(0)
+local function run(sec) for _ = 1, math.floor(sec * 60 + 0.5) do g.tick(1 / 60) end end
+
+local own
+for _, u in ipairs(g.units) do
+    if u.player == 0 and u.alive and u.spec.design == "unit" and not u.spec.hero then own = own or u end
+end
+-- a quiet place, far from the player's units
+local X, Y = own.x + 4000, own.y + 4000
+local function building(id, player, x, y)
+    local b = g.spawn(id, player, x, y, 0)
+    b.spec.design = "building"
+    return b
+end
+local tavern = building("ztav", 15, X, Y)
+local shop = building("zshp", 15, X + 2000, Y)
+
+local seen = {}
+for _, ev in ipairs({ "SELL", "SELL_ITEM", "PAWN_ITEM" }) do
+    for _, pl in ipairs({ 0, 15 }) do
+        local trig = N.CreateTrigger()
+        N.TriggerRegisterPlayerUnitEvent(trig, N.Player(pl), "EVENT_PLAYER_UNIT_" .. ev, nil)
+        N.TriggerAddAction(trig, function()
+            seen[#seen + 1] = { ev = ev, shop = N.GetTriggerUnit(), sold = N.GetSoldUnit(), item = N.GetSoldItem(),
+                                buyer = N.GetBuyingUnit() }
+        end)
+    end
+end
+local function last() return seen[#seen] or {} end
+-- }}}
+
+-- {{{ Stock
+test_section("What a tavern and a shop sell")
+do
+    local st = g.stock(tavern)
+    test("a tavern's heroes", #st == 2 and st[1].id == "Hzz1" and st[1].kind == "unit")
+    test("in stock at once", st[1].count == 1 and st[1].max == 1)
+    test("not before its start delay", st[2].count == 0)
+    local items = g.stock(shop)
+    test("a shop's items, with their maximum", #items == 2 and items[1].kind == "item" and items[1].count == 2)
+    run(5.5)
+    test("after the delay, in stock", st[2].count == 1)
+    test("a footman isn't a shop", not g.is_shop(own))
+end
+-- }}}
+
+-- {{{ Hiring
+test_section("Hiring at a tavern")
+do
+    g.state(0).gold, g.state(0).lumber = 5000, 5000
+    -- (the made-up tables give no farms: food from the script's state)
+    N.SetPlayerState(p0, "PLAYER_STATE_RESOURCE_FOOD_CAP", 300)
+    local ok, why = g.buy(tavern, 0, "Hzz1")
+    test("no unit of the player near: no", not ok and why == "no unit of yours near the shop", tostring(why))
+    local scout = g.spawn("hfoo", 0, X + 300, Y, 0)
+    local gold = g.state(0).gold
+    local cost = g.unit_cost("Hzz1")
+    local hero
+    ok, hero = g.buy(tavern, 0, "Hzz1")
+    test("hired", ok and hero and hero.id == "Hzz1" and hero.player == 0)
+    test("paid", g.state(0).gold == gold - cost.gold)
+    test("beside the tavern", (hero.x - X) ^ 2 + (hero.y - Y) ^ 2 < 300 ^ 2)
+    test("EVENT_PLAYER_UNIT_SELL for the tavern's owner: the tavern, the hero, the buyer",
+        last().ev == "SELL" and last().shop == tavern and last().sold == hero and last().buyer == scout)
+    ok, why = g.buy(tavern, 0, "Hzz1")
+    test("out of stock", not ok and why == "out of stock")
+    run(10.5)
+    test("back in stock after its interval", g.stock(tavern)[1].count == 1)
+    N.SetPlayerMaxHeroesAllowed(0, p0)
+    ok, why = g.buy(tavern, 0, "Hzz1")
+    test("the hero limit holds", not ok and why == "hero limit reached")
+    N.SetPlayerMaxHeroesAllowed(99, p0)
+    N.SetPlayerState(p0, "PLAYER_STATE_RESOURCE_HERO_TOKENS", 1)
+    gold = g.state(0).gold
+    test("a hero token hires for nothing", g.buy(tavern, 0, "Hzz1") and g.state(0).gold == gold
+        and N.GetPlayerState(p0, "PLAYER_STATE_RESOURCE_HERO_TOKENS") == 0)
+    g.remove(scout)
+end
+-- }}}
+
+-- {{{ Items
+test_section("Buying and pawning items")
+do
+    local ok, why = g.buy(shop, 0, "zpot")
+    test("no hero near: no", not ok and why == "no hero near the shop", tostring(why))
+    local hero = g.spawn("Hzz1", 0, X + 2200, Y, 0)
+    local gold = g.state(0).gold
+    local it
+    ok, it = g.buy(shop, 0, "zpot")
+    test("bought, into its inventory", ok and it.owner == hero and g.state(0).gold == gold - 100)
+    test("EVENT_PLAYER_UNIT_SELL_ITEM", last().ev == "SELL_ITEM" and last().item == it and last().buyer == hero)
+    test("one fewer in stock", g.stock(shop)[1].count == 1)
+    for k = 1, 5 do g.give_item(hero, g.create_item("zclw", hero.x, hero.y)) end
+    local it2
+    ok, it2 = g.buy(shop, 0, "zpot")
+    test("a full inventory: beside it on the ground", ok and not it2.owner and (it2.x - hero.x) ^ 2 < 100 ^ 2)
+    gold = g.state(0).gold
+    it.charges = 1
+    local ok3, got = g.pawn(hero, it)
+    test("pawned: half its cost, by the charges left (100 x 0.5 x 1/2)", ok3 and got == 25 and g.state(0).gold == gold + 25,
+        tostring(got))
+    test("EVENT_PLAYER_UNIT_PAWN_ITEM", last().ev == "PAWN_ITEM" and last().item == it)
+    test("gone from the inventory", it.owner == nil and it.removed)
+end
+-- }}}
+
+-- {{{ Whose shop
+test_section("Whose shop, and the script")
+do
+    local camp = building("zown", 3, X - 2000, Y)
+    test("a player's shop doesn't sell to its enemies", not g.sells_to(camp, 0))
+    test("but to its owner", g.sells_to(camp, 3))
+    N.AddUnitToStock(camp, vm.s2id("hfoo"), 3, 5)
+    local e
+    for _, x in ipairs(g.stock(camp)) do if x.id == "hfoo" then e = x end end
+    test("AddUnitToStock", e and e.count == 3 and e.max == 5)
+    N.RemoveUnitFromStock(camp, vm.s2id("hfoo"))
+    e = nil
+    for _, x in ipairs(g.stock(camp)) do if x.id == "hfoo" then e = x end end
+    test("RemoveUnitFromStock", e == nil)
+    N.AddItemToAllStock(vm.s2id("zclw"), 4, 4)
+    local claws
+    for _, x in ipairs(g.stock(shop)) do if x.id == "zclw" then claws = x end end
+    test("AddItemToAllStock reaches the item shops", claws and claws.count == 4)
+    local card = require("ui.wc3.commands").card(shop, g.db, "main")
+    local labels = {}
+    for k = 1, 12 do if card[k] then labels[#labels + 1] = card[k].label end end
+    test("the card lists what it sells, with stock", table.concat(labels, "; "):find("Buy Potion") ~= nil,
+        table.concat(labels, "; "))
+    test("the script's stock natives are real", not VM.noop.AddUnitToStock and not VM.noop.AddItemToStock)
+end
+-- }}}
+
+-- {{{ Summary
+print("\n" .. string.rep("=", 50))
+print(string.format("Tests: %d passed, %d failed", pass_count, test_count - pass_count))
+if pass_count == test_count then
+    print("ALL TESTS PASSED")
+else
+    print("SOME TESTS FAILED")
+    os.exit(1)
+end
+-- }}}

@@ -823,6 +823,33 @@ return function(V, N, T)
     typed("integer", "CountUnitsInGroup")
     -- }}}
 
+    -- {{{ Shop stock (the game's: demo/wc3map/shops.lua, issue 533)
+    local function stock_add(kind)
+        return function(shop, id, current, max)
+            if shop and W.add_stock then W.add_stock(shop, kind, vm.id2s(id), current, max) end
+        end
+    end
+    local function stock_remove(shop, id) if shop and W.remove_stock then W.remove_stock(shop, vm.id2s(id)) end end
+    N.AddItemToStock = stock_add("item")
+    N.AddUnitToStock = stock_add("unit")
+    N.RemoveItemFromStock = stock_remove
+    N.RemoveUnitFromStock = stock_remove
+    -- "all stock": every shop that sells that kind already (marketplaces)
+    local function all_shops(kind, fn)
+        for _, u in ipairs(W.units or {}) do
+            if u.alive ~= false and W.stock and u.spec and u.spec.design == "building" then
+                local has = false
+                for _, e in ipairs(W.stock(u)) do if e.kind == kind then has = true end end
+                if has then fn(u) end
+            end
+        end
+    end
+    N.AddItemToAllStock = function(id, current, max) all_shops("item", function(u) N.AddItemToStock(u, id, current, max) end) end
+    N.AddUnitToAllStock = function(id, current, max) all_shops("unit", function(u) N.AddUnitToStock(u, id, current, max) end) end
+    N.RemoveItemFromAllStock = function(id) all_shops("item", function(u) stock_remove(u, id) end) end
+    N.RemoveUnitFromAllStock = function(id) all_shops("unit", function(u) stock_remove(u, id) end) end
+    -- }}}
+
     -- {{{ Items (the game's: demo/wc3map/items.lua, issue 532)
     local function game_items() return W.create_item ~= nil end
     local function new_item(id, x, y)
@@ -987,9 +1014,8 @@ return function(V, N, T)
       .. "SelectUnit ClearSelection SetUnitMoveSpeedBJ UnitAddType UnitRemoveType "
       .. "SetUnitPathingBJ "
       .. "UnitSetUpgradeProgress UnitPauseTimedLife SetAllItemTypeSlots SetAllUnitTypeSlots SetItemTypeSlots "
-      .. "SetUnitTypeSlots AddItemToAllStock AddUnitToAllStock AddItemToStock AddUnitToStock "
-      .. "RemoveItemFromAllStock RemoveUnitFromAllStock RemoveItemFromStock RemoveUnitFromStock "
-      .. "SetItemDropOnDeath SetItemDroppable SetItemPawnable SetItemInvulnerable SetDestructableAnimation "
+      .. "SetUnitTypeSlots "
+      .. "SetItemDropOnDeath SetDestructableAnimation "
       .. "SetDestructableAnimationSpeed ShowDestructable SetDoodadAnimation SetDoodadAnimationRect "
       .. "RecycleGuardPosition SetUnitBlendTime")
 end
