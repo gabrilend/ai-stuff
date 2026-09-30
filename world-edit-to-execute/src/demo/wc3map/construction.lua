@@ -41,8 +41,8 @@ Repair, helping and upgrades (issue 535):
             everything. When done it becomes the new type (g.morph), its
             hit points in proportion (UPGRADE_START / _CANCEL / _FINISH)
 
-Footprints are STAND-INS by building size (the pathing textures, upat,
-aren't read yet).
+Footprints are the buildings' pathing textures, cell by cell against the
+map's pathing map (footprint.lua, issue 536).
 
     construction.init(game)           -- after production and heroes
     game.can_build(worker, id, x, y) -> true, or false and why
@@ -59,12 +59,12 @@ construction.GRID = 64
 construction.START_HP = 0.1
 construction.REFUND = 0.75
 construction.REACH = 60
--- footprint radius by building size (stand-ins)
-construction.FOOTPRINT = { small = 96, medium = 128, hall = 192, tower = 64, altar = 128, special = 128 }
+local fp = require("demo.wc3map.footprint")
 
 -- {{{ helpers
-local function footprint(spec)
-    return construction.FOOTPRINT[spec and spec.size or "medium"] or 128
+-- half a building type's larger side (issue 536: from its footprint)
+local function footprint(g, id)
+    return fp.radius(g, id)
 end
 construction.footprint = footprint
 
@@ -106,50 +106,20 @@ end
 function construction.init(g)
     local C = g.constants
 
-    function g.snap(x, y)
+    -- a building type's centre lines its footprint up with the 32-unit
+    -- cells (issue 536); without a type, the 64-unit grid
+    function g.snap(x, y, id)
+        if id then return fp.snap(fp.shape(g, id), x, y) end
         local s = construction.GRID
         return math.floor(x / s + 0.5) * s, math.floor(y / s + 0.5) * s
     end
 
     -- {{{ placement
-    -- does a building of type id fit at (x, y)
+    -- does a building of type id fit at (x, y): its footprint's cells on
+    -- buildable ground of one level, clear of other buildings' (issue 536)
     function g.placeable(id, x, y, builder)
-        local spec = g.unit_spec(id)
-        local r = footprint(spec)
-        local b = g.bounds
-        if x - r < b.x0 or y - r < b.y0 or x + r > b.x1 or y + r > b.y1 then return false, "off the map" end
-        -- the ground: walkable, dry, one cliff level, not too steep
-        local t = g.scene.terrain
-        local lo, hi, level
-        local step = 64
-        for dy = -r, r, step do
-            for dx = -r, r, step do
-                local px, py = x + dx, y + dy
-                if g.pathing then
-                    local i, j = g.pathing:cell(px, py)
-                    if not g.pathing:walkable(i, j) then return false, "can't build there" end
-                end
-                local z = g.scene.sample.ground_at(px, py)
-                if g.scene.sample.water_at(px, py) > z + 1 then return false, "can't build on water" end
-                lo, hi = math.min(lo or z, z), math.max(hi or z, z)
-                local ti = math.floor((px - t.offset_x) / 128 + 0.5)
-                local tj = math.floor((py - t.offset_y) / 128 + 0.5)
-                local tp = t:get_tile(ti, tj)
-                if tp then
-                    if level and tp.layer_height ~= level then return false, "not level ground" end
-                    level = tp.layer_height
-                end
-            end
-        end
-        if hi - lo > 96 then return false, "not level ground" end
-        -- clear of other buildings (units step aside)
-        for _, u in ipairs(g.units) do
-            if u.spec.design == "building" and u.alive ~= false and not u.removed then
-                local rr = footprint(u.spec) + r
-                if (u.x - x) ^ 2 + (u.y - y) ^ 2 < (rr * 0.9) ^ 2 then return false, "something's in the way" end
-            end
-        end
-        return true
+        local ok, why = fp.check(g, id, x, y)
+        return ok, why
     end
     -- }}}
 
@@ -181,7 +151,7 @@ function construction.init(g)
 
     -- {{{ g.build
     function g.build(w, id, x, y)
-        x, y = g.snap(x, y)
+        x, y = g.snap(x, y, id)
         local ok, why = g.can_build(w, id, x, y)
         if not ok then return false, why end
         g.order({ w }, "stop")
@@ -334,7 +304,7 @@ function construction.release(g, b, w)
     if w.construct and w.construct.phase == "inside" then
         w.hidden_in_building = nil
         w.hidden = w.hidden_before
-        w.x, w.y = b.x, b.y - footprint(b.spec) - 30
+        w.x, w.y = b.x, b.y - footprint(g, b.id) - 30
         if w.mover then w.mover.x, w.mover.y = w.x, w.y end
     end
     w.construct = nil
@@ -389,8 +359,7 @@ function construction.step_worker(g, w, dt, fresh)
         return
     end
     if c.phase == "to_site" then
-        local spec = g.unit_spec(c.id)
-        local reach = footprint(spec) + construction.REACH
+        local reach = footprint(g, c.id) + construction.REACH
         if (w.x - c.x) ^ 2 + (w.y - c.y) ^ 2 <= reach * reach then
             construction.start(g, w, c)
         elseif fresh or not w.route then
@@ -424,7 +393,7 @@ function construction.step_repair(g, w, dt)
         if w.order and w.order.kind == "repair" then w.order = nil end
     end
     if w.alive == false or not t or t.alive == false or t.removed then return done() end
-    local reach = (t.spec.design == "building" and footprint(t.spec) or 40) + construction.REACH
+    local reach = (t.spec.design == "building" and footprint(g, t.id) or 40) + construction.REACH
     if (w.x - t.x) ^ 2 + (w.y - t.y) ^ 2 > reach * reach then
         if not w.route then g.walk_to(w, t.x, t.y) end
         return
