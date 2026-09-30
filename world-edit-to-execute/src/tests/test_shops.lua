@@ -195,6 +195,64 @@ do
 end
 -- }}}
 
+-- {{{ Which unit buys (issue 539)
+test_section("Which unit buys")
+do
+    -- open ground near the player's units, with room to walk to the shop
+    local SX, SY
+    for r = 0, 3000, 100 do
+        for k = 0, 11 do
+            local a = k / 12 * math.pi * 2
+            local x, y = own.x + math.cos(a) * r, own.y + math.sin(a) * r
+            local route = g.pathing:route(x + 2000, y, x, y)
+            if not SX and route and (route[#route].x - x) ^ 2 + (route[#route].y - y) ^ 2 < 50 ^ 2 then SX, SY = x, y end
+        end
+        if SX then break end
+    end
+    local sh = building("zshp", 15, SX, SY)
+    local near_h = g.spawn("Hzz1", 0, SX + 150, SY, 0)
+    local far_h = g.spawn("Hzz2", 0, SX + 450, SY, 0)
+    local foot = g.spawn("hfoo", 0, SX + 100, SY + 50, 0)
+    test("by default the nearest able one (a hero for items)", g.buyer_for(sh, 0, true) == near_h)
+    local b = g.buyer_for(sh, 0, false)
+    local function d(u) return (u.x - SX) ^ 2 + (u.y - SY) ^ 2 end
+    test("for units, the nearest of all (a footman will do)", b and d(b) <= d(foot) and d(b) < d(near_h))
+    local c = g.shop_candidates(sh, 0, true)
+    local ok_order = #c >= 2
+    for i = 2, #c do ok_order = ok_order and d(c[i - 1]) <= d(c[i]) end
+    test("its candidates, nearest first", ok_order and c[1] == near_h)
+    test("a chosen buyer", g.set_patron(sh, far_h) and g.buyer_for(sh, 0, true) == far_h)
+    local ok, it = g.buy(sh, 0, "zclw")
+    test("buys into its own inventory", ok and it.owner == far_h, tostring(it))
+    local n1 = g.next_patron(sh, 0)
+    test("the button cycles to the next", n1 ~= far_h and g.buyer_for(sh, 0, true) == n1)
+    local seen_far = false
+    for _ = 1, #c do if g.next_patron(sh, 0) == far_h then seen_far = true break end end
+    test("and round again", seen_far)
+    far_h.x = SX + 2000
+    test("out of range: the nearest again", g.buyer_for(sh, 0, true) == near_h)
+    test("can't choose one out of range", not g.set_patron(sh, far_h))
+    test("a footman can't buy items", not g.set_patron(sh, foot) or g.buyer_for(sh, 0, true) ~= foot)
+    -- sent there
+    far_h.speed = 400
+    if far_h.mover then far_h.mover = nil end
+    test("sent to the shop", g.visit_shop(far_h, sh) and far_h.visiting == sh)
+    run(6)
+    test("arrived: it's the buyer", far_h.visiting == nil and g.buyer_for(sh, 0, true) == far_h,
+        string.format("%.0f from the shop", math.sqrt((far_h.x - SX) ^ 2 + (far_h.y - SY) ^ 2)))
+    local card = require("ui.wc3.commands").card(sh, g.db, "main")
+    local btn
+    for k = 1, 12 do if card[k] and card[k].action == "next_buyer" then btn = card[k] end end
+    test("the card names the buyer", btn and btn.label:find("Buyer:") ~= nil, btn and btn.label)
+    -- the HUD: a shop selected just after one of your units
+    local hud = require("ui.wc3.hud").new(g, 1280, 720)
+    hud:select({ near_h })
+    hud:select({ sh })
+    test("selecting the shop after a unit makes it the buyer", g.buyer_for(sh, 0, true) == near_h)
+    g.remove(near_h); g.remove(far_h); g.remove(foot)
+end
+-- }}}
+
 -- {{{ Summary
 print("\n" .. string.rep("=", 50))
 print(string.format("Tests: %d passed, %d failed", pass_count, test_count - pass_count))

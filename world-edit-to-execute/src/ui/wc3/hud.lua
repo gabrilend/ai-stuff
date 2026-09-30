@@ -140,6 +140,15 @@ end
 
 -- {{{ Hud:select
 function Hud:select(list, add)
+    -- a shop picked just after one of your units: that unit is its buyer
+    -- (issue 539)
+    local g = self.game
+    local before = self:leader()
+    local shop = list[1]
+    if not add and #list == 1 and before and self:own(before) and g.is_shop and g.set_patron
+        and g.is_shop(shop) and g.sells_to(shop, g.player) then
+        g.set_patron(shop, before)
+    end
     if not add then self.selection = {} end
     local seen = {}
     for _, u in ipairs(self.selection) do seen[u] = true end
@@ -280,6 +289,9 @@ function Hud:press(b)
         else
             self.targeting, self.spell = "cast", b.target
         end
+    elseif a == "next_buyer" and self.game.next_patron then
+        local u = self.game.next_patron(self:leader(), self.game.player)
+        self:message(u and ((u.name or u.id) .. " will buy here.") or "None of your units is near the shop.")
     elseif a == "buy" and self.game.buy then
         local ok, why = self.game.buy(self:leader(), self.game.player, b.target)
         if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
@@ -496,6 +508,14 @@ function Hud:update(input, dt)
                         gathered = game.order(workers, "gather", target.x, target.y, target)
                     elseif not target and game.nearest_tree and game.nearest_tree(x, y, 120) then
                         gathered = game.order(workers, "gather", x, y)
+                    end
+                end
+                -- a shop that sells to you: your units go to it, the first
+                -- its buyer (issue 539)
+                if not gathered and target and game.visit_shop and game.is_shop and game.is_shop(target)
+                    and game.sells_to(target, game.player) then
+                    for _, u in ipairs(self:own_selection()) do
+                        if game.visit_shop(u, target) then gathered = true end
                     end
                 end
                 if gathered then
