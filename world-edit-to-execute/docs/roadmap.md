@@ -713,20 +713,20 @@ Also done in `demo/wc3map/`, outside the 70x numbering:
 
 ### Issue Breakdown
 
-| ID | Name | Description |
-|----|------|-------------|
-| 901 | Editor core framework | Window, viewport, undo/redo, shortcuts |
-| 902 | Terrain editor | Height, textures, cliffs, water |
-| 903 | Object placer | Units, doodads, items, destructibles |
-| 904 | Region and camera editor | Regions, camera presets |
-| 905 | Trigger editor | GUI + Lua with bidirectional sync |
-| 906 | Object editor | Modify unit/ability/item stats |
-| 907 | Sound editor | 3D sounds, music, ambience |
-| 908 | Import manager | Custom asset management |
-| 909 | AI editor | Computer player behavior |
-| 910 | Campaign editor | Multi-map storylines |
-| 911 | Map format and export | Standard .w3x export |
-| 912 | Phase 9 integration test | Full editor workflow testing |
+| ID | Name | Description | Status (2026-09-30) |
+|----|------|-------------|--------|
+| 901 | Editor core framework | Window, viewport, undo/redo, shortcuts | Done (`src/editor/`, `src/render/run-editor`) |
+| 902 | Terrain editor | Height, textures, cliffs, water | First pass: raise, lower, smooth, flatten, paint, water, cliffs, blight |
+| 903 | Object placer | Units, doodads, items, destructibles | First pass: doodads, placed and script units |
+| 904 | Region and camera editor | Regions, camera presets | First pass: the script's rects moved and resized |
+| 905 | Trigger editor | GUI + Lua with bidirectional sync | |
+| 906 | Object editor | Modify unit/ability/item stats | First pass: fields, custom types, all 7 kinds |
+| 907 | Sound editor | 3D sounds, music, ambience | |
+| 908 | Import manager | Custom asset management | |
+| 909 | AI editor | Computer player behavior | |
+| 910 | Campaign editor | Multi-map storylines | |
+| 911 | Map format and export | Standard .w3x export | 911a done: WC3 files written back, copies saved in place |
+| 912 | Phase 9 integration test | Full editor workflow testing | |
 
 ### Key Features
 
