@@ -77,6 +77,7 @@ local FOG = os.getenv("WC3_FOG") ~= "0"
 local game
 if os.getenv("WC3_SCRIPT") ~= "0" then
     game = game_mod.new(s, { player = player, placed = false, vision = FOG, stock = stock, chain = chain })
+    game.assets = A   -- buildings' pathing textures (issue 536)
     local V, err = game.run_script({
         verbose = os.getenv("WC3_SCRIPT_VERBOSE") == "1",
         ai = os.getenv("WC3_AI") or "auto",
@@ -459,10 +460,19 @@ function scene_paint()
     if hud.targeting == "place" and hud.place_id and input.mx then
         local gx, gy = viewer.to_ground(input.mx, input.my)
         if gx then
-            gx, gy = game.snap(gx, gy)
-            local ok = game.placeable(hud.place_id, gx, gy)
-            local r = require("demo.wc3map.construction").footprint(game.unit_spec(hud.place_id))
-            add_list(figures.ring(gx, gy, s.sample.ground_at(gx, gy) + 4, r, ok and { 80, 230, 90 } or { 230, 70, 60 }, 32, 5))
+            -- its footprint's cells (issue 536): green where each fits, red where not
+            local fp = require("demo.wc3map.footprint")
+            gx, gy = game.snap(gx, gy, hud.place_id)
+            local _, _, marks = fp.check(game, hud.place_id, gx, gy)
+            local k, h = 0, fp.CELL / 2 - 3
+            local cells = {}
+            fp.each(fp.shape(game, hud.place_id), gx, gy, function(_, _, _, cx, cy)
+                k = k + 1
+                local z = s.sample.ground_at(cx, cy) + 4
+                cells[#cells + 1] = { kind = "quad", color = marks[k] and { 80, 230, 90 } or { 230, 70, 60 }, pts = {
+                    { cx - h, cy - h, z }, { cx + h, cy - h, z }, { cx + h, cy + h, z }, { cx - h, cy + h, z } } }
+            end)
+            add_list(cells)
         end
     end
     -- a spell being aimed: its area under the pointer (issue 530)
