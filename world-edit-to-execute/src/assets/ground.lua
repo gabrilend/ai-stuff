@@ -190,9 +190,17 @@ end
 -- Load every tileset the map uses (the install's, else a stand-in) and
 -- give the renderer its ground layers. A: assets.open's (or nil)
 function ground.apply(render, A, scene, opts)
+    local ids, extended, report = ground.textures(render, A, scene.terrain, opts)
+    local used, triangles = ground.lay(render, scene.terrain, ids, extended)
+    report.cells, report.triangles = used, triangles
+    return report
+end
+
+-- the tilesets' textures, made once (the editor lays them again after
+-- each change: issue 901)
+function ground.textures(render, A, t, opts)
     opts = opts or {}
     local map_scene = require("demo.wc3map.scene")
-    local t = scene.terrain
     local ids, extended = {}, {}
     local report = { real = 0, standin = 0, tilesets = #t.ground_tilesets, paths = {} }
     for k, id in ipairs(t.ground_tilesets) do
@@ -209,6 +217,11 @@ function ground.apply(render, A, scene, opts)
         ids[k] = render.tex_create(img.width, img.height, img.rgba, false)
         extended[k - 1] = img.width > img.height
     end
+    return ids, extended, report
+end
+
+-- the textured cells over the landscape built last (render.land_build)
+function ground.lay(render, t, ids, extended)
     -- cliffs (corners on different cliff levels, not a ramp) and blight
     -- keep the landscape's colours; slopes are textured, as in WC3
     local function skip(i, j)
@@ -223,9 +236,7 @@ function ground.apply(render, A, scene, opts)
         return hi > lo and not ramp
     end
     local cells, used = ground.cells(t, extended, skip)
-    report.cells = used
-    report.triangles = render.land_tiles(ids, cells)
-    return report
+    return used, render.land_tiles(ids, cells)
 end
 -- }}}
 
