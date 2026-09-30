@@ -129,9 +129,12 @@ local function parse_players(data, pos)
         player.number = read_int32(data, pos); pos = pos + 4
         local type_id = read_int32(data, pos); pos = pos + 4
         player.type = PLAYER_TYPES[type_id] or ("unknown_" .. type_id)
+        player.type_id = type_id          -- (kept for writing back: issue 911b)
         local race_id = read_int32(data, pos); pos = pos + 4
         player.race = RACE_TYPES[race_id] or ("unknown_" .. race_id)
-        player.fixed_start = read_int32(data, pos) == 1; pos = pos + 4
+        player.race_id = race_id
+        player.fixed_start_raw = read_int32(data, pos)     -- (a flags number in some maps: 3)
+        player.fixed_start = player.fixed_start_raw ~= 0; pos = pos + 4
         player.name, pos = read_string(data, pos)
         player.start_x = read_float32(data, pos); pos = pos + 4
         player.start_y = read_float32(data, pos); pos = pos + 4
@@ -398,25 +401,124 @@ function w3i.parse(data)
     map.forces, pos = parse_forces(data, pos)
 
     -- TFT: Upgrades and tech (optional - some maps don't have these)
+    -- (which of these the file has is kept for writing back: issue 911b)
+    map.sections = {}
     if map.version >= 25 and pos + 4 <= #data then
         map.upgrades, pos = parse_upgrades(data, pos)
+        map.sections.upgrades = true
 
         if pos + 4 <= #data then
             map.tech, pos = parse_tech(data, pos)
+            map.sections.tech = true
         end
 
         -- Random unit tables
         if pos + 4 <= #data then
             map.random_unit_tables, pos = parse_random_unit_tables(data, pos)
+            map.sections.random_units = true
         end
 
         -- Random item tables
         if pos + 4 <= #data then
             map.random_item_tables, pos = parse_random_item_tables(data, pos)
+            map.sections.random_items = true
         end
     end
+    map.tail_raw = data:sub(pos)       -- (kept for writing back: issue 911b)
 
     return map
+end
+-- }}}
+
+-- {{{ w3i.write (issue 911b)
+-- The map info back as war3map.w3i bytes (version 25, The Frozen Throne),
+-- from the fields the parser reads; a table made for a new map needs:
+-- name, author, description, players_recommended, camera_bounds (8),
+-- margins (4), playable_width, playable_height, flags (a raw number or
+-- { raw }), tileset_code, players, forces
+local PLAYER_IDS, RACE_IDS = {}, {}
+for k, v in pairs(PLAYER_TYPES) do PLAYER_IDS[v] = k end
+for k, v in pairs(RACE_TYPES) do if k ~= 5 then RACE_IDS[v] = k end end
+w3i.PLAYER_IDS, w3i.RACE_IDS = PLAYER_IDS, RACE_IDS
+
+function w3i.write(map)
+    local b = require("parsers.binwrite").new()
+    local function flag(f) return type(f) == "table" and (f.raw or 0) or (f or 0) end
+    local function char4(s) return ((s or "") .. "\0\0\0\0"):sub(1, 4) end
+    b:i32(map.version or 25):i32(map.saves or 1):i32(map.editor_version or 6072)
+    b:cstr(map.name):cstr(map.author):cstr(map.description):cstr(map.players_recommended)
+    for i = 1, 8 do b:f32(map.camera_bounds[i] or 0) end
+    for i = 1, 4 do b:i32(map.margins[i] or 0) end
+    b:i32(map.playable_width):i32(map.playable_height)
+    b:u32(flag(map.flags))
+    b:str(((map.tileset_code or "L") .. " "):sub(1, 1))
+    local ls = map.loading_screen or {}
+    b:i32(ls.preset or -1):cstr(ls.model):cstr(ls.text):cstr(ls.title):cstr(ls.subtitle)
+    b:i32(map.game_data_set or 0)
+    local pr = map.prologue or {}
+    b:cstr(pr.model):cstr(pr.text):cstr(pr.title):cstr(pr.subtitle)
+    if (map.version or 25) >= 25 then
+        local fog = map.fog or {}
+        b:i32(fog.style or 0):f32(fog.start_z or 3000):f32(fog.end_z or 5000):f32(fog.density or 0.5)
+        b:u32(fog.color or 0xFF000000)
+        b:str(char4(map.weather))
+        b:cstr(map.sound_environment)
+        b:str(((map.light_environment or "\0") .. "\0"):sub(1, 1))
+        b:u32(map.water_color or 0xFFFFFFFF)
+    end
+    b:i32(#(map.players or {}))
+    for _, p in ipairs(map.players or {}) do
+        b:i32(p.number or 0):i32(p.type_id or PLAYER_IDS[p.type] or 1):i32(p.race_id or RACE_IDS[p.race] or 0)
+        b:i32(p.fixed_start_raw or (p.fixed_start and 1 or 0)):cstr(p.name)
+        b:f32(p.start_x or 0):f32(p.start_y or 0):u32(p.ally_low or 0):u32(p.ally_high or 0)
+    end
+    b:i32(#(map.forces or {}))
+    for _, f in ipairs(map.forces or {}) do
+        local mask = f.player_mask
+        if not mask then
+            mask = 0
+            for _, n in ipairs(f.players or {}) do mask = mask + 2 ^ n end
+        end
+        b:u32(flag(f.flags)):u32(mask):cstr(f.name)
+    end
+    -- the sections after the forces: those the map read had (a new one:
+    -- all four, empty), then whatever came after them, as it was
+    local sec = map.sections or { upgrades = true, tech = true, random_units = true, random_items = true }
+    if sec.upgrades then
+        b:i32(#(map.upgrades or {}))
+        for _, u in ipairs(map.upgrades or {}) do b:u32(u.player_mask):str(char4(u.id)):i32(u.level):i32(u.availability) end
+    end
+    if sec.tech then
+        b:i32(#(map.tech or {}))
+        for _, t in ipairs(map.tech or {}) do b:u32(t.player_mask):str(char4(t.id)) end
+    end
+    if sec.random_units then
+        b:i32(#(map.random_unit_tables or {}))
+        for _, t in ipairs(map.random_unit_tables or {}) do
+            b:i32(t.number):cstr(t.name):i32(#t.positions)
+            for _, pos in ipairs(t.positions) do b:i32(pos.type) end
+            -- the rows: one chance and one unit per position each
+            local rows = 0
+            for _, pos in ipairs(t.positions) do rows = math.max(rows, #pos.units) end
+            b:i32(rows)
+            for r = 1, rows do
+                b:i32(t.positions[1] and t.positions[1].units[r] and t.positions[1].units[r].chance or 0)
+                for _, pos in ipairs(t.positions) do b:str(char4(pos.units[r] and pos.units[r].id)) end
+            end
+        end
+    end
+    if sec.random_items then
+        b:i32(#(map.random_item_tables or {}))
+        for _, t in ipairs(map.random_item_tables or {}) do
+            b:i32(t.number):cstr(t.name):i32(#t.sets)
+            for _, set in ipairs(t.sets) do
+                b:i32(#set.items)
+                for _, it in ipairs(set.items) do b:i32(it.chance):str(char4(it.id)) end
+            end
+        end
+    end
+    b:str(map.tail_raw or "")
+    return b:done()
 end
 -- }}}
 

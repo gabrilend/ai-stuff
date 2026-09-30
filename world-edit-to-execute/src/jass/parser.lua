@@ -1124,6 +1124,12 @@ parse_program = function(state)
             local next_token = peek_next(state)
             if next_token and next_token.type == TOKEN.NATIVE then
                 decl = parse_native_decl(state)
+            elseif next_token and next_token.type == TOKEN.FUNCTION then
+                -- constant function Name takes ... (issue 520): a function
+                -- JASS promises won't change state; it runs like any other
+                advance(state)
+                decl = parse_function_def(state)
+                decl.is_constant = true
             else
                 -- Unexpected constant at top level
                 error_at_current(state, "Unexpected 'constant' at top level (did you mean to put this in globals?)")

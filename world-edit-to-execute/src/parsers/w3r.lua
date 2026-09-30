@@ -78,6 +78,7 @@ local function parse_region(data, pos)
     -- Weather effect ID (4 chars, or null bytes for none)
     local weather_id
     weather_id, pos = read_char4(data, pos)
+    region.weather_raw = weather_id
     -- Check if it's null (no weather)
     if weather_id == "\0\0\0\0" then
         region.weather = nil
@@ -133,6 +134,8 @@ function w3r.parse(data)
         pos = new_pos
     end
 
+    result.tail_raw = data:sub(pos)   -- (for writing back: issue 904)
+
     -- Build lookup index by creation number
     result.by_creation_number = {}
     for _, region in ipairs(result.regions) do
@@ -140,6 +143,24 @@ function w3r.parse(data)
     end
 
     return result
+end
+-- }}}
+
+-- {{{ w3r.write (issue 904)
+-- The regions back as war3map.w3r bytes
+function w3r.write(result)
+    local b = require("parsers.binwrite").new()
+    b:i32(result.version or 5):i32(#result.regions)
+    for _, r in ipairs(result.regions) do
+        b:f32(r.bounds.left):f32(r.bounds.bottom):f32(r.bounds.right):f32(r.bounds.top)
+        b:cstr(r.name or ""):i32(r.creation_number or 0)
+        b:str(r.weather_raw or (r.weather_id and (r.weather_id .. "\0\0\0\0"):sub(1, 4)) or "\0\0\0\0")
+        b:cstr(r.ambient_sound or "")
+        local c = r.color or {}
+        b:u8(c.b or 255):u8(c.g or 255):u8(c.r or 255):u8(c.a or 255)
+    end
+    b:str(result.tail_raw or "")
+    return b:done()
 end
 -- }}}
 

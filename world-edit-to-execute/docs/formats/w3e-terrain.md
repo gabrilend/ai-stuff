@@ -128,12 +128,17 @@ Each tilepoint is 7 bytes, packed with bit fields.
 | 2-3 | 14 | WaterLevel | Water surface height |
 | 2-3 | 1 | BoundaryFlag1 | Part of boundary flags |
 | 2-3 | 1 | BoundaryFlag2 | Part of boundary flags |
-| 4 | 4 (low) | Flags | Terrain flags |
-| 4 | 4 (high) | GroundTexture | Index into ground tileset |
+| 4 | 4 (low) | GroundTexture | Index into ground tileset |
+| 4 | 4 (high) | Flags | Terrain flags (see below) |
 | 5 | 5 (low) | TextureDetails | Variation/details |
 | 5 | 3 (high) | CliffVariation | Cliff model variation (0-7) |
-| 6 | 4 (low) | CliffTexture | Index into cliff tileset |
-| 6 | 4 (high) | LayerHeight | Cliff layer height (0-15) |
+| 6 | 4 (low) | LayerHeight | Cliff layer height (0-15; 2 is usual ground) |
+| 6 | 4 (high) | CliffTexture | Index into cliff tileset (15 = none) |
+
+Bytes 4 and 6 were documented (and parsed) with their nibbles the other
+way round until issue 517. Read that way, the test maps' "layer heights"
+were only ever 0, 1 or 15 and their "cliff textures" ran past the number of
+cliff tilesets; read this way, the heights draw the maps' coastlines.
 
 ### Bit Layout Diagram
 
@@ -151,7 +156,7 @@ Byte 2-3: Water + Boundary (int16, little-endian)
 
 Byte 4: Flags + Ground Texture
 ┌───────────┬───────────┐
-│  GroundTx │   Flags   │
+│   Flags   │  GroundTx │
 │  (4 bits) │  (4 bits) │
 └───────────┴───────────┘
    7      4   3       0
@@ -165,7 +170,7 @@ Byte 5: Details + Cliff Variation
 
 Byte 6: Cliff Texture + Layer Height
 ┌───────────┬───────────┐
-│LayerHeight│ CliffTex  │
+│ CliffTex  │LayerHeight│
 │ (4 bits)  │ (4 bits)  │
 └───────────┴───────────┘
    7      4   3       0
@@ -179,25 +184,28 @@ Byte 6: Cliff Texture + Layer Height
 
 Raw height values are 16-bit signed integers.
 
-To convert to world coordinates:
+To convert to world coordinates (`w3e.ground_z`):
 ```lua
-world_height = (raw_height - 8192 + offset_from_water) / 4
+ground_z = (raw_height - 8192) / 4 + (layer_height - 2) * 128
 ```
 
 The base offset (8192 = 0x2000) represents approximately middle of the valid range.
 
 ### Water Level
 
-14-bit value with similar scaling to ground height.
-Water is rendered where `water_level > ground_height`.
+14-bit value with the same scaling as ground height, drawn 89.6 lower
+(`w3e.water_z`):
+```lua
+water_z = (water_raw - 8192) / 4 - 89.6
+```
+Water shows where the water flag is set and `water_z > ground_z`
+(`w3e.is_wet`). Some maps set the flag far beyond their water; the height
+test is what limits it.
 
 ### Layer Height
 
-Used for cliff levels. Each increment represents one "cliff layer":
-- Layer 0 = base terrain
-- Layer 1 = one cliff up
-- Layer 2 = two cliffs up
-- etc.
+Used for cliff levels. Each layer is 128 units of height; layer 2 is the
+usual ground level, so layers 0-1 are below it (cliffs down) and 3-15 above.
 
 Cliff models are placed between adjacent tilepoints with different layer heights.
 
@@ -210,9 +218,10 @@ Cliff models are placed between adjacent tilepoints with different layer heights
 | RAMP | 0x0010 | Tilepoint is part of a ramp |
 | BLIGHT | 0x0020 | Undead blight overlay |
 | WATER | 0x0040 | Water is present |
-| BOUNDARY | 0x4000 | Map boundary (unplayable area) |
+| BOUNDARY | 0x0080 | Map boundary (unplayable area) |
 
-Note: Boundary flag is stored in water level bytes (bit 14-15).
+These are the high nibble of byte 4. A second boundary flag is stored in
+the water level bytes (bits 14-15).
 
 ---
 
@@ -360,8 +369,8 @@ local function parse_tilepoint(data, pos)
 
     -- Byte 4: Flags + ground texture
     local byte4 = data:byte(pos + 4)
-    tp.flags = byte4 & 0x0F
-    tp.ground_texture = (byte4 >> 4) & 0x0F
+    tp.ground_texture = byte4 & 0x0F
+    tp.flags = byte4 & 0xF0       -- 0x10 ramp, 0x20 blight, 0x40 water, 0x80 boundary
 
     -- Byte 5: Details + cliff variation
     local byte5 = data:byte(pos + 5)
@@ -370,8 +379,8 @@ local function parse_tilepoint(data, pos)
 
     -- Byte 6: Cliff texture + layer height
     local byte6 = data:byte(pos + 6)
-    tp.cliff_texture = byte6 & 0x0F
-    tp.layer_height = (byte6 >> 4) & 0x0F
+    tp.layer_height = byte6 & 0x0F
+    tp.cliff_texture = (byte6 >> 4) & 0x0F
 
     return tp
 end

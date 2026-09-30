@@ -77,24 +77,28 @@ local function parse_tilepoint(data, pos)
     tp.water_raw = water.raw
     tp.water_level = water.level
     tp.boundary = water.boundary
+    tp.water_flags = band(water_raw, 0xC000)   -- (kept for writing back: issue 911a)
 
-    -- Byte 4: Flags (low nibble) + Ground texture (high nibble)
+    -- Byte 4: Ground texture (low nibble) + Flags (high nibble: 0x10 ramp,
+    -- 0x20 blight, 0x40 water, 0x80 boundary). Until issue 517 these two
+    -- nibbles were read the other way round (see its notes for the check).
     local byte4 = data:byte(pos + 4)
-    tp.ground_texture = band(rshift(byte4, 4), 0x0F)
-    tp.is_ramp = band(byte4, 0x01) ~= 0      -- Bit 0
-    tp.is_blight = band(byte4, 0x02) ~= 0    -- Bit 1
-    tp.has_water = band(byte4, 0x04) ~= 0    -- Bit 2
-    tp.is_boundary = band(byte4, 0x08) ~= 0  -- Bit 3
+    tp.ground_texture = band(byte4, 0x0F)
+    tp.is_ramp = band(byte4, 0x10) ~= 0
+    tp.is_blight = band(byte4, 0x20) ~= 0
+    tp.has_water = band(byte4, 0x40) ~= 0
+    tp.is_boundary = band(byte4, 0x80) ~= 0
 
     -- Byte 5: Texture details (5 bits) + Cliff variation (3 bits)
     local byte5 = data:byte(pos + 5)
     tp.texture_details = band(byte5, 0x1F)
     tp.cliff_variation = band(rshift(byte5, 5), 0x07)
 
-    -- Byte 6: Cliff texture (low nibble) + Layer height (high nibble)
+    -- Byte 6: Layer height (low nibble; 2 is the usual ground level) +
+    -- Cliff texture (high nibble; 15 = none). Also swapped until issue 517.
     local byte6 = data:byte(pos + 6)
-    tp.cliff_texture = band(byte6, 0x0F)
-    tp.layer_height = band(rshift(byte6, 4), 0x0F)
+    tp.layer_height = band(byte6, 0x0F)
+    tp.cliff_texture = band(rshift(byte6, 4), 0x0F)
 
     return tp
 end
@@ -358,6 +362,40 @@ end
 -- }}}
 -- }}}
 
+-- {{{ w3e.write (issue 911a)
+-- The terrain back as war3map.w3e bytes. Heights and water levels are
+-- written from tp.height and tp.water_level (world units), so an editor
+-- changes those; the rest from the fields the parser reads.
+function w3e.write(terrain)
+    local b = require("parsers.binwrite").new()
+    b:str(MAGIC):i32(terrain.version or EXPECTED_VERSION)
+    b:str(terrain.tileset_code ~= "" and terrain.tileset_code or "L")
+    b:i32(terrain.custom_tileset and 1 or 0)
+    b:i32(#terrain.ground_tilesets)
+    for _, t in ipairs(terrain.ground_tilesets) do b:str(t) end
+    b:i32(#terrain.cliff_tilesets)
+    for _, t in ipairs(terrain.cliff_tilesets) do b:str(t) end
+    b:i32(terrain.width):i32(terrain.height)
+    b:f32(terrain.offset_x):f32(terrain.offset_y)
+    local function raw(world) return math.floor(world * 4 + 8192 + 0.5) end
+    for y = 0, terrain.height - 1 do
+        local row = terrain.tilepoints[y]
+        for x = 0, terrain.width - 1 do
+            local tp = row[x]
+            b:i16(raw(tp.height))
+            b:u16(raw(tp.water_level) % 0x4000 + (tp.water_flags or (tp.boundary and 0x4000 or 0)))
+            local flags = tp.ground_texture % 16
+                + (tp.is_ramp and 0x10 or 0) + (tp.is_blight and 0x20 or 0)
+                + (tp.has_water and 0x40 or 0) + (tp.is_boundary and 0x80 or 0)
+            b:u8(flags)
+            b:u8(tp.texture_details % 32 + (tp.cliff_variation % 8) * 32)
+            b:u8(tp.layer_height % 16 + (tp.cliff_texture % 16) * 16)
+        end
+    end
+    return b:done()
+end
+-- }}}
+
 -- {{{ Format function
 -- {{{ format
 -- Format terrain info for display.
@@ -414,6 +452,28 @@ function w3e.format(terrain)
     return table.concat(lines, "\n")
 end
 -- }}}
+-- }}}
+
+-- {{{ Heights in the world
+-- WC3 z of a tilepoint's ground: its height plus 128 for each cliff layer
+-- above layer 2 (the usual ground level)
+function w3e.ground_z(tp)
+    return tp.height + (tp.layer_height - 2) * 128
+end
+
+-- WC3 z of a tilepoint's water surface. The 89.6 drop is the offset map
+-- tools use between the stored level and the drawn surface; with it the
+-- test maps' water meets their coastlines (issue 517).
+w3e.WATER_OFFSET = 89.6
+function w3e.water_z(tp)
+    return tp.water_level - w3e.WATER_OFFSET
+end
+
+-- True where water shows: the water flag is set and its surface is above
+-- the ground
+function w3e.is_wet(tp)
+    return tp.has_water and w3e.water_z(tp) > w3e.ground_z(tp)
+end
 -- }}}
 
 -- {{{ Module exports

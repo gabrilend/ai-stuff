@@ -10,6 +10,8 @@ tiles with different cliff levels create impassable barriers unless a ramp
 connects them.
 ]]
 
+local w3e = require("parsers.w3e")
+
 local grid = {}
 
 -- {{{ Constants
@@ -42,6 +44,15 @@ end
 -- }}}
 -- }}}
 
+-- {{{ water_depth
+-- How deep the water stands over a tile, 0 where it's dry (w3e.is_wet)
+local function water_depth(tile)
+    if not tile or not tile.has_water then return 0 end
+    local depth = w3e.water_z(tile) - w3e.ground_z(tile)
+    return depth > 0 and depth or 0
+end
+-- }}}
+
 -- {{{ Walkability determination
 -- {{{ is_tile_walkable
 -- Determines if a tile is walkable based on w3e tile data and neighbors.
@@ -63,8 +74,10 @@ local function is_tile_walkable(tile, neighbors)
         return false
     end
 
-    -- Deep water blocks ground units
-    if tile.has_water and tile.water_level > WADE_DEPTH then
+    -- Deep water blocks ground units. Depth is the water's surface above
+    -- the ground (issue 519: this compared the water's absolute level, so
+    -- nearly every tile with the water flag, wet or not, was blocked)
+    if water_depth(tile) > WADE_DEPTH then
         return false
     end
 
@@ -193,8 +206,8 @@ function grid.build_from_terrain(terrain)
 
             if tile then
                 cell.cliff_level = tile.layer_height or 0
-                cell.water = tile.has_water or false
-                cell.water_depth = tile.water_level or 0
+                cell.water_depth = water_depth(tile)
+                cell.water = cell.water_depth > 0
                 cell.is_ramp = tile.is_ramp or false
                 cell.is_blight = tile.is_blight or false
                 cell.flyable = true  -- Air units can go anywhere

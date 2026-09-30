@@ -123,3 +123,12 @@ Fog can be expensive to update every frame. Consider:
 - issues/502a-core-terrain-renderer.md (base rendering)
 - issues/407-create-player-state-management.md (player ownership)
 - src/runtime/systems/ (vision system if exists)
+
+## Implementation Notes
+
+**Date:** 2026-09-29
+
+Done as part of issue 524 (`issues/completed/524-fog-of-war.md`). How it differs from the plan above:
+
+- **One pass for everything:** fog is not drawn over the terrain alone. The 3D view is drawn into a texture, and a last pass (`render/fog.c`) darkens every pixel by the fog at its place on the ground. Terrain, doodads and models are all shaded, whatever drew them.
+- **Where visibility lives:** it is worked out in `demo/wc3map/vision.lua`, not in the renderer.

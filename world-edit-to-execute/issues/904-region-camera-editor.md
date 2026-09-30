@@ -206,7 +206,7 @@ cameras.draw_frustum(camera)
 ## Acceptance Criteria
 
 - [ ] Rectangle and circle regions creatable
-- [ ] Regions resizable via handles
+- [x] Regions resizable via handles
 - [ ] Region properties editable (name, weather, ambient)
 - [ ] Region list with folder organization
 - [ ] Camera objects creatable
@@ -230,3 +230,31 @@ cameras.draw_frustum(camera)
 - Camera preview could animate (smooth transition)
 - May want "camera path" for cinematics (multiple cameras)
 - Region handles should scale with zoom level
+
+## Implementation Notes
+
+*(2026-09-30, first pass: regions)*
+
+- **Writer:** `parsers/w3r.lua` gains `w3r.write`. None of the 16 test maps carries a war3map.w3r, since their regions live only in their scripts, so a made-up table is written, read back and written the same (test_map_save).
+- **Editing:** `src/editor/regions.lua`.
+  - **What a region is:** the script's literal `set VAR = Rect(l, b, r, t)` calls, 153 in DAoW 5.4b, named from a w3r region with the same bounds when the map has one.
+  - **Changes:** move (drag inside) and resize (drag a corner), each one undo step.
+  - **Saving:** the Rect calls get the new numbers, and the w3r (when there is one) the new bounds.
+- **In the window:** the Regions tool outlines the regions in view, with the one in hand in gold and its name and bounds in the palette.
+- **Checked end to end:** a DAoW region moved and saved. The game on the copy has the rect variable at the new place (test_editor).
+- **Undo:** the region changes support it. The criterion is still unchecked because creating regions doesn't exist yet.
+
+**Not done yet:**
+- **Regions:** making and removing them, since the script's triggers refer to them by variable (with the trigger editor, 905), and circle regions.
+- **Region properties:** editing weather, ambient sound and names; a list with folders.
+- **Cameras:** the script's CameraSetup calls, moving them, set from and apply to the view, the frustum.
+
+## Implementation Notes (2)
+
+**2026-09-30, sub-issue 904b (completed).**
+- The script's cameras are edited.
+- New cameras and regions are made for the editor's triggers.
+- A Cameras tool.
+- The game follows the script's camera requests (`jass/natives/camera.lua`).
+- The window's view can turn, tilt and change field of view.
+- Still open: circular regions, region weather and sound, camera bounds and cinematic paths.

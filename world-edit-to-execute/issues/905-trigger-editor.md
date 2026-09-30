@@ -255,3 +255,43 @@ Parsing Lua back to GUI:
 - Consider "trigger debugging" (breakpoints, step-through)
 - Custom code blocks allow advanced users to bypass GUI limitations
 - May want "convert to custom code" for any block
+
+## Implementation Notes
+
+**2026-09-30, first pass (sub-issue 905a, completed).**
+
+**What was built:**
+- Triggers built from blocks. The catalog is in `src/editor/trigger_blocks.lua`: 13 events, 10 conditions and 20 actions, including if / then / else, for loops and picking units in a region.
+- Variables.
+- A code view.
+- Checking.
+- Undo for every change.
+- The map's own triggers listed from its script. Their functions can be rewritten, and a trigger can be switched off.
+- The panel is opened from the toolbar ("Triggers").
+
+**Departure from this issue's design:**
+- This issue asks for Lua as the canonical form, with the GUI as a view of it.
+- The first pass instead keeps the blocks as the canonical form. They are stored in the map as `war3mapEditor.lua`.
+- The blocks are written into `war3map.j` as JASS, so edited maps still play in WC3.
+- The engine runs JASS (issue 520), so a Lua form isn't needed to play these triggers.
+
+**Still open here:**
+- Lua source with a bidirectional GUI ↔ code conversion.
+- Autocomplete.
+- Error highlighting inside the code view (problems are listed above it).
+- Trigger categories in the list (triggers carry a `category` but the list is flat).
+- Drag and drop.
+- Reading `war3map.wtg` / `war3map.wct` from maps that have them (none of the 16 test maps do).
+
+**2026-09-30, second pass (sub-issue 905b, completed).**
+- The code view edits.
+- Every trigger has a Lua form, one to one with its blocks, and editing either view changes the trigger.
+- Strings become custom script.
+- Errors are marked with their line.
+- The code view completes block kinds, parameters and the map's names.
+- Triggers are grouped by category.
+
+**Still open:**
+- Drag and drop.
+- Reading `war3map.wtg` / `war3map.wct`.
+- Trigger debugging.
