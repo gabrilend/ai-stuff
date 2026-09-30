@@ -182,7 +182,7 @@ return function(V, N, T)
         if nu then
             if nu.hp_max and u.alive then nu.hp = math.max(1, nu.hp_max * frac) end
             nu.hidden = was_hidden
-            if u.items then nu.items = u.items end
+            if u.inventory then nu.inventory = u.inventory; for _, it in pairs(u.inventory) do it.owner = nu end end
         end
         N.RemoveUnit(u)
         set("bj_lastReplacedUnit", nu)
@@ -295,21 +295,21 @@ return function(V, N, T)
     end
     N.UnitItemInSlotBJ = function(u, slot) return N.UnitItemInSlot(u, slot - 1) end
     N.GetItemOfTypeFromUnitBJ = function(u, id)
-        if not u or not u.items then return nil end
+        if not u or not u.inventory then return nil end
         local s = vm.id2s(id)
-        for k = 0, 5 do if u.items[k] and u.items[k].id == s then return u.items[k] end end
+        for k = 0, 5 do if u.inventory[k] and u.inventory[k].id == s then return u.inventory[k] end end
         return nil
     end
     N.UnitHasItemOfTypeBJ = function(u, id) return N.GetItemOfTypeFromUnitBJ(u, id) ~= nil end
     N.UnitInventoryCount = function(u)
         local n = 0
-        if u and u.items then for k = 0, 5 do if u.items[k] then n = n + 1 end end end
+        if u and u.inventory then for k = 0, 5 do if u.inventory[k] then n = n + 1 end end end
         return n
     end
     N.GetInventoryIndexOfItemTypeBJ = function(u, id)
-        if not u or not u.items then return 0 end
+        if not u or not u.inventory then return 0 end
         local s = vm.id2s(id)
-        for k = 0, 5 do if u.items[k] and u.items[k].id == s then return k + 1 end end
+        for k = 0, 5 do if u.inventory[k] and u.inventory[k].id == s then return k + 1 end end
         return 0
     end
     N.GetLastRemovedItem = function() return get("bj_lastRemovedItem") end
@@ -714,15 +714,6 @@ return function(V, N, T)
         return it
     end
     N.GetItemLoc = function(it) return N.Location(N.GetItemX(it), N.GetItemY(it)) end
-    N.GetItemType = function(it) return it and it.item_type or "ITEM_TYPE_PERMANENT" end
-    N.EnumItemsInRect = function(r, filter, fn)
-        for _, it in ipairs(V.items or {}) do
-            if not it.removed and not it.owner and N.RectContainsCoords(r, it.x, it.y)
-                and V:test(filter, { filter_item = it }) then
-                V:with({ enum_item = it }, fn)
-            end
-        end
-    end
     N.ChooseRandomItemEx = function() return -1 end
     N.ChooseRandomItem = function() return -1 end
     typed("integer", "ChooseRandomItemEx ChooseRandomItem")

@@ -444,6 +444,17 @@ function scene_paint()
         end
     end
     draw_fx:draw(game, cx, cy, reach, adt, add_list, A and unit_model)
+    -- items on the ground (issue 532): their model, else a small gold ring
+    for _, it in ipairs(game.items or {}) do
+        if not it.owner and not it.hidden and math.abs(it.x - cx) < reach and math.abs(it.y - cy) < reach then
+            local mod = it.type and draw_fx:model(it.type.model)
+            if mod then
+                render.model_draw(mod.id, it.x, it.y, it.z or 0, 0, 1, 255, 255, 255)
+            else
+                add_list(figures.ring(it.x, it.y, (it.z or 0) + 4, 18, { 250, 210, 80 }, 10, 5))
+            end
+        end
+    end
     -- a structure being placed: its footprint, green where it fits (issue 531)
     if hud.targeting == "place" and hud.place_id and input.mx then
         local gx, gy = viewer.to_ground(input.mx, input.my)

@@ -288,6 +288,10 @@ function Hud:target(x, y, unit)
         self.game.order(self:own_selection(), "attack_unit", unit.x, unit.y, unit)
     elseif order == "move" or order == "attack" or order == "patrol" then
         self.game.order(self:own_selection(), order, x, y)
+    elseif order == "use_item" and self.game.use_item then
+        local lead = self:leader()
+        local ok, why = self.game.use_item(lead, self.use_item, unit, x, y)
+        if not ok then self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".") end
     elseif order == "place" and self.game.build then
         local why
         for _, u in ipairs(self:own_selection()) do
@@ -406,7 +410,14 @@ function Hud:update(input, dt)
                     if u.spec.archetype == "worker" then workers[#workers + 1] = u end
                 end
                 local gathered = false
-                if #workers > 0 and game.gather then
+                -- an item on the ground: the first who can carry it fetches it
+                local item = not target and game.item_at and game.item_at(x, y, 100)
+                if item then
+                    for _, u in ipairs(self:own_selection()) do
+                        if game.pick_up(u, item) then gathered = true break end
+                    end
+                end
+                if not gathered and #workers > 0 and game.gather then
                     if target and game.is_mine and game.is_mine(target) then
                         gathered = game.order(workers, "gather", target.x, target.y, target)
                     elseif not target and game.nearest_tree and game.nearest_tree(x, y, 120) then
@@ -472,6 +483,20 @@ function Hud:click(mx, my, input, over_ui)
     for i, h in ipairs(r.heroes) do
         local hero = self:heroes()[i]
         if hero and layout.inside(h, mx, my) then self:select({ hero }); return end
+    end
+    -- an item in the inventory: use it (issue 532)
+    for i, slot in ipairs(r.inventory) do
+        local lead = self:leader()
+        local it = lead and self:own(lead) and lead.inventory and lead.inventory[i - 1]
+        if it and layout.inside(slot, mx, my) and game.use_item then
+            local ok, why = game.use_item(lead, it)
+            if not ok and (why == "needs a unit target" or why == "needs a point" or why == "needs a target") then
+                self.targeting, self.use_item = "use_item", it
+            elseif not ok then
+                self:message((why:sub(1, 1):upper() .. why:sub(2)) .. ".")
+            end
+            return
+        end
     end
     if layout.inside(r.idle, mx, my) then self:next_idle(); return end
     if layout.inside(r.info, mx, my) and #self.selection > 1 then
@@ -796,10 +821,19 @@ function Hud:draw_console(ui)
         text(ui, string.format("%d selected  (Tab: next group)", #self.selection), info.x + 10, info.y + 10, 16, C.dim)
     end
 
-    -- inventory: heroes carry six items
-    for _, slot in ipairs(r.inventory) do
+    -- inventory: heroes carry six items (issue 532: what they carry,
+    -- charges, and the slots a unit doesn't have darkened)
+    local size = lead and game.inventory_size and game.inventory_size(lead) or ((lead and lead.spec.hero) and 6 or 0)
+    for i, slot in ipairs(r.inventory) do
         bevel(ui, slot, C.slot)
-        if not (lead and lead.spec.hero and self:own(lead)) then
+        local it = lead and lead.inventory and lead.inventory[i - 1]
+        if it then
+            local name = it.type and it.type.name or it.id
+            rect(ui, slot.x + 4, slot.y + 4, slot.w - 8, slot.h - 8, { 90 + (#name * 37) % 120, 80, 60 + (#name * 53) % 150 })
+            text(ui, name:sub(1, 5), slot.x + 5, slot.y + 6, 12, C.text)
+            if (it.charges or 0) > 0 then text(ui, tostring(it.charges), slot.x + slot.w - 16, slot.y + slot.h - 16, 12, C.gold) end
+        end
+        if not (lead and self:own(lead)) or i > size then
             rect(ui, slot.x + 2, slot.y + 2, slot.w - 4, slot.h - 4, { 0, 0, 0 }, 120)
         end
     end

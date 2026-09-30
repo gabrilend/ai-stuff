@@ -823,81 +823,129 @@ return function(V, N, T)
     typed("integer", "CountUnitsInGroup")
     -- }}}
 
-    -- {{{ Items (carried in six slots; ground items are records only)
+    -- {{{ Items (the game's: demo/wc3map/items.lua, issue 532)
+    local function game_items() return W.create_item ~= nil end
     local function new_item(id, x, y)
-        local it = V:handle({ kind = "item", id = vm.id2s(id), x = x or 0, y = y or 0, charges = 0 })
-        V.items = V.items or {}
-        V.items[#V.items + 1] = it
-        return it
+        local k = vm.id2s(id)
+        local it
+        if game_items() then it = W.create_item(k, x or 0, y or 0)
+        else
+            it = { id = k, x = x or 0, y = y or 0, charges = 0 }
+            V.items = V.items or {}
+            V.items[#V.items + 1] = it
+        end
+        return V:handle(it)
     end
     N.CreateItem = new_item
     N.CreateItemLoc = function(id, l) return new_item(id, l.x, l.y) end
     N.RemoveItem = function(it)
         if not it then return end
-        it.removed = true
-        if it.owner then N.UnitRemoveItem(it.owner, it) end
+        if game_items() then W.remove_item(it) else it.removed = true end
     end
     N.GetItemTypeId = function(it) return it and vm.s2id(it.id) or 0 end
-    N.GetItemX = function(it) return it and it.x or 0 end
-    N.GetItemY = function(it) return it and it.y or 0 end
-    N.SetItemPosition = function(it, x, y) if it then it.x, it.y = x, y end end
+    N.GetItemX = function(it) return it and (it.owner and it.owner.x or it.x) or 0 end
+    N.GetItemY = function(it) return it and (it.owner and it.owner.y or it.y) or 0 end
+    N.SetItemPosition = function(it, x, y)
+        if not it then return end
+        if it.owner and W.take_item then W.take_item(it.owner, it, true) end
+        it.x, it.y = x, y
+        if W.ground_at then it.z = W.ground_at(x, y) end
+    end
     N.SetItemVisible = function(it, show) if it then it.hidden = not show end end
     N.IsItemVisible = function(it) return it ~= nil and not it.hidden end
     N.GetItemCharges = function(it) return it and it.charges or 0 end
     N.SetItemCharges = function(it, n) if it then it.charges = n end end
     N.SetItemPlayer = function(it, p) if it then it.player = p and p.id end end
+    N.GetItemPlayer = function(it) return V:player(it and it.player or 15) end
     N.SetItemUserData = function(it, v) if it then it.user_data = v end end
     N.GetItemUserData = function(it) return it and it.user_data or 0 end
-    N.GetItemName = function(it) return it and it.id or "" end
-    local function slots(u) u.items = u.items or {} return u.items end
+    N.GetItemName = function(it) return it and (it.type and it.type.name or it.id) or "" end
+    N.GetItemLevel = function(it) return it and it.type and it.type.level or 0 end
+    N.GetItemType = function(it) return "ITEM_TYPE_" .. string.upper(it and it.type and it.type.class or "PERMANENT") end
+    N.IsItemOwned = function(it) return it ~= nil and it.owner ~= nil end
+    N.IsItemPowerup = function(it) return it ~= nil and it.type ~= nil and it.type.powerup end
+    N.IsItemIdPowerup = function(id) return W.item_type ~= nil and W.item_type(vm.id2s(id)).powerup end
+    N.IsItemPawnable = function(it) return it ~= nil and it.pawnable ~= false end
+    N.SetItemPawnable = function(it, v) if it then it.pawnable = v end end
+    N.IsItemSellable = function(it) return it ~= nil end
+    N.IsItemIdSellable = function() return true end
+    N.SetItemDroppable = function(it, v) if it then it.droppable = v end end
+    N.SetItemInvulnerable = function(it, v) if it then it.invulnerable = v end end
+    N.IsItemInvulnerable = function(it) return it ~= nil and it.invulnerable == true end
+    local function slots(u) u.inventory = u.inventory or {} return u.inventory end
     N.UnitAddItem = function(u, it)
         if not u or not it then return false end
+        if game_items() then return (W.give_item(u, it)) and true or false end
         local s = slots(u)
         for k = 0, 5 do
-            if not s[k] then s[k], it.owner = it, u; return true end
+            if not s[k] then s[k], it.owner, it.slot = it, u, k; return true end
         end
         return false
     end
     N.UnitAddItemById = function(u, id)
         local it = new_item(id, u and u.x, u and u.y)
-        if not N.UnitAddItem(u, it) then return it end
+        N.UnitAddItem(u, it)
         return it
     end
     N.UnitAddItemToSlotById = function(u, id, slot)
         if not u then return false end
+        local it = new_item(id, u.x, u.y)
+        if game_items() then
+            if W.give_item(u, it, slot) then return true end
+            W.remove_item(it)
+            return false
+        end
         local s = slots(u)
         if s[slot] then return false end
-        local it = new_item(id, u.x, u.y)
-        s[slot], it.owner = it, u
+        s[slot], it.owner, it.slot = it, u, slot
         return true
     end
-    N.UnitItemInSlot = function(u, slot) return u and u.items and u.items[slot] end
+    N.UnitItemInSlot = function(u, slot) return u and u.inventory and u.inventory[slot] end
     N.UnitRemoveItem = function(u, it)
-        if not u or not u.items then return end
-        for k = 0, 5 do
-            if u.items[k] == it then
-                u.items[k], it.owner = nil, nil
-                it.x, it.y = u.x, u.y
-            end
-        end
+        if not u or not it or it.owner ~= u then return end
+        if game_items() then W.drop_item(u, it, u.x, u.y) return end
+        u.inventory[it.slot], it.owner, it.slot = nil, nil, nil
+        it.x, it.y = u.x, u.y
     end
     N.UnitRemoveItemFromSlot = function(u, slot)
-        local it = u and u.items and u.items[slot]
+        local it = u and u.inventory and u.inventory[slot]
         if it then N.UnitRemoveItem(u, it) end
         return it
     end
     N.UnitHasItem = function(u, it) return it ~= nil and it.owner == u end
-    N.UnitInventorySize = function(u) return 6 end
+    N.UnitInventorySize = function(u) return W.inventory_size and W.inventory_size(u) or 6 end
     N.UnitDropItemPoint = function(u, it, x, y)
+        if game_items() then return (W.drop_item(u, it, x, y)) and true or false end
         N.UnitRemoveItem(u, it)
         if it then it.x, it.y = x, y end
         return true
     end
-    N.UnitDropItemSlot = function() return false end
-    N.UnitUseItem = function() return false end
-    typed("integer", "GetItemTypeId GetItemCharges GetItemUserData UnitInventorySize")
+    N.UnitDropItemSlot = function(u, it, slot)
+        if not u or not it or it.owner ~= u then return false end
+        if u.inventory[slot] then return false end
+        u.inventory[it.slot], u.inventory[slot], it.slot = nil, it, slot
+        return true
+    end
+    N.UnitDropItemTarget = function(u, it, target)
+        if not game_items() or not u or not it or it.owner ~= u then return false end
+        return (W.give_item(target, it)) and true or false
+    end
+    N.UnitUseItem = function(u, it) return W.use_item ~= nil and (W.use_item(u, it)) and true or false end
+    N.UnitUseItemPoint = function(u, it, x, y) return W.use_item ~= nil and (W.use_item(u, it, nil, x, y)) and true or false end
+    N.UnitUseItemTarget = function(u, it, t) return W.use_item ~= nil and (W.use_item(u, it, t)) and true or false end
+    N.EnumItemsInRect = function(r, filter, fn)
+        for _, it in ipairs(W.items or V.items or {}) do
+            if not it.owner and not it.removed and it.x >= r.minx and it.x <= r.maxx and it.y >= r.miny and it.y <= r.maxy then
+                if V:test(filter, { filter_item = it }) then
+                    V:with({ enum_item = it }, fn)
+                end
+            end
+        end
+    end
+    typed("integer", "GetItemTypeId GetItemCharges GetItemUserData UnitInventorySize GetItemLevel")
     typed("real", "GetItemX GetItemY")
     typed("string", "GetItemName")
+    typed("boolean", "IsItemOwned IsItemPowerup IsItemIdPowerup IsItemPawnable IsItemSellable IsItemIdSellable IsItemInvulnerable")
     -- }}}
 
     -- {{{ Destructables (the map's doodads aren't handles yet: none exist)
