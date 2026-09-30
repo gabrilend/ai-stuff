@@ -11,10 +11,14 @@ my-libs/
 │   ├── 800*.md          # Threadpool library issues
 │   └── completed/       # Completed issue archive
 │
-└── threadpool/          # General-purpose threading library
-    ├── docs/            # Library documentation
-    ├── src/             # Source files
-    └── tests/           # Test suite
+├── threadpool/          # General-purpose threading library
+│   ├── docs/            # Library documentation
+│   ├── src/             # Source files
+│   └── tests/           # Test suite
+│
+└── zip/                 # Zip packer and metered reader, plain Lua
+    ├── src/             # Source files (each with an .info.md)
+    └── tests/           # Checks, run under every Lua present
 ```
 
 ## Libraries
@@ -29,6 +33,18 @@ General-purpose threading infrastructure with:
 - Optional updater module with self-evaluating helpers
 
 **Origin:** Extracted from world-edit-to-execute render system (Phase 8)
+
+### zip (In Progress)
+
+A zip packer and reader in plain Lua (LuaJIT and Lua 5.3/5.4), so no
+project needs the `zip` or `unzip` programs:
+- The reader checks the whole structure before making a byte, then counts
+  every byte before it exists, so zip bombs stop at the agreed size.
+- Links arrive as notes, never links.
+- The packer counts the unpacked size exactly.
+
+**Origin:** rao-chat issue 216e. **Consumers:** rao-chat, rmail. See
+`zip/README.md`.
 
 ## Issue Conventions
 

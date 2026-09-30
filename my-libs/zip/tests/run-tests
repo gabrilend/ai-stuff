@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# run-tests — runs the zip library's test under every Lua interpreter this
+# machine has (LuaJIT, and Lua 5.4 / 5.3), since the library promises to
+# behave the same on each: rao-chat runs it on LuaJIT, rmail on Lua 5.4.
+# Prints each interpreter's counts and any failures; exits non-zero if any
+# check failed or an interpreter crashed before counting.  Throwaway files
+# go to RAM (/dev/shm/zip-library-tests/).
+#
+# Usage: run-tests [library folder]   (default below)
+
+DIR="/home/ritz/programming/ai-stuff/my-libs/zip"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+status=0
+ran=0
+for interpreter in luajit lua5.4 lua5.3; do
+    # An interpreter this machine does not have is skipped, and said so.
+    if ! command -v "$interpreter" > /dev/null; then
+        echo "$interpreter: not installed, skipped"
+        continue
+    fi
+    ran=$((ran + 1))
+    output=$("$interpreter" "$DIR/tests/test-zip.lua" "$DIR" 2>&1)
+    counts=$(printf '%s\n' "$output" | grep '^counts ' | tail -n 1)
+    # No counts line: the test crashed part-way; shown whole.
+    if [ -z "$counts" ]; then
+        echo "$interpreter: CRASHED before counting"
+        printf '%s\n' "$output"
+        status=1
+        continue
+    fi
+    passed=$(echo "$counts" | cut -d' ' -f2)
+    failed=$(echo "$counts" | cut -d' ' -f3)
+    echo "$interpreter: $passed passed, $failed failed"
+    printf '%s\n' "$output" | grep 'FAIL' || true
+    if [ "$failed" -ne 0 ]; then
+        status=1
+    fi
+done
+
+# No interpreter at all is a failure, not a pass.
+if [ "$ran" -eq 0 ]; then
+    echo "no Lua interpreter found (luajit, lua5.4, lua5.3)"
+    exit 1
+fi
+exit "$status"
