@@ -22,6 +22,9 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
              the map's changes are known
+  abilities  casting with the script's spell events, cooldowns, mana,
+             regeneration, auras, attack passives, buffs (demo/wc3map/
+             abilities.lua, buffs.lua; issue 529)
   heroes     experience, levels, attributes, skills, revival, limits
              (demo/wc3map/heroes.lua, issue 528)
   economy    player state, food and upkeep, gathering, bounty, scores
@@ -49,6 +52,7 @@ local production = require("demo.wc3map.production")
 local vision_mod = require("demo.wc3map.vision")
 local economy = require("demo.wc3map.economy")
 local heroes = require("demo.wc3map.heroes")
+local abilities = require("demo.wc3map.abilities")
 local object_stock = require("gamedata.object_stock")
 local game_constants = require("gamedata.game_constants")
 
@@ -289,7 +293,7 @@ function game_mod.new(scene, opts)
     end
     -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how),
     -- g.spawn_listeners (u)
-    g.death_listeners, g.made_listeners, g.spawn_listeners = {}, {}, {}
+    g.death_listeners, g.made_listeners, g.spawn_listeners, g.damage_listeners = {}, {}, {}, {}
     function g.made(u, how)
         for _, f in ipairs(g.made_listeners) do f(u, how) end
     end
@@ -412,7 +416,7 @@ function game_mod.new(scene, opts)
     end
 
     function g.kill(u, killer) combat.kill(g, u, killer) end
-    function g.damage(source, target, amount) combat.damage(g, source or target, target, amount) end
+    function g.damage(source, target, amount, dopts) combat.damage(g, source or target, target, amount, dopts) end
     -- }}}
 
     function g.time_of_day()
@@ -529,6 +533,7 @@ function game_mod.new(scene, opts)
     economy.init(g)
     production.init(g)
     heroes.init(g)
+    abilities.init(g)
     if opts.vision ~= false then g.vision = vision_mod.new(g) end
     -- how many unit types' stats came from where
     function g.stats_report()
@@ -553,12 +558,14 @@ function game_mod.new(scene, opts)
         if opts.combat ~= false then combat.update(g, dt) end
         production.update(g, dt)
         economy.update(g, dt)
+        abilities.update(g, dt)
 
         local ground = function(x, y) return scene.sample.ground_at(x, y) end
         local keep = {}
         for _, u in ipairs(g.units) do
-            if u.alive and u.route and not u.swing and not u.paused then
+            if u.alive and u.route and not u.swing and not u.paused and not u.stunned then
                 local mv = u.mover
+                mv.speed = (u.speed or 270) * (u.speed_mult or 1)
                 mv.x, mv.y, mv.facing = u.x, u.y, u.facing
                 local done = loco.follow(mv, nil, dt, ground)
                 u.x, u.y, u.facing = mv.x, mv.y, mv.facing

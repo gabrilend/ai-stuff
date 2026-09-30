@@ -5,6 +5,7 @@ Which of its model's sequences a unit plays, from what it's doing in the
 game (demo/wc3map/game.lua, combat.lua), as WC3 picks them:
 
   dead       Death, once, then its last frame held while the corpse lies
+  casting    Spell (Spell Channel while channelling), issue 529
   attacking  Attack, from its start at each swing, sped up or slowed so
              the swing's wind-up and backswing fit it (within 0.5x - 3x)
   walking    Walk, at the speed the unit moves over the model's own walk
@@ -31,6 +32,11 @@ function animate.unit(rig, u, dt)
     end
     if not u.alive then
         anim.play(rig, st, "death", { fallback = "stand" })
+    elseif u.casting and u.casting.phase ~= "approach" then
+        -- casting (issue 529): Spell (Spell Channel while channelling)
+        local name = "spell"
+        if u.casting.phase == "channel" and rig.by_name["spell channel"] then name = "spell channel" end
+        anim.play(rig, st, name, { fallback = "stand" })
     elseif u.swing then
         -- a new swing starts the attack over
         local fresh = not st.swing or u.swing < st.swing

@@ -536,11 +536,32 @@ return function(V, N, T)
         return true
     end
     N.UnitRemoveAbility = function(u, id)
-        if not u or not u.abilities or not u.abilities[vm.id2s(id)] then return false end
-        u.abilities[vm.id2s(id)] = nil
+        if not u then return false end
+        local k = vm.id2s(id)
+        -- a buff id removes the buff
+        if u.buffs and require("demo.wc3map.buffs").remove(W, u, k) > 0 then return true end
+        if not u.abilities or not u.abilities[k] then return false end
+        u.abilities[k] = nil
         return true
     end
-    N.GetUnitAbilityLevel = function(u, id) return u and u.abilities and u.abilities[vm.id2s(id)] or 0 end
+    N.GetUnitAbilityLevel = function(u, id)
+        if not u then return 0 end
+        local k = vm.id2s(id)
+        local lvl = u.abilities and u.abilities[k]
+        if lvl then return lvl end
+        -- a buff answers as an ability of level 1 (GetUnitAbilityLevel(u, 'BHbd'))
+        for _, b in ipairs(u.buffs or {}) do if b.id == k then return 1 end end
+        return 0
+    end
+    N.UnitResetCooldown = function(u) if u then u.cooldowns = {} end end
+    -- buffs (demo/wc3map/buffs.lua, issue 529)
+    local buffs = require("demo.wc3map.buffs")
+    N.UnitRemoveBuffs = function(u, positive, negative) if u then buffs.remove(W, u, nil) end end
+    N.UnitRemoveBuffsEx = function(u) if u then buffs.remove(W, u, nil) end end
+    N.UnitCountBuffsEx = function(u) return u and u.buffs and #u.buffs or 0 end
+    N.UnitHasBuffsEx = function(u) return u ~= nil and u.buffs ~= nil and #u.buffs > 0 end
+    typed("integer", "UnitCountBuffsEx")
+    typed("boolean", "UnitHasBuffsEx")
     N.SetUnitAbilityLevel = function(u, id, lvl)
         if u then u.abilities = u.abilities or {}; u.abilities[vm.id2s(id)] = lvl end
         return lvl
@@ -637,9 +658,20 @@ return function(V, N, T)
         if not o then return 0 end
         return ORDER[({ move = "move", attack = "attack", attack_unit = "attack", patrol = "patrol", hold = "holdposition" })[o.kind] or ""] or 0
     end
+    -- a spell's order string: the unit's ability with that order
+    local function spell_for(u, name)
+        if not W.ability_order or not u.abilities then return nil end
+        for id, level in pairs(u.abilities) do
+            if level > 0 and W.ability_order(id, level) == name then return id end
+        end
+        return nil
+    end
+    V.spell_for = spell_for
     local function point_order(u, name, x, y)
         if not alive(u) or u.paused then return false end
         name = type(name) == "number" and ORDER_NAME[name] or name
+        local spell = type(name) == "string" and spell_for(u, name)
+        if spell then return (W.cast(u, spell, nil, x, y)) and true or false end
         local kind = ({ move = "move", smart = "move", attack = "attack", patrol = "patrol", attackground = "attack" })[name]
         if not kind then return false end
         W.order({ u }, kind, x, y)
@@ -648,6 +680,8 @@ return function(V, N, T)
     local function target_order(u, name, t)
         if not alive(u) or not t or u.paused then return false end
         name = type(name) == "number" and ORDER_NAME[name] or name
+        local spell = type(name) == "string" and spell_for(u, name)
+        if spell then return (W.cast(u, spell, t)) and true or false end
         if (name == "harvest" or name == "smart") and W.gather and W.is_mine and W.is_mine(t)
             and u.spec and u.spec.archetype == "worker" then
             return W.order({ u }, "gather", t.x, t.y, t) and true or false
@@ -664,6 +698,8 @@ return function(V, N, T)
     local function immediate_order(u, name)
         if not alive(u) then return false end
         name = type(name) == "number" and ORDER_NAME[name] or name
+        local spell = type(name) == "string" and spell_for(u, name)
+        if spell then return (W.cast(u, spell)) and true or false end
         if name == "stop" then W.order({ u }, "stop")
         elseif name == "holdposition" then W.order({ u }, "hold")
         else return false end
@@ -887,7 +923,7 @@ return function(V, N, T)
       .. "SetUnitPropWindow AddUnitAnimationProperties SetUnitLookAt ResetUnitLookAt UnitShareVision "
       .. "SetUnitPathing SetUnitCreepGuard SetUnitRescuable SetUnitRescueRange UnitSuspendDecay "
       .. "UnitAddSleep UnitAddSleepPerm UnitIgnoreAlarm UnitWakeUp SetUnitUseFood UnitSetUsesAltIcon "
-      .. "SelectUnit ClearSelection SetUnitMoveSpeedBJ UnitAddType UnitRemoveType UnitResetCooldown "
+      .. "SelectUnit ClearSelection SetUnitMoveSpeedBJ UnitAddType UnitRemoveType "
       .. "SetUnitPathingBJ UnitSetConstructionProgress "
       .. "UnitSetUpgradeProgress UnitPauseTimedLife SetAllItemTypeSlots SetAllUnitTypeSlots SetItemTypeSlots "
       .. "SetUnitTypeSlots AddItemToAllStock AddUnitToAllStock AddItemToStock AddUnitToStock "

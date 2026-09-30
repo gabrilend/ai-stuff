@@ -25,6 +25,8 @@ A card is indexed 1-12 by slot (row * 4 + column + 1, rows from the top).
     db.ability_button(id)     -> { name, hotkey, x, y, tip, hero }
     db.can_learn(hero, id)    -> whether a hero can learn a skill now (optional)
     db.revivable(building)    -> the fallen heroes an altar can revive (optional)
+    db.castable(unit)         -> its abilities: { {id, level, target}, ... } (optional)
+    db.ability_ready(unit, id) -> ok, why not, cooldown share left (optional)
 ]]
 
 local commands = {}
@@ -156,7 +158,26 @@ function commands.card(unit, db, mode)
         if spec.hero then stock(card, "learn") end
     end
 
-    -- abilities: the map's placements, else the bottom row, then the middle
+    -- abilities: the map's placements, else the bottom row, then the middle.
+    -- With the game's abilities (issue 529): the unit's own, learned ones,
+    -- with their cooldowns; passives and auras shown but not pressed
+    if db.castable then
+        for _, a in ipairs(db.castable(unit)) do
+            local info = db.ability_button(a.id) or {}
+            if not info.hidden then
+                local passive = a.target == "passive" or a.target == "aura"
+                local ready, why, left = true, nil, 0
+                if db.ability_ready and not passive then ready, why, left = db.ability_ready(unit, a.id) end
+                place(card, { id = a.id, label = (info.name or a.id) .. (a.level > 1 and (" " .. a.level) or ""),
+                              hotkey = info.hotkey, icon = "ability", action = passive and "passive" or "ability",
+                              target = a.id, target_kind = a.target, tip = info.tip,
+                              disabled = (not passive and not ready and why ~= "not ready yet") or nil,
+                              cooldown = left > 0 and left or nil },
+                      info.x, info.y, { 2, 1 })
+            end
+        end
+        return card
+    end
     local abilities = db.unit_list(unit.id, spec.hero and "uhab" or "uabi")
     for _, id in ipairs(abilities) do
         local info = db.ability_button(id) or {}

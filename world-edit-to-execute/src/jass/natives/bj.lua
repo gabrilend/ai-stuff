@@ -230,7 +230,7 @@ return function(V, N, T)
     N.UnitAddAbilityBJ = function(id, u) return N.UnitAddAbility(u, id) end
     N.UnitRemoveAbilityBJ = function(id, u) return N.UnitRemoveAbility(u, id) end
     N.SetUnitAbilityLevelSwapped = function(id, u, lvl) return N.SetUnitAbilityLevel(u, id, lvl) end
-    N.UnitRemoveBuffsBJ = function() end
+    N.UnitRemoveBuffsBJ = function(kind, u) if u then N.UnitRemoveBuffs(u, true, true) end end
     N.UnitShareVisionBJ = function() end
     N.SetUnitVertexColorBJ = function() end
     N.SetUnitTimeScalePercent = function() end
@@ -633,6 +633,9 @@ return function(V, N, T)
     N.GetOrderPointY = function() local c = V.ctx return c and c.point and c.point.y or 0 end
     N.GetOrderPointLoc = function() return N.Location(N.GetOrderPointX(), N.GetOrderPointY()) end
     N.GetSpellTargetLoc = N.GetOrderPointLoc
+    N.GetSpellTargetX = N.GetOrderPointX
+    N.GetSpellTargetY = N.GetOrderPointY
+    N.GetSpellAbility = from("ability")
     N.GetIssuedOrderIdBJ = N.GetIssuedOrderId
     N.OrderId2StringBJ = N.OrderId2String
     N.String2OrderIdBJ = N.OrderId
@@ -647,7 +650,7 @@ return function(V, N, T)
     N.TanBJ = function(d) return math.tan(math.rad(d)) end
     N.Atan2BJ = function(y, x) return math.deg(math.atan2(y, x)) end
     typed("integer", "PercentTo255 PercentToInt GetIssuedOrderIdBJ String2OrderIdBJ GetHandleIdBJ GetTrainedUnitType GetLearnedSkill GetLearnedSkillLevel GetLearnedSkillBJ")
-    typed("real", "GetOrderPointX GetOrderPointY GetRandomDirectionDeg GetRandomPercentageBJ SinBJ CosBJ TanBJ Atan2BJ")
+    typed("real", "GetOrderPointX GetOrderPointY GetSpellTargetX GetSpellTargetY GetRandomDirectionDeg GetRandomPercentageBJ SinBJ CosBJ TanBJ Atan2BJ")
     typed("string", "OrderId2StringBJ UnitId2StringBJ")
     -- regions and terrain
     N.TriggerRegisterEnterRegionSimple = function(trig, g) return N.TriggerRegisterEnterRegion(trig, g, nil) end
@@ -774,7 +777,7 @@ return function(V, N, T)
     N.CameraSetupGetDestPositionX = function() return 0 end
     N.CameraSetupGetDestPositionY = function() return 0 end
     typed("real", "CameraSetupGetFieldSwap CameraSetupGetDestPositionX CameraSetupGetDestPositionY")
-    N.UnitHasBuffBJ = function() return false end
+    N.UnitHasBuffBJ = function(u, id) return N.GetUnitAbilityLevel(u, id) > 0 end
     quiet("SetTextTagLifespanBJ SetTextTagPermanentBJ SetTextTagTextBJ SetTextTagFadepointBJ DestroyTextTagBJ SetTextTagAgeBJ "
       .. "SetTextTagColorBJ SetTextTagVelocityBJ SetTextTagPosBJ SetTextTagPosUnitBJ ShowTextTagForceBJ "
       .. "DestroyEffectBJ SyncSelections Cheat DoNotSaveReplay "
@@ -782,7 +785,7 @@ return function(V, N, T)
       .. "SetItemDropOnDeathBJ SetSoundPositionLocBJ AddWeatherEffectSaveLast RemoveWeatherEffectBJ EnableWeatherEffect "
       .. "SelectUnitAddForPlayer SelectUnitForPlayerSingle SelectUnitRemoveForPlayer ClearSelectionForPlayer "
       .. "AddUnitToStockBJ AddItemToStockBJ UpdateEachStockBuildingEnum EnableDawnDusk SetItemDropID "
-      .. "TriggerWaitForSound WaitForSoundBJ UnitRemoveBuffs UnitRemoveBuffsEx PlayMusicBJ PlayMusicExBJ EndThematicMusicBJ "
+      .. "TriggerWaitForSound WaitForSoundBJ PlayMusicBJ PlayMusicExBJ EndThematicMusicBJ "
       .. "StopMusicBJ PlayThematicMusicBJ SetMusicVolumeBJ SetCineFilterEndUV SetCineFilterTexMapFlags SetCineFilterStartUV "
       .. "SetCineFilterBlendMode SetCineFilterStartColor SetCineFilterEndColor SetCineFilterDuration SetCineFilterTexture "
       .. "DisplayCineFilterBJ ShowInterfaceForceOff ShowInterfaceForceOn SetUserControlForceOn SetUserControlForceOff "

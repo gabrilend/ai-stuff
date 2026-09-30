@@ -620,10 +620,10 @@ Same map, different experience:
 |----|------|------------|--------|
 | 701 | Death and resurrection system | 5 (701a-e) | 701d complete |
 | 702 | Profession system | 7 (702a-g) | Created |
-| 703 | Combat system | - | Planned |
-| 704 | Ability system framework | - | Planned |
-| 705 | Buff/debuff system | - | Planned |
-| 706 | Build queue and training | - | Planned |
+| 703 | Combat system | - | Done as issues 519, 525 (`demo/wc3map/combat.lua`: stock stats, damage table in constants) |
+| 704 | Ability system framework | - | Done as issue 529 (`demo/wc3map/abilities.lua`) |
+| 705 | Buff/debuff system | - | Done as issue 529 (`demo/wc3map/buffs.lua`) |
+| 706 | Build queue and training | - | Done as issue 521a (`demo/wc3map/production.lua`); economy 527, heroes 528 |
 | 707 | Fog of war | - | Done as issue 524 (`demo/wc3map/vision.lua`) |
 
 ### Death System (701)
