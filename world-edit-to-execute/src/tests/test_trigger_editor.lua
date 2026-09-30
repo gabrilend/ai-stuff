@@ -286,7 +286,10 @@ do
         and branch.then_actions[1].args.value.expr == "GetRandomInt(1, 5)")
     test("in the JASS", E3:trigger_jass(t):find("AdjustPlayerStateBJ(GetRandomInt(1, 5), Player(0), PLAYER_STATE_RESOURCE_GOLD)", 1, true) ~= nil)
     press("Code")
-    test("the code view", ui.tui.code and ui.tui.code.readonly and ui.tui.code.te:text():find("InitTrig_", 1, true))
+    test("the code view: the trigger as Lua", ui.tui.code and ui.tui.code.kind == "lua" and not ui.tui.code.readonly
+        and ui.tui.code.te:text():find('trigger "Wave" {', 1, true))
+    press("JASS")
+    test("and its JASS, read only", ui.tui.code and ui.tui.code.readonly and ui.tui.code.te:text():find("InitTrig_", 1, true))
     ui:draw(render)
     local coloured = false
     for _, s in ipairs(drawn) do if s == "function" then coloured = true end end
@@ -310,6 +313,101 @@ do
     test("switched off from the panel", press("Switch off") and E3.map_trigger_off[mt])
     press("Triggers")
     test("closed again", ui.tui == nil)
+end
+-- }}}
+
+-- {{{ Lua: the second view that edits (issue 905b)
+test_section("Triggers as Lua")
+do
+    local tl = require("editor.trigger_lua")
+    local E4 = assert(editor.open(DIR .. "/assets/Daow4.4.w3x"))
+    local r = E4:regions()[1]
+    E4:new_variable("Deaths", "integer", 0)
+    local d = E4:new_trigger("Count deaths")
+    E4:add_block(d, "events", "unit_dies")
+    E4:add_block(d, "conditions", "unit_type_is", { unit = "dying", unit_type = "hfoo" })
+    local br = E4:add_block(d, "actions", "if_then_else")
+    E4:add_block(d, "if_conditions", "owner_is", { unit = "dying", player = 0 }, br)
+    E4:add_block(d, "then_actions", "set_variable", { variable = "Deaths", value = "udg_Deaths + 1" }, br)
+    E4:add_block(d, "else_actions", "custom", { code = 'call BJDebugMsg("x")' }, br)
+    local pk = E4:new_trigger("Pick")
+    E4:add_block(pk, "events", "player_chat", { text = "-k" })
+    local pick = E4:add_block(pk, "actions", "pick_units", { region = r.var })
+    E4:add_block(pk, "loop_actions", "kill_unit", { unit = "picked" }, pick)
+    E4:add_block(pk, "actions", "display_text", { seconds = { expr = "udg_Deaths * 1.0" } })
+
+    local text = E4:trigger_lua(d)
+    test("a trigger as Lua", text:find('unit_type_is { unit = "dying", unit_type = "hfoo" }', 1, true)
+        and text:find('then_actions = {', 1, true) and text:find('"call BJDebugMsg(\\"x\\")",', 1, true), text)
+    local j1 = E4:trigger_jass(d)
+    test("read back unchanged: the same JASS", E4:set_trigger_lua(d, text) and E4:trigger_jass(d) == j1)
+    local edited = text:gsub('unit_type = "hfoo"', 'unit_type = "hkni"'):gsub("on = true", "on = false")
+    test("edited as Lua", E4:set_trigger_lua(d, edited) and d.conditions[1].args.unit_type == "hkni" and d.on == false)
+    test("the blocks' JASS follows", E4:trigger_jass(d):find("'hkni'", 1, true) and E4:trigger_jass(d):find("DisableTrigger", 1, true))
+    E4:undo()
+    test("one step to undo", d.conditions[1].args.unit_type == "hfoo" and d.on ~= false)
+    local ok, why, line = E4:set_trigger_lua(d, text:gsub("unit_dies", "unit_dances"))
+    test("an unknown block: why, and its line", not ok and why:find("unit_dances isn't one of the events", 1, true)
+        and line == 4, tostring(why) .. " @" .. tostring(line))
+    ok, why, line = E4:set_trigger_lua(d, 'trigger "x" {\n events = {\n')
+    test("broken Lua: why, and where", not ok and line ~= nil, tostring(why))
+    test("renaming onto another trigger refused", not E4:set_trigger_lua(d, text:gsub('"Count deaths"', '"Pick"')))
+    test("a loop can't hang it", not tl.from_lua("while true do end"))
+    test("nor reach outside", not tl.from_lua('os.remove("x")'))
+
+    -- a string where an action goes: custom script
+    local t2 = assert(tl.from_lua('trigger "S" { events = { map_init {} }, actions = { "call Foo()", wait { seconds = 2 } } }'))
+    test("a string is custom script", t2.actions[1].kind == "custom" and t2.actions[1].args.code == "call Foo()"
+        and t2.actions[2].args.seconds == 2)
+
+    -- everything at once
+    local all = E4:triggers_lua()
+    test("every trigger and variable", all:find('variable "Deaths" { type = "integer", initial = 0 }', 1, true)
+        and all:find('trigger "Pick"', 1, true))
+    local js = {}
+    for i, t in ipairs(E4:triggers()) do js[i] = E4:trigger_jass(t) end
+    test("read back: the same", E4:set_triggers_lua(all) and E4:trigger_jass(E4:triggers()[1]) == js[1]
+        and E4:trigger_jass(E4:triggers()[2]) == js[2] and E4:triggers()[1] == d)
+    local more = all .. '\ntrigger "Hello" { category = "Intro", events = { map_init {} }, actions = { display_text { text = "hi" } } }\n'
+        .. 'variable "Score" { type = "real", initial = 1.5 }\n'
+    test("a trigger and a variable added as Lua", E4:set_triggers_lua(more) and E4:trigger_named("Hello")
+        and E4:trigger_named("Hello").category == "Intro" and E4:variable_named("Score").initial == 1.5)
+    E4:undo()
+    test("undone together", not E4:trigger_named("Hello") and not E4:variable_named("Score") and #E4:triggers() == 2)
+    test("nothing wrong after all that", #E4:check_triggers() == 0, (E4:check_triggers()[1] or {}).message)
+
+    -- the panel: the Lua view, a mistake marked, completion, categories
+    local ui = require("editor.ui").new(E4, 1280, 800, { run_tests = false })
+    local function click(b) ui:update({ mx = b.x + 2, my = b.y + 2, lp = true, keys = {}, chars = "" }, 0.016) end
+    local function find(action, f)
+        for _, b in ipairs(ui.tui and ui.tui.buttons or ui.buttons) do if b.action == action and (not f or f(b.arg)) then return b end end
+    end
+    for _, b in ipairs(ui.buttons) do if b.label == "Triggers" then click(b) end end
+    ui.tui:press({ action = "pick", arg = { "trigger", d } })
+    ui.tui:press({ action = "show_code", arg = d })
+    local te = ui.tui.code.te
+    te.cy, te.cx = 4, #te.lines[4]
+    te.lines[4] = "        unit_dances {},"
+    click(find("apply_code"))
+    test("a mistake: the view stays, the line marked", ui.tui.code and te.error and te.error.line == 4)
+    te.lines[4] = "        "
+    te.cy, te.cx = 4, 8
+    ui:update({ keys = {}, chars = "unit_di" }, 0.016)
+    test("completion offered", te.suggest and te.suggest[1] == "unit_dies", te.suggest and table.concat(te.suggest, ","))
+    ui:update({ keys = { "TAB" }, chars = "" }, 0.016)
+    ui:update({ keys = {}, chars = " {}," }, 0.016)
+    test("Tab takes it", te.lines[4] == "        unit_dies {},", te.lines[4])
+    ui:update({ keys = { "ENTER" }, ctrl = true, chars = "" }, 0.016)
+    test("Ctrl+Enter applies", ui.tui.code == nil and d.events[1].kind == "unit_dies")
+    click(find("edit_category"))
+    ui:update({ keys = {}, chars = "Combat" }, 0.016)
+    ui:update({ keys = { "ENTER" }, chars = "" }, 0.016)
+    test("a category typed", d.category == "Combat")
+    test("the list by category", find("fold", function(a) return a == "Combat" end) ~= nil)
+    click(find("fold", function(a) return a == "Combat" end))
+    test("folded", not find("pick", function(a) return a[2] == d end))
+    click(find("lua_all"))
+    test("Lua (all) opens every trigger", ui.tui.code.kind == "lua_all" and ui.tui.code.te:text():find('category = "Combat"', 1, true))
 end
 -- }}}
 

@@ -28,7 +28,13 @@ Two kinds of trigger:
                                     (parent the control block)
   E:remove_block(t, b), E:move_block(t, b, by), E:set_block_arg(b, key, v)
   E:variables(), E:new_variable(name, type, initial, opts), E:delete_variable(v)
-  E:trigger_jass(t)                 the JASS one trigger becomes (code view)
+  E:trigger_jass(t)                 the JASS one trigger becomes (read only)
+  E:trigger_lua(t), E:set_trigger_lua(t, text)
+                                    the trigger as Lua, and back (issue 905b:
+                                    editor/trigger_lua.lua): true, or nil,
+                                    why and the line
+  E:triggers_lua(), E:set_triggers_lua(text)   all of them and the variables
+  E:trigger_words()                 what the code view completes
   E:trigger_code()                  what saving writes into the script
   E:check_triggers(opts)            problems: { trigger, message } ...;
                                     opts.full also loads the whole saved
@@ -455,6 +461,84 @@ local function install(E)
 
     function E:set_variable(v, key, value)
         return set_key(self, v, key, value, "Variable " .. v.name .. " " .. key)
+    end
+    -- }}}
+
+    -- {{{ Lua: the code view that edits (issue 905b)
+    local tl = require("editor.trigger_lua")
+    function E:trigger_lua(t) return tl.to_lua(t) end
+    function E:triggers_lua() return tl.to_lua_all(self.trig.triggers, self.trig.variables) end
+
+    local FIELDS = { "name", "category", "on", "comment", "events", "conditions", "actions" }
+
+    -- the trigger rewritten from its Lua: true, or nil, why and the line
+    function E:set_trigger_lua(t, text)
+        local nt, err, line = tl.from_lua(text)
+        if not nt then return nil, err, line end
+        local other = self:trigger_named(nt.name)
+        if other and other ~= t then return nil, "a trigger is already called " .. nt.name, 1 end
+        local old = {}
+        for _, k in ipairs(FIELDS) do old[k] = t[k] end
+        local me = self
+        self.history:run({ name = "Edit " .. t.name .. " as Lua",
+            redo = function() for _, k in ipairs(FIELDS) do t[k] = nt[k] end; changed(me) end,
+            undo = function() for _, k in ipairs(FIELDS) do t[k] = old[k] end; changed(me) end })
+        return true
+    end
+
+    -- every trigger and variable from one text (the triggers matched by
+    -- name keep their identity)
+    function E:set_triggers_lua(text)
+        local ts, vs, err, line = tl.from_lua_all(text)
+        if not ts then return nil, err, line end
+        local by_name = {}
+        for _, t in ipairs(self.trig.triggers) do by_name[t.name] = t end
+        local new_list = {}
+        for i, nt in ipairs(ts) do
+            local t = by_name[nt.name]
+            if t then
+                local copy = {}
+                for _, k in ipairs(FIELDS) do copy[k] = nt[k] end
+                new_list[i] = { keep = t, fields = copy }
+            else
+                new_list[i] = { keep = nt }
+            end
+        end
+        local old_ts, old_vs = self.trig.triggers, self.trig.variables
+        local old_fields = {}
+        for _, t in ipairs(old_ts) do
+            local f = {}
+            for _, k in ipairs(FIELDS) do f[k] = t[k] end
+            old_fields[t] = f
+        end
+        local me = self
+        self.history:run({ name = "Edit the triggers as Lua",
+            redo = function()
+                local list = {}
+                for i, e in ipairs(new_list) do
+                    if e.fields then for _, k in ipairs(FIELDS) do e.keep[k] = e.fields[k] end end
+                    list[i] = e.keep
+                end
+                me.trig.triggers, me.trig.variables = list, vs
+                changed(me)
+            end,
+            undo = function()
+                for t, f in pairs(old_fields) do for _, k in ipairs(FIELDS) do t[k] = f[k] end end
+                me.trig.triggers, me.trig.variables = old_ts, old_vs
+                changed(me)
+            end })
+        return true
+    end
+
+    -- the words the code view offers to complete
+    function E:trigger_words()
+        local extra = {}
+        for _, t in ipairs(self.trig.triggers) do extra[#extra + 1] = t.name end
+        for _, v in ipairs(self.trig.variables) do extra[#extra + 1] = v.name end
+        for _, r in ipairs(self.regions and self:regions() or {}) do extra[#extra + 1] = r.var end
+        for _, c in ipairs(self.cameras and self:cameras() or {}) do extra[#extra + 1] = c.var end
+        for _, snd in ipairs(self.sounds and self:sounds() or {}) do extra[#extra + 1] = snd.var end
+        return tl.words(extra)
     end
     -- }}}
 
