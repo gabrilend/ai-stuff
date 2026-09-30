@@ -223,4 +223,101 @@ function patch.apply(bytes, files)
 end
 -- }}}
 
+-- {{{ patch.tables (issue 911c)
+-- An archive's hash table, as it stands: { base, hash_n, slots = { [slot] =
+-- { a, b, locale, block } } } with block 0xFFFFFFFE for deleted slots
+-- (kept: lookups probe past them) and empty slots left out; or nil and
+-- a message
+function patch.tables(bytes)
+    local base
+    for at = 0, #bytes - 32, 512 do
+        if bytes:sub(at + 1, at + 4) == "MPQ\26" then base = at break end
+    end
+    if not base then return nil, "no MPQ header found" end
+    local hash_pos = u32_at(bytes, base + 16) + base
+    local hash_n = u32_at(bytes, base + 24)
+    if hash_n == 0 or hash_n > 0x100000 then return nil, "hash table size " .. hash_n .. " not usable" end
+    local H = words_of(bytes, hash_pos, hash_n * 4)
+    crypt_words(H, hash_n * 4, hash("(hash table)", 3), true)
+    local slots = {}
+    for i = 0, hash_n - 1 do
+        local blk = unsigned(H[i * 4 + 3])
+        if blk ~= 0xFFFFFFFF then
+            slots[i] = { unsigned(H[i * 4]), unsigned(H[i * 4 + 1]), unsigned(H[i * 4 + 2]), blk }
+        end
+    end
+    return { base = base, hash_n = hash_n, slots = slots }
+end
+-- }}}
+
+-- {{{ patch.build (issue 911c)
+-- A new archive (no 512-byte header) from:
+--   hash_n     the hash table's size (a power of two)
+--   slots      { [slot] = { a, b, locale, file } }: entries where they
+--              were (file: a key of files, or nil for a deleted slot)
+--   files      { key = bytes }: each stored once, plain
+--   named      { name = key }: files to put in by their name (new ones,
+--              or ones whose slot is unknown): each takes the first free
+--              slot on its name's probe
+-- Returns the bytes, or nil and a message.
+function patch.build(hash_n, slots, files, named)
+    local header_size = 32
+    local parts, offset = {}, header_size
+    local keys = {}
+    for k in pairs(files) do keys[#keys + 1] = k end
+    table.sort(keys)
+    local blocks, block_of = {}, {}
+    for _, k in ipairs(keys) do
+        local data = files[k]
+        blocks[#blocks + 1] = { offset, #data, #data, 0x80000000 }
+        block_of[k] = #blocks - 1
+        parts[#parts + 1] = data
+        offset = offset + #data
+    end
+    local H = ffi.new("int32_t[?]", hash_n * 4)
+    for i = 0, hash_n * 4 - 1 do H[i] = -1 end
+    for slot, e in pairs(slots) do
+        if slot < hash_n then
+            local blk = e.file and block_of[e.file] or 0xFFFFFFFE
+            H[slot * 4], H[slot * 4 + 1] = tobit(e[1]), tobit(e[2])
+            H[slot * 4 + 2], H[slot * 4 + 3] = tobit(e[3] or 0), tobit(blk)
+        end
+    end
+    local names = {}
+    for n in pairs(named or {}) do names[#names + 1] = n end
+    table.sort(names)
+    for _, name in ipairs(names) do
+        local a, b = hash(name, 1), hash(name, 2)
+        local start = hash(name, 0) % hash_n
+        local put = false
+        for k = 0, hash_n - 1 do
+            local slot = (start + k) % hash_n
+            local blk = unsigned(H[slot * 4 + 3])
+            if blk == 0xFFFFFFFF or blk == 0xFFFFFFFE
+                or (unsigned(H[slot * 4]) == a and unsigned(H[slot * 4 + 1]) == b) then
+                H[slot * 4], H[slot * 4 + 1], H[slot * 4 + 2] = tobit(a), tobit(b), 0
+                H[slot * 4 + 3] = tobit(block_of[named[name]])
+                put = true
+                break
+            end
+        end
+        if not put then return nil, "the hash table is full (" .. name .. ")" end
+    end
+    local block_n = #blocks
+    local B = ffi.new("int32_t[?]", math.max(1, block_n * 4))
+    for i, e in ipairs(blocks) do
+        local j = (i - 1) * 4
+        B[j], B[j + 1], B[j + 2], B[j + 3] = tobit(e[1]), tobit(e[2]), tobit(e[3]), tobit(e[4])
+    end
+    crypt_words(H, hash_n * 4, hash("(hash table)", 3), false)
+    crypt_words(B, block_n * 4, hash("(block table)", 3), false)
+    local hash_pos = offset
+    local block_pos = hash_pos + hash_n * 16
+    local size = block_pos + block_n * 16
+    local head = "MPQ\26" .. u32_str(32) .. u32_str(size) .. string.char(0, 0) .. string.char(3, 0)
+        .. u32_str(hash_pos) .. u32_str(block_pos) .. u32_str(hash_n) .. u32_str(block_n)
+    return head .. table.concat(parts) .. bytes_of(H, hash_n * 4) .. bytes_of(B, block_n * 4)
+end
+-- }}}
+
 return patch

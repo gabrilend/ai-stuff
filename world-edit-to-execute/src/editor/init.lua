@@ -26,6 +26,8 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              taken out, exported, checked (editor/imports.lua)
   sounds     the script's sounds and music changed, new sounds for the
              triggers (editor/sounds.lua)
+  projects   a map project folder or .wex (editor/mapfile.lua) opened
+             as a map; E:save() with no path writes the project back
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -60,6 +62,25 @@ E.__index = E
 -- {{{ editor.open
 function editor.open(path, opts)
     opts = opts or {}
+    -- a map project (issue 911c: editor/mapfile.lua): built into a map to
+    -- edit; saving without a path writes the project back
+    local mapfile = require("editor.mapfile")
+    if mapfile.is_project(path) then
+        local dir = path
+        local packed = not mapfile.is_project_dir(path)
+        if packed then
+            dir = os.tmpname() .. "-wex"
+            local ok, err = mapfile.unpack(path, dir)
+            if not ok then return nil, err end
+        end
+        local built = os.tmpname() .. ".w3x"
+        local ok, err = mapfile.build(dir, built, { assets_from = opts.assets_from })
+        if not ok then return nil, err end
+        local E, oerr = editor.open(built, opts)
+        if not E then return nil, oerr end
+        E.project, E.project_dir, E.project_packed = path, dir, packed
+        return E
+    end
     local a, err = mpq.open(path)
     if not a then return nil, err end
     local self = setmetatable({ path = path, opts = opts, modules = {}, messages = {} }, E)

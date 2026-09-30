@@ -265,6 +265,12 @@ function EUI:kind_of(o)
 end
 
 function EUI:save()
+    -- a project saves back to itself (issue 911c)
+    if self.E.project and not self.opts.save_path then
+        local ok, why = self.E:save()
+        if not ok then self.E:say("Couldn't save: " .. tostring(why)) end
+        return ok
+    end
     local path = self.opts.save_path or (self.E.path:gsub("%.w3[xm]$", "") .. "-edited.w3x")
     local ok, why = self.E:save(path)
     if not ok then self.E:say("Couldn't save: " .. tostring(why)) end
