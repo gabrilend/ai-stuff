@@ -42,6 +42,10 @@ function animate.unit(rig, u, dt)
         return anim.pose(rig, st)
     elseif not u.alive then
         anim.play(rig, st, "death", { fallback = "stand" })
+    elseif u.upgrading then
+        -- upgrading (issue 535): its upgrade work, else Stand Work
+        local name = rig.by_name["stand work upgrade first"] and "stand work upgrade first" or "stand work"
+        anim.play(rig, st, name, { fallback = "stand" })
     elseif u.casting and u.casting.phase ~= "approach" then
         -- casting (issue 529): Spell (Spell Channel while channelling)
         local name = "spell"

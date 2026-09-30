@@ -445,6 +445,7 @@ function abilities.init(g)
     end
     for _, u in ipairs(g.units) do init_unit(u) end
     table.insert(g.spawn_listeners, init_unit)
+    table.insert(g.morph_listeners, init_unit)
 
     -- attack passives (bash, critical strike, wind walk's backstab)
     function g.modify_strike(u, t, amount)

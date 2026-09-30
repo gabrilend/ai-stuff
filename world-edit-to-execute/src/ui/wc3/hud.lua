@@ -244,6 +244,19 @@ function Hud:press(b)
         self.mode = "build"
     elseif a == "cancel_build" and self.game.cancel_build then
         for _, u in ipairs(sel) do if u.building_up then self.game.cancel_build(u) end end
+    elseif a == "cancel_upgrade" and self.game.cancel_upgrade then
+        for _, u in ipairs(sel) do if u.upgrading then self.game.cancel_upgrade(u) end end
+    elseif a == "upgrade" and self.game.upgrade then
+        -- the first selected building that can
+        local why
+        for _, u in ipairs(sel) do
+            if u.spec.design == "building" then
+                local ok, reason = self.game.upgrade(u, b.target)
+                if ok then return end
+                why = why or reason
+            end
+        end
+        self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't upgrade") .. ".")
     elseif a == "learn" and b.target and self.game.learn then
         -- a skill picked from the hero's list
         local hero = self:leader()
@@ -345,6 +358,14 @@ function Hud:target(x, y, unit)
         if not self.game.order(self:own_selection(), "gather", x, y, unit) then
             self:message("Nothing to gather there.")
         end
+    elseif order == "repair" and self.game.repair then
+        local why, any = nil, false
+        for _, u in ipairs(self:own_selection()) do
+            local ok, reason = self.game.repair(u, unit)
+            any = any or ok
+            why = why or reason
+        end
+        if not any then self:message((why and (why:sub(1, 1):upper() .. why:sub(2)) or "Can't repair that") .. ".") end
     elseif order == "rally" and self.game.set_rally then
         for _, u in ipairs(self:own_selection()) do
             if u.spec.design == "building" then self.game.set_rally(u, x, y) end
@@ -445,6 +466,13 @@ function Hud:update(input, dt)
                 if item then
                     for _, u in ipairs(self:own_selection()) do
                         if game.inventory_size(u) > 0 and game.pick_up(u, item) then gathered = true break end
+                    end
+                end
+                -- workers on a building or machine of theirs: repair it, or
+                -- help it up (issue 535)
+                if not gathered and target and #workers > 0 and game.can_repair then
+                    for _, u in ipairs(workers) do
+                        if game.can_repair(u, target) and game.repair(u, target) then gathered = true end
                     end
                 end
                 if not gathered and #workers > 0 and game.gather then

@@ -86,6 +86,13 @@ names.TRAINS = {
     etol = { "ewsp" }, etoa = { "ewsp" }, etoe = { "ewsp" }, eaom = { "earc", "esen", "ebal" },
     eaoe = { "edry", "edoc", "emtg" }, eaow = { "ehip", "edot", "efdr" }, edos = { "echm" },
 }
+-- what stock buildings upgrade to (halls, towers; from memory, as above)
+names.UPGRADES = {
+    htow = { "hkee" }, hkee = { "hcas" }, hwtw = { "hgtw", "hctw", "hatw" },
+    ogre = { "ostr" }, ostr = { "ofrt" },
+    unpl = { "unp1" }, unp1 = { "unp2" }, uzig = { "uzg1", "uzg2" },
+    etol = { "etoa" }, etoa = { "etoe" },
+}
 
 -- {{{ names.unit / names.ability
 function names.unit(id) return names.UNITS[id] end
