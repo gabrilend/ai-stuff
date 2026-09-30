@@ -282,3 +282,16 @@ Parsing Lua back to GUI:
 - Trigger categories in the list (triggers carry a `category` but the list is flat).
 - Drag and drop.
 - Reading `war3map.wtg` / `war3map.wct` from maps that have them (none of the 16 test maps do).
+
+**2026-09-30, second pass (sub-issue 905b, completed).**
+- The code view edits.
+- Every trigger has a Lua form, one to one with its blocks, and editing either view changes the trigger.
+- Strings become custom script.
+- Errors are marked with their line.
+- The code view completes block kinds, parameters and the map's names.
+- Triggers are grouped by category.
+
+**Still open:**
+- Drag and drop.
+- Reading `war3map.wtg` / `war3map.wct`.
+- Trigger debugging.

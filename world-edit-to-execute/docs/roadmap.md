@@ -719,7 +719,7 @@ Also done in `demo/wc3map/`, outside the 70x numbering:
 | 902 | Terrain editor | Height, textures, cliffs, water | First pass: raise, lower, smooth, flatten, paint, water, cliffs, blight |
 | 903 | Object placer | Units, doodads, items, destructibles | First pass: doodads, placed and script units |
 | 904 | Region and camera editor | Regions, camera presets | First pass: the script's rects moved and resized; 904b: cameras, new regions |
-| 905 | Trigger editor | GUI + Lua with bidirectional sync | First pass (905a): blocks written as JASS, the map's own triggers edited as code |
+| 905 | Trigger editor | GUI + Lua with bidirectional sync | 905a: blocks written as JASS, the map's own triggers edited as code; 905b: triggers as Lua, both views edit |
 | 906 | Object editor | Modify unit/ability/item stats | First pass: fields, custom types, all 7 kinds |
 | 907 | Sound editor | 3D sounds, music, ambience | First pass (907a): the script's sounds and music, new sounds for triggers |
 | 908 | Import manager | Custom asset management | First pass (908a): files named, checked, imported, renamed, deleted |

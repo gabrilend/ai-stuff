@@ -3,10 +3,12 @@ The Trigger Editor's Panel (Issue 905)
 
 Opened from the toolbar ("Triggers"), over the whole view:
 
-  left     the editor's triggers (+ Trigger), the variables (+ Variable),
+  left     the editor's triggers by category (+ Trigger; Lua (all): every
+           trigger and variable as one Lua text), the variables (+ Variable),
            the map's own triggers (paged)
   right    for one of the editor's triggers: its name (click to rename),
-           On / Off, Code (the JASS it becomes, read only), Delete; its
+           On / Off, Code (the trigger as Lua, to edit and Apply; JASS
+           shows what it becomes, read only), Delete, its category; its
            events, conditions and actions as a tree, each line with move
            up, move down and remove, "+ Event", "+ Condition", "+ Action"
            (and "+" in each part of an if / then / else or a loop) opening
@@ -69,11 +71,30 @@ function TUI:layout()
     local x, y = 8, 46
     add(x, y, 136, "+ Trigger", "new_trigger"); add(x + 144, y, 136, "+ Variable", "new_variable")
     y = y + 32
-    label(x, y, "Triggers", C.head); y = y + 22
+    label(x, y, "Triggers", C.head)
+    add(x + 180, y - 2, 100, "Lua (all)", "lua_all")
+    y = y + 24
+    -- by category, in the order they first come (issue 905b)
+    local cats, by_cat = {}, {}
     for _, t in ipairs(E:triggers()) do
-        add(x, y, 280, short(t.name, 34), "pick", { "trigger", t }, self.sel and self.sel[2] == t,
-            t.on == false and C.off or nil)
-        y = y + 24
+        local c = t.category or "Triggers"
+        if not by_cat[c] then by_cat[c] = {}; cats[#cats + 1] = c end
+        table.insert(by_cat[c], t)
+    end
+    self.folded = self.folded or {}
+    for _, c in ipairs(cats) do
+        if #cats > 1 or c ~= "Triggers" then
+            add(x, y, 280, (self.folded[c] and "+ " or "- ") .. short(c, 30) .. " (" .. #by_cat[c] .. ")", "fold", c,
+                nil, C.head)
+            y = y + 24
+        end
+        if not self.folded[c] then
+            for _, t in ipairs(by_cat[c]) do
+                add(x + 12, y, 268, short(t.name, 32), "pick", { "trigger", t }, self.sel and self.sel[2] == t,
+                    t.on == false and C.off or nil)
+                y = y + 24
+            end
+        end
     end
     y = y + 6
     label(x, y, "Variables", C.head); y = y + 22
@@ -102,9 +123,13 @@ function TUI:layout()
     self.right = { x = rx, y = ry, w = rw }
     if self.code then
         add(rx, ry, 90, "Close", "close_code")
-        if not self.code.readonly then add(rx + 98, ry, 90, "Apply", "apply_code") end
-        label(rx + 200, ry + 4, self.code.title, C.gold)
-        self.code_box = { x = rx, y = ry + 30, w = rw, h = self.h - ry - 30 - 36, size = 14 }
+        local cx = rx + 98
+        if not self.code.readonly then add(cx, ry, 90, "Apply", "apply_code"); cx = cx + 98 end
+        -- a trigger's two code views: its Lua (edits it) and its JASS (read only)
+        if self.code.kind == "lua" then add(cx, ry, 90, "JASS", "show_jass", self.code.trigger); cx = cx + 98
+        elseif self.code.kind == "jass" then add(cx, ry, 90, "Lua", "show_code", self.code.trigger); cx = cx + 98 end
+        label(cx + 10, ry + 4, self.code.title, C.gold)
+        self.code_box = { x = rx, y = ry + 30, w = rw, h = self.h - ry - 30 - 56, size = 14 }
         return b
     end
     if not self.sel then
@@ -126,6 +151,9 @@ function TUI:layout_trigger(t, add, label, rx, ry, rw)
     add(rx + 308, ry, 70, t.on == false and "Off" or "On", "toggle_on", t, t.on ~= false)
     add(rx + 386, ry, 70, "Code", "show_code", t)
     add(rx + 464, ry, 70, "Delete", "delete_trigger", t)
+    local editing_cat = field and field.target == "trigger_category"
+    add(rx + 542, ry, 180, editing_cat and (field.buf .. "_") or ("in " .. short(t.category or "Triggers", 18)),
+        "edit_category", nil, editing_cat)
     local y = ry + 32
     -- the chooser in place of the tree
     if self.chooser then
@@ -278,6 +306,8 @@ function TUI:commit_field()
             local ok, why = E:rename_trigger(sel, f.buf)
             if not ok then E:say(why) end
         end
+    elseif f.target == "trigger_category" then
+        if f.buf ~= "" then E:set_trigger_category(sel, f.buf) end
     elseif f.target == "var_name" then
         if f.buf ~= "" and not E:variable_named(f.buf) then E:set_variable(sel, "name", f.buf) end
     elseif f.target == "var_initial" then
@@ -314,14 +344,36 @@ function TUI:press(b)
     elseif a == "toggle_on" then E:set_trigger_on(arg, arg.on == false)
     elseif a == "delete_trigger" then E:delete_trigger(arg); self.sel, self.block = nil, nil
     elseif a == "show_code" then
-        self.code = { title = "JASS for " .. arg.name .. " (read only)", readonly = true,
-                      te = textedit.new(E:trigger_jass(arg), { readonly = true }) }
+        -- the trigger as Lua: edit it and Apply (issue 905b)
+        self.code = { kind = "lua", trigger = arg, title = arg.name .. " as Lua (Apply or Ctrl+Enter keeps it)",
+                      te = textedit.new(E:trigger_lua(arg), { lang = "lua", words = function() return E:trigger_words() end }) }
+    elseif a == "show_jass" then
+        self.code = { kind = "jass", trigger = arg, title = "JASS for " .. arg.name .. " (read only: made from the blocks)",
+                      readonly = true, te = textedit.new(E:trigger_jass(arg), { readonly = true }) }
+    elseif a == "lua_all" then
+        self.code = { kind = "lua_all", title = "every trigger and variable as Lua",
+                      te = textedit.new(E:triggers_lua(), { lang = "lua", words = function() return E:trigger_words() end }) }
+    elseif a == "fold" then self.folded[arg] = not self.folded[arg]
+    elseif a == "edit_category" then self:start_field("trigger_category", nil, sel.category or "Triggers")
     elseif a == "close_code" then self.code = nil
     elseif a == "apply_code" then
         local c = self.code
-        local ok, why = E:set_map_function(c.fn, c.te:text())
-        if ok then E:say("Function " .. c.fn .. " rewritten"); self.code = nil
-        else E:say("Not kept: " .. tostring(why)) end
+        local ok, why, line
+        if c.kind == "lua" then ok, why, line = E:set_trigger_lua(c.trigger, c.te:text())
+        elseif c.kind == "lua_all" then ok, why, line = E:set_triggers_lua(c.te:text())
+        else ok, why = E:set_map_function(c.fn, c.te:text()) end
+        if ok then
+            E:say(c.kind == "lua" and (c.trigger.name .. " rewritten from its Lua")
+                or (c.kind == "lua_all" and "The triggers rewritten from their Lua") or ("Function " .. c.fn .. " rewritten"))
+            if c.kind == "lua" then self.sel = { "trigger", c.trigger } end
+            if c.kind == "lua_all" then self.sel, self.block = nil, nil end
+            self.code = nil
+        else
+            -- kept open, the line marked
+            c.te.error = { line = line, message = tostring(why) }
+            if line then c.te.cy = math.max(1, math.min(#c.te.lines, line)); c.te.cx = 0 end
+            E:say("Not kept: " .. tostring(why))
+        end
     elseif a == "open_chooser" then self.chooser = { section = arg[1], parent = arg[2] }
     elseif a == "cancel_chooser" then self.chooser = nil
     elseif a == "choose" then
@@ -398,9 +450,10 @@ function TUI:update(input)
     elseif self.code then
         used_keys = true
         local te = self.code.te
-        te:type(input.chars or "")
+        if not input.ctrl then te:type(input.chars or "") end
         for _, k in ipairs(input.keys or {}) do
-            if k == "ESCAPE" then self.code = nil; break
+            if k == "ESCAPE" and te.suggest then te:key("ESCAPE")
+            elseif k == "ESCAPE" then self.code = nil; break
             elseif input.ctrl and k == "ENTER" and not self.code.readonly then
                 self:press({ action = "apply_code" }); break
             else te:key(k, input.ctrl) end
@@ -456,7 +509,7 @@ function TUI:draw(render)
         local y = 48
         for _, p in ipairs(self.problems or {}) do
             if p.trigger == self.sel[2] or p.trigger == nil then
-                render.ui_text("! " .. p.message, trigger_ui.LEFT + 560, y, 13, C.warn[1], C.warn[2], C.warn[3], 255)
+                render.ui_text("! " .. p.message, trigger_ui.LEFT + 560, y + 30, 13, C.warn[1], C.warn[2], C.warn[3], 255)
                 y = y + 18
             end
         end

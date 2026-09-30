@@ -5,10 +5,14 @@ Lines of text with a cursor: typing, Backspace and Delete, Enter (keeping
 the line's indent), Tab (four spaces), the arrows, Home and End, Page Up
 and Page Down, the mouse wheel and a click to place the cursor. JASS is
 coloured as it's drawn: keywords, natives' names (capitalised calls),
-strings, numbers and rawcodes, comments. A read-only one only moves.
+strings, numbers and rawcodes, comments; with opts.lang = "lua", Lua (issue
+905b). A read-only one only moves. With opts.words, what's being typed is
+completed: the words starting with it show under the cursor and Tab (or
+Ctrl+Space to show them) takes the first. T.error = { line, message }
+marks a line and shows why under the text.
 
     local textedit = require("editor.textedit")
-    local T = textedit.new(text, { readonly = false })
+    local T = textedit.new(text, { readonly = false, lang = "lua", words = { ... } })
     T:key("LEFT"); T:type("abc"); T:text()
     T:click(mx, my, box, measure)       -- box = { x, y, w, h, size }
     T:draw(render, box)
@@ -26,10 +30,18 @@ for w in ([[function takes returns nothing endfunction local set call if then el
     textedit.KEYWORDS[w] = true
 end
 
+-- Lua's, for the triggers' Lua view (issue 905b: opts.lang = "lua")
+textedit.LUA_KEYWORDS = {}
+for w in ([[and break do else elseif end false for function goto if in local nil not or repeat return then
+    true until while]]):gmatch("%S+") do
+    textedit.LUA_KEYWORDS[w] = true
+end
+
 local COLOURS = {
     text = { 220, 220, 210 }, keyword = { 110, 170, 255 }, call = { 230, 200, 120 }, string = { 150, 220, 130 },
     number = { 230, 150, 110 }, comment = { 120, 130, 120 }, cursor = { 255, 255, 255 }, gutter = { 100, 105, 115 },
-    back = { 18, 20, 24 }, line = { 34, 38, 46 },
+    back = { 18, 20, 24 }, line = { 34, 38, 46 }, error = { 90, 30, 30 }, error_text = { 255, 150, 130 },
+    popup = { 40, 46, 60 }, popup_first = { 70, 90, 60 },
 }
 
 -- {{{ textedit.new
@@ -57,8 +69,42 @@ local function clamp(self)
     self.cx = math.max(0, math.min(#self.lines[self.cy], self.cx))
 end
 
+-- {{{ completing words (opts.words: a list, or a function giving one)
+-- the word being typed before the cursor
+function TE:prefix()
+    local l = self.lines[self.cy]
+    return l:sub(1, self.cx):match("[%w_]+$") or ""
+end
+
+function TE:update_suggest()
+    local words = self.opts.words
+    if type(words) == "function" then words = words() end
+    local p = self:prefix()
+    self.suggest = nil
+    if not words or #p < 2 then return end
+    local list = {}
+    for _, w in ipairs(words) do
+        if #w > #p and w:sub(1, #p) == p then list[#list + 1] = w end
+    end
+    if #list > 0 then self.suggest = list end
+end
+
+-- the first suggestion put in place of what's typed: true when one was
+function TE:complete()
+    if not self.suggest or #self.suggest == 0 then return false end
+    local w, p = self.suggest[1], self:prefix()
+    local l = self.lines[self.cy]
+    self.lines[self.cy] = l:sub(1, self.cx) .. w:sub(#p + 1) .. l:sub(self.cx + 1)
+    self.cx = self.cx + #w - #p
+    self.suggest = nil
+    self.changed = true
+    return true
+end
+-- }}}
+
 function TE:type(s)
     if self.opts.readonly or s == "" then return end
+    self.error = nil
     for ch in s:gmatch(".") do
         if ch == "\n" then self:key("ENTER")
         elseif ch:byte() >= 32 then
@@ -68,6 +114,7 @@ function TE:type(s)
             self.changed = true
         end
     end
+    self:update_suggest()
 end
 
 function TE:key(name, ctrl)
@@ -116,7 +163,14 @@ function TE:key(name, ctrl)
         self.cy, self.cx = self.cy + 1, #indent
         self.changed = true
     elseif name == "TAB" then
-        self:type("    ")
+        if not self:complete() then self:type("    ") end
+    elseif name == "SPACE" and ctrl then
+        self:update_suggest()
+        return
+    end
+    if name == "ESCAPE" then self.suggest = nil
+    elseif name ~= "TAB" then
+        if name == "BACKSPACE" then self:update_suggest() else self.suggest = nil end
     end
     clamp(self)
 end
@@ -127,17 +181,19 @@ end
 -- }}}
 
 -- {{{ colours: the pieces of one line
-function textedit.pieces(line)
+function textedit.pieces(line, lang)
+    local lua = lang == "lua"
+    local keywords = lua and textedit.LUA_KEYWORDS or textedit.KEYWORDS
     local out = {}
     local i = 1
     local n = #line
     local function push(s, c) out[#out + 1] = { s, c } end
     while i <= n do
         local c = line:sub(i, i)
-        if line:sub(i, i + 1) == "//" then push(line:sub(i), "comment"); break end
-        if c == '"' then
+        if line:sub(i, i + 1) == (lua and "--" or "//") then push(line:sub(i), "comment"); break end
+        if c == '"' or (lua and c == "'") then
             local j = i + 1
-            while j <= n and line:sub(j, j) ~= '"' do
+            while j <= n and line:sub(j, j) ~= c do
                 if line:sub(j, j) == "\\" then j = j + 1 end
                 j = j + 1
             end
@@ -148,13 +204,15 @@ function textedit.pieces(line)
         elseif c:match("[%a_]") then
             local w = line:match("^[%w_]+", i)
             local after = line:sub(i + #w):match("^%s*%(")
-            push(w, textedit.KEYWORDS[w] and "keyword" or (after and w:match("^%u") and "call") or "text")
+            -- in Lua a block is a name before "{": coloured as a call
+            local block = lua and line:sub(i + #w):match("^%s*[{%(\"]")
+            push(w, keywords[w] and "keyword" or ((after and w:match("^%u")) or block) and "call" or "text")
             i = i + #w
         elseif c:match("%d") then
             local w = line:match("^[%w%.]+", i)
             push(w, "number"); i = i + #w
         else
-            local w = line:match("^[^%w_\"'/]+", i) or c
+            local w = line:match(lua and "^[^%w_\"'%-]+" or "^[^%w_\"'/]+", i) or c
             push(w, "text"); i = i + #w
         end
     end
@@ -182,13 +240,16 @@ function TE:draw(render, box)
         local line = self.lines[li]
         if not line then break end
         local y = box.y + 2 + r * lh
-        if li == self.cy and not self.opts.readonly then
+        if self.error and self.error.line == li then
+            local e = COLOURS.error
+            render.ui_rect(box.x, y - 1, box.w, lh, e[1], e[2], e[3], 255)
+        elseif li == self.cy and not self.opts.readonly then
             render.ui_rect(box.x, y - 1, box.w, lh, COLOURS.line[1], COLOURS.line[2], COLOURS.line[3], 255)
         end
         local g = COLOURS.gutter
         render.ui_text(tostring(li), box.x + 4, y, size - 2, g[1], g[2], g[3], 255)
         local x = box.x + GUTTER
-        for _, p in ipairs(textedit.pieces(line)) do
+        for _, p in ipairs(textedit.pieces(line, self.opts.lang)) do
             if x > box.x + box.w then break end
             local c = COLOURS[p[2]]
             local s = p[1]:gsub("\t", "    ")
@@ -199,7 +260,25 @@ function TE:draw(render, box)
             local cx = box.x + GUTTER + render.ui_text_width(line:sub(1, self.cx), size) + (self.cx > 0 and space or 0)
             local c = COLOURS.cursor
             render.ui_rect(cx, y - 1, 2, lh - 2, c[1], c[2], c[3], 255)
+            -- the words that complete what's typed (Tab takes the first)
+            if self.suggest and #self.suggest > 0 then
+                local py = y + lh
+                for k, w in ipairs(self.suggest) do
+                    if k > 8 then break end
+                    local bg = k == 1 and COLOURS.popup_first or COLOURS.popup
+                    local pw = render.ui_text_width(w, size) + 12
+                    render.ui_rect(cx, py, pw, lh, bg[1], bg[2], bg[3], 250)
+                    render.ui_text(w, cx + 6, py + 1, size, COLOURS.text[1], COLOURS.text[2], COLOURS.text[3], 255)
+                    py = py + lh
+                end
+            end
         end
+    end
+    -- the error, under the text
+    if self.error and self.error.message then
+        local e = COLOURS.error_text
+        render.ui_text("line " .. tostring(self.error.line or "?") .. ": " .. self.error.message, box.x + 4,
+            box.y + box.h + 4, size - 1, e[1], e[2], e[3], 255)
     end
 end
 
