@@ -180,7 +180,8 @@ function anim.rig(m, parts, skins)
     local rig = { m = m, sequences = m.sequences or {}, globals = m.global_sequences or {},
                   cache = {}, cached = 0 }
     -- nodes, parents before children
-    local all = {}
+    local all, attach = {}, {}
+    for _, n in ipairs(m.attachments or {}) do attach[n.id] = true end
     for _, list in ipairs({ m.bones, m.helpers, m.attachments or {}, m.lights or {}, m.particle_emitters or {},
                             m.particle_emitters2 or {}, m.ribbons or {}, m.events or {}, m.collision or {} }) do
         for _, n in ipairs(list) do all[n.id] = n end   -- (a repeated id: the last one)
@@ -205,7 +206,8 @@ function anim.rig(m, parts, skins)
         local n = all[id]
         local p = m.pivots[id + 1] or { 0, 0, 0 }
         slot[id] = i
-        rig.nodes[i] = { id = id, name = n.name, pivot = p, T = n.tracks.KGTR, R = n.tracks.KGRT, S = n.tracks.KGSC }
+        rig.nodes[i] = { id = id, name = n.name, pivot = p, T = n.tracks.KGTR, R = n.tracks.KGRT, S = n.tracks.KGSC,
+                         attach = attach[id] }
     end
     for i, id in ipairs(order) do
         local n = all[id]
@@ -434,12 +436,36 @@ function anim.pose(rig, st)
         key = key .. ":" .. (clock % 3600000)
     end
     local v = rig.cache[key]
-    if v then return v end
+    if v then st.key = key return v end
     v = anim.pose_at(rig, st.seq, frame, clock)
-    if rig.cached >= 4096 then rig.cache, rig.cached = {}, 0 end
+    if rig.cached >= 4096 then rig.cache, rig.points, rig.cached = {}, {}, 0 end
     rig.cache[key] = v
     rig.cached = rig.cached + 1
+    -- where the attachment points are in this pose (issue 538)
+    local W, pts = rig.world, {}
+    for i, nd in ipairs(rig.nodes) do
+        if nd.attach then
+            local o, p = (i - 1) * 12, nd.pivot
+            pts[nd.id] = {
+                W[o] * p[1] + W[o + 1] * p[2] + W[o + 2] * p[3] + W[o + 3],
+                W[o + 4] * p[1] + W[o + 5] * p[2] + W[o + 6] * p[3] + W[o + 7],
+                W[o + 8] * p[1] + W[o + 9] * p[2] + W[o + 10] * p[3] + W[o + 11],
+            }
+        end
+    end
+    rig.points = rig.points or {}
+    rig.points[key] = pts
+    st.key = key
     return v
+end
+
+-- Where attachment node id is in the playhead's last pose (model space),
+-- or nil before it has one (issue 538)
+function anim.attachment(rig, st, id)
+    local pts = st and st.key and rig.points and rig.points[st.key]
+    local p = pts and pts[id]
+    if p and p[1] == p[1] and p[2] == p[2] and p[3] == p[3] then return p end
+    return nil
 end
 -- }}}
 

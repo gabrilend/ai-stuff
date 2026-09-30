@@ -315,6 +315,7 @@ function game_mod.new(scene, opts)
             archive:close()
         end
         g.constants = game_constants.load({ chain = opts.chain, map_text = misc })
+        g.chain = opts.chain
     end
     -- listeners: g.death_listeners (u, killer), g.made_listeners (u, how),
     -- g.spawn_listeners (u)
