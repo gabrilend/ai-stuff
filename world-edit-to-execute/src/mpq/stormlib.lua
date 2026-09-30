@@ -53,6 +53,15 @@ void * SFileFindFirstFile(void * hMpq, const char * szMask, SFILE_FIND_DATA * lp
 bool  SFileFindNextFile(void * hFind, SFILE_FIND_DATA * lpFindFileData);
 bool  SFileFindClose(void * hFind);
 unsigned int SErrGetLastError();
+bool  SFileCreateFile(void * hMpq, const char * szArchivedName, unsigned long long FileTime, unsigned int dwFileSize,
+                      unsigned int lcLocale, unsigned int dwFlags, void ** phFile);
+bool  SFileWriteFile(void * hFile, const void * pvData, unsigned int dwSize, unsigned int dwCompression);
+bool  SFileFinishFile(void * hFile);
+bool  SFileRemoveFile(void * hMpq, const char * szFileName, unsigned int dwSearchScope);
+bool  SFileFlushArchive(void * hMpq);
+bool  SFileCreateArchive(const char * szMpqName, unsigned int dwCreateFlags, unsigned int dwMaxFileCount, void ** phMpq);
+bool  SFileSetMaxFileCount(void * hMpq, unsigned int dwMaxFileCount);
+unsigned int SFileGetMaxFileCount(void * hMpq);
 ]]
 -- }}}
 
@@ -64,7 +73,27 @@ local SFILE_OPEN_FROM_MPQ = 0x00000000
 assert(ffi.sizeof("SFILE_FIND_DATA") == 1024 + 8 + 8 * 4,
     "SFILE_FIND_DATA layout does not match StormLib v9.40 on 64-bit Linux")
 
-local DEFAULT_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/deps/stormlib/lib/libstorm.so"
+local OWNER_LIB = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/deps/stormlib/lib/libstorm.so"
+
+-- The library built into this checkout's deps/ (this file is src/mpq/),
+-- else the owner's usual place; STORMLIB_PATH overrides both
+local function default_lib()
+    local env = os.getenv("STORMLIB_PATH")
+    if env and env ~= "" then return env end
+    -- "@/abs/root/src/mpq/stormlib.lua" or, loaded by a relative path,
+    -- "@src/mpq/stormlib.lua" (root = the current directory)
+    local here = debug.getinfo(1, "S").source:match("^@(.-)src/mpq/[^/]*$")
+    if here then
+        local candidate = here .. "deps/stormlib/lib/libstorm.so"
+        local f = io.open(candidate, "rb")
+        if f then
+            f:close()
+            return candidate
+        end
+    end
+    return OWNER_LIB
+end
+local DEFAULT_LIB = default_lib()
 
 local M = {}
 local lib = nil
@@ -98,6 +127,75 @@ function M.open(path, lib_path)
         error(string.format("StormLib could not open %s (error %d)", path, L.SErrGetLastError()))
     end
     return setmetatable({ handle = handle[0], path = path }, Archive)
+end
+-- }}}
+
+-- {{{ function M.open_writable (issue 911a)
+-- Opens an archive to change it (a copy: the editor never writes the map
+-- it read).
+function M.open_writable(path, lib_path)
+    local L = load_library(lib_path)
+    local handle = ffi.new("void *[1]")
+    if not L.SFileOpenArchive(path, 0, 0, handle) then
+        error(string.format("StormLib could not open %s for writing (error %d)", path, L.SErrGetLastError()))
+    end
+    return setmetatable({ handle = handle[0], path = path, writable = true }, Archive)
+end
+-- }}}
+
+-- {{{ function M.create (issue 911a)
+-- A new, empty archive (version 1, as WC3 reads) with a listfile and
+-- attributes StormLib keeps up to date
+function M.create(path, max_files, lib_path)
+    local L = load_library(lib_path)
+    local handle = ffi.new("void *[1]")
+    local MPQ_CREATE_LISTFILE, MPQ_CREATE_ATTRIBUTES = 0x00100000, 0x00200000
+    if not L.SFileCreateArchive(path, MPQ_CREATE_LISTFILE + MPQ_CREATE_ATTRIBUTES, max_files or 1024, handle) then
+        error(string.format("StormLib could not create %s (error %d)", path, L.SErrGetLastError()))
+    end
+    return setmetatable({ handle = handle[0], path = path, writable = true }, Archive)
+end
+-- }}}
+
+-- {{{ function Archive:write
+-- Puts a file in (replacing one of that name), compressed with zlib
+local MPQ_FILE_COMPRESS, MPQ_FILE_REPLACEEXISTING = 0x00000200, 0x80000000
+local MPQ_COMPRESSION_ZLIB = 0x02
+function Archive:write(name, bytes)
+    local L = lib
+    if not self.writable then error(self.path .. ": opened read-only") end
+    local file = ffi.new("void *[1]")
+    local flags = MPQ_FILE_COMPRESS + MPQ_FILE_REPLACEEXISTING
+    if not L.SFileCreateFile(self.handle, name, 0, #bytes, 0, flags, file) then
+        local code = L.SErrGetLastError()
+        -- a full hash table: make room once and try again
+        if code == 1 or code == 39 or code == 112 then
+            L.SFileSetMaxFileCount(self.handle, L.SFileGetMaxFileCount(self.handle) * 2)
+            if not L.SFileCreateFile(self.handle, name, 0, #bytes, 0, flags, file) then
+                error(string.format("%s: cannot add %s (error %d)", self.path, name, L.SErrGetLastError()))
+            end
+        else
+            error(string.format("%s: cannot add %s (error %d)", self.path, name, code))
+        end
+    end
+    if #bytes > 0 and not L.SFileWriteFile(file[0], bytes, #bytes, MPQ_COMPRESSION_ZLIB) then
+        local code = L.SErrGetLastError()
+        L.SFileFinishFile(file[0])
+        error(string.format("%s: cannot write %s (error %d)", self.path, name, code))
+    end
+    if not L.SFileFinishFile(file[0]) then
+        error(string.format("%s: cannot finish %s (error %d)", self.path, name, L.SErrGetLastError()))
+    end
+    return true
+end
+
+function Archive:remove(name)
+    if not self.writable then error(self.path .. ": opened read-only") end
+    return lib.SFileRemoveFile(self.handle, name, 0)
+end
+
+function Archive:flush()
+    return lib.SFileFlushArchive(self.handle)
 end
 -- }}}
 

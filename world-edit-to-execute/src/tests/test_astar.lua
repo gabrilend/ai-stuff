@@ -460,6 +460,128 @@ elapsed = os.clock() - start_time
 test("10 paths on 128x128 < 500ms", elapsed < 0.5)
 -- }}}
 
+-- {{{ Shortest Path Tests (Bounty B01)
+-- A* once left an open-set entry at its old priority when a cheaper path to
+-- it turned up, which popped nodes out of order and could return a path
+-- longer than the shortest. These compare its costs to Dijkstra's.
+test_section("Shortest Path (B01)")
+
+local tq = PQ.new()
+tq:push("far", 5, 0)
+tq:push("near", 5, -3)
+tq:push("first", 4, 0)
+test("PQ lowest priority first", tq:pop() == "first")
+test("PQ equal priority: lower tiebreak first", tq:pop() == "near")
+test("PQ tiebreak is optional", tq:pop() == "far")
+
+-- Deterministic scattered-obstacle grid (own LCG, so the layout is the same
+-- in every Lua version)
+local function scattered_grid(width, height, density, seed)
+    local walls = {}
+    local state = seed
+    for y = 0, height - 1 do
+        for x = 0, width - 1 do
+            state = (state * 1103515245 + 12345) % 2147483648
+            if state / 2147483648 < density then
+                walls[#walls + 1] = { x = x, y = y }
+            end
+        end
+    end
+    local grid = create_mock_grid(width, height, walls)
+    grid.cells[0][0].walkable = true
+    grid.cells[height - 1][width - 1].walkable = true
+    return grid
+end
+
+-- Plain Dijkstra over every cell: the ground truth for shortest cost
+local function dijkstra_cost(grid, sx, sy, gx, gy, diagonal)
+    local width = grid.width
+    local dirs = { { 0, -1, 1 }, { 0, 1, 1 }, { -1, 0, 1 }, { 1, 0, 1 } }
+    if diagonal then
+        for _, d in ipairs({ { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }) do
+            dirs[#dirs + 1] = { d[1], d[2], 1.41421356 }
+        end
+    end
+    local dist, done = { [sy * width + sx] = 0 }, {}
+    while true do
+        local best, best_key = math.huge, nil
+        for key, d in pairs(dist) do
+            if not done[key] and d < best then best, best_key = d, key end
+        end
+        if not best_key then return nil end
+        local x, y = best_key % width, math.floor(best_key / width)
+        if x == gx and y == gy then return best end
+        done[best_key] = true
+        for _, d in ipairs(dirs) do
+            local nx, ny = x + d[1], y + d[2]
+            local row = grid.cells[ny]
+            if row and row[nx] and row[nx].walkable then
+                local key = ny * width + nx
+                if not done[key] and best + d[3] < (dist[key] or math.huge) then
+                    dist[key] = best + d[3]
+                end
+            end
+        end
+    end
+end
+
+-- Every heuristic here is admissible for its movement, so every cost must
+-- match Dijkstra's
+local shortest_configs = {
+    { heuristic = "manhattan", diagonal = false },
+    { heuristic = "euclidean", diagonal = false },
+    { heuristic = "euclidean", diagonal = true },
+    { heuristic = "chebyshev", diagonal = true },
+}
+for _, config in ipairs(shortest_configs) do
+    local mismatches = 0
+    for seed = 1, 25 do
+        grid = scattered_grid(24, 24, 0.28, seed)
+        local truth = dijkstra_cost(grid, 0, 0, 23, 23, config.diagonal)
+        local _, found = astar.find_path(grid, 0, 0, 23, 23, config)
+        if (truth == nil) ~= (found == nil)
+            or (truth and not approx_equal(truth, found, 1e-6)) then
+            mismatches = mismatches + 1
+        end
+    end
+    test(string.format("%s diagonal=%s: shortest cost on 25 grids",
+        config.heuristic, tostring(config.diagonal)), mismatches == 0,
+        mismatches .. " grids gave a different cost")
+end
+
+-- Fewest iterations a search needs: the smallest max_iterations it
+-- succeeds with
+local function iterations_needed(grid, gx, gy)
+    local low, high = 1, 20000
+    while low < high do
+        local mid = math.floor((low + high) / 2)
+        local found, _, err = astar.find_path(grid, 0, 0, gx, gy,
+            { max_iterations = mid })
+        if found or err ~= "Max iterations exceeded" then
+            high = mid
+        else
+            low = mid + 1
+        end
+    end
+    return low
+end
+
+-- On open ground every cell on the way has the same f; preferring the node
+-- furthest along walks straight through them (127 cells on 64x64, where the
+-- old search expanded about 1700)
+grid = create_mock_grid(64, 64)
+local open_iterations = iterations_needed(grid, 63, 63)
+test("64x64 open map: at most 150 iterations", open_iterations <= 150,
+    open_iterations .. " iterations")
+
+-- The bounty's test arena: 64x64 with scattered obstacles. The old search
+-- took 894 iterations on this layout.
+grid = scattered_grid(64, 64, 0.10, 7)
+local arena_iterations = iterations_needed(grid, 63, 63)
+test("64x64 scattered map: at least 30% fewer iterations than before",
+    arena_iterations <= 894 * 0.7, arena_iterations .. " iterations")
+-- }}}
+
 -- {{{ Pathfinding Module Integration Tests
 test_section("Pathfinding Module Integration")
 

@@ -191,3 +191,24 @@ sound_editor.move_to_category(sound, "Combat")
 - May want "sound test mode" to hear sounds in context
 - Looping sounds need seamless loop point support
 - Consider "ducking" settings (reduce other sounds when playing)
+
+## Implementation Notes
+
+**2026-09-30, first pass (sub-issue 907a, completed).**
+
+**What was built:**
+- The script's sounds (`CreateSound` and its setters) and its music calls, edited and rewritten on save.
+- New sounds made in the editor, played by trigger actions.
+- A panel with a preview through the window's audio.
+- The VM keeps sounds and logs what plays (`jass/natives/sound.lua`).
+
+**Still open:**
+- `war3map.w3s` (no test map has one).
+- 3D placement on the map.
+- Ambient sounds on regions.
+- Sound heard in the game view: hook the world's `on_sound` to the window's audio. It needs several voices at once, not the preview's one.
+
+*(2026-09-30, sub-issue 907b, completed)*
+- The game plays what the script plays: sounds (from the map or the install, with volume, and distance and pan for 3D sounds) and music, through the window's audio.
+- `WC3_AUDIO=0` turns it off.
+- Units' own sounds are still open.

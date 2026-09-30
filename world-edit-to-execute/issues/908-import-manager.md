@@ -236,3 +236,21 @@ ASSET BROWSER INTEGRATION
 - Texture format conversion (TGA→BLP) useful but complex
 - Model optimization could reduce file size
 - Consider "import history" for recently imported files
+
+## Implementation Notes
+
+**2026-09-30, first pass (sub-issue 908a, completed).**
+
+**What was built:**
+- The map's files listed, named from the paths the map refers to (protected maps strip their listfile), with what uses each.
+- Validation of each file.
+- Import, replace, rename, delete and export, each undoable.
+- Saving in place, with removals: `mpq/patch.lua` now takes files out.
+- A panel with texture previews.
+
+**Still open:**
+- Writing `war3map.imp` for the World Editor's own list.
+- Model previews.
+- Converting textures to BLP on import.
+- Importing several files at once.
+- A file browser (paths are typed).
