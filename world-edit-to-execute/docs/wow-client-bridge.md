@@ -253,6 +253,23 @@ still takes from Blizzard for them is listed in
 animation set of an existing model. The owner picks the set from a catalogue
 grouped by race or monster type (W05b).
 
+**2026-10-01: the custom client is a third thing.** In the owner's words:
+"the custom client should be able to handle assets and gameplay from both
+engines. So it is a third thing, separate from both, yet these two projects
+will be doing most of the work on the third." Its work starts this week; it
+is not on this project's critical path.
+
+**2026-10-01: one pipeline, and the score is the route to legality.**
+Everland Ghostsong's generated models pass the same similarity score (W05a)
+as this project's. Generation plus the score is the route the system means
+to prove; the clean-room loop (W05d) is optional. The score gains a
+26-view camera ring (42 with 5 heights), scenic-vista photoshoots rendered
+in-engine at server startup, region overlays that mark which parts are most
+similar, and colour as an optional part. What needs a score: only what is
+pulled directly from the game and used as an input to an AI process
+(answers open question 12 for now: the server's data is examined later).
+Details and the owner's words: W05a.
+
 ## Open questions
 
 These are written in the issue files too; each must be answered before the
@@ -284,7 +301,7 @@ issue that holds it can be called complete.
 11. ~~Who runs a WC3 map's rules in the W client?~~ Answered 2026-09-23:
     AzerothCore, with triggers converted to server scripts (W02e). Licence
     consequences: `docs/licensing-and-boundaries.md`.
-12. **Server data.** Is AzerothCore's Blizzard-derived database (quests, NPC
+12. **Server data.** (Deferred 2026-10-01: only what is pulled from the game and fed to an AI process needs a score now; the rest is examined later.) Is AzerothCore's Blizzard-derived database (quests, NPC
     text, spells) inside "legally distinct", or only the client-side game?
 
 ---

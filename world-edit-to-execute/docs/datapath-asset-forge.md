@@ -26,9 +26,12 @@
       │      the owner picks a skeleton + animation set from a catalogue grouped
       │      by race or monster type, and weights are copied from it (W05b)
       ▼
- [4½ score]  similarity to the Blizzard original: silhouette, surface shape,
-      │      colour, image-embedding distance → one number 0 (same) … 1 (unrelated)
-      │      (W05a); the model counts as replaced only past the threshold
+ [4½ score]  similarity to the Blizzard original, from 26 (or 42) camera views
+      │      in a studio frame and at scenic vistas, photographed in-engine at
+      │      server startup: silhouette, surface shape, image-embedding distance
+      │      per labelled region (an overlay per view), colour only if switched
+      │      on → one number 0 (same) … 1 (unrelated) (W05a); the model counts
+      │      as replaced only past the threshold
       ▼
  [5 keep]    every candidate stored forever, content-addressed, with provenance
       │      and its score; rated 1-5 by a person, a model, or both.
