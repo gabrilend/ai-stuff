@@ -228,6 +228,27 @@ committed: `install-pages-hook` gives a repository a pre-push hook that
 rebuilds stale pages (`build-pages-before-push`) and a `.gitignore` line for
 `**/llm-transcripts/HTML/`.
 
+## Pushing the pages to the Linode (asked 2026-09-26)
+
+The owner asked that the pre-push hook also send the pages to the Linode
+server double-diaper-dungeon publishes to. Found the same day:
+
+- No Linode is set up on this machine: `~/.ssh/config` names no such host, and
+  "linode" appears in only one file outside the transcripts,
+  double-diaper-dungeon's `issues/10-004-publish-the-site.md`, which still
+  says "Nothing uploads anything".
+- Its transcripts' recap list says the last step, on 2026-09-18, was "fixing
+  SSH access via the LISH console, then DNS". `abcd-games.net` still resolves
+  to Squarespace's parking addresses (198.49.23.144 and three others), not to
+  a Linode.
+- double-diaper-dungeon publishes only what its mirror holds — that
+  project's own transcripts, deliberately separated from everything else.
+  The pages built here cover 41 projects, including conversations never
+  meant for a public site (the owner's CLAUDE.md, with personal memories in
+  it, is quoted in many of them).
+
+Not built. Questions 5–7 below.
+
 ## Open questions
 
 1. ~~The font.~~ Settled 2026-09-26 by the owner: the builder keeps its own
@@ -241,3 +262,10 @@ rebuilds stale pages (`build-pages-before-push`) and a `.gitignore` line for
    pre-push hook.
 4. ~~Should every project get pages now?~~ Yes, once the review's bugs were
    fixed (owner, 2026-09-26).
+5. **Where is the Linode?** Its address (or name) and the login to use, and
+   whether SSH access now works — the last record says it was being fixed.
+6. **Public, or behind a password?** Should every project's conversations be
+   readable by anyone who finds the address, or only after logging in, or
+   should only chosen projects be sent?
+7. **Where on the server?** One folder per project under one address (for
+   example `/transcripts/<project>/`), and under which domain.
