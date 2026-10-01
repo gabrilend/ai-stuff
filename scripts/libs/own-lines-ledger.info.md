@@ -2,9 +2,9 @@
 
 The record of which lines a Claude Code session wrote, and the reading of
 unified diffs against it. Shared by `record-own-edits`, `claim-own-change`,
-and the `own-changes-patch` library behind `commit-own-changes` and
-`stage-own-changes`.
-Design: issues 032 and 032a.
+`adopt-left-behind-changes`, and the `own-changes-patch` library behind
+`commit-own-changes` and `stage-own-changes`.
+Design: issues 032, 032a and 032b.
 
 ## Where it lives
 
@@ -48,6 +48,7 @@ Each line: `kind <TAB> absolute-real-path <TAB> line-text`, the text escaping
 | --- | --- | --- |
 | `append(session_id, records)` | session id, list of `{ kind, path, text }` | true, or nil and a reason |
 | `load(session_id)` | session id | **claims** (empty when no ledger yet) |
+| `all_sessions()` | nothing | list of `{ id : string, written : integer seconds since 1970 }`, one per session with a ledger in RAM, sorted by id (issue 032b) |
 | `records_from_hunks(path, hunks, records)` | path, change blocks in the harness's structuredPatch shape, list to fill | the filled list |
 | `line_claimed(claims, path, mark, text)` | claims, path, `"+"` or `"-"`, text | boolean |
 | `parse_diff(text)` | git unified diff (best with `-U0 --no-renames`) | list of **diff entry**; body lines are counted against the `@@` header, so a removed `-- comment` is never read as a file header |

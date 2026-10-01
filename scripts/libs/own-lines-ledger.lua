@@ -141,6 +141,30 @@ function ledger.load(session_id)
 end
 -- }}}
 
+-- {{{ function ledger.all_sessions()
+-- Every session that has a ledger in RAM, as a list of
+-- { id = string, written = integer (seconds since 1970, the ledger file's
+-- last change) }, sorted by id. Used by adopt-left-behind-changes to tell
+-- lines some other session still holds from lines nobody holds (issue 032b).
+-- A folder without a ledger.tsv (a preview's scratch list only) is skipped:
+-- it claims nothing.
+function ledger.all_sessions()
+    local sessions = {}
+    local handle = io.popen("ls -1 -- " .. shell_quote(ledger.ROOT) .. " 2>/dev/null", "r")
+    for id in handle:lines() do
+        local file = ledger.session_dir(id) .. "/ledger.tsv"
+        local stat = io.popen("stat -c %Y -- " .. shell_quote(file) .. " 2>/dev/null", "r")
+        local written = tonumber(stat:read("*l") or "")
+        stat:close()
+        -- no readable ledger file: nothing claimed, nothing to list
+        if written then sessions[#sessions + 1] = { id = id, written = written } end
+    end
+    handle:close()
+    table.sort(sessions, function(a, b) return a.id < b.id end)
+    return sessions
+end
+-- }}}
+
 -- {{{ function ledger.records_from_hunks()
 -- Turns change blocks in the harness's structuredPatch shape
 -- ({ lines = { " context", "-removed", "+added" } }) into ledger records.

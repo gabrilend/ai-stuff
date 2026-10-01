@@ -224,6 +224,9 @@ fallback, and it is announced every time rather than taken silently.
 - `032a-commit-through-a-private-staging-area.md` -- the next step: commits
   built on a private staging list (`commit-own-changes`), after a race on the
   shared one swept one session's staged files into another's commit
+- `032b-adopt-work-a-finished-session-left-behind.md` -- a session takes
+  ownership, line by line, of uncommitted work whose author session has ended
+  (a reboot empties every ledger), so it commits without a token
 - `README-refusal-gates.md` -- the gates, the ledger and the commit route
 - `test-refusal-gates` -- the cases, kept in a file so they are read, not run
 - `refuse-unscoped-commit` -- the gate this replaces

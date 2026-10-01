@@ -1,0 +1,295 @@
+#!/usr/bin/env luajit
+--
+-- adopt-left-behind-changes
+--
+-- Takes ownership of uncommitted work whose author session has ended, so this
+-- session can commit it through commit-own-changes instead of asking the person
+-- for a one-time token.
+--
+-- Why it exists (issue 032b): the commit route takes only lines the
+-- committing session's edit ledger claims. Ledgers are per session and live in
+-- RAM, so work a session wrote and never committed belongs to nobody once that
+-- session is gone -- a new session has a new id, and a reboot empties every
+-- ledger. On 2026-09-29 a session asked to commit such a backlog found every
+-- door shut but the token, and the plain commit that followed carried a rename
+-- somebody else had staged. The gates guard against colliding with someone
+-- who is still working; lines whose author has left need an owner, not a
+-- refusal.
+--
+-- How it works, generally: it lists every uncommitted change under the named
+-- paths, line by line. A line some other session's ledger still claims is
+-- held and left alone -- that session may be mid-work. Every other line is
+-- written into this session's ledger exactly as if this session had typed it,
+-- so commit-own-changes judges it the same way. Transcripts are skipped; they
+-- ride along on every commit anyway.
+--
+-- Usage: adopt-left-behind-changes [repository-directory] [--from <session>]...
+--                                  [--dry-run] [--scripts-dir <dir>]
+--                                  -- <path>...
+--   repository-directory  defaults to the ai-stuff monorepo below
+--   --from <session>      also take lines held by that session: it has ended
+--                         but its ledger is still in RAM. Repeatable.
+--   --dry-run             print what would be adopted; write nothing
+--   -- <path>...          required; repository-relative files or folders
+--                         ("." for the whole repository). Scope is named on
+--                         purpose: in a monorepo "everything" is thirty
+--                         projects.
+--
+-- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
+-- every shell command it runs.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff"
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+local FROM = {}        -- set of session ids whose held lines may be taken
+local DRY_RUN = false
+local PATHS = {}
+do
+    local i = 1
+    local after_dashes = false
+    while arg[i] do
+        local a = arg[i]
+        -- after "--" every word is a path; before it, options or the repository
+        if after_dashes then
+            PATHS[#PATHS + 1] = a
+            i = i + 1
+        elseif a == "--" then
+            after_dashes = true
+            i = i + 1
+        elseif a == "--from" then
+            FROM[arg[i + 1] or ""] = true
+            i = i + 2
+        elseif a == "--dry-run" then
+            DRY_RUN = true
+            i = i + 1
+        elseif a == "--scripts-dir" then
+            SCRIPTS_DIR = arg[i + 1]
+            i = i + 2
+        else
+            DIR = a
+            i = i + 1
+        end
+    end
+end
+
+package.path = SCRIPTS_DIR .. "/libs/?.lua;" .. package.path
+local ledger = require("own-lines-ledger")
+local patch = require("own-changes-patch")
+
+-- {{{ local function fail()
+local function fail(message)
+    io.stderr:write("adopt-left-behind-changes: ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function git()
+local function git(top, args)
+    local argv = { "git", "-C", top }
+    for _, a in ipairs(args) do argv[#argv + 1] = a end
+    local out, ok, err = patch.run_quiet(argv)
+    if not ok then fail("git " .. table.concat(args, " ") .. " failed:\n" .. err .. out) end
+    return out
+end
+-- }}}
+
+-- {{{ local function load_holders()
+-- The other sessions whose ledgers still claim lines: a list of
+-- { id = string, written = integer, claims = claims table }. This session and
+-- every session named with --from are left out -- their lines are free.
+local function load_holders(own_id)
+    local holders = {}
+    for _, s in ipairs(ledger.all_sessions()) do
+        -- skip our own ledger and the sessions declared finished
+        if s.id ~= own_id and not FROM[s.id] then
+            s.claims = ledger.load(s.id)
+            holders[#holders + 1] = s
+        end
+    end
+    return holders
+end
+-- }}}
+
+-- {{{ local function holder_of_line()
+-- The id of the first other session claiming this line, or false.
+local function holder_of_line(holders, path, mark, text)
+    for _, h in ipairs(holders) do
+        if ledger.line_claimed(h.claims, path, mark, text) then return h.id end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function holder_of_file()
+-- The id of the first other session naming this file at all, or false. Used
+-- for binary and mode-only changes, which have no lines to judge one by one.
+local function holder_of_file(holders, path)
+    for _, h in ipairs(holders) do
+        if h.claims[path] then return h.id end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function is_transcript()
+local function is_transcript(rel)
+    return rel:find("llm%-transcripts/") ~= nil
+end
+-- }}}
+
+-- {{{ local function note_held()
+-- Counts one held line against its session, for the report.
+local function note_held(held, id)
+    held[id] = (held[id] or 0) + 1
+end
+-- }}}
+
+-- {{{ local function judge_tracked()
+-- Walks the tracked changes (a -U0 diff against the tip). Fills records with
+-- the free lines and returns a list of per-file report entries
+-- { rel, added, removed, whole, held = { [session] = count } }.
+local function judge_tracked(top, tip, holders, records)
+    local args = { "diff", "--no-ext-diff", "--no-color", "--no-renames", "-U0", tip, "--" }
+    for _, p in ipairs(PATHS) do args[#args + 1] = p end
+    local entries = {}
+    for _, entry in ipairs(ledger.parse_diff(git(top, args))) do
+        local rel = ledger.file_path(entry)
+        -- transcripts ride along on every commit; nothing to adopt
+        if rel and not is_transcript(rel) then
+            local path = ledger.realpath(top .. "/" .. rel)
+            local e = { rel = rel, added = 0, removed = 0, whole = false, held = {} }
+            if entry.binary or #entry.hunks == 0 then
+                -- no lines to judge: the whole file, unless anyone names it
+                local holder = holder_of_file(holders, path)
+                if holder then note_held(e.held, holder)
+                else
+                    e.whole = true
+                    records[#records + 1] = { "W", path, "" }
+                end
+            else
+                for _, hunk in ipairs(entry.hunks) do
+                    for _, line in ipairs(hunk.lines) do
+                        local mark, text = line:sub(1, 1), line:sub(2)
+                        -- only added and removed lines carry ownership
+                        if mark == "+" or mark == "-" then
+                            local holder = holder_of_line(holders, path, mark, text)
+                            if holder then note_held(e.held, holder)
+                            else
+                                records[#records + 1] = { mark, path, text }
+                                if mark == "+" then e.added = e.added + 1 else e.removed = e.removed + 1 end
+                            end
+                        end
+                    end
+                end
+            end
+            entries[#entries + 1] = e
+        end
+    end
+    return entries
+end
+-- }}}
+
+-- {{{ local function judge_untracked()
+-- Walks the files git does not track and does not ignore. A file nobody
+-- names is claimed whole; a file some other session names is judged line by
+-- line, and the commit route will leave it out unless every line ends up ours
+-- (a new file is all-or-nothing there), which the report makes visible.
+local function judge_untracked(top, holders, records, entries)
+    local args = { "ls-files", "--others", "--exclude-standard", "-z", "--" }
+    for _, p in ipairs(PATHS) do args[#args + 1] = p end
+    for rel in git(top, args):gmatch("([^%z]+)%z") do
+        -- transcripts ride along on every commit; nothing to adopt
+        if not is_transcript(rel) then
+            local path = ledger.realpath(top .. "/" .. rel)
+            local e = { rel = rel, added = 0, removed = 0, whole = false, held = {}, new = true }
+            if not holder_of_file(holders, path) then
+                e.whole = true
+                records[#records + 1] = { "W", path, "" }
+            else
+                local f = io.open(path, "rb")
+                if not f then fail("cannot read untracked file " .. rel) end
+                local content = f:read("*a")
+                f:close()
+                if content:find("%z") then
+                    -- a binary another session names: theirs until --from
+                    note_held(e.held, holder_of_file(holders, path))
+                else
+                    -- git's lines: split on newline, the last one may lack it
+                    if content:sub(-1) ~= "\n" then content = content .. "\n" end
+                    for text in content:gmatch("(.-)\n") do
+                        local holder = holder_of_line(holders, path, "+", text)
+                        if holder then note_held(e.held, holder)
+                        else
+                            records[#records + 1] = { "+", path, text }
+                            e.added = e.added + 1
+                        end
+                    end
+                end
+            end
+            entries[#entries + 1] = e
+        end
+    end
+end
+-- }}}
+
+-- {{{ local function report()
+local function report(top, own_id, entries, holders)
+    local written = {}
+    for _, h in ipairs(holders) do written[h.id] = h.written end
+    io.write("adopt-left-behind-changes", DRY_RUN and " (dry run; nothing written)" or "",
+        " in ", top, " for session ", own_id, "\n")
+    if #entries == 0 then
+        io.write("  nothing: no uncommitted changes under ", table.concat(PATHS, " "), "\n")
+        return
+    end
+    local held_total = 0
+    for _, e in ipairs(entries) do
+        -- one line per file: what became ours, then who holds the rest
+        -- three shapes: claimed whole, some lines taken, or every line held
+        if e.whole then
+            io.write("  adopted  ", e.rel, "  ", e.new and "whole (new file)" or "whole (no lines to judge)", "\n")
+        elseif e.added + e.removed > 0 then
+            io.write("  adopted  ", e.rel, "  ", string.format("+%d -%d", e.added, e.removed), "\n")
+        else
+            io.write("  left     ", e.rel, "  every changed line is held\n")
+        end
+        for id, n in pairs(e.held) do
+            held_total = held_total + n
+            io.write(string.format("    held     %d line(s) by session %s (its ledger last written %s)\n",
+                n, id, os.date("%Y-%m-%d %H:%M", written[id])))
+        end
+    end
+    if held_total > 0 then
+        io.write("Held lines stay with their session. If that session has ended, run again with --from <session>.\n")
+    end
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local own_id = os.getenv("CLAUDE_CODE_SESSION_ID")
+    if not own_id or own_id == "" then
+        fail("CLAUDE_CODE_SESSION_ID is not set; this only works inside a Claude Code session")
+    end
+    if #PATHS == 0 then
+        fail("name what to adopt after --, e.g. -- src docs   (\".\" for the whole repository)")
+    end
+    local top = git(DIR, { "rev-parse", "--show-toplevel" }):gsub("%s+$", "")
+    -- the branch tip, or git's empty tree when the branch has no commit yet
+    local tip_out, has_tip = patch.run_quiet({ "git", "-C", top, "rev-parse", "-q", "--verify", "HEAD^{commit}" })
+    local tip = has_tip and tip_out:gsub("%s+$", "")
+        or git(top, { "hash-object", "-t", "tree", "/dev/null" }):gsub("%s+$", "")
+
+    local holders = load_holders(own_id)
+    local records = {}
+    local entries = judge_tracked(top, tip, holders, records)
+    judge_untracked(top, holders, records, entries)
+
+    if not DRY_RUN then
+        local ok, err = ledger.append(own_id, records)
+        if not ok then fail("could not write the ledger: " .. tostring(err)) end
+    end
+    report(top, own_id, entries, holders)
+end
+-- }}}
+
+main()
