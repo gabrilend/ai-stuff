@@ -40,7 +40,7 @@ decided once, by what the message says, and never changes. In her words:
 
 ## Current Behavior
 
-Nothing assigns gifs. The gifs exist: 35 films, 320 by 320, made by
+Nothing assigns gifs. The gifs exist: 34 films, 320 by 320, made by
 `scripts/readme-gallery/render-all.sh --library` (issue 060) into
 `/home/ritz/pictures/shape-gifs/`, about 36 MB in all, each with a still.
 Transcripts are exported as markdown by the Stop hook into each project's
@@ -92,7 +92,7 @@ once and reuses it from cache for every message that shows it.
 ## Suggested Implementation Steps
 
 1. Pick the vision model and the embedding model, and check both run on this
-   machine's card at an acceptable speed for 35 gifs and a few hundred
+   machine's card at an acceptable speed for 34 gifs and a few hundred
    messages.
 2. Write the filmstrip step and the description cache, keyed by gif hash, with
    a test that a second run describes nothing.
