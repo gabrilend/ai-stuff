@@ -52,7 +52,8 @@ goes through the list of every model that needs a photoshoot (new
 candidates, and originals not yet photographed with the current camera
 ring) before players are allowed in. The game server itself draws
 nothing, so a copy of the custom client, drawing off screen, takes the
-pictures while logins wait; which machine runs it is an open question.
+pictures while logins wait: the server spins up that client itself and
+poses each model at each vista and camera (owner, 2026-10-01).
 
 **Region overlays: where the likeness is** (owner, 2026-10-01: "make sure
 we mark which parts are most similar"). The scorer's output for each view
@@ -131,6 +132,7 @@ settings, not a separate program. The setting that differs most:
 |---------|-----------|-------------------------|----------------------------------------|
 | score shown to the builder | bool | false | false |
 | score used to pick next round's seeds | bool | false | true: seeds are the candidates best on votes and distance together |
+| votes used to pick next round's seeds | bool | true | true |
 | original used as input | bool | false (described in words only) | true (the seed) |
 | gate threshold | float 0-1 | the shared setting | the shared setting |
 
@@ -140,7 +142,31 @@ candidate, because a builder told where it is too close looks at the
 original to fix it (see W05d, "Why the loop never uses similarity as its
 guide"). The generation route may still *select* by it: keeping the
 least-similar of the well-liked candidates as next round's seeds steers
-away from the original without the builder ever seeing a number.
+away from the original without the builder ever seeing a number. The
+clean-room route picks its seeds by the players' votes alone.
+
+**Why two routes through one pipeline** (owner, 2026-10-01, verbatim):
+
+> The goal is to show that clean-room routes and seed-based generation
+> routes produce outputs that are if not identical, then comparably
+> distinct, proving that the destination is what matters, not the route to
+> reach it.
+>
+> "if not identical" because two painters tasked with drawing a bowl of
+> fruit will produce two separate paintings, and "comparably distinct"
+> because one who was shown the bowl of fruit and one who was told
+> "there's an apple on the left side, a banana stuck into the part between
+> a melon on the bottom and a bunch of grapes along the top,,, " etc will
+> produce two paintings that are both comparably distinct from a
+> photograph of the fruitbowl.
+
+So the two routes are an experiment with a measured result: run both on
+the same original, score each route's accepted models against it with
+this same score, and compare the two distributions of scores. The claim
+holds when the seeded route's accepted models are no closer to the
+original than the clean-room route's. A per-original report (two lists of
+combined scores, float 0-1, one per route, and their medians) is the
+evidence, kept beside the score records.
 
 The threshold that counts as "sufficiently distinct" is a setting, not a
 constant in code. The engine's replacement-progress statistic (W03) counts a
@@ -217,7 +243,7 @@ start further away. The score shows how far each route gets.
 
 1. What threshold is "sufficiently distinct"? The owner asked (2026-10-01) whether the law defines one. It doesn't: in the United States, infringement is judged by "substantial similarity", a judgment made by an ordinary observer or by comparing protected elements, never by a percentage; the "change 30%" rule is a myth. Copying a small but central part can infringe. So the number is ours to choose; suggest deciding after scoring a few hand-picked examples the owner judges by eye.
 2. Should the score also compare textures on their own (unwrapped), or only as rendered?
-3. Which machine renders the startup photoshoot? (How many vistas: answered, every vista the owner saves while playing.) Every view is a full render, so the work is models × (26 or 42 views) × (1 + vistas), and logins wait until it is done.
+3. ~~Which machine renders the startup photoshoot?~~ Answered 2026-10-01: "the server will spin up a client and pose them appropriately": at startup the game server launches a copy of the custom client on its own machine, places each model at each vista and camera, and has it take the pictures before logins open. Vistas: every one the owner saves while playing. The work is models × (26 or 42 views) × (1 + vistas).
 4. ~~How are regions found?~~ Answered 2026-10-01: image recognition breaks each picture into equipment pieces and their parts, each part pointing to its piece (above).
 5. ~~Is proving access the intended stance?~~ Answered 2026-10-01: yes; the original is the seed on purpose (the owner's words above).
 6. ~~Is the score now a guide after all?~~ Answered 2026-10-01: "we should have one pipeline that is configured with separate parameters." One forge, one score; each route is a parameter set, and whether the score may steer is one of its parameters (below).
