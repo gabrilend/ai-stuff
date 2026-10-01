@@ -1,0 +1,148 @@
+{
+  "1": {
+    "class_type": "ImageOnlyCheckpointLoader",
+    "inputs": {
+      "ckpt_name": "hunyuan3d-dit-v2.safetensors"
+    },
+    "_meta": {
+      "title": "Hunyuan3D 2"
+    }
+  },
+  "2": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "shift": 1,
+      "sampling": "flow",
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "sampling"
+    }
+  },
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "wete-concept.png"
+    },
+    "_meta": {
+      "title": "concept picture (plain background)"
+    }
+  },
+  "4": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "crop": "center",
+      "clip_vision": [
+        "1",
+        1
+      ],
+      "image": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "look at it"
+    }
+  },
+  "5": {
+    "class_type": "Hunyuan3Dv2Conditioning",
+    "inputs": {
+      "clip_vision_output": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "condition"
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentHunyuan3Dv2",
+    "inputs": {
+      "resolution": 3072,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "shape latent"
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 5222,
+      "steps": 30,
+      "cfg": 5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "5",
+        1
+      ],
+      "latent_image": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "sampler"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecodeHunyuan3D",
+    "inputs": {
+      "num_chunks": 8000,
+      "octree_resolution": 256,
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "to voxels"
+    }
+  },
+  "9": {
+    "class_type": "VoxelToMesh",
+    "inputs": {
+      "algorithm": "surface net",
+      "threshold": 0.59999999999999998,
+      "voxel": [
+        "8",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "to a mesh"
+    }
+  },
+  "10": {
+    "class_type": "SaveGLB",
+    "inputs": {
+      "filename_prefix": "wete/models/mesh",
+      "mesh": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "save GLB"
+    }
+  }
+}

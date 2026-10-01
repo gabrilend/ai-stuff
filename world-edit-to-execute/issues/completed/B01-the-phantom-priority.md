@@ -88,10 +88,10 @@ end
 
 ## Victory Conditions
 
-- [ ] No node is processed more than once
-- [ ] Pathfinding completes in fewer iterations on open terrain
-- [ ] Test case: 64x64 open map with obstacles, count iterations before/after
-- [ ] Memory usage doesn't explode (if using lazy deletion)
+- [x] No node is processed more than once
+- [x] Pathfinding completes in fewer iterations on open terrain
+- [x] Test case: 64x64 open map with obstacles, count iterations before/after
+- [x] Memory usage doesn't explode (if using lazy deletion)
 
 ---
 
@@ -132,4 +132,92 @@ assert(iterations_after < iterations_before * 0.7,
 
 **Bounty Posted By:** The Optimization Guild
 **Date:** 2025-12-29
-**Status:** UNCLAIMED
+**Status:** CLAIMED AND COMPLETED
+
+---
+
+## Implementation Notes
+
+**Date:** 2026-09-29
+
+### What the monster really was
+
+The bounty's diagnosis was close but not exact. `in_open` already kept a
+node from being queued twice, so the old entry never sat beside a new one.
+What went wrong instead: when a cheaper path to a queued node turned up, its
+g_score changed but its queue priority stayed at the old, higher f. The node
+then came out of the queue late, out of order. That did more than waste
+iterations: the goal could be popped while a node with a lower true f still
+waited under its stale priority, and A* returned a path **longer than the
+shortest**. Against Dijkstra on random 40x40 grids (28% walls, 60 grids per
+setting), the old search returned a longer path on 12/60 grids with
+euclidean + diagonal, 3/60 with chebyshev + diagonal and 3/60 with
+manhattan (4-way). Its "fast" iteration counts in those settings came
+partly from stopping early on a wrong path.
+
+### The fix (`src/runtime/pathfinding/astar.lua`)
+
+1. **Lazy deletion.** Each open-set entry now carries the g it was pushed
+   with, and every better path pushes a fresh entry at its true f. When an
+   entry is popped, it is expanded only if its g still equals the node's
+   g_score; otherwise it is a ghost of a worse path and is skipped without
+   counting toward `max_iterations`. `in_open` and the now-unused `make_key`
+   are gone. The same g check lets a node be expanded again when a
+   heuristic that overestimates (manhattan with diagonals) finds it a
+   cheaper path later.
+2. **Tie-break on g.** `PriorityQueue:push(item, priority, tiebreak)` takes
+   an optional third argument (default 0; lower comes out first among equal
+   priorities). A* passes `-g`, so among equal f it expands the node
+   furthest along. Open ground is full of equal-f cells; this walks
+   straight through them instead of fanning out. Existing two-argument
+   callers are unchanged.
+
+Decision recorded in `CRITICAL-PATH.md` OQ-006 (lazy deletion over
+decrease-key: no heap index to maintain, and the ghost entries are bounded
+by the number of path improvements).
+
+### Measurements (old -> new)
+
+| Map (64x64, start 0,0 to 63,63) | Old | New |
+|---|---|---|
+| Open map, manhattan 4-way | 1708 iterations | 127 |
+| Test arena in `test_astar.lua` (10% scattered walls) | 894 | 238 (-73%) |
+| 20 maps, 5% walls, manhattan 4-way (sum) | 21663 | 4017 (-81%) |
+| 20 maps, 10% walls, manhattan 4-way (sum) | 22170 | 5944 (-73%) |
+| 20 maps, 20% walls, manhattan 4-way (sum) | 22420 | 15199 (-32%) |
+
+With euclidean + diagonal at 5-10% walls the new search takes *more*
+iterations (3501 -> 5207 at 5%), and the tie-break makes no difference
+there (5215 without it). The difference is correctness: on those same
+maps the old search returned a longer path on 1/20 (5%) and 7/20 (10%),
+the new one on none.
+
+Memory: across 240 searches on 64x64 maps (5-30% walls, three movement
+settings), total pushes fell from 196606 to 174438; the largest open set
+seen grew from 852 to 1267 entries (of 4096 cells).
+
+### Victory condition notes
+
+- **No node processed more than once:** holds with a consistent heuristic
+  (manhattan or euclidean 4-way; euclidean or chebyshev 8-way): a node's
+  first valid pop is at its final g. With manhattan + diagonal the
+  heuristic overestimates and a node can be (correctly) reopened when a
+  cheaper path appears; that is the price of that setting, not the
+  phantom.
+
+### Tests (`src/tests/test_astar.lua`, section "Shortest Path (B01)")
+
+- Tie-break ordering of `PriorityQueue`
+- Costs match Dijkstra on 25 deterministic 24x24 grids for each admissible
+  setting (the old search fails euclidean + diagonal on 3 and chebyshev +
+  diagonal on 1)
+- 64x64 open map within 150 iterations (old: 1708)
+- 64x64 test arena at least 30% below the old search's 894 (now 238)
+
+```
+Tests: 99 passed, 0 failed
+ALL TESTS PASSED
+```
+
+The full suite (104 test files) passes.
+

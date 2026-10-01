@@ -1,0 +1,121 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+    },
+    "_meta": {
+      "title": "checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "hand painted fantasy armour texture, worn steel and leather, rich colour",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, text, watermark, signature, frame, border",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "negative prompt"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "wete-texture.png"
+    },
+    "_meta": {
+      "title": "texture (exported)"
+    }
+  },
+  "5": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "encode"
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 5222,
+      "steps": 24,
+      "cfg": 7,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.45000000000000001,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "sampler"
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "decode"
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "wete/textures/restyled",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "save"
+    }
+  }
+}

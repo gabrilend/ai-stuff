@@ -113,9 +113,15 @@ local function test_edge_cases()
     end)
 
     test("whitespace-only returns only EOF", function()
-        local tokens = lexer.tokenize("   \t\t\r\r   ")
+        local tokens = lexer.tokenize("   \t\t   ")
         assert_eq(1, #tokens, "token count")
         assert_token(tokens, 1, TOKEN.EOF)
+    end)
+
+    -- A lone CR ends a line (issue 520: some map optimizers write only CRs)
+    test("lone carriage returns end lines", function()
+        local tokens = lexer.tokenize("\r\r")
+        assert_eq(3, #tokens, "token count: 2 NEWLINE + EOF")
     end)
 
     test("only newlines", function()

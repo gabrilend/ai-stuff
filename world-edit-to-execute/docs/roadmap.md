@@ -251,7 +251,13 @@ src/
 │   ├── unitsdoo.lua     # Units/buildings (UnitTable class)
 │   ├── w3r.lua          # Regions (RegionTable class)
 │   ├── w3c.lua          # Cameras (CameraTable class)
-│   └── w3s.lua          # Sounds (SoundTable class)
+│   ├── w3s.lua          # Sounds (SoundTable class)
+│   ├── jpeg.lua         # JPEG, baseline and progressive (522)
+│   ├── blp.lua          # BLP1 textures: JPEG and paletted (522)
+│   ├── tga.lua          # TGA images (522)
+│   ├── png.lua          # PNG images (522)
+│   ├── mdx.lua          # MDX models, every chunk (522)
+│   └── gltf.lua         # glTF/GLB models, in and out (522)
 ├── gameobjects/
 │   ├── init.lua         # Module documentation and exports
 │   ├── doodad.lua       # Doodad class
@@ -311,7 +317,25 @@ src/
 ├── jass/
 │   ├── lexer.lua        # JASS tokenization
 │   ├── parser.lua       # JASS AST generation
-│   └── transpiler.lua   # JASS-to-Lua transpilation
+│   ├── transpiler.lua   # JASS-to-Lua transpilation
+│   ├── vm.lua           # Runs a map's war3map.j: threads, waits, events, timers (520)
+│   └── natives/         # common.j natives and our own Blizzard.j functions (520)
+├── assets/              # Art: where it comes from and how it's drawn (522)
+│   ├── init.lua         # The map's archive, then the install; which model a type uses
+│   ├── gpu.lua          # MDX (and glTF) onto the renderer
+│   ├── anim.lua         # Plays a model's sequences: nodes, matrix groups, part alphas (523)
+│   ├── ground.lua       # Ground textures: tileset layers per cell, stand-in tilesets (526)
+│   ├── tool.lua         # texture -> PNG, model -> GLB
+│   └── comfy.lua        # ComfyUI workflows (comfyui/): write, check, export
+├── ai/                  # Computer players (521)
+│   ├── init.lua         # One AI per computer player: map-started, melee or filled in
+│   ├── player.lua       # The mechanism: captains, counts, targets, fleeing, defending
+│   ├── natives.lua      # The AI natives a map's .ai script runs on
+│   ├── profile.lua      # The AI Editor's model (its tabs as a Lua table)
+│   ├── editor_ai.lua    # Plays a profile
+│   ├── melee.lua        # Default melee profiles per race
+│   ├── faction.lua      # Profiles for custom-map factions; profile files
+│   └── tool.lua         # luajit src/ai/tool.lua write MAP | check DIR
 ├── runtime/
 │   ├── triggers/        # Trigger framework
 │   │   ├── init.lua     # Trigger API
@@ -646,11 +670,19 @@ start from this list. The rest of this section is the record of the plan.
 |----|------|------------|--------|
 | 701 | Death and resurrection system | 5 (701a-e) | 701d complete |
 | 702 | Profession system | 7 (702a-g) | Created |
-| 703 | Combat system | - | Planned |
-| 704 | Ability system framework | - | Planned |
-| 705 | Buff/debuff system | - | Planned |
-| 706 | Build queue and training | - | Planned |
-| 707 | Fog of war | - | Planned |
+| 703 | Combat system | - | Done as issues 519, 525 (`demo/wc3map/combat.lua`: stock stats, damage table in constants) |
+| 704 | Ability system framework | - | Done as issue 529 (`demo/wc3map/abilities.lua`) |
+| 705 | Buff/debuff system | - | Done as issue 529 (`demo/wc3map/buffs.lua`) |
+| 706 | Build queue and training | - | Done as issue 521a (`demo/wc3map/production.lua`); economy 527, heroes 528 |
+| 707 | Fog of war | - | Done as issue 524 (`demo/wc3map/vision.lua`) |
+
+Also done in `demo/wc3map/`, outside the 70x numbering:
+- spell art, effects, missiles and lightning (`effects.lua`, issues 530 and 538);
+- construction, repair, helping and upgrades (`construction.lua`, 531, 534 and 535);
+- building footprints (`footprint.lua`, 536);
+- items and drops (`items.lua`, 532 and 537);
+- shops and taverns (`shops.lua`, 533 and 539);
+- computer players building, hiring, buying and casting (`ai/acts.lua`, 540).
 
 ### Death System (701)
 
@@ -745,20 +777,20 @@ server inside the client.
 
 ### Issue Breakdown
 
-| ID | Name | Description |
-|----|------|-------------|
-| 901 | Editor core framework | Window, viewport, undo/redo, shortcuts |
-| 902 | Terrain editor | Height, textures, cliffs, water |
-| 903 | Object placer | Units, doodads, items, destructibles |
-| 904 | Region and camera editor | Regions, camera presets |
-| 905 | Trigger editor | GUI + Lua with bidirectional sync |
-| 906 | Object editor | Modify unit/ability/item stats |
-| 907 | Sound editor | 3D sounds, music, ambience |
-| 908 | Import manager | Custom asset management |
-| 909 | AI editor | Computer player behavior |
-| 910 | Campaign editor | Multi-map storylines |
-| 911 | Map format and export | Standard .w3x export |
-| 912 | Phase 9 integration test | Full editor workflow testing |
+| ID | Name | Description | Status (2026-09-30) |
+|----|------|-------------|--------|
+| 901 | Editor core framework | Window, viewport, undo/redo, shortcuts | Done (`src/editor/`, `src/render/run-editor`) |
+| 902 | Terrain editor | Height, textures, cliffs, water | First pass: raise, lower, smooth, flatten, paint, water, cliffs, blight |
+| 903 | Object placer | Units, doodads, items, destructibles | First pass: doodads, placed and script units |
+| 904 | Region and camera editor | Regions, camera presets | First pass: the script's rects moved and resized; 904b: cameras, new regions |
+| 905 | Trigger editor | GUI + Lua with bidirectional sync | 905a: blocks written as JASS, the map's own triggers edited as code; 905b: triggers as Lua, both views edit |
+| 906 | Object editor | Modify unit/ability/item stats | First pass: fields, custom types, all 7 kinds |
+| 907 | Sound editor | 3D sounds, music, ambience | First pass (907a): the script's sounds and music, new sounds for triggers |
+| 908 | Import manager | Custom asset management | First pass (908a): files named, checked, imported, renamed, deleted |
+| 909 | AI editor | Computer player behavior | First pass (909a): AI Editor profiles edited, saved into the map |
+| 910 | Campaign editor | Multi-map storylines | |
+| 911 | Map format and export | Standard .w3x export | 911a: WC3 files written back, copies saved in place; 911b: new maps from scratch; 911c: map projects (.wex) |
+| 912 | Phase 9 integration test | Full editor workflow testing | 912a: one new map through every part of the editor, saved, reopened, played |
 
 ### Key Features
 

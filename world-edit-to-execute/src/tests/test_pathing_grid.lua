@@ -32,6 +32,15 @@ end
 
 -- {{{ Mock terrain creation
 -- Creates a mock terrain object that mimics w3e parser output
+-- water_level is the water's height (w3e), not its depth: the level that
+-- stands `depth` over a mock tile's ground (height 0, layer 0: ground at
+-- -256; see w3e.ground_z and water_z). Issue 519.
+local w3e = require("parsers.w3e")
+local function level_for_depth(depth)
+    local ground = w3e.ground_z({ height = 0, layer_height = 0 })
+    return ground + depth + w3e.WATER_OFFSET
+end
+
 local function create_mock_terrain(width, height, tiles)
     local terrain = {
         width = width,
@@ -154,10 +163,10 @@ test("is_flyable returns false for out of bounds", grid.is_flyable(pg, 100, 5) =
 test_section("Water Blocking")
 
 terrain = create_mock_terrain(10, 10, {
-    {x = 2, y = 2, has_water = true, water_level = 100},  -- Deep water
-    {x = 3, y = 3, has_water = true, water_level = 30},   -- Shallow water (wadeable)
-    {x = 4, y = 4, has_water = true, water_level = 64},   -- Exactly at wade depth
-    {x = 5, y = 5, has_water = true, water_level = 65},   -- Just over wade depth
+    {x = 2, y = 2, has_water = true, water_level = level_for_depth(100)},  -- Deep water
+    {x = 3, y = 3, has_water = true, water_level = level_for_depth(30)},   -- Shallow water (wadeable)
+    {x = 4, y = 4, has_water = true, water_level = level_for_depth(64)},   -- Exactly at wade depth
+    {x = 5, y = 5, has_water = true, water_level = level_for_depth(65)},   -- Just over wade depth
 })
 pg = grid.build_from_terrain(terrain)
 
@@ -285,7 +294,7 @@ grid.invalidate_cache()  -- Clean up
 test_section("Statistics")
 
 terrain = create_mock_terrain(5, 5, {
-    {x = 0, y = 0, has_water = true, water_level = 100},  -- Deep water
+    {x = 0, y = 0, has_water = true, water_level = level_for_depth(100)},  -- Deep water
     {x = 1, y = 0, has_water = true, water_level = 100},
     {x = 2, y = 0, is_blight = true},
     {x = 3, y = 0, layer_height = 1},
