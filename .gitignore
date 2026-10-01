@@ -282,3 +282,7 @@ symbeline-2/
 
 # Conversation pages, rebuilt before every push (install-pages-hook)
 **/llm-transcripts/HTML/
+
+# words-pdf reads its poems and rmail state from here; they change constantly
+# and are kept out of history on purpose (untracked 2026-10-01).
+words-pdf/input/
