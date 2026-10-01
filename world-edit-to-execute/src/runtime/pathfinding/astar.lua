@@ -24,10 +24,21 @@ end
 -- }}}
 
 -- {{{ PriorityQueue:push
-function PriorityQueue:push(item, priority)
+-- tiebreak (optional, default 0) orders items of equal priority: lower first
+function PriorityQueue:push(item, priority, tiebreak)
     local heap = self.heap
-    heap[#heap + 1] = { item = item, priority = priority }
+    heap[#heap + 1] = { item = item, priority = priority, tiebreak = tiebreak or 0 }
     self:_sift_up(#heap)
+end
+-- }}}
+
+-- {{{ before
+-- True when heap entry a should come out of the queue before entry b
+local function before(a, b)
+    if a.priority ~= b.priority then
+        return a.priority < b.priority
+    end
+    return a.tiebreak < b.tiebreak
 end
 -- }}}
 
@@ -76,7 +87,7 @@ function PriorityQueue:_sift_up(idx)
     local heap = self.heap
     while idx > 1 do
         local parent = math.floor(idx / 2)
-        if heap[idx].priority < heap[parent].priority then
+        if before(heap[idx], heap[parent]) then
             heap[idx], heap[parent] = heap[parent], heap[idx]
             idx = parent
         else
@@ -96,10 +107,10 @@ function PriorityQueue:_sift_down(idx)
         local right = idx * 2 + 1
         local smallest = idx
 
-        if left <= size and heap[left].priority < heap[smallest].priority then
+        if left <= size and before(heap[left], heap[smallest]) then
             smallest = left
         end
-        if right <= size and heap[right].priority < heap[smallest].priority then
+        if right <= size and before(heap[right], heap[smallest]) then
             smallest = right
         end
 
@@ -204,14 +215,6 @@ end
 -- {{{ Path reconstruction
 -- Utilities for building the final path from A* results
 
--- {{{ make_key
--- Create unique key for coordinate pair. Assumes grids < 100000 in each
--- dimension (far larger than any WC3 map).
-local function make_key(x, y)
-    return y * 100000 + x
-end
--- }}}
-
 -- {{{ reconstruct_path
 -- Build path from came_from map by walking backwards from goal to start
 -- @param came_from 2D table of predecessor coordinates
@@ -244,6 +247,8 @@ end
 --   heuristic: "manhattan" | "euclidean" | "chebyshev" (default: "manhattan")
 --   max_iterations: search iteration limit (default: 10000)
 --   diagonal: allow diagonal movement (default: false)
+--   corner_cutting: let a diagonal step pass between two blocked cells
+--     that touch at a corner (default: true)
 -- @return path Array of {x, y} waypoints, or nil if no path
 -- @return cost Total path cost, or nil if no path
 -- @return error Error message if no path (optional)
@@ -266,6 +271,7 @@ function astar.find_path(grid, start_x, start_y, goal_x, goal_y, options)
 
     local max_iterations = options.max_iterations or 10000
     local diagonal = options.diagonal or false
+    local corner_cutting = options.corner_cutting ~= false
 
     -- Validate start position
     if not can_pass(start_x, start_y) then
@@ -286,76 +292,77 @@ function astar.find_path(grid, start_x, start_y, goal_x, goal_y, options)
     local open_set = PriorityQueue.new()
     local came_from = {}   -- 2D table: came_from[y][x] = predecessor
     local g_score = {}     -- 2D table: g_score[y][x] = cost from start
-    local in_open = {}     -- Set: track what's currently in open set
 
     -- Initialize start node
     g_score[start_y] = {}
     g_score[start_y][start_x] = 0
 
+    -- Each open-set entry carries the g it was pushed with. A better path to
+    -- a node pushes a fresh entry rather than editing the old one (lazy
+    -- deletion), so every entry's priority is exact. Entries whose g no
+    -- longer matches g_score are ghosts of worse paths and are skipped when
+    -- popped. (Bounty B01: an entry's priority used to go stale when its
+    -- g improved, which popped nodes out of order and could return a path
+    -- longer than the shortest.)
     local start_h = heuristic(start_x, start_y, goal_x, goal_y)
-    open_set:push({ x = start_x, y = start_y }, start_h)
-    in_open[make_key(start_x, start_y)] = true
+    open_set:push({ x = start_x, y = start_y, g = 0 }, start_h)
 
     local iterations = 0
 
     -- Main A* loop
     while not open_set:is_empty() do
-        iterations = iterations + 1
-        if iterations > max_iterations then
-            return nil, nil, "Max iterations exceeded"
-        end
-
         -- Get node with lowest f-score
         local current = open_set:pop()
         local cx, cy = current.x, current.y
-        local current_key = make_key(cx, cy)
-        in_open[current_key] = nil
+        local current_g = g_score[cy][cx]
 
-        -- Goal reached - reconstruct and return path
-        if cx == goal_x and cy == goal_y then
-            local path = reconstruct_path(came_from, current)
-            local cost = g_score[cy] and g_score[cy][cx] or 0
-            return path, cost
-        end
+        -- Expand only an entry whose g is current; a ghost of a worse path
+        -- falls through without counting an iteration
+        if current.g == current_g then
+            iterations = iterations + 1
+            if iterations > max_iterations then
+                return nil, nil, "Max iterations exceeded"
+            end
 
-        -- Get g-score for current node
-        local current_g = g_score[cy] and g_score[cy][cx]
-        if not current_g then
-            -- Shouldn't happen, but guard against it
-            current_g = 0
-        end
+            -- Goal reached - reconstruct and return path
+            if cx == goal_x and cy == goal_y then
+                local path = reconstruct_path(came_from, current)
+                return path, current_g
+            end
 
-        -- Explore neighbors
-        local neighbors = get_neighbors(cx, cy, diagonal)
-        for _, neighbor in ipairs(neighbors) do
-            local nx, ny = neighbor.x, neighbor.y
+            -- Explore neighbors
+            local neighbors = get_neighbors(cx, cy, diagonal)
+            for _, neighbor in ipairs(neighbors) do
+                local nx, ny = neighbor.x, neighbor.y
 
-            if can_pass(nx, ny) then
-                local tentative_g = current_g + neighbor.cost
-                local neighbor_g = (g_score[ny] and g_score[ny][nx]) or math.huge
+                -- corner_cutting = false: a diagonal step needs both of
+                -- the cells it passes between open, as WC3's pathing does
+                -- (519a; default true, the old behaviour)
+                local diag_ok = true
+                if not corner_cutting and nx ~= cx and ny ~= cy then
+                    diag_ok = can_pass(nx, cy) and can_pass(cx, ny)
+                end
+                if diag_ok and can_pass(nx, ny) then
+                    local tentative_g = current_g + neighbor.cost
+                    local neighbor_g = (g_score[ny] and g_score[ny][nx]) or math.huge
 
-                -- Found a better path to this neighbor
-                if tentative_g < neighbor_g then
-                    -- Record predecessor
-                    came_from[ny] = came_from[ny] or {}
-                    came_from[ny][nx] = { x = cx, y = cy }
+                    -- Found a better path to this neighbor
+                    if tentative_g < neighbor_g then
+                        -- Record predecessor
+                        came_from[ny] = came_from[ny] or {}
+                        came_from[ny][nx] = { x = cx, y = cy }
 
-                    -- Update g-score
-                    g_score[ny] = g_score[ny] or {}
-                    g_score[ny][nx] = tentative_g
+                        -- Update g-score
+                        g_score[ny] = g_score[ny] or {}
+                        g_score[ny][nx] = tentative_g
 
-                    -- Calculate f-score and add to open set
-                    local f_score = tentative_g + heuristic(nx, ny, goal_x, goal_y)
-                    local neighbor_key = make_key(nx, ny)
-
-                    if not in_open[neighbor_key] then
-                        open_set:push({ x = nx, y = ny }, f_score)
-                        in_open[neighbor_key] = true
+                        -- Calculate f-score and add to open set
+                        local f_score = tentative_g + heuristic(nx, ny, goal_x, goal_y)
+                        -- On equal f, prefer the node furthest along (higher g,
+                        -- so nearer the goal): open ground has many equal-f
+                        -- cells, and this walks toward the goal through them
+                        open_set:push({ x = nx, y = ny, g = tentative_g }, f_score, -tentative_g)
                     end
-                    -- Note: We don't update priority if already in open set.
-                    -- This means we may process a node multiple times, but
-                    -- the g_score check ensures we only use the best path.
-                    -- A more optimized version would update the priority.
                 end
             end
         end

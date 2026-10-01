@@ -12,6 +12,11 @@
 #include "terrain.h"
 #include "input.h"
 #include "ui.h"
+#include "geometry.h"
+#include "landscape.h"
+#include "ui2d.h"
+#include "fog.h"
+#include "models.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -350,6 +355,41 @@ static const luaL_Reg render_funcs[] = {
     {"ui_set_game_time", l_ui_set_game_time},
     {"ui_clear_selection", l_ui_clear_selection},
     {"ui_show", l_ui_show},
+    /* Geometry painting (516a) */
+    {"geo_box", l_geo_box},
+    {"geo_wedge", l_geo_wedge},
+    {"geo_quad", l_geo_quad},
+    {"geo_clear", l_geo_clear},
+    {"geo_count", l_geo_count},
+    {"geo_bake", l_geo_bake},
+    {"geo_unbake", l_geo_unbake},
+    /* Landscape (517b) */
+    {"land_build", l_land_build},
+    {"land_free", l_land_free},
+    {"land_tiles", l_land_tiles},
+    {"geo_target", l_geo_target},
+    /* 2D interface (518a) */
+    {"ui_rect", l_ui_rect},
+    {"ui_frame", l_ui_frame},
+    {"ui_line", l_ui_line},
+    {"ui_tri", l_ui_tri},
+    {"ui_circle", l_ui_circle},
+    {"ui_text", l_ui_text},
+    {"ui_text_width", l_ui_text_width},
+    {"ui_image_load", l_ui_image_load},
+    {"ui_image_update", l_ui_image_update},
+    {"ui_image", l_ui_image},
+    {"ui_portrait", l_ui_portrait},
+    {"ui_screen", l_ui_screen},
+    /* Textured models (522c) */
+    {"tex_create", l_tex_create},
+    {"mesh_create", l_mesh_create},
+    {"model_create", l_model_create},
+    {"model_draw", l_model_draw},
+    {"model_stats", l_model_stats},
+    /* Fog of war (524) */
+    {"fog_set", l_fog_set},
+    {"fog_off", l_fog_off},
     {NULL, NULL}
 };
 

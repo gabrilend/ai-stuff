@@ -238,6 +238,9 @@ function doo.parse(data)
         pos = new_pos
     end
 
+    -- the rest (special doodads), kept as it is for writing back (issue 911a)
+    result.tail_raw = data:sub(pos)
+
     -- Parse special doodads section (item drops for v7, position data for v8)
     if pos <= #data then
         local special, new_pos = parse_special_doodads(data, pos, result.version)
@@ -248,6 +251,27 @@ function doo.parse(data)
     end
 
     return result
+end
+-- }}}
+
+-- {{{ doo.write (issue 911a)
+-- The doodads back as war3map.doo bytes (the section after them as read)
+function doo.write(result)
+    local b = require("parsers.binwrite").new()
+    b:str(FILE_ID):i32(result.version):i32(result.subversion):i32(#result.doodads)
+    for _, d in ipairs(result.doodads) do
+        b:str(d.id):i32(d.variation or 0)
+        b:f32(d.position.x):f32(d.position.y):f32(d.position.z)
+        b:f32(d.angle or 0)
+        b:f32(d.scale.x):f32(d.scale.y):f32(d.scale.z)
+        b:u8(d.flags or 2):u8(d.life or 100)
+        b:i32(d.creation_number or 0)
+        if result.version >= 8 then
+            b:i32(d.item_table_pointer or -1):i32(d.item_sets_count or 0)
+        end
+    end
+    b:str(result.tail_raw or "")
+    return b:done()
 end
 -- }}}
 

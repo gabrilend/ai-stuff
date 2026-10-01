@@ -276,3 +276,11 @@ EDITOR PERFORMANCE TARGETS
 - Compare exported files against known-good reference
 - Performance tests should run on representative hardware
 - Consider fuzz testing for file format robustness
+
+## Implementation Notes
+
+**2026-09-30 (sub-issue 912a, completed).**
+- `src/tests/test_editor_integration.lua` takes a map made from nothing through terrain, objects, object types, regions, cameras, sounds, triggers (with a victory condition), AI, imports and music. It saves the map, reopens it and plays it: 44 checks.
+- The phase demo is `issues/completed/demos/run_phase9.sh`.
+- It found that a melee map's AI-editor profile was ignored in favour of the stock melee AI; that's fixed in `ai/init.lua`.
+- Still open: scenarios 3 (code-view sync), 4 (unified format) and 6 (campaigns).

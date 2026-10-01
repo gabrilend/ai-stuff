@@ -148,15 +148,15 @@ TERRAIN TEXTURES
 ## Acceptance Criteria
 
 - [ ] All 11 terrain tools functional
-- [ ] Brush preview shows affected area
+- [x] Brush preview shows affected area
 - [ ] Brush settings (shape, size, falloff, strength) work
-- [ ] Cliff layers can be raised/lowered
+- [x] Cliff layers can be raised/lowered
 - [ ] Ramps connect cliff layers correctly
 - [ ] Water level and type editable
-- [ ] Texture painting with palette works
+- [x] Texture painting with palette works
 - [ ] Blight and pathing overrides work
-- [ ] All operations support undo/redo
-- [ ] Real-time preview in viewport
+- [x] All operations support undo/redo
+- [x] Real-time preview in viewport
 
 ## Related Documents
 
@@ -171,3 +171,21 @@ TERRAIN TEXTURES
 - May want "symmetry" mode for balanced maps
 - Tileset selection affects available textures
 - Consider "terrain presets" for common patterns (hills, rivers)
+
+## Implementation Notes
+
+*(2026-09-30, first pass)*
+
+`src/editor/terrain.lua`:
+
+- **Tools:** raise, lower, smooth, flatten (to where the stroke began: the plateau), paint (the map's ground tilesets, in the palette), water (at a level, else a little over the ground where the stroke began), dry, cliff up and down (a level a stroke; the tile takes the first cliff tileset when it had none), blight and clear blight.
+- **Brush:** size (0-8 tilepoints) and strength; the height tools fall off linearly toward the edge.
+- **Strokes:** each stroke is one undo step, with before-and-after snapshots of the tilepoints it touched.
+- **Preview:** a ring under the pointer in the window; the ground is redrawn as it changes.
+- **Saving:** `war3map.wpm` cells under changed ground follow water in or out (deep water keeps walkers and builders off), and doodads on changed ground sit on the new ground.
+
+**Not done yet:**
+- **Missing tools:** noise, ramps (tiles' ramp flag), pathing overrides and water type.
+- **Brush options:** brush shapes other than round, and falloff settings.
+- **Cliffs:** the pathing map isn't redone for them.
+- **Ground textures:** the window shows ground colours, not the tilesets' textures, while editing.

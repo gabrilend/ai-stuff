@@ -303,10 +303,12 @@ test("unterminated string errors", function()
     end, "Unterminated string")
 end)
 
-test("string with newline errors", function()
-    assert_error_contains(function()
-        lexer.tokenize('"hello\nworld"')
-    end, "Unterminated string")
+-- A string may run over a line break (issue 520): the game reads it as
+-- part of the text, and map optimizers leave long texts that way
+test("string may span a line break", function()
+    local tokens = lexer.tokenize('"hello\nworld"')
+    assert(tokens[1].type == TOKEN.STRING and tokens[1].value == "hello\nworld",
+        "expected one string holding the line break")
 end)
 -- }}}
 

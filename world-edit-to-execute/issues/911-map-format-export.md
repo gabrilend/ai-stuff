@@ -260,14 +260,14 @@ EXPORT VALIDATION: WC3
 
 - [ ] Unified format saves all map data
 - [ ] Unified format loads correctly
-- [ ] WC3 export produces valid .w3x files
+- [x] WC3 export produces valid .w3x files
 - [ ] WC3 import converts to unified format
-- [ ] Round-trip (load → save → load) preserves data
+- [x] Round-trip (load → save → load) preserves data
 - [ ] Mode-specific data handled correctly
 - [ ] Validation reports export issues
 - [ ] Lightweight export excludes assets
 - [ ] Format is version-controlled friendly
-- [ ] Large maps save in reasonable time
+- [x] Large maps save in reasonable time
 
 ## Related Documents
 
@@ -285,13 +285,43 @@ EXPORT VALIDATION: WC3
 - Format version important for future compatibility
 - May want "map optimization" (strip unused assets)
 
-## Open Questions
+## Implementation Notes
 
-1. ~~With WoW gameplay mode gone, what does the editor save?~~ Answered
-   2026-09-26: **`.w3x`, for now.** The owner: "We are already building
-   compatibility for that system so we might as well." The editor writes
-   plain WC3 maps through StormLib; the `.wex`, `.wexl` and `.wowmap`
-   formats above are not built. This issue's design is to be rewritten
-   around that when Phase 9 starts.
-2. Which WC3 version does a saved map target: the one it was loaded as, or
-   a chosen one? (Asked 2026-09-26.)
+*(2026-09-30, first part: 911a)*
+
+**Writing WC3's own formats back** is done in issue 911a:
+- terrain, doodads and placed units, written back byte for byte on the test maps;
+- copies saved in place in the map's own archive, protected maps included.
+
+**The editor saves through it:** `E:save`, in `src/editor/save.lua`, writes a map's changed files into a copy. That covers terrain, the pathing map under changed ground, doodads, placed units and the script. DAoW 5.4b saves in well under a second.
+
+**The unified project format isn't started:** mode-specific data, validation and lightweight export.
+
+*(2026-09-30, second part: 911b)*
+
+**New maps from scratch** (sub-issue 911b):
+- `editor/new_map.lua` makes a new map, from Lua or the command line: map info, ground, pathing, shadows, doodads, a generated script (melee or custom), and a new archive with its header.
+- `w3i.write` round-trips every test map byte for byte.
+- `MeleeStartingUnits` now works.
+- The lobby plays only the slots the map lists.
+
+**Still open:**
+- The unified project format.
+- Checking `war3mapUnits.doo`'s record layout against a map with placed units.
+
+*(2026-09-30, third part: 911c)*
+
+**The unified format** (sub-issue 911c): `editor/mapfile.lua`.
+- A map becomes a project folder (or one `.wex` file). Its data is text where it can be: map info, terrain rows, doodads, units, regions, object types, scripts.
+- Assets, other files and unnamed files are kept as they are, and the archive's hash table is kept too.
+- Building gives back a map that finds every file, named or not, where it did.
+- Lightweight projects, validation, and the WoW layer reserved (left out of a WC3 build).
+- The editor opens and saves projects.
+- Checks passed:
+  - Unified format saves all map data.
+  - Unified format loads correctly.
+  - WC3 import converts to the unified format.
+  - Validation reports export issues.
+  - Lightweight export excludes assets.
+  - The format is version-control friendly.
+- **Still open:** mode-specific data, since there's no WoW layer yet.

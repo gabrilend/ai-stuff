@@ -24,6 +24,7 @@ local is_global
 local collect_declarations
 local transpile_declaration
 local transpile_globals
+local expr_type
 local transpile_function
 local transpile_statement
 local transpile_expr
@@ -287,6 +288,17 @@ local function create_context(options)
         native_registry = options.native_registry or init_builtin_natives(),
         use_runtime_prefix = options.use_runtime_prefix ~= false,  -- Default true
 
+        -- scope = "env" (issue 520): globals and functions become fields of
+        -- the chunk's environment instead of Lua locals (a Lua function may
+        -- hold only 200 locals; map scripts declare thousands), calls to
+        -- anything the script doesn't define resolve through that
+        -- environment, and + / and arrays follow JASS's types
+        scope = options.scope or "local",
+        native_types = options.native_types or {},   -- name -> return type
+        global_types = options.global_types or {},   -- outside globals (Blizzard.j's) -> type
+        local_types = {},     -- name -> JASS type, current function
+        unknown_ops = 0,      -- + or / left to a runtime check (no types)
+
         -- Current state during generation
         current_func = nil,   -- Name of function being transpiled (for local scoping)
         current_locals = {},  -- Local variable names in current function
@@ -472,6 +484,29 @@ local function default_value(var_type)
 end
 -- }}}
 
+-- {{{ lua_name
+-- JASS names that are Lua keywords (do, in, for, repeat, until, goto,
+-- while, ...) get a trailing underscore (issue 520)
+local LUA_KEYWORDS = {}
+for w in ("and break do else elseif end false for function goto if in local nil not or repeat return then true until while"):gmatch("%a+") do
+    LUA_KEYWORDS[w] = true
+end
+local function lua_name(name)
+    if name and LUA_KEYWORDS[name] then return name .. "_" end
+    return name
+end
+-- }}}
+
+-- {{{ array_init
+-- A JASS array reads as its type's default until set (env scope)
+local function array_init(ctx, var_type)
+    if ctx.scope == "env" then
+        return string.format("__jass.array(%s)", default_value(var_type))
+    end
+    return "{}"
+end
+-- }}}
+
 -- {{{ collect_declarations
 -- First pass: scan all declarations to build symbol tables.
 -- This allows forward references to work correctly in the generation pass.
@@ -523,19 +558,21 @@ transpile_globals = function(ctx, node)
     for _, var in ipairs(node.declarations or {}) do
         local decl
 
+        local lead = ctx.scope == "env" and "" or "local "
+        local name = lua_name(var.name)
         if var.is_array then
-            -- Arrays become empty tables
-            decl = string.format("local %s = {}", var.name)
+            -- Arrays become tables
+            decl = string.format("%s%s = %s", lead, name, array_init(ctx, var.var_type))
 
         elseif var.initializer then
             -- Variable with explicit initializer
             local init_value = transpile_expr(ctx, var.initializer)
-            decl = string.format("local %s = %s", var.name, init_value)
+            decl = string.format("%s%s = %s", lead, name, init_value)
 
         else
             -- Variable without initializer - use type default
             local def = default_value(var.var_type)
-            decl = string.format("local %s = %s", var.name, def)
+            decl = string.format("%s%s = %s", lead, name, def)
         end
 
         -- Add constant annotation if applicable
@@ -555,25 +592,27 @@ end
 local function transpile_local_decl(ctx, node)
     local decl
 
+    local name = lua_name(node.name)
     if node.is_array then
-        -- Local arrays become empty tables
-        decl = string.format("local %s = {}", node.name)
+        -- Local arrays become tables
+        decl = string.format("local %s = %s", name, array_init(ctx, node.var_type))
 
     elseif node.initializer then
         -- Local with explicit initializer
         local init_value = transpile_expr(ctx, node.initializer)
-        decl = string.format("local %s = %s", node.name, init_value)
+        decl = string.format("local %s = %s", name, init_value)
 
     else
         -- Local without initializer - use type default
         local def = default_value(node.var_type)
-        decl = string.format("local %s = %s", node.name, def)
+        decl = string.format("local %s = %s", name, def)
     end
 
     emit(ctx, decl)
 
     -- Track local for scoping
     ctx.current_locals[node.name] = true
+    ctx.local_types[node.name] = node.var_type
 end
 -- }}}
 
@@ -585,15 +624,17 @@ transpile_function = function(ctx, node)
     -- Track current function for context
     ctx.current_func = node.name
     ctx.current_locals = {}
+    ctx.local_types = {}
 
     -- Build parameter list (skip 'nothing' type parameters)
     local params = {}
     if node.params then
         for _, p in ipairs(node.params) do
             if p.type ~= "nothing" then
-                params[#params + 1] = p.name
+                params[#params + 1] = lua_name(p.name)
                 -- Parameters are also locals
                 ctx.current_locals[p.name] = true
+                ctx.local_types[p.name] = p.type
             end
         end
     end
@@ -601,7 +642,8 @@ transpile_function = function(ctx, node)
     local param_str = table.concat(params, ", ")
 
     -- Emit function signature
-    emit(ctx, string.format("local function %s(%s)", node.name, param_str))
+    emit(ctx, string.format(ctx.scope == "env" and "function %s(%s)" or "local function %s(%s)",
+        lua_name(node.name), param_str))
     indent(ctx)
 
     -- Emit local declarations first (JASS requires locals before statements)
@@ -645,7 +687,7 @@ local transpile_return
 -- @param ctx Transpiler context
 -- @param node SET_STMT AST node
 transpile_set = function(ctx, node)
-    local target = node.name  -- Variable name
+    local target = lua_name(node.name)  -- Variable name
 
     if node.index then
         -- Array assignment: set arr[i] = value
@@ -677,12 +719,12 @@ transpile_call = function(ctx, node)
     local args_str = table.concat(args, ", ")
 
     -- Check if this is a native function call
-    if is_native(ctx, func_name) then
+    if ctx.scope ~= "env" and is_native(ctx, func_name) then
         -- Native calls go through runtime
         emit(ctx, string.format("runtime.%s(%s)", func_name, args_str))
     else
-        -- User-defined function call
-        emit(ctx, string.format("%s(%s)", func_name, args_str))
+        -- User-defined function call (and, in env scope, every call)
+        emit(ctx, string.format("%s(%s)", lua_name(func_name), args_str))
     end
 end
 -- }}}
@@ -778,13 +820,17 @@ end
 -- @param ctx Transpiler context
 -- @param node RETURN_STMT AST node
 transpile_return = function(ctx, node)
+    -- JASS allows statements after a return; Lua wants a return last in
+    -- its block, so env scope wraps it: do return x end (issue 520)
+    local open, close = "", ""
+    if ctx.scope == "env" then open, close = "do ", " end" end
     if node.value then
         -- Return with value
         local value_expr = transpile_expr(ctx, node.value)
-        emit(ctx, string.format("return %s", value_expr))
+        emit(ctx, string.format("%sreturn %s%s", open, value_expr, close))
     else
         -- Return without value (from "returns nothing" function)
-        emit(ctx, "return")
+        emit(ctx, open .. "return" .. close)
     end
 end
 -- }}}
@@ -870,12 +916,64 @@ local function escape_string(str)
 end
 -- }}}
 
+-- {{{ expr_type
+-- The JASS type of an expression, where it can be known: literals,
+-- variables (globals, locals, parameters), calls to the script's own
+-- functions and natives whose return types are known, arithmetic of known
+-- operands. nil when unknown.
+local NUMERIC = { integer = true, real = true }
+expr_type = function(ctx, node)
+    if not node then return nil end
+    local t = node.type
+    if t == "LITERAL" then
+        local lt = node.literal_type
+        if lt == "rawcode" or lt == "fourcc" then return "integer" end
+        if lt == "null" then return "handle" end
+        return lt
+    elseif t == "IDENTIFIER" then
+        local n = node.name
+        if ctx.local_types[n] then return ctx.local_types[n] end
+        local g = ctx.globals[n]
+        return g and g.var_type or ctx.global_types[n]
+    elseif t == "ARRAY_ACCESS" then
+        local n = node.array and node.array.name
+        if n and ctx.local_types[n] then return ctx.local_types[n] end
+        local g = n and ctx.globals[n]
+        return g and g.var_type or (n and ctx.global_types[n])
+    elseif t == "CALL_EXPR" then
+        local n = node.callee and node.callee.name
+        local f = n and (ctx.functions[n] or ctx.natives[n])
+        if f then return f.return_type end
+        return n and ctx.native_types[n] or nil
+    elseif t == "UNARY_EXPR" then
+        if node.operator == "not" then return "boolean" end
+        return expr_type(ctx, node.operand)
+    elseif t == "BINARY_EXPR" then
+        local op = node.operator
+        if op == "and" or op == "or" or op == "==" or op == "!=" or op == "<" or op == "<="
+            or op == ">" or op == ">=" then
+            return "boolean"
+        end
+        local lt, rt = expr_type(ctx, node.left), expr_type(ctx, node.right)
+        if op == "+" and (lt == "string" or rt == "string") then return "string" end
+        if NUMERIC[lt] and NUMERIC[rt] then
+            return (lt == "real" or rt == "real") and "real" or "integer"
+        end
+        return nil
+    end
+    return nil
+end
+-- }}}
+
 -- {{{ fourcc_to_int
 -- Convert a 4-character FourCC code to its integer value.
 -- WC3 uses big-endian byte order: 'hfoo' = (h << 24) | (f << 16) | (o << 8) | o
 -- @param str 4-character string
 -- @return Integer value
 local function fourcc_to_int(str)
+    if str and #str == 1 then
+        return str:byte(1)   -- 'd' is 100 (issue 520)
+    end
     if not str or #str ~= 4 then
         return 0
     end
@@ -924,7 +1022,12 @@ transpile_literal = function(ctx, node)
     local value = node.value
 
     if lit_type == "integer" then
-        return tostring(value)
+        -- JASS writes hex as $FF or 0xFF, octal with a leading 0 (issue 520)
+        local v = tostring(value)
+        if v:match("^%$%x+$") then return tostring(tonumber(v:sub(2), 16)) end
+        if v:match("^0[xX]%x+$") then return tostring(tonumber(v:sub(3), 16)) end
+        if v:match("^0[0-7]+$") then return tostring(tonumber(v, 8)) end
+        return v
 
     elseif lit_type == "real" then
         -- Ensure real numbers have decimal point
@@ -969,6 +1072,27 @@ transpile_binary = function(ctx, node)
     if not lua_op then
         add_error(ctx, "Unknown operator: " .. tostring(op), node)
         lua_op = op  -- Use as-is
+    end
+
+    if ctx.scope == "env" and (op == "+" or op == "/") then
+        -- by JASS's types: + joins strings or adds numbers; / between two
+        -- integers truncates toward zero. Unknown types: a runtime check
+        -- for +, plain division for /
+        local lt, rt = expr_type(ctx, node.left), expr_type(ctx, node.right)
+        if op == "+" then
+            if lt == "string" or rt == "string" then
+                return string.format("(%s .. %s)", left, right)
+            elseif lt and rt then
+                return string.format("(%s + %s)", left, right)
+            end
+            ctx.unknown_ops = ctx.unknown_ops + 1
+            return string.format("__jass.add(%s, %s)", left, right)
+        end
+        if lt == "integer" and rt == "integer" then
+            return string.format("__jass.idiv(%s, %s)", left, right)
+        end
+        if not (lt and rt) then ctx.unknown_ops = ctx.unknown_ops + 1 end
+        return string.format("(%s / %s)", left, right)
     end
 
     -- Handle string concatenation special case
@@ -1023,11 +1147,12 @@ transpile_call_expr = function(ctx, node)
 
     local args_str = table.concat(args, ", ")
 
-    -- Check if native function (prefix with runtime.)
-    if is_native(ctx, func_name) then
+    -- Check if native function (prefix with runtime.); in env scope every
+    -- name resolves through the environment, natives included
+    if ctx.scope ~= "env" and is_native(ctx, func_name) then
         return string.format("runtime.%s(%s)", func_name, args_str)
     else
-        return string.format("%s(%s)", func_name, args_str)
+        return string.format("%s(%s)", lua_name(func_name), args_str)
     end
 end
 -- }}}
@@ -1041,7 +1166,7 @@ transpile_array_access = function(ctx, node)
     -- Array is an expression (usually IDENTIFIER)
     local array
     if node.array and node.array.type == "IDENTIFIER" then
-        array = node.array.name
+        array = lua_name(node.array.name)
     else
         array = transpile_expr(ctx, node.array)
     end
@@ -1067,7 +1192,7 @@ transpile_expr = function(ctx, node)
         return transpile_literal(ctx, node)
 
     elseif node.type == "IDENTIFIER" then
-        return node.name
+        return lua_name(node.name)
 
     elseif node.type == "BINARY_EXPR" then
         return transpile_binary(ctx, node)
@@ -1083,7 +1208,7 @@ transpile_expr = function(ctx, node)
 
     elseif node.type == "FUNCTION_REF" then
         -- Function reference: just the function name (first-class function)
-        return node.name
+        return lua_name(node.name)
 
     else
         add_error(ctx, "Unknown expression type: " .. tostring(node.type), node)
@@ -1167,7 +1292,7 @@ local function transpile(ast, options)
     -- Join output lines
     local output = table.concat(ctx.output, "\n")
 
-    return output, ctx.errors
+    return output, ctx.errors, { unknown_ops = ctx.unknown_ops }
 end
 -- }}}
 

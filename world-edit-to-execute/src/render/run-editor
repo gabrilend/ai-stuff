@@ -1,0 +1,34 @@
+#!/bin/bash
+# The map editor (Issue 901): build the scene viewer and open a map for
+# editing. Saving writes <map>-edited.w3x beside it (EDITOR_OUT to choose);
+# F5 plays the edited copy in the game with the same viewer.
+#
+# Usage: src/render/run-editor [MAP] [PROJECT_ROOT]
+#
+# MAP defaults to the project's assets/Daow4.4.w3x. raylib is looked for
+# in RAYLIB_PATH (its src/ folder), else the owner's usual place.
+
+DIR="${2:-$(cd "$(dirname "$0")/../.." && pwd)}"
+MAP="${1:-${DIR}/assets/Daow4.4.w3x}"
+MAP="$(cd "$(dirname "${MAP}")" && pwd)/$(basename "${MAP}")"
+RAYLIB_PATH="${RAYLIB_PATH:-/home/ritz/programming/c/libs/raylib/src}"
+PROJECT_PATH="${DIR}/src/render"
+BIN="$(mktemp -d)/scene_viewer"
+
+LUAJIT_CFLAGS=$(pkg-config --cflags luajit 2>/dev/null || echo "-I/usr/include/luajit-2.1")
+LUAJIT_LIBS=$(pkg-config --libs luajit 2>/dev/null || echo "-lluajit-5.1")
+
+cd "${PROJECT_PATH}" || exit 1
+if ! gcc -Wall -Wextra -O2 -o "${BIN}" \
+        scene_viewer.c geometry.c landscape.c ui2d.c models.c fog.c bridge.c slots.c terrain.c input.c ui.c \
+        -I"${RAYLIB_PATH}" ${LUAJIT_CFLAGS} \
+        -L"${RAYLIB_PATH}" -lraylib ${LUAJIT_LIBS} \
+        -lGL -lm -lpthread -ldl -lrt -lX11; then
+    echo "=== Compilation failed ==="
+    exit 1
+fi
+
+WC3_VIEWER="${BIN}" "${BIN}" "${DIR}" src/editor/main.lua "${MAP}"
+status=$?
+rm -rf "$(dirname "${BIN}")"
+exit ${status}

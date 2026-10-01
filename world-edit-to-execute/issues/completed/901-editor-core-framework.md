@@ -142,14 +142,14 @@ editor.history:redo()  -- Calls move_cmd.execute()
 
 ## Acceptance Criteria
 
-- [ ] Editor window opens with viewport, palette, properties panels
+- [x] Editor window opens with viewport, palette, properties panels
 - [ ] Camera controls work (pan, zoom, rotate)
-- [ ] Tool selection changes cursor and behavior
-- [ ] Undo/redo works for all modifications
-- [ ] Keyboard shortcuts are functional (Ctrl+Z, Ctrl+Y, etc.)
-- [ ] Clipboard operations work (Ctrl+C, Ctrl+V, etc.)
-- [ ] Play-test launches map in engine
-- [ ] Modules can register themselves with editor
+- [x] Tool selection changes cursor and behavior
+- [x] Undo/redo works for all modifications
+- [x] Keyboard shortcuts are functional (Ctrl+Z, Ctrl+Y, etc.)
+- [x] Clipboard operations work (Ctrl+C, Ctrl+V, etc.)
+- [x] Play-test launches map in engine
+- [x] Modules can register themselves with editor
 
 ## Related Documents
 
@@ -164,3 +164,36 @@ editor.history:redo()  -- Calls move_cmd.execute()
 - May want "action grouping" for related changes (e.g., multi-select move)
 - Autosave feature important for editor
 - Consider "preferences" system for user settings
+
+## Implementation Notes
+
+*(2026-09-30)*
+
+**Headless core, `src/editor/init.lua`:** `editor.open(path)` reads the map for editing:
+- terrain;
+- doodads;
+- placed units (war3mapUnits.doo, when the map has one);
+- the units its script makes with literal CreateUnit calls (DAoW's protected script places its 4,378 so);
+- the pathing map.
+
+It keeps the tool, brush, selection, clipboard, messages and the modules that `E:register(name, module)` adds. Nothing in it draws.
+
+**Other parts:**
+- **Undo and redo:** `src/editor/history.lua`. Commands, grouped steps (`begin` / `finish`), a depth limit.
+- **Interface:** `src/editor/ui.lua`, kept apart from the window so tests drive it.
+  - **Layout:** a toolbar (13 tools, Undo, Redo, Save, Test), a palette for the tool in hand, a properties panel for the selection and a status line.
+  - **Mouse:** strokes while the button is held; click, Shift-click and box selection; dragging moves.
+  - **Keys:** Ctrl+Z/Y/C/V/S, Delete, F5, Esc, 1-9.
+- **Window:** `src/editor/main.lua`, run by `src/render/run-editor [MAP]`.
+  - **Ground:** drawn from the terrain being edited and rebuilt after changes (every 0.4 s during a stroke).
+  - **Objects:** drawn with the geometry designs, baked in 2048-unit blocks; only the blocks whose objects changed are baked again.
+  - **Opening:** Daow 4.4 opens in 0.7 s.
+- **Play-testing:** `E:playtest` saves a copy and plays it in the game viewer; run-editor passes the viewer on as WC3_VIEWER. Checked headless: DAoW with a water pool and six knights placed plays, with the pool in the base and food 63 → 69.
+
+**Tests:** test_editor (64), including the interface driven with a fake pointer.
+
+**Not done:**
+- **Camera:** it's the viewer's (pan and zoom); there's no rotation.
+- **Also missing:** autosave, configurable shortcuts, a preferences file.
+- **Objects:** drawn with the designs, not models.
+- **Ground:** drawn in colours; there's no ground texture view while editing.

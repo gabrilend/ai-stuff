@@ -1,0 +1,171 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+    },
+    "_meta": {
+      "title": "checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "hand painted fantasy armour texture, worn steel and leather, rich colour",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, text, watermark, signature, frame, border",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "negative prompt"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "wete-texture.png"
+    },
+    "_meta": {
+      "title": "texture (exported)"
+    }
+  },
+  "5": {
+    "class_type": "Canny",
+    "inputs": {
+      "low_threshold": 0.29999999999999999,
+      "high_threshold": 0.69999999999999996,
+      "image": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "its outlines"
+    }
+  },
+  "6": {
+    "class_type": "ControlNetLoader",
+    "inputs": {
+      "control_net_name": "control_v11p_sd15_canny.pth"
+    },
+    "_meta": {
+      "title": "canny controlnet"
+    }
+  },
+  "7": {
+    "class_type": "ControlNetApplyAdvanced",
+    "inputs": {
+      "strength": 0.90000000000000002,
+      "start_percent": 0,
+      "end_percent": 1,
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "control_net": [
+        "6",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "hold the outlines"
+    }
+  },
+  "8": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "encode"
+    }
+  },
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 5222,
+      "steps": 26,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.65000000000000002,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "7",
+        0
+      ],
+      "negative": [
+        "7",
+        1
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "sampler"
+    }
+  },
+  "10": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "9",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "decode"
+    }
+  },
+  "11": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "wete/textures/restyled-lines",
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "save"
+    }
+  }
+}
