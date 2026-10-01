@@ -148,6 +148,7 @@ local function main()
 
     gate.refuse_unless_token(json, TOKEN,
         "Plain git commit is not used here: " .. problem .. ". Commit with commit-own-changes <repo> -F - (message on standard input), which builds the commit from this session's own lines on a private staging list and never touches the shared one; run stage-own-changes <repo> first to preview what it would take."
+        .. " If the work was left uncommitted by a session that has ended (a reboot empties every edit ledger), take ownership of it first with adopt-left-behind-changes <repo> -- <path>..., which claims every changed line no live session holds, then commit it the same way."
         .. " If the user genuinely wants this git commit as it stands, ask them to type: ! touch " .. TOKEN)
 end
 -- }}}

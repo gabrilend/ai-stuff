@@ -14,8 +14,9 @@
 # Three gates are covered here: the working-directory gate, the relative-
 # reference gate, and the commit gate (which turns every recording git commit
 # away toward commit-own-changes). The ledger and the commit route need
-# scratch repositories and live in tests/test-own-lines.sh and
-# tests/test-commit-own-changes.sh, which this script runs at the end. The
+# scratch repositories and live in tests/test-own-lines.sh,
+# tests/test-commit-own-changes.sh and tests/test-adopt-left-behind.sh (taking
+# over work a finished session left), which this script runs at the end. The
 # shell-word reader all of them share is tested by
 # tests/test_shell-command-scan.lua, also run at the end.
 #
@@ -393,6 +394,12 @@ if bash "${DIR}/tests/test-commit-own-changes.sh" "${DIR}" > "${SCRATCH}/commit-
 else
     cat "${SCRATCH}/commit-own.log"
     check "tests/test-commit-own-changes.sh passes" no
+fi
+if bash "${DIR}/tests/test-adopt-left-behind.sh" "${DIR}" > "${SCRATCH}/adopt.log" 2>&1; then
+    check "tests/test-adopt-left-behind.sh passes ($(tail -1 "${SCRATCH}/adopt.log"))" yes
+else
+    cat "${SCRATCH}/adopt.log"
+    check "tests/test-adopt-left-behind.sh passes" no
 fi
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"

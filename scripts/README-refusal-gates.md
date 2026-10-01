@@ -15,6 +15,7 @@ machine, in every project**.
 | `commit-own-changes <repo> -F -` | command | commits only this session's lines, built on a private staging list | — |
 | `stage-own-changes [repo]` | command | previews what `commit-own-changes` would commit; writes nothing | — |
 | `claim-own-change <file>...` | command | claims whole files the ledger could not see being written | — |
+| `adopt-left-behind-changes <repo> -- <path>...` | command | takes ownership, line by line, of uncommitted work whose session has ended, leaving lines any other ledger holds | — |
 
 `refuse-unscoped-commit`, the commit gate before `refuse-foreign-lines`, is
 retired; see "Why the commit gate changed" below.
@@ -114,6 +115,31 @@ you (not just the line beside it, which is taken apart without asking);
 decide with them (or the user) what that region should say.
 If the lines are **yours but came from a shell command the ledger did not
 see**, claim the file out loud (`claim-own-change <file>`) and try again.
+
+### Work a finished session left behind
+
+Ledgers live in RAM, one per session. Work a session wrote and never
+committed has no owner once that session is gone: a new session has a new
+id, and a reboot empties every ledger. On 2026-09-29 a session asked to
+commit such a backlog found no route but the token, and the plain commit that
+followed carried a rename somebody else had staged (issue 032b).
+
+The gates guard against colliding with somebody who is still working, and
+lines whose author has left have nobody to collide with. So a session takes
+them over out loud:
+
+```
+adopt-left-behind-changes <repo> -- <path>...       # --dry-run to look first
+commit-own-changes <repo> -F - -- <path>...
+```
+
+It writes every changed line under the paths into this session's ledger,
+except lines another session's ledger still claims. Those are **held**, and
+reported with the session's id and when its ledger was last written. If that
+session has ended but its ledger survived, `--from <session>` takes its lines
+too. Adoption works line by line, unlike `claim-own-change`, so a live
+session's lines in the same file stay out. A person's own uncommitted hand
+edits have no ledger, so they count as left behind; name the scope with care.
 
 ### Why the commit gate changed
 
