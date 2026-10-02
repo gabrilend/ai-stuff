@@ -4,7 +4,8 @@
 **Priority**: Low
 **Created**: 2026-10-01
 **Type**: New tool, run as a git hook; first used by `double-diaper-dungeon`
-**Related**: `060-readme-gallery-of-interacting-shapes.md` (makes the gifs);
+**Related**: `060-readme-gallery-of-interacting-shapes.md` (makes the gifs,
+and is moving into `gif-generator` under its issue 701);
 `062-gif-viewer-window.md`; `double-diaper-dungeon` issue 10-003 (the
 transcript renderer that will draw them); `neocities-modernization` (whose
 embedding pipeline is the model for the matching)
@@ -14,8 +15,8 @@ embedding pipeline is the model for the matching)
 ## Why this exists
 
 Every message in a published conversation gets a small animated picture beside
-it, like a profile picture: on the left for the person, on the right, turned
-upside down, for the assistant. Which picture goes with which message is
+it, like a profile picture: on the left for the person, on the right, mirrored
+left to right, for the assistant. Which picture goes with which message is
 decided once, by what the message says, and never changes. In her words:
 
 > can you look at /home/ritz/pictures/shape-gifs/ and build a system that, for
@@ -85,7 +86,8 @@ configuration; the tool itself carries no gifs.
 
 **Drawing them** is the renderer's job, not this tool's: a small square at the
 side of each turn, the person's on the left and the assistant's on the right
-turned 180 degrees with CSS (`transform: rotate(180deg)`), no re-encoding. Each
+mirrored left to right with CSS (`transform: scaleX(-1)`), so the two face
+each other across the conversation, with no re-encoding. Each
 gif is linked at full size from one address, so a reader's browser downloads it
 once and reuses it from cache for every message that shows it.
 
@@ -107,8 +109,8 @@ once and reuses it from cache for every message that shows it.
 
 ## Open questions
 
-1. "Flipped 180 degrees": turned upside down (rotated), or mirrored left to
-   right? They look different for most of these films.
+1. **"Flipped 180 degrees": upside down, or mirrored? — ANSWERED. Mirrored
+   left to right.** Her words: *"mirrored left-to-right."*
 2. Should the same gif be allowed beside two messages in a row, or should the
    matcher take the next-closest to keep neighbours different?
 3. Where does the description cache live: beside the gifs, so every project

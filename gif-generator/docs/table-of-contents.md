@@ -15,6 +15,10 @@
 6. **The listening porch** — prose files translated to scene scripts
    by small local models (llama.cpp cluster), grammar-constrained to
    the vocabulary, three readings offered, the person picks.
+7. **One canvas, two spaces** — the shape films and their viewer brought
+   home from delta-version; a closed 3D vocabulary in world space beside
+   the 2D one in screen space, painted onto one canvas; one encoder, one
+   decoder, one palette; every film kept and rated; one skill for using it.
 
 ## Documents
 
@@ -32,7 +36,7 @@ docs/
 ├── table-of-contents.md .. this file
 ├── architecture.md ....... the six-stage pipeline and the design
 │                           decisions that shape it
-├── roadmap.md ............ the five phases and their issues
+├── roadmap.md ............ the seven phases and their issues
 ├── score-format.md ....... the language's contract: every word a
 │                           score may speak, and what each means
 ├── datapath-scene-script.md
