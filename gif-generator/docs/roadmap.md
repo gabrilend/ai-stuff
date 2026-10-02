@@ -87,3 +87,27 @@ in, and the gesture comes out.
 
 Issues: 601 prose-to-scene translator · 602 three readings ·
 603 spoken-vision demo (capstone).
+
+## Phase 7 — One canvas, two spaces
+
+The house's art tools had grown apart: this studio painted 2D light, a
+second studio in delta-version filmed 3D shapes using this one's encoder
+and palette by a borrowed path, a viewer beside it held the only complete
+GIF decoder, and a skill described studios in general. She asked for one:
+*"The gif generator should be able to generate 2d images using it's limited
+vocabulary, and the 3d shape generation should be describable in an
+expanded 3d vocabulary. We should be able to paint both onto the same
+canvas, with 2d using screen-space coordinates and 3d using world-space
+coordinates."* The shape films and the viewer move here with their history;
+the 3D words become a closed language with the same wall; a score holds
+both, the 3D layer drawn through its camera, the 2D layer as light behind
+or over it, composed into one frame and one palette; one encoder, one
+decoder; every film carries a rated card; one skill says how to use it.
+Proven by the six approved films re-filming byte-identical at every step,
+and by a mixed scene where a stroke of light follows a shape through the
+world.
+
+Issues: 701 one studio, one canvas, two spaces, in parts: 701a bring the
+shape films home · 701b one reader, one writer · 701c the 3D vocabulary ·
+701d one canvas, two spaces · 701e every film kept and rated · 701f the
+studio skill · 701g two spaces demo (capstone).
