@@ -39,5 +39,28 @@ house-owned shared encoder as "your own", unlike a third party's.
 
 ## Open Questions
 
-1. A new skill beside `canvas-and-paintbrush`, or `canvas-and-paintbrush`
-   rewritten into this studio's manual? (Same as 701's first question.)
+1. **A new skill, or canvas-and-paintbrush rewritten into this studio's
+   manual?** She leans rewritten. What it would change:
+
+   **Gained by rewriting**
+   - One skill instead of two, so an assistant asked to "make a gif" or
+     "build a studio" lands in one place and never reads two that disagree.
+   - Every example becomes a real score this studio renders and its tests
+     check, instead of advice about an imagined one.
+   - The real file names replace "a tool like the gif generator".
+
+   **Lost by rewriting, unless kept as a section**
+   - The general recipe for building a *different* studio: one that makes
+     sound (.wav), vector pictures (.svg) or tiles. Three projects read it
+     for exactly that: `burner-of-down-things` (its studio datapath),
+     `supcom-derivative-clone` (issue 610, a tileset raised by a tool) and
+     `kanji-learning-image-generator`, which built the pool from it. A manual
+     for this studio would not tell them how to build theirs.
+   - The skill's trigger: it is found today by "make it output something I
+     can look at" or "build me a tool like the gif generator but for this".
+     A manual triggers on "make a gif".
+
+   **The middle way**: rewrite it as this studio's manual, and keep the
+   general recipe as its closing part, "building a studio of your own", with
+   this studio as the worked example all the way through. That keeps the
+   three projects' reading and gains everything above.

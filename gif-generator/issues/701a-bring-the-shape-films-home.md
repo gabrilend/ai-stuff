@@ -50,6 +50,11 @@ gives byte-identical files, and every test that passed before passes after.
    issues and docs.
 5. Re-run both test suites and re-film the six; compare against step 1.
 6. Leave a short note in `delta-version/scripts/` saying where they went.
+7. Bring their issues too: `delta-version` issues 060 (the shape films) and
+   062 (the viewer) move here with `git mv`, renamed into this project's
+   numbering as completed or open phase 7 work as their state says, and every
+   reference to them is updated. Issue 064 does not come: it went to
+   `double-diaper-dungeon` as 10-007 (see 701, question 2).
 
 ## Open Questions
 

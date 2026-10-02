@@ -30,6 +30,10 @@ with the house's source companions.
 
 ## Suggested Implementation Steps
 
+0. Read `kanji-learning-image-generator`'s pool first (`045` to `048`): it
+   is the house's one built example, and she asked that this process learn
+   from it while kanji stays separate (701, question 3). Note what to keep
+   and what to do differently, starting with its `.info.md` card suffix.
 1. Settle the card suffix (`.card`), and the card's fields.
 2. Write cards for the 34, with the six at tier five.
 3. Add the rating keys to the viewer, appending only.

@@ -1,6 +1,9 @@
 # Issue 064: A Gif Beside Every Message
 
-**Status**: Open
+**Status**: Moved, 2026-10-01, to `double-diaper-dungeon` issue 10-007
+(`issues/10-007-a-gif-beside-every-message.md`), where the work will be
+done. Kept here as written, because issues are added to and never
+deleted.
 **Priority**: Low
 **Created**: 2026-10-01
 **Type**: New tool, run as a git hook; first used by `double-diaper-dungeon`

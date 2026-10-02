@@ -105,10 +105,22 @@ fingerprints quietly.
 
 ## Open Questions
 
-1. The skill: a new "how to use the studio" skill beside canvas-and-paintbrush
-   (which stays as the general recipe, pointing here as its worked example),
-   or canvas-and-paintbrush rewritten into this studio's manual?
-2. Do `delta-version` issues 060 and 062 move here too (renumbered into this
-   project's phases), or stay where they were written with a pointer here?
-3. `kanji-learning-image-generator` has its own encoder and pool. Does it join
-   (taking this project's encoder as a checked copy), or stay separate?
+1. **The skill: a new one, or canvas-and-paintbrush rewritten?** She leans
+   rewritten. What each costs is in 701f; still to be settled.
+2. **Do the films' and viewer's issues move? — ANSWERED. Yes; the gif
+   beside every message does not.** Her words:
+
+   > Probably move if they're related to the gif-generator. I think using the
+   > gifs on the transcript website (what we're working on) should probably
+   > be project specific. Maybe that means it goes into the skill file? Nah
+   > it should go on the website's project, which is this one actually!
+
+   So `delta-version` issues 060 (the shape films) and 062 (the viewer) come
+   here with the code, in 701a. Issue 064 (a gif beside every message) goes
+   to `double-diaper-dungeon`, whose website draws the transcripts, as its
+   issue 10-007; 064 stays where it was written with a note saying so,
+   because issues are added to and never deleted.
+3. **Does kanji join? — ANSWERED. Separate for now, and learned from.** Her
+   words: *"separate for now, but we can learn from it for this process."*
+   Its pool, tiers and cards (`045` to `048`) are the worked example 701e
+   reads before building, and its encoder stays its own.
