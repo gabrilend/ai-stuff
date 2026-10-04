@@ -76,3 +76,18 @@ no `/` or `:`), checked against the game's pages for equality.
 4. Tests: a page with films, without, with a contents list, with harness
    lines; a commit line gets its id; the stylesheet has no contents rules on
    a page with no contents.
+
+## Added 2026-10-04: her quoted lines are a quieter green
+
+Asked for after she read the pages:
+
+> Can we change the quoted parts of the user's message to have a slightly
+> different font color? Maybe slightly closer to dark-gray, but still green?
+
+The lines she quotes back (a `>` line in her message, drawn as a blockquote)
+wore the same green as her own words, so a reader could not tell at a glance
+which words were hers and which she was pointing at. They are now her green
+mixed 60 to 40 with a dark gray (`#555555`), through CSS `color-mix`, so the
+quote follows the palette if her green is ever tuned. The rule sits beside
+the one that colours her words, in `STYLE_TOP`; the assistant's quotes are
+left as they were. Checked by a test that the rule is in every page's sheet.

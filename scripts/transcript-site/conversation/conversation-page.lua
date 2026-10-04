@@ -363,6 +363,10 @@ blockquote {
 /* WHAT SHE SAID IS GREEN, AND SITS ON THE LEFT. */
 .said { border-left: 2px solid var(--dexterity); padding-left: 1rem; }
 .said .what { color: var(--dexterity); }
+/* The lines she quotes back are her green, quieter: mixed 60 to 40 with a
+   dark gray, so her own words and the words she is pointing at read apart.
+   Her request, 2026-10-04: "slightly closer to dark-gray, but still green". */
+.said .what blockquote { color: color-mix(in srgb, var(--dexterity) 60%, #555555); }
 
 /* THE REPLY SITS ON THE RIGHT -- AS A BLOCK, NOT AS RAGGED TEXT.
    text-align: right would give every line a different left edge, which is

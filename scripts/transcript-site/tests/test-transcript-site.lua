@@ -344,6 +344,8 @@ check("no films: no film", unfilmed:find('class="film"', 1, true) == nil, true)
 check("a page with no Contents list carries none of its rules", unfilmed:find(".contents {", 1, true) == nil, true)
 check("a page with no harness turn carries none of its rules", unfilmed:find(".harness {", 1, true) == nil, true)
 check("a page with a Contents list carries its rules", html:find(".contents {", 1, true) ~= nil, true)
+check("her quoted lines are a quieter green, on every page",
+  unfilmed:find(".said .what blockquote { color: color-mix(in srgb, var(--dexterity) 60%, #555555); }", 1, true) ~= nil, true)
 check("no colours is refused, not drawn black on black",
   pcall(page.render, with_commit, {}), false)
 
