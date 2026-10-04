@@ -27,6 +27,22 @@ describe functionality as it stood several phases ago, not as it is now.
   head -20` followed by `[...output truncated...]` gesture at functionality
   rather than demonstrate a verifiable result. (Also note: `lua` is invoked
   where the project standard is `luajit`.)
+- **Demos that point at deleted code** (found 2026-10-04 by
+  `scripts/audit-orphan-files`). The golden-prioritization template system was
+  deleted (commit afae1dced), but two demos still depend on it:
+  - `demos/3-demo.sh` checks for `src/html-generator/golden-collection-generator.lua`
+    and `src/html-generator/template-engine.lua`, finds neither, prints
+    "⚠️ Component not found" and carries on -- a warning shown as part of the
+    deliverable. It then describes features (responsive CSS, clean
+    `poems/category/poem-001.html` URLs) the site does not have.
+  - `demos/generate-site.lua` requires `src.html-generator.golden-collection-generator`
+    and stops with a module-not-found error before doing anything.
+  - Of `src/html-generator/` only four files remain; `url-manager.lua` is used by
+    nothing but demo 3, and `embedding-list-generator.lua` and
+    `golden-poem-indicators.lua` by nothing but a test or nothing at all.
+    Rewriting demo 3 around the generator that actually builds the site
+    (`src/flat-html-generator.lua`) is what frees those three to be retired
+    under 10-060.
 
 ## Intended Behavior
 

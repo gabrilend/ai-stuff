@@ -55,6 +55,8 @@ The directory `src/html-generator/` contains 16 files (template engine, golden-c
 
 This is a parallel HTML-generation experiment that was superseded by the flat-html-generator path. It still works (the demos use it), but it adds confusion to the source tree because its name suggests it is the production generator.
 
+**Update 2026-10-04:** most of the directory is already gone -- the golden-prioritization template system was deleted (commit afae1dced), taking the template engine and golden-collection generator with it. Four files remain (`golden-poem-indicators.lua`, `embedding-list-generator.lua` and its test, `url-manager.lua`). The demos were not updated: `demos/3-demo.sh` now warns "Component not found" and `demos/generate-site.lua` cannot start (recorded in 10-056). `scripts/audit-orphan-files` lists what is left; the disposition is tracked in 10-060.
+
 ### Four orphaned generator modules sit inside `src/`
 
 Four files in `src/` have zero incoming imports from any driver script:

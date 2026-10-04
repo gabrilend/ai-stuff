@@ -3,14 +3,40 @@
 ## Neocities Poetry Modernization Project
 
 This document provides a hierarchical view of all project documentation.
+`scripts/check-table-of-contents` reports any path below that no longer exists
+and any file in `docs/` or `notes/` that is not listed here.
 
 ### 📖 Core Documentation
 - `/docs/project-overview.md` - Complete project overview and technical specifications
 - `/docs/roadmap.md` - Project phases and milestone tracking
 - `/notes/vision` - Original project vision and requirements
 
-### 🏆 Phase Completion Documentation  
-- `/PHASE-1-COMPLETION-SUMMARY.md` - Phase 1 foundation and data preparation results
+### 🧭 Phases
+Phases group the work by kind of functionality, not by time; a low-numbered
+phase can still have open issues. Each phase's progress file lists its issues
+and what they add up to. Live done/open counts per phase come from
+`/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
+Issue files themselves live in `/issues/` (open) and `/issues/completed/`.
+- `/issues/1-progress.md` - Phase 1: foundation and data preparation
+- `/issues/2-progress.md` - Phase 2: similarity engine development
+- `/issues/3-progress.md` - Phase 3: core HTML generation and golden features
+- `/issues/4-progress.md` - Phase 4: data integrity and infrastructure
+- `/issues/5-progress.md` - Phase 5: flat HTML generation and design consistency
+- `/issues/6-progress.md` - Phase 6: image integration and chronological enhancements
+- `/issues/7-progress.md` - Phase 7: stabilization and polish
+- `/issues/8-progress.md` - Phase 8: website completion
+- `/issues/9-progress.md` - Phase 9: GPU acceleration
+- `/issues/10-progress.md` - Phase 10: developer experience and tooling
+- `/issues/11-progress.md` - Phase 11: advanced exploration
+- `/issues/12-progress.md` - Phase 12: experimental AI features
+- `/issues/13-progress.md` - Phase 13: audio-visual generation from the embedding space
+- `/issues/14-progress.md` - Phase 14: narrative tapestry, from spindle to woven cloth
+- `/issues/15-progress.md` - Phase 15: chromatic encoding, text as colour
+- `/issues/16-progress.md` - Phase 16: network media, Android as source, WiFi as bridge
+- `/issues/17-progress.md` - Phase 17: embedding manipulation and interactive tools
+
+### 🏆 Phase Completion Documentation
+- `/docs/phase-1-completion-summary.md` - Phase 1 foundation and data preparation results
 - `/docs/phase-2-completion-summary.md` - Phase 2 similarity engine development results
 
 ### 🕰️ Process and Reading
@@ -21,12 +47,20 @@ of what the code does is only visible from outside it.
   message timing and silences, the three registers the work is spoken in, and a
   reading of the words that meant two things (the copula that became a
   directory, the dry run that was wet, the bar too wide to reach its own start)
+- `/notes/session-summary-2026-01-12.md` - What one January session built: the
+  hope-card PDF export's first phase and the incremental-centroid design
+- `/notes/ooouuuaaeeem` - A poem: a greenhouse made of questions
+- `/docs/design-audit-report.md` - December 2025 audit of every issue for design consistency
+- `/docs/issue-consolidation-summary.md` - December 2025 consolidation of the issue set
 
 ### 🔧 Technical Guides
-- `/docs/config-reference.md` - Complete reference for config.lua structure and field usage (Issue 10-019)
+- `/docs/config-reference.md` - Every section of config.lua, generated from its own comments, plus how-to recipes
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/words-pdf-integration.md` - Integration guide for words-pdf PDF generation system
 - `/docs/centroids-for-hope-cards.md` - Using centroid system for semantic hope card selection
+- `/docs/hope-card-pdf-export-design.md` - Design of the printable hope-card PDF export (Issue 6-012)
+- `/docs/hope-card-pdf-export-phase-1-report.md` - What the hope-card export's first phase built (Issue 6-012)
+- `/docs/incremental-centroid-updates-design.md` - The unwind-and-recalculate algorithm for adding poems without a full rebuild (Issue 10-009)
 - `/docs/effil-usage-patterns.md` - **Comprehensive guide to effil threading library: usage patterns, antipatterns, and performance characteristics**
 - `/docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis comparing effil threading vs GPU compute shaders for diversity pre-computation
 - `/docs/research-2d-embeddings.md` - Research analysis of dimensionality reduction (768D → 2D) for visualization
@@ -34,152 +68,67 @@ of what the code does is only visible from outside it.
 - `/docs/similarity-algorithms-research-report.md` - Detailed similarity algorithm research with recommendations
 - `/docs/similarity-algorithm-research.md` - Comprehensive research analysis of 12 similarity algorithms for poetry embeddings
 - `/docs/similarity-matrix-generation-guide.md` - Technical documentation for similarity calculations
+- `/docs/delta-guide.md` - Copy of the monorepo's shared-tooling guide for project maintainers (canonical copy lives in delta-version)
+- `/docs/Your URL Is Your State.html` - A saved article, kept as reference
+  - `/docs/Your URL Is Your State_files/` - Its supporting files
 
 ### 🚨 Critical Path Documents
 - `/issues/CRITICAL-PATH-SIMILAR.md` - Critical path for generating similarity-based navigation pages
 - `/issues/CRITICAL-PATH-DIFFERENT.md` - Critical path for generating diversity-based navigation pages
 
-### 📋 Issues and Progress Tracking
-- `/issues/completed/phase-1/` - Completed Phase 1 issues (foundation and data preparation)
-- `/issues/completed/phase-2/` - Completed Phase 2 issues (similarity engine development)
-- `/issues/completed/phase-3/` - Completed Phase 3 issues (core HTML generation & golden features)
-- `/issues/completed/phase-3/` - Completed Phase 3 issues (core HTML generation system)
-  - `/issues/completed/phase-3/001-implement-html-generation-system.md` - Complete HTML generation system (original large issue - sub-issues completed)
-  - `/issues/completed/phase-3/005-implement-enhanced-fediverse-golden-poems-prioritization.md` - Golden poem prioritization system (sub-issues completed)
-  - `/issues/completed/phase-3/progress.md` - Phase 3 completion status and metrics
-- `/issues/completed/phase-4/` - Completed Phase 4 issues (data integrity & infrastructure improvements)
-  - `/issues/completed/phase-4/002-implement-per-model-similarity-matrix-generation.md` - Per-model similarity matrix generation
-  - `/issues/completed/phase-4/003-fix-character-counting-methodology-for-fediverse-golden-poems.md` - Fixed character counting for golden poems
-  - `/issues/completed/phase-4/004-verify-and-resolve-cross-category-id-mapping.md` - Cross-category ID mapping validation
-- `/issues/phase-5/` - Phase 5 issues (advanced discovery & optimization) - CURRENT
-  - `/issues/phase-5/002-implement-per-model-similarity-matrix-generation.md` - Multi-model similarity matrix support
-  - `/issues/phase-5/003-fix-character-counting-methodology-for-fediverse-golden-poems.md` - Golden poem identification accuracy
-  - `/issues/phase-5/004-verify-and-resolve-cross-category-id-mapping.md` - Data integrity validation
-  - `/issues/phase-5/007-replace-random-browsing-with-static-diverse-selection.md` - Static diverse selection algorithms
-  - `/issues/phase-5/008a-implement-diversity-chaining-algorithm.md` - Core maximum diversity algorithm
-  - `/issues/phase-5/008b-generate-mass-diversity-pages.md` - Batch generation of 6,840+ diversity pages
-  - `/issues/phase-5/008c-create-diversity-discovery-interface.md` - User interface for diversity exploration
-  - `/issues/phase-5/010b-implement-validation-framework.md` - Similarity validation testing framework
-  - `/issues/phase-5/010c-generate-validation-reports.md` - Comprehensive validation reporting system
-  - `/issues/phase-5/015-refactor-golden-poem-system-remove-prioritization.md` - Remove golden poem prioritization, keep visual distinction
-  - `/issues/phase-5/progress.md` - Phase 5 planning and progress tracking
-- `/issues/completed/phase-5/` - Completed Phase 5 issues
-  - `/issues/completed/phase-5/002-implement-per-model-similarity-matrix-generation.md` - Multi-model similarity matrix generation with comparison capabilities (COMPLETED)
-  - `/issues/completed/phase-5/010a-create-modular-similarity-calculator.md` - Modular similarity calculator with 8 algorithms (COMPLETED)
-  - `/issues/completed/phase-5/010b-implement-validation-framework.md` - Validation framework with error detection and reporting (COMPLETED)
-  - `/issues/completed/phase-5/010c-generate-validation-reports.md` - Multi-format report generator with comparative analysis (COMPLETED)
-  - `/issues/completed/phase-5/011a-research-similarity-algorithms.md` - Comprehensive research analysis of 12 similarity algorithms (COMPLETED)
-  - `/issues/completed/phase-5/016-implement-full-similarity-matrix-storage.md` - Full similarity matrix storage for complete HTML generation support (COMPLETED)
-- `/issues/6-progress.md` - Phase 6 progress tracking (visual content & user experience) - COMPLETED
-  - `/issues/6-012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling for printable hope cards (Phase 1 COMPLETE)
-  - `/docs/hope-card-pdf-export-design.md` - Detailed design document for hope card system
-  - `/docs/hope-card-pdf-export-phase-1-report.md` - Phase 1 completion report
-  - `/issues/phase-6/016-implement-content-warning-collapsible-system.md` - Content warning hide/show functionality (PLANNED)
-  - `/issues/phase-6/017-create-image-configuration-and-directory-management-system.md` - Image discovery and configuration (PLANNED)
-  - `/issues/phase-6/018-implement-image-alt-text-embedding-analysis.md` - Intelligent image alt-text analysis (PLANNED)
-  - `/issues/phase-6/019-implement-chronological-image-placement.md` - Temporal image ordering system (PLANNED)
-  - `/issues/phase-6/020-implement-similarity-based-image-placement.md` - Similarity-based image placement for related/different pages (PLANNED)
-  - `/issues/phase-6/021-implement-html-template-image-rendering.md` - HTML template image integration (PLANNED)
-  - `/issues/phase-6/022-implement-screen-reader-accessibility-for-separators.md` - Screen reader accessibility for 80-character separators (PLANNED)
-  - `/issues/phase-6/024-implement-visual-timeline-progress-with-semantic-colors.md` - Visual timeline progress indicators with semantic color coding (PLANNED)
-- `/issues/7-progress.md` - Phase 7 progress tracking (stabilization & polish) - COMPLETED
-  - `/issues/7-001-fix-run-sh-warnings-and-errors.md` - Fix pipeline warnings, errors, and fallbacks
-- `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
-  - `/issues/8-031-convert-between-similarity-matrix-formats.md` - Convert between similarity matrix storage formats (individual/full/triangular)
-  - `/issues/completed/8-032-fix-similarity-matrix-force-flag-and-filename-inconsistency.md` - Fix --force flag and filename inconsistency bugs (COMPLETED)
-  - `/issues/completed/8-033-fix-run-sh-to-use-parallel-similarity-generation.md` - Fix run.sh to use parallel engine, avoid table overflow (COMPLETED)
-  - `/issues/8-050-enhance-wordcloud-semantic-similarity-pages.md` - Enhance word-cloud pages with unified color, ranking, and navigation (OPEN)
-  - `/issues/8-050a-compute-semantic-color-for-wordcloud-words.md` - Assign semantic colors to word-cloud words (OPEN)
-  - `/issues/8-050b-color-contextualized-similarity-ranking.md` - Factor word color into poem ranking (OPEN)
-  - `/issues/8-050c-apply-word-color-to-wordpage-progress-bars.md` - Unify progress bar colors per word page (OPEN)
-  - `/issues/8-050d-configurable-poems-per-wordcloud-page.md` - CLI flag for poems-per-word-page (OPEN)
-  - `/issues/8-050e-centroid-chronological-link-for-word-pages.md` - Smart chronological entry point per word (OPEN)
-  - `/issues/8-051-order-poem-index-categories-by-ascending-count.md` - Sort poem index by ascending category size (OPEN)
-  - `/issues/8-052-normalize-vertical-bar-characters-in-html-output.md` - Normalize ASCII pipe to Unicode box-drawing vertical in HTML output (OPEN)
-  - `/issues/8-053-add-image-title-attribute-and-fix-alt-text-fallback.md` - Add title tooltip and fix missing alt-text on similar/different pages (OPEN)
-  - `/issues/8-054-investigate-messages-image-png-poems.md` - Extract image attachments from Matrix media messages (OPEN)
-  - `/issues/8-055-fix-golden-poem-formatting-on-similar-different-pages.md` - Fix entity padding, junction alignment, and width consistency for golden poems (OPEN)
-  - `/issues/8-056-preserve-whitespace-in-poem-rendering.md` - Preserve whitespace for all categories via shared text formatter module (OPEN)
-- `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
-- `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - IN PROGRESS
-  - `/issues/completed/phase-9/9-001a-setup-vulkan-development-environment.md` - Vulkan SDK and development environment setup (COMPLETED)
-  - `/issues/completed/phase-9/9-001b-implement-vulkan-compute-wrapper.md` - Core Vulkan compute wrapper with C API (COMPLETED)
-  - `/issues/completed/phase-9/9-001c-create-cosine-distance-shader.md` - Cosine distance shader with 304x speedup (COMPLETED)
-  - `/issues/completed/phase-9/9-001d-implement-diversity-sequence-gpu-algorithm.md` - GPU diversity sequence generation (COMPLETED)
-  - `/issues/completed/phase-9/9-001e-create-lua-c-integration.md` - LuaJIT FFI bindings for Vulkan compute (COMPLETED)
-  - `/issues/completed/phase-9/9-001g-batch-parallel-diversity-sequences.md` - Batch parallel diversity computation (COMPLETED)
-  - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
-- `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
-  - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
-  - `/docs/incremental-centroid-updates-design.md` - Detailed algorithm design for centroid unwinding
-  - `/issues/10-010-integrate-test-suites-into-development-pipeline.md` - Automated testing integration (low priority)
-  - `/issues/10-013-implement-tui-config-editor.md` - Interactive TUI config editor with per-section editing and poem exclusion management (OPEN)
-- `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
-  - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
-  - `/issues/11-002-implement-maze-based-exploration-system.md` - Dimension-extreme maze with user choice at intersections
-  - `/issues/11-002a-build-dimension-extreme-index.md` - Pre-compute 768 dimension extremes per poem
-  - `/issues/11-002b-implement-similarity-filtered-choice-selection.md` - Filter to 6 most similar exits
-  - `/issues/11-002c-generate-maze-html-pages.md` - Generate maze/XXX.html pages
-  - `/issues/11-002d-add-special-room-features.md` - Golden poems, landmarks, easter eggs
-  - `/issues/11-003-maze-pipeline-integration.md` - Integrate maze into run.sh pipeline
-- `/issues/12-progress.md` - Phase 12 progress tracking (experimental AI features) - EXPERIMENTAL
-  - `/issues/12-001-implement-neural-navigation-llm.md` - Neural network-based poetry navigation with threshold-based routing
-- `/issues/13-progress.md` - Phase 13 progress tracking (audio-visual generation) - PLANNED
-  - `/issues/13-001-research-and-implement-tts-engine.md` - Research and integrate a local TTS engine (OPEN)
-  - `/issues/13-002-generate-tts-hypnotic-trance-from-wordcloud-flopsopoly.md` - Frequency-weighted centroid-expansion word sequence to audio (OPEN)
-  - `/issues/13-003-generate-stable-diffusion-visuals-from-flopsopoly.md` - Diameter-context stable diffusion image sequence (OPEN)
-  - `/issues/13-004-assemble-video-from-tts-audio-and-generated-images.md` - Video assembly from TTS audio + generated images (OPEN)
-
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface
 - `/src/poem-extractor.lua` - Multi-category poem extraction system
 - `/src/poem-validator.lua` - Data validation and quality analysis
-- `/src/ollama-manager.lua` - Embedding service management
-- `/src/similarity-engine.lua` - Core similarity calculation engine
+- `/src/similarity-engine.lua` - The embedding generator behind stage 6 (its CPU similarity half is retired; Issue 10-060)
+- `/src/flat-html-generator.lua` - The generator that builds the site's pages
 
 ### 📚 Utilities and Libraries
 - `/libs/utils.lua` - Common utility functions and file operations
-- `/libs/ollama-config.lua` - Ollama service configuration management
+- `/libs/inference-server-config.lua` - Which inference server and model a run uses (`run.sh --server`, `inference_servers` in config.lua)
 - `/libs/text-formatter.lua` - Shared text formatting for whitespace preservation (Issue 8-056)
   and line wrapping measured in visible columns rather than bytes (Issue 10-021)
   - `/libs/text-formatter.info.md` - Its public surface, and why width means ink
+- `/libs/text-chunking.info.md` - Splitting long poems for embedding, and recombining them
 
 ### 🗂️ Assets and Data
-- `/assets/poems.json` - Complete poem dataset (6,860+ poems)
-- `/assets/validation-report.json` - Data quality analysis report
+- `/assets/poems.json` - Complete poem dataset (count: `scripts/validate-pipeline-data`)
 - `/assets/embeddings/` - Per-model embedding storage directory structure
 
 ### 🛠️ Scripts and Tools
 - `/run.sh` - Main project runner with interactive mode support
 - `/phase-demo.sh` - Phase demonstration script selector
 - `/generate-embeddings.sh` - Comprehensive embedding generation CLI
+- `/scripts/audit-config-keys.info.md` - Lists config.lua settings nothing reads
+- `/scripts/generate-config-reference.info.md` - Builds the config reference from config.lua
+- `/scripts/audit-orphan-files.info.md` - Lists source files nothing uses
+- `/scripts/check-table-of-contents.info.md` - Checks this page against the files it lists
 
-### 📁 Project Configuration
-- `/.claude/CLAUDE.md` - Project-specific coding standards and requirements
-- `/notes/` - Project planning and vision documents
+### 📝 Notes
+- `/notes/` - Project planning and vision documents, raw ideas, and reference images
+  - `/notes/next-steps` - An idea: TTS audio over drum and bass, read in the author's voice
+  - `/notes/golden-poem-example` - What the golden poem frame looks like
+  - `/notes/HTML-file-format.png` - Reference image of the page layout
+  - `/notes/boost-post-image-style.png` - Reference image of a boosted post's style
 
 ---
 
 ## Document Maintenance
 
-**Last Updated**: January 26, 2026  
-**Maintained By**: Project development team  
-**Update Policy**: All new documents must be added to this table of contents
-
 ### Adding New Documents
 When creating new documentation:
 1. Add the document to the appropriate section above
 2. Use the format: `[path] - [brief description]`
-3. Maintain alphabetical order within sections
-4. Update the "Last Updated" date
+3. Run `scripts/check-table-of-contents`; it must report no findings
 
 ### Document Categories
 - **Core Documentation**: High-level project information
-- **Phase Documentation**: Completion summaries and milestone reports  
+- **Phases**: One progress file per phase, each listing its issues
+- **Phase Documentation**: Completion summaries and milestone reports
+- **Process and Reading**: How the work happened, and writing kept for its own sake
 - **Technical Guides**: Implementation and usage documentation
-- **Issues**: Problem tracking and resolution documentation
 - **Source Documentation**: Code files with embedded documentation
 - **Utilities**: Supporting tools and library documentation
 - **Assets**: Data files and generated content
 - **Scripts**: Executable tools and automation
-- **Configuration**: Project setup and standards files
+- **Notes**: Planning documents, raw ideas and reference material

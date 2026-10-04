@@ -95,6 +95,26 @@ generated from `config.lua`'s own comments by `scripts/generate-config-reference
 (`--check` reports drift without writing). The doc's hand-written parts were
 corrected and gained a table of removed settings.
 
+### The broader orphan audit (step 3), run 2026-10-04
+
+`scripts/audit-orphan-files` does step 3 as a rerunnable tool. It starts from
+every script (`scripts/*`, the root `.sh` files) and every program that is not
+a module, follows every place a file is named outside whole-line comments --
+which includes the Lua inside shell scripts, the trap this issue warns about --
+and reports the modules in `src/` and top-level `libs/` that nothing reaches.
+No module is loaded by a name built at run time, so nothing is invisible to it.
+
+It reports 13 modules, each checked by hand. None has been deleted; each needs
+the owner's decision:
+
+| Group | Modules | What they are |
+|---|---|---|
+| already marked dead | `src/triangular-similarity-matrix.lua` | the file this issue verified on 2026-08-08 |
+| hand-run tools living in `src/` | `src/hubness-experiment.lua` (Issue 9-013 measurement tool), `src/centroid-html-generator.lua` (10-048d power-user tool), `src/regenerate-clean-site.lua` (a one-off fix for PDF-corrupted poems) | programs a person would run directly; nothing calls them |
+| the validation suite | `src/run-validation.lua`, `src/run-validation-with-reports.lua`, `src/validation-engine.lua`, `src/report-generator.lua`, `src/similarity-calculator.lua` | two command-line runners and the three modules only they use (10-048h); `config.similarity` is read only by the calculator, so it lives or dies with this group |
+| what is left of `src/html-generator/` | `golden-poem-indicators.lua` (nothing), `embedding-list-generator.lua` (its test only), `url-manager.lua` (demo 3 only) | 4 of the 16 files 10-048 describes remain; the rest went with the golden-prioritization template system. Demo 3 must be rewritten first (10-056) |
+| a reader for triangular similarity files | `libs/triangular-similarity-access.lua` | may be wanted by 8-034 (triangular individual files only), which is open |
+
 **Reachable but off the pipeline (classify before pruning, not dead):**
 - `src/model-comparison.lua` -- referenced by `similarity-engine.lua` and
   `scripts/start-llamacpp-server.sh`. A diagnostic tool, not pipeline code.
