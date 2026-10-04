@@ -403,10 +403,17 @@ write(mirror .. "/llm-transcripts/oct-1-26.md", transcript({ models = "m" }, {
 mgit("add -A")
 mgit("commit -q -m 'First thing' -m 'What the first thing did.' -m 'Mirrored-from: 1234567aabbccdd' -m 'Co-Authored-By: x <y>'")
 mgit("commit -q --allow-empty -m 'Second thing' -m 'Mirrored-from: 9999999aabbccdd'")
+-- A body with a line that looks like a path: it once ended the body there.
+mgit("commit -q --allow-empty -m 'Third thing' -m 'Pages can be read in" .. "\n"
+  .. "llm-transcripts/HTML/, built by the builder.' -m 'Mirrored-from: 3333333aabbccdd'")
 local history = dofile(SITE .. "/contents/commit-history.lua")
 local attribution = dofile(SITE .. "/contents/attribution.lua")
 local mirrored = history.read(mirror)
-check("a mirror's empty commit is read", #mirrored, 2)
+check("a mirror's empty commits are read", #mirrored, 3)
+check("a body line that looks like a path stays in the body",
+  mirrored[3].body, "Pages can be read in\nllm-transcripts/HTML/, built by the builder.")
+check("... and the trailer below it is still read", mirrored[3].source, "3333333aabbccdd")
+check("the files a commit touched are still found", #mirrored[1].transcripts, 1)
 check("a commit's source is its Mirrored-from hash", mirrored[1].source, "1234567aabbccdd")
 check("the machine trailers leave the body", mirrored[1].body, "What the first thing did.")
 check("a commit with no trailer is its own source",

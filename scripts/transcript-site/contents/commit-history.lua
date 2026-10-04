@@ -140,7 +140,15 @@ function M.read(folder, transcripts)
   -- prints a commit's files after the header line they belong to, and every
   -- commit gets its neighbour's files. Leading, each chunk is one header and
   -- then exactly its own files.
-  local format = RECORD .. "%H" .. FIELD .. "%s" .. FIELD .. "%ad" .. FIELD .. "%b"
+  --
+  -- A separator follows the body too, so the body ends where git says it
+  -- ends. It used to end at the first line that LOOKED like a file path,
+  -- since --name-only prints the files after it: a message with a line
+  -- beginning "llm-transcripts/HTML/, built by..." was cut there, the page
+  -- showed half a sentence, and the "Mirrored-from:" line below it was lost,
+  -- so the commit could never find its conversation. She noticed the commit
+  -- with no conversation; the cut message was why.
+  local format = RECORD .. "%H" .. FIELD .. "%s" .. FIELD .. "%ad" .. FIELD .. "%b" .. FIELD
 
   -- Two kinds of history (see the header): the whole repository, empty
   -- commits included; or only what touched this folder, written from it.
@@ -158,27 +166,21 @@ function M.read(folder, transcripts)
   local prefix = "^" .. transcripts:gsub("%p", "%%%0") .. "/"
   local commits = {}
   for chunk in text:gmatch(RECORD .. "([^" .. RECORD .. "]*)") do
-    local hash, subject, date, rest =
-      chunk:match("^(%x+)" .. FIELD .. "(.-)" .. FIELD .. "([%d%-]+)" .. FIELD .. "(.*)$")
+    local hash, subject, date, body_text, file_text =
+      chunk:match("^(%x+)" .. FIELD .. "(.-)" .. FIELD .. "([%d%-]+)" .. FIELD .. "(.-)" .. FIELD .. "(.*)$")
     if hash then
-      -- The body runs until the file list starts. --name-only prints the files
-      -- after a blank line, and a body's own blank lines are not special, so
-      -- the split is on the first line that looks like a tracked path rather
-      -- than on blankness.
+      -- The body is everything before the last separator, and the files are
+      -- everything after it: git puts them there, so nothing is guessed.
       local body_lines, files = {}, {}
-      local in_files = false
-      for line in rest:gmatch("([^\n]*)\n?") do
-        if line:match(prefix) or line:match("^[%w%-%._]+/[%w%-%./_]+$")
-          or line:match("^[%w%-%._]+%.%w+$") then
-          in_files = true
-          -- Only a transcript counts: a .md file directly inside the
-          -- transcripts folder. Pages and film choices kept beside them are
-          -- not conversations.
-          if line:match(prefix .. "[^/]+%.md$") then
-            files[#files + 1] = line
-          end
-        elseif not in_files then
-          body_lines[#body_lines + 1] = line
+      for line in (body_text .. "\n"):gmatch("([^\n]*)\n") do
+        body_lines[#body_lines + 1] = line
+      end
+      for line in file_text:gmatch("[^\n]+") do
+        -- Only a transcript counts: a .md file directly inside the
+        -- transcripts folder. Pages and film choices kept beside them are
+        -- not conversations.
+        if line:match(prefix .. "[^/]+%.md$") then
+          files[#files + 1] = line
         end
       end
 
