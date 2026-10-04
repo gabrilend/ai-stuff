@@ -10,8 +10,15 @@
 --   luajit src/wordcloud-generator.lua --help
 --
 -- Options:
---   --all      Include all words (no max_words limit)
---   --words N  Set maximum words to display (default: 200 from config)
+--   --all               Include all words (no max_words limit)
+--   --words N           Set maximum words to display
+--   --chrono-per-page N Poems per chronological page (for the poem links)
+--   --yes, -y           Take the default for any value not given, without asking
+--
+-- Issue 10-065a: a value left off the command line is asked for, with its
+-- default from config.lua in brackets ("How many words in the word cloud?
+-- [200]"); Enter takes it. --yes takes every default and says which. Started by
+-- run.sh, or with nobody at the keyboard, a missing value is an error instead.
 -- }}}
 
 -- {{{ Setup
@@ -27,7 +34,7 @@ end
 local function parse_args(args)
     local dir = nil
     local all_words = false
-    local max_words = nil  -- nil means use config default
+    local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
     -- Which embedding space to read the word colours from. nil defers to run.sh's
@@ -102,6 +109,36 @@ local function parse_args(args)
 end
 -- }}}
 
+-- {{{ --help
+-- Answered before anything else runs: the word count is settled at startup and
+-- may ask a question (Issue 10-065a), which a request for help must not trigger.
+if arg[1] == "--help" or arg[1] == "-h" then
+    print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
+    print("")
+    print("Generates a word cloud HTML page from the poetry collection.")
+    print("Words are sized by frequency, with stop words filtered out.")
+    print("")
+    print("Options:")
+    print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+    print("  --all                Include all words (no max_words limit)")
+    print("  --words N            Maximum words to display")
+    print("  --chrono-per-page N  Chronological page size; MUST match the value the")
+    print("                       chronological pages were built with, or poem links")
+    print("                       point at the wrong page.")
+    print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
+    print("                       Same seed => identical word order. Normally passed")
+    print("                       by run.sh; if omitted a seed is auto-generated and")
+    print("                       logged to stderr.")
+    print("  --yes, -y            Take config.lua's default for any value not given")
+    print("  --help               Show this help message")
+    print("")
+    print("A value not given is asked for, with config.lua's default in brackets;")
+    print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
+    print("missing value is an error instead.")
+    os.exit(0)
+end
+-- }}}
+
 local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
       CLI_MODEL, CLI_SERVER = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
@@ -134,6 +171,9 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
+-- Issue 10-065a: settles a value missing from the command line (ask, --yes, or error)
+local ask = require("ask-for-value")
+local ACCEPT_DEFAULTS = ask.wants_defaults(arg)
 -- Shared <head> contents: viewport, the shipped monospace font, the text-size
 -- lock. One owner, so this menu cannot drift from the poem pages.
 local page_head = require("page-head")
@@ -163,8 +203,28 @@ if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
 -- the config key is missing). There is deliberately no literal fallback -- a
 -- wrong size sends every poem link to the wrong page, so an absent value is an
 -- error, not a guess.
+--
+-- Issue 10-065a: when --chrono-per-page is absent the config value is offered as
+-- the default and confirmed (asked, or taken by --yes with a notice), never
+-- applied silently. Settled once and remembered, since several pages use it.
+local settled_chrono_per_page = nil
 local function resolve_chrono_per_page()
-    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+    if settled_chrono_per_page then
+        return settled_chrono_per_page
+    end
+    -- the config value is the offered default; a config without one simply
+    -- offers none (the question is still asked, with no brackets)
+    local has_default, config_default = pcall(flat_html.default_chrono_per_page)
+    settled_chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page",
+        question = "How many poems per chronological page?",
+        kind = "count",
+        given = CLI_CHRONO_PER_PAGE,
+        default = has_default and config_default or nil,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_chrono_per_page
 end
 -- }}}
 -- }}}
@@ -175,15 +235,22 @@ local M = {}
 -- Issue 10-003: Load word_cloud config from unified config (including embedded stop_words)
 local wc = unified_config.word_cloud or {}
 
--- Determine max_words: CLI --all > CLI --words > config
-local effective_max_words
-if CLI_ALL_WORDS then
-    effective_max_words = math.huge  -- No limit
-elseif CLI_MAX_WORDS then
-    effective_max_words = CLI_MAX_WORDS
-else
-    effective_max_words = wc.max_words or 200
-end
+-- How many words the cloud shows: --all / --words from the command line, or
+-- (Issue 10-065a) asked, offering config.lua's word_cloud.max_words as the
+-- default. This program always draws the cloud, so the value is always needed
+-- and is settled here, at startup.
+local cli_words = CLI_ALL_WORDS and "all" or CLI_MAX_WORDS
+local words_answer = ask.resolve({
+    flag = "--words",
+    question = "How many words in the word cloud? (a number, or \"all\")",
+    kind = "count_or_all",
+    given = cli_words,
+    default = wc.max_words,
+    default_source = "config.lua word_cloud.max_words",
+    accept_defaults = ACCEPT_DEFAULTS,
+})
+-- "all" means no limit
+local effective_max_words = (words_answer == "all") and math.huge or words_answer
 
 local CONFIG = {
     min_occurrences = wc.min_occurrences or 5,
@@ -660,26 +727,6 @@ end
 
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
-    if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N]")
-        print("")
-        print("Generates a word cloud HTML page from the poetry collection.")
-        print("Words are sized by frequency, with stop words filtered out.")
-        print("")
-        print("Options:")
-        print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --all                Include all words (no max_words limit)")
-        print("  --chrono-per-page N  Chronological page size; MUST match the value the")
-        print("                       chronological pages were built with, or poem links")
-        print("                       point at the wrong page. Defaults to the config value.")
-        print("  --words N  Set maximum words to display (default: 200 from config)")
-        print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
-        print("                       Same seed => identical word order. Normally passed")
-        print("                       by run.sh; if omitted a seed is auto-generated and")
-        print("                       logged to stderr.")
-        print("  --help     Show this help message")
-        os.exit(0)
-    end
 
     M.main()
 end

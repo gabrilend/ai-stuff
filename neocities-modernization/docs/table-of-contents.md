@@ -90,6 +90,7 @@ of what the code does is only visible from outside it.
   and line wrapping measured in visible columns rather than bytes (Issue 10-021)
   - `/libs/text-formatter.info.md` - Its public surface, and why width means ink
 - `/libs/text-chunking.info.md` - Splitting long poems for embedding, and recombining them
+- `/libs/ask-for-value.info.md` - How a program run on its own asks for a value it was not given (Issue 10-065a)
 
 ### 🗂️ Assets and Data
 - `/assets/poems.json` - Complete poem dataset (count: `scripts/validate-pipeline-data`)

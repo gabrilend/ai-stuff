@@ -59,21 +59,32 @@ local dkjson = require("dkjson")
 -- to resolve through the same code path the GPU embeddings stage uses.
 inference_config.set_project_root(DIR)
 
--- Boost inclusion: a CLI flag (--no-boosts / --exclude-boosts to drop them,
--- --include-boosts to force-keep) takes precedence over config.privacy.
--- include_boosts. Resolved once here and threaded into extraction.
+-- Boost inclusion: --no-boosts / --exclude-boosts drop them, --include-boosts
+-- keeps them (run.sh always passes one of these). Without either, Issue 10-065a:
+-- the person is asked, with config.privacy.include_boosts offered as the
+-- default; --yes takes that default with a notice; started by run.sh or with
+-- nobody at the keyboard it is an error. Called only when extracting, so other
+-- modes never ask.
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
+local ask = require("ask-for-value")
 local function resolve_include_boosts()
+    local given = nil
     for _, a in ipairs(arg or {}) do
-        if a == "--no-boosts" or a == "--exclude-boosts" then return false end
-        if a == "--include-boosts" then return true end
+        if a == "--no-boosts" or a == "--exclude-boosts" then given = false end
+        if a == "--include-boosts" then given = true end
     end
-    local ok, cfg = pcall(function() return config_loader.load() end)
-    if ok and cfg and cfg.privacy and cfg.privacy.include_boosts ~= nil then
-        return cfg.privacy.include_boosts
-    end
-    return false  -- default: exclude boosts (opt-in via --include-boosts)
+    -- a config.lua that cannot load is an error here, not a reason to guess
+    local cfg = config_loader.load()
+    return ask.resolve({
+        flag = "--include-boosts / --no-boosts",
+        question = "Include reblogged (boosted) posts?",
+        kind = "yesno",
+        given = given,
+        default = cfg.privacy and cfg.privacy.include_boosts,
+        default_source = "config.lua privacy.include_boosts",
+        accept_defaults = ask.wants_defaults(arg),
+    })
 end
 
 -- Restore original path

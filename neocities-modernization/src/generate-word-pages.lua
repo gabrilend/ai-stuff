@@ -14,7 +14,12 @@
 --
 -- Word Count Options:
 --   --all               Include all words (no max_words limit)
---   --words N           Set maximum words to process (default: 200 from config)
+--   --words N           Set maximum words to process
+--   --yes, -y           Take config.lua's default for any value not given
+--
+-- Issue 10-065a: a value left off the command line is asked for, with
+-- config.lua's default in brackets; Enter takes it. Started by run.sh, or with
+-- nobody at the keyboard, a missing value is an error instead.
 --
 -- Usage:
 --   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
@@ -35,8 +40,8 @@ local function parse_args(args)
     local dir = nil
     local mode = "both"  -- default: both embeddings and HTML
     local all_words = false
-    local max_words = nil  -- nil means use config default
-    local poems_per_page = nil  -- Issue 8-050d: nil means use config default
+    local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
+    local poems_per_page = nil  -- Issue 8-050d; nil means not given: asked for, or --yes (10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never a literal)
     -- Which embedding space to read. nil means "whatever run.sh's notepad or
     -- config.lua says"; a value here overrides both (see the --model branch).
@@ -176,27 +181,83 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
--- Determine effective max_words: CLI --all > CLI --words > config
 local wc = unified_config.word_cloud or {}
-local effective_max_words
-if CLI_ALL_WORDS then
-    effective_max_words = math.huge  -- No limit
-elseif CLI_MAX_WORDS then
-    effective_max_words = CLI_MAX_WORDS
-else
-    effective_max_words = wc.max_words or 200
-end
+-- Issue 10-065a: a value missing from the command line is asked for (config.lua's
+-- value offered in brackets), taken from config.lua with a notice under --yes,
+-- or an error when run.sh started this program or nobody is at the keyboard.
+-- Each is settled where it is first USED, not at load: stage 6 runs this
+-- program in --embeddings-only mode, which never needs a page size, and must
+-- not stop to ask for one; --help must not ask anything either.
+local ask = require("ask-for-value")
+local ACCEPT_DEFAULTS = ask.wants_defaults(arg)
+-- Declared here, filled in below: the settle functions that follow must refer
+-- to this same table (a later `local CONFIG` would be a different variable to
+-- them, and they would write into an undefined global instead).
+local CONFIG
 
--- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
-local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
+-- {{{ settle_word_count()
+-- How many words get pages: --all / --words, else asked. Both modes need it
+-- (the embeddings and the pages must cover the same words). Settled once.
+local function settle_word_count()
+    if CONFIG.max_words then
+        return CONFIG.max_words
+    end
+    local answer = ask.resolve({
+        flag = "--words",
+        question = "How many words get word pages? (a number, or \"all\")",
+        kind = "count_or_all",
+        given = CLI_ALL_WORDS and "all" or CLI_MAX_WORDS,
+        default = wc.max_words,
+        default_source = "config.lua word_cloud.max_words",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    -- "all" means no limit
+    CONFIG.max_words = (answer == "all") and math.huge or answer
+    return CONFIG.max_words
+end
+-- }}}
+
+-- {{{ settle_poems_per_page()
+-- Issue 8-050d: poems listed on each word page: --poems-per-page, else asked.
+-- Only the page-writing mode needs it. Settled once.
+local function settle_poems_per_page()
+    if CONFIG.poems_per_word_page then
+        return CONFIG.poems_per_word_page
+    end
+    CONFIG.poems_per_word_page = ask.resolve({
+        flag = "--poems-per-page",
+        question = "How many poems on each word page?",
+        kind = "count",
+        given = CLI_POEMS_PER_PAGE,
+        default = wc.poems_per_page,
+        default_source = "config.lua word_cloud.poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return CONFIG.poems_per_word_page
+end
+-- }}}
 
 -- {{{ resolve_chrono_per_page()
 -- Chronological page size for the "chronological" poem links: the build's
--- --chrono-per-page if given, else the config value (which hard-errors if the
--- key is missing). No literal fallback -- a wrong size sends every link to the
--- wrong page, so an absent value is an error, not a guess (Issue 10-036).
+-- --chrono-per-page, else asked with the config value offered. Never a literal
+-- -- a wrong size sends every link to the wrong page (Issue 10-036). Settled once.
+local settled_chrono_per_page = nil
 local function resolve_chrono_per_page()
-    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+    if settled_chrono_per_page then
+        return settled_chrono_per_page
+    end
+    -- the config value is the offered default; a config without one offers none
+    local has_default, config_default = pcall(flat_html.default_chrono_per_page)
+    settled_chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page",
+        question = "How many poems per chronological page?",
+        kind = "count",
+        given = CLI_CHRONO_PER_PAGE,
+        default = has_default and config_default or nil,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_chrono_per_page
 end
 -- }}}
 
@@ -210,13 +271,15 @@ inference_config.set_project_root(DIR)
 -- late change would leave earlier readers pointing at a different directory.
 if CLI_SERVER then inference_config.set_selected_server(CLI_SERVER) end
 if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
-local CONFIG = {
+CONFIG = {
     model_name = inference_config.get_selected_model(),
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
-    poems_per_word_page = effective_poems_per_page,  -- Issue 8-050d: configurable via CLI/config
-    max_words = effective_max_words, -- Max words to process (from CLI or config)
+    -- Issue 10-065a: these two start unset and are filled by settle_word_count()
+    -- and settle_poems_per_page() when the mode that needs them begins
+    poems_per_word_page = nil,
+    max_words = nil,
 }
 -- }}}
 
@@ -993,6 +1056,8 @@ end
 -- Called during embedding generation stage of the pipeline
 function M.generate_word_embeddings(options)
     options = options or {}
+    -- Issue 10-065a: the word list needs its size before anything else
+    settle_word_count()
 
     -- Check inference server availability
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
@@ -1087,6 +1152,11 @@ end
 -- Called during HTML generation stage of the pipeline
 function M.generate_word_html(options)
     options = options or {}
+    -- Issue 10-065a: settle every value this mode uses before any work starts,
+    -- so a question never interrupts a half-finished run
+    settle_word_count()
+    settle_poems_per_page()
+    resolve_chrono_per_page()
     local output_dir = options.output_dir or (DIR .. "/output")
 
     -- Load poems
@@ -1378,7 +1448,12 @@ if arg and #arg >= 0 and debug.getinfo(3) == nil then
         print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
         print("  --all             Include all words (no max_words limit)")
         print("  --words N         Set maximum words to process (default: 200 from config)")
+        print("  --yes, -y         Take config.lua's default for any value not given")
         print("  --help            Show this help message")
+        print("")
+        print("A value not given is asked for, with config.lua's default in brackets;")
+        print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
+        print("missing value is an error instead.")
         print("")
         print("Pipeline Integration (Issue 8-043b):")
         print("  Stage 6 (Embeddings): luajit src/generate-word-pages.lua --embeddings-only")

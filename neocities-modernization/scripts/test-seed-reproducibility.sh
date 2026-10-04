@@ -57,7 +57,9 @@ mkdir -p "$SNAP_DIR" || fail "could not create snapshot dir $SNAP_DIR"
 run_with_seed() {
     local seed="$1"
     local snapshot="$2"
-    luajit "$GENERATOR" "$DIR" --seed "$seed" >/dev/null || fail "generator exited non-zero for seed $seed"
+    # --yes: take config.lua's word count and page size without asking (Issue
+    # 10-065a); this test is about the seed, and runs with no one at the keyboard
+    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
     [ -f "$WORDCLOUD_HTML" ] || fail "generator produced no wordcloud.html for seed $seed"
     cp "$WORDCLOUD_HTML" "$SNAP_DIR/$snapshot" || fail "could not snapshot seed $seed"
 }

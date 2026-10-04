@@ -45,7 +45,7 @@ end
 local function parse_args(args)
     local dir = nil
     local source_override = nil
-    local include_boosts = nil  -- nil means use config default
+    local include_boosts = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local i = 1
 
     while i <= #(args or {}) do
@@ -131,12 +131,21 @@ if fediverse_backup_path:sub(1, #DIR) == DIR then
 end
 
 -- Privacy configuration from unified config
--- CLI flags --include-boosts/--no-boosts override config value
+-- --include-boosts / --no-boosts decide; without either (Issue 10-065a) the
+-- person is asked, config.privacy.include_boosts offered as the default, --yes
+-- takes it with a notice, and under run.sh or with nobody at the keyboard it
+-- is an error. scripts/update always passes one of the two flags.
+local ask = require("ask-for-value")
 local function get_include_boosts()
-    if CLI_INCLUDE_BOOSTS ~= nil then
-        return CLI_INCLUDE_BOOSTS
-    end
-    return config.privacy.include_boosts or false
+    return ask.resolve({
+        flag = "--include-boosts / --no-boosts",
+        question = "Include reblogged (boosted) posts?",
+        kind = "yesno",
+        given = CLI_INCLUDE_BOOSTS,
+        default = config.privacy.include_boosts,
+        default_source = "config.lua privacy.include_boosts",
+        accept_defaults = ask.wants_defaults(arg),
+    })
 end
 
 -- {{{ local function load_boost_content_cache

@@ -2902,6 +2902,15 @@ RANDOM_SEED_ARG="--seed=$RANDOM_SEED"
 log_info "🎲 Random seed: $RANDOM_SEED ($RANDOM_SEED_SOURCE)"
 # }}}
 
+# {{{ Issue 10-065a: the programs this script starts never ask questions
+# Run on their own, the stage programs ask for a value missing from their
+# command line (libs/ask-for-value.lua). Started from here, a missing value
+# means this script forgot to pass it -- a bug to fix here, not a question to
+# put to whoever is watching the build, and not something to answer by
+# guessing. This marker turns that question into an error naming the flag.
+export NEOCITIES_NO_PROMPTS=1
+# }}}
+
 # {{{ Record what produced this build
 # Written when this run required at least one value -- which is the same as
 # saying it did something whose parameters are worth recording. Stages 1-4

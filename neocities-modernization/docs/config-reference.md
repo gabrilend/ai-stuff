@@ -255,10 +255,11 @@ Whether the word cloud is built is chosen by selecting its stage (stage 10) on t
 |---|---|---|
 | `font_size_max` | 7 |  |
 | `font_size_min` | 1 | HTML font tag: 1-7 scale |
-| `max_words` | 200 | Maximum words to display (0 = unlimited) |
+| `max_words` | 200 | Words in the cloud and on word pages; the default offered when --words is not given (no limit: --all, or answer "all") |
 | `min_occurrences` | 5 | Minimum times a word must appear |
 | `min_word_length` | 3 | Ignore words shorter than this |
 | `output_file` | "wordcloud.html" |  |
+| `poems_per_page` | 50 | Poems on each word page; the default offered when --poems-per-page is not given (Issue 10-065a: this 50 used to be written in src/generate-word-pages.lua and applied silently) |
 | `stop_words` | list of 271 | Stop words: common words to exclude from word cloud Organized by category for easy editing |
 
 ### centroids

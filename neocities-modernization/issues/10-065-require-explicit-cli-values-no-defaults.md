@@ -9,6 +9,9 @@
   keeping the reasoning it was chosen over. Questions 10–13 surfaced during that
   pass and are unanswered, so the issue is not finished. The "Current Behavior"
   section describes the state this issue started from, not the state today.
+- **Sub-issues**: 10-065a (the programs run.sh starts: run on their own, they
+  ask for a missing value with the default in brackets, take defaults under
+  --yes, and error when run.sh started them)
 - **Created**: 2026-08-07
 - **Builds on**: 10-005 (the original CLI flag foundation, which introduced the
   defaults this issue removes)
