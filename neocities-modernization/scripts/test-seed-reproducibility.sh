@@ -64,8 +64,11 @@ run_with_seed() {
 # }}}
 
 # {{{ strip_seed_comment(file) -> stdout
-# Drop the three-line "<!-- Issue 10-058: ... -->" stamp so the order comparison
-# reflects the WORD ORDER only, not the printed seed number.
+# Drop the lines of the "<!-- Issue 10-058: ... -->" stamp that print the seed
+# number, so the order comparison reflects the WORD ORDER only. The stamp's
+# other lines name no seed and are the same for every run, so they can stay.
+# (The third pattern matched the older stamp's last line; kept so pages built
+# before the wording change still compare cleanly.)
 strip_seed_comment() {
     grep -v -e 'Issue 10-058: word order shuffled' -e '^     --seed' -e 'output/generation-metadata.json. -->' "$1"
 }

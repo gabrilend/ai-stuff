@@ -105,13 +105,19 @@ to be canonical is the one that is wrong:
   still leaves a record that misdescribes it. Cause not yet found — candidates: the
   word-cloud stage skipping itself as up-to-date, or the page being restored or
   copied from elsewhere after the run.
-- The page comment still says "or set randomization.seed in config.lua"; 10-065
-  removed that route, so the instruction is stale.
-- The archive filename holds the date and word count but not the seed, so finding
-  "the seed of the cloud from last Tuesday" means opening the file.
+- Fixed 2026-10-04: the page comment no longer points at `config.lua` (10-065
+  removed that route), and says that the page's own comment is the one to trust
+  if it and the run record disagree.
+- Fixed 2026-10-04: archive copies are named
+  `wordcloud-<date>_<time>-<N>words-seed<S>.html`, so an old cloud's seed can be
+  read off its name. Copies made before that change carry no seed in the name;
+  their seed is in the comment at the top of the file.
+  `scripts/test-seed-reproducibility.sh` still passes (run against a scratch copy
+  of the project, because the test writes over the live page).
 
-Today, the trustworthy answer to "what seed made the live cloud?" is the comment
-inside `output/wordcloud.html`, not the run record.
+Still open: the record-versus-page mismatch (step 7). Until it is found, the
+trustworthy answer to "what seed made the live cloud?" is the comment inside
+`output/wordcloud.html`, not the run record.
 
 ## Intended Behavior
 
@@ -203,9 +209,10 @@ every build. The page should no longer reference Fisher–Yates or clock re-seed
    stage as run only once it has produced its output (or have the word-cloud stage
    write its own seed line into the record when it writes the page). Add a check
    that the seed in the live page's comment equals the record's seed.
-8. **Small fixes from the same gap**: drop the stale "randomization.seed in
-   config.lua" wording from the page comment in `src/wordcloud-generator.lua`, and
-   put the seed in the archive filename so past clouds can be re-made by name.
+8. **Small fixes from the same gap** (done 2026-10-04): drop the stale
+   "randomization.seed in config.lua" wording from the page comment in
+   `src/wordcloud-generator.lua`, and put the seed in the archive filename so
+   past clouds can be re-made by name.
 
 ## Out of Scope
 

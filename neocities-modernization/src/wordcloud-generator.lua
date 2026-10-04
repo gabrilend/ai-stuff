@@ -478,12 +478,16 @@ end
 local function archive_wordcloud(html, word_count)
     local archive_dir = DIR .. "/archive/wordclouds"
     utils.ensure_directory(archive_dir)
-    -- Timestamp + word count in the name: successive builds accumulate instead of
-    -- overwriting, and the count tells "all words" (7082) from a default (200) at a
-    -- glance. No spaces, so the plain mkdir/io paths handle it.
+    -- Timestamp + word count + seed in the name: successive builds accumulate
+    -- instead of overwriting, the count tells "all words" (7082) from a default
+    -- (200) at a glance, and the seed means an old cloud can be re-made exactly
+    -- (run.sh --seed N) by reading its filename, without opening the file
+    -- (Issue 10-058). Copies made before the seed was added lack the "-seedN"
+    -- part; their seed is in the comment at the top of the file. No spaces, so
+    -- the plain mkdir/io paths handle it.
     local stamp = os.date("%Y-%m-%d_%H-%M-%S")
-    local archive_file = string.format("%s/wordcloud-%s-%dwords.html",
-        archive_dir, stamp, word_count)
+    local archive_file = string.format("%s/wordcloud-%s-%dwords-seed%d.html",
+        archive_dir, stamp, word_count, MASTER_SEED)
     if not utils.write_file(archive_file, html) then
         error("Failed to archive word cloud to: " .. archive_file)
     end
@@ -565,8 +569,11 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         .. "img, video, audio { margin-left: auto; margin-right: auto; }")
     local html = string.format([[<!DOCTYPE html>
 <!-- Issue 10-058: word order shuffled with master seed %d. Re-run with
-     --seed %d (or set randomization.seed in config.lua) to reproduce this exact
-     word cloud. The canonical record is output/generation-metadata.json. -->
+     --seed %d to reproduce this exact word cloud. (Issue 10-065 removed the
+     config.lua route; --seed is the only one.) -->
+<!-- The run record, output/generation-metadata.json, should name the same seed.
+     Issue 10-058 found a build where it did not; this comment is the one written
+     by the run that actually made the page. -->
 <html>
 <head>
 <meta charset="UTF-8">
