@@ -67,8 +67,9 @@ happen again at any time, by their nature.
 ## Intended behavior
 
 Four parts, one per row of the table above. The first two make the
-exporter write commit lines it missed; the last two make the page say
-something true about a commit no conversation of the project made.
+exporter write commit lines it missed; the last two settle what the page
+does with a commit no conversation of the project made: leave it off, or
+give it her own words as its transcript.
 
 ### Part A — a commit command whose announcement is missing
 
@@ -124,38 +125,80 @@ subject found as in Part A:
 4. The lines go into the transcript of the session that ran the loop —
    which is where the conversation that made those commits lives.
 
-### Part C — a commit made from another project's conversation
+### Part C — a commit made from another project's conversation is not shown
 
 In the transcript-site library. A project's settings may name **other
 transcript folders whose commit lines count as evidence**:
 
     evidence_from = { "/mnt/mtwo/.claude/claude-code/llm-transcripts" },
 
-- A commit recorded only there gets no link (that conversation is not on
-  this site), and its row and group heading say where it was made:
-  **"made from a conversation in claude-code, not published here"**, the
-  folder's project name taken from its path.
+- **A commit recorded only there is left off the table of contents.** Her
+  decision, 2026-10-04, asked whether such commits should show with a label
+  saying where they were made:
+
+  > we should probably just... not display that one, right?
+
+  They are plumbing done to every project at once (rebuilding transcripts,
+  re-dating the archive), and a reader of one project's story learns nothing
+  from them. Asked whether the page should mention that some are not shown,
+  she chose **nothing at all**: no count, no footnote, and the intro's
+  "Every commit, oldest first" stays as it is.
+- The build's printed report still counts them ("commits made from
+  conversations elsewhere, not shown: N"), so the number is seen by whoever
+  builds even though no reader sees it.
 - A folder in the list that does not exist stops the build, naming it; a
   checkout that lacks it removes the line.
-- A monorepo project already reads the rest of its own repository this way
+- A monorepo project already reads the rest of its own repository
   (`evidence_elsewhere` in `build-site.lua`, linking to those pages). That
-  stays. `evidence_from` is for folders outside the repository, whose pages
-  are not part of the site.
+  stays, and those commits stay shown: their pages are part of the site.
+  `evidence_from` is for folders outside the repository.
 
-### Part D — a commit made by hand
+### Part D — a commit made by hand gets her own words as its transcript
 
-In the transcript-site library. `contents/commit-history.lua` records, for
-each commit, whether its message carried an assistant's trailer
-(`assisted`, true when a `Co-Authored-By:` line names Claude), read before
-the trailers are dropped. A commit with no evidence of any kind **and** no
-such trailer is drawn as **"made by hand, outside any conversation"**, in
-the dimmed button's place, with the same quiet style. A commit with the
-trailer and no evidence keeps today's dimmed button and "no saved
-conversation mentions these" — which, once A to C are built, should not
-happen in double-diaper-dungeon at all.
+In the transcript-site library. Her decision, 2026-10-04:
 
-The rows' words are settings with these defaults, so another project can
-say them its own way: `made_elsewhere_label`, `made_by_hand_label`.
+> the commit message should display just like any other commit. The
+> transcript button should link to the file in question, formatted to look
+> like a transcript.
+
+1. **Which commits.** `contents/commit-history.lua` records, for each
+   commit, whether its message carried an assistant's trailer (`assisted`,
+   true when a `Co-Authored-By:` line names Claude), read before the
+   trailers are dropped. A commit with no evidence of any kind **and** no
+   such trailer was made by hand.
+2. **Its row** is drawn exactly as any other commit's: its body (or its
+   subject), its date, and a **transcript** button.
+3. **The button opens a page of her own words**: `by-hand-<seven>.html`
+   beside the conversation pages, drawn by the conversation page as one
+   conversation in which she is the only speaker, one turn per file.
+   - **Only the lines her commit added**, never the whole file. In
+     `docs/020-open-questions.md` her commit added her `->` answers under
+     questions an assistant wrote; showing the file whole would put the
+     assistant's questions in her mouth. Her rule keeps human and machine
+     speech apart, so the page does too.
+   - **The heading each block sits under** (the nearest markdown heading
+     above it in the file at that commit) is shown as a quiet label above
+     the block, not as speech, so a reader knows what she was answering.
+   - **Each turn is headed by the file's path**, so a reader knows where the
+     words live.
+   - **Files under the transcripts folder are left out**: they are the
+     conversation export that rode along, not her writing. So are files
+     whose added lines are empty or whitespace only.
+   - The page's title is the commit's subject; its facts line reads
+     "written by hand · <date>" in place of the models.
+4. **Where the files come from.** The lines are read with
+   `git -C <repo> show <commit> -- <path>` from the **project's own
+   repository**, not the mirror, using the commit's `source` hash (the
+   project commit a mirror commit copies). **This is the one place the site
+   reads past the mirror**, the line between public and private that it has
+   kept since it was first built; she chose it knowing that, for these
+   files only. The setting is `hand_made_from` (a folder, the repository to
+   read from; absent means the history folder itself, which is right for a
+   project with no mirror). A project that leaves it unset and has a mirror
+   gets the commit message alone as the page's one turn.
+5. A commit with the trailer and no evidence keeps today's dimmed button
+   and "no saved conversation mentions these" — which, once A to C are
+   built, should not happen in double-diaper-dungeon at all.
 
 ## Suggested implementation steps
 
@@ -180,13 +223,18 @@ say them its own way: `made_elsewhere_label`, `made_by_hand_label`.
      lines**, each naming its repository; nothing for the third.
 4. Run the existing parser tests; all pass unchanged.
 5. **Parts C and D** in `transcript-site/`: `assisted` in
-   `contents/commit-history.lua`; `evidence_from`, `made_elsewhere_label`
-   and `made_by_hand_label` in `settings.lua` (refusing unknown fields as
-   today); the evidence gathered in `build-site.lua`; the two new row and
-   heading kinds in `contents/contents-page.lua`, each drawn only when it
-   happens, so a page with neither is unchanged. Tests in
-   `tests/test-transcript-site.lua` for each, and the README's settings
-   table.
+   `contents/commit-history.lua`; `evidence_from` and `hand_made_from` in
+   `settings.lua` (refusing unknown fields as today); in `build-site.lua`,
+   the evidence gathered, commits made elsewhere dropped before grouping,
+   and each hand-made commit's added lines read and handed to the
+   conversation page as a one-speaker conversation; the facts line's "written
+   by hand" in `conversation/conversation-page.lua`. The table of contents
+   needs no new row kind: a hand-made commit's button is an ordinary link.
+   Tests in `tests/test-transcript-site.lua`: a commit recorded only in an
+   `evidence_from` folder is absent from the page and counted in the report;
+   a hand-made commit's page holds exactly its added lines, its file paths
+   and the headings above them, and not the lines it did not add; a
+   transcripts-folder file is left out; the README's settings table.
 6. Snapshot (`backup-transcript-corpus`), then `rederive-transcripts`
    (report) and `rederive-transcripts --write`, over the whole machine, as
    the transcript-care skill's steps 1 to 5.
@@ -200,11 +248,17 @@ say them its own way: `made_elsewhere_label`, `made_by_hand_label`.
 8. **In double-diaper-dungeon**, pull the library
    (`scripts/pull-transcript-site`), and add to
    `assets/070-transcript-site-settings.lua`:
-   `evidence_from = { "/mnt/mtwo/.claude/claude-code/llm-transcripts" }`.
-   Build, and compare with the build before (`scripts/compare-two-sites`).
-   The story page's first 70 commits should read: **63 linked** (55, the 3
-   waiting on the mirror, and A's and B's 5), **5 "made from a conversation
-   in claude-code"**, **2 "made by hand"**, **0** unexplained. Its next push
+   `evidence_from = { "/mnt/mtwo/.claude/claude-code/llm-transcripts" }` and
+   `hand_made_from = ""` (the project itself, whose commits the mirror
+   copies). Build, and compare with the build before
+   (`scripts/compare-two-sites`). Of the story page's first 70 commits,
+   **65 are shown and every one has a working button**: 63 into
+   conversations (55, the 3 waiting on the mirror, and A's and B's 5) and 2
+   into pages of her own words (`by-hand-17463e2.html`: her lines in
+   `desire/what-would-be-better.md`, her answers in
+   `docs/020-open-questions.md` under their headings, and
+   `notes/monster-ideas`; `by-hand-c7d6693.html`: `new-issue-please-sort`).
+   The 5 made from the Claude Code folder are not shown. Its next push
    publishes it; nothing else is done by hand.
 9. Record the counts seen in this file, update
    `transcript-system-progress.md`, move this file to `completed/`, commit.
