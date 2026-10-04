@@ -4,7 +4,9 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: High (the hang leaves a terminal stuck)
 - **Type**: Bug fixes
-- **Status**: BUILT 2026-09-23, confirmed by the owner
+- **Status**: Completed (2026-10-04). Built 2026-09-23 and confirmed by the
+  owner. Both library tests pass on 2026-10-04: the screen test 7 of 7, the
+  clipboard test 4 of 4.
 - **Created**: 2026-09-23
 - **Related**: 10-016 (per-stage force options; added the `↳` labels),
   10-043 (dual-checkbox stage selection), 10-013 (TUI config editor)

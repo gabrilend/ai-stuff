@@ -4,8 +4,9 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: High (tooling files are currently being published as poems)
 - **Type**: Feature + input hygiene
-- **Status**: IN PROGRESS — built and tested; every open question is answered
-  (the collision notice was built 2026-09-23).  Ready to be completed.
+- **Status**: Completed (2026-10-04). Built and tested; every open question is
+  answered (the collision notice was built 2026-09-23).
+  `scripts/notes-tooling-exclusion.test.sh` passes 11 of 11 on 2026-10-04.
 - **Created**: 2026-09-22
 - **Related**: 10-026 (sources + external sync config), 10-053 (excluding content),
   6-031 (poem exclusion tombstones)
@@ -57,8 +58,10 @@ Two halves:
     where the existing note is.  Tested 2026-09-23 against a scratch notes
     folder: a clash produced the notice and left both files untouched; a
     free name moved as before with no notice.
-  - The copy of the mailbox already in `input/notes/rmail/` is removed by the
-    next sync.
+  - The old copy of the mailbox in `input/notes/rmail/` is gone (checked
+    2026-10-04), and the notes extracted on 2026-09-23 contain no mailbox
+    files. The word "rmail" appears in them only inside notes that talk about
+    rmail.
 
 ## Intended Behavior
 

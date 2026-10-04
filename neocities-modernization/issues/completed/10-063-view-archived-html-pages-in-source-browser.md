@@ -4,21 +4,31 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: Low
 - **Type**: Feature
-- **Status**: Implemented (2026-06-26) — verified by syntax + classification tests
-  (archive/*.html → "view"; other HTML still "code"). Validate the copied page + the
-  open-in-new-tab link by regenerating the source browser:
-  `luajit src/generate-source-browser.lua <DIR>` and clicking an archived cloud.
+- **Status**: Completed (2026-10-04). Built 2026-06-26; confirmed against the
+  source browser the pipeline built on 2026-08-11 (see Current Behavior).
 - **Builds on**: 10-052/10-055 (the source browser and its Feature F saved-page
   out-links), and the change that added `archive/` to the published allowlist.
 
 ## Current Behavior
 
-`archive/` is now published in the source browser, so its dated word-cloud snapshots
-(and the `first-published-wordcloud.html` keepsake) appear in the tree. But they are
-HTML files, and `classify_file` treats HTML as "code", so clicking one shows its
-literal HTML SOURCE (numbered, syntax-highlighted) rather than the rendered word
-cloud. For a visual artifact like a word cloud, the source text is the wrong thing to
-show -- the reader wants to SEE the cloud.
+`archive/` is published in the source browser, so its dated word-cloud snapshots
+(and the `first-published-wordcloud.html` keepsake) appear in the tree. Before this
+issue they were treated like any other HTML file -- as code -- so clicking one showed
+its literal HTML source rather than the rendered cloud.
+
+Now an HTML file under `archive/` is a fourth kind of file, "view", beside code,
+image and mirror. It is copied byte-for-byte into `output/source/archive/...`, no
+source-code page is made for it, and its sidebar entry links straight to the copy,
+opening in a new tab. Checked on the 2026-08-11 build: the sidebar entries read
+`<a class="ext" href="archive/wordclouds/wordcloud-...html" target="_blank"
+rel="noopener">`, the copied files match the originals byte-for-byte, and no
+`*.html.html` source page exists under `output/source/archive/`. Other HTML in the
+published tree still shows as source code.
+
+The archived clouds' own word links (`wordcloud/<word>.html`, `../explore.html`)
+point at paths relative to `output/`, so they do not work from inside
+`output/source/archive/`. Accepted: the snapshot is a picture of the cloud on that
+date (see Known limitation).
 
 ## Intended Behavior
 

@@ -100,6 +100,12 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
 | 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
 | 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
+| 10-063 | Archived word clouds open as pages in the source browser, not as source code | Completed | 2026-10-04 |
+| 10-068 | The phone-message mailbox feeds the notes folder without being published itself | Completed | 2026-10-04 |
+| 10-070 | Menu fixes: drawable markers, no hang on leaving, copy to both clipboards | Completed | 2026-10-04 |
+
+These tables are hand-kept and fall behind. For current done and open counts per
+phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
 
 ## Issue Details
 
