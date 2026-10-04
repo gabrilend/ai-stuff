@@ -344,6 +344,16 @@ check("no films: no film", unfilmed:find('class="film"', 1, true) == nil, true)
 check("a page with no Contents list carries none of its rules", unfilmed:find(".contents {", 1, true) == nil, true)
 check("a page with no harness turn carries none of its rules", unfilmed:find(".harness {", 1, true) == nil, true)
 check("a page with a Contents list carries its rules", html:find(".contents {", 1, true) ~= nil, true)
+local coded = page.render(reader.read(transcript({ models = "m" }, {
+  { "User Request 1", "go" },
+  { "Assistant Response 1", "One file, `README.md`, written by hand.\n\n`★ Insight ─────`" },
+})), { colours_css = COLOURS })
+check("code inside a sentence stays in the sentence",
+  coded:find("<p>One file, <code>README.md</code>, written by hand.</p>", 1, true) ~= nil, true)
+check("a paragraph of one code span alone is marked to run wide",
+  coded:find('<p class="code-line"><code>★ Insight ─────</code></p>', 1, true) ~= nil, true)
+check("and no rule makes every lone element a block any more",
+  coded:find("code:only-child {", 1, true) == nil, true)
 check("her quoted lines are a quieter green, on every page",
   unfilmed:find(".said .what blockquote { color: color-mix(in srgb, var(--dexterity) 60%, #555555); }", 1, true) ~= nil, true)
 check("no colours is refused, not drawn black on black",

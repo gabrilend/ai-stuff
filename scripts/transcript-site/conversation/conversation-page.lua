@@ -192,6 +192,14 @@ local function turn_html(markdown, exchange, previous_model, film)
   -- a marker spanning a wrap is allowed to pair. See the note in the renderer.
   local rendered = page_links(markdown.render(exchange.body, { reflow = true }))
 
+  -- A PARAGRAPH THAT IS ONE CODE SPAN AND NOTHING ELSE is marked, so the
+  -- stylesheet can let it run wide and scroll (an insight rule) while code
+  -- inside a sentence stays in the sentence. Two paths: the paragraph holds
+  -- exactly <code>...</code>, and gains the class; or it holds anything else
+  -- around the code, and is left alone. The renderer escapes every "<" in
+  -- text, so "[^<]*" is the whole span and can never run past it.
+  rendered = rendered:gsub("<p><code>([^<]*)</code></p>", '<p class="code-line"><code>%1</code></p>')
+
   -- EVERY COMMIT GETS A PLACE TO LAND.
   --
   -- The exporter writes a line where each commit happened, as
@@ -332,7 +340,13 @@ code {
   color: var(--intellect);
   white-space: pre;
 }
-p > code:only-child {
+/* A paragraph that is one code span and nothing else -- an insight rule --
+   is marked "code-line" by the page builder, and only that becomes a block.
+   This was "p > code:only-child", which CSS answers by counting elements
+   alone and ignoring words: "One file, `README.md`, written by hand" has one
+   element child, so README.md was thrown onto a line of its own. She found
+   it on 2026-10-04. */
+p.code-line > code {
   display: block;
   overflow-x: auto;
 }
