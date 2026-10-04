@@ -199,6 +199,7 @@ output/flopsopoly/
 - **13-002**: Audio track and manifest (must be completed first)
 - **13-003**: Image sequence and visual manifest (must be completed first)
 - **ffmpeg**: System dependency (must be installed)
+- 13-002d, 13-003c
 
 ## Future Enhancements (Post-MVP)
 

@@ -111,6 +111,10 @@ void main() {
 - 9-001b (Vulkan wrapper) ✅
 - 9-001c (Cosine distance shader - shares components) ✅
 
+## Blocks
+
+- 9-002a
+
 ## Implementation Summary
 
 Created GPU-accelerated similarity matrix computation adapted for triangular individual files format.

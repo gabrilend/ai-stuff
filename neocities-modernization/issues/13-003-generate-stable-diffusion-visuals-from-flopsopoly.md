@@ -417,4 +417,5 @@ Image generation is the bottleneck:
 - **Created**: 2026-01-26
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: High (API integration + prompt engineering + large-scale generation)
-- **Dependencies**: 13-001 (TTS engine), 13-002 (flopsopoly manifest and audio)
+- **Dependencies**: 13-001 (TTS engine), 13-002 (flopsopoly manifest and audio), 13-002d
+- **Blocks**: 13-004

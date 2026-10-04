@@ -119,6 +119,10 @@ For images containing text (screenshots, memes):
 
 - Issue 10-042b: Chronological interleaving (images must have pseudo-poem structure)
 
+## Blocks
+
+- 10-044, 10-045
+
 ## Status
 
 **OPEN** - Created 2026-03-23

@@ -143,6 +143,10 @@ Based on similarity_batch.comp design and GTX 1080 Ti specs:
 - 9-001b (Vulkan wrapper) ✅ COMPLETED
 - 9-001c (Cosine distance shader) ✅ COMPLETED
 
+## Blocks
+
+- 9-002c
+
 ## Related Files
 
 - `libs/vulkan-compute/lua/vk_similarity.lua` - Implementation to test

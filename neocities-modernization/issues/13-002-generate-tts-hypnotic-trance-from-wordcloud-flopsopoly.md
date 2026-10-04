@@ -312,4 +312,4 @@ TTS generation dominates: ~0.5-2 seconds per word × 200 unique words = 100-400 
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: High (novel algorithm + audio assembly pipeline)
 - **Dependencies**: 13-001 (TTS engine)
-- **Blocks**: 13-003 (needs manifest for synchronization)
+- **Blocks**: 13-003 (needs manifest for synchronization), 13-004

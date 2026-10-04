@@ -459,4 +459,5 @@ image_association = {
 - **Phase**: 9 (originally), moved to Phase 8 roadmap
 - **Estimated Complexity**: Medium (algorithm straightforward, integration touches multiple files)
 - **Dependencies**: Issue 8-040 should be completed first (basic image rendering)
+- **Blocks**: 10-042d
 - **Affects**: Poem extraction, HTML generation, pagination counts
