@@ -57,8 +57,11 @@ in superseded or declined files are ignored.
 ## Relationship to other tools
 
 - `progress-dashboard.lua` — counts the same issues by phase.
+- `fix-issue-links` — writes the missing half of every one-sided link this
+  tool reports, in the shape of the file's existing link fields.
 - `validate-issue-graph` in enheim-tome — the ancestor of the link check; it
   also has a `--fix` that writes the union of both sides into both files. This
-  tool reports only and never edits an issue file.
+  tool reports only and never edits an issue file; `fix-issue-links` does the
+  writing, in every link shape this tool reads.
 - The `issue-lifecycle` skill (`~/.claude/skills/issue-lifecycle/`) runs this
   tool when an issue is created, edited, or completed.
