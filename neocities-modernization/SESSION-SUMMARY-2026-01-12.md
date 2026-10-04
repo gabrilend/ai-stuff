@@ -10,7 +10,7 @@ Productive session focusing on Phase 6 (Issue 6-012: Hope Card PDF Generation) w
 **Status**: Phase 1 Complete (Foundation)
 **Files Created**:
 - `issues/6-012-implement-words-pdf-styled-export-system.md` - Main issue file
-- `issues/6-012-DESIGN.md` - Detailed design document
+- `docs/hope-card-pdf-export-design.md` - Detailed design document
 - `libs/hope-card-formatter.lua` - Core formatting library (167 lines)
 - `libs/hope-card-formatter-test.lua` - Comprehensive test suite (217 lines, 29 tests)
 - `scripts/generate-hope-card-pdf` - PDF generation wrapper
@@ -34,7 +34,7 @@ Productive session focusing on Phase 6 (Issue 6-012: Hope Card PDF Generation) w
 **Status**: Design Complete
 **Files Created**:
 - `issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Main issue
-- `issues/10-009-DESIGN.md` - Complete algorithm design
+- `docs/incremental-centroid-updates-design.md` - Complete algorithm design
 
 **Key Innovation**: "Unwinding" centroids by storing constituent poem IDs, enabling:
 - 18x speedup for adding 100 new poems
@@ -88,7 +88,7 @@ Found existing system (`assets/centroids.json`) that allows:
 ## Updated Documentation
 
 - `docs/table-of-contents.md` - Added all new issues and documents
-- `issues/6-012-DESIGN.md` - Updated with centroid integration
+- `docs/hope-card-pdf-export-design.md` - Updated with centroid integration
 - Created Phase 12 (Experimental AI Features) in roadmap
 
 ## Unsorted Issues Processed

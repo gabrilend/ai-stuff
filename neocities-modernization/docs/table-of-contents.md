@@ -72,8 +72,8 @@ of what the code does is only visible from outside it.
   - `/issues/completed/phase-5/016-implement-full-similarity-matrix-storage.md` - Full similarity matrix storage for complete HTML generation support (COMPLETED)
 - `/issues/6-progress.md` - Phase 6 progress tracking (visual content & user experience) - COMPLETED
   - `/issues/6-012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling for printable hope cards (Phase 1 COMPLETE)
-  - `/issues/6-012-DESIGN.md` - Detailed design document for hope card system
-  - `/issues/6-012-PHASE1-COMPLETE.md` - Phase 1 completion report
+  - `/docs/hope-card-pdf-export-design.md` - Detailed design document for hope card system
+  - `/docs/hope-card-pdf-export-phase-1-report.md` - Phase 1 completion report
   - `/issues/phase-6/016-implement-content-warning-collapsible-system.md` - Content warning hide/show functionality (PLANNED)
   - `/issues/phase-6/017-create-image-configuration-and-directory-management-system.md` - Image discovery and configuration (PLANNED)
   - `/issues/phase-6/018-implement-image-alt-text-embedding-analysis.md` - Intelligent image alt-text analysis (PLANNED)
@@ -111,7 +111,7 @@ of what the code does is only visible from outside it.
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
   - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
-  - `/issues/10-009-DESIGN.md` - Detailed algorithm design for centroid unwinding
+  - `/docs/incremental-centroid-updates-design.md` - Detailed algorithm design for centroid unwinding
   - `/issues/10-010-integrate-test-suites-into-development-pipeline.md` - Automated testing integration (low priority)
   - `/issues/10-013-implement-tui-config-editor.md` - Interactive TUI config editor with per-section editing and poem exclusion management (OPEN)
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED

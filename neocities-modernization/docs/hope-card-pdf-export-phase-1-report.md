@@ -31,7 +31,7 @@
 ### Documentation
 - `docs/words-pdf-integration.md` - Complete integration guide
 - `docs/centroids-for-hope-cards.md` - Centroid system usage
-- `issues/6-012-DESIGN.md` - Full design document
+- `docs/hope-card-pdf-export-design.md` - Full design document
 
 ### Configuration
 - Added 3 hope-themed centroids to `assets/centroids.json`:
@@ -104,7 +104,7 @@ scripts/generate-hope-card-pdf
 scripts/export-hope-cards (skeleton)
 docs/words-pdf-integration.md
 docs/centroids-for-hope-cards.md
-issues/6-012-DESIGN.md
+docs/hope-card-pdf-export-design.md
 temp/demo-poems.txt (demo data)
 ```
 
