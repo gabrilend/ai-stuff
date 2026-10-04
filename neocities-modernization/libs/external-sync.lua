@@ -2,8 +2,9 @@
 -- Issue 10-003b: Centralized external file syncing module
 -- Issue 10-026: Now reads from sources-loader (unified config)
 --
--- Reads external sync info from config.sources via sources-loader.
--- Falls back to config.external_files for backward compatibility.
+-- Reads external sync info from config.sources via sources-loader. There is
+-- no other route: a sources-loader that fails to load is an error, not a
+-- silent "nothing to sync".
 --
 -- All external file pulling should go through this module.
 -- No hardcoded external paths should exist in scripts.
@@ -20,9 +21,12 @@ local M = {}
 
 -- {{{ Module state
 local project_root = nil
-local config = nil
 local verbose = true
-local sources_loader = nil  -- Issue 10-026: lazy-loaded sources-loader
+-- Issue 10-026: where every sync entry comes from. Required outright: it used
+-- to be loaded inside a pcall, and a loader that failed to load (a typo in it,
+-- say) left this module quietly reading an empty legacy list and syncing
+-- nothing, with no message. Removed 2026-10-04 along with that legacy list.
+local sources_loader = require("sources-loader")
 -- }}}
 
 -- {{{ ANSI color codes for terminal output
@@ -37,17 +41,8 @@ local COLOR_RESET = "\027[0m"
 -- Set the project root directory (required before any operations)
 function M.set_project_root(path)
     project_root = path
-    config = nil  -- Reset config when root changes
-    -- Issue 10-026: Also initialize sources-loader
-    if not sources_loader then
-        local ok, loader = pcall(require, "sources-loader")
-        if ok then
-            sources_loader = loader
-        end
-    end
-    if sources_loader then
-        sources_loader.set_project_root(path)
-    end
+    -- Issue 10-026: the sources-loader reads config.lua from the same root
+    sources_loader.set_project_root(path)
 end
 -- }}}
 
@@ -89,50 +84,14 @@ local function log_warning(msg)
 end
 -- }}}
 
--- {{{ local function load_config
--- Load config.lua if not already loaded
-local function load_config()
-    if config then
-        return config
-    end
-
     if not project_root then
         error("external-sync: project_root not set. Call set_project_root() first.")
-    end
-
-    local config_path = project_root .. "/config.lua"
-    local ok, result = pcall(dofile, config_path)
-    if not ok then
-        error("external-sync: Failed to load config.lua: " .. tostring(result))
-    end
-
-    config = result
-    return config
-end
--- }}}
-
 -- {{{ local function get_external_files
--- Issue 10-026: Get external sync entries, preferring sources-loader
--- Falls back to config.external_files for backward compatibility
+-- Issue 10-026: every external sync entry, from the sources in config.lua.
+-- An empty list is a real answer (no source names an external location).
 local function get_external_files()
-    -- Try sources-loader first (unified config)
-    if sources_loader then
-        local syncs = sources_loader.get_all_external_syncs()
-        if #syncs > 0 then
-            return syncs
-        end
     end
-
-    -- Fall back to legacy external_files section
-    local cfg = load_config()
-    local legacy = cfg.external_files or {}
-    -- Add is_archive field for compatibility (detect by .zip extension)
-    for _, entry in ipairs(legacy) do
-        if entry.is_archive == nil then
-            entry.is_archive = entry.source and entry.source:match("%.zip$") ~= nil
-        end
-    end
-    return legacy
+    return sources_loader.get_all_external_syncs()
 end
 -- }}}
 

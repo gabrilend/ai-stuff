@@ -59,6 +59,42 @@ FILE granularity and FUNCTION granularity, and they differ. Last time a live fil
 was deleted for containing dead-looking code. Pruning these means removing
 functions, not the file.
 
+### Dead configuration (retired 2026-10-04)
+
+Liveness has a third granularity beside file and function: the single
+setting. A setting nothing reads still looks like a control, so someone edits
+it and nothing changes. `scripts/audit-config-keys` now finds these: it loads
+`config.lua`, then searches every tracked program for a read of each section
+and each setting, following the indirect routes this code uses (a local alias,
+a quoted name, a loop over a whole section, a table indexed by a list of names
+elsewhere in `config.lua`) and ignoring comment lines. Its first run found six;
+each was confirmed by hand and removed, with a short note left in its place
+saying what to use instead:
+
+- `randomization.seed` -- `run.sh` stopped reading it under 10-065; the seed is
+  `run.sh --seed N`.
+- `extraction.enable_fediverse`, `enable_messages`, `enable_notes`,
+  `enable_bluesky` -- never read; a source is switched off with `enabled =
+  false` on its entry in `sources`.
+- `word_cloud.enabled` -- never read; the word cloud is built by selecting
+  stage 10.
+
+A seventh, `external_files`, was an empty list read only by a fallback in
+`libs/external-sync.lua`: when the sources reader returned no sync entries, the
+module read the empty list instead and got the same answer. Worse, the sources
+reader was loaded inside a pcall, so if it failed to load the module silently
+synced nothing. The list, the fallback, and the module's private config loader
+(used only by the fallback) are gone; the sources reader is required outright,
+so a broken one is an error. `scripts/notes-tooling-exclusion.test.sh` (which
+drives the real sync) passes, and `scripts/sync-external-files --list` still
+shows all nine configured syncs.
+
+`docs/config-reference.md` had drifted the same way (written once in April; a
+removed section, a renamed one, seven missing). Its section reference is now
+generated from `config.lua`'s own comments by `scripts/generate-config-reference`
+(`--check` reports drift without writing). The doc's hand-written parts were
+corrected and gained a table of removed settings.
+
 **Reachable but off the pipeline (classify before pruning, not dead):**
 - `src/model-comparison.lua` -- referenced by `similarity-engine.lua` and
   `scripts/start-llamacpp-server.sh`. A diagnostic tool, not pipeline code.

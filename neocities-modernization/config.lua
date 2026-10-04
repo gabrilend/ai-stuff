@@ -1,6 +1,6 @@
 -- {{{ config.lua
 -- Issue 10-003: Single authoritative configuration for neocities-modernization
--- All settings are validated against actual script usage as of 2026-01-21.
+-- To list settings that no program reads, run scripts/audit-config-keys.
 -- Sections are organized with vimfolds for easy navigation.
 --
 -- For detailed field documentation, see: docs/config-reference.md (Issue 10-019)
@@ -213,27 +213,21 @@ return {
     },
     -- }}}
 
-    -- {{{ external_files - DEPRECATED (Issue 10-026)
-    -- This section has been merged into the 'sources' section above.
-    -- External sync info is now stored as 'external' fields in each source's directories,
-    -- and as 'archives' arrays for ZIP files.
-    --
-    -- external-sync.lua now reads from sources-loader.get_all_external_syncs()
-    -- which collects external sync info from the unified sources configuration.
-    --
-    -- This empty array is kept for backward compatibility during the transition.
-    -- It can be removed after confirming all scripts use sources-loader.
-    external_files = {},
-    -- }}}
+    -- External syncs are described on the sources themselves: an `external`
+    -- field on a directory entry (rsync from there) or an `archives` list (ZIP
+    -- files that extract there). An empty `external_files` list used to sit
+    -- here for the move to that layout (Issue 10-026); the move is done, so it
+    -- was removed (2026-10-04).
 
     -- {{{ extraction
-    -- Controls which input sources are processed during extraction.
-    -- Disabling a source skips it entirely, useful for testing or partial rebuilds.
+    -- Settings for the archive-scanning step of extraction.
+    -- Read by: scripts/zip-extractor.lua
+    --
+    -- To switch a source off, set `enabled = false` on its entry under `sources`
+    -- above. Four per-source switches used to sit here (enable_fediverse,
+    -- enable_messages, enable_notes, enable_bluesky); nothing read them, so
+    -- they were removed (scripts/audit-config-keys found them, 2026-10-04).
     extraction = {
-        enable_fediverse = true,
-        enable_messages = true,
-        enable_notes = true,
-        enable_bluesky = true,
         -- Issue 7-003: ZIP files to ignore during archive scanning.
         -- These are ZIPs that appear in input/ but aren't content archives
         -- (e.g., site backups embedded in media_attachments from fediverse export).
@@ -243,27 +237,13 @@ return {
     },
     -- }}}
 
-    -- {{{ randomization
-    -- Issue 10-058: One master seed governs every randomization site in a build.
-    -- Today that is the word-cloud word shuffle (src/wordcloud-generator.lua) and
-    -- the image-order randomization for any source that does not pin its own
-    -- per-source random_seed (src/image-manager.lua). Reproducibility needs two
-    -- things: (a) all randomness flowing from ONE known seed, and (b) that seed
-    -- recorded somewhere durable. run.sh resolves the seed -- precedence is the
-    -- --seed CLI flag > this config value > an auto-generated seed -- and records
-    -- the resolved value to output/generation-metadata.json and the run log, so a
-    -- build is always answerable to "which seed produced this?".
-    --
-    --   seed = nil  => run.sh invents a seed each build and RECORDS it, so even a
-    --                  build nobody thought to seed is reproducible after the fact.
-    --   seed = N    => a fixed non-negative integer pins the build: the same seed
-    --                  over the same inputs yields byte-identical shuffled output.
-    --
-    -- A `--seed N` on the run.sh command line overrides this value for one run.
-    randomization = {
-        seed = nil,
-    },
-    -- }}}
+    -- The build's random seed is not set in this file. It is given on the
+    -- command line as `run.sh --seed N`; with no --seed, run.sh picks one. Either
+    -- way it is recorded in output/generation-metadata.json and stamped into the
+    -- word-cloud page (Issues 10-058, 10-065). A `randomization.seed` setting
+    -- used to sit here; run.sh stopped reading it, so it was removed.
+    -- A source can still pin its own image order with `random_seed` on its
+    -- entry under `sources`.
 
     -- {{{ excluded_poems
     -- Issue 6-031: Poems to exclude from the collection during extraction.
@@ -395,7 +375,7 @@ return {
     privacy = {
         mode = "clean",                     -- "clean" or "raw"
         anonymization_prefix = "user-",     -- Prefix for anonymized usernames
-        include_boosts = false,             -- Boosted/reblogged posts OFF by default (the name implies opt-in); pass --include-boosts to add them
+        include_boosts = false,             -- Boosts/reblogs. run.sh ignores this and requires --boosts yes|no; read only when scripts/extract-fediverse.lua or src/main.lua runs on its own without a boosts flag
         preserve_original_length = true,    -- Keep length hints for anonymized names
         store_anonymization_map = false,    -- Don't store mapping (privacy)
         local_server_domain = "tech.lgbt"   -- Your home instance domain
@@ -615,8 +595,11 @@ return {
     -- stop words (common words like "the", "and"), and displays the remaining
     -- words sized by frequency. Each word links to poems containing it.
     -- Read by: src/wordcloud-generator.lua
+    --
+    -- Whether the word cloud is built is chosen by selecting its stage (stage
+    -- 10) on the run.sh command line or menu. An `enabled` switch used to sit
+    -- here; nothing read it, so it was removed (2026-10-04).
     word_cloud = {
-        enabled = true,
         output_file = "wordcloud.html",
         min_occurrences = 5,        -- Minimum times a word must appear
         max_words = 200,            -- Maximum words to display (0 = unlimited)
