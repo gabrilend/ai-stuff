@@ -18,8 +18,11 @@ local SITE = DIR .. "/transcript-site"
 local SCRATCH = (os.getenv("TMPDIR") or "/tmp") .. "/transcript-site-test-" .. os.time()
 -- }}}
 
-local reader = dofile(SITE .. "/transcript-reader.lua")
-local page = dofile(SITE .. "/conversation-page.lua")
+local reader = dofile(SITE .. "/conversation/transcript-reader.lua")
+local page = dofile(SITE .. "/conversation/conversation-page.lua")
+
+-- The page is handed its colours; any :root block will do for these checks.
+local COLOURS = ":root { --plain: #ccc; }"
 
 local failures = 0
 
@@ -154,23 +157,23 @@ refuses("a Contents entry of an unknown shape is refused",
 
 print("== the page ==")
 
-local html = page.render(with_contents, { title = "t" })
+local html = page.render(with_contents, { title = "t", colours_css = COLOURS })
 check("the Contents list is drawn", html:find('<nav class="contents">', 1, true) ~= nil, true)
 check("an entry links to the turn after its request", html:find('<a href="#turn-3">after Request 1</a>', 1, true) ~= nil, true)
 check("... and that turn carries the id", html:find('<section id="turn-3" class="turn said">', 1, true) ~= nil, true)
-check("no recaps: no Contents list", page.render(basic, {}):find('<nav class="contents">', 1, true) == nil, true)
+check("no recaps: no Contents list", page.render(basic, { colours_css = COLOURS }):find('<nav class="contents">', 1, true) == nil, true)
 
 local linking = reader.read(transcript({ models = "m" }, {
   { "User Request 1", "go" },
   { "Assistant Response 1", "*[background task] Agent \"Review\" finished — [review-sep-1-26.md](review-sep-1-26.md)*\n\nSee [the docs](docs/x.md) and [a site](https://e.org/y.md)." },
 }))
-local linked_html = page.render(linking, {})
+local linked_html = page.render(linking, { colours_css = COLOURS })
 check("a link to a sibling transcript points at its page", linked_html:find('href="review-sep-1-26.html"', 1, true) ~= nil, true)
 check("a link into a folder is left alone", linked_html:find('href="docs/x.md"', 1, true) ~= nil, true)
 check("a link to another site is left alone", linked_html:find('href="https://e.org/y.md"', 1, true) ~= nil, true)
 
-check("facts: no models line reads 'no model named'", page.render(no_models, {}):find("no model named", 1, true) ~= nil, true)
-check("facts: an archived transcript reads 'not recorded'", page.render(archived, {}):find("date not recorded", 1, true) ~= nil, true)
+check("facts: no models line reads 'no model named'", page.render(no_models, { colours_css = COLOURS }):find("no model named", 1, true) ~= nil, true)
+check("facts: an archived transcript reads 'not recorded'", page.render(archived, { colours_css = COLOURS }):find("date not recorded", 1, true) ~= nil, true)
 
 print("== a whole project, inside a larger repository ==")
 
@@ -236,22 +239,27 @@ check("it counts the five commits that touched this project, not the repository'
   report:find("commits        5", 1, true) ~= nil, true)
 check("it names the file that is not a transcript", report:find("wordcloud.md", 1, true) ~= nil, true)
 check("one commit is known from a transcript's own record",
-  report:find("records making          1", 1, true) ~= nil, true)
+  report:find("by recorded   1", 1, true) ~= nil, true)
 check("two are known by the one transcript they saved (one through a helper)",
-  report:find("they saved 2", 1, true) ~= nil, true)
+  report:find("by saved      2", 1, true) ~= nil, true)
 check("two have no conversation recorded (the bulk re-save and the bare code)",
-  report:find("recorded         2", 1, true) ~= nil, true)
+  report:find("commits linked 3 of 5", 1, true) ~= nil, true)
 
 local out = SCRATCH .. "/repo/one-project/llm-transcripts/HTML"
 local index = io.open(out .. "/index.html"):read("*a")
 check("the front page links the conversation", index:find('href="sep-1-26.html"', 1, true) ~= nil, true)
-check("a recorded commit links to the turn that made it",
-  index:find('href="sep-1-26.html#turn-2"', 1, true) ~= nil, true)
+check("a recorded commit's button lands on its commit line",
+  index:find('href="sep-1-26.html#commit-' .. recorded_hash:sub(1, 7) .. '"', 1, true) ~= nil, true)
+check("... and the conversation page has that line's id",
+  io.open(out .. "/sep-1-26.html"):read("*a"):find('id="commit-' .. recorded_hash:sub(1, 7) .. '"', 1, true) ~= nil, true)
+check("a saved commit's button opens the page at its top",
+  index:find('<a class="transcript" href="sep-1-26.html">transcript</a>', 1, true) ~= nil, true)
 check("the helper's commit is drawn with its parent, not the helper",
   index:find("review-sep-1-26.html", 1, true) == nil, true)
-check("the bulk re-save and the bare code say no conversation is recorded",
-  select(2, index:gsub("No conversation is recorded", "")) == 1, true)
-check("the front page shows the commit subject", index:find("Recorded work", 1, true) ~= nil, true)
+check("the bulk re-save and the bare code say no conversation mentions them",
+  select(2, index:gsub("no saved conversation mentions these", "")) == 1, true)
+check("a commit with a body shows its body", index:find("The body of the first commit.", 1, true) ~= nil, true)
+check("a commit without one shows its subject", index:find("Code without a conversation", 1, true) ~= nil, true)
 check("the conversation's page exists", io.open(out .. "/sep-1-26.html") ~= nil, true)
 check("the font is written beside the pages", io.open(out .. "/fonts/HackNerdFont-Regular.ttf") ~= nil
   and io.open(out .. "/fonts/HackNerdFont-Bold.ttf") ~= nil, true)
@@ -292,6 +300,170 @@ write(hook, foreign)
 local said_skip = run_quiet("'" .. SITE .. "/install-pages-hook' '" .. repo .. "'")
 check("another tool's pre-push hook is reported", said_skip:find("left as it is", 1, true) ~= nil, true)
 check("... and left untouched", io.open(hook):read("*a"), foreign)
+
+print("== three parts that never meet (issue 035a) ==")
+
+-- Every Lua file in a part folder is read for the name of a sibling part
+-- folder. The parts take plain tables in and hand plain tables or strings
+-- out; only build-site.lua joins them.
+local PARTS = { "conversation", "contents", "films" }
+for _, part in ipairs(PARTS) do
+  local listing = io.popen("ls '" .. SITE .. "/" .. part .. "'/*.lua")
+  local reaches = {}
+  for path in listing:lines() do
+    local text = io.open(path):read("*a")
+    for _, other in ipairs(PARTS) do
+      if other ~= part and (text:find(other .. "/", 1, true) and text:find("dofile", 1, true)) then
+        for line in text:gmatch("[^\n]+") do
+          if line:find("dofile", 1, true) and line:find(other .. "/", 1, true) then
+            reaches[#reaches + 1] = path:match("[^/]+$") .. " -> " .. other
+          end
+        end
+      end
+    end
+  end
+  listing:close()
+  check(part .. "/ loads no other part", table.concat(reaches, ", "), "")
+end
+
+print("== the conversation page meets the game's (issue 035c) ==")
+
+local with_commit = reader.read(transcript({ models = "m" }, {
+  { "User Request 1", "go" },
+  { "Assistant Response 1", "done\n\n*[commit] abcdef123 - A thing*" },
+}))
+local filmed = page.render(with_commit, { colours_css = COLOURS, films = { "a.gif", "b.gif" },
+  film_size = 128, base_path = "../.." })
+check("a commit line carries its id", filmed:find('<em class="commit-mark" id="commit-abcdef1">', 1, true) ~= nil, true)
+check("the id comes from one rule", page.commit_anchor("abcdef123"), "commit-abcdef1")
+check("her message has its film, at the site root",
+  filmed:find('<img class="film" src="../../films/a.gif" alt="" width="128" height="128" loading="lazy">', 1, true) ~= nil, true)
+check("... and the turn is marked as filmed", filmed:find('class="turn said has-film"', 1, true) ~= nil, true)
+local unfilmed = page.render(with_commit, { colours_css = COLOURS })
+check("no films: no film", unfilmed:find('class="film"', 1, true) == nil, true)
+check("a page with no Contents list carries none of its rules", unfilmed:find(".contents {", 1, true) == nil, true)
+check("a page with no harness turn carries none of its rules", unfilmed:find(".harness {", 1, true) == nil, true)
+check("a page with a Contents list carries its rules", html:find(".contents {", 1, true) ~= nil, true)
+check("no colours is refused, not drawn black on black",
+  pcall(page.render, with_commit, {}), false)
+
+print("== the settings (issue 035e) ==")
+
+local settings_reader = dofile(SITE .. "/settings.lua")
+local site = dofile(SITE .. "/build-site.lua")
+check("the route up from the root", settings_reader.route_up(""), ".")
+check("the route up from one folder", settings_reader.route_up("story"), "..")
+check("the route up from two", settings_reader.route_up("site/story"), "../..")
+check("an unknown field is refused", (pcall(settings_reader.resolve, "/p", { titel = "x" })), false)
+check("a field of the wrong kind is refused", (pcall(settings_reader.resolve, "/p", { pages = 3 })), false)
+check("a films table missing a field is refused", (pcall(settings_reader.resolve, "/p", { films = { server = "x" } })), false)
+local defaults = settings_reader.resolve("/p/proj", {})
+check("the default transcripts folder", defaults.transcripts, "/p/proj/llm-transcripts")
+check("the default output", defaults.output, "/p/proj/llm-transcripts/HTML")
+check("the default history is the project", defaults.history, "/p/proj")
+check("the default title", defaults.title, "How proj got made")
+check("no films unless asked", defaults.films, nil)
+check("every attribution rule by default", table.concat(defaults.attribution, ","), "recorded,subject,saved")
+
+local harnessed = reader.read(transcript({ models = "m", before_first = "*[slash command] /x*" },
+  { { "User Request 1", "a" }, { "Assistant Response 1", "b" } }))
+local before_count = #harnessed.exchanges
+site.shape(harnessed, settings_reader.resolve("/p", { harness_lines = false, recap_contents = false }))
+check("harness lines off: the harness turn is taken out", #harnessed.exchanges, before_count - 1)
+check("... before anything numbers the turns", harnessed.exchanges[1].kind, "user")
+
+print("== the story page for every project (issue 035b) ==")
+
+-- A mirror-shaped repository: its own top, commits carrying "Mirrored-from:",
+-- one of them empty. Read whole, empty commits included, matched by source.
+local mirror = SCRATCH .. "/mirror"
+os.execute("mkdir -p '" .. mirror .. "/llm-transcripts'")
+local function mgit(args)
+  return os.execute("git -C '" .. mirror .. "' " .. args .. " > /dev/null")
+end
+mgit("init -q")
+mgit("config user.email t@t")
+mgit("config user.name t")
+write(mirror .. "/llm-transcripts/oct-1-26.md", transcript({ models = "m" }, {
+  { "User Request 1", "make it" },
+  { "Assistant Response 1", "made\n\n*[commit] 1234567aa - First thing*" },
+}))
+mgit("add -A")
+mgit("commit -q -m 'First thing' -m 'What the first thing did.' -m 'Mirrored-from: 1234567aabbccdd' -m 'Co-Authored-By: x <y>'")
+mgit("commit -q --allow-empty -m 'Second thing' -m 'Mirrored-from: 9999999aabbccdd'")
+local history = dofile(SITE .. "/contents/commit-history.lua")
+local attribution = dofile(SITE .. "/contents/attribution.lua")
+local mirrored = history.read(mirror)
+check("a mirror's empty commit is read", #mirrored, 2)
+check("a commit's source is its Mirrored-from hash", mirrored[1].source, "1234567aabbccdd")
+check("the machine trailers leave the body", mirrored[1].body, "What the first thing did.")
+check("a commit with no trailer is its own source",
+  history.read(project)[1].source == history.read(project)[1].hash, true)
+local evidence = { by_hash = { ["1234567"] = { key = "llm-transcripts/oct-1-26.md", anchor = "commit-1234567", hash = "1234567aa" } },
+  by_subject = { ["Second thing"] = { { key = "llm-transcripts/oct-1-26.md", anchor = "commit-x" } } },
+  parent_of = {}, is_main = {} }
+attribution.attribute(mirrored, evidence, { "recorded" })
+check("recorded only: the recorded commit is attributed", mirrored[1].how, "recorded")
+check("recorded only: the subject match is not used", mirrored[2].how, nil)
+attribution.attribute(mirrored, evidence, { "recorded", "subject" })
+check("with the subject rule: it is", mirrored[2].how, "subject")
+check("an unknown rule is refused", (pcall(attribution.attribute, mirrored, evidence, { "guess" })), false)
+local recorded_only = {
+  { hash = "a", source = "a", subject = "s", date = "d", transcripts = {}, conversation = "k", anchor = "commit-a" },
+}
+local contents = dofile(SITE .. "/contents/contents-page.lua")
+local filed = contents.render(attribution.group(recorded_only),
+  { k = { href = "x.html", title = "x", elsewhere = "other-project" } }, { colours_css = COLOURS })
+check("a conversation filed elsewhere says where", filed:find("(filed under other-project)", 1, true) ~= nil, true)
+check("... and only then carries that rule", filed:find(".where-filed", 1, true) ~= nil, true)
+local gone = contents.render(attribution.group(recorded_only), {}, { colours_css = COLOURS })
+check("a conversation whose transcript is gone says so",
+  gone:find("written under a name the project no longer carries", 1, true) ~= nil, true)
+check("... and its button is dimmed", gone:find('class="no-transcript"', 1, true) ~= nil, true)
+
+print("== the films' rules, with no model (issue 035d) ==")
+
+local matcher = dofile(SITE .. "/films/film-matcher.lua")
+check("the same direction scores one", matcher.cosine({ 1, 0 }, { 2, 0 }), 1)
+check("unrelated directions score zero", matcher.cosine({ 1, 0 }, { 0, 3 }), 0)
+local three = { { hash = "a", vector = { 1, 0 } }, { hash = "b", vector = { 0.9, 0.1 } }, { hash = "c", vector = { 0, 1 } } }
+local chosen = matcher.choose({ "m1", "m2" }, {}, three, { m1 = { 1, 0 }, m2 = { 1, 0 } }, 1)
+check("the nearest film wins", chosen[1], "a")
+check("neighbours always look different", chosen[2], "b")
+local twins = reader.read(transcript({ models = "m" }, {
+  { "User Request 1", "same" }, { "Assistant Response 1", "x" }, { "User Request 2", "same" },
+}))
+local keys = matcher.message_keys(twins, SCRATCH .. "/keys")
+check("the same words said twice get two keys", keys[3], keys[1] .. ":2")
+check("a harness turn gets no film, by its own row",
+  matcher.message_keys(with_harness, SCRATCH .. "/keys")[1], false)
+local choices = SCRATCH .. "/choices/one.tsv"
+matcher.add_choices(choices, { { key = "aa", hash = "bb" } })
+matcher.add_choices(choices, { { key = "cc", hash = "dd" } })
+local stored = matcher.read_choices(choices)
+check("the choices file only grows", stored.aa == "bb" and stored.cc == "dd", true)
+
+print("== a pulled copy (issue 035e) ==")
+
+-- Pulled as last committed, into a throwaway project, leaving the fonts out.
+local puller = SCRATCH .. "/puller"
+os.execute("mkdir -p '" .. puller .. "'")
+local said_pull, pulled_ok = run_quiet("'" .. SITE .. "/pull-transcript-site' '" .. puller
+  .. "' --without fonts --dir '" .. DIR .. "'")
+check("the pull succeeds", pulled_ok, true)
+local upstream = io.open(puller .. "/libs/transcript-site/UPSTREAM")
+local upstream_text = upstream and upstream:read("*a") or ""
+check("it writes down the commit it came from", upstream_text:match("commit      %x+") ~= nil, true)
+check("... and what it left out", upstream_text:find("left out    fonts", 1, true) ~= nil, true)
+check("the builder came with it", io.open(puller .. "/libs/transcript-site/build-site.lua") ~= nil, true)
+check("the fonts did not", io.open(puller .. "/libs/transcript-site/fonts/README.md") == nil, true)
+check("its RAM staging folder is gone once in place",
+  io.open(puller .. "/tmp/shared-memory/pull-transcript-site/UPSTREAM") == nil, true)
+local _, refused = run_quiet("'" .. SITE .. "/pull-transcript-site' '" .. puller
+  .. "' --without no-such-thing --dir '" .. DIR .. "'")
+check("leaving out something that is not there is refused", refused, false)
+check("... and the copy already there is kept", io.open(puller .. "/libs/transcript-site/UPSTREAM") ~= nil, true)
+check("it says what it pulled", said_pull:find("Pulled the transcript-site library", 1, true) ~= nil, true)
 
 os.execute("rm -rf '" .. SCRATCH .. "'")
 

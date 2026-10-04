@@ -23,7 +23,8 @@
 
 -- {{{ paths
 local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
-local SITE = DIR .. "/transcript-site"
+-- The transcript display's folder, where the reader and its list live.
+local SITE = DIR .. "/transcript-site/conversation"
 local SESSIONS = (os.getenv("CLAUDE_SESSIONS_ROOT") or (os.getenv("HOME") .. "/.claude/projects"))
 -- The same places rederive-transcripts searches, to the same depth, with the
 -- same folders left out (a worktree is a second checkout of a project listed

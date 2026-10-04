@@ -4,18 +4,27 @@
 -- Turns one conversation into one page, with the two speakers on opposite
 -- sides and the harness drawn as neither.
 --
--- Taken from double-diaper-dungeon's src/050-conversation-page.lua (at its
--- commit 58f89bf) for every project's transcripts (issue 035). Changes from
--- that copy:
+-- Part of the transcript display (conversation/). It loads the shared
+-- libraries and nothing from the table of contents or the films: colours,
+-- films and the page's place in the site are handed in by the builder.
 --
---   its libraries load from this folder, and its colours from a palette file
---   passed in (default-palette.lua, the game's colours, when none is);
---   the recap Contents list (issue 037) is drawn at the top, each entry a
---   link to the turn it comes before;
---   lines the harness wrote above the first request get a row of their own;
---   an archived transcript's missing header facts read "not recorded";
---   a link to a sibling transcript (a helper's, issue 025) points at that
---   transcript's page instead.
+-- Taken from double-diaper-dungeon's src/050-conversation-page.lua for every
+-- project's transcripts (issue 035), and joined with it again on 2026-10-04
+-- (issue 035c), so the two copies are one. What each brought:
+--
+--   from this folder: the recap Contents list (issue 037) drawn at the top,
+--   each entry a link to the turn it comes before; lines the harness wrote
+--   above the first request as a row of their own; "not recorded" for an
+--   archived transcript's missing header facts;
+--
+--   from the game: a small looping film beside every message (its issue
+--   10-007); an id on every commit line, for the table of contents to land
+--   on; the colours handed in as CSS, so a project can make them its own way.
+--
+-- A PAGE CARRIES ONLY THE RULES IT USES. The Contents and harness rules join
+-- the stylesheet only on a page that draws them. That keeps the game's pages
+-- -- which draw neither -- byte for byte what they were, and keeps every
+-- page a little smaller.
 --
 -- WHAT THE PAGE DOES THAT THE FILE CANNOT. A transcript on disk is a good
 -- thing to keep and a poor thing to read. Four differences, and every one of
@@ -44,21 +53,14 @@
 
 local M = {}
 
--- This folder: the libraries and the default palette live beside this file,
--- so it runs from any directory without being told where it is.
+-- This folder. The shared libraries sit one folder up, in libs/, so the page
+-- runs from any directory without being told where it is.
 local HERE = debug.getinfo(1, "S").source:match("^@(.*/)") or "./"
 
 -- {{{ local function libs()
 local function libs()
-  return dofile(HERE .. "libs/markdown.lua"),
-         dofile(HERE .. "libs/page-head.lua"),
-         dofile(HERE .. "site-palette.lua")
-end
--- }}}
-
--- {{{ function M.default_palette_file()
-function M.default_palette_file()
-  return HERE .. "default-palette.lua"
+  return dofile(HERE .. "../libs/markdown.lua"),
+         dofile(HERE .. "../libs/page-head.lua")
 end
 -- }}}
 
@@ -105,6 +107,21 @@ end
 
 M.summary_line = summary_line
 
+-- {{{ function M.commit_anchor()
+-- The id a commit line carries on its page, from the first seven hex digits
+-- of the hash it records: "commit-<seven>". Seven, because the exporter
+-- writes seven or nine depending on the day, and seven is the part both
+-- share.
+--
+-- THE ONE NAME TWO PARTS SHARE. The table of contents links to this id but
+-- never loads this file: the builder asks this function for the anchor and
+-- hands it to the table of contents with the rest of the evidence. Change
+-- the rule here and both sides change together.
+function M.commit_anchor(short)
+  return "commit-" .. short:sub(1, 7)
+end
+-- }}}
+
 -- {{{ local function speaker_class()
 -- Which side of the page a turn sits on, and what it is called there.
 --
@@ -144,9 +161,24 @@ end
 -- The model name is printed only when it CHANGES from the turn before. Naming
 -- it on every reply would put the same line down the page forty times and stop
 -- anybody reading it, which is the opposite of what an attribution is for.
-local function turn_html(markdown, exchange, previous_model)
+--
+-- `film` is the small looping film beside this turn -- { src = <string, its
+-- address>, size = <whole number, CSS pixels> } -- or false for none. The
+-- film goes first in the markup either way; the stylesheet puts hers on the
+-- left and the assistant's on the right, mirrored, so the two face each other.
+local function turn_html(markdown, exchange, previous_model, film)
   local speaker = speaker_class(exchange.kind)
-  local parts = { string.format('<section class="turn %s">', speaker.class) }
+  local parts = { string.format('<section class="turn %s%s">', speaker.class,
+    film and " has-film" or "") }
+  if film then
+    -- alt is empty on purpose: the film is decoration chosen by a machine, and
+    -- a screen reader announcing a file name before every message would be
+    -- noise. The size is written in so the page does not jump as films load.
+    parts[#parts + 1] = string.format(
+      '<img class="film" src="%s" alt="" width="%d" height="%d" loading="lazy">',
+      escape(film.src), film.size, film.size)
+    parts[#parts + 1] = '<div class="turn-body">'
+  end
 
   local heading = { '<span>' .. escape(speaker.label) .. "</span>" }
   if exchange.model and exchange.model ~= previous_model then
@@ -159,6 +191,21 @@ local function turn_html(markdown, exchange, previous_model)
   -- Prose wrapped at eighty columns is re-wrapped to the reader's window, and
   -- a marker spanning a wrap is allowed to pair. See the note in the renderer.
   local rendered = page_links(markdown.render(exchange.body, { reflow = true }))
+
+  -- EVERY COMMIT GETS A PLACE TO LAND.
+  --
+  -- The exporter writes a line where each commit happened, as
+  -- "*[commit] <hash> - <subject>*" (or "... in <repository> - ..."), which
+  -- the renderer turns into <em>[commit] <hash> ...</em>. That line is the
+  -- exact moment in the conversation the commit came out of, so it gets an id
+  -- from M.commit_anchor, and the table of contents' button for that commit
+  -- points straight at it. The builder hands the same rule to the table of
+  -- contents, so the two parts agree on a name without knowing each other.
+  rendered = rendered:gsub("<em>%[commit%] (%x%x%x%x%x%x%x)(%x*)",
+    function(short, rest)
+      return string.format('<em class="commit-mark" id="%s">[commit] %s%s',
+        M.commit_anchor(short), short, rest)
+    end)
 
   -- THE HARNESS'S SUMMARY IS FOLDED AWAY UNTIL SOMEBODY WANTS IT.
   --
@@ -184,6 +231,7 @@ local function turn_html(markdown, exchange, previous_model)
     parts[#parts + 1] = "</div>"
   end
 
+  if film then parts[#parts + 1] = "</div>" end
   parts[#parts + 1] = "</section>"
 
   return table.concat(parts, "\n")
@@ -224,8 +272,23 @@ end
 -- Every visual decision in this file is here rather than sprinkled through the
 -- markup, which is the point of having moved alignment out of the stored file
 -- in the first place: one block to read, one block to override.
-function M.stylesheet()
-  return [[
+--
+-- `uses` says which optional rules this page needs: `uses.harness` (boolean,
+-- the page draws a harness turn) and `uses.contents` (boolean, it draws the
+-- Contents list). Each joins at the place it has always stood, and only when
+-- used; with neither, the sheet is exactly the one the game's pages carry.
+-- No `uses` at all means every rule, for a reader who wants the whole sheet.
+function M.stylesheet(uses)
+  uses = uses or { harness = true, contents = true }
+  return M.STYLE_TOP
+    .. (uses.harness and M.STYLE_HARNESS or "")
+    .. (uses.contents and M.STYLE_CONTENTS or "")
+    .. M.STYLE_BOTTOM
+end
+-- }}}
+
+-- The stylesheet in its four pieces, in the order they join.
+M.STYLE_TOP = [[
 body {
   background: var(--ground);
   color: var(--plain);
@@ -341,10 +404,16 @@ blockquote {
 .recap details[open] summary::before { content: "\25BE\00a0"; }
 .recap .unfold { opacity: 0.8; }
 
+]]
+
+M.STYLE_HARNESS = [[
 /* Lines the harness wrote before the first request: neither side, quiet. */
 .harness { opacity: 0.6; font-size: 0.9rem; text-align: center; }
 .harness .who { justify-content: center; }
 
+]]
+
+M.STYLE_CONTENTS = [[
 /* THE RECAPS, AT THE TOP. Each is a place to jump into the conversation, so
    the link leads an entry and the prose sits under it. */
 .contents { border-bottom: 1px solid var(--plain); margin: 1.5rem 0 2rem; }
@@ -354,6 +423,9 @@ blockquote {
 .contents .when { opacity: 0.6; font-size: 0.8rem; margin-right: 0.5rem; }
 .contents p { margin: 0.2rem 0 0; }
 
+]]
+
+M.STYLE_BOTTOM = [[
 .model { color: var(--constitution); }
 .continued { color: var(--strength); }
 
@@ -362,9 +434,44 @@ h1, h2, h3, h4 { color: var(--spirit); line-height: 1.25; }
 .masthead { border-bottom: 1px solid var(--plain); padding-bottom: 1rem; }
 .masthead .facts { font-size: 0.8rem; opacity: 0.7; }
 .back { display: inline-block; margin-bottom: 1.5rem; }
+
+/* Where a commit happened. A reader sent here from the story page lands on
+   the line with a little room above it, and the line lights up so the eye
+   finds it at once in a long page. :target is the browser doing this on its
+   own; nothing on this site runs a script. */
+/* THE FILM BESIDE EACH MESSAGE (issue 10-007).
+   A square like a profile picture: hers on the left, the assistant's on the
+   right and mirrored left to right, so the two face each other across the
+   conversation.
+
+   It sits OUTSIDE the reading column, beyond the green or blue bar, her
+   request on 2026-10-02: "They should not be part of the central column, but
+   rather just outside of it." So the column keeps its full width for the
+   words, and the film hangs in the margin level with the top of its message.
+   It is pinned to its turn (position: absolute against the turn), then pushed
+   just past the turn's edge: right: 100% puts its right edge on the turn's
+   left edge, and the margin is the gap between film and bar.
+
+   A window too narrow to have margins that wide (the column, plus a film and
+   a gap on each side) brings the films back inside the column, beside the
+   words, rather than pushing them off the screen where nobody would see
+   them. */
+.has-film { position: relative; }
+.film { position: absolute; top: 0; border-radius: 0.4rem; background: #000; }
+.said .film { right: 100%; margin-right: 1.25rem; }
+.replied .film { left: 100%; margin-left: 1.25rem; transform: scaleX(-1); }
+
+@media (max-width: 1200px) {
+  .has-film { display: flex; gap: 0.9rem; align-items: flex-start; }
+  .replied.has-film { flex-direction: row-reverse; }
+  .film { position: static; flex: none; width: 64px; height: 64px; margin: 0; }
+  .turn-body { flex: 1; min-width: 0; }
+}
+
+.commit-mark { scroll-margin-top: 30vh; }
+.commit-mark:target { color: var(--spirit); outline: 1px solid var(--spirit);
+                      outline-offset: 0.3rem; }
 ]]
-end
--- }}}
 
 -- {{{ local function facts_line()
 -- The small line under the title: when the file was written and which models
@@ -389,19 +496,37 @@ end
 -- {{{ function M.render()
 -- A whole conversation as a finished HTML page.
 --
--- `opts.title` names the page, `opts.back` is the link home, `opts.base_path`
--- is the route back to the site root where the font is, `opts.palette_file`
--- is the palette (default-palette.lua when omitted), and `opts.anchor = false`
--- turns off the per-turn ids and with them the Contents links, which would
--- have nowhere to land.
+--   opts.title        string, names the page
+--   opts.back         string or nil, the link home
+--   opts.base_path    string, the route back to the site root, where the
+--                     font and the films are (default ".")
+--   opts.colours_css  string, a :root { } block of the colours; the builder
+--                     makes it from the project's settings
+--   opts.films        list in exchange order, each a film's file name
+--                     (string) or false; nil for no films at all
+--   opts.film_size    whole number, the film's side in CSS pixels (64)
+--   opts.anchor       false turns off the per-turn ids and with them the
+--                     Contents links, which would have nowhere to land
 function M.render(conversation, opts)
   opts = opts or {}
-  local markdown, page_head, palette = libs()
+  local markdown, page_head = libs()
   local reader = dofile(HERE .. "transcript-reader.lua")
-  local _, colours_css = palette.load(opts.palette_file or M.default_palette_file())
+  if not opts.colours_css then
+    -- Without colours every var(--...) in the sheet resolves to nothing, and
+    -- text goes black on black: a page that looks blank rather than wrong.
+    error("the conversation page needs opts.colours_css")
+  end
 
   local title = opts.title or ("conversation " .. conversation.session_id)
   local anchored = opts.anchor ~= false
+
+  -- Which optional rules this page needs (see M.stylesheet).
+  local uses = { harness = false, contents = #conversation.contents > 0 }
+  for _, exchange in ipairs(conversation.exchanges) do
+    if exchange.kind == "harness" then
+      uses.harness = true
+    end
+  end
 
   local body = {}
   body[#body + 1] = '<div class="sheet">'
@@ -420,8 +545,15 @@ function M.render(conversation, opts)
   end
 
   local previous_model = nil
+  -- The films sit in one folder at the site's root, beside the fonts.
+  local films = opts.films or {}
+  local film_size = opts.film_size or 64
   for index, exchange in ipairs(conversation.exchanges) do
-    local turn = turn_html(markdown, exchange, previous_model)
+    local film = false
+    if films[index] then
+      film = { src = (opts.base_path or ".") .. "/films/" .. films[index], size = film_size }
+    end
+    local turn = turn_html(markdown, exchange, previous_model, film)
     if anchored then
       turn = turn:gsub('^<section class="turn',
         string.format('<section id="turn-%d" class="turn', index), 1)
@@ -440,7 +572,7 @@ function M.render(conversation, opts)
     page_head.head({
       title = escape(title),
       base_path = opts.base_path or ".",
-      extra_css = colours_css .. "\n" .. M.stylesheet(),
+      extra_css = opts.colours_css .. "\n" .. M.stylesheet(uses),
     }),
     "<body>",
     table.concat(body, "\n"),

@@ -202,6 +202,24 @@ somebody had deliberately typed one in backticks.
 Re-derive the corpus-wide counts with `rederive-transcripts`, which reports and
 writes nothing unless told to.
 
+### The pages became a library (035, 035a–035e)
+
+The transcripts became web pages first inside double-diaper-dungeon, then as
+a shared copy here (035), and the two copies drifted apart, each learning
+what the other lacked. On 2026-10-04 they were joined into one library with
+three parts that never load each other — the conversation page, the table
+of contents, and the films (a gif beside every message, chosen by meaning) —
+and a settings file per project. The game was switched onto a pulled copy,
+and its site came out byte for byte the site already live: 70 files, 70 the
+same.
+
+The lesson was about **proof**. "Abstracted without changing anything" is a
+claim; a byte comparison against what strangers are already reading is a
+proof, and it is what let two divergent copies become one without a single
+page moving. The comparison also showed what the live pages had been
+quietly dropping (a recap list in seven transcripts), which became a
+question for the developer rather than a silent change.
+
 ## What is still open
 
 - **Subagent transcripts are not being captured at all (025).** Claude Code

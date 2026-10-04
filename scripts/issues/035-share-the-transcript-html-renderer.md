@@ -5,7 +5,8 @@
 | Cluster | transcript system (018–031; see `transcript-system-progress.md`) |
 | Blocked by | nothing |
 | Blocks | per-project HTML documentation that links into conversations |
-| Status | in progress (built and tested; open questions below) |
+| Status | in progress (built and tested; open questions below; sub-issues 035a–035e) |
+| Sub-issues | 035a three parts that never meet · 035b the story page for every project · 035c the conversation page meets the game's · 035d the films join the library · 035e one settings file per project |
 
 Turns saved conversations into readable web pages for any project, not just
 the one that built the renderer.
@@ -248,6 +249,29 @@ server double-diaper-dungeon publishes to. Found the same day:
   it, is quoted in many of them).
 
 Not built. Questions 5–7 below.
+
+## The library, made whole (owner, 2026-10-04)
+
+She asked for the site to be "abstracted away for a different type of
+software", "able to be included into any project", with the table of
+contents kept apart from the transcript display, and double-diaper-dungeon
+switched onto it as a proof: *"the output should be byte-identical to what's
+already on the internet."* She chose to update this folder rather than start
+a new one in delta-version. Her choices, asked the same day:
+
+- the films (a gif beside every message) are a third part of their own;
+- the table of contents takes double-diaper-dungeon's look for every project;
+- the film system the game built replaces issue 038's first algorithm;
+- only a project whose settings ask for films gets them;
+- each project says where its transcripts and history are, in a settings
+  file;
+- a project that keeps its libraries inside itself pulls a copy, recorded
+  with the commit it came from, and pulls again when its dependencies are
+  updated.
+
+The work is split into 035a–035e. Decision 2 above (the game keeps its own
+copies when they differ) is superseded by the last of these: the game keeps
+a pulled copy of this library, not copies of its own.
 
 ## Open questions
 

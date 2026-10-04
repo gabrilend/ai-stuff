@@ -49,5 +49,10 @@ exceptions) and produces no HTML.
 - **The archived list is generated, never hand-edited** — see
   `find-archived-exceptions`. It was empty when first generated: every
   transcript on the machine had a generated-on line.
-- Taken from double-diaper-dungeon's `src/047-transcript-reader.lua`; that
-  project keeps its own copy (see its `libs/README-vendored.md`).
+- Taken from double-diaper-dungeon's `src/047-transcript-reader.lua`. Since
+  2026-10-04 that project reads its transcripts with this file, through a
+  pulled copy of the library; read against its 33 transcripts, the two
+  readers agreed on every turn, and differed only in what this one also
+  finds (a recap Contents list in 7, harness lines in 1), which the game's
+  settings switch off.
+- Part of the transcript display (`conversation/`).
