@@ -26,6 +26,10 @@ where the project's settings say.
   so a message has the same place on the page and in the films.
 - `read_transcripts(settings) -> transcripts, not_transcripts` — every
   transcript, read and shaped, sorted by name.
+- `gather_evidence(transcripts, key_of) -> evidence` — the table the
+  attribution rules read (see `contents/attribution.info.md`), from a list of
+  `{ name, conversation }` in name order; `key_of(name)` gives a
+  transcript's key. A hash recorded in two transcripts belongs to the first.
 - `print_report(report)` — says what the build saw.
 - `settings` — `settings.lua`, for a caller that has only this file.
 - `WORTH_MENTIONING` — 200, the fenced-block length worth listing.

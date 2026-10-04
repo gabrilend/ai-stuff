@@ -421,6 +421,16 @@ check("a conversation whose transcript is gone says so",
   gone:find("written under a name the project no longer carries", 1, true) ~= nil, true)
 check("... and its button is dimmed", gone:find('class="no-transcript"', 1, true) ~= nil, true)
 
+local two_record = site.gather_evidence({
+  { name = "a.md", conversation = reader.read(transcript({ models = "m" },
+    { { "Assistant Response 1", "*[commit] 2222222aa - y*" } })) },
+  { name = "b.md", conversation = reader.read(transcript({ models = "m" },
+    { { "Assistant Response 1", "*[commit] 2222222 - y again*" } })) },
+}, function(name) return "llm-transcripts/" .. name end)
+check("a hash recorded in two transcripts belongs to the first",
+  two_record.by_hash["2222222"].key, "llm-transcripts/a.md")
+check("... and lands on the line's id", two_record.by_hash["2222222"].anchor, "commit-2222222")
+
 print("== the films' rules, with no model (issue 035d) ==")
 
 local matcher = dofile(SITE .. "/films/film-matcher.lua")

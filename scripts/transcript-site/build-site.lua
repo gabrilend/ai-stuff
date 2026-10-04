@@ -212,7 +212,7 @@ local function inside(folder, base)
 end
 -- }}}
 
--- {{{ local function gather_evidence()
+-- {{{ function M.gather_evidence()
 -- What the table of contents attributes commits by, from this project's
 -- conversations: the commit lines each records (the first transcript in
 -- name order wins a hash recorded twice), whether each is a main
@@ -223,7 +223,12 @@ end
 -- The anchor each commit line carries comes from the conversation page's own
 -- rule, handed over here, so the two parts agree on the name without knowing
 -- each other.
-local function gather_evidence(transcripts, key_of)
+--
+-- `transcripts` is a list of { name, conversation }, in name order; `key_of`
+-- turns a transcript's file name into its key. Returns the evidence table
+-- attribution.lua reads. Public so a project's own tests can check the rules
+-- the evidence is gathered by (double-diaper-dungeon's do).
+function M.gather_evidence(transcripts, key_of)
   local evidence = { by_hash = {}, by_subject = {}, parent_of = {}, is_main = {} }
   local links = {}
   for _, transcript in ipairs(transcripts) do
@@ -437,7 +442,7 @@ function M.build(settings)
 
   -- THE TABLE OF CONTENTS. Each commit finds its conversation by evidence,
   -- under the rules the project chose.
-  local evidence = gather_evidence(transcripts, key_of)
+  local evidence = M.gather_evidence(transcripts, key_of)
   report.elsewhere = evidence_elsewhere(settings, evidence, conversations)
 
   local commits = history.read(settings.history, within ~= "" and within or "llm-transcripts")
