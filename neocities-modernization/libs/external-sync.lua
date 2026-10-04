@@ -84,12 +84,12 @@ local function log_warning(msg)
 end
 -- }}}
 
-    if not project_root then
-        error("external-sync: project_root not set. Call set_project_root() first.")
 -- {{{ local function get_external_files
 -- Issue 10-026: every external sync entry, from the sources in config.lua.
 -- An empty list is a real answer (no source names an external location).
 local function get_external_files()
+    if not project_root then
+        error("external-sync: project_root not set. Call set_project_root() first.")
     end
     return sources_loader.get_all_external_syncs()
 end
