@@ -1,0 +1,303 @@
+#!/usr/bin/env luajit
+-- audit-orphan-files
+--
+-- Lists source files that nothing in the live project uses.
+--
+-- In general terms: for every program file under src/, libs/ and scripts/, it
+-- looks through every other tracked program for a place that names it -- as a
+-- module to load, a path to run, or a name in a string -- and sorts the files
+-- by who names them. A file named only by its own test is the classic dead
+-- file: the test keeps passing forever and makes the file look load-bearing.
+-- It then repeats the search with the dead files removed, so a file used only
+-- by other dead files shows up too (a dead cluster keeps itself "alive" by
+-- naming each other).
+--
+-- This is the "broader orphan audit" Issue 10-060 asked for, and it carries
+-- that issue's warning: the project once deleted a file that looked dead but
+-- was the embedding generator, because one caller was Lua written INSIDE a
+-- shell script. So shell scripts are searched as text, the whole file, not
+-- just their Lua requires. The report is a list to check by hand, never a
+-- list to delete from.
+--
+-- Usage:
+--   scripts/audit-orphan-files [DIR]          list orphans and dead clusters
+--   scripts/audit-orphan-files [DIR] --why    also show who names each file
+--
+-- Exit status: 0 no orphans, 1 some found.
+
+-- {{{ local DIR
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- }}}
+
+-- {{{ local candidate_patterns
+-- Which tracked files are judged (relative paths, Lua patterns): the modules.
+-- libs/ subfolders are vendored or self-contained libraries with their own
+-- build, judged as a whole elsewhere, so only libs' top level is included.
+local candidate_patterns = { "^src/.+%.lua$", "^libs/[^/]+%.lua$" }
+-- Programs a person runs: never judged dead, and whatever they name is alive.
+-- A script nothing else calls is listed separately, as information -- most of
+-- them are run by hand on purpose (deploy, install, export).
+local entry_patterns = { "^scripts/[^/]+$", "^[^/]+%.sh$" }
+-- }}}
+
+-- {{{ local referrer_excluded
+-- Tracked files that are not programs, so a mention in them is not a use.
+local referrer_excluded = {
+    "^issues/", "^docs/", "^notes/", "^llm%-transcripts/", "^archive/",
+    "^additional%-html%-files%-for%-site/", "^validation_reports/", "^fonts/",
+    "%.md$", "%.html$", "%.txt$", "%.png$", "%.jpg$", "%.gif$", "%.json$",
+}
+-- }}}
+
+-- {{{ local function matches_any
+local function matches_any(text, patterns)
+    for _, pattern in ipairs(patterns) do
+        if text:match(pattern) then
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function read_file
+local function read_file(path)
+    local f = io.open(path, "rb")
+    if not f then
+        return nil
+    end
+    local content = f:read("*a")
+    f:close()
+    return content
+end
+-- }}}
+
+-- {{{ local function strip_comment_lines
+-- Drops whole-line comments (Lua "--", shell "#"), so "see
+-- src/triangular-similarity-matrix.lua, which is a separate thing" in a
+-- comment does not count as using that file. A "#!" first line goes too,
+-- which is harmless: it names an interpreter, not a project file.
+local function strip_comment_lines(content)
+    local kept = {}
+    for line in (content .. "\n"):gmatch("([^\n]*)\n") do
+        if not line:match("^%s*%-%-") and not line:match("^%s*#") then
+            kept[#kept + 1] = line
+        end
+    end
+    return table.concat(kept, "\n")
+end
+-- }}}
+
+-- {{{ local function load_programs
+-- Every tracked program file's text. Returns { [rel] = content } and the
+-- sorted list of paths.
+local function load_programs(dir)
+    local pipe = assert(io.popen(string.format("git -C %q ls-files", dir)))
+    local programs, paths = {}, {}
+    for rel in pipe:lines() do
+        if not matches_any(rel, referrer_excluded) then
+            local content = read_file(dir .. "/" .. rel)
+            if content and not content:find("\0", 1, true) then
+                programs[rel] = strip_comment_lines(content)
+                paths[#paths + 1] = rel
+            end
+        end
+    end
+    pipe:close()
+    table.sort(paths)
+    return programs, paths
+end
+-- }}}
+
+-- {{{ local function stem
+-- The name a file is referred to by: its basename without ".lua".
+local function stem(rel)
+    return rel:match("([^/]+)$"):gsub("%.lua$", "")
+end
+-- }}}
+
+-- {{{ local function names_file
+-- Whether `content` names the file whose stem is `name`: the stem as a whole
+-- word, where word characters include "-" and "_" (so "utils" does not match
+-- "test-utils"), optionally followed by ".lua".
+local function names_file(content, name)
+    local escaped = name:gsub("%p", "%%%0")
+    -- each hit is confirmed by its neighbours rather than with %f frontiers,
+    -- because "-" must count as a word character here and %f cannot say so
+    local start = 1
+    while true do
+        local s, e = content:find(escaped, start)
+        if not s then
+            return false
+        end
+        local before = s > 1 and content:sub(s - 1, s - 1) or ""
+        local after = content:sub(e + 1, e + 1)
+        local word = "[%w_%-]"
+        if not before:match(word) and not after:match(word) then
+            return true
+        end
+        start = e + 1
+    end
+end
+-- }}}
+
+-- {{{ local function kind_of
+-- What sort of referrer a file is, for sorting the evidence.
+local function kind_of(rel)
+    -- a test by its name's shape, not by containing the letters "test"
+    -- anywhere ("tested-only.lua" is a module)
+    local base = rel:match("([^/]+)$")
+    if rel:match("^tests?/") or rel:match("/tests?/")
+        or base:match("^test[%-_]") or base:match("[%-_%.]test%.%w+$")
+        or base:match("[%-_%.]test$") then
+        return "test"
+    end
+    if rel:match("^demos/") or rel:match("phase%-demo") then
+        return "demo"
+    end
+    if matches_any(rel, entry_patterns) then
+        return "entry"
+    end
+    return "live"
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    local show_why = false
+    for _, a in ipairs(arg) do
+        -- --why adds the evidence; a bare word is the project directory
+        if a == "--why" then
+            show_why = true
+        elseif not a:match("^%-") then
+            DIR = a
+        else
+            io.stderr:write("unknown option: " .. a .. "\n")
+            os.exit(2)
+        end
+    end
+
+    local programs, paths = load_programs(DIR)
+    local candidates = {}
+    for _, rel in ipairs(paths) do
+        if matches_any(rel, candidate_patterns) and kind_of(rel) ~= "test" then
+            candidates[#candidates + 1] = rel
+        end
+    end
+
+    -- who names whom: referrers[candidate] = list of referrer paths
+    local referrers = {}
+    for _, candidate in ipairs(candidates) do
+        local name = stem(candidate)
+        local found = {}
+        for _, rel in ipairs(paths) do
+            if rel ~= candidate and names_file(programs[rel], name) then
+                found[#found + 1] = rel
+            end
+        end
+        referrers[candidate] = found
+    end
+
+    -- alive = reachable by following names from a root. Roots are every
+    -- script and every program that is not a module, test or demo (the
+    -- libraries inside libs/ subfolders, for instance). Reachability, not
+    -- "has a live referrer": two dead modules that name only each other each
+    -- have a referrer, but neither is reachable from anything that runs.
+    local is_candidate = {}
+    for _, candidate in ipairs(candidates) do
+        is_candidate[candidate] = true
+    end
+    local names_of = {}  -- file -> list of candidates it names
+    for _, candidate in ipairs(candidates) do
+        for _, rel in ipairs(referrers[candidate]) do
+            names_of[rel] = names_of[rel] or {}
+            table.insert(names_of[rel], candidate)
+        end
+    end
+    local alive, queue = {}, {}
+    for _, rel in ipairs(paths) do
+        local kind = kind_of(rel)
+        if kind == "entry" or (kind == "live" and not is_candidate[rel]) then
+            queue[#queue + 1] = rel
+        end
+    end
+    local head = 1
+    while head <= #queue do
+        local rel = queue[head]
+        head = head + 1
+        for _, candidate in ipairs(names_of[rel] or {}) do
+            if not alive[candidate] then
+                alive[candidate] = true
+                queue[#queue + 1] = candidate
+            end
+        end
+    end
+
+    -- report the unreached, grouped by what still names them
+    local groups = { nothing = {}, tests = {}, demos = {}, dead = {} }
+    for _, candidate in ipairs(candidates) do
+        if not alive[candidate] then
+            local has = { test = false, demo = false, live = false, entry = false }
+            for _, rel in ipairs(referrers[candidate]) do
+                has[kind_of(rel)] = true
+            end
+            local group = has.live and "dead"
+                or has.demo and "demos"
+                or has.test and "tests"
+                or "nothing"
+            table.insert(groups[group], candidate)
+        end
+    end
+    local headings = {
+        { key = "nothing", text = "Named by nothing:" },
+        { key = "tests", text = "Named only by tests:" },
+        { key = "demos", text = "Named only by demos (and maybe tests):" },
+        { key = "dead", text = "Named only by files in the lists above (a dead cluster):" },
+    }
+    local total = 0
+    for _, heading in ipairs(headings) do
+        local list = groups[heading.key]
+        if #list > 0 then
+            print(heading.text)
+            for _, candidate in ipairs(list) do
+                print("  " .. candidate)
+                if show_why and #referrers[candidate] > 0 then
+                    print("      named by: " .. table.concat(referrers[candidate], ", "))
+                end
+            end
+            print("")
+            total = total + #list
+        end
+    end
+    print(total .. " of " .. #candidates .. " modules have no live user. Check each by hand before deleting:"
+        .. " a name built at run time is invisible here.")
+
+    -- information only: scripts nothing calls (usually run by hand on purpose)
+    local uncalled = {}
+    for _, rel in ipairs(paths) do
+        if kind_of(rel) == "entry" then
+            local name = stem(rel)
+            local called = false
+            for _, other in ipairs(paths) do
+                if other ~= rel and names_file(programs[other], name) then
+                    called = true
+                    break
+                end
+            end
+            if not called then
+                uncalled[#uncalled + 1] = rel
+            end
+        end
+    end
+    if #uncalled > 0 then
+        print("")
+        print("Scripts nothing else calls (fine if you run them by hand; not counted above):")
+        for _, rel in ipairs(uncalled) do
+            print("  " .. rel)
+        end
+    end
+    os.exit(total > 0 and 1 or 0)
+end
+-- }}}
+
+main()
