@@ -1,6 +1,6 @@
 # Conversation Summary: 5723d726-4e94-4b9e-be6a-98264e211378
 
-Generated on: 2026-09-26 15:46:27
+Generated on: 2026-10-04 17:29:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -34,6 +34,10 @@ Models: claude-opus-5-5
    library, now 34 animations including the new blob and fluid scenes, plus a
    window to watch them in. Next, run view-gifs to try them, and tell me whether
    you meant to cap rendering at 4 processes.
+8. 2026-09-26 15:53, after Request 12 - We're turning your README's figures and
+   your shape-gif library into self-updating tools, and the gif viewer and 34
+   animations are done. Next, tell me whether you sent the fork a "limit to 4
+   processes" message, because it didn't come through me.
 
 --------------------------------------------------------------------------------
 

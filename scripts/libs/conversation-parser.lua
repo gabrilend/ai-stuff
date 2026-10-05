@@ -1309,9 +1309,20 @@ local function parse_conversation(jsonl_file, output_file)
             end
         end
     end
-    -- The seven-character hashes this transcript has recorded so far, so a
-    -- recovered commit is never written a second time.
+    -- The seven-character hashes this transcript records, so a recovered
+    -- commit is never written a second time. Seeded with every commit the
+    -- session ANNOUNCED anywhere, before any line is written: a commit whose
+    -- first command showed nothing is often announced by a later one (a
+    -- retry, a hook's report), and the first build of the recovery wrote
+    -- such commits twice -- five times in double-diaper-dungeon alone.
     local recorded_hashes = {}
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "user" and msg.toolUseResult then
+            for _, commit in ipairs(commits_reported(msg, commands_by_id)) do
+                recorded_hashes[commit.hash:sub(1, 7)] = true
+            end
+        end
+    end
 
     -- Pre-pass two: every model that served a reply in this session, in the
     -- order each was first seen. The header needs the whole list before the

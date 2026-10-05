@@ -1,7 +1,14 @@
 # Conversation Summary: cd64183f-fdba-470e-acaa-de584754c158
 
-Generated on: 2026-10-01 14:25:46
+Generated on: 2026-10-04 17:29:02
 Models: claude-opus-5-5
+
+## Contents
+
+1. 2026-10-01 14:28, after Request 3 - I wrote up the plan to give Claude its
+   own login account as an issue file, so the disk shows who made each file and
+   your hand-written notes stay protected. Next: decide whether to commit it
+   now, then answer its four open questions.
 
 --------------------------------------------------------------------------------
 

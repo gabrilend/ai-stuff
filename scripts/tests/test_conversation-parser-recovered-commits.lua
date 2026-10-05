@@ -208,6 +208,19 @@ md = run_parser(session({
 local _, times = md:gsub("Announced plainly%*", "")
 check(times == 1, "the announcement present: recorded once, by the usual route")
 
+local h2 = repo("h2")
+local retried = commit_at(h2, "Announced only later", THREE_AFTER)
+md = run_parser(session({
+    user("Commit it."), said("Committing."),
+    ran("c1", "git -C " .. h2 .. " commit -q -m 'Announced only later'"),
+    output("c1", ""),
+    ran("c2", "git -C " .. h2 .. " commit -m 'Announced only later'"),
+    output("c2", "[main " .. retried:sub(1, 7) .. "] Announced only later"),
+    said("Done."),
+}))
+local _, twice = md:gsub("Announced only later%*", "")
+check(twice == 1, "a commit announced by a LATER command is not also recovered: one line")
+
 local i = repo("i")
 local later = commit_at(i, "The second draft", THREE_AFTER)
 md = run_parser(session({
