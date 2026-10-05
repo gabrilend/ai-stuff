@@ -1754,6 +1754,16 @@ local function parse_conversation(jsonl_file, output_file)
     out_file:write(table.concat(out.parts))
     out_file:close()
 
+    -- A session that wrote no turn at all -- someone opened /config, closed
+    -- it, and said nothing -- is a husk, however many system entries gave it
+    -- dates. It hands back no dates, so the exporter writes no file and
+    -- retires any it wrote before (issue 020's husk rule). Found when
+    -- double-diaper-dungeon's test of its own transcripts met one with a
+    -- header and nothing under it.
+    if not table.concat(out.parts):find("### ", 1, true) then
+        return nil, nil, nil, ends_with_user
+    end
+
     -- Hand back three dating signals: the end epoch (used to stamp the file's
     -- mtime, unchanged) plus the start and end calendar dates (used to build
     -- the date-range filename) - and the race fingerprint, so the shell
