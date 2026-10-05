@@ -46,9 +46,15 @@ Found and fixed on the way:
 - `word_cloud.max_words` claimed "0 = unlimited"; 0 actually gave no words.
   The comment now says no limit is `--all`, or answering "all".
 
-Still open beyond the table below: `scripts/update` prints "Warning: Fediverse
-extraction failed" and carries on when the extractor fails -- a warning that
-should be an error under the house rule, recorded here rather than changed.
+- `scripts/update` printed "Warning: ... failed" and carried on when any of its
+  five extractors failed (fediverse, messages, archive notes, main notes,
+  Bluesky), so a build could run its hour of later stages on a corpus missing
+  a whole source. Owner (2026-10-04): "if it encounters an error, it should
+  stop so we can fix it before wasting more time on a doomed run." Each now
+  stops the update (and `run.sh` stops the build). Its media copy discarded
+  every error to get past two ordinary cp failures (an empty folder, a file
+  already preserved); it now copies in a way that does not fail on either, so
+  a real failure (a full disk) stops the update too.
 
 Inventory (found with a search for "flag or fallback" expressions, then by
 reading each program's argument handling):
