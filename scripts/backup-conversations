@@ -314,6 +314,15 @@ function export_one_log() {
    start_date=$(printf '%s\n' "$parser_signals" | grep "^START_DATE:" | cut -d: -f2 || true)
    final_date=$(printf '%s\n' "$parser_signals" | grep "^FINAL_DATE:" | cut -d: -f2 || true)
 
+   # Commit commands that printed no announcement and matched no single
+   # commit in git (issue 040): said once, plainly, and never fatal. Two
+   # paths: none, and nothing is printed; some, and the count is.
+   local unmatched
+   unmatched=$(printf '%s\n' "$parser_signals" | grep "^RECOVERY_UNMATCHED:" | cut -d: -f2 || true)
+   if [ -n "$unmatched" ]; then
+      echo "  note: $conversation_id: commit command with no announcement and no single match: $unmatched"
+   fi
+
    # No dates at all means a husk: a session opened and titled but never spoken
    # in. It gets no file (a warning line instead - issue 020), and any stale
    # file claiming it, under whatever name, is retired by its header.

@@ -817,14 +817,38 @@ end
 -- in commit-own-changes, or is git with "commit" as a later word. A search
 -- for the words - grep "commit-own-changes: committed" - is a step whose
 -- first word is grep, and does not count.
+--
+-- Two things before the first word are looked past (issue 040), because
+-- real loops that committed into many repositories hid behind them and so
+-- were never read at all: the shell's own words that open a step ("do",
+-- "then", "if" ...), as in `while read R; do git -C "$R" commit ...`; and an
+-- output being captured, as in `out=$(commit-own-changes "$R" -F - ...)`.
+local SHELL_OPENERS = {
+    ["do"] = true, ["then"] = true, ["else"] = true, ["elif"] = true,
+    ["if"] = true, ["while"] = true, ["until"] = true, ["!"] = true,
+    ["{"] = true, ["("] = true, ["time"] = true,
+}
+
 local function runs_a_commit(command)
     for step in (command .. "\n"):gsub("&&", "\n"):gsub("||", "\n"):gsub("[;|]", "\n"):gmatch("([^\n]*)\n") do
-        local words = step:gsub("^%s*", ""):gsub("^[%w_]+=%S*%s+", "")
+        local words = step:gsub("^%s*", ""):gsub("^[%w_]+=%$%(", ""):gsub("^[%w_]+=%S*%s+", "")
+        local opener = words:match("^(%S+)")
+        while opener and SHELL_OPENERS[opener] do
+            words = words:gsub("^%S+%s*", "")
+            opener = words:match("^(%S+)")
+        end
         local first = words:match("^(%S+)") or ""
         if first:match("commit%-own%-changes$") then
             return true
         end
         if first == "git" and (" " .. words .. " "):find("%scommit%s") then
+            return true
+        end
+        -- git's own lower-level way of making a commit, which prints only the
+        -- new commit's full hash (issue 040: "Seven stickers..." in
+        -- double-diaper-dungeon was made this way, then put on the branch by
+        -- update-ref).
+        if first == "git" and (" " .. words .. " "):find("%scommit%-tree%s") then
             return true
         end
     end
@@ -910,6 +934,239 @@ local function commit_line(commit)
     local where = commit.repository and (" in " .. commit.repository:match("([^/]+)/*$")) or ""
     local subject = commit.subject:gsub("%*", "\\*")
     return "*[commit] " .. commit.hash .. where .. " - " .. subject .. "*"
+end
+-- }}}
+
+-- RECOVERING A COMMIT WHOSE ANNOUNCEMENT IS MISSING (issue 040).
+--
+-- commits_reported believes only an announcement at the start of a line of
+-- the command's output. Sessions hid that line in four ways, all measured in
+-- real logs: piping the commit through `tail -3`, which kept git's last
+-- lines and dropped the first; `git commit -q`, which prints nothing; a loop
+-- committing into many repositories at once, `-C "$R"`; and catching
+-- commit-own-changes' report in a variable and printing it later with a
+-- prefix. The commit happened every time, and git still knows it.
+--
+-- So for a commit command with no announcement, git is asked. The rule is
+-- strict on purpose, because a line naming the wrong commit is worse than no
+-- line: a commit is recovered only when git holds one with EXACTLY the
+-- message's subject (or the hash the output mentions), committed between 5
+-- seconds before the command and 600 seconds after. A refused commit -- one
+-- tried three times in double-diaper-dungeon and refused every time -- has
+-- no such commit, and nothing is recorded.
+
+-- Seconds before and after a command a recovered commit may carry. Ten
+-- minutes covers a commit hook that runs a test suite; every measured case
+-- landed within a minute.
+local RECOVERY_BEFORE, RECOVERY_AFTER = 5, 600
+
+-- How many commit commands had a subject but no single match, counted for
+-- the exporter's report (main writes RECOVERY_UNMATCHED: to stderr).
+local recovery_unmatched = 0
+
+-- {{{ shell_quote
+local function shell_quote(text)
+    return "'" .. tostring(text):gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ lines_from
+-- Runs a read-only command and returns its output lines (a list of strings).
+local function lines_from(command)
+    local pipe = io.popen(command, "r")
+    local out = {}
+    if not pipe then return out end
+    for line in pipe:lines() do out[#out + 1] = line end
+    pipe:close()
+    return out
+end
+-- }}}
+
+-- {{{ assignments_in
+-- The plain `NAME=value` settings a command makes (string -> string), so
+-- `MSG=/dev/shm/m.txt ... -F "$MSG"` can be followed to the file it names.
+-- Only literal values: a value holding $ or $( is not resolved.
+local function assignments_in(command)
+    local vars = {}
+    for step in (command .. "\n"):gsub("[;&|]", "\n"):gmatch("([^\n]*)\n") do
+        local name, value = step:match("^%s*([%w_]+)=(%S+)")
+        if name then
+            value = value:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
+            if not value:find("[%$`]") then vars[name] = value end
+        end
+    end
+    return vars
+end
+-- }}}
+
+-- {{{ expand
+-- Replaces $NAME and ${NAME} with what assignments_in found. A name it does
+-- not know is left as written, so a loop's "$R" stays visibly unresolved.
+local function expand(text, vars)
+    return (text:gsub("%${?([%w_]+)}?", function(name)
+        return vars[name]
+    end))
+end
+-- }}}
+
+-- {{{ subject_of_commit
+-- The subject of the message a commit command gave, in this order: a file
+-- named after -F, as last written before the command (by heredoc or by the
+-- Write tool, from `writes`, base name -> list of { index, first_line }); a
+-- heredoc on standard input with -F -; the text after -m. Nil when none.
+local function subject_of_commit(command, call_index, writes, vars)
+    local file = command:match("commit[^\n]-%-F%s+([^%s;&|]+)")
+    if file and file ~= "-" then
+        file = expand(file:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1"), vars)
+        local base = file:match("([^/]+)$")
+        local best = nil
+        for _, write in ipairs(writes[base] or {}) do
+            if write.index <= call_index then best = write end
+        end
+        if best and best.first_line ~= "" then return best.first_line end
+    end
+    local stdin = command:match("%-F %-[^\n]-<<%-?['\"]?[%w_]+['\"]?[^\n]*\n([^\n]*)")
+    if stdin and stdin ~= "" then return stdin end
+    local m = command:match("%-m '([^']+)'") or command:match('%-m "([^"]+)"')
+    if m then return m:match("^([^\n]*)") end
+    return nil
+end
+-- }}}
+
+-- {{{ known_repositories
+-- Every repository on the machine holding an llm-transcripts/ folder, found
+-- the way rederive-transcripts finds projects: the same roots, the same
+-- depth, worktrees and backups left out. Asked only for a loop whose
+-- repository cannot be read from the command, and worked out once per run.
+-- TRANSCRIPT_SEARCH_ROOTS (space-separated folders) replaces the roots, for
+-- a test's throwaway repositories.
+local KNOWN_REPOSITORIES = nil
+local function known_repositories()
+    if KNOWN_REPOSITORIES then return KNOWN_REPOSITORIES end
+    local roots = os.getenv("TRANSCRIPT_SEARCH_ROOTS") or "/mnt/mtwo /mnt/cmdo /mnt/kaun"
+    local seen, list = {}, {}
+    for root in roots:gmatch("%S+") do
+        for _, folder in ipairs(lines_from("find " .. shell_quote(root)
+                .. " -maxdepth 8 -type d -name llm-transcripts -not -path '*/.git/*' 2>/dev/null")) do
+            if not folder:find("/ai%-worktrees/") and not folder:find("/backups/") then
+                local top = lines_from("git -C " .. shell_quote(folder) .. " rev-parse --show-toplevel 2>/dev/null")[1]
+                if top and not seen[top] then
+                    seen[top] = true
+                    list[#list + 1] = top
+                end
+            end
+        end
+    end
+    table.sort(list)
+    KNOWN_REPOSITORIES = list
+    return list
+end
+-- }}}
+
+-- {{{ matches_in
+-- The commits in one repository with exactly this subject, inside the window
+-- around `epoch`: a list of full hashes.
+local function matches_in(repository, subject, epoch)
+    local found = {}
+    for _, row in ipairs(lines_from("git -C " .. shell_quote(repository)
+            .. " log --all --format='%H %ct %s' --fixed-strings --grep=" .. shell_quote(subject) .. " 2>/dev/null")) do
+        local hash, when, s = row:match("^(%x+) (%d+) (.*)$")
+        when = tonumber(when)
+        if hash and s == subject and when >= epoch - RECOVERY_BEFORE and when <= epoch + RECOVERY_AFTER then
+            found[#found + 1] = hash
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ commit_named
+-- One commit the output names by hash, if the repository holds it and it was
+-- made inside the window: { hash, subject }, or nil. The window is what keeps
+-- an old report quoted in the output from counting.
+local function commit_named(repository, hash, epoch)
+    local row = lines_from("git -C " .. shell_quote(repository) .. " log -1 --format='%ct %s' "
+        .. shell_quote(hash) .. " -- 2>/dev/null")[1]
+    local when, subject = (row or ""):match("^(%d+) (.*)$")
+    when = tonumber(when)
+    if when and when >= epoch - RECOVERY_BEFORE and when <= epoch + RECOVERY_AFTER then
+        return { hash = hash, subject = subject }
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ commits_recovered
+-- The commits a commit command made that commits_reported could not see, as
+-- a list of { hash, subject, repository }. `call` is { command, epoch, cwd,
+-- index }; `output` the command's printed text; `writes` the session's file
+-- writes; `recorded` the set of seven-character hashes already in the
+-- transcript, which nothing is recorded twice against.
+local function commits_recovered(call, output, writes, recorded)
+    local found = {}
+    local vars = assignments_in(call.command)
+    local literal = call.command:match("git%s+%-C%s+([^%s;&|]+)[^\n]-%scommit")
+    local repository = literal and expand(literal:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1"), vars)
+    local loop = repository and repository:find("%$") ~= nil
+    if loop then repository = nil end
+    repository = repository or (not loop and call.cwd) or nil
+
+    -- {{{ add
+    local function add(hash, subject, where, name_it)
+        local short = hash:sub(1, 7)
+        if recorded[short] then return end
+        recorded[short] = true
+        found[#found + 1] = { hash = hash:sub(1, 9), subject = subject,
+                              repository = name_it and where or nil }
+    end
+    -- }}}
+
+    -- First, an announcement the output holds somewhere other than the start
+    -- of a line: commit-own-changes' report caught and printed with a prefix.
+    -- It names its repository; the window still has to hold.
+    for hash, where in output:gmatch("committed (%x%x%x%x%x%x%x+) on %S+ in (/[^%s:]+)") do
+        local commit = commit_named(where, hash, call.epoch)
+        if commit then add(commit.hash, commit.subject, where, true) end
+    end
+    -- And `git commit-tree`, which prints nothing but the new commit's full
+    -- hash on a line of its own.
+    if repository and call.command:find("commit%-tree") then
+        for line in (output .. "\n"):gmatch("([^\n]*)\n") do
+            local hash = line:match("^(%x+)%s*$")
+            if hash and #hash == 40 then
+                local commit = commit_named(repository, hash, call.epoch)
+                if commit then add(commit.hash, commit.subject, repository, false) end
+            end
+        end
+    end
+    if #found > 0 then return found end
+
+    -- Then the message's subject, asked of git.
+    local subject = subject_of_commit(call.command, call.index, writes, vars)
+    if not subject then return found end
+    if repository then
+        local hits = matches_in(repository, subject, call.epoch)
+        if #hits == 1 then
+            add(hits[1], subject, repository, false)
+        else
+            recovery_unmatched = recovery_unmatched + 1
+        end
+    elseif loop then
+        -- A loop: every repository on the machine with exactly one match gets
+        -- its line, naming that repository; any with two gets none.
+        local any = false
+        for _, where in ipairs(known_repositories()) do
+            local hits = matches_in(where, subject, call.epoch)
+            if #hits == 1 then
+                add(hits[1], subject, where, true)
+                any = true
+            elseif #hits > 1 then
+                recovery_unmatched = recovery_unmatched + 1
+            end
+        end
+        if not any then recovery_unmatched = recovery_unmatched + 1 end
+    end
+    return found
 end
 -- }}}
 
@@ -1010,19 +1267,51 @@ local function parse_conversation(jsonl_file, output_file)
     -- output that merely QUOTES a commit report - a search through old logs,
     -- a test printing its fixtures - otherwise reads exactly like one.
     local commands_by_id = {}
+    -- For recovering a commit whose announcement is missing (issue 040):
+    -- each command's moment, folder and place in the session (call id ->
+    -- { command, epoch, cwd, index }), and every file the session wrote, by
+    -- heredoc in a command or by the Write tool (base name -> list of
+    -- { index, first_line }, in order), so `-F <file>` can be followed back
+    -- to the subject written into it.
+    local calls_by_id = {}
+    local writes = {}
+    local call_index = 0
+    -- {{{ note_write
+    local function note_write(path, first_line)
+        local base = path:match("([^/]+)$")
+        if not base then return end
+        writes[base] = writes[base] or {}
+        table.insert(writes[base], { index = call_index, first_line = first_line or "" })
+    end
+    -- }}}
     for _, msg in ipairs(messages) do
         if (msg.type or "") == "assistant" then
             local content = msg.message and msg.message.content
             if type(content) == "table" then
                 for _, item in ipairs(content) do
                     if type(item) == "table" and item.type == "tool_use" and item.id
-                        and type(item.input) == "table" and type(item.input.command) == "string" then
-                        commands_by_id[item.id] = item.input.command
+                        and type(item.input) == "table" then
+                        call_index = call_index + 1
+                        if type(item.input.command) == "string" then
+                            local command = item.input.command
+                            commands_by_id[item.id] = command
+                            calls_by_id[item.id] = { command = command, index = call_index,
+                                epoch = parse_timestamp(msg.timestamp), cwd = msg.cwd }
+                            for path, first in command:gmatch("cat%s+>>?%s*([^%s<]+)%s*<<%-?['\"]?[%w_]+['\"]?[^\n]*\n([^\n]*)") do
+                                note_write(expand(path:gsub('^"(.*)"$', "%1"), assignments_in(command)), first)
+                            end
+                        elseif item.name == "Write" and type(item.input.file_path) == "string"
+                            and type(item.input.content) == "string" then
+                            note_write(item.input.file_path, item.input.content:match("^([^\n]*)"))
+                        end
                     end
                 end
             end
         end
     end
+    -- The seven-character hashes this transcript has recorded so far, so a
+    -- recovered commit is never written a second time.
+    local recorded_hashes = {}
 
     -- Pre-pass two: every model that served a reply in this session, in the
     -- order each was first seen. The header needs the whole list before the
@@ -1335,7 +1624,24 @@ local function parse_conversation(jsonl_file, output_file)
             -- commit becomes a block of the reply; or none is (a fork's
             -- first orders), and there is no reply to put it in.
             elseif current_user_uuid then
-                for _, commit in ipairs(commits_reported(msg, commands_by_id)) do
+                local reported = commits_reported(msg, commands_by_id)
+                -- Two paths: the output announced its commits, and they are
+                -- written as they are; or a commit command announced nothing,
+                -- and git is asked which commits it made (issue 040).
+                if #reported == 0 then
+                    local content = msg.message and msg.message.content
+                    local call_id = type(content) == "table" and type(content[1]) == "table"
+                        and content[1].tool_use_id or nil
+                    local call = call_id and calls_by_id[call_id]
+                    if call and call.epoch and runs_a_commit(call.command) then
+                        local result = msg.toolUseResult
+                        local printed = type(result) == "table"
+                            and ((result.stdout or "") .. "\n" .. (result.stderr or "")) or ""
+                        reported = commits_recovered(call, printed, writes, recorded_hashes)
+                    end
+                end
+                for _, commit in ipairs(reported) do
+                    recorded_hashes[commit.hash:sub(1, 7)] = true
                     assistant_blocks[#assistant_blocks + 1] = { commit_line = commit_line(commit) }
                 end
             end
@@ -1472,6 +1778,11 @@ local function main(args)
     -- ENDS_WITH_USER drives the exporter's wait-and-re-read race guard.
     if timestamp then
         io.stderr:write("FINAL_TIMESTAMP:" .. timestamp .. "\n")
+    end
+    -- Commit commands that announced nothing and matched no single commit
+    -- (issue 040): counted, so the exporter can say so, never fatal.
+    if recovery_unmatched > 0 then
+        io.stderr:write("RECOVERY_UNMATCHED:" .. recovery_unmatched .. "\n")
     end
     if start_date then
         io.stderr:write("START_DATE:" .. start_date .. "\n")
