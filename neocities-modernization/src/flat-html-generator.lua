@@ -193,31 +193,34 @@ local PAGE_HEAD_BLOCK = page_head.viewport_meta() .. "\n"
 local PAGE_HEAD_BLOCK_IN_TEMPLATE = PAGE_HEAD_BLOCK:gsub("%%", "%%%%")
 -- }}}
 
--- Pagination configuration defaults
--- Issue 10-003: These values are overridden by unified config (config.lua) if present
--- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
--- Issue 9-003 Fix F: Added chronological pagination settings
-local PAGINATION_CONFIG = {
-    poems_per_page = 100,
-    minimum_pages = 1,
-    -- COMPUTED per build by compute_storage_max_pages (Issue 10-057), not a config
-    -- value. This placeholder is only the operative value if that computation is
-    -- skipped (e.g. a caller that loads pagination just for chronological mapping);
-    -- kept finite so %d logging and math.min() stay well-defined.
-    max_pages_per_poem = 9999,
-    page_number_padding = 2,
-    generate_txt_exports = true,
-    generate_html_archives = false,  -- Disabled: redundant with paginated pages
-    chronological_paginated = false, -- Set to true to split chronological.html into multiple pages
-    chronological_poems_per_page = 500  -- Poems per page when chronological_paginated is true
-}
+-- Page and storage settings. Every value comes from config.lua's `pagination`
+-- and `storage` sections (filled by load_pagination_config below, at load).
+-- The owner's rule (2026-10-04, Issue 10-065a): "the only place we should have
+-- 'default' values is config.lua. Never in the code itself." These two tables
+-- used to start out holding numbers of their own (100 poems per page, 500 per
+-- chronological page, a 45 GB limit...) that config.lua then overrode; a
+-- setting missing from config.lua silently fell back to the number here. Now a
+-- missing setting is an error naming it.
+--   PAGINATION_CONFIG fields: poems_per_page, minimum_pages,
+--     page_number_padding (numbers); generate_txt_exports,
+--     generate_html_archives, chronological_paginated (true/false);
+--     chronological_poems_per_page (number); and max_pages_per_poem (number),
+--     which is NOT a setting: compute_storage_max_pages works it out each build
+--     from the storage limit and the last build's page sizes. It stays unset
+--     until then, and anything that needs it before then is an error (a test
+--     sets it directly).
+--   STORAGE_CONFIG fields: limit_gb, reserved_for_maze_gb, reserved_headroom_gb
+--     (numbers, gigabytes).
+-- See Issue 8-020 for the hybrid pagination strategy (the storage quota).
+local PAGINATION_CONFIG = {}
+local STORAGE_CONFIG = {}
 
--- Storage configuration (for display purposes)
--- Issue 10-003: Loaded from unified config (config.lua) if present
-local STORAGE_CONFIG = {
-    limit_gb = 45,
-    reserved_for_maze_gb = 0.031,
-    reserved_headroom_gb = 5
+-- The settings each section must provide (Lua table of section -> list of names)
+local REQUIRED_SETTINGS = {
+    pagination = { "poems_per_page", "minimum_pages", "page_number_padding",
+        "generate_txt_exports", "generate_html_archives",
+        "chronological_paginated", "chronological_poems_per_page" },
+    storage = { "limit_gb", "reserved_for_maze_gb", "reserved_headroom_gb" },
 }
 
 -- Layout constants: Single source of truth for box widths and positions
@@ -563,26 +566,51 @@ local function load_pagination_config()
         return PAGINATION_CONFIG
     end
 
-    -- Load pagination settings from unified config
-    if unified_config.pagination then
-        for key, value in pairs(unified_config.pagination) do
-            if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
-                PAGINATION_CONFIG[key] = value
+    -- Copy every required setting from config.lua, noting each one missing so
+    -- they can all be reported at once (one run tells the whole fix).
+    local targets = { pagination = PAGINATION_CONFIG, storage = STORAGE_CONFIG }
+    local missing = {}
+    for section, names in pairs(REQUIRED_SETTINGS) do
+        local source = unified_config[section] or {}
+        for _, name in ipairs(names) do
+            if source[name] == nil then
+                missing[#missing + 1] = section .. "." .. name
+            else
+                targets[section][name] = source[name]
             end
         end
     end
-
-    -- Load storage settings from unified config (Issue 8-020)
-    if unified_config.storage then
-        for key, value in pairs(unified_config.storage) do
-            if key ~= "_comment" and STORAGE_CONFIG[key] ~= nil then
-                STORAGE_CONFIG[key] = value
-            end
-        end
+    if #missing > 0 then
+        table.sort(missing)
+        error("config.lua is missing these settings the page builder needs: "
+            .. table.concat(missing, ", ")
+            .. ". Defaults live only in config.lua (Issue 10-065a); add them there.")
     end
 
     pagination_config_loaded = true
     return PAGINATION_CONFIG
+end
+-- }}}
+
+-- Loaded as soon as this file is: several readers below look at these settings
+-- without loading them first, and used to see the code's own numbers when they
+-- did. Loading here means every reader sees config.lua's, and a config.lua that
+-- lacks one stops the program at once, before any work.
+load_pagination_config()
+
+-- {{{ local function required_max_pages
+-- The pages-per-poem ceiling (a number), which compute_storage_max_pages works
+-- out each build. It used to start as 9999 so a caller that skipped that step
+-- still "worked" -- with no storage limit at all. Now such a caller is told.
+local function required_max_pages()
+    local value = PAGINATION_CONFIG.max_pages_per_poem
+    if value == nil then
+        error("the pages-per-poem limit has not been worked out yet: it comes from "
+            .. "compute_storage_max_pages during a full build. A caller that writes "
+            .. "pages on its own must set PAGINATION_CONFIG.max_pages_per_poem "
+            .. "(via get_pagination_config()) first.")
+    end
+    return value
 end
 -- }}}
 
@@ -807,7 +835,7 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
 
     -- Calculate poem range for this page
     local poems_per_page = PAGINATION_CONFIG.poems_per_page
-    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
+    local max_pages = required_max_pages()
     local start_poem = ((current_page - 1) * poems_per_page) + 1
     local end_poem = math.min(current_page * poems_per_page, total_pages * poems_per_page)
 
@@ -2741,7 +2769,7 @@ function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, pa
     local total_pages_possible = calculate_page_count(total_poems)
 
     -- Apply max_pages_per_poem limit (Issue 8-020: 45GB storage constraint)
-    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
+    local max_pages = required_max_pages()
     local total_pages = math.min(total_pages_possible, max_pages)
 
     local results = {
@@ -2883,8 +2911,8 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
     -- Load pagination config for chronological settings (Issue 9-003 Fix F)
     load_pagination_config()
 
-    local chronological_paginated = PAGINATION_CONFIG.chronological_paginated or false
-    local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page or 500
+    local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
+    local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page
 
     -- Apply CLI override if provided. Pagination is enabled either by config
     -- or by the operator supplying --chrono-per-page.
@@ -3492,7 +3520,7 @@ end
 -- output_dir: base output directory
 -- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
 -- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
--- num_threads: (optional) number of parallel threads (default: 1 = single-threaded)
+-- num_threads: (required) number of worker threads, 1 or more (Issue 10-065a: no default in code)
 -- chrono_per_page: (optional) CLI override for chronological poems per page (Issue 9-003)
 function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page)
     -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
@@ -3599,9 +3627,13 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         instructions_page = nil
     }
 
-    -- Normalize num_threads
-    num_threads = num_threads or 1
-    if num_threads < 1 then num_threads = 1 end
+    -- The worker count is a required input (a whole number, 1 or more). It used
+    -- to fall back to 1 here, and a 0 or negative count was quietly raised to 1;
+    -- under Issue 10-065a a program that starts this asks for or is given it.
+    if type(num_threads) ~= "number" or num_threads < 1 or num_threads ~= math.floor(num_threads) then
+        error("generate_complete_flat_html_collection needs a worker count of 1 or more; got "
+            .. tostring(num_threads))
+    end
 
     -- Issue 8-058: threads were asked for and the threading library would not
     -- load.  This used to log a warning and quietly build every page on the
@@ -3645,7 +3677,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
     -- Issue 10-036: Compute chrono_mapping before parallel/sequential split so both paths can use it
     local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
-    local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page or 500
+    local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page
     local effective_chrono_per_page = chrono_poems_per_page_config
     if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
         effective_chrono_per_page = chrono_per_page

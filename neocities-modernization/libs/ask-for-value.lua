@@ -76,6 +76,25 @@ local parsers = {
         end
         return nil, "a whole number of 1 or more, or \"all\""
     end,
+    -- which pages to build, as the page builder reads it: a whole number of 1
+    -- or more ("2" = pages 1 to 2), "all", or a range "first-last" with
+    -- first <= last. Returned as the string typed, the form the builder takes.
+    pages = function(text)
+        local lower = text:lower()
+        if lower == "all" then
+            return "all"
+        end
+        local n = tonumber(text)
+        if n and n >= 1 and n == math.floor(n) then
+            return tostring(n)
+        end
+        local first, last = text:match("^(%d+)%-(%d+)$")
+        first, last = tonumber(first), tonumber(last)
+        if first and last and first >= 1 and first <= last then
+            return text
+        end
+        return nil, "a whole number of 1 or more, \"all\", or a range like 1-10"
+    end,
     -- yes or no
     yesno = function(text)
         local lower = text:lower()
@@ -119,7 +138,7 @@ end
 -- Settles one value. `spec` fields:
 --   flag             string   the command-line flag that supplies it ("--words")
 --   question         string   what to ask ("How many words in the word cloud?")
---   kind             string   "count", "count_or_all" or "yesno"
+--   kind             string   "count", "count_or_all", "pages" or "yesno"
 --   given            any      the value from the command line, or nil if absent
 --   default          any      the value Enter or --yes takes, or nil if none
 --   default_source   string   where the default came from, for the notice

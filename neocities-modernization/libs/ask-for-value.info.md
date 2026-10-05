@@ -14,7 +14,7 @@ Issue 10-065a.
 |---|---|---|
 | `flag` | string | the command-line flag that supplies the value, used in messages (`"--words"`) |
 | `question` | string | what to ask (`"How many words in the word cloud?"`) |
-| `kind` | string | `"count"` (whole number of 1 or more), `"count_or_all"` (that, or the word `all`), `"yesno"` |
+| `kind` | string | `"count"` (whole number of 1 or more), `"count_or_all"` (that, or the word `all`), `"pages"` (a whole number, `all`, or a range like `1-10`, returned as text -- the form the page builder reads), `"yesno"` |
 | `given` | number, string, boolean or nil | the value from the command line; nil when absent |
 | `default` | number, string, boolean or nil | what Enter and `--yes` take; nil when there is none |
 | `default_source` | string | where the default came from, for the `--yes` notice (`"config.lua word_cloud.max_words"`) |

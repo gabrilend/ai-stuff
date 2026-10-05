@@ -33,6 +33,11 @@ end
 
 local PROJECT_DIR = setup_path()
 local generator = require("flat-html-generator")
+-- The pages-per-poem ceiling is normally worked out by a full build from the
+-- storage limit (Issue 10-057); this test writes pages on its own, so it sets
+-- one. Large enough never to cap the pages it builds. (It used to inherit a
+-- 9999 placeholder from the code; defaults no longer live in code, 10-065a.)
+generator.get_pagination_config().max_pages_per_poem = 100
 
 -- Ephemeral scratch space. The pages this test writes are throwaway artifacts,
 -- so they belong on the RAM tier rather than in the repository. Created here

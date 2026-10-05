@@ -592,6 +592,44 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
+    -- Issue 10-065a: settle the four values the page builder needs before any
+    -- work starts, so a question never interrupts a half-built site. Each comes
+    -- from the command line; otherwise it is asked for with config.lua's value
+    -- in brackets (Enter takes it), taken from config.lua under --yes with a
+    -- notice, or an error when run.sh started this or nobody is at the keyboard.
+    -- The thread count has no config.lua value, so it is asked with no default:
+    -- defaults live only in config.lua, never in code (owner, 2026-10-04).
+    local pagination = flat_html_generator.get_pagination_config()
+    local accept_defaults = ask.wants_defaults(arg)
+    pages_spec = ask.resolve({
+        flag = "--pages", question = "Which pages per poem? (a number, \"all\", or a range like 1-3)",
+        kind = "pages", given = pages_spec,
+        default = tostring(pagination.minimum_pages),
+        default_source = "config.lua pagination.minimum_pages",
+        accept_defaults = accept_defaults,
+    })
+    poems_per_page = ask.resolve({
+        flag = "--poems-per-page", question = "How many poems on each similar/different page?",
+        kind = "count", given = poems_per_page,
+        default = pagination.poems_per_page,
+        default_source = "config.lua pagination.poems_per_page",
+        accept_defaults = accept_defaults,
+    })
+    chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page", question = "How many poems per chronological page?",
+        kind = "count", given = chrono_per_page,
+        default = pagination.chronological_poems_per_page,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = accept_defaults,
+    })
+    num_threads = ask.resolve({
+        flag = "--threads", question = "How many worker threads?",
+        kind = "count", given = num_threads,
+        default = nil,
+        default_source = nil,
+        accept_defaults = accept_defaults,
+    })
+
     -- Load only poems data (12MB) - caches are loaded inside generator as needed
     -- Issue 10-033: Skip loading embeddings.json (77MB) and similarity_matrix.json (662MB)
     -- These are never used - generator functions use pre-computed caches exclusively
@@ -795,7 +833,9 @@ function M.handle_tui_action(values)
         executed = true
     end
     if values.full_website == "1" then
-        M.generate_website_html(true, nil, nil)  -- TUI mode: use config defaults
+        -- Values not given here are asked for, config.lua's offered in brackets
+        -- (Issue 10-065a); the menu has closed, so the terminal is free to ask.
+        M.generate_website_html(true, nil, nil)
         executed = true
     end
 

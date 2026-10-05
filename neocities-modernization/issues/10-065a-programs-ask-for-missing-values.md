@@ -68,7 +68,7 @@ reading each program's argument handling):
 | `src/generate-word-pages.lua` | poems per word page (`--poems-per-page`) | 50 written in the code (`config.lua` had no such setting) | asks (built), and only in the mode that writes pages; the 50 now lives in `config.lua` |
 | `src/main.lua` | include reblogs (`--include-boosts`/`--no-boosts`) | `privacy.include_boosts`, else no | asks (built), only when extracting |
 | `scripts/extract-fediverse.lua` | include reblogs | `privacy.include_boosts`, else no | asks (built) |
-| `src/flat-html-generator.lua` (a library, used through `main.lua --html-only`) | pages per poem, poems per page, chronological page size, threads | a built-in table, then `config.lua` `pagination`, then the command line | not yet: the defaults are layered inside the library; asking belongs at `main.lua`'s edge, and the library should stop holding defaults |
+| `src/flat-html-generator.lua` (a library, used through `main.lua --html-only`) | pages per poem, poems per page, chronological page size, threads | a built-in table, then `config.lua` `pagination`, then the command line | built: `main.lua` settles all four before any work (asked, or `--yes`, or an error); the library holds no numbers of its own -- its page and storage settings are read from `config.lua` as it loads, every missing one named in one error (test: `src/flat-html-generator.required-settings.test.lua`, 8 checks); the thread count, which `config.lua` has no value for, is asked with no default |
 | `scripts/generate-html-parallel` | pages, poems per page | built-in 15 and 100, then `config.lua` | removed 2026-10-04 (owner's decision) |
 | `scripts/generate-html-pthreads` | pages, poems per page | `config.pagination.pages` (a setting that does not exist), else 5; poems per page else 100 | removed 2026-10-04 (owner's decision) |
 | `scripts/validate-poem-representation` | chronological page size | `config.lua`, else 500 | not yet: stale, see below |
@@ -130,7 +130,7 @@ code moves to `config.lua` -- as the word-page size did.
    is used, not when the program loads, so a mode that never needs the value
    never asks (stage 6 runs `src/generate-word-pages.lua --embeddings-only`,
    which needs no page size).
-4. `src/main.lua --html-only` and `src/flat-html-generator.lua`: resolve pages,
+4. (Built 2026-10-04.) `src/main.lua --html-only` and `src/flat-html-generator.lua`: resolve pages,
    poems per page, chronological size and threads in `main.lua` with the
    helper, and make the library take them as required inputs.
 5. The stale poem-representation checker: repair or retire, per open question 1.
