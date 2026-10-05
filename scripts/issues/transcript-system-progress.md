@@ -220,6 +220,24 @@ page moving. The comparison also showed what the live pages had been
 quietly dropping (a recap list in seven transcripts), which became a
 question for the developer rather than a silent change.
 
+### Every commit finds its conversation, or says why (040)
+
+The websites link each commit to the conversation that made it by a line the
+exporter writes at the moment of the commit. Sessions had hidden git's
+announcement in five ways, so commits went unlinked; the exporter now asks
+git, and records a commit only when exactly one fits. A project can name
+other folders whose conversations made commits for it (left off its page),
+and a commit she made by hand gets a page of her own words. Building it found
+three older gaps: sessions started through a link were never rebuilt, a
+recovered commit could be written twice, and a silent session got an empty
+transcript. Double-diaper-dungeon's story page went from 55 linked commits
+of 70 to every shown commit linked.
+
+The lesson was about **asking the second question**. "Why doesn't this
+commit have a conversation" first got the answer "not this issue's problem"
+for eight of twelve commits; the owner asked why it couldn't find those too,
+and every one turned out to have a findable cause.
+
 ## What is still open
 
 - **Subagent transcripts are not being captured at all (025).** Claude Code

@@ -6,7 +6,7 @@
 | Blocked by | nothing |
 | Blocks | nothing |
 | Related | 035 (the commit lines this writes are what the table of contents links by); double-diaper-dungeon 10-003a |
-| Status | open — every decision is made below; it needs only building |
+| Status | complete, 2026-10-04 |
 | Was | `040-recover-a-commit-whose-announcement-was-cut-off.md`, renamed the same day when its scope grew |
 
 On every project's website, the table of contents gives each commit a
@@ -29,7 +29,53 @@ page, and is meant to be built from top to bottom with nothing to ask.
 
 ## Current behavior
 
-**How a commit gets its button today.** `libs/conversation-parser.lua`
+**Built, 2026-10-04, and the measured answer seen.** Double-diaper-dungeon's
+story page, built from the rebuilt transcripts against its mirror's
+history: **65 commits shown, 65 with a working button** — 63 into
+conversations, 2 into pages of her own words (`by-hand-17463e2`,
+`by-hand-c7d6693`) — and **5** from the Claude Code folder not shown.
+Exactly as step 8 predicted. Commits: ai-stuff `3445af732` (Parts A and B),
+`8aee90478` (C and D), `d7e6ca9e5`, `cf59a2c60`, `69b047fcf` (three fixes
+below); double-diaper-dungeon `6c95f84ff`. The whole machine's archive was
+rebuilt twice behind a verified snapshot
+(`/tmp/transcript-corpus-backup-20261004-172305`), and no transcript on any
+of the three disks records a commit twice (2,578 checked).
+
+**What building it taught, beyond the plan:**
+
+- **Real sessions hid announcements in more ways than measured.** Besides
+  `tail`: `git commit -q`, which prints nothing; a message file named
+  through a variable (`MSG=…; -F "$MSG"`); commit-own-changes' report caught
+  in a variable and printed later with a prefix (how `fa4e3a7` was made);
+  and git's lower-level `commit-tree`, which prints only the full hash (how
+  "Seven stickers…", `bf31081`, was made — not by the Write tool's message
+  alone, as first thought). Each is a rule in the parser and a test case.
+- **`runs_a_commit` now looks past a step's shell opener** (`do`, `then`,
+  `if` …) and a captured `NAME=$(`, or no loop was ever read as a commit.
+- **"No double lines" has to know the whole session first.** The first
+  build checked only lines already written, and five commits announced by a
+  LATER command were written twice; every announced hash is now gathered
+  before any line is written (`d7e6ca9e5`, with a test).
+- **The archive rebuild missed sessions started through a link.** A session
+  started in `/mnt/mtwo/programs/claude-code` (a shortcut to
+  `/mnt/mtwo/.claude/claude-code`) is filed under the shortcut's name, and
+  `rederive-transcripts` swept only each project's real name: 31 of that
+  folder's conversations had never been rebuilt and one never written. The
+  rebuild now sweeps every spelling its surviving logs used (`cf59a2c60`,
+  `tests/test-rederive-link-spelling.sh`). Across the machine, that folder
+  was the only one affected.
+- **A session in which nobody spoke** (opening `/config` and closing it) was
+  given a transcript with a header and nothing else, which the game's test
+  of its transcripts caught. It now hands back no dates, so the exporter's
+  husk rule writes nothing and retires the old file (`69b047fcf`,
+  `tests/test_conversation-parser-empty-session.lua`).
+- The rebuild's reports count 105 conversations with a commit command that
+  matched no single commit — refused commits, mostly, said once and left
+  alone, as the rule intends.
+
+What follows is the blueprint as it was written before building.
+
+**How a commit got its button before this.** `libs/conversation-parser.lua`
 finds the commits a reply made: `runs_a_commit(command)` says whether a
 shell command runs a commit, `commits_reported(msg, commands_by_id)` reads
 that command's printed output for git's announcement
