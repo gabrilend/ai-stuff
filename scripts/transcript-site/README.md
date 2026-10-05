@@ -83,6 +83,8 @@ return {
 | `nav` | function(project) → html, css | — | a strip of links along the top of the table of contents |
 | `films` | table | absent: no films | see `films/README.md` |
 | `scratch` | string, folder | `tmp/shared-memory/transcript-site` | RAM for working files |
+| `evidence_from` | list of strings, folders | none | other transcript folders whose commit lines count: a commit only they record was made from another project's conversation, and is left off the table of contents (issue 040) |
+| `hand_made_from` | string, folder | the history folder | the repository a hand-made commit's files are read from; a commit with no conversation and no `Co-Authored-By: Claude` line gets a page of only the lines it added, one turn per file (issue 040) |
 
 Relative paths are read from the project folder.
 

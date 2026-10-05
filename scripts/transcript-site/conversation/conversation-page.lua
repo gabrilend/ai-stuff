@@ -134,6 +134,10 @@ local SPEAKERS = {
   assistant = { class = "replied", label = "the assistant" },
   recap     = { class = "recap",   label = "the harness, summarising" },
   harness   = { class = "harness", label = "the harness" },
+  -- Where words written by hand sit (issue 040): the file, and the heading
+  -- above them. Said by nobody, so drawn as neither speaker, and never
+  -- folded into her turn, which holds only what she wrote.
+  context   = { class = "context", label = "from the file" },
 }
 
 local function speaker_class(kind)
@@ -290,6 +294,7 @@ function M.stylesheet(uses)
   uses = uses or { harness = true, contents = true }
   return M.STYLE_TOP
     .. (uses.harness and M.STYLE_HARNESS or "")
+    .. (uses.context and M.STYLE_CONTEXT or "")
     .. (uses.contents and M.STYLE_CONTENTS or "")
     .. M.STYLE_BOTTOM
 end
@@ -431,6 +436,15 @@ M.STYLE_HARNESS = [[
 
 ]]
 
+M.STYLE_CONTEXT = [[
+/* Where words written by hand sit: the file and the heading above them.
+   Quiet and centred, like the harness, because nobody is speaking. */
+.context { opacity: 0.6; font-size: 0.85rem; text-align: center; margin: 2rem 0 0.4rem; }
+.context .who { justify-content: center; }
+.context .what p { margin: 0.2rem 0; }
+
+]]
+
 M.STYLE_CONTENTS = [[
 /* THE RECAPS, AT THE TOP. Each is a place to jump into the conversation, so
    the link leads an entry and the prose sits under it. */
@@ -498,6 +512,11 @@ h1, h2, h3, h4 { color: var(--spirit); line-height: 1.25; }
 -- one with no models line had none named, and says that instead.
 local function facts_line(conversation)
   local written = conversation.generated_on or "date not recorded"
+  -- A page of words she committed by hand (issue 040) has no models: it was
+  -- written, not served.
+  if conversation.by_hand then
+    return string.format('<p class="facts">written by hand &middot; %s</p>', escape(written))
+  end
   local models
   if #conversation.models > 0 then
     models = table.concat(conversation.models, ", ")
@@ -539,10 +558,12 @@ function M.render(conversation, opts)
   local anchored = opts.anchor ~= false
 
   -- Which optional rules this page needs (see M.stylesheet).
-  local uses = { harness = false, contents = #conversation.contents > 0 }
+  local uses = { harness = false, context = false, contents = #conversation.contents > 0 }
   for _, exchange in ipairs(conversation.exchanges) do
     if exchange.kind == "harness" then
       uses.harness = true
+    elseif exchange.kind == "context" then
+      uses.context = true
     end
   end
 

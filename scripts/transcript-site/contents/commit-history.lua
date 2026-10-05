@@ -92,11 +92,16 @@ local TRAILERS = {
 }
 
 -- {{{ local function split_trailers()
--- Separates a body's reading lines from its trailers. Returns the lines kept
--- and the source hash, or nil when the message names none.
+-- Separates a body's reading lines from its trailers. Returns the lines kept,
+-- the source hash (or nil when the message names none), and whether an
+-- assistant's Co-Authored-By line was among them (issue 040: a commit with
+-- none, and no conversation behind it, was made by hand).
 local function split_trailers(body_lines)
-  local kept, source = {}, nil
+  local kept, source, assisted = {}, nil, false
   for _, line in ipairs(body_lines) do
+    if line:match("^Co%-Authored%-By:.*[Cc]laude") then
+      assisted = true
+    end
     local trailer = false
     for _, row in ipairs(TRAILERS) do
       local captured = line:match(row.pattern)
@@ -112,7 +117,7 @@ local function split_trailers(body_lines)
       kept[#kept + 1] = line
     end
   end
-  return kept, source
+  return kept, source, assisted
 end
 -- }}}
 
@@ -184,10 +189,10 @@ function M.read(folder, transcripts)
         end
       end
 
-      local kept, source = split_trailers(body_lines)
+      local kept, source, assisted = split_trailers(body_lines)
       local body = table.concat(kept, "\n"):gsub("^%s+", ""):gsub("%s+$", "")
       commits[#commits + 1] = {
-        hash = hash, source = source or hash, subject = subject, date = date,
+        hash = hash, source = source or hash, subject = subject, date = date, assisted = assisted,
         body = (body ~= "" and body) or nil,
         transcripts = files,
       }

@@ -30,7 +30,15 @@ where the project's settings say.
   attribution rules read (see `contents/attribution.info.md`), from a list of
   `{ name, conversation }` in name order; `key_of(name)` gives a
   transcript's key. A hash recorded in two transcripts belongs to the first.
-- `print_report(report)` — says what the build saw.
+- `hand_made_conversation(commit, repository, transcripts_name) -> conversation`
+  — a commit made by hand as a page where she is the only speaker (issue
+  040): for each file it touched outside the transcripts folder, a quiet
+  `context` turn naming the file and the heading above, then a turn of only
+  the lines the commit added. With no repository to read, or none of its
+  files there, the commit message alone.
+- `print_report(report)` — says what the build saw. The report also has
+  `hidden_elsewhere` (commits only an `evidence_from` folder records, left
+  off the page) and `hand_made` (commits given a page of her own words).
 - `settings` — `settings.lua`, for a caller that has only this file.
 - `WORTH_MENTIONING` — 200, the fenced-block length worth listing.
 

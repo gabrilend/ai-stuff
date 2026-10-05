@@ -324,6 +324,111 @@ local function evidence_elsewhere(settings, evidence, conversations)
 end
 -- }}}
 
+-- {{{ local function recorded_elsewhere()
+-- The commits that transcripts in the evidence_from folders record making
+-- (issue 040), as a set of seven-character hashes. A commit only they
+-- record was made from another project's conversation. A listed folder that
+-- does not exist stops the build: a missing folder would quietly show those
+-- commits again.
+local function recorded_elsewhere(settings)
+  local hashes = {}
+  for _, folder in ipairs(settings.evidence_from) do
+    local probe = io.open(folder, "r")
+    if not probe then
+      error("evidence_from names a folder that is not there: " .. folder)
+    end
+    probe:close()
+    for _, path in ipairs(lines_of("find " .. shell_quote(folder) .. " -maxdepth 1 -name '*.md' -type f")) do
+      local ok, conversation = pcall(reader.read, slurp(path))
+      -- A transcript there that does not read is that folder's problem to
+      -- report; here it only means no evidence from it.
+      if ok then
+        for _, exchange in ipairs(conversation.exchanges) do
+          for _, commit in ipairs(exchange.commits or {}) do
+            hashes[commit.hash:sub(1, 7)] = true
+          end
+        end
+      end
+    end
+  end
+  return hashes
+end
+-- }}}
+
+-- {{{ local function nearest_heading()
+-- The markdown heading at or above a line of a file, without its hashes, or
+-- nil when there is none above it.
+local function nearest_heading(file_lines, line_number)
+  for n = math.min(line_number, #file_lines), 1, -1 do
+    local heading = file_lines[n]:match("^#+%s+(.-)%s*$")
+    if heading then return heading end
+  end
+  return nil
+end
+-- }}}
+
+-- {{{ function M.hand_made_conversation()
+-- A commit she made by hand, as a conversation in which she is the only
+-- speaker (issue 040): for each file the commit touched, outside the
+-- transcripts folder, a quiet "context" turn naming the file and the heading
+-- above the lines, then a turn of HER lines -- only the lines that commit
+-- added, never the file whole, so text an assistant wrote around her answers
+-- is never put in her mouth.
+--
+-- `repository` is where the files are read from (nil: none can be, and the
+-- page holds the commit message alone); `transcripts_name` is the
+-- transcripts folder's name, whose files are left out.
+function M.hand_made_conversation(commit, repository, transcripts_name)
+  local exchanges = {}
+  local function said(text) exchanges[#exchanges + 1] = { kind = "user", number = 1, body = text, continued = false } end
+  local function where(text) exchanges[#exchanges + 1] = { kind = "context", body = text, continued = false } end
+
+  if repository then
+    local files = lines_of("git -C " .. shell_quote(repository) .. " show --format= --name-only "
+      .. shell_quote(commit.source))
+    for _, path in ipairs(files) do
+      if path ~= "" and path:sub(1, #transcripts_name + 1) ~= transcripts_name .. "/" then
+        local file_lines = lines_of("git -C " .. shell_quote(repository) .. " show "
+          .. shell_quote(commit.source .. ":" .. path))
+        local diff = lines_of("git -C " .. shell_quote(repository) .. " show --format= --unified=0 "
+          .. shell_quote(commit.source) .. " -- " .. shell_quote(path))
+        -- Walk the diff's hunks. Each "@@ ... +start ..." says where the
+        -- added lines that follow begin in the file at this commit; a run of
+        -- "+" lines is one block of her words.
+        local blocks, current, next_line = {}, nil, nil
+        for _, line in ipairs(diff) do
+          local start = line:match("^@@ %-%d+,?%d* %+(%d+)")
+          if start then
+            next_line = tonumber(start)
+            current = nil
+          elseif line:sub(1, 1) == "+" and line:sub(1, 3) ~= "+++" and next_line then
+            if not current then
+              current = { first = next_line, lines = {} }
+              blocks[#blocks + 1] = current
+            end
+            current.lines[#current.lines + 1] = line:sub(2)
+            next_line = next_line + 1
+          end
+        end
+        for _, block in ipairs(blocks) do
+          local text = table.concat(block.lines, "\n")
+          if text:match("%S") then
+            local heading = nearest_heading(file_lines, block.first - 1)
+            where("`" .. path .. "`" .. (heading and (", under \"" .. heading .. "\"") or ""))
+            said(text)
+          end
+        end
+      end
+    end
+  end
+  if #exchanges == 0 then
+    said(commit.body and (commit.subject .. "\n\n" .. commit.body) or commit.subject)
+  end
+  return { session_id = "by-hand-" .. commit.source:sub(1, 7), generated_on = commit.date,
+           models = {}, header_complete = true, by_hand = true, contents = {}, exchanges = exchanges }
+end
+-- }}}
+
 -- {{{ local function copy_fonts()
 -- The pages ask for a font that sits in fonts/ at the site's root
 -- (libs/page-head.lua says which files). Each file is copied when it is not
@@ -453,6 +558,40 @@ function M.build(settings)
     end
   end
   attribution.attribute(commits, evidence, settings.attribution)
+
+  -- WHAT NO CONVERSATION OF THIS PROJECT MADE (issue 040), two ways. Made
+  -- from another project's conversation (recorded in an evidence_from
+  -- folder): left off the page, her choice, and only counted here. Made by
+  -- hand (no evidence, and no assistant's trailer): shown like any other,
+  -- with a page of her own words behind its button.
+  local elsewhere = recorded_elsewhere(settings)
+  local shown = {}
+  report.hidden_elsewhere = 0
+  report.hand_made = 0
+  for _, commit in ipairs(commits) do
+    if not commit.how and elsewhere[commit.source:sub(1, 7)] then
+      report.hidden_elsewhere = report.hidden_elsewhere + 1
+    else
+      if not commit.how and not commit.assisted then
+        -- Where her files are read from: the setting, else the history
+        -- folder. A mirror does not hold the project commit, so a project
+        -- with a mirror and no setting gets the commit message alone.
+        local repository = settings.hand_made_from or settings.history
+        local out_name = "by-hand-" .. commit.source:sub(1, 7) .. ".html"
+        spit(settings.pages_folder .. "/" .. out_name, page.render(
+          M.hand_made_conversation(commit, repository, settings.transcripts:match("([^/]+)/*$")), {
+            title = commit.subject, back = "index.html", base_path = settings.base_path,
+            colours_css = colours_css,
+          }))
+        local key = "by-hand:" .. commit.source
+        conversations[key] = { href = out_name, title = commit.subject }
+        commit.conversation, commit.how = key, "by hand"
+        report.hand_made = report.hand_made + 1
+      end
+      shown[#shown + 1] = commit
+    end
+  end
+  commits = shown
   local groups = attribution.group(commits)
 
   local nav, nav_css = nil, nil
@@ -527,6 +666,12 @@ function M.print_report(report)
     if report.how[rule] then
       print(string.format("    by %-10s %d", rule, report.how[rule]))
     end
+  end
+  if report.hand_made > 0 then
+    print(string.format("    by %-10s %d", "hand", report.hand_made))
+  end
+  if report.hidden_elsewhere > 0 then
+    print("  commits made from conversations elsewhere, not shown: " .. report.hidden_elsewhere)
   end
   if report.elsewhere > 0 then
     print("  commit lines read from other projects " .. report.elsewhere)

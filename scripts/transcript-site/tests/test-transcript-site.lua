@@ -224,11 +224,11 @@ write(project .. "/llm-transcripts/sep-2-26.md", transcript({ id = "second", mod
 }))
 write(project .. "/llm-transcripts/sep-1-26.md", io.open(project .. "/llm-transcripts/sep-1-26.md"):read("*a") .. "\n")
 git("add -A")
-git("commit -q -m 'Rebuild every transcript'")
+git("commit -q -m 'Rebuild every transcript' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
 -- 4. Code with no transcript at all.
 write(project .. "/code.lua", "return 2\n")
 git("add -A")
-git("commit -q -m 'Code without a conversation'")
+git("commit -q -m 'Code without a conversation' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
 
 local run = io.popen("'" .. SITE .. "/build-transcript-pages' '" .. project .. "' 2>&1")
 local report = run:read("*a")
@@ -471,6 +471,68 @@ matcher.add_choices(choices, { { key = "aa", hash = "bb" } })
 matcher.add_choices(choices, { { key = "cc", hash = "dd" } })
 local stored = matcher.read_choices(choices)
 check("the choices file only grows", stored.aa == "bb" and stored.cc == "dd", true)
+
+print("== what no conversation of the project made (issue 040) ==")
+
+-- A project of its own: a document an assistant wrote, then her answers
+-- added to it by hand (no trailer); a commit only another folder's
+-- transcript records; and an ordinary recorded commit.
+local own = SCRATCH .. "/own"
+local other = SCRATCH .. "/other-transcripts"
+os.execute("mkdir -p '" .. own .. "/llm-transcripts' '" .. own .. "/docs' '" .. other .. "'")
+local function ogit(args) return os.execute("git -C '" .. own .. "' " .. args .. " > /dev/null") end
+local function ohead()
+  local p = io.popen("git -C '" .. own .. "' rev-parse HEAD"); local h = p:read("*l"); p:close(); return h
+end
+ogit("init -q"); ogit("config user.email t@t"); ogit("config user.name t")
+write(own .. "/docs/questions.md", "# Questions\n\n## Q1. How tall?\n\nAn assistant asks this.\n\n## Q2. How wide?\n\nAnd this.\n")
+ogit("add -A")
+ogit("commit -q -m 'The questions' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
+local asked = ohead()
+write(own .. "/docs/questions.md", "# Questions\n\n## Q1. How tall?\n\nAn assistant asks this.\n\n-> very tall.\n\n## Q2. How wide?\n\nAnd this.\n\n-> not wide at all.\n")
+write(own .. "/llm-transcripts/rode-along.md", "not her words\n")
+ogit("add -A")
+ogit("commit -q -m 'my answers'")
+local by_hand = ohead()
+write(own .. "/x.txt", "x\n")
+ogit("add -A")
+ogit("commit -q -m 'Made from elsewhere' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
+local from_elsewhere = ohead()
+write(other .. "/sep-1-26.md", transcript({ models = "m" }, {
+  { "User Request 1", "everywhere" },
+  { "Assistant Response 1", "done\n\n*[commit] " .. from_elsewhere:sub(1, 9) .. " in own - Made from elsewhere*" },
+}))
+write(own .. "/llm-transcripts/sep-2-26.md", transcript({ models = "m" }, {
+  { "User Request 1", "build" },
+  { "Assistant Response 1", "built\n\n*[commit] " .. asked:sub(1, 9) .. " - The questions*" },
+}))
+os.execute("rm -f '" .. own .. "/llm-transcripts/rode-along.md'")
+ogit("add -A")
+ogit("commit -q -m 'Save the conversation' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
+
+local own_settings = settings_reader.resolve(own, { evidence_from = { other } })
+local own_report = site.build(own_settings)
+local own_index = io.open(own .. "/llm-transcripts/HTML/index.html"):read("*a")
+check("a commit only another folder records is left off the page",
+  own_index:find("Made from elsewhere", 1, true) == nil, true)
+check("... and counted in the report", own_report.hidden_elsewhere, 1)
+check("a commit made by hand is shown like any other",
+  own_index:find("my answers", 1, true) ~= nil, true)
+check("... with a button to a page of her own words",
+  own_index:find('href="by-hand-' .. by_hand:sub(1, 7) .. '.html"', 1, true) ~= nil, true)
+local hand_page = io.open(own .. "/llm-transcripts/HTML/by-hand-" .. by_hand:sub(1, 7) .. ".html")
+local hand = hand_page and hand_page:read("*a") or ""
+check("her page holds the lines she added", hand:find("very tall.", 1, true) ~= nil
+  and hand:find("not wide at all.", 1, true) ~= nil, true)
+check("... and not the lines around them the assistant wrote",
+  hand:find("An assistant asks this.", 1, true) == nil, true)
+check("... each under the heading it sits beneath, as a quiet label",
+  hand:find('class="turn context"', 1, true) ~= nil and hand:find("Q2. How wide?", 1, true) ~= nil, true)
+check("... naming the file", hand:find("docs/questions.md", 1, true) ~= nil, true)
+check("... leaving out the transcripts folder's files", hand:find("not her words", 1, true) == nil, true)
+check("... and says it was written by hand", hand:find("written by hand", 1, true) ~= nil, true)
+check("a missing evidence_from folder stops the build",
+  (pcall(site.build, settings_reader.resolve(own, { evidence_from = { SCRATCH .. "/nowhere" } }))), false)
 
 print("== a pulled copy (issue 035e) ==")
 

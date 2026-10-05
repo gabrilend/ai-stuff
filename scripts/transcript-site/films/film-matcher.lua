@@ -80,7 +80,7 @@ end
 -- }}}
 
 -- Which kinds of turn get a film. A dispatch table, so a new kind is a row.
-local FILMED = { user = true, assistant = true, recap = false, harness = false }
+local FILMED = { user = true, assistant = true, recap = false, harness = false, context = false }
 
 -- {{{ function M.cosine()
 -- How nearly two lists of numbers point the same way: 1 is the same

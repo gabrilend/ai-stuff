@@ -44,6 +44,11 @@ libraries and nothing from the other parts.
 - Links to a sibling transcript (`x.md`) point at its page (`x.html`).
 - "date not recorded" / "models not recorded" for an archived transcript,
   "no model named" for one whose replies named none.
+- A page of words committed by hand (`conversation.by_hand`): "written by
+  hand" in place of the models, and `context` turns — the file and the
+  heading above her lines — drawn quiet and centred as neither speaker, so
+  her turns hold only what she wrote. Their rules join the sheet only when
+  used, like the harness's.
 
 ## Only the rules it uses
 

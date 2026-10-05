@@ -39,6 +39,8 @@ local KNOWN = {
   nav            = "function",
   films          = "table",
   scratch        = "string",
+  evidence_from  = "table",
+  hand_made_from = "string",
 }
 
 -- The films table's fields, every one required when the table is there. A
@@ -150,6 +152,21 @@ function M.resolve(project, raw)
     nav            = raw.nav,
     scratch        = absolute(project, raw.scratch or "tmp/shared-memory/transcript-site"),
   }
+  -- Other transcript folders whose commit lines count as evidence (issue
+  -- 040): a commit only they record was made from another project's
+  -- conversation, and is left off the table of contents.
+  out.evidence_from = {}
+  for _, folder in ipairs(raw.evidence_from or {}) do
+    if type(folder) ~= "string" then
+      error("transcript-site settings: evidence_from holds something that is not a folder")
+    end
+    out.evidence_from[#out.evidence_from + 1] = absolute(project, folder)
+  end
+  -- The repository a hand-made commit's files are read from (issue 040):
+  -- absent means the history folder itself; "" means the project.
+  if raw.hand_made_from then
+    out.hand_made_from = absolute(project, raw.hand_made_from)
+  end
   out.base_path = M.route_up(out.pages)
   out.pages_folder = out.pages == "" and out.output or (out.output .. "/" .. out.pages)
 
