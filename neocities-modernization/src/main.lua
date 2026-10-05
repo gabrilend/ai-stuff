@@ -192,20 +192,11 @@ local function build_menu_config()
                         value = "0",
                         description = "Discovery instructions page"
                     },
-                    {
-                        id = "similar_pages",
-                        label = "Generate similarity pages (parallel)",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Per-poem pages sorted by semantic similarity"
-                    },
-                    {
-                        id = "different_pages",
-                        label = "Generate difference pages (parallel)",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Per-poem pages sorted by maximum diversity"
-                    },
+                    -- Two items here ran the similar or different pages alone
+                    -- through scripts/generate-html-parallel, a stand-alone
+                    -- generator removed 2026-10-04 (it read a model folder that
+                    -- no longer exists). The complete-website item below builds
+                    -- both kinds of page.
                     {
                         id = "full_website",
                         label = "Generate complete website",
@@ -801,16 +792,6 @@ function M.handle_tui_action(values)
     if values.explore == "1" then
         flat_html_generator.generate_simple_discovery_instructions(DIR .. "/output")
         utils.log_info("Generated explore.html")
-        executed = true
-    end
-    if values.similar_pages == "1" then
-        utils.log_info("Generating similarity pages (use scripts/generate-html-parallel --similar-only)...")
-        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --similar-only")
-        executed = true
-    end
-    if values.different_pages == "1" then
-        utils.log_info("Generating difference pages (use scripts/generate-html-parallel --different-only)...")
-        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --different-only")
         executed = true
     end
     if values.full_website == "1" then

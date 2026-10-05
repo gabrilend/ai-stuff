@@ -222,24 +222,28 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 **How Data Transforms**: A printing press takes everything assembled so far — the unified collection, the relationship map, the neighborhood colors, the pre-charted journeys — and stamps out thousands of interconnected pages. Each page is a doorway: step through one door and you see everything arranged by similarity; step through another and you're on the pre-charted diversity journey. The press works in parallel, running multiple print heads simultaneously to produce pages faster. Nothing new is computed here; the press simply renders all the previously-gathered knowledge into a format that humans can navigate with nothing more than a web browser and the ability to click links.
 
 ```
-┌────────────────────────┐     ┌─────────────────────────────────┐
-│ flat-html-generator    │     │ output/                         │
-│          +             │     │   index.html (→ chronological)  │
-│ generate-html-parallel │ ──→ │   chronological.html (12 MB)    │
-│   (8 threads via effil)│     │   explore.html (1 KB)           │
-│                        │     │   wordcloud.html (menu + index) │
-│ Template engine:       │     │   similar/0001..6860.html       │
-│ /src/html-generator/   │     │   different/*.html              │
-│   template-engine.lua  │     │                                 │
-└────────────────────────┘     └─────────────────────────────────┘
+┌─────────────────────────┐     ┌─────────────────────────────────┐
+│ main.lua --html-only    │     │ output/                         │
+│          ↓              │     │   chronological/NN.html         │
+│ flat-html-generator     │ ──→ │   explore.html                  │
+│   one coordinator holds │     │   similar/NNNN-NN.html          │
+│   the big caches; effil │     │   different/NNNN-NN.html        │
+│   worker threads each   │     │   gallery/, source/             │
+│   get a small slice     │     │                                 │
+└─────────────────────────┘     └─────────────────────────────────┘
 ```
 
 **Key files**:
-- `/src/flat-html-generator.lua` - Main generation logic
-- `/scripts/generate-html-parallel` - Multi-threaded wrapper
-- `/src/html-generator/template-engine.lua` - HTML templates
-- `/src/html-generator/url-manager.lua` - Navigation URLs
-- `/src/html-generator/golden-poem-bonus.lua` - Golden poem styling
+- `/src/flat-html-generator.lua` - Main generation logic, including the
+  coordinator-and-workers threading (Issue 10-034)
+- `/src/main.lua` - Its entry point (`--html-only`, started by `run.sh` stage 9)
+
+Two other routes once existed and are gone: a stand-alone threaded generator
+(`scripts/generate-html-parallel`) and a C-threads variant
+(`scripts/generate-html-pthreads`), both removed 2026-10-04 after the
+coordinator design made them unnecessary; and a template engine under
+`/src/html-generator/`, removed with the golden-prioritization system. The
+word-cloud menu and word pages are written by stage 10, not this stage.
 
 **Generated pages**:
 | Page Type | Count | Size | Description |

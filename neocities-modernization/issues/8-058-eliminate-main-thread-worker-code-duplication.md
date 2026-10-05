@@ -183,7 +183,7 @@ Write index files
 2. **`src/generate-word-pages.lua`**:
    - Has its own `format_poem_with_progress()` — third duplication
 
-3. **`scripts/generate-html-parallel`**:
+3. ~~**`scripts/generate-html-parallel`**~~ (removed 2026-10-04; no longer a copy to reconcile):
    - Worker spawning and coordination logic
 
 ## Suggested Implementation Steps
@@ -203,13 +203,14 @@ Write index files
      second and exits with the worker's error, and the join exits on any
      worker that did not complete.
    - **Still to look at:** other caught-and-substituted loads found by
-     `grep -rn 'pcall(require' src libs scripts`: `libs/external-sync.lua`
-     falls back to the legacy `external_files` config when `sources-loader`
-     will not load; `libs/exclusion-filter.lua`, `libs/utils.lua` and
-     `libs/pipeline-validator.lua` guard `config-loader` /
-     `inference-server-config`; `src/main.lua` treats the TUI `menu` module as
-     optional. Each needs a decision: a real optional feature, or a fallback
-     to turn into an error.
+     `grep -rn 'pcall(require' src libs scripts`: `libs/exclusion-filter.lua`
+     and `libs/utils.lua` guard `config-loader` / `inference-server-config`;
+     `src/main.lua` treats the TUI `menu` module as optional. Each needs a
+     decision: a real optional feature, or a fallback to turn into an error.
+     Settled 2026-10-04: `libs/external-sync.lua` now requires
+     `sources-loader` outright and its legacy `external_files` fallback is
+     gone (10-060); `libs/pipeline-validator.lua` was removed with the
+     stand-alone HTML generator, its only user.
 
 1. **Audit**: Run grep for duplicated function names across all HTML generators
    ```bash

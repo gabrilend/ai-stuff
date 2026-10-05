@@ -104,13 +104,15 @@ which includes the Lua inside shell scripts, the trap this issue warns about --
 and reports the modules in `src/` and top-level `libs/` that nothing reaches.
 No module is loaded by a name built at run time, so nothing is invisible to it.
 
-It reports 13 modules, each checked by hand. None has been deleted; each needs
+It reported 13 modules, each checked by hand. Each needs
 the owner's decision:
 
 | Group | Modules | What they are |
 |---|---|---|
 | already marked dead | `src/triangular-similarity-matrix.lua` | the file this issue verified on 2026-08-08 |
-| hand-run tools living in `src/` | `src/hubness-experiment.lua` (Issue 9-013 measurement tool), `src/centroid-html-generator.lua` (10-048d power-user tool), `src/regenerate-clean-site.lua` (a one-off fix for PDF-corrupted poems) | programs a person would run directly; nothing calls them |
+| hand-run tools living in `src/` | `src/hubness-experiment.lua` (Issue 9-013 measurement tool), `src/regenerate-clean-site.lua` (a one-off fix for PDF-corrupted poems) | programs a person would run directly; nothing calls them |
+| removed 2026-10-04 | `src/centroid-html-generator.lua` | the mood pages planned in 8-008 Phase C, never wired in; owner: "that function is fulfilled by the word-cloud" |
+| removed 2026-10-04 | `libs/pipeline-validator.lua`, and the scripts `scripts/generate-html-parallel` and `scripts/generate-html-pthreads` with the C library `libs/html-threaded/` | the two stand-alone HTML generators (owner's decision) and the pre-start check only the first of them loaded; run.sh's pre-flight gate (10-069) and each stage's own input checks do that job now |
 | the validation suite | `src/run-validation.lua`, `src/run-validation-with-reports.lua`, `src/validation-engine.lua`, `src/report-generator.lua`, `src/similarity-calculator.lua` | two command-line runners and the three modules only they use (10-048h); `config.similarity` is read only by the calculator, so it lives or dies with this group |
 | what is left of `src/html-generator/` | `golden-poem-indicators.lua` (nothing), `embedding-list-generator.lua` (its test only), `url-manager.lua` (demo 3 only) | 4 of the 16 files 10-048 describes remain; the rest went with the golden-prioritization template system. Demo 3 must be rewritten first (10-056) |
 | a reader for triangular similarity files | `libs/triangular-similarity-access.lua` | may be wanted by 8-034 (triangular individual files only), which is open |

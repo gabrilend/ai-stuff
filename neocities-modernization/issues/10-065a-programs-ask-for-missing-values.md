@@ -69,22 +69,27 @@ reading each program's argument handling):
 | `src/main.lua` | include reblogs (`--include-boosts`/`--no-boosts`) | `privacy.include_boosts`, else no | asks (built), only when extracting |
 | `scripts/extract-fediverse.lua` | include reblogs | `privacy.include_boosts`, else no | asks (built) |
 | `src/flat-html-generator.lua` (a library, used through `main.lua --html-only`) | pages per poem, poems per page, chronological page size, threads | a built-in table, then `config.lua` `pagination`, then the command line | not yet: the defaults are layered inside the library; asking belongs at `main.lua`'s edge, and the library should stop holding defaults |
-| `scripts/generate-html-parallel` | pages, poems per page | built-in 15 and 100, then `config.lua` | not yet: stale, see below |
-| `scripts/generate-html-pthreads` | pages, poems per page | `config.pagination.pages` (a setting that does not exist), else 5; poems per page else 100 | not yet: stale, see below |
+| `scripts/generate-html-parallel` | pages, poems per page | built-in 15 and 100, then `config.lua` | removed 2026-10-04 (owner's decision) |
+| `scripts/generate-html-pthreads` | pages, poems per page | `config.pagination.pages` (a setting that does not exist), else 5; poems per page else 100 | removed 2026-10-04 (owner's decision) |
 | `scripts/validate-poem-representation` | chronological page size | `config.lua`, else 500 | not yet: stale, see below |
 
-Three of these programs are stale beyond their fallbacks, found while making
+Three of these programs were stale beyond their fallbacks, found while making
 this inventory:
-- `scripts/generate-html-pthreads` reads its diversity cache from
+- `scripts/generate-html-pthreads` read its diversity cache from
   `assets/embeddings/embeddinggemma_latest/`, a folder that no longer exists
-  (model folders are now named like `embeddinggemma-300m`). Nothing calls it.
-- `scripts/generate-html-parallel` hard-codes the same missing folder for its
-  similarity files. Only `src/main.lua`'s own interactive menu calls it.
+  (model folders are now named like `embeddinggemma-300m`). Nothing called it.
+- `scripts/generate-html-parallel` hard-coded the same missing folder for its
+  similarity files. Only `src/main.lua`'s own interactive menu and the
+  phase-demo picker called it.
 - `scripts/validate-poem-representation` counts chronological pages named
   `output/chronological-*.html`; they now live in `output/chronological/`, so it
   always finds none.
-Adding questions to programs that cannot run is wasted work. Each needs a
-decision first: repair or retire (open question 1).
+The owner had the two HTML generators removed (2026-10-04), with everything
+that existed only for them: the C threading library `libs/html-threaded/`, the
+two menu items in `src/main.lua` and the page-building and diversity options
+in `phase-demo.sh` that called them, and the stale commands
+`scripts/validate-pipeline-data` suggested (it now names `run.sh` stages). The
+checker remains (open question 1).
 
 ## Intended Behavior
 
@@ -107,6 +112,13 @@ has to come from somewhere, and `config.lua` is where the owner keeps
 preferences. What changes is that the default is now *shown and confirmed*
 instead of applied silently -- the property 10-065 was after.
 
+**The rule (owner, 2026-10-04): "the only place we should have 'default'
+values is config.lua. Never in the code itself."** So a program never writes
+`value or 200`: the default it offers is read from `config.lua`, and if
+`config.lua` has none, there is no default (the question is asked with no
+brackets, and `--yes` is an error naming the flag). A number that was in the
+code moves to `config.lua` -- as the word-page size did.
+
 ## Suggested Implementation Steps
 
 1. `libs/ask-for-value.lua`: the helper and its rules (table above), with
@@ -121,11 +133,11 @@ instead of applied silently -- the property 10-065 was after.
 4. `src/main.lua --html-only` and `src/flat-html-generator.lua`: resolve pages,
    poems per page, chronological size and threads in `main.lua` with the
    helper, and make the library take them as required inputs.
-5. The three stale programs: repair or retire, per open question 1.
+5. The stale poem-representation checker: repair or retire, per open question 1.
 
 ## Open Questions
 
-1. **The three stale programs.** `scripts/generate-html-pthreads` (nothing
-   calls it), `scripts/generate-html-parallel` (only `main.lua`'s own menu calls
-   it) and `scripts/validate-poem-representation` all point at files that moved.
-   Repair them, or retire them under 10-060?
+1. **The poem-representation checker.** `scripts/validate-poem-representation`
+   looks for chronological pages where they used to live. Repair it, or retire
+   it under 10-060? (The two HTML generators asked about here were removed on
+   the owner's decision, 2026-10-04.)

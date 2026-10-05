@@ -7,7 +7,16 @@
 - **Phase**: 9
 - **Priority**: High
 - **Type**: Enhancement
-- **Status**: In Progress
+- **Status**: Superseded (2026-10-04) -- not finished, and not needed. The
+  problem it set out to solve, effil workers slowed to a crawl by shared
+  tables, was solved differently by Issue 10-034: one coordinator holds the big
+  caches and hands each effil worker a small private slice, so the main page
+  builder (`src/flat-html-generator.lua`, run by `run.sh` stage 9) is fast
+  with effil. Nothing ever called this issue's `scripts/generate-html-pthreads`,
+  which also read a model folder (`embeddinggemma_latest`) that no longer
+  exists. The script and its C library (`libs/html-threaded/`) were removed on
+  the owner's instruction. The wider goal of dropping effil altogether stays
+  open in the parent, 9-001f.
 - **Created**: 2026-03-18
 
 ## Current Behavior

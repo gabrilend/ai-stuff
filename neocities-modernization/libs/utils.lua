@@ -580,8 +580,8 @@ end
 -- The on-DISK embeddings dir (assets/). Kept as a SEPARATE function even though
 -- it now returns exactly what embeddings_dir() returns, because the distinction
 -- it draws is real and worth keeping legible: its callers
--- (diversity_cache.json, in flat-html-generator, main.lua and
--- pipeline-validator) are the ones that must NEVER be moved to volatile storage,
+-- (diversity_cache.json, in flat-html-generator and main.lua)
+-- are the ones that must NEVER be moved to volatile storage,
 -- whatever embeddings_dir does next. Collapsing them would erase the record of
 -- which caches are cheap to lose and which are not -- and that record is the
 -- thing that made the reversal above safe to reason about.

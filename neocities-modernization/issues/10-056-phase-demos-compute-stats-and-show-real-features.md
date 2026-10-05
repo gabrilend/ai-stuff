@@ -44,6 +44,16 @@ describe functionality as it stood several phases ago, not as it is now.
     (`src/flat-html-generator.lua`) is what frees those three to be retired
     under 10-060.
 
+- **The phase-demo picker (`phase-demo.sh`) itself** (2026-10-04). Its page
+  building ([H]) and diversity precompute ([D]) options, and the matching menu
+  sections, called two removed scripts and were taken out; building is
+  `run.sh`'s job. What remains stale: the banner ("97% Complete | 62 Issues
+  Resolved | 7,355 Poems Processed") and the statistics screen are written-in
+  numbers; phase 8 is shown "In Progress"; the pipeline option ([P]) feeds menu
+  numbers into `lua src/main.lua` and hides its output; the browser option
+  ([V]) opens `output/index.html`, which the build no longer writes; and a
+  failed menu start falls back to a plain text menu.
+
 ## Intended Behavior
 
 - **Every statistic is computed on the run, from the real data/tools**, so the

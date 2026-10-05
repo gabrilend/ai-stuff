@@ -78,30 +78,14 @@ setup_tui_menu() {
     menu_add_item "utils" "browser" "View in Browser" "checkbox" "0" \
         "Open generated HTML in browser" "v" ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # Section 3: HTML Generation Options
-    # ═══════════════════════════════════════════════════════════════════════════
-    menu_add_section "html" "multi" "HTML Generation"
-    menu_add_item "html" "html_similar" "Generate Similar Pages" "checkbox" "0" \
-        "Generate similarity-sorted pages" "h" ""
-    menu_add_item "html" "html_different" "Generate Different Pages" "checkbox" "0" \
-        "Generate diversity-sorted pages" "d" ""
-    menu_add_item "html" "html_threads" "Thread Count" "flag" "4:2" \
-        "Parallel threads (1-16)" "t" "--threads"
+    # Generating pages and pre-computing diversity are run.sh's job (stages 8
+    # and 9), not a demo's. Two sections that did them here called scripts that
+    # no longer exist (the stand-alone parallel HTML generator, removed
+    # 2026-10-04, and the CPU diversity precompute, removed when diversity moved
+    # to the GPU), and were taken out.
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # Section 4: Diversity Pre-computation
-    # ═══════════════════════════════════════════════════════════════════════════
-    menu_add_section "diversity" "multi" "Diversity Pre-computation ⚠️"
-    menu_add_item "diversity" "div_compute" "Pre-compute Cache" "checkbox" "0" \
-        "~42 hours - one-time cost" "c" ""
-    menu_add_item "diversity" "div_threads" "Thread Count" "flag" "4:2" \
-        "Parallel threads for diversity" "" ""
-    menu_add_item "diversity" "div_sleep" "Sleep (seconds)" "flag" "5:2" \
-        "Thermal throttling between batches" "" ""
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # Section 5: Actions
+    # Section 3: Actions
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "actions" "single" "Actions"
     menu_add_item "actions" "run" "Run Selected" "action" "" \
@@ -130,41 +114,6 @@ run_tui_selections() {
     [[ "$(menu_get_value "stats")" == "1" ]] && { run_phase_demo S; ran_something=true; }
     [[ "$(menu_get_value "pipeline")" == "1" ]] && { run_phase_demo P; ran_something=true; }
     [[ "$(menu_get_value "browser")" == "1" ]] && { run_phase_demo V; ran_something=true; }
-
-    # HTML Generation
-    local html_threads=$(menu_get_value "html_threads")
-    html_threads=${html_threads:-4}
-
-    if [[ "$(menu_get_value "html_similar")" == "1" ]] && [[ "$(menu_get_value "html_different")" == "1" ]]; then
-        echo ""
-        echo "Generating all HTML pages with $html_threads threads..."
-        luajit scripts/generate-html-parallel "$DIR" "$html_threads"
-        ran_something=true
-    elif [[ "$(menu_get_value "html_similar")" == "1" ]]; then
-        echo ""
-        echo "Generating similarity pages with $html_threads threads..."
-        luajit scripts/generate-html-parallel "$DIR" "$html_threads" --similar-only
-        ran_something=true
-    elif [[ "$(menu_get_value "html_different")" == "1" ]]; then
-        echo ""
-        echo "Generating difference pages with $html_threads threads..."
-        luajit scripts/generate-html-parallel "$DIR" "$html_threads" --different-only
-        ran_something=true
-    fi
-
-    # Diversity pre-computation
-    if [[ "$(menu_get_value "div_compute")" == "1" ]]; then
-        local div_threads=$(menu_get_value "div_threads")
-        local div_sleep=$(menu_get_value "div_sleep")
-        div_threads=${div_threads:-4}
-        div_sleep=${div_sleep:-5}
-
-        echo ""
-        echo "Starting diversity pre-computation..."
-        echo "Threads: $div_threads, Sleep: ${div_sleep}s"
-        luajit scripts/precompute-diversity-sequences "$DIR" "$div_threads" "$div_sleep"
-        ran_something=true
-    fi
 
     if ! $ran_something; then
         echo ""
@@ -225,13 +174,11 @@ show_main_menu() {
     echo "├─────────────────────────────────────────────────────────────────────────┤"
     echo "│ [S] Full Project Statistics & Achievements                              │"
     echo "│ [P] Run Complete Pipeline (Extract → Process → Generate)                │"
-    echo "│ [H] Generate HTML Pages (Similar + Different)                           │"
-    echo "│ [D] Pre-compute Diversity Sequences (~42 hours)                         │"
     echo "│ [V] View Generated HTML in Browser                                      │"
     echo "│ [0] Exit                                                                │"
     echo "└─────────────────────────────────────────────────────────────────────────┘"
     echo ""
-    echo -n "Select option [0-8/S/P/H/D/V]: "
+    echo -n "Select option [0-8/S/P/V]: "
 }
 # }}}
 
@@ -402,10 +349,8 @@ run_phase_demo() {
             echo "   • Thermal management for long computations"
             echo ""
             echo "📁 TOOLS:"
-            echo "   • scripts/generate-html-parallel - Generate HTML pages"
-            echo "   • scripts/precompute-diversity-sequences - Pre-compute diversity"
-            echo ""
-            echo "Use [H] to generate HTML or [D] to pre-compute diversity sequences"
+            echo "   • ./run.sh -I - choose stages; stage 8 builds the diversity cache"
+            echo "     on the GPU, stage 9 builds the pages"
             ;;
         S|s)
             echo "FULL PROJECT STATISTICS & ACHIEVEMENTS"
@@ -476,92 +421,6 @@ run_phase_demo() {
                 echo "Pipeline execution cancelled."
             fi
             ;;
-        H|h)
-            echo "GENERATE HTML PAGES"
-            echo "════════════════════════════════════════════════════════════════════════════"
-            echo ""
-            cache_exists="No"
-            if [ -f "assets/embeddings/embeddinggemma_latest/diversity_cache.json" ]; then
-                cache_exists="Yes (fast mode available)"
-            fi
-            echo "Diversity cache: $cache_exists"
-            echo ""
-            echo "Options:"
-            echo "  [1] Generate similarity pages only (fast)"
-            echo "  [2] Generate difference pages only (requires cache or ~42 hours)"
-            echo "  [3] Generate both (full website)"
-            echo "  [4] Test mode (10 pages each)"
-            echo "  [0] Cancel"
-            echo ""
-            echo -n "Select option [0-4]: "
-            read html_choice
-
-            case $html_choice in
-                1)
-                    echo ""
-                    echo "Generating similarity pages..."
-                    luajit scripts/generate-html-parallel "$DIR" 4 --similar-only
-                    ;;
-                2)
-                    echo ""
-                    echo "Generating difference pages..."
-                    luajit scripts/generate-html-parallel "$DIR" 4 --different-only
-                    ;;
-                3)
-                    echo ""
-                    echo "Generating all HTML pages..."
-                    luajit scripts/generate-html-parallel "$DIR" 4
-                    ;;
-                4)
-                    echo ""
-                    echo "Running test mode (10 pages)..."
-                    luajit scripts/generate-html-parallel "$DIR" 4 --test
-                    ;;
-                *)
-                    echo "Cancelled."
-                    ;;
-            esac
-            ;;
-        D|d)
-            echo "PRE-COMPUTE DIVERSITY SEQUENCES"
-            echo "════════════════════════════════════════════════════════════════════════════"
-            echo ""
-            echo "⚠️  WARNING: This is a long-running process (~42 hours)"
-            echo ""
-            echo "This pre-computes diversity sequences for all poems, allowing fast"
-            echo "generation of 'different' pages afterward."
-            echo ""
-            echo "Options:"
-            echo "  • Threads: Number of parallel computations"
-            echo "  • Sleep: Seconds to cool down between batches (thermal management)"
-            echo ""
-            echo "Recommended settings:"
-            echo "  • 4 threads, 5 second sleep (balanced)"
-            echo "  • 2 threads, 10 second sleep (low thermal impact)"
-            echo ""
-            echo -n "Number of threads [4]: "
-            read num_threads
-            num_threads=${num_threads:-4}
-
-            echo -n "Sleep between batches in seconds [5]: "
-            read sleep_time
-            sleep_time=${sleep_time:-5}
-
-            echo ""
-            echo "Will run: luajit scripts/precompute-diversity-sequences . $num_threads $sleep_time"
-            echo -n "Continue? [y/N]: "
-            read confirm
-
-            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-                echo ""
-                echo "Starting pre-computation..."
-                echo "You can safely close this menu - the process will continue."
-                echo ""
-                luajit scripts/precompute-diversity-sequences "$DIR" "$num_threads" "$sleep_time"
-            else
-                echo "Pre-computation cancelled."
-            fi
-            ;;
         V|v)
             echo "VIEWING GENERATED HTML"
             echo "════════════════════════════════════════════════════════════════════════════"
@@ -579,7 +438,7 @@ run_phase_demo() {
                     echo "   $DIR/output/index.html"
                 fi
             else
-                echo "No generated HTML found. Please run option [H] first to generate output."
+                echo "No generated HTML found. Build the site first with ./run.sh (stage 9 writes the pages)."
             fi
             ;;
     esac

@@ -353,8 +353,7 @@ output_human() {
     case "$DIVERSITY_STATUS" in
         MISSING)
             echo "  ├─ Cache size: N/A (not generated)"
-            echo "  ├─ Estimated time to complete: ~42 hours (8 threads)"
-            echo "  └─ Status: MISSING (run: ./scripts/precompute-diversity-sequences)"
+            echo "  └─ Status: MISSING (run: ./run.sh --generate-diversity)"
             ;;
         INVALID)
             echo "  ├─ Cache size: INVALID JSON"
@@ -405,8 +404,8 @@ output_human() {
             echo "Next Step: Complete similarity matrix generation"
             echo "Command: ./run.sh --generate-similarity"
         elif [ "$DIVERSITY_STATUS" = "MISSING" ]; then
-            echo "Next Step: Pre-compute diversity cache (optional but recommended)"
-            echo "Command: nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
+            echo "Next Step: Build the diversity cache (the different pages need it)"
+            echo "Command: ./run.sh --generate-diversity"
         fi
     fi
 }
@@ -515,53 +514,49 @@ list_missing_entries() {
 }
 
 suggest_commands() {
+    # Points at run.sh's stage flags. This used to name scripts that no longer
+    # exist (the stand-alone parallel HTML generator, the CPU diversity
+    # precompute) and quote hand-written times ("~42 hours", "72 hours") that
+    # were wrong by orders of magnitude once similarity and diversity moved to
+    # the GPU. Times are no longer written here: run.sh prints a measured
+    # estimate for each stage before running it (.stage-timings, Issue 10-051).
+    # run.sh also lists every value a chosen stage needs if one is missing
+    # (Issue 10-065), so the commands below name only the stages.
     echo "Pipeline Fix Commands"
     echo "═══════════════════════════════════════════════════════════════"
     echo ""
-    echo "To complete the pipeline, run these commands in order:"
+    echo "To complete the pipeline, run these in order. run.sh lists any value"
+    echo "a stage still needs (pages, threads, model, ...) and prints a measured"
+    echo "time estimate before each stage."
     echo ""
 
     local step=1
 
-    # Check if embeddings need generation
+    # each missing piece -> the stage that builds it
     if [ "$EMBEDDING_COUNT" -lt "$POEM_COUNT" ]; then
-        echo "Step $step: Generate missing embeddings"
-        echo "  Command: ./generate-embeddings.sh --incremental"
-        echo "  Time: ~$(awk -v m="$((POEM_COUNT - EMBEDDING_COUNT))" 'BEGIN { printf "%.1f", m*5/60 }') minutes"
+        echo "Step $step: Generate missing embeddings ($((POEM_COUNT - EMBEDDING_COUNT)) poems)"
+        echo "  Command: ./run.sh --generate-embeddings"
         echo ""
         ((step++))
     fi
 
-    # Check if similarity matrix needs generation
     if [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ]; then
-        echo "Step $step: Complete similarity matrix"
+        echo "Step $step: Complete the similarity files ($((POEM_COUNT - SIMILARITY_COUNT)) poems; GPU)"
         echo "  Command: ./run.sh --generate-similarity"
-        echo "  Time: ~$(awk -v m="$((POEM_COUNT - SIMILARITY_COUNT))" 'BEGIN { printf "%.1f", m*0.92/3600 }') hours (8 threads)"
         echo ""
         ((step++))
     fi
 
-    # Check if diversity cache needs generation
     if [ "$DIVERSITY_STATUS" = "MISSING" ] || [ "$DIVERSITY_COUNT" -lt "$POEM_COUNT" ]; then
-        echo "Step $step: Pre-compute diversity cache (optional but recommended)"
-        echo "  Command: nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
-        echo "  Time: ~42 hours (runs overnight, unattended)"
-        echo "  Benefit: Reduces HTML generation from 72 hours → 1 hour"
+        echo "Step $step: Build the diversity cache (GPU; the different pages need it)"
+        echo "  Command: ./run.sh --generate-diversity"
         echo ""
         ((step++))
     fi
 
-    # Check if HTML needs generation
     if [ "$HTML_SIMILAR_COUNT" -lt "$POEM_COUNT" ] || [ "$HTML_DIFFERENT_COUNT" -lt "$POEM_COUNT" ]; then
-        echo "Step $step: Generate all HTML pages"
-        if [ "$DIVERSITY_STATUS" = "MISSING" ]; then
-            echo "  Command: ./scripts/generate-html-parallel 8 --pages=all"
-            echo "  Time: ~72 hours (without diversity cache)"
-            echo "  Or wait for Step $((step-1)) to complete, then run in ~1 hour"
-        else
-            echo "  Command: ./scripts/generate-html-parallel 8 --pages=all"
-            echo "  Time: ~1 hour (with diversity cache)"
-        fi
+        echo "Step $step: Generate the poem pages"
+        echo "  Command: ./run.sh --generate-html"
         echo ""
         ((step++))
     fi
@@ -573,14 +568,10 @@ suggest_commands() {
 
     echo "═══════════════════════════════════════════════════════════════"
     echo ""
-    echo "To run the complete pipeline at once (without diversity cache):"
+    echo "To run every stage at once:"
     echo "  ./run.sh --full"
-    echo ""
-    echo "For fastest results (with overnight diversity pre-computation):"
-    echo "  ./run.sh --generate-embeddings --generate-similarity"
-    echo "  nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
-    echo "  # Wait ~42 hours, then:"
-    echo "  ./scripts/generate-html-parallel 8 --pages=all"
+    echo "or choose stages and values in the menu:"
+    echo "  ./run.sh -I"
 }
 
 check_freshness() {
@@ -652,7 +643,7 @@ check_freshness() {
         echo "  ├─ diversity_cache.json: $(format_timestamp "$diversity_mtime")"
         echo "  ├─ embeddings.json: $(format_timestamp "$embeddings_mtime")"
         echo "  ├─ Age difference: $age_days days old"
-        echo "  └─ Action: Regenerate with ./scripts/precompute-diversity-sequences"
+        echo "  └─ Action: Regenerate with ./run.sh --generate-diversity"
         echo ""
     elif [ "$diversity_mtime" -eq 0 ]; then
         echo "Diversity Cache: NOT GENERATED"

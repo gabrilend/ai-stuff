@@ -1,5 +1,13 @@
 # Critical Path: Similar Pages Generation
 
+> **Historical record (January 2026).** This plan describes the route as it
+> stood before similarity and diversity moved to the GPU. The tools it names
+> for those steps (`scripts/precompute-diversity-sequences`,
+> `scripts/generate-html-parallel`) were removed, and its times and page counts
+> no longer hold. The current route is `run.sh`'s stages: see "Deployment
+> Pipeline Steps" in `docs/roadmap.md`, and `scripts/validate-pipeline-data
+> --suggest-commands` for what to run next. Kept for the reasoning it records.
+
 ## Overview
 
 This document tracks the critical path for generating all **similar/** HTML pages - the similarity-based navigation system that shows poems ordered by closeness to an origin poem.

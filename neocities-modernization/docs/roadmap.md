@@ -251,82 +251,28 @@ Run ./scripts/validate-pipeline-data to see actual generation progress.
 
 ### Deployment Pipeline Steps
 
-**Step 1: Complete Embeddings**
-- Tool: `./generate-embeddings.sh`
-- Check status: `./scripts/validate-pipeline-data --quick | grep EMBEDDING`
+The whole route is `run.sh`'s ten stages. Choose stages in its menu
+(`./run.sh -I`) or with flags; it refuses to start without the values the
+chosen stages need and lists every missing one at once (Issue 10-065).
 
-**Step 2: Calculate Similarity Matrix**
-- Tool: `lua src/similarity-engine-parallel.lua`
-- Generates: Individual similarity JSON files per poem
-- Check status: `./scripts/validate-pipeline-data --quick | grep SIMILARITY`
+| Step | Stage flag | What it builds |
+|---|---|---|
+| Embeddings | `./run.sh --generate-embeddings` | one meaning-vector per poem, from the inference server |
+| Similarity | `./run.sh --generate-similarity` | per-poem similarity files, computed on the GPU |
+| Diversity cache | `./run.sh --generate-diversity` | each poem's least-alike chain, computed on the GPU; the different pages need it |
+| Pages | `./run.sh --generate-html` | the similar, different and chronological pages, gallery and source browser |
+| Word cloud | `./run.sh --generate-wordcloud` | the menu and the per-word pages |
 
-**Step 3: Pre-compute Diversity Cache** (optional, speeds up Step 4)
-- Tool: `./scripts/precompute-diversity-sequences`
-- Generates: `diversity_cache.json`
-- Benefit: Reduces Step 4 from days → ~1 hour
-- Check status: `./scripts/validate-pipeline-data --quick | grep DIVERSITY`
+- Progress: `./scripts/validate-pipeline-data` (and `--suggest-commands` for the
+  next stage to run).
+- Time: `run.sh` prints a measured estimate before each stage, from the last
+  five runs recorded in `.stage-timings` (Issue 10-051). Times are not written
+  here: the hand-written ones this table used to carry ("42 hours", "72 hours")
+  were overtaken by the move to the GPU and were wrong by orders of magnitude.
+- Settings: the per-build values are `run.sh` flags; the rest live in
+  `config.lua` (`docs/config-reference.md`).
 
-**Step 4: Generate All HTML Pages** (depends on Steps 1-2)
-- Tool: `./scripts/generate-html-parallel`
-- Generates: similar/ and different/ HTML pages
-- Est. time WITH cache: ~1 hour
-- Est. time WITHOUT cache: ~3 days
-
-**Step 5: Deploy to Neocities**
-- Deploy: `output/` directory contents
-- Deploy: `input/media_attachments/` for images
-- Total upload: ~95 GB
-
-### Configuration Reference
-
-**Pagination settings** (`config/input-sources.json`):
-```json
-{
-  "pagination": {
-    "poems_per_page": 100,
-    "minimum_pages": 1,
-    "generate_txt_exports": true
-  }
-}
-```
-
-**Generation script limits** (`scripts/generate-html-parallel`):
-```lua
-NUM_THREADS = 8           -- Parallel workers
-DIVERSITY_LIMIT = 0       -- 0 = all poems (no limit)
-USE_CACHE = true          -- Use pre-computed sequences
-TEST_MODE = false         -- Set true for 10-page test
-```
-
-### Quick Commands for Full Deployment
-
-```bash
-# 1. Ensure Ollama is running with CUDA
-./scripts/start-ollama-cuda.sh
-
-# 2. Generate missing embeddings
-./generate-embeddings.sh
-
-# 3. Calculate similarity matrix
-lua src/similarity-engine-parallel.lua
-
-# 4. (Optional) Pre-compute diversity - runs 42 hours
-./scripts/precompute-diversity-sequences &
-
-# 5. Generate all HTML pages
-./scripts/generate-html-parallel 8
-
-# 6. Verify output
-ls output/similar/ | wc -l    # Should be 7,793
-ls output/different/ | wc -l  # Should be 7,793
-```
-
-### Estimated Total Time to Deployment
-
-| Scenario | Embeddings | Similarity | Diversity Cache | HTML Gen | Total |
-|----------|------------|------------|-----------------|----------|-------|
-| **Fast path** (with cache) | 1 hour | 2 hours | 42 hours | 1 hour | ~46 hours |
-| **Slow path** (no cache) | 1 hour | 2 hours | skip | 72 hours | ~75 hours |
+**Deploy**: `scripts/deploy-to-neocities` uploads `output/`.
 
 ---
 
