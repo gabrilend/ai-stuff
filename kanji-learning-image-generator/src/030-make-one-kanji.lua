@@ -71,26 +71,89 @@ function M.make(record, store, settings, options)
                                               { measured = measured })
   local arrow_bytes = arrows_of.write(folder .. "/arrows.png", sheets)
 
-  local graph = workflow.build(record, {
-    positive = built.positive,
-    negative = built.negative,
-    field_name = field_name,
-    arrows_name = arrows_name,
-    width = surface.width,
-    height = surface.height,
-    -- Carried in rather than worked out again inside the graph. The seed comes
-    -- from the description and the style is part of the description, so a graph
-    -- that recomputed the seed from the character alone would hand every style
-    -- the same starting noise.
-    style = built.style,
-  }, settings)
+  -- The input pictures, each with the name the workflow will call it by. The
+  -- runner uploads every one of these (`415`); nothing else is sent.
+  local inputs = {
+    { path = folder .. "/field.png", name = field_name },
+    { path = folder .. "/arrows.png", name = arrows_name },
+  }
+
+  -- The two mask routes (`416`) need the strokes as a hard mask, and the
+  -- outside route needs them painted. Made only when a route asks, so a run
+  -- on the local kitchen writes exactly what it always did.
+  local routes = settings.workflow.routes or { "illusion" }
+  local mask_name, ink_name, tone_name
+  for _, route in ipairs(routes) do
+    if route == "inside" or route == "outside" then
+      local knobs = settings.routes
+      local mask = field_of.mask(record, settings, knobs.mask_width,
+                                 { measured = measured })
+      mask_name = string.format("kanji/%05X-mask.png", record.codepoint)
+      png.write_grey(folder .. "/mask.png", mask, canvas)
+      inputs[#inputs + 1] = { path = folder .. "/mask.png", name = mask_name }
+      -- The inside route's flat tone: the wide strokes, dark or light by the
+      -- world's polarity. Only its stroke pixels are ever used.
+      local tone = (scene.polarity == "light_ink") and knobs.tone_light
+                   or knobs.tone_dark
+      tone_name = string.format("kanji/%05X-tone.png", record.codepoint)
+      png.write_grey(folder .. "/tone.png", field_of.ink(mask, tone, 0.5), canvas)
+      inputs[#inputs + 1] = { path = folder .. "/tone.png", name = tone_name }
+      -- The outside route's mask is the painted strokes themselves, at brush
+      -- width, so what is held is exactly what is inked.
+      local brush = field_of.mask(record, settings, knobs.ink_width,
+                                  { measured = measured })
+      ink_name = string.format("kanji/%05X-ink.png", record.codepoint)
+      png.write_grey(folder .. "/ink.png",
+                     field_of.ink(brush, knobs.ink, knobs.paper), canvas)
+      png.write_grey(folder .. "/ink-mask.png", brush, canvas)
+      inputs[#inputs + 1] = { path = folder .. "/ink.png", name = ink_name }
+      inputs[#inputs + 1] = {
+        path = folder .. "/ink-mask.png",
+        name = string.format("kanji/%05X-ink-mask.png", record.codepoint) }
+      break
+    end
+  end
+
+  -- One recipe per route. Same scene, same style, same seed; the routes
+  -- differ only in how the line between the strokes and the rest is drawn.
+  local workflows = {}
+  for _, route in ipairs(routes) do
+    local graph = workflow.build(record, {
+      route = route,
+      positive = built.positive,
+      parts = built.parts,
+      negative = built.negative,
+      field_name = field_name,
+      arrows_name = arrows_name,
+      -- The inside route holds its things to the wide mask; the outside route
+      -- holds the ink to the brush-width one.
+      mask_name = (route == "outside")
+        and string.format("kanji/%05X-ink-mask.png", record.codepoint)
+        or mask_name,
+      ink_name = ink_name,
+      tone_name = tone_name,
+      width = surface.width,
+      height = surface.height,
+      -- Carried in rather than worked out again inside the graph. The seed comes
+      -- from the description and the style is part of the description, so a graph
+      -- that recomputed the seed from the character alone would hand every style
+      -- the same starting noise.
+      style = built.style,
+    }, settings)
+    -- The illusion route keeps the name it has always had, so recipes made
+    -- before there were routes are still where everything looks for them.
+    local stem = (route == "illusion") and "workflow" or ("workflow-" .. route)
+    project.write_file(folder .. "/" .. stem .. ".api.json",
+                       json.encode(graph:api()))
+    project.write_file(folder .. "/" .. stem .. ".ui.json",
+                       json.encode(graph:ui()))
+    workflows[#workflows + 1] = { route = route,
+                                  path = folder .. "/" .. stem .. ".api.json" }
+  end
 
   -- A phrase of more than two or three characters is a far wider picture than
   -- any of these models were trained on, and says so rather than being refused.
   local shape_warning = workflow.shape_warning(surface.width, surface.height)
-
-  project.write_file(folder .. "/workflow.api.json", json.encode(graph:api()))
-  project.write_file(folder .. "/workflow.ui.json", json.encode(graph:ui()))
 
   -- The card is what makes a generated set inspectable without opening a
   -- workflow, and it is what the gallery in `304` reads. Every decision, in
@@ -147,6 +210,9 @@ function M.make(record, store, settings, options)
 
   card.prompt = json.object("style", built.style,
                             "positive", built.positive,
+                            "inside_the_strokes", built.parts.subjects,
+                            "outside_the_strokes", built.parts.background,
+                            "around_the_ink", built.parts.outside,
                             "negative", built.negative,
                             "words", built.length.words,
                             "about_tokens", built.length.tokens,
@@ -199,6 +265,8 @@ function M.make(record, store, settings, options)
     style = built.style,
     seed = card.seed,
     prompt = built,
+    workflows = workflows,
+    inputs = inputs,
   }
 end
 -- }}}

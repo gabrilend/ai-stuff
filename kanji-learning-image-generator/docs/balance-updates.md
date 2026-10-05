@@ -259,3 +259,38 @@ strokes directly.
 currency for it. What is left to try: fewer and fatter strokes in the field
 itself, a second low-strength pass at the larger size over a picture composed at
 the smaller one, or a checkpoint trained at 1024 to begin with.
+
+## 2026-10-04 — The inside route's redraw has a cliff (416)
+
+The first knobs of the two mask routes, set on the far kitchen with Juggernaut
+XL at 1024, one character (休), one seed.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `routes.mask_width` | — | 44 | Wide enough for a thing to stand along a stroke. Not yet varied. |
+| `routes.ink_width` | — | 22 | Brush weight for the outside route. Not yet varied. |
+| `routes.inside_denoise` | 1.0 → 0.8 | **0.62** | Measured, below. |
+| `routes.tone_dark` / `tone_light` | — | 0.08 / 0.92 | The flat tone the strokes start the redraw from, chosen by the world's polarity. |
+
+**One pass with each sentence held to its side of the mask: no character.**
+**Two passes, the strokes redrawn from noise: no character** — asked to fill a
+tree-shaped hole in a forest, the model continues the forest. So the strokes
+are laid into the background as one flat tone first, and the redraw strength
+decides how much of that tone survives:
+
+| strength | light tone | dark tone |
+|---|---|---|
+| 0.55 | the tone survives, flat white — a cut-out | — |
+| 0.62 | flat white, the 木 half beginning to become a figure | **the 木 half becomes one person, arms and legs along its strokes**; the 亻 half is lost among dark trunks |
+| 0.68 | as 0.62 | a man leaning on a tree; the shape mostly gone |
+| 0.74 | gone | gone |
+| 0.80 | faint glints where strokes cross | gone |
+
+The window is narrow — about a tenth either side of 0.62 — and it was found on
+one character in one world. The dark tone is the more interesting: it made the
+character into its subject, which is what this route is for. The light tone at
+the same strength stays a cut-out. What is left to try: differential diffusion
+(the core node that lets the mask's grey levels set per-pixel strength, so the
+middle of a stroke can be redrawn harder than its edges), a quieter background
+sentence so the strokes are not camouflaged by trunks, and a dozen characters
+across worlds before trusting any of these numbers.

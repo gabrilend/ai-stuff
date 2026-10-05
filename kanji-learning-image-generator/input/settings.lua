@@ -73,10 +73,9 @@ return {
     -- Neither is wrong; see notes/041 and src/024.
     reading = "mnemonic",
     -- What a picture should look like. "photographic" is the default and is a
-    -- style like any other. A style may lift refusals whose reasoning does not
-    -- apply to it -- a Wimmelbild is an illustration and is the opposite of
-    -- flat, so the argument that pushes this project towards photographs is not
-    -- an argument against it. See src/025 and issues/412.
+    -- style like any other, and for now the only one. A style may lift
+    -- refusals whose reasoning does not apply to it, never the four that keep
+    -- the model from painting the character itself. See src/025 and issues/412.
     style = "photographic",
     named_strokes = 5,    -- how many strokes get an object named in the prompt
     named_subjects = 3,   -- how many pieces of the character get named. a
@@ -115,6 +114,11 @@ return {
   workflow = {
     checkpoint       = "v1-5-pruned-emaonly.safetensors",
     control_net      = "control_v1p_sd15_qrcode_monster.safetensors",
+    -- Which ways from a scene to a picture this kitchen runs, every one of them
+    -- for every character. "illusion" hides the character in the scene's light
+    -- and dark through the control net above. "inside" and "outside" draw the
+    -- line between strokes and the rest with a mask instead (416).
+    routes           = { "illusion" },
     -- Measured, not guessed. At 0.85 the character did not appear at all;
     -- raising it to 1.55 roughly doubles how much of the field survives into
     -- the picture, and the picture is still a photograph. docs/balance-updates.
@@ -146,6 +150,28 @@ return {
   },
   -- }}}
 
+  -- {{{ routes -- the two mask routes, inside and outside (416)
+  --
+  -- Lengths in pixels at field.reference, scaled with the frame like the rest.
+  routes = {
+    -- How wide a stroke is in the inside route's mask. Wide, because things
+    -- have to fit along it; a hairline holds nothing.
+    mask_width = 44,
+    -- How wide the outside route paints the character. Brush weight: legible
+    -- at thumbnail size, not so heavy that the scene has no room around it.
+    ink_width = 22,
+    ink = 0.06,           -- grey level of the painted strokes (0 is black)
+    paper = 0.5,          -- grey level of the rest, which is all regenerated
+    -- How completely the inside route's second pass redraws the strokes over
+    -- the flat tone laid into the background. 1.0 would start them from pure
+    -- noise and forget the tone, which is what made the character vanish.
+    inside_denoise = 0.62,
+    -- The flat tone the strokes are laid in before that redraw, by polarity.
+    tone_dark = 0.08,
+    tone_light = 0.92,
+  },
+  -- }}}
+
   -- {{{ batch -- generating the whole set (303)
   batch = {
     workers = 0,          -- 0 means work it out from the processor count below
@@ -164,11 +190,9 @@ return {
   -- {{{ kitchen -- the picture program this hands recipes to (404)
   kitchen = {
     url = "http://127.0.0.1:8188",
-    -- Where it reads its inputs from. It names them by filename and looks in
-    -- its own folder rather than taking a path, so the two pictures for each
-    -- character are copied here before the workflow is posted.
-    input = nil,          -- nil means libs/kitchen/ComfyUI/input
-    rest = 1.0,           -- seconds between submissions on a card of its own
+    -- Inputs are posted to its upload address rather than copied into its
+    -- folder, so the same route serves a kitchen on another machine (415).
+    rest = 1.0,          -- seconds between submissions on a card of its own
     -- And between submissions when the card is also drawing the screen, which
     -- is a different situation and was found out the hard way (409). A second
     -- is courtesy on a spare card; on the one running somebody's desktop it is
@@ -184,6 +208,51 @@ return {
     -- anything, and one that stopped early can.
     least_free_vram = 2.0,
     patience = 300,       -- how long to wait for one picture
+    -- Whether the card is local, so its memory can be asked of nvidia-smi.
+    -- A kitchen on another machine is asked through its own /system_stats.
+    here = true,
+  },
+  -- }}}
+
+  -- {{{ kitchens -- the other houses a recipe can be cooked in (415)
+  --
+  -- Each one is a set of changes laid over the settings above, chosen with
+  -- `--kitchen NAME`. Only what differs is written; everything else is
+  -- inherited. With no --kitchen, the settings above are used unchanged.
+  --
+  -- NOTHING IS INSTALLED IN ANOTHER HOUSE. These describe what is already
+  -- there. A run asks the far end what it holds before posting, and stops
+  -- naming every missing piece rather than fetching anything.
+  kitchens = {
+    across = {
+      kitchen = {
+        url = "http://192.168.0.88:8188",
+        here = false,
+        -- Marks every picture this kitchen draws, in its pool name and its
+        -- companion, because the same recipe on another checkpoint is another
+        -- picture.
+        drawn_by = "juggernautxl",
+        -- Whether that card also draws somebody's screen cannot be asked from
+        -- here, so it is assumed that it does: the slower, kinder rest.
+        shares_a_screen = true,
+        rest = 6.0,
+      },
+      workflow = {
+        checkpoint = "juggernautXL_ragnarokBy.safetensors",
+        -- No control net is installed there, so the illusion route cannot run;
+        -- the two mask routes need none (416).
+        control_net = false,
+        routes = { "inside", "outside" },
+        steps = 30,
+        cfg = 4.5,              -- SDXL photographic models want low guidance
+        sampler = "dpmpp_2m_sde",
+        scheduler = "karras",
+        width = 1024,
+        height = 1024,
+      },
+      -- SDXL composes at 1024. Every pixel number above scales with this (414).
+      field = { resolution = 1024 },
+    },
   },
   -- }}}
 
