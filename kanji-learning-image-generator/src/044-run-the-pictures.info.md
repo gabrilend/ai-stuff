@@ -26,6 +26,8 @@ luajit src/044-run-the-pictures.lua --chars 休 --kitchen across
 | | |
 |---|---|
 | `M.for_kitchen(settings, name)` | The settings as they are for one of the other kitchens (`415`). |
+| `M.rest_for(spec)` | How many seconds to rest, from a rest setting. |
+| `M.describe_rest(spec)` | A rest setting as words, for the line said before the first picture. |
 | `M.system_stats(settings)` | What the far end says about its own card, through its own /system_stats. |
 | `M.card(settings)` | What the graphics card says about itself, or nil if it will not say. |
 | `M.is_the_display_card(card, settings)` | Whether the card that would draw the pictures is also drawing the screen. |
@@ -48,6 +50,12 @@ The settings as they are for one of the other kitchens (`415`).
 Each kitchen in `settings.kitchens` is a set of changes laid over the sections of the settings -- kitchen, workflow, field -- and only what it writes differs. A copy, never written into the shared table, because half this project reads that table.
 
 No name means the settings unchanged: the local kitchen. A name that is not there is an error naming the ones that are, rather than a quiet return to the local one -- a run aimed at another machine that silently ran here would look exactly like it had worked.
+
+### `M.rest_for(spec)`
+
+How many seconds to rest, from a rest setting.
+
+A rest is either a number of seconds (always that long) or a pair `{ shortest, longest }` (somewhere between, drawn fresh every time). The pair exists for a card somebody else also uses: a run that posts on a perfectly regular beat takes the card at the same moment every cycle, and a person working beside it meets the run at the same moment too. An uneven beat leaves the gaps in different places, so whoever else is waiting gets in sooner on average. Anything else is an error rather than a guess, because a misspelt rest that quietly became zero would hammer a shared card.
 
 ### `M.system_stats(settings)`
 

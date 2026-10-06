@@ -88,16 +88,64 @@ function M.for_kitchen(settings, name)
           (#names > 0 and table.concat(names, ", ") or "none") ..
           " -- and, with no --kitchen, the local one.")
   end
+  -- A kitchen may say it is another kitchen with a few changes -- the same
+  -- house with a different model on the shelf -- by naming it in `inherits`.
+  -- Its parent's changes are laid first and its own over them.
+  local base = settings
+  if changes.inherits then
+    base = M.for_kitchen(settings, changes.inherits)
+  end
   local copy = {}
-  for key, value in pairs(settings) do copy[key] = value end
+  for key, value in pairs(base) do copy[key] = value end
   for section, overrides in pairs(changes) do
-    local merged = {}
-    for key, value in pairs(settings[section] or {}) do merged[key] = value end
-    for key, value in pairs(overrides) do merged[key] = value end
-    copy[section] = merged
+    -- `inherits` names the parent and is not a section of the settings.
+    if section ~= "inherits" then
+      local merged = {}
+      for key, value in pairs(base[section] or {}) do merged[key] = value end
+      for key, value in pairs(overrides) do merged[key] = value end
+      copy[section] = merged
+    end
   end
   copy.kitchen_name = name
   return copy
+end
+-- }}}
+
+-- {{{ M.rest_for(spec)
+-- How many seconds to rest, from a rest setting.
+--
+-- A rest is either a number of seconds (always that long) or a pair
+-- `{ shortest, longest }` (somewhere between, drawn fresh every time). The
+-- pair exists for a card somebody else also uses: a run that posts on a
+-- perfectly regular beat takes the card at the same moment every cycle, and a
+-- person working beside it meets the run at the same moment too. An uneven
+-- beat leaves the gaps in different places, so whoever else is waiting gets
+-- in sooner on average. Anything else is an error rather than a guess, because
+-- a misspelt rest that quietly became zero would hammer a shared card.
+local seeded = false
+function M.rest_for(spec)
+  if type(spec) == "number" then return spec end
+  if type(spec) == "table" and type(spec[1]) == "number" and
+     type(spec[2]) == "number" and spec[1] <= spec[2] then
+    if not seeded then
+      math.randomseed(os.time())
+      seeded = true
+    end
+    return spec[1] + math.random() * (spec[2] - spec[1])
+  end
+  error("a rest is seconds, or { shortest, longest } with shortest first; " ..
+        "got " .. tostring(spec), 2)
+end
+-- }}}
+
+-- {{{ M.describe_rest(spec)
+-- A rest setting as words, for the line said before the first picture.
+function M.describe_rest(spec)
+  if type(spec) == "table" then
+    return string.format("%.0f to %.0f seconds, a different length each time",
+                         spec[1], spec[2])
+  end
+  return string.format("%.0f seconds", spec)
 end
 -- }}}
 
@@ -448,7 +496,11 @@ function M.make_one(settings, record, store, options)
   -- side. A route that fails does not stop the others: the two are answers to
   -- the same question and one is worth having without the other.
   local results, failures = {}, {}
-  for _, recipe in ipairs(made.workflows) do
+  for index, recipe in ipairs(made.workflows) do
+    -- After the first route, rest if the caller said how: with a rest, every
+    -- picture is its own turn on the card; with none (a single test picture),
+    -- the routes go back to back.
+    if index > 1 and options.between_pictures then options.between_pictures() end
     local done, why = M.draw_one_route(settings, record, made, recipe, options)
     if done then results[#results + 1] = done
     else failures[#failures + 1] = recipe.route .. ": " .. tostring(why) end
@@ -618,9 +670,10 @@ local function main(argv)
       rest = (settings.kitchen and settings.kitchen.rest_on_the_display_card)
              or rest
       io.write(string.format(
-        "it is also drawing your screen, so this will rest %.0f seconds between\n" ..
-        "pictures instead of %.0f and stop rather than take the last %.1f GB.\n",
-        rest, (settings.kitchen and settings.kitchen.rest) or 1.0,
+        "it is also drawing your screen, so this will rest %s between\n" ..
+        "pictures instead of %s and stop rather than take the last %.1f GB.\n",
+        M.describe_rest(rest),
+        M.describe_rest((settings.kitchen and settings.kitchen.rest) or 1.0),
         (settings.kitchen and settings.kitchen.least_free_vram) or 0))
       if not (settings.kitchen and settings.kitchen.reserve_vram) then
         io.write("NOTE: nothing is reserved for the desktop. Start the picture\n" ..
@@ -674,6 +727,9 @@ local function main(argv)
     local done, why = M.make_one(settings, record, store, {
       recipes = options.recipes, patience = options.patience,
       style = type(options.style) == "string" and options.style or nil,
+      -- Between the routes of one character, the same rest as between
+      -- characters: every picture is its own turn on the card.
+      between_pictures = function() heat.rest(M.rest_for(rest)) end,
     })
     if done then
       made = made + #done.routes
@@ -692,7 +748,7 @@ local function main(argv)
       failed[#failed + 1] = record.character .. ": " .. tostring(why)
       io.write("could not\n")
     end
-    if index < #chosen then heat.rest(rest) end
+    if index < #chosen then heat.rest(M.rest_for(rest)) end
   end
 
   io.write(string.format("\n%d made, %d could not be, in %d seconds\n",

@@ -233,9 +233,15 @@ return {
         -- picture.
         drawn_by = "juggernautxl",
         -- Whether that card also draws somebody's screen cannot be asked from
-        -- here, so it is assumed that it does: the slower, kinder rest.
+        -- here, so it is assumed that it does. The rest between pictures was
+        -- six seconds on that assumption, cut to one at the owner's asking
+        -- (docs/balance-updates.md, 2026-10-05), and is now a different length
+        -- every time between three and five, because the card is shared
+        -- (2026-10-06). It is taken between every picture, including between
+        -- the two routes of one character.
         shares_a_screen = true,
-        rest = 6.0,
+        rest = { 3.0, 5.0 },
+        rest_on_the_display_card = { 3.0, 5.0 },
       },
       workflow = {
         checkpoint = "juggernautXL_ragnarokBy.safetensors",
@@ -243,15 +249,32 @@ return {
         -- the two mask routes need none (416).
         control_net = false,
         routes = { "inside", "outside" },
-        steps = 30,
+        steps = 20,
         cfg = 4.5,              -- SDXL photographic models want low guidance
         sampler = "dpmpp_2m_sde",
         scheduler = "karras",
-        width = 1024,
-        height = 1024,
+        width = 512,
+        height = 512,
       },
-      -- SDXL composes at 1024. Every pixel number above scales with this (414).
-      field = { resolution = 1024 },
+      -- SDXL was trained at 1024 and composes best there; 512 is a quarter of
+      -- the pixels and roughly a quarter of the time, chosen for speed. Every
+      -- pixel number above scales with this (414).
+      field = { resolution = 512 },
+    },
+
+    -- The same machine with Chroma drawing instead: a Flux-family model, which
+    -- wants the plain euler sampler on the beta schedule and modest guidance
+    -- rather than the SDXL settings above. Everything else is `across`.
+    across_chroma = {
+      inherits = "across",
+      kitchen = { drawn_by = "chroma" },
+      workflow = {
+        checkpoint = "Chroma1-HD.safetensors",
+        sampler = "euler",
+        scheduler = "beta",
+        cfg = 4.0,
+        steps = 20,
+      },
     },
   },
   -- }}}

@@ -1078,6 +1078,29 @@ local function test_another_kitchen(t)
   t.ok(not refused, "a kitchen that is not there is an error, not a quiet " ..
        "return to the local one")
 
+  local chroma = runner.for_kitchen(settings, "across_chroma")
+  t.same(chroma.kitchen.url, far.kitchen.url,
+         "a kitchen that inherits another stands in the same house")
+  t.ok(chroma.workflow.checkpoint ~= far.workflow.checkpoint and
+       chroma.workflow.width == far.workflow.width,
+       "with its own model on the shelf and everything else its parent's")
+
+  t.same(runner.rest_for(2.5), 2.5, "a rest of one number is that long")
+  local lengths, all_inside = {}, true
+  for _ = 1, 50 do
+    local seconds = runner.rest_for({ 3, 5 })
+    if seconds < 3 or seconds > 5 then all_inside = false end
+    lengths[string.format("%.2f", seconds)] = true
+  end
+  local distinct = 0
+  for _ in pairs(lengths) do distinct = distinct + 1 end
+  t.ok(all_inside, "a rest of a pair stays between its two ends")
+  t.ok(distinct > 10, "and is a different length each time")
+  t.ok(not pcall(runner.rest_for, { 5, 3 }),
+       "a pair written longest first is an error, not a guess")
+  t.ok(not pcall(runner.rest_for, "four"),
+       "and so is a rest that is not a length at all")
+
   t.ok(runner.is_the_display_card({ total = 32, used = 0.1, free = 31.9 },
                                   { kitchen = { shares_a_screen = false } }) == false,
        "a far card's screen is what its settings declare, not what its memory suggests")

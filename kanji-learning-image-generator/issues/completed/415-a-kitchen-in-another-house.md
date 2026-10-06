@@ -30,8 +30,20 @@ character.
   are in the picture's name, added only when they are not the original (local
   kitchen, illusion route), so every name already in the pool still means what
   it meant (`045.stem`).
-- **Tested** in `035` under *another kitchen*: the overlay, inheritance, the
-  refusal of an unknown name, the declared screen, and reading a recipe's needs.
+- **A kitchen may be another kitchen with a few changes.** An entry that names
+  a parent in `inherits` has the parent's changes laid first and its own over
+  them (`044.for_kitchen`), so `across_chroma` is `across` with Chroma on the
+  shelf and only the model and its sampler habits written down.
+- **The far card is shared, so every picture is its own turn on it.** The rest
+  is taken between every picture — between the two routes of one character as
+  well as between characters — and on `across` it is a pair `{ 3, 5 }`: a
+  different length each time, drawn fresh (`044.rest_for`). A regular beat
+  takes the card at the same moment every cycle; an uneven one leaves the gaps
+  in different places, so whoever else is waiting gets in sooner. A rest that
+  is neither seconds nor a pair written shortest first is an error.
+- **Tested** in `035` under *another kitchen*: the overlay, inheritance from the
+  settings and from another kitchen, the refusal of an unknown name, the declared screen, the
+  random rest staying inside its ends and varying, and reading a recipe's needs.
 
 ### What was there to begin with
 

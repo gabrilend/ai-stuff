@@ -294,3 +294,26 @@ the same strength stays a cut-out. What is left to try: differential diffusion
 middle of a stroke can be redrawn harder than its edges), a quieter background
 sentence so the strokes are not camouflaged by trunks, and a dozen characters
 across worlds before trusting any of these numbers.
+
+## 2026-10-05 — The far kitchen draws at 512, for speed
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `kitchens.across.field.resolution` | 1024 | 512 | A quarter of the pixels. The owner wanted pictures in seconds, not half a minute. |
+| `kitchens.across.workflow.steps` | 30 | 20 | Fewer drawing steps per pass; the inside route runs two passes and the outside one. |
+| `kitchens.across.kitchen.rest` (and on the display card) | 6.0 | 1.0 | The six-second rest was a courtesy on the assumption that the far card also draws a screen. Cut at the owner's asking. |
+
+One character, both routes, went from about 35 seconds to about 13 including
+start-up. Juggernaut XL was trained at 1024, so 512 is below its native size;
+on 日 the inside route read *better* at 512 than 休 did at 1024 — the
+character came out clearly as dark objects against the sky — which is one
+character and not a finding. The redraw strength (0.62) was tuned at 1024 and
+has not been re-measured at 512.
+
+## 2026-10-06 — The far kitchen rests three to five seconds, unevenly, between every picture
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `kitchens.across.kitchen.rest` (and on the display card) | 1.0 | `{ 3.0, 5.0 }` | The card is shared infrastructure. The owner allowed Chroma on it on the condition of one picture at a time with a random 3–5 second cool-down between. The rest is now also taken between the two routes of one character, not only between characters. |
+
+A character's two pictures therefore cost at least 3 seconds more than before.
