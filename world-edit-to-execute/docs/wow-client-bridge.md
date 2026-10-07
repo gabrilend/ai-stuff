@@ -1,6 +1,6 @@
 # Phase W: The WoW Client Bridge
 
-**Status:** Design (issues W01-W07 created 2026-09-23, none started)
+**Status:** In progress. Issues W01-W07 created 2026-09-23; the move of this project's client into the W client started 2026-10-07 (see "The client's move into the W client" below)
 **Phase letter:** W (a lettered phase, like A, B, Q and X, so it can sit beside
 the numbered engine phases without renumbering them)
 **Issues:** see `issues/phase-W-progress.md`
@@ -287,6 +287,27 @@ is W08's stage 1 (AzerothCore installed, not bundled); W08's own server
 (stage 2, for the licence) is unchanged by it. Details: the W client's
 docs 000, 001 and 004; wow-chat-2026 issue 173v.
 
+## The client's move into the W client
+
+Started 2026-10-07. The W client's roadmap
+(`/mnt/mtwo/games/azeroth-core/custom-client/docs/009-roadmap.md`, "The
+second crosswalk") lists every part of this project's client and where
+it goes: a **C twin** in the W client (the Lua here stays as the
+reference the twin is checked against), **replaced** by a part the W
+client already has, or **staying here** (the game's rules, which run on
+AzerothCore; the editor).
+
+| Step | State |
+|------|-------|
+| WC3's pictures (BLP1, with its JPEG) in C: W client issue 107a (completed) | Reading built 2026-10-07. Every BLP1 in `war3.mpq` and `War3x.mpq` decodes to the same bytes as `src/parsers/blp.lua` (W client `tests/050-blp1-matches-lua.lua`) |
+| WC3 models (MDX) into the W client's model structure: its 401 step 2 | next |
+| WC3 animations through the same posing: its 402 step 1 | after 401 |
+| WC3 particles and ribbons: its 403 | after 402 |
+
+Found on the way: the W client's own archive reader opens WC3's
+`war3.mpq` and `War3x.mpq` directly. Maps with damaged or hidden file
+tables are still read here through StormLib before conversion.
+
 ## Open questions
 
 These are written in the issue files too; each must be answered before the
@@ -320,6 +341,16 @@ issue that holds it can be called complete.
     consequences: `docs/licensing-and-boundaries.md`.
 12. **Server data.** (Deferred 2026-10-01: only what is pulled from the game and fed to an AI process needs a score now; the rest is examined later.) Is AzerothCore's Blizzard-derived database (quests, NPC
     text, spells) inside "legally distinct", or only the client-side game?
+13. **WC3 ground in the W client: converted or read directly?** Converting
+    to ADT tiles (W02) limits a chunk to four blended ground pictures, and
+    WC3's cliffs are models placed by rule. A direct `war3map.w3e` reader
+    in the W client would draw WC3 ground exactly, at the cost of a second
+    ground renderer. (W client roadmap, second crosswalk, question 1)
+14. **Flat-shaded designs.** Do this project's geometry designs (its
+    placeholder art) go to the W client as a placeholder kind, or stay
+    here? (question 2 there)
+15. **The thread pool.** Does the ceramic engine's worker pool replace the
+    W client's single reading-ahead thread, later? (question 3 there)
 
 ---
 
@@ -338,3 +369,4 @@ issue that holds it can be called complete.
 | 2026-09-23 | Created with issues W01-W07 |
 | 2026-09-23 | Owner's answers: borrowed art with a similarity score; custom client as host; reused animation sets. Added W05a, W05b |
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
+| 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
