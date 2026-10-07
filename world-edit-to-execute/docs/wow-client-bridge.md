@@ -292,10 +292,10 @@ docs 000, 001 and 004; wow-chat-2026 issue 173v.
 Started 2026-10-07. The W client's roadmap
 (`/mnt/mtwo/games/azeroth-core/custom-client/docs/009-roadmap.md`, "The
 second crosswalk") lists every part of this project's client and where
-it goes: a **C twin** in the W client (the Lua here stays as the
-reference the twin is checked against), **replaced** by a part the W
-client already has, or **staying here** (the game's rules, which run on
-AzerothCore; the editor).
+it goes: a **C twin** in the W client (checked byte for byte against
+the Lua here once, then the Lua reader is deprecated), **replaced** by a
+part the W client already has, or **staying here** (the editor, the
+extractors, the map browser).
 
 | Step | State |
 |------|-------|
@@ -307,6 +307,26 @@ AzerothCore; the editor).
 Found on the way: the W client's own archive reader opens WC3's
 `war3.mpq` and `War3x.mpq` directly. Maps with damaged or hidden file
 tables are still read here through StormLib before conversion.
+
+**2026-10-07: who does what.** The owner: "The end result ideally is that
+this project handles the editor and the WC3 extractors and the custom map
+browser. The custom client should handle the custom models ... and
+rendering and such. That doesn't involve gameplay, because the gameplay
+can be built into the maps themselves with the editor, which stays here."
+
+| world-edit-to-execute | The W client | AzerothCore |
+|-----------------------|--------------|-------------|
+| The editor (writes a map, its rules included) | Drawing, sound, input, the interface | Runs a map's rules while people play: every trigger and WC3 mechanic, in ALE Lua or by server patches ("We might be able to implement those in Lua ALE? But patches are fine too.") |
+| The extractors (WC3 files into a converted map), through the W client's C readers | The custom model system (packs, resolver, scores) | Holds the truth |
+| The custom map browser, drawn as an HTML page onto a flat pane in the W client ("maybe we just render the browser to HTML and cast it onto a flat UI pane in the W client? And our Azerothcore project ... can do the same.") | Pictures drawn without a window (previews) | |
+
+**2026-10-07: one reader per format, in C.** "Let's just deprecate the
+lua version and keep the C version." Each Lua reader here is retired
+once its C twin in the W client (`libwreaders.so`, called through
+LuaJIT's FFI) matches it byte for byte; the first, BLP1 and JPEG,
+already does. This project's Lua runtime (combat, pathing, economy) is
+not a reader: it stays as the reference AzerothCore's version of each
+rule is checked against.
 
 ## Open questions
 
@@ -341,16 +361,17 @@ issue that holds it can be called complete.
     consequences: `docs/licensing-and-boundaries.md`.
 12. **Server data.** (Deferred 2026-10-01: only what is pulled from the game and fed to an AI process needs a score now; the rest is examined later.) Is AzerothCore's Blizzard-derived database (quests, NPC
     text, spells) inside "legally distinct", or only the client-side game?
-13. **WC3 ground in the W client: converted or read directly?** Converting
-    to ADT tiles (W02) limits a chunk to four blended ground pictures, and
-    WC3's cliffs are models placed by rule. A direct `war3map.w3e` reader
-    in the W client would draw WC3 ground exactly, at the cost of a second
-    ground renderer. (W client roadmap, second crosswalk, question 1)
-14. **Flat-shaded designs.** Do this project's geometry designs (its
-    placeholder art) go to the W client as a placeholder kind, or stay
-    here? (question 2 there)
-15. **The thread pool.** Does the ceramic engine's worker pool replace the
-    W client's single reading-ahead thread, later? (question 3 there)
+13. ~~WC3 ground in the W client~~ Answered 2026-10-07: one ground mesh
+    painted both ways, WC3 cliffs seated onto it ("Cliffs placed onto a
+    terrain mesh should jump to the highest point that their lowest point
+    intersects with the terrain... or something similar"). W client
+    roadmap, second crosswalk.
+14. ~~Flat-shaded designs~~ Answered 2026-10-07: placeholder art in the
+    W client, and a test of its custom model system.
+15. ~~The thread pool~~ Answered 2026-10-07: the ceramic engine becomes
+    the W client's shape, with no main loop: workers run every part as
+    stations, and render threads (one per OpenGL context) only draw. W
+    client issue 110 and its sub-issues.
 
 ---
 
