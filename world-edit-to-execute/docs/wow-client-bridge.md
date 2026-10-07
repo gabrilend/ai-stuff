@@ -282,8 +282,9 @@ worth the implementation cost. Let's just do server-authoritative and
 call it good. Maybe lockstep for WETE LAN games or something...?" So a
 converted map runs on AzerothCore as the WoW world does: players send
 orders, the server runs the map's rules and sends each player what it
-can see. This project's own engine may keep a lockstep LAN mode. Whether
-W08 (our own server) is still built is open. Details: the W client's
+can see. This project's own engine may keep a lockstep LAN mode. This
+is W08's stage 1 (AzerothCore installed, not bundled); W08's own server
+(stage 2, for the licence) is unchanged by it. Details: the W client's
 docs 000, 001 and 004; wow-chat-2026 issue 173v.
 
 ## Open questions
