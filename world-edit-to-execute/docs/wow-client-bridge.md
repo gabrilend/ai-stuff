@@ -98,7 +98,7 @@ no script hard-codes them twice.
 | Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` still names `/mnt/dile/ritz/games/wotlk`, an older location; the live client is the folder above (confirmed by the owner 2026-09-24) |
 | AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (the older Lua scripting engine; the project uses its successor ALE, `mod-ale`) and a `docker-compose.yml` |
 | Server data extracted from the client | `/mnt/mtwo/games/azeroth-core/data-files/` | `dbc/`, `maps/`, `vmaps/`, `mmaps/`, `Cameras/` |
-| The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its issues 104-107 build `libwreaders.so`, the reading layer this project uses; its Phase 11 is WC3 map mode. No code yet |
+| The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its Phase 11 is WC3 map mode. Has code since 2026-10-07 (wow-chat-2026's custom client moved there): `libwreaders.so` (archives, tables, pictures, models, ground, buildings) is built by its `scripts/build` and loads from LuaJIT with `scripts/libs/wreaders.lua` |
 | Map editor for hand touch-ups | Noggit (Noggit Red), not yet installed | Opens and edits WoW `.adt` terrain; used to inspect and tweak what W02's converter writes, never as the only way to make a map |
 
 ---
@@ -269,6 +269,22 @@ similar, and colour as an optional part. What needs a score: only what is
 pulled directly from the game and used as an input to an AI process
 (answers open question 12 for now: the server's data is examined later).
 Details and the owner's words: W05a.
+
+**2026-10-07: one engine, two games; WC3 maps on AzerothCore, server-authoritative.**
+The W client took in wow-chat-2026's working client (C on raylib) and is
+to take in this project's client too, in C: "The renderers need to merge.
+We should be able to load both model types and animations and
+particles... all visual stuff. Also audio is shared ... The goal is to be
+able to play both games seamlessly in the same binary" (the owner). Lua
+stays the scripting language. On networking: "I think we transition WETE
+to Azerothcore then", and, weighing lockstep: "I think lockstep isn't
+worth the implementation cost. Let's just do server-authoritative and
+call it good. Maybe lockstep for WETE LAN games or something...?" So a
+converted map runs on AzerothCore as the WoW world does: players send
+orders, the server runs the map's rules and sends each player what it
+can see. This project's own engine may keep a lockstep LAN mode. Whether
+W08 (our own server) is still built is open. Details: the W client's
+docs 000, 001 and 004; wow-chat-2026 issue 173v.
 
 ## Open questions
 

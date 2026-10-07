@@ -1,6 +1,6 @@
 # Conversation Summary: d61d9ff0-ab3d-4550-92d4-1c406f1f5234
 
-Generated on: 2026-09-26 14:25:06
+Generated on: 2026-10-04 17:38:22
 Models: claude-opus-5-5
 
 ## Contents
@@ -29,6 +29,10 @@ Models: claude-opus-5-5
    project's issue files, roadmap and progress tracking, and that pass is
    committed. Next, I need your call on whether to retire, file away and re-cut
    the old rendering-interface issues.
+7. 2026-09-26 14:28, after Request 12 - You asked me to clean up this project's
+   issue files. The rendering re-cut, link repairs and per-phase progress files
+   are done and committed. Next, you decide whether the hunt for the few missing
+   patch versions gets its own issue.
 
 --------------------------------------------------------------------------------
 
