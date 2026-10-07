@@ -88,16 +88,27 @@ the result the downloader records.
    a texture and shows it on a flat pane (the owner: "maybe we just render
    the browser to HTML and cast it onto a flat UI pane in the W client?
    And our Azerothcore project ... can do the same"; W client 110f).
-3. **Which HTML capabilities the pane needs.** The owner: "we certainly
-   don't need a full engine, but we do need certain types of capability."
-   A small renderer (litehtml: layout, text, images, links, no scripts)
-   draws static pages; anything that changes without a new page (typing
-   into a search box and seeing the list narrow, buttons that start a
-   download and show its progress, scrolling a long list) needs either
-   scripts or the client re-drawing the page on each event. Which of
-   these must the browser do?
 2. Where are shared lists (609) shown: next to a map in this catalogue?
    (Asked in 609 too.)
+3. ~~Which HTML capabilities the pane needs~~ Answered 2026-10-07:
+   scripts are needed (a search that narrows as one types, downloads
+   that show progress), and the one thing a still page can't do is "spin
+   a 3d model to see the other sides or watch animations in action"
+   (the owner). So the page holds a **live model box**: a place in the
+   layout the W client fills with a view drawn into a texture (W client
+   110f), turned by the mouse, playing the model's animations.
+4. **Lua for the page's scripts instead of JavaScript?** (the owner: "Can
+   we build them in lua instead of javascript? Or is that a terrible
+   idea?") Not terrible: the W client already runs Lua for its interface
+   (Phase 7, where WoW itself lays out its interface in XML and scripts
+   it in Lua). The cost is that an ordinary web browser runs only
+   JavaScript, so a Lua-scripted page works only inside the W client,
+   unless the page also loads a Lua interpreter written in JavaScript
+   (Fengari, which runs Lua 5.3: scripts kept to what LuaJIT and Lua 5.3
+   share would run in both). Options: (a) Lua scripts, W client only;
+   (b) Lua scripts, plus Fengari so the same page works in web browsers
+   and in the AzerothCore project's pages; (c) the browser built as a W
+   client interface screen (XML and Lua) rather than HTML. Which?
 
 ## Related Documents
 
