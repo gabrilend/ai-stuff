@@ -10,10 +10,10 @@
 
 ## Current Behavior
 
-**Likely moot (2026-10-07):** this project's renderer, the code this
-issue migrates, is retiring into the W client, which takes the ceramic
-engine instead (W client issue 110). Left open until the owner confirms
-it can be closed.
+**Superseded 2026-10-07** (the owner, asked whether to close it: "if
+you wanna"): this project's renderer, the code this issue migrates, is
+retiring into the W client, which takes the ceramic engine instead (W
+client issue 110). Nothing here was built.
 
 Render system uses threading infrastructure directly from `src/render/threading.h`
 and `threading.c`. The demo (`demo_threading.c`) is tightly coupled with these files.

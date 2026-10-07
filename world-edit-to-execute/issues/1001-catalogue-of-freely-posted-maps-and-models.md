@@ -83,9 +83,19 @@ the result the downloader records.
 
 ## Open Questions
 
-1. A page or an in-engine screen first? A page is quicker and matches the
-   documentation pages; an in-engine screen is where a player picking a map
-   to play would be.
+1. ~~A page or an in-engine screen first?~~ Answered 2026-10-07: both, as
+   one thing. The browser is an HTML page, and the W client draws it into
+   a texture and shows it on a flat pane (the owner: "maybe we just render
+   the browser to HTML and cast it onto a flat UI pane in the W client?
+   And our Azerothcore project ... can do the same"; W client 110f).
+3. **Which HTML capabilities the pane needs.** The owner: "we certainly
+   don't need a full engine, but we do need certain types of capability."
+   A small renderer (litehtml: layout, text, images, links, no scripts)
+   draws static pages; anything that changes without a new page (typing
+   into a search box and seeing the list narrow, buttons that start a
+   download and show its progress, scrolling a long list) needs either
+   scripts or the client re-drawing the page on each event. Which of
+   these must the browser do?
 2. Where are shared lists (609) shown: next to a map in this catalogue?
    (Asked in 609 too.)
 
