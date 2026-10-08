@@ -320,6 +320,13 @@ can be built into the maps themselves with the editor, which stays here."
 | The extractors (WC3 files into a converted map), through the W client's C readers | The custom model system (packs, resolver, scores) | Holds the truth |
 | The custom map browser, drawn as an HTML page onto a flat pane in the W client ("maybe we just render the browser to HTML and cast it onto a flat UI pane in the W client? And our Azerothcore project ... can do the same.") | Pictures drawn without a window (previews) | |
 
+**2026-10-07: the editor is a mode of the W client.** "let's make the
+editor a mode of the W client." Its code stays here and is worked on
+here; the W client loads it and draws for it, so there is one renderer.
+This project's renderer (`src/render/`) retires only once the W client's
+editor mode opens, edits, saves and test-plays a map (W client issue
+1109).
+
 **2026-10-07: one reader per format, in C.** "Let's just deprecate the
 lua version and keep the C version." Each Lua reader here is retired
 once its C twin in the W client (`libwreaders.so`, called through
