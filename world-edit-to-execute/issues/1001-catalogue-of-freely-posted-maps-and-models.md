@@ -97,7 +97,10 @@ the result the downloader records.
    (the owner). So the page holds a **live model box**: a place in the
    layout the W client fills with a view drawn into a texture (W client
    110f), turned by the mouse, playing the model's animations.
-4. **Lua for the page's scripts instead of JavaScript?** (the owner: "Can
+4. ~~Lua for the page's scripts instead of JavaScript?~~ Answered
+   2026-10-07: (a), Lua scripts, inside the W client only; "We can build a
+   separate javascript web viewer if we want that later" (the owner).
+   The question as asked: (the owner: "Can
    we build them in lua instead of javascript? Or is that a terrible
    idea?") Not terrible: the W client already runs Lua for its interface
    (Phase 7, where WoW itself lays out its interface in XML and scripts
