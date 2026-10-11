@@ -3,7 +3,7 @@
 Also called **ialmstla**: the info answering learning material scripting
 tutorial licensing agreement.
 
-**Status**: In progress — everything but the pages is built (065a–g); the walk as web pages (065h) is not
+**Status**: Completed 2026-10-10 — all eight pieces built (065a–h)
 **Priority**: Medium
 **Created**: 2026-10-10
 **Type**: New tool, run against any project in the ai-stuff tree
@@ -64,8 +64,9 @@ with two dated ledgers, after the person consents
 only encrypted, with its own cipher (`scripts/libs/guide-cipher.lua`,
 `scripts/libs/guide-trail.lua`, 065f). With `--guide=<room>`, a local AI decides
 where "next" goes, stepping back to foundations when the reader's own requests
-suggest a part is not landing (`scripts/libs/reading-guide.lua`, 065g). There
-are no pages yet (065h).
+suggest a part is not landing (`scripts/libs/reading-guide.lua`, 065g). The map
+also becomes linked web pages and a small-screen OLED view
+(`scripts/reading-walk-pages.lua`, 065h).
 
 The map is made from pieces every house-layout project already has:
 
@@ -255,7 +256,7 @@ None open.
 | 065e | the-guides-room | None | the guide's directory and its two ledgers (completed) |
 | 065f | the-guides-cipher | 065e | the guide's own cipher, version one (completed) |
 | 065g | the-guide | 065d, 065e, 065f | a local AI choosing each next move (completed) |
-| 065h | the-walk-as-pages | 065a, 065b, 065c | HTML pages and an OLED view |
+| 065h | the-walk-as-pages | 065a, 065b, 065c | HTML pages and an OLED view (completed) |
 
 Order: 065a → (065b, 065c in parallel) → 065d → 065g; 065e → 065f → 065g;
 065h after 065a–c.

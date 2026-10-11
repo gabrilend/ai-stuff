@@ -44,3 +44,7 @@ delta-version issues 065a–d (completed) built the same map first. Two things
 it learned: a fold marker can open a prose heading rather than a name, which
 is a stop with no uses; and a private function's name reused in another file
 is a different function, so its uses count only in its own file.
+A third, found when the pages were drawn: a shared function's name ending
+another module's call ("graph.new" vs the canvas's "new") is not a use; count
+a use in another file only when it goes through the name that file gave this
+one when loading it.

@@ -77,7 +77,7 @@ local M = {}
 -- }}}
 
 -- {{{ local function helper()
--- Puts a name in a sentence.
+-- Puts a name in a sentence (when a < b && b > c).
 local function helper(name)
     return "hello, " .. name
 end
@@ -108,7 +108,8 @@ local TABLE = { "hey", "oi" }
 -- This comment is not the description; the page is.
 function M.shout(text)
     local helper = "not the other file's helper"
-    return alpha.greet(text):upper() .. TABLE[1]
+    local stranger = { greet = function() return "" end }
+    return alpha.greet(text):upper() .. TABLE[1] .. stranger.greet()
 end
 -- }}}
 
@@ -162,6 +163,8 @@ function run_map_checks() {
         "$(same "$(ask "$map" '#m.stops[2].uses .. " " .. m.stops[2].uses[1].file')" "1 src/001-alpha.lua")"
     check "a shared function is used from another file" \
         "$(same "$(ask "$map" 'm.stops[3].uses[1].file')" "src/002-beta.lua")"
+    check "another module's function of the same name is not a use" \
+        "$(same "$(ask "$map" '#m.stops[3].uses')" 1)"
     check "a reason written in a comment is recorded" \
         "$(contains "$(ask "$map" 'm.stops[3].alternatives[1].text')" "rather than by the caller")"
     check "a reason written in an issue paragraph is recorded" \
@@ -247,10 +250,30 @@ EOF
 }
 # }}}
 
+# -- {{{ run_page_checks
+function run_page_checks() {
+    local pages="$FIXTURE/pages" output
+    echo "pages:"
+    output=$(luajit "$DIR/scripts/reading-walk-pages.lua" --map="$FIXTURE/one.map.lua" --out="$pages" --workers=2)
+    check "one page per source file and one small-screen page per stop" \
+        "$(contains "$output" "2 file pages, 5 small-screen pages")"
+    check "a use links to the stop that makes it" \
+        "$(grep -q 'href="src-002-beta.lua.html#stop-5">M.shout</a>' "$pages/src-001-alpha.lua.html" && echo yes || echo no)"
+    check "the last stop of one file links on to the first of the next" \
+        "$(grep -q 'href="src-002-beta.lua.html#stop-4">TABLE' "$pages/src-001-alpha.lua.html" && echo yes || echo no)"
+    check "code is coloured by kind" "$(grep -q '<span class="k">function</span>' "$pages/src-001-alpha.lua.html" && echo yes || echo no)"
+    check "a stop's text is escaped, not read as HTML" \
+        "$(grep -q 'when a &lt; b &amp;&amp; b &gt; c' "$pages/src-001-alpha.lua.html" && echo yes || echo no)"
+    check "the small screen is black with lit text" "$(grep -q 'background: #000' "$pages/oled/3.html" && echo yes || echo no)"
+    check "no page carries a script" "$(grep -rqi '<script' "$pages" && echo no || echo yes)"
+}
+# }}}
+
 build_fixture
 run_map_checks
 run_walk_checks
 run_guide_checks
+run_page_checks
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

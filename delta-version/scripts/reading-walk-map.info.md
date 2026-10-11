@@ -27,7 +27,9 @@ walk is `reading-walk.lua`. Built for issue 065 (065a, 065b, 065c).
   marked "source comment" so the missing page entry shows.
 - **Uses**: words of every non-comment source line looked up in a table of
   stop names. A local's uses count only in its own file; an exported one's
-  count elsewhere only after a dot or colon.
+  count elsewhere only when called through the name that file gave this one
+  on loading it (`local canvas = ...016-the-grey-canvas...` → `canvas.new`),
+  so another module's `graph.new` is not a use of this `new`.
 - **Recorded reasons**: comment paragraphs inside the stop, and issue-file
   paragraphs naming it, that hold a marker phrase ("rather than", "instead
   of", "decided against", "because", ...). Nothing else; nothing invented.

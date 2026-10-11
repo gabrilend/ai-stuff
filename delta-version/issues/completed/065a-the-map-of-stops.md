@@ -27,8 +27,11 @@ summary is the description's first sentence.
 Uses: each non-comment source line is split into words and each word looked
 up in a table of stop names (one lookup per word, whatever the number of
 stops). A private function's uses count only in its own file — two files may
-each have a local `split`; an exported one counts elsewhere only after a dot
-or colon.
+each have a local `split`; an exported one counts in another file only when
+called through the name that file gave this one on loading it (`local canvas =
+load(...016-the-grey-canvas...)` makes `canvas.new` a use, while another
+module's `graph.new` is not — found when the first pages listed `graph.new`
+and `ffi.new` as uses of the grey canvas's `new`).
 
 Two parallel passes, each one worker process per CPU with a round-robin share
 of files: stops per source file, then uses and reasons over source and issue

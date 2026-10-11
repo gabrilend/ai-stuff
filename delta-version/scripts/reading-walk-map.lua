@@ -414,10 +414,13 @@ end
 --
 -- A local function's uses are counted only in its own file: two files may each
 -- have a local "split", and they are not the same thing. An exported one
--- (M.flatten) counts in any file, but outside its own file only when written
--- after a dot or colon, the way another file has to call it.
+-- (M.flatten) counts in any file, but outside its own file only when called
+-- through the name that file gave this one on loading it (see aliases below).
 local function run_reasons_worker(list_path, out_path, project, names_path)
     local names = load_data(names_path)
+    local function base_of(file) return file:match("([^/]+)%.[%w]+$") or file end
+    local file_bases = {}
+    for _, entry in ipairs(names) do file_bases[base_of(entry.file)] = true end
     local by_short = {}
     for index, entry in ipairs(names) do
         local list = by_short[entry.short] or {}
@@ -429,6 +432,25 @@ local function run_reasons_worker(list_path, out_path, project, names_path)
         local kind, relative_path = line_of_list:match("^(%w+)\t(.*)$")
         local lines = read_lines(project .. "/" .. relative_path)
         local opener = config.comment_by_extension[extension_of(relative_path)]
+        -- The names this file gives other source files when it loads them:
+        -- "local canvas = load('016-the-grey-canvas')" makes canvas the name
+        -- for that file here. A shared function from another file is counted
+        -- as used only when called through one of these names -- "graph.new"
+        -- is not a use of the grey canvas's "new", though both end in ".new".
+        local aliases = {}
+        if kind == "source" then
+            for _, line in ipairs(lines) do
+                local alias = line:match("^%s*local%s+([%a_][%w_]*)%s*=")
+                if alias then
+                    for base in pairs(file_bases) do
+                        if line:find(base, 1, true) then
+                            aliases[base] = aliases[base] or {}
+                            aliases[base][#aliases[base] + 1] = alias
+                        end
+                    end
+                end
+            end
+        end
         for number, line in ipairs(lines) do
             -- a source line is searched for uses (not its comments); an issue
             -- line is searched for a recorded reason naming a stop
@@ -443,7 +465,11 @@ local function run_reasons_worker(list_path, out_path, project, names_path)
                             local counts
                             if is_definition then counts = false
                             elseif same_file then counts = true
-                            elseif entry.exported then counts = line:find("[%.:]" .. word .. "%f[^%w_]") ~= nil
+                            elseif entry.exported then
+                                counts = false
+                                for _, alias in ipairs(aliases[base_of(entry.file)] or {}) do
+                                    if line:find("%f[%w_]" .. alias .. "[%.:]" .. word .. "%f[^%w_]") then counts = true end
+                                end
                             else counts = false end
                             if counts and not seen[candidate.index] then
                                 seen[candidate.index] = true
