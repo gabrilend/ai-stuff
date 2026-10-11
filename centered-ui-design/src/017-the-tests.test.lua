@@ -207,6 +207,21 @@ do
         worst = math.max(worst, math.abs(gx - spot[1] * math.sin(spot[2])), math.abs(gz + spot[1] * math.cos(spot[2])))
     end
     check("under the arch view, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
+    -- clicking: a figure drawn at either end of a magic circle can be picked
+    -- there, and the reach is tied to the window, not the console
+    local behind = { 50 * math.sin(math.pi / 4 + math.pi), 2, -50 * math.cos(math.pi / 4 + math.pi) }
+    local elsewhere = { 30 * math.sin(math.pi / 4), 2, -30 * math.cos(math.pi / 4) }
+    local places = far_camera.screen_places(arch_view, behind[1], behind[2], behind[3], 1600, 1000)
+    check("under a span past 360 degrees, a figure behind the chair is drawn in two places", #places == 2)
+    local picked_both = true
+    for _, place in ipairs(places) do
+        picked_both = picked_both and far_camera.pick_nearest(arch_view, { elsewhere, behind },
+            place[1] + 8, place[2] - 6, 1600, 1000) == 2
+    end
+    check("a click a few pixels off either copy of a figure picks it", picked_both)
+    check("a click on empty ground picks no one",
+        far_camera.pick_nearest(arch_view, { elsewhere, behind }, 800, 20, 1600, 1000) == nil)
+
     -- a magic circle: with a span past a full turn, ground straight behind
     -- the chair shows twice, at both ends of the span
     local behind_x, behind_z = 50 * math.sin(math.pi / 4 + math.pi), -50 * math.cos(math.pi / 4 + math.pi)
@@ -573,7 +588,10 @@ do
     local arch = require("019-the-arch")
     local dashboard = require("014-the-dashboard")
     -- the shipped window: 1600 by 1000, the arch half its height, full width
-    local section = arch.new(800, 1000, 500, dashboard.width_share_for(1600, 1000, 0.5), dashboard.ARCH_BAND_SHARE)
+    -- the arch as the settings make it, in a 1600 x 1000 window
+    local share = good_settings().arch_height_share
+    local section = arch.new(800, 1000, 1000 * share, dashboard.width_share_for(1600, 1000, share),
+        dashboard.ARCH_BAND_SHARE)
 
     local overlap = false
     for x = 0, 1600, 7 do
@@ -630,6 +648,89 @@ do
         end
     end
     check("every button and window lies wholly on the arch's surface", all_fit)
+
+    -- no two pieces shown together overlap (the layout is packed in rows
+    -- across a low arch, so this is easy to get wrong)
+    -- {{{ local function shape_of()
+    -- A piece as a test of whether a point (arch units) lies inside it, and
+    -- a list of points along its edge.
+    local function shape_of(kind, piece, radius)
+        local edge = {}
+        -- a circle: buttons and round windows
+        if kind == "circle" then
+            for step = 0, 23 do
+                local a = 2 * math.pi * step / 24
+                edge[#edge + 1] = { piece.across + radius * math.cos(a), piece.up + radius * math.sin(a) }
+            end
+            return function(x, u)
+                return (x - piece.across) ^ 2 + (u - piece.up) ^ 2 < radius * radius
+            end, edge
+        end
+        -- a slot: a rectangle
+        if kind == "slot" then
+            for _, corner in ipairs({ { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 }, { 0, 1 }, { 0, -1 } }) do
+                edge[#edge + 1] = { piece.across + corner[1] * piece.half_width, piece.up + corner[2] * piece.half_height }
+            end
+            return function(x, u)
+                return math.abs(x - piece.across) < piece.half_width and math.abs(u - piece.up) < piece.half_height
+            end, edge
+        end
+        -- an arc slot round the calendar center (screen angles: -90 is up)
+        local cx, cu = dashboard.CALENDAR_CENTER[1], dashboard.CALENDAR_CENTER[2]
+        for step = 0, 12 do
+            local a = math.rad(piece.from + (piece.to - piece.from) * step / 12)
+            for _, r in ipairs({ piece.inner, piece.outer }) do
+                edge[#edge + 1] = { cx + r * math.cos(a), cu - r * math.sin(a) }
+            end
+        end
+        return function(x, u)
+            local r = math.sqrt((x - cx) ^ 2 + (u - cu) ^ 2)
+            local a = math.deg(math.atan2(-(u - cu), x - cx))
+            return r > piece.inner and r < piece.outer and a > piece.from and a < piece.to
+        end, edge
+    end
+    -- }}}
+    local overlapping = {}
+    for _, mode in ipairs({ "orders", "settings" }) do
+        local pieces = {}
+        local buttons = mode == "orders" and dashboard.ORDER_BUTTONS or dashboard.SETTINGS_BUTTONS
+        local button_radius = mode == "orders" and dashboard.ORDER_BUTTON_RADIUS or dashboard.SETTINGS_BUTTON_RADIUS
+        for _, button in ipairs(buttons) do
+            local inside, edge = shape_of("circle", button, button_radius)
+            pieces[#pieces + 1] = { name = button.verb, inside = inside, edge = edge }
+        end
+        -- engraved labels, as rectangles about the size their letters take
+        -- (a letter about 0.035 arch units wide, a line 0.05 high)
+        for _, label in ipairs(dashboard.LABELS) do
+            if label.only == "always" or label.only == mode then
+                local inside, edge = shape_of("slot", { across = label.across, up = label.up,
+                    half_width = #label.text * 0.0175, half_height = 0.025 })
+                pieces[#pieces + 1] = { name = label.text, inside = inside, edge = edge }
+            end
+        end
+        for _, window in ipairs(dashboard.WINDOWS) do
+            -- shown in this mode
+            if window.only == "always" or window.only == mode then
+                local kind = window.shape == "round" and "circle" or window.shape
+                local inside, edge = shape_of(kind, window, window.radius)
+                pieces[#pieces + 1] = { name = window.dial, inside = inside, edge = edge }
+            end
+        end
+        for i = 1, #pieces do
+            for j = 1, #pieces do
+                if i ~= j then
+                    for _, point in ipairs(pieces[i].edge) do
+                        if pieces[j].inside(point[1], point[2]) then
+                            overlapping[#overlapping + 1] = mode .. ": " .. pieces[i].name .. "/" .. pieces[j].name
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    check("no two buttons, windows or labels shown together overlap", #overlapping == 0,
+        table.concat(overlapping, ", "))
 end
 
 -- the light dials (issue 213) ------------------------------------------------

@@ -502,18 +502,21 @@ game.FLIP_Y_ON_SCREEN = 1
 local function nearest_unit_on_screen(x, y)
     local front = blocks()
     local width, height = love.graphics.getDimensions()
-    local best, best_distance = -1, (game.dashboard.section.height * 0.05) ^ 2
+    -- each unit by the middle of its figure (half its drawn height up), so a
+    -- click on the body names it, not only one at its feet
+    local points = {}
     for index = 0, game.unit_count - 1 do
         local unit = front[index]
         local ground_x, ground_z = sphere_fold.ground_position(game.fold, unit.r, unit.angle)
-        local ndc_x, ndc_y = far_camera.project(game.camera, ground_x, 0, ground_z)
-        local px, py = far_camera.ndc_to_pixels(ndc_x, ndc_y, width, height)
-        local distance = (px - x) ^ 2 + (py - y) ^ 2
-        if distance < best_distance then
-            best, best_distance = index, distance
-        end
+        local middle = 0.5 * unit.length * world_renderer.UNIT_WORLD_SCALE * sphere_fold.size_scale(game.fold, unit.r)
+        points[index + 1] = { ground_x, middle, ground_z }
     end
-    return best
+    local picked = far_camera.pick_nearest(game.camera, points, x, y, width, height)
+    -- nobody near enough: naming empty ground names no one
+    if picked == nil then
+        return -1
+    end
+    return picked - 1
 end
 -- }}}
 

@@ -277,6 +277,53 @@ function M.project_fixed(camera, x, y, z)
 end
 -- }}}
 
+-- How near (a share of the window's height) a click must land to a figure
+-- to name it. Tied to the window, not the console: when the console was made
+-- lower, a reach tied to its height shrank to 10 pixels and nobody could be
+-- clicked.
+M.PICK_REACH_SHARE = 0.03
+
+-- {{{ function M.screen_places()
+-- Every place on screen (window pixels) a world point is drawn: one, except
+-- under the arch view, where a span past a full turn draws the same ground
+-- more than once (one per winding, within the span).
+function M.screen_places(camera, x, y, z, width, height)
+    local places = {}
+    -- the arch view: each winding that falls within the span
+    if camera.view == "arch" then
+        for _, winding in ipairs(M.arch_windings(camera)) do
+            local px, py, _, _, _, _, inside = M.arch_place(camera, x, z, winding)
+            if inside then
+                places[#places + 1] = { px, py - y * camera.up_y * camera.arch_figure_px }
+            end
+        end
+        return places
+    end
+    -- every other view: once
+    local ndc_x, ndc_y = M.project(camera, x, y, z)
+    local px, py = M.ndc_to_pixels(ndc_x, ndc_y, width, height)
+    places[1] = { px, py }
+    return places
+end
+-- }}}
+
+-- {{{ function M.pick_nearest()
+-- Which of a list of world points ({x, y, z}, numbered from 1) is drawn
+-- nearest a window pixel, within the pick reach; nil if none is.
+function M.pick_nearest(camera, points, pixel_x, pixel_y, width, height)
+    local best, best_distance = nil, (height * M.PICK_REACH_SHARE) ^ 2
+    for index, point in ipairs(points) do
+        for _, place in ipairs(M.screen_places(camera, point[1], point[2], point[3], width, height)) do
+            local distance = (place[1] - pixel_x) ^ 2 + (place[2] - pixel_y) ^ 2
+            if distance < best_distance then
+                best, best_distance = index, distance
+            end
+        end
+    end
+    return best
+end
+-- }}}
+
 -- {{{ function M.ndc_to_pixels()
 -- Normalized screen coordinates to window pixels (origin top-left, y down).
 function M.ndc_to_pixels(ndc_x, ndc_y, width, height)

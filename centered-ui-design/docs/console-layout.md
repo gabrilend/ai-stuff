@@ -28,7 +28,11 @@ of you, so it always remains the same size."
 ## Placement
 
 The arch stands on the window's bottom pixel row and is stretched to both
-sides (the owner: "position the bottom of the dashboard at the bottom pixel
+sides; since the owner asked for "40% as much dashboard" it is a fifth of
+the window high, about eight times wider than tall, and its surface is laid
+out in rows across: order buttons in fours at each end, frame readouts
+left of the calendar, unit and section counts right of it, the named slot
+beneath it. (The drawing above shows the earlier, taller arch.) It is (the owner: "position the bottom of the dashboard at the bottom pixel
 row" and "width-enhance the dashboard to meet the edge of the screen"); its
 height is a setting, half the window's height to start. With the arch full
 width, allies' arches are off screen until the chair turns.

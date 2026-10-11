@@ -22,7 +22,11 @@ overlap; every button and window lies wholly on the surface; a neighbour's
 foot lands exactly on yours. Not built yet: the resource and couriers-in-
 flight dials. The metal's second pass is built (pictures 020-024): brushed
 along the arch, lit by the metal dial over a panel lamp (added when the
-night picture's labels could not be read), sheen and hour highlight.
+night picture's labels could not be read), sheen and hour highlight. The
+console is now 40% of its old area (a fifth of the window high), laid out
+in rows; lettering is sized by the window; the calendar's rings take their
+radii from their windows; tests check that nothing shown together overlaps,
+labels included (pictures 028-031, the first two showing what broke).
 
 ## Intended Behavior
 
@@ -58,6 +62,16 @@ arch.
   return. Only your own arch's buttons answer; an ally's are shown, dimmed.
 - Only buttons answer clicks; the band and the dials are information.
 
+- **Forty per cent of the surface** (the owner: "can you make it so
+  there's like, 40% as much dashboard in total square footage surface area
+  as there is now?"). The arch's area is two thirds of width x height; the
+  width stays pinned to the window's edges, so the height drops to 40%: a
+  fifth of the window's height instead of a half, the arch about eight times
+  wider than tall. Buttons, dials and lettering keep their size on screen
+  (lettering is sized by the window, not the arch), so the surface is laid
+  out again in rows across its width: the calendar in the middle, the
+  readouts to its left, the section counts to its right, the order buttons
+  in a row of four at each end, the named slot beneath the calendar.
 - **The metal, seen at the camera's slant** (the owner, after the arch
   view: "there's a pretty intense reflection on the surface of the
   dashboard ... we have since moved the camera so now it looks weird at
@@ -95,6 +109,12 @@ arch.
    console its light each frame), the sheen and the hour's highlight in
    the metal shader (`014`); a test that the twin matches the dial
    painter at the same spot; pictures at noon, dusk and night.
+
+8. Forty per cent: \`arch_height_share\` 0.5 -> 0.2 (balance log); the
+   lettering sized by the window's height; the layout data in \`014\` laid
+   out again for the wide, low arch at the old pixel sizes; a test that no
+   two buttons or windows shown together overlap; pictures, orders and
+   settings.
 
 ## Open questions
 

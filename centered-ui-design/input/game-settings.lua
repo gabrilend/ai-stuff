@@ -58,7 +58,7 @@ return {
 
     -- the console: an arch standing on the window's bottom edge and stretched
     -- to both sides; its height as a share of the window's height
-    arch_height_share = 0.5,
+    arch_height_share = 0.2,
 
     -- How the world is filmed, to compare (all can be switched in the
     -- settings menu while running):

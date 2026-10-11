@@ -64,35 +64,45 @@ M.ARCH_BAND_SHARE = 0.085
 -- Turn your chair to see more of theirs.
 M.NEIGHBOUR_SHOWN = 0.03
 
+-- The layout below is for a wide, low arch (a fifth of the window high,
+-- the window wide: about eight times wider than tall), laid out in rows
+-- across: the calendar in the middle, readouts to its left, section counts
+-- to its right, four order buttons at each end, the named slot beneath the
+-- calendar (issue 302: "40% as much dashboard"). Arch units are shares of
+-- the arch's height, so at a fifth of a 1000-pixel window one unit is 200
+-- pixels; sizes here were chosen to keep the pixel sizes of the earlier,
+-- taller console. The tests check every piece lies on the surface and no
+-- two shown together overlap.
+
 -- The center the calendar rings turn around (arch units).
-M.CALENDAR_CENTER = { 0, 0.20 }
+M.CALENDAR_CENTER = { 0, 0.0 }
 
 -- The order buttons: verb, label, paint, and where they sit (arch units):
--- two columns up the inside of the arch's legs.
+-- a row of four at each end of the arch.
 M.ORDER_BUTTONS = {
-    { verb = "advance",     label = "ADVANCE",   paint = { 0.20, 0.85, 0.35 }, across = -0.28, up = 0.33 },
-    { verb = "attack",      label = "ATTACK",    paint = { 0.95, 0.20, 0.18 }, across = -0.28, up = 0.24 },
-    { verb = "hold",        label = "HOLD",      paint = { 1.00, 0.72, 0.10 }, across = -0.28, up = 0.15 },
-    { verb = "fall_back",   label = "FALL BACK", paint = { 0.20, 0.45, 1.00 }, across = -0.28, up = 0.06 },
-    { verb = "flank_left",  label = "FLANK L",   paint = { 0.10, 0.85, 0.90 }, across = 0.28,  up = 0.33 },
-    { verb = "flank_right", label = "FLANK R",   paint = { 0.65, 0.35, 1.00 }, across = 0.28,  up = 0.24 },
-    { verb = "shield",      label = "SHIELD",    paint = { 0.15, 0.80, 0.65 }, across = 0.28,  up = 0.15 },
-    { verb = "build",       label = "BUILD",     paint = { 1.00, 0.45, 0.10 }, across = 0.28,  up = 0.06 },
+    { verb = "advance",     label = "ADVANCE",   paint = { 0.20, 0.85, 0.35 }, across = -2.60, up = 0.16 },
+    { verb = "attack",      label = "ATTACK",    paint = { 0.95, 0.20, 0.18 }, across = -2.35, up = 0.16 },
+    { verb = "hold",        label = "HOLD",      paint = { 1.00, 0.72, 0.10 }, across = -2.10, up = 0.16 },
+    { verb = "fall_back",   label = "FALL BACK", paint = { 0.20, 0.45, 1.00 }, across = -1.85, up = 0.16 },
+    { verb = "flank_left",  label = "FLANK L",   paint = { 0.10, 0.85, 0.90 }, across = 1.85,  up = 0.16 },
+    { verb = "flank_right", label = "FLANK R",   paint = { 0.65, 0.35, 1.00 }, across = 2.10,  up = 0.16 },
+    { verb = "shield",      label = "SHIELD",    paint = { 0.15, 0.80, 0.65 }, across = 2.35,  up = 0.16 },
+    { verb = "build",       label = "BUILD",     paint = { 1.00, 0.45, 0.10 }, across = 2.60,  up = 0.16 },
 }
-M.ORDER_BUTTON_RADIUS = 0.04
+M.ORDER_BUTTON_RADIUS = 0.10
 
 -- The settings menu's buttons (arch units).
 M.SETTINGS_BUTTONS = {
-    { verb = "cap_minus_10",   label = "-10",  paint = { 0.20, 0.45, 1.00 }, across = -0.24, up = 0.43 },
-    { verb = "cap_plus_10",    label = "+10",  paint = { 1.00, 0.45, 0.10 }, across = 0.24,  up = 0.43 },
-    { verb = "cap_minus_1",    label = "-1",   paint = { 0.10, 0.85, 0.90 }, across = -0.12, up = 0.43 },
-    { verb = "cap_plus_1",     label = "+1",   paint = { 1.00, 0.72, 0.10 }, across = 0.12,  up = 0.43 },
-    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, across = -0.10, up = 0.07 },
-    { verb = "quit",           label = "QUIT", paint = { 0.95, 0.20, 0.18 }, across = 0.10,  up = 0.07 },
+    { verb = "cap_minus_10",   label = "-10",  paint = { 0.20, 0.45, 1.00 }, across = -0.60, up = 0.55 },
+    { verb = "cap_plus_10",    label = "+10",  paint = { 1.00, 0.45, 0.10 }, across = 0.60,  up = 0.55 },
+    { verb = "cap_minus_1",    label = "-1",   paint = { 0.10, 0.85, 0.90 }, across = -0.35, up = 0.55 },
+    { verb = "cap_plus_1",     label = "+1",   paint = { 1.00, 0.72, 0.10 }, across = 0.35,  up = 0.55 },
+    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, across = -1.80, up = 0.20 },
+    { verb = "quit",           label = "QUIT", paint = { 0.95, 0.20, 0.18 }, across = 1.80,  up = 0.20 },
     -- the look toggles (issue 214): each shows its current choice
-    { verb = "toggle_depth",    look = "depth",    paint = { 0.65, 0.35, 1.00 }, across = -0.30, up = 0.19 },
-    { verb = "toggle_standing", look = "standing", paint = { 0.15, 0.80, 0.65 }, across = 0,     up = 0.19 },
-    { verb = "toggle_blur",     look = "blur",     paint = { 0.10, 0.85, 0.90 }, across = 0.30,  up = 0.19 },
+    { verb = "toggle_depth",    look = "depth",    paint = { 0.65, 0.35, 1.00 }, across = -0.40, up = 0.20 },
+    { verb = "toggle_standing", look = "standing", paint = { 0.15, 0.80, 0.65 }, across = 0,     up = 0.20 },
+    { verb = "toggle_blur",     look = "blur",     paint = { 0.10, 0.85, 0.90 }, across = 0.40,  up = 0.20 },
 }
 
 -- What a look toggle's button says for each choice.
@@ -101,7 +111,7 @@ M.LOOK_WORDS = {
     standing = { upright = "UPRIGHT", outward = "OUTWARD" },
     blur = { on = "BLUR ON", off = "BLUR OFF" },
 }
-M.SETTINGS_BUTTON_RADIUS = 0.042
+M.SETTINGS_BUTTON_RADIUS = 0.105
 
 -- Every window, in arch units. `only` says when it is shown: "always",
 -- "orders" (settings shut) or "settings" (settings open).
@@ -110,30 +120,35 @@ M.SETTINGS_BUTTON_RADIUS = 0.042
 --   round: a circular hole
 --   slot:  a rounded rectangle
 M.WINDOWS = {
-    { dial = "month",    shape = "arc",   only = "orders", inner = 0.46, outer = 0.53, from = -104, to = -76 },
-    { dial = "weekday",  shape = "arc",   only = "orders", inner = 0.36, outer = 0.43, from = -104, to = -76 },
-    { dial = "day",      shape = "round", only = "orders", across = 0, up = 0.49, radius = 0.035 },
-    { dial = "fps",      shape = "round", only = "always", across = -0.15, up = 0.30, radius = 0.055 },
-    { dial = "frame_ms", shape = "round", only = "always", across = 0,     up = 0.30, radius = 0.055 },
-    { dial = "units",    shape = "round", only = "always", across = 0.15,  up = 0.30, radius = 0.055 },
-    { dial = "named",    shape = "slot",  only = "orders", across = 0, up = 0.115, half_width = 0.17, half_height = 0.035 },
-    { dial = "cap",      shape = "round", only = "settings", across = 0, up = 0.56, radius = 0.075 },
+    { dial = "month",    shape = "arc",   only = "orders", inner = 0.68, outer = 0.82, from = -110, to = -70 },
+    { dial = "weekday",  shape = "arc",   only = "orders", inner = 0.50, outer = 0.64, from = -114, to = -66 },
+    { dial = "day",      shape = "round", only = "orders", across = 0, up = 0.40, radius = 0.085 },
+    { dial = "fps",      shape = "round", only = "always", across = -1.35, up = 0.42, radius = 0.1375 },
+    { dial = "frame_ms", shape = "round", only = "always", across = -0.95, up = 0.42, radius = 0.1375 },
+    { dial = "units",    shape = "round", only = "always", across = 0.95,  up = 0.42, radius = 0.1375 },
+    { dial = "named",    shape = "slot",  only = "orders", across = 0, up = 0.13, half_width = 0.425, half_height = 0.0875 },
+    { dial = "cap",      shape = "round", only = "settings", across = 0, up = 0.55, radius = 0.1875 },
     -- how many cuboids rest in each color's section (ink in that color)
-    { dial = "section_1", shape = "round", only = "orders", across = -0.20, up = 0.425, radius = 0.028 },
-    { dial = "section_2", shape = "round", only = "orders", across = -0.11, up = 0.425, radius = 0.028 },
-    { dial = "section_3", shape = "round", only = "orders", across = 0.11,  up = 0.425, radius = 0.028 },
-    { dial = "section_4", shape = "round", only = "orders", across = 0.20,  up = 0.425, radius = 0.028 },
+    { dial = "section_1", shape = "round", only = "orders", across = 1.30, up = 0.42, radius = 0.07 },
+    { dial = "section_2", shape = "round", only = "orders", across = 1.50, up = 0.42, radius = 0.07 },
+    { dial = "section_3", shape = "round", only = "orders", across = 1.70, up = 0.42, radius = 0.07 },
+    { dial = "section_4", shape = "round", only = "orders", across = 1.90, up = 0.42, radius = 0.07 },
 }
 
 -- Engraved labels (arch units, centered there).
 M.LABELS = {
-    { text = "FRAMES / S", across = -0.15, up = 0.375, only = "always" },
-    { text = "FRAME MS",   across = 0,     up = 0.375, only = "always" },
-    { text = "UNITS",      across = 0.15,  up = 0.375, only = "always" },
-    { text = "NEXT ORDER GOES TO", across = 0, up = 0.175, only = "orders" },
-    { text = "ESCAPE: SETTINGS",   across = 0, up = 0.03,  only = "orders" },
-    { text = "MAXIMUM FRAMERATE   (0 = NO CAP)", across = 0, up = 0.665, only = "settings" },
+    { text = "FRAMES / S", across = -1.35, up = 0.235, only = "always" },
+    { text = "FRAME MS",   across = -0.95, up = 0.235, only = "always" },
+    { text = "UNITS",      across = 0.95,  up = 0.235, only = "always" },
+    { text = "NEXT ORDER GOES TO", across = 0, up = 0.265, only = "orders" },
+    { text = "ESCAPE: SETTINGS",   across = 1.15, up = 0.08, only = "orders" },
+    { text = "MAXIMUM FRAMERATE   (0 = NO CAP)", across = 0, up = 0.80, only = "settings" },
 }
+
+-- Lettering is sized by the window, not the arch, so it stays readable
+-- however low the arch is: this share of the window's height plays the
+-- part the arch's height used to.
+M.LETTERING_SHARE = 0.5
 
 local METAL_PIXEL = [[
 uniform vec2 arch_base;        // the middle of the arch's base (pixels)
@@ -203,14 +218,15 @@ function M.new(width, height, team_size, seat, height_share)
         pressed_verb = nil,
         flash_seconds = 0,
     }
+    local lettering = height * M.LETTERING_SHARE
     dashboard.fonts = {
-        label = love.graphics.newFont(math.max(9, math.floor(arch_height * 0.019))),
-        dial = love.graphics.newFont(math.max(10, math.floor(arch_height * 0.026))),
-        small = love.graphics.newFont(math.max(9, math.floor(arch_height * 0.022))),
-        readout = love.graphics.newFont(math.max(12, math.floor(arch_height * 0.037))),
-        big = love.graphics.newFont(math.max(16, math.floor(arch_height * 0.065))),
-        seat = love.graphics.newFont(math.max(10, math.floor(arch_height * 0.024))),
-        button = love.graphics.newFont(math.max(8, math.floor(arch_height * 0.0145))),
+        label = love.graphics.newFont(math.max(9, math.floor(lettering * 0.019))),
+        dial = love.graphics.newFont(math.max(10, math.floor(lettering * 0.026))),
+        small = love.graphics.newFont(math.max(9, math.floor(lettering * 0.022))),
+        readout = love.graphics.newFont(math.max(12, math.floor(lettering * 0.037))),
+        big = love.graphics.newFont(math.max(16, math.floor(lettering * 0.065))),
+        seat = love.graphics.newFont(math.max(10, math.floor(lettering * 0.024))),
+        button = love.graphics.newFont(math.max(8, math.floor(lettering * 0.0145))),
     }
     return dashboard
 end
@@ -601,6 +617,19 @@ local function under_window(dashboard, dial, draw_contents)
 end
 -- }}}
 
+-- {{{ local function window_layout()
+-- A window's layout entry (arch units) by its dial's name; a name with no
+-- window is a mistake in this file.
+local function window_layout(name)
+    for _, window in ipairs(M.WINDOWS) do
+        if window.dial == name then
+            return window
+        end
+    end
+    error("dashboard: no window for the dial '" .. name .. "'", 2)
+end
+-- }}}
+
 -- {{{ local function draw_dials()
 -- The layer beneath the windows. `state` carries the values to show.
 local function draw_dials(dashboard, state, seconds)
@@ -615,32 +644,39 @@ local function draw_dials(dashboard, state, seconds)
     turn_dial(dashboard, "month", -90 - (state.month - 1) * 30, seconds)
     under_window(dashboard, "month", function()
         love.graphics.setColor(0.86, 0.83, 0.76, 1)
-        love.graphics.circle("fill", cx, cy, 0.6 * H, 256)
-        draw_ring_dial(dashboard, M.MONTHS, cx, cy, dashboard.dial_angles.month, 0.495 * H)
+        local month = window_layout("month")
+        love.graphics.circle("fill", cx, cy, (month.outer + 0.08) * H, 256)
+        draw_ring_dial(dashboard, M.MONTHS, cx, cy, dashboard.dial_angles.month,
+            (month.inner + month.outer) / 2 * H)
     end)
 
     -- weekdays: a second ring at its own level, one window lower
     turn_dial(dashboard, "weekday", -90 - (state.weekday - 1) * (360 / 7), seconds)
     under_window(dashboard, "weekday", function()
         love.graphics.setColor(0.80, 0.77, 0.70, 1)
-        love.graphics.circle("fill", cx, cy, 0.6 * H, 256)
-        draw_ring_dial(dashboard, M.WEEKDAYS, cx, cy, dashboard.dial_angles.weekday, 0.395 * H)
+        local weekday = window_layout("weekday")
+        love.graphics.circle("fill", cx, cy, (weekday.outer + 0.08) * H, 256)
+        draw_ring_dial(dashboard, M.WEEKDAYS, cx, cy, dashboard.dial_angles.weekday,
+            (weekday.inner + weekday.outer) / 2 * H)
     end)
 
     -- the day number: one level lower again, on a darker disc whose rim passes
     -- under the round hole; the disc turns so today's number is there
     turn_dial(dashboard, "day", 90 - (state.day - 1) * (360 / 31), seconds)
     under_window(dashboard, "day", function(window)
-        local disc_x, disc_y = window.x, window.y - 0.16 * H
+        -- the numbers' ring and the disc, in proportion to the hole (a ring
+        -- 4.6 holes out, a disc 5.7), so they follow the hole's size
+        local ring = window.radius * 4.6
+        local disc_x, disc_y = window.x, window.y - ring
         local font = dashboard.fonts.dial
         love.graphics.setColor(0.66, 0.63, 0.57, 1)
-        love.graphics.circle("fill", disc_x, disc_y, 0.2 * H, 96)
+        love.graphics.circle("fill", disc_x, disc_y, window.radius * 5.7, 96)
         love.graphics.setFont(font)
         love.graphics.setColor(0.1, 0.1, 0.12, 1)
         for number = 1, 31 do
             local a = math.rad(dashboard.dial_angles.day + (number - 1) * (360 / 31))
             local text = tostring(number)
-            love.graphics.print(text, disc_x + 0.16 * H * math.cos(a), disc_y + 0.16 * H * math.sin(a),
+            love.graphics.print(text, disc_x + ring * math.cos(a), disc_y + ring * math.sin(a),
                 a - math.pi / 2, 1, 1, font:getWidth(text) / 2, font:getHeight() / 2)
         end
     end)
