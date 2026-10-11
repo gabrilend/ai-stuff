@@ -1,0 +1,29 @@
+hello claude can you create a video game for me where the UI for controlling units is in the center of the map? Make sure that you have to click on a button, then click somewhere on the map, always one, then the other. One single order to one single stand.
+then, have people playing stand-ins for those characters, and able to switch between them like on a strategy map.
+everyone votes on the next thing to spend resources on,
+and everyone fights for the same goal.
+let people vote for distribution of each resource
+and let them set their own priorities for weighting their vote
+"this part is crucial to my strategy but these I don't need a lot of"
+
+the game should be like Supreme Commander, where you designate paths for units
+leaving the factory to take using a simple waypoint system, and once they're set
+they can't be changed. But, you can dismantle the factory and rebuild it into
+something else, but you need engineers for that.
+
+--------------------------------------------------------------------------------
+second message, 2026-10-10 (verbatim)
+--------------------------------------------------------------------------------
+
+hi can you make this game for me? I was thinking very glass and metal, and bright colorful buttons. color of metal and glass ranging from dark to bright. most UI elements should be circles or semi-circles, lots of rotating displays. picture... a large wheel, as large as a "wheel of fortune" wheel. There are various pieces of text written into various quadrants or smaller sections, and the middle can be rotated like a lazy suzan. The round table rotates, so no-one is ever unawares. then, you can see a portion of it in the same way that on a watch face there's often insets cut out to display a lower-tier display element. in this case, date. one section on the arc of the circle, and you can have one day of the week / month. then, a number, on one level lower. let the user set it with a button between days of the week, and month, and expect some percentage of the users to use it quite often and/or routinely. except... for a central UI display. lots of buttons. lots of numbers. the numbers don't look like buttons, they look like bare surface with a glass viewer. your goal is to work from center to outer, no matter where you are. some adventure modes are for side to side, which often is your flanking force. then, you level up, because you gained more resources, and not you fight another higher tier of your foes, played by the same player as last time who was in that direction, but, each of you levelled up differently accordingly. To keep that Mechabellum balance, ensure everyone has the same number of choices of roughly equal value. can be priced, like they are in Mechabellum, or perhaps require certain magical resource unlocks. can be saved for later, increases in power the thing it requires if acquired. there should be a randomly generated list of these and they should all be randomly rolled into via a "table" which has a certain percentage chance of being rolled and when it does, there's a different percentage to select one of the values each time.
+
+we can use maps that are not linear in design. players should just know that distant players can move faster than near. this is okay because it takes time for your units to reach the frontline, meaning there's a delay inbetween your actions and their implementations. you may even have to make decisions based on new information during that interim - like "okay now everyone flank left" or "okay deploy those shields and fall back on that other front then press out from the side of the shields"
+
+--------------------------------------------------------------------------------
+answers to the first questions, 2026-10-10 (verbatim where typed)
+--------------------------------------------------------------------------------
+
+platform: LÖVE2D + LuaJIT
+players:  hot-seat + AI first (network play in a later phase)
+time:     real-time, orders in transit
+geometry: your team is the hub, but more specifically your base is the hub, and the maps aren't to scale. so if you're on a team of 4, that means it took 4 of you to manage this scale of nation/kingdom/endeavor/reliable-hood. each of you has a quadrant, and the scale of the map (units and such) is scaled to how much territory you can overlook. You can adjust it as the game goes on, shortening and compressing the view like an accordian growing shorter. in this game, you can also tell your heroes to adventure to a certain distance in levels, which you can scale as well by certain scrolling dials. found in the center console, or perhaps near the sides where you handle accordian settings. "zoom in" and "zoom out" but with more than one dimension that you're zooming in - scale, of two types.
