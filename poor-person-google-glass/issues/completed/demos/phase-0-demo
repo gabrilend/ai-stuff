@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# phase-0-demo - phase 0, Tools: the CAD viewer, shown on the crown.
+#
+# In plain terms: makes the rough crown model by formula and writes it in all
+# four file kinds the viewer reads (glTF, OBJ, text STL, binary STL); prints
+# a table comparing them (size on disk, parts kept, triangles, read time, how
+# far any corner moved on the round trip); then opens each in the viewer,
+# spinning, for a few seconds and photographs it; and finally opens the glTF
+# crown for you to turn by hand until you close the window.
+#
+# Usage:
+#   phase-0-demo                 the project at the default location
+#   phase-0-demo <project-dir>   another copy of the project
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}" || exit 1
+
+echo "== the crown sketch, written in every format =="
+"${DIR}/scripts/make-test-shapes" "${DIR}" || exit 1
+echo ""
+echo "== read back and compared =="
+luajit "${DIR}/issues/completed/demos/phase-0-compare.lua" "${DIR}" || exit 1
+echo ""
+echo "== each file in the viewer: spinning, edges on half way, photographed =="
+SHAPES="${DIR}/tmp/shared-memory/shapes"
+for NAME in crown-sketch.gltf crown-sketch.obj crown-sketch-text.stl crown-sketch-binary.stl; do
+    "${DIR}/view-cad" "${DIR}" "${SHAPES}/${NAME}" \
+        --drag 0.1 40 15 --key 0.2 space --key 1.5 w --screenshot 3 2>&1 | grep -v ALSOFT
+    FRAMES=$(awk '/^frames/ { print $2 }' "${DIR}/output/goodbye")
+    BLACK=$(awk '/^black/ { print $2 }' "${DIR}/output/goodbye")
+    echo "   ${NAME}: ${FRAMES} frames drawn, black share ${BLACK}"
+done
+echo ""
+echo "== your turn: the glTF crown. Left drag turns, right drag slides, wheel zooms, w edges, Esc closes =="
+"${DIR}/view-cad" "${DIR}" "${SHAPES}/crown-sketch.gltf" 2>&1 | grep -v ALSOFT
+echo "photographs are in ${DIR}/tmp/shared-memory/screenshot-*.png"

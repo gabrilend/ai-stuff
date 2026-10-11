@@ -12,7 +12,7 @@ No arm model.
 The hydraulic arm pushes out and pulls in (reach, number, mm) and turns about
 its own axis (turn, number, degrees); the panel moves with it without
 rotating. Releases land where the arm puts the panel; and no release fires
-while the panel is out of the beam (see docs/open-questions.md, question 1).
+while the panel is out of the beam (see docs/open-questions.md, "Safety" under Answered).
 
 ## Suggested Implementation Steps
 1. Arm pose to panel position.

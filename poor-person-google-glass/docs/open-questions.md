@@ -26,3 +26,20 @@
    or the emitter itself with an optical isolator?
 5. **The store:** does it have a job left?
 6. **The arm's fluid:** shared with the light pipe, or separate?
+7. **Phase 1 after the segment decision:** the phase 1 issues still plan a
+   grid of cells (a mask) shaped from any picture. Later rounds moved toward
+   22-segment character cells (docs/physics-check.md, third round). Should
+   phase 1 be rewritten around segments, with a tool that draws every
+   character on the 22-segment cell to show which ones read?
+8. **The store's issue:** issue 202 models the store as a light bank; if
+   question 5 retires the store, 202 goes with it.
+9. **CAD formats beyond triangles:** the viewer reads STL, OBJ and glTF —
+   all lists of triangles. STEP (exact curved surfaces, what engineering CAD
+   saves natively) would need a geometry kernel or a Blender/FreeCAD bridge.
+   Wanted, or is exporting glTF/STL from the CAD program enough?
+10. **OBJ colours from pictures:** some exporters (MagicaVoxel) colour an
+    OBJ by a picture (a texture) rather than by material colours; the viewer
+    draws those models plain white and lists "vt" as not read. Read textures?
+11. **Reading on several threads:** binary STL's fixed 50-byte records split
+    cleanly across workers. Worth it once a model takes long enough to wait
+    on?

@@ -6,6 +6,14 @@ Each starts as software (a simulation in Lua that generates data, and a
 separate viewer that draws it) and becomes hardware where the simulation says
 it is worth building.
 
+## Phase 0 — Tools
+Instruments the other phases use, foundations beneath the crown itself.
+First: a CAD viewer — STL, OBJ and glTF (the house format: structured JSON)
+read into one shape record and drawn in a turnable LÖVE window — so the
+crown's parts can be modelled in any CAD program and looked at here.
+**Ends with:** the crown sketch written in every format, compared by size,
+parts and round-trip accuracy, and photographed in the viewer.
+
 ## Phase 1 — The mask
 Tabs, slots, and the picture their overlap lets through: a model of the tabs,
 a planner that turns a picture into tab angles and open slots, and a measure
