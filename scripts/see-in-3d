@@ -18,6 +18,12 @@
 --   see-in-3d render SCENE.lua [--size=N]    four views, a sheet, and an .obj model
 --   see-in-3d gallery EXAMPLES-DIR [--out=DIR]   every example as a web page of
 --                                            drawing sheets (picture beside views)
+--   see-in-3d imagine SCENE.lua [--view=angle] [--picture=PNG] [--prompt=TEXT]
+--                     [--seed=N] [--dry-run]  one view imagined as a picture by
+--                                            the local Stable Diffusion server:
+--                                            shape from the view's depth, look
+--                                            from the picture, meaning from the
+--                                            scene's description (issue A09)
 --
 -- Where things go: ${DIR}/tmp/shared-memory/see-in-3d/ unless a path is given;
 -- render writes beside the scene file. The words a scene may use are in
@@ -31,17 +37,39 @@ local DIR = "/home/ritz/programming/ai-stuff/scripts"
 local SIZE = 480
 local WORKERS = nil
 local OUT = nil
+local VIEW, PICTURE, PROMPT, SEED, DRY_RUN = "angle", nil, nil, 1, false
+local SIZE_GIVEN = false
+-- settings handed straight to the workflow builder (libs/see-in-3d-imagine.lua
+-- M.defaults names each one); only those given on the command line are set
+local IMAGINE = {}
+local imagine_options = {
+    server = "server", checkpoint = "checkpoint", mode = "mode", sampler = "sampler", scheduler = "scheduler",
+    denoise = "denoise", steps = "steps", cfg = "cfg",
+}
+local numeric_options = { denoise = true, steps = true, cfg = true }
 local positional = {}
 for _, argument in ipairs(arg) do
+    local option_name, option_value = argument:match("^%-%-([%a]+)=(.+)$")
+    local view_value = argument:match("^%-%-view=(%a+)$")
+    local picture_value = argument:match("^%-%-picture=(.+)$")
+    local prompt_value = argument:match("^%-%-prompt=(.*)$")
+    local seed_value = argument:match("^%-%-seed=(%d+)$")
     local dir_value = argument:match("^%-%-dir=(.+)$")
     local size_value = argument:match("^%-%-size=(%d+)$")
     local workers_value = argument:match("^%-%-workers=(%d+)$")
     local out_value = argument:match("^%-%-out=(.+)$")
     -- each option sets one setting; the rest are the step and its targets
-    if dir_value then DIR = dir_value
-    elseif size_value then SIZE = tonumber(size_value)
+    if option_name and imagine_options[option_name] then
+        IMAGINE[imagine_options[option_name]] = numeric_options[option_name] and tonumber(option_value) or option_value
+    elseif dir_value then DIR = dir_value
+    elseif size_value then SIZE = tonumber(size_value); SIZE_GIVEN = true
     elseif workers_value then WORKERS = tonumber(workers_value)
     elseif out_value then OUT = out_value
+    elseif view_value then VIEW = view_value
+    elseif picture_value then PICTURE = picture_value
+    elseif prompt_value then PROMPT = prompt_value
+    elseif seed_value then SEED = tonumber(seed_value)
+    elseif argument == "--dry-run" then DRY_RUN = true
     else positional[#positional + 1] = argument end
 end
 local SCRATCH = DIR .. "/tmp/shared-memory/see-in-3d"
@@ -144,9 +172,10 @@ local function render_one_view(scene_path, view_index, size, out)
     local renderer = dofile(DIR .. "/libs/see-in-3d-render.lua")
     local scene, problems = paintbrush.read(scene_path)
     if not scene then fail(table.concat(problems, "\n")) end
-    local rgb = renderer.render(paintbrush.compile(scene), renderer.views[tonumber(view_index)], tonumber(size))
+    -- the raw file is the colour bytes followed by the depth bytes
+    local rgb, depth = renderer.render(paintbrush.compile(scene), renderer.views[tonumber(view_index)], tonumber(size))
     local handle = io.open(out, "wb")
-    handle:write(rgb)
+    handle:write(rgb, depth)
     handle:close()
 end
 -- }}}
@@ -191,17 +220,156 @@ local function render(scene_path)
     for index, raw in ipairs(raws) do
         local handle = io.open(raw, "rb")
         if not handle then fail("a view was not rendered: " .. raw) end
-        rendered[index] = handle:read("*a")
+        local bytes = handle:read("*a")
         handle:close()
         os.remove(raw)
-        if #rendered[index] ~= SIZE * SIZE * 3 then fail("a view came back the wrong size: " .. raw) end
+        if #bytes ~= SIZE * SIZE * 4 then fail("a view came back the wrong size: " .. raw) end
+        rendered[index] = bytes:sub(1, SIZE * SIZE * 3)
+        local grey = bytes:sub(SIZE * SIZE * 3 + 1)
         png.write(stem .. "-" .. renderer.views[index].name .. ".png", SIZE, SIZE, rendered[index])
+        png.write(stem .. "-" .. renderer.views[index].name .. "-depth.png", SIZE, SIZE, (grey:gsub(".", function(c) return c .. c .. c end)))
     end
     png.write(stem .. ".png", SIZE * 2, SIZE * 2, renderer.sheet(rendered, SIZE))
     io.write(string.format("%s: %d shapes, %d triangles\n", scene.what, #scene.shapes, #model.cr))
     io.write("  sheet (front, right / top, angle): ", stem, ".png\n")
     io.write("  each view: ", stem, "-{front,right,top,angle}.png\n")
+    io.write("  each view's depth (near bright): ", stem, "-{front,right,top,angle}-depth.png\n")
     io.write("  model: ", stem, ".obj\n")
+end
+-- }}}
+
+-- {{{ local function imagine()
+-- One view of a scene imagined as a picture. The view and its depth are drawn
+-- here at the model's size (512); the depth and the look picture are sent to
+-- the server; the workflow is queued, waited on, and the picture fetched.
+-- Everything lands beside the scene: the depth used, the workflow sent, and
+-- the picture, so a result can always be traced to what made it. --dry-run
+-- writes the depth and the workflow and stops before the server.
+local function imagine(scene_path)
+    if not scene_path then fail("usage: see-in-3d imagine SCENE.lua [--view=angle] [--picture=PNG] [--prompt=TEXT] [--seed=N] [--dry-run]") end
+    local paintbrush = dofile(DIR .. "/libs/see-in-3d-paintbrush.lua")
+    local renderer = dofile(DIR .. "/libs/see-in-3d-render.lua")
+    local png = dofile(DIR .. "/libs/png-writer.lua")
+    local imagining = dofile(DIR .. "/libs/see-in-3d-imagine.lua")
+    local scene, problems = paintbrush.read(scene_path)
+    if not scene then fail("the scene was refused:\n  " .. table.concat(problems, "\n  ")) end
+    local view = nil
+    for _, candidate in ipairs(renderer.views) do if candidate.name == VIEW then view = candidate end end
+    if not view then fail("no view called " .. VIEW .. " (front, right, top or angle)") end
+    if PICTURE and not file_exists(PICTURE) then fail("no such picture: " .. PICTURE) end
+
+    -- the size the model works at: 512 unless --size says otherwise (SDXL
+    -- models compose best at 1024)
+    local size = SIZE_GIVEN and SIZE or 512
+    local stem = scene_path:gsub("%.lua$", "") .. "-" .. VIEW
+    local colour, depth = renderer.render(paintbrush.compile(scene), view, size)
+    local depth_path = stem .. "-depth-" .. size .. ".png"
+    local render_path = stem .. "-render-" .. size .. ".png"
+    png.write(depth_path, size, size, (depth:gsub(".", function(c) return c .. c .. c end)))
+    png.write(render_path, size, size, colour)
+    local prompt = scene.what .. (PROMPT and PROMPT ~= "" and (", " .. PROMPT) or "")
+    local prefix = "see-in-3d-" .. (stem:match("([^/]+)$") or "view")
+
+    local settings = { prompt = prompt, seed = SEED, prefix = prefix, width = size, height = size,
+        depth_image = depth_path:match("([^/]+)$"), render_image = render_path:match("([^/]+)$"),
+        look_image = PICTURE and PICTURE:match("([^/]+)$") or nil }
+    for key, value in pairs(IMAGINE) do settings[key] = value end
+    local server = settings.server or imagining.defaults.server
+    settings.server = nil
+    local mode = settings.mode or imagining.defaults.mode
+    -- the render mode starts from the drawn view and has no ControlNet to
+    -- carry a look picture; it is refused rather than dropped without a word
+    if mode == "render" and PICTURE then
+        fail("--picture needs the depth mode's look ControlNet; the render mode cannot use it. Leave --picture out, or use --mode=depth on a server with ControlNets")
+    end
+    -- a dry run stops before the server: the workflow names the files by the
+    -- names they would be uploaded under
+    if DRY_RUN then
+        local handle = io.open(stem .. "-workflow.json", "w")
+        handle:write(imagining.json(imagining.workflow(settings)), "\n")
+        handle:close()
+        io.write("prompt: ", prompt, "\n  depth: ", depth_path, "\n  workflow: ", stem, "-workflow.json\n  (dry run: the server was not contacted)\n")
+        return
+    end
+    if not imagining.reachable(server) then
+        fail("the Stable Diffusion server at " .. server .. " is not answering. Start it with /mnt/kaun/stable-diffusion/run")
+    end
+    local missing = imagining.missing(server, imagining.workflow(settings))
+    if #missing > 0 then
+        fail("the server at " .. server .. " lacks what this workflow needs:\n  " .. table.concat(missing, "\n  "))
+    end
+    -- the image the shape comes from: the depth map, or the drawn view itself
+    local uploaded, problem = imagining.upload(server, mode == "render" and render_path or depth_path)
+    if not uploaded then fail(problem) end
+    if mode == "render" then settings.render_image = uploaded else settings.depth_image = uploaded end
+    if PICTURE then
+        uploaded, problem = imagining.upload(server, PICTURE)
+        if not uploaded then fail(problem) end
+        settings.look_image = uploaded
+    end
+    local graph = imagining.workflow(settings)
+    local id
+    id, problem = imagining.queue(server, graph, stem .. "-workflow.json")
+    if not id then fail(problem) end
+    io.write("queued: ", prompt, "\n")
+    local result
+    result, problem = imagining.wait(server, id, 900)
+    if not result then fail(problem) end
+    local saved
+    saved, problem = imagining.fetch(server, result, stem .. "-imagined.png")
+    if not saved then fail(problem) end
+    io.write("  imagined: ", saved, "\n  from: ", mode == "render" and render_path or depth_path, "\n  workflow: ", stem, "-workflow.json\n")
+end
+-- }}}
+
+-- {{{ local function imagine_all()
+-- Every gallery example imagined, with the options given on the command line
+-- (the server, checkpoint, mode and so on). The result is kept in the example's
+-- folder as imagined.jpg, with imagined.info beside it naming what made it --
+-- kept rather than remade, because it took a graphics card's time and another
+-- card would not draw the same picture. An example that already has one is
+-- left alone. Up to four run at once; the server queues them in turn.
+local function imagine_all(examples_dir)
+    if not examples_dir then fail("usage: see-in-3d imagine-all EXAMPLES-DIR [imagine options]") end
+    ensure_scratch()
+    local work = SCRATCH .. "/imagine-all"
+    run("mkdir -p " .. shell_quote(work), "making the work folder")
+    local pipe = io.popen("ls -1 " .. shell_quote(examples_dir))
+    local jobs = {}
+    local passed = {}
+    for key, value in pairs(IMAGINE) do passed[#passed + 1] = shell_quote("--" .. key .. "=" .. tostring(value)) end
+    table.sort(passed)
+    if SIZE_GIVEN then passed[#passed + 1] = "--size=" .. SIZE end
+    if PROMPT then passed[#passed + 1] = shell_quote("--prompt=" .. PROMPT) end
+    passed[#passed + 1] = "--view=" .. VIEW
+    passed[#passed + 1] = "--seed=" .. SEED
+    for name in pipe:lines() do
+        local folder = examples_dir .. "/" .. name
+        -- an example already imagined is kept as it is; a folder that is not an
+        -- example (no scene) is not one to imagine
+        if file_exists(folder .. "/scene.lua") and not file_exists(folder .. "/imagined.jpg") then
+            local copy = work .. "/" .. name .. ".lua"
+            run("cp " .. shell_quote(folder .. "/scene.lua") .. " " .. shell_quote(copy), "copying " .. name)
+            local result = work .. "/" .. name .. "-" .. VIEW .. "-imagined.png"
+            local info = string.format("Made by scripts/see-in-3d imagine-all from this folder's scene.lua, %s, with: %s -- the scene imagined by a Stable Diffusion server from the %s view, for the gallery.",
+                os.date("%Y-%m-%d"), table.concat(passed, " "), VIEW)
+            jobs[#jobs + 1] = string.format("luajit %s --dir=%s imagine %s %s > %s 2>&1 && magick %s -quality 88 %s && printf '%%s\\n' %s > %s",
+                shell_quote(SCRIPT_PATH), shell_quote(DIR), shell_quote(copy), table.concat(passed, " "),
+                shell_quote(work .. "/" .. name .. ".log"), shell_quote(result), shell_quote(folder .. "/imagined.jpg"),
+                shell_quote(info), shell_quote(folder .. "/imagined.info"))
+        end
+    end
+    pipe:close()
+    if #jobs == 0 then io.write("every example is already imagined\n") return end
+    local lanes = {}
+    for index, job in ipairs(jobs) do
+        local lane = (index - 1) % 4 + 1
+        lanes[lane] = (lanes[lane] and (lanes[lane] .. " ; ") or "") .. "( " .. job .. " || echo " .. shell_quote("FAILED: " .. job:match("imagine '([^']+)'")) .. " )"
+    end
+    local script = {}
+    for _, lane in ipairs(lanes) do script[#script + 1] = "( " .. lane .. " ) &" end
+    run("bash -c " .. shell_quote(table.concat(script, "\n") .. "\nwait"), "imagining the examples")
+    io.write(string.format("imagined %d examples; logs in %s\n", #jobs, work))
 end
 -- }}}
 
@@ -252,8 +420,15 @@ local function gallery(examples_dir)
             copies[#copies + 1] = string.format("magick %s -resize '640x640>' -quality 85 %s",
                 shell_quote(note.picture), shell_quote(out .. "/" .. picture_file))
         end
+        -- an imagined picture, made earlier by imagine-all and kept with the
+        -- example, is shown as it is; an example without one shows two panels
+        local imagined_file = nil
+        if file_exists(folder .. "/imagined.jpg") then
+            imagined_file = stem .. "-imagined.jpg"
+            copies[#copies + 1] = "cp " .. shell_quote(folder .. "/imagined.jpg") .. " " .. shell_quote(out .. "/" .. imagined_file)
+        end
         examples[number] = { number = number, note = note, picture_file = picture_file, sheet_file = stem .. "-views.jpg",
-            what = scene.what, shape_count = #scene.shapes, scene_text = scene_text }
+            imagined_file = imagined_file, what = scene.what, shape_count = #scene.shapes, scene_text = scene_text }
     end
     local function all_at_once(commands, what)
         local lines = {}
@@ -279,6 +454,8 @@ local steps = {
     brief = function() brief(positional[2]) end,
     render = function() render(positional[2]) end,
     gallery = function() gallery(positional[2]) end,
+    imagine = function() imagine(positional[2]) end,
+    ["imagine-all"] = function() imagine_all(positional[2]) end,
     ["--view-worker"] = function() render_one_view(positional[2], positional[3], positional[4], positional[5]) end,
 }
 local function main()

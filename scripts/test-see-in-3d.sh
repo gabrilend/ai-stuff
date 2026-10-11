@@ -155,6 +155,45 @@ check "a glowing face shows its colour unshaded; a lit one does not ($lit)" \
 output=$("$TOOL" brief "$WORK/marks.png")
 check "brief names the picture and prints the paintbrush" "$(contains "$output" "Look at: $WORK/marks.png")"
 
+echo "depth and imagining (no server needed):"
+depth=$(luajit -e "
+    local P = dofile('$DIR/libs/see-in-3d-paintbrush.lua')
+    local R = dofile('$DIR/libs/see-in-3d-render.lua')
+    local _, d = R.render(P.compile(P.read('$WORK/marks.lua')), R.views[1], 200)
+    -- the box's front face is nearer the front camera than the floor's far edge,
+    -- and the sky above the floor holds nothing
+    local box = d:byte(120 * 200 + 70 + 1)
+    local far_floor = d:byte(112 * 200 + 2 + 1)
+    local sky = d:byte(2 * 200 + 2 + 1)
+    io.write(box, ' ', far_floor, ' ', sky)")
+set -- $depth
+check "depth: a near shape is brighter than the far floor ($1 > $2)" "$([ "$1" -gt "$2" ] && echo yes || echo no)"
+check "depth: where nothing is drawn, black ($3)" "$([ "$3" = 0 ] && echo yes || echo no)"
+"$TOOL" imagine "$WORK/marks.lua" --view=front --picture="$WORK/marks.png" --seed=7 --dry-run > /dev/null
+first=$(md5sum < "$WORK/marks-front-workflow.json")
+"$TOOL" imagine "$WORK/marks.lua" --view=front --picture="$WORK/marks.png" --seed=7 --dry-run > /dev/null
+check "the same scene and settings give the same workflow" "$([ "$first" = "$(md5sum < "$WORK/marks-front-workflow.json")" ] && echo yes || echo no)"
+wiring=$(luajit -e "
+    local I = dofile('$DIR/libs/see-in-3d-imagine.lua')
+    local with = I.workflow{ prompt = 'p', seed = 1, prefix = 'x', depth_image = 'd.png', look_image = 'l.png' }
+    local without = I.workflow{ prompt = 'p', seed = 1, prefix = 'x', depth_image = 'd.png' }
+    -- every wire points at a node that exists
+    local ok = true
+    for _, graph in ipairs({ with, without }) do
+        for _, node in pairs(graph) do
+            for _, value in pairs(node.inputs) do
+                if type(value) == 'table' and not graph[value[1]] then ok = false end
+            end
+        end
+    end
+    io.write(tostring(ok), ' ', with['11'].inputs.positive[1], ' ', without['11'].inputs.positive[1], ' ', tostring(without['8'] == nil))")
+set -- $wiring
+check "every wire in the workflow reaches a node" "$([ "$1" = true ] && echo yes || echo no)"
+check "with a picture, the sampler takes the look ControlNet's output" "$([ "$2" = 9 ] && echo yes || echo no)"
+check "without a picture, it takes the depth ControlNet's, and no picture is loaded" "$([ "$3" = 6 ] && [ "$4" = true ] && echo yes || echo no)"
+output=$(luajit -e "local I = dofile('$DIR/libs/see-in-3d-imagine.lua'); io.write(I.json({ text = 'a \"q\" and\\nline', n = 0.5, list = { 1, 'two' } }))")
+check "JSON: sorted keys, escaped quotes and line breaks" "$(same=$(printf '%s' '{"list":[1,"two"],"n":0.5,"text":"a \"q\" and\nline"}'); [ "$output" = "$same" ] && echo yes || echo no)"
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

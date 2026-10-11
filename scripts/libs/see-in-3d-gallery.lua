@@ -87,6 +87,10 @@ h3.compare { font: 600 20px/1.2 var(--display); letter-spacing: 0.03em; margin: 
 .sheets { display: grid; gap: 28px; }
 .sheet { background: var(--sheet); border: 1px solid var(--rule); min-width: 0; }
 .views { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); }
+.views.three { grid-template-columns: repeat(3, 1fr); }
+.group .views.three { grid-template-columns: 1fr 1fr; }
+.group .views.three figure:last-child { grid-column: 1 / -1; }
+@media (max-width: 760px) { .views.three, .group .views.three { grid-template-columns: 1fr; } }
 .views figure { margin: 0; background: var(--sheet); padding: 10px; min-width: 0; }
 .views figcaption { font: 500 12px var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--pencil); margin-bottom: 6px; }
 .views img { display: block; width: 100%; height: auto; }
@@ -117,7 +121,8 @@ footer { margin-top: 48px; color: var(--pencil); font-size: 14px; max-width: 65c
 -- views showed, and the scene itself folded away.
 local function sheet_html(example, total)
     local note = example.note
-    local parts = { '<article class="sheet" id="sheet-' .. example.number .. '"><div class="views">' }
+    local parts = { '<article class="sheet" id="sheet-' .. example.number .. '"><div class="views' ..
+        (example.imagined_file and ' three' or '') .. '">' }
     -- a picture is shown as read; an idea has no picture, and says so
     if example.picture_file then
         parts[#parts + 1] = '<figure><figcaption>The picture</figcaption><img src="' .. escape(example.picture_file) ..
@@ -126,7 +131,14 @@ local function sheet_html(example, total)
         parts[#parts + 1] = '<figure><figcaption>The picture</figcaption><div class="idea">No picture: read from an idea in words.</div></figure>'
     end
     parts[#parts + 1] = '<figure><figcaption>Front · right / top · angle</figcaption><img src="' .. escape(example.sheet_file) ..
-        '" alt="Four views of the scene: ' .. escape(example.what) .. '" loading="lazy"></figure></div>'
+        '" alt="Four views of the scene: ' .. escape(example.what) .. '" loading="lazy"></figure>'
+    -- the imagined picture, when the example has one: what an image model made
+    -- of the angle view
+    if example.imagined_file then
+        parts[#parts + 1] = '<figure><figcaption>Imagined from the angle view</figcaption><img src="' .. escape(example.imagined_file) ..
+            '" alt="The angle view imagined as a picture: ' .. escape(example.what) .. '" loading="lazy"></figure>'
+    end
+    parts[#parts + 1] = '</div>'
     parts[#parts + 1] = '<div class="block"><div><span class="k">Sheet</span><span class="no">' ..
         string.format("%02d", example.number) .. '</span></div><div><span class="k">Title</span><span class="title">' ..
         escape(note.title) .. '</span></div><div><span class="k">Stage</span><span class="stage">' ..

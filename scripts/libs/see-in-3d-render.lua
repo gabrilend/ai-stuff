@@ -92,13 +92,15 @@ end
 -- }}}
 
 -- {{{ M.render(model, view, size)
--- One view as a string of size x size red-green-blue bytes.
+-- One view as a string of size x size red-green-blue bytes, and its depth as
+-- a string of size x size grey bytes (near bright, far dark, empty black).
 function M.render(model, view, size)
     local centre, ground_y, radius = bounds(model)
     local cam = camera(view, centre, radius)
     local focal = (size / 2) / math.tan(FIELD_OF_VIEW / 2)
     local pixels = ffi.new("uint8_t[?]", size * size * 3)
     local depth = ffi.new("double[?]", size * size)   -- 1 / distance; 0 means nothing drawn yet
+    local is_shape = ffi.new("uint8_t[?]", size * size) -- 1 where a shape (not the floor) is nearest
     local half = size / 2
 
     -- the ground: every pixel's ray followed down to the ground's height
@@ -177,6 +179,7 @@ function M.render(model, view, size)
                             local index = y * size + x
                             if z > depth[index] then
                                 depth[index] = z
+                                is_shape[index] = 1
                                 pixels[index * 3], pixels[index * 3 + 1], pixels[index * 3 + 2] = r, g, b
                             end
                         end
@@ -185,7 +188,31 @@ function M.render(model, view, size)
             end
         end
     end
-    return ffi.string(pixels, size * size * 3)
+    -- The depth picture, one grey byte per pixel: the nearest point of any
+    -- shape white (255), the farthest dark (60), nothing drawn black (0) --
+    -- the convention depth ControlNets were trained on (near is bright). The
+    -- grey range is spread over the shapes only; the floor takes the same
+    -- scale and is clipped at both ends. Spread over the floor too, the floor's
+    -- near edge took the white and a desk came out barely brighter than the
+    -- ground under it. The buffer holds 1/distance, turned back into distance
+    -- first, so equal steps of grey are equal steps of depth.
+    local near, far = math.huge, 0
+    for index = 0, size * size - 1 do
+        if is_shape[index] == 1 then
+            local distance = 1 / depth[index]
+            if distance < near then near = distance end
+            if distance > far then far = distance end
+        end
+    end
+    local grey = ffi.new("uint8_t[?]", size * size)
+    local span = (far > near) and (far - near) or 1
+    for index = 0, size * size - 1 do
+        if depth[index] > 0 then
+            local value = 255 - (1 / depth[index] - near) / span * 195
+            grey[index] = math.max(20, math.min(255, math.floor(value + 0.5)))
+        end
+    end
+    return ffi.string(pixels, size * size * 3), ffi.string(grey, size * size)
 end
 -- }}}
 
