@@ -114,8 +114,12 @@ paired with differential triangles.
   dusk, blue at night) over a faint panel lamp so it is always readable, a
   soft sky sheen toward its far edge, and one faint highlight that slides
   along the arch with the hour. No fixed glints.
-- **Painted terrain, for testing distance** (issue 214): splotches of
-  earthy paint on the ground, all one size, as many to every stretch of
-  ring (so more on the longer rings deeper out); nearer ones painted over
-  farther ones; each tipped toward the camera and domed a little, brighter
-  on the side toward the hour's light. The focus blur is off by default.
+- **The land as lit points** (issue 214): no ground texture — the land is
+  a grid of points, each with a height, a facing and a colour, drawn as a
+  round sprite facing the camera. Every sprite uses one round relief
+  picture, bright on the side toward the sun and dark on the other, so
+  slopes and cliffs light and darken through the day (a cliff facing east
+  lit in the morning, in shadow at evening). Nearer sprites cover farther
+  ones; hills hide what is behind them. Points are spaced evenly along
+  every ring, so the land is denser in far rings. The painted map (rings,
+  quadrants, sections) is a menu choice. The focus blur is off by default.

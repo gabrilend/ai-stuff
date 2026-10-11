@@ -103,6 +103,7 @@ M.SETTINGS_BUTTONS = {
     { verb = "toggle_depth",    look = "depth",    paint = { 0.65, 0.35, 1.00 }, across = -0.40, up = 0.20 },
     { verb = "toggle_standing", look = "standing", paint = { 0.15, 0.80, 0.65 }, across = 0,     up = 0.20 },
     { verb = "toggle_blur",     look = "blur",     paint = { 0.10, 0.85, 0.90 }, across = 0.40,  up = 0.20 },
+    { verb = "toggle_ground",   look = "ground",   paint = { 0.62, 0.50, 0.26 }, across = 1.35,  up = 0.20 },
 }
 
 -- What a look toggle's button says for each choice.
@@ -110,6 +111,7 @@ M.LOOK_WORDS = {
     depth = { flat = "FLAT VIEW", hub = "HUB VIEW", slant = "SLANT VIEW", arch = "ARCH VIEW" },
     standing = { upright = "UPRIGHT", outward = "OUTWARD" },
     blur = { on = "BLUR ON", off = "BLUR OFF" },
+    ground = { dots = "LIT DOTS", map = "PAINTED MAP" },
 }
 M.SETTINGS_BUTTON_RADIUS = 0.105
 
@@ -456,7 +458,9 @@ local function visible_arches(dashboard)
         local seat = (dashboard.seat - 1 + k) % team + 1
         -- alone: the one arch, once
         if team > 1 or k == 0 then
-            arches[#arches + 1] = { section = arch.shifted(own, k), seat = seat, own = (k == 0) }
+            -- the arch the chair is nearest is in front: the seat being
+            -- played (issue 501: spinning to a seat plays it)
+            arches[#arches + 1] = { section = arch.shifted(own, k), seat = seat, own = (k == nearest) }
         end
     end
     return arches
@@ -512,8 +516,7 @@ end
 -- {{{ local function button_spots()
 -- Where every clickable button is right now: a list of
 -- { verb, label, paint, x, y, radius, de_selected }.
-local function button_spots(dashboard, someone_named)
-    local section = dashboard.section
+local function button_spots(dashboard, someone_named, section)
     local spots = {}
     -- the settings menu is open: only its buttons can be pressed
     local list, radius, de_selected = M.ORDER_BUTTONS, M.ORDER_BUTTON_RADIUS, not someone_named
@@ -544,7 +547,10 @@ function M.button_under(dashboard, x, y, someone_named)
     if x < left or x > left + width then
         return nil
     end
-    for _, spot in ipairs(button_spots(dashboard, someone_named)) do
+    -- the arch in front answers: its section is your own slid along the row
+    -- to the arch the chair is nearest
+    local front = arch.shifted(dashboard.section, math.floor(dashboard.chair_offset + 0.5))
+    for _, spot in ipairs(button_spots(dashboard, someone_named, front)) do
         local dx, dy = x - spot.x, y - spot.y
         if dx * dx + dy * dy <= spot.radius * spot.radius then
             return spot.verb
@@ -804,7 +810,7 @@ local function draw_face(dashboard, state)
 
     -- painted buttons, each in a metal bezel
     local label_font = dashboard.fonts.button
-    for _, spot in ipairs(button_spots(dashboard, state.someone_named)) do
+    for _, spot in ipairs(button_spots(dashboard, state.someone_named, section)) do
         local paint = spot.paint
         local strength = 1
         -- de-selected: still painted, but dimmer

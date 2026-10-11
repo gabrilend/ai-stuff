@@ -25,6 +25,7 @@
 
 local far_camera = require("003-the-far-camera")
 local sphere_fold = require("004-the-sphere-fold")
+local terrain = require("026-the-terrain")
 local records = require("005-unit-records")
 local body_plan = require("018-the-body-plan")
 local made_by_formula = require("012-made-by-formula")
@@ -141,57 +142,79 @@ vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
 }
 ]]
 
--- The painted terrain (issue 214): one disc per splotch, lying on the
--- ground, anchored like a figure so the arch view lays it on its ring;
--- tipped a little toward the camera about its sideways line (its far half
--- rises) and domed in the middle, so it reads as a small rise; shaded
--- brighter toward the hour's light and darker away from it.
-M.SPLOTCH_TILT = 0.35
-M.SPLOTCH_DOME = 0.12
-M.SPLOTCH_SIDE_SHADE = 0.30
+-- The terrain (issue 214): each of the land's points (026) drawn as a round
+-- sprite facing the camera — one round relief picture (012) for all, turned
+-- with the point's slope so its side toward the sun is bright and the other
+-- dark. A sprite's whole face takes its point's depth, so nearer sprites
+-- cover farther ones and a hill hides what stands behind it.
+M.DOT_SIZE = 5.2      -- ground units across (overlapping: the spacing is 3)
+M.DOT_BUMP = 0.8      -- how strongly the round relief bends a slope's facing
 
-local SPLOTCH_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
-attribute vec4 Splotch;        // r, angle, size (ground units across), unused
-attribute vec4 SplotchColor;   // r, g, b, unused
-uniform float splotch_tilt;
-uniform float splotch_dome;
-uniform float hour_angle;
+local DOT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
+attribute vec4 Dot;         // r, angle, height, unused
+attribute vec4 DotFacing;   // which way the slope faces: x, y, z, unused
+attribute vec4 DotColor;    // r, g, b, unused
+uniform float dot_size;
 varying vec3 v_color;
-varying float v_side;
+varying vec3 v_normal;
+varying vec3 v_across;
+varying vec3 v_up;
+varying vec2 v_uv;
 varying vec2 v_facing;
 varying float v_haze;
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
-    float r = Splotch.x;
-    float angle = Splotch.y;
-    // all one size, near and far (the owner: "all of the circles should be
-    // the same size")
-    float half_size = 0.5 * Splotch.z;
-    vec2 local = vertex_position.xy;           // the unit disc: x sideways, y outward
+    float r = Dot.x;
+    float angle = Dot.y;
+    float height = Dot.z;
+    vec2 local = vertex_position.xy;            // the sprite's square, -1..1
     vec3 outward = vec3(sin(angle), 0.0, -cos(angle));
     vec3 sideways = vec3(cos(angle), 0.0, sin(angle));
-    // tipped toward the camera (the far half up) and domed in the middle
-    float lift = (local.y * sin(splotch_tilt) + (1.0 - dot(local, local)) * splotch_dome) * half_size;
-    vec3 offset = sideways * local.x * half_size + outward * local.y * half_size * cos(splotch_tilt)
-                + vec3(0.0, lift + 0.01, 0.0);
+    float sin_e = cam_back.y;
+    float cos_e = cam_up.y;
+    float half_size = 0.5 * dot_size;
+    // facing the camera: across along the ring, up the screen
     vec3 spot = fold_ground_position(r, angle);
-    // which side faces the hour's light: across the disc, from dark to bright
-    v_side = dot(local, vec2(sin(hour_angle), cos(hour_angle)));
-    v_color = SplotchColor.rgb;
-    v_facing = view_facing(vec3(0.0, 1.0, 0.0));
+    vec3 offset = sideways * local.x * half_size + vec3(0.0, height + local.y * half_size / cos_e, 0.0);
+    vec4 corner = project_anchored(spot, offset);
+    vec4 middle = project_anchored(spot, vec3(0.0, height, 0.0));
+    // the whole sprite at its point's depth
+    corner.z = middle.z / middle.w * corner.w;
+    v_uv = vec2(0.5 + 0.5 * local.x, 0.5 - 0.5 * local.y);
+    v_color = DotColor.rgb;
+    v_normal = DotFacing.xyz;
+    v_across = sideways;
+    v_up = normalize(vec3(0.0, cos_e, 0.0) + outward * sin_e);
+    v_facing = view_facing(DotFacing.xyz);
     v_haze = clamp(hub_distance(spot + offset) / hub_far, 0.0, 1.0);
-    return project_anchored(spot, offset);
+    return corner;
 }
 ]]
 
-local SPLOTCH_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
+local DOT_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
 uniform Image earth_dial;
-uniform float side_shade;
+uniform Image relief;       // the round relief picture (012)
+uniform vec3 sun;           // toward the sun (026's sun_direction)
+uniform float bump;
 varying vec3 v_color;
-varying float v_side;
+varying vec3 v_normal;
+varying vec3 v_across;
+varying vec3 v_up;
+varying vec2 v_uv;
 varying vec2 v_facing;
 varying float v_haze;
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
-    vec3 lit = v_color * dial_light(earth_dial, v_facing) * 1.35 * (1.0 + side_shade * v_side);
+    vec4 shape = Texel(relief, v_uv);
+    // outside the circle: no sprite here
+    if (shape.a < 0.5) {
+        discard;
+    }
+    // the slope's facing, bent by the relief across the sprite: the side
+    // toward the sun comes out bright, the other dark
+    vec2 bend = shape.rg * 2.0 - 1.0;
+    vec3 n = normalize(v_normal * shape.b + (v_across * bend.x + v_up * bend.y) * bump);
+    float sunlit = max(dot(n, sun), 0.0);
+    vec3 hour = dial_light(earth_dial, v_facing);
+    vec3 lit = v_color * hour * (0.30 + 1.15 * sunlit);
     return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
@@ -391,15 +414,16 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     }
 
     renderer.ground_shader = love.graphics.newShader(GROUND_PIXEL, GROUND_VERTEX)
-    renderer.splotch_shader = love.graphics.newShader(SPLOTCH_PIXEL, SPLOTCH_VERTEX)
-    -- the splotch: a flat disc, a fan of 24 slices
-    local disc = { { 0, 0 } }
-    for step = 0, 24 do
-        local a = 2 * math.pi * step / 24
-        disc[#disc + 1] = { math.cos(a), math.sin(a) }
-    end
-    renderer.splotch_mesh = love.graphics.newMesh({ { "VertexPosition", "float", 2 } }, disc, "fan", "static")
-    renderer.splotch_count = 0
+    renderer.dot_shader = love.graphics.newShader(DOT_PIXEL, DOT_VERTEX)
+    -- the sprite: a square, the round relief cut from it in the shader
+    renderer.dot_mesh = love.graphics.newMesh({ { "VertexPosition", "float", 2 } },
+        { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } }, "fan", "static")
+    local relief = love.graphics.newImage(made_by_formula.round_relief(64))
+    relief:setFilter("linear", "linear")
+    renderer.dot_count = 0
+    renderer.dot_shader:send("relief", relief)
+    renderer.dot_shader:send("dot_size", M.DOT_SIZE)
+    renderer.dot_shader:send("bump", M.DOT_BUMP)
     renderer.unit_shader = love.graphics.newShader(UNIT_PIXEL, UNIT_VERTEX)
     renderer.cuboid_shader = love.graphics.newShader(CUBOID_PIXEL, CUBOID_VERTEX)
 
@@ -456,14 +480,11 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
         renderer.dials[material] = dial
     end
     renderer.ground_shader:send("earth_dial", renderer.dials.earth)
-    renderer.splotch_shader:send("earth_dial", renderer.dials.earth)
-    renderer.splotch_shader:send("splotch_tilt", M.SPLOTCH_TILT)
-    renderer.splotch_shader:send("splotch_dome", M.SPLOTCH_DOME)
-    renderer.splotch_shader:send("side_shade", M.SPLOTCH_SIDE_SHADE)
+    renderer.dot_shader:send("earth_dial", renderer.dials.earth)
     renderer.unit_shader:send("metal_dial", renderer.dials.metal)
     renderer.unit_shader:send("glaze_dial", renderer.dials.glaze)
     renderer.cuboid_shader:send("glaze_dial", renderer.dials.glaze)
-    for _, shader in ipairs({ renderer.ground_shader, renderer.splotch_shader, renderer.unit_shader,
+    for _, shader in ipairs({ renderer.ground_shader, renderer.dot_shader, renderer.unit_shader,
             renderer.cuboid_shader }) do
         shader:send("window_center", M.WINDOW_CENTER)
         shader:send("window_radius", M.WINDOW_RADIUS)
@@ -474,33 +495,35 @@ end
 -- }}}
 
 -- {{{ function M.set_terrain()
--- Hands the renderer the painted terrain (a list from 007's seed_terrain).
--- They are put in order from far to near, once: drawn in that order, nearer
--- splotches cover farther ones ("closer circles drawn on-top"). The order
--- by tier distance holds however the chair turns, since turning keeps each
--- splotch's distance from the hub.
-function M.set_terrain(renderer, splotches)
-    renderer.splotch_count = #splotches
-    -- no terrain: nothing to draw
-    if #splotches == 0 then
+-- Hands the renderer the land's points (a list from 026's build). Put in
+-- order from far to near once, so where two sprites at one depth overlap
+-- the nearer is drawn last; turning the chair keeps every point's distance
+-- from the hub, so the order holds.
+function M.set_terrain(renderer, points)
+    renderer.dot_count = #points
+    -- no land: nothing to draw
+    if #points == 0 then
         return
     end
     local ordered = {}
-    for index, splotch in ipairs(splotches) do
-        ordered[index] = splotch
+    for index, point in ipairs(points) do
+        ordered[index] = point
     end
     table.sort(ordered, function(a, b) return a.r > b.r end)
     local vertices = {}
-    for index, splotch in ipairs(ordered) do
-        vertices[index] = { splotch.r, splotch.angle, splotch.size, 0,
-            splotch.color[1], splotch.color[2], splotch.color[3], 1 }
+    for index, point in ipairs(ordered) do
+        vertices[index] = { point.r, point.angle, point.height, 0,
+            point.facing[1], point.facing[2], point.facing[3], 0,
+            point.color[1], point.color[2], point.color[3], 1 }
     end
-    renderer.splotch_instances = love.graphics.newMesh({
-        { "Splotch", "float", 4 },
-        { "SplotchColor", "float", 4 },
+    renderer.dot_instances = love.graphics.newMesh({
+        { "Dot", "float", 4 },
+        { "DotFacing", "float", 4 },
+        { "DotColor", "float", 4 },
     }, vertices, "points", "static")
-    renderer.splotch_mesh:attachAttribute("Splotch", renderer.splotch_instances, "perinstance")
-    renderer.splotch_mesh:attachAttribute("SplotchColor", renderer.splotch_instances, "perinstance")
+    for _, name in ipairs({ "Dot", "DotFacing", "DotColor" }) do
+        renderer.dot_mesh:attachAttribute(name, renderer.dot_instances, "perinstance")
+    end
 end
 -- }}}
 
@@ -533,21 +556,24 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
     if renderer.camera.view == "arch" then
         windings = far_camera.arch_windings(renderer.camera)
     end
-    -- first the ground and its painted terrain, every winding; the terrain
-    -- drawn far to near without testing depth, so nearer splotches always
-    -- cover farther ones and none flicker where two lie at one height
+    -- first the land, every winding: the painted map, or the land's lit
+    -- points on an empty canvas (the owner: "we don't draw a texture onto
+    -- the ground. It's just a completely empty canvas with invisible
+    -- points. Then, we add our stuff.")
+    local sun_x, sun_y, sun_z = terrain.sun_direction(look.hour_angle)
     for _, winding in ipairs(windings) do
         renderer.camera.arch_winding = winding
-        love.graphics.setShader(renderer.ground_shader)
-        send_frame(renderer, renderer.ground_shader, flip_y, look)
-        love.graphics.draw(renderer.ground_mesh)
-        -- terrain to paint
-        if renderer.splotch_count > 0 then
-            love.graphics.setDepthMode("always", false)
-            love.graphics.setShader(renderer.splotch_shader)
-            send_frame(renderer, renderer.splotch_shader, flip_y, look)
-            love.graphics.drawInstanced(renderer.splotch_mesh, renderer.splotch_count)
-            love.graphics.setDepthMode("lequal", true)
+        -- the painted map
+        if look.ground == "map" then
+            love.graphics.setShader(renderer.ground_shader)
+            send_frame(renderer, renderer.ground_shader, flip_y, look)
+            love.graphics.draw(renderer.ground_mesh)
+        -- the land's points, if there are any
+        elseif renderer.dot_count > 0 then
+            love.graphics.setShader(renderer.dot_shader)
+            send_frame(renderer, renderer.dot_shader, flip_y, look)
+            renderer.dot_shader:send("sun", { sun_x, sun_y, sun_z })
+            love.graphics.drawInstanced(renderer.dot_mesh, renderer.dot_count)
         end
     end
     -- then everything standing on it

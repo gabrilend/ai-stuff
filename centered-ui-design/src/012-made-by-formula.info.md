@@ -11,3 +11,5 @@ Every picture is drawn by code; none is AI-generated.
 | `flat_map(size, tiers, seat_colors, sections)` | a canvas: quadrant tints, angle grid, equally spaced tier rings, quadrant lines, the color-coded sections |
 
 `dial_light(material, facing_x, facing_y, hour_angle, window_center, window_radius)`: the light a surface facing that way receives from the material's dial at that hour, without a picture — the Lua twin of the world shaders' dial lookup (used for the console's metal). Returns r, g, b.
+
+`round_relief(size)`: the one round picture every terrain point is drawn with — which way each pixel of a small dome faces (red across, green up, blue out) and whether it is inside the circle (alpha). Lit by a sun, one side comes out bright, the other dark. Returns image data.

@@ -44,7 +44,7 @@ M.REQUIRED_FIELDS = {
     { name = "far_pole_tier",              kind = "number" },
     { name = "arch_reach",                 kind = "number" },
     { name = "arch_span_degrees",          kind = "number" },
-    { name = "terrain_splotch_count",      kind = "whole" },
+    { name = "view_ground",                kind = "word", words = { "dots", "map" } },
 }
 
 -- {{{ local function is_one_of()

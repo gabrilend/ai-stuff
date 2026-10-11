@@ -105,7 +105,8 @@ return {
     -- "magic circle"), the far side of the world showing at both ends
     arch_span_degrees = 450,
 
-    -- painted terrain: how many splotches of earthy colour lie on the
-    -- ground, to see how the world reads at different distances (0: none)
-    terrain_splotch_count = 1500,
+    -- the land: "dots", its points drawn as round sprites lit by the sun on
+    -- an otherwise empty ground; or "map", the flat painted map (tier rings,
+    -- quadrants, sections). Switched in the settings menu too.
+    view_ground = "dots",
 }

@@ -291,40 +291,45 @@ do
         sphere_fold.slope(fold, far_r) < sphere_fold.slope(fold, near_r))
 end
 
--- the painted terrain (issue 214) -------------------------------------------
+-- the land as lit points (issue 214) ---------------------------------------
 
 do
+    local terrain = require("026-the-terrain")
     local fold = sphere_fold.from_settings(good_settings())
-    local a = seeding.seed_terrain(600, 5, fold)
-    local b = seeding.seed_terrain(600, 5, fold)
-    local same = #a == 600
+    local a = terrain.build(5, fold)
+    local b = terrain.build(5, fold)
+    local same = #a == #b and #a > 1000
     for index = 1, #a do
-        same = same and a[index].r == b[index].r and a[index].angle == b[index].angle
+        same = same and a[index].angle == b[index].angle and a[index].height == b[index].height
     end
-    check("the same seed paints the same terrain", same)
-    -- all one size, and as many to every stretch of ring: a band of rings
-    -- holds splotches in proportion to its rings' length
-    local one_size, inner = true, 0
-    for _, splotch in ipairs(a) do
-        one_size = one_size and splotch.size == a[1].size
-        if splotch.r < fold.tiers_shown / 2 then
-            inner = inner + 1
-        end
+    check("the same seed makes the same land", same, #a .. " points")
+    -- points evenly along every ring: a ring holds as many as its length at
+    -- the spacing, so the outermost ring holds several times the innermost
+    local by_ring = {}
+    for _, point in ipairs(a) do
+        local key = string.format("%.6f", point.r)
+        by_ring[key] = (by_ring[key] or 0) + 1
     end
-    check("terrain splotches are all one size", one_size)
-    -- the inner half of the tiers' share of the rings' length (by sampling)
-    local inner_length, all_length = 0, 0
-    for step = 1, 1000 do
-        local r = 0.15 + (fold.tiers_shown - 0.15) * (step - 0.5) / 1000
-        local length = sphere_fold.radius(fold, r)
-        all_length = all_length + length
-        if r < fold.tiers_shown / 2 then
-            inner_length = inner_length + length
-        end
+    local fewest, most = math.huge, 0
+    for _, count in pairs(by_ring) do
+        fewest = math.min(fewest, count)
+        most = math.max(most, count)
     end
-    local expected = 600 * inner_length / all_length
-    check("terrain holds as many splotches to every stretch of ring",
-        math.abs(inner - expected) < 50, inner .. " inner, expected about " .. math.floor(expected))
+    check("longer rings far out hold more points than short ones near the hub", most > 4 * fewest,
+        fewest .. " to " .. most)
+    -- a mesa rises above the land around it
+    local hills = terrain.mesas(5, fold)
+    local hill = hills[1]
+    check("a mesa's top stands above the land beside it",
+        terrain.height_at(hills, hill.x, hill.z) > terrain.height_at(hills, hill.x + hill.radius * 3, hill.z) + 2)
+    -- a slope facing east is lit by the morning sun and not by the evening's
+    local east = { 0.7071, 0.7071, 0 }
+    local function lit(hour)
+        local x, y, z = terrain.sun_direction(hour)
+        return math.max(east[1] * x + east[2] * y + east[3] * z, 0)
+    end
+    check("a slope facing east is lit in the morning, in shadow at evening",
+        lit(-math.pi / 2.5) > 0.5 and lit(math.pi / 2.5) < 0.1, lit(-math.pi / 2.5) .. " " .. lit(math.pi / 2.5))
 end
 
 -- the move box: time scaling and first-come-first-served order -------------

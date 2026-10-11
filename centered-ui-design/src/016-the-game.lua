@@ -34,6 +34,7 @@ local read_input = require("001-read-the-input")
 local say_goodbye = require("002-say-goodbye")
 local far_camera = require("003-the-far-camera")
 local sphere_fold = require("004-the-sphere-fold")
+local terrain = require("026-the-terrain")
 local made_by_formula = require("012-made-by-formula")
 local records = require("005-unit-records")
 local seeding = require("007-seeding-the-units")
@@ -78,6 +79,7 @@ local LOOK_TOGGLES = {
     toggle_depth = { "depth", { "flat", "hub", "slant", "arch" } },
     toggle_standing = { "standing", { "upright", "outward" } },
     toggle_blur = { "blur", { "on", "off" } },
+    toggle_ground = { "ground", { "dots", "map" } },
 }
 
 -- {{{ local function next_choice()
@@ -260,6 +262,7 @@ function game.load(arguments)
         depth = settings.view_depth,
         standing = settings.view_standing,
         blur = settings.view_blur,
+        ground = settings.view_ground,
         hour_angle = 0,
     }
     game.camera.view = game.look.depth
@@ -280,9 +283,8 @@ function game.load(arguments)
     game.renderer = world_renderer.new(settings, game.camera, game.fold, game.unit_count,
         game.cuboid_count, seeding.SECTIONS)
     game.beyond = map_from_beyond.new(1024, game.renderer.flat_map)
-    -- the painted terrain: seeded here (data), drawn by the renderer (view)
-    world_renderer.set_terrain(game.renderer,
-        seeding.seed_terrain(settings.terrain_splotch_count, settings.seed, game.fold))
+    -- the land: made here (data, 026), drawn by the renderer (view)
+    world_renderer.set_terrain(game.renderer, terrain.build(settings.seed, game.fold))
     game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat,
         settings.arch_height_share)
     game.focus = focus_ring.new()
@@ -337,6 +339,9 @@ local function turn_chair(seconds)
     game.chair = game.chair + (game.chair_target - game.chair) * (1 - math.exp(-seconds * CHAIR_EASE))
     game.camera.turn = game.chair
     dashboard_module.set_chair(game.dashboard, (game.chair - game.home_turn) / game.quadrant)
+    -- the seat being played: the one whose arch the chair is nearest
+    local seats_along = math.floor((game.chair - game.home_turn) / game.quadrant + 0.5)
+    game.playing_seat = (game.settings.seat - 1 + seats_along) % game.settings.team_size + 1
 end
 -- }}}
 

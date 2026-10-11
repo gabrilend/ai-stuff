@@ -9,10 +9,19 @@
 
 ## Current Behavior
 
-There is one seat.
+Partly built (2026-10-10): the console spins by hand (issue 302) and the
+seat whose arch is in front is the seat being played: its buttons answer,
+the other arches' buttons are drawn but do not. Seats are still numbered
+round the ring, not yet named by the A-D grid; no seat button or number
+keys yet.
 
 ## Intended Behavior
 
+- **Spinning to a seat plays it** (the owner, asked whether an ally's
+  arch spun to the front should answer: "yes"). Whichever arch the console
+  settles on is the seat being played; its buttons answer and its slot
+  shows who is named; the arches to either side are drawn whole but do not
+  answer.
 - Up to four seats (stand-ins), each owning a quadrant, with its own stands,
   factories, view rotation, paint color.
 - **Seats are named by a grid** (the owner, 2026-10-10): ours A B over C D,

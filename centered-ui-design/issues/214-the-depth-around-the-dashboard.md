@@ -41,7 +41,11 @@ own unbroken angle (pictures 025-027 at 450, 360, 720). The view dials
 (step 11) are built: A with the wheel sets the reach, S the span, shown on
 two console dials (pictures 036-041). The painted terrain (step 12) is
 built: splotches all one size, as many to every stretch of ring, painted
-far to near (pictures 042-049); the blur is now off by default.
+far to near (pictures 042-049); the blur is now off by default. The land
+as lit dots (step 13) then replaced the splotches: a grid of points with
+heights, facings and colours (026), drawn as round sprites turned toward
+the sun on an empty ground; the painted map is a menu choice (pictures
+051-054 at dawn, noon, evening and mid-morning).
 
 ## Intended Behavior
 
@@ -145,6 +149,38 @@ is just the depth effect applied down one scenery."
   dashboard(s) but it should increase as it goes deeper. Meaning, at any
   particular length, there's N circles." — and "can we remove the
   blurring effect I think it's clearer without it."
+- **Terrain as lit dots** (the owner, after the splotches: "this is for
+  rendering terrain btw so instead of a "terrain mesh" (think like a
+  navmesh, but terrain for rendering purposes not pathfinding) and instead
+  of a triangle we might have a pixel-style dot that we represent over an
+  area by applying textures to via the rotation of a particular circle dot
+  thing ... it should change reflection in the changing day/night cycle
+  ... so in the morning one side of the "Warcraft The Barrens" style cliff
+  is lit, and then as the sun traverses the other side is bright while the
+  rest is in shadow ... each "point" ... now has a bit of extra
+  information, and we don't draw a texture onto the ground. It's just a
+  completely empty canvas with invisible points. Then, we add our stuff.
+  What we have is a rotation and a circular texture (whose library
+  utilities we're building with the UI as well by the way.) the circular
+  texture will have one side of it with a certain color, say... bright, as
+  if the sun was shining on it but it was still the same color, and the
+  other as if it were dark. The rotation determines which of those is
+  visible to the player. At distant distances, we'll have more of them,
+  and closer we'll have fewer." — and: "they should be isometric style
+  sprited to the camera. The closer ones should render above the farther
+  ones. Stuff behind a hill won't even need to be rendered at all.").
+  The ground is no longer painted: the terrain is a grid of points, each
+  with a height, a facing (the slope's direction, from the height's
+  steepness) and a colour, drawn as a round sprite facing the camera. Every
+  sprite uses one circular picture, bright on one side and dark on the
+  other (made by formula, with the console's dial pictures); it is turned
+  so its bright side points toward the sun, and shows more of it the more
+  squarely the slope faces the sun — so a cliff facing east is lit in the
+  morning and in shadow at evening. Nearer sprites cover farther ones and
+  write depth, so what stands behind a hill is hidden. Points are spaced
+  evenly along each ring, so longer rings far out hold more. A few mesas
+  with steep sides, by formula from the seed, make the test landscape. The
+  flat painted map can be switched back from the settings menu.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -232,6 +268,17 @@ is just the depth effect applied down one scenery."
     same seed and spread evenly by tier; pictures at noon, dusk, far and
     near.
 
+13. Terrain as lit dots: a new terrain file (data: the grid of points by
+    ring, heights from seeded mesas, facings from the height's slope,
+    colours by height and slope) with its info file; the two-sided circular
+    picture in `012`; the sprite drawing in `013` (facing the camera,
+    turned toward the sun, depth by the point's distance so nearer covers
+    farther and hills hide what is behind); a ground word in the settings
+    ("dots" or "map") and a menu toggle; the splotches retired; tests: same
+    seed same terrain, spacing even along rings, a slope facing the
+    morning sun is lit then and not at evening; pictures at morning, noon
+    and evening.
+
 ## Open questions
 
 - Answered: figures near the top should visibly move faster left-right;
@@ -250,6 +297,9 @@ is just the depth effect applied down one scenery."
   are on screen (mostly our own quadrant). Is that the right trade, or
   should the arch view reach less far (bigger figures, fewer tiers in
   view)?
+- The mesas are only seen: villagers walk the flat ground through them.
+  Should the terrain's heights become part of the world (walking up and
+  around hills, line of sight), and in which phase?
 - Where is the far pole? Built as one tier past the tiers shown (just
   beyond the map's edge). Should it be at the edge itself, or further?
 - "Expand the longitude": built as showing from the hub out to the map's

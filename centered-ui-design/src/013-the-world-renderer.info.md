@@ -8,3 +8,5 @@ The ground (earth with the flat map and sections on a folded disc), the units (o
 | `new(settings, camera, fold, unit_count, cuboid_count, sections)` | builds shaders, meshes, textures, the three light dials |
 | `draw(renderer, front_units, front_cuboids, flip_y, look)` | the two front blocks' byte data; `look`: hour_angle (0 noon), standing ("upright"/"outward") |
 | `OWNER_COLORS`, `UNIT_WORLD_SCALE`, `FULL_PACE`, `CUBOID_ROUNDNESS`, `WINDOW_CENTER`, `WINDOW_RADIUS`, `HAZE_COLOR`, `OUTWARD_LEAN` | tuning knobs |
+
+`set_terrain(renderer, points)`: hands it the land's points (026's `build`); drawn as round sprites facing the camera, lit toward the sun (`look.ground == "dots"`), or the painted map instead (`"map"`). Knobs: `DOT_SIZE`, `DOT_BUMP`.
