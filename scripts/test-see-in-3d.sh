@@ -206,6 +206,48 @@ check "without a picture, it takes the depth ControlNet's, and no picture is loa
 output=$(luajit -e "local I = dofile('$DIR/libs/see-in-3d-imagine.lua'); io.write(I.json({ text = 'a \"q\" and\\nline', n = 0.5, list = { 1, 'two' } }))")
 check "JSON: sorted keys, escaped quotes and line breaks" "$(same=$(printf '%s' '{"list":[1,"two"],"n":0.5,"text":"a \"q\" and\nline"}'); [ "$output" = "$same" ] && echo yes || echo no)"
 
+echo "moving pictures (no server needed):"
+moving=$(luajit -e "
+    local A = dofile('$DIR/libs/see-in-3d-animate.lua')
+    local blends = A.blends(2, 4)
+    -- two segments of four frames share their middle picture: seven frames
+    local plan = #blends .. ' ' .. blends[1].blend .. ' ' .. blends[4].segment .. ' ' .. blends[5].segment .. ' ' .. blends[7].blend
+    -- two flat frames of two colours give a palette of those two colours
+    local red, blue = string.rep(string.char(200, 30, 30), 16), string.rep(string.char(30, 30, 200), 16)
+    local palette = A.median_cut({ red, blue }, 256)
+    local index = A.indexer(palette)
+    local r, b = index(red, 16), index(blue, 16)
+    local exact = (#palette == 2) and r[0] ~= b[0] and palette[r[0] + 1][1] == 200 and palette[b[0] + 1][3] == 200
+    local graph = A.workflow_between{ from_image = 'a.png', to_image = 'b.png', blend = 0.25, prompt = 'p', negative = 'n',
+        seed = 1, steps = 2, cfg = 1, sampler = 's', scheduler = 'k', denoise = 0.4, prefix = 'x', checkpoint = 'c.safetensors' }
+    local wired = true
+    for _, node in pairs(graph) do for _, v in pairs(node.inputs) do if type(v) == 'table' and not graph[v[1]] then wired = false end end end
+    io.write(plan, '|', tostring(exact), '|', tostring(wired), '|', graph['8'].inputs.blend_factor)")
+IFS='|' read -r plan exact wired blend <<< "$moving"
+# frame 4 closes the first segment on the middle picture; frame 5 opens the second
+check "frames of two segments, the shared middle drawn once ($plan)" "$([ "$plan" = "7 1 1 2 0" ] && echo yes || echo no)"
+check "the palette is chosen from the frames' own colours" "$([ "$exact" = true ] && echo yes || echo no)"
+check "every wire of the in-between workflow reaches a node" "$([ "$wired" = true ] && echo yes || echo no)"
+check "the blend reaches the server as given" "$([ "$blend" = 0.25 ] && echo yes || echo no)"
+gif_check=$(luajit -e "
+    local ffi = require('ffi')
+    local A = dofile('$DIR/libs/see-in-3d-animate.lua')
+    local gif = dofile('$DIR/../gif-generator/src/004-gif.lua')
+    local frames, compressed = {}, {}
+    for f = 1, 3 do frames[f] = string.rep(string.char(f * 60, 100, 255 - f * 60), 64) end
+    local palette = A.median_cut(frames, 256)
+    local index = A.indexer(palette)
+    for f = 1, 3 do compressed[f] = gif.compress_frame(index(frames[f], 64), 64) end
+    local h = io.open('$WORK/three.gif', 'wb')
+    h:write(gif.assemble({ width = 8, height = 8, palette_bytes = A.palette_bytes(palette), compressed = compressed, delay_cs = 10 }))
+    h:close()
+    io.write('ok')")
+check "three frames make a GIF ImageMagick reads as three frames" "$([ "$gif_check" = ok ] && [ "$(identify "$WORK/three.gif" | wc -l)" = 3 ] && echo yes || echo no)"
+output=$("$TOOL" choose "$PROJECT" --out="$WORK/choose.html")
+check "the choosing page lists the project's kept pictures" "$(grep -q 'data-role="from"' "$WORK/choose.html" && contains "$output" "1 kept pictures" )"
+output=$("$TOOL" animate --from="$WORK/marks.png" 2>&1)
+check "animate without an end says what it needs" "$(contains "$output" "--to=PICTURE")"
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

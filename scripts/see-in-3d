@@ -38,6 +38,9 @@ local SIZE = 480
 local WORKERS = nil
 local OUT = nil
 local VIEW, PICTURE, PROMPT, SEED, DRY_RUN = "angle", nil, nil, 1, false
+-- the animate step's ends and middle, frames per segment, and frame delay
+-- in hundredths of a second (issue A12)
+local FROM, TO, MIDDLE, FRAMES, DELAY, BOUNCE = nil, nil, nil, 8, 12, false
 local SIZE_GIVEN = false
 -- Where what this run makes is kept (issue A10): the project given, or the
 -- nearest folder above the working directory that keeps llm-transcripts/.
@@ -76,10 +79,19 @@ for _, argument in ipairs(arg) do
     elseif seed_value then SEED = tonumber(seed_value)
     elseif argument == "--dry-run" then DRY_RUN = true
     elseif argument == "--no-keep" then KEEP = false
+    elseif argument == "--bounce" then BOUNCE = true
+    elseif argument:match("^%-%-from=(.+)$") then FROM = argument:match("^%-%-from=(.+)$")
+    elseif argument:match("^%-%-to=(.+)$") then TO = argument:match("^%-%-to=(.+)$")
+    elseif argument:match("^%-%-middle=(.+)$") then MIDDLE = argument:match("^%-%-middle=(.+)$")
+    elseif argument:match("^%-%-frames=(%d+)$") then FRAMES = tonumber(argument:match("^%-%-frames=(%d+)$"))
+    elseif argument:match("^%-%-delay=(%d+)$") then DELAY = tonumber(argument:match("^%-%-delay=(%d+)$"))
     elseif argument:match("^%-%-project=(.+)$") then PROJECT = argument:match("^%-%-project=(.+)$")
     else positional[#positional + 1] = argument end
 end
 local SCRATCH = DIR .. "/tmp/shared-memory/see-in-3d"
+-- gif-generator's encoder, used as it is: one GIF writer for every project
+local GIF_ENCODER = DIR .. "/../gif-generator/src/004-gif.lua"
+local ffi_string = require("ffi").string
 local SCRIPT_PATH = arg[0]
 -- }}}
 
@@ -217,14 +229,28 @@ end
 local function keep_visual(scene_path, kind, pictures)
     if not KEEP then return end
     local project = find_project()
-    local name = (scene_path:match("([^/]+)%.lua$") or "scene"):gsub("[^%w%-]", "-")
+    -- named after the scene, or, for a moving picture made from pictures
+    -- rather than a scene, after the picture it starts from
+    local name = (scene_path:match("([^/]+)%.%w+$") or "scene"):gsub("[^%w%-]", "-")
     local folder = string.format("%s/mind/imagination-portraits/%s-%s-%s", project, os.date("%Y-%m-%d-%H%M%S"), name, kind)
     run("mkdir -p " .. shell_quote(folder), "making the portrait folder")
-    run("cp " .. shell_quote(scene_path) .. " " .. shell_quote(folder .. "/scene.lua"), "keeping the scene")
+    -- a scene is kept beside its pictures; a moving picture made from
+    -- pictures has its workflow and its ends kept instead, by the caller
+    if scene_path:match("%.lua$") then
+        run("cp " .. shell_quote(scene_path) .. " " .. shell_quote(folder .. "/scene.lua"), "keeping the scene")
+    end
     local kept = {}
     for _, picture in ipairs(pictures) do
-        local target = folder .. "/" .. picture.name .. ".jpg"
-        run(string.format("magick %s -quality 88 %s", shell_quote(picture.path), shell_quote(target)), "keeping " .. picture.name)
+        -- a still is kept as a JPEG copy (its PNG is uncompressed); a moving
+        -- picture is kept as it is, since a JPEG cannot move
+        local target
+        if picture.as_is then
+            target = folder .. "/" .. picture.name .. "." .. (picture.path:match("%.(%w+)$") or "bin")
+            run("cp " .. shell_quote(picture.path) .. " " .. shell_quote(target), "keeping " .. picture.name)
+        else
+            target = folder .. "/" .. picture.name .. ".jpg"
+            run(string.format("magick %s -quality 88 %s", shell_quote(picture.path), shell_quote(target)), "keeping " .. picture.name)
+        end
         kept[#kept + 1] = { path = target, caption = picture.caption }
     end
     local info = io.open(folder .. "/visual.info", "w")
@@ -384,6 +410,221 @@ local function imagine(scene_path)
 end
 -- }}}
 
+-- {{{ local function animate()
+-- A moving picture between two pictures (and through a middle one, if
+-- given): every in-between frame made by the image server, the frames turned
+-- into a looping GIF by gif-generator's encoder, the GIF kept in the project
+-- and so shown in the conversation where it was made. Issue A12.
+local function animate()
+    if not FROM or not TO then
+        fail("usage: see-in-3d animate --from=PICTURE --to=PICTURE [--middle=PICTURE] --prompt=\"the mechanism\" [--frames=8] [--delay=12] [--bounce] [server options]")
+    end
+    for _, path in ipairs({ FROM, TO, MIDDLE }) do
+        if not file_exists(path) then fail("no such picture: " .. path) end
+    end
+    if not PROMPT or PROMPT == "" then fail("--prompt names the mechanism the movement shows; it guides every frame") end
+    local imagining = dofile(DIR .. "/libs/see-in-3d-imagine.lua")
+    local animating = dofile(DIR .. "/libs/see-in-3d-animate.lua")
+    ensure_scratch()
+    local size = SIZE_GIVEN and SIZE or 512
+    local name = (FROM:match("([^/]+)%.%w+$") or "from"):gsub("[^%w%-]", "-")
+    local work = SCRATCH .. "/animate-" .. os.date("%Y%m%d-%H%M%S") .. "-" .. name
+    run("mkdir -p " .. shell_quote(work), "making the work folder")
+
+    -- the ends (and middle) at one size, centred and cropped square
+    local ends = { FROM, MIDDLE or TO, MIDDLE and TO or nil }
+    local prepared = {}
+    for index, path in ipairs(ends) do
+        prepared[index] = string.format("%s/end-%d.png", work, index)
+        run(string.format("magick %s -resize %dx%d^ -gravity center -extent %dx%d %s",
+            shell_quote(path), size, size, size, size, shell_quote(prepared[index])), "sizing " .. path)
+    end
+
+    local settings = { prompt = PROMPT, seed = SEED, denoise = 0.45 }
+    for key, value in pairs(imagining.defaults) do if settings[key] == nil then settings[key] = value end end
+    for key, value in pairs(IMAGINE) do settings[key] = value end
+    local server = settings.server
+    if not imagining.reachable(server) then fail("the image server at " .. server .. " is not answering") end
+    local probe = animating.workflow_between(setmetatable({ from_image = "x", to_image = "x", blend = 1, prefix = "x" }, { __index = settings }))
+    local missing = imagining.missing(server, probe)
+    if #missing > 0 then fail("the server at " .. server .. " lacks what this needs:\n  " .. table.concat(missing, "\n  ")) end
+    local uploaded = {}
+    for index, path in ipairs(prepared) do
+        local remote, problem = imagining.upload(server, path)
+        if not remote then fail(problem) end
+        uploaded[index] = remote
+    end
+
+    -- every frame queued at once (the server works through them in turn),
+    -- then each waited on and fetched in order
+    local plan = animating.blends(#prepared - 1, FRAMES)
+    local ids = {}
+    for index, frame in ipairs(plan) do
+        local frame_settings = setmetatable({ from_image = uploaded[frame.segment], to_image = uploaded[frame.segment + 1],
+            blend = frame.blend, prefix = "see-in-3d-animate-" .. name }, { __index = settings })
+        local id, problem = imagining.queue(server, animating.workflow_between(frame_settings), string.format("%s/frame-%02d-workflow.json", work, index))
+        if not id then fail(problem) end
+        ids[index] = id
+    end
+    io.write(string.format("queued %d frames: %s\n", #plan, PROMPT))
+    local frames_rgb = {}
+    for index, id in ipairs(ids) do
+        local result, problem = imagining.wait(server, id, 900)
+        if not result then fail("frame " .. index .. ": " .. problem) end
+        local png = string.format("%s/frame-%02d.png", work, index)
+        local saved
+        saved, problem = imagining.fetch(server, result, png)
+        if not saved then fail("frame " .. index .. ": " .. problem) end
+        local raw = string.format("%s/frame-%02d.rgb", work, index)
+        run(string.format("magick %s -resize %dx%d! -depth 8 rgb:%s", shell_quote(png), size, size, shell_quote(raw)), "reading frame " .. index)
+        local handle = io.open(raw, "rb")
+        frames_rgb[index] = handle:read("*a")
+        handle:close()
+    end
+    -- going and coming back, when asked, so the loop has no jump
+    if BOUNCE then
+        for index = #frames_rgb - 1, 2, -1 do frames_rgb[#frames_rgb + 1] = frames_rgb[index] end
+    end
+
+    -- the palette from the frames, then each frame compressed by its own
+    -- worker process (compression is the slow half, and frames are
+    -- independent), then gif-generator's encoder puts them together
+    local palette = animating.median_cut(frames_rgb, 256)
+    local to_indexes = animating.indexer(palette)
+    local commands = {}
+    for index, rgb in ipairs(frames_rgb) do
+        local indexes = to_indexes(rgb, size * size)
+        local handle = io.open(string.format("%s/indexes-%02d", work, index), "wb")
+        handle:write(ffi_string(indexes, size * size))
+        handle:close()
+        commands[#commands + 1] = string.format("luajit %s --dir=%s --gif-frame-worker %s %s &", shell_quote(SCRIPT_PATH), shell_quote(DIR),
+            shell_quote(string.format("%s/indexes-%02d", work, index)), shell_quote(string.format("%s/compressed-%02d", work, index)))
+    end
+    run("bash -c " .. shell_quote(table.concat(commands, "\n") .. "\nwait"), "compressing the frames")
+    local gif = dofile(GIF_ENCODER)
+    local compressed = {}
+    for index = 1, #frames_rgb do
+        local handle = io.open(string.format("%s/compressed-%02d", work, index), "rb")
+        if not handle then fail("frame " .. index .. " was not compressed") end
+        compressed[index] = handle:read("*a")
+        handle:close()
+    end
+    local gif_path = work .. "/animation.gif"
+    local bytes = gif.assemble({ width = size, height = size, palette_bytes = animating.palette_bytes(palette),
+        compressed = compressed, delay_cs = DELAY })
+    local handle = io.open(gif_path, "wb")
+    handle:write(bytes)
+    handle:close()
+    io.write(string.format("  moving picture: %s (%d frames, %d colours, %d KB)\n", gif_path, #frames_rgb, #palette, math.floor(#bytes / 1024)))
+    keep_visual(FROM, "animated", { { name = "animation", path = gif_path, as_is = true, caption = PROMPT .. " -- in motion" } })
+end
+-- }}}
+
+-- {{{ local function choose()
+-- A page of the project's kept still pictures, each with beginning / middle /
+-- end buttons, a box for the mechanism, and the animate command written out
+-- to copy. The page only writes text; making stays with the command, so
+-- choosing and making never share code (issue A12). Written to the RAM
+-- scratch space: it is a view of the kept pictures, remade on demand.
+local function choose(project_dir)
+    if project_dir then PROJECT = project_dir end
+    local project = find_project()
+    ensure_scratch()
+    local pipe = io.popen("ls -1 " .. shell_quote(project .. "/mind/imagination-portraits") .. " 2>&1")
+    local pictures = {}
+    for folder in pipe:lines() do
+        for _, still in ipairs({ "views.jpg", "imagined.jpg" }) do
+            local path = project .. "/mind/imagination-portraits/" .. folder .. "/" .. still
+            if file_exists(path) then pictures[#pictures + 1] = path end
+        end
+    end
+    pipe:close()
+    if #pictures == 0 then fail("no kept pictures in " .. project .. "/mind/imagination-portraits yet") end
+    local escape = function(text) return (text:gsub('[&<>"]', { ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ['"'] = "&quot;" })) end
+    local cards = {}
+    for index, path in ipairs(pictures) do
+        cards[#cards + 1] = string.format(
+            '<figure><img src="file://%s" alt="kept picture %d" loading="lazy"><figcaption>%s</figcaption>' ..
+            '<div class="pick"><button data-role="from" data-path="%s">beginning</button><button data-role="middle" data-path="%s">middle</button>' ..
+            '<button data-role="to" data-path="%s">end</button></div></figure>',
+            escape(path), index, escape(path:match("imagination%-portraits/(.*)$")), escape(path), escape(path), escape(path))
+    end
+    local page = [[<!doctype html>
+<!-- Made by scripts/see-in-3d choose, from the project's kept pictures, so the moments of a moving picture can be picked by eye (issue A12). -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose the Moments</title>
+<style>
+:root { --paper: #eef1ee; --ink: #1f2a2e; --pencil: #5d6b70; --accent: #2c5d86; --chosen: #a3402d; }
+@media (prefers-color-scheme: dark) { :root { --paper: #13181a; --ink: #dfe7e4; --pencil: #93a3a6; --accent: #86b3da; --chosen: #e08a76; } }
+body { background: var(--paper); color: var(--ink); font: 16px/1.5 Georgia, serif; margin: 0; padding: 16px; }
+h1 { font: 600 30px system-ui, sans-serif; margin: 0 0 8px; }
+.bar { position: sticky; top: 0; background: var(--paper); padding: 8px 0 12px; border-bottom: 1px solid var(--pencil); }
+textarea, pre { width: 100%; box-sizing: border-box; font: 13px ui-monospace, monospace; }
+pre { white-space: pre-wrap; background: rgba(0,0,0,.05); padding: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+figure { margin: 0; } img { width: 100%; height: auto; display: block; }
+figcaption { font: 12px system-ui, sans-serif; color: var(--pencil); word-break: break-all; }
+button { font: 13px system-ui, sans-serif; margin: 4px 4px 0 0; padding: 4px 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+button.on { background: var(--chosen); border-color: var(--chosen); color: #fff; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style></head><body>
+<div class="bar"><h1>Choose the moments</h1>
+<p>Pick a beginning and an end (a middle if you like), say what mechanism the movement shows, and copy the command.</p>
+<label for="mechanism">The mechanism</label>
+<textarea id="mechanism" rows="2">the mechanism, in a sentence</textarea>
+<pre id="command">pick a beginning and an end</pre><button id="copy">copy the command</button> <span id="copied"></span></div>
+<div class="grid">]] .. table.concat(cards) .. [[</div>
+<script>
+const chosen = { from: null, middle: null, to: null };
+const tool = ]] .. string.format("%q", SCRIPT_PATH) .. [[;
+const project = ]] .. string.format("%q", project) .. [[;
+function quote(s) { return "'" + s.replace(/'/g, "'\\''") + "'"; }
+function write() {
+  const out = document.getElementById("command");
+  if (!chosen.from || !chosen.to) { out.textContent = "pick a beginning and an end"; return; }
+  let c = tool + " animate --project=" + quote(project) + " --from=" + quote(chosen.from) + " --to=" + quote(chosen.to);
+  if (chosen.middle) c += " --middle=" + quote(chosen.middle);
+  c += " --prompt=" + quote(document.getElementById("mechanism").value) + " --frames=8 --bounce";
+  out.textContent = c;
+}
+document.querySelectorAll(".pick button").forEach(b => b.addEventListener("click", () => {
+  const role = b.dataset.role;
+  chosen[role] = chosen[role] === b.dataset.path ? null : b.dataset.path;
+  document.querySelectorAll('.pick button[data-role="' + role + '"]').forEach(x => x.classList.toggle("on", x.dataset.path === chosen[role]));
+  write();
+}));
+document.getElementById("mechanism").addEventListener("input", write);
+document.getElementById("copy").addEventListener("click", () => {
+  const text = document.getElementById("command").textContent;
+  navigator.clipboard.writeText(text).then(() => { document.getElementById("copied").textContent = "copied"; },
+    () => { document.getElementById("copied").textContent = "select the text above and copy it"; });
+});
+</script></body></html>
+]]
+    local out = OUT or (SCRATCH .. "/choose.html")
+    local handle = io.open(out, "w")
+    handle:write(page)
+    handle:close()
+    io.write(string.format("%d kept pictures to choose from\n  %s\n", #pictures, out))
+end
+-- }}}
+
+-- {{{ local function gif_frame_worker()
+-- One frame's palette indexes compressed for the GIF, in a process of its own.
+local function gif_frame_worker(indexes_path, out_path)
+    local ffi = require("ffi")
+    local gif = dofile(GIF_ENCODER)
+    local handle = io.open(indexes_path, "rb")
+    local raw = handle:read("*a")
+    handle:close()
+    local pixels = ffi.new("uint8_t[?]", #raw)
+    ffi.copy(pixels, raw, #raw)
+    local out = io.open(out_path, "wb")
+    out:write(gif.compress_frame(pixels, #raw))
+    out:close()
+end
+-- }}}
+
 -- {{{ local function imagine_all()
 -- Every gallery example imagined, with the options given on the command line
 -- (the server, checkpoint, mode and so on). The result is kept in the example's
@@ -520,6 +761,9 @@ local steps = {
     gallery = function() gallery(positional[2]) end,
     imagine = function() imagine(positional[2]) end,
     ["imagine-all"] = function() imagine_all(positional[2]) end,
+    animate = function() animate() end,
+    choose = function() choose(positional[2]) end,
+    ["--gif-frame-worker"] = function() gif_frame_worker(positional[2], positional[3]) end,
     ["--view-worker"] = function() render_one_view(positional[2], positional[3], positional[4], positional[5]) end,
 }
 local function main()
