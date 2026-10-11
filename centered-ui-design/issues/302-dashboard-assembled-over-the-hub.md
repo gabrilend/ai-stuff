@@ -31,7 +31,9 @@ console spins by hand: a press on its metal drags the chair, letting go
 settles it on the nearest seat, and every arch in view is drawn whole with
 its own buttons and dials (pictures 032-033). A press let go outside the
 window used to leave the console held, so any later mouse move spun it;
-it now lets go as soon as a move arrives without the button.
+it now lets go as soon as a move arrives without the button. Spinning now
+carries the console along the arch's curves, as the map does (step 10;
+pictures 080-081).
 
 ## Intended Behavior
 
@@ -81,6 +83,18 @@ arch.
   direction.) Every arch that passes is drawn exactly
   as yours, the same shape and brightness, with its own buttons, dials and
   labels; its named slot says whose seat it is.
+- **Spinning along the curve, as the map does** (the owner: "when we swap
+  in the neighbor graph dashboard and viewpoint, we're forgetting to curve
+  it around the arc of the dashboard. We're just sliding in from the
+  left/right and spinning the UI - what we want to do is slide it along
+  the curved texture, same as the map."). The seats' consoles sit round a
+  curve like the world's quadrants: spinning carries each seat's buttons,
+  dials and band along the arch's own curves — your seat slides down and
+  away past one foot as the next rises in over the other — half a turn of
+  the curve per seat. The console is drawn once, in place, and the sheet
+  that shows it reads each screen pixel from its place on the curve moved
+  by the spin (the arch view's warp); clicks go back through the same warp.
+  Each seat's band shows its own quadrant.
 - **Forty per cent of the surface** (the owner: "can you make it so
   there's like, 40% as much dashboard in total square footage surface area
   as there is now?"). The arch's area is two thirds of width x height; the
@@ -143,6 +157,20 @@ arch.
    removed); allies' buttons are drawn but do not answer (see the open
    questions); pictures mid-drag and settled on a neighbour.
 
+10. Spinning along the curve: the sheet's shader (015) finds each pixel's
+    arch-shaped ring and angle, moves the angle by the spin (half a turn of
+    the curve per seat), and reads the console there, with the seat that
+    angle falls in shifting the band's quadrant; the console is drawn once
+    at home (014: the row of sliding arches retired); a Lua twin of the
+    warp (014, unwarp) sends clicks to the home layout, the front seat's
+    buttons answering. Tests: no spin is no change; half a seat's spin
+    carries the apex to the next seat's foot. Pictures mid-spin.
+
+- Neighbours' consoles are drawn from the front seat's own console (the
+  same dials, the front seat's named slot); only their bands show their own
+  quadrants. Should each seat's console show its own state as it comes
+  round?
+
 ## Open questions
 
 - In the round world, are allies' arches arranged in a ring around the hub
@@ -155,3 +183,7 @@ arch.
   arch's curve is the hub, which has no ground drawn). Should the hub show
   there — the castle's own courtyard — or should the world's rings slide
   with the arches?
+- Spinning carries each part of the console along its own arch-shaped
+  track, upright, stretching with the curve, like a belt — as the map does.
+  A rigid wheel (each seat's panel rotating as it travels, tipped at the
+  feet) would look different (see-in-3d model kept in mind/). Which is it?

@@ -15,3 +15,5 @@ The arch console (019) as four window-sized layers: face (brushed metal surface,
 | `LOOK_WORDS`, `ORDER_BUTTONS`, `SETTINGS_BUTTONS` (with the look toggles), `WINDOWS`, `LABELS`, `CALENDAR_CENTER`, `ARCH_*_SHARE`, `NEIGHBOUR_SHOWN`, `MONTHS`, `MONTH_DAYS`, `WEEKDAYS` | | layout and calendar data |
 
 The metal (issue 302): brushed along the arch, lit by `state.surface_light` (the game hands it each frame: the metal dial's light over the panel lamp, the sky sheen, where the hour's highlight lies, how much day there is). Knobs: `METAL_TONE`, `METAL_LIGHT_GAIN`, `PANEL_LAMP`.
+
+`unwarp(dashboard, x, y)`: where on the console as drawn (at home) a screen pixel shows while the console is spun along its curve — returns home x, y and which seat (0 the seat in front, -1/+1 its neighbours). The console is drawn once at home; `set_chair` only records the spin.

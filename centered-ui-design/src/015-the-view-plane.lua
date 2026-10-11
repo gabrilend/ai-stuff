@@ -43,8 +43,39 @@ uniform Image beyond;
 uniform float team_size;
 uniform float refraction;
 uniform float aspect_of_picture;
+uniform vec2 picture_size;     // the console's pictures, pixels
+uniform vec4 arch_shape;       // the arch: center x, base y, height, half width (pixels)
+uniform float spin;            // how far the console is spun from the seat in front (-0.5..0.5 seats)
 
-vec4 effect(vec4 color, Image face, vec2 uv, vec2 screen) {
+// Spinning along the curve (issue 302): the console is drawn once at home;
+// each screen pixel finds its arch-shaped ring and its angle along it, the
+// angle moved by the spin — half a turn of the curve per seat, so a seat
+// slides down past one foot as the next rises over the other, the way the
+// world's rings carry the land — and reads the console there. Returns the
+// home uv and (z) which seat it falls in, counted from the seat in front.
+// The Lua twin is unwarp in 014.
+vec3 along_the_curve(vec2 uv) {
+    vec2 p = uv * picture_size;
+    float dx = p.x - arch_shape.x;
+    float up = arch_shape.y - p.y;
+    // below the base: no warp
+    if (up <= 0.0) {
+        return vec3(uv, 0.0);
+    }
+    float H = arch_shape.z;
+    float half_width = arch_shape.w;
+    float f = (up + sqrt(up * up + 4.0 * H * H * dx * dx / (half_width * half_width))) / (2.0 * H);
+    float s = clamp(dx / (f * half_width), -1.0, 1.0);
+    float turned = asin(s) + spin * 3.14159265;
+    float seat = floor((turned + 1.57079633) / 3.14159265);
+    float back = sin(turned - seat * 3.14159265);
+    vec2 home = vec2(arch_shape.x + back * f * half_width, arch_shape.y - f * H * (1.0 - back * back));
+    return vec3(home / picture_size, seat);
+}
+
+vec4 effect(vec4 color, Image face, vec2 screen_uv, vec2 screen) {
+    vec3 carried = along_the_curve(screen_uv);
+    vec2 uv = carried.xy;
     vec4 metal = Texel(face, uv);
     vec4 bend = Texel(glass, uv);
     // the glass's lean: green/blue around 0.5 mean none; red says glass is here
@@ -67,7 +98,9 @@ vec4 effect(vec4 color, Image face, vec2 uv, vec2 screen) {
     // (outer edge). Warmed toward the gold edges.
     float band_here = glass_here * (1.0 - step(0.75, bend.a));
     vec4 where = Texel(band, uv);
-    float angle = 6.2831853 * (where.b + where.r / team_size);
+    // each seat's band shows its own quadrant: a neighbour come round the
+    // curve shows the next quadrant along
+    float angle = 6.2831853 * (where.b + (where.r + carried.z) / team_size);
     vec2 map_uv = vec2(0.5) + 0.5 * where.g * vec2(sin(angle), -cos(angle));
     vec3 painted = (Texel(beyond, map_uv).rgb * 1.9 + vec3(0.03, 0.035, 0.05))
                  * mix(vec3(1.0), vec3(1.0, 0.88, 0.62), rim * 0.5)
@@ -114,6 +147,11 @@ function M.draw(plane, flip_y, beyond)
     plane.shader:send("team_size", plane.dashboard.team_size)
     plane.shader:send("refraction", M.REFRACTION)
     plane.shader:send("aspect_of_picture", plane.camera.aspect)
+    local dashboard = plane.dashboard
+    local section = dashboard.section
+    plane.shader:send("picture_size", { dashboard.face:getWidth(), dashboard.face:getHeight() })
+    plane.shader:send("arch_shape", { section.center_x, section.base_y, section.height, section.width / 2 })
+    plane.shader:send("spin", dashboard.chair_offset - math.floor(dashboard.chair_offset + 0.5))
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(plane.mesh)
     love.graphics.setShader()

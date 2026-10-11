@@ -66,11 +66,14 @@ and QUIT. The readouts stay.
 ## Spinning by hand
 
 Press anywhere on the metal that is not a button and drag sideways: the
-chair turns with your hand (one arch's spacing for one seat), the row of
-arches and the world sliding together; let go after a sixth of an arch and
-it carries on to the next seat that way, like a carousel. The arch in front
-is the seat you play: its buttons answer. Every arch that passes is drawn whole, exactly as yours, with
-its own buttons and dials and its seat named in its slot.
+chair turns with your hand, and the seats' consoles slide along the arch's
+own curves, the way the world's rings carry the land — your seat sliding
+down past one foot as the next rises over the other, half a turn of the
+curve per seat. Let go after a sixth of an arch and it carries on to the
+next seat, like a carousel. The console is drawn once, in place; the sheet
+showing it carries each pixel along its curve, and clicks go back the same
+way. The seat in front is the one you play: its buttons answer, and each
+seat's band shows its own quadrant.
 
 ## The view dials
 

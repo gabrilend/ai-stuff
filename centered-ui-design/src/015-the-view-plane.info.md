@@ -8,3 +8,5 @@ Lays the console's layers on a sheet hung in the 3D scene in front of the map, s
 | `new(camera, plane_distance, dashboard)` | |
 | `draw(plane, flip_y, beyond)` | draws onto the current target; `beyond` is the map-from-beyond canvas |
 | `REFRACTION` | how far window glass bends |
+
+Spinning along the curve: the sheet's shader finds each pixel's arch-shaped ring and angle, moves the angle by the spin (half a turn of the curve per seat), and reads the console there; the seat the angle falls in shifts the band's quadrant. The Lua twin is the dashboard's `unwarp`.

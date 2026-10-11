@@ -871,6 +871,27 @@ do
             end
         end
     end
+    -- spinning along the curve (issue 302): no spin is no change; half a
+    -- seat's spin carries the arch's apex to the next seat's foot
+    local still = { section = section, chair_offset = 0 }
+    local worst_still = 0
+    for _, spot in ipairs({ { 800, 960 }, { 500, 930 }, { 1250, 985 }, { 800, 820 } }) do
+        local hx, hy, seat = dashboard.unwarp(still, spot[1], spot[2])
+        worst_still = math.max(worst_still, math.abs(hx - spot[1]), math.abs(hy - spot[2]), math.abs(seat))
+    end
+    check("an unspun console is drawn where it is", worst_still < 1e-6, "worst " .. worst_still)
+    -- just before half a seat the apex shows this seat's right foot; just
+    -- past it, the next seat is in front and the apex shows its left foot
+    local apex_y = section.base_y - section.height + 1
+    local before = { section = section, chair_offset = 0.5 - 1e-9 }
+    local bx, by, bseat = dashboard.unwarp(before, section.center_x, apex_y)
+    local after = { section = section, chair_offset = 0.5 + 1e-9 }
+    local ax, ay, aseat = dashboard.unwarp(after, section.center_x, apex_y)
+    check("half a seat's spin carries the apex to a foot: this seat's right, then the next one's left",
+        bseat == 0 and bx > section.center_x + section.width / 2 - 6 and math.abs(by - section.base_y) < 2
+            and aseat == 0 and ax < section.center_x - section.width / 2 + 6 and math.abs(ay - section.base_y) < 2,
+        bx .. " " .. by .. " / " .. ax .. " " .. ay)
+
     check("no two buttons, windows or labels shown together overlap", #overlapping == 0,
         table.concat(overlapping, ", "))
 end

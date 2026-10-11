@@ -441,9 +441,9 @@ end
 -- slid (0 = your own arch in front; 1 = the next ally's). Your own arch's
 -- place, and so its buttons and dials, move with it.
 function M.set_chair(dashboard, offset)
+    -- the console stays drawn at home; the sheet that shows it carries it
+    -- along the arch's curve by the spin (015, and unwarp below)
     dashboard.chair_offset = offset
-    local spacing = dashboard.section.width - dashboard.section.band
-    dashboard.section.center_x = dashboard.home_x - offset * spacing
 end
 -- }}}
 
@@ -452,20 +452,12 @@ end
 -- Seats form a ring, so the arch k places along the row from yours is seat
 -- (seat + k) wrapped around the team.
 local function visible_arches(dashboard)
-    local arches = {}
-    local own = dashboard.section
-    local team = dashboard.team_size
+    -- one arch, drawn at home: the seat the chair is nearest (the seat being
+    -- played, issue 501); the neighbours come round the curve on the sheet
+    -- (015), drawn from this one
     local nearest = math.floor(dashboard.chair_offset + 0.5)
-    for k = nearest - 2, nearest + 2 do
-        local seat = (dashboard.seat - 1 + k) % team + 1
-        -- alone: the one arch, once
-        if team > 1 or k == 0 then
-            -- the arch the chair is nearest is in front: the seat being
-            -- played (issue 501: spinning to a seat plays it)
-            arches[#arches + 1] = { section = arch.shifted(own, k), seat = seat, own = (k == nearest) }
-        end
-    end
-    return arches
+    local seat = (dashboard.seat - 1 + nearest) % dashboard.team_size + 1
+    return { { section = dashboard.section, seat = seat, own = true } }
 end
 -- }}}
 
@@ -541,6 +533,32 @@ local function button_spots(dashboard, someone_named, section)
 end
 -- }}}
 
+-- {{{ function M.unwarp()
+-- Where on the console as drawn (at home) a screen pixel shows, while the
+-- console is spun along its curve (the Lua twin of the sheet's shader in
+-- 015): the pixel's arch-shaped ring and its angle along it are found, the
+-- angle moved by the spin (half a turn of the curve per seat), and the
+-- place on the same ring read back. Returns the home pixel x, y and which
+-- seat it belongs to, counted from the seat in front (0 that seat, -1 and
+-- +1 its neighbours). Below the base: no warp.
+function M.unwarp(dashboard, x, y)
+    local section = dashboard.section
+    local H, half = section.height, section.width / 2
+    local dx, up = x - section.center_x, section.base_y - y
+    -- below the base: nothing to carry
+    if up <= 0 then
+        return x, y, 0
+    end
+    local f = (up + math.sqrt(up * up + 4 * H * H * dx * dx / (half * half))) / (2 * H)
+    local s = math.max(-1, math.min(1, dx / (f * half)))
+    local spin = dashboard.chair_offset - math.floor(dashboard.chair_offset + 0.5)
+    local turned = math.asin(s) + spin * math.pi
+    local seat = math.floor((turned + math.pi / 2) / math.pi)
+    local back = math.sin(turned - seat * math.pi)
+    return section.center_x + back * f * half, section.base_y - f * H * (1 - back * back), seat
+end
+-- }}}
+
 -- {{{ function M.button_under()
 -- The verb of the button under a pixel, or nil. Dials and the band never answer.
 function M.button_under(dashboard, x, y, someone_named)
@@ -549,10 +567,14 @@ function M.button_under(dashboard, x, y, someone_named)
     if x < left or x > left + width then
         return nil
     end
-    -- the arch in front answers: its section is your own slid along the row
-    -- to the arch the chair is nearest
-    local front = arch.shifted(dashboard.section, math.floor(dashboard.chair_offset + 0.5))
-    for _, spot in ipairs(button_spots(dashboard, someone_named, front)) do
+    -- carried back along the curve to the console as drawn; only the seat in
+    -- front answers
+    local home_x, home_y, seat = M.unwarp(dashboard, x, y)
+    if seat ~= 0 then
+        return nil
+    end
+    x, y = home_x, home_y
+    for _, spot in ipairs(button_spots(dashboard, someone_named, dashboard.section)) do
         local dx, dy = x - spot.x, y - spot.y
         if dx * dx + dy * dy <= spot.radius * spot.radius then
             return spot.verb
