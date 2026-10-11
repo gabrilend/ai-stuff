@@ -114,3 +114,8 @@ paired with differential triangles.
   dusk, blue at night) over a faint panel lamp so it is always readable, a
   soft sky sheen toward its far edge, and one faint highlight that slides
   along the arch with the hour. No fixed glints.
+- **Painted terrain, for testing distance** (issue 214): splotches of
+  earthy paint on the ground, all one size, as many to every stretch of
+  ring (so more on the longer rings deeper out); nearer ones painted over
+  farther ones; each tipped toward the camera and domed a little, brighter
+  on the side toward the hour's light. The focus blur is off by default.

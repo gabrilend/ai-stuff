@@ -35,11 +35,13 @@ game starts (`view_depth = "arch"`, `arch_reach`); neighbours' quadrants
 grow from their own arches, and the quadrant across (never visible) is sent
 below the screen so its wrapping angle cannot tear the ground (pictures
 017-019, 018 showing the tear). The magic circles (step 10) then replaced
-the neighbours' arches: one arch spans \`arch_span_degrees\` (450 to start)
+the neighbours' arches: one arch spans `arch_span_degrees` (450 to start)
 foot to foot, the world drawn once per winding, the ground by its mesh's
 own unbroken angle (pictures 025-027 at 450, 360, 720). The view dials
 (step 11) are built: A with the wheel sets the reach, S the span, shown on
-two console dials (pictures 036-041).
+two console dials (pictures 036-041). The painted terrain (step 12) is
+built: splotches all one size, as many to every stretch of ring, painted
+far to near (pictures 042-049); the blur is now off by default.
 
 ## Intended Behavior
 
@@ -123,6 +125,26 @@ is just the depth effect applied down one scenery."
   small dial on the console, its key engraved beside it, showing the value
   (tiers reached; degrees). The plain wheel still turns the chair. The
   dials are still never clicked: the game turns them, the keys only ask.
+- **Painted terrain, to test distance** (the owner: "can we make some
+  "terrain" that's just different colors painted in splotches on the
+  ground? To test the rendering at different distances. Remember, each
+  "spot" (overlapping) is just a circle drawn with closer circles drawn
+  on-top. It should still be partially visible, just enough to draw a part
+  of the texture map. Then, we can automatically rotate the circles along
+  the axis with the raycast to the camera, and rotate it just precisely
+  enough to curve a little bit of the surface we're trying to model.
+  Usually one side of the circle is bright, and one is darker." — and then:
+  "um ok"). Splotches of earthy colour scattered over the ground, as many
+  per ring near as far; each a disc lying on the ground, overlapping its
+  neighbours, nearer ones drawn over farther ones; each tipped a little
+  toward the camera about its sideways line and domed slightly, so it reads
+  as a small rise; lit brighter on the side toward the hour's light and
+  darker on the other, the bright side moving with the day. Then the
+  owner: "all of the circles should be the same size, and there should be
+  an even amount of them per "x" distance (around the central
+  dashboard(s) but it should increase as it goes deeper. Meaning, at any
+  particular length, there's N circles." — and "can we remove the
+  blurring effect I think it's clearer without it."
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -200,6 +222,15 @@ is just the depth effect applied down one scenery."
     recomputed from the reach; two dials and their engraved keys on the
     console; a scripted "wheel with a key held" option for pictures; tests
     of the limits and that a farther reach makes far rings tighter.
+
+12. Painted terrain: seeding the splotches (`007`: place by tier distance
+    and angle, size, colour from an earthy palette, from the seed; count
+    from `terrain_splotch_count` in the settings, 0 for none); drawing them
+    (`013`: one instanced disc, anchored like figures so the arch view lays
+    it on its ring, tipped toward the camera and domed, shaded bright to
+    dark across by the hour); tests that the seeding is the same for the
+    same seed and spread evenly by tier; pictures at noon, dusk, far and
+    near.
 
 ## Open questions
 

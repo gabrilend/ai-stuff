@@ -291,6 +291,42 @@ do
         sphere_fold.slope(fold, far_r) < sphere_fold.slope(fold, near_r))
 end
 
+-- the painted terrain (issue 214) -------------------------------------------
+
+do
+    local fold = sphere_fold.from_settings(good_settings())
+    local a = seeding.seed_terrain(600, 5, fold)
+    local b = seeding.seed_terrain(600, 5, fold)
+    local same = #a == 600
+    for index = 1, #a do
+        same = same and a[index].r == b[index].r and a[index].angle == b[index].angle
+    end
+    check("the same seed paints the same terrain", same)
+    -- all one size, and as many to every stretch of ring: a band of rings
+    -- holds splotches in proportion to its rings' length
+    local one_size, inner = true, 0
+    for _, splotch in ipairs(a) do
+        one_size = one_size and splotch.size == a[1].size
+        if splotch.r < fold.tiers_shown / 2 then
+            inner = inner + 1
+        end
+    end
+    check("terrain splotches are all one size", one_size)
+    -- the inner half of the tiers' share of the rings' length (by sampling)
+    local inner_length, all_length = 0, 0
+    for step = 1, 1000 do
+        local r = 0.15 + (fold.tiers_shown - 0.15) * (step - 0.5) / 1000
+        local length = sphere_fold.radius(fold, r)
+        all_length = all_length + length
+        if r < fold.tiers_shown / 2 then
+            inner_length = inner_length + length
+        end
+    end
+    local expected = 600 * inner_length / all_length
+    check("terrain holds as many splotches to every stretch of ring",
+        math.abs(inner - expected) < 50, inner .. " inner, expected about " .. math.floor(expected))
+end
+
 -- the move box: time scaling and first-come-first-served order -------------
 
 do

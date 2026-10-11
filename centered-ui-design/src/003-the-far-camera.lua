@@ -62,7 +62,7 @@
 -- rotation runs on past a full turn, so the same ground shows at both ends
 -- (the owner: "what if our circles were magic circles that had more than
 -- 360 degrees of rotation"). The world is drawn once per winding (the
--- angle offset by whole turns, \`arch_winding\`) to show each copy; ground
+-- angle offset by whole turns, `arch_winding`) to show each copy; ground
 -- beyond the span's feet is sent far below the bottom row, out of sight.
 -- Figures and cuboids are not warped: their anchor is, and their own shape
 -- is laid on the ring's local direction at one scale (project_anchored),
@@ -558,7 +558,7 @@ vec4 project_unwarped(vec3 p) {
     return project_fixed(turned);
 }
 
-// The arch view's place for a ground point at \`radius\`, \`from_chair\`
+// The arch view's place for a ground point at `radius`, `from_chair`
 // radians round from the chair (whole turns already added): window pixels,
 // and the ring's s and f. Beyond the span's feet: far below the bottom row.
 vec4 arch_spot(float radius, float from_chair) {
@@ -582,7 +582,7 @@ vec4 arch_clip(vec2 px, float depth) {
 }
 
 // A shape anchored at a ground point: under the arch view the anchor is
-// warped onto its ring (in the copy \`arch_winding\`) and the shape (offset
+// warped onto its ring (in the copy `arch_winding`) and the shape (offset
 // from the anchor) is laid on the ring's local direction at one scale, so it
 // stands upright and keeps its size; under every other view, simply the
 // point anchor + offset.

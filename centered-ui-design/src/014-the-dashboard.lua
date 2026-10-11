@@ -646,7 +646,7 @@ end
 -- {{{ local function draw_dials()
 -- The layer beneath one arch's windows (the arch in dashboard.section),
 -- onto the dials canvas already set. `state` carries the values to show;
--- \`seconds\` turns the dials (0 for every arch after the first, so they
+-- `seconds` turns the dials (0 for every arch after the first, so they
 -- turn once a frame).
 local function draw_dials(dashboard, state, seconds)
     local section = dashboard.section

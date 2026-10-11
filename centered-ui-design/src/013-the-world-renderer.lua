@@ -103,7 +103,7 @@ varying float v_haze;
 
 // The ground mesh, by its own unbroken angle (0 .. 2 pi round the mesh,
 // never wrapped), so no ground piece can straddle a wrap and stretch across
-// the screen; under the arch view in the copy \`arch_winding\`.
+// the screen; under the arch view in the copy `arch_winding`.
 vec4 project_ground(float r, float mesh_angle) {
     vec3 ground = fold_ground_position(r, mesh_angle);
     if (arch_view < 0.5) {
@@ -137,6 +137,61 @@ vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
     // the ground is earth, the map's rings and tints drawn on it
     vec3 earth = vec3(0.26, 0.25, 0.18) + flat_map.rgb * 1.3;
     vec3 lit = earth * rim_shade * dial_light(earth_dial, v_facing) * 1.35;
+    return vec4(hazed(lit, v_haze), 1.0);
+}
+]]
+
+-- The painted terrain (issue 214): one disc per splotch, lying on the
+-- ground, anchored like a figure so the arch view lays it on its ring;
+-- tipped a little toward the camera about its sideways line (its far half
+-- rises) and domed in the middle, so it reads as a small rise; shaded
+-- brighter toward the hour's light and darker away from it.
+M.SPLOTCH_TILT = 0.35
+M.SPLOTCH_DOME = 0.12
+M.SPLOTCH_SIDE_SHADE = 0.30
+
+local SPLOTCH_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
+attribute vec4 Splotch;        // r, angle, size (ground units across), unused
+attribute vec4 SplotchColor;   // r, g, b, unused
+uniform float splotch_tilt;
+uniform float splotch_dome;
+uniform float hour_angle;
+varying vec3 v_color;
+varying float v_side;
+varying vec2 v_facing;
+varying float v_haze;
+vec4 position(mat4 transform_projection, vec4 vertex_position) {
+    float r = Splotch.x;
+    float angle = Splotch.y;
+    // all one size, near and far (the owner: "all of the circles should be
+    // the same size")
+    float half_size = 0.5 * Splotch.z;
+    vec2 local = vertex_position.xy;           // the unit disc: x sideways, y outward
+    vec3 outward = vec3(sin(angle), 0.0, -cos(angle));
+    vec3 sideways = vec3(cos(angle), 0.0, sin(angle));
+    // tipped toward the camera (the far half up) and domed in the middle
+    float lift = (local.y * sin(splotch_tilt) + (1.0 - dot(local, local)) * splotch_dome) * half_size;
+    vec3 offset = sideways * local.x * half_size + outward * local.y * half_size * cos(splotch_tilt)
+                + vec3(0.0, lift + 0.01, 0.0);
+    vec3 spot = fold_ground_position(r, angle);
+    // which side faces the hour's light: across the disc, from dark to bright
+    v_side = dot(local, vec2(sin(hour_angle), cos(hour_angle)));
+    v_color = SplotchColor.rgb;
+    v_facing = view_facing(vec3(0.0, 1.0, 0.0));
+    v_haze = clamp(hub_distance(spot + offset) / hub_far, 0.0, 1.0);
+    return project_anchored(spot, offset);
+}
+]]
+
+local SPLOTCH_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
+uniform Image earth_dial;
+uniform float side_shade;
+varying vec3 v_color;
+varying float v_side;
+varying vec2 v_facing;
+varying float v_haze;
+vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
+    vec3 lit = v_color * dial_light(earth_dial, v_facing) * 1.35 * (1.0 + side_shade * v_side);
     return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
@@ -336,6 +391,15 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     }
 
     renderer.ground_shader = love.graphics.newShader(GROUND_PIXEL, GROUND_VERTEX)
+    renderer.splotch_shader = love.graphics.newShader(SPLOTCH_PIXEL, SPLOTCH_VERTEX)
+    -- the splotch: a flat disc, a fan of 24 slices
+    local disc = { { 0, 0 } }
+    for step = 0, 24 do
+        local a = 2 * math.pi * step / 24
+        disc[#disc + 1] = { math.cos(a), math.sin(a) }
+    end
+    renderer.splotch_mesh = love.graphics.newMesh({ { "VertexPosition", "float", 2 } }, disc, "fan", "static")
+    renderer.splotch_count = 0
     renderer.unit_shader = love.graphics.newShader(UNIT_PIXEL, UNIT_VERTEX)
     renderer.cuboid_shader = love.graphics.newShader(CUBOID_PIXEL, CUBOID_VERTEX)
 
@@ -392,15 +456,51 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
         renderer.dials[material] = dial
     end
     renderer.ground_shader:send("earth_dial", renderer.dials.earth)
+    renderer.splotch_shader:send("earth_dial", renderer.dials.earth)
+    renderer.splotch_shader:send("splotch_tilt", M.SPLOTCH_TILT)
+    renderer.splotch_shader:send("splotch_dome", M.SPLOTCH_DOME)
+    renderer.splotch_shader:send("side_shade", M.SPLOTCH_SIDE_SHADE)
     renderer.unit_shader:send("metal_dial", renderer.dials.metal)
     renderer.unit_shader:send("glaze_dial", renderer.dials.glaze)
     renderer.cuboid_shader:send("glaze_dial", renderer.dials.glaze)
-    for _, shader in ipairs({ renderer.ground_shader, renderer.unit_shader, renderer.cuboid_shader }) do
+    for _, shader in ipairs({ renderer.ground_shader, renderer.splotch_shader, renderer.unit_shader,
+            renderer.cuboid_shader }) do
         shader:send("window_center", M.WINDOW_CENTER)
         shader:send("window_radius", M.WINDOW_RADIUS)
         shader:send("haze_color", M.HAZE_COLOR)
     end
     return renderer
+end
+-- }}}
+
+-- {{{ function M.set_terrain()
+-- Hands the renderer the painted terrain (a list from 007's seed_terrain).
+-- They are put in order from far to near, once: drawn in that order, nearer
+-- splotches cover farther ones ("closer circles drawn on-top"). The order
+-- by tier distance holds however the chair turns, since turning keeps each
+-- splotch's distance from the hub.
+function M.set_terrain(renderer, splotches)
+    renderer.splotch_count = #splotches
+    -- no terrain: nothing to draw
+    if #splotches == 0 then
+        return
+    end
+    local ordered = {}
+    for index, splotch in ipairs(splotches) do
+        ordered[index] = splotch
+    end
+    table.sort(ordered, function(a, b) return a.r > b.r end)
+    local vertices = {}
+    for index, splotch in ipairs(ordered) do
+        vertices[index] = { splotch.r, splotch.angle, splotch.size, 0,
+            splotch.color[1], splotch.color[2], splotch.color[3], 1 }
+    end
+    renderer.splotch_instances = love.graphics.newMesh({
+        { "Splotch", "float", 4 },
+        { "SplotchColor", "float", 4 },
+    }, vertices, "points", "static")
+    renderer.splotch_mesh:attachAttribute("Splotch", renderer.splotch_instances, "perinstance")
+    renderer.splotch_mesh:attachAttribute("SplotchColor", renderer.splotch_instances, "perinstance")
 end
 -- }}}
 
@@ -433,12 +533,26 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
     if renderer.camera.view == "arch" then
         windings = far_camera.arch_windings(renderer.camera)
     end
+    -- first the ground and its painted terrain, every winding; the terrain
+    -- drawn far to near without testing depth, so nearer splotches always
+    -- cover farther ones and none flicker where two lie at one height
     for _, winding in ipairs(windings) do
         renderer.camera.arch_winding = winding
-
         love.graphics.setShader(renderer.ground_shader)
         send_frame(renderer, renderer.ground_shader, flip_y, look)
         love.graphics.draw(renderer.ground_mesh)
+        -- terrain to paint
+        if renderer.splotch_count > 0 then
+            love.graphics.setDepthMode("always", false)
+            love.graphics.setShader(renderer.splotch_shader)
+            send_frame(renderer, renderer.splotch_shader, flip_y, look)
+            love.graphics.drawInstanced(renderer.splotch_mesh, renderer.splotch_count)
+            love.graphics.setDepthMode("lequal", true)
+        end
+    end
+    -- then everything standing on it
+    for _, winding in ipairs(windings) do
+        renderer.camera.arch_winding = winding
 
         love.graphics.setShader(renderer.unit_shader)
         send_frame(renderer, renderer.unit_shader, flip_y, look)

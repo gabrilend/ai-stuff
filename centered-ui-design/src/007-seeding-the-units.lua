@@ -13,6 +13,7 @@
 -- same world everywhere (later: on every machine in a networked game).
 
 local bit = require("bit")
+local sphere_fold = require("004-the-sphere-fold")
 
 local M = {}
 
@@ -88,6 +89,54 @@ function M.seed_units(front, count, seed, fold)
         unit.wants = 0
         unit.carrying = 0
     end
+end
+-- }}}
+
+-- The painted terrain's colours: earthy paints, from meadow to slate.
+M.TERRAIN_PAINTS = {
+    { 0.36, 0.48, 0.22 },  -- meadow
+    { 0.27, 0.39, 0.20 },  -- moss
+    { 0.62, 0.50, 0.26 },  -- ochre
+    { 0.55, 0.36, 0.24 },  -- clay
+    { 0.40, 0.42, 0.44 },  -- slate
+    { 0.70, 0.64, 0.46 },  -- sand
+}
+
+-- Every splotch's size (ground units across): all the same (the owner:
+-- "all of the circles should be the same size").
+M.SPLOTCH_SIZE = 4.5
+
+-- {{{ function M.seed_terrain()
+-- Scatters `count` splotches of paint over the ground, the same for the
+-- same seed (issue 214: terrain "to test the rendering at different
+-- distances"). All one size, and as many to every stretch of ring as to any
+-- other, so a ring holds more the longer it is (the owner: "there should
+-- be an even amount of them per "x" distance ... it should increase as it
+-- goes deeper"). A tier distance is drawn evenly and kept with a chance in
+-- proportion to its ring's length (folded radius): a ring twice as long
+-- keeps twice as many. Returns a list of { r, angle, size (ground units
+-- across), color = { r, g, b } }.
+function M.seed_terrain(count, seed, fold)
+    local stream = M.new_stream(seed + 7777)
+    local longest = sphere_fold.radius(fold, fold.tiers_shown)
+    local splotches = {}
+    for index = 1, count do
+        -- a tier distance, kept in proportion to its ring's length
+        local r
+        repeat
+            r = between(stream, 0.15, fold.tiers_shown)
+        until M.next_fraction(stream) * longest < sphere_fold.radius(fold, r)
+        local paint = M.TERRAIN_PAINTS[math.floor(M.next_fraction(stream) * #M.TERRAIN_PAINTS) + 1]
+        -- each splotch's paint a little lighter or darker than the next
+        local shade = between(stream, 0.85, 1.12)
+        splotches[index] = {
+            r = r,
+            angle = between(stream, 0, TWO_PI),
+            size = M.SPLOTCH_SIZE,
+            color = { paint[1] * shade, paint[2] * shade, paint[3] * shade },
+        }
+    end
+    return splotches
 end
 -- }}}
 

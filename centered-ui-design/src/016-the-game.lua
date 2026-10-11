@@ -169,7 +169,10 @@ function game.load(arguments)
     --   --wheel-with SECONDS KEY NOTCHES  turn the wheel with a key held
     --   --drag SECONDS X1 Y1 X2 Y2 DURATION  press at X1, Y1, move to X2, Y2
     --                          over DURATION seconds, and let go
-    -- Scripted input goes through the same handlers as real input.
+    -- Scripted input goes through the same handlers as real input. A run
+    -- with any of these is a scripted run: the person's own keyboard and
+    -- mouse are ignored for it (main.lua), so the run is the same however
+    -- the person uses their screen meanwhile.
     game.scripted = {}
     for index = 2, #arguments do
         local option = arguments[index]
@@ -200,6 +203,8 @@ function game.load(arguments)
                 notches = tonumber(arguments[index + 2]) }
         end
     end
+
+    game.scripted_run = game.screenshot_after ~= nil or #game.scripted > 0
 
     local settings = game.settings
     love.window.setMode(settings.window_width, settings.window_height, {
@@ -275,6 +280,9 @@ function game.load(arguments)
     game.renderer = world_renderer.new(settings, game.camera, game.fold, game.unit_count,
         game.cuboid_count, seeding.SECTIONS)
     game.beyond = map_from_beyond.new(1024, game.renderer.flat_map)
+    -- the painted terrain: seeded here (data), drawn by the renderer (view)
+    world_renderer.set_terrain(game.renderer,
+        seeding.seed_terrain(settings.terrain_splotch_count, settings.seed, game.fold))
     game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat,
         settings.arch_height_share)
     game.focus = focus_ring.new()
@@ -359,8 +367,12 @@ function game.update(seconds)
     end
 
     turn_chair(seconds)
-    local mouse_x, mouse_y = love.mouse.getPosition()
-    dashboard_module.set_pointer(game.dashboard, mouse_x, mouse_y, love.mouse.isDown(1), game.named ~= nil)
+    -- the person's pointer lights the buttons it is over (in a scripted run
+    -- there is no person: nothing lights)
+    if not game.scripted_run then
+        local mouse_x, mouse_y = love.mouse.getPosition()
+        dashboard_module.set_pointer(game.dashboard, mouse_x, mouse_y, love.mouse.isDown(1), game.named ~= nil)
+    end
 
     -- scripted input whose time has come
     for _, event in ipairs(game.scripted) do
@@ -684,7 +696,11 @@ local WHEEL_WITH_KEY = {
 -- Whether a key is held: by the person at the keyboard, or by a scripted
 -- "wheel with a key held".
 local function key_held(key)
-    return love.keyboard.isDown(key) or game.scripted_key_held == key
+    -- a scripted run: only the script holds keys
+    if game.scripted_run then
+        return game.scripted_key_held == key
+    end
+    return love.keyboard.isDown(key)
 end
 -- }}}
 

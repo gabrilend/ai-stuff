@@ -77,7 +77,7 @@ return {
     --                  farther (tilt-shift); "off": none
     view_depth = "arch",
     view_standing = "upright",
-    view_blur = "on",
+    view_blur = "off",
 
     -- the hub camera: how high its eye stands (world units), how steeply it
     -- looks down (degrees below level), and how wide it sees (degrees, top
@@ -104,4 +104,8 @@ return {
     -- this seat's quadrant; past 360 the circle runs on past itself (a
     -- "magic circle"), the far side of the world showing at both ends
     arch_span_degrees = 450,
+
+    -- painted terrain: how many splotches of earthy colour lie on the
+    -- ground, to see how the world reads at different distances (0: none)
+    terrain_splotch_count = 1500,
 }

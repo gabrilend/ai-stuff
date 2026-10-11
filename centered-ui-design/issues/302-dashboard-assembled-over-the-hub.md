@@ -125,15 +125,15 @@ arch.
    the metal shader (`014`); a test that the twin matches the dial
    painter at the same spot; pictures at noon, dusk and night.
 
-8. Forty per cent: \`arch_height_share\` 0.5 -> 0.2 (balance log); the
-   lettering sized by the window's height; the layout data in \`014\` laid
+8. Forty per cent: `arch_height_share` 0.5 -> 0.2 (balance log); the
+   lettering sized by the window's height; the layout data in `014` laid
    out again for the wide, low arch at the old pixel sizes; a test that no
    two buttons or windows shown together overlap; pictures, orders and
    settings.
 
 9. Spinning by hand: the game follows a press on the console that is not
    on a button as a drag (mouse moved and released handlers, routed from
-   \`main.lua\`; a scripted drag option for pictures); the chair follows the
+   `main.lua`; a scripted drag option for pictures); the chair follows the
    drag and snaps to the nearest seat on release; the console draws every
    visible arch's face and dials in one way (the old dim allies' drawing
    removed); allies' buttons are drawn but do not answer (see the open
