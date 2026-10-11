@@ -56,7 +56,9 @@ the owner confirmed the circles turn about the right axis (pictures
 from the owner's drawing (pictures 067-069); the game starts in "shade".
 Sheen-points now record two colours each, and a lake's sheen-points live in
 the engine's shared memory, turned each step by waves and the sun in a
-third engine stage (step 14; pictures 070-073).
+third engine stage (step 14; pictures 070-073). The circles are now plain
+gradients (074-076), and the sun circles the hub's upright axis at a
+fixed height (077-079).
 
 ## Intended Behavior
 
@@ -253,7 +255,11 @@ is just the depth effect applied down one scenery."
   round its centre, not by height: brightest in the direction it is turned
   toward, falling off smoothly (as the cosine of the angle away) to darkest
   opposite, each direction one shade from centre to rim — the drawing's
-  eight sections, blended. The turn is unchanged.
+  eight sections, blended. The turn is unchanged. Then: "the circles look
+  a little weird, can we instead have a gradient instead of the circle
+  thing we have? It should still spin, and the lit part should still point
+  toward the sun..." — so the circle is a plain gradient straight across,
+  dark edge to lit edge, turned as before.
 - **Two colours per sheen-point, and water turned by the engine** (the
   owner, asked what colour a ripple's sun side and shade side are at
   sunset: "facing the sun is light, away is dark. the color itself...
@@ -271,6 +277,12 @@ is just the depth effect applied down one scenery."
   and each step the engine's workers turn them by the passing waves and the
   sun — the water is moved by turning its points, nothing else. The land's
   points stay still and are handed to the graphics card once.
+- **The sun circles the origin** (the owner: "can we have the sun orbit
+  around the origin axis instead of... where is it rotating around now?").
+  It turned about the north-south line, like the real sun (rising in the
+  east, setting in the west, below the land at night); now it circles the
+  hub's upright axis once a day at a fixed height, its bearing the hour,
+  so every slope, facing any way, has its turn in the light.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -382,6 +394,12 @@ is just the depth effect applied down one scenery."
     points are recorded as driven; same seed same lake.
 
 ## Open questions
+
+- The circling sun never sets: at the dials' midnight the land stays sunlit
+  while figures, cuboids and console turn night-blue (picture 079). Should
+  the sun dip below the land for the night as it circles (lower in the
+  "night" half of its round), should the land take the dials' night colour
+  too, or should there be no night for the land at all?
 
 - The land's points are made once and handed to the graphics card whole,
   so nothing about them is updated while running. A surface that moves,

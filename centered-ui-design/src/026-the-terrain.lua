@@ -109,18 +109,21 @@ function M.facing_at(hills, x, z)
 end
 -- }}}
 
+-- How high the sun stands above the horizon as it circles (radians).
+M.SUN_ELEVATION = math.rad(35)
+
 -- {{{ function M.sun_direction()
 -- Where the sun is, as a unit vector from the ground toward it, at an hour
--- (the light dials' hour angle: 0 noon, -pi/2 morning, pi/2 evening, pi
--- midnight). It rises in the east (+x), stands high at noon, sets in the
--- west, and at night sits below the land. The Lua twin of sun_direction()
--- in the renderer's terrain shader (013).
+-- (the light dials' hour angle). It circles the hub's upright axis — the
+-- origin — once a day at a fixed height, its bearing the hour angle (0:
+-- north, growing clockwise like the map's angles), so every slope, facing
+-- any way, has its turn in the light (the owner: "can we have the sun
+-- orbit around the origin axis"). (Before, it turned about the north-south
+-- line like the real sun: rising in the east, setting in the west, below
+-- the land at night.)
 function M.sun_direction(hour_angle)
-    local x = -math.sin(hour_angle)
-    local y = math.cos(hour_angle) * 0.9 + 0.1
-    local z = -0.35
-    local length = math.sqrt(x * x + y * y + z * z)
-    return x / length, y / length, z / length
+    local level = math.cos(M.SUN_ELEVATION)
+    return math.sin(hour_angle) * level, math.sin(M.SUN_ELEVATION), -math.cos(hour_angle) * level
 end
 -- }}}
 

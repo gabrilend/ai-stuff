@@ -338,11 +338,17 @@ do
         local x, y, z = terrain.sun_direction(hour)
         return math.abs(terrain.shade_turn(facing[1], facing[2], facing[3], x, y, z, 1))
     end
+    -- the sun circles the hub: a slope facing east is lit when the sun's
+    -- bearing is east (a quarter day after its north) and in shadow half a
+    -- day later, when the sun is in the west
     local east = { 0.7071, 0.7071, 0 }
-    check("a slope facing east turns bright-up in the morning, dark-up at evening",
-        turn(east, -math.pi / 2.5) < math.pi / 3 and turn(east, math.pi / 2.5) > math.pi / 2,
-        turn(east, -math.pi / 2.5) .. " " .. turn(east, math.pi / 2.5))
-    check("at midnight flat land turns dark-up", turn({ 0, 1, 0 }, math.pi) > math.pi / 2)
+    check("a slope facing east is lit when the sun is east, in shadow when it is west",
+        turn(east, math.pi / 2) < math.pi / 4 and turn(east, -math.pi / 2) > math.pi / 2,
+        turn(east, math.pi / 2) .. " " .. turn(east, -math.pi / 2))
+    local ax, _, az = terrain.sun_direction(0.3)
+    local bx, _, bz = terrain.sun_direction(0.3 + math.pi)
+    check("the sun goes all the way round the hub in a day",
+        math.abs(ax + bx) < 1e-9 and math.abs(az + bz) < 1e-9)
 end
 
 -- the move box: time scaling and first-come-first-served order -------------

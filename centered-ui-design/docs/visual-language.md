@@ -116,9 +116,8 @@ paired with differential triangles.
   along the arch with the hour. No fixed glints.
 - **The land as lit points** (issue 214): no ground texture — the land is
   a grid of points, each with a height, a facing and a colour, drawn as a
-  flat circle facing the camera, shaded by direction round its centre —
-  brightest on one side, darkest opposite, blended (the owner's drawing:
-  assets/references/terrain-circle-sun-top-right.png).
+  flat circle facing the camera, a plain gradient straight across from its
+  shade-side colour to its sun-side colour.
   No light is worked out on a circle: it is only turned in the screen's
   plane — bright-pole-up where its slope faces the sun, dark-pole-up where
   it faces away — and so many overlap that each shows only its upper edge,
@@ -133,3 +132,7 @@ paired with differential triangles.
   turning its points: the lake's sheen-points live in the ceramic engine's
   shared memory and its workers turn them each step by passing waves and
   the sun, so ripples show as patches of shade-side colour drifting across.
+- **The sun circles the hub** (issue 214): once a day round the hub's
+  upright axis at a fixed height, so every slope, facing any way, has its
+  turn in the light; the terrain's circles are plain gradients, dark edge to
+  lit edge, turned toward it.

@@ -157,15 +157,14 @@ end
 -- }}}
 
 -- {{{ function M.round_shade()
--- The one circle every terrain point is drawn with (issue 214): flat, its
--- shade going by direction round its centre — brightest straight up,
--- falling off smoothly (the cosine of the angle away from up) to darkest
--- straight down, each direction one shade from centre to rim. The owner's
--- drawing (assets/references/terrain-circle-sun-top-right.png) shows it as
--- eight sections when turned toward a sun at the top right; this is that,
--- blended. Red holds the shade, alpha whether a pixel is inside the
--- circle. (Earlier: shade by height, dark pole at the bottom to bright pole
--- at the top; before that, along lines of latitude, which left "fins".) The renderer only turns it. A circle-texture
+-- The one circle every terrain point is drawn with (issue 214): flat, a
+-- plain gradient straight across it, darkest at the bottom edge, lightest
+-- at the top (the owner: "can we have a gradient instead of the circle
+-- thing we have? It should still spin, and the lit part should still point
+-- toward the sun"). Red holds the shade, alpha whether a pixel is inside
+-- the circle. (Before: shaded by direction round the centre, after the
+-- owner's eight-section drawing in assets/references/ — it looked like a
+-- shallow cone; before that, along lines of latitude, which left "fins".) The renderer only turns it. A circle-texture
 -- utility like the console's dials. Returns image data, `size` square.
 function M.round_shade(size)
     local data = love.image.newImageData(size, size)
@@ -176,13 +175,8 @@ function M.round_shade(size)
         if x * x + y * y > 1 then
             return 0, 0, 0, 0
         end
-        -- by direction from the centre: up brightest, down darkest
-        local reach = math.sqrt(x * x + y * y)
-        local shade = 0.5
-        -- (the very centre has no direction: middle shade)
-        if reach > 1e-6 then
-            shade = 0.5 + 0.5 * y / reach
-        end
+        -- straight across: the bottom edge darkest, the top lightest
+        local shade = 0.5 + 0.5 * y
         return shade, shade, shade, 1
     end)
     return data
