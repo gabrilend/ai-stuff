@@ -80,6 +80,7 @@ local LOOK_TOGGLES = {
     toggle_standing = { "standing", { "upright", "outward" } },
     toggle_blur = { "blur", { "on", "off" } },
     toggle_ground = { "ground", { "dots", "map" } },
+    toggle_circle = { "circle", { "shade", "bars", "bars-open" } },
 }
 
 -- {{{ local function next_choice()
@@ -268,6 +269,7 @@ function game.load(arguments)
         standing = settings.view_standing,
         blur = settings.view_blur,
         ground = settings.view_ground,
+        circle = settings.view_circle,
         hour_angle = 0,
     }
     game.camera.view = game.look.depth
@@ -675,6 +677,10 @@ function game.mousemoved(x, y)
 end
 -- }}}
 
+-- How far (a share of one arch) a drag must go to carry on to the next
+-- seat when let go.
+local DRAG_CARRY_SHARE = 1 / 6
+
 -- {{{ function game.mousereleased()
 -- Letting go of the console: the chair eases to the nearest seat.
 function game.mousereleased(x, y, button)
@@ -682,9 +688,16 @@ function game.mousereleased(x, y, button)
     if game.drag == nil or button ~= 1 then
         return
     end
+    -- like a carousel: a drag of more than a sixth of an arch carries on to
+    -- the next seat in its direction (settling on the nearest seat alone
+    -- needed a drag of half an arch — half the screen — so ordinary drags
+    -- slid back where they started and seemed not to work)
+    local moved = (game.chair - game.drag.chair) / game.quadrant
+    local direction = moved >= 0 and 1 or -1
+    local start_seat = math.floor((game.drag.chair - game.home_turn) / game.quadrant + 0.5)
+    local seats_moved = direction * math.floor(math.abs(moved) + 1 - DRAG_CARRY_SHARE)
     game.drag = nil
-    local seats_turned = math.floor((game.chair - game.home_turn) / game.quadrant + 0.5)
-    game.chair_target = game.home_turn + seats_turned * game.quadrant
+    game.chair_target = game.home_turn + (start_seat + seats_moved) * game.quadrant
 end
 -- }}}
 

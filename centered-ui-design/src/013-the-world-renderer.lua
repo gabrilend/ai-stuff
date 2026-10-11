@@ -161,6 +161,7 @@ uniform vec3 sun;           // toward the sun (026's sun_direction)
 varying vec3 v_color;
 varying vec2 v_local;
 varying vec2 v_turn;        // cos, sin of the circle's turn
+varying float v_sun_side;   // 1: the sun on the screen's right; -1: left
 varying float v_haze;
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float r = Dot.x;
@@ -183,7 +184,8 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // the sun, leaning to the sun's side of the screen (026's shade_turn)
     float facing_sun = clamp(dot(DotFacing.xyz, sun), -1.0, 1.0);
     float lean = acos(facing_sun);
-    float turn = view_facing(sun).x < 0.0 ? -lean : lean;
+    v_sun_side = view_facing(sun).x < 0.0 ? -1.0 : 1.0;
+    float turn = v_sun_side * lean;
     v_turn = vec2(cos(turn), sin(turn));
     v_local = local;
     v_color = DotColor.rgb;
@@ -194,9 +196,12 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 
 local DOT_PIXEL = HAZE_GLSL .. [[
 uniform Image round_shade;  // the circle (012)
+uniform float circle_bars;  // 1: the bar-chart circle (to check the turn); 0: the shade
+uniform float circle_open;  // 1: the bar chart's background clear; 0: opaque
 varying vec3 v_color;
 varying vec2 v_local;
 varying vec2 v_turn;
+varying float v_sun_side;
 varying float v_haze;
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
     // look the circle up turned: its bright pole leans by the turn
@@ -207,8 +212,28 @@ vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
     if (dot(v_local, v_local) > 1.0) {
         discard;
     }
-    vec4 shade = Texel(round_shade, vec2(0.5 + 0.5 * p.x, 0.5 - 0.5 * p.y));
-    vec3 lit = v_color * mix(0.18, 1.25, shade.r);
+    vec3 lit;
+    if (circle_bars > 0.5) {
+        // the bar-chart circle: 24 bars round the centre, each reaching a
+        // little farther than the last — none at the start (dark), the rim
+        // at the end (full colour), the longest at the bright pole's place
+        // (up, before the turn); winding clockwise with the sun on the
+        // screen's right, counter-clockwise on its left
+        float around = atan(p.x, p.y) / 6.28318531;      // 0 up, growing clockwise
+        float share = fract(around * v_sun_side + 1.0);   // 0 .. 1 round the circle
+        float bar = floor(share * 24.0);
+        float reach = (bar + 1.0) / 24.0;
+        bool on_bar = fract(share * 24.0) < 0.7 && length(p) <= reach;
+        // between bars: dark, or (open) nothing, showing what lies behind
+        if (!on_bar && circle_open > 0.5) {
+            discard;
+        }
+        lit = on_bar ? v_color * 1.25 : v_color * 0.12;
+    } else {
+        // the shade: dark pole to bright pole
+        vec4 shade = Texel(round_shade, vec2(0.5 + 0.5 * p.x, 0.5 - 0.5 * p.y));
+        lit = v_color * mix(0.18, 1.25, shade.r);
+    }
     return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
@@ -570,6 +595,8 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
             love.graphics.setShader(renderer.dot_shader)
             send_frame(renderer, renderer.dot_shader, flip_y, look)
             renderer.dot_shader:send("sun", { sun_x, sun_y, sun_z })
+            renderer.dot_shader:send("circle_bars", look.circle ~= "shade" and 1 or 0)
+            renderer.dot_shader:send("circle_open", look.circle == "bars-open" and 1 or 0)
             love.graphics.drawInstanced(renderer.dot_mesh, renderer.dot_count)
             love.graphics.setDepthMode("lequal", true)
         end

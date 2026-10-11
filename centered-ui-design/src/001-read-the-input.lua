@@ -45,6 +45,7 @@ M.REQUIRED_FIELDS = {
     { name = "arch_reach",                 kind = "number" },
     { name = "arch_span_degrees",          kind = "number" },
     { name = "view_ground",                kind = "word", words = { "dots", "map" } },
+    { name = "view_circle",                kind = "word", words = { "shade", "bars", "bars-open" } },
 }
 
 -- {{{ local function is_one_of()

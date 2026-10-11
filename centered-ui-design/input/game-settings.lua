@@ -109,4 +109,9 @@ return {
     -- an otherwise empty ground; or "map", the flat painted map (tier rings,
     -- quadrants, sections). Switched in the settings menu too.
     view_ground = "dots",
+    -- how each terrain circle is drawn: "shade", dark pole to bright pole;
+    -- or "bars", a spiral of bars growing from none to the rim, to watch
+    -- each circle's turn (the longest bar where the bright pole would be);
+    -- or "bars-open", the same with the background between bars clear
+    view_circle = "bars",
 }

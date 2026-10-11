@@ -74,7 +74,11 @@ arch.
   the console's metal (not on a button) and dragging sideways turns the
   chair with the hand — the row of arches and the world slide together, one
   arch's spacing of drag for one seat's quadrant — and on letting go the
-  chair eases to the nearest seat. Every arch that passes is drawn exactly
+  chair eases to the nearest seat. (With arches as wide as the screen,
+  "nearest" needed a drag of half the screen, so ordinary drags slid back
+  and the owner found dragging did not work: now, like a carousel, a drag
+  of more than a sixth of an arch carries on to the next seat in its
+  direction.) Every arch that passes is drawn exactly
   as yours, the same shape and brightness, with its own buttons, dials and
   labels; its named slot says whose seat it is.
 - **Forty per cent of the surface** (the owner: "can you make it so

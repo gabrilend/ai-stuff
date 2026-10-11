@@ -49,7 +49,10 @@ the sun on an empty ground; the painted map is a menu choice (pictures
 dense, lit only by their turn, nearest first with wholly covered circles
 never painted (055-057); ordered by distance from the centre alone and
 shaded straight pole to pole, after the owner saw "funky" hills and "fins"
-(058-059). The test script now also starts the game for a moment.
+(058-059). The test script now also starts the game for a moment. The bar-chart
+circle (opaque, and "bars-open" with a clear background) shows the turn;
+the owner confirmed the circles turn about the right axis (pictures
+060-066).
 
 ## Intended Behavior
 
@@ -215,6 +218,23 @@ is just the depth effect applied down one scenery."
   evenly along each ring, so longer rings far out hold more. A few mesas
   with steep sides, by formula from the seed, make the test landscape. The
   flat painted map can be switched back from the settings menu.
+- **A bar-chart circle, to check the turn** (the owner: "just to make
+  sure we got the rotation right, can you change the sprite texture to be
+  a series of increasing bars on a barchart, with the centering being 0
+  and the edge being max? It should spiral around clockwise or
+  counter-clockwise, depending on if the sun is closer to the left or the
+  right side of the screen. at 0 it should be dark, at max it should have
+  lots of bars visible, so more of the color. I just wanna watch and make
+  sure you're rotating around the correct axis."). A second circle style:
+  bars round the circle, each reaching from the centre a little farther
+  than the last, from none (dark) to the rim (full colour), the longest at
+  the bright pole's place; winding clockwise when the sun is on the
+  screen's right, counter-clockwise on its left. Chosen in the settings
+  (`view_circle`: "shade", "bars" or "bars-open") and the menu. The
+  owner, on seeing it: "yes we are rotating around the same axis! ... Can
+  you try as if the background of the circle isn't transparent, but rather
+  opaque? And then try with transparent, just to see what it's like." —
+  both are kept as choices.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the

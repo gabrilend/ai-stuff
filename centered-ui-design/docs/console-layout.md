@@ -67,8 +67,9 @@ and QUIT. The readouts stay.
 
 Press anywhere on the metal that is not a button and drag sideways: the
 chair turns with your hand (one arch's spacing for one seat), the row of
-arches and the world sliding together; let go and it settles on the
-nearest seat. Every arch that passes is drawn whole, exactly as yours, with
+arches and the world sliding together; let go after a sixth of an arch and
+it carries on to the next seat that way, like a carousel. The arch in front
+is the seat you play: its buttons answer. Every arch that passes is drawn whole, exactly as yours, with
 its own buttons and dials and its seat named in its slot.
 
 ## The view dials

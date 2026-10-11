@@ -104,6 +104,7 @@ M.SETTINGS_BUTTONS = {
     { verb = "toggle_standing", look = "standing", paint = { 0.15, 0.80, 0.65 }, across = 0,     up = 0.20 },
     { verb = "toggle_blur",     look = "blur",     paint = { 0.10, 0.85, 0.90 }, across = 0.40,  up = 0.20 },
     { verb = "toggle_ground",   look = "ground",   paint = { 0.62, 0.50, 0.26 }, across = 1.35,  up = 0.20 },
+    { verb = "toggle_circle",   look = "circle",   paint = { 0.95, 0.75, 0.30 }, across = 2.25,  up = 0.20 },
 }
 
 -- What a look toggle's button says for each choice.
@@ -112,6 +113,7 @@ M.LOOK_WORDS = {
     standing = { upright = "UPRIGHT", outward = "OUTWARD" },
     blur = { on = "BLUR ON", off = "BLUR OFF" },
     ground = { dots = "LIT DOTS", map = "PAINTED MAP" },
+    circle = { shade = "SHADED", bars = "BAR CHART", ["bars-open"] = "OPEN BARS" },
 }
 M.SETTINGS_BUTTON_RADIUS = 0.105
 

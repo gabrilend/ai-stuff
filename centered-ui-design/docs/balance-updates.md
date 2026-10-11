@@ -32,3 +32,5 @@
 | 2026-10-10 | the land as lit dots (026, 013, new) | painted splotches (1500, 4.5 across) | points every 3 ground units along each ring and between rings, sprites 5.2 across, relief bend 0.8, 9 mesas 4-9 high | the owner's terrain of "invisible points" drawn as round sprites lit by the sun; the splotch knobs are retired |
 | 2026-10-10 | the ground (`view_ground`, input, new) | the painted map | dots | the owner: "we don't draw a texture onto the ground"; the painted map stays as a menu choice |
 | 2026-10-10 | terrain point spacing (`POINT_SPACING`, 026) | 3.0 | 3.0 / sqrt(2) (about 2.1) | the owner: "they should be mostly overlapping, so maybe twice as many as there are now" |
+| 2026-10-10 | terrain circle style (`view_circle`, input, new) | — | bars | the owner asked for a bar-chart circle to watch the turn; "shade" is the drawing, "bars-open" the same bars with a clear background |
+| 2026-10-10 | a drag's carry (`DRAG_CARRY_SHARE`, 016, new) | settle on the nearest seat (half an arch) | a sixth of an arch carries on to the next seat | with arches as wide as the screen, ordinary drags slid back and dragging seemed not to work |
