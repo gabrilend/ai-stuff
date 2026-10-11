@@ -193,6 +193,17 @@ do
         sphere_fold.size_scale(shrinking, shrinking.tiers_shown) < 0.9)
     check("far things keep full size under the keeping size law",
         sphere_fold.size_scale(keeping, keeping.tiers_shown) == 1)
+
+    -- walking on the sphere: per tier walked, how far a walker crosses the
+    -- map sideways (folded radius / lap radius) and outward (the fold's
+    -- slope), near the hub and far out
+    local near_r, far_r = 1, fold.tiers_shown - 0.3
+    local near_sideways = sphere_fold.radius(fold, near_r) / sphere_fold.side_radius(fold, near_r)
+    local far_sideways = sphere_fold.radius(fold, far_r) / sphere_fold.side_radius(fold, far_r)
+    check("far out, a walker crosses the map sideways faster than near the hub",
+        far_sideways > 1.5 * near_sideways, near_sideways .. " " .. far_sideways)
+    check("far out, outward steps stay dense (cross less of the map)",
+        sphere_fold.slope(fold, far_r) < sphere_fold.slope(fold, near_r))
 end
 
 -- the move box: time scaling and first-come-first-served order -------------
@@ -265,6 +276,7 @@ do
     local fold = sphere_fold.from_settings(settings)
     library.ceramics_set_fold(fold.strength, fold.tiers_shown, fold.hub_radius, fold.edge_radius, 5.0)
     library.ceramics_set_size_keep(fold.size_keep)
+    library.ceramics_set_far_pole(fold.far_pole)
     for index, section in ipairs(seeding.SECTIONS) do
         library.ceramics_set_section(index - 1, section.r, section.angle, section.radius)
     end
@@ -284,6 +296,12 @@ do
         end
     end
     check("the C motion matches its Lua twin", worst < 1e-5, "worst " .. worst)
+
+    worst = 0
+    for r = 0, fold.tiers_shown, 0.29 do
+        worst = math.max(worst, math.abs(library.ceramics_side_radius(r) - sphere_fold.side_radius(fold, r)))
+    end
+    check("the C lap radius matches its Lua twin", worst < 1e-12, "worst " .. worst)
 
     -- and under the other size law (the stride is sized by it)
     local other_law = 1 - fold.size_keep
@@ -353,7 +371,17 @@ do
     end
     cubes[0].r = 2.05
     cubes[0].angle = 0.505
-    run_steps(claim, 240, false)
+    -- step until it is lifted (at most 4 seconds), and look then: a fixed
+    -- wait can overshoot into delivery once haulers walk faster
+    for _ = 1, 240 do
+        run_steps(claim, 1, false)
+        if claim.cubes[claim.front][0].state ~= records.CUBE_LYING then
+            break
+        end
+    end
+    -- a few more steps, so the losing unit hears it lost and the cuboid is
+    -- carried along a little
+    run_steps(claim, 10, false)
     local claimed = claim.cubes[claim.front][0]
     check("two units after one cuboid: the lower-numbered unit carries it",
         claimed.state == records.CUBE_CARRIED and claimed.carrier == 0,

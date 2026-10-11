@@ -101,13 +101,31 @@ is just the depth effect applied down one scenery."
    hub → slant; tests (hub at the bottom row, reach at the top, click round
    trip, sizes kept); pictures.
 
+8. Walking on the sphere (the owner's answer to the first question below:
+   far figures should visibly move faster left-right, "closer / farther is
+   always just dense"). The haulers' steering in the ceramic engine measures
+   pace on the sphere instead of on the folded ground: a far pole setting
+   (the foes' pole, just past the tiers shown), a lap radius
+   (far pole / pi x sin(pi r / far pole), Lua and C twins), steering by
+   outward tiers and sideways sphere distance at a steady tiers-per-second
+   pace, reach and section arrival in tiers. The simulation is then the same
+   under every view (the size law only touches drawing). Tests: the twins
+   agree; sideways screen speed per step grows outward while outward screen
+   speed shrinks; cuboids still delivered.
+
 ## Open questions
 
-- "Moves faster" read as: the far tiers are pressed together on screen
-  while figures keep their size, so near the top each step on screen is
-  more of the world; and when the chair turns, the far ground sweeps faster.
-  Is that the speed meant, or should figures near the top also visibly walk
-  faster on screen than those by the dashboard?
+- Answered: figures near the top should visibly move faster left-right;
+  toward and away stays dense (step 8). The owner: "otherwise we won't be
+  able to simulate the other kingdoms that our kingdom of 4 is fighting.
+  It's one across from each other on all four, but how else do you represent
+  that except two (or more) poles on a sphere? well, instead of the units
+  bending away from you, as if they were on the horizon sphere curving
+  away... but also not curving toward you, as if you were both inside of a
+  sphere's surface, but rather, just directly away, at the exact plane where
+  they are not bent one way or the other, rather, simply perfect to you."
+- Where is the far pole? Built as one tier past the tiers shown (just
+  beyond the map's edge). Should it be at the edge itself, or further?
 - "Expand the longitude": built as showing from the hub out to the map's
   edge (the reach setting). Did it also mean more tiers in the world (the
   tiers shown setting, now 6)?

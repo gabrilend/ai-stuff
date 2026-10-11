@@ -88,6 +88,21 @@ function M.size_scale(fold, r)
 end
 -- }}}
 
+-- {{{ function M.side_radius()
+-- How far a lap around the hub at tier distance r really is, as the radius
+-- of that circle of latitude on the sphere (tiers): (P / pi) sin(pi r / P),
+-- with our hub at one pole and the foes' pole P tiers out. Near our hub it
+-- is about r; it shrinks again toward the far pole. The map draws every lap
+-- as a full circle of its folded radius, so walking sideways near the far
+-- pole crosses the screen fast — the owner: "They will move left-right
+-- faster while they are far away, but closer / farther is always just
+-- dense." Twin of side_radius in 020-ceramic-boxes.c.
+function M.side_radius(fold, r)
+    local pole = fold.far_pole
+    return pole / math.pi * math.sin(math.pi * r / pole)
+end
+-- }}}
+
 -- {{{ function M.ground_position()
 -- A place (tier distance, angle) -> world x, z on the ground. Angle 0 points
 -- up the screen (north, -z) and grows clockwise.
@@ -106,6 +121,8 @@ function M.from_settings(settings)
         edge_radius = settings.edge_radius,
         -- the size law (0 or 1; see size_scale): kept only by the slant view
         size_keep = settings.view_depth == "slant" and 1 or 0,
+        -- the foes' pole, in tiers from ours (see side_radius)
+        far_pole = settings.far_pole_tier,
     }
 end
 -- }}}

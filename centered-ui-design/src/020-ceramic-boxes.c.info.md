@@ -9,3 +9,5 @@ The world's work as ceramic boxes (C), run by soramech's engine on its worker th
 | `cuboid_chunk` | the same | the same | each cuboid: claimed by the lowest-numbered unit fetching it; carried in front of its carrier; stacked in its section when set down; reappears elsewhere after resting |
 
 World by pointer (set by the host, 022): `ceramics_units_front/back`, `ceramics_cubes_front/back`, counts, step seconds, seed, the fold, the figure scale, the sections. Records: `unit_record` (16 floats) and `cuboid_record` (12 floats), matching 005. Tuning knobs at the top (walk pace, reach, resting time).
+
+Haulers walk on the sphere (issue 214): steering splits the way to a target into outward tiers and sideways sphere distance (the lap radius at the walker's tier times the angle), and walks it at a steady pace in tiers per second; reach and arriving in a section are measured in tiers. So the walk is the same under every view, and on the map far walkers cross sideways fast and outward densely. Sizes on the map (carried and stacked cuboids) follow the size law.

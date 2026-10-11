@@ -93,6 +93,7 @@ typedef struct {
 #define FOE 4
 
 #define TWO_PI 6.283185307179586
+#define HALF_TURN 3.141592653589793
 #define MAX_SECTIONS 8
 
 /* {{{ the world, by pointer (set by the host before each stage) */
@@ -114,6 +115,9 @@ double figure_scale;
  * owner asked that the far stuff "remains the same size relative to the
  * part near the dashboard"). Set between steps only (022/023). */
 double fold_size_keep;
+/* the foes' pole, in tiers from ours: the world is a sphere with our hub at
+ * one pole (see side_radius) */
+double fold_far_pole;
 
 /* the color-coded sections: where each color's cuboids are taken */
 int section_count;
@@ -124,8 +128,8 @@ double section_r[MAX_SECTIONS], section_angle[MAX_SECTIONS], section_radius[MAX_
 #define INNER_LIMIT 0.75             /* units turn back this near the hub (tiers) */
 #define STRIDE_WORLD_UNITS 2.4       /* ground per walking cycle at tier 1 */
 #define IDLE_CYCLES_PER_SECOND 0.25  /* a standing unit's sway */
-#define WALK_WORLD_UNITS 3.0         /* a hauler's ground speed at tier 1 (per second) */
-#define REACH_WORLD_UNITS 2.6        /* how close a hauler must be to pick up (tier 1) */
+#define WALK_TIERS_PER_SECOND 0.12   /* a hauler's pace on the sphere */
+#define REACH_TIERS 0.106            /* how close (on the sphere) a hauler must be to pick up */
 #define RESTING_SECONDS 12.0         /* how long a delivered cuboid stays before reappearing */
 
 /* {{{ static double fold_radius(double r) */
@@ -181,6 +185,24 @@ static double fold_size_scale(double r)
     }
     /* the other views: shrunk as the tier is squeezed */
     return (1.0 + fold_strength) / (1.0 + fold_strength * r);
+}
+/* }}} */
+
+/* {{{ static double side_radius(double r) */
+/* The radius, on the sphere, of the lap around the hub at tier distance r
+ * (tiers): (P / pi) sin(pi r / P), our hub one pole and the foes' P tiers
+ * out. Twin of M.side_radius in 004. */
+static double side_radius(double r)
+{
+    return fold_far_pole / HALF_TURN * sin(HALF_TURN * r / fold_far_pole);
+}
+/* }}} */
+
+/* {{{ double ceramics_side_radius(double r) */
+/* side_radius, for the tests to compare with its Lua twin. */
+double ceramics_side_radius(double r)
+{
+    return side_radius(r);
 }
 /* }}} */
 
@@ -254,29 +276,32 @@ static void move_unit(const unit_record *source, unit_record *unit, double dt)
 }
 /* }}} */
 
-/* {{{ static double steer_toward(unit_record *u, double tx, double tz) */
-/* Points a unit's speeds at a ground spot at hauling pace (slower far out,
- * where everything is drawn smaller). Returns the ground distance left. */
-static double steer_toward(unit_record *u, double tx, double tz)
+/* {{{ static double steer_toward(unit_record *u, double tr, double ta) */
+/* Points a unit's speeds at a place (tier distance, angle) at a steady pace
+ * measured on the sphere, not on the folded map: outward in tiers, sideways
+ * along the lap (side_radius x angle). So the walk is the same under every
+ * view, and on the map a walker far out goes left-right fast (its lap is
+ * short on the sphere but drawn wide) and in-out densely (the fold squeezes
+ * the outer tiers). Steering by the local split is greedy, which is enough
+ * for the short walks of hauling. Returns the sphere distance left (tiers). */
+static double steer_toward(unit_record *u, double tr, double ta)
 {
-    double x, z;
-    ground_xz(u->r, u->angle, &x, &z);
-    double dx = tx - x, dz = tz - z;
-    double distance = sqrt(dx * dx + dz * dz);
-    if (distance < 1e-6) {
+    double side = side_radius(u->r);
+    double turn = fmod(ta - u->angle, TWO_PI);
+    /* the short way round */
+    if (turn > HALF_TURN) turn -= TWO_PI;
+    if (turn < -HALF_TURN) turn += TWO_PI;
+    double outward = tr - u->r;
+    double sideways = side * turn;
+    double distance = sqrt(outward * outward + sideways * sideways);
+    if (distance < 1e-9) {
         /* already there */
         u->speed_r = 0;
         u->speed_angle = 0;
         return 0;
     }
-    double pace = WALK_WORLD_UNITS * fold_size_scale(u->r);
-    /* the direction, split into outward (radial) and sideways (tangent) */
-    double radial_x = sin(u->angle), radial_z = -cos(u->angle);
-    double tangent_x = cos(u->angle), tangent_z = sin(u->angle);
-    double outward = (dx * radial_x + dz * radial_z) / distance * pace;
-    double sideways = (dx * tangent_x + dz * tangent_z) / distance * pace;
-    u->speed_r = (float)(outward / fold_slope(u->r));
-    u->speed_angle = (float)(sideways / fold_radius(u->r));
+    u->speed_r = (float)(outward / distance * WALK_TIERS_PER_SECOND);
+    u->speed_angle = (float)(sideways / distance * WALK_TIERS_PER_SECOND / side);
     return distance;
 }
 /* }}} */
@@ -356,9 +381,7 @@ static void think(unit_record *u, int me)
             return;
         } else {
             /* walk to it; close enough: stand and ask to pick it up */
-            double cx, cz;
-            ground_xz(c->r, c->angle, &cx, &cz);
-            if (steer_toward(u, cx, cz) < REACH_WORLD_UNITS * fold_size_scale(u->r)) {
+            if (steer_toward(u, c->r, c->angle) < REACH_TIERS) {
                 stop(u);
                 u->wants = WANTS_PICK_UP;
             }
@@ -373,10 +396,8 @@ static void think(unit_record *u, int me)
         return;
     }
     int s = (int)c->color % section_count;
-    double sx, sz;
-    ground_xz(section_r[s], section_angle[s], &sx, &sz);
-    double inside = fold_slope(section_r[s]) * section_radius[s] * 0.6;
-    if (steer_toward(u, sx, sz) < inside) {
+    /* within six tenths of the section's radius (tiers) counts as inside */
+    if (steer_toward(u, section_r[s], section_angle[s]) < section_radius[s] * 0.6) {
         /* inside its section: stand and ask to set it down */
         stop(u);
         u->wants = WANTS_DROP;

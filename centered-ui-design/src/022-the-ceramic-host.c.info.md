@@ -6,6 +6,9 @@ The render thread's calls into the engine. Compiled only appended to serac's emi
 | Call | Does |
 |---|---|
 | `ceramics_set_fold(strength, tiers, hub, edge, figure)` | the fold and figure scale the boxes use |
+| `ceramics_set_size_keep(keep)` | the size law: 0 far things shrink, 1 full size (the slant view); set only between steps |
+| `ceramics_set_far_pole(tiers)` | where the foes' pole is, in tiers from ours; haulers walk on that sphere |
+| `ceramics_side_radius(r)` | the lap radius on the sphere at tier distance r (for the tests) |
 | `ceramics_set_section(index, r, angle, radius)` | one color-coded section (0..7) |
 | `ceramics_start(workers, units, cubes, seed)` | builds the map, starts the workers, prepares one batch of chunk requests per stage (chunks of 32); 0 or -1 |
 | `ceramics_set_world(units_front, units_back, cubes_front, cubes_back)` | where the blocks are this step |

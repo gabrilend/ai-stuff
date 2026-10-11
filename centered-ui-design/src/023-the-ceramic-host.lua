@@ -24,6 +24,8 @@ ffi.cdef([[
 const char *ceramics_error(void);
 void ceramics_set_fold(double strength, double tiers, double hub, double edge, double figure);
 void ceramics_set_size_keep(double keep);
+void ceramics_set_far_pole(double tiers);
+double ceramics_side_radius(double r);
 int ceramics_set_section(int index, double r, double angle, double radius);
 int ceramics_start(int workers, int units, int cubes, unsigned seed);
 void ceramics_set_world(unit_record *units_front, unit_record *units_back,
@@ -71,6 +73,7 @@ function M.start(library, world)
     library.ceramics_set_fold(world.fold.strength, world.fold.tiers_shown,
         world.fold.hub_radius, world.fold.edge_radius, world.figure_scale)
     library.ceramics_set_size_keep(world.fold.size_keep)
+    library.ceramics_set_far_pole(world.fold.far_pole)
     for index, section in ipairs(world.sections) do
         must(library, library.ceramics_set_section(index - 1, section.r, section.angle, section.radius),
             "a section")

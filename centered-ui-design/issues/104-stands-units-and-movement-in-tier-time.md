@@ -20,6 +20,20 @@ The world has positions and rings but nothing in it.
 - Each tick, a stand with a move-like order steps toward its target. Speed is
   in tier-distance, so every band takes the same time to cross (tier-time).
 - A stand with no order holds position.
+- **Sideways is measured on the sphere** (the owner, 2026-10-10: "how else
+  do you represent that except two (or more) poles on a sphere? ... They
+  will move left-right faster while they are far away, but closer / farther
+  is always just dense."). The hub is one pole; the foes' kingdom across
+  from it is the far pole, a set number of tiers out (the far pole tier,
+  just past the tiers shown). Around the hub at tier distance r, a lap is
+  as long as a circle of latitude: (far pole / pi) x sin(pi r / far pole)
+  tiers round its radius — small near either pole. The map draws every lap
+  as a full circle of its folded radius, so near the far pole a short lap
+  is drawn huge and sideways motion crosses the screen fast, while outward
+  motion, squeezed by the fold, stays dense. A stand's speed is in tiers
+  per second in both directions on the sphere; its turning speed is that
+  sideways speed divided by the lap's sphere radius. The haulers already
+  walk this way (issue 214, the ceramic engine's steering).
 
 ## Suggested Implementation Steps
 

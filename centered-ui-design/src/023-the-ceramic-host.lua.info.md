@@ -9,3 +9,5 @@ The FFI binding to the ceramic library (built by scripts/build-ceramics into tmp
 | `start(library, world)` | fold, figure_scale, sections, workers, unit_count, cuboid_count, seed | a host |
 | `advance(host, step_seconds_waiting, set_world)` | | finished (a step has wholly landed: swap the blocks), began (a step went in); `host.just_handed_in` for the cuboid stage. Never waits. |
 | `stop(host)` | | lets a stage in flight land, then stops |
+
+`set_size_keep(host, keep)`: asks for a size law (0 shrink far out, 1 full size); it reaches the engine at the start of the next step. `start` also hands the engine the size law and the foes' pole from the fold.

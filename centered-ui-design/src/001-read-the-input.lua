@@ -41,6 +41,7 @@ M.REQUIRED_FIELDS = {
     { name = "hub_look_down_degrees",      kind = "number" },
     { name = "hub_field_of_view_degrees",  kind = "number" },
     { name = "slant_reach",                kind = "number" },
+    { name = "far_pole_tier",              kind = "number" },
 }
 
 -- {{{ local function is_one_of()
@@ -115,6 +116,12 @@ local function check_settings(settings, source_name)
     -- without end.
     if settings.slant_reach <= 0 then
         error(source_name .. ": slant_reach must be more than 0", 0)
+    end
+    -- The foes' pole must lie past the tiers shown: at or inside them, the
+    -- laps near it would shrink to nothing on the map and walkers there
+    -- would spin without end.
+    if settings.far_pole_tier <= settings.tiers_shown then
+        error(source_name .. ": far_pole_tier must be more than tiers_shown", 0)
     end
     -- A negative fold would bunch the inner tiers instead of the outer ones.
     if settings.fold_strength < 0 then

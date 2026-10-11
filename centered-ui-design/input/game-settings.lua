@@ -87,4 +87,10 @@ return {
     -- screen reaches; the hub is at the bottom. The map's edge is
     -- edge_radius, so a little more shows all of it.
     slant_reach = 120,
+
+    -- the world is a sphere: our hub is one pole, and the foes' kingdom
+    -- across from it is the other, this many tiers out (past the tiers
+    -- shown). Laps around the hub are shortest near either pole, so walkers
+    -- far out cross the map's wide outer rings fast from side to side.
+    far_pole_tier = 7,
 }

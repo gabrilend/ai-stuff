@@ -28,7 +28,7 @@ extern int ceramics_cube_count;
 extern double ceramics_step_seconds;
 extern uint32_t ceramics_seed;
 extern double fold_strength, fold_tiers, fold_hub, fold_edge, figure_scale;
-extern double fold_size_keep;
+extern double fold_size_keep, fold_far_pole;
 extern int section_count;
 extern double section_r[], section_angle[], section_radius[];
 
@@ -82,6 +82,14 @@ void ceramics_set_fold(double strength, double tiers, double hub, double edge, d
 void ceramics_set_size_keep(double keep)
 {
     fold_size_keep = keep;
+}
+/* }}} */
+
+/* {{{ void ceramics_set_far_pole(double tiers) */
+/* Where the foes' pole is, in tiers from ours (see side_radius in 020). */
+void ceramics_set_far_pole(double tiers)
+{
+    fold_far_pole = tiers;
 }
 /* }}} */
 
