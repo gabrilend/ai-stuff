@@ -56,3 +56,9 @@
     test and the demo take new pictures (six views each), so the history
     grows by dozens per change. Keep all, or file only the demo's and
     hand-taken pictures?
+
+14. **The calculations' limits:** every limit in input/calculations/ (the
+    smallest tab clearance, how far the arm may creep, the two eyes' allowed
+    vertical mismatch...) is a guess, marked as one. Which are real
+    requirements, and what are they? Run ./calculate for where each
+    stands today.

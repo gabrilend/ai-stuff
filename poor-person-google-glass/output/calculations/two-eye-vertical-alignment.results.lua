@@ -1,0 +1,121 @@
+-- made by src/022-calculate.lua on 2026-10-10 23:19 from input/calculations/two-eye-vertical-alignment.lua: every answer of the calculation (format: src/021-the-tolerance-report.lua)
+return {
+  inputs = {
+    {
+      condition = false,
+      from = "guess: arm hinge angle error",
+      minus = 0.050000000000000003,
+      name = "hinge_angle_left",
+      nominal = 0,
+      plus = 0.050000000000000003,
+      unit = "deg",
+    },
+    {
+      condition = false,
+      from = "guess: arm hinge angle error",
+      minus = 0.050000000000000003,
+      name = "hinge_angle_right",
+      nominal = 0,
+      plus = 0.050000000000000003,
+      unit = "deg",
+    },
+    {
+      condition = false,
+      from = "guess: tile glued to its sub-arm",
+      minus = 0.029999999999999999,
+      name = "mount_tilt_left",
+      nominal = 0,
+      plus = 0.029999999999999999,
+      unit = "deg",
+    },
+    {
+      condition = false,
+      from = "guess: tile glued to its sub-arm",
+      minus = 0.029999999999999999,
+      name = "mount_tilt_right",
+      nominal = 0,
+      plus = 0.029999999999999999,
+      unit = "deg",
+    },
+    {
+      condition = false,
+      from = "guess: arm droop under the tile's weight",
+      minus = 0.02,
+      name = "sag_left",
+      nominal = 0.02,
+      plus = 0.02,
+      unit = "deg",
+    },
+    {
+      condition = false,
+      from = "guess: arm droop under the tile's weight",
+      minus = 0.02,
+      name = "sag_right",
+      nominal = 0.02,
+      plus = 0.02,
+      unit = "deg",
+    },
+    {
+      condition = true,
+      from = "guess: frame twisted between the eyes when worn",
+      minus = 0.050000000000000003,
+      name = "frame_twist",
+      nominal = 0,
+      plus = 0.050000000000000003,
+      unit = "deg",
+    },
+  },
+  made = "2026-10-10 23:19",
+  name = "two-eye-vertical-alignment",
+  question = "How far apart vertically do the two eyes' pictures land, if the tile mirrors tilt by their tolerances?",
+  results = {
+    {
+      at_least = -1,
+      at_most = 1,
+      name = "vertical_mismatch",
+      nominal = 0,
+      shares = {
+        {
+          input = "frame_twist",
+          percent = 24.75247524752475,
+        },
+        {
+          input = "hinge_angle_left",
+          percent = 24.75247524752475,
+        },
+        {
+          input = "hinge_angle_right",
+          percent = 24.75247524752475,
+        },
+        {
+          input = "mount_tilt_left",
+          percent = 8.9108910891089117,
+        },
+        {
+          input = "mount_tilt_right",
+          percent = 8.9108910891089117,
+        },
+        {
+          input = "sag_left",
+          percent = 3.9603960396039612,
+        },
+        {
+          input = "sag_right",
+          percent = 3.9603960396039612,
+        },
+      },
+      spread = {
+        centre = 0,
+        high = 3.5080683800893944,
+        low = -3.5080683800893944,
+      },
+      spread_verdict = "fail",
+      unit = "mrad",
+      worst = {
+        high = 8.7266462599716483,
+        low = -8.7266462599716483,
+      },
+      worst_verdict = "fail",
+    },
+  },
+}

@@ -28,6 +28,10 @@ and issue files do not; they have their own indexes.
   means: the contract for ./describe.
 - docs/physics-check.md - each part set against known physics and the
   closest device that already exists.
+- docs/sizes.md - reference sizes for a Google-Glass-style device, the
+  people who wear it and its materials; every calculation quotes it.
+- docs/tolerances.md - the format of a tolerance calculation, and what is
+  worked out from it.
 - docs/roadmap.md - the phases (0 to 6) and the demo each ends with.
 - docs/open-questions.md - every question met so far, waiting for an answer.
 - docs/balance-updates.md - append-only log of knobs turned and why.
@@ -69,3 +73,8 @@ last issue completed in a project to belong to phase 1.
 - input/viewer-settings.lua - the viewer's window, view and colours.
 - input/descriptions/ - objects described in words: a drum, a lamp, the
   crown, glasses.
+- calculate - works out the tolerance calculations in input/calculations/
+  into output/calculations/ (results and a report each).
+- input/calculations/ - tolerance calculations: tab clearance, the liquid's
+  index drift, two-eye alignment, hydraulic creep, eye-spacing fit, pipe
+  and band expansion.

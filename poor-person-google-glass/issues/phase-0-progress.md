@@ -34,6 +34,11 @@ For current done/open counts, run:
   from the pixels of the flat-colour view, measures which parts each place
   shows — so "every feature seen at least once" is a checked number.
 
+- **009 — Tolerance calculations.** One file per question, every number
+  with its tolerance and its source; worked out to nominal, worst case,
+  usual spread and what to tighten (parts) or absorb (conditions); six
+  first calculations on Google-Glass-sized guesses.
+
 ## In progress
 - **005 — The viewer** works: pictures from its own canvas in six views,
   filed in development-history/. Waits on: reading on several threads; how

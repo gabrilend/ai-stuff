@@ -1,4 +1,4 @@
-<!-- made by describe (src/016-describe.lua) on 2026-10-10 22:45 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/input/descriptions/drum.txt, so the numbers behind the model can be read without opening it -->
+<!-- made by describe (src/016-describe.lua) on 2026-10-10 23:20 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/input/descriptions/drum.txt, so the numbers behind the model can be read without opening it -->
 # drum
 
 Measured in units (1 = a default part's width). Triangles: 2016.
