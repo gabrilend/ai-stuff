@@ -336,8 +336,15 @@ do
     -- dark pole up at evening; at midnight everything turns dark-up
     local function turn(facing, hour)
         local x, y, z = terrain.sun_direction(hour)
-        return math.abs(terrain.shade_turn(facing[1], facing[2], facing[3], x, y, z, 1))
+        local t = facing[1] * x + facing[2] * y + facing[3] * z
+        return math.abs(terrain.shade_turn(facing[1], facing[2], facing[3], x, y, z, math.sqrt(math.max(0, 1 - t * t))))
     end
+    -- no snap: as the sun crosses behind the viewer (its sideways part
+    -- through nothing), the turn changes smoothly
+    local just_left = terrain.shade_turn(0, 1, 0, 0, 0.6, 0.8, -1e-4)
+    local just_right = terrain.shade_turn(0, 1, 0, 0, 0.6, 0.8, 1e-4)
+    check("a circle's turn does not jump as the sun passes behind the viewer",
+        math.abs(just_left - just_right) < 1e-3, just_left .. " " .. just_right)
     -- the sun circles the hub: a slope facing east is lit when the sun's
     -- bearing is east (a quarter day after its north) and in shadow half a
     -- day later, when the sun is in the west
@@ -880,6 +887,36 @@ do
         worst_still = math.max(worst_still, math.abs(hx - spot[1]), math.abs(hy - spot[2]), math.abs(seat))
     end
     check("an unspun console is drawn where it is", worst_still < 1e-6, "worst " .. worst_still)
+    -- moved by equal distances along the ring: a button's width (a short
+    -- stretch of ring) is the same near the apex as near a foot
+    local function width_after(spin, at_s)
+        local share = dashboard.ring_share(section, at_s)
+        local left = dashboard.ring_place(section, share - 0.02 + spin * 2)
+        local right = dashboard.ring_place(section, share + 0.02 + spin * 2)
+        local function point(s) return s * section.width / 2, section.height * (1 - s * s) end
+        local lx, ly = point(left)
+        local rx, ry = point(right)
+        return math.sqrt((rx - lx) ^ 2 + (ry - ly) ^ 2)
+    end
+    local at_apex, near_foot = width_after(0, 0), width_after(0.4, 0)
+    check("spinning keeps a button's width along the curve",
+        math.abs(at_apex - near_foot) < 0.01 * at_apex, at_apex .. " " .. near_foot)
+    -- and a shape keeps its height (depth in from the edge) too: two points
+    -- a button's height apart at the apex are as far apart once carried
+    -- toward a foot
+    local function carried(offset, x, y)
+        return dashboard.unwarp({ section = section, chair_offset = offset }, x, y)
+    end
+    local ux1, uy1 = carried(0, section.center_x, section.base_y - section.height + 20)
+    local ux2, uy2 = carried(0, section.center_x, section.base_y - section.height + 60)
+    local vx1, vy1 = carried(-0.3, section.center_x, section.base_y - section.height + 20)
+    local vx2, vy2 = carried(-0.3, section.center_x, section.base_y - section.height + 60)
+    local before = math.sqrt((ux2 - ux1) ^ 2 + (uy2 - uy1) ^ 2)
+    local after = math.sqrt((vx2 - vx1) ^ 2 + (vy2 - vy1) ^ 2)
+    check("spinning keeps a button's height along the curve",
+        math.abs(before - after) < 0.05 * before, before .. " " .. after)
+    check("the ring's share and place undo each other",
+        math.abs(dashboard.ring_place(section, dashboard.ring_share(section, 0.63)) - 0.63) < 1e-9)
     -- just before half a seat the apex shows this seat's right foot; just
     -- past it, the next seat is in front and the apex shows its left foot
     local apex_y = section.base_y - section.height + 1

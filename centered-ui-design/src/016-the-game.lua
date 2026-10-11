@@ -566,6 +566,7 @@ function game.draw()
         surface_light = console_light(game.look.hour_angle),
         view_reach_edges = game.camera.arch_reach / game.fold.edge_radius,
         view_span_degrees = math.deg(game.camera.arch_span),
+        view_spacing = game.camera.arch_spacing or 1,
     }, game.frame_times[#game.frame_times] or 0)
 
     -- the world, in its own picture with depth; under the hub camera the
@@ -761,6 +762,10 @@ local WHEEL_WITH_KEY = {
     s = function(notches)
         far_camera.set_arch_span(game.camera, game.camera.arch_span * 1.1 ^ notches)
     end,
+    -- D: the rings' spacing up the screen, things on them keeping their size
+    d = function(notches)
+        far_camera.set_arch_spacing(game.camera, (game.camera.arch_spacing or 1) * 1.1 ^ notches)
+    end,
 }
 
 -- {{{ local function key_held()
@@ -833,8 +838,8 @@ function game.quit()
         jobs[0], jobs[1], jobs[2], states[0], states[1], states[2]))
     -- the view dials (A: how far the top of the screen reaches, in world
     -- units; S: the arch's span, in degrees), for checks
-    log:write(string.format("view reach %.3f span %.3f\n",
-        game.camera.arch_reach, math.deg(game.camera.arch_span)))
+    log:write(string.format("view reach %.3f span %.3f spacing %.3f\n",
+        game.camera.arch_reach, math.deg(game.camera.arch_span), game.camera.arch_spacing or 1))
     log:close()
     -- the last thing: goodbye
     say_goodbye.write(game.project_dir, {

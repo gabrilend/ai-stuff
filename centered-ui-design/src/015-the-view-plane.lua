@@ -54,6 +54,14 @@ uniform float spin;            // how far the console is spun from the seat in f
 // world's rings carry the land — and reads the console there. Returns the
 // home uv and (z) which seat it falls in, counted from the seat in front.
 // The Lua twin is unwarp in 014.
+// The length of an arch-shaped ring (x = s a, y = b/2 (1 - s^2)) from its
+// middle to s. Twin of ring_length in 014.
+float ring_length(float a, float b, float s) {
+    float root = sqrt(a * a + b * b * s * s);
+    float k = b * s / a;
+    return 0.5 * (s * root + a * a / b * log(k + sqrt(1.0 + k * k)));
+}
+
 vec3 along_the_curve(vec2 uv) {
     vec2 p = uv * picture_size;
     float dx = p.x - arch_shape.x;
@@ -64,12 +72,38 @@ vec3 along_the_curve(vec2 uv) {
     }
     float H = arch_shape.z;
     float half_width = arch_shape.w;
-    float f = (up + sqrt(up * up + 4.0 * H * H * dx * dx / (half_width * half_width))) / (2.0 * H);
-    float s = clamp(dx / (f * half_width), -1.0, 1.0);
-    float turned = asin(s) + spin * 3.14159265;
-    float seat = floor((turned + 1.57079633) / 3.14159265);
-    float back = sin(turned - seat * 3.14159265);
-    vec2 home = vec2(arch_shape.x + back * f * half_width, arch_shape.y - f * H * (1.0 - back * back));
+    // measured from the arch's outer edge (twins of edge_nearest and
+    // edge_point in 014): the nearest edge place s and the depth in from it
+    float s = clamp(dx / half_width, -1.0, 1.0);
+    for (int i = 0; i < 8; i++) {
+        vec2 e = vec2(s * half_width, H * (1.0 - s * s));
+        vec2 t = vec2(half_width, -2.0 * H * s);
+        float g = dot(e - vec2(dx, up), t);
+        float g2 = dot(t, t) + (e.y - up) * (-2.0 * H);
+        s = clamp(s - g / g2, -1.0, 1.0);
+    }
+    vec2 e0 = vec2(s * half_width, H * (1.0 - s * s));
+    vec2 n0 = normalize(vec2(-2.0 * H * s, -half_width));
+    float depth = dot(vec2(dx, up) - e0, n0);
+    // moved along the edge by the spin (one seat the whole edge, foot to
+    // foot), keeping its depth, so shapes keep their size the whole way
+    // round (scaled copies of the arch crowded at the feet and spread at the
+    // apex, squashing buttons into slivers)
+    float a = half_width;
+    float b = 2.0 * H;
+    float whole = ring_length(a, b, 1.0);
+    float turned = ring_length(a, b, s) / whole + spin * 2.0;
+    float seat = floor((turned + 1.0) / 2.0);
+    float u = turned - seat * 2.0;
+    float back = u;
+    for (int i = 0; i < 6; i++) {
+        back -= (ring_length(a, b, back) - u * whole) / sqrt(a * a + b * b * back * back);
+    }
+    back = clamp(back, -1.0, 1.0);
+    vec2 e1 = vec2(back * half_width, H * (1.0 - back * back));
+    vec2 n1 = normalize(vec2(-2.0 * H * back, -half_width));
+    vec2 placed = e1 + n1 * depth;
+    vec2 home = vec2(arch_shape.x + placed.x, arch_shape.y - placed.y);
     return vec3(home / picture_size, seat);
 }
 

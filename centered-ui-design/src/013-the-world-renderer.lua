@@ -186,9 +186,16 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // sun — the engine's lean for a driven point (water, each step), else
     // worked out here from its facing (026's shade_turn) — leaning to the
     // sun's side of the screen
-    float lean = SheenB.w > 0.5 ? SheenA.w : acos(clamp(dot(SheenB.xyz, sun), -1.0, 1.0));
-    v_sun_side = view_facing(sun).x < 0.0 ? -1.0 : 1.0;
-    float turn = v_sun_side * lean;
+    // (no snap: the turn's sideways part is how far the sun lies to the
+    // side of the facing across the screen, its upward part how squarely
+    // the facing meets the sun; as the sun passes behind the camera the
+    // sideways part runs through nothing and the turn reverses smoothly —
+    // it used to flip sides at once. 026's shade_turn is the twin.)
+    vec3 n = SheenB.xyz;
+    float facing_sun = clamp(dot(n, sun), -1.0, 1.0);
+    float across = view_facing(sun - n * facing_sun).x;
+    v_sun_side = across < 0.0 ? -1.0 : 1.0;
+    float turn = atan(across, facing_sun);
     v_turn = vec2(cos(turn), sin(turn));
     v_local = local;
     v_sun_color = SheenC.rgb;

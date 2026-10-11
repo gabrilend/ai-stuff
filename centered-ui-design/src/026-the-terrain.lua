@@ -136,14 +136,13 @@ end
 -- pi (dark pole up: in shadow). Nothing else lights the circle — "the
 -- spinning of the sprite axies is what will display their lighting". The
 -- Lua twin of the dot shader's turn.
-function M.shade_turn(fx, fy, fz, sx, sy, sz, sun_side)
+-- `across` is how far the sun lies to the side of the facing, across the
+-- screen (positive: right). The turn is the angle with that sideways part
+-- and the facing's squareness to the sun as its upward part, so as the sun
+-- passes behind the viewer it reverses smoothly instead of snapping.
+function M.shade_turn(fx, fy, fz, sx, sy, sz, across)
     local facing_sun = math.max(-1, math.min(1, fx * sx + fy * sy + fz * sz))
-    local lean = math.acos(facing_sun)
-    -- the bright pole leans toward the sun's side of the screen
-    if sun_side < 0 then
-        return -lean
-    end
-    return lean
+    return math.atan2(across, facing_sun)
 end
 -- }}}
 

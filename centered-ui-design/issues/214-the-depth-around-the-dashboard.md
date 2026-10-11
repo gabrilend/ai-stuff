@@ -318,6 +318,24 @@ is just the depth effect applied down one scenery."
   toward the sides it turns to face it. A setting `figure_facing_follow`
   blends: 0 as before, 1 following the curve exactly; examples at 0, 0.5,
   1 and 1.5 for the owner to choose.
+- **No snap as the sun passes behind** (the owner: "the colored spheres
+  "snap" to a new color everytime the sun rotates. that's not ideal.
+  instead, we should just reverse the rotation direction when the sun
+  passes directly behind us."). A circle's turn was its lean from the sun
+  times the side of the screen the sun was on, so when the sun crossed
+  behind the camera every circle flipped from one side to the other at
+  once. Now the turn is the angle whose sideways part is how far the sun
+  lies to the side of the circle's facing across the screen and whose
+  upward part is how squarely it faces the sun: as the sun passes behind,
+  the sideways part runs smoothly through nothing and the turn reverses
+  direction without a jump.
+- **D and the wheel: the spacing of the rings** (the owner: "can we make
+  it so that if we hold d and scroll, then it increases the "Y" distance
+  between each of the circle spheres? Remember, they're circle textures,
+  not spheres."). A third view dial: D held while scrolling spreads the
+  rings farther apart up the screen (or closer), a tenth a notch, while
+  the circles, villagers and cuboids keep their size — so the circles
+  overlap less or more. Shown on the console as D: SPACING.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -430,6 +448,16 @@ is just the depth effect applied down one scenery."
 
 ## Open questions
 
+- Facing (the owner's second description: "as they're walking toward the
+  center of the screen, from the left to the middle (facing right) they
+  should turn to their right. From the right, toward the middle, they
+  should turn left. Now if they're moving toward the edge of the screen,
+  they should turn toward the player slightly, moving left they turn left,
+  moving right they turn right."). The edge half matches what is built.
+  The middle half: built as turning away from the camera (a walker facing
+  right turns to its own left); "to their right", counted from the
+  walker's own body, would turn it toward the camera. Asked, with a
+  picture.
 - Which facing strength looks right: 0 (ground heading), 0.5, 1 (follows
   the ring's curve on screen) or 1.5? Started at 1.
 

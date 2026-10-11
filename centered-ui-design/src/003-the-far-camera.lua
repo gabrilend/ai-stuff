@@ -189,10 +189,28 @@ M.ARCH_SPAN_LIMITS = { math.rad(60), math.rad(1080) }
 -- outward ground match the rings' spacing near the top.
 function M.set_arch_reach(camera, reach)
     camera.arch_reach = math.max(M.ARCH_REACH_LIMITS[1], math.min(M.ARCH_REACH_LIMITS[2], reach))
-    camera.arch_px_per_unit = camera.arch_top_lift / (camera.arch_reach - camera.arch_hub_radius)
-    -- outward ground is foreshortened by sin(elevation) (back_y); undo it
-    camera.arch_figure_px = camera.arch_px_per_unit / camera.back_y
+    local scale = camera.arch_top_lift / (camera.arch_reach - camera.arch_hub_radius)
+    -- the rings' spacing on screen: the reach's scale, spread by the D dial
+    camera.arch_px_per_unit = scale * (camera.arch_spacing or 1)
+    -- things on the land keep the reach's scale, however the rings are
+    -- spread (outward ground is foreshortened by sin(elevation), back_y:
+    -- undone)
+    camera.arch_figure_px = scale / camera.back_y
 end
+
+-- How far the D dial may spread or close the rings (a factor).
+M.ARCH_SPACING_LIMITS = { 0.4, 4.0 }
+
+-- {{{ function M.set_arch_spacing()
+-- Sets how far apart the arch view's rings stand up the screen (a factor
+-- of the reach's own spacing, within the limits), while the circles,
+-- villagers and cuboids keep their size (the owner: hold D and scroll to
+-- increase "the "Y" distance between each of the circle").
+function M.set_arch_spacing(camera, spacing)
+    camera.arch_spacing = math.max(M.ARCH_SPACING_LIMITS[1], math.min(M.ARCH_SPACING_LIMITS[2], spacing))
+    M.set_arch_reach(camera, camera.arch_reach)
+end
+-- }}}
 -- }}}
 
 -- {{{ function M.set_arch_span()

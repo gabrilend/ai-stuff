@@ -80,7 +80,9 @@ seat's band shows its own quadrant.
 Two small dials left of the frame readouts, each with its key engraved
 above it: **A: DISTANCE** (how far out the top of the screen reaches, in
 map-edges: 1.0 puts the map's edge on the top row) and **S: FIELD** (the
-arch's span in degrees). Hold the key and scroll to turn one; without a key
+arch's span in degrees); and right of the section counts **D: SPACING** (how
+far apart the land's rings stand up the screen, things on them keeping
+their size). Hold the key and scroll to turn one; without a key
 the wheel turns the chair. The dials themselves are never clicked.
 
 ## The rhythm

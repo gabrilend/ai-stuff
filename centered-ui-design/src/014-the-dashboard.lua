@@ -135,6 +135,7 @@ M.WINDOWS = {
     -- the view dials (issue 214): turned by the wheel with A or S held
     { dial = "view_reach", shape = "round", only = "always", across = -1.70, up = 0.42, radius = 0.085 },
     { dial = "view_span",  shape = "round", only = "always", across = -2.15, up = 0.42, radius = 0.085 },
+    { dial = "view_spacing", shape = "round", only = "always", across = 2.15, up = 0.42, radius = 0.085 },
     -- how many cuboids rest in each color's section (ink in that color)
     { dial = "section_1", shape = "round", only = "orders", across = 1.30, up = 0.42, radius = 0.07 },
     { dial = "section_2", shape = "round", only = "orders", across = 1.50, up = 0.42, radius = 0.07 },
@@ -149,6 +150,7 @@ M.LABELS = {
     { text = "UNITS",      across = 0.95,  up = 0.235, only = "always" },
     { text = "A: DISTANCE", across = -1.70, up = 0.54, only = "always" },
     { text = "S: FIELD",    across = -2.15, up = 0.54, only = "always" },
+    { text = "D: SPACING",  across = 2.15,  up = 0.54, only = "always" },
     { text = "NEXT ORDER GOES TO", across = 0, up = 0.265, only = "orders" },
     { text = "ESCAPE: SETTINGS",   across = 1.15, up = 0.08, only = "orders" },
     { text = "MAXIMUM FRAMERATE   (0 = NO CAP)", across = 0, up = 0.80, only = "settings" },
@@ -533,6 +535,38 @@ local function button_spots(dashboard, someone_named, section)
 end
 -- }}}
 
+-- {{{ local function ring_length()
+-- The length (pixels) of the arch's outer edge from its middle to the place
+-- s (-1..1 foot to foot): the curve x = s W/2, y = H (1 - s^2).
+local function ring_length(section, s)
+    local a, b = section.width / 2, 2 * section.height
+    local root = math.sqrt(a * a + b * b * s * s)
+    return 0.5 * (s * root + a * a / b * math.log(b * s / a + math.sqrt(1 + (b * s / a) ^ 2)))
+end
+-- }}}
+
+-- {{{ function M.ring_share()
+-- Place on the edge (s, -1..1) -> share of its length from the middle (-1..1).
+function M.ring_share(section, s)
+    return ring_length(section, s) / ring_length(section, 1)
+end
+-- }}}
+
+-- {{{ function M.ring_place()
+-- Share of the edge's length (-1..1) -> place on it (s): the inverse of
+-- ring_share, by a few steps of Newton's method (the sheet's shader takes
+-- the same steps).
+function M.ring_place(section, u)
+    local a, b = section.width / 2, 2 * section.height
+    local whole = ring_length(section, 1)
+    local p = u
+    for _ = 1, 6 do
+        p = p - (ring_length(section, p) - u * whole) / math.sqrt(a * a + b * b * p * p)
+    end
+    return math.max(-1, math.min(1, p))
+end
+-- }}}
+
 -- {{{ function M.unwarp()
 -- Where on the console as drawn (at home) a screen pixel shows, while the
 -- console is spun along its curve (the Lua twin of the sheet's shader in
@@ -549,13 +583,48 @@ function M.unwarp(dashboard, x, y)
     if up <= 0 then
         return x, y, 0
     end
-    local f = (up + math.sqrt(up * up + 4 * H * H * dx * dx / (half * half))) / (2 * H)
-    local s = math.max(-1, math.min(1, dx / (f * half)))
+    -- measured from the arch's outer edge: where along it (s) the point's
+    -- nearest edge point is, and how far in from it (depth, pixels)
+    local s, depth = M.edge_nearest(section, dx, up)
+    local whole = ring_length(section, 1)
     local spin = dashboard.chair_offset - math.floor(dashboard.chair_offset + 0.5)
-    local turned = math.asin(s) + spin * math.pi
-    local seat = math.floor((turned + math.pi / 2) / math.pi)
-    local back = math.sin(turned - seat * math.pi)
-    return section.center_x + back * f * half, section.base_y - f * H * (1 - back * back), seat
+    -- moved along the edge by the spin (one seat the whole edge, foot to
+    -- foot), keeping its depth
+    local along = ring_length(section, s) + spin * 2 * whole
+    local seat = math.floor((along + whole) / (2 * whole))
+    local back = M.ring_place(section, (along - seat * 2 * whole) / whole)
+    local ex, eup, nx, nup = M.edge_point(section, back)
+    return section.center_x + ex + nx * depth, section.base_y - (eup + nup * depth), seat
+end
+-- }}}
+
+-- {{{ function M.edge_point()
+-- The arch's outer edge at s (-1..1 foot to foot): x across from the
+-- middle and up from the base (pixels), and the inward normal (unit).
+function M.edge_point(section, s)
+    local H, half = section.height, section.width / 2
+    local tx, tup = half, -2 * H * s
+    local length = math.sqrt(tx * tx + tup * tup)
+    return s * half, H * (1 - s * s), tup / length, -tx / length
+end
+-- }}}
+
+-- {{{ function M.edge_nearest()
+-- For a point (dx across from the middle, up from the base), the place s
+-- on the arch's outer edge nearest it and how far in from it (pixels):
+-- a few steps of Newton's method on the squared distance.
+function M.edge_nearest(section, dx, up)
+    local H, half = section.height, section.width / 2
+    local s = math.max(-1, math.min(1, dx / half))
+    for _ = 1, 8 do
+        local ex, eup = s * half, H * (1 - s * s)
+        local tx, tup = half, -2 * H * s
+        local g = (ex - dx) * tx + (eup - up) * tup
+        local g2 = tx * tx + tup * tup + (eup - up) * (-2 * H)
+        s = math.max(-1, math.min(1, s - g / g2))
+    end
+    local ex, eup, nx, nup = M.edge_point(section, s)
+    return s, (dx - ex) * nx + (up - eup) * nup
 end
 -- }}}
 
@@ -733,6 +802,7 @@ local function draw_dials(dashboard, state, seconds)
         -- the reach in map-edges: 1.0 puts the map's edge on the top row
         { dial = "view_reach", text = string.format("%.1f", state.view_reach_edges), small = true },
         { dial = "view_span", text = string.format("%d", state.view_span_degrees + 0.5), small = true },
+        { dial = "view_spacing", text = string.format("%.1f", state.view_spacing), small = true },
     }
     -- each section's count, inked in its color
     for index = 1, 4 do

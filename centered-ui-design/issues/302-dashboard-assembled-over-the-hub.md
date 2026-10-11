@@ -96,7 +96,21 @@ arch.
   the curve per seat. The console is drawn once, in place, and the sheet
   that shows it reads each screen pixel from its place on the curve moved
   by the spin (the arch view's warp); clicks go back through the same warp.
-  Each seat's band shows its own quadrant.
+  Each seat's band shows its own quadrant. Then (the owner: "when we're
+  rotating the dashboard, the buttons get toooo stretched. They should be
+  normalized or something..."): the spin moved things by equal steps of
+  angle round each ring, which near the apex cover far more screen than
+  near the feet, so buttons passing the apex were pulled wide. Now it moves
+  them by equal steps of distance along each ring (the ring's length,
+  foot to foot, as the measure), so a button keeps its width wherever it
+  is on the curve. That kept widths but not heights: the rings were scaled
+  copies grown from the base's middle, crowded at the feet and four times
+  as far apart at the apex, so buttons carried from a foot to the apex
+  came out as thin slivers (picture 096). Now every point is measured by
+  its distance in from the arch's outer edge and its distance along that
+  edge; the spin moves it along the edge and it keeps its depth, so the
+  curves it slides on stay the same distance apart everywhere and shapes
+  keep their own size the whole way round.
 - **Forty per cent of the surface** (the owner: "can you make it so
   there's like, 40% as much dashboard in total square footage surface area
   as there is now?"). The arch's area is two thirds of width x height; the
