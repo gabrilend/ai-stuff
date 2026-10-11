@@ -1,0 +1,34 @@
+<!-- made by scripts/capture-history on 2026-10-10 20:28, from the
+     game run as: run /mnt/mtwo/programming/ai-stuff/centered-ui-design --screenshot 4 -->
+
+# 004 — hub-camera-eye-34-noon
+
+- **Picture:** 004-hub-camera-eye-34-noon.png
+- **Commit:** 457e0f594 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
+- **Run:** `run --screenshot 4` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
+
+## What it shows
+
+The hub camera at its first height (eye 34 world units, looking 30 degrees
+down), at about noon, blur on, figures upright. The amber quadrant runs away
+from the viewer: near figures large at the sides, the amber section an oval
+just above the arch, the map edge a horizon against a grey-blue haze sky.
+White metal figures with amber bands, glazed cuboids, earth-coloured ground;
+the far ground and the near-left edge softly blurred. The console stands on
+the bottom row, stretched to both sides, its dials and buttons centred.
+
+
+## The story so far
+
+The owner brought two reference pictures of a tilt-shift look (a valley
+seen from high up, little pieces like a model) and asked for that depth
+wrapped round the dashboard, then: put the camera at the origin of the drawn
+rings and aim it outward one colour at a time; light by spinning dial
+textures instead of a skybox; the console on the bottom row at full width;
+both versions of everything to compare; and a picture of every cycle. This
+cycle built the hub camera, the dial light, the focus ring, the look toggles
+and this history. Next, the owner asked to try raising the camera straight
+up, and then described the view they want: near things by the dashboard,
+far things toward the top, everything the same size, the far ones simply
+covering more ground (tier-time) — not a shrinking perspective.
+

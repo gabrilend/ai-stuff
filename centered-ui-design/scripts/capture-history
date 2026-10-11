@@ -4,8 +4,10 @@
 #
 # In plain terms: runs the game for a few seconds with scripted input (the
 # run script's --click, --key, --wheel and --screenshot options), then files
-# the screenshot in development-history/ under the next number, beside a
-# notes file saying what made it, from which commit and settings, and with
+# the screenshot in development-history/ under the next number (through
+# scripts/file-screenshot, which every screenshotting run also uses), beside a
+# notes file saying what made it, from which commit and settings, what
+# changed since the previous picture, and with
 # two sections for a person (or Claude) to fill in: what the picture shows,
 # literally; and the story so far, as a short summary of the arc of the
 # project up to this picture — so the history can be read picture by picture
@@ -53,17 +55,9 @@ if ! printf '%s\n' "$@" | grep -qx -- "--screenshot"; then
     exit 64
 fi
 
-HISTORY="${DIR}/development-history"
-mkdir -p "${HISTORY}"
-COUNT=$(find "${HISTORY}" -maxdepth 1 -name '*.png' | wc -l)
-NUMBER=$(printf '%03d' $((COUNT + 1)))
-PICTURE="${HISTORY}/${NUMBER}-${NAME}.png"
-NOTES="${HISTORY}/${NUMBER}-${NAME}.info.md"
-
 if [ -z "${COMMIT}" ]; then
     COMMIT=$(git -C "${DIR}" log -1 --format='%h' -- .)
 fi
-COMMIT_LINE=$(git -C "${DIR}" log -1 --format='%h %ad %s' --date=short "${COMMIT}" 2>&1)
 
 # the run script of the copy being run, or this project's own
 RUN="${SOURCE}/run"
@@ -72,32 +66,9 @@ if [ ! -x "${RUN}" ]; then
 fi
 SHOT="${SOURCE}/tmp/shared-memory/screenshot.png"
 rm -f "${SHOT}"
-"${RUN}" "${SOURCE}" "$@" > /dev/null
-if [ ! -f "${SHOT}" ]; then
-    echo "capture-history: the run left no screenshot at ${SHOT}" >&2
-    exit 1
-fi
-cp "${SHOT}" "${PICTURE}"
-
-cat > "${NOTES}" <<EOF
-<!-- made by scripts/capture-history on $(date '+%Y-%m-%d %H:%M'), from the
-     game run as: run ${SOURCE} $* -->
-
-# ${NUMBER} — ${NAME}
-
-- **Picture:** ${NUMBER}-${NAME}.png
-- **Commit:** ${COMMIT_LINE}
-- **Run:** \`run $*\` (from ${SOURCE})
-
-## What it shows
-
-(Literally: what is on the screen, part by part.)
-
-## The story so far
-
-(The arc of the project up to this picture, briefly: what came before, what
-this cycle added, what it set up next. Details are in llm-transcripts/.)
-EOF
-
-echo "${PICTURE}"
-echo "${NOTES}"
+# the run must not file the picture itself (an older copy's run would not
+# know how, and this one would file it under the wrong commit): filed below
+CAPTURE_SKIP_FILING=1 "${RUN}" "${SOURCE}" "$@" > /dev/null
+# filing: the picture, its fingerprint, and notes on what changed since the
+# previous picture (the same filer every screenshotting run uses)
+COMMIT="${COMMIT}" "${DIR}/scripts/file-screenshot" "${SOURCE}" "${NAME}" -- "$@"

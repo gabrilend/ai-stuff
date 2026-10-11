@@ -12,7 +12,15 @@
 #   ./run <project-dir>            run the project at another location
 #   ./run [<project-dir>] --screenshot SECONDS
 #                                  run for SECONDS, save the window to
-#                                  tmp/shared-memory/screenshot.png, and close
+#                                  tmp/shared-memory/screenshot.png, and close;
+#                                  the picture is then kept for good in
+#                                  development-history/ (scripts/file-screenshot)
+#                                  with notes on what changed since the last one
+#
+# Environment:
+#   CAPTURE_NAME=words-with-dashes  the name the kept picture is filed under
+#   CAPTURE_SKIP_FILING=1           do not file it here (capture-history files
+#                                   it itself, with the commit it shows)
 
 DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
 # a first argument that is a folder is the project's location
@@ -28,4 +36,16 @@ ensure_ram_tiers "${DIR}"
 # when a source changed); a failed build stops here, naming the step
 "${DIR}/scripts/build-ceramics" "${DIR}" > /dev/null || exit 1
 
-exec love "${DIR}/src" "${DIR}" "$@"
+# a picture left by an earlier run must never be filed as this run's
+rm -f "${DIR}/tmp/shared-memory/screenshot.png"
+love "${DIR}/src" "${DIR}" "$@"
+STATUS=$?
+
+# every screenshot deserves a spot (the owner: "each and every single one of
+# them should deserve a spot. show the things that change"): a run that took
+# one files it in development-history/, unless the caller files it itself
+if printf '%s\n' "$@" | grep -qx -- "--screenshot" && [ -z "${CAPTURE_SKIP_FILING:-}" ]; then
+    # a run that failed before its screenshot leaves none; file-screenshot says so
+    "${DIR}/scripts/file-screenshot" "${DIR}" "${CAPTURE_NAME:-screenshot}" -- "$@" || STATUS=1
+fi
+exit "${STATUS}"
