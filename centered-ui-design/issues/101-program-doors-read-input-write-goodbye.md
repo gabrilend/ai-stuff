@@ -2,7 +2,7 @@
 
 **Phase:** 1 — The world beneath
 **Blocked by:** None
-**Blocks:** 102, 108, 201
+**Blocks:** 102, 108, 201, 109, 209
 **Related documents:** docs/architecture.md (Start and end, Reading order)
 
 ## Current Behavior

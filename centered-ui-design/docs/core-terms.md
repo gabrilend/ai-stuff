@@ -32,45 +32,51 @@ it gets a word here first.
   same time to cross, no matter how wide it would be in real distance. That is
   why far-off forces appear to move faster: they are crossing bigger bands in
   the same time.
+- **underworld** — the inside face of the sphere the map lies on. The surface
+  is one realm; the underworld is the other, where (in the w7 prehistory)
+  the monsters were pushed and now hold their own realm.
 
 ## The view
 
-- **accordion** — the way the map squeezes outer rings together so far tiers
-  still fit on screen. It has two dials:
-  - **reach** — how many tiers outward the screen shows (zoom of the first
-    kind: how much territory you overlook).
-  - **squeeze** — how strongly outer tiers are compressed compared to inner
-    ones (zoom of the second kind: the accordion's folds growing shorter).
-- **depth dial** — the dial that tells a hero how many tiers outward to go
-  adventuring.
+- **sphere projection** — the map is a grid on a sphere, hub at one pole,
+  tiers as bands of latitude. The screen shows it flattened into a circle
+  around the dashboard, inner tiers wide, outer tiers folded toward the edge
+  like an accordion closing.
+- **merged stand** — units far away or crowded together drawn as one marker
+  carrying two numbers: **average level** and **count**.
+- **balance color** — the merged marker's color, showing how its strength
+  compares to the threat it is contesting.
+- **differential triangles** — small triangles beside a marker carrying the
+  same information as the balance color by shape (up = ahead, down = behind,
+  more triangles = larger difference), for colorblind players.
 
-## The console
+## The dashboard
 
-- **command wheel** — the large round console in the middle of the screen,
-  over the hub, as big as a game-show wheel. Its center turns like a lazy
-  susan.
-- **rim** — the outer band of the wheel, divided into sectors with writing on
-  them.
-- **pointer notch** — the fixed mark at the top of the wheel. Whatever rim
-  sector sits under it is selected.
-- **complication** — a small window cut into the wheel's face (like the date
-  window on a watch) showing a lower-tier display behind it.
-- **calendar complication** — the complication that shows the game calendar:
-  a day-of-week or month name in an arc window, and a number one level below.
-  A button flips it between day mode and month mode.
-- **readout** — a number shown as bare metal surface seen through a glass
-  lens. Readouts are never buttons, and never look like them.
+- **dashboard** — the large round console in the middle of the screen, over
+  the hub.
 - **button** — bright, colorful, round or half-round, and always pressable.
-  Anything pressable is a button; anything not pressable is not colored like
-  one.
+  The only clickable things on the dashboard. Every button is an order verb
+  (plus the calendar's day/month switch).
+- **dial** — the generic information component: a disc no thicker than
+  paper, inscribed with words or numbers, turning beneath a seamless glass
+  window cut into the dashboard. Only the part under the window is ever seen.
+  The game turns dials; the player never does.
+- **nested dial** — a dial seen through a window in another dial's surface,
+  one level lower (the calendar's day number below its weekday).
+- **calendar** — the game's clock, shown on dials: month, weekday, and one
+  level lower, the day number. Its pace (day or month) is switched with a
+  button. Votes, among other things, happen on its boundaries.
+- **readout** — a dial showing a number. Never painted, never clickable.
 
 ## Commanding
 
 - **stand** — one group of units that receives orders together. The smallest
   thing an order can be given to.
 - **order** — one instruction to one stand. Always given in the same two
-  steps: press an order button, then click on the map. One button, one click,
-  one order, one stand.
+  steps: click the stand on the map (who), then click an order button on the
+  dashboard (what). Then map, then dashboard again. There are no menus and
+  no shortcut commands: to build, you tell an engineer; to attack, you tell
+  a stand.
 - **courier** — the carrier of an order. It leaves the hub when the order is
   given and travels to the stand. The order only takes effect when the courier
   arrives.
@@ -79,9 +85,11 @@ it gets a word here first.
   a newer order can be sent after it.
 - **factory** — a building that makes units. Its **waypoint path** (the route
   new units walk when they leave) is set once and then locked.
-- **engineer** — the only unit that can dismantle a factory and rebuild it
-  into something else, which is the only way to change a locked path.
-- **hero** — a special unit that can be sent adventuring to a chosen depth.
+- **engineer** — the unit that builds, and the only unit that can dismantle a
+  factory and rebuild it into something else, which is the only way to change
+  a locked path.
+- **hero** — a special unit that can be told to adventure a number of tiers
+  deep.
 
 ## The team table
 
@@ -92,8 +100,8 @@ it gets a word here first.
 - **priority weight** — how much a stand-in cares about each ballot.
   Every stand-in has the same total weight to spread: "this part is crucial to
   my strategy, these I don't need a lot of."
-- **vote cadence** — how often the table votes, set from the calendar
-  complication.
+- **vote cadence** — how often the table votes: on the calendar's boundaries,
+  day or month as its pace button is set.
 
 ## Growing
 
@@ -112,6 +120,12 @@ it gets a word here first.
   comes up, a second set of percentages picks which of its **values** you get.
 - **price** — the resource cost of a choice.
 - **unlock** — an aether-bought prerequisite some choices require.
-- **held choice** — a choice saved for later instead of used now. If it needs
-  an unlock that has not been bought yet, it waits; when the unlock is bought,
-  the held choice strengthens it.
+- **enhancement** — a held choice that strengthens a particular power (unit
+  kind, building, ability) once it is slotted into it, after City of Heroes
+  by way of Symbeline. If the power is not owned yet, the enhancement waits
+  in the tray; when the power is acquired, it slots in.
+- **inspiration** — a one-time boost doled out to a stand (after the same
+  source).
+- **held choice** — a choice saved for later instead of taken now; it waits
+  in the **tray**.
+- **tray** — where held choices wait.

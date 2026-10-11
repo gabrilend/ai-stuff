@@ -1,10 +1,11 @@
 # Phase 1 Progress — The world beneath
 
 ## Goals
-A headless, deterministic simulation: the program reads input/ and writes
-output/goodbye; seeded randomness and a fixed tick; the polar world of hub,
-quadrants and tier rings; stands moving in tier-time; combat split across
-worker threads; couriers carrying orders with real transit delay; snapshots
+A headless, deterministic simulation built on soramech stations: the
+program reads input/ and writes output/goodbye; stations, slots and the
+worker pool; seeded randomness and a fixed tick; the world of hub,
+quadrants and tier rings; stands moving in tier-time; combat as one station
+per direction; couriers carrying orders with real transit delay; snapshots
 handed to whatever is watching.
 
 The demo this phase ends with is described in docs/roadmap.md.

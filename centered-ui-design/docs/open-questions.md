@@ -1,14 +1,14 @@
 <!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10.
      Every question met while turning the vision into documents. Each is to
      be asked and worked through with the owner, one by one. When answered,
-     write the answer into the design documents and mark it answered here
-     with the date; do not delete it. -->
+     write the answer into the design documents and move it to Answered with
+     the date; do not delete it. -->
 
 # Open questions
 
-Each question names the interpretation the documents currently assume, so
-the design can move forward while the question waits — but the assumption
-is a guess until answered.
+Each waiting question names the interpretation the documents currently
+assume, so the design can move forward while the question waits — but the
+assumption is a guess until answered.
 
 ## Answered
 
@@ -17,57 +17,82 @@ is a guess until answered.
   (2026-10-10)
 - **How does time flow?** Real time, with orders in transit. (2026-10-10)
 - **Where are you on the map?** Your base is the hub; each team member has a
-  quadrant; the map is not to scale; the view compresses like an accordion,
-  with two kinds of zoom; heroes are sent a distance measured in levels by a
-  dial. (2026-10-10)
+  quadrant; the map is not to scale. (2026-10-10)
+- **What does the rotating rim select?** Nothing — the player never controls
+  dials; they are information only. Orders are: click the stand on the map,
+  then click the order button on the dashboard, alternating, always exactly
+  once each. No menus, no right-click: you tell someone to build, you tell
+  someone to attack. (2026-10-10)
+- **What is written on the dial?** The month and the day of the week, among
+  other things. The player sees only a cut-out: a seamless glass window over
+  a paper-thin disc. The dial is a generic component used throughout.
+  (2026-10-10)
+- **The architecture?** Soramech: consensual coroutines — stations that run
+  when every input has arrived. (2026-10-10)
+- **The two kinds of zoom?** Answered with merging: units always can merge
+  into an average-level and count pair, colored by the balance of the threat
+  they contest, with triangles for colorblind players. (2026-10-10)
+- **Does the calendar set vote cadence?** Yes, among other things.
+  (2026-10-10)
+- **Distant forces move faster?** Yes: equal time per tier. The circle is a
+  distortion of a grid on a sphere — inside, outside, or both; the inside is
+  the underworld (w7). (2026-10-10)
+- **Art?** No AI-generated art. Small 3D models and tiny formula-driven voxel
+  effects. The scene impossibly far from the camera, rendered accurately.
+  (2026-10-10)
 
 ## Waiting
 
-1. **What does the rotating rim hold?** Assumed: the stands of the current
-   quadrant, one per sector; turning the rim chooses which stand the next
-   order goes to. Alternatives: the rim holds order types, or factions, or
-   the four quadrants themselves.
-2. **What are the two kinds of zoom?** Assumed: *reach* (how many tiers fit
-   on screen) and *squeeze* (how much outer tiers are compressed against
-   inner ones). Is the second kind instead about unit scale — how big a stand
-   is drawn — or about time?
-3. **What does the calendar complication control?** Assumed: it is the game
-   calendar, and switching day/month sets the vote cadence (the table votes
-   every game-day, or every game-month). The vision says some players will
-   use it "quite often and/or routinely" — what are they doing when they do?
-4. **"Distant players can move faster than near"** — assumed to mean
-   tier-time: every tier band takes about the same time to cross, so far-out
-   forces cover more real ground per second. Is "players" here the foes far
-   away, your own far forces, or both?
-5. **Held choices "increase in power the thing it requires if acquired"** —
-   assumed: a held choice waiting on an unlock raises that unlock's strength
-   when the unlock is bought. Or: the held choice itself grows stronger the
-   longer it is held?
-6. **Who is the foe in each direction?** Assumed: one opposing player (AI at
-   first) per direction, with one outpost per tier. With a team of 4, are
-   there exactly 4 foes (one per quadrant), or any number of directions?
-   Are foes also teams, sharing a hub of their own further out?
-7. **Is the game won?** Assumed: no single win condition yet — fronts are
-   decided one tier at a time. What ends a game: reaching a set tier,
-   losing the hub, a time limit, or never?
-8. **What is a stand made of?** Assumed: a group of units bought from
-   factories, gathered at the end of a factory's path. How many units, and
-   can stands be merged or split (each would be an order)?
-9. **Seats not being played in hot-seat** — assumed: they keep running their
-   last orders, and a helper AI handles only defense. Should they instead
-   pause, or should the helper AI play them fully?
-10. **The voting categories** — assumed: production, upgrades, heroes,
-    reserve. What else should a resource be split between?
-11. **The courier** — assumed to be a visible spark running from the hub to
-    the stand, which can be intercepted? (Currently: cannot be intercepted.)
-12. **Text on the rim** — besides stand names, "various pieces of text written
-    into various quadrants or smaller sections": what text? Stand status,
-    seat names, the foe's name in that direction, lore?
-13. **Engineers** — do they come from a factory like any other unit, or does
-    the hub make them?
-14. **"The round table rotates, so no-one is ever unawares"** — assumed: the
-    center of the wheel switches seats, rotating the map so the new seat's
-    quadrant faces up. Or does the table rotate on its own over time, so every
-    seat periodically faces every direction?
-15. **HTML documentation pages** with the feedback inbox, as the house rules
-    describe — wanted for this project now, or after phase 1?
+1. **Orders that need a second party.** With map-then-dashboard and exactly
+   one click each, "attack" or "follow" or "build a factory" has no click
+   left for *whom* or *where*. Assumed: every verb is relative (advance
+   toward the front, attack the nearest enemy in reach, build where the
+   engineer stands, follow the nearest friend). Or: does the next map click
+   (which would otherwise name a new stand) supply the target when the verb
+   needs one?
+2. **Who sets the view's reach and fold**, now that the player never
+   controls dials? Assumed: the game sets it from the state of the fronts
+   (the furthest active front always fits on screen). Or is it itself an
+   order — telling a scout or cartographer?
+3. **How deep do heroes adventure**, without a depth dial? Assumed: the
+   adventure verb sends a hero one tier deeper each time it is given. Or a
+   set of verbs (shallow, deep, deepest)?
+4. **Enhancements.** Assumed from the Symbeline notes ("slot enhancements and
+   dole out inspirations", City of Heroes): a held choice is an enhancement
+   for a power; it waits in a tray until the power is acquired, then slots
+   in and strengthens it. Is this the system you meant, and is there a
+   Symbeline document that specifies it more closely than the
+   superheroes note?
+5. **The sphere's other side.** Is the far pole the foes' hub (so pushing
+   outward ends at their center), or open wilderness? How do forces pass
+   between the surface and the underworld — gates at certain tiers, or
+   anywhere?
+6. **Voxels "hidden when not directly in view of an opponent."** Assumed:
+   fog of war — an effect is drawn for a player only when that player has
+   sight of it. Or the reverse: an effect is drawn only while an enemy is
+   looking at it?
+7. **Soramech's route into this project.** Write the pattern in Lua (stations
+   as tables, LÖVE threads and channels), or build minimal-soramech's C
+   engine and drive it from LuaJIT's FFI?
+8. **What else does the calendar pace**, besides votes? Income, foe
+   reinforcements, level-up windows, hero returns?
+9. **Clicking a merged marker** — names its strongest stand, or the whole
+   merge as one stand for that order?
+10. **Who is the foe in each direction?** Assumed: one opposing player (AI at
+    first) per direction, with one outpost per tier. With a team of 4, are
+    there exactly 4 foes? Are foes teams with a hub of their own?
+11. **Is the game won?** What ends a game: reaching a set tier, losing the
+    hub, a time limit, or never?
+12. **What is a stand made of?** Assumed: units gathered at the end of a
+    factory's path. Can stands merge or split (each would be an order)?
+13. **Seats not being played in hot-seat** — assumed: they keep running their
+    last orders, and a helper AI handles only defense.
+14. **The voting categories** — assumed: production, upgrades, heroes,
+    reserve.
+15. **Can couriers be intercepted?** Assumed: no.
+16. **"The round table rotates, so no-one is ever unawares"** — assumed: the
+    view rotates on switching seats so that seat's quadrant faces up. Or does
+    it turn on its own over time?
+17. **Engineers** — from a factory, or from the hub?
+18. **HTML documentation pages** with the feedback inbox, as the house rules
+    describe — wanted now, or after phase 1?

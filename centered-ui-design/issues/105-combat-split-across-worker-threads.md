@@ -1,11 +1,10 @@
-# 105 — Combat, split across worker threads
+# 105 — Combat, one station per direction
 
 **Phase:** 1 — The world beneath
-**Blocked by:** 104
-
-**Blocks**: 107, 108, 602
+**Blocked by:** 104, 109
+**Blocks**: 107, 108, 602, 308
 **Related documents:** docs/datapath-world-tick.md (Steps 3–4),
-docs/architecture.md (Many threads)
+docs/architecture.md (The shape: soramech)
 
 ## Current Behavior
 
@@ -15,25 +14,21 @@ Stands move but never fight.
 
 - Each tick, units within range of an enemy deal damage: shields absorb
   first, then health. Dead units are removed; an empty stand is removed.
-- Target choice and damage rolls use the combat random stream, so results are
-  reproducible.
-- The work is split by direction across a pool of LÖVE worker threads:
-  each worker gets a copy of one direction's stands (plain tables of numbers)
-  through a channel and returns damage and moves. Stands close to a quadrant
-  edge are held back and settled on the simulation thread after the join, so
-  no pair of units is decided twice.
-- Results are identical whether 1 worker or 8 are used (a test compares).
-- Each worker gets its own random stream derived from (seed, tick,
-  direction), so the order workers finish in cannot change the result.
+- Each direction's movement and combat is its own soramech station. It runs
+  as soon as that direction's stands for the tick have arrived, on whatever
+  worker is free, and outputs new positions and damage.
+- Stands close to a quadrant edge are held back and settled by the join
+  station, so no pair of units is decided twice.
+- The join station waits for every direction and combines them in direction
+  order, so results are identical however many workers run.
+- Each direction draws randomness from a stream named by (seed, tick,
+  direction), so finishing order cannot change the result.
 
 ## Suggested Implementation Steps
 
-1. `src/010-combat-rules.lua`: pure functions — given stands, return damage
-   events. No threads in this file, so it can be tested alone.
-2. `src/011-worker-pool.lua`: start N LÖVE threads, a job channel, a result
-   channel; jobs are plain tables.
-3. `src/012-worker-body.lua`: the code each thread runs, calling the combat
-   rules.
-4. `src/013-edge-settlement.lua`: the held-back pairs near quadrant edges.
-5. Tests: two stands meet, the stronger survives; 1-worker vs 4-worker
+1. `src/NNN-combat-rules.lua`: pure functions — given stands, return damage
+   events. Testable alone.
+2. The per-direction box and the join box, wired in the simulation map.
+3. Edge settlement inside the join box.
+4. Tests: two stands meet, the stronger survives; 1-worker vs 4-worker
    checksum equality.

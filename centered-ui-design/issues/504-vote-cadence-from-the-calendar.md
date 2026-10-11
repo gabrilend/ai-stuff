@@ -14,7 +14,7 @@ Votes are tallied every tick.
 
 - Votes are tallied when the calendar crosses a boundary: every game-day in
   day mode, every game-month in month mode, set by the calendar
-  complication's button.
+  pace button (306).
 - Changing the mode is itself a team decision: the mode in force is the one
   most seats (by weight) have selected; each seat's complication shows its
   own selection and the team's.

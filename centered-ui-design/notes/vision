@@ -27,3 +27,41 @@ platform: LÖVE2D + LuaJIT
 players:  hot-seat + AI first (network play in a later phase)
 time:     real-time, orders in transit
 geometry: your team is the hub, but more specifically your base is the hub, and the maps aren't to scale. so if you're on a team of 4, that means it took 4 of you to manage this scale of nation/kingdom/endeavor/reliable-hood. each of you has a quadrant, and the scale of the map (units and such) is scaled to how much territory you can overlook. You can adjust it as the game goes on, shortening and compressing the view like an accordian growing shorter. in this game, you can also tell your heroes to adventure to a certain distance in levels, which you can scale as well by certain scrolling dials. found in the center console, or perhaps near the sides where you handle accordian settings. "zoom in" and "zoom out" but with more than one dimension that you're zooming in - scale, of two types.
+
+--------------------------------------------------------------------------------
+third message, 2026-10-10 (verbatim, answering the first design pass)
+--------------------------------------------------------------------------------
+
+on "the game logic runs on its own thread and can be replayed exactly from a
+seed, and a separate drawing layer only reads what it sends":
+
+we can use soramech, which is a method of consensual coroutines (co-processable) design pattern
+
+on "Turning the outer ring of the wheel picks which group of units your next
+order goes to":
+
+no you have to click on them on the map. so it's click on the map, then click on the circle. then click on the map, then click on the circle. always exactly once, the player NEVER controls the dials. they are information ONLY. otherwise, it is JUST orders. you have to TELL someone to build a building, you can't open it from a menu. you have to TELL someone to attack, you can't just right click. each time, because you're working with a large dashboard. each time you come back to the center, you can see the surrounds, enabling you to redirect your focus and train your short-term memory.
+
+on "The two kinds of zoom are reach and squeeze":
+
+units can always merge into a "level-average and count" variable pair. With the color changing according to the balance of the threat it was contesting, and little triangles to the side to show it's relative differential for colorblind people.
+
+on "The day/month calendar sets how often the team votes":
+
+among other things
+
+on "A choice you save for later makes its magical prerequisite stronger once
+that prerequisite is bought":
+
+you can find design documents for this system by searching my computer's notes documents directory for "symbeline"
+
+on "Distant players move faster means every ring takes the same time to cross,
+however wide it is":
+
+yes. the display is a distortion to make it viewable as a circle, when it's really a grid on the inside of a sphere. or outside, I guess. or both? OH THE UNDERWORLD see /home/ritz/documents/w7/
+
+we should not use AI generated artwork for this project, preferring small 3d models and voxel particle effects. the voxels are very small, and calculated according to a formula and hidden when not directly in view of an opponent. for auras and such that need a certain saturation when viewed from afar. We should have the scene placed impossibly far from the camera, but still try to render it accurately.
+
+on "What did you picture written on that ring":
+
+the month and day of the week for one. Basically, the player doesn't see the whole wheel. They just see a little cut-out in their management dashboard display. It has a glass window, and it is seamless. Underneath the glass is the surface of the dial, which I was visualizing as something no thinner than paper. Upon that surface is inscribed the month and day of the week, or whatever else the dial (which is a generic UI component we'll use a lot) is displaying.

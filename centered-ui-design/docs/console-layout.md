@@ -1,49 +1,47 @@
-<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10.
-     The planned arrangement of the screen and the command wheel. Exact
-     sizes live in code; this is the arrangement and the reasons. -->
+<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10,
+     reworked the same day after the owner's answers: the player clicks
+     only order buttons; dials are information only. -->
 
-# Console layout
+# Dashboard layout
 
 ```
  ┌───────────────────────────────────────────────────────────────────────┐
- │  (map: tier 3, squeezed)                                              │
- │ ◐ reach      (map: tier 2)                                 depth ◑   │
- │ dial                    ▼ pointer notch                     dial      │
- │                 ╭───────────────────────╮                             │
- │ ◐ squeeze    ╭─╯  rim: STAND 4 │ STAND 1 ╰─╮   (map: tier 1)          │
- │ dial        │  STAND 3  ╭──────────╮ STAND 2│                         │
- │             │          │ ● ● ●  face │       │                         │
- │             │  ⌒ calendar│ [012] [340]│     │  ⌒ = complication window │
- │             │  TUESDAY   │ ◖ ● ● ● ◗ │       │  [n] = glass readout    │
- │             │    14      ╰──────────╯       │  ● ◖ ◗ = painted buttons │
- │              ╰─╮   rim continues     ╭─╯                              │
- │                 ╰───────────────────────╯                             │
- │                          (hub beneath)                                │
+ │   (map: far tiers, merged stands as  [lvl 7 · ×40 ▲▲])               │
+ │                                                                       │
+ │                 ╭───────────────────────────╮                         │
+ │              ╭─╯  ◖ADVANCE◗   ◖HOLD◗   ◖FALL◗ ╰─╮                     │
+ │             │  ⌒OCTOBER⌒          ⌒ 0412 ⌒      │   ⌒…⌒ = dial window │
+ │             │    ⌒ 14 ⌒   ● ● ● ● ●  ⌒ 0087 ⌒   │   ◖ ◗ ● = buttons   │
+ │             │  [DAY|MONTH]   ⌒ 03 ⌒            │                     │
+ │              ╰─╮  ◖FLANK L◗ ◖SHIELD◗ ◖FLANK R◗╭─╯                     │
+ │                 ╰───────────────────────────╯                         │
+ │                       (hub beneath)                                   │
+ │   (map: near tiers, individual stands)                                │
  └───────────────────────────────────────────────────────────────────────┘
 ```
 
-## Rings, from outside in
+## The two kinds of part
 
-1. **Rim** — turns. Sectors list the stands of the seat now playing, with
-   each stand's strength and any courier's arrival countdown as small glass
-   readouts. Sector text runs along the arc.
-2. **Calendar complication** — an arc-shaped window in the rim's inner edge,
-   showing a day-of-week or month word; below it, one disc lower, a number.
-   A small button beside it flips day/month.
-3. **Face** — the order buttons (bright, round, arranged in arcs), and
-   readouts: metal, glass, aether, couriers in flight, seat name.
-4. **Center boss** — the seat switch: press to rotate the whole table to the
-   next stand-in, turning the map so that seat's quadrant faces up ("the round
-   table rotates, so no-one is ever unawares").
+- **Order buttons** — painted, bright, round, half-round or arc-shaped. The
+  only clickable things on the dashboard. Each is a verb: advance, attack,
+  hold, fall back, flank left, flank right, deploy shield, follow, build,
+  dismantle, adventure, and the calendar's day/month switch.
+- **Dial windows** — seamless glass cut-outs onto paper-thin discs below.
+  Never clickable. The game turns each disc to show its value: the calendar
+  (month word; weekday word; one level lower, the day number), resource
+  counts, couriers in flight, the selected stand's level and count, the
+  current seat's name.
 
-## Around the edges
+## The rhythm
 
-Reach and squeeze dials on the left; the depth dial on the right. Each is a
-half-circle of metal with a painted grip, turned by dragging or scrolling.
+Map, dashboard, map, dashboard. The first click (map) names who; the second
+(dashboard) says what. Nothing else is clickable on the dashboard, and the
+map does nothing on a second click in a row except change who is named.
 
-## Why the wheel is in the middle
+## Why the dashboard is in the middle
 
 Your base is the middle of the world and every order starts there. Putting
 the controls on top of the base means every order visibly leaves from where
-it was given, and every front is the same distance from your hand as it is
-from your hub.
+it was given, and every return of the eye to the center sweeps across the
+surrounding map on the way — the dashboard's size is what makes that sweep
+happen.

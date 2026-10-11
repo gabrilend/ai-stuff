@@ -3,7 +3,7 @@
 **Phase:** 6 — Foes in every direction
 **Blocked by:** 103, 102
 
-**Blocks**: 602, 606, 607
+**Blocks**: 602, 606, 607, 609
 **Related documents:** docs/game-design.md (Center to outer),
 docs/datapath-world-tick.md (tier band)
 
@@ -13,7 +13,8 @@ Every tier band is open ground.
 
 ## Intended Behavior
 
-- Each tier band's terrain grid (polar cells: rings of angle slices) is
+- Each tier band's terrain grid (cells on the sphere: rings of angle slices
+  in a band of latitude, each band crossed in equal time) is
   generated from the terrain random stream: open ground, walls, narrows
   (gaps in walls), high ground (range bonus), rough ground (slow).
 - No lanes: generation guarantees several routes outward in every

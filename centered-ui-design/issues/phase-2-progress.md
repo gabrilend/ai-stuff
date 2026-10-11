@@ -3,9 +3,9 @@
 ## Goals
 The rendering kit with no game in it: palette tokens from dark to bright;
 brushed-metal and glass-refraction shaders; circles, rings, arcs,
-half-circles and text along arcs; rotating parts with weight and detents;
-readouts that roll like odometers; bright buttons; complication windows
-onto lower discs.
+half-circles and text along arcs; dials turned only by the game, seen
+through seamless glass; nested dials; readouts that roll like odometers;
+bright buttons; the far camera; small 3D models; formula voxel effects.
 
 The demo this phase ends with is described in docs/roadmap.md.
 

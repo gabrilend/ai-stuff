@@ -8,12 +8,13 @@
 
 | Structure | Fields |
 |---|---|
-| choice | `id` (string), `category` (string: unit, upgrade, building, hero-gear), `stats` (table of stat name → number), `value` (number: the budget spent, the same for every choice of a tier), `price` (resource counts), `requires_unlock` (string unlock id, or the word `none`) |
-| unlock | `id` (string), `aether_price` (number), `strength` (number, starts at 1, raised by held choices) |
+| choice | `id` (string), `category` (string: power — a unit kind, building or ability; enhancement — strengthens one power; inspiration — a one-time boost), `stats` (table of stat name → number), `value` (number: the budget spent, the same for every choice of a tier), `price` (resource counts), `requires_unlock` (string unlock id, or the word `none`), `enhances` (power id, for enhancements) |
+| unlock | `id` (string), `aether_price` (number) — a magical prerequisite that opens a family of powers |
 | roll table | list of entries |
 | roll table entry | `name` (string), `roll_chance` (number 0–1: how likely this entry comes up at all), `values` (list of pairs: choice id, selection weight number) |
 | offer | `side` (seat or foe id), `level` (integer), `choices` (list of choice ids, the same count for every side) |
-| held choice | `choice_id` (string), `waiting_for` (unlock id or the word `none`) |
+| tray slot | `choice_id` (string), `waiting_for` (power id the enhancement needs, or the word `none`) |
+| power slots | per owned power: list of slotted enhancement ids (each raises that power's stats by its value) |
 
 ## Steps
 
@@ -28,8 +29,9 @@
       ─▶ compare total value across sides; re-roll the worst outlier until
          all sides are within the parity margin
  ─▶ side takes, prices, or holds each choice
- ─▶ held choices waiting on an unlock: when that unlock is bought,
-    each one raises the unlock's strength
+ ─▶ enhancements whose power is not owned wait in the tray; when the power
+    is acquired, each one slots into it and strengthens it
+    (City of Heroes' slotting, by way of the Symbeline notes)
 ```
 
 Two-step rolling, in one picture: the table is a list of lottery drums. Each

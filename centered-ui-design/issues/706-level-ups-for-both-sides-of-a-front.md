@@ -19,7 +19,7 @@ happens.
 - The foe's AI picks from its offer by its personality; the seat picks
   through the console (or its helper AI).
 - The next tier's outpost is the same foe, levelled differently.
-- The other seats see the level-up on their wheels (so nobody is unaware).
+- The other seats see the level-up on their dashboards (so nobody is unaware).
 
 ## Suggested Implementation Steps
 

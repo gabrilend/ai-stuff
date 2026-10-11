@@ -23,10 +23,10 @@ tier band in 10 seconds regardless of how big that band is drawn.
 ```
  commands from view ─▶ 1. accept commands (become couriers, see datapath-orders)
                       2. advance couriers; deliver arrivals to their stands
-                      3. split stands by direction ─┬─▶ worker: move + fight, direction A
-                                                    ├─▶ worker: move + fight, direction B
+                      3. split stands by direction ─┬─▶ station: move + fight, direction A
+                                                    ├─▶ station: move + fight, direction B
                                                     └─▶ ...
-                      4. join worker results; settle fights that cross a quadrant edge
+                      4. join station (waits for every direction, combines in direction order); settle fights that cross a quadrant edge
                       5. production, income, votes due this tick
                       6. check fronts (outpost at current tier destroyed?) ─▶ level-up
                       7. publish snapshot ─▶ view
@@ -37,7 +37,8 @@ tier band in 10 seconds regardless of how big that band is drawn.
    area does not shift results in another.
 2. Fixed tick: the simulation advances in steps of exactly 1/20 second of game
    time, regardless of the frame rate.
-3. Worker split: each direction's stands are copied to a worker, which returns
-   new positions and damage dealt. Stands within a short distance of a
-   quadrant edge are handled after the join, on the simulation thread, so two
-   workers never decide about the same pair of units.
+3. Direction split: each direction is its own soramech station; each runs the
+   moment its inputs arrive, on whatever core is free, and returns new
+   positions and damage dealt. Stands within a short distance of a
+   quadrant edge are handled by the join station, so two
+   stations never decide about the same pair of units.

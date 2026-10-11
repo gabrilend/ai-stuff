@@ -18,10 +18,11 @@ every game (see 401).
   weights over all ballots, summing to the same total for every seat.
 - The tally per resource is the weighted average of seats' splits, each
   weighted by that seat's priority for that resource.
-- The ballot is edited on a ring of the wheel: for each resource, an arc
-  divided into category segments whose boundaries are dragged; priority
-  weights are a second ring of dials that share one total (turning one up
-  turns the others down).
+- The ballot is shown on dials (each resource's split, each priority
+  weight, the shared total) and edited only with painted buttons: a
+  button per category to shift a share toward it, a button per ballot to
+  raise its weight (which lowers the others, since the total is fixed).
+  The dials only show; they are never turned.
 - When this issue is done, the fixed split from `input/` and its warning are
   removed.
 
@@ -31,3 +32,9 @@ every game (see 401).
 2. Ballot rings on the console (view side).
 3. Tests: one seat with all weight on metal decides metal's split alone;
    equal weights give the plain average.
+
+## Open questions
+
+- Voting is the one place the dashboard is used for something other than
+  orders. Is editing a ballot with buttons right, or should a vote also be
+  "told" to someone (a steward on the map)?

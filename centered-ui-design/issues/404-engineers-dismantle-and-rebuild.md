@@ -12,9 +12,10 @@ A locked factory is permanent.
 
 ## Intended Behavior
 
-- A stand containing engineers can be ordered to *dismantle* a factory (order
-  button, then click the factory). The courier carries the order; the
-  engineers walk there; dismantling takes time proportional to the factory's
+- A stand containing engineers is told to *dismantle* (map click on the
+  engineers, then the dismantle button); they dismantle the factory nearest
+  them, walking there if needed. The courier carries the order; dismantling
+  takes time proportional to the factory's price.
   price.
 - When done, the factory is gone and part of its price returns to the
   production budget. The site can be built on again, with a new path.

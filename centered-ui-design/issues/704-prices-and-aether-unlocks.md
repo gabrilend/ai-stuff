@@ -16,8 +16,9 @@ Offered choices are free.
 - A choice may have a price in metal and glass (paid from the upgrades
   budget), and may require an unlock.
 - Unlocks are bought with aether; each unlock opens a family of choices.
-- The offer is shown on a rim set: each choice a sector with its price
-  readouts and, if locked, its unlock's name.
+- The offer is shown on dials: each choice in its own window with its price
+  readouts and, if locked, its unlock's name; painted take and hold buttons
+  beside each window are how a choice is taken or held.
 
 ## Suggested Implementation Steps
 

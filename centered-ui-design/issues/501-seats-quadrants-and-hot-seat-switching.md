@@ -14,11 +14,11 @@ There is one seat.
 ## Intended Behavior
 
 - Up to four seats (stand-ins), each owning a quadrant, with its own stands,
-  factories, accordion settings, paint color.
-- The wheel's center boss switches to the next seat: the whole table (map
-  and rim) rotates so that seat's quadrant faces up, the rim fills with that
-  seat's stands. A seat-name readout and the seat's color on the bezel say who
-  is now playing.
+  factories, view rotation, paint color.
+- A painted seat button at the dashboard's center switches to the next seat:
+  the map rotates so that seat's quadrant faces up, and the dials change to
+  that seat's numbers. A seat-name dial and the seat's color on the bezel say
+  who is now playing.
 - Seats not currently played keep their last orders running.
 - A keyboard shortcut per seat (1–4) for quick switching.
 

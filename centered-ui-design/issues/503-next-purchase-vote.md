@@ -13,7 +13,7 @@ Purchases are made by whoever presses the button.
 ## Intended Behavior
 
 - Candidate purchases (factories, upgrades, unlocks — whatever the budgets
-  can buy) are listed on a rim sector set. Each seat spreads support across
+  can buy) are listed on dials. Each seat spreads support (with buttons) across
   candidates; support is scaled by that seat's priority weight for purchases.
 - At each vote, the top-scored candidate is bought from its category when
   affordable; if not yet affordable it stays at the top and waits.

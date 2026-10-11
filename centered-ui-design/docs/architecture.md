@@ -1,6 +1,6 @@
-<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10.
-     It describes how the program is put together. Keep it in step with
-     the source: when a layer moves, this file moves with it. -->
+<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10;
+     reworked the same day when the owner chose soramech as the program's
+     shape. Keep it in step with the source. -->
 
 # Architecture
 
@@ -11,47 +11,100 @@ syntax plus LuaJIT extensions; nothing from Lua 5.3 or 5.4: no `//`
 integer division, no `&` `|` `~` `<<` `>>` operators (use the `bit`
 library), no `<const>` or `<close>`). Shaders are GLSL as LÖVE accepts it.
 
+## The shape: soramech
+
+The program is built the soramech way — the owner's design pattern of
+consensual coroutines, documented in full at
+`/mnt/mtwo/programs/sora/minimal-soramech/docs/` (read 001 to 006). In
+short:
+
+- A **box** is a small function that takes its inputs by value and returns
+  one value. It remembers nothing between calls.
+- A **station** is one placement of a box in a **map** (the wiring diagram).
+  It owns input **slots** (small queues), and a list of where its output
+  goes.
+- **The one rule:** a station runs when, and only when, every one of its input
+  slots holds a value. Nothing polls and nothing schedules: whoever delivers
+  the last missing input notices the station is ready, takes one value from
+  each slot, and puts the invocation (a **task**) into the thread pool. Any
+  free worker thread picks it up.
+- **State lives on the wires.** To keep a running total, a box's output is
+  wired back into its own input. A world tick is a value travelling around a
+  loop.
+- Three box kinds differ only in where output goes: **plain** (one port,
+  copied to every destination), **comparator** (less / equal / greater
+  ports), **iterator** (each run sends to the next port in turn).
+- No box may block. No fallbacks: a missing wire or unknown box stops the
+  program and says why.
+
+"Consensual" is the heart of it: nothing is pushed to run; a station runs
+when everything it needs has agreed to arrive.
+
+### Why it suits this game
+
+The game is already shaped like this. A courier is a value travelling down
+a wire with a delay. A front's fight cannot resolve until both sides'
+moves for the tick have arrived. A vote cannot tally until every seat's
+ballot is in. A level-up offer cannot be shown until every side's offer is
+rolled. Each of these is a station waiting on its slots — and the waiting is
+the parallelism: every direction's combat, every seat's offer, every worker's
+batch runs as soon as its inputs are present, on whatever core is free.
+
+### The game's map, broadly
+
+```
+  input/ ─▶ [read settings] ─▶ [seed streams] ─┐
+                                               ▼
+  view commands ─▶ [accept orders] ─▶ [couriers step] ──┐
+                                                         ▼
+       ┌──── one station per direction ───────▶ [move + fight: N] ─┐
+  [tick]─┤                                     [move + fight: E] ─┤
+   ▲   └────────────────────────────────────▶ [move + fight: …] ─┤
+   │                                                              ▼
+   │                                          [settle quadrant edges]
+   │                                                              ▼
+   │                         [economy] ◀─ [calendar] ─▶ [votes when due]
+   │                                                              ▼
+   │                                    [fronts decided?] ─▶ [level-ups]
+   │                                                              ▼
+   └──────────────────── world loops back ◀─────────── [snapshot] ─▶ view
+```
+
+Each bracket is a station. The world value circulates; per-direction work
+fans out because the wiring fans out.
+
+### Determinism
+
+The same seed and the same commands must always produce the same world —
+that is what networked play (lockstep) and replays rest on. Soramech runs
+stations in whatever order workers pick them up, so determinism comes from
+the wiring, not the timing: every random draw comes from a stream named by
+(seed, tick, station), and the join stations combine their inputs in a fixed
+order (by direction index), never in arrival order.
+
+### Implementation route
+
+Minimal-soramech is written in C (pthreads). Two routes, to be chosen (see
+[open-questions.md](open-questions.md)):
+
+1. Write the soramech pattern in Lua inside this project: stations as
+   tables, workers as LÖVE threads, slots as LÖVE channels.
+2. Build minimal-soramech's C engine as a shared library and drive it from
+   LuaJIT through its FFI, with boxes as Lua callbacks or C functions.
+
 ## Two halves that never touch directly
 
-The project is split the way the house rules ask: **data generation** on one
-side, **data viewing** on the other, with a narrow handoff between them.
+**Data generation** and **data viewing** stay apart:
 
-```
-  input/ ─▶ setup ─▶ ┌──────────────────────┐   snapshot   ┌─────────────────────┐
-                     │  SIMULATION           │ ───────────▶ │  VIEW                │
-                     │  (its own thread)     │              │  (LÖVE main thread)  │
-                     │  world, ticks, orders,│ ◀─────────── │  wheel, map, dials,  │
-                     │  combat, economy,     │   commands   │  glass & metal       │
-                     │  votes, choices       │              │  rendering           │
-                     └──────────────────────┘              └─────────────────────┘
-                                                                    │
-                                                         output/goodbye at exit
-```
-
-- The **simulation** owns all game state. It runs on a fixed tick (a set
-  number of steps per second, independent of frame rate), from a seed, so the
-  same seed and the same command list always give the same game. That is
-  what later makes networked play (lockstep) and replays possible.
-- The **view** owns nothing but what it is shown. Each tick the simulation
-  publishes a **snapshot** (a plain table of numbers and strings: positions,
-  health, couriers, readout values). The view draws the most recent snapshot,
-  smoothing motion between two of them.
-- The view sends back **commands**: plain tables like "stand 7, order
-  attack-move, target (tier 2.4, angle 1.31)". Commands are the only way the
+- The simulation map (above) owns all game state.
+- Its snapshot station hands each tick's numbers to the **view**, which owns
+  nothing but what it is shown and draws the newest snapshot, smoothing
+  between two.
+- The view sends back **commands** (who, what). Commands are the only way the
   view changes anything.
-- The two talk over LÖVE thread channels. Nothing else is shared.
 
-This means the simulation can run headless (no window) for tests and
-balance runs, and the view can be built and demonstrated against recorded
-snapshots without a simulation at all.
-
-## Many threads where the work splits
-
-Combat and movement for different directions do not interact within one tick
-except at quadrant edges, so the simulation splits per-tick work across a
-pool of worker threads, one batch per direction, and joins the results
-before the tick ends. Offer generation (re-rolling until values match)
-also runs across workers. See [datapath-world-tick.md](datapath-world-tick.md).
+So the simulation runs headless for tests and balance runs, and the view can
+be demonstrated against recorded snapshots without a simulation at all.
 
 ## Reading order of source
 
@@ -78,14 +131,15 @@ other files.
 One per major feature:
 
 - [datapath-world-tick.md](datapath-world-tick.md) — one simulation step.
-- [datapath-orders.md](datapath-orders.md) — from a button press to a stand
+- [datapath-orders.md](datapath-orders.md) — from two clicks to a stand
   obeying.
-- [datapath-accordion-view.md](datapath-accordion-view.md) — from a world
-  position to a pixel.
+- [datapath-accordion-view.md](datapath-accordion-view.md) — from a place on
+  the sphere to a pixel, and when stands merge.
 - [datapath-production.md](datapath-production.md) — factories, locked paths,
   engineers.
 - [datapath-team-vote.md](datapath-team-vote.md) — ballots to spending.
-- [datapath-choices.md](datapath-choices.md) — from seed to a level-up offer.
-- [datapath-glass-and-metal.md](datapath-glass-and-metal.md) — how one
-  console element becomes pixels.
+- [datapath-choices.md](datapath-choices.md) — from seed to a level-up offer,
+  and enhancements in the tray.
+- [datapath-glass-and-metal.md](datapath-glass-and-metal.md) — how a
+  dashboard part, a model, or a voxel cloud becomes pixels.
 - [datapath-network.md](datapath-network.md) — commands across machines.

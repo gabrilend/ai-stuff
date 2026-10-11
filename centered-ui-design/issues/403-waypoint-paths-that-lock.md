@@ -13,8 +13,10 @@ Units appear at the factory and stand still.
 
 ## Intended Behavior
 
-- A new factory is in the *pathing* state: map clicks add waypoints, shown
-  as a line; a confirm button locks the path. A factory does not produce
+- A new factory is in the *pathing* state. Its waypoints are given within
+  the map-then-dashboard rhythm: map click on a place, then the waypoint
+  button; the path is shown as a line; the lock button (map click on the
+  factory, then lock) fixes it. A factory does not produce
   until locked.
 - Once locked, the path cannot be edited by any command. The simulation
   refuses such commands with an error event.
@@ -27,3 +29,8 @@ Units appear at the factory and stand still.
    while unlocked.
 2. Unit walking along the path (reusing stand movement).
 3. Tests: commands to a locked path are refused; units arrive in path order.
+
+## Open questions
+
+- Waypoints are places, not stands: is "map click on a place, then the
+  waypoint button" the right reading of the rhythm? (Open question 1.)

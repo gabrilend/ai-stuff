@@ -3,7 +3,7 @@
 **Phase:** 2 — Glass and metal
 **Blocked by:** 203, 204
 
-**Blocks**: 208, 302
+**Blocks**: 208, 302, 308
 **Related documents:** docs/visual-language.md (The rule of buttons and
 numbers)
 

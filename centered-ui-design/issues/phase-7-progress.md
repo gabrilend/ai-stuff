@@ -2,9 +2,9 @@
 
 ## Goals
 The choice catalog generated from equal value budgets; two-step roll
-tables; parity-matched offers; prices and aether unlocks; held choices that
-strengthen their unlock; level-ups for both sides of a front; heroes sent
-adventuring by the depth dial.
+tables; parity-matched offers; prices and aether unlocks; enhancements that
+wait in the tray and slot into powers; level-ups for both sides of a front;
+heroes told to adventure deeper.
 
 The demo this phase ends with is described in docs/roadmap.md.
 
