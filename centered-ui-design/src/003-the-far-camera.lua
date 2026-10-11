@@ -161,11 +161,35 @@ function M.set_arch(camera, section, window_width, window_height)
     camera.arch_half_width = section.width / 2
     camera.window_width = window_width
     camera.window_height = window_height
-    local top_lift = section.base_y - section.height
-    camera.arch_px_per_unit = top_lift / (camera.arch_reach - camera.arch_hub_radius)
+    camera.arch_top_lift = section.base_y - section.height
+    M.set_arch_reach(camera, camera.arch_reach)
+end
+-- }}}
+
+-- The limits the view dials keep within: the reach (world units from the
+-- hub to the top row) and the span (radians foot to foot).
+M.ARCH_REACH_LIMITS = { 30, 400 }
+M.ARCH_SPAN_LIMITS = { math.rad(60), math.rad(1080) }
+
+-- {{{ function M.set_arch_reach()
+-- Sets how far out the arch view's top row reaches (world units from the
+-- hub, within the limits) and the scales that follow from it: farther
+-- presses the rings together (distant units cross the screen more slowly),
+-- nearer spreads them. Figures are drawn at the scale that makes their
+-- outward ground match the rings' spacing near the top.
+function M.set_arch_reach(camera, reach)
+    camera.arch_reach = math.max(M.ARCH_REACH_LIMITS[1], math.min(M.ARCH_REACH_LIMITS[2], reach))
+    camera.arch_px_per_unit = camera.arch_top_lift / (camera.arch_reach - camera.arch_hub_radius)
     -- outward ground is foreshortened by sin(elevation) (back_y); undo it
-    -- so an outward step of a figure matches the rings' spacing
     camera.arch_figure_px = camera.arch_px_per_unit / camera.back_y
+end
+-- }}}
+
+-- {{{ function M.set_arch_span()
+-- Sets the arch view's span (radians foot to foot, within the limits): its
+-- field of view; more squeezes more of the world in from the sides.
+function M.set_arch_span(camera, span)
+    camera.arch_span = math.max(M.ARCH_SPAN_LIMITS[1], math.min(M.ARCH_SPAN_LIMITS[2], span))
 end
 -- }}}
 

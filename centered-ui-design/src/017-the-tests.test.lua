@@ -222,6 +222,23 @@ do
     check("a click on empty ground picks no one",
         far_camera.pick_nearest(arch_view, { elsewhere, behind }, 800, 20, 1600, 1000) == nil)
 
+    -- the view dials: the reach and span keep within their limits, and a
+    -- farther reach presses the far rings closer together on screen
+    local dialled = far_camera.new(good_settings(), 1600 / 1000)
+    dialled.view = "arch"
+    far_camera.set_arch(dialled, { center_x = 800, base_y = 1000, height = 500, width = 1700, band = 40 }, 1600, 1000)
+    far_camera.set_arch_reach(dialled, 1e9)
+    far_camera.set_arch_span(dialled, 0)
+    check("the view dials keep within their limits",
+        dialled.arch_reach == far_camera.ARCH_REACH_LIMITS[2] and dialled.arch_span == far_camera.ARCH_SPAN_LIMITS[1])
+    local function ring_gap(reach)
+        far_camera.set_arch_reach(dialled, reach)
+        local _, y80 = far_camera.project(dialled, 0, 0, -80)
+        local _, y90 = far_camera.project(dialled, 0, 0, -90)
+        return math.abs(y90 - y80)
+    end
+    check("a farther view distance presses the far rings closer together", ring_gap(200) < ring_gap(112))
+
     -- a magic circle: with a span past a full turn, ground straight behind
     -- the chair shows twice, at both ends of the span
     local behind_x, behind_z = 50 * math.sin(math.pi / 4 + math.pi), -50 * math.cos(math.pi / 4 + math.pi)
@@ -463,6 +480,29 @@ do
     local bx, bz = sphere_fold.ground_position(fold, claimed.r, claimed.angle)
     local apart = math.sqrt((cx - bx) ^ 2 + (cz - bz) ^ 2)
     check("a carried cuboid stays in front of its carrier", apart < 4, "apart " .. apart)
+
+    -- personal space: two units on top of each other part, to a distance
+    -- that grows with their ring — closer near the hub than far out
+    local function settled_apart(r)
+        local pair = world_of(2, 1, 9)
+        for index = 0, 1 do
+            local unit = pair.units[1][index]
+            unit.owner = 4          -- foes do not haul: they only stand
+            unit.order_kind = 0
+            unit.r = r
+            unit.angle = 1.0 + index * 1e-4
+            unit.speed_r = 0
+            unit.speed_angle = 0
+        end
+        run_steps(pair, 120, false)
+        local a, b = pair.units[pair.front][0], pair.units[pair.front][1]
+        local ax, az = sphere_fold.ground_position(fold, a.r, a.angle)
+        local bx, bz = sphere_fold.ground_position(fold, b.r, b.angle)
+        return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+    end
+    local near_apart, far_apart = settled_apart(1.0), settled_apart(5.0)
+    check("two units on one spot part, closer near the hub than far out",
+        near_apart > 1 and far_apart > 1.5 * near_apart, near_apart .. " " .. far_apart)
 
     -- a delivered cuboid rests in its own color's section
     local deliveries = 0

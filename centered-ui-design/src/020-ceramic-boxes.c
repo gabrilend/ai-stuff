@@ -130,6 +130,8 @@ double section_r[MAX_SECTIONS], section_angle[MAX_SECTIONS], section_radius[MAX_
 #define IDLE_CYCLES_PER_SECOND 0.25  /* a standing unit's sway */
 #define WALK_TIERS_PER_SECOND 0.12   /* a hauler's pace on the sphere */
 #define REACH_TIERS 0.106            /* how close (on the sphere) a hauler must be to pick up */
+#define SPACE_AT_TIER_ONE 3.0        /* a unit's personal space at tier 1 (ground units, across) */
+#define KEEP_APART_SHARE 0.25        /* how much of an overlap is undone each step */
 #define RESTING_SECONDS 12.0         /* how long a delivered cuboid stays before reappearing */
 
 /* {{{ static double fold_radius(double r) */
@@ -405,8 +407,62 @@ static void think(unit_record *u, int me)
 }
 /* }}} */
 
+/* {{{ static double personal_space(double r) */
+/* How much room (ground units, across) a unit at tier distance r keeps
+ * around it: in proportion to its ring's radius on the map, so every ring
+ * holds about as many units — crowded near the hub, spread out far away
+ * (the owner: "the pathing radius shrinks the closer they are to you, but
+ * they still render at the same size"). */
+static double personal_space(double r)
+{
+    return SPACE_AT_TIER_ONE * fold_radius(r) / fold_radius(1.0);
+}
+/* }}} */
+
+/* {{{ static void keep_apart(const unit_record *before, unit_record *moved, int me) */
+/* Nudges a unit that has just moved away from every neighbour inside their
+ * shared personal space (the mean of the two). Reads only last step's
+ * places (the front block), never this step's, so the order the chunks run
+ * in cannot change the result. */
+static void keep_apart(const unit_record *before, unit_record *moved, int me)
+{
+    double x, z;
+    ground_xz(before->r, before->angle, &x, &z);
+    double mine = personal_space(before->r);
+    double push_x = 0, push_z = 0;
+    for (int j = 0; j < ceramics_unit_count; j++) {
+        if (j == me) continue;                               /* not oneself */
+        const unit_record *other = &ceramics_units_front[j];
+        double ox, oz;
+        ground_xz(other->r, other->angle, &ox, &oz);
+        double dx = x - ox, dz = z - oz;
+        double distance = sqrt(dx * dx + dz * dz);
+        double need = 0.5 * (mine + personal_space(other->r));
+        if (distance >= need) continue;                      /* far enough apart */
+        if (distance < 1e-9) {
+            /* exactly on top of each other: part them by their numbers */
+            double a = TWO_PI * (me < j ? 0.0 : 0.5) + before->angle;
+            push_x += need * cos(a);
+            push_z += need * sin(a);
+            continue;
+        }
+        push_x += (need - distance) * dx / distance;
+        push_z += (need - distance) * dz / distance;
+    }
+    /* no one too close: stay where the move left it */
+    if (push_x == 0 && push_z == 0) return;
+    double mx, mz;
+    ground_xz(moved->r, moved->angle, &mx, &mz);
+    place_from_xz(mx + KEEP_APART_SHARE * push_x, mz + KEEP_APART_SHARE * push_z, &moved->r, &moved->angle);
+    /* never past the hub's wall or the map's edge */
+    if (moved->r < INNER_LIMIT) moved->r = (float)INNER_LIMIT;
+    if (moved->r > fold_tiers - 0.3) moved->r = (float)(fold_tiers - 0.3);
+}
+/* }}} */
+
 /* {{{ chunk_done unit_chunk(chunk_req q) */
-/* The unit box: every unit in the chunk thinks, then moves. */
+/* The unit box: every unit in the chunk thinks, moves, then keeps its
+ * personal space. */
 chunk_done unit_chunk(chunk_req q)
 {
     for (int i = q.first; i < q.last; i++) {
@@ -414,6 +470,7 @@ chunk_done unit_chunk(chunk_req q)
         think(&u, i);
         unit_record moved = u;
         move_unit(&u, &moved, ceramics_step_seconds);
+        keep_apart(&ceramics_units_front[i], &moved, i);
         ceramics_units_back[i] = moved;
     }
     chunk_done d = { q.chunk, q.last - q.first };

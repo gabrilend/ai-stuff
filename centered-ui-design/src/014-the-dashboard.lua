@@ -128,6 +128,9 @@ M.WINDOWS = {
     { dial = "units",    shape = "round", only = "always", across = 0.95,  up = 0.42, radius = 0.1375 },
     { dial = "named",    shape = "slot",  only = "orders", across = 0, up = 0.13, half_width = 0.425, half_height = 0.0875 },
     { dial = "cap",      shape = "round", only = "settings", across = 0, up = 0.55, radius = 0.1875 },
+    -- the view dials (issue 214): turned by the wheel with A or S held
+    { dial = "view_reach", shape = "round", only = "always", across = -1.70, up = 0.42, radius = 0.085 },
+    { dial = "view_span",  shape = "round", only = "always", across = -2.15, up = 0.42, radius = 0.085 },
     -- how many cuboids rest in each color's section (ink in that color)
     { dial = "section_1", shape = "round", only = "orders", across = 1.30, up = 0.42, radius = 0.07 },
     { dial = "section_2", shape = "round", only = "orders", across = 1.50, up = 0.42, radius = 0.07 },
@@ -140,6 +143,8 @@ M.LABELS = {
     { text = "FRAMES / S", across = -1.35, up = 0.235, only = "always" },
     { text = "FRAME MS",   across = -0.95, up = 0.235, only = "always" },
     { text = "UNITS",      across = 0.95,  up = 0.235, only = "always" },
+    { text = "A: DISTANCE", across = -1.70, up = 0.54, only = "always" },
+    { text = "S: FIELD",    across = -2.15, up = 0.54, only = "always" },
     { text = "NEXT ORDER GOES TO", across = 0, up = 0.265, only = "orders" },
     { text = "ESCAPE: SETTINGS",   across = 1.15, up = 0.08, only = "orders" },
     { text = "MAXIMUM FRAMERATE   (0 = NO CAP)", across = 0, up = 0.80, only = "settings" },
@@ -695,6 +700,9 @@ local function draw_dials(dashboard, state, seconds)
         { dial = "frame_ms", text = string.format("%.1f", state.frame_ms) },
         { dial = "units", text = string.format("%d", state.unit_count) },
         { dial = "cap", text = tostring(state.cap), big = true },
+        -- the reach in map-edges: 1.0 puts the map's edge on the top row
+        { dial = "view_reach", text = string.format("%.1f", state.view_reach_edges), small = true },
+        { dial = "view_span", text = string.format("%d", state.view_span_degrees + 0.5), small = true },
     }
     -- each section's count, inked in its color
     for index = 1, 4 do

@@ -20,6 +20,23 @@ The world has positions and rings but nothing in it.
 - Each tick, a stand with a move-like order steps toward its target. Speed is
   in tier-distance, so every band takes the same time to cross (tier-time).
 - A stand with no order holds position.
+- **Personal space that shrinks toward you** (the owner, 2026-10-10: "can
+  we make it so that objects that are near to the player are densified, so
+  more of them can stand next to each other? Essentially, the pathing
+  radius shrinks the closer they are to you, but they still render at the
+  same size. there should be roughly about as many units at each "outward
+  radius axis" value from the viewer at each distance from the viewer. But,
+  since there's more space far away, they seem farther apart. I think.
+  Maybe."). Units keep apart: each has a personal space on the ground whose
+  size grows with its ring's radius (in proportion to the ring's length),
+  so a ring near the hub holds as many as one far out — crowded near the
+  console (figures drawn full size overlap there), spread out far away.
+  Units are scattered evenly by tier distance at the start, so each ring
+  starts with about the same number. Built in the ceramic engine (020): after
+  moving, each unit is nudged away from any neighbour inside their shared
+  personal space, reading only last step's places (so chunk order cannot
+  change it). Tests: two units on top of each other near the hub settle
+  closer than two far out.
 - **Sideways is measured on the sphere** (the owner, 2026-10-10: "how else
   do you represent that except two (or more) poles on a sphere? ... They
   will move left-right faster while they are far away, but closer / farther

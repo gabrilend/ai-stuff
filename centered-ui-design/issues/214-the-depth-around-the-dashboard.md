@@ -37,7 +37,9 @@ below the screen so its wrapping angle cannot tear the ground (pictures
 017-019, 018 showing the tear). The magic circles (step 10) then replaced
 the neighbours' arches: one arch spans \`arch_span_degrees\` (450 to start)
 foot to foot, the world drawn once per winding, the ground by its mesh's
-own unbroken angle (pictures 025-027 at 450, 360, 720).
+own unbroken angle (pictures 025-027 at 450, 360, 720). The view dials
+(step 11) are built: A with the wheel sets the reach, S the span, shown on
+two console dials (pictures 036-041).
 
 ## Intended Behavior
 
@@ -105,6 +107,22 @@ is just the depth effect applied down one scenery."
   side of the world at both lower corners at once). This takes the place of
   growing each neighbour's quadrant from the neighbour's own arch (which
   left seams where two families of rings overlapped).
+- **Two view dials, turned by key and wheel** (the owner: "can we have a
+  dial that the user can adjust with holding the modifier key listed next
+  to it and scrolling that dynamically adjusts the speed of the distant
+  units? Correspondingly, what does that modify? The view distance. I think
+  A is a good letter to hold down while we scroll. Then, for S, can you
+  increase/decrease the FoV that the user has? We should be able to see
+  more/less of the dashboard by squeezing more units in from the side. With
+  these two designs, I think we can fully customize how we want to
+  view."). Holding A while scrolling changes the arch view's reach (how far
+  out the top of the screen sees): reaching farther presses the far rings
+  together, so distant units cross the screen more slowly; nearer, faster.
+  Holding S while scrolling changes the arch's span (its field of view):
+  more degrees squeeze more of the world in from the sides. Each has a
+  small dial on the console, its key engraved beside it, showing the value
+  (tiers reached; degrees). The plain wheel still turns the chair. The
+  dials are still never clicked: the game turns them, the keys only ask.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -176,6 +194,12 @@ is just the depth effect applied down one scenery."
     wrap; ground beyond the span's feet is sent below the screen. Tests:
     the span's ends land on the feet; with a span past 360 one ground point
     appears at two places; click round trip. Pictures at several spans.
+
+11. The view dials: wheel with A held changes the reach, with S held the
+    span, each a tenth per notch within limits; the camera's arch scales
+    recomputed from the reach; two dials and their engraved keys on the
+    console; a scripted "wheel with a key held" option for pictures; tests
+    of the limits and that a farther reach makes far rings tighter.
 
 ## Open questions
 

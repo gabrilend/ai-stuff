@@ -71,6 +71,14 @@ arches and the world sliding together; let go and it settles on the
 nearest seat. Every arch that passes is drawn whole, exactly as yours, with
 its own buttons and dials and its seat named in its slot.
 
+## The view dials
+
+Two small dials left of the frame readouts, each with its key engraved
+above it: **A: DISTANCE** (how far out the top of the screen reaches, in
+map-edges: 1.0 puts the map's edge on the top row) and **S: FIELD** (the
+arch's span in degrees). Hold the key and scroll to turn one; without a key
+the wheel turns the chair. The dials themselves are never clicked.
+
 ## The rhythm
 
 Map, console, map, console. The first click (map) names who; the second

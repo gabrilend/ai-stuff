@@ -29,7 +29,9 @@ radii from their windows; tests check that nothing shown together overlaps,
 labels included (pictures 028-031, the first two showing what broke). The
 console spins by hand: a press on its metal drags the chair, letting go
 settles it on the nearest seat, and every arch in view is drawn whole with
-its own buttons and dials (pictures 032-033).
+its own buttons and dials (pictures 032-033). A press let go outside the
+window used to leave the console held, so any later mouse move spun it;
+it now lets go as soon as a move arrives without the button.
 
 ## Intended Behavior
 

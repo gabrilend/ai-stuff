@@ -166,6 +166,7 @@ function game.load(arguments)
     --   --click SECONDS X Y    click the main button at pixel X, Y
     --   --key SECONDS NAME     press a key
     --   --wheel SECONDS NOTCHES  turn the scroll wheel
+    --   --wheel-with SECONDS KEY NOTCHES  turn the wheel with a key held
     --   --drag SECONDS X1 Y1 X2 Y2 DURATION  press at X1, Y1, move to X2, Y2
     --                          over DURATION seconds, and let go
     -- Scripted input goes through the same handlers as real input.
@@ -183,6 +184,10 @@ function game.load(arguments)
             -- a key press at a given time
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "key",
                 key = arguments[index + 2] }
+        elseif option == "--wheel-with" then
+            -- a turn of the wheel with a key held
+            game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "wheel_with",
+                key = arguments[index + 2], notches = tonumber(arguments[index + 3]) }
         elseif option == "--drag" then
             -- a press, a move and a let-go, over a stretch of time
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "drag",
@@ -370,6 +375,10 @@ function game.update(seconds)
                 if not event.pressed then
                     event.pressed = true
                     game.mousepressed(event.x1, event.y1, 1)
+                    -- held by the script, not by a real button
+                    if game.drag ~= nil then
+                        game.drag.scripted = true
+                    end
                 end
                 game.mousemoved(x, y)
                 -- its last frame: the let-go
@@ -377,6 +386,10 @@ function game.update(seconds)
                     event.done = true
                     game.mousereleased(x, y, 1)
                 end
+            elseif event.kind == "wheel_with" then
+                game.scripted_key_held = event.key
+                game.wheelmoved(0, event.notches)
+                game.scripted_key_held = nil
             elseif event.kind == "click" then
                 game.mousepressed(event.x, event.y, 1)
             elseif event.kind == "key" then
@@ -480,6 +493,8 @@ function game.draw()
         delivered = delivered_counts(),
         look = game.look,
         surface_light = console_light(game.look.hour_angle),
+        view_reach_edges = game.camera.arch_reach / game.fold.edge_radius,
+        view_span_degrees = math.deg(game.camera.arch_span),
     }, game.frame_times[#game.frame_times] or 0)
 
     -- the world, in its own picture with depth; under the hub camera the
@@ -618,6 +633,13 @@ function game.mousemoved(x, y)
     if game.drag == nil then
         return
     end
+    -- the button was let go where the game could not hear it (outside the
+    -- window): let go now, or every later move of the mouse would spin the
+    -- console (it did: pictures 034 and 037)
+    if not game.drag.scripted and not love.mouse.isDown(1) then
+        game.mousereleased(x, y, 1)
+        return
+    end
     local slid = (x - game.drag.start_x) / dashboard_module.arch_spacing(game.dashboard)
     game.chair = game.drag.chair - slid * game.quadrant
     game.chair_target = game.chair
@@ -645,7 +667,35 @@ local WHEEL_STEPS = { flat = CHAIR_STEP, hub = 1, slant = 1, arch = 1 }
 -- clockwise, toward the next seat. Under the hub camera, slant and arch views
 -- one notch turns a whole quadrant — "aim it outward at one color at a
 -- time"; under the far camera, an eighth of one.
+-- What the wheel does with a key held: a dispatch table from key to the
+-- change one notch makes. A: the view distance (how far out the top of the
+-- screen reaches) a tenth farther or nearer; S: the field of view (the
+-- arch's span) a tenth wider or narrower. Rolling away widens both.
+local WHEEL_WITH_KEY = {
+    a = function(notches)
+        far_camera.set_arch_reach(game.camera, game.camera.arch_reach * 1.1 ^ notches)
+    end,
+    s = function(notches)
+        far_camera.set_arch_span(game.camera, game.camera.arch_span * 1.1 ^ notches)
+    end,
+}
+
+-- {{{ local function key_held()
+-- Whether a key is held: by the person at the keyboard, or by a scripted
+-- "wheel with a key held".
+local function key_held(key)
+    return love.keyboard.isDown(key) or game.scripted_key_held == key
+end
+-- }}}
+
 function game.wheelmoved(_, notches)
+    -- a key held: the wheel turns that key's view dial instead of the chair
+    for key, change in pairs(WHEEL_WITH_KEY) do
+        if key_held(key) then
+            change(notches)
+            return
+        end
+    end
     local step = WHEEL_STEPS[game.look.depth]
     game.chair_target = game.chair_target - notches * step * game.quadrant
 end
