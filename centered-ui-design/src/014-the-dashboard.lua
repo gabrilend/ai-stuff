@@ -136,20 +136,39 @@ M.LABELS = {
 }
 
 local METAL_PIXEL = [[
-uniform vec2 face_center;
-uniform float face_radius;
+uniform vec2 arch_base;        // the middle of the arch's base (pixels)
+uniform float arch_height;
+uniform float arch_half_width;
 uniform vec3 base_tone;
+uniform vec3 surface_light;    // the metal dial's light on an upward surface
+uniform vec3 sheen_color;      // what the far edge reflects (the sky's haze)
+uniform float highlight_along; // where along the arch the hour's highlight is (-1..1)
+uniform float daylight;        // 0 at night .. 1 at noon
 
-// Circular brushing: fine concentric streaks (their brightness depends only
-// on distance from the center), and two broad highlights on opposite sides.
+// The console seen across, like a desk (issue 302): brushed along the arch,
+// lit by the time of day, a soft sheen toward the far edge, one faint
+// highlight sliding along with the hour.
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
-    vec2 d = screen - face_center;
-    float reach = length(d) / face_radius;
-    float a = atan(d.y, d.x);
-    float streak = fract(sin(floor(reach * 420.0) * 12.9898) * 43758.5453);
-    float glint = pow(max(cos(a + 2.3), 0.0), 5.0) * 0.22
-                + pow(max(cos(a - 0.85), 0.0), 5.0) * 0.12;
-    vec3 tone = base_tone * (0.88 + 0.12 * streak) + glint;
+    // which scaled copy of the arch passes through this pixel (f: 0 at the
+    // base's middle, 1 on the outer curve) and where along it (s: -1..1)
+    float dx = screen.x - arch_base.x;
+    float up = arch_base.y - screen.y;
+    float f = (up + sqrt(up * up + 4.0 * arch_height * arch_height * dx * dx
+               / (arch_half_width * arch_half_width))) / (2.0 * arch_height);
+    float s = clamp(dx / max(f * arch_half_width, 1.0), -1.0, 1.0);
+    // brushing: fine streaks along the curve, each its own shade, with a
+    // slow wander along the arch so no two stretches look stamped
+    float line = floor(f * 520.0);
+    float streak = fract(sin(line * 12.9898) * 43758.5453);
+    float wander = 0.5 + 0.5 * sin(s * 7.0 + line * 0.37);
+    float brushed = 0.90 + 0.07 * streak + 0.03 * wander;
+    // the far edge, seen at a grazing angle, reflects the sky the most
+    float sheen = pow(clamp(up / arch_height, 0.0, 1.0), 3.0) * 0.16;
+    // brushed metal throws a light back as a stripe across its streaks
+    float highlight = exp(-pow((s - highlight_along) / 0.22, 2.0)) * 0.07 * daylight;
+    vec3 tone = base_tone * surface_light * brushed
+              + sheen_color * sheen
+              + vec3(highlight);
     return vec4(tone * color.rgb, color.a);
 }
 ]]
@@ -672,14 +691,28 @@ local function draw_dials(dashboard, state, seconds)
 end
 -- }}}
 
+-- The metal's own tone before light (graphite steel), and how strongly the
+-- dial's light shows on it. Tuning knobs: record changes in
+-- docs/balance-updates.md.
+M.METAL_TONE = { 0.50, 0.52, 0.55 }
+M.METAL_LIGHT_GAIN = 1.25
+-- The console's own panel lamp, which the day's light adds to: without it
+-- the engraved labels could not be read at night (picture 022).
+M.PANEL_LAMP = { 0.46, 0.48, 0.55 }
+
 -- {{{ local function draw_surface()
 -- One arch's metal surface (and its band cut away), brightness `tone`.
 local function draw_surface(dashboard, section, tone)
     love.graphics.setShader(dashboard.metal_shader)
-    local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
-    dashboard.metal_shader:send("face_center", { cx, cy })
-    dashboard.metal_shader:send("face_radius", section.height)
-    dashboard.metal_shader:send("base_tone", { 0.52, 0.54, 0.57 })
+    local light = dashboard.surface_light
+    dashboard.metal_shader:send("arch_base", { section.center_x, section.base_y })
+    dashboard.metal_shader:send("arch_height", section.height)
+    dashboard.metal_shader:send("arch_half_width", section.width / 2)
+    dashboard.metal_shader:send("base_tone", M.METAL_TONE)
+    dashboard.metal_shader:send("surface_light", { light[1], light[2], light[3] })
+    dashboard.metal_shader:send("sheen_color", light.sheen)
+    dashboard.metal_shader:send("highlight_along", light.highlight_along)
+    dashboard.metal_shader:send("daylight", light.daylight)
     love.graphics.setColor(tone, tone, tone, 1)
     love.graphics.polygon("fill", arch.interior_polygon(section, 96))
     love.graphics.setShader()
@@ -824,9 +857,12 @@ end
 -- weekday (1..7), day (1..31), fps (whole), frame_ms (number), unit_count,
 -- cap (whole), named_text (string), someone_named (boolean),
 -- seat_colors (list of {r, g, b}), delivered (four whole numbers: cuboids
--- resting in each section). `seconds` is the frame's time.
+-- resting in each section), surface_light (the metal's light this hour:
+-- r, g, b at 1..3 and sheen {r, g, b}, highlight_along (-1..1), daylight
+-- (0..1)). `seconds` is the frame's time.
 function M.draw(dashboard, state, seconds)
     dashboard.look = state.look
+    dashboard.surface_light = state.surface_light
     love.graphics.push("all")
     love.graphics.setDepthMode("always", false)
     draw_dials(dashboard, state, seconds)

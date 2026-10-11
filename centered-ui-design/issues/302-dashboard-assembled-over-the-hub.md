@@ -20,7 +20,9 @@ ordered row that slides with the chair; with the arch full width, only your
 own is on screen until the chair turns. Tests: surface and band never
 overlap; every button and window lies wholly on the surface; a neighbour's
 foot lands exactly on yours. Not built yet: the resource and couriers-in-
-flight dials.
+flight dials. The metal's second pass is built (pictures 020-024): brushed
+along the arch, lit by the metal dial over a panel lamp (added when the
+night picture's labels could not be read), sheen and hour highlight.
 
 ## Intended Behavior
 
@@ -56,6 +58,20 @@ arch.
   return. Only your own arch's buttons answer; an ally's are shown, dimmed.
 - Only buttons answer clicks; the band and the dials are information.
 
+- **The metal, seen at the camera's slant** (the owner, after the arch
+  view: "there's a pretty intense reflection on the surface of the
+  dashboard ... we have since moved the camera so now it looks weird at
+  this angle"). The surface was brushed in circles round the calendar with
+  two fixed glints, like a watch face seen head-on; seen across like a desk
+  it read as a spinning spotlight. Second pass: the brushing runs parallel
+  to the arch (fine streaks along scaled copies of its curve, the world's
+  rings carried on inward across the metal); the metal is lit by the metal
+  light dial at the spot an upward surface sees from the camera's slant,
+  like every world surface, so it dims at dusk and turns blue at night; a
+  soft sky-coloured sheen grows toward the far edge beneath the band (a
+  surface seen at a grazing angle reflects most there); and one faint
+  highlight across the streaks slides along the arch with the hour.
+
 ## Suggested Implementation Steps
 
 1. Arch geometry: outer and inner curves of the band, the interior, as
@@ -73,6 +89,12 @@ arch.
 6. Tests: the arch's interior and band never overlap; every button lies
    inside the interior; the band's paint maps its feet to the quadrant's
    edges and its outer edge to the farthest tier.
+
+7. The metal's second pass: the brushing, the dial light (a Lua twin of
+   the world shaders' dial lookup in `012`, so the game can hand the
+   console its light each frame), the sheen and the hour's highlight in
+   the metal shader (`014`); a test that the twin matches the dial
+   painter at the same spot; pictures at noon, dusk and night.
 
 ## Open questions
 

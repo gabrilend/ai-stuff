@@ -100,13 +100,28 @@ vec3 lean(vec3 v, float angle) {
 local GROUND_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
 varying vec2 v_facing;
 varying float v_haze;
+
+// The ground mesh, by its own unbroken angle (0 .. 2 pi round the mesh,
+// never wrapped), so no ground piece can straddle a wrap and stretch across
+// the screen; under the arch view in the copy \`arch_winding\`.
+vec4 project_ground(float r, float mesh_angle) {
+    vec3 ground = fold_ground_position(r, mesh_angle);
+    if (arch_view < 0.5) {
+        return project_unwarped(ground);
+    }
+    float from_chair = mesh_angle - mod(view_turn, 6.28318531) + 6.28318531 * arch_winding;
+    float radius = length(ground.xz);
+    vec4 spot = arch_spot(radius, from_chair);
+    return arch_clip(spot.xy, (radius - arch_reach * 0.5) * cam_up.y / depth_half_range);
+}
+
 // The ground mesh stores each vertex as (tier distance, angle); the fold
 // places it on the ground.
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     vec3 ground = fold_ground_position(vertex_position.x, vertex_position.y);
     v_facing = view_facing(vec3(0.0, 1.0, 0.0));
     v_haze = clamp(hub_distance(ground) / hub_far, 0.0, 1.0);
-    return project_world(ground);
+    return project_ground(vertex_position.x, vertex_position.y);
 }
 ]]
 
@@ -411,17 +426,29 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
     love.graphics.setDepthMode("lequal", true)
     love.graphics.setMeshCullMode("none")
 
-    love.graphics.setShader(renderer.ground_shader)
-    send_frame(renderer, renderer.ground_shader, flip_y, look)
-    love.graphics.draw(renderer.ground_mesh)
+    -- the arch view draws the world once per winding, so a span past a
+    -- full turn shows the same ground at both ends (a magic circle); every
+    -- other view draws it once
+    local windings = { 0 }
+    if renderer.camera.view == "arch" then
+        windings = far_camera.arch_windings(renderer.camera)
+    end
+    for _, winding in ipairs(windings) do
+        renderer.camera.arch_winding = winding
 
-    love.graphics.setShader(renderer.unit_shader)
-    send_frame(renderer, renderer.unit_shader, flip_y, look)
-    love.graphics.drawInstanced(renderer.unit_mesh, renderer.unit_count)
+        love.graphics.setShader(renderer.ground_shader)
+        send_frame(renderer, renderer.ground_shader, flip_y, look)
+        love.graphics.draw(renderer.ground_mesh)
 
-    love.graphics.setShader(renderer.cuboid_shader)
-    send_frame(renderer, renderer.cuboid_shader, flip_y, look)
-    love.graphics.drawInstanced(renderer.cuboid_mesh, renderer.cuboid_count)
+        love.graphics.setShader(renderer.unit_shader)
+        send_frame(renderer, renderer.unit_shader, flip_y, look)
+        love.graphics.drawInstanced(renderer.unit_mesh, renderer.unit_count)
+
+        love.graphics.setShader(renderer.cuboid_shader)
+        send_frame(renderer, renderer.cuboid_shader, flip_y, look)
+        love.graphics.drawInstanced(renderer.cuboid_mesh, renderer.cuboid_count)
+    end
+    renderer.camera.arch_winding = 0
 
     love.graphics.setShader()
 end

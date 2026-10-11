@@ -139,6 +139,13 @@ month; some players will press it often and routinely.
 
 ## Center to outer, and below
 
+Two teams of four meet pole to pole. Ours (A B over C D) shares the hub;
+the foes (1 2 over 3 4) share the sphere's far pole, every one of them the
+same distance away. A faces 1, B faces 2, C faces 3, D faces 4, each pair
+across the sphere in the direction of their grids' matching corner. Far
+reports are vague: "some bad guys over here walking around in a large
+area" (issue 602).
+
 In every direction there is one foe. The foe's forces sit in tiers: an outpost
 at tier 1, a bigger one at tier 2, and so on. A **front** is decided when one
 side's outpost at the current tier falls.

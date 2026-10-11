@@ -97,10 +97,11 @@ paired with differential triangles.
   top each step on screen covers more of the world, and when the chair turns
   the far ground sweeps past fastest. And the arch view, where the game
   starts: every tier ring a copy of the console's arch grown outward from
-  it, the quadrant foot to foot along each ring as along the band, each
-  neighbour's quadrant growing from the neighbour's own arch — "a king in a
-  castle walking along the battlements"; figures stand upright on their
-  rings at one size. Under the hub camera far things fade
+  it, a set span of angle foot to foot along each ring (450 degrees to
+  start; past a full turn the same ground shows twice — "magic circles that
+  had more than 360 degrees of rotation"); "a king in a castle walking
+  along the battlements"; figures stand upright on their rings at one
+  size. Under the hub camera far things fade
   into a haze that is also the sky.
 - **The focus ring**: a tilt-shift blur, sharp at one distance from the hub
   and blurring nearer and farther — an arc on screen under the hub camera.
@@ -108,3 +109,8 @@ paired with differential triangles.
   miniature look without it.
 - Figures stand straight up on their ground ("neither leaning toward nor
   away"); leaning away from the hub is kept to compare.
+- **The console's metal, seen across** (issue 302): brushed in streaks
+  parallel to the arch, lit by the metal light dial like the world (warm at
+  dusk, blue at night) over a faint panel lamp so it is always readable, a
+  soft sky sheen toward its far edge, and one faint highlight that slides
+  along the arch with the hour. No fixed glints.

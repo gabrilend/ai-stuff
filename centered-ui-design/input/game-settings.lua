@@ -100,4 +100,8 @@ return {
     -- the arch view: how far out from the hub (world units) the top of the
     -- screen reaches above the arch's apex; the hub lies on the arch itself
     arch_reach = 112,
+    -- how many degrees of the world one arch shows foot to foot: 90 is just
+    -- this seat's quadrant; past 360 the circle runs on past itself (a
+    -- "magic circle"), the far side of the world showing at both ends
+    arch_span_degrees = 450,
 }

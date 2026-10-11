@@ -55,15 +55,15 @@
 -- (where along the ring, foot to foot, as along the band):
 --          lift L = (radius - hub) * px_per_unit;  f = 1 + L / H
 --          theta = pi * (angle from the chair) / quadrant
---          k = the nearest whole number to theta / pi: which ally's arch
---              (0 ours, -1 and +1 our neighbours', as the console's M)
---          s = sin(theta - k pi)
---          x = center + k * (W - T) + s * f * W/2;   y = base - f * H * (1 - s^2)
--- (W - T is how far apart the M's arches stand, T the band.) So each
--- quadrant grows from its own ally's arch, and the neighbours' ground shows
--- at the sides — "if you walk to the east wall, you'll have a different
--- perspective of north and south". Where two families of rings overlap,
--- the nearer ground is drawn in front (it is nearer in depth).
+--          theta = pi * (angle from the chair + whole turns) / span
+--          s = sin(theta), within the span (|theta| <= pi/2)
+--          x = center + s * f * W/2;   y = base - f * H * (1 - s^2)
+-- The span (degrees foot to foot) may pass 360: a "magic circle" whose
+-- rotation runs on past a full turn, so the same ground shows at both ends
+-- (the owner: "what if our circles were magic circles that had more than
+-- 360 degrees of rotation"). The world is drawn once per winding (the
+-- angle offset by whole turns, \`arch_winding\`) to show each copy; ground
+-- beyond the span's feet is sent far below the bottom row, out of sight.
 -- Figures and cuboids are not warped: their anchor is, and their own shape
 -- is laid on the ring's local direction at one scale (project_anchored),
 -- so they stand upright and the same size everywhere. The arch's size in
@@ -110,7 +110,7 @@ function M.new(settings, aspect)
         -- one seat's quadrant (radians); the arch's pixels come in set_arch
         arch_reach = settings.arch_reach,
         arch_hub_radius = settings.hub_radius,
-        arch_quadrant = 2 * math.pi / settings.team_size,
+        arch_span = math.rad(settings.arch_span_degrees),
     }
     return camera
 end
@@ -159,7 +159,6 @@ function M.set_arch(camera, section, window_width, window_height)
     camera.arch_base_y = section.base_y
     camera.arch_height = section.height
     camera.arch_half_width = section.width / 2
-    camera.arch_step = section.width - section.band
     camera.window_width = window_width
     camera.window_height = window_height
     local top_lift = section.base_y - section.height
@@ -170,42 +169,56 @@ function M.set_arch(camera, section, window_width, window_height)
 end
 -- }}}
 
--- {{{ local function arch_place()
--- The arch view's warp of a ground point (x, z): window pixels of its spot
--- on its ring, and the ring's s and f (see the top of the file) and the
--- ground angle, for laying a shape there.
-local function arch_place(camera, x, z)
+-- {{{ function M.arch_place()
+-- The arch view's warp of a ground point (x, z) for one winding (0: the
+-- angle from the chair as it is; +-1: a whole turn on or back, for spans
+-- past 360): window pixels of its spot on its ring, the ring's s and f (see
+-- the top of the file), the ground angle and radius, and whether it falls
+-- within the span (outside it is sent far below the bottom row).
+function M.arch_place(camera, x, z, winding)
     local radius = math.sqrt(x * x + z * z)
     local angle = math.atan2(x, -z)
     local from_chair = (angle - camera.turn + math.pi) % (2 * math.pi) - math.pi
-    local theta = math.pi * from_chair / camera.arch_quadrant
-    -- which ally's arch this ground grows from (0 ours, -1/+1 neighbours)
-    local k = math.floor(theta / math.pi + 0.5)
-    local s = math.sin(theta - k * math.pi)
+        + 2 * math.pi * winding
+    local theta = math.pi * from_chair / camera.arch_span
+    local s = math.sin(math.max(-math.pi / 2, math.min(math.pi / 2, theta)))
     local f = 1 + (radius - camera.arch_hub_radius) * camera.arch_px_per_unit / camera.arch_height
-    local px = camera.arch_center_x + k * camera.arch_step + s * f * camera.arch_half_width
+    local px = camera.arch_center_x + s * f * camera.arch_half_width
     local py = camera.arch_base_y - f * camera.arch_height * (1 - s * s)
-    -- two or more arches away (the quadrant across from ours, with four
-    -- allies): never on screen, and its angle wraps round from one side to
-    -- the other there, so ground pieces spanning the wrap would stretch
-    -- across the whole screen. Sent far below the bottom row instead, where
-    -- they and anything joining them to the neighbours' ground fall out of
-    -- sight.
-    if math.abs(k) >= 2 then
+    local inside = math.abs(theta) <= math.pi / 2
+    -- beyond the span's feet: out of sight below the bottom row (a ground
+    -- piece joining it to ground inside then runs down from the base row,
+    -- which is the window's bottom edge, and is never seen)
+    if not inside then
         py = camera.arch_base_y + M.ARCH_OUT_OF_SIGHT
     end
-    return px, py, s, f, angle, radius
+    return px, py, s, f, angle, radius, inside
 end
 -- }}}
 
 -- {{{ local function project_arch()
--- The arch view, for a world point: its ground spot warped onto its ring,
--- its height laid straight up the screen at the figures' scale.
+-- The arch view, for a world point: its ground spot warped onto its ring
+-- (the winding nearest the chair), its height laid straight up the screen
+-- at the figures' scale.
 local function project_arch(camera, x, y, z)
-    local px, py, _, _, _, radius = arch_place(camera, x, z)
+    local px, py, _, _, _, radius = M.arch_place(camera, x, z, 0)
     py = py - y * camera.up_y * camera.arch_figure_px
     local depth = ((radius - camera.arch_reach / 2) * camera.up_y - y * camera.back_y) / camera.depth_half_range
     return px / camera.window_width * 2 - 1, 1 - py / camera.window_height * 2, depth
+end
+-- }}}
+
+-- {{{ function M.arch_windings()
+-- Which windings the arch view must draw so every copy of the ground the
+-- span holds is shown: a list of whole numbers (just 0 for spans of 360 or
+-- less... and the turns either side, which the mesh's own angles need).
+function M.arch_windings(camera)
+    local reach = math.ceil(camera.arch_span / (4 * math.pi) + 1)
+    local windings = {}
+    for winding = -reach, reach do
+        windings[#windings + 1] = winding
+    end
+    return windings
 end
 -- }}}
 
@@ -339,21 +352,12 @@ function M.ground_point_under_pixel(camera, pixel_x, pixel_y, width, height)
     -- whose f solves H f^2 - up f - H dx^2 / (W/2)^2 = 0), then the place
     -- along it, and undo both
     if camera.view == "arch" then
-        -- of the three arches (ours, the neighbours'), the one whose ring
-        -- through the pixel is nearest the hub: that ground is drawn in front
+        local dx = pixel_x - camera.arch_center_x
         local up = camera.arch_base_y - pixel_y
         local H, half = camera.arch_height, camera.arch_half_width
-        local f, theta = math.huge, 0
-        for k = -1, 1 do
-            local dx = pixel_x - camera.arch_center_x - k * camera.arch_step
-            local this_f = (up + math.sqrt(up * up + 4 * H * H * dx * dx / (half * half))) / (2 * H)
-            local s = dx / (this_f * half)
-            -- the ring through the pixel lies within this arch's quadrant
-            if math.abs(s) <= 1 and this_f < f then
-                f, theta = this_f, math.asin(s) + k * math.pi
-            end
-        end
-        local angle = camera.turn + theta * camera.arch_quadrant / math.pi
+        local f = (up + math.sqrt(up * up + 4 * H * H * dx * dx / (half * half))) / (2 * H)
+        local s = math.max(-1, math.min(1, dx / (f * half)))
+        local angle = camera.turn + math.asin(s) * camera.arch_span / math.pi
         local radius = camera.arch_hub_radius + (f - 1) * H / camera.arch_px_per_unit
         return radius * math.sin(angle), -radius * math.cos(angle)
     end
@@ -426,11 +430,11 @@ uniform float arch_center_x;
 uniform float arch_base_y;
 uniform float arch_height;
 uniform float arch_half_width;
-uniform float arch_step;     // how far apart the M's arches stand (pixels)
 uniform vec2 arch_window;
 uniform float arch_px_per_unit;
 uniform float arch_figure_px;
-uniform float arch_quadrant;
+uniform float arch_span;     // radians of angle foot to foot (may pass 2 pi)
+uniform float arch_winding;  // which copy is being drawn: whole turns added
 uniform float arch_hub_radius;
 uniform float arch_reach;
 
@@ -483,39 +487,46 @@ vec4 project_unwarped(vec3 p) {
     return project_fixed(turned);
 }
 
-// The arch view's ring place s and growth f for a ground point (see the top
-// of 003-the-far-camera.lua), with the ground angle.
-vec4 arch_place(vec2 ground) {
-    float radius = length(ground);
-    float angle = atan(ground.x, -ground.y);
-    float from_chair = mod(angle - view_turn + 3.14159265, 6.28318531) - 3.14159265;
-    float theta = 3.14159265 * from_chair / arch_quadrant;
-    // which ally's arch it grows from (0 ours, -1/+1 the neighbours')
-    float k = floor(theta / 3.14159265 + 0.5);
-    float s = sin(theta - k * 3.14159265);
+// The arch view's place for a ground point at \`radius\`, \`from_chair\`
+// radians round from the chair (whole turns already added): window pixels,
+// and the ring's s and f. Beyond the span's feet: far below the bottom row.
+vec4 arch_spot(float radius, float from_chair) {
+    float theta = 3.14159265 * from_chair / arch_span;
+    float s = sin(clamp(theta, -1.57079633, 1.57079633));
     float f = 1.0 + (radius - arch_hub_radius) * arch_px_per_unit / arch_height;
-    return vec4(s, f, angle, k);
+    vec2 px = vec2(arch_center_x + s * f * arch_half_width,
+                   arch_base_y - f * arch_height * (1.0 - s * s));
+    if (abs(theta) > 1.57079633) {
+        // beyond the span: out of sight (see M.arch_place in the Lua twin)
+        px.y = arch_base_y + 100000.0;
+    }
+    return vec4(px, s, f);
+}
+
+// Window pixels to clip coordinates, with a depth.
+vec4 arch_clip(vec2 px, float depth) {
+    return vec4(px.x / arch_window.x * 2.0 - 1.0,
+                flip_y * (1.0 - px.y / arch_window.y * 2.0),
+                depth, 1.0);
 }
 
 // A shape anchored at a ground point: under the arch view the anchor is
-// warped onto its ring and the shape (offset from the anchor) is laid on the
-// ring's local direction at one scale, so it stands upright and keeps its
-// size; under every other view, simply the point anchor + offset.
+// warped onto its ring (in the copy \`arch_winding\`) and the shape (offset
+// from the anchor) is laid on the ring's local direction at one scale, so it
+// stands upright and keeps its size; under every other view, simply the
+// point anchor + offset.
 vec4 project_anchored(vec3 anchor, vec3 offset) {
     if (arch_view < 0.5) {
         return project_unwarped(anchor + offset);
     }
-    vec4 place = arch_place(anchor.xz);
-    float s = place.x;
-    float f = place.y;
-    float angle = place.z;
-    vec2 px = vec2(arch_center_x + place.w * arch_step + s * f * arch_half_width,
-                   arch_base_y - f * arch_height * (1.0 - s * s));
-    // two or more arches away: out of sight below the bottom row (see
-    // arch_place in the Lua twin for why)
-    if (abs(place.w) >= 1.5) {
-        px.y = arch_base_y + 100000.0;
-    }
+    float radius = length(anchor.xz);
+    float angle = atan(anchor.x, -anchor.z);
+    float from_chair = mod(angle - view_turn + 3.14159265, 6.28318531) - 3.14159265
+                     + 6.28318531 * arch_winding;
+    vec4 spot = arch_spot(radius, from_chair);
+    vec2 px = spot.xy;
+    float s = spot.z;
+    float f = spot.w;
     // the ring's direction here (pixels, y down) and its outward normal
     vec2 along = normalize(vec2(f * arch_half_width, 2.0 * f * arch_height * s));
     vec2 outward = vec2(along.y, -along.x);
@@ -525,11 +536,8 @@ vec4 project_anchored(vec3 anchor, vec3 offset) {
     float sin_e = cam_back.y;
     float cos_e = cam_up.y;
     px += (along * sideways + outward * (out_ground * sin_e + offset.y * cos_e)) * arch_figure_px;
-    float radius = length(anchor.xz);
     float depth = ((radius + out_ground - arch_reach * 0.5) * cos_e - offset.y * sin_e) / depth_half_range;
-    return vec4(px.x / arch_window.x * 2.0 - 1.0,
-                flip_y * (1.0 - px.y / arch_window.y * 2.0),
-                depth, 1.0);
+    return arch_clip(px, depth);
 }
 
 // The world through whichever view films it.
@@ -585,11 +593,11 @@ function M.send(camera, shader, flip_y, fixed)
         M.send_used(shader, "arch_base_y", camera.arch_base_y)
         M.send_used(shader, "arch_height", camera.arch_height)
         M.send_used(shader, "arch_half_width", camera.arch_half_width)
-        M.send_used(shader, "arch_step", camera.arch_step)
         M.send_used(shader, "arch_window", { camera.window_width, camera.window_height })
         M.send_used(shader, "arch_px_per_unit", camera.arch_px_per_unit)
         M.send_used(shader, "arch_figure_px", camera.arch_figure_px)
-        M.send_used(shader, "arch_quadrant", camera.arch_quadrant)
+        M.send_used(shader, "arch_span", camera.arch_span)
+        M.send_used(shader, "arch_winding", camera.arch_winding or 0)
         M.send_used(shader, "arch_hub_radius", camera.arch_hub_radius)
         M.send_used(shader, "arch_reach", camera.arch_reach)
     end

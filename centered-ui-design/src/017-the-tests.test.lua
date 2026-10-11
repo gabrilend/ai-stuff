@@ -177,11 +177,12 @@ do
     local apex_x, apex_y = pixel_of(hub_r, math.pi / 4)
     check("under the arch view, the hub straight ahead lands on the arch's apex",
         math.abs(apex_x - 800) < 1e-6 and math.abs(apex_y - 500) < 1e-6, apex_x .. " " .. apex_y)
-    -- just inside the quadrant's edge (at the edge itself the ground passes
-    -- to the neighbour's arch, whose foot stands a band's width inward)
-    local foot_x, foot_y = pixel_of(hub_r, math.pi / 4 + arch_view.arch_quadrant / 2 * 0.9999)
-    check("under the arch view, the hub at the quadrant's edge lands on the arch's foot",
+    -- just inside the span's end, the hub lands on the arch's foot
+    arch_view.arch_span = math.rad(170)
+    local foot_x, foot_y = pixel_of(hub_r, math.pi / 4 + math.rad(85) * 0.9999)
+    check("under the arch view, the hub at the span's end lands on the arch's foot",
         math.abs(foot_x - (800 + 850)) < 0.01 and math.abs(foot_y - 1000) < 0.01, foot_x .. " " .. foot_y)
+    arch_view.arch_span = math.rad(450)
     local top_x, top_y = pixel_of(arch_view.arch_reach, math.pi / 4)
     check("under the arch view, the reach straight ahead is on the top row",
         math.abs(top_y) < 1e-6 and math.abs(top_x - 800) < 1e-6, top_x .. " " .. top_y)
@@ -206,10 +207,15 @@ do
         worst = math.max(worst, math.abs(gx - spot[1] * math.sin(spot[2])), math.abs(gz + spot[1] * math.cos(spot[2])))
     end
     check("under the arch view, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
-    local neighbour_x, neighbour_y = pixel_of(hub_r, math.pi / 4 + arch_view.arch_quadrant)
-    check("under the arch view, a neighbour's quadrant grows from the neighbour's arch",
-        math.abs(neighbour_x - (800 + 1700 - 40)) < 1e-6 and math.abs(neighbour_y - 500) < 1e-6,
-        neighbour_x .. " " .. neighbour_y)
+    -- a magic circle: with a span past a full turn, ground straight behind
+    -- the chair shows twice, at both ends of the span
+    local behind_x, behind_z = 50 * math.sin(math.pi / 4 + math.pi), -50 * math.cos(math.pi / 4 + math.pi)
+    local _, _, _, _, _, _, inside_back = far_camera.arch_place(arch_view, behind_x, behind_z, -1)
+    local _, _, _, _, _, _, inside_here = far_camera.arch_place(arch_view, behind_x, behind_z, 0)
+    local left_x = far_camera.arch_place(arch_view, behind_x, behind_z, 0)
+    local right_x = far_camera.arch_place(arch_view, behind_x, behind_z, -1)
+    check("under a span past 360 degrees, ground behind the chair shows at both ends",
+        inside_back and inside_here and math.abs(left_x + right_x - 1600) < 1e-6, left_x .. " " .. right_x)
 end
 
 -- the sphere fold ------------------------------------------------------------
@@ -647,6 +653,18 @@ do
     local renderer = require("013-the-world-renderer")
     local renderer_window = renderer.WINDOW_CENTER + renderer.WINDOW_RADIUS
     check("the light window never reaches past the dial's rim", renderer_window <= 1)
+
+-- the console's metal is lit by a twin of the shaders' dial lookup: at
+-- noon its spot matches the painter's formula at the rotated point
+do
+    local made = require("012-made-by-formula")
+    local r1, g1, b1 = made.dial_light("metal", 0, 0.47, 0, 0.52, 0.44)
+    local r2, g2, b2 = made.light_at("metal", 0, 0.52 + 0.47 * 0.44)
+    check("the console's dial light at noon is the dial straight up",
+        math.abs(r1 - r2) + math.abs(g1 - g2) + math.abs(b1 - b2) < 1e-12)
+    local nr = made.dial_light("metal", 0, 0.47, math.pi, 0.52, 0.44)
+    check("the console's metal is darker at midnight than at noon", nr < r1)
+end
 end
 
 print(string.format("\n%d passed, %d failed", passed, failed))

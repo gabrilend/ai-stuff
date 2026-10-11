@@ -122,6 +122,22 @@ function M.light_at(material, x, y)
 end
 -- }}}
 
+-- {{{ function M.dial_light()
+-- The light a surface receives from a material's dial, without a picture:
+-- the Lua twin of dial_light() in the world shaders (013). `facing_x`,
+-- `facing_y` say which way the surface faces in the viewer's terms (x right,
+-- y up the screen); the window onto the dial sits `window_center` up from
+-- the dial's middle with radius `window_radius`, and the dial is turned by
+-- `hour_angle`. Used for the console's metal, which is not a world surface
+-- but should be lit like one. Returns r, g, b.
+function M.dial_light(material, facing_x, facing_y, hour_angle, window_center, window_radius)
+    local px = facing_x * window_radius
+    local py = window_center + facing_y * window_radius
+    local c, s = math.cos(hour_angle), math.sin(hour_angle)
+    return M.light_at(material, px * c + py * s, py * c - px * s)
+end
+-- }}}
+
 -- {{{ function M.light_dial()
 -- Paints one material's light dial (issue 213): a round picture whose rim is
 -- a clock of the day — noon at the top, dusk and dawn at the sides, night at

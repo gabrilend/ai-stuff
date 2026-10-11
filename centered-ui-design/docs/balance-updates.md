@@ -20,3 +20,6 @@
 | 2026-10-10 | the foes' pole (`far_pole_tier`, input, new) | — | 7 | one tier past the 6 shown: far walkers cross sideways about twice as fast on screen as near ones, and the lap never shrinks to nothing inside the map |
 | 2026-10-10 | starting view (`view_depth`, input) | slant | arch | the owner asked that the world's scale match the dashboard's curve; the arch view does that, so the game starts in it (flat, hub and slant stay in the menu) |
 | 2026-10-10 | the arch view's reach (`arch_reach`, input, new) | — | 112 | the map's edge at the top row above the apex: the whole distance in view |
+| 2026-10-10 | console metal (014) | tone 0.52-0.57 with two fixed glints (0.22, 0.12) | tone 0.50-0.55 lit by the metal dial x1.25, sheen 0.16 at the far edge, hour highlight 0.07 | the camera now looks across the console like a desk; the circular glints read as a spinning spotlight (issue 302) |
+| 2026-10-10 | console panel lamp (\`PANEL_LAMP\`, 014, new) | none | 0.46, 0.48, 0.55 | at midnight the metal went so dark its engraved labels could not be read (picture 022) |
+| 2026-10-10 | the arch's span (\`arch_span_degrees\`, input, new) | one quadrant (90) | 450 | the owner asked for "magic circles" of more than 360 degrees to fit more on screen; 450 shows three seats' quadrants whole (pictures 025-027 compare 360, 450, 720) |

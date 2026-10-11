@@ -34,6 +34,7 @@ local read_input = require("001-read-the-input")
 local say_goodbye = require("002-say-goodbye")
 local far_camera = require("003-the-far-camera")
 local sphere_fold = require("004-the-sphere-fold")
+local made_by_formula = require("012-made-by-formula")
 local records = require("005-unit-records")
 local seeding = require("007-seeding-the-units")
 local frame_cap = require("010-the-frame-cap")
@@ -403,6 +404,32 @@ local function delivered_counts()
     return counts
 end
 -- }}}
+-- {{{ local function console_light()
+-- How the console's metal is lit this hour (issue 302): the metal dial's
+-- light on an upward surface seen at the camera's slant (the same lookup
+-- the world's metal makes), the sky it reflects at its far edge, where the
+-- hour's highlight lies along the arch, and how much day there is.
+local function console_light(hour_angle)
+    local gain = dashboard_module.METAL_LIGHT_GAIN
+    local r, g, b = made_by_formula.dial_light("metal", 0, game.camera.up_y, hour_angle,
+        world_renderer.WINDOW_CENTER, world_renderer.WINDOW_RADIUS)
+    local daylight = math.max(math.cos(hour_angle), 0)
+    local haze = world_renderer.HAZE_COLOR
+    -- the sky darkens toward night, keeping a little blue
+    local sky = 0.25 + 0.75 * daylight
+    -- the panel lamp lights it always; the day adds the rest
+    local lamp = dashboard_module.PANEL_LAMP
+    return {
+        lamp[1] + (1 - lamp[1]) * r * gain,
+        lamp[2] + (1 - lamp[2]) * g * gain,
+        lamp[3] + (1 - lamp[3]) * b * gain,
+        sheen = { haze[1] * sky, haze[2] * sky, haze[3] * (sky * 0.8 + 0.2) },
+        highlight_along = 0.7 * math.sin(hour_angle),
+        daylight = daylight,
+    }
+end
+-- }}}
+
 -- {{{ local function hour_angle_now()
 -- Where the light dials stand: one turn per calendar day, 0 at noon, pi at
 -- midnight. The game's first day starts mid-morning.
@@ -429,6 +456,7 @@ function game.draw()
         seat_colors = world_renderer.OWNER_COLORS,
         delivered = delivered_counts(),
         look = game.look,
+        surface_light = console_light(game.look.hour_angle),
     }, game.frame_times[#game.frame_times] or 0)
 
     -- the world, in its own picture with depth; under the hub camera the

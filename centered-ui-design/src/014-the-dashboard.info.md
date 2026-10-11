@@ -13,3 +13,5 @@ The arch console (019) as four window-sized layers: face (brushed metal surface,
 | `covers(dashboard, x, y)` | a pixel | whether it is on your arch (surface or band) |
 | `set_pointer(...)`, `flash_name_someone(dashboard)` | | hover/press lighting; the "name someone first" reminder |
 | `LOOK_WORDS`, `ORDER_BUTTONS`, `SETTINGS_BUTTONS` (with the look toggles), `WINDOWS`, `LABELS`, `CALENDAR_CENTER`, `ARCH_*_SHARE`, `NEIGHBOUR_SHOWN`, `MONTHS`, `MONTH_DAYS`, `WEEKDAYS` | | layout and calendar data |
+
+The metal (issue 302): brushed along the arch, lit by `state.surface_light` (the game hands it each frame: the metal dial's light over the panel lamp, the sky sheen, where the hour's highlight lies, how much day there is). Knobs: `METAL_TONE`, `METAL_LIGHT_GAIN`, `PANEL_LAMP`.

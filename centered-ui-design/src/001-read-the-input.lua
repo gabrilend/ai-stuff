@@ -43,6 +43,7 @@ M.REQUIRED_FIELDS = {
     { name = "slant_reach",                kind = "number" },
     { name = "far_pole_tier",              kind = "number" },
     { name = "arch_reach",                 kind = "number" },
+    { name = "arch_span_degrees",          kind = "number" },
 }
 
 -- {{{ local function is_one_of()
@@ -122,6 +123,11 @@ local function check_settings(settings, source_name)
     -- itself: otherwise the rings would grow inward.
     if settings.arch_reach <= settings.hub_radius then
         error(source_name .. ": arch_reach must be more than hub_radius", 0)
+    end
+    -- The arch's span must hold some angle; past 360 it is a magic circle,
+    -- which is allowed.
+    if settings.arch_span_degrees <= 0 then
+        error(source_name .. ": arch_span_degrees must be more than 0", 0)
     end
     -- The foes' pole must lie past the tiers shown: at or inside them, the
     -- laps near it would shrink to nothing on the map and walkers there

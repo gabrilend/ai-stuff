@@ -34,7 +34,10 @@ pictures 015-016). The arch view (step 9) is built and is now where the
 game starts (`view_depth = "arch"`, `arch_reach`); neighbours' quadrants
 grow from their own arches, and the quadrant across (never visible) is sent
 below the screen so its wrapping angle cannot tear the ground (pictures
-017-019, 018 showing the tear).
+017-019, 018 showing the tear). The magic circles (step 10) then replaced
+the neighbours' arches: one arch spans \`arch_span_degrees\` (450 to start)
+foot to foot, the world drawn once per winding, the ground by its mesh's
+own unbroken angle (pictures 025-027 at 450, 360, 720).
 
 ## Intended Behavior
 
@@ -92,6 +95,16 @@ is just the depth effect applied down one scenery."
   > can see another angle.
 
   The arch is the wall; turning the chair is walking along it.
+- **Magic circles: more than 360 degrees** (the owner: "can you try having
+  much more than just 90 degrees? Like what if our circles were magic
+  circles that had more than 360 degrees of rotation. Like, if the
+  rotational axis was just... bigger. I think that'll help us fit the more
+  correct displays on screen."). One arch's rings carry a wide span of
+  angle foot to foot — a setting, and it may pass 360 degrees: then the
+  circle runs on past itself, the same ground showing at both ends (the far
+  side of the world at both lower corners at once). This takes the place of
+  growing each neighbour's quadrant from the neighbour's own arch (which
+  left seams where two families of rings overlapped).
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -155,6 +168,15 @@ is just the depth effect applied down one scenery."
    click round trip; a figure is as tall at the top as near the arch;
    sideways screen distance per radian grows outward.
 
+10. Magic circles: a span setting (degrees foot to foot); the warp's
+    angle is measured from the chair and laid as span (no neighbour-arch
+    families); the world is drawn once per winding (the same ground offset
+    by whole turns) so spans past 360 show it more than once; the ground
+    mesh keeps its own unbroken angles so no ground piece ever straddles a
+    wrap; ground beyond the span's feet is sent below the screen. Tests:
+    the span's ends land on the feet; with a span past 360 one ground point
+    appears at two places; click round trip. Pictures at several spans.
+
 ## Open questions
 
 - Answered: figures near the top should visibly move faster left-right;
@@ -166,6 +188,8 @@ is just the depth effect applied down one scenery."
   away... but also not curving toward you, as if you were both inside of a
   sphere's surface, but rather, just directly away, at the exact plane where
   they are not bent one way or the other, rather, simply perfect to you."
+- Which span feels right? 450 shows three quadrants whole; 720 all four,
+  the one across from ours at both edges.
 - The arch view's figures are smaller than the slant view's (the whole
   hub-to-edge distance fits in the half screen above the apex), and fewer
   are on screen (mostly our own quadrant). Is that the right trade, or

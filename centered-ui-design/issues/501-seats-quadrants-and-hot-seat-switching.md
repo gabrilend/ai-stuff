@@ -15,6 +15,13 @@ There is one seat.
 
 - Up to four seats (stand-ins), each owning a quadrant, with its own stands,
   factories, view rotation, paint color.
+- **Seats are named by a grid** (the owner, 2026-10-10): ours A B over C D,
+  the foes' 1 2 over 3 4; A's quadrant is our top-left (north-west), B
+  top-right, C bottom-left, D bottom-right; A faces foe 1 across the
+  sphere, B faces 2, C faces 3, D faces 4 (issue 602). Going round the hub
+  clockwise from the top the seats are B, D, C, A — the console's row of
+  arches follows that ring. (The renderer still numbers seats 1-4 round the
+  ring from the top-right; renaming to the grid is part of this issue.)
 - A painted seat button at the dashboard's center switches to the next seat:
   the map rotates so that seat's quadrant faces up, and the dials change to
   that seat's numbers. A seat-name dial and the seat's color on the bezel say

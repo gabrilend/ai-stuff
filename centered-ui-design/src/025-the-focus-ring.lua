@@ -57,18 +57,11 @@ float ground_distance(vec2 uv) {
     }
     // the arch view: the ring through this pixel (see 003's click inverse)
     if (arch_view > 0.5) {
-        // of the three arches, the nearest ring through the pixel (drawn in front)
         vec2 px = uv * arch_window;
+        float dx = px.x - arch_center_x;
         float up = arch_base_y - px.y;
-        float f = 1e6;
-        for (int k = -1; k <= 1; k++) {
-            float dx = px.x - arch_center_x - float(k) * arch_step;
-            float this_f = (up + sqrt(up * up + 4.0 * arch_height * arch_height * dx * dx
-                           / (arch_half_width * arch_half_width))) / (2.0 * arch_height);
-            if (abs(dx / (this_f * arch_half_width)) <= 1.0) {
-                f = min(f, this_f);
-            }
-        }
+        float f = (up + sqrt(up * up + 4.0 * arch_height * arch_height * dx * dx
+                   / (arch_half_width * arch_half_width))) / (2.0 * arch_height);
         return arch_hub_radius + (f - 1.0) * arch_height / arch_px_per_unit;
     }
     // the far camera and the slant view: rays are parallel; slide this

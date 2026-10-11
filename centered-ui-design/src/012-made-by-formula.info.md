@@ -9,3 +9,5 @@ Every picture is drawn by code; none is AI-generated.
 | `light_at(material, x, y)` | a light dial's colour at a point (metal, glaze, earth): noon at the top, night at the bottom, brighter at the rim |
 | `light_dial(size, material)` | the dial painted from light_at, as image data |
 | `flat_map(size, tiers, seat_colors, sections)` | a canvas: quadrant tints, angle grid, equally spaced tier rings, quadrant lines, the color-coded sections |
+
+`dial_light(material, facing_x, facing_y, hour_angle, window_center, window_radius)`: the light a surface facing that way receives from the material's dial at that hour, without a picture — the Lua twin of the world shaders' dial lookup (used for the console's metal). Returns r, g, b.
