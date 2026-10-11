@@ -113,5 +113,5 @@ return {
     -- or "bars", a spiral of bars growing from none to the rim, to watch
     -- each circle's turn (the longest bar where the bright pole would be);
     -- or "bars-open", the same with the background between bars clear
-    view_circle = "bars",
+    view_circle = "shade",
 }

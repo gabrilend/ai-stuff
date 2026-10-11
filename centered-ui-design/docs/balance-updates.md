@@ -34,3 +34,4 @@
 | 2026-10-10 | terrain point spacing (`POINT_SPACING`, 026) | 3.0 | 3.0 / sqrt(2) (about 2.1) | the owner: "they should be mostly overlapping, so maybe twice as many as there are now" |
 | 2026-10-10 | terrain circle style (`view_circle`, input, new) | — | bars | the owner asked for a bar-chart circle to watch the turn; "shade" is the drawing, "bars-open" the same bars with a clear background |
 | 2026-10-10 | a drag's carry (`DRAG_CARRY_SHARE`, 016, new) | settle on the nearest seat (half an arch) | a sixth of an arch carries on to the next seat | with arches as wide as the screen, ordinary drags slid back and dragging seemed not to work |
+| 2026-10-10 | starting circle style (`view_circle`, input) | bars | shade | the turn is confirmed; the shaded circle now follows the owner's drawing |

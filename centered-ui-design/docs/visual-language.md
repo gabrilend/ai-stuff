@@ -116,7 +116,9 @@ paired with differential triangles.
   along the arch with the hour. No fixed glints.
 - **The land as lit points** (issue 214): no ground texture — the land is
   a grid of points, each with a height, a facing and a colour, drawn as a
-  flat circle facing the camera, shaded from a dark pole to a bright pole.
+  flat circle facing the camera, shaded by direction round its centre —
+  brightest on one side, darkest opposite, blended (the owner's drawing:
+  assets/references/terrain-circle-sun-top-right.png).
   No light is worked out on a circle: it is only turned in the screen's
   plane — bright-pole-up where its slope faces the sun, dark-pole-up where
   it faces away — and so many overlap that each shows only its upper edge,

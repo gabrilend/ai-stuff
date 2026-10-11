@@ -52,7 +52,8 @@ shaded straight pole to pole, after the owner saw "funky" hills and "fins"
 (058-059). The test script now also starts the game for a moment. The bar-chart
 circle (opaque, and "bars-open" with a clear background) shows the turn;
 the owner confirmed the circles turn about the right axis (pictures
-060-066).
+060-066). The circle's picture now shades by direction round its centre,
+from the owner's drawing (pictures 067-069); the game starts in "shade".
 
 ## Intended Behavior
 
@@ -235,6 +236,21 @@ is just the depth effect applied down one scenery."
   you try as if the background of the circle isn't transparent, but rather
   opaque? And then try with transparent, just to see what it's like." —
   both are kept as choices.
+- **The circle's picture: shaded round its centre** (the owner, with a
+  drawing kept as assets/references/terrain-circle-sun-top-right.png: "an
+  image that sorta shows what the circle's texture should look like when
+  the sun is off to the top right. Minus the lines that I drew through in
+  green, which are just to show you the boundaries of the sections of
+  color. And it should be a smoother gradient probably. Notice how the
+  bottom left area is darkest? and the top-right is brightest? This could
+  be a good way to render any color of surface like... water, for example,
+  with fewer bits stored in shared memory, which is slow to update, hence
+  why you need fewer of them being updated. But luckily we have soramech,
+  which handles all of them nicely."). The circle's shade goes by angle
+  round its centre, not by height: brightest in the direction it is turned
+  toward, falling off smoothly (as the cosine of the angle away) to darkest
+  opposite, each direction one shade from centre to rim — the drawing's
+  eight sections, blended. The turn is unchanged.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -334,6 +350,12 @@ is just the depth effect applied down one scenery."
     and evening.
 
 ## Open questions
+
+- The land's points are made once and handed to the graphics card whole,
+  so nothing about them is updated while running. A surface that moves,
+  like water, would turn its points every step: should those points live
+  in the ceramic engine's shared memory, turned there by its workers (the
+  owner: "luckily we have soramech, which handles all of them nicely")?
 
 - Answered: figures near the top should visibly move faster left-right;
   toward and away stays dense (step 8). The owner: "otherwise we won't be

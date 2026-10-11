@@ -12,4 +12,4 @@ Every picture is drawn by code; none is AI-generated.
 
 `dial_light(material, facing_x, facing_y, hour_angle, window_center, window_radius)`: the light a surface facing that way receives from the material's dial at that hour, without a picture — the Lua twin of the world shaders' dial lookup (used for the console's metal). Returns r, g, b.
 
-`round_shade(size)`: the one flat circle every terrain point is drawn with — shaded straight from a dark pole (bottom) to a bright pole (top) in red, alpha inside the circle. The renderer only turns it. Returns image data.
+`round_shade(size)`: the one flat circle every terrain point is drawn with — shaded by direction round its centre, brightest up and darkest down (the cosine of the angle away from up), in red; alpha inside the circle. The renderer only turns it. See the owner's drawing, assets/references/terrain-circle-sun-top-right.png. Returns image data.

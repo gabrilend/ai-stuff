@@ -158,12 +158,14 @@ end
 
 -- {{{ function M.round_shade()
 -- The one circle every terrain point is drawn with (issue 214): flat, its
--- shade running straight from a dark pole at the bottom to a bright pole
--- at the top, as a sphere lit along its axis shades ("shading toward the
--- other, like poles on a sphere"); red holds the shade, alpha whether a
--- pixel is inside the circle. (A first version shaded along lines of
--- latitude, which crowd to knife-edges at the circle's left and right rims
--- and left thin bright and dark "fins" there.) The renderer only turns it. A circle-texture
+-- shade going by direction round its centre — brightest straight up,
+-- falling off smoothly (the cosine of the angle away from up) to darkest
+-- straight down, each direction one shade from centre to rim. The owner's
+-- drawing (assets/references/terrain-circle-sun-top-right.png) shows it as
+-- eight sections when turned toward a sun at the top right; this is that,
+-- blended. Red holds the shade, alpha whether a pixel is inside the
+-- circle. (Earlier: shade by height, dark pole at the bottom to bright pole
+-- at the top; before that, along lines of latitude, which left "fins".) The renderer only turns it. A circle-texture
 -- utility like the console's dials. Returns image data, `size` square.
 function M.round_shade(size)
     local data = love.image.newImageData(size, size)
@@ -174,8 +176,13 @@ function M.round_shade(size)
         if x * x + y * y > 1 then
             return 0, 0, 0, 0
         end
-        -- straight from the dark pole (bottom) to the bright pole (top)
-        local shade = 0.5 + 0.5 * y
+        -- by direction from the centre: up brightest, down darkest
+        local reach = math.sqrt(x * x + y * y)
+        local shade = 0.5
+        -- (the very centre has no direction: middle shade)
+        if reach > 1e-6 then
+            shade = 0.5 + 0.5 * y / reach
+        end
         return shade, shade, shade, 1
     end)
     return data
