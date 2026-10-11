@@ -228,14 +228,19 @@ local function add_primitive(shape, document, buffers, primitive, part_name, pla
     if #order % 3 ~= 0 then fail("primitive of '" .. part_name .. "' has " .. #order .. " indices, not a multiple of 3") end
 
     -- colour: the material's base colour, or white when there is none
-    local colour = { 1, 1, 1 }
+    local colour, glow = { 1, 1, 1 }, false
     if primitive.material ~= nil then
         local material = document.materials and document.materials[primitive.material + 1]
         if material == nil then fail("material " .. primitive.material .. " does not exist") end
         local factor = material.pbrMetallicRoughness and material.pbrMetallicRoughness.baseColorFactor
         if factor then colour = { factor[1], factor[2], factor[3] } end
+        -- a material that gives off light of its own (glTF's emissive
+        -- colour): drawn as light, not as a lit surface
+        local e = material.emissiveFactor
+        if e and (e[1] > 0 or e[2] > 0 or e[3] > 0) then glow = true end
     end
     local part = record.add_part(shape, part_name, colour)
+    if glow then part.glow = true end
 
     local m = placement
     local n, det = normal_matrix(m)
@@ -325,6 +330,10 @@ function M.read(bytes, name, read_neighbour)
             if type(station.name) ~= "string" or not three_numbers(station.eye) or not three_numbers(station.look) then
                 fail("station " .. index .. " needs a name, an eye {x,y,z} and a look {x,y,z}")
             end
+            -- a station may bring its own lens: field of view, degrees
+            if station.fov ~= nil and (type(station.fov) ~= "number" or station.fov <= 0 or station.fov >= 170) then
+                fail("station " .. index .. ": fov must be a number of degrees, 0 to 170")
+            end
         end
         shape.stations = extras.stations
     end
@@ -369,7 +378,7 @@ local KEY_ORDER = {
     "materials", "pbrMetallicRoughness", "baseColorFactor",
     "accessors", "bufferView", "componentType", "count", "type", "min", "max",
     "bufferViews", "buffer", "byteOffset", "byteLength", "buffers", "uri",
-    "stations", "eye", "look", "filling", "colour", "density",
+    "stations", "eye", "look", "fov", "filling", "colour", "density", "emissiveFactor",
 }
 
 -- {{{ function M.write()
@@ -410,7 +419,9 @@ function M.write(shape, made_by, units)
             type = "VEC3", min = min, max = max }
         document.accessors[view_base + 2] = { bufferView = view_base + 1, componentType = 5126, count = corners, type = "VEC3" }
         document.materials[index] = { name = part.name,
-            pbrMetallicRoughness = { baseColorFactor = { part.colour[1], part.colour[2], part.colour[3], 1 } } }
+            pbrMetallicRoughness = { baseColorFactor = { part.colour[1], part.colour[2], part.colour[3], 1 } },
+            -- a glowing part gives off its own colour as light
+            emissiveFactor = part.glow and { part.colour[1], part.colour[2], part.colour[3] } or nil }
         document.meshes[index] = { name = part.name, primitives = { {
             attributes = { POSITION = view_base, NORMAL = view_base + 1 }, material = index - 1, mode = 4 } } }
         document.nodes[index] = { name = part.name, mesh = index - 1 }

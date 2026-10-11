@@ -1,7 +1,7 @@
 <!-- written by Claude (Opus 5.5), 2026-10-10, for phase 0 (the CAD viewer): what this file offers to other files. Read this instead of the source unless chasing a bug. -->
 # 010-the-viewer
 
-The LÖVE window (issue 005). Reads input/, opens a window, reads the CAD file, draws every frame into an off-screen canvas (multisampled, own depth buffer) and shows the canvas; writes output/goodbye on closing. Screenshots save the canvas, never the screen, so they are right even when the window is covered.
+The LÖVE window (issue 005). A model with stations opens standing at its first station, through that station's own lens; `o` goes outside with the settings' lens. Glowing parts are drawn as light (their own colour, little haze) in the lit looks. Reads input/, opens a window, reads the CAD file, draws every frame into an off-screen canvas (multisampled, own depth buffer) and shows the canvas; writes output/goodbye on closing. Screenshots save the canvas, never the screen, so they are right even when the window is covered.
 
 | Offers | |
 |---|---|

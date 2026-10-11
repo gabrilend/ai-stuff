@@ -2,13 +2,22 @@
 --
 -- In plain terms: the light pipe is the passage the laser light travels
 -- down, curving around the head inside the crown. Seen from inside, it is a
--- long curved hall (the owner: "like a large atrium"): mirrored walls with
--- ridges that send light back, a mirror closing the back end with the red
--- and green emitters coming in from the side just in front of it, the beams
--- running down the middle, slotted tabs swung in from floor, ceiling and
--- sides, small paired levers that stir the liquid, a faint spiral of light
--- near the wall, and at the front the mirrored drum of the store with its
--- slit of an aperture. The liquid filling it all is shown as a haze.
+-- long curved hall (the owner: "like a large atrium", "sized like a room,
+-- picture an interior design magazine image"). Its wall is the boundary
+-- where the glass core meets a lower-index cladding, so light striking it at
+-- a glancing angle is turned back in (total internal reflection), and that
+-- boundary is made of facets:
+--   contributing facets lie flat and pass light on toward the output;
+--   recycling facets are tilted a few degrees to face backward, each a
+--   slightly different amount along a spiral, so the light they turn back
+--   feeds a different part of the coruscating vortex.
+-- At the back, a mirror closes the hall, the red and green emitters coming
+-- in through the upper wall just in front of it. The beams run down the
+-- middle; slotted tabs swing in from floor, ceiling and sides; paired
+-- levers stir the liquid; three glowing strands of light spiral near the
+-- wall. The last stretch narrows into a concentrator funnel ending at the
+-- output aperture, beyond which stands the store's mirrored drum with its
+-- slit. The index-matched liquid fills it all, shown as a haze.
 --
 -- Everything is made by formula (issue 105). Sizes are placeholders in
 -- millimetres until phases 1 and 2 give real ones; they are chosen to show
@@ -18,10 +27,10 @@
 -- CURVE_RADIUS around the head's vertical axis, in the horizontal plane,
 -- from the temple at the back (BACK_ANGLE) to the brow at the front
 -- (FRONT_ANGLE). +x points forward out of the face, z to the wearer's left,
--- y up, as in the crown sketch (002). A place in the pipe is given by s,
--- 0 at the back mirror to 1 at the store, and an offset across the pipe:
--- `up` (toward the ceiling) and `out` (toward the outer wall), each a share
--- of the pipe's radius.
+-- y up. A place in the pipe is given by s, 0 at the back mirror to 1 at the
+-- output aperture, and an offset across the pipe: `up` (toward the ceiling)
+-- and `out` (toward the outer wall), each a share of the pipe's radius at s
+-- (which shrinks through the concentrator).
 
 local record = require("001-the-shape-record")
 local kit = require("002-the-test-shapes").kit
@@ -32,8 +41,10 @@ local CURVE_RADIUS = 90          -- mm, head centre to the pipe's middle line
 local BACK_ANGLE = 2.4           -- radians around the head: by the temple
 local FRONT_ANGLE = 0.15         -- radians: at the brow
 local PIPE_RADIUS = 7            -- mm, the hall's half-height
-local AROUND = 40                -- steps around a cross-section
-local ALONG = 160                -- steps along the curve
+local CONCENTRATOR_STARTS = 0.80 -- s where the funnel begins
+local APERTURE_SHARE = 0.32      -- the output aperture's radius, share of PIPE_RADIUS
+local FACETS_ALONG = 96          -- facets from back mirror to output
+local FACETS_AROUND = 24         -- facets around the wall
 
 -- {{{ small vector arithmetic
 local function add(a, b) return { a[1] + b[1], a[2] + b[2], a[3] + b[3] } end
@@ -43,17 +54,23 @@ local function unit(a)
     local length = math.sqrt(a[1] * a[1] + a[2] * a[2] + a[3] * a[3])
     return { a[1] / length, a[2] / length, a[3] / length }
 end
+local function distance(a, b) return math.sqrt((a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2 + (a[3] - b[3]) ^ 2) end
 -- }}}
 
--- {{{ the curve and its frame
+-- {{{ the curve, its radius, and its frame
 local UP = { 0, 1, 0 }
 local function angle_at(s) return BACK_ANGLE + (FRONT_ANGLE - BACK_ANGLE) * s end
--- the middle line at s
+-- the pipe's radius at s: constant, then narrowing smoothly (a half cosine)
+-- through the concentrator to the output aperture
+local function radius_at(s)
+    if s <= CONCENTRATOR_STARTS then return PIPE_RADIUS end
+    local t = math.min(1, (s - CONCENTRATOR_STARTS) / (1 - CONCENTRATOR_STARTS))
+    return PIPE_RADIUS * (APERTURE_SHARE + (1 - APERTURE_SHARE) * (0.5 + 0.5 * math.cos(math.pi * t)))
+end
 local function middle(s)
     local a = angle_at(s)
     return { CURVE_RADIUS * math.cos(a), 0, CURVE_RADIUS * math.sin(a) }
 end
--- outward from the head, at s
 local function outward(s)
     local a = angle_at(s)
     return { math.cos(a), 0, math.sin(a) }
@@ -63,16 +80,18 @@ local function forward(s)
     local a = angle_at(s)
     return { math.sin(a), 0, -math.cos(a) }
 end
--- a point in the pipe: s along, `up` and `out` as shares of the radius
+-- a point in the pipe: s along, `up` and `out` as shares of the radius at s
 local function at(s, up, out)
-    return add(middle(s), add(scale(UP, (up or 0) * PIPE_RADIUS), scale(outward(s), (out or 0) * PIPE_RADIUS)))
+    local r = radius_at(math.min(1, math.max(0, s)))
+    return add(middle(s), add(scale(UP, (up or 0) * r), scale(outward(s), (out or 0) * r)))
 end
 -- the wall's direction at angle phi around the cross-section (0 = outer
 -- wall, pi/2 = ceiling)
 local function across(s, phi)
     return add(scale(outward(s), math.cos(phi)), scale(UP, math.sin(phi)))
 end
-M.at, M.forward = at, forward
+local function on_wall(s, phi, inset) return add(middle(s), scale(across(s, phi), radius_at(s) - (inset or 0))) end
+M.at, M.forward, M.radius_at = at, forward, radius_at
 -- }}}
 
 -- {{{ shapes made from the pieces above
@@ -152,41 +171,59 @@ end
 -- }}}
 
 -- {{{ the parts
--- {{{ local function add_wall()
--- The mirrored wall: the inside of a tube along the curve, open at both
--- ends (the back mirror and the store close them).
-local function add_wall(part)
-    for i = 0, ALONG - 1 do
-        local s0, s1 = i / ALONG, (i + 1) / ALONG
-        for k = 0, AROUND - 1 do
-            local f0, f1 = 2 * math.pi * k / AROUND, 2 * math.pi * (k + 1) / AROUND
-            local a = add(middle(s0), scale(across(s0, f0), PIPE_RADIUS))
-            local b = add(middle(s0), scale(across(s0, f1), PIPE_RADIUS))
-            local c = add(middle(s1), scale(across(s1, f1), PIPE_RADIUS))
-            local d = add(middle(s1), scale(across(s1, f0), PIPE_RADIUS))
-            -- facing inward (toward the middle line), the side seen from
-            -- inside the hall
-            kit.quad(part, a, b, c, d, add(middle(s0), scale(across(s0, f0), 2 * PIPE_RADIUS)))
+-- {{{ local function recycling_tilt()
+-- How many degrees a recycling facet faces backward: 2 to 6, rising and
+-- falling along a spiral (the angle around the wall and the distance along
+-- it, together), so neighbouring facets return light to slightly different
+-- parts of the vortex.
+local function recycling_tilt(s, phi)
+    return 2 + 4 * (0.5 + 0.5 * math.sin(3 * phi + 25 * s))
+end
+M.recycling_tilt = recycling_tilt
+-- }}}
+
+-- {{{ local function add_facets()
+-- The wall, as facets. A contributing facet lies on the wall. A recycling
+-- facet is tilted to face backward: its back edge on the wall, its front
+-- edge stood in from the wall by the facet's length x tan(tilt), so its
+-- surface faces partly back down the hall; a small step at its front edge
+-- returns to the wall. Facets in the concentrator, and just before it,
+-- contribute; the rest recycle.
+local function add_facets(contributing, recycling, steps)
+    for i = 0, FACETS_ALONG - 1 do
+        local s0, s1 = i / FACETS_ALONG, (i + 1) / FACETS_ALONG
+        local length = distance(middle(s0), middle(s1))
+        for k = 0, FACETS_AROUND - 1 do
+            local f0, f1 = 2 * math.pi * k / FACETS_AROUND, 2 * math.pi * (k + 1) / FACETS_AROUND
+            -- seen from inside: each facet faces away from a point beyond the wall
+            local beyond = on_wall((s0 + s1) / 2, (f0 + f1) / 2, -radius_at((s0 + s1) / 2))
+            if s0 >= CONCENTRATOR_STARTS - 0.04 then
+                kit.quad(contributing, on_wall(s0, f0), on_wall(s0, f1), on_wall(s1, f1), on_wall(s1, f0), beyond)
+            else
+                local inset = length * math.tan(math.rad(recycling_tilt((s0 + s1) / 2, (f0 + f1) / 2)))
+                kit.quad(recycling, on_wall(s0, f0), on_wall(s0, f1), on_wall(s1, f1, inset), on_wall(s1, f0, inset), beyond)
+                -- the step back to the wall, facing forward (away from the
+                -- facet's own body, just behind it)
+                local body = on_wall(s1 - 0.25 / FACETS_ALONG, (f0 + f1) / 2, inset / 2)
+                kit.quad(steps, on_wall(s1, f0, inset), on_wall(s1, f1, inset), on_wall(s1, f1), on_wall(s1, f0), body)
+            end
         end
     end
 end
 -- }}}
 
--- {{{ local function add_ridges()
--- Rings carved into the wall, each a sawtooth: a steep face toward the
--- front and a long slope back, so light meeting one is sent backward.
-local function add_ridges(part)
-    local depth, slope = 0.12 * PIPE_RADIUS, 0.012
-    for s = 0.08, 0.96, 0.055 do
-        for k = 0, AROUND - 1 do
-            local f0, f1 = 2 * math.pi * k / AROUND, 2 * math.pi * (k + 1) / AROUND
-            -- front foot, crest (same s), back foot (a little toward the back)
-            local function foot(phi) return add(middle(s), scale(across(s, phi), PIPE_RADIUS)) end
-            local function crest(phi) return add(middle(s), scale(across(s, phi), PIPE_RADIUS - depth)) end
-            local function back(phi) return add(middle(s - slope), scale(across(s - slope, phi), PIPE_RADIUS)) end
-            local inside = add(middle(s), scale(across(s, (f0 + f1) / 2), 2 * PIPE_RADIUS))
-            kit.quad(part, foot(f0), foot(f1), crest(f1), crest(f0), inside)
-            kit.quad(part, crest(f0), crest(f1), back(f1), back(f0), inside)
+-- {{{ local function add_cladding()
+-- The lower-index cladding around the core: a shell just outside the
+-- facets, seen through the seams between them.
+local function add_cladding(part)
+    local steps, around = 120, 32
+    for i = 0, steps - 1 do
+        local s0, s1 = i / steps, (i + 1) / steps
+        for k = 0, around - 1 do
+            local f0, f1 = 2 * math.pi * k / around, 2 * math.pi * (k + 1) / around
+            local out = -0.06 * PIPE_RADIUS
+            local beyond = on_wall((s0 + s1) / 2, (f0 + f1) / 2, -2 * radius_at((s0 + s1) / 2))
+            kit.quad(part, on_wall(s0, f0, out), on_wall(s0, f1, out), on_wall(s1, f1, out), on_wall(s1, f0, out), beyond)
         end
     end
 end
@@ -203,7 +240,6 @@ local function add_tab(tab_part, hinge_part, s, side_phi, swing, open)
     local inward = scale(wall_dir, -1)
     local length_dir = unit(add(scale(inward, math.cos(swing)), scale(forward(s), math.sin(swing))))
     local width_dir = unit(cross(length_dir, forward(s)))
-    -- the plate's own face, square to its length and width
     local face_dir = cross(length_dir, width_dir)
     local hinge = add(middle(s), scale(wall_dir, 0.86 * PIPE_RADIUS))
     local length, width, thick = 1.5 * PIPE_RADIUS, 0.7 * PIPE_RADIUS, 0.05 * PIPE_RADIUS
@@ -223,7 +259,6 @@ local function add_tab(tab_part, hinge_part, s, side_phi, swing, open)
             oriented_box(tab_part, centre, length_dir, cell / 2, width_dir, width / 2 - rail, face_dir, thick / 4)
         end
     end
-    -- the hinge pin, across the tab's foot
     tube(hinge_part, function(t) return add(hinge, scale(width_dir, (t - 0.5) * width * 1.1)) end, 0.06 * PIPE_RADIUS, 1, 12)
 end
 -- }}}
@@ -247,17 +282,16 @@ end
 -- }}}
 
 -- {{{ local function add_store()
--- The store: a mirrored drum standing upright just past the pipe's front
--- end, its wall open where the pipe comes in and slit opposite (the
--- aperture), with a gold frame around the slit.
-local function add_store(drum_part, aperture_part)
+-- The store: a mirrored drum standing upright just past the output
+-- aperture, its wall open where the light comes in and slit opposite, with
+-- a gold frame around the slit.
+local function add_store(drum_part, slit_part)
     local radius, half_height = 1.25 * PIPE_RADIUS, 1.2 * PIPE_RADIUS
     local f = forward(1)
-    local centre = add(middle(1), scale(f, radius * 0.9))
-    -- angles around the drum, measured from the forward direction
+    local centre = add(middle(1), scale(f, radius * 0.97))
     local side = unit(cross(UP, f))
     local function rim(a, y) return add(centre, add(add(scale(f, radius * math.cos(a)), scale(side, radius * math.sin(a))), scale(UP, y))) end
-    local entrance = math.asin(math.min(1, PIPE_RADIUS * 1.05 / radius))
+    local entrance = math.asin(math.min(1, radius_at(1) * 1.3 / radius))
     local slit = 0.07
     local steps = 72
     for k = 0, steps - 1 do
@@ -265,20 +299,18 @@ local function add_store(drum_part, aperture_part)
         local middle_angle = (a0 + a1) / 2
         local from_back = math.abs(((middle_angle - math.pi + math.pi) % (2 * math.pi)) - math.pi)
         local from_front = math.abs(((middle_angle + math.pi) % (2 * math.pi)) - math.pi)
-        -- no wall where the pipe enters (the back) or across the slit (the front)
+        -- no wall where the light enters (the back) or across the slit (the front)
         if from_back > entrance and from_front > slit then
-            kit.quad(drum_part, rim(a0, -half_height), rim(a1, -half_height), rim(a1, half_height), rim(a0, half_height), add(centre, scale(f, 0)))
+            kit.quad(drum_part, rim(a0, -half_height), rim(a1, -half_height), rim(a1, half_height), rim(a0, half_height), centre)
         end
     end
     disc(drum_part, add(centre, scale(UP, half_height)), UP, radius, 48)
     disc(drum_part, add(centre, scale(UP, -half_height)), UP, radius, 48)
-    -- the slit's frame: two posts and a sill and lintel
     for _, a in ipairs({ -slit, slit }) do
-        local p = rim(a, 0)
-        oriented_box(aperture_part, p, UP, half_height, side, 0.05 * PIPE_RADIUS, f, 0.08 * PIPE_RADIUS)
+        oriented_box(slit_part, rim(a, 0), UP, half_height, side, 0.05 * PIPE_RADIUS, f, 0.08 * PIPE_RADIUS)
     end
     for _, y in ipairs({ -half_height, half_height }) do
-        oriented_box(aperture_part, add(rim(0, y), scale(f, 0)), side, radius * math.sin(slit) + 0.05 * PIPE_RADIUS, UP, 0.05 * PIPE_RADIUS, f, 0.08 * PIPE_RADIUS)
+        oriented_box(slit_part, rim(0, y), side, radius * math.sin(slit) + 0.05 * PIPE_RADIUS, UP, 0.05 * PIPE_RADIUS, f, 0.08 * PIPE_RADIUS)
     end
     return centre, radius
 end
@@ -290,31 +322,42 @@ end
 function M.build()
     local shape = record.new("light-pipe", "made", "y")
     shape.units = "millimetres"
-    local function part(name, colour) return record.add_part(shape, name, colour) end
+    local function part(name, colour, glow)
+        local p = record.add_part(shape, name, colour)
+        if glow then p.glow = true end
+        return p
+    end
 
-    local wall = part("light pipe wall", { 0.62, 0.66, 0.72 })
-    local ridges = part("wall ridges", { 0.80, 0.83, 0.88 })
-    local back_mirror = part("back mirror", { 0.92, 0.94, 0.97 })
+    local contributing = part("contributing facets", { 0.86, 0.89, 0.93 })
+    local recycling = part("recycling facets", { 0.60, 0.68, 0.80 })
+    local facet_steps = part("facet steps", { 0.38, 0.44, 0.55 })
+    local cladding = part("cladding", { 0.10, 0.16, 0.32 })
+    local back_mirror = part("back mirror", { 0.95, 0.96, 0.98 })
     local red_emitter = part("red emitter", { 0.85, 0.15, 0.12 })
     local green_emitter = part("green emitter", { 0.15, 0.80, 0.25 })
-    local red_beam = part("red beam", { 1.0, 0.35, 0.30 })
-    local green_beam = part("green beam", { 0.45, 1.0, 0.45 })
+    local red_beam = part("red beam", { 1.0, 0.30, 0.25 }, true)
+    local green_beam = part("green beam", { 0.40, 1.0, 0.45 }, true)
     local tabs = part("tabs", { 0.16, 0.17, 0.20 })
     local hinges = part("tab hinges", { 0.78, 0.62, 0.30 })
     local motors = part("lever motors", { 0.45, 0.38, 0.30 })
     local levers = part("levers", { 0.70, 0.55, 0.35 })
-    local vortex = part("light vortex", { 0.40, 0.95, 0.90 })
+    local strands = {
+        part("vortex strand, red", { 1.0, 0.45, 0.40 }, true),
+        part("vortex strand, green", { 0.50, 1.0, 0.60 }, true),
+        part("vortex strand, gold", { 1.0, 0.85, 0.40 }, true),
+    }
+    local aperture = part("output aperture", { 0.95, 0.78, 0.32 })
     local store = part("store", { 0.55, 0.62, 0.78 })
-    local aperture = part("aperture", { 0.95, 0.80, 0.30 })
+    local slit = part("store slit", { 0.85, 0.70, 0.30 })
 
-    add_wall(wall)
-    add_ridges(ridges)
-    disc(back_mirror, middle(0), forward(0), PIPE_RADIUS, AROUND)
+    add_facets(contributing, recycling, facet_steps)
+    add_cladding(cladding)
+    disc(back_mirror, middle(0), forward(0), PIPE_RADIUS, 48)
 
     -- {{{ emitters and beams
-    -- the emitters come in through the upper wall just in front of the
-    -- back mirror; each beam runs from its emitter's tip to the middle, then
-    -- along the curve to the store
+    -- the emitters come in through the upper wall just in front of the back
+    -- mirror; each beam runs from its emitter's tip to the middle, then
+    -- along the curve, drawn together by the concentrator into the aperture
     local beams = { { emitter = red_emitter, beam = red_beam, phi = 0.62 * math.pi, up = 0.08 },
                     { emitter = green_emitter, beam = green_beam, phi = 0.38 * math.pi, up = -0.08 } }
     for _, b in ipairs(beams) do
@@ -324,50 +367,72 @@ function M.build()
         local tip = add(middle(s), scale(dir, 0.8 * PIPE_RADIUS))
         tube(b.emitter, function(t) return add(outside, scale(add(tip, scale(outside, -1)), t)) end, 0.16 * PIPE_RADIUS, 1, 20)
         local start = at(0.08, b.up, 0)
-        tube(b.beam, function(t) return add(tip, scale(add(start, scale(tip, -1)), t)) end, 0.025 * PIPE_RADIUS, 1, 10)
-        tube(b.beam, function(t) return at(0.08 + 0.95 * t * (1 - 0.08), b.up, 0) end, 0.025 * PIPE_RADIUS, 120, 10)
+        tube(b.beam, function(t) return add(tip, scale(add(start, scale(tip, -1)), t)) end, 0.012 * PIPE_RADIUS, 1, 10)
+        tube(b.beam, function(t) return at(0.08 + 0.92 * t, b.up, 0) end, 0.012 * PIPE_RADIUS, 140, 10)
     end
     -- }}}
 
     -- {{{ tabs: positions, sides, swings and slot patterns
     local o, x = true, false
     local tab_plan = {
-        { s = 0.22, side = 1.5 * math.pi, swing = 0.0,  open = { o, x, o, o, x, o, x, o } },
-        { s = 0.32, side = 0.5 * math.pi, swing = 0.45, open = { x, o, o, x, o, o, o, x } },
-        { s = 0.43, side = 0.0,           swing = 0.8,  open = { o, o, x, o, x, x, o, o } },
-        { s = 0.53, side = math.pi,       swing = -0.35, open = { x, x, o, o, o, x, o, o } },
-        { s = 0.66, side = 1.5 * math.pi, swing = 1.0,  open = { o, x, x, o, o, o, x, o } },
-        { s = 0.78, side = 0.5 * math.pi, swing = 0.2,  open = { o, o, o, x, o, x, o, x } },
+        { s = 0.20, side = 1.5 * math.pi, swing = 0.0,  open = { o, x, o, o, x, o, x, o } },
+        { s = 0.30, side = 0.5 * math.pi, swing = 0.45, open = { x, o, o, x, o, o, o, x } },
+        { s = 0.40, side = 0.0,           swing = 0.8,  open = { o, o, x, o, x, x, o, o } },
+        { s = 0.50, side = math.pi,       swing = -0.35, open = { x, x, o, o, o, x, o, o } },
+        { s = 0.61, side = 1.5 * math.pi, swing = 1.0,  open = { o, x, x, o, o, o, x, o } },
+        { s = 0.71, side = 0.5 * math.pi, swing = 0.2,  open = { o, o, o, x, o, x, o, x } },
     }
     for _, t in ipairs(tab_plan) do add_tab(tabs, hinges, t.s, t.side, t.swing, t.open) end
     -- }}}
 
-    for _, s in ipairs({ 0.27, 0.49, 0.61, 0.86 }) do add_lever_pair(motors, levers, s, 1.25 * math.pi) end
-    tube(vortex, function(t)
-        local phi = 0.3 + 7 * 2 * math.pi * t
-        return add(middle(0.04 + 0.92 * t), scale(across(0.04 + 0.92 * t, phi), 0.8 * PIPE_RADIUS))
-    end, 0.018 * PIPE_RADIUS, 900, 8)
-    local store_centre, store_radius = add_store(store, aperture)
+    for _, s in ipairs({ 0.26, 0.45, 0.56, 0.68 }) do add_lever_pair(motors, levers, s, 1.25 * math.pi) end
 
-    -- {{{ stations: where to stand, and what to look at
+    -- {{{ the coruscating vortex: three strands at different radii and pace
+    local strand_plan = { { radius = 0.80, phase = 0.0, turns = 7 }, { radius = 0.64, phase = 2.1, turns = 9 },
+                          { radius = 0.50, phase = 4.2, turns = 11 } }
+    for index, plan in ipairs(strand_plan) do
+        tube(strands[index], function(t)
+            local s = 0.04 + 0.95 * t
+            local phi = plan.phase + plan.turns * 2 * math.pi * t
+            return add(middle(s), scale(across(s, phi), plan.radius * radius_at(s)))
+        end, 0.011 * PIPE_RADIUS, 1000, 8)
+    end
+    -- }}}
+
+    -- the output aperture: a gold ring where the concentrator ends
+    tube(aperture, function(t)
+        return add(middle(1), scale(across(1, 2 * math.pi * t), radius_at(1) * 1.05))
+    end, 0.07 * PIPE_RADIUS, 64, 12)
+    local store_centre, store_radius = add_store(store, slit)
+
+    -- {{{ stations: composed like interior photographs
+    -- a wide lens, the eye a little below the middle of the hall, and the
+    -- look point at the same height when looking along it, so verticals
+    -- stand straight; a few look up, across or back, to show every part.
+    -- Every eye stands well off the middle line: the beams glow there, and a
+    -- camera beside a beam sees a wedge of colour, not a hall (the first
+    -- magazine set, pictures 112-125, did that)
+    local WIDE = 75
+    local function station(name, eye, look, fov) return { name = name, eye = eye, look = look, fov = fov or WIDE } end
     local f1 = forward(1)
-    -- stations stand off the middle line: the beams run down it, and a
-    -- camera standing in a beam sees nothing but the beam (the first set of
-    -- pictures, 055-066 in development-history, did exactly that)
-    local function station(name, eye, look) return { name = name, eye = eye, look = look } end
     shape.stations = {
-        station("back-mirror", at(0.14, -0.3, -0.3), at(0.0, 0, 0)),
-        station("emitters-from-above", at(0.16, 0.6, 0), at(0.05, 0.55, 0)),
-        station("first-tabs-low", at(0.10, -0.55, 0), at(0.30, 0, 0)),
-        station("along-the-middle", at(0.28, 0.3, -0.35), at(0.45, 0, 0)),
-        station("ceiling-looking-back", at(0.44, 0.6, 0), at(0.26, -0.2, 0)),
-        station("outer-wall-across", at(0.50, 0, 0.6), at(0.56, 0, -0.6)),
-        station("levers-low", at(0.56, -0.5, -0.3), at(0.64, -0.65, -0.4)),
-        station("along-the-middle-2", at(0.62, -0.3, 0.35), at(0.80, 0, 0)),
-        station("high-looking-back", at(0.80, 0.55, 0), at(0.60, -0.3, 0)),
-        station("toward-the-store", at(0.88, 0.3, 0.3), add(store_centre, scale(f1, store_radius))),
-        station("aperture-from-low", at(0.97, -0.5, 0), add(store_centre, add(scale(f1, store_radius), scale(UP, 0.3 * PIPE_RADIUS)))),
-        station("inside-the-store", add(store_centre, scale(UP, 0.4 * PIPE_RADIUS)), at(0.86, 0, 0)),
+        station("the-hall-from-the-back", at(0.10, -0.3, -0.45), at(0.24, -0.3, -0.45)),
+        station("back-mirror-and-emitters", at(0.17, -0.35, -0.5), at(0.0, 0.15, 0.1)),
+        station("emitters-close", at(0.10, 0.3, -0.45), at(0.05, 0.6, 0.0), 65),
+        station("first-tab", at(0.13, -0.35, 0.5), at(0.21, -0.35, 0)),
+        station("ceiling-facets", at(0.33, -0.5, -0.3), at(0.355, 0.9, 0), 80),
+        station("recycling-wall", at(0.37, -0.35, -0.6), at(0.40, -0.1, 0.9), 70),
+        station("tab-gallery", at(0.42, -0.3, -0.45), at(0.58, -0.3, -0.2)),
+        station("levers", at(0.47, -0.45, -0.25), at(0.505, -0.8, -0.45), 70),
+        station("vortex-strands", at(0.53, 0.45, 0.4), at(0.60, 0.45, -0.35)),
+        station("looking-back-to-the-mirror", at(0.64, -0.3, 0.45), at(0.44, -0.3, 0.45)),
+        station("last-tab", at(0.66, -0.3, 0.5), at(0.76, -0.3, 0)),
+        station("into-the-concentrator", at(0.79, -0.35, -0.45), at(1.0, 0, 0)),
+        station("the-output-aperture", at(0.93, -0.5, 0.35), add(store_centre, scale(f1, store_radius)), 60),
+        station("from-the-store", add(store_centre, scale(UP, 0.35 * PIPE_RADIUS)), at(0.86, 0, 0)),
+        -- inside the drum, by the entrance, facing the slit the light leaves by
+        station("the-store-slit", add(store_centre, add(scale(f1, -0.45 * store_radius), scale(UP, -0.25 * PIPE_RADIUS))),
+            add(store_centre, scale(f1, store_radius)), 70),
     }
     -- }}}
 

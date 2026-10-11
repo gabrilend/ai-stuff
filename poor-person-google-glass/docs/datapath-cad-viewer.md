@@ -28,8 +28,12 @@ model file (path, string)
         → the canvas shown in the window, the panel of figures over it
 
 a model may carry, in its glTF's asset.extras (issue 008):
-  stations  { name, eye {x,y,z}, look {x,y,z} } → n steps through them, o
-            goes back outside; the camera stands at the eye facing the look
+  stations  { name, eye {x,y,z}, look {x,y,z}, fov (degrees, optional) }
+            → the model opens at the first; n steps through them, o goes
+            back outside; the camera stands at the eye facing the look,
+            through the station's own lens if it has one
+  glow      a material with an emissive colour → its part is drawn as
+            light (its own colour, brightened, little haze), lit looks only
   filling   { colour, density } → the lit look hazes toward the colour
             with distance (a liquid or haze filling the model)
 

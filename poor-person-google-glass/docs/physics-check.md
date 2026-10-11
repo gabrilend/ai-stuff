@@ -201,3 +201,29 @@ tolerate more.
 Cutting a lens into an N by N grid gives tiles with exactly the lens's own
 width-to-height ratio, whatever N is; an N by M grid with N ≠ M changes the
 shape.
+
+## Eighth round (2026-10-10): the light pipe as a faceted, trapping hall
+
+### Total internal reflection, and tilting the boundary
+Light inside a higher-index core meeting a lower-index cladding is turned
+back completely, with no mirror coating, when it strikes at a glancing
+angle: beyond the **critical angle**, whose sine is the ratio of the two
+indices (cladding over core). Glass at 1.52 in cladding at 1.47 traps light
+within about 15° of the wall. Tilting a facet of that boundary by an angle
+turns the reflected ray by twice that angle, as with any mirror, so the
+backward-tilted recycling facets send their light back down the hall at a
+slightly different angle each, feeding a different part of the vortex. A
+tilt also changes which rays are glancing enough to be trapped: a ray
+arriving more squarely than the critical angle escapes into the cladding,
+so the tilts must stay small (the model uses 2–6°).
+
+### Concentrating into a smaller aperture
+A funnel cannot squeeze light into a smaller opening without widening its
+angles: the area of a beam times the spread of its directions (its
+**étendue**) never shrinks in a passive optical system. The model's
+concentrator narrows the pipe to about a third of its radius, a tenth of
+its area, so the light leaving the output aperture spreads over roughly
+three times the angle (by sine) it had in the pipe. Light that cannot fit
+is turned back by the funnel's walls, which is where recycling it pays.
+A funnel shaped for this (a **compound parabolic concentrator**) reaches
+the limit; the model's smooth narrowing is a stand-in for one.

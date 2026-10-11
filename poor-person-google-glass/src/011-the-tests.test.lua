@@ -337,18 +337,32 @@ end)
 
 test("glTF carries a model's stations and filling", function()
     local cube = shapes.cube()
-    cube.stations = { { name = "corner", eye = { 0.1, 0.2, 0.3 }, look = { 0.5, 0.5, 0.5 } } }
+    cube.stations = { { name = "corner", eye = { 0.1, 0.2, 0.3 }, look = { 0.5, 0.5, 0.5 }, fov = 75 } }
+    cube.parts[1].glow = true
     cube.filling = { colour = { 0.5, 0.7, 0.8 }, density = 0.02 }
     local back = gltf.read(gltf.write(cube, "the tests", "units"), "cube.gltf", no_files)
     expect(back.stations[1].name == "corner" and back.stations[1].look[3] == 0.5, "station lost")
     expect(back.filling.density == 0.02, "filling lost")
+    expect(back.stations[1].fov == 75, "a station's lens lost")
+    expect(back.parts[1].glow == true, "a glowing part lost its glow")
     cube.stations = { { name = "broken", eye = { 1, 2 } } }
     expect_error("station 1 needs", function() gltf.read(gltf.write(cube, "the tests", "units"), "cube.gltf", no_files) end)
 end)
 
+test("recycling facets face backward by 2 to 6 degrees, never forward", function()
+    local pipe = require("018-the-light-pipe-model")
+    for s = 0, 0.76, 0.02 do
+        for phi = 0, 6.2, 0.3 do
+            local tilt = pipe.recycling_tilt(s, phi)
+            expect(tilt >= 2 and tilt <= 6, string.format("tilt %.3f at s %.2f", tilt, s))
+        end
+    end
+    expect(math.abs(pipe.radius_at(1) - 0.32 * pipe.radius_at(0)) < 1e-9, "the output aperture is not a third of the pipe")
+end)
+
 test("the light pipe model is whole, with a station for every stretch", function()
     local pipe = require("018-the-light-pipe-model").build()
-    expect(#pipe.parts == 14, "parts: " .. #pipe.parts)
+    expect(#pipe.parts == 19, "parts: " .. #pipe.parts)
     expect(pipe.degenerate_count == 0, "slivers: " .. pipe.degenerate_count)
     expect(#pipe.stations >= 10, "stations: " .. #pipe.stations)
 end)

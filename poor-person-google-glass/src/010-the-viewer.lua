@@ -96,12 +96,19 @@ uniform vec2 depth_range;
 // it thickens with distance (0: no filling). Only the lit look is hazed;
 // the flat, depth and normals views stay exact, being measurements.
 uniform vec4 filling;
+// 1 for a part that gives off light (a beam, the vortex): drawn at its own
+// colour, brightened, and seen through only a little of the haze
+uniform float glow;
 vec4 effect(vec4 colour, Image texture, vec2 texture_coords, vec2 screen_coords) {
     if (shade_mode > 0.5 && shade_mode < 1.5) return vec4(part_colour, 1.0);
     if (shade_mode > 1.5 && shade_mode < 2.5) {
         float near_share = 1.0 - clamp((eye_distance - depth_range.x) / (depth_range.y - depth_range.x), 0.0, 1.0);
         // never pure black: the black-pixel check must stay meaningful
         return vec4(vec3(0.08 + 0.92 * near_share), 1.0);
+    }
+    if (glow > 0.5) {
+        float glow_haze = 0.35 * (1.0 - exp(-filling.a * eye_distance));
+        return vec4(mix(min(part_colour * 1.25, vec3(1.0)), filling.rgb, glow_haze), 1.0);
     }
     float length_of_normal = length(world_normal);
     // a sliver triangle has no direction: ambient light only
@@ -224,7 +231,13 @@ local function open_shape(path)
     viewer.meshes = build_meshes(shape)
     viewer.load_joints(path)
     viewer.problem = nil
+    viewer.camera.fov = math.rad(viewer.settings.field_of_view_degrees)
     fit_view()
+    -- a model with places to stand inside it opens standing at the first:
+    -- from outside, a room is only the back of its walls (the light pipe
+    -- opened as one flat colour, 2026-10-10)
+    viewer.station = nil
+    if shape.stations and #shape.stations > 0 then viewer.go_to_station(1) end
 end
 -- }}}
 
@@ -249,8 +262,9 @@ local KEYS = {
         if stations and #stations > 0 then viewer.go_to_station((viewer.station or 0) % #stations + 1) end
     end,
     o = function()
-        -- back outside, circling the whole shape
+        -- back outside, circling the whole shape, with the settings' lens
         viewer.station = nil
+        viewer.camera.fov = math.rad(viewer.settings.field_of_view_degrees)
         if viewer.shape then fit_view() end
     end,
     u = function()
@@ -271,6 +285,8 @@ function viewer.go_to_station(index)
     local ex, ey, ez = camera_math.transform(viewer.model_matrix, station.eye)
     local lx, ly, lz = camera_math.transform(viewer.model_matrix, station.look)
     camera_math.stand_at(viewer.camera, { ex, ey, ez }, { lx, ly, lz })
+    -- the station's own lens if it has one (a wide one for a room)
+    viewer.camera.fov = math.rad(station.fov or viewer.settings.field_of_view_degrees)
     viewer.station = index
 end
 -- }}}
@@ -479,6 +495,9 @@ local function draw_meshes(shade_mode, colour_of, depth_bias)
     viewer.shader:send("depth_bias", depth_bias or 0)
     for _, item in ipairs(viewer.meshes) do
         viewer.shader:send("part_colour", colour_of(item))
+        -- glowing parts (the light itself) only in the lit looks; every
+        -- other view draws them like any part
+        viewer.shader:send("glow", (shade_mode == 0 and item.part.glow) and 1 or 0)
         love.graphics.draw(item.mesh)
     end
 end
