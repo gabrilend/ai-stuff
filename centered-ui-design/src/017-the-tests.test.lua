@@ -163,6 +163,53 @@ do
         worst = math.max(worst, math.abs(gx - spot[1]), math.abs(gz - spot[2]))
     end
     check("under the slant view, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
+
+    -- the arch view (issue 214): rings grown from the console's arch
+    local arch_view = far_camera.new(good_settings(), 1600 / 1000)
+    arch_view.view = "arch"
+    arch_view.turn = math.pi / 4
+    far_camera.set_arch(arch_view, { center_x = 800, base_y = 1000, height = 500, width = 1700, band = 40 }, 1600, 1000)
+    local hub_r = arch_view.arch_hub_radius
+    local function pixel_of(radius, angle, height)
+        local x, y = far_camera.project(arch_view, radius * math.sin(angle), height or 0, -radius * math.cos(angle))
+        return far_camera.ndc_to_pixels(x, y, 1600, 1000)
+    end
+    local apex_x, apex_y = pixel_of(hub_r, math.pi / 4)
+    check("under the arch view, the hub straight ahead lands on the arch's apex",
+        math.abs(apex_x - 800) < 1e-6 and math.abs(apex_y - 500) < 1e-6, apex_x .. " " .. apex_y)
+    -- just inside the quadrant's edge (at the edge itself the ground passes
+    -- to the neighbour's arch, whose foot stands a band's width inward)
+    local foot_x, foot_y = pixel_of(hub_r, math.pi / 4 + arch_view.arch_quadrant / 2 * 0.9999)
+    check("under the arch view, the hub at the quadrant's edge lands on the arch's foot",
+        math.abs(foot_x - (800 + 850)) < 0.01 and math.abs(foot_y - 1000) < 0.01, foot_x .. " " .. foot_y)
+    local top_x, top_y = pixel_of(arch_view.arch_reach, math.pi / 4)
+    check("under the arch view, the reach straight ahead is on the top row",
+        math.abs(top_y) < 1e-6 and math.abs(top_x - 800) < 1e-6, top_x .. " " .. top_y)
+    local _, near_feet = pixel_of(30, math.pi / 4)
+    local _, near_top = pixel_of(30, math.pi / 4, 3)
+    local _, far_feet = pixel_of(100, math.pi / 4)
+    local _, far_top = pixel_of(100, math.pi / 4, 3)
+    check("under the arch view, a thing far out is as tall on screen as one near",
+        math.abs((near_feet - near_top) - (far_feet - far_top)) < 1e-9)
+    local near_a = pixel_of(30, math.pi / 4)
+    local near_b = pixel_of(30, math.pi / 4 + 0.05)
+    local far_a = pixel_of(100, math.pi / 4)
+    local far_b = pixel_of(100, math.pi / 4 + 0.05)
+    check("under the arch view, the same turn of angle crosses more screen far out",
+        math.abs(far_b - far_a) > 1.5 * math.abs(near_b - near_a))
+    -- spots on screen and in front (off the screen's sides, a neighbour's
+    -- nearer ground covers ours, and a click there finds that instead)
+    worst = 0
+    for _, spot in ipairs({ { 20, 0.3 }, { 60, 0.9 }, { 95, 0.85 }, { 40, 0.5 } }) do
+        local px, py = pixel_of(spot[1], spot[2])
+        local gx, gz = far_camera.ground_point_under_pixel(arch_view, px, py, 1600, 1000)
+        worst = math.max(worst, math.abs(gx - spot[1] * math.sin(spot[2])), math.abs(gz + spot[1] * math.cos(spot[2])))
+    end
+    check("under the arch view, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
+    local neighbour_x, neighbour_y = pixel_of(hub_r, math.pi / 4 + arch_view.arch_quadrant)
+    check("under the arch view, a neighbour's quadrant grows from the neighbour's arch",
+        math.abs(neighbour_x - (800 + 1700 - 40)) < 1e-6 and math.abs(neighbour_y - 500) < 1e-6,
+        neighbour_x .. " " .. neighbour_y)
 end
 
 -- the sphere fold ------------------------------------------------------------

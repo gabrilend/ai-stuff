@@ -29,7 +29,12 @@ size law (fold, shaders, and the ceramic engine at its next step). Tests:
 the hub on the bottom row and the reach on the top row along the chair, a
 far thing as tall on screen as a near one, nearer ground nearer in depth, a
 click round trip, both size laws, and the C motion against its Lua twin
-under both. Pictures 012 to 014.
+under both. Pictures 012 to 014. Haulers walk on the sphere (step 8,
+pictures 015-016). The arch view (step 9) is built and is now where the
+game starts (`view_depth = "arch"`, `arch_reach`); neighbours' quadrants
+grow from their own arches, and the quadrant across (never visible) is sent
+below the screen so its wrapping angle cannot tear the ground (pictures
+017-019, 018 showing the tear).
 
 ## Intended Behavior
 
@@ -65,6 +70,28 @@ is just the depth effect applied down one scenery."
   past faster than the near, like the rim of a turning wheel. The scroll
   wheel turns a whole quadrant a notch, as under the hub camera. The focus
   ring, seen this way, is a semicircle around the console.
+- **The arch view** (the owner: "if you project the arc of the
+  circumference of the circle you're rendering with a 2d texture plane, and
+  then projected onto that... it might be easier to match the world's
+  scaling to the curve of the dashboard"; asked to choose, the owner chose
+  moving the points rather than wrapping a picture). A fourth view: every
+  tier ring is drawn as a scaled copy of the arch's outer curve, grown
+  outward from the console — tier 0 on the arch itself, the map's edge near
+  the top of the screen, the fold pressing the far rings together. Along
+  each ring runs the chair's quadrant from foot to foot exactly as along the
+  band, so the band's painted map and the open world line up angle for
+  angle. Each figure and cuboid is moved to its spot on its ring and drawn
+  there upright, the same size everywhere; outer rings are longer, so far
+  figures cross the screen sideways faster. The owner's picture of it:
+
+  > picture a king in a castle walking along the battlements viewing all
+  > the surrounds. if you walk to the east wall, you'll have a different
+  > perspective of north and south than if you walked to the west wall.
+  > Just like how when it's one time of year, we can see a certain
+  > perspective of celestial objects, and when it's another time of year we
+  > can see another angle.
+
+  The arch is the wall; turning the chair is walking along it.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -113,6 +140,21 @@ is just the depth effect applied down one scenery."
    agree; sideways screen speed per step grows outward while outward screen
    speed shrinks; cuboids still delivered.
 
+9. The arch view: a fourth view word ("arch") and a reach setting (world
+   units from the hub, on the arch's outer curve, to the top of the
+   screen); the camera learns the arch's size in pixels from the console;
+   in `003`, the warp (ground point -> ring by its folded radius, place on
+   the ring by its angle from the chair, foot to foot as the band does,
+   continuing down past the feet off screen), its inverse for clicks, and an
+   anchored projection for the shaders: a figure's or cuboid's anchor is
+   warped and its own shape is laid on the ring's local direction at one
+   scale; the ground mesh is warped point by point. The size law keeps full
+   size in this view too. The focus ring finds a pixel's ring by solving
+   for the scaled curve through it. Tests: tier 0 at the apex lands on the
+   arch's outer curve; a point at the quadrant's edge lands on the foot;
+   click round trip; a figure is as tall at the top as near the arch;
+   sideways screen distance per radian grows outward.
+
 ## Open questions
 
 - Answered: figures near the top should visibly move faster left-right;
@@ -124,6 +166,11 @@ is just the depth effect applied down one scenery."
   away... but also not curving toward you, as if you were both inside of a
   sphere's surface, but rather, just directly away, at the exact plane where
   they are not bent one way or the other, rather, simply perfect to you."
+- The arch view's figures are smaller than the slant view's (the whole
+  hub-to-edge distance fits in the half screen above the apex), and fewer
+  are on screen (mostly our own quadrant). Is that the right trade, or
+  should the arch view reach less far (bigger figures, fewer tiers in
+  view)?
 - Where is the far pole? Built as one tier past the tiers shown (just
   beyond the map's edge). Should it be at the edge itself, or further?
 - "Expand the longitude": built as showing from the hub out to the map's

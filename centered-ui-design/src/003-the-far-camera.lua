@@ -47,6 +47,27 @@
 --          z = -ez / depth_half_range,  w = 1
 --          slant_half = reach / 2 * sin(elevation)  (the ground's vertical
 --                                              span on screen, halved)
+--
+-- A fourth view, the arch (issue 214): the tier rings drawn as scaled
+-- copies of the console's arch, grown outward from it — "a king in a castle
+-- walking along the battlements viewing all the surrounds". A ground point
+-- is placed by its folded radius (which ring) and its angle from the chair
+-- (where along the ring, foot to foot, as along the band):
+--          lift L = (radius - hub) * px_per_unit;  f = 1 + L / H
+--          theta = pi * (angle from the chair) / quadrant
+--          k = the nearest whole number to theta / pi: which ally's arch
+--              (0 ours, -1 and +1 our neighbours', as the console's M)
+--          s = sin(theta - k pi)
+--          x = center + k * (W - T) + s * f * W/2;   y = base - f * H * (1 - s^2)
+-- (W - T is how far apart the M's arches stand, T the band.) So each
+-- quadrant grows from its own ally's arch, and the neighbours' ground shows
+-- at the sides — "if you walk to the east wall, you'll have a different
+-- perspective of north and south". Where two families of rings overlap,
+-- the nearer ground is drawn in front (it is nearer in depth).
+-- Figures and cuboids are not warped: their anchor is, and their own shape
+-- is laid on the ring's local direction at one scale (project_anchored),
+-- so they stand upright and the same size everywhere. The arch's size in
+-- pixels comes from the console (set_arch).
 
 local M = {}
 
@@ -84,6 +105,12 @@ function M.new(settings, aspect)
         -- along the chair at the top row) and the zoom that gives it
         slant_reach = settings.slant_reach,
         slant_half_height = settings.slant_reach / 2 * math.sin(elevation),
+        -- the arch view: how far out (world units from the hub) the top of
+        -- the screen reaches above the arch's apex, the hub's radius, and
+        -- one seat's quadrant (radians); the arch's pixels come in set_arch
+        arch_reach = settings.arch_reach,
+        arch_hub_radius = settings.hub_radius,
+        arch_quadrant = 2 * math.pi / settings.team_size,
     }
     return camera
 end
@@ -117,6 +144,71 @@ local function project_hub(camera, x, y, z)
 end
 -- }}}
 
+-- How far below the bottom row the arch view sends ground it never shows
+-- (pixels).
+M.ARCH_OUT_OF_SIGHT = 100000
+
+-- {{{ function M.set_arch()
+-- Tells the camera the console's arch (a section from 019: center_x,
+-- base_y, height, width, in window pixels) and the window's size, for the
+-- arch view. The rings grow so the ground `arch_reach` out from the hub is
+-- at the window's top row above the apex; figures are drawn at the scale
+-- that makes their outward ground match the rings' spacing there.
+function M.set_arch(camera, section, window_width, window_height)
+    camera.arch_center_x = section.center_x
+    camera.arch_base_y = section.base_y
+    camera.arch_height = section.height
+    camera.arch_half_width = section.width / 2
+    camera.arch_step = section.width - section.band
+    camera.window_width = window_width
+    camera.window_height = window_height
+    local top_lift = section.base_y - section.height
+    camera.arch_px_per_unit = top_lift / (camera.arch_reach - camera.arch_hub_radius)
+    -- outward ground is foreshortened by sin(elevation) (back_y); undo it
+    -- so an outward step of a figure matches the rings' spacing
+    camera.arch_figure_px = camera.arch_px_per_unit / camera.back_y
+end
+-- }}}
+
+-- {{{ local function arch_place()
+-- The arch view's warp of a ground point (x, z): window pixels of its spot
+-- on its ring, and the ring's s and f (see the top of the file) and the
+-- ground angle, for laying a shape there.
+local function arch_place(camera, x, z)
+    local radius = math.sqrt(x * x + z * z)
+    local angle = math.atan2(x, -z)
+    local from_chair = (angle - camera.turn + math.pi) % (2 * math.pi) - math.pi
+    local theta = math.pi * from_chair / camera.arch_quadrant
+    -- which ally's arch this ground grows from (0 ours, -1/+1 neighbours)
+    local k = math.floor(theta / math.pi + 0.5)
+    local s = math.sin(theta - k * math.pi)
+    local f = 1 + (radius - camera.arch_hub_radius) * camera.arch_px_per_unit / camera.arch_height
+    local px = camera.arch_center_x + k * camera.arch_step + s * f * camera.arch_half_width
+    local py = camera.arch_base_y - f * camera.arch_height * (1 - s * s)
+    -- two or more arches away (the quadrant across from ours, with four
+    -- allies): never on screen, and its angle wraps round from one side to
+    -- the other there, so ground pieces spanning the wrap would stretch
+    -- across the whole screen. Sent far below the bottom row instead, where
+    -- they and anything joining them to the neighbours' ground fall out of
+    -- sight.
+    if math.abs(k) >= 2 then
+        py = camera.arch_base_y + M.ARCH_OUT_OF_SIGHT
+    end
+    return px, py, s, f, angle, radius
+end
+-- }}}
+
+-- {{{ local function project_arch()
+-- The arch view, for a world point: its ground spot warped onto its ring,
+-- its height laid straight up the screen at the figures' scale.
+local function project_arch(camera, x, y, z)
+    local px, py, _, _, _, radius = arch_place(camera, x, z)
+    py = py - y * camera.up_y * camera.arch_figure_px
+    local depth = ((radius - camera.arch_reach / 2) * camera.up_y - y * camera.back_y) / camera.depth_half_range
+    return px / camera.window_width * 2 - 1, 1 - py / camera.window_height * 2, depth
+end
+-- }}}
+
 -- {{{ local function project_slant()
 -- The slant view: turn by the chair, slide the hub to the bottom row, and
 -- project straight along the far camera's view (no perspective: w is 1).
@@ -146,6 +238,10 @@ function M.project(camera, x, y, z)
     -- the slant view
     if camera.view == "slant" then
         return project_slant(camera, x, y, z)
+    end
+    -- the arch view
+    if camera.view == "arch" then
+        return project_arch(camera, x, y, z)
     end
     -- the far camera
     local c, s = math.cos(camera.turn), math.sin(camera.turn)
@@ -239,6 +335,28 @@ function M.ground_point_under_pixel(camera, pixel_x, pixel_y, width, height)
         local t = camera.hub_eye_height / -dy
         return dx * t, dz * t
     end
+    -- the arch view: find the ring through the pixel (the scaled curve
+    -- whose f solves H f^2 - up f - H dx^2 / (W/2)^2 = 0), then the place
+    -- along it, and undo both
+    if camera.view == "arch" then
+        -- of the three arches (ours, the neighbours'), the one whose ring
+        -- through the pixel is nearest the hub: that ground is drawn in front
+        local up = camera.arch_base_y - pixel_y
+        local H, half = camera.arch_height, camera.arch_half_width
+        local f, theta = math.huge, 0
+        for k = -1, 1 do
+            local dx = pixel_x - camera.arch_center_x - k * camera.arch_step
+            local this_f = (up + math.sqrt(up * up + 4 * H * H * dx * dx / (half * half))) / (2 * H)
+            local s = dx / (this_f * half)
+            -- the ring through the pixel lies within this arch's quadrant
+            if math.abs(s) <= 1 and this_f < f then
+                f, theta = this_f, math.asin(s) + k * math.pi
+            end
+        end
+        local angle = camera.turn + theta * camera.arch_quadrant / math.pi
+        local radius = camera.arch_hub_radius + (f - 1) * H / camera.arch_px_per_unit
+        return radius * math.sin(angle), -radius * math.cos(angle)
+    end
     -- the slant view zooms by its own half height; the far camera by its own
     local half = camera.half_height
     if camera.view == "slant" then
@@ -303,6 +421,18 @@ uniform float hub_far;
 uniform float slant_view;    // 1: the slant view (hub at the bottom row)
 uniform float slant_reach;
 uniform float slant_half_height;
+uniform float arch_view;     // 1: the arch view (rings grown from the arch)
+uniform float arch_center_x;
+uniform float arch_base_y;
+uniform float arch_height;
+uniform float arch_half_width;
+uniform float arch_step;     // how far apart the M's arches stand (pixels)
+uniform vec2 arch_window;
+uniform float arch_px_per_unit;
+uniform float arch_figure_px;
+uniform float arch_quadrant;
+uniform float arch_hub_radius;
+uniform float arch_reach;
 
 // How far a world point is from the hub camera's eye, along its view
 // (for haze and focus). 0 under the far camera.
@@ -324,7 +454,7 @@ vec2 view_facing(vec3 n) {
     return vec2(dot(turned, cam_right), dot(turned, cam_up));
 }
 
-vec4 project_world(vec3 p) {
+vec4 project_unwarped(vec3 p) {
     if (hub_view > 0.5) {
         // the hub camera: an ordinary perspective from just above the hub
         vec3 r = p - vec3(0.0, hub_eye_height, 0.0);
@@ -351,6 +481,60 @@ vec4 project_world(vec3 p) {
                     1.0);
     }
     return project_fixed(turned);
+}
+
+// The arch view's ring place s and growth f for a ground point (see the top
+// of 003-the-far-camera.lua), with the ground angle.
+vec4 arch_place(vec2 ground) {
+    float radius = length(ground);
+    float angle = atan(ground.x, -ground.y);
+    float from_chair = mod(angle - view_turn + 3.14159265, 6.28318531) - 3.14159265;
+    float theta = 3.14159265 * from_chair / arch_quadrant;
+    // which ally's arch it grows from (0 ours, -1/+1 the neighbours')
+    float k = floor(theta / 3.14159265 + 0.5);
+    float s = sin(theta - k * 3.14159265);
+    float f = 1.0 + (radius - arch_hub_radius) * arch_px_per_unit / arch_height;
+    return vec4(s, f, angle, k);
+}
+
+// A shape anchored at a ground point: under the arch view the anchor is
+// warped onto its ring and the shape (offset from the anchor) is laid on the
+// ring's local direction at one scale, so it stands upright and keeps its
+// size; under every other view, simply the point anchor + offset.
+vec4 project_anchored(vec3 anchor, vec3 offset) {
+    if (arch_view < 0.5) {
+        return project_unwarped(anchor + offset);
+    }
+    vec4 place = arch_place(anchor.xz);
+    float s = place.x;
+    float f = place.y;
+    float angle = place.z;
+    vec2 px = vec2(arch_center_x + place.w * arch_step + s * f * arch_half_width,
+                   arch_base_y - f * arch_height * (1.0 - s * s));
+    // two or more arches away: out of sight below the bottom row (see
+    // arch_place in the Lua twin for why)
+    if (abs(place.w) >= 1.5) {
+        px.y = arch_base_y + 100000.0;
+    }
+    // the ring's direction here (pixels, y down) and its outward normal
+    vec2 along = normalize(vec2(f * arch_half_width, 2.0 * f * arch_height * s));
+    vec2 outward = vec2(along.y, -along.x);
+    // the offset split on the ground: sideways (growing angle) and outward
+    float sideways = dot(offset.xz, vec2(cos(angle), sin(angle)));
+    float out_ground = dot(offset.xz, vec2(sin(angle), -cos(angle)));
+    float sin_e = cam_back.y;
+    float cos_e = cam_up.y;
+    px += (along * sideways + outward * (out_ground * sin_e + offset.y * cos_e)) * arch_figure_px;
+    float radius = length(anchor.xz);
+    float depth = ((radius + out_ground - arch_reach * 0.5) * cos_e - offset.y * sin_e) / depth_half_range;
+    return vec4(px.x / arch_window.x * 2.0 - 1.0,
+                flip_y * (1.0 - px.y / arch_window.y * 2.0),
+                depth, 1.0);
+}
+
+// The world through whichever view films it.
+vec4 project_world(vec3 p) {
+    return project_anchored(vec3(p.x, 0.0, p.z), vec3(0.0, p.y, 0.0));
 }
 ]]
 -- {{{ function M.send_used()
@@ -396,6 +580,18 @@ function M.send(camera, shader, flip_y, fixed)
         M.send_used(shader, "slant_view", camera.view == "slant" and 1 or 0)
         M.send_used(shader, "slant_reach", camera.slant_reach)
         M.send_used(shader, "slant_half_height", camera.slant_half_height)
+        M.send_used(shader, "arch_view", camera.view == "arch" and 1 or 0)
+        M.send_used(shader, "arch_center_x", camera.arch_center_x)
+        M.send_used(shader, "arch_base_y", camera.arch_base_y)
+        M.send_used(shader, "arch_height", camera.arch_height)
+        M.send_used(shader, "arch_half_width", camera.arch_half_width)
+        M.send_used(shader, "arch_step", camera.arch_step)
+        M.send_used(shader, "arch_window", { camera.window_width, camera.window_height })
+        M.send_used(shader, "arch_px_per_unit", camera.arch_px_per_unit)
+        M.send_used(shader, "arch_figure_px", camera.arch_figure_px)
+        M.send_used(shader, "arch_quadrant", camera.arch_quadrant)
+        M.send_used(shader, "arch_hub_radius", camera.arch_hub_radius)
+        M.send_used(shader, "arch_reach", camera.arch_reach)
     end
 end
 -- }}}

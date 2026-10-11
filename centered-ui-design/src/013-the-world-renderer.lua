@@ -178,7 +178,10 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     v_color = owner_colors[int(UnitB.y + 0.5)];
     v_named = UnitC.w;
     v_haze = clamp(hub_distance(world) / hub_far, 0.0, 1.0);
-    return project_world(world);
+    // anchored at its feet: under the arch view the feet are placed on their
+    // ring and the figure drawn upright there at one size
+    vec3 feet = fold_ground_position(r, angle);
+    return project_anchored(feet, world - feet);
 }
 ]]
 
@@ -245,7 +248,9 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     v_facing = view_facing(normalize(right * n.x + up * n.y + forward * n.z));
     v_color = cuboid_colors[int(CubeB.x + 0.5)];
     v_haze = clamp(hub_distance(world) / hub_far, 0.0, 1.0);
-    return project_world(world);
+    // anchored where it lies (see the unit shader)
+    vec3 spot = fold_ground_position(CubeA.x, CubeA.y);
+    return project_anchored(spot, world - spot);
 }
 ]]
 

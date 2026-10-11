@@ -88,14 +88,19 @@ paired with differential triangles.
   its light up through a window onto its dial, by which way it faces the
   viewer; the dial turns once a calendar day, so the hours pass over
   everything. Colours of one material are tints of its dial (issue 213).
-- **Three views to compare** (issue 214): the far camera (nearly flat, like
+- **Four views to compare** (issue 214): the far camera (nearly flat, like
   a map), the hub camera (just above the hub, looking out over one quadrant
   at a time — the valley of the reference pictures in assets/), and the
-  slant view, where the game starts: the hub at the screen's bottom behind
+  slant view: the hub at the screen's bottom behind
   the console, the quadrant running up to the map's edge, far things the
   same size as near ones; the outer tiers stay pressed together, so near the
   top each step on screen covers more of the world, and when the chair turns
-  the far ground sweeps past fastest. Under the hub camera far things fade
+  the far ground sweeps past fastest. And the arch view, where the game
+  starts: every tier ring a copy of the console's arch grown outward from
+  it, the quadrant foot to foot along each ring as along the band, each
+  neighbour's quadrant growing from the neighbour's own arch — "a king in a
+  castle walking along the battlements"; figures stand upright on their
+  rings at one size. Under the hub camera far things fade
   into a haze that is also the sky.
 - **The focus ring**: a tilt-shift blur, sharp at one distance from the hub
   and blurring nearer and farther — an arc on screen under the hub camera.

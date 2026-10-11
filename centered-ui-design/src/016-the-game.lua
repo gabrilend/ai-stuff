@@ -74,7 +74,7 @@ local CAP_CHANGES = {
 -- The look toggles in the settings menu (issue 214): which look each
 -- switches, and its choices in turn.
 local LOOK_TOGGLES = {
-    toggle_depth = { "depth", { "flat", "hub", "slant" } },
+    toggle_depth = { "depth", { "flat", "hub", "slant", "arch" } },
     toggle_standing = { "standing", { "upright", "outward" } },
     toggle_blur = { "blur", { "on", "off" } },
 }
@@ -264,6 +264,8 @@ function game.load(arguments)
     game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat,
         settings.arch_height_share)
     game.focus = focus_ring.new()
+    -- the arch view grows its rings from the console's own arch
+    far_camera.set_arch(game.camera, game.dashboard.section, width, height)
     game.dashboard.look = game.look
     game.plane = view_plane.new(game.camera, settings.view_plane_distance, game.dashboard)
 end
@@ -503,7 +505,7 @@ local function press_button(verb)
         -- the size law follows the view: only the slant view keeps far
         -- things full size (the drawing reads it now; the engine at its
         -- next step)
-        game.fold.size_keep = game.look.depth == "slant" and 1 or 0
+        game.fold.size_keep = sphere_fold.SIZE_KEEPING_VIEWS[game.look.depth] or 0
         ceramic_host.set_size_keep(game.engine, game.fold.size_keep)
         return
     end
@@ -550,11 +552,11 @@ end
 -- }}}
 
 -- How far one notch of the wheel turns the chair, in quadrants, by view.
-local WHEEL_STEPS = { flat = CHAIR_STEP, hub = 1, slant = 1 }
+local WHEEL_STEPS = { flat = CHAIR_STEP, hub = 1, slant = 1, arch = 1 }
 
 -- {{{ function game.wheelmoved()
 -- The scroll wheel turns the chair. Rolling away from you turns you
--- clockwise, toward the next seat. Under the hub camera and the slant view
+-- clockwise, toward the next seat. Under the hub camera, slant and arch views
 -- one notch turns a whole quadrant — "aim it outward at one color at a
 -- time"; under the far camera, an eighth of one.
 function game.wheelmoved(_, notches)

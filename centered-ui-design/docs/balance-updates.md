@@ -18,3 +18,5 @@
 | 2026-10-10 | hauler pace (020) | 3.0 ground units per second at tier 1, shrinking far out | 0.12 tiers per second on the sphere (`WALK_TIERS_PER_SECOND`) | the walk is now measured on the sphere (issue 214, step 8); 0.12 is the old pace at tier 1 converted (3.0 / about 24.5 ground units per tier there) |
 | 2026-10-10 | hauler reach (020) | 2.6 ground units at tier 1 | 0.106 tiers on the sphere (`REACH_TIERS`) | the same reach at tier 1, converted |
 | 2026-10-10 | the foes' pole (`far_pole_tier`, input, new) | — | 7 | one tier past the 6 shown: far walkers cross sideways about twice as fast on screen as near ones, and the lap never shrinks to nothing inside the map |
+| 2026-10-10 | starting view (`view_depth`, input) | slant | arch | the owner asked that the world's scale match the dashboard's curve; the arch view does that, so the game starts in it (flat, hub and slant stay in the menu) |
+| 2026-10-10 | the arch view's reach (`arch_reach`, input, new) | — | 112 | the map's edge at the top row above the apex: the whole distance in view |

@@ -67,12 +67,15 @@ return {
     --                  one quadrant at a time (the scroll wheel turns it);
     --                  "slant": the hub at the screen's bottom behind the
     --                  console, the quadrant running up to the map's edge
-    --                  at the top, everything the same size near and far
+    --                  at the top, everything the same size near and far;
+    --                  "arch": the tier rings drawn as copies of the
+    --                  console's arch grown outward from it, the hub on the
+    --                  arch itself, everything the same size near and far
     --   view_standing  "upright": figures stand straight up on their ground;
     --                  "outward": they lean away from the hub
     --   view_blur      "on": a sharp band of distance, blurring nearer and
     --                  farther (tilt-shift); "off": none
-    view_depth = "slant",
+    view_depth = "arch",
     view_standing = "upright",
     view_blur = "on",
 
@@ -93,4 +96,8 @@ return {
     -- shown). Laps around the hub are shortest near either pole, so walkers
     -- far out cross the map's wide outer rings fast from side to side.
     far_pole_tier = 7,
+
+    -- the arch view: how far out from the hub (world units) the top of the
+    -- screen reaches above the arch's apex; the hub lies on the arch itself
+    arch_reach = 112,
 }

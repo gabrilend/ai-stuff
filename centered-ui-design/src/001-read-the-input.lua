@@ -34,7 +34,7 @@ M.REQUIRED_FIELDS = {
     { name = "seat",                       kind = "whole" },
     { name = "calendar_seconds_per_day",   kind = "number" },
     { name = "arch_height_share",          kind = "number" },
-    { name = "view_depth",                 kind = "word", words = { "flat", "hub", "slant" } },
+    { name = "view_depth",                 kind = "word", words = { "flat", "hub", "slant", "arch" } },
     { name = "view_standing",              kind = "word", words = { "upright", "outward" } },
     { name = "view_blur",                  kind = "word", words = { "on", "off" } },
     { name = "hub_eye_height",             kind = "number" },
@@ -42,6 +42,7 @@ M.REQUIRED_FIELDS = {
     { name = "hub_field_of_view_degrees",  kind = "number" },
     { name = "slant_reach",                kind = "number" },
     { name = "far_pole_tier",              kind = "number" },
+    { name = "arch_reach",                 kind = "number" },
 }
 
 -- {{{ local function is_one_of()
@@ -116,6 +117,11 @@ local function check_settings(settings, source_name)
     -- without end.
     if settings.slant_reach <= 0 then
         error(source_name .. ": slant_reach must be more than 0", 0)
+    end
+    -- The arch view's reach must lie beyond the hub, which sits on the arch
+    -- itself: otherwise the rings would grow inward.
+    if settings.arch_reach <= settings.hub_radius then
+        error(source_name .. ": arch_reach must be more than hub_radius", 0)
     end
     -- The foes' pole must lie past the tiers shown: at or inside them, the
     -- laps near it would shrink to nothing on the map and walkers there

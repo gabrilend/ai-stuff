@@ -23,6 +23,10 @@
 
 local M = {}
 
+-- The views that keep far things full size (the size law "keep", 1); the
+-- others shrink them (0).
+M.SIZE_KEEPING_VIEWS = { slant = 1, arch = 1 }
+
 -- {{{ local function fraction_of()
 -- The curve's shape alone: tier distance -> 0..1 across the drawn map.
 local function fraction_of(r, k, r_max)
@@ -120,7 +124,7 @@ function M.from_settings(settings)
         hub_radius = settings.hub_radius,
         edge_radius = settings.edge_radius,
         -- the size law (0 or 1; see size_scale): kept only by the slant view
-        size_keep = settings.view_depth == "slant" and 1 or 0,
+        size_keep = M.SIZE_KEEPING_VIEWS[settings.view_depth] or 0,
         -- the foes' pole, in tiers from ours (see side_radius)
         far_pole = settings.far_pole_tier,
     }
