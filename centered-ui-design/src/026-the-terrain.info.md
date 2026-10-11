@@ -12,3 +12,5 @@ The land as a grid of points, each with a height, a facing (which way its slope 
 | `sun_direction(hour_angle)` | the dials' hour (0 noon, -pi/2 morning, pi/2 evening) | a unit vector toward the sun (Lua twin of the dot shader's sun) |
 | `POINT_SPACING`, `MESA_COUNT`, `ROLL_HEIGHT`, `PAINTS` | | tuning knobs (record changes in docs/balance-updates.md) |
 | `shade_turn(fx, fy, fz, sx, sy, sz, sun_side)` | a slope's facing, the sun's direction, the sun's side on screen | how far the point's circle turns from bright-pole-up (radians): 0 facing the sun, pi facing away (Lua twin of the circle shader's turn) |
+
+`build` now returns two lists: the still land and the water (the lake's points), each point with `sun_color` and `shade_color` (its own two colours) and `wave_phase`. Also: `lake(seed, fold)` → {x, z, radius}; `water_lean(x, z, t, phase, sx, sy, sz)` → the water point's turn from sun-side-up and its facing (the Lua twin of the engine's). Knobs: `LAKE_REACH_SHARE`, `LAKE_RADIUS`, `WATER_SUN`, `WATER_SHADE`, `WATER_MUD`.

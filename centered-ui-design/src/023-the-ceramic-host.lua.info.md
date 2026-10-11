@@ -11,3 +11,5 @@ The FFI binding to the ceramic library (built by scripts/build-ceramics into tmp
 | `stop(host)` | | lets a stage in flight land, then stops |
 
 `set_size_keep(host, keep)`: asks for a size law (0 shrink far out, 1 full size); it reaches the engine at the start of the next step. `start` also hands the engine the size law and the foes' pole from the fold.
+
+A step is now three stages: units, cuboids, then the moving sheen-points. `set_sun(host, x, y, z)`: the sun for the water, taken at the start of the next step. `start` takes `sheen_count` in its world.

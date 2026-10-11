@@ -54,6 +54,9 @@ circle (opaque, and "bars-open" with a clear background) shows the turn;
 the owner confirmed the circles turn about the right axis (pictures
 060-066). The circle's picture now shades by direction round its centre,
 from the owner's drawing (pictures 067-069); the game starts in "shade".
+Sheen-points now record two colours each, and a lake's sheen-points live in
+the engine's shared memory, turned each step by waves and the sun in a
+third engine stage (step 14; pictures 070-073).
 
 ## Intended Behavior
 
@@ -251,6 +254,23 @@ is just the depth effect applied down one scenery."
   toward, falling off smoothly (as the cosine of the angle away) to darkest
   opposite, each direction one shade from centre to rim — the drawing's
   eight sections, blended. The turn is unchanged.
+- **Two colours per sheen-point, and water turned by the engine** (the
+  owner, asked what colour a ripple's sun side and shade side are at
+  sunset: "facing the sun is light, away is dark. the color itself...
+  probably depends on the color of the scenery around. If it's bright, then
+  usually a brighter blue. If it's dark, or if the water is muddy, then
+  darker blue, with particulates adding their own color. One side of the
+  circle can be one color, and one side another color, it's arbitrary, but
+  should be recorded per circle." — and, asked whether moving surfaces
+  should live in the engine's shared memory: "yes but we just adjust the
+  rotation of the bloxels - no that's for cubes, we use "sheen-points" for
+  circles - we adjust the rotation to display a certain color."). Each
+  sheen-point records a sun-side colour and a shade-side colour, and its
+  circle blends from one to the other round its centre. A lake lies in the
+  test land: its sheen-points sit in the ceramic engine's shared memory,
+  and each step the engine's workers turn them by the passing waves and the
+  sun — the water is moved by turning its points, nothing else. The land's
+  points stay still and are handed to the graphics card once.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -348,6 +368,18 @@ is just the depth effect applied down one scenery."
     seed same terrain, spacing even along rings, a slope facing the
     morning sun is lit then and not at evening; pictures at morning, noon
     and evening.
+
+14. Sheen-points with two colours, and water: a sheen record of sixteen
+    numbers (005; place, height, lean; facing and whether the engine turns
+    it; sun-side colour and wave phase; shade-side colour), the same layout
+    the graphics card reads; the land's points (026) given two colours and
+    a seeded lake whose points are water; a third stage in the ceramic
+    engine (021 map, 020 box, 022/023 host) that turns each water point by
+    a sum of waves and the sun each step, still points copied; the
+    renderer drawing both the still land and the streamed water with one
+    shader, blending the two colours. Tests: the C water turn matches its
+    Lua twin; the stage gives the same water in any chunk order; a lake's
+    points are recorded as driven; same seed same lake.
 
 ## Open questions
 

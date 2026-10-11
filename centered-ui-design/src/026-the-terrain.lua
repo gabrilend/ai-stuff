@@ -32,6 +32,18 @@ M.POINT_SPACING = 3.0 / math.sqrt(2)   -- twice the points of a spacing of 3
 M.MESA_COUNT = 9
 M.ROLL_HEIGHT = 0.6
 
+-- The lake: how far out its middle lies (a share of the way from the hub to
+-- the edge), and its radius (ground units).
+M.LAKE_REACH_SHARE = 0.22
+M.LAKE_RADIUS = 11
+
+-- Water's two colours: the sun side bright blue, the shade side deep blue;
+-- near the shore the shade side muddier ("If it's dark, or if the water is
+-- muddy, then darker blue, with particulates adding their own color").
+M.WATER_SUN = { 0.55, 0.78, 0.92 }
+M.WATER_SHADE = { 0.04, 0.10, 0.26 }
+M.WATER_MUD = { 0.22, 0.18, 0.10 }
+
 -- The land's paints, by where a point is: low ground, mesa tops, cliffs.
 M.PAINTS = {
     meadow = { 0.42, 0.50, 0.26 },
@@ -132,12 +144,52 @@ function M.shade_turn(fx, fy, fz, sx, sy, sz, sun_side)
 end
 -- }}}
 
+-- {{{ function M.lake()
+-- Where the lake is, the same for the same seed: { x, z, radius }.
+function M.lake(seed, fold)
+    local stream = seeding.new_stream(seed + 9090)
+    local reach = fold.hub_radius + (fold.edge_radius - fold.hub_radius) * M.LAKE_REACH_SHARE
+    local angle = 2 * math.pi * seeding.next_fraction(stream)
+    return { x = reach * math.sin(angle), z = -reach * math.cos(angle), radius = M.LAKE_RADIUS }
+end
+-- }}}
+
+-- {{{ function M.water_lean()
+-- How far a water point is turned from sun-side-up (radians, 0..pi), and
+-- its facing, at ground x, z and time t (seconds) with its wave phase,
+-- under a sun (sx, sy, sz): three passing waves tip its surface. The Lua
+-- twin of ceramics_water_lean in 020 (which the engine runs each step).
+local WAVE_K = { { 0.35, 0.10 }, { -0.20, 0.50 }, { 0.55, -0.55 } }
+local WAVE_SPEED = { 1.2, 1.7, 2.3 }
+local WAVE_TIP = { 0.50, 0.38, 0.26 }
+function M.water_lean(x, z, t, phase, sx, sy, sz)
+    local slope_x, slope_z = 0, 0
+    for w = 1, 3 do
+        local kx, kz = WAVE_K[w][1], WAVE_K[w][2]
+        local crest = math.cos(kx * x + kz * z - WAVE_SPEED[w] * t + phase * w)
+        local k = math.sqrt(kx * kx + kz * kz)
+        slope_x = slope_x + WAVE_TIP[w] * crest * kx / k
+        slope_z = slope_z + WAVE_TIP[w] * crest * kz / k
+    end
+    local length = math.sqrt(slope_x * slope_x + 1 + slope_z * slope_z)
+    local fx, fy, fz = -slope_x / length, 1 / length, -slope_z / length
+    local facing_sun = math.max(-1, math.min(1, fx * sx + fy * sy + fz * sz))
+    return math.acos(facing_sun), fx, fy, fz
+end
+-- }}}
+
 -- {{{ function M.build()
--- The terrain's points, the same for the same seed: a list of
+-- The terrain's sheen-points, the same for the same seed: two lists, the
+-- still land and the moving water, each point
 -- { r (tier distance), angle, height, facing = { x, y, z },
---   color = { r, g, b } }, ring by ring from the hub outward.
+--   sun_color = { r, g, b }, shade_color = { r, g, b }, wave_phase },
+-- ring by ring from the hub outward. Every point records its own two
+-- colours (the owner: "One side of the circle can be one color, and one
+-- side another color, it's arbitrary, but should be recorded per circle").
 function M.build(seed, fold)
     local hills = M.mesas(seed, fold)
+    local lake = M.lake(seed, fold)
+    local water = {}
     local stream = seeding.new_stream(seed + 1717)
     local points = {}
     local reach = fold.hub_radius + M.POINT_SPACING / 2
@@ -149,6 +201,23 @@ function M.build(seed, fold)
             -- a little jitter, so the grid does not show as stripes
             local angle = 2 * math.pi * (index + 0.35 * (seeding.next_fraction(stream) - 0.5)) / count
             local x, z = reach * math.sin(angle), -reach * math.cos(angle)
+            local from_lake = math.sqrt((x - lake.x) ^ 2 + (z - lake.z) ^ 2)
+            -- in the lake: a water point, turned by the engine's waves
+            if from_lake < lake.radius then
+                local shore = math.max(0, math.min(1, (from_lake / lake.radius - 0.6) / 0.4))
+                local shade = {}
+                for channel = 1, 3 do
+                    shade[channel] = M.WATER_SHADE[channel] + (M.WATER_MUD[channel] - M.WATER_SHADE[channel]) * shore
+                end
+                water[#water + 1] = {
+                    r = sphere_fold.tier_distance(fold, reach), angle = angle, height = 0,
+                    facing = { 0, 1, 0 },
+                    sun_color = { M.WATER_SUN[1], M.WATER_SUN[2], M.WATER_SUN[3] },
+                    shade_color = shade,
+                    wave_phase = 2 * math.pi * seeding.next_fraction(stream),
+                }
+                goto next_point
+            end
             local height = M.height_at(hills, x, z)
             local fx, fy, fz = M.facing_at(hills, x, z)
             -- the paint: cliffs where steep, tops where high, else lowland
@@ -162,16 +231,21 @@ function M.build(seed, fold)
             else
                 paint = M.PAINTS.sand
             end
-            local shade = 0.9 + 0.2 * seeding.next_fraction(stream)
+            local tone = 0.9 + 0.2 * seeding.next_fraction(stream)
             points[#points + 1] = {
                 r = r, angle = angle, height = height,
                 facing = { fx, fy, fz },
-                color = { paint[1] * shade, paint[2] * shade, paint[3] * shade },
+                -- the land's two colours: its paint lit, and its paint in
+                -- shadow (a little cooler)
+                sun_color = { paint[1] * tone * 1.25, paint[2] * tone * 1.25, paint[3] * tone * 1.2 },
+                shade_color = { paint[1] * tone * 0.18, paint[2] * tone * 0.2, paint[3] * tone * 0.26 },
+                wave_phase = 0,
             }
+            ::next_point::
         end
         reach = reach + M.POINT_SPACING
     end
-    return points
+    return points, water
 end
 -- }}}
 

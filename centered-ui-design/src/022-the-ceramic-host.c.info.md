@@ -17,3 +17,5 @@ The render thread's calls into the engine. Compiled only appended to serac's emi
 | `ceramics_stop()` | stops the workers |
 | `ceramics_error()` | why the last call refused |
 | `ceramics_run_inline(stage, dt, reversed)`, `ceramics_set_counts(...)`, `ceramics_move_reference(...)` | for tests: a stage on the calling thread, in order or reversed; the C motion alone |
+
+A third stage, 2: the moving sheen-points (`sheen_chunk`). `ceramics_set_sheen_count(n)` before starting; `ceramics_set_sheen_world(front, back)` each step; `ceramics_set_sun(x, y, z)` between steps; `ceramics_water_lean(...)` for tests. A stage with nothing to do hands nothing in. The world's clock moves on when a step's unit stage goes in.

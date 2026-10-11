@@ -127,3 +127,9 @@ paired with differential triangles.
   covered ones are never painted. Points are spaced evenly along
   every ring, so the land is denser in far rings. The painted map (rings,
   quadrants, sections) is a menu choice. The focus blur is off by default.
+- **Sheen-points, two colours each, and water** (issue 214): every
+  sheen-point records a sun-side and a shade-side colour, and its circle
+  blends between them round its centre. A moving surface is moved only by
+  turning its points: the lake's sheen-points live in the ceramic engine's
+  shared memory and its workers turn them each step by passing waves and
+  the sun, so ripples show as patches of shade-side colour drifting across.

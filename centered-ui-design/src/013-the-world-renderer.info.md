@@ -10,3 +10,5 @@ The ground (earth with the flat map and sections on a folded disc), the units (o
 | `OWNER_COLORS`, `UNIT_WORLD_SCALE`, `FULL_PACE`, `CUBOID_ROUNDNESS`, `WINDOW_CENTER`, `WINDOW_RADIUS`, `HAZE_COLOR`, `OUTWARD_LEAN` | tuning knobs |
 
 `set_terrain(renderer, points)`: hands it the land's points (026's `build`); drawn as flat circles facing the camera, each only turned toward the sun (no lighting on its pixels), nearest first, ordered by distance from the centre (`look.ground == "dots"`), or the painted map instead (`"map"`). Knob: `DOT_SIZE`.
+
+`set_terrain(renderer, land, moving_count)`; `draw(..., look, front_sheens)`: the land's sheen-points drawn from a still mesh, the water's streamed from the engine's front block each frame, one shader for both — blending each point's shade-side to sun-side colour; a driven point's turn comes from the engine.

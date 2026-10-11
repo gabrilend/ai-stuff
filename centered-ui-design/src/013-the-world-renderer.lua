@@ -153,20 +153,22 @@ vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
 M.DOT_SIZE = 5.2      -- ground units across
 
 local DOT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
-attribute vec4 Dot;         // r, angle, height, unused
-attribute vec4 DotFacing;   // which way the slope faces: x, y, z, unused
-attribute vec4 DotColor;    // r, g, b, unused
+attribute vec4 SheenA;      // r, angle, height, lean (set by the engine when driven)
+attribute vec4 SheenB;      // facing x, y, z; driven (1: the engine turns it)
+attribute vec4 SheenC;      // sun-side colour r, g, b; wave phase
+attribute vec4 SheenD;      // shade-side colour r, g, b; unused
 uniform float dot_size;
 uniform vec3 sun;           // toward the sun (026's sun_direction)
-varying vec3 v_color;
+varying vec3 v_sun_color;
+varying vec3 v_shade_color;
 varying vec2 v_local;
 varying vec2 v_turn;        // cos, sin of the circle's turn
 varying float v_sun_side;   // 1: the sun on the screen's right; -1: left
 varying float v_haze;
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
-    float r = Dot.x;
-    float angle = Dot.y;
-    float height = Dot.z;
+    float r = SheenA.x;
+    float angle = SheenA.y;
+    float height = SheenA.z;
     vec2 local = vertex_position.xy;            // the circle's square, -1..1
     vec3 sideways = vec3(cos(angle), 0.0, sin(angle));
     float cos_e = cam_up.y;
@@ -180,15 +182,17 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // alone (measured on the ground, not counting its height), so a raised
     // circle never covers a nearer one in front of it
     corner.z = middle.z / middle.w * corner.w;
-    // the turn: from bright-pole-up by how far the slope faces away from
-    // the sun, leaning to the sun's side of the screen (026's shade_turn)
-    float facing_sun = clamp(dot(DotFacing.xyz, sun), -1.0, 1.0);
-    float lean = acos(facing_sun);
+    // the turn: from sun-side-up by how far the surface faces away from the
+    // sun — the engine's lean for a driven point (water, each step), else
+    // worked out here from its facing (026's shade_turn) — leaning to the
+    // sun's side of the screen
+    float lean = SheenB.w > 0.5 ? SheenA.w : acos(clamp(dot(SheenB.xyz, sun), -1.0, 1.0));
     v_sun_side = view_facing(sun).x < 0.0 ? -1.0 : 1.0;
     float turn = v_sun_side * lean;
     v_turn = vec2(cos(turn), sin(turn));
     v_local = local;
-    v_color = DotColor.rgb;
+    v_sun_color = SheenC.rgb;
+    v_shade_color = SheenD.rgb;
     v_haze = clamp(hub_distance(spot + offset) / hub_far, 0.0, 1.0);
     return corner;
 }
@@ -198,13 +202,14 @@ local DOT_PIXEL = HAZE_GLSL .. [[
 uniform Image round_shade;  // the circle (012)
 uniform float circle_bars;  // 1: the bar-chart circle (to check the turn); 0: the shade
 uniform float circle_open;  // 1: the bar chart's background clear; 0: opaque
-varying vec3 v_color;
+varying vec3 v_sun_color;
+varying vec3 v_shade_color;
 varying vec2 v_local;
 varying vec2 v_turn;
 varying float v_sun_side;
 varying float v_haze;
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
-    // look the circle up turned: its bright pole leans by the turn
+    // look the circle up turned: its sun side leans by the turn
     vec2 p = vec2(v_local.x * v_turn.x - v_local.y * v_turn.y,
                   v_local.x * v_turn.y + v_local.y * v_turn.x);
     // outside the circle (cut exactly here, not from the picture's rim):
@@ -215,24 +220,24 @@ vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
     vec3 lit;
     if (circle_bars > 0.5) {
         // the bar-chart circle: 24 bars round the centre, each reaching a
-        // little farther than the last — none at the start (dark), the rim
-        // at the end (full colour), the longest at the bright pole's place
-        // (up, before the turn); winding clockwise with the sun on the
-        // screen's right, counter-clockwise on its left
+        // little farther than the last — none at the start, the rim at the
+        // end (the sun side's place, up before the turn); winding clockwise
+        // with the sun on the screen's right, counter-clockwise on its left
         float around = atan(p.x, p.y) / 6.28318531;      // 0 up, growing clockwise
         float share = fract(around * v_sun_side + 1.0);   // 0 .. 1 round the circle
         float bar = floor(share * 24.0);
         float reach = (bar + 1.0) / 24.0;
         bool on_bar = fract(share * 24.0) < 0.7 && length(p) <= reach;
-        // between bars: dark, or (open) nothing, showing what lies behind
+        // between bars: the shade colour, or (open) nothing, showing behind
         if (!on_bar && circle_open > 0.5) {
             discard;
         }
-        lit = on_bar ? v_color * 1.25 : v_color * 0.12;
+        lit = on_bar ? v_sun_color : v_shade_color;
     } else {
-        // the shade: dark pole to bright pole
+        // the shade: from the shade-side colour to the sun-side colour round
+        // the centre
         vec4 shade = Texel(round_shade, vec2(0.5 + 0.5 * p.x, 0.5 - 0.5 * p.y));
-        lit = v_color * mix(0.18, 1.25, shade.r);
+        lit = mix(v_shade_color, v_sun_color, shade.r);
     }
     return vec4(hazed(lit, v_haze), 1.0);
 }
@@ -440,6 +445,7 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     local shade = love.graphics.newImage(made_by_formula.round_shade(128))
     shade:setFilter("linear", "linear")
     renderer.dot_count = 0
+    renderer.water_count = 0
     renderer.dot_shader:send("round_shade", shade)
     renderer.dot_shader:send("dot_size", M.DOT_SIZE)
     renderer.unit_shader = love.graphics.newShader(UNIT_PIXEL, UNIT_VERTEX)
@@ -514,15 +520,26 @@ end
 -- }}}
 
 -- {{{ function M.set_terrain()
--- Hands the renderer the land's points (a list from 026's build). Put in
--- order from near to far once: drawn so with a strict depth test, a circle
--- wholly covered by nearer ones is rejected without being painted (and
--- where two at one depth overlap, the one drawn first — the nearer —
--- stays). Turning the chair keeps every point's distance from the hub, so
--- the order holds.
-function M.set_terrain(renderer, points)
+-- Hands the renderer the still land's sheen-points (the first list from
+-- 026's build) and how many moving ones there are (their records stream
+-- from the engine's blocks each frame). The land is put in order from near
+-- to far once: drawn so with a strict depth test, a circle wholly covered
+-- by nearer ones is rejected without being painted (and where two at one
+-- depth overlap, the one drawn first — the nearer — stays). Turning the
+-- chair keeps every point's distance from the hub, so the order holds.
+function M.set_terrain(renderer, points, moving_count)
     renderer.dot_count = #points
-    -- no land: nothing to draw
+    renderer.water_count = moving_count
+    -- moving sheen-points: a stream the engine's front block is copied into
+    if moving_count > 0 then
+        renderer.water_instances = love.graphics.newMesh(records.SHEEN_VERTEX_FORMAT, moving_count, "points", "stream")
+        renderer.water_mesh = love.graphics.newMesh({ { "VertexPosition", "float", 2 } },
+            { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } }, "fan", "static")
+        for _, group in ipairs({ "SheenA", "SheenB", "SheenC", "SheenD" }) do
+            renderer.water_mesh:attachAttribute(group, renderer.water_instances, "perinstance")
+        end
+    end
+    -- no land: nothing more
     if #points == 0 then
         return
     end
@@ -535,15 +552,12 @@ function M.set_terrain(renderer, points)
     for index, point in ipairs(ordered) do
         vertices[index] = { point.r, point.angle, point.height, 0,
             point.facing[1], point.facing[2], point.facing[3], 0,
-            point.color[1], point.color[2], point.color[3], 1 }
+            point.sun_color[1], point.sun_color[2], point.sun_color[3], point.wave_phase,
+            point.shade_color[1], point.shade_color[2], point.shade_color[3], 0 }
     end
-    renderer.dot_instances = love.graphics.newMesh({
-        { "Dot", "float", 4 },
-        { "DotFacing", "float", 4 },
-        { "DotColor", "float", 4 },
-    }, vertices, "points", "static")
-    for _, name in ipairs({ "Dot", "DotFacing", "DotColor" }) do
-        renderer.dot_mesh:attachAttribute(name, renderer.dot_instances, "perinstance")
+    renderer.dot_instances = love.graphics.newMesh(records.SHEEN_VERTEX_FORMAT, vertices, "points", "static")
+    for _, group in ipairs({ "SheenA", "SheenB", "SheenC", "SheenD" }) do
+        renderer.dot_mesh:attachAttribute(group, renderer.dot_instances, "perinstance")
     end
 end
 -- }}}
@@ -563,9 +577,13 @@ end
 -- (it must have a depth buffer). The two front blocks (byte data) are handed
 -- to the graphics card whole. `look` carries hour_angle (radians, the light
 -- dials' turn: 0 noon) and standing ("upright" or "outward").
-function M.draw(renderer, front_units, front_cuboids, flip_y, look)
+function M.draw(renderer, front_units, front_cuboids, flip_y, look, front_sheens)
     renderer.instance_mesh:setVertices(front_units)
     renderer.cuboid_instances:setVertices(front_cuboids)
+    -- the moving sheen-points, as the engine left them
+    if renderer.water_count > 0 then
+        renderer.water_instances:setVertices(front_sheens)
+    end
 
     love.graphics.setDepthMode("lequal", true)
     love.graphics.setMeshCullMode("none")
@@ -598,6 +616,10 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
             renderer.dot_shader:send("circle_bars", look.circle ~= "shade" and 1 or 0)
             renderer.dot_shader:send("circle_open", look.circle == "bars-open" and 1 or 0)
             love.graphics.drawInstanced(renderer.dot_mesh, renderer.dot_count)
+            -- the moving surfaces, turned by the engine
+            if renderer.water_count > 0 then
+                love.graphics.drawInstanced(renderer.water_mesh, renderer.water_count)
+            end
             love.graphics.setDepthMode("lequal", true)
         end
     end

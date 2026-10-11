@@ -64,6 +64,26 @@ typedef struct {
     float turn;
 } cuboid_record;
 
+/* One sheen-point: 16 floats, 64 bytes. Must match src/005-unit-records.lua. */
+typedef struct {
+    float r;
+    float angle;
+    float height;
+    float lean;
+    float facing_x;
+    float facing_y;
+    float facing_z;
+    float driven;
+    float sun_r;
+    float sun_g;
+    float sun_b;
+    float wave_phase;
+    float shade_r;
+    float shade_g;
+    float shade_b;
+    float unused;
+} sheen_record;
+
 /* A chunk of work: which chunk, and records first .. last-1. */
 typedef struct {
     int chunk;
@@ -103,6 +123,16 @@ cuboid_record *ceramics_cubes_front;
 cuboid_record *ceramics_cubes_back;
 int ceramics_unit_count;
 int ceramics_cube_count;
+/* the moving surfaces' sheen-points (issue 214): front read, back written */
+sheen_record *ceramics_sheens_front;
+sheen_record *ceramics_sheens_back;
+int ceramics_sheen_count;
+/* the world's own clock (seconds of steps run), for the waves; and the sun
+ * (a unit vector toward it), set between steps by the host */
+double ceramics_time;
+double ceramics_sun_x;
+double ceramics_sun_y;
+double ceramics_sun_z;
 double ceramics_step_seconds;
 uint32_t ceramics_seed;
 
@@ -499,6 +529,65 @@ static int stack_slot(int k, int color)
         if (o->state == CUBE_DELIVERED && (int)o->color == color) slot++;
     }
     return slot;
+}
+/* }}} */
+
+/* {{{ static double water_lean(...) */
+/* How far a water point is turned from sun-side-up (radians, 0..pi) at
+ * ground x, z, time t (seconds), with its own wave phase, under a sun
+ * (sx, sy, sz): its surface tipped by three passing waves, then how far
+ * that surface faces away from the sun. Also gives the facing. The twin of
+ * water_lean in src/026-the-terrain.lua; a test checks they agree. */
+static double water_lean(double x, double z, double t, double phase,
+                         double sx, double sy, double sz,
+                         double *fx, double *fy, double *fz)
+{
+    /* the three waves: direction and number per ground unit, speed, how
+     * far each tips the surface (inside the function: the box reader takes
+     * only types and functions at the top level) */
+    const double WAVE_K[3][2] = { { 0.35, 0.10 }, { -0.20, 0.50 }, { 0.55, -0.55 } };
+    const double WAVE_SPEED[3] = { 1.2, 1.7, 2.3 };
+    const double WAVE_TIP[3] = { 0.50, 0.38, 0.26 };
+    double slope_x = 0, slope_z = 0;
+    for (int w = 0; w < 3; w++) {
+        double crest = cos(WAVE_K[w][0] * x + WAVE_K[w][1] * z - WAVE_SPEED[w] * t + phase * (w + 1));
+        double k = sqrt(WAVE_K[w][0] * WAVE_K[w][0] + WAVE_K[w][1] * WAVE_K[w][1]);
+        slope_x += WAVE_TIP[w] * crest * WAVE_K[w][0] / k;
+        slope_z += WAVE_TIP[w] * crest * WAVE_K[w][1] / k;
+    }
+    double length = sqrt(slope_x * slope_x + 1.0 + slope_z * slope_z);
+    *fx = -slope_x / length;
+    *fy = 1.0 / length;
+    *fz = -slope_z / length;
+    double facing_sun = *fx * sx + *fy * sy + *fz * sz;
+    if (facing_sun > 1) facing_sun = 1;
+    if (facing_sun < -1) facing_sun = -1;
+    return acos(facing_sun);
+}
+/* }}} */
+
+/* {{{ chunk_done sheen_chunk(chunk_req q) */
+/* The sheen box: every driven sheen-point in the chunk is turned by the
+ * waves and the sun — "we adjust the rotation to display a certain color"
+ * — and every still one is carried over as it was. Reads front, writes back. */
+chunk_done sheen_chunk(chunk_req q)
+{
+    for (int k = q.first; k < q.last; k++) {
+        sheen_record s = ceramics_sheens_front[k];
+        if (s.driven > 0.5) {
+            double x, z, fx, fy, fz;
+            ground_xz(s.r, s.angle, &x, &z);
+            s.lean = (float)water_lean(x, z, ceramics_time, s.wave_phase,
+                                       ceramics_sun_x, ceramics_sun_y, ceramics_sun_z,
+                                       &fx, &fy, &fz);
+            s.facing_x = (float)fx;
+            s.facing_y = (float)fy;
+            s.facing_z = (float)fz;
+        }
+        ceramics_sheens_back[k] = s;
+    }
+    chunk_done d = { q.chunk, q.last - q.first };
+    return d;
 }
 /* }}} */
 

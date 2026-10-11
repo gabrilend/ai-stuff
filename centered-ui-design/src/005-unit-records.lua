@@ -47,6 +47,21 @@
 --            slot         its place in its section's stack
 --            appearances  how many times it has appeared (seeds where next)
 --            turn         radians: which way it faces
+--
+-- Sheen record (64 bytes, four groups of four floats): one sheen-point of a
+-- surface (issue 214), drawn as a flat circle shaded from its shade-side
+-- colour to its sun-side colour round its centre, only turned:
+--   group A  r, angle     where it is (tier distance, radians)
+--            height       how high (world units)
+--            lean         radians from sun-side-up, set by the engine for
+--                         driven points (0: its sun side up; pi: shade side)
+--   group B  facing x, y, z   which way its surface faces (unit vector)
+--            driven       1: the engine turns it each step (water); 0: still
+--                         (the land: its lean is worked out when drawn)
+--   group C  sun-side colour r, g, b
+--            wave phase   radians: where this point is in the waves
+--   group D  shade-side colour r, g, b
+--            (unused)
 
 local ffi = require("ffi")
 
@@ -65,10 +80,18 @@ typedef struct {
     float color, state, claimant, carrier;
     float timer, slot, appearances, turn;
 } cuboid_record;
+
+typedef struct {
+    float r, angle, height, lean;
+    float facing_x, facing_y, facing_z, driven;
+    float sun_r, sun_g, sun_b, wave_phase;
+    float shade_r, shade_g, shade_b, unused;
+} sheen_record;
 ]])
 
 M.RECORD_BYTES = ffi.sizeof("unit_record")
 M.CUBOID_BYTES = ffi.sizeof("cuboid_record")
+M.SHEEN_BYTES = ffi.sizeof("sheen_record")
 
 -- What the job, wants and state numbers mean (see the C boxes).
 M.JOB_IDLE, M.JOB_FETCHING, M.JOB_CARRYING = 0, 1, 2
@@ -82,6 +105,12 @@ M.VERTEX_FORMAT = {
     { "UnitC", "float", 4 },
     { "UnitD", "float", 4 },
 }
+M.SHEEN_VERTEX_FORMAT = {
+    { "SheenA", "float", 4 },
+    { "SheenB", "float", 4 },
+    { "SheenC", "float", 4 },
+    { "SheenD", "float", 4 },
+}
 M.CUBOID_VERTEX_FORMAT = {
     { "CubeA", "float", 4 },
     { "CubeB", "float", 4 },
@@ -93,6 +122,12 @@ M.CUBOID_VERTEX_FORMAT = {
 -- array of unit records, indexed from 0.
 function M.records_at(pointer)
     return ffi.cast("unit_record *", pointer)
+end
+-- }}}
+
+-- {{{ function M.sheens_at()
+function M.sheens_at(pointer)
+    return ffi.cast("sheen_record *", pointer)
 end
 -- }}}
 

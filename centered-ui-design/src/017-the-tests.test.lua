@@ -320,6 +320,16 @@ do
     -- a mesa rises above the land around it
     local hills = terrain.mesas(5, fold)
     local hill = hills[1]
+    -- the lake's points are water, made the same way every time
+    local _, water_a = terrain.build(5, fold)
+    local _, water_b = terrain.build(5, fold)
+    local lake_same = #water_a > 20 and #water_a == #water_b
+    for index = 1, #water_a do
+        lake_same = lake_same and water_a[index].wave_phase == water_b[index].wave_phase
+    end
+    check("the same seed makes the same lake", lake_same, #water_a .. " water points")
+    check("every sheen-point records its own two colours",
+        a[1].sun_color ~= nil and a[1].shade_color ~= nil and water_a[1].shade_color ~= nil)
     check("a mesa's top stands above the land beside it",
         terrain.height_at(hills, hill.x, hill.z) > terrain.height_at(hills, hill.x + hill.radius * 3, hill.z) + 2)
     -- a slope facing east turns its bright pole up in the morning and its
@@ -547,6 +557,48 @@ do
     local near_apart, far_apart = settled_apart(1.0), settled_apart(5.0)
     check("two units on one spot part, closer near the hub than far out",
         near_apart > 1 and far_apart > 1.5 * near_apart, near_apart .. " " .. far_apart)
+
+    -- the moving surfaces (issue 214): the engine's water turn matches its
+    -- Lua twin, and the sheen stage gives the same water in any chunk order
+    local terrain = require("026-the-terrain")
+    local fx, fy, fz = ffi.new("double[1]"), ffi.new("double[1]"), ffi.new("double[1]")
+    local sx, sy, sz = terrain.sun_direction(-0.6)
+    worst = 0
+    for step = 1, 40 do
+        local x, z, t, phase = step * 3.1 - 60, 40 - step * 1.7, step * 0.37, step * 0.9
+        local c = library.ceramics_water_lean(x, z, t, phase, sx, sy, sz, fx, fy, fz)
+        local l, lx, ly, lz = terrain.water_lean(x, z, t, phase, sx, sy, sz)
+        worst = math.max(worst, math.abs(c - l), math.abs(fx[0] - lx), math.abs(fy[0] - ly), math.abs(fz[0] - lz))
+    end
+    check("the engine's water turn matches its Lua twin", worst < 1e-9, "worst " .. worst)
+    local _, water = terrain.build(5, fold)
+    -- {{{ local function water_after()
+    -- Runs the sheen stage inline for some steps over fresh water blocks,
+    -- chunks in order or reversed; returns the final front block.
+    local function water_after(reversed)
+        local count = #water
+        local blocks = { ffi.new("sheen_record[?]", count), ffi.new("sheen_record[?]", count) }
+        for index, point in ipairs(water) do
+            local w = blocks[1][index - 1]
+            w.r, w.angle, w.driven, w.wave_phase, w.facing_y = point.r, point.angle, 1, point.wave_phase, 1
+        end
+        library.ceramics_set_sheen_count(count)
+        library.ceramics_set_sun(sx, sy, sz)
+        local front = 1
+        for _ = 1, 30 do
+            library.ceramics_set_sheen_world(blocks[front], blocks[3 - front])
+            library.ceramics_run_inline(2, 1 / 60, reversed and 1 or 0)
+            front = 3 - front
+        end
+        library.ceramics_set_sheen_count(0)
+        return blocks[front], count
+    end
+    -- }}}
+    local forward, count = water_after(false)
+    local backward = water_after(true)
+    check("the sheen stage gives the same water in any chunk order",
+        count > 20 and ffi.string(forward, count * records.SHEEN_BYTES) == ffi.string(backward, count * records.SHEEN_BYTES),
+        count .. " water points")
 
     -- a delivered cuboid rests in its own color's section
     local deliveries = 0

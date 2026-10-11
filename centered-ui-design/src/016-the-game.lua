@@ -144,11 +144,26 @@ local function between_steps()
 end
 -- }}}
 
+-- {{{ local function sheen_blocks()
+-- The moving sheen-points' front and back blocks, and the front's byte data
+-- (for the graphics card); they swap with the others.
+local function sheen_blocks()
+    -- front is A
+    if game.front == 0 then
+        return game.sheens_a, game.sheens_b, game.sheen_block_a
+    end
+    -- front is B
+    return game.sheens_b, game.sheens_a, game.sheen_block_b
+end
+-- }}}
+
 -- {{{ local function point_engine_at_blocks()
 -- Tells the engine which blocks are front and back for the step about to go in.
 local function point_engine_at_blocks()
     local units_front, units_back, cubes_front, cubes_back = blocks()
     game.engine.library.ceramics_set_world(units_front, units_back, cubes_front, cubes_back)
+    local sheens_front, sheens_back = sheen_blocks()
+    game.engine.library.ceramics_set_sheen_world(sheens_front, sheens_back)
 end
 -- }}}
 
@@ -274,6 +289,23 @@ function game.load(arguments)
     }
     game.camera.view = game.look.depth
 
+    -- the land's sheen-points: the still ones kept for the renderer, the
+    -- moving ones (water) laid into two blocks the engine turns each step
+    game.land, game.water = terrain.build(settings.seed, game.fold)
+    local sheen_count = math.max(#game.water, 1)
+    game.sheen_block_a = love.data.newByteData(records.SHEEN_BYTES * sheen_count)
+    game.sheen_block_b = love.data.newByteData(records.SHEEN_BYTES * sheen_count)
+    game.sheens_a = records.sheens_at(game.sheen_block_a:getFFIPointer())
+    game.sheens_b = records.sheens_at(game.sheen_block_b:getFFIPointer())
+    for index, point in ipairs(game.water) do
+        local s = game.sheens_a[index - 1]
+        s.r, s.angle, s.height, s.lean = point.r, point.angle, point.height, 0
+        s.facing_x, s.facing_y, s.facing_z, s.driven = point.facing[1], point.facing[2], point.facing[3], 1
+        s.sun_r, s.sun_g, s.sun_b, s.wave_phase = point.sun_color[1], point.sun_color[2], point.sun_color[3], point.wave_phase
+        s.shade_r, s.shade_g, s.shade_b = point.shade_color[1], point.shade_color[2], point.shade_color[3]
+    end
+    ffi.copy(game.sheens_b, game.sheens_a, records.SHEEN_BYTES * sheen_count)
+
     -- the world's engine
     game.engine = ceramic_host.start(ceramic_host.load(game.project_dir), {
         fold = game.fold,
@@ -282,6 +314,7 @@ function game.load(arguments)
         workers = settings.worker_count,
         unit_count = game.unit_count,
         cuboid_count = game.cuboid_count,
+        sheen_count = #game.water,
         seed = settings.seed,
     })
 
@@ -290,8 +323,10 @@ function game.load(arguments)
     game.renderer = world_renderer.new(settings, game.camera, game.fold, game.unit_count,
         game.cuboid_count, seeding.SECTIONS)
     game.beyond = map_from_beyond.new(1024, game.renderer.flat_map)
-    -- the land: made here (data, 026), drawn by the renderer (view)
-    world_renderer.set_terrain(game.renderer, terrain.build(settings.seed, game.fold))
+    -- the land: made here (data, 026), drawn by the renderer (view); its
+    -- still points go to the graphics card once, its moving ones (water)
+    -- live in the engine's blocks
+    world_renderer.set_terrain(game.renderer, game.land, #game.water)
     game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat,
         settings.arch_height_share)
     game.focus = focus_ring.new()
@@ -379,6 +414,8 @@ function game.update(seconds)
     end
 
     turn_chair(seconds)
+    -- the sun, for the engine's water (it takes it between steps)
+    ceramic_host.set_sun(game.engine, terrain.sun_direction(game.look.hour_angle))
     -- the person's pointer lights the buttons it is over (in a scripted run
     -- there is no person: nothing lights)
     if not game.scripted_run then
@@ -541,7 +578,8 @@ function game.draw()
         -- the far camera and the slant view look down on a dark table
         love.graphics.clear({ 0.03, 0.035, 0.045, 1 }, 0, 1)
     end
-    world_renderer.draw(game.renderer, unit_block, cube_block, game.FLIP_Y_IN_CANVAS, game.look)
+    local _, _, sheen_block = sheen_blocks()
+    world_renderer.draw(game.renderer, unit_block, cube_block, game.FLIP_Y_IN_CANVAS, game.look, sheen_block)
     love.graphics.pop()
 
     -- then the world on screen — through the focus ring, if it is on — and

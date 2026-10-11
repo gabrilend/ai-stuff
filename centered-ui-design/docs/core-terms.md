@@ -42,6 +42,14 @@ it gets a word here first.
   tiers as bands of latitude. The screen shows it flattened into a circle
   around the dashboard, inner tiers wide, outer tiers folded toward the edge
   like an accordion closing.
+- **sheen-point** — one point of a surface drawn as a flat circle facing
+  the camera, shaded round its centre from one colour (its sun side) to
+  another (its shade side), both recorded per point. Only its turn changes
+  how it looks: turned toward the sun its sun-side colour shows, away its
+  shade-side colour. So many overlap that together they paint the land, and
+  a moving surface (water) is moved by turning its points, nothing more.
+- **bloxel** — the same idea for cubes (the cuboids): a block whose turn
+  shows its colours.
 - **merged stand** — units far away or crowded together drawn as one marker
   carrying two numbers: **average level** and **count**.
 - **balance color** — the merged marker's color, showing how its strength

@@ -11,3 +11,5 @@ Unit: A = r, angle, heading, length; B = width, owner, level, phase (walking); C
 | `copy_record(destination, source)` | a unit record copied whole |
 | `RECORD_BYTES`, `CUBOID_BYTES`, `VERTEX_FORMAT`, `CUBOID_VERTEX_FORMAT` | sizes; the matching LÖVE vertex formats |
 | `JOB_IDLE/FETCHING/CARRYING`, `CUBE_LYING/CARRIED/DELIVERED` | what the job and state numbers mean |
+
+`sheens_at(pointer)`, `SHEEN_BYTES`, `SHEEN_VERTEX_FORMAT`: the sheen record (16 floats): place, height, lean; facing, driven; sun-side colour, wave phase; shade-side colour — read unchanged by the graphics card.

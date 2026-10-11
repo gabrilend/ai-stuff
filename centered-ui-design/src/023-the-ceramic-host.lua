@@ -24,6 +24,12 @@ ffi.cdef([[
 const char *ceramics_error(void);
 void ceramics_set_fold(double strength, double tiers, double hub, double edge, double figure);
 void ceramics_set_size_keep(double keep);
+void ceramics_set_sheen_count(int count);
+void ceramics_set_sheen_world(sheen_record *front, sheen_record *back);
+void ceramics_set_sun(double x, double y, double z);
+double ceramics_water_lean(double x, double z, double t, double phase,
+                           double sx, double sy, double sz,
+                           double *fx, double *fy, double *fz);
 void ceramics_set_far_pole(double tiers);
 double ceramics_side_radius(double r);
 int ceramics_set_section(int index, double r, double angle, double radius);
@@ -39,8 +45,9 @@ void ceramics_set_counts(int units, int cubes, unsigned seed);
 void ceramics_move_reference(const unit_record *source, unit_record *destination, double dt);
 ]])
 
--- The stages of one step.
-local UNITS, CUBOIDS = 0, 1
+-- The stages of one step: units, then cuboids (they read the units' new
+-- records), then the moving surfaces' sheen-points.
+local UNITS, CUBOIDS, SHEENS = 0, 1, 2
 
 -- {{{ function M.load()
 -- Loads the library from the project's executable scratch tier. A missing
@@ -74,6 +81,7 @@ function M.start(library, world)
         world.fold.hub_radius, world.fold.edge_radius, world.figure_scale)
     library.ceramics_set_size_keep(world.fold.size_keep)
     library.ceramics_set_far_pole(world.fold.far_pole)
+    library.ceramics_set_sheen_count(world.sheen_count)
     for index, section in ipairs(world.sections) do
         must(library, library.ceramics_set_section(index - 1, section.r, section.angle, section.radius),
             "a section")
@@ -85,6 +93,7 @@ function M.start(library, world)
         stage = nil,          -- nil: nothing in flight; else the stage in flight
         step_seconds = 0,
         size_keep = world.fold.size_keep,  -- the size law wanted (0 or 1)
+        sun = { 0, 1, 0 },                 -- toward the sun (set_sun)
     }
 end
 -- }}}
@@ -102,8 +111,9 @@ function M.advance(host, step_seconds_waiting, set_world)
     -- nothing in flight: begin a step with the unit stage
     if host.stage == nil then
         set_world()
-        -- the size law, changed only here, between steps
+        -- the size law and the sun, changed only here, between steps
         library.ceramics_set_size_keep(host.size_keep)
+        library.ceramics_set_sun(host.sun[1], host.sun[2], host.sun[3])
         host.step_seconds = step_seconds_waiting
         must(library, library.ceramics_hand_in(UNITS, host.step_seconds), "the unit chunks")
         host.stage = UNITS
@@ -120,7 +130,13 @@ function M.advance(host, step_seconds_waiting, set_world)
         host.just_handed_in = true
         return false, false
     end
-    -- the cuboids have landed: the step is done
+    -- the cuboids have landed: the moving surfaces go in
+    if host.stage == CUBOIDS then
+        must(library, library.ceramics_hand_in(SHEENS, host.step_seconds), "the sheen-point chunks")
+        host.stage = SHEENS
+        return false, false
+    end
+    -- the sheen-points have landed: the step is done
     host.stage = nil
     return true, false
 end
@@ -131,6 +147,14 @@ end
 -- the slant view). It reaches the engine at the start of the next step.
 function M.set_size_keep(host, keep)
     host.size_keep = keep
+end
+-- }}}
+
+-- {{{ function M.set_sun()
+-- Where the sun is (a unit vector toward it); it reaches the engine at the
+-- start of the next step.
+function M.set_sun(host, x, y, z)
+    host.sun[1], host.sun[2], host.sun[3] = x, y, z
 end
 -- }}}
 
