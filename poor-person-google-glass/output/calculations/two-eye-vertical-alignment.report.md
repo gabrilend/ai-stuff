@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/two-eye-vertical-alignment.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/two-eye-vertical-alignment.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # two-eye-vertical-alignment
 
 **How far apart vertically do the two eyes' pictures land, if the tile mirrors tilt by their tolerances?**

@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/tab-channel-clearance.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/tab-channel-clearance.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # tab-channel-clearance
 
 **Does a tab still swing freely in its channel, from cold to warm?**

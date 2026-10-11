@@ -39,6 +39,12 @@ a model may carry, in its glTF's asset.extras (issue 008):
              receipt says how many stations show each part and which parts
              none does
 
+joint records (issue 010, docs/joints.md), when the model has them:
+  input/joints/MODEL.lua + output/joints/MODEL.results.lua (written by
+  ./joints, only read here) → each joint's state: empty, waiting, pass,
+  fail, gone → a coloured mark at the joint with its two parts' names
+  (j shows them in any view; the joints view always does)
+
 mouse, keys → the handlers → camera or display toggles
 scripted run options (--drag, --key, --wheel, --screenshot, --views)
   → the same handlers; real input is then ignored and counted

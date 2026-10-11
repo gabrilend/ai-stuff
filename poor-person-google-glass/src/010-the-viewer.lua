@@ -48,7 +48,18 @@ local record = require("001-the-shape-record")
 
 local viewer = {}
 
-local VIEW_ORDER = { "lit", "edges", "parts", "depth", "normals", "annotated" }
+local VIEW_ORDER = { "lit", "edges", "parts", "depth", "normals", "annotated", "joints" }
+local records = require("027-joint-records")
+local lua_data = require("024-writing-lua-data")
+
+-- The colour of a joint's mark, by its state (issue 010, docs/joints.md).
+local JOINT_COLOURS = {
+    empty = { 0.55, 0.56, 0.58 },     -- no equation yet
+    waiting = { 0.95, 0.78, 0.30 },   -- an equation, not worked out (or changed since)
+    pass = { 0.35, 0.85, 0.40 },
+    fail = { 0.95, 0.30, 0.25 },
+    gone = { 0.40, 0.40, 0.45 },      -- a record whose parts no longer meet
+}
 
 -- {{{ SHADER
 -- shade_mode: 0 lit, 1 one flat colour, 2 depth, 3 normals as colour.
@@ -173,6 +184,35 @@ local function fit_view()
 end
 -- }}}
 
+-- {{{ function viewer.load_joints()
+-- The model's joint records (input/joints/MODEL.lua) and their worked-out
+-- answers (output/joints/MODEL.results.lua), if there are any, and each
+-- joint's state: empty, waiting, pass, fail or gone. Only read here; finding
+-- and working out are ./joints's job (028), never the viewer's.
+function viewer.load_joints(path)
+    viewer.joints = nil
+    local model = records.model_name(path)
+    local record = records.read(viewer.project_dir, model)
+    if record == nil then return end
+    local results = lua_data.read_file(viewer.project_dir .. "/output/joints/" .. model .. ".results.lua")
+    local answers = {}
+    for _, answer in ipairs(results and results.joints or {}) do answers[answer.a .. "\0" .. answer.b] = answer end
+    local marks, counts = {}, { empty = 0, waiting = 0, pass = 0, fail = 0, gone = 0 }
+    for _, joint in ipairs(record.joints) do
+        local state
+        local answer = answers[joint.a .. "\0" .. joint.b]
+        if not joint.found.still_found then state = "gone"
+        elseif joint.equation == "" then state = "empty"
+        -- an answer made from a record that has changed since is not shown
+        elseif answer == nil or answer.signature ~= records.signature(record, joint) then state = "waiting"
+        else state = answer.verdict end
+        counts[state] = counts[state] + 1
+        marks[#marks + 1] = { a = joint.a, b = joint.b, state = state, point = joint.found.contact_point }
+    end
+    viewer.joints = { marks = marks, counts = counts, model = model }
+end
+-- }}}
+
 -- {{{ local function open_shape()
 -- Reads a file and makes it the shape on screen.
 local function open_shape(path)
@@ -182,6 +222,7 @@ local function open_shape(path)
     viewer.up_axis = shape.up_axis
     viewer.model_matrix = camera_math.upright(viewer.up_axis)
     viewer.meshes = build_meshes(shape)
+    viewer.load_joints(path)
     viewer.problem = nil
     fit_view()
 end
@@ -194,6 +235,7 @@ local KEYS = {
     f = function() fit_view() end,
     w = function() viewer.view = (viewer.view == "edges") and "lit" or "edges" end,
     h = function() viewer.show_panel = not viewer.show_panel end,
+    j = function() viewer.show_joints = not viewer.show_joints end,
     space = function() viewer.turning = not viewer.turning end,
     v = function()
         -- the next view in VIEW_ORDER, round to the first
@@ -478,6 +520,45 @@ local function draw_annotations(width, height)
 end
 -- }}}
 
+-- {{{ function viewer.draw_joints()
+-- A mark at each joint, coloured by its state, labelled with its two parts;
+-- labels that would land on one another move down a line.
+function viewer.draw_joints(width, height)
+    if not viewer.joints then return end
+    love.graphics.setFont(viewer.small_font)
+    local placed = {}
+    for _, mark in ipairs(viewer.joints.marks) do
+        local x, y, z = camera_math.transform(viewer.model_matrix, mark.point)
+        local sx, sy, ahead = camera_math.to_screen(viewer.camera, { x, y, z }, width, height)
+        if ahead then
+            local colour = JOINT_COLOURS[mark.state]
+            love.graphics.setColor(0, 0, 0, 0.6)
+            love.graphics.circle("fill", sx, sy, 7)
+            love.graphics.setColor(colour)
+            love.graphics.circle("fill", sx, sy, 5)
+            local label = mark.a .. " / " .. mark.b .. "  (" .. mark.state .. ")"
+            local lx, ly = sx + 10, sy - 7
+            for _ = 1, 30 do
+                local clear = true
+                for _, p in ipairs(placed) do
+                    if math.abs(p[2] - ly) < 14 and lx < p[1] + p[3] and p[1] < lx + viewer.small_font:getWidth(label) then clear = false end
+                end
+                if clear then break end
+                ly = ly + 14
+            end
+            placed[#placed + 1] = { lx, ly, viewer.small_font:getWidth(label) }
+            -- a dark backing, so the label reads over the model as well as
+            -- over the background
+            love.graphics.setColor(0.05, 0.05, 0.06, 0.75)
+            love.graphics.rectangle("fill", lx - 3, ly - 1, viewer.small_font:getWidth(label) + 6, 15, 3)
+            love.graphics.setColor(colour)
+            love.graphics.print(label, lx, ly)
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+-- }}}
+
 -- {{{ VIEWS
 -- Each view draws the shape into the current canvas (a dispatch table).
 viewer.VIEWS = {
@@ -492,6 +573,7 @@ viewer.VIEWS = {
     depth = function() draw_meshes(2, own_colour) end,
     normals = function() draw_meshes(3, own_colour) end,
     annotated = function() draw_meshes(0, own_colour) end,
+    joints = function() draw_meshes(0, own_colour) end,
 }
 -- }}}
 
@@ -511,6 +593,7 @@ local function render_view(view_name)
         love.graphics.setDepthMode()
         love.graphics.setShader()
         if view_name == "annotated" then draw_annotations(width, height) end
+        if view_name == "joints" or (viewer.show_joints and view_name ~= "parts") then viewer.draw_joints(width, height) end
         love.graphics.setFont(viewer.small_font)
         love.graphics.setColor(viewer.settings.text_colour)
         love.graphics.print(viewer.shape.name .. "  —  " .. view_name .. " view", 12, height - 22)
@@ -679,6 +762,11 @@ local function draw_panel()
                 and string.format("station %d of %d: %s   (n: next, o: outside)", viewer.station, #shape.stations, shape.stations[viewer.station].name)
                 or string.format("%d stations inside   (n: stand at the first)", #shape.stations)
         end
+        if viewer.joints then
+            local c = viewer.joints.counts
+            lines[#lines + 1] = string.format("joints %d: %d empty, %d waiting, %d pass, %d fail   (j: %s)",
+                #viewer.joints.marks, c.empty, c.waiting, c.pass, c.fail, viewer.show_joints and "hide" or "show")
+        end
         lines[#lines + 1] = string.format("parts %d:", #shape.parts)
     else
         lines[#lines + 1] = "drop a CAD file onto this window (." .. table.concat(any_file.endings(), ", .") .. ")"
@@ -803,6 +891,7 @@ function viewer.quit()
         frames_drawn = viewer.frames_drawn,
         seconds_run = viewer.seconds_run,
         pictures = viewer.pictures,
+        joints = viewer.joints and viewer.joints.counts or nil,
         ignored_input = viewer.ignored_input,
         coverage = viewer.coverage,
         part_order = viewer.meshes,

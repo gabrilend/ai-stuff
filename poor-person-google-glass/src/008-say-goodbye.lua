@@ -15,6 +15,7 @@ local M = {}
 --            coverage = nil, or part name -> { stations = whole,
 --            best_share = number, best_station = string } (with --stations),
 --            part_order = the viewer's mesh list, for the order of parts,
+--            joints = nil, or counts { empty, waiting, pass, fail, gone },
 --            pictures = list of { path = string, view = string,
 --                                 black_share = number 0..1,
 --                                 camera = string: picture size, yaw, pitch,
@@ -52,6 +53,11 @@ function M.write(project_dir, summary)
         file:write(string.format("unseen       %d%s\n", #unseen, #unseen > 0 and (" (" .. table.concat(unseen, ", ") .. ")") or ""))
     end
     -- }}}
+    -- the model's joint records (issue 010), when it has any
+    if summary.joints then
+        local c = summary.joints
+        file:write(string.format("joints       %d empty, %d waiting, %d pass, %d fail, %d gone\n", c.empty, c.waiting, c.pass, c.fail, c.gone))
+    end
     file:write(string.format("pictures     %d\n", #summary.pictures))
     for _, picture in ipairs(summary.pictures) do
         file:write(string.format("picture      %-10s black %.4f  %s\n", picture.view, picture.black_share, picture.path))

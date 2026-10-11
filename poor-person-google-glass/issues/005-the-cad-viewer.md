@@ -2,7 +2,7 @@
 
 **Phase:** 0 — Tools
 **Blocked by:** 001, 002, 003, 004
-**Blocks:** 006, 008
+**Blocks:** 006, 008, 010
 **Related documents:** docs/datapath-cad-viewer.md
 
 ## Current Behavior

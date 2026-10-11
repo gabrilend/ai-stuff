@@ -62,3 +62,11 @@
     vertical mismatch...) is a guess, marked as one. Which are real
     requirements, and what are they? Run ./calculate for where each
     stands today.
+
+15. **One part, one piece:** joints are kept between parts, but in the
+    models so far a "part" is often a group (all six dials, all six tabs,
+    both emitters), so a joint describes the group and its reaches span the
+    whole group. Should models name each piece separately (dial 1 ... dial
+    6) so every physical joint gets its own record? (a question for the
+    models, issues 001 and 105; the joint records, issue 010, work either
+    way)

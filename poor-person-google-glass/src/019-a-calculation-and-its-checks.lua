@@ -22,7 +22,7 @@ local M = {}
 -- The units a calculation may use (docs/tolerances.md); a set.
 M.UNITS = {}
 for _, unit in ipairs({ "mm", "mm2", "mm3", "um", "deg", "arcmin", "mrad", "C", "per-C",
-                        "GPa", "MPa", "g", "ratio", "count", "percent" }) do
+                        "GPa", "MPa", "g", "g-per-cm3", "ratio", "count", "percent" }) do
     M.UNITS[unit] = true
 end
 

@@ -18,28 +18,7 @@ local report = require("021-the-tolerance-report")
 
 local IN, OUT = project_dir .. "/input/calculations", project_dir .. "/output/calculations"
 
--- {{{ local function serialise()
--- A Lua value as Lua source, keys sorted, so the same results always make
--- the same file. Numbers keep 17 significant figures (exact round trip).
-local function serialise(value, indent)
-    indent = indent or ""
-    local kind = type(value)
-    if kind == "number" then return string.format("%.17g", value) end
-    if kind == "string" then return string.format("%q", value) end
-    if kind == "boolean" then return tostring(value) end
-    if kind ~= "table" then error("cannot write a " .. kind .. " into a results file", 0) end
-    local inner, lines = indent .. "  ", {}
-    if #value > 0 then
-        for _, item in ipairs(value) do lines[#lines + 1] = inner .. serialise(item, inner) .. "," end
-    else
-        local keys = {}
-        for key in pairs(value) do keys[#keys + 1] = key end
-        table.sort(keys)
-        for _, key in ipairs(keys) do lines[#lines + 1] = inner .. key .. " = " .. serialise(value[key], inner) .. "," end
-    end
-    return "{\n" .. table.concat(lines, "\n") .. "\n" .. indent .. "}"
-end
--- }}}
+local serialise = require("024-writing-lua-data").serialise
 
 -- {{{ local function write_file()
 local function write_file(path, text)

@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/pipe-and-band-expansion.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/pipe-and-band-expansion.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # pipe-and-band-expansion
 
 **How much do the glass light pipe and the nylon band holding it change length differently?**

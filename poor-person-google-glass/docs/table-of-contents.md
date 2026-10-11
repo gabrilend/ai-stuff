@@ -32,6 +32,8 @@ and issue files do not; they have their own indexes.
   people who wear it and its materials; every calculation quotes it.
 - docs/tolerances.md - the format of a tolerance calculation, and what is
   worked out from it.
+- docs/joints.md - joint records: where two parts meet, what was measured
+  there, and the empty spot for the calculation that says it works.
 - docs/roadmap.md - the phases (0 to 6) and the demo each ends with.
 - docs/open-questions.md - every question met so far, waiting for an answer.
 - docs/balance-updates.md - append-only log of knobs turned and why.
@@ -73,6 +75,11 @@ last issue completed in a project to belong to phase 1.
 - input/viewer-settings.lua - the viewer's window, view and colours.
 - input/descriptions/ - objects described in words: a drum, a lamp, the
   crown, glasses.
+- joints - finds where a model's parts meet, keeps a record for each in
+  input/joints/, and works out the filled ones into output/joints/.
+- input/materials.lua - each material's fundamentals (expansion, density,
+  stiffness, index) with tolerances and sources.
+- input/joints/ - each model's joint records.
 - calculate - works out the tolerance calculations in input/calculations/
   into output/calculations/ (results and a report each).
 - input/calculations/ - tolerance calculations: tab clearance, the liquid's

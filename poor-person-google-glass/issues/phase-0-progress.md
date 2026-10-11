@@ -39,6 +39,11 @@ For current done/open counts, run:
   usual spread and what to tighten (parts) or absorb (conditions); six
   first calculations on Google-Glass-sized guesses.
 
+- **010 — Tolerance records on the model.** Every place two parts meet is
+  found and kept as a record with an empty spot for its calculation; the
+  calculation's inputs are bound to the joint's own measures and its parts'
+  materials, worked out, and shown on the model as coloured marks.
+
 ## In progress
 - **005 — The viewer** works: pictures from its own canvas in six views,
   filed in development-history/. Waits on: reading on several threads; how

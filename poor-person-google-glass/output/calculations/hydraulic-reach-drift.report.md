@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/hydraulic-reach-drift.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/hydraulic-reach-drift.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # hydraulic-reach-drift
 
 **How far does the hydraulic arm creep, or how hard does it push if locked, as it warms?**

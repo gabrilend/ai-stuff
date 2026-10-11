@@ -1,6 +1,7 @@
 # 009 — Tolerance calculations
 
 **Phase:** 0 — Tools
+**Blocks:** 010
 **Related documents:** docs/tolerances.md, docs/sizes.md
 
 ## Current Behavior

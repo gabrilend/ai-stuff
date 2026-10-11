@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/eye-position-fit.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/eye-position-fit.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # eye-position-fit
 
 **On how wide a range of eye spacings does one frame keep each pupil behind its middle tile?**

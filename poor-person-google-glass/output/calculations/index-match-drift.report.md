@@ -1,4 +1,4 @@
-<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:19 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/index-match-drift.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
+<!-- made by src/021-the-tolerance-report.lua on 2026-10-10 23:26 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/calculations/index-match-drift.results.lua, so the numbers can be read without the calculation; format in docs/tolerances.md -->
 # index-match-drift
 
 **How much light is lost and how far is the picture shifted as the filling's index drifts with temperature?**

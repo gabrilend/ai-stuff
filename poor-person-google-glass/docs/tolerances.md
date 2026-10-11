@@ -36,7 +36,7 @@ return {
 - `from` says where the number came from: a datasheet, `docs/sizes.md`, or
   `guess:` and why. A guess is allowed; an unsourced number is not.
 - `unit` is one of: `mm`, `mm2`, `mm3`, `um`, `deg`, `arcmin`, `mrad`,
-  `C` (degrees Celsius), `per-C`, `GPa`, `MPa`, `g`, `ratio`, `count`,
+  `C` (degrees Celsius), `per-C`, `GPa`, `MPa`, `g`, `g-per-cm3`, `ratio`, `count`,
   `percent`. Formulas do their own conversions, said in a comment.
 - An output may have `at_least` or `at_most` (a limit it must keep), or
   neither (worked out for information).
