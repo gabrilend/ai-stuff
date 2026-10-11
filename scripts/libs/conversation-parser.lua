@@ -921,6 +921,50 @@ local function commits_reported(msg, commands_by_id)
 end
 -- }}}
 
+-- {{{ pictures_reported
+-- The pictures a see-in-3d command kept in its project (scripts issue A10),
+-- each as the markdown line it becomes in the transcript:
+--
+--   ![a desk with a lamp -- front, right / top, angle](/abs/.../views.jpg)
+--
+-- The command prints one "see-in-3d: kept PATH | CAPTION" line per picture.
+-- Only a command that runs see-in-3d is read, so output that merely quotes
+-- such a line (a search of old logs, a test's fixture) adds nothing. The
+-- path stays absolute: the transcript may be read from anywhere, and the
+-- page builder turns it into a picture copied beside the page.
+local function pictures_reported(msg, commands_by_id)
+    local found = {}
+    local content = msg.message and msg.message.content
+    local call_id = type(content) == "table" and type(content[1]) == "table"
+        and content[1].tool_use_id or nil
+    local command = call_id and commands_by_id[call_id] or ""
+    -- Two kinds of command: one that runs see-in-3d's render or imagine step,
+    -- whose output is read; anything else -- including a search that names
+    -- see-in-3d, the first version's false positive -- whose output is not.
+    local runs_it = false
+    for tail in command:gmatch("see%-in%-3d([^|;&\n]*)") do
+        local words = " " .. tail .. " "
+        if words:find("%srender%s") or words:find("%simagine%s") then runs_it = true end
+    end
+    if not runs_it then
+        return found
+    end
+    local result = msg.toolUseResult
+    local text = type(result) == "table" and result.stdout or nil
+    if type(text) ~= "string" then
+        return found
+    end
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        local path, caption = line:match("^see%-in%-3d: kept (/%S+) | (.-)%s*$")
+        if path then
+            caption = caption:gsub("[%[%]]", "")
+            found[#found + 1] = "![" .. caption .. "](" .. path .. ")"
+        end
+    end
+    return found
+end
+-- }}}
+
 -- {{{ commit_line
 -- The line a recorded commit becomes in the transcript:
 --
@@ -1481,14 +1525,17 @@ local function parse_conversation(jsonl_file, output_file)
         -- into narration.
         local last_prose = 0
         for i, block in ipairs(assistant_blocks) do
-            if not block.commit_line then last_prose = i end
+            if not block.commit_line and not block.picture_line then last_prose = i end
         end
 
         for i, block in ipairs(assistant_blocks) do
-            -- Two kinds of block: a commit the conversation made, written as
-            -- its own line exactly as recorded; or prose.
+            -- Three kinds of block: a commit the conversation made, written as
+            -- its own line exactly as recorded; a picture it looked at, a
+            -- markdown picture line on its own (issue A10); or prose.
             if block.commit_line then
                 out:write(block.commit_line .. "\n")
+            elseif block.picture_line then
+                out:write(block.picture_line .. "\n")
             else
                 if block.model and block.model ~= last_model_announced then
                     if last_model_announced ~= nil then
@@ -1654,6 +1701,11 @@ local function parse_conversation(jsonl_file, output_file)
                 for _, commit in ipairs(reported) do
                     recorded_hashes[commit.hash:sub(1, 7)] = true
                     assistant_blocks[#assistant_blocks + 1] = { commit_line = commit_line(commit) }
+                end
+                -- And the pictures a see-in-3d run kept: shown where they
+                -- were made, between the words before and after (issue A10).
+                for _, picture in ipairs(pictures_reported(msg, commands_by_id)) do
+                    assistant_blocks[#assistant_blocks + 1] = { picture_line = picture }
                 end
             end
 

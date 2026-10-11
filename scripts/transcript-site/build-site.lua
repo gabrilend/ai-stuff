@@ -429,6 +429,40 @@ function M.hand_made_conversation(commit, repository, transcripts_name)
 end
 -- }}}
 
+-- {{{ local function copy_pictures()
+-- The pictures a conversation looked at (scripts issue A10): the exporter
+-- writes each as a markdown picture line holding its absolute path on the
+-- machine that made it, which no published page could load. Each is copied
+-- into the site's pictures/ folder, named after the folder it was kept in so
+-- two pictures never collide, and the line is pointed at the copy. A picture
+-- whose file is gone stops the build with its name and the transcript's,
+-- rather than leaving a broken picture on the page.
+local function copy_pictures(conversation, settings, transcript_name)
+  local copied = 0
+  for _, exchange in ipairs(conversation.exchanges) do
+    if type(exchange.body) == "string" and exchange.body:find("![", 1, true) then
+      exchange.body = exchange.body:gsub("!%[([^%]]*)%]%((/[^%)%s]+)%)", function(caption, path)
+        local probe = io.open(path, "rb")
+        if not probe then
+          error("a picture in " .. transcript_name .. " is missing: " .. path)
+        end
+        probe:close()
+        local folder, file = path:match("([^/]+)/([^/]+)$")
+        local name = (folder and (folder .. "-") or "") .. (file or path:match("([^/]+)$"))
+        run("mkdir -p " .. shell_quote(settings.output .. "/pictures"), "make the pictures folder")
+        -- copied at most 720 pixels wide, the reading column's width, so a
+        -- picture fits the column without the page needing a rule for it
+        run("magick " .. shell_quote(path) .. " -resize '720x720>' -quality 88 "
+          .. shell_quote(settings.output .. "/pictures/" .. name), "copy " .. name)
+        copied = copied + 1
+        return "![" .. caption .. "](" .. settings.base_path .. "/pictures/" .. name .. ")"
+      end)
+    end
+  end
+  return copied
+end
+-- }}}
+
 -- {{{ local function copy_fonts()
 -- The pages ask for a font that sits in fonts/ at the site's root
 -- (libs/page-head.lua says which files). Each file is copied when it is not
@@ -525,6 +559,7 @@ function M.build(settings)
       end
     end
 
+    report.pictures = (report.pictures or 0) + copy_pictures(conversation, settings, name)
     local title = name:gsub("%.md$", "")
     local out_name = title .. ".html"
     spit(settings.pages_folder .. "/" .. out_name, page.render(conversation, {

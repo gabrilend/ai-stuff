@@ -66,10 +66,22 @@ check "a malformed colour is named, with the form it needs" "$(contains "$output
 check "nothing is drawn for a refused scene" "$([ -e "$WORK/bad.png" ] && echo no || echo yes)"
 
 echo "drawing:"
-"$TOOL" render "$WORK/marks.lua" > /dev/null
+# A project of the test's own, so a test render is never kept in a real one.
+PROJECT="$WORK/project"
+mkdir -p "$PROJECT/llm-transcripts"
+kept=$("$TOOL" render "$WORK/marks.lua" --project="$PROJECT")
 first=$(md5sum < "$WORK/marks.png")
-"$TOOL" render "$WORK/marks.lua" --workers=1 > /dev/null
+"$TOOL" render "$WORK/marks.lua" --workers=1 --no-keep > /dev/null
 check "the same scene gives the same bytes, with one worker or four" "$(same=$(md5sum < "$WORK/marks.png"); [ "$first" = "$same" ] && echo yes || echo no)"
+
+echo "keeping:"
+folder=$(ls -d "$PROJECT"/mind/imagination-portraits/*-marks-views 2>/dev/null | head -1)
+check "a render is kept in the project's mind/imagination-portraits/" "$([ -n "$folder" ] && [ -f "$folder/views.jpg" ] && [ -f "$folder/scene.lua" ] && echo yes || echo no)"
+check "what made it is written beside it" "$(grep -q '^Made by scripts/see-in-3d views' "$folder/visual.info" 2>/dev/null && echo yes || echo no)"
+check "it says where it kept the picture, for the conversation to show" "$(contains "$kept" "see-in-3d: kept $folder/views.jpg | ")"
+check "--no-keep keeps nothing" "$([ "$(ls -d "$PROJECT"/mind/imagination-portraits/* | wc -l)" = 1 ] && echo yes || echo no)"
+output=$(cd "$WORK" && "$TOOL" render "$WORK/marks.lua" 2>&1)
+check "with no project to keep it in, the render says so and how to name one" "$(contains "$output" "--project=DIR")"
 
 decoded=$(luajit -e "
     -- an independent PNG reader for stored deflate blocks: chunks, the zlib

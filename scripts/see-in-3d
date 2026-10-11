@@ -39,6 +39,11 @@ local WORKERS = nil
 local OUT = nil
 local VIEW, PICTURE, PROMPT, SEED, DRY_RUN = "angle", nil, nil, 1, false
 local SIZE_GIVEN = false
+-- Where what this run makes is kept (issue A10): the project given, or the
+-- nearest folder above the working directory that keeps llm-transcripts/.
+-- --no-keep is for the tool's own regenerations (the gallery rebuilding its
+-- examples), never for looking at something new.
+local PROJECT, KEEP = nil, true
 -- settings handed straight to the workflow builder (libs/see-in-3d-imagine.lua
 -- M.defaults names each one); only those given on the command line are set
 local IMAGINE = {}
@@ -70,6 +75,8 @@ for _, argument in ipairs(arg) do
     elseif prompt_value then PROMPT = prompt_value
     elseif seed_value then SEED = tonumber(seed_value)
     elseif argument == "--dry-run" then DRY_RUN = true
+    elseif argument == "--no-keep" then KEEP = false
+    elseif argument:match("^%-%-project=(.+)$") then PROJECT = argument:match("^%-%-project=(.+)$")
     else positional[#positional + 1] = argument end
 end
 local SCRATCH = DIR .. "/tmp/shared-memory/see-in-3d"
@@ -180,10 +187,61 @@ local function render_one_view(scene_path, view_index, size, out)
 end
 -- }}}
 
+-- {{{ local function find_project()
+local function find_project()
+    -- the project given, or the nearest folder at or above the working
+    -- directory holding llm-transcripts/ -- that is what makes a folder a
+    -- project whose story the picture joins
+    if PROJECT then
+        if not file_exists(PROJECT .. "/llm-transcripts/.") then
+            fail("--project=" .. PROJECT .. " has no llm-transcripts/ folder, so it is not a project whose story a picture can join")
+        end
+        return PROJECT
+    end
+    local folder = os.getenv("PWD") or ""
+    while folder ~= "" do
+        if file_exists(folder .. "/llm-transcripts/.") then return folder end
+        folder = folder:match("^(.*)/[^/]*$") or ""
+    end
+    fail("no project above " .. (os.getenv("PWD") or "?") .. " keeps llm-transcripts/; run from inside the project, or name it with --project=DIR")
+end
+-- }}}
+
+-- {{{ local function keep_visual()
+-- What a render or an imagining made, kept in the project's
+-- mind/imagination-portraits/<date-time>-<name>/: the scene, the picture(s) as
+-- JPEG copies (the PNGs are uncompressed), and visual.info saying what made
+-- it, in which conversation, and when. Then one line per picture,
+-- "see-in-3d: kept PATH", which the conversation exporter reads to put the
+-- picture into the transcript at the moment it was made (issue A10).
+local function keep_visual(scene_path, kind, pictures)
+    if not KEEP then return end
+    local project = find_project()
+    local name = (scene_path:match("([^/]+)%.lua$") or "scene"):gsub("[^%w%-]", "-")
+    local folder = string.format("%s/mind/imagination-portraits/%s-%s-%s", project, os.date("%Y-%m-%d-%H%M%S"), name, kind)
+    run("mkdir -p " .. shell_quote(folder), "making the portrait folder")
+    run("cp " .. shell_quote(scene_path) .. " " .. shell_quote(folder .. "/scene.lua"), "keeping the scene")
+    local kept = {}
+    for _, picture in ipairs(pictures) do
+        local target = folder .. "/" .. picture.name .. ".jpg"
+        run(string.format("magick %s -quality 88 %s", shell_quote(picture.path), shell_quote(target)), "keeping " .. picture.name)
+        kept[#kept + 1] = { path = target, caption = picture.caption }
+    end
+    local info = io.open(folder .. "/visual.info", "w")
+    info:write("Made by scripts/see-in-3d ", kind, ", ", os.date("%Y-%m-%d %H:%M:%S"),
+        ", in conversation ", os.getenv("CLAUDE_CODE_SESSION_ID") or "(not in a Claude Code session)",
+        ", so the agent's looking is kept with the project and shown where it happened.\n",
+        "scene: ", scene_path, "\n")
+    for _, picture in ipairs(kept) do info:write("picture: ", picture.path:match("([^/]+)$"), " -- ", picture.caption, "\n") end
+    info:close()
+    for _, picture in ipairs(kept) do io.write("see-in-3d: kept ", picture.path, " | ", picture.caption, "\n") end
+end
+-- }}}
+
 -- {{{ local function render()
 -- A scene file to pictures: checked by the wall first (every problem printed,
 -- nothing drawn), then the .obj model, then four views in parallel, stitched
--- in a fixed order into the sheet.
+-- in a fixed order into the sheet, and the sheet kept in the project.
 local function render(scene_path)
     if not scene_path then fail("usage: see-in-3d render SCENE.lua [--size=N]") end
     local paintbrush = dofile(DIR .. "/libs/see-in-3d-paintbrush.lua")
@@ -235,6 +293,8 @@ local function render(scene_path)
     io.write("  each view: ", stem, "-{front,right,top,angle}.png\n")
     io.write("  each view's depth (near bright): ", stem, "-{front,right,top,angle}-depth.png\n")
     io.write("  model: ", stem, ".obj\n")
+    keep_visual(scene_path, "views", { { name = "views", path = stem .. ".png",
+        caption = scene.what .. " -- front, right / top, angle" } })
 end
 -- }}}
 
@@ -319,6 +379,8 @@ local function imagine(scene_path)
     saved, problem = imagining.fetch(server, result, stem .. "-imagined.png")
     if not saved then fail(problem) end
     io.write("  imagined: ", saved, "\n  from: ", mode == "render" and render_path or depth_path, "\n  workflow: ", stem, "-workflow.json\n")
+    keep_visual(scene_path, "imagined", { { name = "imagined", path = saved,
+        caption = scene.what .. " -- imagined from the " .. VIEW .. " view" } })
 end
 -- }}}
 
@@ -353,7 +415,8 @@ local function imagine_all(examples_dir)
             local result = work .. "/" .. name .. "-" .. VIEW .. "-imagined.png"
             local info = string.format("Made by scripts/see-in-3d imagine-all from this folder's scene.lua, %s, with: %s -- the scene imagined by a Stable Diffusion server from the %s view, for the gallery.",
                 os.date("%Y-%m-%d"), table.concat(passed, " "), VIEW)
-            jobs[#jobs + 1] = string.format("luajit %s --dir=%s imagine %s %s > %s 2>&1 && magick %s -quality 88 %s && printf '%%s\\n' %s > %s",
+            -- --no-keep: the result is kept in the example's own folder
+            jobs[#jobs + 1] = string.format("luajit %s --dir=%s imagine --no-keep %s %s > %s 2>&1 && magick %s -quality 88 %s && printf '%%s\\n' %s > %s",
                 shell_quote(SCRIPT_PATH), shell_quote(DIR), shell_quote(copy), table.concat(passed, " "),
                 shell_quote(work .. "/" .. name .. ".log"), shell_quote(result), shell_quote(folder .. "/imagined.jpg"),
                 shell_quote(info), shell_quote(folder .. "/imagined.info"))
@@ -408,7 +471,8 @@ local function gallery(examples_dir)
         local copy = io.open(out .. "/" .. stem .. ".lua", "w")
         copy:write(scene_text)
         copy:close()
-        renders[#renders + 1] = string.format("luajit %s --dir=%s render %s --size=260 >/dev/null",
+        -- --no-keep: rebuilding the gallery redraws old examples, it is not new looking
+        renders[#renders + 1] = string.format("luajit %s --dir=%s render --no-keep %s --size=260 >/dev/null",
             shell_quote(SCRIPT_PATH), shell_quote(DIR), shell_quote(out .. "/" .. stem .. ".lua"))
         copies[#copies + 1] = string.format("magick %s -quality 88 %s",
             shell_quote(out .. "/" .. stem .. ".png"), shell_quote(out .. "/" .. stem .. "-views.jpg"))
