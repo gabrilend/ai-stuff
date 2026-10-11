@@ -78,3 +78,23 @@ quadrant, a few faces on their models). Foes have darker, desaturated
 versions of their own colors so friend and foe never share a hue. Balance
 colors (merged markers) use a separate scale from team colors, and are always
 paired with differential triangles.
+
+## Light by dials, depth by the hub camera (2026-10-10)
+
+- **No light direction, no skybox.** Each material (metal, glaze, earth) has
+  a light dial painted by formula: a round picture whose rim is a clock of
+  the day — noon warm white at the top, dusk and dawn orange at the sides,
+  night deep blue at the bottom — brighter toward the rim. A surface looks
+  its light up through a window onto its dial, by which way it faces the
+  viewer; the dial turns once a calendar day, so the hours pass over
+  everything. Colours of one material are tints of its dial (issue 213).
+- **Two views to compare** (issue 214): the far camera (nearly flat, like a
+  map) and the hub camera (just above the hub, looking out over one quadrant
+  at a time — the valley of the reference pictures in assets/). Under the
+  hub camera far things fade into a haze that is also the sky.
+- **The focus ring**: a tilt-shift blur, sharp at one distance from the hub
+  and blurring nearer and farther — an arc on screen under the hub camera.
+  It can be switched off; the owner noted many visible layers can carry the
+  miniature look without it.
+- Figures stand straight up on their ground ("neither leaning toward nor
+  away"); leaning away from the hub is kept to compare.

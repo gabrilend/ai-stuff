@@ -25,6 +25,14 @@ of you, so it always remains the same size."
  ───────┴───────────────────────────────────┴──────  base
 ```
 
+## Placement
+
+The arch stands on the window's bottom pixel row and is stretched to both
+sides (the owner: "position the bottom of the dashboard at the bottom pixel
+row" and "width-enhance the dashboard to meet the edge of the screen"); its
+height is a setting, half the window's height to start. With the arch full
+width, allies' arches are off screen until the chair turns.
+
 ## Parts
 
 - **The band** — the arch's curve, from foot to foot: glass through which the
@@ -46,7 +54,9 @@ of you, so it always remains the same size."
 ## Settings (Escape)
 
 The calendar and the named slot give way to a large dial showing the
-framerate cap, a row of painted −10, −1, +1, +10 buttons beneath it, and BACK
+framerate cap, a row of painted −10, −1, +1, +10 buttons beneath it, the
+three look toggles (HUB VIEW or FLAT VIEW, UPRIGHT or OUTWARD, BLUR ON or
+BLUR OFF), and BACK
 and QUIT. The readouts stay.
 
 ## The rhythm

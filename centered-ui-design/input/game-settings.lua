@@ -52,6 +52,31 @@ return {
     team_size = 4,
     seat = 1,
 
-    -- how many seconds of game time make one calendar day
-    calendar_seconds_per_day = 3,
+    -- how many seconds of game time make one calendar day (the light dials
+    -- turn once a day)
+    calendar_seconds_per_day = 24,
+
+    -- the console: an arch standing on the window's bottom edge and stretched
+    -- to both sides; its height as a share of the window's height
+    arch_height_share = 0.5,
+
+    -- How the world is filmed, to compare (all can be switched in the
+    -- settings menu while running):
+    --   view_depth     "flat": the far camera, nearly flat, like a map;
+    --                  "hub": a camera just above the hub looking out over
+    --                  one quadrant at a time (the scroll wheel turns it)
+    --   view_standing  "upright": figures stand straight up on their ground;
+    --                  "outward": they lean away from the hub
+    --   view_blur      "on": a sharp band of distance, blurring nearer and
+    --                  farther (tilt-shift); "off": none
+    view_depth = "hub",
+    view_standing = "upright",
+    view_blur = "on",
+
+    -- the hub camera: how high its eye stands (world units), how steeply it
+    -- looks down (degrees below level), and how wide it sees (degrees, top
+    -- to bottom of the window)
+    hub_eye_height = 34,
+    hub_look_down_degrees = 30,
+    hub_field_of_view_degrees = 55,
 }

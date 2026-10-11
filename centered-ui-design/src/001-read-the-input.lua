@@ -33,12 +33,32 @@ M.REQUIRED_FIELDS = {
     { name = "team_size",                  kind = "whole" },
     { name = "seat",                       kind = "whole" },
     { name = "calendar_seconds_per_day",   kind = "number" },
+    { name = "arch_height_share",          kind = "number" },
+    { name = "view_depth",                 kind = "word", words = { "flat", "hub" } },
+    { name = "view_standing",              kind = "word", words = { "upright", "outward" } },
+    { name = "view_blur",                  kind = "word", words = { "on", "off" } },
+    { name = "hub_eye_height",             kind = "number" },
+    { name = "hub_look_down_degrees",      kind = "number" },
+    { name = "hub_field_of_view_degrees",  kind = "number" },
 }
 
+-- {{{ local function is_one_of()
+local function is_one_of(value, words)
+    for _, word in ipairs(words) do
+        if value == word then
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
 -- How each kind is checked: a dispatch table from kind name to a test.
+-- "word" is a string from the field's own list of allowed words.
 local KIND_TESTS = {
     number = function(value) return type(value) == "number" end,
     whole  = function(value) return type(value) == "number" and value == math.floor(value) end,
+    word   = function(value, field) return type(value) == "string" and is_one_of(value, field.words) end,
 }
 
 -- {{{ local function check_settings()
@@ -53,7 +73,12 @@ local function check_settings(settings, source_name)
             error(source_name .. ": the setting '" .. field.name .. "' is missing", 0)
         end
         -- present but the wrong kind: stop, naming what was expected
-        if not KIND_TESTS[field.kind](value) then
+        if not KIND_TESTS[field.kind](value, field) then
+            -- a word: say which words are allowed
+            if field.kind == "word" then
+                error(source_name .. ": the setting '" .. field.name .. "' must be one of "
+                    .. table.concat(field.words, ", ") .. ", but is " .. tostring(value), 0)
+            end
             error(source_name .. ": the setting '" .. field.name .. "' must be a "
                 .. field.kind .. " number, but is " .. tostring(value), 0)
         end

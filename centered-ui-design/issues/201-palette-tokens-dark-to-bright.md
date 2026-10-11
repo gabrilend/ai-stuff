@@ -3,7 +3,7 @@
 **Phase:** 2 — Glass and metal
 **Blocked by:** 101
 
-**Blocks**: 202, 206, 208, 210, 211
+**Blocks**: 202, 206, 208, 210, 211, 213
 **Related documents:** docs/visual-language.md (Materials, Team colors),
 docs/datapath-glass-and-metal.md
 

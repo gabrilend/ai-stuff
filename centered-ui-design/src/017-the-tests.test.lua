@@ -66,6 +66,12 @@ do
     fractional.unit_count = 2.5
     ok = pcall(read_input.check_settings, fractional, "test")
     check("a fractional unit count is refused", not ok)
+
+    local wrong_word = good_settings()
+    wrong_word.view_depth = "sideways"
+    ok, message = pcall(read_input.check_settings, wrong_word, "test")
+    check("a view that is not one of the allowed words is refused, naming them",
+        not ok and message:find("flat, hub") ~= nil, message)
 end
 
 -- the far camera ------------------------------------------------------------
@@ -94,6 +100,7 @@ do
 
     settings = good_settings()
     local camera = far_camera.new(settings, 1600 / 1000)
+    camera.view = "flat"  -- these checks are of the far camera
     local worst = 0
     for _, spot in ipairs({ { 10, -20 }, { -50, 33 }, { 0, 0 }, { 70, 70 } }) do
         local x, y = far_camera.project(camera, spot[1], 0, spot[2])
@@ -106,6 +113,25 @@ do
     local _, _, near_depth = far_camera.project(camera, 0, 50, 0)
     local _, _, far_depth = far_camera.project(camera, 0, -50, 0)
     check("higher things are nearer the camera in depth", near_depth < far_depth)
+
+    -- the hub camera (issue 214)
+    local hub = far_camera.new(good_settings(), 1600 / 1000)
+    hub.view = "hub"
+    hub.turn = math.pi / 4
+    worst = 0
+    for _, spot in ipairs({ { 20, -20 }, { 40, -10 }, { 15, -45 }, { 60, -55 } }) do
+        local x, y = far_camera.project(hub, spot[1], 0, spot[2])
+        local px, py = far_camera.ndc_to_pixels(x, y, 1600, 1000)
+        local gx, gz = far_camera.ground_point_under_pixel(hub, px, py, 1600, 1000)
+        worst = math.max(worst, math.abs(gx - spot[1]), math.abs(gz - spot[2]))
+    end
+    check("under the hub camera, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
+    -- facing north-east (the chair at 45 degrees), a point straight ahead is centred
+    local ahead_x = far_camera.project(hub, 50 * math.sin(math.pi / 4), 0, -50 * math.cos(math.pi / 4))
+    check("the hub camera aims along the chair", math.abs(ahead_x) < 1e-9)
+    local _, _, near_ground = far_camera.project(hub, 20 * math.sin(math.pi / 4), 0, -20 * math.cos(math.pi / 4))
+    local _, _, far_ground = far_camera.project(hub, 90 * math.sin(math.pi / 4), 0, -90 * math.cos(math.pi / 4))
+    check("under the hub camera, nearer ground is nearer in depth", near_ground < far_ground)
 end
 
 -- the sphere fold ------------------------------------------------------------
@@ -407,11 +433,12 @@ end
 do
     local arch = require("019-the-arch")
     local dashboard = require("014-the-dashboard")
-    local section = arch.new(800, 870, 740, dashboard.ARCH_WIDTH_SHARE, dashboard.ARCH_BAND_SHARE)
+    -- the shipped window: 1600 by 1000, the arch half its height, full width
+    local section = arch.new(800, 1000, 500, dashboard.width_share_for(1600, 1000, 0.5), dashboard.ARCH_BAND_SHARE)
 
     local overlap = false
-    for x = 400, 1200, 7 do
-        for y = 100, 880, 7 do
+    for x = 0, 1600, 7 do
+        for y = 400, 1000, 7 do
             if arch.in_interior(section, x, y) and arch.in_band(section, x, y) then
                 overlap = true
             end
@@ -464,6 +491,29 @@ do
         end
     end
     check("every button and window lies wholly on the arch's surface", all_fit)
+end
+
+-- the light dials (issue 213) ------------------------------------------------
+
+do
+    local made_by_formula = require("012-made-by-formula")
+    local function brightness(material, x, y)
+        local r, g, b = made_by_formula.light_at(material, x, y)
+        return r + g + b
+    end
+    local all_ordered = true
+    for _, material in ipairs({ "metal", "glaze", "earth" }) do
+        -- noon at the top, midnight at the bottom, both looked at from the same reach
+        local noon = brightness(material, 0, 0.6)
+        local dusk = brightness(material, 0.6, 0)
+        local midnight = brightness(material, 0, -0.6)
+        all_ordered = all_ordered and noon > dusk and dusk > midnight
+    end
+    check("every dial is brighter at noon than at dusk, and at dusk than at midnight", all_ordered)
+    -- the window's reach: its far edge (center + radius) must stay within the dial
+    local renderer = require("013-the-world-renderer")
+    local renderer_window = renderer.WINDOW_CENTER + renderer.WINDOW_RADIUS
+    check("the light window never reaches past the dial's rim", renderer_window <= 1)
 end
 
 print(string.format("\n%d passed, %d failed", passed, failed))

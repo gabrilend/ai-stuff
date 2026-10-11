@@ -3,7 +3,7 @@
 **Phase:** 2 — Glass and metal
 **Blocked by:** 101
 
-**Blocks**: 208, 210, 211, 301, 212
+**Blocks**: 208, 210, 211, 301, 212, 213, 214
 **Related documents:** docs/visual-language.md (The far camera)
 
 ## Current Behavior

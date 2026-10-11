@@ -3,7 +3,7 @@
 **Phase:** 2 — Glass and metal
 **Blocked by:** 209, 201
 
-**Blocks**: 208
+**Blocks**: 208, 214
 **Related documents:** docs/visual-language.md (The map: models and voxels),
 docs/core-terms.md (figure, walking phase)
 **Completed:** 2026-10-10 (first as single spheroids; reopened the same day

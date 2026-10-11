@@ -9,27 +9,29 @@ screen)
 ## Current Behavior
 
 Built (2026-10-10), waiting on its one open question. The console is an arch
-(`src/019-the-arch.lua`) centered on the screen, 74% of the window's height.
-Its band carries the map painted from far beyond (`src/024`): the ally's
-quadrant unrolled along it, hub to farthest tier across it, units and
-cuboids as dots — each band pixel's place is drawn into a fourth layer
-(`band`, 16-bit floats) and looked up by the sheet's shader (`src/015`).
-Beneath it, the brushed-metal surface holds the calendar, three readouts,
-four section counts, the named slot, and two columns of order buttons — laid
-out as data in arch units (`src/014-the-dashboard.lua`). The allies' arches
-form a ring-ordered row; a clip shows your own arch and only the very edge
-of the next. The scroll wheel turns the chair (an eighth of a quadrant a
-notch, eased): the world turns about the hub and the row slides, so an ally's
-arch, band and quadrant come into view, dimmed and labelled with their seat;
-only your own buttons answer. Tests: surface and band never overlap; every
-button and window lies wholly on the surface; a neighbour's foot lands
-exactly on yours. Not built yet: the resource and couriers-in-flight dials.
+(`src/019-the-arch.lua`) standing on the window's bottom pixel row and
+stretched to both sides (`arch_height_share` in `input/`, 0.5). Its band
+carries the map painted from far beyond (`src/024`), the ally's quadrant
+unrolled along it. Beneath it, the surface holds the calendar, three
+readouts, four section counts, the named slot, two columns of order buttons,
+and (in the settings menu) the framerate cap and the three look toggles —
+laid out as data in arch units (`src/014`). The allies' arches form a ring-
+ordered row that slides with the chair; with the arch full width, only your
+own is on screen until the chair turns. Tests: surface and band never
+overlap; every button and window lies wholly on the surface; a neighbour's
+foot lands exactly on yours. Not built yet: the resource and couriers-in-
+flight dials.
 
 ## Intended Behavior
 
 The owner's picture: "half of the M in the McDonald's golden arch" — one
 arch.
 
+- **Placed at the bottom, full width.** The owner: "position the bottom of
+  the dashboard at the bottom pixel row of the screen" and "width-enhance
+  the dashboard to meet the edge of the screen on the left-and-right." The
+  arch stands on the window's bottom edge and is stretched to touch both
+  sides; its dials and buttons keep their places in arch units.
 - The console in the middle of the screen is an **arch**: a tall curved band
   rising from two feet on a flat base, like one hump of an M.
 - **The arch's band is the display of the map** — "through. Not through its

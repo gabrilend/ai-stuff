@@ -78,6 +78,13 @@ it gets a word here first.
   level lower, the day number. Its pace (day or month) is switched with a
   button. Votes, among other things, happen on its boundaries.
 - **readout** — a dial showing a number. Never painted, never clickable.
+- **light dial** — a material's round picture of the day's light (noon at the
+  top, night at the bottom), looked at through a window by every surface of
+  that material and turned once a calendar day. Not shown on screen; it is
+  how things are lit.
+- **hub camera** — the view from just above the hub, looking out over one
+  quadrant at a time; the far camera is the other, flat view.
+- **focus ring** — the tilt-shift blur: sharp at one distance from the hub.
 
 ## Commanding
 

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# capture-history - keeps a picture of the game at each development cycle.
+#
+# In plain terms: runs the game for a few seconds with scripted input (the
+# run script's --click, --key, --wheel and --screenshot options), then files
+# the screenshot in development-history/ under the next number, beside a
+# notes file saying what made it, from which commit and settings, and with
+# two sections for a person (or Claude) to fill in: what the picture shows,
+# literally; and the story so far, as a short summary of the arc of the
+# project up to this picture — so the history can be read picture by picture
+# without the whole conversation (details are in llm-transcripts/).
+#
+# Usage:
+#   scripts/capture-history NAME [--source DIR] [--commit HASH] -- RUN-OPTIONS...
+#
+#   NAME           words joined by dashes, e.g. the-arch-console
+#   --source DIR   run the game from another copy of the project (an older
+#                  commit unpacked somewhere, or a settings variant);
+#                  the picture still lands in this project's history
+#   --commit HASH  the commit the picture shows (default: this project's HEAD)
+#   RUN-OPTIONS    passed to the run script; must include --screenshot SECONDS
+#
+# Example:
+#   scripts/capture-history cuboids-hauled -- --screenshot 14
+
+DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
+NAME="${1:-}"
+shift
+SOURCE="${DIR}"
+COMMIT=""
+# options before the "--"
+while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
+    case "$1" in
+        --source) SOURCE="$2"; shift 2 ;;
+        --commit) COMMIT="$2"; shift 2 ;;
+        *) echo "capture-history: unknown option $1" >&2; exit 64 ;;
+    esac
+done
+# the "--" itself
+if [ "${1:-}" = "--" ]; then
+    shift
+fi
+
+# no name, or a name that is not dash-joined lower-case words: refuse
+if ! [[ "${NAME}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo "capture-history: NAME must be lower-case words joined by dashes" >&2
+    exit 64
+fi
+# no screenshot time: the run would never end on its own
+if ! printf '%s\n' "$@" | grep -qx -- "--screenshot"; then
+    echo "capture-history: the run options must include --screenshot SECONDS" >&2
+    exit 64
+fi
+
+HISTORY="${DIR}/development-history"
+mkdir -p "${HISTORY}"
+COUNT=$(find "${HISTORY}" -maxdepth 1 -name '*.png' | wc -l)
+NUMBER=$(printf '%03d' $((COUNT + 1)))
+PICTURE="${HISTORY}/${NUMBER}-${NAME}.png"
+NOTES="${HISTORY}/${NUMBER}-${NAME}.info.md"
+
+if [ -z "${COMMIT}" ]; then
+    COMMIT=$(git -C "${DIR}" log -1 --format='%h' -- .)
+fi
+COMMIT_LINE=$(git -C "${DIR}" log -1 --format='%h %ad %s' --date=short "${COMMIT}" 2>&1)
+
+# the run script of the copy being run, or this project's own
+RUN="${SOURCE}/run"
+if [ ! -x "${RUN}" ]; then
+    RUN="${DIR}/run"
+fi
+SHOT="${SOURCE}/tmp/shared-memory/screenshot.png"
+rm -f "${SHOT}"
+"${RUN}" "${SOURCE}" "$@" > /dev/null
+if [ ! -f "${SHOT}" ]; then
+    echo "capture-history: the run left no screenshot at ${SHOT}" >&2
+    exit 1
+fi
+cp "${SHOT}" "${PICTURE}"
+
+cat > "${NOTES}" <<EOF
+<!-- made by scripts/capture-history on $(date '+%Y-%m-%d %H:%M'), from the
+     game run as: run ${SOURCE} $* -->
+
+# ${NUMBER} — ${NAME}
+
+- **Picture:** ${NUMBER}-${NAME}.png
+- **Commit:** ${COMMIT_LINE}
+- **Run:** \`run $*\` (from ${SOURCE})
+
+## What it shows
+
+(Literally: what is on the screen, part by part.)
+
+## The story so far
+
+(The arc of the project up to this picture, briefly: what came before, what
+this cycle added, what it set up next. Details are in llm-transcripts/.)
+EOF
+
+echo "${PICTURE}"
+echo "${NOTES}"

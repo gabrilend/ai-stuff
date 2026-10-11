@@ -5,10 +5,11 @@ The arch console (019) as four window-sized layers: face (brushed metal surface,
 
 | Offers | Takes | Gives |
 |---|---|---|
-| `new(width, height, team_size, seat)` | | dashboard (with its `section`) |
-| `draw(dashboard, state, seconds)` | state: month, weekday, day, fps, frame_ms, unit_count, cap, named_text, someone_named, seat_colors, delivered (four counts) | redraws the layers |
+| `new(width, height, team_size, seat, height_share)` | | dashboard (with its `section`): the arch stands on the bottom pixel row and spans the window's width |
+| `width_share_for(width, height, height_share)` | | the arch's width as a share of its height |
+| `draw(dashboard, state, seconds)` | state: month, weekday, day, fps, frame_ms, unit_count, cap, named_text, someone_named, seat_colors, delivered (four counts), look (depth, standing, blur — the toggles show these) | redraws the layers |
 | `set_chair(dashboard, offset)` | arches slid along the row | moves your arch and what is shown |
 | `button_under(dashboard, x, y, someone_named)` | a pixel | the button's verb or nil |
 | `covers(dashboard, x, y)` | a pixel | whether it is on your arch (surface or band) |
 | `set_pointer(...)`, `flash_name_someone(dashboard)` | | hover/press lighting; the "name someone first" reminder |
-| `ORDER_BUTTONS`, `SETTINGS_BUTTONS`, `WINDOWS`, `LABELS`, `CALENDAR_CENTER`, `ARCH_*_SHARE`, `NEIGHBOUR_SHOWN`, `MONTHS`, `MONTH_DAYS`, `WEEKDAYS` | | layout and calendar data |
+| `LOOK_WORDS`, `ORDER_BUTTONS`, `SETTINGS_BUTTONS` (with the look toggles), `WINDOWS`, `LABELS`, `CALENDAR_CENTER`, `ARCH_*_SHARE`, `NEIGHBOUR_SHOWN`, `MONTHS`, `MONTH_DAYS`, `WEEKDAYS` | | layout and calendar data |

@@ -49,6 +49,97 @@ function M.unit_skin(width, height)
 end
 -- }}}
 
+-- {{{ local function smooth()
+local function smooth(edge0, edge1, x)
+    local t = math.min(math.max((x - edge0) / (edge1 - edge0), 0), 1)
+    return t * t * (3 - 2 * t)
+end
+-- }}}
+
+-- {{{ local function light_of_the_hour()
+-- The light at one hour, from the dial's angle (0 = noon at the top, turning
+-- clockwise; pi = midnight at the bottom): deep blue at night, orange at
+-- dawn and dusk, warm white at noon. Returns r, g, b.
+local function light_of_the_hour(hour_angle)
+    local day = math.cos(hour_angle)  -- 1 at noon, -1 at midnight
+    local night = { 0.10, 0.13, 0.26 }
+    local dusk = { 0.95, 0.55, 0.30 }
+    local noon = { 1.00, 0.96, 0.88 }
+    local to_dusk = smooth(-0.45, 0.10, day)
+    local to_noon = smooth(0.05, 0.75, day)
+    local light = {}
+    for channel = 1, 3 do
+        local value = night[channel] + (dusk[channel] - night[channel]) * to_dusk
+        light[channel] = value + (noon[channel] - value) * to_noon
+    end
+    return light[1], light[2], light[3]
+end
+-- }}}
+
+-- How each material answers the light, by where on its dial a surface looks
+-- (`reach`: 0 the dial's center .. 1 its rim, where surfaces facing up look;
+-- `hour_angle` as above). A dispatch table from material to formula; each
+-- returns a brightness multiplier and a shine (added light).
+local MATERIALS = {
+    -- brushed metal: fine circular streaks, a firm highlight ring
+    metal = function(reach, hour_angle)
+        local body = 0.30 + 0.70 * smooth(0.10, 0.95, reach)
+        local streaks = 0.06 * math.sin(hour_angle * 220 + reach * 40)
+        local shine = 1.0 * math.exp(-((reach - 0.86) / 0.04) ^ 2)
+        return body + streaks, shine
+    end,
+    -- glaze: a smooth body, a sharp bright ring and a soft sheen (ceramic, paint)
+    glaze = function(reach, hour_angle)
+        local body = 0.28 + 0.72 * smooth(0.05, 0.92, reach)
+        local shine = 1.3 * math.exp(-((reach - 0.90) / 0.025) ^ 2)
+            + 0.18 * math.exp(-((reach - 0.68) / 0.14) ^ 2)
+        return body, shine
+    end,
+    -- earth: broad and matte, no highlight
+    earth = function(reach, hour_angle)
+        return 0.45 + 0.55 * smooth(0.0, 1.0, reach), 0
+    end,
+}
+
+-- {{{ function M.light_at()
+-- The light dial's colour at one point (x, y from -1 to 1, y up) for a
+-- material: the formula the painter below fills a picture with. Plain
+-- numbers in and out, so it can be checked without a window.
+function M.light_at(material, x, y)
+    local answer = MATERIALS[material]
+    -- an unknown material is a mistake in the caller
+    if answer == nil then
+        error("made_by_formula: no light dial for the material '" .. tostring(material) .. "'", 2)
+    end
+    -- outside the disc: the rim's colour carried on, so lookups at the very
+    -- edge never meet black
+    local reach = math.min(math.sqrt(x * x + y * y), 1)
+    local hour_angle = math.atan2(x, y)
+    local r, g, b = light_of_the_hour(hour_angle)
+    local body, shine = answer(reach, hour_angle)
+    local day = math.max(math.cos(hour_angle), 0.12)
+    return r * body + shine * r * day, g * body + shine * g * day, b * body + shine * b * day
+end
+-- }}}
+
+-- {{{ function M.light_dial()
+-- Paints one material's light dial (issue 213): a round picture whose rim is
+-- a clock of the day — noon at the top, dusk and dawn at the sides, night at
+-- the bottom — brighter toward the rim (light from above), with the
+-- material's own highlight. Surfaces look up their light through a window
+-- onto this dial; the dial turns with the time of day. Returns image data.
+function M.light_dial(size, material)
+    local data = love.image.newImageData(size, size)
+    data:mapPixel(function(px, py)
+        local x = (px + 0.5) / size * 2 - 1
+        local y = 1 - (py + 0.5) / size * 2
+        local r, g, b = M.light_at(material, x, y)
+        return r, g, b, 1
+    end)
+    return data
+end
+-- }}}
+
 -- {{{ function M.flat_map()
 -- Draws the flat map into a new square canvas `size` pixels across: tiers
 -- equally spaced (the fold is applied later, when the map is laid on the

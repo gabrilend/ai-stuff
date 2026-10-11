@@ -1,16 +1,25 @@
--- 013-the-world-renderer.lua - the ground and the units, in 3D.
+-- 013-the-world-renderer.lua - the ground, the units and the cuboids, in 3D.
 --
--- In plain terms: two things are drawn into the world picture. The ground is
--- the flat map (drawn by formula) laid on a disc whose rings follow the
--- sphere fold, so the evenly spaced tier rings come out folded toward the
--- edge. The units are one spheroid drawn once per unit, each stretched, turned
--- and placed by its own record read straight from shared memory, and lit with
--- a polished-metal highlight.
+-- In plain terms: three things are drawn into the world picture. The ground
+-- is the flat map (drawn by formula) laid on a disc whose rings follow the
+-- sphere fold. The units are one figure mesh drawn once per unit, bent,
+-- turned and placed by each unit's record read straight from shared memory.
+-- The cuboids are one sphere pushed toward a cube, drawn once per cuboid.
 --
--- Data flow:  unit block (shared memory) --(whole block, as per-unit vertex
---             data)--> instance mesh --> unit shader: fold the place onto the
---             ground, stretch and turn the spheroid, project through the far
---             camera --> world canvas (with depth)
+-- Light (issue 213): nothing here has a light direction. Every surface looks
+-- its light up on its material's light dial (metal, glaze or earth, painted by
+-- 012) through a window, by which way it faces the viewer; the dials turn
+-- with the time of day, so noon, dusk, night and dawn pass over everything.
+-- Colours of one material are tints of its dial.
+--
+-- Depth (issue 214): under the hub camera, far things fade into a haze; and
+-- figures may stand upright (the owner's choice) or, to compare, lean away
+-- from the hub.
+--
+-- Data flow:  unit and cuboid blocks (shared memory) --(whole blocks, as
+--             per-instance vertex data)--> instance meshes --> shaders: fold
+--             the place onto the ground, bend and turn the figure, project
+--             through the camera, look up the light --> world canvas (depth)
 --
 -- This is viewing code: it reads records and never writes them.
 
@@ -41,26 +50,83 @@ M.UNIT_WORLD_SCALE = 5.0
 -- at full stride; slower, its limbs bend less.
 M.FULL_PACE = 1.5
 
+-- The light dials' window: how far its center sits from the dial's center,
+-- and its radius (shares of the dial's radius), like a watch's date window.
+M.WINDOW_CENTER = 0.52
+M.WINDOW_RADIUS = 0.44
+
+-- The haze far things fade into under the hub camera (also the sky's colour
+-- there), and how far the outward lean tips a figure (radians).
+M.HAZE_COLOR = { 0.40, 0.44, 0.50 }
+M.OUTWARD_LEAN = 0.45
+
+-- Shared by every world shader: the light dial lookup, the haze, the lean.
+local LIGHT_GLSL = [[
+uniform float hour_angle;      // the dials' turn: 0 noon, pi midnight
+uniform float window_center;
+uniform float window_radius;
+
+// The light a surface receives: its material's dial, seen through the
+// window at the spot its facing points to. Facing up looks toward the dial's
+// bright rim; facing sideways looks at earlier or later hours.
+vec3 dial_light(Image dial, vec2 facing) {
+    vec2 p = vec2(0.0, window_center) + facing * window_radius;
+    float c = cos(hour_angle);
+    float s = sin(hour_angle);
+    vec2 d = vec2(p.x * c + p.y * s, p.y * c - p.x * s);
+    return Texel(dial, vec2(0.5 + 0.5 * d.x, 0.5 - 0.5 * d.y)).rgb;
+}
+]]
+
+local HAZE_GLSL = [[
+uniform vec3 haze_color;
+// far things fade into the haze (only the hub camera has any distance)
+vec3 hazed(vec3 lit, float haze) {
+    return mix(lit, haze_color, smoothstep(0.30, 1.0, haze) * 0.9);
+}
+]]
+
+local LEAN_GLSL = [[
+uniform float lean_out;   // 0: upright; more: tipped away from the hub
+// Tips a direction away from the hub, turning it about the ground's sideways
+// line at `angle` (a rotation, so lengths and right angles are kept).
+vec3 lean(vec3 v, float angle) {
+    vec3 t = vec3(cos(angle), 0.0, sin(angle));
+    float a = -lean_out;
+    return v * cos(a) + cross(t, v) * sin(a) + t * dot(t, v) * (1.0 - cos(a));
+}
+]]
+
 local GROUND_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
+varying vec2 v_facing;
+varying float v_haze;
 // The ground mesh stores each vertex as (tier distance, angle); the fold
 // places it on the ground.
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     vec3 ground = fold_ground_position(vertex_position.x, vertex_position.y);
+    v_facing = view_facing(vec3(0.0, 1.0, 0.0));
+    v_haze = clamp(hub_distance(ground) / hub_far, 0.0, 1.0);
     return project_world(ground);
 }
 ]]
 
-local GROUND_PIXEL = [[
+local GROUND_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
+uniform Image earth_dial;
+varying vec2 v_facing;
+varying float v_haze;
 vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
     vec4 flat_map = Texel(map, uv);
     // a soft darkening toward the map's rim
     float from_center = length(uv - vec2(0.5)) * 2.0;
     float rim_shade = 1.0 - 0.35 * smoothstep(0.75, 1.0, from_center);
-    return vec4(flat_map.rgb * rim_shade, 1.0);
+    // the ground is earth, the map's rings and tints drawn on it
+    vec3 earth = vec3(0.26, 0.25, 0.18) + flat_map.rgb * 1.3;
+    vec3 lit = earth * rim_shade * dial_light(earth_dial, v_facing) * 1.35;
+    return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
 
-local UNIT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. body_plan.GLSL .. [[
+local UNIT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. body_plan.GLSL .. LEAN_GLSL .. [[
 attribute vec4 UnitA;   // r, angle, heading, size
 attribute vec4 UnitB;   // width (girth), owner, level, walking phase
 attribute vec4 UnitC;   // speed_r, speed_angle, order_kind, named
@@ -71,9 +137,11 @@ uniform vec3 owner_colors[5];
 uniform float unit_world_scale;
 uniform float full_pace;    // ground speed (world units / s) that counts as walking fully
 
-varying vec3 v_normal;
+varying vec2 v_facing;
 varying vec3 v_color;
 varying float v_named;
+varying float v_haze;
+varying float v_rim;
 
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float r = UnitA.x;
@@ -94,51 +162,47 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float carrying = step(0.5, UnitD.w);
     vec3 local_point = bend_part(int(PartIndex + 0.5), vertex_position.xyz, walk, moving, girth, carrying, local_normal);
 
-    // the unit's own axes on the ground: forward along its heading
-    vec3 forward = vec3(sin(heading), 0.0, -cos(heading));
-    vec3 right = vec3(cos(heading), 0.0, sin(heading));
-    vec3 up = vec3(0.0, 1.0, 0.0);
+    // the unit's own axes on the ground: forward along its heading; tipped
+    // away from the hub when the outward lean is chosen (0 by default)
+    vec3 forward = lean(vec3(sin(heading), 0.0, -cos(heading)), angle);
+    vec3 right = lean(vec3(cos(heading), 0.0, sin(heading)), angle);
+    vec3 up = lean(vec3(0.0, 1.0, 0.0), angle);
 
     // the figure's feet are at height 0 in the body plan: it stands on the ground
     vec3 world = fold_ground_position(r, angle)
                + (right * local_point.x + up * local_point.y + forward * local_point.z) * height;
 
-    v_normal = right * local_normal.x + up * local_normal.y + forward * local_normal.z;
+    vec3 n = normalize(right * local_normal.x + up * local_normal.y + forward * local_normal.z);
+    v_facing = view_facing(n);
+    v_rim = 1.0 - length(v_facing);
     v_color = owner_colors[int(UnitB.y + 0.5)];
     v_named = UnitC.w;
+    v_haze = clamp(hub_distance(world) / hub_far, 0.0, 1.0);
     return project_world(world);
 }
 ]]
 
-local UNIT_PIXEL = [[
-uniform vec3 cam_back;
-varying vec3 v_normal;
+local UNIT_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
+uniform Image metal_dial;
+uniform Image glaze_dial;
+varying vec2 v_facing;
 varying vec3 v_color;
 varying float v_named;
+varying float v_haze;
+varying float v_rim;
 
 vec4 effect(vec4 color, Image skin, vec2 uv, vec2 screen) {
-    // the skin stores brightness (red) and how much owner color shows (green)
+    // the skin stores brightness (red) and where owner colour shows (green):
+    // metal panels look up the metal dial; the band, the glaze dial, tinted
     vec4 texel = Texel(skin, uv);
-    vec3 n = normalize(v_normal);
-    vec3 to_light = normalize(vec3(-0.45, 0.8, 0.4));
-    vec3 to_eye = normalize(cam_back);
-    vec3 halfway = normalize(to_light + to_eye);
-
-    float diffuse = max(dot(n, to_light), 0.0);
-    // Blinn-Phong: a tight highlight where the surface faces halfway between
-    // the light and the eye — the polished-metal glint
-    float specular = pow(max(dot(n, halfway), 0.0), 48.0);
-
-    vec3 metal = vec3(0.62, 0.66, 0.72) * texel.r;
-    vec3 body = mix(metal, v_color * (0.55 + 0.6 * texel.r), texel.g);
-    vec3 lit = body * (0.28 + 0.85 * diffuse)
-             + specular * vec3(1.0, 0.97, 0.92) * (0.55 + 0.45 * texel.r);
-
-    // a cool rim of light on every unit; a bright one on the named unit
-    float rim = pow(1.0 - max(dot(n, to_eye), 0.0), 2.5);
-    lit += rim * (0.12 * vec3(0.6, 0.75, 0.9) + v_named * vec3(1.0, 1.0, 0.8) * 2.2)
-         + v_named * vec3(0.25, 0.25, 0.2);
-    return vec4(lit, 1.0);
+    vec2 facing = clamp(v_facing, vec2(-1.0), vec2(1.0));
+    vec3 metal = vec3(0.78, 0.80, 0.85) * texel.r * dial_light(metal_dial, facing) * 1.9;
+    vec3 band = v_color * (0.6 + 0.5 * texel.r) * dial_light(glaze_dial, facing) * 1.6;
+    vec3 lit = mix(metal, band, texel.g);
+    // the named unit glows at its edges
+    float edge = pow(max(1.0 - length(facing), 0.0), 0.5);
+    lit += v_named * (vec3(1.0, 1.0, 0.8) * edge * 1.4 + vec3(0.22, 0.22, 0.18));
+    return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
 
@@ -147,7 +211,7 @@ vec4 effect(vec4 color, Image skin, vec2 uv, vec2 screen) {
 -- 0.3 keeps the edges rounded — "cubes made of rounded spheres".
 M.CUBOID_ROUNDNESS = 0.3
 
-local CUBOID_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
+local CUBOID_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. LEAN_GLSL .. [[
 attribute vec4 CubeA;   // r, angle, height, size
 attribute vec4 CubeB;   // color, state, claimant, carrier
 attribute vec4 CubeC;   // timer, slot, appearances, turn
@@ -155,8 +219,9 @@ attribute vec4 CubeC;   // timer, slot, appearances, turn
 uniform vec3 cuboid_colors[4];
 uniform float roundness;
 
-varying vec3 v_normal;
+varying vec2 v_facing;
 varying vec3 v_color;
+varying float v_haze;
 
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // the unit sphere pushed toward a cube: each coordinate raised to a small
@@ -170,41 +235,33 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 
     float size = CubeA.w * fold_size_scale(CubeA.x);
     float turn = CubeC.w;
-    vec3 forward = vec3(sin(turn), 0.0, -cos(turn));
-    vec3 right = vec3(cos(turn), 0.0, sin(turn));
-    vec3 up = vec3(0.0, 1.0, 0.0);
+    vec3 forward = lean(vec3(sin(turn), 0.0, -cos(turn)), CubeA.y);
+    vec3 right = lean(vec3(cos(turn), 0.0, sin(turn)), CubeA.y);
+    vec3 up = lean(vec3(0.0, 1.0, 0.0), CubeA.y);
     vec3 half_edge = shape * size * 0.5;
     vec3 world = fold_ground_position(CubeA.x, CubeA.y)
                + up * (CubeA.z + size * 0.5)
                + right * half_edge.x + up * half_edge.y + forward * half_edge.z;
-    v_normal = right * n.x + up * n.y + forward * n.z;
+    v_facing = view_facing(normalize(right * n.x + up * n.y + forward * n.z));
     v_color = cuboid_colors[int(CubeB.x + 0.5)];
+    v_haze = clamp(hub_distance(world) / hub_far, 0.0, 1.0);
     return project_world(world);
 }
 ]]
 
-local CUBOID_PIXEL = [[
-uniform vec3 cam_back;
-varying vec3 v_normal;
+local CUBOID_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
+uniform Image glaze_dial;
+varying vec2 v_facing;
 varying vec3 v_color;
+varying float v_haze;
 
-// Glazed ceramic: a deep color under a clear glaze — a soft body light, a
-// sharp bright glint, a broad sheen, and a white edge where the glaze is seen
-// at a slant.
+// Glazed ceramic: its colour, tinting the glaze dial's light.
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
-    vec3 n = normalize(v_normal);
-    vec3 to_light = normalize(vec3(-0.45, 0.8, 0.4));
-    vec3 to_eye = normalize(cam_back);
-    vec3 halfway = normalize(to_light + to_eye);
-    float diffuse = max(dot(n, to_light), 0.0);
-    float glint = pow(max(dot(n, halfway), 0.0), 120.0);
-    float sheen = pow(max(dot(n, halfway), 0.0), 12.0) * 0.18;
-    float slant = pow(1.0 - max(dot(n, to_eye), 0.0), 4.0) * 0.35;
-    vec3 lit = v_color * (0.22 + 0.85 * diffuse) + vec3(glint + sheen + slant);
-    return vec4(lit, 1.0);
+    vec2 facing = clamp(v_facing, vec2(-1.0), vec2(1.0));
+    vec3 lit = v_color * dial_light(glaze_dial, facing) * 1.6;
+    return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
-
 -- {{{ local function build_ground_mesh()
 -- A disc of `rings` x `segments`, each vertex holding (tier distance, angle)
 -- as its position and its spot on the flat map as its texture coordinate.
@@ -298,7 +355,6 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     for _, group in ipairs({ "CubeA", "CubeB", "CubeC" }) do
         renderer.cuboid_mesh:attachAttribute(group, renderer.cuboid_instances, "perinstance")
     end
-
     renderer.unit_shader:send("owner_colors", unpack(M.OWNER_COLORS))
     renderer.unit_shader:send("unit_world_scale", M.UNIT_WORLD_SCALE)
     renderer.unit_shader:send("full_pace", M.FULL_PACE)
@@ -306,15 +362,44 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     renderer.cuboid_shader:send("cuboid_colors", M.OWNER_COLORS[1], M.OWNER_COLORS[2],
         M.OWNER_COLORS[3], M.OWNER_COLORS[4])
     renderer.cuboid_shader:send("roundness", M.CUBOID_ROUNDNESS)
+
+    -- the light dials, painted once (013's lighting; issue 213)
+    renderer.dials = {}
+    for _, material in ipairs({ "metal", "glaze", "earth" }) do
+        local dial = love.graphics.newImage(made_by_formula.light_dial(512, material))
+        dial:setFilter("linear", "linear")
+        dial:setWrap("clamp", "clamp")
+        renderer.dials[material] = dial
+    end
+    renderer.ground_shader:send("earth_dial", renderer.dials.earth)
+    renderer.unit_shader:send("metal_dial", renderer.dials.metal)
+    renderer.unit_shader:send("glaze_dial", renderer.dials.glaze)
+    renderer.cuboid_shader:send("glaze_dial", renderer.dials.glaze)
+    for _, shader in ipairs({ renderer.ground_shader, renderer.unit_shader, renderer.cuboid_shader }) do
+        shader:send("window_center", M.WINDOW_CENTER)
+        shader:send("window_radius", M.WINDOW_RADIUS)
+        shader:send("haze_color", M.HAZE_COLOR)
+    end
     return renderer
+end
+-- }}}
+
+-- {{{ local function send_frame()
+-- What changes frame to frame: the camera, the fold, the hour, the lean.
+local function send_frame(renderer, shader, flip_y, look)
+    far_camera.send(renderer.camera, shader, flip_y)
+    sphere_fold.send(renderer.fold, shader)
+    shader:send("hour_angle", look.hour_angle)
+    far_camera.send_used(shader, "lean_out", look.standing == "outward" and M.OUTWARD_LEAN or 0)
 end
 -- }}}
 
 -- {{{ function M.draw()
 -- Draws the ground, the units and the cuboids into whatever canvas is set
 -- (it must have a depth buffer). The two front blocks (byte data) are handed
--- to the graphics card whole.
-function M.draw(renderer, front_units, front_cuboids, flip_y)
+-- to the graphics card whole. `look` carries hour_angle (radians, the light
+-- dials' turn: 0 noon) and standing ("upright" or "outward").
+function M.draw(renderer, front_units, front_cuboids, flip_y, look)
     renderer.instance_mesh:setVertices(front_units)
     renderer.cuboid_instances:setVertices(front_cuboids)
 
@@ -322,18 +407,15 @@ function M.draw(renderer, front_units, front_cuboids, flip_y)
     love.graphics.setMeshCullMode("none")
 
     love.graphics.setShader(renderer.ground_shader)
-    far_camera.send(renderer.camera, renderer.ground_shader, flip_y)
-    sphere_fold.send(renderer.fold, renderer.ground_shader)
+    send_frame(renderer, renderer.ground_shader, flip_y, look)
     love.graphics.draw(renderer.ground_mesh)
 
     love.graphics.setShader(renderer.unit_shader)
-    far_camera.send(renderer.camera, renderer.unit_shader, flip_y)
-    sphere_fold.send(renderer.fold, renderer.unit_shader)
+    send_frame(renderer, renderer.unit_shader, flip_y, look)
     love.graphics.drawInstanced(renderer.unit_mesh, renderer.unit_count)
 
     love.graphics.setShader(renderer.cuboid_shader)
-    far_camera.send(renderer.camera, renderer.cuboid_shader, flip_y)
-    sphere_fold.send(renderer.fold, renderer.cuboid_shader)
+    send_frame(renderer, renderer.cuboid_shader, flip_y, look)
     love.graphics.drawInstanced(renderer.cuboid_mesh, renderer.cuboid_count)
 
     love.graphics.setShader()

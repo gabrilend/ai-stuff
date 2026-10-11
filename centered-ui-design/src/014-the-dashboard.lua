@@ -46,11 +46,18 @@ M.MONTHS = { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY",
 M.MONTH_DAYS = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 M.WEEKDAYS = { "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" }
 
--- The arch's proportions: height as a share of the window's height; width
--- and band thickness as shares of the arch's height. Each section keeps
--- these whatever the number of allies.
-M.ARCH_HEIGHT_SHARE = 0.74
-M.ARCH_WIDTH_SHARE = 1.0
+-- The arch's band thickness as a share of its height. Its height is a
+-- setting (a share of the window's height); its width is the window's: it
+-- stands on the bottom pixel row and reaches both sides (the owner, issue
+-- 302). Each section keeps these whatever the number of allies.
+
+-- {{{ function M.width_share_for()
+-- The arch's width as a share of its height, for a window and a height share.
+function M.width_share_for(width, height, height_share)
+    return width / (height * height_share)
+end
+-- }}}
+
 M.ARCH_BAND_SHARE = 0.085
 -- How much of each neighbour's arch shows beside your own, as a share of
 -- your arch's width: "only your own, and the very edge of your allies".
@@ -80,8 +87,19 @@ M.SETTINGS_BUTTONS = {
     { verb = "cap_plus_10",    label = "+10",  paint = { 1.00, 0.45, 0.10 }, across = 0.24,  up = 0.43 },
     { verb = "cap_minus_1",    label = "-1",   paint = { 0.10, 0.85, 0.90 }, across = -0.12, up = 0.43 },
     { verb = "cap_plus_1",     label = "+1",   paint = { 1.00, 0.72, 0.10 }, across = 0.12,  up = 0.43 },
-    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, across = -0.10, up = 0.12 },
-    { verb = "quit",           label = "QUIT", paint = { 0.95, 0.20, 0.18 }, across = 0.10,  up = 0.12 },
+    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, across = -0.10, up = 0.07 },
+    { verb = "quit",           label = "QUIT", paint = { 0.95, 0.20, 0.18 }, across = 0.10,  up = 0.07 },
+    -- the look toggles (issue 214): each shows its current choice
+    { verb = "toggle_depth",    look = "depth",    paint = { 0.65, 0.35, 1.00 }, across = -0.30, up = 0.19 },
+    { verb = "toggle_standing", look = "standing", paint = { 0.15, 0.80, 0.65 }, across = 0,     up = 0.19 },
+    { verb = "toggle_blur",     look = "blur",     paint = { 0.10, 0.85, 0.90 }, across = 0.30,  up = 0.19 },
+}
+
+-- What a look toggle's button says for each choice.
+M.LOOK_WORDS = {
+    depth = { flat = "FLAT VIEW", hub = "HUB VIEW" },
+    standing = { upright = "UPRIGHT", outward = "OUTWARD" },
+    blur = { on = "BLUR ON", off = "BLUR OFF" },
 }
 M.SETTINGS_BUTTON_RADIUS = 0.042
 
@@ -137,12 +155,15 @@ vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
 ]]
 
 -- {{{ function M.new()
--- `team_size` (whole, 1..4) and `seat` (whole) decide which neighbours'
--- arches show at the sides.
-function M.new(width, height, team_size, seat)
-    local arch_height = height * M.ARCH_HEIGHT_SHARE
-    local section = arch.new(width / 2, height / 2 + arch_height / 2, arch_height,
-        M.ARCH_WIDTH_SHARE, M.ARCH_BAND_SHARE)
+-- `team_size` (whole, 1..4) and `seat` (whole) decide which allies' arches
+-- are beside yours; `height_share` is the arch's height as a share of the
+-- window's.
+
+function M.new(width, height, team_size, seat, height_share)
+    local arch_height = height * height_share
+    -- standing on the bottom pixel row, reaching both sides of the window
+    local section = arch.new(width / 2, height, arch_height,
+        M.width_share_for(width, height, height_share), M.ARCH_BAND_SHARE)
     local dashboard = {
         width = width,
         height = height,
@@ -453,8 +474,13 @@ local function button_spots(dashboard, someone_named)
     end
     for _, button in ipairs(list) do
         local x, y = arch.at(section, button.across, button.up)
+        local label = button.label
+        -- a look toggle: its label is its current choice
+        if button.look ~= nil then
+            label = M.LOOK_WORDS[button.look][dashboard.look[button.look]]
+        end
         spots[#spots + 1] = {
-            verb = button.verb, label = button.label, paint = button.paint,
+            verb = button.verb, label = label, paint = button.paint,
             x = x, y = y, radius = radius * section.height, de_selected = de_selected,
         }
     end
@@ -800,6 +826,7 @@ end
 -- seat_colors (list of {r, g, b}), delivered (four whole numbers: cuboids
 -- resting in each section). `seconds` is the frame's time.
 function M.draw(dashboard, state, seconds)
+    dashboard.look = state.look
     love.graphics.push("all")
     love.graphics.setDepthMode("always", false)
     draw_dials(dashboard, state, seconds)

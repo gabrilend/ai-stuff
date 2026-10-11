@@ -42,6 +42,7 @@ local dashboard_module = require("014-the-dashboard")
 local view_plane = require("015-the-view-plane")
 local ceramic_host = require("023-the-ceramic-host")
 local map_from_beyond = require("024-the-map-from-beyond")
+local focus_ring = require("025-the-focus-ring")
 local ffi = require("ffi")
 
 local game = {}
@@ -69,6 +70,25 @@ local ORDER_INDEX = { advance = 1, attack = 2, hold = 3, fall_back = 4,
 local CAP_CHANGES = {
     cap_minus_10 = -10, cap_minus_1 = -1, cap_plus_1 = 1, cap_plus_10 = 10,
 }
+
+-- The look toggles in the settings menu (issue 214): which look each
+-- switches, and its choices in turn.
+local LOOK_TOGGLES = {
+    toggle_depth = { "depth", { "flat", "hub" } },
+    toggle_standing = { "standing", { "upright", "outward" } },
+    toggle_blur = { "blur", { "on", "off" } },
+}
+
+-- {{{ local function next_choice()
+local function next_choice(choices, current)
+    for index, choice in ipairs(choices) do
+        if choice == current then
+            return choices[index % #choices + 1]
+        end
+    end
+    error("game: '" .. tostring(current) .. "' is not one of the choices")
+end
+-- }}}
 
 local SEAT_NAMES = { "SEAT 1", "SEAT 2", "SEAT 3", "SEAT 4", "A FOE" }
 
@@ -215,6 +235,16 @@ function game.load(arguments)
     game.chair_target = game.home_turn
     game.camera.turn = game.chair
 
+    -- how the world is filmed, to compare (issue 214); the settings menu
+    -- switches each
+    game.look = {
+        depth = settings.view_depth,
+        standing = settings.view_standing,
+        blur = settings.view_blur,
+        hour_angle = 0,
+    }
+    game.camera.view = game.look.depth
+
     -- the world's engine
     game.engine = ceramic_host.start(ceramic_host.load(game.project_dir), {
         fold = game.fold,
@@ -231,7 +261,10 @@ function game.load(arguments)
     game.renderer = world_renderer.new(settings, game.camera, game.fold, game.unit_count,
         game.cuboid_count, seeding.SECTIONS)
     game.beyond = map_from_beyond.new(1024, game.renderer.flat_map)
-    game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat)
+    game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat,
+        settings.arch_height_share)
+    game.focus = focus_ring.new()
+    game.dashboard.look = game.look
     game.plane = view_plane.new(game.camera, settings.view_plane_distance, game.dashboard)
 end
 -- }}}
@@ -368,11 +401,20 @@ local function delivered_counts()
     return counts
 end
 -- }}}
+-- {{{ local function hour_angle_now()
+-- Where the light dials stand: one turn per calendar day, 0 at noon, pi at
+-- midnight. The game's first day starts mid-morning.
+local function hour_angle_now()
+    local day_fraction = (game.calendar_seconds / game.settings.calendar_seconds_per_day + 0.40) % 1
+    return TWO_PI * (day_fraction - 0.5)
+end
+-- }}}
 
 -- {{{ function game.draw()
 function game.draw()
     local units, _, cubes, _, unit_block, cube_block = blocks()
     local month, weekday, day = calendar_now()
+    game.look.hour_angle = hour_angle_now()
 
     -- the map from beyond, then the console's layers (textures for the sheet)
     map_from_beyond.draw(game.beyond, units, game.unit_count, cubes, game.cuboid_count,
@@ -384,18 +426,32 @@ function game.draw()
         named_text = named_text(), someone_named = game.named ~= nil,
         seat_colors = world_renderer.OWNER_COLORS,
         delivered = delivered_counts(),
+        look = game.look,
     }, game.frame_times[#game.frame_times] or 0)
 
-    -- the world, in its own picture with depth
+    -- the world, in its own picture with depth; under the hub camera the
+    -- sky is the haze far things fade into
     love.graphics.push("all")
     love.graphics.setCanvas({ game.world_canvas, depth = true })
-    love.graphics.clear({ 0.03, 0.035, 0.045, 1 }, 0, 1)
-    world_renderer.draw(game.renderer, unit_block, cube_block, game.FLIP_Y_IN_CANVAS)
+    -- the hub camera sees a horizon: its sky is the haze
+    if game.look.depth == "hub" then
+        local haze = world_renderer.HAZE_COLOR
+        love.graphics.clear({ haze[1], haze[2], haze[3], 1 }, 0, 1)
+    else
+        -- the far camera looks down on a dark table
+        love.graphics.clear({ 0.03, 0.035, 0.045, 1 }, 0, 1)
+    end
+    world_renderer.draw(game.renderer, unit_block, cube_block, game.FLIP_Y_IN_CANVAS, game.look)
     love.graphics.pop()
 
-    -- then the world on screen, and the console's sheet in front of it
+    -- then the world on screen — through the focus ring, if it is on — and
+    -- the console's sheet in front of it
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(game.world_canvas)
+    if game.look.blur == "on" then
+        focus_ring.draw(game.focus, game.world_canvas, game.camera, game.fold.edge_radius, game.FLIP_Y_ON_SCREEN)
+    else
+        love.graphics.draw(game.world_canvas)
+    end
     view_plane.draw(game.plane, game.FLIP_Y_ON_SCREEN, game.beyond.canvas)
     game.frames_drawn = game.frames_drawn + 1
 end
@@ -436,6 +492,13 @@ local function press_button(verb)
     -- a framerate cap change
     if CAP_CHANGES[verb] ~= nil then
         game.cap = frame_cap.clamp_cap(game.cap + CAP_CHANGES[verb])
+        return
+    end
+    -- a look toggle: switch to the next choice of that kind
+    if LOOK_TOGGLES[verb] ~= nil then
+        local kind, choices = LOOK_TOGGLES[verb][1], LOOK_TOGGLES[verb][2]
+        game.look[kind] = next_choice(choices, game.look[kind])
+        game.camera.view = game.look.depth
         return
     end
     -- closing the settings menu
@@ -481,10 +544,17 @@ end
 -- }}}
 
 -- {{{ function game.wheelmoved()
--- The scroll wheel turns the chair (one notch, an eighth of a quadrant).
--- Rolling away from you turns you clockwise, toward the next seat.
+-- The scroll wheel turns the chair. Rolling away from you turns you
+-- clockwise, toward the next seat. Under the hub camera one notch turns a
+-- whole quadrant — "aim it outward at one color at a time"; under the far
+-- camera, an eighth of one.
 function game.wheelmoved(_, notches)
-    game.chair_target = game.chair_target - notches * CHAIR_STEP * game.quadrant
+    local step = CHAIR_STEP
+    -- the hub camera: a whole colour a notch
+    if game.look.depth == "hub" then
+        step = 1
+    end
+    game.chair_target = game.chair_target - notches * step * game.quadrant
 end
 -- }}}
 
