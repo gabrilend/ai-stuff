@@ -88,6 +88,17 @@ it gets a word here first.
 - **walking phase** — a number each unit carries, turned by the move box in
   proportion to how fast the unit goes over the ground; the bend formula
   reads it. The shape is never rebuilt, only the formula's input changes.
+- **cuboid** — a small rounded cube (the unit sphere pushed toward a cube by
+  one formula), glazed like ceramic, in one of four colors, lying about for
+  units to carry.
+- **section** — a color-coded patch on the ground, one per color, one in the
+  middle of each quadrant: where cuboids of that color are carried and
+  stacked.
+- **hauling** — what a seat's unit with no order does: fetch the nearest
+  free cuboid, carry it to its color's section, set it down.
+- **chair** — the player's seat at the round table. Scrolling turns it about
+  the hub: the world turns and the row of arches slides, so the player can
+  look along to an ally's quadrant.
 - **stand** — one group of units that receives orders together. The smallest
   thing an order can be given to.
 - **order** — one instruction to one stand. Always given in the same two

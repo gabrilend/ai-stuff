@@ -82,15 +82,27 @@ the wiring, not the timing: every random draw comes from a stream named by
 (seed, tick, station), and the join stations combine their inputs in a fixed
 order (by direction index), never in arrival order.
 
-### Implementation route
+### Implementation route: the ceramic engine (decided 2026-10-10)
 
-Minimal-soramech is written in C (pthreads). Two routes, to be chosen (see
-[open-questions.md](open-questions.md)):
+The owner: "soramech engine. lua is singlethreaded. build soramech
+coroutines. ceramics." The world runs on soramech's C engine — the ceramic
+engine — in the copy world-edit-to-execute improved for per-frame work
+(`libs/ceramic/`, see its README), and the program takes the **ceramic
+shape**: LÖVE's main thread is the render thread only.
 
-1. Write the soramech pattern in Lua inside this project: stations as
-   tables, workers as LÖVE threads, slots as LÖVE channels.
-2. Build minimal-soramech's C engine as a shared library and drive it from
-   LuaJIT through its FFI, with boxes as Lua callbacks or C functions.
+- The boxes are C functions (`src/020-ceramic-boxes.c`), wired by a map
+  (`src/021-ceramics.map`), compiled by soramech's `serac` with a small host
+  surface (`src/022`) into a shared library (`scripts/build-ceramics`), loaded
+  through LuaJIT's FFI (`src/023`).
+- Each step is two stages: every unit chunk (32 units a task), then every
+  cuboid chunk. A stage goes in as one batch; the render thread counts what
+  has landed each frame and never waits.
+- The world travels by pointer: the host points the engine at the front and
+  back blocks before each step; every chunk writes only its own records.
+- The Lua stand-in that came first (stations on the main thread, one task
+  per unit through LÖVE channels) is retired: it spent the main thread
+  handing out and collecting every unit's task (37 frames per second at
+  3,000 units).
 
 ## Two halves that never touch directly
 

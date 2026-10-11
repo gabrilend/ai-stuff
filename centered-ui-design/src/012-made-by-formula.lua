@@ -53,8 +53,9 @@ end
 -- Draws the flat map into a new square canvas `size` pixels across: tiers
 -- equally spaced (the fold is applied later, when the map is laid on the
 -- folded ground), quadrant lines, faint quadrant tints in the seats' colors.
--- `seat_colors` is a list of {r, g, b}; `tiers` a whole number.
-function M.flat_map(size, tiers, seat_colors)
+-- `seat_colors` is a list of {r, g, b}; `tiers` a whole number; `sections` a
+-- list of {r, angle, radius} (tier distances and radians; see 007).
+function M.flat_map(size, tiers, seat_colors, sections)
     local canvas = love.graphics.newCanvas(size, size)
     local center = size / 2
     local radius = size / 2
@@ -97,6 +98,22 @@ function M.flat_map(size, tiers, seat_colors)
         local angle = quarter * math.pi / 2
         love.graphics.line(center, center,
             center + radius * math.sin(angle), center - radius * math.cos(angle))
+    end
+
+    -- the color-coded sections: a tinted floor and a bright edge in the color
+    -- of the cuboids that belong there (section k takes color k = seat k+1)
+    for index, section in ipairs(sections) do
+        local color = seat_colors[index]
+        local reach = radius * section.r / tiers
+        local x = center + reach * math.sin(section.angle)
+        local y = center - reach * math.cos(section.angle)
+        local section_radius = radius * section.radius / tiers
+        love.graphics.setColor(color[1], color[2], color[3], 0.28)
+        love.graphics.circle("fill", x, y, section_radius, 96)
+        love.graphics.setColor(color[1], color[2], color[3], 0.9)
+        love.graphics.setLineWidth(size / 300)
+        love.graphics.circle("line", x, y, section_radius, 96)
+        love.graphics.circle("line", x, y, section_radius * 0.82, 96)
     end
 
     love.graphics.pop()

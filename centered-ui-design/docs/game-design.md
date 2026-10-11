@@ -86,6 +86,24 @@ triangles beside it show the same difference by shape — pointing up and more
 numerous when ahead, down when behind — so the information never depends on
 seeing color.
 
+## Hauling cuboids
+
+Small rounded cubes — **cuboids**, glazed like ceramic, in the four seat
+colors — lie about the map. A seat's unit with no order given fetches the
+nearest free one, lifts it (its arms bend forward to hold it in front of its
+chest), carries it to the **section** of its color — a color-coded patch in
+the middle of each quadrant — and sets it down, stacked with the others.
+When two units go for one cuboid, the lower-numbered one gets it and the
+other looks again. A delivered cuboid rests, then appears somewhere new.
+Each section's count shows on a dial inked in its color. Giving a unit an
+order stops it hauling (it lets go of what it carries).
+
+## Looking along the table
+
+The player's chair turns: scrolling turns the world about the hub and
+slides the row of arches, so the player can look along to an ally's arch and
+quadrant and see what they are up to. Only your own arch's buttons answer.
+
 ## Production
 
 Factories are built by telling an engineer to build one. When a factory is

@@ -17,10 +17,13 @@ return {
     -- The player changes it in the settings menu (Escape).
     max_framerate = 144,
 
-    -- how many spheroid units walk the map, and how many worker threads take
-    -- their updates first come, first served
+    -- how many units walk the map, and how many of the ceramic engine's worker
+    -- threads take their chunks of work, first come, first served
     unit_count = 192,
     worker_count = 6,
+
+    -- how many cuboids lie about for the units to carry to their sections
+    cuboid_count = 96,
 
     -- the far camera: how far away it sits (world units), how many world units
     -- it shows from the screen's center to its top edge at the map's center

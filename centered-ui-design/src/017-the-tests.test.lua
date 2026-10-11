@@ -2,9 +2,12 @@
 --
 -- In plain terms: plain LuaJIT runs this file (no LÖVE, no graphics card).
 -- It checks the settings reader, the far camera's arithmetic, the sphere
--- fold, the unit records and the move box, the soramech stations, the seed
--- scatter, the frame cap's arithmetic and the spheroid's shape. Each check
--- prints PASS or FAIL with what it found; the file exits non-zero if any fail.
+-- fold, the unit records and the move box, the ceramic engine's C boxes (run
+-- inline through LuaJIT's FFI: their motion against the Lua twin, chunk order,
+-- claims, carrying, delivery), the seed scatter, the frame cap's arithmetic,
+-- the spheroid's shape, the body plan and the arch.
+-- Each check prints PASS or FAIL with what it found; the file exits non-zero
+-- if any fail.
 --
 -- Run it with scripts/run-tests, which passes the project folder.
 
@@ -18,7 +21,6 @@ local sphere_fold = require("004-the-sphere-fold")
 local records = require("005-unit-records")
 local move_box = require("006-the-move-box")
 local seeding = require("007-seeding-the-units")
-local stations = require("008-soramech-stations")
 local frame_cap = require("010-the-frame-cap")
 local spheroid = require("011-the-spheroid")
 
@@ -82,7 +84,7 @@ do
         local expected = { { -1, 1 }, { 1, 1 }, { 1, -1 }, { -1, -1 } }
         local worst = 0
         for index, corner in ipairs(corners) do
-            local x, y = far_camera.project(camera, corner[1], corner[2], corner[3])
+            local x, y = far_camera.project_fixed(camera, corner[1], corner[2], corner[3])
             worst = math.max(worst, math.abs(x - expected[index][1]), math.abs(y - expected[index][2]))
         end
         -- a hundredth of a pixel on a 1600-pixel-wide window is 1.25e-5 in ndc
@@ -184,33 +186,125 @@ do
         return true
     end)()
     check("units taken in any order give the same step", same)
-    check("a unit record is 48 bytes (three groups of four floats)", records.RECORD_BYTES == 48)
+    check("a unit record is 64 bytes and a cuboid 48 (groups of four floats)",
+        records.RECORD_BYTES == 64 and records.CUBOID_BYTES == 48)
 end
-
--- the soramech stations -------------------------------------------------------
+-- the ceramic engine's boxes (C), run inline from here ----------------------
 
 do
-    local pushed = {}
-    local pool = { push = function(_, task) pushed[#pushed + 1] = task end }
-    local map = stations.new_map(pool)
-    local ran = 0
-    local join = stations.add_station(map, { name = "join", slot_count = 3, where = "here",
-        on_ready = function() ran = ran + 1 end })
-    stations.deliver(map, join, 1, true)
-    stations.deliver(map, join, 3, true)
-    check("a station with an empty slot does not run", ran == 0)
-    stations.deliver(map, join, 2, true)
-    check("a station runs the moment its last slot fills", ran == 1)
-    stations.deliver(map, join, 1, true)
-    stations.deliver(map, join, 1, true)
-    check("extra values wait in their slot's queue", ran == 1)
+    local host = require("023-the-ceramic-host")
+    local library = host.load(DIR)
+    local settings = good_settings()
+    local fold = sphere_fold.from_settings(settings)
+    library.ceramics_set_fold(fold.strength, fold.tiers_shown, fold.hub_radius, fold.edge_radius, 5.0)
+    for index, section in ipairs(seeding.SECTIONS) do
+        library.ceramics_set_section(index - 1, section.r, section.angle, section.radius)
+    end
 
-    local mover = stations.add_station(map, { name = "move", box = "move_unit", slot_count = 1, where = "pool" })
-    stations.deliver(map, mover, 1, 7)
-    check("a pool station sends its job to the pool", #pushed == 1 and pushed[1][1] == mover and pushed[1][2] == 7)
+    -- the C motion against its Lua twin, over many seeded units
+    local count = 64
+    local front = ffi.new("unit_record[?]", count)
+    seeding.seed_units(front, count, 4242, fold)
+    local lua_back = ffi.new("unit_record[?]", count)
+    local c_back = ffi.new("unit_record[?]", count)
+    local worst = 0
+    for index = 0, count - 1 do
+        move_box.move_unit(front, lua_back, index, 1 / 30, fold)
+        library.ceramics_move_reference(front + index, c_back + index, 1 / 30)
+        for _, field in ipairs({ "r", "angle", "heading", "phase", "speed_r" }) do
+            worst = math.max(worst, math.abs(lua_back[index][field] - c_back[index][field]))
+        end
+    end
+    check("the C motion matches its Lua twin", worst < 1e-5, "worst " .. worst)
 
-    local ok = pcall(stations.add_station, map, { name = "typo", slot_count = 1, where = "pol" })
-    check("a station that runs nowhere is refused", not ok)
+    -- {{{ local function world_of()
+    -- A small seeded world in fresh blocks: units, cuboids, front and back.
+    local function world_of(unit_count, cuboid_count, seed)
+        local world = {
+            units = { ffi.new("unit_record[?]", unit_count), ffi.new("unit_record[?]", unit_count) },
+            cubes = { ffi.new("cuboid_record[?]", cuboid_count), ffi.new("cuboid_record[?]", cuboid_count) },
+            unit_count = unit_count, cuboid_count = cuboid_count, front = 1,
+        }
+        seeding.seed_units(world.units[1], unit_count, seed, fold)
+        seeding.seed_cuboids(world.cubes[1], cuboid_count, seed, fold)
+        return world
+    end
+    -- }}}
+
+    -- {{{ local function run_steps()
+    -- Runs `steps` whole steps inline; `reversed` runs every stage's chunks
+    -- backwards, as workers finishing in another order would.
+    local function run_steps(world, steps, reversed)
+        library.ceramics_set_counts(world.unit_count, world.cuboid_count, 99)
+        for _ = 1, steps do
+            local front, back = world.front, 3 - world.front
+            library.ceramics_set_world(world.units[front], world.units[back], world.cubes[front], world.cubes[back])
+            library.ceramics_run_inline(0, 1 / 60, reversed and 1 or 0)
+            library.ceramics_run_inline(1, 1 / 60, reversed and 1 or 0)
+            world.front = back
+        end
+    end
+    -- }}}
+
+    local forward_world = world_of(150, 40, 31)
+    local reversed_world = world_of(150, 40, 31)
+    run_steps(forward_world, 600, false)
+    run_steps(reversed_world, 600, true)
+    local identical = ffi.string(forward_world.units[forward_world.front], 150 * records.RECORD_BYTES)
+        == ffi.string(reversed_world.units[reversed_world.front], 150 * records.RECORD_BYTES)
+        and ffi.string(forward_world.cubes[forward_world.front], 40 * records.CUBOID_BYTES)
+        == ffi.string(reversed_world.cubes[reversed_world.front], 40 * records.CUBOID_BYTES)
+    check("chunks run in any order give the same world, byte for byte (600 steps)", identical)
+
+    -- claims: two units fetching one cuboid; the lower-numbered one gets it
+    local claim = world_of(2, 1, 5)
+    local units, cubes = claim.units[1], claim.cubes[1]
+    for index = 0, 1 do
+        units[index].owner = 0
+        units[index].order_kind = 0
+        units[index].r = 2
+        units[index].angle = 0.5 + index * 0.01
+        units[index].job = 0
+        units[index].target = -1
+    end
+    cubes[0].r = 2.05
+    cubes[0].angle = 0.505
+    run_steps(claim, 240, false)
+    local claimed = claim.cubes[claim.front][0]
+    check("two units after one cuboid: the lower-numbered unit carries it",
+        claimed.state == records.CUBE_CARRIED and claimed.carrier == 0,
+        "state " .. claimed.state .. " carrier " .. claimed.carrier)
+    check("the other gives up and goes back to looking",
+        claim.units[claim.front][1].job == records.JOB_IDLE)
+
+    -- a carried cuboid rides with its carrier
+    local carrier = claim.units[claim.front][0]
+    local cx, cz = sphere_fold.ground_position(fold, carrier.r, carrier.angle)
+    local bx, bz = sphere_fold.ground_position(fold, claimed.r, claimed.angle)
+    local apart = math.sqrt((cx - bx) ^ 2 + (cz - bz) ^ 2)
+    check("a carried cuboid stays in front of its carrier", apart < 4, "apart " .. apart)
+
+    -- a delivered cuboid rests in its own color's section
+    local deliveries = 0
+    local all_home = true
+    local settled = world_of(60, 30, 77)
+    run_steps(settled, 4000, false)
+    local final = settled.cubes[settled.front]
+    for index = 0, 29 do
+        local cuboid = final[index]
+        if cuboid.state == records.CUBE_DELIVERED then
+            deliveries = deliveries + 1
+            local section = seeding.SECTIONS[cuboid.color + 1]
+            local sx, sz = sphere_fold.ground_position(fold, section.r, section.angle)
+            local x, z = sphere_fold.ground_position(fold, cuboid.r, cuboid.angle)
+            local reach = sphere_fold.slope(fold, section.r) * section.radius
+            if math.sqrt((sx - x) ^ 2 + (sz - z) ^ 2) > reach then
+                all_home = false
+            end
+        end
+    end
+    check("cuboids get delivered", deliveries > 0, deliveries .. " delivered")
+    check("every delivered cuboid rests inside its own color's section", all_home)
 end
 
 -- the seed scatter ---------------------------------------------------------------

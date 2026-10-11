@@ -43,6 +43,17 @@ assumption is a guess until answered.
 - **Enhancements?** Yes — "yes yes yes yes yes yes yes yes yes": the City of
   Heroes system by way of Symbeline. A held enhancement waits in the tray
   until its power is owned, then slots in and strengthens it. (2026-10-10)
+- **Soramech's route?** The ceramic engine: "soramech engine. lua is
+  singlethreaded. build soramech coroutines. ceramics." C boxes compiled by
+  serac into a library LuaJIT loads; LÖVE's main thread is the render thread
+  only. (Questions 7 and 21; 2026-10-10)
+- **The band as the display of the map?** "through. Not through it's opening,
+  but painted onto it's surface from some distant beyond." The map, seen from
+  far above, is painted onto the band, its ally's quadrant unrolled along it.
+  (Question 22; 2026-10-10)
+- **Seeing allies?** "you should only see your own, and the very edge of your
+  allies - you can scroll to see what they're up to too by just rotating your
+  chair." (2026-10-10)
 
 ## Waiting
 
@@ -69,9 +80,7 @@ assumption is a guess until answered.
    fog of war — an effect is drawn for a player only when that player has
    sight of it. Or the reverse: an effect is drawn only while an enemy is
    looking at it?
-7. **Soramech's route into this project.** Write the pattern in Lua (stations
-   as tables, LÖVE threads and channels), or build minimal-soramech's C
-   engine and drive it from LuaJIT's FFI?
+7. (Answered — moved to Answered above, 2026-10-10.)
 8. **What else does the calendar pace**, besides votes? Income, foe
    reinforcements, level-up windows, hero returns?
 9. **Clicking a merged marker** — names its strongest stand, or the whole
@@ -102,13 +111,8 @@ assumption is a guess until answered.
     away from one at 20. Exact replays and network play (issue 102) want the
     simulation to step in fixed slices — several per frame when frames are
     slow — while the view scales by measured time. Is that split wanted?
-21. **Soramech's route, revisited.** The renderer uses the Lua route (stations
-    on the main thread, LÖVE channels as the pool). It reaches 240 frames per
-    second with 192 units, each unit one task per frame. Keep it, or move to
-    the C engine through FFI when unit counts grow?
-22. **The arch's band as "the display of the map".** Built as glass over the
-    world (the map seen through a gold-edged lens). Or did you mean a
-    separate drawn map along the band — a minimap?
+21. (Answered — moved to Answered above, 2026-10-10.)
+22. (Answered — moved to Answered above, 2026-10-10.)
 23. **Allies' arches in a round world.** The M is drawn as a straight row
     (you see your arch and your neighbours' feet). In the round world, are
     the arches meant to stand in a ring around the hub, one facing each

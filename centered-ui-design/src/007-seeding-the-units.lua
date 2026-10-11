@@ -3,8 +3,9 @@
 -- In plain terms: from the game's seed, scatter units across the map — each
 -- seat's units in its own quarter of the circle, foes further out — give each
 -- a size, a level, and a gentle wandering motion, and write them into the
--- front block of shared memory. The same seed always scatters them the same
--- way.
+-- front block of shared memory. Then scatter the cuboids, and name the four
+-- color-coded sections they are carried to. The same seed always scatters
+-- them the same way.
 --
 -- Randomness comes from a small generator written with LuaJIT's bit library
 -- (xorshift, 32-bit), not math.random, because math.random's sequence is not
@@ -82,6 +83,46 @@ function M.seed_units(front, count, seed, fold)
         unit.speed_angle = between(stream, -0.05, 0.05)
         unit.order_kind = 0
         unit.named = 0
+        unit.job = 0
+        unit.target = -1
+        unit.wants = 0
+        unit.carrying = 0
+    end
+end
+-- }}}
+
+-- The color-coded sections: where cuboids of each color are taken. One in
+-- the middle of each quadrant, a little out from the hub; colors 0..3 match
+-- seats 1..4. r and radius in tier distances, angle in radians.
+M.SECTIONS = {
+    { r = 1.7, angle = math.pi * 0.25, radius = 0.42 },
+    { r = 1.7, angle = math.pi * 0.75, radius = 0.42 },
+    { r = 1.7, angle = math.pi * 1.25, radius = 0.42 },
+    { r = 1.7, angle = math.pi * 1.75, radius = 0.42 },
+}
+
+-- A cuboid's edge, in world units at tier 1.
+M.CUBOID_SIZE = 2.4
+
+-- {{{ function M.seed_cuboids()
+-- Scatters `count` cuboids lying about, colors taken in turn, from the seed
+-- (a stream of its own, so adding cuboids never moves the units).
+function M.seed_cuboids(front, count, seed, fold)
+    local stream = M.new_stream(seed + 7919)
+    for index = 0, count - 1 do
+        local cuboid = front[index]
+        cuboid.r = between(stream, 0.9, fold.tiers_shown - 0.5)
+        cuboid.angle = between(stream, 0, TWO_PI)
+        cuboid.height = 0
+        cuboid.size = M.CUBOID_SIZE
+        cuboid.color = index % #M.SECTIONS
+        cuboid.state = 0
+        cuboid.claimant = -1
+        cuboid.carrier = -1
+        cuboid.timer = 0
+        cuboid.slot = 0
+        cuboid.appearances = 0
+        cuboid.turn = cuboid.angle
     end
 end
 -- }}}

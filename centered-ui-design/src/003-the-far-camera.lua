@@ -47,16 +47,28 @@ function M.new(settings, aspect)
         aspect = aspect,
         distance = settings.camera_distance,
         depth_half_range = settings.depth_half_range,
+        -- the chair's turn about the hub (radians); the game sets it
+        turn = 0,
     }
     return camera
 end
 -- }}}
 
 -- {{{ function M.project()
--- Projects a target-relative world point to normalized screen coordinates
--- (ndc x and y from -1 to 1, up is +y) and depth (-1 near .. 1 far).
+-- Projects a world point to normalized screen coordinates (ndc x and y from
+-- -1 to 1, up is +y) and depth (-1 near .. 1 far), after turning it by the
+-- chair (camera.turn: a point at angle a appears at angle a - turn).
 -- The CPU twin of the shader's project_world().
 function M.project(camera, x, y, z)
+    local c, s = math.cos(camera.turn), math.sin(camera.turn)
+    return M.project_fixed(camera, x * c + z * s, y, z * c - x * s)
+end
+-- }}}
+
+-- {{{ function M.project_fixed()
+-- The same, without the turn: for things hung on the camera itself.
+-- The CPU twin of the shader's project_fixed().
+function M.project_fixed(camera, x, y, z)
     local ex = x * camera.right_x + y * camera.right_y + z * camera.right_z
     local ey = x * camera.up_x + y * camera.up_y + z * camera.up_z
     local ez = x * camera.back_x + y * camera.back_y + z * camera.back_z
@@ -114,10 +126,9 @@ function M.view_plane_corners(camera, plane_distance)
     return corners
 end
 -- }}}
-
 -- {{{ function M.ground_point_under_pixel()
--- Where on the ground (y = 0) a window pixel looks. Used to name a stand by
--- clicking it. Returns world x, z.
+-- Where on the ground (y = 0) a window pixel looks, in world terms (the
+-- chair's turn undone). Used to name a stand by clicking it. Returns x, z.
 --
 -- Because the camera is so far away its rays are parallel to within float
 -- accuracy, so the ray through a pixel is "the pixel's eye position, moved
@@ -127,18 +138,22 @@ function M.ground_point_under_pixel(camera, pixel_x, pixel_y, width, height)
     local ndc_y = 1 - (pixel_y / height) * 2
     local ex = ndc_x * camera.half_height * camera.aspect
     local ey = ndc_y * camera.half_height
-    -- the point (ex, ey, 0) in eye terms, as a world point
+    -- the point (ex, ey, 0) in eye terms, as a (turned) world point
     local px = ex * camera.right_x + ey * camera.up_x
     local py = ex * camera.right_y + ey * camera.up_y
     local pz = ex * camera.right_z + ey * camera.up_z
     -- slide along the view direction (back) to the ground: py + t * back_y = 0
     local t = -py / camera.back_y
-    return px + t * camera.back_x, pz + t * camera.back_z
+    local turned_x, turned_z = px + t * camera.back_x, pz + t * camera.back_z
+    -- undo the chair's turn
+    local c, s = math.cos(camera.turn), math.sin(camera.turn)
+    return turned_x * c - turned_z * s, turned_z * c + turned_x * s
 end
 -- }}}
 
--- The shader twin of M.project. Prepended to every 3D shader.
-M.GLSL = [[
+-- The shader twin of M.project_fixed: for things hung on the camera (the
+-- console's sheet), which do not turn with the chair.
+M.GLSL_FIXED = [[
 uniform vec3 cam_right;
 uniform vec3 cam_up;
 uniform vec3 cam_back;
@@ -150,7 +165,7 @@ uniform float flip_y;
 
 // The far camera's projection. See 003-the-far-camera.lua for why the
 // distance only ever appears divided.
-vec4 project_world(vec3 p) {
+vec4 project_fixed(vec3 p) {
     float ex = dot(p, cam_right);
     float ey = dot(p, cam_up);
     float ez = dot(p, cam_back);
@@ -162,11 +177,25 @@ vec4 project_world(vec3 p) {
 }
 ]]
 
+-- The shader twin of M.project: the world, turned by the chair first.
+M.GLSL = M.GLSL_FIXED .. [[
+uniform float view_turn;
+
+// Turns the world about the hub so the chair's direction faces up the
+// screen: a point at angle a appears at angle a - view_turn.
+vec4 project_world(vec3 p) {
+    float c = cos(view_turn);
+    float s = sin(view_turn);
+    return project_fixed(vec3(p.x * c + p.z * s, p.y, p.z * c - p.x * s));
+}
+]]
+
 -- {{{ function M.send()
--- Hands the camera's numbers to a shader that includes M.GLSL.
--- `flip_y` is 1 or -1: whether the target being drawn into stores rows
--- top-down or bottom-up (decided by the renderer, which knows).
-function M.send(camera, shader, flip_y)
+-- Hands the camera's numbers to a shader that includes M.GLSL (or
+-- M.GLSL_FIXED, with `fixed` true: no turn is sent). `flip_y` is 1 or -1:
+-- whether the target being drawn into stores rows top-down or bottom-up
+-- (decided by the renderer, which knows).
+function M.send(camera, shader, flip_y, fixed)
     shader:send("cam_right", { camera.right_x, camera.right_y, camera.right_z })
     shader:send("cam_up", { camera.up_x, camera.up_y, camera.up_z })
     shader:send("cam_back", { camera.back_x, camera.back_y, camera.back_z })
@@ -175,6 +204,10 @@ function M.send(camera, shader, flip_y)
     shader:send("camera_distance", camera.distance)
     shader:send("depth_half_range", camera.depth_half_range)
     shader:send("flip_y", flip_y)
+    -- the world turns with the chair; the sheet on the camera does not
+    if not fixed then
+        shader:send("view_turn", camera.turn)
+    end
 end
 -- }}}
 

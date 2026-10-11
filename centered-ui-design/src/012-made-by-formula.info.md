@@ -6,4 +6,4 @@ Every picture is drawn by code; none is AI-generated.
 | Offers | Gives |
 |---|---|
 | `unit_skin(width, height)` | image data: red = metal brightness (panels, seams, rivets, grain), green = where the owner's color shows (a band) |
-| `flat_map(size, tiers, seat_colors)` | a canvas: quadrant tints, angle grid, equally spaced tier rings, quadrant lines |
+| `flat_map(size, tiers, seat_colors, sections)` | a canvas: quadrant tints, angle grid, equally spaced tier rings, quadrant lines, the color-coded sections |

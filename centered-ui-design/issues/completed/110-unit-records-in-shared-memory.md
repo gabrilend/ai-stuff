@@ -2,7 +2,7 @@
 
 **Phase:** 1 — The world beneath
 **Blocked by:** 109
-**Blocks:** 111
+**Blocks:** 111, 406
 **Related documents:** docs/architecture.md (The shape: soramech),
 docs/datapath-world-tick.md
 **Completed:** 2026-10-10

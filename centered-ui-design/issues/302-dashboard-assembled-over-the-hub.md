@@ -8,20 +8,22 @@ screen)
 
 ## Current Behavior
 
-Built (2026-10-10), waiting on its open questions. The console is an arch
-(`src/019-the-arch.lua`: parabolic outer and inner curves meeting the base at
-the feet) centered on the screen, 74% of the window's height. Its band is
-gold-edged glass through which the finished world picture is seen, bent like
-a lens (`src/015-the-view-plane.lua`, now drawn after the world). Beneath it,
-the brushed-metal surface holds the calendar (month and weekday arc windows,
-the day-number hole one disc lower), three readouts, the named slot, and two
-columns of order buttons — laid out as data in arch units
-(`src/014-the-dashboard.lua`). With `team_size` above 1 (from `input/`),
-the neighbours' arches show at the sides sharing your feet, dimmer, labelled
-with their seats (a ring: seat 1 sits between seats 4 and 2); with 1, no
-neighbours. Tests: surface and band never overlap; every button and window
-lies wholly on the surface; a neighbour's foot lands exactly on yours. Not
-built yet: the resource and couriers-in-flight dials.
+Built (2026-10-10), waiting on its one open question. The console is an arch
+(`src/019-the-arch.lua`) centered on the screen, 74% of the window's height.
+Its band carries the map painted from far beyond (`src/024`): the ally's
+quadrant unrolled along it, hub to farthest tier across it, units and
+cuboids as dots — each band pixel's place is drawn into a fourth layer
+(`band`, 16-bit floats) and looked up by the sheet's shader (`src/015`).
+Beneath it, the brushed-metal surface holds the calendar, three readouts,
+four section counts, the named slot, and two columns of order buttons — laid
+out as data in arch units (`src/014-the-dashboard.lua`). The allies' arches
+form a ring-ordered row; a clip shows your own arch and only the very edge
+of the next. The scroll wheel turns the chair (an eighth of a quadrant a
+notch, eased): the world turns about the hub and the row slides, so an ally's
+arch, band and quadrant come into view, dimmed and labelled with their seat;
+only your own buttons answer. Tests: surface and band never overlap; every
+button and window lies wholly on the surface; a neighbour's foot lands
+exactly on yours. Not built yet: the resource and couriers-in-flight dials.
 
 ## Intended Behavior
 
@@ -30,17 +32,26 @@ arch.
 
 - The console in the middle of the screen is an **arch**: a tall curved band
   rising from two feet on a flat base, like one hump of an M.
-- **The arch's band is the display of the map**: a band of glass through
-  which the world map is seen, bent slightly as through a lens, edged in
-  gold.
+- **The arch's band is the display of the map** — "through. Not through its
+  opening, but painted onto its surface from some distant beyond." The band
+  is not a window onto what lies behind it: the map is painted onto the
+  band's surface, as seen from far beyond, straight down. Each arch paints its
+  own ally's quadrant unrolled along it: from left foot to right foot runs
+  the quadrant's angle; from the band's inner edge to its outer edge runs the
+  distance from the hub out to the farthest tier. Units and cuboids show on
+  it as they move.
 - **The part beneath the arch's curve and above its base is the dashboard
   surface**: brushed metal holding the painted order buttons and the dials
   (calendar, readouts, who the next order goes to).
 - **Allies make it an M.** With several stand-ins the whole console is one
   arch per ally, side by side, sharing their feet — an M with as many humps
-  as there are allies. Each player sees only their own section: their arch
-  whole, the neighbours' feet at its sides. The console grows to hold every
-  ally while each section stays the same size.
+  as there are allies, all the way round (seats form a ring). **You see only
+  your own arch and the very edge of your allies'.** The console grows to hold
+  every ally while each section stays the same size.
+- **Rotating your chair**: scrolling turns your chair around the hub. The map
+  turns with you and the row of arches slides by, so you can look along to
+  an ally's arch and quadrant to see what they are up to; scroll back to
+  return. Only your own arch's buttons answer; an ally's are shown, dimmed.
 - Only buttons answer clicks; the band and the dials are information.
 
 ## Suggested Implementation Steps
@@ -49,17 +60,20 @@ arch.
    functions of a section's width, height and band thickness; hit tests.
 2. Lay the dashboard out in arch coordinates (across from the center, up
    from the base) as a data table.
-3. The band's glass: the view plane samples the world picture through it
-   (so the plane is drawn in a second pass, after the world).
-4. The M: neighbours' arches drawn at the section's sides, dimmer, labelled
-   with their seat.
-5. Tests: the arch's interior and band never overlap; every button lies
-   inside the interior; the section's size does not change with team size.
+3. The band's paint: a picture of the map from straight above (the flat map
+   with units and cuboids as marks), and per band pixel its place along and
+   across the band, so the sheet's shader can look up the map at that
+   quadrant angle and tier.
+4. The M: every ally's arch in a ring-ordered row; a clip that shows your
+   own and only a sliver of the next.
+5. The chair: a turn angle eased toward where the scroll wheel leaves it; it
+   turns the map and slides the row.
+6. Tests: the arch's interior and band never overlap; every button lies
+   inside the interior; the band's paint maps its feet to the quadrant's
+   edges and its outer edge to the farthest tier.
 
 ## Open questions
 
-- Is the band "the display of the map" meant as glass onto the world behind
-  it (as built), or as a separate drawn map (a minimap) along the band?
 - In the round world, are allies' arches arranged in a ring around the hub
   (one facing each quadrant), with the M seen as a straight row only because
-  you see one section at a time?
+  you see one section at a time? (Built as a ring-ordered row.)

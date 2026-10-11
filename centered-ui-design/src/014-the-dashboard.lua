@@ -1,21 +1,30 @@
 -- 014-the-dashboard.lua - the arch console, drawn as three layers.
 --
 -- In plain terms: the console in the middle of the screen is an arch (one
--- hump of an M, see 019). Its band is glass through which the map is seen;
--- beneath its curve is the dashboard surface. Everything is drawn into three
--- pictures the size of the window, which the view plane (015) lays over the
--- world:
+-- hump of an M, see 019). Its band is the display of the map — the map
+-- painted onto it from far beyond (024), its ally's quadrant unrolled along
+-- it. Beneath its curve is the dashboard surface. Everything is drawn into
+-- four pictures the size of the window, which the view plane (015) lays over
+-- the world:
 --
 --   face   the brushed-metal surface under the arch, with windows cut out,
---          painted buttons, engraved labels, gold edges along the band; the
---          neighbours' arches at the sides, dimmer
+--          painted buttons, engraved labels, gold edges along the band
 --   dials  what lies beneath the windows: paper-thin discs with words and
 --          numbers inscribed on them, turned by the game to show a value,
 --          each clipped to its own window
 --   glass  for each window and for the band, how strongly and which way its
 --          glass bends what is beneath it (red = glass here; green and blue =
 --          the direction of the bend, 0.5 meaning none; alpha 1 = a dial is
---          beneath, alpha 0.5 = the world is beneath — the band)
+--          beneath, alpha 0.5 = the band's painted map is beneath)
+--   band   where on the map each band pixel paints: red = how far along the
+--          band (0 left foot .. 1 right foot), green = how far across (0
+--          inner edge = the hub .. 1 outer edge = the farthest tier), blue =
+--          which ally's quadrant (seat - 1, over the team's size)
+--
+-- Allies: the whole console is one arch per ally, a ring of them; the row
+-- slides as the player turns their chair (M.set_chair), and a clip shows
+-- only your own arch and the very edge of the next. Only your own arch's
+-- buttons answer.
 --
 -- The player clicks only painted buttons. Dials and the band are
 -- information: they ignore the mouse completely. The settings menu (Escape)
@@ -44,8 +53,9 @@ M.ARCH_HEIGHT_SHARE = 0.74
 M.ARCH_WIDTH_SHARE = 1.0
 M.ARCH_BAND_SHARE = 0.085
 -- How much of each neighbour's arch shows beside your own, as a share of
--- your arch's width.
-M.NEIGHBOUR_SHOWN = 0.17
+-- your arch's width: "only your own, and the very edge of your allies".
+-- Turn your chair to see more of theirs.
+M.NEIGHBOUR_SHOWN = 0.03
 
 -- The center the calendar rings turn around (arch units).
 M.CALENDAR_CENTER = { 0, 0.20 }
@@ -90,6 +100,11 @@ M.WINDOWS = {
     { dial = "units",    shape = "round", only = "always", across = 0.15,  up = 0.30, radius = 0.055 },
     { dial = "named",    shape = "slot",  only = "orders", across = 0, up = 0.115, half_width = 0.17, half_height = 0.035 },
     { dial = "cap",      shape = "round", only = "settings", across = 0, up = 0.56, radius = 0.075 },
+    -- how many cuboids rest in each color's section (ink in that color)
+    { dial = "section_1", shape = "round", only = "orders", across = -0.20, up = 0.425, radius = 0.028 },
+    { dial = "section_2", shape = "round", only = "orders", across = -0.11, up = 0.425, radius = 0.028 },
+    { dial = "section_3", shape = "round", only = "orders", across = 0.11,  up = 0.425, radius = 0.028 },
+    { dial = "section_4", shape = "round", only = "orders", across = 0.20,  up = 0.425, radius = 0.028 },
 }
 
 -- Engraved labels (arch units, centered there).
@@ -134,9 +149,13 @@ function M.new(width, height, team_size, seat)
         section = section,
         team_size = team_size,
         seat = seat,
+        home_x = section.center_x,
+        chair_offset = 0,
         face = love.graphics.newCanvas(width, height),
         dials = love.graphics.newCanvas(width, height),
         glass = love.graphics.newCanvas(width, height),
+        -- the band's map coordinates need finer steps than 8 bits give
+        band = love.graphics.newCanvas(width, height, { format = "rgba16f" }),
         metal_shader = love.graphics.newShader(METAL_PIXEL),
         dial_angles = { month = 0, weekday = 0, day = 0 },
         settings_open = false,
@@ -313,8 +332,8 @@ end
 
 -- {{{ local function band_glass_mesh()
 -- The band's glass: a strip from foot to foot, its inner edge leaning in
--- toward the dashboard and its outer edge leaning out, alpha 0.5 (the world
--- lies beneath it, not a dial).
+-- toward the dashboard and its outer edge leaning out, alpha 0.5 (the painted
+-- map lies beneath it, not a dial).
 local function band_glass_mesh(section)
     local vertices = {}
     for _, point in ipairs(arch.curve_points(section, 96)) do
@@ -325,6 +344,63 @@ local function band_glass_mesh(section)
         vertices[#vertices + 1] = { point[3], point[4], 0, 0, 1, 0.5 + 0.5 * nx, 0.5 + 0.5 * ny, 0.5 }
     end
     return love.graphics.newMesh(vertices, "strip", "static")
+end
+-- }}}
+
+-- {{{ local function band_coordinates_mesh()
+-- The band as a strip whose colors say where on the map each pixel paints:
+-- red runs 0 to 1 from the left foot to the right, green 0 on the inner edge
+-- to 1 on the outer, blue is the ally's quadrant (`quadrant`, 0..1).
+local function band_coordinates_mesh(section, quadrant)
+    local vertices = {}
+    local points = arch.curve_points(section, 96)
+    for index, point in ipairs(points) do
+        local along = (index - 1) / (#points - 1)
+        vertices[#vertices + 1] = { point[1], point[2], 0, 0, along, 0, quadrant, 1 }
+        vertices[#vertices + 1] = { point[3], point[4], 0, 0, along, 1, quadrant, 1 }
+    end
+    return love.graphics.newMesh(vertices, "strip", "static")
+end
+-- }}}
+
+-- {{{ function M.set_chair()
+-- Turns the chair: `offset` is how many arches along the row the view has
+-- slid (0 = your own arch in front; 1 = the next ally's). Your own arch's
+-- place, and so its buttons and dials, move with it.
+function M.set_chair(dashboard, offset)
+    dashboard.chair_offset = offset
+    local spacing = dashboard.section.width - dashboard.section.band
+    dashboard.section.center_x = dashboard.home_x - offset * spacing
+end
+-- }}}
+
+-- {{{ local function visible_arches()
+-- Every arch with any part in view: a list of { section, seat, own }.
+-- Seats form a ring, so the arch k places along the row from yours is seat
+-- (seat + k) wrapped around the team.
+local function visible_arches(dashboard)
+    local arches = {}
+    local own = dashboard.section
+    local team = dashboard.team_size
+    local nearest = math.floor(dashboard.chair_offset + 0.5)
+    for k = nearest - 2, nearest + 2 do
+        local seat = (dashboard.seat - 1 + k) % team + 1
+        -- alone: the one arch, once
+        if team > 1 or k == 0 then
+            arches[#arches + 1] = { section = arch.shifted(own, k), seat = seat, own = (k == 0) }
+        end
+    end
+    return arches
+end
+-- }}}
+
+-- {{{ local function clip()
+-- The part of the window the console may show: your own arch's width at the
+-- screen's center plus the very edge of the next on each side.
+local function clip(dashboard)
+    local section = dashboard.section
+    local half = section.width / 2 + section.width * M.NEIGHBOUR_SHOWN
+    return dashboard.home_x - half, 0, half * 2, dashboard.height
 end
 -- }}}
 
@@ -389,6 +465,11 @@ end
 -- {{{ function M.button_under()
 -- The verb of the button under a pixel, or nil. Dials and the band never answer.
 function M.button_under(dashboard, x, y, someone_named)
+    local left, _, width = clip(dashboard)
+    -- outside the shown part of the console: no button there
+    if x < left or x > left + width then
+        return nil
+    end
     for _, spot in ipairs(button_spots(dashboard, someone_named)) do
         local dx, dy = x - spot.x, y - spot.y
         if dx * dx + dy * dy <= spot.radius * spot.radius then
@@ -403,7 +484,18 @@ end
 -- Whether a pixel lies on your arch (its surface or its band), so a click
 -- there is not a map click.
 function M.covers(dashboard, x, y)
-    return arch.in_interior(dashboard.section, x, y) or arch.in_band(dashboard.section, x, y)
+    local left, _, width = clip(dashboard)
+    -- outside the shown part of the console: the map
+    if x < left or x > left + width then
+        return false
+    end
+    -- on any shown arch (yours, or an ally's slid into view)
+    for _, shown_arch in ipairs(visible_arches(dashboard)) do
+        if arch.in_interior(shown_arch.section, x, y) or arch.in_band(shown_arch.section, x, y) then
+            return true
+        end
+    end
+    return false
 end
 -- }}}
 
@@ -472,6 +564,7 @@ local function draw_dials(dashboard, state, seconds)
     local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
     love.graphics.setCanvas({ dashboard.dials, stencil = true })
     love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setScissor(clip(dashboard))
 
     -- months: a cream paper ring, its month's word turned to the top window
     turn_dial(dashboard, "month", -90 - (state.month - 1) * 30, seconds)
@@ -514,12 +607,19 @@ local function draw_dials(dashboard, state, seconds)
         { dial = "units", text = string.format("%d", state.unit_count) },
         { dial = "cap", text = tostring(state.cap), big = true },
     }
+    -- each section's count, inked in its color
+    for index = 1, 4 do
+        readouts[#readouts + 1] = { dial = "section_" .. index, text = tostring(state.delivered[index]),
+            small = true, ink = state.seat_colors[index] }
+    end
     for _, readout in ipairs(readouts) do
         under_window(dashboard, readout.dial, function(window)
-            local font = readout.big and dashboard.fonts.big or dashboard.fonts.readout
+            local font = readout.big and dashboard.fonts.big
+                or (readout.small and dashboard.fonts.small or dashboard.fonts.readout)
+            local ink = readout.ink or { 0.1, 0.1, 0.12 }
             love.graphics.setColor(0.9, 0.88, 0.82, 1)
             love.graphics.circle("fill", window.x, window.y, window.radius, 64)
-            love.graphics.setColor(0.1, 0.1, 0.12, 1)
+            love.graphics.setColor(ink[1] * 0.8, ink[2] * 0.8, ink[3] * 0.8, 1)
             love.graphics.setFont(font)
             love.graphics.printf(readout.text, window.x - window.radius, window.y - font:getHeight() / 2,
                 window.radius * 2, "center")
@@ -561,30 +661,22 @@ local function draw_surface(dashboard, section, tone)
 end
 -- }}}
 
--- {{{ local function draw_neighbours()
--- The neighbours' arches beside yours: dimmer, labelled with their seat,
--- clipped to the strip of them your section shows.
-local function draw_neighbours(dashboard, seat_colors)
-    local section = dashboard.section
-    -- alone: an M of one hump, no neighbours
-    if dashboard.team_size < 2 then
-        return
+-- {{{ local function draw_allies()
+-- The allies' arches: dimmer, each labelled with its seat in its color.
+-- Their buttons and dials are theirs; yours shows only their surface, their
+-- band, and who they are.
+local function draw_allies(dashboard, seat_colors)
+    for _, shown_arch in ipairs(visible_arches(dashboard)) do
+        if not shown_arch.own then
+            draw_surface(dashboard, shown_arch.section, 0.55)
+            local color = seat_colors[shown_arch.seat]
+            local x, y = arch.at(shown_arch.section, 0, 0.30)
+            local label = "SEAT " .. shown_arch.seat
+            love.graphics.setFont(dashboard.fonts.big)
+            love.graphics.setColor(color[1], color[2], color[3], 0.85)
+            love.graphics.print(label, x - dashboard.fonts.big:getWidth(label) / 2, y)
+        end
     end
-    local half_shown = section.width / 2 + section.width * M.NEIGHBOUR_SHOWN
-    love.graphics.setScissor(section.center_x - half_shown, 0, half_shown * 2, dashboard.height)
-    for _, side in ipairs({ -1, 1 }) do
-        local neighbour = arch.shifted(section, side)
-        -- seats are a ring: left of seat 1 is the last seat
-        local seat = (dashboard.seat - 1 + side) % dashboard.team_size + 1
-        draw_surface(dashboard, neighbour, 0.55)
-        local color = seat_colors[seat]
-        local x, y = arch.at(neighbour, -side * 0.36, 0.05)
-        love.graphics.setFont(dashboard.fonts.seat)
-        love.graphics.setColor(color[1], color[2], color[3], 0.9)
-        local label = "SEAT " .. seat
-        love.graphics.print(label, x - dashboard.fonts.seat:getWidth(label) / 2, y)
-    end
-    love.graphics.setScissor()
 end
 -- }}}
 
@@ -593,8 +685,9 @@ local function draw_face(dashboard, state)
     local section = dashboard.section
     love.graphics.setCanvas(dashboard.face)
     love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setScissor(clip(dashboard))
 
-    draw_neighbours(dashboard, state.seat_colors)
+    draw_allies(dashboard, state.seat_colors)
     draw_surface(dashboard, section, 1)
 
     -- cut every window out of the metal: replace with nothing at all
@@ -650,23 +743,35 @@ local function draw_face(dashboard, state)
             spot.radius * 2, "center")
     end
     love.graphics.setLineWidth(1)
+    love.graphics.setScissor()
 end
 -- }}}
 
 -- {{{ local function draw_glass()
--- The glass layer changes only when the set of windows does (the settings
--- menu opening or closing), so it is redrawn only then.
+-- The glass and band layers change only when the windows or the chair do,
+-- so they are redrawn only then.
 local function draw_glass(dashboard)
-    -- the windows are as they were last drawn: nothing to do
-    if dashboard.glass_drawn_for == dashboard.settings_open then
+    local key = tostring(dashboard.settings_open) .. string.format(":%.4f", dashboard.chair_offset)
+    -- the windows and the chair are as they were last drawn: nothing to do
+    if dashboard.glass_drawn_for == key then
         return
     end
-    dashboard.glass_drawn_for = dashboard.settings_open
+    dashboard.glass_drawn_for = key
+    local arches = visible_arches(dashboard)
+
+    love.graphics.setScissor(clip(dashboard))
     love.graphics.setCanvas(dashboard.glass)
     love.graphics.clear(0, 0.5, 0.5, 0)
-    love.graphics.setBlendMode("replace")
+    -- "premultiplied": write the colors exactly as given. The default would
+    -- multiply them by their alpha, and the band's alpha of 0.5 halved its
+    -- "glass here" mark below the shader's threshold, so the band was never
+    -- painted.
+    love.graphics.setBlendMode("replace", "premultiplied")
     love.graphics.setColor(1, 1, 1, 1)
-    local meshes = { band_glass_mesh(dashboard.section) }
+    local meshes = {}
+    for _, shown_arch in ipairs(arches) do
+        meshes[#meshes + 1] = band_glass_mesh(shown_arch.section)
+    end
     for _, window in ipairs(windows_of(dashboard)) do
         meshes[#meshes + 1] = glass_mesh_for(window)
     end
@@ -674,7 +779,17 @@ local function draw_glass(dashboard)
         love.graphics.draw(mesh)
         mesh:release()
     end
+
+    -- where each band pixel paints on the map
+    love.graphics.setCanvas(dashboard.band)
+    love.graphics.clear(0, 0, 0, 0)
+    for _, shown_arch in ipairs(arches) do
+        local mesh = band_coordinates_mesh(shown_arch.section, (shown_arch.seat - 1) / dashboard.team_size)
+        love.graphics.draw(mesh)
+        mesh:release()
+    end
     love.graphics.setBlendMode("alpha")
+    love.graphics.setScissor()
 end
 -- }}}
 
@@ -682,7 +797,8 @@ end
 -- Draws all three layers. `state` (plain values): month (1..12),
 -- weekday (1..7), day (1..31), fps (whole), frame_ms (number), unit_count,
 -- cap (whole), named_text (string), someone_named (boolean),
--- seat_colors (list of {r, g, b}). `seconds` is the frame's time.
+-- seat_colors (list of {r, g, b}), delivered (four whole numbers: cuboids
+-- resting in each section). `seconds` is the frame's time.
 function M.draw(dashboard, state, seconds)
     love.graphics.push("all")
     love.graphics.setDepthMode("always", false)

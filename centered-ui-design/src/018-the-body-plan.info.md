@@ -7,6 +7,7 @@ A unit's figure: six spheroids (body, head, two arms, two legs) in one mesh buil
 |---|---|---|
 | `PARTS` | | list of parts: name, center {x, y, z} and radii {x, y, z} in figure heights, stride, lift, offset (radians), idle, bob |
 | `figure_vertices(rings, segments)` | sphere detail | vertices {x, y, z, u, v, part} (six unit spheres, poles up and down) and triangle indices |
-| `bend(part, x, y, z, walking_phase, moving)` | a unit-sphere point, phase, 0..1 | the bent point in figure heights (the Lua twin of the shader) |
+| `bend(part, x, y, z, walking_phase, moving, carrying)` | a unit-sphere point, phase, 0..1, 0 or 1 | the bent point in figure heights (the Lua twin of the shader) |
 | `send(shader)`, `GLSL` | | the body plan as shader arrays; `bend_part` with the exact normal correction for the shear |
 | `BOB_HEIGHT` | | how high each step lifts the upper body |
+| `HOLD_FORWARD`, `HOLD_LIFT` | | the holding pose of parts marked `holds` (the arms) while carrying |

@@ -1,18 +1,18 @@
--- 005-unit-records.lua - how one unit is laid out in shared memory.
+-- 005-unit-records.lua - how units and cuboids are laid out in shared memory.
 --
--- In plain terms: every unit's state is twelve numbers in a row, in a block
--- of memory every worker thread and the graphics card can read directly.
--- There are two such blocks, front and back: during a step each unit is read
--- from the front and written to the back, then the two swap. A small header
--- block says which is the front and how much time the step covers.
+-- In plain terms: every unit's state is sixteen numbers in a row, and every
+-- cuboid's twelve, in blocks of memory the ceramic engine's workers and the
+-- graphics card both read directly. There are two blocks of each, front and
+-- back: during a step everything is read from the front and written to the
+-- back, then the two swap.
 --
 -- Why 32-bit floats only: the graphics card reads the very same bytes as
--- per-unit drawing data (three groups of four floats), so the layout here and
--- the vertex format below must match exactly — that is what lets the unit
--- positions go from shared memory to the screen with no copying field by
--- field.
+-- per-unit and per-cuboid drawing data (groups of four floats), so the
+-- layouts here, the vertex formats below, and the structs in
+-- src/020-ceramic-boxes.c must all match exactly — that is what lets the
+-- world go from the engine to the screen with no copying field by field.
 --
--- Record (48 bytes, three groups of four floats):
+-- Unit record (64 bytes, four groups of four floats):
 --   group A  r            tier distance from the hub (0 = hub)
 --            angle        radians, 0 = north, clockwise
 --            heading      radians, the direction the unit faces on the ground
@@ -25,10 +25,28 @@
 --                         box from ground speed; bends the limbs, see 018)
 --   group C  speed_r      tiers per second, outward positive
 --            speed_angle  radians per second, clockwise positive
---            order_kind   the last order received (index into the verb list)
+--            order_kind   the last order received (index into the verb list;
+--                         0 = none given, so the unit hauls cuboids)
 --            named        1 if this unit is the one named by the last map click
+--   group D  job          0 idle, 1 fetching a cuboid, 2 carrying one
+--            target       the cuboid it fetches or carries, or -1
+--            wants        what it asks of that cuboid this step: 0 nothing,
+--                         1 pick it up, 2 set it down
+--            carrying     0, or the carried cuboid's color + 1 (the shader
+--                         bends the arms into a holding pose)
 --
--- Header (16 bytes): front (0 or 1), step_seconds, step_number, unit_count.
+-- Cuboid record (48 bytes, three groups of four floats):
+--   group A  r, angle     where it is (tier distance, radians)
+--            height       how far above the ground (world units)
+--            size         its edge, world units at tier 1
+--   group B  color        0..3: which section it belongs in
+--            state        0 lying, 1 carried, 2 delivered (resting in its section)
+--            claimant     the lowest-numbered unit fetching it, or -1
+--            carrier      the unit carrying it, or -1
+--   group C  timer        seconds it has rested in its section
+--            slot         its place in its section's stack
+--            appearances  how many times it has appeared (seeds where next)
+--            turn         radians: which way it faces
 
 local ffi = require("ffi")
 
@@ -39,22 +57,35 @@ typedef struct {
     float r, angle, heading, length;
     float width, owner, level, phase;
     float speed_r, speed_angle, order_kind, named;
+    float job, target, wants, carrying;
 } unit_record;
 
 typedef struct {
-    float front, step_seconds, step_number, unit_count;
-} step_header;
+    float r, angle, height, size;
+    float color, state, claimant, carrier;
+    float timer, slot, appearances, turn;
+} cuboid_record;
 ]])
 
 M.RECORD_BYTES = ffi.sizeof("unit_record")
-M.HEADER_BYTES = ffi.sizeof("step_header")
+M.CUBOID_BYTES = ffi.sizeof("cuboid_record")
 
--- The per-unit vertex format the graphics card reads the records as. Each
--- entry is one shader attribute of four floats; the order is the record's.
+-- What the job, wants and state numbers mean (see the C boxes).
+M.JOB_IDLE, M.JOB_FETCHING, M.JOB_CARRYING = 0, 1, 2
+M.CUBE_LYING, M.CUBE_CARRIED, M.CUBE_DELIVERED = 0, 1, 2
+
+-- The per-unit and per-cuboid vertex formats the graphics card reads the
+-- records as: one shader attribute per group of four floats, in order.
 M.VERTEX_FORMAT = {
     { "UnitA", "float", 4 },
     { "UnitB", "float", 4 },
     { "UnitC", "float", 4 },
+    { "UnitD", "float", 4 },
+}
+M.CUBOID_VERTEX_FORMAT = {
+    { "CubeA", "float", 4 },
+    { "CubeB", "float", 4 },
+    { "CubeC", "float", 4 },
 }
 
 -- {{{ function M.records_at()
@@ -65,27 +96,16 @@ function M.records_at(pointer)
 end
 -- }}}
 
--- {{{ function M.header_at()
-function M.header_at(pointer)
-    return ffi.cast("step_header *", pointer)
+-- {{{ function M.cuboids_at()
+function M.cuboids_at(pointer)
+    return ffi.cast("cuboid_record *", pointer)
 end
 -- }}}
 
 -- {{{ function M.copy_record()
--- Copies one record field for field (a plain struct copy).
+-- Copies one unit record (a plain struct copy).
 function M.copy_record(destination, source)
-    destination.r = source.r
-    destination.angle = source.angle
-    destination.heading = source.heading
-    destination.length = source.length
-    destination.width = source.width
-    destination.owner = source.owner
-    destination.level = source.level
-    destination.phase = source.phase
-    destination.speed_r = source.speed_r
-    destination.speed_angle = source.speed_angle
-    destination.order_kind = source.order_kind
-    destination.named = source.named
+    ffi.copy(destination, source, M.RECORD_BYTES)
 end
 -- }}}
 

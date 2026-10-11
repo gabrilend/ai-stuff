@@ -11,5 +11,7 @@ For current done/open counts, run:
     /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/centered-ui-design -m
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built and how
-it moves the phase toward its goals.)
+- 406 — Cuboids carried to color-coded sections: rounded glazed cubes,
+  four colored sections, units that fetch, carry and stack them, fair claims
+  that never depend on worker order. The first thing units do for the team
+  without being told — the start of the economy this phase builds.

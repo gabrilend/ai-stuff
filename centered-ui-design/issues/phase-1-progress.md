@@ -20,3 +20,8 @@ For current done/open counts, run:
   first served by six worker threads; the blocks swap when all are done. The
   ground for every later simulation issue, and the same bytes the renderer
   draws from.
+- 109 — The ceramic engine runs the world: soramech's C engine on its own
+  workers, C boxes compiled by serac into a library LuaJIT loads; LÖVE's main
+  thread only renders and hands work in by the batch. Every later simulation
+  issue writes boxes for it. (110's "one task per unit" became one task per
+  chunk of 32 here.)

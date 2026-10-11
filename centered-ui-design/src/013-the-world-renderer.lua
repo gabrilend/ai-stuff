@@ -19,6 +19,7 @@ local sphere_fold = require("004-the-sphere-fold")
 local records = require("005-unit-records")
 local body_plan = require("018-the-body-plan")
 local made_by_formula = require("012-made-by-formula")
+local spheroid = require("011-the-spheroid")
 
 local M = {}
 
@@ -63,6 +64,7 @@ local UNIT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. body_plan.GLSL .. [[
 attribute vec4 UnitA;   // r, angle, heading, size
 attribute vec4 UnitB;   // width (girth), owner, level, walking phase
 attribute vec4 UnitC;   // speed_r, speed_angle, order_kind, named
+attribute vec4 UnitD;   // job, target, wants, carrying (color + 1, or 0)
 attribute float PartIndex;  // which part of the body plan this vertex belongs to
 
 uniform vec3 owner_colors[5];
@@ -89,7 +91,8 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 
     // bend this vertex's part by the body plan (018): limbs deform, not rotate
     vec3 local_normal;
-    vec3 local_point = bend_part(int(PartIndex + 0.5), vertex_position.xyz, walk, moving, girth, local_normal);
+    float carrying = step(0.5, UnitD.w);
+    vec3 local_point = bend_part(int(PartIndex + 0.5), vertex_position.xyz, walk, moving, girth, carrying, local_normal);
 
     // the unit's own axes on the ground: forward along its heading
     vec3 forward = vec3(sin(heading), 0.0, -cos(heading));
@@ -139,6 +142,69 @@ vec4 effect(vec4 color, Image skin, vec2 uv, vec2 screen) {
 }
 ]]
 
+-- How square the cuboids are: each coordinate of the unit sphere is raised to
+-- this power (a superellipsoid). 1 is the sphere itself; toward 0, a cube.
+-- 0.3 keeps the edges rounded — "cubes made of rounded spheres".
+M.CUBOID_ROUNDNESS = 0.3
+
+local CUBOID_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
+attribute vec4 CubeA;   // r, angle, height, size
+attribute vec4 CubeB;   // color, state, claimant, carrier
+attribute vec4 CubeC;   // timer, slot, appearances, turn
+
+uniform vec3 cuboid_colors[4];
+uniform float roundness;
+
+varying vec3 v_normal;
+varying vec3 v_color;
+
+vec4 position(mat4 transform_projection, vec4 vertex_position) {
+    // the unit sphere pushed toward a cube: each coordinate raised to a small
+    // power, keeping its sign (a superellipsoid)
+    vec3 v = vertex_position.xyz;
+    vec3 a = abs(v);
+    vec3 shape = sign(v) * pow(a, vec3(roundness));
+    // the surface |x|^(2/e) + |y|^(2/e) + |z|^(2/e) = 1 faces along
+    // sign * |shape|^(2/e - 1), which is sign * a^(2 - e) at these points
+    vec3 n = sign(v) * pow(a, vec3(2.0 - roundness));
+
+    float size = CubeA.w * fold_size_scale(CubeA.x);
+    float turn = CubeC.w;
+    vec3 forward = vec3(sin(turn), 0.0, -cos(turn));
+    vec3 right = vec3(cos(turn), 0.0, sin(turn));
+    vec3 up = vec3(0.0, 1.0, 0.0);
+    vec3 half_edge = shape * size * 0.5;
+    vec3 world = fold_ground_position(CubeA.x, CubeA.y)
+               + up * (CubeA.z + size * 0.5)
+               + right * half_edge.x + up * half_edge.y + forward * half_edge.z;
+    v_normal = right * n.x + up * n.y + forward * n.z;
+    v_color = cuboid_colors[int(CubeB.x + 0.5)];
+    return project_world(world);
+}
+]]
+
+local CUBOID_PIXEL = [[
+uniform vec3 cam_back;
+varying vec3 v_normal;
+varying vec3 v_color;
+
+// Glazed ceramic: a deep color under a clear glaze — a soft body light, a
+// sharp bright glint, a broad sheen, and a white edge where the glaze is seen
+// at a slant.
+vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
+    vec3 n = normalize(v_normal);
+    vec3 to_light = normalize(vec3(-0.45, 0.8, 0.4));
+    vec3 to_eye = normalize(cam_back);
+    vec3 halfway = normalize(to_light + to_eye);
+    float diffuse = max(dot(n, to_light), 0.0);
+    float glint = pow(max(dot(n, halfway), 0.0), 120.0);
+    float sheen = pow(max(dot(n, halfway), 0.0), 12.0) * 0.18;
+    float slant = pow(1.0 - max(dot(n, to_eye), 0.0), 4.0) * 0.35;
+    vec3 lit = v_color * (0.22 + 0.85 * diffuse) + vec3(glint + sheen + slant);
+    return vec4(lit, 1.0);
+}
+]]
+
 -- {{{ local function build_ground_mesh()
 -- A disc of `rings` x `segments`, each vertex holding (tier distance, angle)
 -- as its position and its spot on the flat map as its texture coordinate.
@@ -180,22 +246,24 @@ local function build_ground_mesh(tiers_shown, rings, segments)
     return mesh
 end
 -- }}}
-
 -- {{{ function M.new()
--- Builds everything the world picture needs. `unit_count` sizes the
--- per-unit data mesh.
-function M.new(settings, camera, fold, unit_count)
+-- Builds everything the world picture needs. `unit_count` and
+-- `cuboid_count` size the per-unit and per-cuboid data meshes; `sections`
+-- (from 007) are painted into the flat map.
+function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     local renderer = {
         camera = camera,
         fold = fold,
         unit_count = unit_count,
+        cuboid_count = cuboid_count,
     }
 
     renderer.ground_shader = love.graphics.newShader(GROUND_PIXEL, GROUND_VERTEX)
     renderer.unit_shader = love.graphics.newShader(UNIT_PIXEL, UNIT_VERTEX)
+    renderer.cuboid_shader = love.graphics.newShader(CUBOID_PIXEL, CUBOID_VERTEX)
 
     renderer.ground_mesh = build_ground_mesh(settings.tiers_shown, 96, 192)
-    renderer.flat_map = made_by_formula.flat_map(2048, settings.tiers_shown, M.OWNER_COLORS)
+    renderer.flat_map = made_by_formula.flat_map(2048, settings.tiers_shown, M.OWNER_COLORS, sections)
     renderer.flat_map:setFilter("linear", "linear", 8)
     renderer.ground_mesh:setTexture(renderer.flat_map)
 
@@ -215,24 +283,40 @@ function M.new(settings, camera, fold, unit_count)
 
     -- the per-unit data: one "vertex" per unit, in the record's own layout
     renderer.instance_mesh = love.graphics.newMesh(records.VERTEX_FORMAT, unit_count, "points", "stream")
-    renderer.unit_mesh:attachAttribute("UnitA", renderer.instance_mesh, "perinstance")
-    renderer.unit_mesh:attachAttribute("UnitB", renderer.instance_mesh, "perinstance")
-    renderer.unit_mesh:attachAttribute("UnitC", renderer.instance_mesh, "perinstance")
+    for _, group in ipairs({ "UnitA", "UnitB", "UnitC", "UnitD" }) do
+        renderer.unit_mesh:attachAttribute(group, renderer.instance_mesh, "perinstance")
+    end
+
+    -- the cuboid: one unit sphere, pushed toward a cube in the shader
+    local cube_vertices, cube_triangles = spheroid.build(14, 20)
+    renderer.cuboid_mesh = love.graphics.newMesh({
+        { "VertexPosition", "float", 3 },
+        { "VertexTexCoord", "float", 2 },
+    }, cube_vertices, "triangles", "static")
+    renderer.cuboid_mesh:setVertexMap(cube_triangles)
+    renderer.cuboid_instances = love.graphics.newMesh(records.CUBOID_VERTEX_FORMAT, cuboid_count, "points", "stream")
+    for _, group in ipairs({ "CubeA", "CubeB", "CubeC" }) do
+        renderer.cuboid_mesh:attachAttribute(group, renderer.cuboid_instances, "perinstance")
+    end
 
     renderer.unit_shader:send("owner_colors", unpack(M.OWNER_COLORS))
     renderer.unit_shader:send("unit_world_scale", M.UNIT_WORLD_SCALE)
     renderer.unit_shader:send("full_pace", M.FULL_PACE)
     body_plan.send(renderer.unit_shader)
+    renderer.cuboid_shader:send("cuboid_colors", M.OWNER_COLORS[1], M.OWNER_COLORS[2],
+        M.OWNER_COLORS[3], M.OWNER_COLORS[4])
+    renderer.cuboid_shader:send("roundness", M.CUBOID_ROUNDNESS)
     return renderer
 end
 -- }}}
 
 -- {{{ function M.draw()
--- Draws the ground and the units into whatever canvas is set (it must have
--- a depth buffer). `front_block` is the byte data of the current front unit
--- block; it is handed to the graphics card whole.
-function M.draw(renderer, front_block, flip_y)
-    renderer.instance_mesh:setVertices(front_block)
+-- Draws the ground, the units and the cuboids into whatever canvas is set
+-- (it must have a depth buffer). The two front blocks (byte data) are handed
+-- to the graphics card whole.
+function M.draw(renderer, front_units, front_cuboids, flip_y)
+    renderer.instance_mesh:setVertices(front_units)
+    renderer.cuboid_instances:setVertices(front_cuboids)
 
     love.graphics.setDepthMode("lequal", true)
     love.graphics.setMeshCullMode("none")
@@ -246,6 +330,11 @@ function M.draw(renderer, front_block, flip_y)
     far_camera.send(renderer.camera, renderer.unit_shader, flip_y)
     sphere_fold.send(renderer.fold, renderer.unit_shader)
     love.graphics.drawInstanced(renderer.unit_mesh, renderer.unit_count)
+
+    love.graphics.setShader(renderer.cuboid_shader)
+    far_camera.send(renderer.camera, renderer.cuboid_shader, flip_y)
+    sphere_fold.send(renderer.fold, renderer.cuboid_shader)
+    love.graphics.drawInstanced(renderer.cuboid_mesh, renderer.cuboid_count)
 
     love.graphics.setShader()
 end

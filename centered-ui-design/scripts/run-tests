@@ -17,6 +17,9 @@ if [ -n "${1:-}" ]; then
     DIR="$1"
 fi
 
+# the C boxes are checked through the built library: build it first
+"${DIR}/scripts/build-ceramics" "${DIR}" > /dev/null || exit 1
+
 STATUS=0
 for TEST_FILE in "${DIR}"/src/*.test.lua; do
     echo "== ${TEST_FILE##*/}"

@@ -24,4 +24,8 @@ fi
 source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
 ensure_ram_tiers "${DIR}"
 
+# the world runs on the ceramic engine: build it first (it rebuilds only
+# when a source changed); a failed build stops here, naming the step
+"${DIR}/scripts/build-ceramics" "${DIR}" > /dev/null || exit 1
+
 exec love "${DIR}/src" "${DIR}" "$@"

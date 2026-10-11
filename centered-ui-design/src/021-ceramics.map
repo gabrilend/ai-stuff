@@ -1,0 +1,15 @@
+# 021-ceramics.map - the world's wiring for the ceramic engine (issue 109).
+#
+# Written by hand. Two stations, one per stage of a step. Each is one of the
+# program's doors: the host hands chunks of work in at argument 0 (units) and
+# argument 1 (cuboids), and collects each chunk's "done" at result 0 and
+# result 1. The host hands in the cuboid stage only after every unit chunk
+# has landed, because cuboids read the units' new records.
+
+station units (020-ceramic-boxes.c:unit_chunk)
+  in 0 - 0$
+  out 0 - 0$
+
+station cuboids (020-ceramic-boxes.c:cuboid_chunk)
+  in 0 - 1$
+  out 0 - 1$

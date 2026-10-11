@@ -20,6 +20,7 @@ M.REQUIRED_FIELDS = {
     { name = "max_framerate",              kind = "whole" },
     { name = "unit_count",                 kind = "whole" },
     { name = "worker_count",               kind = "whole" },
+    { name = "cuboid_count",               kind = "whole" },
     { name = "camera_distance",            kind = "number" },
     { name = "view_half_height",           kind = "number" },
     { name = "camera_elevation_degrees",   kind = "number" },
