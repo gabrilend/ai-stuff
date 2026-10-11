@@ -8,7 +8,11 @@
 
 ## Current Behavior
 
-The two-level nested dial exists in the showroom only.
+Mock-up built (2026-10-10): the month and weekday rings and the day-number
+disc one level lower turn with the calendar (one day per 3 seconds, starting
+Saturday 10 October), each disc clipped to its own window. The calendar lives
+in the game code, not yet in the simulation, and the day/month pace button
+is not built.
 
 ## Intended Behavior
 

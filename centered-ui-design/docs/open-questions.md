@@ -40,6 +40,9 @@ assumption is a guess until answered.
 - **Art?** No AI-generated art. Small 3D models and tiny formula-driven voxel
   effects. The scene impossibly far from the camera, rendered accurately.
   (2026-10-10)
+- **Enhancements?** Yes — "yes yes yes yes yes yes yes yes yes": the City of
+  Heroes system by way of Symbeline. A held enhancement waits in the tray
+  until its power is owned, then slots in and strengthens it. (2026-10-10)
 
 ## Waiting
 
@@ -57,12 +60,7 @@ assumption is a guess until answered.
 3. **How deep do heroes adventure**, without a depth dial? Assumed: the
    adventure verb sends a hero one tier deeper each time it is given. Or a
    set of verbs (shallow, deep, deepest)?
-4. **Enhancements.** Assumed from the Symbeline notes ("slot enhancements and
-   dole out inspirations", City of Heroes): a held choice is an enhancement
-   for a power; it waits in a tray until the power is acquired, then slots
-   in and strengthens it. Is this the system you meant, and is there a
-   Symbeline document that specifies it more closely than the
-   superheroes note?
+4. (Answered — moved to Answered above, 2026-10-10.)
 5. **The sphere's other side.** Is the far pole the foes' hub (so pushing
    outward ends at their center), or open wilderness? How do forces pass
    between the surface and the underworld — gates at certain tiers, or
@@ -96,3 +94,15 @@ assumption is a guess until answered.
 17. **Engineers** — from a factory, or from the hub?
 18. **HTML documentation pages** with the feedback inbox, as the house rules
     describe — wanted now, or after phase 1?
+19. **A framerate cap of 0.** Built as "no cap" (the game runs as fast as it
+    can: 377 frames per second measured). Or should 0 mean "stop"?
+20. **Measured time or fixed steps?** Every motion is scaled by the real time
+    since the last step, as asked. Because positions are 32-bit floats, a run
+    at 240 frames per second ends a hair (about 2e-5 of a tier per second)
+    away from one at 20. Exact replays and network play (issue 102) want the
+    simulation to step in fixed slices — several per frame when frames are
+    slow — while the view scales by measured time. Is that split wanted?
+21. **Soramech's route, revisited.** The renderer uses the Lua route (stations
+    on the main thread, LÖVE channels as the pool). It reaches 240 frames per
+    second with 192 units, each unit one task per frame. Keep it, or move to
+    the C engine through FFI when unit counts grow?

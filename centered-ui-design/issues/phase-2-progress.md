@@ -14,5 +14,9 @@ For current done/open counts, run:
     /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/centered-ui-design -m
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built and how
-it moves the phase toward its goals.)
+- 210 — Spheroid units: one sphere, stretched and turned per unit on the
+  graphics card from the shared-memory records, code-drawn skin, specular
+  metal glint.
+- 212 — The dashboard on a view plane: face, dials and glass laid on a sheet
+  in the 3D scene that exactly fills the far camera's view; the flat map
+  folded onto the ground. The first look of the whole game.

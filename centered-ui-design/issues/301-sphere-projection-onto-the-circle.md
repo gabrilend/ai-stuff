@@ -8,7 +8,11 @@
 
 ## Current Behavior
 
-The debug view draws tiers at equal spacing on a flat circle.
+Partly built (2026-10-10) in `src/004-the-sphere-fold.lua`: the logarithmic
+fold, its exact inverse, its slope and the size scale, in Lua and as a shader
+snippet; the ground and units are folded in their shaders. Not built yet:
+the settings are read from `input/` (tiers shown, fold strength) instead of
+being set by the game from the fronts, and the beyond-the-edge markers.
 
 ## Intended Behavior
 

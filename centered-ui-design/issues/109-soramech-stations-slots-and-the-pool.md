@@ -3,14 +3,22 @@
 **Phase:** 1 — The world beneath
 **Blocked by:** 101
 
-**Blocks**: 105, 106, 107
+**Blocks**: 105, 106, 107, 110
 **Related documents:** docs/architecture.md (The shape: soramech),
 /mnt/mtwo/programs/sora/minimal-soramech/docs/ (001–006)
 
 ## Current Behavior
 
-There is no engine. Phase 1's other issues were first written assuming a
-plain thread pool; they now assume this one.
+Partly built (2026-10-10), by the Lua route: `src/008-soramech-stations.lua`
+holds stations, slots (queues) and the readiness check at delivery; pool
+stations become tasks on a LÖVE channel, taken first come, first served by
+the worker threads of `src/009-soramech-worker.lua`; "done" reports come back
+on a second channel and the main thread delivers them. The step's map
+(clock, a move station per unit, join) is laid out in code in
+`src/016-the-game.lua`. Not built yet: comparator and iterator stations, the
+map read from a data file, and load-time wiring checks. Open question 7 (Lua
+route or the C engine through FFI) is still open: the Lua route was used to
+get the renderer running, not chosen for good.
 
 ## Intended Behavior
 

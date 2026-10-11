@@ -8,7 +8,12 @@ screen)
 
 ## Current Behavior
 
-The kit's parts exist separately in the showroom.
+A first mock-up exists (2026-10-10, issue 212): metal face, eight painted
+order buttons, calendar and readout dials, the named stand's window, on a
+view plane over the hub. Only buttons answer clicks. Not built yet: the
+layout as a data table separate from drawing code (it is partly data, partly
+code in `src/014-the-dashboard.lua`), and the full set of dials (resources,
+couriers in flight).
 
 ## Intended Behavior
 

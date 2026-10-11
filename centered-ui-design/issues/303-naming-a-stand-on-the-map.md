@@ -7,7 +7,14 @@
 
 ## Current Behavior
 
-Clicking the map does nothing.
+Built for single units (2026-10-10): a click on the map off the dashboard
+names the nearest unit within a small reach (or no one, on empty ground);
+the named unit glows, the dashboard shows its seat and level, and the order
+buttons brighten from de-selected. The name is written into shared memory at
+the next swap. Not built yet: stands (groups) — units are named one by one
+until stands exist — the foe check (a foe can be named today), and the tests
+(the naming code lives in `src/016-the-game.lua` beside LÖVE and is checked
+by scripted clicks and a screenshot).
 
 ## Intended Behavior
 

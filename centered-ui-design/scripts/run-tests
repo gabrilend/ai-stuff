@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# run-tests - runs every check in the project that needs no window.
+#
+# In plain terms: finds each test file in src/ (names ending in .test.lua)
+# and runs it with plain LuaJIT, reporting how many passed and failed. The
+# drawn parts are checked separately, by running the game with scripted
+# clicks and a screenshot (see the run script's options).
+#
+# Usage:
+#   scripts/run-tests              test the project at the default location
+#   scripts/run-tests <dir>        test the project at <dir>
+
+DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
+# a first argument is the project's location
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+
+STATUS=0
+for TEST_FILE in "${DIR}"/src/*.test.lua; do
+    echo "== ${TEST_FILE##*/}"
+    luajit "${TEST_FILE}" "${DIR}" || STATUS=1
+done
+exit "${STATUS}"

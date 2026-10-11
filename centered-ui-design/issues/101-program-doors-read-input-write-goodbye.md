@@ -7,8 +7,14 @@
 
 ## Current Behavior
 
-Nothing exists. The project has its skeleton (folders, `tmp/` RAM link, the
-demo picker) and no source.
+Mostly built (2026-10-10). `src/conf.lua` and `src/main.lua` are thin
+doors; `src/001-read-the-input.lua` reads and checks `input/game-settings.lua`
+(every field required, ranges checked, missing fields named);
+`src/002-say-goodbye.lua` writes `output/goodbye` last. The root `run`
+script rebuilds the RAM tiers and starts the game; `scripts/run-tests` runs
+every `*.test.lua` under LuaJIT (31 checks, including a missing seed stopping
+the program). Not built yet: the `--headless` mode (simulation with no
+window).
 
 ## Intended Behavior
 

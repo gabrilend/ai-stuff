@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#
+# run - starts the game.
+#
+# In plain terms: makes sure the project's RAM scratch folders exist (a reboot
+# empties them), then opens the game window with LÖVE, telling the game where
+# the project lives so it can read its settings from input/ and leave its
+# goodbye note in output/.
+#
+# Usage:
+#   ./run                          run the project at the default location
+#   ./run <project-dir>            run the project at another location
+#   ./run [<project-dir>] --screenshot SECONDS
+#                                  run for SECONDS, save the window to
+#                                  tmp/shared-memory/screenshot.png, and close
+
+DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
+# a first argument that is a folder is the project's location
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+
+exec love "${DIR}/src" "${DIR}" "$@"

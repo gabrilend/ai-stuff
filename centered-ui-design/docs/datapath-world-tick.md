@@ -42,3 +42,23 @@ tier band in 10 seconds regardless of how big that band is drawn.
    positions and damage dealt. Stands within a short distance of a
    quadrant edge are handled by the join station, so two
    stations never decide about the same pair of units.
+
+## As built so far (renderer slice, 2026-10-10)
+
+The first running step moves units only, and is scaled by measured time
+rather than a fixed tick (issue 111; open question 20):
+
+```
+ frame: time passes ─▶ waiting step seconds grow
+ [clock] fires (join reported every unit) ─▶ header: step seconds, step number
+     ─▶ one [move unit i] task per unit into the pool
+     ─▶ workers take them first come, first served: read front record i,
+        move by speed × step seconds, write back record i, report done
+ [join] (every unit done) ─▶ swap front and back ─▶ write waiting orders and
+     the named unit into the new front ─▶ [clock] may fire again
+ every frame: the front block goes to the graphics card unchanged
+```
+
+Files: `src/005-unit-records.lua`, `src/006-the-move-box.lua`,
+`src/008-soramech-stations.lua`, `src/009-soramech-worker.lua`,
+`src/016-the-game.lua`.

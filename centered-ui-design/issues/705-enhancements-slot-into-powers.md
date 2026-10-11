@@ -37,7 +37,7 @@ notes:
 4. Tests: three enhancements held for an unowned power all slot in the tick
    it is acquired; an inspiration is used once.
 
-## Open questions
+## Decisions
 
-- Is this the system you meant, and is there a Symbeline document that
-  specifies it more closely? (Open question 4.)
+- Confirmed by the owner (2026-10-10): this is the system meant — "yes yes
+  yes yes yes yes yes yes yes".

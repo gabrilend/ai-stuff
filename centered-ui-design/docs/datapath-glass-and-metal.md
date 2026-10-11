@@ -34,3 +34,22 @@ only the snapshot does.
 
 This is pure viewing code: it reads snapshot numbers and never changes the
 world.
+
+## As built so far (renderer slice, 2026-10-10)
+
+```
+ dashboard ─▶ three window-sized pictures:
+     face  (brushed metal, windows cut to nothing, painted buttons, labels)
+     dials (paper discs, each clipped to its own window, turned by the game)
+     glass (per window: red = glass here, green/blue = which way it bends)
+ ─▶ a sheet hung in the 3D scene, 300 units in front of the map's center,
+    sized to exactly fill the far camera's view at that distance and zoom
+ ─▶ its shader: metal where the face has metal; elsewhere in a window, the
+    dial seen through bending, tinted, highlighted glass; clear outside
+ world canvas (depth on): folded ground ─▶ instanced spheroids ─▶ the sheet
+ ─▶ screen
+```
+
+Voxel effects and hand-made building models are not built yet. Files:
+`src/012-made-by-formula.lua`, `src/013-the-world-renderer.lua`,
+`src/014-the-dashboard.lua`, `src/015-the-view-plane.lua`.

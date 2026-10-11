@@ -8,7 +8,12 @@
 
 ## Current Behavior
 
-Orders can only be given in code.
+Partly built (2026-10-10): map click names, button click orders and spends
+the name; a button with no one named flashes "NAME SOMEONE FIRST". Advance,
+fall back, flank left and flank right change the unit's speeds; hold, attack,
+shield and build only stop it and record the order (mock-ups). Orders apply
+at once, at the next swap — couriers (106) are not built yet, so there is no
+transit delay.
 
 ## Intended Behavior
 
