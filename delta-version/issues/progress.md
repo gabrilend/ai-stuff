@@ -220,7 +220,7 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: First version completed 2024-12-15; reopened and completed again 2026-09-22
 
 ## In Progress
-- **Issue 065**: The reading walk — a project walked one function or datastructure at a time; reading is the license. The map and the walk without an AI are built (`scripts/reading-walk-map.lua`, `scripts/reading-walk.lua`); the guide's room is built (065e); cipher, guide and pages (065f–h) are not. Built in parallel as `centered-ui-design` phase 9.
+- **Issue 065**: The reading walk — a project walked one function or datastructure at a time; reading is the license. The map and the walk without an AI are built (`scripts/reading-walk-map.lua`, `scripts/reading-walk.lua`); the guide's room and cipher are built (065e–f); the guide and pages (065g–h) are not. Built in parallel as `centered-ui-design` phase 9.
 - **Issue 066**: Fans that follow a signal — one delivery contract (a single setting, or a stream in numbered chunks rmail-attachment style) moving a fan; first fan external, on another machine. Nothing built. Built in parallel as `centered-ui-design` phase 10.
 - **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
 - **Issue 055**: Commit gated by issue completion — rewritten 2026-09-22 so the design can work (a gate only sees the command text) and narrowed to sit beside the shared line-ledger commit gate rather than duplicate it. Nothing built yet.
@@ -229,6 +229,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 065f**: The guide's cipher (2026-10-10) — version one: the logistic map past its chaos threshold mixed with nearest-prime picks, a fresh nonce per message, a marker that catches a wrong key; trails written one encrypted note per line, listed and dated in the room's ledgers. Home-made, and says so. Implemented: scripts/libs/guide-cipher.lua, scripts/libs/guide-trail.lua, scripts/test-guide-cipher.sh
 - **Issue 065e**: The guide's room (2026-10-10) — a no-login account and a folder per guide, made only after a typed "yes", every step shown first; three tab-separated ledgers (made public, kept to itself, changes) checked for real files, time order and listing-before-change. Implemented: scripts/reading-walk-guide-room.lua, scripts/libs/guide-room.lua, scripts/test-guide-room.sh
 - **Issues 065a–d**: The reading walk without an AI (2026-10-10)
   - A map of stops from fold markers in index order, described by each file's `.info.md` page (or, marked, by the source comment), with uses found by word lookup and private names kept to their own file
