@@ -73,3 +73,144 @@ easily triggered.
 (on how the device knows where to draw, with no camera:)
 
 your inputs determine what gets shown.
+
+---
+
+(second round, same day — on light that cannot be stored:)
+
+it'll be harder if we can't store photons. do you have any better ideas? A
+simple laser might suffice, with an aperture that can display many surfaces
+like 7 or 9 digit codes... post-code style...
+
+(on the filling:)
+
+okay but they must be able to handle being moved like a fluid by internal
+levers rotated with tiny motors (very tiny) but made durably and duplicated,
+to spread load and to provide a diagnostic when something goes wrong.
+
+(on the slotted tabs as a spatial light modulator:)
+
+something like that. idk if we can make it small enough.
+
+(on light thrown outward:)
+
+maybe we can make it mechanically impossible to do that? or... we could shine
+onto a screen that reacts to our input light e-ink style, colored by the
+laser...
+
+(on how the crown knows the panel is in place:)
+
+something with the rotation and distance extension mechanism...
+
+(on colours:)
+
+if we can fit green, probably. if we can fit blue... probably not, it's way
+more powerful and not only harder to miniaturize but also more dangerous.
+green is pushing it a little, but I had a green laser the size of a pen when I
+was a kid. It was magic. The most high-quality implement I've ever wielded.
+Such a pleasure.
+
+(on detail:)
+
+ideally, icons and letters. Maybe just letters. Possibly just 7 or 9 section
+displays.
+
+(on the cuff:)
+
+it's own kind of input - you drag along it and it sends an analog style input.
+
+(on why turned-aside light is held around the centre:)
+
+oh I was assuming the photons would scatter into that part of the medium. but
+with a circular vortex around the center, I thought it could help keep it
+aligned like a rifle barrel rifling.
+
+---
+
+(third round — on a glowing screen that stores the light:)
+
+not responsive enough
+
+(on segments instead of a grid:)
+
+like this?
+
+ _ _
+| | |
+ - -
+| | |
+ - -
+| | |
+ - -
+| | |
+ - -
+
+22 segment display should cover every single number and letter, and probably
+a lot of other characters besides. You can put two of them next to each other
+for a total of 40 segments, with the inner 4 being combined into one and 4
+bits of metadata like color. alternatively, have those 4 bits point to 4
+selections of bytes each, for a total of 8 bytes per color. so... on/off each
+pointing to a different byte, part of the datastructure, index style, easily
+switchable between via the 0 or 1 bit.
+
+(on the enclosed light path:)
+
+yes exactly, and ideally the inside is shaped or carved to reflect light
+backwards as much as possible, to keep it in the tube for as long as we can.
+The very back is either the emitter, or a mirror, and everything that is
+reflected back is encouraged to aim toward the mirror.
+
+(on the vortex:)
+
+it's a vortex of light, not fluid.
+
+---
+
+(fourth round — on letters with diagonals, and what the screen shows:)
+
+we could go for a tilt-shift style effect, where the top of the screen
+(largest radius from the projected center of the central dashboard) (the parts
+farthest from the center, not necessarily the top of the screen because maps
+not to scale), is distant. Not fuzzy necessarily, but distant. Like the map
+was on a tilt, and you're looking off to an infinite horizon. but, the details
+should always be visible, isometric style. I picture Final Fantasy Tactics
+Advance size people, but smaller than they are displayed now.
+
+(on what the 4-byte description holds:)
+
+e-ink? plus red/green lasers?
+
+(on stepped letters or diagonal segments:)
+
+depends on how specific we can make the hardware.
+
+(on the vortex's job:)
+
+to light up the side maybe? streaks of light, visible at an angle so not
+bright, but still texture colored?
+
+(on the lookup table, said a second way:)
+
+okay let's say there's two bytes. If it's a 0, it points to one. If it's 1,
+it points to the other. With 4 metadata bytes, you can have 8 total byte
+receptacles. This can be two values for one piece of data, or 8 types of data
+about one object or record.
+
+---
+
+(fifth round — on colour that changes under light:)
+
+how do we turn red and green laser light into light on a surface e-ink style?
+Let's focus on the e-ink, can we think of something that can change color if
+you shine a certain wavelength of light at it?
+
+(on distance at the edges, by panel shape or by drawing:)
+
+let's try both.
+
+(on segments or a grid for a map:)
+
+that's okay. That game is for a computer monitor. we're mostly concerned about
+the cut-out display on their watch dials.
+
+(this project stands on its own; it is not a screen for any other project.)

@@ -56,3 +56,109 @@ Small piezoelectric "micro-blowers" (a vibrating plate a few millimetres
 across pushing air through a nozzle) are real air pumps with no fan blades.
 Heat fins on the hair work by area: flaring them out increases the surface
 giving heat to the air.
+
+## Second round (2026-10-10)
+
+### Storing light somewhere else: a glowing screen
+Mirrors cannot hold light, but some materials can. **Phosphorescent**
+pigments (strontium aluminate, the stuff in glow-in-the-dark paint) absorb
+light, hold the energy in trapped electrons, and give it back as a glow for
+seconds to minutes. A laser drawn across such a screen leaves a glowing trace
+— the "e-ink style" screen of the vision, and the photon store moved from the
+cylinder to the panel. Violet and blue light charge these pigments well; green
+charges them weakly. **Photochromic** materials (those in sunglasses that
+darken outdoors) are the other kind: light changes their colour and it fades
+back slowly.
+
+### What keeps light in the centre
+A moving fluid barely moves light, so a vortex will not hold the beam in line.
+What does is **total internal reflection**: a core of higher refractive index
+inside a cladding of lower index traps light that hits the wall at a shallow
+angle, which is how an optical fibre works. The "rifle barrel" is the index
+step, not the flow. (Light can itself be made to corkscrew — "optical vortex"
+beams carry a twisting wavefront — but that is a property of the beam, and not
+needed to keep it aligned.) Light turned aside by a closed slot is best
+absorbed by a dark wall, where it becomes heat, rather than kept in the medium,
+where it would scatter back into the picture.
+
+### A liquid moved by levers
+Index-matching liquids can be stirred and pushed, but a **bubble** is a large
+index mismatch and shows up as a dark or bright speck: the volume must be
+sealed and degassed. Duplicated motors spread load and give a diagnostic for
+free: two motors doing the same job should draw the same current, so a
+difference between them reports a fault.
+
+### Green
+The eye is most sensitive near 555 nm, so a green spot looks brightest for the
+least power — the best colour for a low-power display. Pen-sized green
+pointers of the past were mostly **DPSS** lasers: an infrared diode pumping a
+crystal that doubles the frequency to green, and cheap ones leak invisible
+infrared. Direct green laser diodes (about 520 nm) now exist and have no
+infrared leak. Blue is not more powerful by nature; the eye sees it as dimmer
+at the same power, so blue devices are run hotter, and blue light is more
+damaging to the retina per watt.
+
+### Segment displays
+A 7-segment display (digits) or a 14- or 16-segment display (letters) needs
+only one on/off control per segment, against a full grid's one per cell. Seven
+to sixteen shutters is a much smaller machine than a slotted grid.
+
+## Third round (2026-10-10)
+
+### Glowing screen: set aside
+Phosphorescent screens hold a picture but change too slowly — "not
+responsive enough."
+
+### Light sent back down the tube
+A tube lined to reflect light backward, with a mirror at the back, gives light
+that missed the panel another pass forward. Real displays do this: **light
+recycling**, as in the reflective films behind a laptop's LCD that send
+wrongly-angled light back to be reflected forward again. It raises the share of
+light that reaches the screen; it does not hold light for long (each bounce
+loses a little, and the loss is heat). If the back is the laser itself rather
+than a mirror, light returning into a laser diode makes it flicker and hop
+between wavelengths (**optical feedback**), and can damage it; lasers that
+must tolerate returning light use an **optical isolator**, a one-way valve for
+light. So the back is better a mirror, with the emitter entering from the side
+or through a small hole.
+
+### A vortex of light
+Light can travel down a round pipe in a spiral that circles the axis without
+crossing it — **skew rays** — and a beam can itself carry a corkscrew
+wavefront (an **optical vortex**, with a dark centre like a ring). But light
+does not push on light: two beams cross through each other unchanged. A spiral
+of light around the centre would neither steady nor disturb the beam down the
+middle; it would only reach the far end later, as stray light or heat.
+
+### The 22-segment cell
+A 2-wide by 4-tall box grid: 2 horizontal segments on top, then each of the 4
+rows adds 3 verticals and 2 horizontals — 2 + 4 × (3 + 2) = 22. Two cells side
+by side share their middle column of 4 verticals, so a pair is 22 + 22 − 4 = 40
+segments; the 4 bits saved become metadata, so a pair fits in 44 bits.
+Straight segments only: letters made of diagonals (K, M, N, V, W, X, Z) must be
+approximated with steps and boxes. A tool that draws every character on the
+grid would show which ones read.
+
+## Fourth round (2026-10-10)
+
+### Red and green
+Red laser diodes are the smallest and cheapest made (they are in every
+pointer). Red plus green mixes to yellow and amber, so two lasers give four
+looks per segment: off, red, green, yellow.
+
+### E-ink
+E-ink holds its picture with no power and no light, and is read by daylight.
+Black-and-white e-ink changes in a few tenths of a second at best; colour
+e-ink takes seconds — about as slow as the glowing screen set aside earlier.
+
+### Light along the side
+Fibre made to leak light along its length ("side-glow" fibre) exists and is
+sold for lighting: a line that glows softly when seen from the side. The
+spiral of light around the centre could be let out this way, as faint coloured
+streaks along the band.
+
+### Distance at the edges
+A picture thrown onto a curved panel already stretches toward the panel's
+edges. Shaping the curve could make the far-from-centre parts look farther
+away, as on a tilted map — part of the perspective done by the panel's shape
+rather than by drawing.

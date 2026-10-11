@@ -8,8 +8,11 @@
 No stick or cuff.
 
 ## Intended Behavior
-A thumbstick in a pocket and a switchable sleeve or wrist cuff, each producing
-the same input records as 401 (see docs/open-questions.md, question 6).
+A thumbstick in a pocket, producing { x, y } records (numbers -1..1). A sleeve
+or wrist cuff, switchable on and off, that is its own kind of input: the
+wearer drags a finger along it and it reports an analog position along its
+length (number 0..1) while touched -- "you drag along it and it sends an
+analog style input."
 
 ## Suggested Implementation Steps
 1. Stick records; cuff on/off switch; cuff records.

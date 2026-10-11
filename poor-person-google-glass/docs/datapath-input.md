@@ -5,7 +5,7 @@
 dial turned       → { dial: one of six (left/right × forward/back/ear), steps: integer, signed }
 button pressed    → { button: "A" or "B", down: boolean }
 pocket stick      → { x: number −1..1, y: number −1..1 }
-cuff (if on)      → same shape as the stick, or as a dial
+cuff (if on)      → { along: number 0..1 (where the finger is), touching: boolean }
   → decision table (one entry per input, each pointing to an action;
     a table rather than a chain of if-else)
   → actions:
