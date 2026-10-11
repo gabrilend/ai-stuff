@@ -1,6 +1,9 @@
 # Issue 065: The Reading Walk
 
-**Status**: In progress — the map and the walk without an AI are built (065a–d); the guide's room, cipher, the guide and the pages are not
+Also called **ialmstla**: the info answering learning material scripting
+tutorial licensing agreement.
+
+**Status**: In progress — the map, the walk without an AI and the guide's room are built (065a–e); the cipher, the guide and the pages are not
 **Priority**: Medium
 **Created**: 2026-10-10
 **Type**: New tool, run against any project in the ai-stuff tree
@@ -55,8 +58,10 @@ them as part of the project, not as an outside source.
 A project can be walked without an AI: `scripts/reading-walk-map.lua <project>`
 builds the map (065a stops, 065b recorded reasons, 065c chapters) and
 `scripts/reading-walk.lua <project>` walks it by a list of options (065d).
-Tests: `scripts/test-reading-walk.sh`. Nothing yet gives a guide a room of its
-own, a cipher, or a say in the order (065e–g), and there are no pages (065h).
+Tests: `scripts/test-reading-walk.sh`. A guide can be given a room of its own
+with two dated ledgers, after the person consents
+(`scripts/reading-walk-guide-room.lua`, 065e). Nothing yet gives a guide a
+cipher or a say in the order (065f–g), and there are no pages (065h).
 
 The map is made from pieces every house-layout project already has:
 
@@ -243,7 +248,7 @@ None open.
 | 065b | recorded-reasons | 065a | alternatives found only where written down (completed) |
 | 065c | chapters-from-history | 065a | the commit that first added each file (completed) |
 | 065d | the-walk-without-an-ai | 065a, 065b, 065c | the terminal walk, by list of options (completed) |
-| 065e | the-guides-room | None | the guide's directory and its two ledgers |
+| 065e | the-guides-room | None | the guide's directory and its two ledgers (completed) |
 | 065f | the-guides-cipher | 065e | the guide's own cipher, version one |
 | 065g | the-guide | 065d, 065e, 065f | a local AI choosing each next move |
 | 065h | the-walk-as-pages | 065a, 065b, 065c | HTML pages and an OLED view |
