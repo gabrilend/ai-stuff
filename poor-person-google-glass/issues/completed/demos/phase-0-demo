@@ -9,8 +9,10 @@
 # spinning, for a few seconds and photographs it. Then the describing tool:
 # four objects described only in words (a drum, a lamp, the crown, glasses) become
 # models, each photographed in its annotated view; a description with
-# mistakes in it shows how they are refused. Finally the crown described in
-# words opens for you to turn by hand until you close the window.
+# mistakes in it shows how they are refused. Then the light pipe from
+# inside: twelve stations photographed, and the table of which parts each
+# station shows. Finally the light pipe opens for you to walk through (n for
+# the next station) until you close the window.
 #
 # Usage:
 #   phase-0-demo                 the project at the default location
@@ -55,6 +57,13 @@ printf 'The drum is a cylinder.\nThe lid is a disc. The lid is slightly widr tha
 cat "${MISTAKES}"
 "${DIR}/describe" "${DIR}" "${MISTAKES}"
 echo ""
-echo "== your turn: the crown described in words. Left drag turns, right drag slides, wheel zooms, v views, Esc closes =="
-"${DIR}/view-cad" "${DIR}" "${DIR}/output/described/crown.gltf" 2>&1 | grep -v ALSOFT
+echo "== the light pipe, from inside =="
+"${DIR}/scripts/make-light-pipe" "${DIR}" || exit 1
+"${DIR}/view-cad" "${DIR}" "${DIR}/output/models/light-pipe.gltf" --stations --views lit --screenshot 0.3 2>&1 \
+    | grep -v -e ALSOFT -e 'screenshot saved' -e 'coverage written'
+cat "${DIR}/tmp/shared-memory/coverage-light-pipe.gltf.txt"
+grep -e '^unseen' "${DIR}/output/goodbye"
+echo ""
+echo "== your turn: inside the light pipe. n next station, o outside, left drag turns, wheel zooms, v views, Esc closes =="
+"${DIR}/view-cad" "${DIR}" "${DIR}/output/models/light-pipe.gltf" 2>&1 | grep -v ALSOFT
 echo "photographs are in ${DIR}/tmp/shared-memory/screenshot-*.png"

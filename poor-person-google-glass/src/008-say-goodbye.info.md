@@ -5,4 +5,4 @@ Writes `output/goodbye`, the viewer's receipt (issue 005).
 
 | Offers | Takes |
 |---|---|
-| `write(project_dir, summary)` | summary: file, format (strings); triangles, parts, frames_drawn, ignored_input (whole); seconds_run, read_seconds (numbers); pictures (list of { path, view, black_share 0..1, camera = string: picture size, yaw, pitch, distance, target }) |
+| `write(project_dir, summary)` | summary: file, format (strings); triangles, parts, frames_drawn, ignored_input (whole); seconds_run, read_seconds (numbers); pictures (list of { path, view, black_share 0..1, station (name or nil), camera = string: picture size, yaw, pitch, distance, target }); coverage (nil, or part name → { stations, best_share, best_station }) and part_order, written as one "seen" line per part and an "unseen N" line |

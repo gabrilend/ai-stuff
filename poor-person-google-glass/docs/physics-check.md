@@ -162,3 +162,42 @@ A picture thrown onto a curved panel already stretches toward the panel's
 edges. Shaping the curve could make the far-from-centre parts look farther
 away, as on a tilted map — part of the perspective done by the panel's shape
 rather than by drawing.
+
+## Seventh round (2026-10-10): tiles before both eyes
+
+### Seeing something a few centimetres from the eye
+The eye's lens cannot focus closer than its **near point**: about 7–10 cm
+for a child, about 25 cm for most adults, farther with age. A tile where a
+spectacle lens sits (1–3 cm from the eye) is far inside that, so whatever is
+etched on it is a blur, however sharp the etching. This is the main problem
+the tile design must answer.
+
+### How a red-dot sight does it without a magnifier
+A red-dot sight shines a small light onto a slightly **curved,
+partly-mirrored window**. The curve sends the reflected light back toward
+the eye as parallel rays, as if the dot were infinitely far away
+(**collimation**). The eye then focuses it at infinity, where it is already
+looking, and the dot stays over the target when the head moves (no
+parallax). The working part is a curved mirror, not a lens, so it fits a
+lensless design: a tile could be a small curved partial mirror rather than
+a flat screen, with the picture made by the laser and the mirror putting it
+at infinity.
+
+Other lensless routes: a **pinhole** in front of the eye keeps near things
+in focus (pinhole glasses work this way) but darkens everything; a picture
+written straight onto the retina by a scanned beam (**retinal projection**)
+needs no focusing at all, but needs the beam aimed into the pupil.
+
+### Two eyes, one picture
+When each eye sees the same mark at the same angle from its own line of
+sight, the two lines are parallel and the brain fuses the marks into one,
+seen as far away. This is how the two images would join "red-dot-sight
+style, on both eyes". The two sides must match closely: a vertical
+mismatch of more than a few hundredths of a degree is felt as strain, and
+above about a tenth of a degree the mark doubles; side to side the eyes
+tolerate more.
+
+### Splitting a rectangle into tiles of the same shape
+Cutting a lens into an N by N grid gives tiles with exactly the lens's own
+width-to-height ratio, whatever N is; an N by M grid with N ≠ M changes the
+shape.

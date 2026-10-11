@@ -59,3 +59,15 @@ while read -r VIEW SHARE FILE; do
 done < <(awk '/^picture / { print $2, $4, $5 }' "${GOODBYE}")
 TRIANGLES=$(grep '^triangles' "${GOODBYE}")
 echo "pass  the viewer opened the crown, said goodbye (${TRIANGLES}), and saved six whole pictures"
+
+# the light pipe from inside: every part must be seen from some station
+# (coverage, measured from the parts view's pixels; issues 008 and 105)
+"${DIR}/scripts/make-light-pipe" "${DIR}" > /dev/null || exit 1
+"${DIR}/view-cad" "${DIR}" "${DIR}/output/models/light-pipe.gltf" --stations --views lit --screenshot 0.3 > /dev/null || exit 1
+UNSEEN=$(awk '/^unseen/ { print $2 }' "${GOODBYE}")
+if [ "${UNSEEN}" != "0" ]; then
+    echo "FAIL  the light pipe's stations leave parts unseen: $(grep '^unseen' "${GOODBYE}")"
+    exit 1
+fi
+STATIONS=$(grep -c '^  station' "${GOODBYE}")
+echo "pass  the light pipe from ${STATIONS} stations inside: every part seen at least once"

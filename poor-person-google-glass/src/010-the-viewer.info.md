@@ -12,4 +12,7 @@ The LÖVE window (issue 005). Reads input/, opens a window, reads the CAD file, 
 | `VIEWS` | view name → function drawing the shape: lit, edges, parts, depth, normals, annotated |
 | `hue_to_colour(hue)` | {r,g,b} for the parts view |
 
-Keys: Esc close, f fit, v next view, w edges, u up axis, space spin, h hide panel. Run options: `--key S NAME`, `--drag S DX DY`, `--pan S DX DY`, `--wheel S N`, `--screenshot S` (one picture per view to tmp/shared-memory/screenshot-<file>-<view>.png, then close), `--views NAME,NAME`.
+| `go_to_station(index)` | stands the camera at one of the shape's stations (issue 008) |
+| `write_coverage(name)` | writes tmp/shared-memory/coverage-<file>.txt: each part's share of each station's picture |
+
+Keys: Esc close, f fit, v next view, w edges, u up axis, space spin, h hide panel, n next station, o back outside. Run options: `--key S NAME`, `--drag S DX DY`, `--pan S DX DY`, `--wheel S N`, `--screenshot S` (one picture per view to tmp/shared-memory/screenshot-<file>-[<station>-]<view>.png, then close), `--views NAME,NAME`, `--stations` (pictures at every station, and coverage: each part's pixels counted in the parts view, matched within 2 shades per channel). A shape with a filling is hazed with distance in the lit look only.

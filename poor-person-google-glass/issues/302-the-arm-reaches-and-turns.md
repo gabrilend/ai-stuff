@@ -2,7 +2,7 @@
 
 **Phase:** 3 — The panel on its arm
 **Blocked by:** 301
-**Blocks:** 303
+**Blocks:** 303, 304
 **Related documents:** docs/datapath-input.md
 
 ## Current Behavior

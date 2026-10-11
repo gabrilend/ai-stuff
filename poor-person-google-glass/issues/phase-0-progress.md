@@ -29,6 +29,11 @@ For current done/open counts, run:
   for five kinds of solid, and `./describe`. Four example objects, including
   the owner's rectangular-lensed glasses.
 
+- **008 — Standing inside a model.** A model can bring its own places to
+  stand and the haze of what fills it; the viewer steps through them and,
+  from the pixels of the flat-colour view, measures which parts each place
+  shows — so "every feature seen at least once" is a checked number.
+
 ## In progress
 - **005 — The viewer** works: pictures from its own canvas in six views,
   filed in development-history/. Waits on: reading on several threads; how

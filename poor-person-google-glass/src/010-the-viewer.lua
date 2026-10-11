@@ -81,6 +81,10 @@ uniform vec3 part_colour;
 uniform vec3 toward_camera;
 uniform float shade_mode;
 uniform vec2 depth_range;
+// a model full of liquid or haze (issue 008): its colour, and how quickly
+// it thickens with distance (0: no filling). Only the lit look is hazed;
+// the flat, depth and normals views stay exact, being measurements.
+uniform vec4 filling;
 vec4 effect(vec4 colour, Image texture, vec2 texture_coords, vec2 screen_coords) {
     if (shade_mode > 0.5 && shade_mode < 1.5) return vec4(part_colour, 1.0);
     if (shade_mode > 1.5 && shade_mode < 2.5) {
@@ -96,7 +100,8 @@ vec4 effect(vec4 colour, Image texture, vec2 texture_coords, vec2 screen_coords)
     float headlight = abs(dot(n, toward_camera));
     float from_above = abs(n.y);
     float light = 0.22 + 0.63 * headlight + 0.15 * from_above;
-    return vec4(part_colour * light, 1.0);
+    float haze = 1.0 - exp(-filling.a * eye_distance);
+    return vec4(mix(part_colour * light, filling.rgb, haze), 1.0);
 }
 #endif
 ]]
@@ -196,6 +201,16 @@ local KEYS = {
             if name == viewer.view then viewer.view = VIEW_ORDER[index % #VIEW_ORDER + 1] return end
         end
     end,
+    n = function()
+        -- the next station of a model that has them, round to the first
+        local stations = viewer.shape and viewer.shape.stations
+        if stations and #stations > 0 then viewer.go_to_station((viewer.station or 0) % #stations + 1) end
+    end,
+    o = function()
+        -- back outside, circling the whole shape
+        viewer.station = nil
+        if viewer.shape then fit_view() end
+    end,
     u = function()
         -- the other axis is up: some exporters ignore their format's rule
         viewer.up_axis = (viewer.up_axis == "y") and "z" or "y"
@@ -203,6 +218,19 @@ local KEYS = {
         fit_view()
     end,
 }
+-- }}}
+
+-- {{{ function viewer.go_to_station()
+-- Stands the camera at station `index` of the shape (issue 008). The
+-- station's points are in the file's own frame, so they are stood upright
+-- with the shape.
+function viewer.go_to_station(index)
+    local station = viewer.shape.stations[index]
+    local ex, ey, ez = camera_math.transform(viewer.model_matrix, station.eye)
+    local lx, ly, lz = camera_math.transform(viewer.model_matrix, station.look)
+    camera_math.stand_at(viewer.camera, { ex, ey, ez }, { lx, ly, lz })
+    viewer.station = index
+end
 -- }}}
 
 -- {{{ function viewer.drag()
@@ -243,7 +271,11 @@ function viewer.load(arguments)
     while index <= #arguments do
         local word = arguments[index]
         local option = OPTIONS[word]
-        if word == "--views" then
+        if word == "--stations" then
+            -- not timed: a screenshot then takes its pictures at every station
+            viewer.screenshot_at_stations = true
+            index = index + 1
+        elseif word == "--views" then
             -- not timed: it says which pictures a screenshot takes
             local names = {}
             for name in (arguments[index + 1] or ""):gmatch("[^,]+") do
@@ -342,6 +374,8 @@ local function send_camera(width, height)
     viewer.shader:send("model_matrix", "row", viewer.model_matrix)
     viewer.shader:send("toward_camera", { tx / length, ty / length, tz / length })
     viewer.shader:send("depth_range", { viewer.camera.distance - viewer.camera.radius, viewer.camera.distance + viewer.camera.radius })
+    local f = viewer.shape.filling
+    viewer.shader:send("filling", f and { f.colour[1], f.colour[2], f.colour[3], f.density } or { 0, 0, 0, 0 })
 end
 -- }}}
 
@@ -492,29 +526,127 @@ end
 -- pixels goes on the receipt: the viewer never draws pure black (even the
 -- depth view's farthest grey is above it), so black pixels mean the
 -- picture was not drawn.
+-- {{{ local function count_parts()
+-- How many pixels of a parts-view picture belong to each part: every part is
+-- drawn in one flat colour, so a pixel of exactly that colour is that part
+-- (pixels at edges, blended by multisampling, belong to none and are not
+-- counted). Returns { part name = pixel count }.
+local function count_parts(image)
+    local width, height = image:getDimensions()
+    -- each part's colour, and every colour within 2 steps of it on each
+    -- channel: the graphics card rounds its own way (the hinges' 0.627 was
+    -- stored as 159 where 0.627 x 255 rounds to 160, found 2026-10-10 when
+    -- coverage called plainly visible hinges unseen). The flat colours are
+    -- at least ~30 steps apart, so the neighbourhoods never overlap.
+    local by_colour = {}
+    for _, item in ipairs(viewer.meshes) do
+        local c = item.flat
+        local r, g, b = math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5)
+        for dr = -2, 2 do for dg = -2, 2 do for db = -2, 2 do
+            by_colour[(r + dr) * 65536 + (g + dg) * 256 + (b + db)] = item.part.name
+        end end end
+    end
+    local counts = {}
+    local bytes = ffi.cast("const uint8_t *", image:getFFIPointer())
+    for k = 0, width * height - 1 do
+        local part = by_colour[bytes[k * 4] * 65536 + bytes[k * 4 + 1] * 256 + bytes[k * 4 + 2]]
+        if part then counts[part] = (counts[part] or 0) + 1 end
+    end
+    return counts, width * height
+end
+-- }}}
+
+-- {{{ local function measure_coverage()
+-- At the current camera: each part's share of the picture, from the parts
+-- view. Folded into viewer.coverage (part name -> { stations = whole,
+-- best_share = number, best_station = string }).
+local function measure_coverage(station_name)
+    render_view("parts")
+    local counts, total = count_parts(viewer.canvas:newImageData())
+    viewer.coverage_rows[#viewer.coverage_rows + 1] = { station = station_name, counts = counts, total = total }
+    for _, item in ipairs(viewer.meshes) do
+        local entry = viewer.coverage[item.part.name]
+        local share = (counts[item.part.name] or 0) / total
+        -- seen: at least a few hundred pixels' worth, so a part is not
+        -- "featured" by a speck
+        if share >= 0.0005 then entry.stations = entry.stations + 1 end
+        if share > entry.best_share then entry.best_share, entry.best_station = share, station_name end
+    end
+end
+-- }}}
+
 local function save_pictures()
     local name = (viewer.shape and viewer.shape.name or "empty"):gsub("[^%w%.%-]", "_")
-    for _, view_name in ipairs(viewer.screenshot_views) do
-        render_view(view_name)
-        local image = viewer.canvas:newImageData()
-        local width, height = image:getDimensions()
-        local bytes = ffi.cast("const uint8_t *", image:getFFIPointer())
-        local black = 0
-        for k = 0, width * height - 1 do
-            if bytes[k * 4] == 0 and bytes[k * 4 + 1] == 0 and bytes[k * 4 + 2] == 0 then black = black + 1 end
+    -- the places to take pictures from: every station, or just here
+    local places = { { label = nil } }
+    if viewer.screenshot_at_stations then
+        local stations = viewer.shape and viewer.shape.stations
+        if not stations or #stations == 0 then error("--stations: this model has no stations", 0) end
+        places = {}
+        for index, station in ipairs(stations) do places[index] = { label = station.name, index = index } end
+        viewer.coverage, viewer.coverage_rows = {}, {}
+        for _, item in ipairs(viewer.meshes) do
+            viewer.coverage[item.part.name] = { stations = 0, best_share = 0, best_station = "none" }
         end
-        local path = viewer.project_dir .. "/tmp/shared-memory/screenshot-" .. name .. "-" .. view_name .. ".png"
-        local file, problem = io.open(path, "wb")
-        if file == nil then error("cannot save screenshot " .. path .. ": " .. tostring(problem), 0) end
-        file:write(image:encode("png"):getString())
-        file:close()
-        print("screenshot saved: " .. path)
-        local c = viewer.camera
-        viewer.pictures[#viewer.pictures + 1] = { path = path, view = view_name, black_share = black / (width * height),
-            camera = string.format("%dx%d yaw %.4f pitch %.4f distance %.6g target %.6g %.6g %.6g",
-                width, height, c.yaw, c.pitch, c.distance, c.target[1], c.target[2], c.target[3]) }
     end
+    for _, place in ipairs(places) do
+        if place.index then
+            viewer.go_to_station(place.index)
+            measure_coverage(place.label)
+        end
+        for _, view_name in ipairs(viewer.screenshot_views) do
+            render_view(view_name)
+            local image = viewer.canvas:newImageData()
+            local width, height = image:getDimensions()
+            local bytes = ffi.cast("const uint8_t *", image:getFFIPointer())
+            local black = 0
+            for k = 0, width * height - 1 do
+                if bytes[k * 4] == 0 and bytes[k * 4 + 1] == 0 and bytes[k * 4 + 2] == 0 then black = black + 1 end
+            end
+            local label = place.label and (place.label:gsub("[^%w%-]", "-") .. "-") or ""
+            local path = viewer.project_dir .. "/tmp/shared-memory/screenshot-" .. name .. "-" .. label .. view_name .. ".png"
+            local file, problem = io.open(path, "wb")
+            if file == nil then error("cannot save screenshot " .. path .. ": " .. tostring(problem), 0) end
+            file:write(image:encode("png"):getString())
+            file:close()
+            print("screenshot saved: " .. path)
+            local c = viewer.camera
+            viewer.pictures[#viewer.pictures + 1] = { path = path, view = view_name, black_share = black / (width * height),
+                station = place.label,
+                camera = string.format("%dx%d yaw %.4f pitch %.4f distance %.6g target %.6g %.6g %.6g",
+                    width, height, c.yaw, c.pitch, c.distance, c.target[1], c.target[2], c.target[3]) }
+        end
+    end
+    if viewer.coverage then viewer.write_coverage(name) end
     viewer.quit_next_frame = true
+end
+-- }}}
+
+-- {{{ function viewer.write_coverage()
+-- The coverage table: one row per station, one column per part, each the
+-- part's share of that station's picture in thousandths; then each part's
+-- count of stations that show it. Written to tmp/shared-memory/.
+function viewer.write_coverage(name)
+    local out = { "coverage of " .. viewer.shape.name .. ", written by src/010-the-viewer.lua (--stations): "
+        .. "each part's share of each station's picture, in thousandths; '.' = not seen", "" }
+    local header = { string.format("%-28s", "station") }
+    -- each column 11 wide: a space, then the part's name cut to 10 letters
+    for _, item in ipairs(viewer.meshes) do header[#header + 1] = string.format(" %10s", item.part.name:sub(1, 10)) end
+    out[#out + 1] = table.concat(header)
+    for _, row in ipairs(viewer.coverage_rows) do
+        local line = { string.format("%-28s", row.station) }
+        for _, item in ipairs(viewer.meshes) do
+            local share = (row.counts[item.part.name] or 0) / row.total
+            line[#line + 1] = share >= 0.0005 and string.format(" %10.0f", share * 1000) or string.format(" %10s", ".")
+        end
+        out[#out + 1] = table.concat(line)
+    end
+    local path = viewer.project_dir .. "/tmp/shared-memory/coverage-" .. name .. ".txt"
+    local file, problem = io.open(path, "w")
+    if file == nil then error("cannot write " .. path .. ": " .. tostring(problem), 0) end
+    file:write(table.concat(out, "\n") .. "\n")
+    file:close()
+    print("coverage written: " .. path)
 end
 -- }}}
 
@@ -541,6 +673,11 @@ local function draw_panel()
             for word, count in pairs(shape.skipped) do words[#words + 1] = word .. " " .. count end
             table.sort(words)
             lines[#lines + 1] = "not read: " .. table.concat(words, ", ")
+        end
+        if shape.stations and #shape.stations > 0 then
+            lines[#lines + 1] = viewer.station
+                and string.format("station %d of %d: %s   (n: next, o: outside)", viewer.station, #shape.stations, shape.stations[viewer.station].name)
+                or string.format("%d stations inside   (n: stand at the first)", #shape.stations)
         end
         lines[#lines + 1] = string.format("parts %d:", #shape.parts)
     else
@@ -667,6 +804,8 @@ function viewer.quit()
         seconds_run = viewer.seconds_run,
         pictures = viewer.pictures,
         ignored_input = viewer.ignored_input,
+        coverage = viewer.coverage,
+        part_order = viewer.meshes,
     })
 end
 -- }}}

@@ -1,7 +1,7 @@
 # 301 — The curved panel
 
 **Phase:** 3 — The panel on its arm
-**Blocks:** 302, 303
+**Blocks:** 302, 303, 304
 **Related documents:** docs/core-terms.md
 
 ## Current Behavior

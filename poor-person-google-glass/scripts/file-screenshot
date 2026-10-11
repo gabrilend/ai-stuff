@@ -9,9 +9,13 @@
 # changed since the previous picture: which source files, which settings
 # (line by line), whether the commit moved. Two sections are left for a
 # person (or Claude) to fill: what the picture shows, literally, and the
-# story so far. A picture byte-for-byte identical to one already filed is
-# not filed again: it is the same picture, already kept (the scripted test
-# runs make the same pictures every time nothing has changed).
+# story so far. A picture that is the same as one already filed is not filed
+# again: the scripted test runs make the same pictures every time nothing
+# has changed. "The same" is: identical bytes, or the last picture of the
+# same name with no pixel differing by more than 2% of its shade (the
+# graphics card draws a pixel or two a shade differently from run to run;
+# found 2026-10-10 when unchanged code filed eight station pictures again,
+# each differing from its twin in under one pixel's worth of shade).
 #
 # How "what changed" is known: each filing keeps a fingerprint of every
 # source and settings file (development-history/.fingerprints/NNN.txt);
@@ -79,6 +83,19 @@ for SHOT in "${PICTURES[@]}"; do
     # lower-cased, every run of other characters turned into one dash
     BASE=$(basename "${SHOT}" .png)
     NAME=$(echo "${BASE#screenshot-}" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')
+    # the last picture filed under this name, and whether this one differs
+    # from it in any pixel by more than 2% of the pixel's shade
+    shopt -s nullglob
+    NAMESAKES=("${HISTORY}"/[0-9][0-9][0-9]-"${NAME}".png)
+    shopt -u nullglob
+    if [ "${#NAMESAKES[@]}" -gt 0 ]; then
+        LAST="${NAMESAKES[${#NAMESAKES[@]}-1]}"
+        DIFFERING=$(compare -metric AE -fuzz 2% "${SHOT}" "${LAST}" null: 2>&1 | cut -d' ' -f1)
+        if [ "${DIFFERING}" = "0" ]; then
+            echo "already kept as $(basename "${LAST}" .png) (the same to within a shade): ${SHOT}"
+            continue
+        fi
+    fi
     COUNT=$(find "${HISTORY}" -maxdepth 1 -name '[0-9][0-9][0-9]-*.png' | wc -l)
     NUMBER=$(printf '%03d' $((COUNT + 1)))
     PICTURE="${HISTORY}/${NUMBER}-${NAME}.png"

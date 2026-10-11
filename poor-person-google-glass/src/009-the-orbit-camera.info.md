@@ -12,6 +12,7 @@ The camera on a ball around the shape (issue 005). Pure arithmetic, no LÖVE. Ma
 | `orbit(camera, yaw, pitch)` | turns; pitch stops at ±89° |
 | `pan(camera, dx, dy, screen_height)` | slides the target so the shape follows the mouse |
 | `zoom(camera, notches)` | 10% closer per notch |
+| `stand_at(camera, eye, look)` | stands at a point looking at another (sets target, yaw, pitch, distance), so turning carries on from there |
 | `eye(camera)`, `view(camera)`, `projection(camera, aspect)` | position; matrices |
 | `upright(up_axis)` | the model matrix standing a z-up shape upright |
 | `multiply(a, b)`, `transform(m, point)` | matrix product; x, y, z, w |

@@ -64,6 +64,8 @@ last issue completed in a project to belong to phase 1.
 - scripts/run-tests - every test, including a scripted viewer window.
 - scripts/make-test-shapes - writes the formula-made test models in every
   format.
+- scripts/make-light-pipe - writes the light pipe's inside, with its
+  stations, to output/models/light-pipe.gltf.
 - input/viewer-settings.lua - the viewer's window, view and colours.
 - input/descriptions/ - objects described in words: a drum, a lamp, the
   crown, glasses.

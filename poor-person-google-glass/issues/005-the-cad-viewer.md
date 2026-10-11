@@ -2,7 +2,7 @@
 
 **Phase:** 0 — Tools
 **Blocked by:** 001, 002, 003, 004
-**Blocks:** 006
+**Blocks:** 006, 008
 **Related documents:** docs/datapath-cad-viewer.md
 
 ## Current Behavior
@@ -85,4 +85,5 @@ person: `--key SECONDS NAME`, `--drag SECONDS DX DY`, `--pan SECONDS DX DY`,
    split across workers; worth it once a model is large enough to wait on?
 2. Every new picture is filed, so each code change adds dozens (the test and
    the demo take six views each). Keep all, or file only the demo's and
-   hand-taken pictures?
+   hand-taken pictures? (Pictures the same as the last of their name are no
+   longer filed again, which ends the repeats when nothing changed.)

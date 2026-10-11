@@ -325,6 +325,34 @@ test("fitting the camera keeps every corner of the box on screen", function()
     end
 end)
 
+test("standing at a station puts its look point at the picture's centre", function()
+    local camera = camera_math.new(40)
+    camera.radius = 100
+    camera_math.stand_at(camera, { 30, 12, -5 }, { 80, 0, 20 })
+    local x, y = camera_math.to_screen(camera, { 80, 0, 20 }, 800, 600)
+    expect(math.abs(x - 400) < 1e-6 and math.abs(y - 300) < 1e-6, string.format("look point at %.3f, %.3f", x, y))
+    local eye = camera_math.eye(camera)
+    expect(math.abs(eye[1] - 30) < 1e-9 and math.abs(eye[2] - 12) < 1e-9 and math.abs(eye[3] + 5) < 1e-9, "the camera is not at the eye")
+end)
+
+test("glTF carries a model's stations and filling", function()
+    local cube = shapes.cube()
+    cube.stations = { { name = "corner", eye = { 0.1, 0.2, 0.3 }, look = { 0.5, 0.5, 0.5 } } }
+    cube.filling = { colour = { 0.5, 0.7, 0.8 }, density = 0.02 }
+    local back = gltf.read(gltf.write(cube, "the tests", "units"), "cube.gltf", no_files)
+    expect(back.stations[1].name == "corner" and back.stations[1].look[3] == 0.5, "station lost")
+    expect(back.filling.density == 0.02, "filling lost")
+    cube.stations = { { name = "broken", eye = { 1, 2 } } }
+    expect_error("station 1 needs", function() gltf.read(gltf.write(cube, "the tests", "units"), "cube.gltf", no_files) end)
+end)
+
+test("the light pipe model is whole, with a station for every stretch", function()
+    local pipe = require("018-the-light-pipe-model").build()
+    expect(#pipe.parts == 14, "parts: " .. #pipe.parts)
+    expect(pipe.degenerate_count == 0, "slivers: " .. pipe.degenerate_count)
+    expect(#pipe.stations >= 10, "stations: " .. #pipe.stations)
+end)
+
 test("standing a z-up shape upright sends its z to the world's y", function()
     local x, y, z = camera_math.transform(camera_math.upright("z"), { 0, 0, 5 })
     expect(x == 0 and y == 5 and z == 0, string.format("got %g %g %g", x, y, z))

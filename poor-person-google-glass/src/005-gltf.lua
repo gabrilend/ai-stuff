@@ -311,7 +311,30 @@ function M.read(bytes, name, read_neighbour)
     if scene == nil then fail("has no scene to show") end
 
     local shape = record.new(name, "gltf", "y")
-    shape.units = document.asset.extras and document.asset.extras.units or "metres"
+    local extras = document.asset.extras or {}
+    shape.units = extras.units or "metres"
+    -- {{{ stations and filling (issue 008)
+    -- stations: list of { name, eye = {x,y,z}, look = {x,y,z} }; filling:
+    -- { colour = {r,g,b}, density }. Checked here, so a malformed one is
+    -- refused with the file's name rather than breaking the camera later.
+    local function three_numbers(list)
+        return type(list) == "table" and type(list[1]) == "number" and type(list[2]) == "number" and type(list[3]) == "number"
+    end
+    if extras.stations ~= nil then
+        for index, station in ipairs(extras.stations) do
+            if type(station.name) ~= "string" or not three_numbers(station.eye) or not three_numbers(station.look) then
+                fail("station " .. index .. " needs a name, an eye {x,y,z} and a look {x,y,z}")
+            end
+        end
+        shape.stations = extras.stations
+    end
+    if extras.filling ~= nil then
+        if not three_numbers(extras.filling.colour) or type(extras.filling.density) ~= "number" then
+            fail("filling needs a colour {r,g,b} and a density")
+        end
+        shape.filling = extras.filling
+    end
+    -- }}}
 
     -- {{{ local function visit()
     -- Walks one node and its children, carrying the placement down.
@@ -346,18 +369,22 @@ local KEY_ORDER = {
     "materials", "pbrMetallicRoughness", "baseColorFactor",
     "accessors", "bufferView", "componentType", "count", "type", "min", "max",
     "bufferViews", "buffer", "byteOffset", "byteLength", "buffers", "uri",
+    "stations", "eye", "look", "filling", "colour", "density",
 }
 
 -- {{{ function M.write()
 -- One self-contained .gltf text: one node, mesh, material and pair of
 -- accessors (positions, normals) per part, all numbers in one base64 buffer.
 -- units: a word saved in asset.extras.units ("millimetres" for the crown).
+-- The shape's stations and filling (issue 008), when it has them, are saved
+-- in asset.extras too, so a model brings its own places to stand.
 function M.write(shape, made_by, units)
     local floats = 0
     for _, part in ipairs(shape.parts) do floats = floats + 2 * #part.positions end
     local block = ffi.new("float[?]", math.max(floats, 1))
     local document = {
-        asset = { version = "2.0", generator = made_by or "005-gltf.lua", extras = { units = units } },
+        asset = { version = "2.0", generator = made_by or "005-gltf.lua",
+                  extras = { units = units, stations = shape.stations, filling = shape.filling } },
         scene = 0,
         scenes = { { nodes = {} } },
         nodes = {}, meshes = {}, materials = {}, accessors = {}, bufferViews = {},

@@ -82,6 +82,22 @@ function M.fit(camera, centre, radius, aspect)
 end
 -- }}}
 
+-- {{{ function M.stand_at()
+-- Stands at `eye` looking at `look` (each {x,y,z}): the same camera, its
+-- target the look point and its yaw, pitch and distance worked back from
+-- the eye, so turning and zooming carry on from a station as from anywhere.
+-- Pitch is held short of straight up or down, like any other pitch.
+function M.stand_at(camera, eye, look)
+    local dx, dy, dz = eye[1] - look[1], eye[2] - look[2], eye[3] - look[3]
+    local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+    if distance == 0 then error("a station's eye and look point are the same point", 0) end
+    camera.target = { look[1], look[2], look[3] }
+    camera.distance = distance
+    camera.yaw = math.atan2(dx, dz)
+    camera.pitch = math.max(-PITCH_LIMIT, math.min(PITCH_LIMIT, math.asin(dy / distance)))
+end
+-- }}}
+
 -- {{{ function M.eye()
 -- Where the camera stands: on the ball, at its yaw and pitch.
 function M.eye(camera)

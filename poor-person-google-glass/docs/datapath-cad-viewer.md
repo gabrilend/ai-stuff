@@ -27,6 +27,18 @@ model file (path, string)
           lit | edges | parts | depth | normals | annotated
         → the canvas shown in the window, the panel of figures over it
 
+a model may carry, in its glTF's asset.extras (issue 008):
+  stations  { name, eye {x,y,z}, look {x,y,z} } → n steps through them, o
+            goes back outside; the camera stands at the eye facing the look
+  filling   { colour, density } → the lit look hazes toward the colour
+            with distance (a liquid or haze filling the model)
+
+--stations → at every station: the parts view drawn and its pixels counted
+             per part (coverage), then the requested views saved;
+             tmp/shared-memory/coverage-FILE.txt holds the table, and the
+             receipt says how many stations show each part and which parts
+             none does
+
 mouse, keys → the handlers → camera or display toggles
 scripted run options (--drag, --key, --wheel, --screenshot, --views)
   → the same handlers; real input is then ignored and counted
@@ -41,7 +53,8 @@ on closing → output/goodbye: file, format, triangles, parts, frames,
 after the window closes, view-cad → scripts/file-screenshot:
              each new picture into development-history/NNN-NAME.png with
              notes (what made it, what changed since the last picture);
-             a picture identical byte for byte to one already filed is
+             a picture the same as one already filed (identical bytes, or
+             the last of its name with no pixel more than 2% different) is
              not filed again
 ```
 
