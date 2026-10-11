@@ -3,7 +3,7 @@
 Also called **ialmstla**: the info answering learning material scripting
 tutorial licensing agreement.
 
-**Status**: In progress — the map, the walk without an AI, the guide's room and its cipher are built (065a–f); the guide and the pages are not
+**Status**: In progress — everything but the pages is built (065a–g); the walk as web pages (065h) is not
 **Priority**: Medium
 **Created**: 2026-10-10
 **Type**: New tool, run against any project in the ai-stuff tree
@@ -62,8 +62,10 @@ Tests: `scripts/test-reading-walk.sh`. A guide can be given a room of its own
 with two dated ledgers, after the person consents
 (`scripts/reading-walk-guide-room.lua`, 065e). The guide writes its notes
 only encrypted, with its own cipher (`scripts/libs/guide-cipher.lua`,
-`scripts/libs/guide-trail.lua`, 065f). Nothing yet gives a guide a say in the
-order (065g), and there are no pages (065h).
+`scripts/libs/guide-trail.lua`, 065f). With `--guide=<room>`, a local AI decides
+where "next" goes, stepping back to foundations when the reader's own requests
+suggest a part is not landing (`scripts/libs/reading-guide.lua`, 065g). There
+are no pages yet (065h).
 
 The map is made from pieces every house-layout project already has:
 
@@ -252,7 +254,7 @@ None open.
 | 065d | the-walk-without-an-ai | 065a, 065b, 065c | the terminal walk, by list of options (completed) |
 | 065e | the-guides-room | None | the guide's directory and its two ledgers (completed) |
 | 065f | the-guides-cipher | 065e | the guide's own cipher, version one (completed) |
-| 065g | the-guide | 065d, 065e, 065f | a local AI choosing each next move |
+| 065g | the-guide | 065d, 065e, 065f | a local AI choosing each next move (completed) |
 | 065h | the-walk-as-pages | 065a, 065b, 065c | HTML pages and an OLED view |
 
 Order: 065a → (065b, 065c in parallel) → 065d → 065g; 065e → 065f → 065g;

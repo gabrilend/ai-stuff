@@ -13,7 +13,10 @@
 # never committed says so; one worker and three workers give the same map. It
 # then walks the map without a person and checks that walking to the end is a
 # complete reading, that skipping shows the summary, and that "yeah yeah" is
-# taken as a skip.
+# taken as a skip. Last, it walks with a stand-in guide and checks that the
+# guide steps back to a stop the current one is built from, returns
+# afterwards, notes everything only encrypted in its room, and that an answer
+# it cannot use hands the choice back to the reader.
 
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/delta-version}"
 [ "${1:-}" = "--dir" ] && [ -n "${2:-}" ] && DIR="$2"
@@ -193,9 +196,61 @@ function run_walk_checks() {
 }
 # }}}
 
+# -- {{{ run_guide_checks
+function run_guide_checks() {
+    local map="$FIXTURE/one.map.lua" room="$FIXTURE/room" output
+    echo "guide:"
+    rm -rf "$room"
+    mkdir -p "$room"
+    # A stand-in AI: steps back to the first foundation offered when the
+    # reader has asked for two or more things at the current stop since the
+    # guide last moved, else on.
+    cat > "$FIXTURE/stand-in-guide.lua" <<'EOF'
+return function(system, user)
+    local current = user:match("Current stop (%d+)")
+    local since = user:match(".*\n  guide [^\n]*(.*)$") or user
+    local asked = 0
+    for _ in since:gmatch("stop " .. current .. " %a+") do asked = asked + 1 end
+    local foundation = user:match("\n  (%d+): ")
+    if asked >= 2 and foundation then return "BACK " .. foundation end
+    return "NEXT"
+end
+EOF
+    echo 'return function() return "I would like to ask the reader a question." end' > "$FIXTURE/unreadable-guide.lua"
+    echo 'return function() return "BACK 1" end' > "$FIXTURE/wrong-back-guide.lua"
+
+    output=$(luajit "$WALKER" --map="$map" --start=3 --choices=mwnnnq --guide="$room" --guide-model="$FIXTURE/stand-in-guide.lua")
+    check "a struggling reader is stepped back to a foundation" \
+        "$(contains "$output" "the guide steps back to stop 2, which this one is built from")"
+    check "after the step back, next returns to where the reader was" \
+        "$(contains "$output" "back to stop 3, where you were")"
+    check "the receipt counts the guide's step back" "$(contains "$output" "stepped back 1")"
+    check "nothing the reader did is on disk in plain text" \
+        "$(grep -rq -e 'more' -e 'guide back' "$room"/trail-*.trail && echo no || echo yes)"
+    local notes
+    notes=$(luajit -e "
+        local T = dofile('$DIR/scripts/libs/guide-trail.lua')
+        local trail = T.open('$room')
+        local name = io.popen('ls $room | grep trail-'):read('*l'):match('^trail%-(.*)%.trail$')
+        io.write(table.concat(T.read(trail, name), '|'))")
+    check "the trail reads back: the reader's requests, then the guide's move" \
+        "$(contains "$notes" "stop 3 more|stop 3 why|stop 3 next|guide back 2")"
+    output=$(luajit "$WALKER" --map="$map" --start=3 --choices=nq --guide="$room" --guide-model="$FIXTURE/unreadable-guide.lua")
+    check "an answer with no move hands the choice to the reader" "$(contains "$output" "choose for yourself")"
+    output=$(luajit "$WALKER" --map="$map" --start=3 --choices=nq --guide="$room" --guide-model="$FIXTURE/wrong-back-guide.lua")
+    check "a step back to a stop not offered is refused" "$(contains "$output" "not offered")"
+    output=$(INFERENCE_CHAT_HOST=127.0.0.1:1 luajit "$WALKER" --map="$map" --choices=q --guide="$room" 2>&1)
+    check "a guide with no AI answering is an error, not a quiet walk without one" \
+        "$(contains "$output" "is not answering")"
+    output=$(luajit "$DIR/scripts/reading-walk-guide-room.lua" check "$room" 2>&1)
+    check "the guide's room is in order after the walks" "$(contains "$output" "in order")"
+}
+# }}}
+
 build_fixture
 run_map_checks
 run_walk_checks
+run_guide_checks
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
