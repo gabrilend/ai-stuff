@@ -4,8 +4,10 @@
 #
 # In plain terms: finds each test file in src/ (names ending in .test.lua)
 # and runs it with plain LuaJIT, reporting how many passed and failed. The
-# drawn parts are checked separately, by running the game with scripted
-# clicks and a screenshot (see the run script's options).
+# drawn parts are checked by running the game with scripted clicks and a
+# screenshot (see the run script's options); and last, the game itself is
+# started for a moment and closed, and its goodbye note checked, so a
+# drawing that fails to start (a shader that will not build) fails here.
 #
 # Usage:
 #   scripts/run-tests              test the project at the default location
@@ -25,4 +27,20 @@ for TEST_FILE in "${DIR}"/src/*.test.lua; do
     echo "== ${TEST_FILE##*/}"
     luajit "${TEST_FILE}" "${DIR}" || STATUS=1
 done
+
+# the game starts, draws for a second and closes cleanly (a fresh goodbye)
+echo "== the game starts and closes"
+GOODBYE="${DIR}/output/goodbye"
+BEFORE=$(stat -c %Y "${GOODBYE}" 2>/dev/null || echo 0)
+sleep 1
+START_LOG=$(love "${DIR}/src" "${DIR}" --quit 1.0 2>&1)
+AFTER=$(stat -c %Y "${GOODBYE}" 2>/dev/null || echo 0)
+# a goodbye written after the start: it reached a clean ending
+if [ "${AFTER}" -gt "${BEFORE}" ]; then
+    echo "PASS  the game starts, draws and says goodbye"
+else
+    echo "FAIL  the game did not reach a clean ending:"
+    echo "${START_LOG}" | head -12
+    STATUS=1
+fi
 exit "${STATUS}"

@@ -45,7 +45,11 @@ far to near (pictures 042-049); the blur is now off by default. The land
 as lit dots (step 13) then replaced the splotches: a grid of points with
 heights, facings and colours (026), drawn as round sprites turned toward
 the sun on an empty ground; the painted map is a menu choice (pictures
-051-054 at dawn, noon, evening and mid-morning).
+051-054 at dawn, noon, evening and mid-morning). Then flat circles twice as
+dense, lit only by their turn, nearest first with wholly covered circles
+never painted (055-057); ordered by distance from the centre alone and
+shaded straight pole to pole, after the owner saw "funky" hills and "fins"
+(058-059). The test script now also starts the game for a moment.
 
 ## Intended Behavior
 
@@ -169,6 +173,36 @@ is just the depth effect applied down one scenery."
   and closer we'll have fewer." — and: "they should be isometric style
   sprited to the camera. The closer ones should render above the farther
   ones. Stuff behind a hill won't even need to be rendered at all.").
+  Then, on seeing it: "getting closer actually! they should be mostly
+  overlapping, so maybe twice as many as there are now. The closest one
+  should display, and it should rotate alongside the sunlight rotation. The
+  sun shouldn't display onto them, the spinning of the sprite axies is what
+  will display their lighting. Also they should be circles, not spheres,
+  though the pattern is roughly equivalent to what we're looking for -
+  darker on one side, bright on the other, kinda... shading toward the
+  other, like poles on a sphere. then, we rotate it around the raycast to
+  the camera from the center of that circle, render the closest one on
+  top... furthest ones not displayed at all if they're fully occluded. The
+  idea is, we'd have so many that they paint a surface, and are very easy
+  to calculate by visualizing data on the graphics card(s)."
+  So: no light is worked out on a sprite's pixels. Each sprite is one flat
+  circle shaded from a dark pole to a bright pole, turned in the screen's
+  plane (about the line from its centre to the camera). Each circle is
+  mostly covered by the nearer ones in front of it, so what shows is its
+  upper edge: turned bright-pole-up the patch of land reads lit, turned
+  bright-pole-down it reads in shadow. The turn follows the sun: the more
+  squarely a point's slope faces the sun, the nearer to bright-up; the
+  side the bright pole leans to follows the sun's side; at night all turn
+  dark-up. Twice the points (spacing divided by the square root of 2);
+  drawn nearest first with a strict depth test, so a fully covered circle is
+  rejected by the graphics card without being painted. Then: "the hills
+  look a little funky. it's because the "closest" circles are closer in
+  euclidean coordinates ... but we just want to pay attention to one
+  value, the distance from the center. not the camera I guess. also there
+  seems to be weird... "fins" attached to the circles?" — so a circle's
+  depth is its point's distance from the centre alone (its height not
+  counted), and its shade runs straight from pole to pole (shading along
+  lines of latitude had crowded into thin wedges at the rims).
   The ground is no longer painted: the terrain is a grid of points, each
   with a height, a facing (the slope's direction, from the height's
   steepness) and a colour, drawn as a round sprite facing the camera. Every

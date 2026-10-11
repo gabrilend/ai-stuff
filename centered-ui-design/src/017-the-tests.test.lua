@@ -322,14 +322,17 @@ do
     local hill = hills[1]
     check("a mesa's top stands above the land beside it",
         terrain.height_at(hills, hill.x, hill.z) > terrain.height_at(hills, hill.x + hill.radius * 3, hill.z) + 2)
-    -- a slope facing east is lit by the morning sun and not by the evening's
-    local east = { 0.7071, 0.7071, 0 }
-    local function lit(hour)
+    -- a slope facing east turns its bright pole up in the morning and its
+    -- dark pole up at evening; at midnight everything turns dark-up
+    local function turn(facing, hour)
         local x, y, z = terrain.sun_direction(hour)
-        return math.max(east[1] * x + east[2] * y + east[3] * z, 0)
+        return math.abs(terrain.shade_turn(facing[1], facing[2], facing[3], x, y, z, 1))
     end
-    check("a slope facing east is lit in the morning, in shadow at evening",
-        lit(-math.pi / 2.5) > 0.5 and lit(math.pi / 2.5) < 0.1, lit(-math.pi / 2.5) .. " " .. lit(math.pi / 2.5))
+    local east = { 0.7071, 0.7071, 0 }
+    check("a slope facing east turns bright-up in the morning, dark-up at evening",
+        turn(east, -math.pi / 2.5) < math.pi / 3 and turn(east, math.pi / 2.5) > math.pi / 2,
+        turn(east, -math.pi / 2.5) .. " " .. turn(east, math.pi / 2.5))
+    check("at midnight flat land turns dark-up", turn({ 0, 1, 0 }, math.pi) > math.pi / 2)
 end
 
 -- the move box: time scaling and first-come-first-served order -------------

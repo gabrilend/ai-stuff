@@ -11,3 +11,4 @@ The land as a grid of points, each with a height, a facing (which way its slope 
 | `facing_at(hills, x, z)` | ground x, z | the slope's facing, a unit vector |
 | `sun_direction(hour_angle)` | the dials' hour (0 noon, -pi/2 morning, pi/2 evening) | a unit vector toward the sun (Lua twin of the dot shader's sun) |
 | `POINT_SPACING`, `MESA_COUNT`, `ROLL_HEIGHT`, `PAINTS` | | tuning knobs (record changes in docs/balance-updates.md) |
+| `shade_turn(fx, fy, fz, sx, sy, sz, sun_side)` | a slope's facing, the sun's direction, the sun's side on screen | how far the point's circle turns from bright-pole-up (radians): 0 facing the sun, pi facing away (Lua twin of the circle shader's turn) |

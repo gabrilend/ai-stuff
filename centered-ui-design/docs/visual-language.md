@@ -116,10 +116,12 @@ paired with differential triangles.
   along the arch with the hour. No fixed glints.
 - **The land as lit points** (issue 214): no ground texture — the land is
   a grid of points, each with a height, a facing and a colour, drawn as a
-  round sprite facing the camera. Every sprite uses one round relief
-  picture, bright on the side toward the sun and dark on the other, so
-  slopes and cliffs light and darken through the day (a cliff facing east
-  lit in the morning, in shadow at evening). Nearer sprites cover farther
-  ones; hills hide what is behind them. Points are spaced evenly along
+  flat circle facing the camera, shaded from a dark pole to a bright pole.
+  No light is worked out on a circle: it is only turned in the screen's
+  plane — bright-pole-up where its slope faces the sun, dark-pole-up where
+  it faces away — and so many overlap that each shows only its upper edge,
+  painting the land; cliffs light and darken through the day. Circles are
+  ordered by distance from the centre alone, nearest on top; wholly
+  covered ones are never painted. Points are spaced evenly along
   every ring, so the land is denser in far rings. The painted map (rings,
   quadrants, sections) is a menu choice. The focus blur is off by default.

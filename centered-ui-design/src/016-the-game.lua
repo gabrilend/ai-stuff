@@ -169,6 +169,8 @@ function game.load(arguments)
     --   --key SECONDS NAME     press a key
     --   --wheel SECONDS NOTCHES  turn the scroll wheel
     --   --wheel-with SECONDS KEY NOTCHES  turn the wheel with a key held
+    --   --quit SECONDS         close after SECONDS, taking no picture (the
+    --                          tests' start-up check)
     --   --drag SECONDS X1 Y1 X2 Y2 DURATION  press at X1, Y1, move to X2, Y2
     --                          over DURATION seconds, and let go
     -- Scripted input goes through the same handlers as real input. A run
@@ -189,6 +191,9 @@ function game.load(arguments)
             -- a key press at a given time
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "key",
                 key = arguments[index + 2] }
+        elseif option == "--quit" then
+            -- close at a given time, with no picture
+            game.quit_after = tonumber(arguments[index + 1])
         elseif option == "--wheel-with" then
             -- a turn of the wheel with a key held
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "wheel_with",
@@ -206,7 +211,7 @@ function game.load(arguments)
         end
     end
 
-    game.scripted_run = game.screenshot_after ~= nil or #game.scripted > 0
+    game.scripted_run = game.screenshot_after ~= nil or game.quit_after ~= nil or #game.scripted > 0
 
     local settings = game.settings
     love.window.setMode(settings.window_width, settings.window_height, {
@@ -415,6 +420,13 @@ function game.update(seconds)
                 game.wheelmoved(0, event.notches)
             end
         end
+    end
+
+    -- a timed close: when the time comes, close (a clean ending, with its
+    -- goodbye)
+    if game.quit_after ~= nil and game.seconds_run >= game.quit_after then
+        game.quit_after = nil
+        love.event.quit()
     end
 
     -- screenshot mode: when the time comes, save the window and close

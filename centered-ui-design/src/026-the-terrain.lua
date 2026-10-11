@@ -28,7 +28,7 @@ local M = {}
 -- How far apart points stand (ground units), along a ring and between
 -- rings; how many mesas rise from the land; the gentle roll of the lowland.
 -- Tuning knobs: record changes in docs/balance-updates.md.
-M.POINT_SPACING = 3.0
+M.POINT_SPACING = 3.0 / math.sqrt(2)   -- twice the points of a spacing of 3
 M.MESA_COUNT = 9
 M.ROLL_HEIGHT = 0.6
 
@@ -109,6 +109,26 @@ function M.sun_direction(hour_angle)
     local z = -0.35
     local length = math.sqrt(x * x + y * y + z * z)
     return x / length, y / length, z / length
+end
+-- }}}
+
+-- {{{ function M.shade_turn()
+-- How far a point's circle is turned (radians, from bright-pole-up,
+-- positive toward the screen's right), for a slope facing (fx, fy, fz)
+-- under a sun (sx, sy, sz) whose side on screen is `sun_side` (positive:
+-- right). The more squarely the slope faces the sun, the nearer to 0
+-- (bright pole up: the land there reads lit); facing away, the nearer to
+-- pi (dark pole up: in shadow). Nothing else lights the circle — "the
+-- spinning of the sprite axies is what will display their lighting". The
+-- Lua twin of the dot shader's turn.
+function M.shade_turn(fx, fy, fz, sx, sy, sz, sun_side)
+    local facing_sun = math.max(-1, math.min(1, fx * sx + fy * sy + fz * sz))
+    local lean = math.acos(facing_sun)
+    -- the bright pole leans toward the sun's side of the screen
+    if sun_side < 0 then
+        return -lean
+    end
+    return lean
 end
 -- }}}
 

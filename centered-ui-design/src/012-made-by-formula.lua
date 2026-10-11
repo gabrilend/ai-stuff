@@ -156,28 +156,27 @@ function M.light_dial(size, material)
 end
 -- }}}
 
--- {{{ function M.round_relief()
--- The one round picture every terrain point is drawn with (issue 214):
--- a small dome seen from straight on, stored as which way each pixel of
--- it faces — red: across (0 the left edge's side .. 1 the right's), green:
--- up (0 bottom .. 1 top), blue: how squarely it faces out (1 at the
--- middle, 0 at the rim) — and alpha: inside the circle or not. Lit by a
--- sun, one side comes out bright and the other dark; the renderer turns
--- the dome with the point's slope, so which side is bright follows the
--- sun across the day. A circle-texture utility like the console's dials.
--- Returns image data, `size` pixels square.
-function M.round_relief(size)
+-- {{{ function M.round_shade()
+-- The one circle every terrain point is drawn with (issue 214): flat, its
+-- shade running straight from a dark pole at the bottom to a bright pole
+-- at the top, as a sphere lit along its axis shades ("shading toward the
+-- other, like poles on a sphere"); red holds the shade, alpha whether a
+-- pixel is inside the circle. (A first version shaded along lines of
+-- latitude, which crowd to knife-edges at the circle's left and right rims
+-- and left thin bright and dark "fins" there.) The renderer only turns it. A circle-texture
+-- utility like the console's dials. Returns image data, `size` square.
+function M.round_shade(size)
     local data = love.image.newImageData(size, size)
     data:mapPixel(function(px, py)
         local x = (px + 0.5) / size * 2 - 1
         local y = 1 - (py + 0.5) / size * 2
-        local reach = math.sqrt(x * x + y * y)
         -- outside the circle: nothing
-        if reach > 1 then
-            return 0.5, 0.5, 0, 0
+        if x * x + y * y > 1 then
+            return 0, 0, 0, 0
         end
-        local out = math.sqrt(1 - reach * reach)
-        return 0.5 + 0.5 * x, 0.5 + 0.5 * y, out, 1
+        -- straight from the dark pole (bottom) to the bright pole (top)
+        local shade = 0.5 + 0.5 * y
+        return shade, shade, shade, 1
     end)
     return data
 end

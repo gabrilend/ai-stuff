@@ -142,79 +142,73 @@ vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
 }
 ]]
 
--- The terrain (issue 214): each of the land's points (026) drawn as a round
--- sprite facing the camera — one round relief picture (012) for all, turned
--- with the point's slope so its side toward the sun is bright and the other
--- dark. A sprite's whole face takes its point's depth, so nearer sprites
--- cover farther ones and a hill hides what stands behind it.
-M.DOT_SIZE = 5.2      -- ground units across (overlapping: the spacing is 3)
-M.DOT_BUMP = 0.8      -- how strongly the round relief bends a slope's facing
+-- The terrain (issue 214): each of the land's points (026) drawn as one flat
+-- circle facing the camera, shaded from a dark pole to a bright pole (012's
+-- round shade), and only turned: about the line to the camera, by how
+-- squarely the point's slope faces the sun (bright pole up: lit; down: in
+-- shadow). No light is worked out on the circle's pixels. So many overlap
+-- that each shows only its upper edge, and together they paint the land.
+-- A circle's whole face takes its point's depth; drawn nearest first with a
+-- strict depth test, a circle wholly covered is never painted.
+M.DOT_SIZE = 5.2      -- ground units across
 
 local DOT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
 attribute vec4 Dot;         // r, angle, height, unused
 attribute vec4 DotFacing;   // which way the slope faces: x, y, z, unused
 attribute vec4 DotColor;    // r, g, b, unused
 uniform float dot_size;
+uniform vec3 sun;           // toward the sun (026's sun_direction)
 varying vec3 v_color;
-varying vec3 v_normal;
-varying vec3 v_across;
-varying vec3 v_up;
-varying vec2 v_uv;
-varying vec2 v_facing;
+varying vec2 v_local;
+varying vec2 v_turn;        // cos, sin of the circle's turn
 varying float v_haze;
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float r = Dot.x;
     float angle = Dot.y;
     float height = Dot.z;
-    vec2 local = vertex_position.xy;            // the sprite's square, -1..1
-    vec3 outward = vec3(sin(angle), 0.0, -cos(angle));
+    vec2 local = vertex_position.xy;            // the circle's square, -1..1
     vec3 sideways = vec3(cos(angle), 0.0, sin(angle));
-    float sin_e = cam_back.y;
     float cos_e = cam_up.y;
     float half_size = 0.5 * dot_size;
     // facing the camera: across along the ring, up the screen
     vec3 spot = fold_ground_position(r, angle);
     vec3 offset = sideways * local.x * half_size + vec3(0.0, height + local.y * half_size / cos_e, 0.0);
     vec4 corner = project_anchored(spot, offset);
-    vec4 middle = project_anchored(spot, vec3(0.0, height, 0.0));
-    // the whole sprite at its point's depth
+    vec4 middle = project_anchored(spot, vec3(0.0));
+    // the whole circle at one depth: its point's distance from the centre
+    // alone (measured on the ground, not counting its height), so a raised
+    // circle never covers a nearer one in front of it
     corner.z = middle.z / middle.w * corner.w;
-    v_uv = vec2(0.5 + 0.5 * local.x, 0.5 - 0.5 * local.y);
+    // the turn: from bright-pole-up by how far the slope faces away from
+    // the sun, leaning to the sun's side of the screen (026's shade_turn)
+    float facing_sun = clamp(dot(DotFacing.xyz, sun), -1.0, 1.0);
+    float lean = acos(facing_sun);
+    float turn = view_facing(sun).x < 0.0 ? -lean : lean;
+    v_turn = vec2(cos(turn), sin(turn));
+    v_local = local;
     v_color = DotColor.rgb;
-    v_normal = DotFacing.xyz;
-    v_across = sideways;
-    v_up = normalize(vec3(0.0, cos_e, 0.0) + outward * sin_e);
-    v_facing = view_facing(DotFacing.xyz);
     v_haze = clamp(hub_distance(spot + offset) / hub_far, 0.0, 1.0);
     return corner;
 }
 ]]
 
-local DOT_PIXEL = LIGHT_GLSL .. HAZE_GLSL .. [[
-uniform Image earth_dial;
-uniform Image relief;       // the round relief picture (012)
-uniform vec3 sun;           // toward the sun (026's sun_direction)
-uniform float bump;
+local DOT_PIXEL = HAZE_GLSL .. [[
+uniform Image round_shade;  // the circle (012)
 varying vec3 v_color;
-varying vec3 v_normal;
-varying vec3 v_across;
-varying vec3 v_up;
-varying vec2 v_uv;
-varying vec2 v_facing;
+varying vec2 v_local;
+varying vec2 v_turn;
 varying float v_haze;
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
-    vec4 shape = Texel(relief, v_uv);
-    // outside the circle: no sprite here
-    if (shape.a < 0.5) {
+    // look the circle up turned: its bright pole leans by the turn
+    vec2 p = vec2(v_local.x * v_turn.x - v_local.y * v_turn.y,
+                  v_local.x * v_turn.y + v_local.y * v_turn.x);
+    // outside the circle (cut exactly here, not from the picture's rim):
+    // nothing
+    if (dot(v_local, v_local) > 1.0) {
         discard;
     }
-    // the slope's facing, bent by the relief across the sprite: the side
-    // toward the sun comes out bright, the other dark
-    vec2 bend = shape.rg * 2.0 - 1.0;
-    vec3 n = normalize(v_normal * shape.b + (v_across * bend.x + v_up * bend.y) * bump);
-    float sunlit = max(dot(n, sun), 0.0);
-    vec3 hour = dial_light(earth_dial, v_facing);
-    vec3 lit = v_color * hour * (0.30 + 1.15 * sunlit);
+    vec4 shade = Texel(round_shade, vec2(0.5 + 0.5 * p.x, 0.5 - 0.5 * p.y));
+    vec3 lit = v_color * mix(0.18, 1.25, shade.r);
     return vec4(hazed(lit, v_haze), 1.0);
 }
 ]]
@@ -418,12 +412,11 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
     -- the sprite: a square, the round relief cut from it in the shader
     renderer.dot_mesh = love.graphics.newMesh({ { "VertexPosition", "float", 2 } },
         { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } }, "fan", "static")
-    local relief = love.graphics.newImage(made_by_formula.round_relief(64))
-    relief:setFilter("linear", "linear")
+    local shade = love.graphics.newImage(made_by_formula.round_shade(128))
+    shade:setFilter("linear", "linear")
     renderer.dot_count = 0
-    renderer.dot_shader:send("relief", relief)
+    renderer.dot_shader:send("round_shade", shade)
     renderer.dot_shader:send("dot_size", M.DOT_SIZE)
-    renderer.dot_shader:send("bump", M.DOT_BUMP)
     renderer.unit_shader = love.graphics.newShader(UNIT_PIXEL, UNIT_VERTEX)
     renderer.cuboid_shader = love.graphics.newShader(CUBOID_PIXEL, CUBOID_VERTEX)
 
@@ -480,15 +473,16 @@ function M.new(settings, camera, fold, unit_count, cuboid_count, sections)
         renderer.dials[material] = dial
     end
     renderer.ground_shader:send("earth_dial", renderer.dials.earth)
-    renderer.dot_shader:send("earth_dial", renderer.dials.earth)
     renderer.unit_shader:send("metal_dial", renderer.dials.metal)
     renderer.unit_shader:send("glaze_dial", renderer.dials.glaze)
     renderer.cuboid_shader:send("glaze_dial", renderer.dials.glaze)
     for _, shader in ipairs({ renderer.ground_shader, renderer.dot_shader, renderer.unit_shader,
             renderer.cuboid_shader }) do
-        shader:send("window_center", M.WINDOW_CENTER)
-        shader:send("window_radius", M.WINDOW_RADIUS)
-        shader:send("haze_color", M.HAZE_COLOR)
+        -- the terrain's circles use no light dial (only haze): each value
+        -- goes only to the shaders that use it
+        far_camera.send_used(shader, "window_center", M.WINDOW_CENTER)
+        far_camera.send_used(shader, "window_radius", M.WINDOW_RADIUS)
+        far_camera.send_used(shader, "haze_color", M.HAZE_COLOR)
     end
     return renderer
 end
@@ -496,9 +490,11 @@ end
 
 -- {{{ function M.set_terrain()
 -- Hands the renderer the land's points (a list from 026's build). Put in
--- order from far to near once, so where two sprites at one depth overlap
--- the nearer is drawn last; turning the chair keeps every point's distance
--- from the hub, so the order holds.
+-- order from near to far once: drawn so with a strict depth test, a circle
+-- wholly covered by nearer ones is rejected without being painted (and
+-- where two at one depth overlap, the one drawn first — the nearer —
+-- stays). Turning the chair keeps every point's distance from the hub, so
+-- the order holds.
 function M.set_terrain(renderer, points)
     renderer.dot_count = #points
     -- no land: nothing to draw
@@ -509,7 +505,7 @@ function M.set_terrain(renderer, points)
     for index, point in ipairs(points) do
         ordered[index] = point
     end
-    table.sort(ordered, function(a, b) return a.r > b.r end)
+    table.sort(ordered, function(a, b) return a.r < b.r end)
     local vertices = {}
     for index, point in ipairs(ordered) do
         vertices[index] = { point.r, point.angle, point.height, 0,
@@ -532,7 +528,7 @@ end
 local function send_frame(renderer, shader, flip_y, look)
     far_camera.send(renderer.camera, shader, flip_y)
     sphere_fold.send(renderer.fold, shader)
-    shader:send("hour_angle", look.hour_angle)
+    far_camera.send_used(shader, "hour_angle", look.hour_angle)
     far_camera.send_used(shader, "lean_out", look.standing == "outward" and M.OUTWARD_LEAN or 0)
 end
 -- }}}
@@ -570,10 +566,12 @@ function M.draw(renderer, front_units, front_cuboids, flip_y, look)
             love.graphics.draw(renderer.ground_mesh)
         -- the land's points, if there are any
         elseif renderer.dot_count > 0 then
+            love.graphics.setDepthMode("less", true)
             love.graphics.setShader(renderer.dot_shader)
             send_frame(renderer, renderer.dot_shader, flip_y, look)
             renderer.dot_shader:send("sun", { sun_x, sun_y, sun_z })
             love.graphics.drawInstanced(renderer.dot_mesh, renderer.dot_count)
+            love.graphics.setDepthMode("lequal", true)
         end
     end
     -- then everything standing on it
