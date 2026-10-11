@@ -16,6 +16,8 @@
 --   see-in-3d shot PAGE-OR-URL [OUT.png]     a page, opened in headless Firefox
 --   see-in-3d brief SHOT.png                 what to write next, and the paintbrush
 --   see-in-3d render SCENE.lua [--size=N]    four views, a sheet, and an .obj model
+--   see-in-3d gallery EXAMPLES-DIR [--out=DIR]   every example as a web page of
+--                                            drawing sheets (picture beside views)
 --
 -- Where things go: ${DIR}/tmp/shared-memory/see-in-3d/ unless a path is given;
 -- render writes beside the scene file. The words a scene may use are in
@@ -28,15 +30,18 @@
 local DIR = "/home/ritz/programming/ai-stuff/scripts"
 local SIZE = 480
 local WORKERS = nil
+local OUT = nil
 local positional = {}
 for _, argument in ipairs(arg) do
     local dir_value = argument:match("^%-%-dir=(.+)$")
     local size_value = argument:match("^%-%-size=(%d+)$")
     local workers_value = argument:match("^%-%-workers=(%d+)$")
+    local out_value = argument:match("^%-%-out=(.+)$")
     -- each option sets one setting; the rest are the step and its targets
     if dir_value then DIR = dir_value
     elseif size_value then SIZE = tonumber(size_value)
     elseif workers_value then WORKERS = tonumber(workers_value)
+    elseif out_value then OUT = out_value
     else positional[#positional + 1] = argument end
 end
 local SCRATCH = DIR .. "/tmp/shared-memory/see-in-3d"
@@ -200,11 +205,80 @@ local function render(scene_path)
 end
 -- }}}
 
+-- {{{ local function gallery()
+-- Every example folder (scene.lua, note.txt, and the picture the note names)
+-- made into a page. The work is in three parts kept apart: the views are
+-- rendered by this command's own render step, one example per process, all at
+-- once; display copies (JPEG, scaled) of the views and pictures are made by
+-- ImageMagick, because the page is for looking and the stored PNGs are large;
+-- then the page is written from the notes, naming those files.
+local function gallery(examples_dir)
+    if not examples_dir then fail("usage: see-in-3d gallery EXAMPLES-DIR [--out=DIR]") end
+    local paintbrush = dofile(DIR .. "/libs/see-in-3d-paintbrush.lua")
+    local layout = dofile(DIR .. "/libs/see-in-3d-gallery.lua")
+    ensure_scratch()
+    local out = OUT or (SCRATCH .. "/gallery")
+    run("mkdir -p " .. shell_quote(out), "making the gallery folder")
+    local pipe = io.popen("ls -1 " .. shell_quote(examples_dir))
+    local names = {}
+    for name in pipe:lines() do
+        if file_exists(examples_dir .. "/" .. name .. "/note.txt") then names[#names + 1] = name end
+    end
+    pipe:close()
+    if #names == 0 then fail("no examples (folders holding note.txt) in " .. examples_dir) end
+
+    local examples, renders, copies = {}, {}, {}
+    for number, name in ipairs(names) do
+        local folder = examples_dir .. "/" .. name
+        local note = layout.read_note(folder .. "/note.txt")
+        local scene, problems = paintbrush.read(folder .. "/scene.lua")
+        if not scene then fail(name .. ": the scene was refused:\n  " .. table.concat(problems, "\n  ")) end
+        local handle = io.open(folder .. "/scene.lua", "r")
+        local scene_text = handle:read("*a")
+        handle:close()
+        local stem = string.format("%02d-%s", number, name:gsub("^%d+%-", ""))
+        local copy = io.open(out .. "/" .. stem .. ".lua", "w")
+        copy:write(scene_text)
+        copy:close()
+        renders[#renders + 1] = string.format("luajit %s --dir=%s render %s --size=260 >/dev/null",
+            shell_quote(SCRIPT_PATH), shell_quote(DIR), shell_quote(out .. "/" .. stem .. ".lua"))
+        copies[#copies + 1] = string.format("magick %s -quality 88 %s",
+            shell_quote(out .. "/" .. stem .. ".png"), shell_quote(out .. "/" .. stem .. "-views.jpg"))
+        local picture_file = nil
+        -- a note names its picture, or says none (the scene was read from an idea)
+        if note.picture ~= "none" then
+            if not file_exists(note.picture) then fail(name .. ": the picture is missing: " .. note.picture) end
+            picture_file = stem .. "-picture.jpg"
+            copies[#copies + 1] = string.format("magick %s -resize '640x640>' -quality 85 %s",
+                shell_quote(note.picture), shell_quote(out .. "/" .. picture_file))
+        end
+        examples[number] = { number = number, note = note, picture_file = picture_file, sheet_file = stem .. "-views.jpg",
+            what = scene.what, shape_count = #scene.shapes, scene_text = scene_text }
+    end
+    local function all_at_once(commands, what)
+        local lines = {}
+        for _, command in ipairs(commands) do lines[#lines + 1] = "( " .. command .. " ) &" end
+        run("bash -c " .. shell_quote(table.concat(lines, "\n") .. "\nwait"), what)
+    end
+    all_at_once(renders, "rendering the examples")
+    all_at_once(copies, "making display copies")
+    for _, example in ipairs(examples) do
+        if not file_exists(out .. "/" .. example.sheet_file) then fail("a view sheet was not made: " .. example.sheet_file) end
+        if example.picture_file and not file_exists(out .. "/" .. example.picture_file) then fail("a picture copy was not made: " .. example.picture_file) end
+    end
+    local handle = io.open(out .. "/index.html", "w")
+    handle:write(layout.page(examples, layout.read_stages(examples_dir .. "/stages.txt")))
+    handle:close()
+    io.write(string.format("gallery: %d sheets\n  %s/index.html\n", #examples, out))
+end
+-- }}}
+
 -- {{{ local function main()
 local steps = {
     shot = function() shot(positional[2], positional[3]) end,
     brief = function() brief(positional[2]) end,
     render = function() render(positional[2]) end,
+    gallery = function() gallery(positional[2]) end,
     ["--view-worker"] = function() render_one_view(positional[2], positional[3], positional[4], positional[5]) end,
 }
 local function main()

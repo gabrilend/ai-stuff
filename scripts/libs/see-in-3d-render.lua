@@ -6,7 +6,8 @@
 -- angle. Each triangle is projected onto the picture, and each pixel it covers
 -- keeps the colour of whatever is nearest the camera there (a depth buffer).
 -- Faces are lit by one light from above and to the side, so their angle
--- shows; both sides of a face are lit alike, so a shape built inside out still
+-- shows, with a soft second light from the camera so faces seen straight on
+-- keep their colour; both sides of a face are lit alike, so a shape built inside out still
 -- reads. Under everything lies a chequered floor at height zero (lower, if a
 -- shape goes below zero), found per pixel by following the ray from the camera down to it, so
 -- height and position read even with nothing else in view.
@@ -148,10 +149,16 @@ function M.render(model, view, size)
             local normal = cross(sub(corners[2], corners[1]), sub(corners[3], corners[1]))
             local length = math.sqrt(dot(normal, normal))
             -- a glowing face gives off its own light and shows its colour as
-            -- given; every other face is lit by the one light
-            local light = 0.35
+            -- given; every other face gets a little everywhere-light, the key
+            -- light from above and to the side (so slopes read), and a soft
+            -- light from the camera itself (so a face seen straight on shows
+            -- near its true colour -- with the key light alone, a white page
+            -- facing the camera came out mid-grey)
+            local light = 0.25
             if model.glow[t] then light = 1
-            elseif length > 0 then light = 0.35 + 0.65 * math.abs(dot(normal, LIGHT)) / length end
+            elseif length > 0 then
+                light = 0.25 + 0.4 * math.abs(dot(normal, LIGHT)) / length + 0.4 * math.abs(dot(normal, cam.forward)) / length
+            end
             local r, g, b = math.min(255, cr[t] * light * 255 + 0.5), math.min(255, cg[t] * light * 255 + 0.5), math.min(255, cb[t] * light * 255 + 0.5)
             local x0 = math.max(0, math.floor(math.min(sx[1], sx[2], sx[3])))
             local x1 = math.min(size - 1, math.ceil(math.max(sx[1], sx[2], sx[3])))
