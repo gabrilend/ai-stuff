@@ -28,6 +28,7 @@ extern int ceramics_cube_count;
 extern double ceramics_step_seconds;
 extern uint32_t ceramics_seed;
 extern double fold_strength, fold_tiers, fold_hub, fold_edge, figure_scale;
+extern double fold_size_keep;
 extern int section_count;
 extern double section_r[], section_angle[], section_radius[];
 
@@ -72,6 +73,15 @@ void ceramics_set_fold(double strength, double tiers, double hub, double edge, d
     fold_hub = hub;
     fold_edge = edge;
     figure_scale = figure;
+}
+/* }}} */
+
+/* {{{ void ceramics_set_size_keep(double keep) */
+/* The size law (see 020): 0 far things shrink, 1 they keep full size. Lua
+ * calls it only while no stage is in flight, so a step never sees both. */
+void ceramics_set_size_keep(double keep)
+{
+    fold_size_keep = keep;
 }
 /* }}} */
 

@@ -34,12 +34,13 @@ M.REQUIRED_FIELDS = {
     { name = "seat",                       kind = "whole" },
     { name = "calendar_seconds_per_day",   kind = "number" },
     { name = "arch_height_share",          kind = "number" },
-    { name = "view_depth",                 kind = "word", words = { "flat", "hub" } },
+    { name = "view_depth",                 kind = "word", words = { "flat", "hub", "slant" } },
     { name = "view_standing",              kind = "word", words = { "upright", "outward" } },
     { name = "view_blur",                  kind = "word", words = { "on", "off" } },
     { name = "hub_eye_height",             kind = "number" },
     { name = "hub_look_down_degrees",      kind = "number" },
     { name = "hub_field_of_view_degrees",  kind = "number" },
+    { name = "slant_reach",                kind = "number" },
 }
 
 -- {{{ local function is_one_of()
@@ -109,6 +110,11 @@ local function check_settings(settings, source_name)
     -- The hub must sit inside the map's edge.
     if settings.hub_radius >= settings.edge_radius then
         error(source_name .. ": hub_radius must be less than edge_radius", 0)
+    end
+    -- The slant view must reach somewhere: a reach of nothing would zoom
+    -- without end.
+    if settings.slant_reach <= 0 then
+        error(source_name .. ": slant_reach must be more than 0", 0)
     end
     -- A negative fold would bunch the inner tiers instead of the outer ones.
     if settings.fold_strength < 0 then

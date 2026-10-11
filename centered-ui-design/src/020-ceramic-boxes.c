@@ -109,6 +109,11 @@ uint32_t ceramics_seed;
 double fold_strength, fold_tiers, fold_hub, fold_edge;
 /* how tall a figure of size 1 is drawn at tier 1 (UNIT_WORLD_SCALE in 013) */
 double figure_scale;
+/* the size law: 0 things far out shrink as their tier is squeezed (the flat
+ * and hub views); 1 they keep their full size (the slant view, where the
+ * owner asked that the far stuff "remains the same size relative to the
+ * part near the dashboard"). Set between steps only (022/023). */
+double fold_size_keep;
 
 /* the color-coded sections: where each color's cuboids are taken */
 int section_count;
@@ -170,6 +175,11 @@ static double fold_slope(double r)
 /* {{{ static double fold_size_scale(double r) */
 static double fold_size_scale(double r)
 {
+    /* the slant view: everything full size */
+    if (fold_size_keep > 0.5) {
+        return 1.0;
+    }
+    /* the other views: shrunk as the tier is squeezed */
     return (1.0 + fold_strength) / (1.0 + fold_strength * r);
 }
 /* }}} */

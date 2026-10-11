@@ -13,3 +13,5 @@
 | 2026-10-10 | seconds per calendar day (`calendar_seconds_per_day`, input) | 3 | 24 | the light dials turn once a day; at 3 seconds the whole world flickered from noon to night and back every 3 seconds |
 | 2026-10-10 | unit metal and band brightness under dial light (013) | 1.25, 1.15 | 1.9, 1.6 | dial light is softer than the old fixed glint; figures read as dark lumps (screenshot) |
 | 2026-10-10 | ground under dial light (013) | the flat map alone, x1.5 | an earth base (0.26, 0.25, 0.18) plus the map x1.3, x1.35 | the flat map is near-black; seen from the hub camera the ground was a muddy slab |
+| 2026-10-10 | starting view (`view_depth`, input) | hub | slant | the owner asked for the near ground by the dashboard and the far ground at the top, everything the same size; the slant view is that, so the game now starts in it (the hub and flat views stay in the menu) |
+| 2026-10-10 | the slant view's reach (`slant_reach`, input, new) | — | 120 | a little past the map's edge (112), so the whole quadrant to the edge shows with a margin of table above it |

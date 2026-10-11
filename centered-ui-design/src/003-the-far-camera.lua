@@ -34,6 +34,19 @@
 -- horizon. It is close, so it needs no special care with numbers. The
 -- console's sheet always hangs on the far camera (project_fixed), whichever
 -- view films the world.
+--
+-- A third view, the slant (issue 214): the far camera's tilt and the
+-- chair's turn, with no perspective at all, slid so the hub sits on the
+-- screen's bottom row (behind the console) and zoomed so the ground
+-- `slant_reach` out along the chair is on the top row. The near ground is by
+-- the dashboard, the far ground at the top, and nothing shrinks with
+-- distance. Data flow (after the turn):
+--          z' = z + reach / 2                 (the view's middle is half the
+--                                              reach out; north is -z)
+--          clip x = ex / (slant_half * aspect),  y = ey / slant_half,
+--          z = -ez / depth_half_range,  w = 1
+--          slant_half = reach / 2 * sin(elevation)  (the ground's vertical
+--                                              span on screen, halved)
 
 local M = {}
 
@@ -67,6 +80,10 @@ function M.new(settings, aspect)
         hub_focal = 1 / math.tan(math.rad(settings.hub_field_of_view_degrees) / 2),
         hub_near = 0.5,
         hub_far = settings.edge_radius * 1.6,
+        -- the slant view: the reach (hub at the bottom row, this far out
+        -- along the chair at the top row) and the zoom that gives it
+        slant_reach = settings.slant_reach,
+        slant_half_height = settings.slant_reach / 2 * math.sin(elevation),
     }
     return camera
 end
@@ -100,6 +117,21 @@ local function project_hub(camera, x, y, z)
 end
 -- }}}
 
+-- {{{ local function project_slant()
+-- The slant view: turn by the chair, slide the hub to the bottom row, and
+-- project straight along the far camera's view (no perspective: w is 1).
+local function project_slant(camera, x, y, z)
+    local c, s = math.cos(camera.turn), math.sin(camera.turn)
+    local tx, tz = x * c + z * s, z * c - x * s
+    tz = tz + camera.slant_reach / 2
+    local ex = tx * camera.right_x + y * camera.right_y + tz * camera.right_z
+    local ey = tx * camera.up_x + y * camera.up_y + tz * camera.up_z
+    local ez = tx * camera.back_x + y * camera.back_y + tz * camera.back_z
+    local half = camera.slant_half_height
+    return ex / (half * camera.aspect), ey / half, -ez / camera.depth_half_range
+end
+-- }}}
+
 -- {{{ function M.project()
 -- Projects a world point to normalized screen coordinates (ndc x and y from
 -- -1 to 1, up is +y) and depth (-1 near .. 1 far), through whichever view
@@ -110,6 +142,10 @@ function M.project(camera, x, y, z)
     -- the hub camera
     if camera.view == "hub" then
         return project_hub(camera, x, y, z)
+    end
+    -- the slant view
+    if camera.view == "slant" then
+        return project_slant(camera, x, y, z)
     end
     -- the far camera
     local c, s = math.cos(camera.turn), math.sin(camera.turn)
@@ -203,8 +239,13 @@ function M.ground_point_under_pixel(camera, pixel_x, pixel_y, width, height)
         local t = camera.hub_eye_height / -dy
         return dx * t, dz * t
     end
-    local ex = ndc_x * camera.half_height * camera.aspect
-    local ey = ndc_y * camera.half_height
+    -- the slant view zooms by its own half height; the far camera by its own
+    local half = camera.half_height
+    if camera.view == "slant" then
+        half = camera.slant_half_height
+    end
+    local ex = ndc_x * half * camera.aspect
+    local ey = ndc_y * half
     -- the point (ex, ey, 0) in eye terms, as a (turned) world point
     local px = ex * camera.right_x + ey * camera.up_x
     local py = ex * camera.right_y + ey * camera.up_y
@@ -212,6 +253,10 @@ function M.ground_point_under_pixel(camera, pixel_x, pixel_y, width, height)
     -- slide along the view direction (back) to the ground: py + t * back_y = 0
     local t = -py / camera.back_y
     local turned_x, turned_z = px + t * camera.back_x, pz + t * camera.back_z
+    -- the slant view slid the hub to the bottom row: slide it back
+    if camera.view == "slant" then
+        turned_z = turned_z - camera.slant_reach / 2
+    end
     -- undo the chair's turn
     local c, s = math.cos(camera.turn), math.sin(camera.turn)
     return turned_x * c - turned_z * s, turned_z * c + turned_x * s
@@ -255,6 +300,9 @@ uniform vec3 hub_up;
 uniform float hub_focal;
 uniform float hub_near;
 uniform float hub_far;
+uniform float slant_view;    // 1: the slant view (hub at the bottom row)
+uniform float slant_reach;
+uniform float slant_half_height;
 
 // How far a world point is from the hub camera's eye, along its view
 // (for haze and focus). 0 under the far camera.
@@ -288,11 +336,21 @@ vec4 project_world(vec3 p) {
                     ((hub_far + hub_near) * ze - 2.0 * hub_far * hub_near) / (hub_far - hub_near),
                     ze);
     }
-    // the far camera: turn the world about the hub so the chair's direction
-    // faces up the screen (a point at angle a appears at angle a - view_turn)
+    // the far camera and the slant view: turn the world about the hub so the
+    // chair's direction faces up the screen (a point at angle a appears at
+    // angle a - view_turn)
     float c = cos(view_turn);
     float s = sin(view_turn);
-    return project_fixed(vec3(p.x * c + p.z * s, p.y, p.z * c - p.x * s));
+    vec3 turned = vec3(p.x * c + p.z * s, p.y, p.z * c - p.x * s);
+    if (slant_view > 0.5) {
+        // the slant view: the hub slid to the bottom row, no perspective
+        turned.z += slant_reach * 0.5;
+        return vec4(dot(turned, cam_right) / (slant_half_height * view_aspect),
+                    flip_y * dot(turned, cam_up) / slant_half_height,
+                    -dot(turned, cam_back) / depth_half_range,
+                    1.0);
+    }
+    return project_fixed(turned);
 }
 ]]
 -- {{{ function M.send_used()
@@ -335,6 +393,9 @@ function M.send(camera, shader, flip_y, fixed)
         M.send_used(shader, "hub_focal", camera.hub_focal)
         M.send_used(shader, "hub_near", camera.hub_near)
         M.send_used(shader, "hub_far", camera.hub_far)
+        M.send_used(shader, "slant_view", camera.view == "slant" and 1 or 0)
+        M.send_used(shader, "slant_reach", camera.slant_reach)
+        M.send_used(shader, "slant_half_height", camera.slant_half_height)
     end
 end
 -- }}}

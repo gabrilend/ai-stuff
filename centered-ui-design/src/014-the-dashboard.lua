@@ -97,7 +97,7 @@ M.SETTINGS_BUTTONS = {
 
 -- What a look toggle's button says for each choice.
 M.LOOK_WORDS = {
-    depth = { flat = "FLAT VIEW", hub = "HUB VIEW" },
+    depth = { flat = "FLAT VIEW", hub = "HUB VIEW", slant = "SLANT VIEW" },
     standing = { upright = "UPRIGHT", outward = "OUTWARD" },
     blur = { on = "BLUR ON", off = "BLUR OFF" },
 }

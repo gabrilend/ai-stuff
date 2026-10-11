@@ -55,7 +55,7 @@ cp "${SHOT}" "${PICTURE}"
 
 COMMIT="${COMMIT:-$(git -C "${DIR}" log -1 --format='%h' -- .)}"
 COMMIT_LINE=$(git -C "${DIR}" log -1 --format='%h %ad %s' --date=short "${COMMIT}" 2>&1)
-UNCOMMITTED=$(git -C "${DIR}" status --short -- src input libs scripts run 2>&1)
+UNCOMMITTED=$(git -C "${DIR}" status --short -- src input libs scripts run 2>&1 | sed 's/^/  - /')
 
 # {{{ the fingerprint of this picture's sources and settings
 PRINT="${PRINTS}/${NUMBER}.txt"
@@ -105,7 +105,8 @@ cat > "${NOTES}" <<EOF
 - **Picture:** ${NUMBER}-${NAME}.png
 - **Commit:** ${COMMIT_LINE}
 - **Run:** \`run $*\` (from ${SOURCE})
-- **Uncommitted at the time:** ${UNCOMMITTED:-none}
+- **Uncommitted at the time:**
+${UNCOMMITTED:-  - none}
 
 ## What changed
 

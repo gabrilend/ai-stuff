@@ -132,6 +132,37 @@ do
     local _, _, near_ground = far_camera.project(hub, 20 * math.sin(math.pi / 4), 0, -20 * math.cos(math.pi / 4))
     local _, _, far_ground = far_camera.project(hub, 90 * math.sin(math.pi / 4), 0, -90 * math.cos(math.pi / 4))
     check("under the hub camera, nearer ground is nearer in depth", near_ground < far_ground)
+
+    -- the slant view (issue 214): the hub on the bottom row, the reach on
+    -- the top row, straight along the chair, and no shrinking with distance
+    local slant = far_camera.new(good_settings(), 1600 / 1000)
+    slant.view = "slant"
+    slant.turn = math.pi / 4
+    local reach = slant.slant_reach
+    local along_x, along_z = math.sin(math.pi / 4), -math.cos(math.pi / 4)
+    local hub_x, hub_y = far_camera.project(slant, 0, 0, 0)
+    check("under the slant view, the hub is on the bottom row, centred",
+        math.abs(hub_y + 1) < 1e-9 and math.abs(hub_x) < 1e-9, hub_x .. " " .. hub_y)
+    local top_x, top_y = far_camera.project(slant, reach * along_x, 0, reach * along_z)
+    check("under the slant view, the reach along the chair is on the top row",
+        math.abs(top_y - 1) < 1e-9 and math.abs(top_x) < 1e-9, top_x .. " " .. top_y)
+    local _, near_foot = far_camera.project(slant, 20 * along_x, 0, 20 * along_z)
+    local _, near_head = far_camera.project(slant, 20 * along_x, 3, 20 * along_z)
+    local _, far_foot = far_camera.project(slant, 100 * along_x, 0, 100 * along_z)
+    local _, far_head = far_camera.project(slant, 100 * along_x, 3, 100 * along_z)
+    check("under the slant view, a thing far out is as tall on screen as one near",
+        math.abs((near_head - near_foot) - (far_head - far_foot)) < 1e-9)
+    local _, _, near_depth = far_camera.project(slant, 20 * along_x, 0, 20 * along_z)
+    local _, _, far_depth = far_camera.project(slant, 100 * along_x, 0, 100 * along_z)
+    check("under the slant view, nearer ground is nearer in depth", near_depth < far_depth)
+    worst = 0
+    for _, spot in ipairs({ { 0, -60 }, { 37, -12 }, { -25, -90 }, { 80, -40 } }) do
+        local x, y = far_camera.project(slant, spot[1], 0, spot[2])
+        local px, py = far_camera.ndc_to_pixels(x, y, 1600, 1000)
+        local gx, gz = far_camera.ground_point_under_pixel(slant, px, py, 1600, 1000)
+        worst = math.max(worst, math.abs(gx - spot[1]), math.abs(gz - spot[2]))
+    end
+    check("under the slant view, a click finds the ground point it was drawn at", worst < 1e-6, "worst " .. worst)
 end
 
 -- the sphere fold ------------------------------------------------------------
@@ -152,6 +183,16 @@ do
     check("with no fold every tier is equally wide",
         math.abs((sphere_fold.radius(flat, 2) - sphere_fold.radius(flat, 1)) - 10) < 1e-12)
     check("size scale is 1 at the edge of tier 1", math.abs(sphere_fold.size_scale(fold, 1) - 1) < 1e-12)
+
+    -- the size law: shrinking far out, or (slant view) full size everywhere
+    local shrinking = sphere_fold.from_settings(good_settings())
+    shrinking.size_keep = 0
+    local keeping = sphere_fold.from_settings(good_settings())
+    keeping.size_keep = 1
+    check("far things shrink under the shrinking size law",
+        sphere_fold.size_scale(shrinking, shrinking.tiers_shown) < 0.9)
+    check("far things keep full size under the keeping size law",
+        sphere_fold.size_scale(keeping, keeping.tiers_shown) == 1)
 end
 
 -- the move box: time scaling and first-come-first-served order -------------
@@ -223,6 +264,7 @@ do
     local settings = good_settings()
     local fold = sphere_fold.from_settings(settings)
     library.ceramics_set_fold(fold.strength, fold.tiers_shown, fold.hub_radius, fold.edge_radius, 5.0)
+    library.ceramics_set_size_keep(fold.size_keep)
     for index, section in ipairs(seeding.SECTIONS) do
         library.ceramics_set_section(index - 1, section.r, section.angle, section.radius)
     end
@@ -242,6 +284,22 @@ do
         end
     end
     check("the C motion matches its Lua twin", worst < 1e-5, "worst " .. worst)
+
+    -- and under the other size law (the stride is sized by it)
+    local other_law = 1 - fold.size_keep
+    local other_fold = sphere_fold.from_settings(settings)
+    other_fold.size_keep = other_law
+    library.ceramics_set_size_keep(other_law)
+    worst = 0
+    for index = 0, count - 1 do
+        move_box.move_unit(front, lua_back, index, 1 / 30, other_fold)
+        library.ceramics_move_reference(front + index, c_back + index, 1 / 30)
+        for _, field in ipairs({ "r", "angle", "heading", "phase", "speed_r" }) do
+            worst = math.max(worst, math.abs(lua_back[index][field] - c_back[index][field]))
+        end
+    end
+    check("the C motion matches its Lua twin under the other size law", worst < 1e-5, "worst " .. worst)
+    library.ceramics_set_size_keep(fold.size_keep)
 
     -- {{{ local function world_of()
     -- A small seeded world in fresh blocks: units, cuboids, front and back.

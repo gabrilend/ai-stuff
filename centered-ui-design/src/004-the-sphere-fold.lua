@@ -16,7 +16,10 @@
 -- tier distance.
 --
 -- Things far out also shrink, by the same factor their tier is squeezed, so
--- a unit near the edge is drawn small, as everything there is.
+-- a unit near the edge is drawn small, as everything there is — except under
+-- the size law "keep" (fold.size_keep = 1, the slant view of issue 214),
+-- where everything keeps its full size: the owner asked that the stuff near
+-- the top "remains the same size relative to the part near the dashboard".
 
 local M = {}
 
@@ -76,6 +79,11 @@ end
 -- smaller further out. (1 + k) / (1 + k r) is the curve's slope relative to
 -- its slope at r = 1, and is exactly 1 everywhere when k = 0.
 function M.size_scale(fold, r)
+    -- the slant view: full size everywhere
+    if fold.size_keep == 1 then
+        return 1
+    end
+    -- the other views: shrunk as the tier is squeezed
     return (1 + fold.strength) / (1 + fold.strength * r)
 end
 -- }}}
@@ -96,6 +104,8 @@ function M.from_settings(settings)
         tiers_shown = settings.tiers_shown,
         hub_radius = settings.hub_radius,
         edge_radius = settings.edge_radius,
+        -- the size law (0 or 1; see size_scale): kept only by the slant view
+        size_keep = settings.view_depth == "slant" and 1 or 0,
     }
 end
 -- }}}
@@ -106,6 +116,7 @@ uniform float fold_strength;
 uniform float tiers_shown;
 uniform float hub_radius;
 uniform float edge_radius;
+uniform float fold_size_keep;   // 1: full size everywhere (slant view)
 
 // Tier distance -> radius on the ground. Twin of M.radius in
 // 004-the-sphere-fold.lua.
@@ -134,6 +145,10 @@ float fold_slope(float r) {
 
 // How much a thing at r is shrunk (1 at the edge of tier 1).
 float fold_size_scale(float r) {
+    if (fold_size_keep > 0.5) {
+        // the slant view: full size everywhere
+        return 1.0;
+    }
     return (1.0 + fold_strength) / (1.0 + fold_strength * r);
 }
 
@@ -149,6 +164,11 @@ function M.send(fold, shader)
     shader:send("tiers_shown", fold.tiers_shown)
     shader:send("hub_radius", fold.hub_radius)
     shader:send("edge_radius", fold.edge_radius)
+    -- only the shaders that size things use it (the ground does not, and an
+    -- unused uniform is removed when a shader is compiled)
+    if shader:hasUniform("fold_size_keep") then
+        shader:send("fold_size_keep", fold.size_keep)
+    end
 end
 -- }}}
 

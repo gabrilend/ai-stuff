@@ -23,6 +23,7 @@ local M = {}
 ffi.cdef([[
 const char *ceramics_error(void);
 void ceramics_set_fold(double strength, double tiers, double hub, double edge, double figure);
+void ceramics_set_size_keep(double keep);
 int ceramics_set_section(int index, double r, double angle, double radius);
 int ceramics_start(int workers, int units, int cubes, unsigned seed);
 void ceramics_set_world(unit_record *units_front, unit_record *units_back,
@@ -69,6 +70,7 @@ end
 function M.start(library, world)
     library.ceramics_set_fold(world.fold.strength, world.fold.tiers_shown,
         world.fold.hub_radius, world.fold.edge_radius, world.figure_scale)
+    library.ceramics_set_size_keep(world.fold.size_keep)
     for index, section in ipairs(world.sections) do
         must(library, library.ceramics_set_section(index - 1, section.r, section.angle, section.radius),
             "a section")
@@ -79,6 +81,7 @@ function M.start(library, world)
         library = library,
         stage = nil,          -- nil: nothing in flight; else the stage in flight
         step_seconds = 0,
+        size_keep = world.fold.size_keep,  -- the size law wanted (0 or 1)
     }
 end
 -- }}}
@@ -96,6 +99,8 @@ function M.advance(host, step_seconds_waiting, set_world)
     -- nothing in flight: begin a step with the unit stage
     if host.stage == nil then
         set_world()
+        -- the size law, changed only here, between steps
+        library.ceramics_set_size_keep(host.size_keep)
         host.step_seconds = step_seconds_waiting
         must(library, library.ceramics_hand_in(UNITS, host.step_seconds), "the unit chunks")
         host.stage = UNITS
@@ -115,6 +120,14 @@ function M.advance(host, step_seconds_waiting, set_world)
     -- the cuboids have landed: the step is done
     host.stage = nil
     return true, false
+end
+-- }}}
+
+-- {{{ function M.set_size_keep()
+-- Asks for a size law (0: far things shrink; 1: full size everywhere, for
+-- the slant view). It reaches the engine at the start of the next step.
+function M.set_size_keep(host, keep)
+    host.size_keep = keep
 end
 -- }}}
 

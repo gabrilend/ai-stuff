@@ -64,12 +64,15 @@ return {
     -- settings menu while running):
     --   view_depth     "flat": the far camera, nearly flat, like a map;
     --                  "hub": a camera just above the hub looking out over
-    --                  one quadrant at a time (the scroll wheel turns it)
+    --                  one quadrant at a time (the scroll wheel turns it);
+    --                  "slant": the hub at the screen's bottom behind the
+    --                  console, the quadrant running up to the map's edge
+    --                  at the top, everything the same size near and far
     --   view_standing  "upright": figures stand straight up on their ground;
     --                  "outward": they lean away from the hub
     --   view_blur      "on": a sharp band of distance, blurring nearer and
     --                  farther (tilt-shift); "off": none
-    view_depth = "hub",
+    view_depth = "slant",
     view_standing = "upright",
     view_blur = "on",
 
@@ -79,4 +82,9 @@ return {
     hub_eye_height = 34,
     hub_look_down_degrees = 30,
     hub_field_of_view_degrees = 55,
+
+    -- the slant view: how far out from the hub (world units) the top of the
+    -- screen reaches; the hub is at the bottom. The map's edge is
+    -- edge_radius, so a little more shows all of it.
+    slant_reach = 120,
 }

@@ -5,7 +5,8 @@
 -- hub: ground that far out is crisp, and everything nearer or farther blurs
 -- the more the further it is from that ring. Seen from the hub camera, a ring
 -- of ground at one distance is an arc across the screen, so the sharp zone
--- is a semicircle — the owner: "be sure if you apply blurring to apply it in
+-- is a semicircle (and under the slant view, a semicircle around the console
+-- itself, the hub being at the screen's bottom) — the owner: "be sure if you apply blurring to apply it in
 -- a semicircle around a radius zone."
 --
 -- How a pixel's distance is known: the finished world picture holds only
@@ -54,10 +55,14 @@ float ground_distance(vec2 uv) {
         float t = hub_eye_height / -ray.y;
         return length(ray.xz * t);
     }
-    // the far camera: rays are parallel; slide this pixel's eye point to the ground
-    vec3 p = cam_right * (ndc.x * view_half_height * view_aspect) + cam_up * (ndc.y * view_half_height);
+    // the far camera and the slant view: rays are parallel; slide this
+    // pixel's eye point to the ground (the slant view zooms by its own half
+    // height and has the hub slid to the bottom row: slid back here)
+    float half_height = mix(view_half_height, slant_half_height, slant_view);
+    vec3 p = cam_right * (ndc.x * half_height * view_aspect) + cam_up * (ndc.y * half_height);
     float t = -p.y / cam_back.y;
     vec3 ground = p + cam_back * t;
+    ground.z -= slant_view * slant_reach * 0.5;
     return length(ground.xz);
 }
 

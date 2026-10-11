@@ -74,7 +74,7 @@ local CAP_CHANGES = {
 -- The look toggles in the settings menu (issue 214): which look each
 -- switches, and its choices in turn.
 local LOOK_TOGGLES = {
-    toggle_depth = { "depth", { "flat", "hub" } },
+    toggle_depth = { "depth", { "flat", "hub", "slant" } },
     toggle_standing = { "standing", { "upright", "outward" } },
     toggle_blur = { "blur", { "on", "off" } },
 }
@@ -433,12 +433,13 @@ function game.draw()
     -- sky is the haze far things fade into
     love.graphics.push("all")
     love.graphics.setCanvas({ game.world_canvas, depth = true })
-    -- the hub camera sees a horizon: its sky is the haze
+    -- the hub camera sees a horizon: its sky is the haze (the far camera and
+    -- the slant view look down on a table, and see no sky)
     if game.look.depth == "hub" then
         local haze = world_renderer.HAZE_COLOR
         love.graphics.clear({ haze[1], haze[2], haze[3], 1 }, 0, 1)
     else
-        -- the far camera looks down on a dark table
+        -- the far camera and the slant view look down on a dark table
         love.graphics.clear({ 0.03, 0.035, 0.045, 1 }, 0, 1)
     end
     world_renderer.draw(game.renderer, unit_block, cube_block, game.FLIP_Y_IN_CANVAS, game.look)
@@ -499,6 +500,11 @@ local function press_button(verb)
         local kind, choices = LOOK_TOGGLES[verb][1], LOOK_TOGGLES[verb][2]
         game.look[kind] = next_choice(choices, game.look[kind])
         game.camera.view = game.look.depth
+        -- the size law follows the view: only the slant view keeps far
+        -- things full size (the drawing reads it now; the engine at its
+        -- next step)
+        game.fold.size_keep = game.look.depth == "slant" and 1 or 0
+        ceramic_host.set_size_keep(game.engine, game.fold.size_keep)
         return
     end
     -- closing the settings menu
@@ -543,17 +549,16 @@ function game.mousepressed(x, y, button)
 end
 -- }}}
 
+-- How far one notch of the wheel turns the chair, in quadrants, by view.
+local WHEEL_STEPS = { flat = CHAIR_STEP, hub = 1, slant = 1 }
+
 -- {{{ function game.wheelmoved()
 -- The scroll wheel turns the chair. Rolling away from you turns you
--- clockwise, toward the next seat. Under the hub camera one notch turns a
--- whole quadrant — "aim it outward at one color at a time"; under the far
--- camera, an eighth of one.
+-- clockwise, toward the next seat. Under the hub camera and the slant view
+-- one notch turns a whole quadrant — "aim it outward at one color at a
+-- time"; under the far camera, an eighth of one.
 function game.wheelmoved(_, notches)
-    local step = CHAIR_STEP
-    -- the hub camera: a whole colour a notch
-    if game.look.depth == "hub" then
-        step = 1
-    end
+    local step = WHEEL_STEPS[game.look.depth]
     game.chair_target = game.chair_target - notches * step * game.quadrant
 end
 -- }}}

@@ -55,7 +55,7 @@ width, allies' arches are off screen until the chair turns.
 
 The calendar and the named slot give way to a large dial showing the
 framerate cap, a row of painted −10, −1, +1, +10 buttons beneath it, the
-three look toggles (HUB VIEW or FLAT VIEW, UPRIGHT or OUTWARD, BLUR ON or
+three look toggles (FLAT VIEW, HUB VIEW or SLANT VIEW, UPRIGHT or OUTWARD, BLUR ON or
 BLUR OFF), and BACK
 and QUIT. The readouts stay.
 
