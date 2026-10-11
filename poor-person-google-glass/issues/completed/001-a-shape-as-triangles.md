@@ -1,7 +1,7 @@
 # 001 — A shape as triangles
 
 **Phase:** 0 — Tools
-**Blocks:** 002, 003, 004, 005, 006
+**Blocks:** 002, 003, 004, 005, 006, 007
 **Related documents:** docs/datapath-cad-viewer.md
 
 ## Current Behavior

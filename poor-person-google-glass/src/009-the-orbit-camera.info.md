@@ -15,3 +15,4 @@ The camera on a ball around the shape (issue 005). Pure arithmetic, no LÖVE. Ma
 | `eye(camera)`, `view(camera)`, `projection(camera, aspect)` | position; matrices |
 | `upright(up_axis)` | the model matrix standing a z-up shape upright |
 | `multiply(a, b)`, `transform(m, point)` | matrix product; x, y, z, w |
+| `to_screen(camera, point, width, height)` | pixel x, y (top left is 0, 0), and whether the point is in front of the camera |

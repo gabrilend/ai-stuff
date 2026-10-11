@@ -135,6 +135,18 @@ function M.projection(camera, aspect)
 end
 -- }}}
 
+-- {{{ function M.to_screen()
+-- Where a world point lands on a picture `width` × `height` pixels, with
+-- (0, 0) at the top left as LÖVE draws. Returns x, y, and whether the point
+-- is in front of the camera (a point behind it has no honest place).
+function M.to_screen(camera, point, width, height)
+    local m = multiply(M.projection(camera, width / height), M.view(camera))
+    local x, y, _, w = M.transform(m, point)
+    if w <= 0 then return 0, 0, false end
+    return (x / w + 1) / 2 * width, (1 - y / w) / 2 * height, true
+end
+-- }}}
+
 -- {{{ function M.orbit()
 -- Moves around the ball; pitch stops just short of the poles.
 function M.orbit(camera, yaw_radians, pitch_radians)

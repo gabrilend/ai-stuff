@@ -17,7 +17,7 @@ data; where both, both are named.
 | **aperture** | the opening in the store. As the store rotates, the aperture lets a measured amount of light out at a time. |
 | **release** | one opening of the aperture: the pulse of light that leaves the crown, shaped by the mask. Releases are intermittent so the crown does not collect heat. |
 | **panel** | a small curved screen held in front of the face that catches the release. The light goes outward, toward the world, and the panel intercepts it. |
-| **panel arm** | a hydraulic arm holding the panel: it pushes straight out and pulls closer, and the whole arm turns about its own axis to adjust the panel. The panel itself does not rotate; it curves. |
+| **panel arm** | a hydraulic arm holding the panel, running along (or as an extension of) the side arm of the wearer's glasses: its pistons push it forward and bring it closer to the face, it turns at several joints, and the whole arm turns about its own axis to adjust the panel. Smooth and metallic, like a fine ink pen. The panel itself does not rotate; it curves. |
 | **dial** | a rotating input on the crown's side arms: a forward one, a back one, and one up by the ear — three per side, six in all. |
 | **A / B** | two physical buttons. No tap inputs anywhere: taps are triggered by accident. |
 | **pocket stick** | a thumbstick carried in a pocket. |

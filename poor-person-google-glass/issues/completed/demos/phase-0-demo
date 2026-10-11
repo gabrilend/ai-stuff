@@ -6,8 +6,11 @@
 # four file kinds the viewer reads (glTF, OBJ, text STL, binary STL); prints
 # a table comparing them (size on disk, parts kept, triangles, read time, how
 # far any corner moved on the round trip); then opens each in the viewer,
-# spinning, for a few seconds and photographs it; and finally opens the glTF
-# crown for you to turn by hand until you close the window.
+# spinning, for a few seconds and photographs it. Then the describing tool:
+# four objects described only in words (a drum, a lamp, the crown, glasses) become
+# models, each photographed in its annotated view; a description with
+# mistakes in it shows how they are refused. Finally the crown described in
+# words opens for you to turn by hand until you close the window.
 #
 # Usage:
 #   phase-0-demo                 the project at the default location
@@ -38,6 +41,20 @@ for NAME in crown-sketch.gltf crown-sketch.obj crown-sketch-text.stl crown-sketc
     echo "   ${NAME}: ${FRAMES} frames drawn, black share ${BLACK}"
 done
 echo ""
-echo "== your turn: the glTF crown. Left drag turns, right drag slides, wheel zooms, w edges, Esc closes =="
-"${DIR}/view-cad" "${DIR}" "${SHAPES}/crown-sketch.gltf" 2>&1 | grep -v ALSOFT
+echo "== described in words, not measured =="
+for NAME in drum lamp crown glasses; do
+    echo "-- input/descriptions/${NAME}.txt"
+    grep -v '^#' "${DIR}/input/descriptions/${NAME}.txt"
+    "${DIR}/describe" "${DIR}" "${DIR}/input/descriptions/${NAME}.txt" --view \
+        --drag 0.1 60 20 --screenshot 0.5 --views annotated 2>&1 | grep -v -e ALSOFT -e 'screenshot saved'
+    echo ""
+done
+echo "-- a description with three mistakes in it:"
+MISTAKES="${DIR}/tmp/shared-memory/mistakes.txt"
+printf 'The drum is a cylinder.\nThe lid is a disc. The lid is slightly widr than the drum.\nThe lid sits on top of the drun.\nThe knob is purpel.\n' > "${MISTAKES}"
+cat "${MISTAKES}"
+"${DIR}/describe" "${DIR}" "${MISTAKES}"
+echo ""
+echo "== your turn: the crown described in words. Left drag turns, right drag slides, wheel zooms, v views, Esc closes =="
+"${DIR}/view-cad" "${DIR}" "${DIR}/output/described/crown.gltf" 2>&1 | grep -v ALSOFT
 echo "photographs are in ${DIR}/tmp/shared-memory/screenshot-*.png"

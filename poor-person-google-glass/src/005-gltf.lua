@@ -339,6 +339,15 @@ function M.read(bytes, name, read_neighbour)
 end
 -- }}}
 
+-- Every key the writer uses, in the order it writes them.
+local KEY_ORDER = {
+    "asset", "version", "generator", "extras", "units", "scene", "scenes", "nodes", "name", "mesh",
+    "meshes", "primitives", "attributes", "POSITION", "NORMAL", "material", "mode",
+    "materials", "pbrMetallicRoughness", "baseColorFactor",
+    "accessors", "bufferView", "componentType", "count", "type", "min", "max",
+    "bufferViews", "buffer", "byteOffset", "byteLength", "buffers", "uri",
+}
+
 -- {{{ function M.write()
 -- One self-contained .gltf text: one node, mesh, material and pair of
 -- accessors (positions, normals) per part, all numbers in one base64 buffer.
@@ -384,7 +393,11 @@ function M.write(shape, made_by, units)
     local bytes = ffi.string(block, floats * 4)
     document.buffers = { { byteLength = #bytes,
         uri = "data:application/octet-stream;base64," .. M.base64_encode(bytes) } }
-    return json.encode(document, { indent = true })
+    -- keys in a fixed order: without it, objects come out in the order
+    -- LuaJIT's hash table yields them, which changes from run to run (found
+    -- 2026-10-10 when two runs of the same description gave different
+    -- files). The same shape must always make the same bytes
+    return json.encode(document, { indent = true, keyorder = KEY_ORDER })
 end
 -- }}}
 

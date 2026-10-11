@@ -3,8 +3,22 @@
 -- In plain terms: the file is read into a shape record (001, through 006)
 -- before this file sees it; here each part's triangles are copied once into
 -- the graphics card's memory, and every frame the card is told where the
--- camera is (009) and draws them, shading each surface by how squarely it
--- faces the light. Nothing here knows any file format.
+-- camera is (009) and draws them. Nothing here knows any file format.
+--
+-- Every frame is drawn into an off-screen picture (a canvas) first, and the
+-- canvas is then shown in the window. Screenshots save the canvas, never
+-- the screen: a program reading the screen gets whatever is on the screen,
+-- and the first screenshots of this viewer came back black because the
+-- owner was playing a game over it (2026-10-10). From the canvas a picture
+-- is right whether the window is visible, covered, or on another desktop.
+--
+-- Views are filters on the same shape, kept in a dispatch table (VIEWS):
+--   lit        the normal look
+--   edges      lit, with every triangle's edges
+--   parts      each part one flat distinct colour, no light
+--   depth      near light, far dark
+--   normals    the direction each surface faces, as colour
+--   annotated  lit, part names on leader lines, the overall box measured
 --
 -- Order of a run: read input/ (007), open the window, read the CAD file,
 -- frame after frame (update, draw), and on closing write output/goodbye
@@ -14,7 +28,9 @@
 --   --drag SECONDS DX DY    drag with the left button (turn the shape)
 --   --pan SECONDS DX DY     drag with the right button (slide the shape)
 --   --wheel SECONDS NOTCHES turn the wheel (positive: closer)
---   --screenshot SECONDS    save the window to tmp/shared-memory/ and close
+--   --screenshot SECONDS    save one picture per view to tmp/shared-memory/,
+--                           then close
+--   --views NAME,NAME       which views a screenshot saves (default: all)
 --
 -- Lighting: a light at the camera (a "headlight": whatever faces you is
 -- lit) plus a dim light from above, and a floor of ambient light so nothing
@@ -23,6 +39,7 @@
 -- hides the model.
 
 local ffi = require("ffi")
+local bit = require("bit")
 local settings_reader = require("007-read-the-input")
 local goodbye = require("008-say-goodbye")
 local camera_math = require("009-the-orbit-camera")
@@ -31,10 +48,15 @@ local record = require("001-the-shape-record")
 
 local viewer = {}
 
+local VIEW_ORDER = { "lit", "edges", "parts", "depth", "normals", "annotated" }
+
 -- {{{ SHADER
+-- shade_mode: 0 lit, 1 one flat colour, 2 depth, 3 normals as colour.
 local SHADER = [[
 varying vec3 world_normal;
-uniform mat4 view_projection;
+varying float eye_distance;
+uniform mat4 view_matrix;
+uniform mat4 projection_matrix;
 uniform mat4 model_matrix;
 uniform float depth_bias;
 
@@ -44,7 +66,9 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // the shape's own placement (standing it upright) turns its normals too;
     // it is a pure rotation, so its 3x3 part turns directions correctly
     world_normal = mat3(model_matrix) * VertexNormal;
-    vec4 clip = view_projection * model_matrix * vec4(vertex_position.xyz, 1.0);
+    vec4 eye = view_matrix * model_matrix * vec4(vertex_position.xyz, 1.0);
+    eye_distance = -eye.z;
+    vec4 clip = projection_matrix * eye;
     // edges are drawn a hair nearer than the faces they sit on, so they
     // are not hidden by the face they outline
     clip.z -= depth_bias * clip.w;
@@ -55,13 +79,20 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 #ifdef PIXEL
 uniform vec3 part_colour;
 uniform vec3 toward_camera;
-uniform float flat_colour;
+uniform float shade_mode;
+uniform vec2 depth_range;
 vec4 effect(vec4 colour, Image texture, vec2 texture_coords, vec2 screen_coords) {
-    if (flat_colour > 0.5) return vec4(part_colour, 1.0);
+    if (shade_mode > 0.5 && shade_mode < 1.5) return vec4(part_colour, 1.0);
+    if (shade_mode > 1.5 && shade_mode < 2.5) {
+        float near_share = 1.0 - clamp((eye_distance - depth_range.x) / (depth_range.y - depth_range.x), 0.0, 1.0);
+        // never pure black: the black-pixel check must stay meaningful
+        return vec4(vec3(0.08 + 0.92 * near_share), 1.0);
+    }
     float length_of_normal = length(world_normal);
     // a sliver triangle has no direction: ambient light only
     if (length_of_normal < 1e-6) return vec4(part_colour * 0.3, 1.0);
     vec3 n = world_normal / length_of_normal;
+    if (shade_mode > 2.5) return vec4(0.04 + 0.92 * (n * 0.5 + 0.5), 1.0);
     float headlight = abs(dot(n, toward_camera));
     float from_above = abs(n.y);
     float light = 0.22 + 0.63 * headlight + 0.15 * from_above;
@@ -78,22 +109,49 @@ vec4 effect(vec4 colour, Image texture, vec2 texture_coords, vec2 screen_coords)
 local function build_meshes(shape)
     local format = { { "VertexPosition", "float", 3 }, { "VertexNormal", "float", 3 } }
     local meshes = {}
-    for _, part in ipairs(shape.parts) do
+    for index, part in ipairs(shape.parts) do
         local corners = #part.positions / 3
         if corners > 0 then
             local data = love.data.newByteData(corners * 6 * 4)
             local floats = ffi.cast("float *", data:getFFIPointer())
             local p, n = part.positions, part.normals
+            local cx, cy, cz = 0, 0, 0
             for k = 0, corners - 1 do
                 floats[k * 6 + 0], floats[k * 6 + 1], floats[k * 6 + 2] = p[k * 3 + 1], p[k * 3 + 2], p[k * 3 + 3]
                 floats[k * 6 + 3], floats[k * 6 + 4], floats[k * 6 + 5] = n[k * 3 + 1], n[k * 3 + 2], n[k * 3 + 3]
+                cx, cy, cz = cx + p[k * 3 + 1], cy + p[k * 3 + 2], cz + p[k * 3 + 3]
             end
             local mesh = love.graphics.newMesh(format, corners, "triangles", "static")
             mesh:setVertices(data)
-            meshes[#meshes + 1] = { mesh = mesh, part = part, triangles = corners / 3 }
+            -- the part's flat colour for the parts view: hues a golden
+            -- angle apart, so neighbours in the list never look alike
+            local hue = (index * 0.618034) % 1
+            meshes[#meshes + 1] = { mesh = mesh, part = part, triangles = corners / 3,
+                middle = { cx / corners, cy / corners, cz / corners }, flat = viewer.hue_to_colour(hue) }
         end
     end
     return meshes
+end
+-- }}}
+
+-- {{{ function viewer.hue_to_colour()
+-- A hue 0..1 at full strength and moderate brightness, as {r,g,b}.
+function viewer.hue_to_colour(hue)
+    local function channel(offset)
+        local k = (offset + hue * 6) % 6
+        return 0.85 - 0.6 * math.max(0, math.min(k, 4 - k, 1))
+    end
+    return { channel(5), channel(3), channel(1) }
+end
+-- }}}
+
+-- {{{ local function make_canvases()
+-- The off-screen picture and its depth buffer, the size of the window.
+-- Multisampled (4 samples a pixel) for smooth edges.
+local function make_canvases()
+    local width, height = love.graphics.getDimensions()
+    viewer.canvas = love.graphics.newCanvas(width, height, { msaa = 4 })
+    viewer.depth_canvas = love.graphics.newCanvas(width, height, { format = "depth24", msaa = 4, readable = false })
 end
 -- }}}
 
@@ -129,9 +187,15 @@ end
 local KEYS = {
     escape = function() love.event.quit() end,
     f = function() fit_view() end,
-    w = function() viewer.show_edges = not viewer.show_edges end,
+    w = function() viewer.view = (viewer.view == "edges") and "lit" or "edges" end,
     h = function() viewer.show_panel = not viewer.show_panel end,
     space = function() viewer.turning = not viewer.turning end,
+    v = function()
+        -- the next view in VIEW_ORDER, round to the first
+        for index, name in ipairs(VIEW_ORDER) do
+            if name == viewer.view then viewer.view = VIEW_ORDER[index % #VIEW_ORDER + 1] return end
+        end
+    end,
     u = function()
         -- the other axis is up: some exporters ignore their format's rule
         viewer.up_axis = (viewer.up_axis == "y") and "z" or "y"
@@ -165,6 +229,7 @@ function viewer.load(arguments)
     local s = viewer.settings
 
     viewer.scripted = {}
+    viewer.screenshot_views = VIEW_ORDER
     local index = 2
     -- {{{ run option parsing
     -- Each option and how many values it takes, then what it records.
@@ -178,7 +243,19 @@ function viewer.load(arguments)
     while index <= #arguments do
         local word = arguments[index]
         local option = OPTIONS[word]
-        if option then
+        if word == "--views" then
+            -- not timed: it says which pictures a screenshot takes
+            local names = {}
+            for name in (arguments[index + 1] or ""):gmatch("[^,]+") do
+                if viewer.VIEWS[name] == nil then
+                    error("--views: no view called '" .. name .. "' (views: " .. table.concat(VIEW_ORDER, ", ") .. ")", 0)
+                end
+                names[#names + 1] = name
+            end
+            if #names == 0 then error("--views needs view names joined by commas", 0) end
+            viewer.screenshot_views = names
+            index = index + 2
+        elseif option then
             local values = {}
             for k = 1, option[1] do values[k] = arguments[index + k] end
             local event = option[2](values)
@@ -195,23 +272,27 @@ function viewer.load(arguments)
         end
     end
     table.sort(viewer.scripted, function(a, b) return a.at < b.at end)
+    -- a run with a script listens to the script only. The window takes
+    -- keyboard focus when it opens, so whatever the person at the machine
+    -- is typing elsewhere would otherwise land here (found 2026-10-10: two
+    -- identical scripted runs gave pictures 10 degrees apart, the owner's
+    -- game keys having pressed "space"). Ignored events are counted on the
+    -- receipt.
+    viewer.scripted_run = #viewer.scripted > 0
+    viewer.ignored_input = 0
     -- }}}
 
-    -- no multisampling (msaa): on the owner's machine (dwm, which resizes
-    -- every new window to fit its tile), a multisampled window draws fine
-    -- but a screenshot of it reads back black below its first few rows,
-    -- so scripted checks would see nothing. Found 2026-10-10 with a
-    -- five-line LÖVE program: the same picture with msaa = 4 came back
-    -- black, with msaa off came back whole. Edges are a little jagged.
     love.window.setMode(s.window_width, s.window_height, { depth = 24, resizable = true, vsync = 1 })
     love.window.setTitle("CAD viewer")
-    love.graphics.setBackgroundColor(s.background_colour)
     viewer.font = love.graphics.newFont(14)
+    viewer.small_font = love.graphics.newFont(12)
     viewer.shader = love.graphics.newShader(SHADER)
     viewer.camera = camera_math.new(s.field_of_view_degrees)
-    viewer.show_edges, viewer.show_panel, viewer.turning = false, true, false
+    viewer.view, viewer.show_panel, viewer.turning = "lit", true, false
     viewer.frames_drawn, viewer.seconds_run = 0, 0
     viewer.read_seconds = 0
+    viewer.pictures = {}
+    make_canvases()
 
     -- no file named: the window opens empty and waits for a dropped file
     if viewer.file_path then open_shape(viewer.file_path) end
@@ -237,79 +318,209 @@ function viewer.update(seconds)
         elseif event.kind == "wheel" then
             viewer.wheelmoved(0, event.notches)
         elseif event.kind == "screenshot" then
-            viewer.take_screenshot()
+            -- taken in draw(), where drawing is allowed
+            viewer.screenshot_due = true
         end
     end
 end
 -- }}}
 
--- {{{ function viewer.take_screenshot()
--- Saves the next finished frame, then closes the viewer.
-function viewer.take_screenshot()
-    local name = viewer.shape and viewer.shape.name or "empty"
-    local path = viewer.project_dir .. "/tmp/shared-memory/screenshot-" .. name:gsub("[^%w%.%-]", "_") .. ".png"
-    love.graphics.captureScreenshot(function(image)
-        -- the share of pure black pixels goes on the receipt. The viewer
-        -- never draws pure black (the background is not black, and even the
-        -- darkest part keeps a floor of ambient light), so black pixels mean
-        -- the capture itself failed -- as it did with multisampling on
+-- {{{ local function send_camera()
+-- The camera's matrices and light direction to the shader. The projection
+-- is turned upside down because a canvas stores its rows the other way up
+-- from the screen (checked with a one-triangle LÖVE program, 2026-10-10:
+-- unflipped, a triangle meant for the top landed at the bottom).
+local function send_camera(width, height)
+    local projection = camera_math.projection(viewer.camera, width / height)
+    for column = 1, 4 do projection[2][column] = -projection[2][column] end
+    local eye = camera_math.eye(viewer.camera)
+    local t = viewer.camera.target
+    local tx, ty, tz = eye[1] - t[1], eye[2] - t[2], eye[3] - t[3]
+    local length = math.sqrt(tx * tx + ty * ty + tz * tz)
+    viewer.shader:send("view_matrix", "row", camera_math.view(viewer.camera))
+    viewer.shader:send("projection_matrix", "row", projection)
+    viewer.shader:send("model_matrix", "row", viewer.model_matrix)
+    viewer.shader:send("toward_camera", { tx / length, ty / length, tz / length })
+    viewer.shader:send("depth_range", { viewer.camera.distance - viewer.camera.radius, viewer.camera.distance + viewer.camera.radius })
+end
+-- }}}
+
+-- {{{ local function draw_meshes()
+-- Every part, in one shade mode; colour_of(item) picks each part's colour.
+local function draw_meshes(shade_mode, colour_of, depth_bias)
+    viewer.shader:send("shade_mode", shade_mode)
+    viewer.shader:send("depth_bias", depth_bias or 0)
+    for _, item in ipairs(viewer.meshes) do
+        viewer.shader:send("part_colour", colour_of(item))
+        love.graphics.draw(item.mesh)
+    end
+end
+-- }}}
+
+-- {{{ local function own_colour()
+local function own_colour(item) return item.part.colour end
+-- }}}
+
+-- {{{ local function draw_annotations()
+-- Over a lit picture: the overall box drawn in thin lines with its three
+-- lengths, and each part's name at the end of a line from its middle,
+-- pushed outward from the picture's centre so labels gather at the edges.
+local function draw_annotations(width, height)
+    local s = viewer.settings
+    local b = viewer.shape.bounds
+    -- the box's corners in the world (after standing upright)
+    local corners = {}
+    for i = 0, 1 do for j = 0, 1 do for k = 0, 1 do
+        local x, y, z = camera_math.transform(viewer.model_matrix,
+            { i == 0 and b.min[1] or b.max[1], j == 0 and b.min[2] or b.max[2], k == 0 and b.min[3] or b.max[3] })
+        corners[i * 4 + j * 2 + k + 1] = { x, y, z }
+    end end end
+    local screen = {}
+    for index, corner in ipairs(corners) do
+        local sx, sy, ahead = camera_math.to_screen(viewer.camera, corner, width, height)
+        screen[index] = { sx, sy, ahead }
+    end
+    love.graphics.setColor(s.edge_colour[1], s.edge_colour[2], s.edge_colour[3], 0.55)
+    love.graphics.setLineWidth(1)
+    -- corners differing in exactly one of the three bits share an edge
+    for a = 0, 7 do
+        for _, one_bit in ipairs({ 1, 2, 4 }) do
+            local other = bit.bxor(a, one_bit)
+            -- each edge once (from its lower-numbered corner), and only when
+            -- both ends are in front of the camera
+            if other > a and screen[a + 1][3] and screen[other + 1][3] then
+                love.graphics.line(screen[a + 1][1], screen[a + 1][2], screen[other + 1][1], screen[other + 1][2])
+            end
+        end
+    end
+    -- three edges from the lowest corner, each labelled with its length
+    local size = record.size(viewer.shape)
+    local world_size = { camera_math.transform(viewer.model_matrix, size) }
+    local units = viewer.shape.units and (" " .. viewer.shape.units) or ""
+    local names = { "width", "height", "depth" }
+    love.graphics.setFont(viewer.small_font)
+    for axis, step in ipairs({ 4, 2, 1 }) do
+        local a, c = screen[1], screen[1 + step]
+        if a[3] and c[3] then
+            love.graphics.setColor(s.edge_colour)
+            love.graphics.print(string.format("%s %.4g%s", names[axis], math.abs(world_size[axis]), units),
+                (a[1] + c[1]) / 2 + 4, (a[2] + c[2]) / 2 + 2)
+        end
+    end
+    -- each part's label; a label landing on one already placed moves down a
+    -- line until it is clear (parts sharing a middle, like a ring and the
+    -- dials around it, would otherwise print over each other)
+    local placed = {}
+    local function clear_spot(x, y, w)
+        for _ = 1, 40 do
+            local overlaps = false
+            for _, r in ipairs(placed) do
+                if x < r[1] + r[3] and r[1] < x + w and math.abs(y - r[2]) < 15 then overlaps = true break end
+            end
+            if not overlaps then return y end
+            y = y + 15
+        end
+        return y
+    end
+    for _, item in ipairs(viewer.meshes) do
+        local x, y, z = camera_math.transform(viewer.model_matrix, item.middle)
+        local sx, sy, ahead = camera_math.to_screen(viewer.camera, { x, y, z }, width, height)
+        if ahead then
+            local dx, dy = sx - width / 2, sy - height / 2
+            local length = math.max(math.sqrt(dx * dx + dy * dy), 1)
+            local lx, ly = sx + dx / length * 70, sy + dy / length * 70
+            local label = item.part.name
+            local label_width = viewer.small_font:getWidth(label)
+            local label_x = dx < 0 and (lx - label_width - 3) or (lx + 3)
+            local label_y = clear_spot(label_x, ly - 7, label_width)
+            placed[#placed + 1] = { label_x, label_y, label_width }
+            love.graphics.setColor(s.text_colour)
+            love.graphics.circle("fill", sx, sy, 2.5)
+            love.graphics.line(sx, sy, lx, label_y + 7)
+            love.graphics.print(label, label_x, label_y)
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+-- }}}
+
+-- {{{ VIEWS
+-- Each view draws the shape into the current canvas (a dispatch table).
+viewer.VIEWS = {
+    lit = function() draw_meshes(0, own_colour) end,
+    edges = function()
+        draw_meshes(0, own_colour)
+        love.graphics.setWireframe(true)
+        draw_meshes(1, function() return viewer.settings.edge_colour end, 0.0004)
+        love.graphics.setWireframe(false)
+    end,
+    parts = function() draw_meshes(1, function(item) return item.flat end) end,
+    depth = function() draw_meshes(2, own_colour) end,
+    normals = function() draw_meshes(3, own_colour) end,
+    annotated = function() draw_meshes(0, own_colour) end,
+}
+-- }}}
+
+-- {{{ local function render_view()
+-- Draws one view of the shape into the canvas, with a title line naming
+-- the file and the view (so a saved picture says what it is by itself).
+local function render_view(view_name)
+    local width, height = viewer.canvas:getDimensions()
+    love.graphics.setCanvas({ viewer.canvas, depthstencil = viewer.depth_canvas })
+    local bg = viewer.settings.background_colour
+    love.graphics.clear(bg[1], bg[2], bg[3], 1, false, 1)
+    if viewer.shape then
+        love.graphics.setShader(viewer.shader)
+        love.graphics.setDepthMode("lequal", true)
+        send_camera(width, height)
+        viewer.VIEWS[view_name]()
+        love.graphics.setDepthMode()
+        love.graphics.setShader()
+        if view_name == "annotated" then draw_annotations(width, height) end
+        love.graphics.setFont(viewer.small_font)
+        love.graphics.setColor(viewer.settings.text_colour)
+        love.graphics.print(viewer.shape.name .. "  —  " .. view_name .. " view", 12, height - 22)
+        love.graphics.setColor(1, 1, 1)
+    end
+    love.graphics.setCanvas()
+end
+-- }}}
+
+-- {{{ local function save_pictures()
+-- One picture per requested view, read from the canvas, saved to
+-- tmp/shared-memory/screenshot-<file>-<view>.png. The share of pure black
+-- pixels goes on the receipt: the viewer never draws pure black (even the
+-- depth view's farthest grey is above it), so black pixels mean the
+-- picture was not drawn.
+local function save_pictures()
+    local name = (viewer.shape and viewer.shape.name or "empty"):gsub("[^%w%.%-]", "_")
+    for _, view_name in ipairs(viewer.screenshot_views) do
+        render_view(view_name)
+        local image = viewer.canvas:newImageData()
         local width, height = image:getDimensions()
         local bytes = ffi.cast("const uint8_t *", image:getFFIPointer())
         local black = 0
         for k = 0, width * height - 1 do
             if bytes[k * 4] == 0 and bytes[k * 4 + 1] == 0 and bytes[k * 4 + 2] == 0 then black = black + 1 end
         end
-        viewer.black_share = black / (width * height)
+        local path = viewer.project_dir .. "/tmp/shared-memory/screenshot-" .. name .. "-" .. view_name .. ".png"
         local file, problem = io.open(path, "wb")
         if file == nil then error("cannot save screenshot " .. path .. ": " .. tostring(problem), 0) end
         file:write(image:encode("png"):getString())
         file:close()
-        viewer.screenshot_path = path
         print("screenshot saved: " .. path)
-        viewer.quit_next_frame = true
-    end)
-end
--- }}}
-
--- {{{ local function draw_shape()
-local function draw_shape()
-    local width, height = love.graphics.getDimensions()
-    local view_projection = camera_math.multiply(camera_math.projection(viewer.camera, width / height),
-                                                 camera_math.view(viewer.camera))
-    local eye = camera_math.eye(viewer.camera)
-    local t = viewer.camera.target
-    local tx, ty, tz = eye[1] - t[1], eye[2] - t[2], eye[3] - t[3]
-    local length = math.sqrt(tx * tx + ty * ty + tz * tz)
-
-    love.graphics.setShader(viewer.shader)
-    love.graphics.setDepthMode("lequal", true)
-    viewer.shader:send("view_projection", "row", view_projection)
-    viewer.shader:send("model_matrix", "row", viewer.model_matrix)
-    viewer.shader:send("toward_camera", { tx / length, ty / length, tz / length })
-
-    -- faces, lit
-    viewer.shader:send("flat_colour", 0)
-    viewer.shader:send("depth_bias", 0)
-    for _, item in ipairs(viewer.meshes) do
-        viewer.shader:send("part_colour", item.part.colour)
-        love.graphics.draw(item.mesh)
+        local c = viewer.camera
+        viewer.pictures[#viewer.pictures + 1] = { path = path, view = view_name, black_share = black / (width * height),
+            camera = string.format("%dx%d yaw %.4f pitch %.4f distance %.6g target %.6g %.6g %.6g",
+                width, height, c.yaw, c.pitch, c.distance, c.target[1], c.target[2], c.target[3]) }
     end
-    -- edges, in one flat colour, over the faces
-    if viewer.show_edges then
-        love.graphics.setWireframe(true)
-        viewer.shader:send("flat_colour", 1)
-        viewer.shader:send("depth_bias", 0.0004)
-        viewer.shader:send("part_colour", viewer.settings.edge_colour)
-        for _, item in ipairs(viewer.meshes) do love.graphics.draw(item.mesh) end
-        love.graphics.setWireframe(false)
-    end
-    love.graphics.setDepthMode()
-    love.graphics.setShader()
+    viewer.quit_next_frame = true
 end
 -- }}}
 
 -- {{{ local function draw_panel()
--- The figures in the corner: what the file is and what is in it.
+-- The figures in the corner, on the window only (not in saved pictures,
+-- which carry their own title line).
 local function draw_panel()
     local s = viewer.settings
     local shape = viewer.shape
@@ -318,7 +529,7 @@ local function draw_panel()
         local size = record.size(shape)
         local units = shape.units and (" " .. shape.units) or ""
         lines[#lines + 1] = shape.name
-        lines[#lines + 1] = string.format("format %s   up axis %s   %.1f KB", shape.source_format, viewer.up_axis, shape.bytes_on_disk / 1024)
+        lines[#lines + 1] = string.format("format %s   up axis %s   %.1f KB   view %s", shape.source_format, viewer.up_axis, shape.bytes_on_disk / 1024, viewer.view)
         lines[#lines + 1] = string.format("triangles %d   degenerate %d", shape.triangle_count, shape.degenerate_count)
         lines[#lines + 1] = string.format("size %.4g x %.4g x %.4g%s", size[1], size[2], size[3], units)
         lines[#lines + 1] = string.format("read %.3f s   %d fps", viewer.read_seconds, love.timer.getFPS())
@@ -359,18 +570,23 @@ local function draw_panel()
     end
     if viewer.problem then
         love.graphics.setColor(1, 0.4, 0.35)
-        love.graphics.printf(viewer.problem, 12, love.graphics.getHeight() - 60, love.graphics.getWidth() - 24)
+        love.graphics.printf(viewer.problem, 12, love.graphics.getHeight() - 80, love.graphics.getWidth() - 24)
     end
     love.graphics.setColor(s.text_colour)
-    love.graphics.print("left drag: turn   right drag: slide   wheel: zoom   f: fit   w: edges   u: up axis   space: spin   h: hide",
-        12, love.graphics.getHeight() - 24)
+    love.graphics.print("left drag: turn   right drag: slide   wheel: zoom   f: fit   v: view   w: edges   u: up axis   space: spin   h: hide",
+        12, love.graphics.getHeight() - 44)
     love.graphics.setColor(1, 1, 1)
 end
 -- }}}
 
 -- {{{ function viewer.draw()
 function viewer.draw()
-    if viewer.shape then draw_shape() end
+    if viewer.screenshot_due then
+        viewer.screenshot_due = false
+        save_pictures()
+    end
+    render_view(viewer.view)
+    love.graphics.draw(viewer.canvas)
     if viewer.show_panel then draw_panel() end
     viewer.frames_drawn = viewer.frames_drawn + 1
 end
@@ -379,6 +595,10 @@ end
 -- {{{ input callbacks
 -- {{{ function viewer.mousemoved()
 function viewer.mousemoved(x, y, dx, dy)
+    if viewer.scripted_run then
+        if love.mouse.isDown(1) or love.mouse.isDown(2) then viewer.ignored_input = viewer.ignored_input + 1 end
+        return
+    end
     if love.mouse.isDown(1) then viewer.drag(1, dx, dy)
     elseif love.mouse.isDown(2) then viewer.drag(2, dx, dy) end
 end
@@ -388,10 +608,19 @@ end
 function viewer.wheelmoved(x, y)
     if viewer.shape then camera_math.zoom(viewer.camera, y) end
 end
+
+-- {{{ function viewer.real_wheelmoved()
+-- The wheel as LÖVE reports it: ignored in a scripted run.
+function viewer.real_wheelmoved(x, y)
+    if viewer.scripted_run then viewer.ignored_input = viewer.ignored_input + 1 return end
+    viewer.wheelmoved(x, y)
+end
+-- }}}
 -- }}}
 
 -- {{{ function viewer.keypressed()
 function viewer.keypressed(key)
+    if viewer.scripted_run then viewer.ignored_input = viewer.ignored_input + 1 return end
     local handler = KEYS[key]
     -- keys with no entry do nothing: the window has only the keys it lists
     if handler then handler() end
@@ -399,7 +628,9 @@ end
 -- }}}
 
 -- {{{ function viewer.resize()
+-- A new window size needs canvases of the new size.
 function viewer.resize()
+    make_canvases()
     if viewer.shape then fit_view() end
 end
 -- }}}
@@ -434,8 +665,8 @@ function viewer.quit()
         read_seconds = viewer.read_seconds,
         frames_drawn = viewer.frames_drawn,
         seconds_run = viewer.seconds_run,
-        screenshot = viewer.screenshot_path or false,
-        black_share = viewer.black_share,
+        pictures = viewer.pictures,
+        ignored_input = viewer.ignored_input,
     })
 end
 -- }}}

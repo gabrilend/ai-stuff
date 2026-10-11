@@ -13,7 +13,8 @@ in shape.skipped and shown on the viewer's panel as "not read". Tried on a
 real export: MagicaVoxel's x-wing.obj reads (580 triangles) but draws white,
 because MagicaVoxel colours by a picture (texture, map_Kd and vt) with Kd
 1 1 1. Another x-wing.obj elsewhere names a .mtl that is not beside it and is
-refused, as intended. Waiting on the open question below.
+refused, as intended. Pictures (textures) are not read, by the owner's
+answer below.
 
 ## Intended Behavior
 OBJ is a line-per-statement text format: `v x y z` corners, `vn` normals,
@@ -34,7 +35,10 @@ The writer emits one `o` per part and a `.mtl` beside it carrying colours.
    with its line number; an undefined material is refused; the crown
    survives a round trip.
 
-## Open questions
-1. Some exporters colour an OBJ by a picture (texture) instead of material
-   colours. Should the reader load the picture (map_Kd) and texture
-   coordinates (vt), so those models draw in their colours?
+## Decided
+- Colour from pictures (textures, map_Kd and vt) is not read. The owner:
+  "we will write our own voxel engine. It is just for particle effects, and
+  the particles are very small, governed by equations not patterns."
+  Models coloured that way draw in their material colour, with "vt" listed
+  as not read on the viewer's panel. (Her further thought, a curve-fitting
+  program that finds an equation for a given pattern, is in notes/ideas.)

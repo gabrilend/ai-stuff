@@ -2,7 +2,7 @@
 
 **Phase:** 0 — Tools
 **Blocked by:** 001
-**Blocks:** 005, 006
+**Blocks:** 005, 006, 007
 
 ## Current Behavior
 Built in `src/005-gltf.lua`, with `libs/dkjson.lua` (copied from the shared

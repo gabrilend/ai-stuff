@@ -201,6 +201,10 @@ function M.crown()
 end
 -- }}}
 
+-- The solid-making helpers, lent to the builder of described parts
+-- (015), so outward-facing faces are made one way in the whole project.
+M.kit = { outward_triangle = add_outward_triangle, quad = add_quad, box = add_box }
+
 -- Each test shape by name, so a script can ask for one by a word.
 M.BY_NAME = { cube = M.cube, crown = M.crown }
 

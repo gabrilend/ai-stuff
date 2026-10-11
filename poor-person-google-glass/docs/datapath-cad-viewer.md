@@ -21,15 +21,28 @@ model file (path, string)
   → stood upright (a z-up file is turned a quarter about x)
   → copied once into the graphics card, one mesh per part
   → every frame: orbit camera (target, yaw, pitch, distance)
-        → view and projection matrices → drawn, lit from the camera
-          and from above, both sides of every surface
-  → panel of figures beside it
+        → view and projection matrices (turned upside down, because a
+          canvas stores its rows the other way up from the screen)
+        → drawn into an off-screen canvas in the current view:
+          lit | edges | parts | depth | normals | annotated
+        → the canvas shown in the window, the panel of figures over it
 
-mouse, keys, or scripted run options (--drag, --key, --wheel, --screenshot)
-  → the same handlers → camera or display toggles
+mouse, keys → the handlers → camera or display toggles
+scripted run options (--drag, --key, --wheel, --screenshot, --views)
+  → the same handlers; real input is then ignored and counted
+--screenshot → each requested view drawn into the canvas and saved from it
+               (never read from the screen, which may be covered by
+               another window) → tmp/shared-memory/screenshot-FILE-VIEW.png
 
 on closing → output/goodbye: file, format, triangles, parts, frames,
-             seconds, screenshot and its share of black pixels
+             seconds, ignored input, and per picture: view, share of
+             pure-black pixels (a picture not drawn reads back black),
+             camera (size, yaw, pitch, distance, target)
+after the window closes, view-cad → scripts/file-screenshot:
+             each new picture into development-history/NNN-NAME.png with
+             notes (what made it, what changed since the last picture);
+             a picture identical byte for byte to one already filed is
+             not filed again
 ```
 
 Test models are never drawn by hand: `scripts/make-test-shapes` writes the

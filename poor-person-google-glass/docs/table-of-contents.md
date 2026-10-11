@@ -6,6 +6,9 @@ and issue files do not; they have their own indexes.
 ## Vision
 - notes/vision - the founding description, in the owner's own words. Written
   first, read most.
+- notes/ideas - ideas the owner said in passing that belong to no issue
+  yet (her own voxel engine, curve fitting, a Tantive IV turret game), kept
+  word for word.
 
 ## Documentation
 - docs/table-of-contents.md - this file.
@@ -18,7 +21,11 @@ and issue files do not; they have their own indexes.
   - docs/datapath-input.md - from a turned dial to a new picture or arm pose.
   - docs/datapath-heat.md - from heat sources to throttle, pumps and fins.
   - docs/datapath-cad-viewer.md - from a model file to a lit, turnable
-    picture (phase 0).
+    picture, its six views, and how pictures are kept (phase 0).
+  - docs/datapath-words-to-model.md - from a description in words to a
+    model (phase 0).
+- docs/shape-words.md - every word a description may use, and what it
+  means: the contract for ./describe.
 - docs/physics-check.md - each part set against known physics and the
   closest device that already exists.
 - docs/roadmap.md - the phases (0 to 6) and the demo each ends with.
@@ -47,8 +54,16 @@ last issue completed in a project to belong to phase 1.
 - .file-index-counter - the highest reading-order index used by any file in
   the project, so a new file can take the next number without a search.
 - run-phase-demo - asks which completed phase to demonstrate, then runs it.
-- view-cad - opens a CAD file (STL, OBJ, glTF) in the 3D viewer.
+- view-cad - opens a CAD file (STL, OBJ, glTF) in the 3D viewer, and files
+  every picture it takes.
+- describe - turns a description in words (input/descriptions/) into a model
+  and a report (output/described/).
+- development-history/ - every picture the viewer has taken, numbered, each
+  with notes on what made it and what changed.
+- scripts/file-screenshot - files pictures into development-history/.
 - scripts/run-tests - every test, including a scripted viewer window.
 - scripts/make-test-shapes - writes the formula-made test models in every
   format.
 - input/viewer-settings.lua - the viewer's window, view and colours.
+- input/descriptions/ - objects described in words: a drum, a lamp, the
+  crown, glasses.

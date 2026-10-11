@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+#
+# file-screenshot - keeps every picture the viewer takes, with what changed.
+#
+# In plain terms: every time the viewer is run with --screenshot, the
+# pictures it saves (one per view) are not thrown away. This script files
+# each one in development-history/ under the next number, with a notes file
+# beside it saying what made it (the commit, the run, the settings) and what
+# changed since the previous picture: which source files, which settings
+# (line by line), whether the commit moved. Two sections are left for a
+# person (or Claude) to fill: what the picture shows, literally, and the
+# story so far. A picture byte-for-byte identical to one already filed is
+# not filed again: it is the same picture, already kept (the scripted test
+# runs make the same pictures every time nothing has changed).
+#
+# How "what changed" is known: each filing keeps a fingerprint of every
+# source and settings file (development-history/.fingerprints/NNN.txt);
+# the next filing compares its own fingerprint with the last one.
+#
+# Adapted from centered-ui-design/scripts/file-screenshot (2026-10-10),
+# which files one picture per run; this one takes several.
+#
+# Usage (normally called by view-cad after a run that took pictures):
+#   scripts/file-screenshot [<project-dir>] PICTURE... -- RUN-OPTIONS...
+# Environment:
+#   COMMIT   the commit the pictures show, if not this project's latest
+#   NOTE     a sentence added to every notes file (e.g. "filed late")
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+PICTURES=()
+while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
+    PICTURES+=("$1")
+    shift
+done
+# the "--" before the run options
+if [ "${1:-}" = "--" ]; then
+    shift
+fi
+if [ "${#PICTURES[@]}" -eq 0 ]; then
+    echo "file-screenshot: no pictures named" >&2
+    exit 64
+fi
+
+HISTORY="${DIR}/development-history"
+PRINTS="${HISTORY}/.fingerprints"
+mkdir -p "${PRINTS}"
+SETTINGS="${DIR}/input/viewer-settings.lua"
+COMMIT="${COMMIT:-$(git -C "${DIR}" log -1 --format='%h' -- .)}"
+COMMIT_LINE=$(git -C "${DIR}" log -1 --format='%h %ad %s' --date=short "${COMMIT}")
+UNCOMMITTED=$(git -C "${DIR}" status --short -- src input libs scripts view-cad describe | sed 's/^/  - /')
+
+for SHOT in "${PICTURES[@]}"; do
+    # a named picture that does not exist: the run failed before saving it
+    if [ ! -f "${SHOT}" ]; then
+        echo "file-screenshot: no picture at ${SHOT}" >&2
+        exit 1
+    fi
+    SHA=$(sha1sum "${SHOT}" | cut -d' ' -f1)
+    # already kept: the same bytes are in the history under some number
+    shopt -s nullglob
+    FILED=("${PRINTS}"/[0-9][0-9][0-9].txt)
+    shopt -u nullglob
+    SAME=""
+    # nothing filed yet: nothing to be the same as
+    if [ "${#FILED[@]}" -gt 0 ]; then
+        SAME=$(grep -l "^picture ${SHA}$" "${FILED[@]}" | head -1)
+    fi
+    if [ -n "${SAME}" ]; then
+        echo "already kept as $(basename "${SAME}" .txt): ${SHOT}"
+        continue
+    fi
+
+    # the name: the picture's file name without "screenshot-" and ".png",
+    # lower-cased, every run of other characters turned into one dash
+    BASE=$(basename "${SHOT}" .png)
+    NAME=$(echo "${BASE#screenshot-}" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')
+    COUNT=$(find "${HISTORY}" -maxdepth 1 -name '[0-9][0-9][0-9]-*.png' | wc -l)
+    NUMBER=$(printf '%03d' $((COUNT + 1)))
+    PICTURE="${HISTORY}/${NUMBER}-${NAME}.png"
+    NOTES="${HISTORY}/${NUMBER}-${NAME}.info.md"
+    cp "${SHOT}" "${PICTURE}"
+
+    # {{{ the fingerprint of this picture's sources and settings
+    PRINT="${PRINTS}/${NUMBER}.txt"
+    {
+        echo "commit ${COMMIT}"
+        echo "picture ${SHA}"
+        find -L "${DIR}/src" "${DIR}/libs" -type f -name '*.lua' -exec sha1sum {} + | sed "s|${DIR}/||" | sort -k2
+        sha1sum "${SETTINGS}" | sed "s|${DIR}/||"
+    } > "${PRINT}"
+    cp "${SETTINGS}" "${PRINTS}/${NUMBER}-settings.lua"
+    # }}}
+
+    # {{{ what changed since the previous picture
+    PREVIOUS=$(find "${PRINTS}" -maxdepth 1 -name '[0-9][0-9][0-9].txt' ! -name "${NUMBER}.txt" | sort | tail -1)
+    CHANGES="(the first filed picture: nothing to compare with)"
+    if [ -n "${PREVIOUS}" ]; then
+        PREVIOUS_NUMBER=$(basename "${PREVIOUS}" .txt)
+        FILES=$(diff <(sed 1,2d "${PREVIOUS}") <(sed 1,2d "${PRINT}") | grep '^[<>]' | awk '{print $3}' | sort -u)
+        OLD_COMMIT=$(head -1 "${PREVIOUS}" | cut -d' ' -f2)
+        CHANGES="Compared with picture ${PREVIOUS_NUMBER}:"$'\n'
+        # the commit moved
+        if [ "${OLD_COMMIT}" != "${COMMIT}" ]; then
+            CHANGES+="- commit: ${OLD_COMMIT} -> ${COMMIT}"$'\n'
+        fi
+        # no file differs
+        if [ -z "${FILES}" ]; then
+            CHANGES+="- no source or settings file changed (same program; another view, file or moment)"$'\n'
+        else
+            while read -r FILE; do
+                CHANGES+="- changed: ${FILE}"$'\n'
+            done <<< "${FILES}"
+        fi
+        SETTINGS_DIFF=$(diff "${PRINTS}/${PREVIOUS_NUMBER}-settings.lua" "${PRINTS}/${NUMBER}-settings.lua" | grep '^[<>]')
+        # the settings changed: show the lines
+        if [ -n "${SETTINGS_DIFF}" ]; then
+            CHANGES+=$'\n'"Settings, before (<) and now (>):"$'\n\n'"\`\`\`"$'\n'"${SETTINGS_DIFF}"$'\n'"\`\`\`"
+        fi
+    fi
+    # }}}
+
+    cat > "${NOTES}" <<EOF
+<!-- made by scripts/file-screenshot on $(date '+%Y-%m-%d %H:%M'), from the
+     viewer run as: view-cad $* -->
+
+# ${NUMBER} — ${NAME}
+
+- **Picture:** ${NUMBER}-${NAME}.png
+- **Commit:** ${COMMIT_LINE}
+- **Run:** \`view-cad $*\`
+- **Uncommitted at the time:**
+${UNCOMMITTED:-  - none}
+${NOTE:+
+${NOTE}
+}
+## What changed
+
+${CHANGES}
+
+## What it shows
+
+(Literally: what is in the picture, part by part.)
+
+## The story so far
+
+(The arc of the project up to this picture, briefly: what came before, what
+this cycle added, what it set up next. Details are in llm-transcripts/.)
+EOF
+    echo "${PICTURE}"
+done

@@ -6,5 +6,5 @@ glTF 2.0, the house format (issue 004): .gltf (JSON, buffers as base64 or a .bin
 | Offers | Takes | Gives |
 |---|---|---|
 | `read(bytes, name, read_neighbour)` | | a shape, one part per primitive, colour from baseColorFactor (white with no material); units from asset.extras.units |
-| `write(shape, made_by, units)` | units: a word, e.g. "millimetres" | one self-contained .gltf text |
+| `write(shape, made_by, units)` | units: a word, e.g. "millimetres" | one self-contained .gltf text, keys in a fixed order so the same shape always gives the same bytes |
 | `base64_encode(bytes)`, `base64_decode(text)` | | strings |

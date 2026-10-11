@@ -4,9 +4,9 @@
 #
 # In plain terms: makes sure the RAM scratch folders exist, then runs the
 # window-free tests (the shape record, the CAD formats, the camera, the
-# settings) with LuaJIT, and, when a display is available, opens the viewer
-# for a few seconds on a test shape, scripted, and checks it said goodbye
-# and left a screenshot.
+# settings; the describing language) with LuaJIT, and, when a display is
+# available, opens the viewer for a moment on a test shape, scripted, and
+# checks it said goodbye and saved one whole picture per view.
 #
 # Usage:
 #   scripts/run-tests                 the project at the default location
@@ -22,6 +22,7 @@ source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
 ensure_ram_tiers "${DIR}" || exit 1
 
 luajit "${DIR}/src/011-the-tests.test.lua" "${DIR}" || exit 1
+luajit "${DIR}/src/017-the-word-tests.test.lua" "${DIR}" || exit 1
 
 # the viewer, driven without a person: needs a screen to draw on
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
@@ -30,26 +31,31 @@ if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
 fi
 "${DIR}/scripts/make-test-shapes" "${DIR}" > /dev/null || exit 1
 SHAPE="${DIR}/tmp/shared-memory/shapes/crown-sketch.gltf"
-SCREENSHOT="${DIR}/tmp/shared-memory/screenshot-crown-sketch.gltf.png"
-rm -f "${SCREENSHOT}"
+rm -f "${DIR}"/tmp/shared-memory/screenshot-crown-sketch.gltf-*.png
 BEFORE=$(date +%s)
-"${DIR}/view-cad" "${DIR}" "${SHAPE}" --key 0.2 w --drag 0.4 60 20 --screenshot 1.0 || exit 1
+"${DIR}/view-cad" "${DIR}" "${SHAPE}" --drag 0.2 60 20 --screenshot 0.5 > /dev/null || exit 1
 GOODBYE="${DIR}/output/goodbye"
 WRITTEN=$(stat -c %Y "${GOODBYE}")
 if [ "${WRITTEN}" -lt "${BEFORE}" ]; then
     echo "FAIL  the viewer did not say goodbye (output/goodbye is older than the run)"
     exit 1
 fi
-if [ ! -s "${SCREENSHOT}" ]; then
-    echo "FAIL  the viewer left no screenshot at ${SCREENSHOT}"
+# one picture per view, each saved, none with pure-black pixels (a picture
+# that was not drawn reads back black; the viewer never draws pure black)
+PICTURES=$(grep -c '^picture ' "${GOODBYE}")
+if [ "${PICTURES}" -ne 6 ]; then
+    echo "FAIL  the viewer saved ${PICTURES} pictures, not one per view (6)"
     exit 1
 fi
-# a capture that read back black (as multisampling once caused) is a
-# failure even though a file was saved: the receipt counts black pixels
-BLACK=$(awk '/^black/ { print $2 }' "${GOODBYE}")
-if [ -z "${BLACK}" ] || awk -v share="${BLACK}" 'BEGIN { exit !(share > 0.001) }'; then
-    echo "FAIL  the screenshot is ${BLACK:-of unknown} share pure black; the capture did not read the window"
-    exit 1
-fi
+while read -r VIEW SHARE FILE; do
+    if [ ! -s "${FILE}" ]; then
+        echo "FAIL  the ${VIEW} picture is missing: ${FILE}"
+        exit 1
+    fi
+    if awk -v share="${SHARE}" 'BEGIN { exit !(share > 0) }'; then
+        echo "FAIL  the ${VIEW} picture is ${SHARE} pure black: it was not drawn"
+        exit 1
+    fi
+done < <(awk '/^picture / { print $2, $4, $5 }' "${GOODBYE}")
 TRIANGLES=$(grep '^triangles' "${GOODBYE}")
-echo "pass  the viewer opened the crown, said goodbye (${TRIANGLES}), and left a screenshot"
+echo "pass  the viewer opened the crown, said goodbye (${TRIANGLES}), and saved six whole pictures"

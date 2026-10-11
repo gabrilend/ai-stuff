@@ -2,6 +2,9 @@
 # Open questions
 
 ## Answered
+- **OBJ colours from pictures (textures):** not wanted. "we will write our
+  own voxel engine. It is just for particle effects, and the particles are
+  very small, governed by equations not patterns." (notes/ideas)
 - **Colours:** red and green lasers (not blue). Direct green diodes, not
   infrared-pumped ones (docs/physics-check.md).
 - **The cuff:** its own kind of input — drag along it for an analog value.
@@ -37,9 +40,19 @@
    all lists of triangles. STEP (exact curved surfaces, what engineering CAD
    saves natively) would need a geometry kernel or a Blender/FreeCAD bridge.
    Wanted, or is exporting glTF/STL from the CAD program enough?
-10. **OBJ colours from pictures:** some exporters (MagicaVoxel) colour an
-    OBJ by a picture (a texture) rather than by material colours; the viewer
-    draws those models plain white and lists "vt" as not read. Read textures?
+10. **Free English in front of the describing words:** ./describe reads a
+    closed vocabulary (docs/shape-words.md). Free wording would need a
+    language model rewriting it into those words first. This machine reaches
+    only an OpenAI key (no Anthropic key, no local model server). Wanted, and
+    with which model? (issue 007)
 11. **Reading on several threads:** binary STL's fixed 50-byte records split
     cleanly across workers. Worth it once a model takes long enough to wait
     on?
+12. **Pointing the other way:** a part's axis can run up, left to right, or
+    front to back, but not down, right to left or back to front, so a cone
+    cannot point down. Add "points down" and its kin? (issue 007)
+13. **How many pictures to keep:** every picture is kept, and identical ones
+    are filed once, but each change to the viewer's code makes the scripted
+    test and the demo take new pictures (six views each), so the history
+    grows by dozens per change. Keep all, or file only the demo's and
+    hand-taken pictures?

@@ -1,0 +1,24 @@
+goodbye from the CAD viewer (src/010-the-viewer.lua)
+written      2026-10-10 22:05:22
+seed         none (the viewer uses no randomness)
+file         /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf
+format       gltf
+triangles    2220
+parts        6
+read         0.017 seconds
+frames       75
+seconds      1.09
+ignored      4 real input events (a scripted run listens to its script only)
+pictures     6
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-lit.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
+picture      edges      black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-edges.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
+picture      parts      black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-parts.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
+picture      depth      black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-depth.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
+picture      normals    black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-normals.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
+picture      annotated  black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-crown-sketch.gltf-annotated.png
+  camera     885x1410 yaw 0.0109 pitch 0.6363 distance 801.634 target 24.75 -33 0
