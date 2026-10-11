@@ -926,6 +926,22 @@ do
     local r2, g2, b2 = made.light_at("metal", 0, 0.52 + 0.47 * 0.44)
     check("the console's dial light at noon is the dial straight up",
         math.abs(r1 - r2) + math.abs(g1 - g2) + math.abs(b1 - b2) < 1e-12)
+    -- the console's light never flickers: over one second of the day's turn
+    -- at 144 frames it brightens or darkens steadily (it once reversed some
+    -- 19 times a second, sweeping across streaks painted on the dial)
+    local step, last, direction, reversals = 2 * math.pi / 24 / 144, nil, nil, 0
+    for frame = 0, 144 do
+        local now = made.dial_light("metal", 0, 0.47, 0.9 + frame * step, 0.52, 0.44)
+        if last ~= nil and now ~= last then
+            local brighter = now > last
+            if direction ~= nil and brighter ~= direction then
+                reversals = reversals + 1
+            end
+            direction = brighter
+        end
+        last = now
+    end
+    check("the console's light does not flicker as the day turns", reversals <= 1, reversals .. " reversals")
     local nr = made.dial_light("metal", 0, 0.47, math.pi, 0.52, 0.44)
     check("the console's metal is darker at midnight than at noon", nr < r1)
 end

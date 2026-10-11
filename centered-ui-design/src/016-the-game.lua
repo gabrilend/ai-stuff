@@ -194,6 +194,7 @@ function game.load(arguments)
     -- mouse are ignored for it (main.lua), so the run is the same however
     -- the person uses their screen meanwhile.
     game.scripted = {}
+    game.keys_down = {}
     for index = 2, #arguments do
         local option = arguments[index]
         -- a picture at a given time
@@ -448,9 +449,11 @@ function game.update(seconds)
                     game.mousereleased(x, y, 1)
                 end
             elseif event.kind == "wheel_with" then
-                game.scripted_key_held = event.key
+                -- the key pressed, the wheel turned, the key let go: the
+                -- same handlers a person's keys and wheel reach
+                game.keypressed(event.key)
                 game.wheelmoved(0, event.notches)
-                game.scripted_key_held = nil
+                game.keyreleased(event.key)
             elseif event.kind == "click" then
                 game.mousepressed(event.x, event.y, 1)
             elseif event.kind == "key" then
@@ -761,14 +764,11 @@ local WHEEL_WITH_KEY = {
 }
 
 -- {{{ local function key_held()
--- Whether a key is held: by the person at the keyboard, or by a scripted
--- "wheel with a key held".
+-- Whether a key is held, from the key-press and key-release events the game
+-- has heard — a person's keys and a script's take the same path, so a
+-- scripted check proves the person's.
 local function key_held(key)
-    -- a scripted run: only the script holds keys
-    if game.scripted_run then
-        return game.scripted_key_held == key
-    end
-    return love.keyboard.isDown(key)
+    return game.keys_down[key] == true
 end
 -- }}}
 
@@ -787,9 +787,27 @@ end
 
 -- {{{ function game.keypressed()
 function game.keypressed(key)
+    -- every key held is remembered until it is let go (the wheel asks)
+    game.keys_down[key] = true
     -- Escape opens or shuts the settings menu
     if key == "escape" then
         game.dashboard.settings_open = not game.dashboard.settings_open
+    end
+end
+-- }}}
+
+-- {{{ function game.keyreleased()
+function game.keyreleased(key)
+    game.keys_down[key] = nil
+end
+-- }}}
+
+-- {{{ function game.focus()
+-- The window lost the keyboard: keys let go elsewhere are never heard, so
+-- forget them all (or one would seem held for ever).
+function game.focus(has_focus)
+    if not has_focus then
+        game.keys_down = {}
     end
 end
 -- }}}
@@ -813,6 +831,10 @@ function game.quit()
     end
     log:write(string.format("units idle %d fetching %d carrying %d; cuboids lying %d carried %d delivered %d\n",
         jobs[0], jobs[1], jobs[2], states[0], states[1], states[2]))
+    -- the view dials (A: how far the top of the screen reaches, in world
+    -- units; S: the arch's span, in degrees), for checks
+    log:write(string.format("view reach %.3f span %.3f\n",
+        game.camera.arch_reach, math.deg(game.camera.arch_span)))
     log:close()
     -- the last thing: goodbye
     say_goodbye.write(game.project_dir, {

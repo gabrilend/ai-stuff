@@ -144,6 +144,15 @@ local function project_hub(camera, x, y, z)
 end
 -- }}}
 
+-- Under the arch view, figures and cuboids stand upright to the screen, like
+-- sprites (the owner: they "should lean... "up""): their height goes
+-- straight up the picture at this share of the figure scale, and their
+-- front-to-back depth shows at this share (a little, so they keep some
+-- volume). Before, they were drawn as the camera, looking down at 62
+-- degrees, sees them: heads tipped toward the viewer.
+M.FIGURE_HEIGHT_SHARE = 0.6
+M.FIGURE_DEPTH_SHARE = 0.2
+
 -- How far below the bottom row the arch view sends ground it never shows
 -- (pixels).
 M.ARCH_OUT_OF_SIGHT = 100000
@@ -226,7 +235,7 @@ end
 -- at the figures' scale.
 local function project_arch(camera, x, y, z)
     local px, py, _, _, _, radius = M.arch_place(camera, x, z, 0)
-    py = py - y * camera.up_y * camera.arch_figure_px
+    py = py - y * M.FIGURE_HEIGHT_SHARE * camera.arch_figure_px
     local depth = ((radius - camera.arch_reach / 2) * camera.up_y - y * camera.back_y) / camera.depth_half_range
     return px / camera.window_width * 2 - 1, 1 - py / camera.window_height * 2, depth
 end
@@ -318,7 +327,7 @@ function M.screen_places(camera, x, y, z, width, height)
         for _, winding in ipairs(M.arch_windings(camera)) do
             local px, py, _, _, _, _, inside = M.arch_place(camera, x, z, winding)
             if inside then
-                places[#places + 1] = { px, py - y * camera.up_y * camera.arch_figure_px }
+                places[#places + 1] = { px, py - y * M.FIGURE_HEIGHT_SHARE * camera.arch_figure_px }
             end
         end
         return places
@@ -611,6 +620,32 @@ vec4 project_anchored(vec3 anchor, vec3 offset) {
     return arch_clip(px, depth);
 }
 
+// A figure or cuboid anchored at a ground point: under the arch view it
+// stands upright to the screen, like a sprite — its height straight up the
+// picture, a little of its front-to-back depth showing, its width across;
+// its feet on its ring (see FIGURE_HEIGHT_SHARE in the Lua). Under every
+// other view, simply the point anchor + offset.
+uniform float figure_height_share;
+uniform float figure_depth_share;
+vec4 project_upright(vec3 anchor, vec3 offset) {
+    if (arch_view < 0.5) {
+        return project_unwarped(anchor + offset);
+    }
+    float radius = length(anchor.xz);
+    float angle = atan(anchor.x, -anchor.z);
+    float from_chair = mod(angle - view_turn + 3.14159265, 6.28318531) - 3.14159265
+                     + 6.28318531 * arch_winding;
+    vec4 spot = arch_spot(radius, from_chair);
+    float sideways = dot(offset.xz, vec2(cos(angle), sin(angle)));
+    float out_ground = dot(offset.xz, vec2(sin(angle), -cos(angle)));
+    vec2 px = spot.xy + vec2(sideways,
+        -(offset.y * figure_height_share + out_ground * figure_depth_share)) * arch_figure_px;
+    float cos_e = cam_up.y;
+    float sin_e = cam_back.y;
+    float depth = ((radius + out_ground - arch_reach * 0.5) * cos_e - offset.y * sin_e) / depth_half_range;
+    return arch_clip(px, depth);
+}
+
 // The world through whichever view films it.
 vec4 project_world(vec3 p) {
     return project_anchored(vec3(p.x, 0.0, p.z), vec3(0.0, p.y, 0.0));
@@ -668,6 +703,8 @@ function M.send(camera, shader, flip_y, fixed)
         M.send_used(shader, "arch_px_per_unit", camera.arch_px_per_unit)
         M.send_used(shader, "arch_figure_px", camera.arch_figure_px)
         M.send_used(shader, "arch_span", camera.arch_span)
+        M.send_used(shader, "figure_height_share", M.FIGURE_HEIGHT_SHARE)
+        M.send_used(shader, "figure_depth_share", M.FIGURE_DEPTH_SHARE)
         M.send_used(shader, "arch_winding", camera.arch_winding or 0)
         M.send_used(shader, "arch_hub_radius", camera.arch_hub_radius)
         M.send_used(shader, "arch_reach", camera.arch_reach)

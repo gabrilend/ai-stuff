@@ -33,7 +33,9 @@ its own buttons and dials (pictures 032-033). A press let go outside the
 window used to leave the console held, so any later mouse move spun it;
 it now lets go as soon as a move arrives without the button. Spinning now
 carries the console along the arch's curves, as the map does (step 10;
-pictures 080-081).
+pictures 080-081). The metal flashed as the day turned (fine streaks on its
+light dial swept past); the streaks are gone and a test checks the light
+changes steadily.
 
 ## Intended Behavior
 

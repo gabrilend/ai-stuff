@@ -81,12 +81,15 @@ end
 -- `hour_angle` as above). A dispatch table from material to formula; each
 -- returns a brightness multiplier and a shine (added light).
 local MATERIALS = {
-    -- brushed metal: fine circular streaks, a firm highlight ring
+    -- brushed metal: a smooth body and a firm highlight ring. (It once had
+    -- fine streaks round the dial, some 220 of them; as the dial turned with
+    -- the hour, a surface reading it swept across them and its light
+    -- flickered about ten times a second — the console's metal flashed.
+    -- Brushing belongs on surfaces, not in the light.)
     metal = function(reach, hour_angle)
         local body = 0.30 + 0.70 * smooth(0.10, 0.95, reach)
-        local streaks = 0.06 * math.sin(hour_angle * 220 + reach * 40)
         local shine = 1.0 * math.exp(-((reach - 0.86) / 0.04) ^ 2)
-        return body + streaks, shine
+        return body, shine
     end,
     -- glaze: a smooth body, a sharp bright ring and a soft sheen (ceramic, paint)
     glaze = function(reach, hour_angle)

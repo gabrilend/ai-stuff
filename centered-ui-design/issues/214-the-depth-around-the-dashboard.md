@@ -58,7 +58,9 @@ Sheen-points now record two colours each, and a lake's sheen-points live in
 the engine's shared memory, turned each step by waves and the sun in a
 third engine stage (step 14; pictures 070-073). The circles are now plain
 gradients (074-076), and the sun circles the hub's upright axis at a
-fixed height (077-079).
+fixed height (077-079). The view dials are proven end to end through the
+key and wheel events (082-084); figures stand upright to the screen under
+the arch view (085-087).
 
 ## Intended Behavior
 
@@ -142,6 +144,13 @@ is just the depth effect applied down one scenery."
   small dial on the console, its key engraved beside it, showing the value
   (tiers reached; degrees). The plain wheel still turns the chair. The
   dials are still never clicked: the game turns them, the keys only ask.
+  (The owner: "can we make sure we can dynamically adjust the
+  field-of-view by holding S while scrolling? And that holding A while
+  scrolling does what it's supposed to as well." The game keeps its own
+  list of keys held, from key-press and key-release events — the same
+  events a script sends — so a scripted check proves the path a person's
+  keys take; the test script holds each key, scrolls, lets go, and reads
+  the reach and span the game writes to its run log.)
 - **Painted terrain, to test distance** (the owner: "can we make some
   "terrain" that's just different colors painted in splotches on the
   ground? To test the rendering at different distances. Remember, each
@@ -283,6 +292,16 @@ is just the depth effect applied down one scenery."
   east, setting in the west, below the land at night); now it circles the
   hub's upright axis once a day at a fixed height, its bearing the hour,
   so every slope, facing any way, has its turn in the light.
+- **Figures stand up the screen** (the owner: "the units are leaning
+  toward us, when they should lean... "up", for lack of a better word" —
+  and "try using the new visualizer to visualize the perspective that
+  would be appropriate"; a see-in-3d model in mind/ shows world-upright
+  figures, seen by a camera looking down at 62 degrees, tipping their heads
+  toward the viewer, and screen-upright ones standing straight up the
+  picture). Under the arch view villagers and cuboids are drawn upright to
+  the screen, like sprites: their height straight up the picture, a little
+  of their front-to-back depth showing so they keep some volume, their
+  width across; their feet still on their rings.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the

@@ -298,7 +298,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     // anchored at its feet: under the arch view the feet are placed on their
     // ring and the figure drawn upright there at one size
     vec3 feet = fold_ground_position(r, angle);
-    return project_anchored(feet, world - feet);
+    return project_upright(feet, world - feet);
 }
 ]]
 
@@ -367,7 +367,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     v_haze = clamp(hub_distance(world) / hub_far, 0.0, 1.0);
     // anchored where it lies (see the unit shader)
     vec3 spot = fold_ground_position(CubeA.x, CubeA.y);
-    return project_anchored(spot, world - spot);
+    return project_upright(spot, world - spot);
 }
 ]]
 
