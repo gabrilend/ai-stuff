@@ -1,0 +1,217 @@
+#!/usr/bin/env luajit
+-- see-in-3d - Turns a picture into an object you can walk around: a
+-- screenshot, a few lines saying what it is in space, and four views of that
+-- object from other sides.
+--
+-- In plain terms: a language model looking at a screenshot sees one flat
+-- picture from one side. With this it can say, in a short scene file, what it
+-- thinks the picture is as a solid thing -- these boxes, that ball, here, this
+-- colour -- and then look at that thing from the front, the right, above and
+-- at an angle, all on one sheet. If the views look wrong, its understanding of
+-- the picture was wrong, and it can say so. A person gets the idea turned
+-- around for them too.
+--
+-- Three steps:
+--   see-in-3d shot --desktop [OUT.png]       the whole X screen
+--   see-in-3d shot PAGE-OR-URL [OUT.png]     a page, opened in headless Firefox
+--   see-in-3d brief SHOT.png                 what to write next, and the paintbrush
+--   see-in-3d render SCENE.lua [--size=N]    four views, a sheet, and an .obj model
+--
+-- Where things go: ${DIR}/tmp/shared-memory/see-in-3d/ unless a path is given;
+-- render writes beside the scene file. The words a scene may use are in
+-- see-in-3d-paintbrush.md, next to this file.
+--
+-- Options: --dir=PATH (where these scripts live), --workers=N (render views
+-- across N processes; default one per view).
+
+-- {{{ DIR Configuration
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+local SIZE = 480
+local WORKERS = nil
+local positional = {}
+for _, argument in ipairs(arg) do
+    local dir_value = argument:match("^%-%-dir=(.+)$")
+    local size_value = argument:match("^%-%-size=(%d+)$")
+    local workers_value = argument:match("^%-%-workers=(%d+)$")
+    -- each option sets one setting; the rest are the step and its targets
+    if dir_value then DIR = dir_value
+    elseif size_value then SIZE = tonumber(size_value)
+    elseif workers_value then WORKERS = tonumber(workers_value)
+    else positional[#positional + 1] = argument end
+end
+local SCRATCH = DIR .. "/tmp/shared-memory/see-in-3d"
+local SCRIPT_PATH = arg[0]
+-- }}}
+
+-- {{{ local function fail()
+local function fail(message)
+    io.stderr:write("see-in-3d: ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function shell_quote()
+local function shell_quote(text)
+    return "'" .. text:gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ local function run()
+-- A shell command that must succeed; its failure stops the program with the
+-- command named.
+local function run(command, what)
+    local status = os.execute(command)
+    if status ~= 0 and status ~= true then fail(what .. " failed: " .. command) end
+end
+-- }}}
+
+-- {{{ local function ensure_scratch()
+local function ensure_scratch()
+    local tiers = dofile(DIR .. "/libs/ensure-ram-tiers.lua")
+    tiers.ensure(DIR)
+    run("mkdir -p " .. shell_quote(SCRATCH), "making the scratch folder")
+end
+-- }}}
+
+-- {{{ local function file_exists()
+local function file_exists(path)
+    local handle = io.open(path, "r")
+    if handle then handle:close() return true end
+    return false
+end
+-- }}}
+
+-- {{{ local function shot()
+-- A screenshot: the X desktop through ImageMagick's import, or a page through
+-- headless Firefox with a throwaway profile in RAM (so it never touches the
+-- person's own browser profile, and runs beside an open Firefox).
+local function shot(target, out)
+    if not target then fail("usage: see-in-3d shot --desktop|PAGE-OR-URL [OUT.png]") end
+    ensure_scratch()
+    out = out or (SCRATCH .. "/shot-" .. os.date("%Y%m%d-%H%M%S") .. ".png")
+    if target == "--desktop" then
+        run("import -window root " .. shell_quote(out), "the desktop screenshot")
+    else
+        local url = target
+        -- a plain path becomes a file address; anything with a scheme is used as is
+        if not target:match("^%a[%w+.-]*://") then
+            local absolute = target:sub(1, 1) == "/" and target or (os.getenv("PWD") .. "/" .. target)
+            if not file_exists(absolute) then fail("no such page: " .. absolute) end
+            url = "file://" .. absolute
+        end
+        local profile = SCRATCH .. "/firefox-profile"
+        run("mkdir -p " .. shell_quote(profile), "making the browser profile")
+        run(string.format("timeout 90 firefox --headless --no-remote --profile %s --window-size %d,%d --screenshot %s %s >/dev/null 2>&1",
+            shell_quote(profile), 1280, 900, shell_quote(out), shell_quote(url)), "the page screenshot")
+    end
+    if not file_exists(out) then fail("no screenshot was written to " .. out) end
+    io.write(out, "\n")
+end
+-- }}}
+
+-- {{{ local function brief()
+-- What the looking model needs: the picture's path, where to write the scene,
+-- and every word it may use (the paintbrush document, printed whole).
+local function brief(picture)
+    if not picture or not file_exists(picture) then fail("usage: see-in-3d brief SHOT.png (the picture must exist)") end
+    ensure_scratch()
+    local stem = picture:match("([^/]+)%.%w+$") or "scene"
+    local scene_path = SCRATCH .. "/" .. stem .. "-scene.lua"
+    io.write("Look at: ", picture, "\n\n")
+    io.write("Decide what the picture is as an object in space -- its parts, where they sit,\n")
+    io.write("their sizes and colours -- and write it, using only the words below, to:\n  ", scene_path, "\n")
+    io.write("Then run:\n  ", SCRIPT_PATH, " render ", scene_path, "\n")
+    io.write("and look at the sheet it names. If the views do not match the picture, the\n")
+    io.write("scene (your reading of the picture) is what is wrong: change it and render again.\n\n")
+    local handle = io.open(DIR .. "/see-in-3d-paintbrush.md", "r")
+    if not handle then fail("the paintbrush document is missing: " .. DIR .. "/see-in-3d-paintbrush.md") end
+    io.write(handle:read("*a"))
+    handle:close()
+end
+-- }}}
+
+-- {{{ local function render_one_view()
+-- Worker: one view of a scene, written as raw RGB bytes. Each worker reads and
+-- compiles the scene itself; that is cheap, and it keeps workers from sharing
+-- anything but the scene file.
+local function render_one_view(scene_path, view_index, size, out)
+    local paintbrush = dofile(DIR .. "/libs/see-in-3d-paintbrush.lua")
+    local renderer = dofile(DIR .. "/libs/see-in-3d-render.lua")
+    local scene, problems = paintbrush.read(scene_path)
+    if not scene then fail(table.concat(problems, "\n")) end
+    local rgb = renderer.render(paintbrush.compile(scene), renderer.views[tonumber(view_index)], tonumber(size))
+    local handle = io.open(out, "wb")
+    handle:write(rgb)
+    handle:close()
+end
+-- }}}
+
+-- {{{ local function render()
+-- A scene file to pictures: checked by the wall first (every problem printed,
+-- nothing drawn), then the .obj model, then four views in parallel, stitched
+-- in a fixed order into the sheet.
+local function render(scene_path)
+    if not scene_path then fail("usage: see-in-3d render SCENE.lua [--size=N]") end
+    local paintbrush = dofile(DIR .. "/libs/see-in-3d-paintbrush.lua")
+    local renderer = dofile(DIR .. "/libs/see-in-3d-render.lua")
+    local png = dofile(DIR .. "/libs/png-writer.lua")
+    local scene, problems = paintbrush.read(scene_path)
+    if not scene then
+        io.stderr:write("see-in-3d: the scene was refused (", #problems, " problem", #problems == 1 and "" or "s", "):\n")
+        for _, problem in ipairs(problems) do io.stderr:write("  ", problem, "\n") end
+        os.exit(1)
+    end
+    local model = paintbrush.compile(scene)
+    local stem = scene_path:gsub("%.lua$", "")
+    paintbrush.write_obj(model, stem .. ".obj")
+
+    -- four views across worker processes, each writing its own raw file;
+    -- collected in view order, never in finishing order
+    local raws, commands = {}, {}
+    local workers = WORKERS or #renderer.views
+    for index = 1, #renderer.views do
+        raws[index] = stem .. "-" .. renderer.views[index].name .. ".raw"
+        commands[#commands + 1] = string.format("luajit %s --dir=%s --view-worker %s %d %d %s",
+            shell_quote(SCRIPT_PATH), shell_quote(DIR), shell_quote(scene_path), index, SIZE, shell_quote(raws[index]))
+    end
+    local batches = {}
+    for index, command in ipairs(commands) do
+        local batch = (index - 1) % workers + 1
+        batches[batch] = (batches[batch] and (batches[batch] .. " && ") or "") .. command
+    end
+    local script = {}
+    for _, batch in ipairs(batches) do script[#script + 1] = "( " .. batch .. " ) &" end
+    run("bash -c " .. shell_quote(table.concat(script, "\n") .. "\nwait"), "rendering the views")
+    local rendered = {}
+    for index, raw in ipairs(raws) do
+        local handle = io.open(raw, "rb")
+        if not handle then fail("a view was not rendered: " .. raw) end
+        rendered[index] = handle:read("*a")
+        handle:close()
+        os.remove(raw)
+        if #rendered[index] ~= SIZE * SIZE * 3 then fail("a view came back the wrong size: " .. raw) end
+        png.write(stem .. "-" .. renderer.views[index].name .. ".png", SIZE, SIZE, rendered[index])
+    end
+    png.write(stem .. ".png", SIZE * 2, SIZE * 2, renderer.sheet(rendered, SIZE))
+    io.write(string.format("%s: %d shapes, %d triangles\n", scene.what, #scene.shapes, #model.cr))
+    io.write("  sheet (front, right / top, angle): ", stem, ".png\n")
+    io.write("  each view: ", stem, "-{front,right,top,angle}.png\n")
+    io.write("  model: ", stem, ".obj\n")
+end
+-- }}}
+
+-- {{{ local function main()
+local steps = {
+    shot = function() shot(positional[2], positional[3]) end,
+    brief = function() brief(positional[2]) end,
+    render = function() render(positional[2]) end,
+    ["--view-worker"] = function() render_one_view(positional[2], positional[3], positional[4], positional[5]) end,
+}
+local function main()
+    local step = steps[positional[1] or ""]
+    if not step then fail("usage: see-in-3d shot|brief|render ... (see the top of this file)") end
+    step()
+end
+-- }}}
+
+main()

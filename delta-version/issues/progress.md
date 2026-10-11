@@ -26,6 +26,7 @@ Delta-Version is the meta-project responsible for git repository management and 
 | **A05** | TOC Updater | ⏳ Pending | TBD |
 | **A06** | Parser Coverage Report | Moved back to `world-edit-to-execute/issues/` — it only applies there | — |
 | **A07** | Phase A Integration Test | ⏳ Pending | Depends on A01–A05 |
+| **A08** | See It in 3D | ✅ Completed 2026-10-10: a screenshot, a short scene saying what it is in space, four views of it | `scripts/see-in-3d` |
 
 ### Completed Tools
 
