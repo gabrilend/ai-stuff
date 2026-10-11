@@ -11,6 +11,11 @@ and completed again with bodies, arms and legs)
 
 ## Current Behavior
 
+Jointed limbs are built (2026-10-11): arms bend at the elbow, legs at hip
+and knee, the knee only forward (src/018-the-body-plan.lua, Lua twin and
+shader); tests check over a whole stride that the knee always points
+forward and the elbow folds forward. Waiting on the owner's look.
+
 Built. Every unit is a small figure of six spheroids — body, head, two arms,
 two legs — from one mesh built once at start, each vertex tagged with its
 part. A body plan (data) places and sizes each part in figure heights. Each
@@ -28,7 +33,22 @@ lighting is diffuse, metal ambient, a Blinn-Phong glint, a rim light, and a
 glow on the named unit. Checked by screenshot (default view and close-ups:
 bent legs visible) and by tests.
 
+Reopened (2026-10-11) for jointed limbs, below.
+
 ## Intended Behavior
+
+- **Jointed limbs** (the owner: "For the arms, they're fine, but can you
+  make them bend at the elbow instead of curving? Also, can you make the
+  legs bend the other way, but only forward? They should be able to bend
+  at the hip and the knee, and the knee should only go forward."). Each
+  limb is still one spheroid, but bends at a joint halfway down instead of
+  curving: its upper half turns rigidly about the shoulder or hip, its
+  lower half about the elbow or knee, carried along by the upper. Arms:
+  the elbow always a little bent, more as the arm swings forward; holding a
+  cuboid, upper arms forward and forearms bent up in front. Legs: they
+  swing from the hip; the knee folds only one way — the knee forward, the
+  shin back — most while the foot comes forward, straight as it plants.
+  Facings turn with each half exactly (a rotation, so no correction).
 
 - Units are figures built only from spheroids (no model files, never
   AI-generated art).

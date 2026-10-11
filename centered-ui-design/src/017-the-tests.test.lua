@@ -706,16 +706,31 @@ do
     local still_x, still_y, still_z = body_plan.bend(leg, 0, 1, 0, 0, 0)
     check("bending leaves the hip where it is",
         hip_x == still_x and hip_y == still_y and hip_z == still_z)
-    -- at swing = sin(pi/2) = 1 and full pace, the foot (y = -1, s = 1) moves
-    -- forward by stride x length and up by lift x length
-    local _, foot_y, foot_z = body_plan.bend(leg, 0, -1, 0, math.pi / 2, 1)
-    local length = 2 * leg.radii[2]
-    check("the foot travels stride x length forward and lift x length up",
-        math.abs(foot_z - (leg.center[3] + leg.stride * length)) < 1e-12
-        and math.abs(foot_y - (leg.center[2] - leg.radii[2] + leg.lift * length)) < 1e-12)
-    local _, _, back_foot_z = body_plan.bend(leg, 0, -1, 0, -math.pi / 2, 1)
-    check("on the back swing the foot goes back and does not lift",
-        back_foot_z < leg.center[3])
+    -- jointed limbs (issue 210): the knee only ever points forward — over a
+    -- whole stride the knee stands ahead of the line from hip to foot — and
+    -- the elbow only ever folds forward (the hand ahead of that line)
+    local function ahead_of_line(part, phase)
+        local _, top_y, top_z = body_plan.bend(part, 0, 1, 0, phase, 1)
+        local _, mid_y, mid_z = body_plan.bend(part, 0, 0, 0, phase, 1)
+        local _, tip_y, tip_z = body_plan.bend(part, 0, -1, 0, phase, 1)
+        -- how far the joint stands ahead of the straight line top -> tip
+        local t = (mid_y - top_y) / (tip_y - top_y)
+        return mid_z - (top_z + t * (tip_z - top_z))
+    end
+    local knee_forward, elbow_forward = true, true
+    local arm = body_plan.PARTS[3]
+    for step = 0, 31 do
+        local phase = 2 * math.pi * step / 32
+        knee_forward = knee_forward and ahead_of_line(leg, phase) >= -1e-9
+        elbow_forward = elbow_forward and ahead_of_line(arm, phase) <= 1e-9
+    end
+    check("the knee only ever points forward", knee_forward)
+    check("the elbow only ever folds forward (the hand comes forward of the line)", elbow_forward)
+    -- the leg swings from the hip: forward at the front of its stride, back
+    -- at the back
+    local _, _, foot_front = body_plan.bend(leg, 0, -1, 0, math.pi / 2, 1)
+    local _, _, foot_back = body_plan.bend(leg, 0, -1, 0, -math.pi / 2, 1)
+    check("the leg swings from the hip, forward then back", foot_front > leg.center[3] and foot_back < leg.center[3])
 
     local fold = sphere_fold.from_settings(good_settings())
     local phases = {}
