@@ -63,6 +63,14 @@ three look toggles (FLAT VIEW, HUB VIEW, SLANT VIEW or ARCH VIEW, UPRIGHT or OUT
 BLUR OFF), and BACK
 and QUIT. The readouts stay.
 
+## Spinning by hand
+
+Press anywhere on the metal that is not a button and drag sideways: the
+chair turns with your hand (one arch's spacing for one seat), the row of
+arches and the world sliding together; let go and it settles on the
+nearest seat. Every arch that passes is drawn whole, exactly as yours, with
+its own buttons and dials and its seat named in its slot.
+
 ## The rhythm
 
 Map, console, map, console. The first click (map) names who; the second

@@ -8,5 +8,7 @@ local game = require("016-the-game")
 
 love.run = game.run
 love.mousepressed = game.mousepressed
+love.mousemoved = game.mousemoved
+love.mousereleased = game.mousereleased
 love.keypressed = game.keypressed
 love.wheelmoved = game.wheelmoved

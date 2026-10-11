@@ -26,7 +26,10 @@ night picture's labels could not be read), sheen and hour highlight. The
 console is now 40% of its old area (a fifth of the window high), laid out
 in rows; lettering is sized by the window; the calendar's rings take their
 radii from their windows; tests check that nothing shown together overlaps,
-labels included (pictures 028-031, the first two showing what broke).
+labels included (pictures 028-031, the first two showing what broke). The
+console spins by hand: a press on its metal drags the chair, letting go
+settles it on the nearest seat, and every arch in view is drawn whole with
+its own buttons and dials (pictures 032-033).
 
 ## Intended Behavior
 
@@ -62,6 +65,16 @@ arch.
   return. Only your own arch's buttons answer; an ally's are shown, dimmed.
 - Only buttons answer clicks; the band and the dials are information.
 
+- **Spun by hand, every arch whole** (the owner: "can you make it so the
+  user can spin the dashboard by clicking and dragging? it should show the
+  other player's buttons too. the arc that it has now is the exact same arc
+  that it should have when the other player's orbit past."). Pressing on
+  the console's metal (not on a button) and dragging sideways turns the
+  chair with the hand — the row of arches and the world slide together, one
+  arch's spacing of drag for one seat's quadrant — and on letting go the
+  chair eases to the nearest seat. Every arch that passes is drawn exactly
+  as yours, the same shape and brightness, with its own buttons, dials and
+  labels; its named slot says whose seat it is.
 - **Forty per cent of the surface** (the owner: "can you make it so
   there's like, 40% as much dashboard in total square footage surface area
   as there is now?"). The arch's area is two thirds of width x height; the
@@ -116,8 +129,23 @@ arch.
    two buttons or windows shown together overlap; pictures, orders and
    settings.
 
+9. Spinning by hand: the game follows a press on the console that is not
+   on a button as a drag (mouse moved and released handlers, routed from
+   \`main.lua\`; a scripted drag option for pictures); the chair follows the
+   drag and snaps to the nearest seat on release; the console draws every
+   visible arch's face and dials in one way (the old dim allies' drawing
+   removed); allies' buttons are drawn but do not answer (see the open
+   questions); pictures mid-drag and settled on a neighbour.
+
 ## Open questions
 
 - In the round world, are allies' arches arranged in a ring around the hub
   (one facing each quadrant), with the M seen as a straight row only because
   you see one section at a time? (Built as a ring-ordered row.)
+- When an ally's arch is spun to the front, should its buttons answer —
+  playing that seat (hot-seat, issue 501) — or only ever your own seat's?
+  Built for now: drawn, but only your own seat's answer.
+- While spinning, a dark wedge shows between two arches' feet (inside the
+  arch's curve is the hub, which has no ground drawn). Should the hub show
+  there — the castle's own courtyard — or should the world's rings slide
+  with the arches?

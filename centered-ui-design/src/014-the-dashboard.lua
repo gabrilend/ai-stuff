@@ -419,6 +419,14 @@ local function band_coordinates_mesh(section, quadrant)
 end
 -- }}}
 
+-- {{{ function M.arch_spacing()
+-- How far apart (pixels) the row's arches stand: one seat's turn of the
+-- chair slides the row this far.
+function M.arch_spacing(dashboard)
+    return dashboard.section.width - dashboard.section.band
+end
+-- }}}
+
 -- {{{ function M.set_chair()
 -- Turns the chair: `offset` is how many arches along the row the view has
 -- slid (0 = your own arch in front; 1 = the next ally's). Your own arch's
@@ -631,14 +639,14 @@ end
 -- }}}
 
 -- {{{ local function draw_dials()
--- The layer beneath the windows. `state` carries the values to show.
+-- The layer beneath one arch's windows (the arch in dashboard.section),
+-- onto the dials canvas already set. `state` carries the values to show;
+-- \`seconds\` turns the dials (0 for every arch after the first, so they
+-- turn once a frame).
 local function draw_dials(dashboard, state, seconds)
     local section = dashboard.section
     local H = section.height
     local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
-    love.graphics.setCanvas({ dashboard.dials, stencil = true })
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setScissor(clip(dashboard))
 
     -- months: a cream paper ring, its month's word turned to the top window
     turn_dial(dashboard, "month", -90 - (state.month - 1) * 30, seconds)
@@ -709,8 +717,9 @@ local function draw_dials(dashboard, state, seconds)
 
     -- the named stand's slot: who the next order goes to, or a reminder
     local named_text = state.named_text
-    -- a button was pressed with no one named: the reminder flashes
-    if dashboard.flash_seconds > 0 then
+    -- a button was pressed with no one named: the reminder flashes (on your
+    -- own arch only)
+    if state.own and dashboard.flash_seconds > 0 then
         named_text = "NAME SOMEONE FIRST"
         dashboard.flash_seconds = dashboard.flash_seconds - seconds
     end
@@ -756,33 +765,14 @@ local function draw_surface(dashboard, section, tone)
 end
 -- }}}
 
--- {{{ local function draw_allies()
--- The allies' arches: dimmer, each labelled with its seat in its color.
--- Their buttons and dials are theirs; yours shows only their surface, their
--- band, and who they are.
-local function draw_allies(dashboard, seat_colors)
-    for _, shown_arch in ipairs(visible_arches(dashboard)) do
-        if not shown_arch.own then
-            draw_surface(dashboard, shown_arch.section, 0.55)
-            local color = seat_colors[shown_arch.seat]
-            local x, y = arch.at(shown_arch.section, 0, 0.30)
-            local label = "SEAT " .. shown_arch.seat
-            love.graphics.setFont(dashboard.fonts.big)
-            love.graphics.setColor(color[1], color[2], color[3], 0.85)
-            love.graphics.print(label, x - dashboard.fonts.big:getWidth(label) / 2, y)
-        end
-    end
-end
--- }}}
-
 -- {{{ local function draw_face()
+-- One arch's face (the arch in dashboard.section) onto the face canvas
+-- already set: metal, windows cut out, labels, painted buttons. Every arch
+-- is drawn the same way — "the arc that it has now is the exact same arc
+-- that it should have when the other player's orbit past" — and only your
+-- own arch's buttons light when hovered or pressed.
 local function draw_face(dashboard, state)
     local section = dashboard.section
-    love.graphics.setCanvas(dashboard.face)
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setScissor(clip(dashboard))
-
-    draw_allies(dashboard, state.seat_colors)
     draw_surface(dashboard, section, 1)
 
     -- cut every window out of the metal: replace with nothing at all
@@ -813,7 +803,7 @@ local function draw_face(dashboard, state)
         if spot.de_selected then
             strength = 0.55
         end
-        local pressed = dashboard.pressed_verb == spot.verb
+        local pressed = state.own and dashboard.pressed_verb == spot.verb
         -- pressed: the paint sinks and darkens
         if pressed then
             strength = strength * 0.7
@@ -823,7 +813,7 @@ local function draw_face(dashboard, state)
         love.graphics.setColor(paint[1] * strength, paint[2] * strength, paint[3] * strength, 1)
         love.graphics.circle("fill", spot.x, spot.y + (pressed and 1.5 or 0), spot.radius, 48)
         -- hovered: the rim brightens
-        if dashboard.hovered_verb == spot.verb then
+        if state.own and dashboard.hovered_verb == spot.verb then
             love.graphics.setColor(1, 1, 1, 0.75)
             love.graphics.setLineWidth(2)
             love.graphics.circle("line", spot.x, spot.y, spot.radius, 48)
@@ -838,7 +828,6 @@ local function draw_face(dashboard, state)
             spot.radius * 2, "center")
     end
     love.graphics.setLineWidth(1)
-    love.graphics.setScissor()
 end
 -- }}}
 
@@ -867,9 +856,14 @@ local function draw_glass(dashboard)
     for _, shown_arch in ipairs(arches) do
         meshes[#meshes + 1] = band_glass_mesh(shown_arch.section)
     end
-    for _, window in ipairs(windows_of(dashboard)) do
-        meshes[#meshes + 1] = glass_mesh_for(window)
+    local own = dashboard.section
+    for _, shown_arch in ipairs(arches) do
+        dashboard.section = shown_arch.section
+        for _, window in ipairs(windows_of(dashboard)) do
+            meshes[#meshes + 1] = glass_mesh_for(window)
+        end
     end
+    dashboard.section = own
     for _, mesh in ipairs(meshes) do
         love.graphics.draw(mesh)
         mesh:release()
@@ -901,8 +895,34 @@ function M.draw(dashboard, state, seconds)
     dashboard.surface_light = state.surface_light
     love.graphics.push("all")
     love.graphics.setDepthMode("always", false)
-    draw_dials(dashboard, state, seconds)
-    draw_face(dashboard, state)
+    -- every arch in view, each drawn as an arch of its own seat: yours with
+    -- the game's state, an ally's naming its seat in the named slot
+    local own = dashboard.section
+    local arches = visible_arches(dashboard)
+    local function state_for(shown_arch)
+        local arch_state = setmetatable({ own = shown_arch.own }, { __index = state })
+        -- an ally's arch: its slot names whose seat it is
+        if not shown_arch.own then
+            arch_state.named_text = "SEAT " .. shown_arch.seat
+            arch_state.someone_named = true
+        end
+        return arch_state
+    end
+    love.graphics.setCanvas({ dashboard.dials, stencil = true })
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setScissor(clip(dashboard))
+    for index, shown_arch in ipairs(arches) do
+        dashboard.section = shown_arch.section
+        draw_dials(dashboard, state_for(shown_arch), index == 1 and seconds or 0)
+    end
+    love.graphics.setCanvas(dashboard.face)
+    love.graphics.clear(0, 0, 0, 0)
+    for _, shown_arch in ipairs(arches) do
+        dashboard.section = shown_arch.section
+        draw_face(dashboard, state_for(shown_arch))
+    end
+    love.graphics.setScissor()
+    dashboard.section = own
     draw_glass(dashboard)
     love.graphics.pop()
 end

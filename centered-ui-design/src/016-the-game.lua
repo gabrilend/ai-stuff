@@ -166,6 +166,8 @@ function game.load(arguments)
     --   --click SECONDS X Y    click the main button at pixel X, Y
     --   --key SECONDS NAME     press a key
     --   --wheel SECONDS NOTCHES  turn the scroll wheel
+    --   --drag SECONDS X1 Y1 X2 Y2 DURATION  press at X1, Y1, move to X2, Y2
+    --                          over DURATION seconds, and let go
     -- Scripted input goes through the same handlers as real input.
     game.scripted = {}
     for index = 2, #arguments do
@@ -181,6 +183,12 @@ function game.load(arguments)
             -- a key press at a given time
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "key",
                 key = arguments[index + 2] }
+        elseif option == "--drag" then
+            -- a press, a move and a let-go, over a stretch of time
+            game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "drag",
+                x1 = tonumber(arguments[index + 2]), y1 = tonumber(arguments[index + 3]),
+                x2 = tonumber(arguments[index + 4]), y2 = tonumber(arguments[index + 5]),
+                duration = tonumber(arguments[index + 6]) }
         elseif option == "--wheel" then
             -- a turn of the wheel at a given time
             game.scripted[#game.scripted + 1] = { at = tonumber(arguments[index + 1]), kind = "wheel",
@@ -352,9 +360,24 @@ function game.update(seconds)
     -- scripted input whose time has come
     for _, event in ipairs(game.scripted) do
         if not event.done and game.seconds_run >= event.at then
-            event.done = true
-            -- a click, a key, or the wheel, each where real input would go
-            if event.kind == "click" then
+            event.done = event.kind ~= "drag"
+            -- a click, a key, a drag or the wheel, each where real input would go
+            if event.kind == "drag" then
+                local share = math.min((game.seconds_run - event.at) / event.duration, 1)
+                local x = event.x1 + (event.x2 - event.x1) * share
+                local y = event.y1 + (event.y2 - event.y1) * share
+                -- its first frame: the press
+                if not event.pressed then
+                    event.pressed = true
+                    game.mousepressed(event.x1, event.y1, 1)
+                end
+                game.mousemoved(x, y)
+                -- its last frame: the let-go
+                if share >= 1 then
+                    event.done = true
+                    game.mousereleased(x, y, 1)
+                end
+            elseif event.kind == "click" then
                 game.mousepressed(event.x, event.y, 1)
             elseif event.kind == "key" then
                 game.keypressed(event.key)
@@ -567,11 +590,15 @@ function game.mousepressed(x, y, button)
     if button ~= 1 then
         return
     end
-    -- on the console: only a painted button answers; dials and bands never do
+    -- on the console: a painted button answers; anywhere else on it, the
+    -- press takes hold of the console to spin it (dials and bands are never
+    -- pressed — they are held like the rest of the metal)
     if dashboard_module.covers(game.dashboard, x, y) then
         local verb = dashboard_module.button_under(game.dashboard, x, y, game.named ~= nil)
         if verb ~= nil then
             press_button(verb)
+        else
+            game.drag = { start_x = x, chair = game.chair }
         end
         return
     end
@@ -579,6 +606,34 @@ function game.mousepressed(x, y, button)
     if not game.dashboard.settings_open then
         game.pending_name = nearest_unit_on_screen(x, y)
     end
+end
+-- }}}
+
+-- {{{ function game.mousemoved()
+-- While the console is held, the chair follows the hand: one arch's spacing
+-- of drag turns one seat's quadrant, so the row of arches and the world
+-- slide exactly with the pointer.
+function game.mousemoved(x, y)
+    -- nothing held: moving the mouse turns nothing
+    if game.drag == nil then
+        return
+    end
+    local slid = (x - game.drag.start_x) / dashboard_module.arch_spacing(game.dashboard)
+    game.chair = game.drag.chair - slid * game.quadrant
+    game.chair_target = game.chair
+end
+-- }}}
+
+-- {{{ function game.mousereleased()
+-- Letting go of the console: the chair eases to the nearest seat.
+function game.mousereleased(x, y, button)
+    -- not holding the console (or another button let go): nothing to settle
+    if game.drag == nil or button ~= 1 then
+        return
+    end
+    game.drag = nil
+    local seats_turned = math.floor((game.chair - game.home_turn) / game.quadrant + 0.5)
+    game.chair_target = game.home_turn + seats_turned * game.quadrant
 end
 -- }}}
 
