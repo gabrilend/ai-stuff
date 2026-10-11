@@ -276,15 +276,49 @@ end
 -- }}}
 
 -- {{{ function viewer.drag()
--- The mouse handlers, shared by real mouse motion and scripted drags.
--- button 1 turns the camera around the shape; button 2 slides the shape.
+-- The mouse handlers, shared by real mouse motion and scripted drags. The
+-- model stands on an upright pillar, like an artifact on a plinth:
+-- button 1 (left) turns it around the pillar, side to side only; button 2
+-- (right) tilts the view up or down. Each drag does one thing, so turning
+-- never tilts by accident and tilting never turns.
 function viewer.drag(button, dx, dy)
     if viewer.shape == nil then return end
     if button == 1 then
-        camera_math.orbit(viewer.camera, -dx * 0.01, dy * 0.01)
+        camera_math.orbit(viewer.camera, -dx * 0.01, 0)
     elseif button == 2 then
-        camera_math.pan(viewer.camera, dx, dy, love.graphics.getHeight())
+        camera_math.orbit(viewer.camera, 0, dy * 0.01)
     end
+end
+-- }}}
+
+-- {{{ local function edge_push()
+-- How hard the mouse pushes on one edge: 0 outside the margin, rising to 1
+-- at the edge itself.
+local function edge_push(position, size, margin)
+    if position < margin then return -(margin - position) / margin end
+    if position > size - margin then return (position - (size - margin)) / margin end
+    return 0
+end
+-- }}}
+
+-- {{{ function viewer.slide_at_edges()
+-- The mouse resting near an edge slides the pillar across the floor:
+-- left and right edges sideways, the top edge away, the bottom edge nearer,
+-- faster the nearer the edge. Not while a button is held (that is a drag),
+-- and not with the mouse outside the window (leaving the window must not
+-- send the model drifting off).
+function viewer.slide_at_edges(seconds)
+    if viewer.shape == nil or viewer.mouse == nil then return end
+    local width, height = love.graphics.getDimensions()
+    local x, y = viewer.mouse.x, viewer.mouse.y
+    if x < 0 or y < 0 or x > width or y > height then return end
+    local margin = viewer.settings.edge_margin_pixels
+    local across, nearer = edge_push(x, width, margin), edge_push(y, height, margin)
+    if across == 0 and nearer == 0 then return end
+    local step = viewer.camera.distance * viewer.settings.edge_speed * seconds
+    -- the top edge (nearer < 0) moves the pillar away
+    camera_math.slide_pillar(viewer.camera, across * step, -nearer * step)
+    viewer.pillar_moved = 1.0
 end
 -- }}}
 
@@ -306,7 +340,8 @@ function viewer.load(arguments)
     local OPTIONS = {
         ["--key"] = { 2, function(v) return { at = tonumber(v[1]), kind = "key", key = v[2] } end },
         ["--drag"] = { 3, function(v) return { at = tonumber(v[1]), kind = "drag", button = 1, dx = tonumber(v[2]), dy = tonumber(v[3]) } end },
-        ["--pan"] = { 3, function(v) return { at = tonumber(v[1]), kind = "drag", button = 2, dx = tonumber(v[2]), dy = tonumber(v[3]) } end },
+        ["--tilt"] = { 2, function(v) return { at = tonumber(v[1]), kind = "drag", button = 2, dx = 0, dy = tonumber(v[2]) } end },
+        ["--mouse"] = { 3, function(v) return { at = tonumber(v[1]), kind = "mouse", x = tonumber(v[2]), y = tonumber(v[3]) } end },
         ["--wheel"] = { 2, function(v) return { at = tonumber(v[1]), kind = "wheel", notches = tonumber(v[2]) } end },
         ["--screenshot"] = { 1, function(v) return { at = tonumber(v[1]), kind = "screenshot" } end },
     }
@@ -356,7 +391,9 @@ function viewer.load(arguments)
     viewer.ignored_input = 0
     -- }}}
 
-    love.window.setMode(s.window_width, s.window_height, { depth = 24, resizable = true, vsync = 1 })
+    -- a window that cannot be resized is left at its size by a tiling window
+    -- manager (dwm floats it), so it and every picture it takes stay one size
+    love.window.setMode(s.window_width, s.window_height, { depth = 24, resizable = s.window_resizable, vsync = 1 })
     love.window.setTitle("CAD viewer")
     viewer.font = love.graphics.newFont(14)
     viewer.small_font = love.graphics.newFont(12)
@@ -377,6 +414,18 @@ end
 function viewer.update(seconds)
     viewer.seconds_run = viewer.seconds_run + seconds
     if viewer.quit_next_frame then love.event.quit() return end
+    -- where the mouse rests: the real mouse, or in a scripted run the
+    -- script's (--mouse), never both
+    if not viewer.scripted_run then
+        if love.window.hasMouseFocus() and not love.mouse.isDown(1) and not love.mouse.isDown(2) then
+            local x, y = love.mouse.getPosition()
+            viewer.mouse = { x = x, y = y }
+        else
+            viewer.mouse = nil
+        end
+    end
+    viewer.slide_at_edges(seconds)
+    viewer.pillar_moved = math.max(0, (viewer.pillar_moved or 0) - seconds)
     if viewer.turning and viewer.shape then
         camera_math.orbit(viewer.camera, math.rad(viewer.settings.turn_degrees_per_second) * seconds, 0)
     end
@@ -391,6 +440,8 @@ function viewer.update(seconds)
             viewer.drag(event.button, event.dx, event.dy)
         elseif event.kind == "wheel" then
             viewer.wheelmoved(0, event.notches)
+        elseif event.kind == "mouse" then
+            viewer.mouse = { x = event.x, y = event.y }
         elseif event.kind == "screenshot" then
             -- taken in draw(), where drawing is allowed
             viewer.screenshot_due = true
@@ -798,7 +849,7 @@ local function draw_panel()
         love.graphics.printf(viewer.problem, 12, love.graphics.getHeight() - 80, love.graphics.getWidth() - 24)
     end
     love.graphics.setColor(s.text_colour)
-    love.graphics.print("left drag: turn   right drag: slide   wheel: zoom   f: fit   v: view   w: edges   u: up axis   space: spin   h: hide",
+    love.graphics.print("left drag: turn   right drag: tilt   wheel: zoom   mouse at an edge: move the pillar   f: fit   v: view   w: edges   j: joints   space: spin   h: hide",
         12, love.graphics.getHeight() - 44)
     love.graphics.setColor(1, 1, 1)
 end
@@ -812,6 +863,22 @@ function viewer.draw()
     end
     render_view(viewer.view)
     love.graphics.draw(viewer.canvas)
+    -- {{{ the pillar, shown faintly for a moment after it moves
+    -- (on the window only: pictures show the model, not the controls)
+    if viewer.shape and (viewer.pillar_moved or 0) > 0 then
+        local width, height = love.graphics.getDimensions()
+        local t, r = viewer.camera.target, viewer.camera.radius
+        local x1, y1, ahead1 = camera_math.to_screen(viewer.camera, { t[1], t[2] - r, t[3] }, width, height)
+        local x2, y2, ahead2 = camera_math.to_screen(viewer.camera, { t[1], t[2] + r, t[3] }, width, height)
+        if ahead1 and ahead2 then
+            love.graphics.setColor(viewer.settings.edge_colour[1], viewer.settings.edge_colour[2], viewer.settings.edge_colour[3], 0.6 * viewer.pillar_moved)
+            love.graphics.setLineWidth(2)
+            love.graphics.line(x1, y1, x2, y2)
+            love.graphics.setLineWidth(1)
+            love.graphics.setColor(1, 1, 1)
+        end
+    end
+    -- }}}
     if viewer.show_panel then draw_panel() end
     viewer.frames_drawn = viewer.frames_drawn + 1
 end

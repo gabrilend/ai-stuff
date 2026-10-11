@@ -171,14 +171,16 @@ function M.orbit(camera, yaw_radians, pitch_radians)
 end
 -- }}}
 
--- {{{ function M.pan()
--- Slides the target across the screen by a number of pixels, scaled so a
--- point at the target's depth follows the mouse exactly.
-function M.pan(camera, dx_pixels, dy_pixels, screen_height)
-    local r, u = axes(camera)
-    local per_pixel = 2 * camera.distance * math.tan(camera.fov / 2) / screen_height
+-- {{{ function M.slide_pillar()
+-- Moves the point the camera turns around (the pillar) across the floor:
+-- `across` toward the screen's right, `away` into the screen, both kept
+-- level whatever the tilt, so the pillar stays upright and the model's
+-- height on it does not change.
+function M.slide_pillar(camera, across, away)
+    local right = { math.cos(camera.yaw), 0, -math.sin(camera.yaw) }
+    local into = { -math.sin(camera.yaw), 0, -math.cos(camera.yaw) }
     for axis = 1, 3 do
-        camera.target[axis] = camera.target[axis] - r[axis] * dx_pixels * per_pixel + u[axis] * dy_pixels * per_pixel
+        camera.target[axis] = camera.target[axis] + right[axis] * across + into[axis] * away
     end
 end
 -- }}}

@@ -10,7 +10,7 @@ The camera on a ball around the shape (issue 005). Pure arithmetic, no LÖVE. Ma
 | `new(fov_degrees)` | a camera |
 | `fit(camera, centre, radius, aspect)` | aims and backs off so the ball fits the narrower screen direction |
 | `orbit(camera, yaw, pitch)` | turns; pitch stops at ±89° |
-| `pan(camera, dx, dy, screen_height)` | slides the target so the shape follows the mouse |
+| `slide_pillar(camera, across, away)` | moves the point the camera turns around (the pillar) across the floor, level, toward the screen's right and into the screen |
 | `zoom(camera, notches)` | 10% closer per notch |
 | `stand_at(camera, eye, look)` | stands at a point looking at another (sets target, yaw, pitch, distance), so turning carries on from there |
 | `eye(camera)`, `view(camera)`, `projection(camera, aspect)` | position; matrices |

@@ -7,4 +7,4 @@ Reads and checks `input/viewer-settings.lua` first thing (issue 005).
 |---|---|---|
 | `read(project_dir)` | project folder | the checked settings table |
 | `check_settings(settings, source_name)` | | nothing; raises naming the first missing or wrong field |
-| `REQUIRED_FIELDS` | | list of { name, kind ("whole"/"number"/"colour"), min, max }: window_width, window_height, field_of_view_degrees, turn_degrees_per_second, background_colour, edge_colour, text_colour |
+| `REQUIRED_FIELDS` | | list of { name, kind ("whole"/"number"/"yes or no"/"colour"), min, max }: window_width, window_height, field_of_view_degrees, turn_degrees_per_second, window_resizable, edge_margin_pixels, edge_speed, background_colour, edge_colour, text_colour |

@@ -353,6 +353,20 @@ test("the light pipe model is whole, with a station for every stretch", function
     expect(#pipe.stations >= 10, "stations: " .. #pipe.stations)
 end)
 
+test("sliding the pillar moves it level, sideways and away, whatever the tilt", function()
+    local camera = camera_math.new(40)
+    camera.yaw, camera.pitch = 0.7, 1.2
+    camera_math.slide_pillar(camera, 5, 0)
+    expect(camera.target[2] == 0, "the pillar rose or sank")
+    -- moved toward the screen's right: the old pillar (the origin) now lies
+    -- left of the picture's centre, at the same height on screen
+    local x, y = camera_math.to_screen(camera, { 0, 0, 0 }, 800, 600)
+    expect(x < 400 and math.abs(y - 300) < 1e-6, string.format("old pillar at %.3f, %.3f", x, y))
+    camera_math.slide_pillar(camera, 0, 3)
+    local eye = camera_math.eye(camera)
+    expect(math.abs(camera.target[2]) < 1e-12 and eye[2] > 0, "sliding away changed the height")
+end)
+
 test("standing a z-up shape upright sends its z to the world's y", function()
     local x, y, z = camera_math.transform(camera_math.upright("z"), { 0, 0, 5 })
     expect(x == 0 and y == 5 and z == 0, string.format("got %g %g %g", x, y, z))
@@ -367,7 +381,8 @@ end)
 test("a missing setting is named", function()
     expect_error("missing setting 'edge_colour'", function()
         settings_reader.check_settings({ window_width = 800, window_height = 600, field_of_view_degrees = 40,
-            turn_degrees_per_second = 10, background_colour = { 0, 0, 0 } }, "made-up")
+            turn_degrees_per_second = 10, window_resizable = false, edge_margin_pixels = 40, edge_speed = 1,
+            background_colour = { 0, 0, 0 } }, "made-up")
     end)
 end)
 -- }}}

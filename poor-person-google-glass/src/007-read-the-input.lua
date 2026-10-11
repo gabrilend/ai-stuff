@@ -14,6 +14,9 @@ M.REQUIRED_FIELDS = {
     { name = "window_height", kind = "whole", min = 240, max = 4320 },
     { name = "field_of_view_degrees", kind = "number", min = 10, max = 120 },
     { name = "turn_degrees_per_second", kind = "number", min = 0, max = 360 },
+    { name = "window_resizable", kind = "yes or no" },
+    { name = "edge_margin_pixels", kind = "number", min = 4, max = 400 },
+    { name = "edge_speed", kind = "number", min = 0, max = 10 },
     { name = "background_colour", kind = "colour" },
     { name = "edge_colour", kind = "colour" },
     { name = "text_colour", kind = "colour" },
@@ -30,6 +33,9 @@ local KIND_CHECKS = {
     number = function(value, field)
         if type(value) ~= "number" then return "must be a number" end
         if value < field.min or value > field.max then return "must be " .. field.min .. " to " .. field.max end
+    end,
+    ["yes or no"] = function(value)
+        if type(value) ~= "boolean" then return "must be true or false" end
     end,
     colour = function(value)
         if type(value) ~= "table" or #value ~= 3 then return "must be three numbers { r, g, b }" end

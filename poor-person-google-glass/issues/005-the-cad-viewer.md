@@ -17,15 +17,35 @@ multisampling, which was wrong. A second finding: the window takes keyboard
 focus when it opens, so the owner's game keys reached it and turned the
 model 10 degrees between two identical scripted runs; a scripted run now
 listens to its script only, and counts the real input it ignored.
+The model now stands on a pillar: left-drag turns it, right-drag tilts,
+the wheel zooms, and the mouse near an edge slides the pillar (shown for a
+moment as a faint upright line); the window keeps its set size, so dwm
+leaves it floating at 1280 x 800 and pictures are always that size.
 `scripts/file-screenshot` files every new picture in development-history/
 (called by view-cad); the earlier pictures still in RAM were filed late,
 with notes saying so. Waiting on the open questions below.
 
 ## Intended Behavior
 A LÖVE window that opens a CAD file (STL, OBJ or glTF, chosen by a dispatch
-table on the file's ending) and draws it in 3D, lit, with depth:
-- **orbit** with the left mouse button, **pan** with the right, **zoom** with
-  the wheel; `f` fits the whole shape in view; `space` turns it slowly.
+table on the file's ending) and draws it in 3D, lit, with depth.
+
+**Like an artifact on a plinth** (the owner: "rotate the model around a
+center as if we were viewing it on a pillar or plinth... like it was a
+museum artifact on a stand in a case, but the case is circular like a
+cylinder. We don't need to render any of that"): the model stands on an
+upright axis, the pillar.
+- **left-drag** turns the model around the pillar (side to side only);
+- **right-drag** tilts the view up or down;
+- the **wheel** zooms in and out;
+- **the mouse near an edge** of the window slides the pillar across the
+  floor: toward the left or right edge to move it that way, toward the top
+  to move it away, toward the bottom to bring it nearer, faster the closer
+  to the edge (not while a button is held, nor when the mouse is outside
+  the window);
+- the window keeps its set size unless input/viewer-settings.lua says it
+  may be resized (a fixed-size window is left floating by a tiling window
+  manager, so it and its pictures stay one size: "a stable window");
+- `f` fits the whole shape in view; `space` turns it slowly.
 - `w` shows the triangle edges (wireframe); `u` changes which axis is up;
   `h` hides the panel of figures; `v` steps through the views (below).
 - a panel of figures: file, format, parts (with colour), triangle count,
@@ -63,8 +83,10 @@ The program reads `input/viewer-settings.lua` first (window size, field of
 view, colours) and writes `output/goodbye` last: when it ended, the file it
 showed, triangles, parts, frames drawn, seconds run, the pictures saved and
 the share of each that is pure black. Run options drive it without a
-person: `--key SECONDS NAME`, `--drag SECONDS DX DY`, `--pan SECONDS DX DY`,
-`--wheel SECONDS NOTCHES`, `--screenshot SECONDS`, `--views NAME,NAME`.
+person: `--key SECONDS NAME`, `--drag SECONDS DX DY` (left button: turn),
+`--tilt SECONDS DY` (right button: tilt), `--mouse SECONDS X Y` (where the
+mouse rests, for edge sliding), `--wheel SECONDS NOTCHES`,
+`--screenshot SECONDS`, `--views NAME,NAME`, `--stations`.
 
 ## Suggested Implementation Steps
 1. `src/006-read-any-cad-file.lua`: ending → reader dispatch table.

@@ -45,8 +45,17 @@ joint records (issue 010, docs/joints.md), when the model has them:
   fail, gone → a coloured mark at the joint with its two parts' names
   (j shows them in any view; the joints view always does)
 
+the model stands on an upright pillar (the camera's target), like an
+artifact on a plinth:
+  left-drag  → turn around the pillar (yaw only)
+  right-drag → tilt the view (pitch only)
+  wheel      → nearer or further
+  the mouse resting near an edge → the pillar slides across the floor,
+             level: sideways, away (top edge), nearer (bottom edge)
+
 mouse, keys → the handlers → camera or display toggles
-scripted run options (--drag, --key, --wheel, --screenshot, --views)
+scripted run options (--drag, --tilt, --mouse, --key, --wheel,
+--screenshot, --views)
   → the same handlers; real input is then ignored and counted
 --screenshot → each requested view drawn into the canvas and saved from it
                (never read from the screen, which may be covered by
