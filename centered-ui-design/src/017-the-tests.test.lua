@@ -262,5 +262,115 @@ do
     check("triangles come in threes", #triangles % 3 == 0 and #triangles == 12 * 18 * 6)
 end
 
+-- the body plan --------------------------------------------------------------
+
+do
+    local body_plan = require("018-the-body-plan")
+    local vertices = body_plan.figure_vertices(8, 10)
+    local parts_seen, worst = {}, 0
+    for _, vertex in ipairs(vertices) do
+        parts_seen[vertex[6]] = true
+        worst = math.max(worst, math.abs(math.sqrt(vertex[1] ^ 2 + vertex[2] ^ 2 + vertex[3] ^ 2) - 1))
+    end
+    local part_count = 0
+    for _ in pairs(parts_seen) do
+        part_count = part_count + 1
+    end
+    check("the figure mesh holds six parts, each on the unit sphere", part_count == 6 and worst < 1e-12)
+
+    local leg = body_plan.PARTS[6]
+    local hip_x, hip_y, hip_z = body_plan.bend(leg, 0, 1, 0, math.pi / 2, 1)
+    local still_x, still_y, still_z = body_plan.bend(leg, 0, 1, 0, 0, 0)
+    check("bending leaves the hip where it is",
+        hip_x == still_x and hip_y == still_y and hip_z == still_z)
+    -- at swing = sin(pi/2) = 1 and full pace, the foot (y = -1, s = 1) moves
+    -- forward by stride x length and up by lift x length
+    local _, foot_y, foot_z = body_plan.bend(leg, 0, -1, 0, math.pi / 2, 1)
+    local length = 2 * leg.radii[2]
+    check("the foot travels stride x length forward and lift x length up",
+        math.abs(foot_z - (leg.center[3] + leg.stride * length)) < 1e-12
+        and math.abs(foot_y - (leg.center[2] - leg.radii[2] + leg.lift * length)) < 1e-12)
+    local _, _, back_foot_z = body_plan.bend(leg, 0, -1, 0, -math.pi / 2, 1)
+    check("on the back swing the foot goes back and does not lift",
+        back_foot_z < leg.center[3])
+
+    local fold = sphere_fold.from_settings(good_settings())
+    local phases = {}
+    for _, speed in ipairs({ 0, 0.05, 0.2 }) do
+        local a = ffi.new("unit_record[1]")
+        local b = ffi.new("unit_record[1]")
+        a[0].r = 2; a[0].angle = 1; a[0].length = 2; a[0].width = 1; a[0].phase = 0
+        a[0].speed_r = speed
+        move_box.move_unit(a, b, 0, 0.1, fold)
+        phases[#phases + 1] = b[0].phase
+    end
+    check("the walking phase turns faster the faster a unit goes",
+        phases[1] > 0 and phases[2] > phases[1] and phases[3] > phases[2])
+end
+
+-- the arch -------------------------------------------------------------------
+
+do
+    local arch = require("019-the-arch")
+    local dashboard = require("014-the-dashboard")
+    local section = arch.new(800, 870, 740, dashboard.ARCH_WIDTH_SHARE, dashboard.ARCH_BAND_SHARE)
+
+    local overlap = false
+    for x = 400, 1200, 7 do
+        for y = 100, 880, 7 do
+            if arch.in_interior(section, x, y) and arch.in_band(section, x, y) then
+                overlap = true
+            end
+        end
+    end
+    check("the arch's surface and its band never overlap", not overlap)
+
+    local neighbour = arch.shifted(section, 1)
+    check("a neighbour's foot lands exactly on yours (the M's middle stroke)",
+        math.abs((neighbour.center_x - neighbour.width / 2)
+            - (section.center_x + section.width / 2 - section.band)) < 1e-9)
+
+    -- {{{ local function fits()
+    -- Whether a circle (arch units) lies wholly on the surface.
+    local function fits(across, up, radius)
+        for step = 0, 15 do
+            local a = 2 * math.pi * step / 16
+            local x = across + radius * math.cos(a)
+            local u = up + radius * math.sin(a)
+            if u < 0 or math.abs(x) > arch.interior_half_width(section, u) then
+                return false
+            end
+        end
+        return true
+    end
+    -- }}}
+    local all_fit = true
+    for _, button in ipairs(dashboard.ORDER_BUTTONS) do
+        all_fit = all_fit and fits(button.across, button.up, dashboard.ORDER_BUTTON_RADIUS)
+    end
+    for _, button in ipairs(dashboard.SETTINGS_BUTTONS) do
+        all_fit = all_fit and fits(button.across, button.up, dashboard.SETTINGS_BUTTON_RADIUS)
+    end
+    for _, window in ipairs(dashboard.WINDOWS) do
+        -- round windows are checked as circles; slots by their corners
+        if window.shape == "round" then
+            all_fit = all_fit and fits(window.across, window.up, window.radius)
+        elseif window.shape == "slot" then
+            all_fit = all_fit and fits(window.across - window.half_width, window.up, window.half_height)
+                and fits(window.across + window.half_width, window.up, window.half_height)
+        else
+            -- arc slots: their four corners around the calendar center
+            for _, radius in ipairs({ window.inner, window.outer }) do
+                for _, angle in ipairs({ window.from, window.to }) do
+                    local a = math.rad(angle)
+                    all_fit = all_fit and fits(dashboard.CALENDAR_CENTER[1] + radius * math.cos(a),
+                        dashboard.CALENDAR_CENTER[2] - radius * math.sin(a), 0)
+                end
+            end
+        end
+    end
+    check("every button and window lies wholly on the arch's surface", all_fit)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

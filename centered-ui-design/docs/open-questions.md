@@ -106,3 +106,10 @@ assumption is a guess until answered.
     on the main thread, LÖVE channels as the pool). It reaches 240 frames per
     second with 192 units, each unit one task per frame. Keep it, or move to
     the C engine through FFI when unit counts grow?
+22. **The arch's band as "the display of the map".** Built as glass over the
+    world (the map seen through a gold-edged lens). Or did you mean a
+    separate drawn map along the band — a minimap?
+23. **Allies' arches in a round world.** The M is drawn as a straight row
+    (you see your arch and your neighbours' feet). In the round world, are
+    the arches meant to stand in a ring around the hub, one facing each
+    quadrant?

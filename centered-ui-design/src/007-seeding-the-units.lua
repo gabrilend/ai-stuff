@@ -77,7 +77,7 @@ function M.seed_units(front, count, seed, fold)
             unit.owner = math.floor(unit.angle / (TWO_PI / 4)) % 4
         end
         unit.level = math.floor(between(stream, 1, 9))
-        unit.phase = between(stream, 0, 10)
+        unit.phase = between(stream, 0, TWO_PI)
         unit.speed_r = between(stream, -0.12, 0.12)
         unit.speed_angle = between(stream, -0.05, 0.05)
         unit.order_kind = 0

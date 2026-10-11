@@ -21,6 +21,12 @@ local TWO_PI = math.pi * 2
 -- back (tier distances).
 M.INNER_LIMIT = 0.75
 
+-- How far a unit at tier 1 travels over the ground (world units) in one full
+-- walking cycle (two steps), and how fast the cycle turns when standing still.
+-- Tuning knobs: record changes in docs/balance-updates.md.
+M.STRIDE_WORLD_UNITS = 2.4
+M.IDLE_CYCLES_PER_SECOND = 0.25
+
 -- {{{ local function bounce_inside()
 -- Keeps r inside [low, high] by reflecting off the walls, turning the radial
 -- speed around when it reflects. Returns new r and speed.
@@ -57,8 +63,6 @@ function M.move_unit(front, back, index, step_seconds, fold)
     local angle = (source.angle + source.speed_angle * step_seconds) % TWO_PI
     unit.angle = angle
 
-    unit.phase = (source.phase + step_seconds) % 1000
-
     -- Facing: the motion through (tier, angle), turned into a direction on the
     -- folded ground: outward speed stretched by the fold's slope, sideways
     -- speed by the radius it is travelling around at.
@@ -66,6 +70,16 @@ function M.move_unit(front, back, index, step_seconds, fold)
     local radius = sphere_fold.radius(fold, r)
     local outward = slope * speed_r
     local sideways = radius * source.speed_angle
+
+    -- The walking phase: the input to the body plan's bend formula (018).
+    -- It turns once per stride of ground covered — a stride being shorter
+    -- far out, where figures are drawn smaller — plus a slow idle turn, so a
+    -- unit standing still still sways. Wrapped to one turn: only its sine and
+    -- cosine are ever used.
+    local ground_speed = math.sqrt(outward * outward + sideways * sideways)
+    local stride = M.STRIDE_WORLD_UNITS * sphere_fold.size_scale(fold, r)
+    local cycles_per_second = M.IDLE_CYCLES_PER_SECOND + ground_speed / stride
+    unit.phase = (source.phase + TWO_PI * cycles_per_second * step_seconds) % TWO_PI
     -- standing still: keep facing the way it was facing
     if math.abs(outward) + math.abs(sideways) < 1e-6 then
         unit.heading = source.heading

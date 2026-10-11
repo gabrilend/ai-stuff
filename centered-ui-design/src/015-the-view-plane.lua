@@ -24,6 +24,10 @@ local M = {}
 -- of the picture's height.
 M.REFRACTION = 0.004
 
+-- How many times more strongly the arch's band bends the world than a
+-- window bends its dial: the band is a lens over the map.
+M.BAND_BEND = 3.0
+
 local PLANE_VERTEX = far_camera.GLSL .. [[
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     return project_world(vertex_position.xyz);
@@ -33,6 +37,8 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 local PLANE_PIXEL = [[
 uniform Image dials;
 uniform Image glass;
+uniform Image world;
+uniform float band_bend;
 uniform float refraction;
 uniform float aspect_of_picture;
 
@@ -52,9 +58,20 @@ vec4 effect(vec4 color, Image face, vec2 uv, vec2 screen) {
                     * smoothstep(0.55, 0.95, rim) * 0.45;
     under_glass += vec3(highlight);
     float glass_here = step(0.5, bend.r);
-    // metal over glass over dial; nothing at all outside the dashboard
+
+    // The arch's band (glass alpha 0.5): the map display. The world itself
+    // lies beneath it, seen through a stronger lens that bends it outward,
+    // brightened a touch and warmed toward the gold edges.
+    float band_here = glass_here * (1.0 - step(0.75, bend.a));
+    vec4 world_seen = Texel(world, uv - offset * band_bend);
+    vec3 through_band = world_seen.rgb * 1.15 * mix(vec3(1.0), vec3(1.0, 0.9, 0.7), rim * 0.6)
+                      + vec3(highlight * 0.6);
+    under_glass = mix(under_glass, through_band, band_here);
+    float beneath_alpha = mix(dial.a, 1.0, band_here);
+
+    // metal over glass over what is beneath; nothing at all outside the console
     vec3 rgb = mix(under_glass, metal.rgb, metal.a);
-    float alpha = max(metal.a, glass_here * dial.a);
+    float alpha = max(metal.a, glass_here * beneath_alpha);
     return vec4(rgb, alpha);
 }
 ]]
@@ -78,14 +95,18 @@ end
 -- }}}
 
 -- {{{ function M.draw()
--- Draws the sheet into the current canvas (the world canvas, depth on: the
--- sheet is nearer the camera than anything in the world, so it lies on top).
-function M.draw(plane, flip_y)
-    love.graphics.setDepthMode("lequal", true)
+-- Draws the sheet over the world. It is drawn after the world picture is
+-- finished (not into it), because the arch's band looks through the sheet
+-- at that picture: `world_canvas` is the finished world. The sheet still
+-- goes through the far camera's projection, at its own distance.
+function M.draw(plane, flip_y, world_canvas)
+    love.graphics.setDepthMode("always", false)
     love.graphics.setShader(plane.shader)
     far_camera.send(plane.camera, plane.shader, flip_y)
     plane.shader:send("dials", plane.dashboard.dials)
     plane.shader:send("glass", plane.dashboard.glass)
+    plane.shader:send("world", world_canvas)
+    plane.shader:send("band_bend", M.BAND_BEND)
     plane.shader:send("refraction", M.REFRACTION)
     plane.shader:send("aspect_of_picture", plane.camera.aspect)
     love.graphics.setColor(1, 1, 1, 1)

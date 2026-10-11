@@ -29,7 +29,8 @@ M.REQUIRED_FIELDS = {
     { name = "fold_strength",              kind = "number" },
     { name = "hub_radius",                 kind = "number" },
     { name = "edge_radius",                kind = "number" },
-    { name = "dashboard_radius_fraction",  kind = "number" },
+    { name = "team_size",                  kind = "whole" },
+    { name = "seat",                       kind = "whole" },
     { name = "calendar_seconds_per_day",   kind = "number" },
 }
 
@@ -61,6 +62,11 @@ local function check_settings(settings, source_name)
     if settings.max_framerate < 0 or settings.max_framerate > 240 then
         error(source_name .. ": max_framerate must be 0 to 240, but is "
             .. settings.max_framerate, 0)
+    end
+    -- A team is 1 to 4 allies, and the seat must be one of theirs.
+    if settings.team_size < 1 or settings.team_size > 4
+        or settings.seat < 1 or settings.seat > settings.team_size then
+        error(source_name .. ": team_size must be 1 to 4 and seat 1 to team_size", 0)
     end
     -- At least one unit and one worker, or there is nothing to show or no one
     -- to take the work.

@@ -52,8 +52,19 @@ it gets a word here first.
 
 ## The dashboard
 
-- **dashboard** — the large round console in the middle of the screen, over
-  the hub.
+- **console** — the large shape in the middle of the screen, over the hub:
+  an **arch**, one hump of an M.
+- **band** — the arch's curved strip, foot to foot: gold-edged glass that is
+  the map's display (the map is seen through it). Never clicked.
+- **dashboard** (or dashboard surface) — the metal beneath the band and above
+  the base, where the buttons and dials are.
+- **section** — one ally's arch. With allies the console is a row of arches
+  sharing feet (an M with a hump each); each player sees their own section
+  whole and the neighbours' feet. More allies make the M longer, never a
+  section smaller.
+- **arch units** — positions on the dashboard written as distance across
+  from the arch's center and up from its base, as shares of the arch's
+  height.
 - **button** — bright, colorful, round or half-round, and always pressable.
   The only clickable things on the dashboard. Every button is an order verb
   (plus the calendar's day/month switch).
@@ -70,6 +81,13 @@ it gets a word here first.
 
 ## Commanding
 
+- **figure** — how a unit is drawn: six spheroids (body, head, two arms, two
+  legs) placed by the **body plan**. Its limbs **bend**: points are pushed by
+  an amount growing with the square of their distance from the shoulder or
+  hip, so limbs deform rather than swing rigidly.
+- **walking phase** — a number each unit carries, turned by the move box in
+  proportion to how fast the unit goes over the ground; the bend formula
+  reads it. The shape is never rebuilt, only the formula's input changes.
 - **stand** — one group of units that receives orders together. The smallest
   thing an order can be given to.
 - **order** — one instruction to one stand. Always given in the same two

@@ -43,8 +43,11 @@ return {
     hub_radius = 14,
     edge_radius = 112,
 
-    -- the dashboard's radius as a fraction of the window's height
-    dashboard_radius_fraction = 0.33,
+    -- the team: how many allies (1 to 4) share the hub, and which seat this
+    -- player holds. The console is one arch per ally (an M); you see your
+    -- own arch whole and your neighbours' feet beside it.
+    team_size = 4,
+    seat = 1,
 
     -- how many seconds of game time make one calendar day
     calendar_seconds_per_day = 3,

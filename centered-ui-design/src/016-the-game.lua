@@ -230,7 +230,7 @@ function game.load(arguments)
     -- the world canvas: drawn to with depth; the screen shows it as is
     game.world_canvas = love.graphics.newCanvas(width, height, { msaa = 4 })
     game.renderer = world_renderer.new(settings, game.camera, game.fold, game.unit_count)
-    game.dashboard = dashboard_module.new(width, height, settings.dashboard_radius_fraction)
+    game.dashboard = dashboard_module.new(width, height, settings.team_size, settings.seat)
     game.plane = view_plane.new(game.camera, settings.view_plane_distance, game.dashboard)
 end
 -- }}}
@@ -368,28 +368,31 @@ function game.draw()
         fps = game.measured_fps, frame_ms = game.measured_ms,
         unit_count = game.unit_count, cap = game.cap,
         named_text = named_text(), someone_named = game.named ~= nil,
-        settings_hint = "ESCAPE: SETTINGS",
+        seat_colors = world_renderer.OWNER_COLORS,
     }, game.frame_times[#game.frame_times] or 0)
 
-    -- the world, then the sheet in front of it, all in one 3D picture
+    -- the world first, finished, in its own picture (the arch's band looks at it)
     love.graphics.push("all")
     love.graphics.setCanvas({ game.world_canvas, depth = true })
     love.graphics.clear({ 0.03, 0.035, 0.045, 1 }, 0, 1)
-    world_renderer.draw(game.renderer, front_block, game.FLIP_Y)
-    view_plane.draw(game.plane, game.FLIP_Y)
+    world_renderer.draw(game.renderer, front_block, game.FLIP_Y_IN_CANVAS)
     love.graphics.pop()
 
+    -- then the world on screen, and the console's sheet in front of it
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(game.world_canvas)
+    view_plane.draw(game.plane, game.FLIP_Y_ON_SCREEN, game.world_canvas)
     game.frames_drawn = game.frames_drawn + 1
 end
 -- }}}
 
--- Whether 3D drawing into a canvas must flip its rows. LÖVE stores canvas
--- rows the other way up from the window; drawing through our own projection
--- (which skips LÖVE's) has to account for that itself. Checked by eye in the
--- screenshot: north on the map, and the dashboard's text, must be upright.
-game.FLIP_Y = -1
+-- Whether 3D drawing must flip its rows. LÖVE stores canvas rows the other
+-- way up from the window; drawing through our own projection (which skips
+-- LÖVE's) has to account for that itself, differently for a canvas and for
+-- the window. Checked by eye in the screenshot: north on the map, and the
+-- console's text, must be upright.
+game.FLIP_Y_IN_CANVAS = -1
+game.FLIP_Y_ON_SCREEN = 1
 
 -- {{{ local function nearest_unit_on_screen()
 -- The unit whose place on the ground is nearest the pixel, within a reach;
@@ -397,7 +400,7 @@ game.FLIP_Y = -1
 local function nearest_unit_on_screen(x, y)
     local front = front_and_back()
     local width, height = love.graphics.getDimensions()
-    local best, best_distance = -1, (game.dashboard.radius * 0.12) ^ 2
+    local best, best_distance = -1, (game.dashboard.section.height * 0.05) ^ 2
     for index = 0, game.unit_count - 1 do
         local unit = front[index]
         local ground_x, ground_z = sphere_fold.ground_position(game.fold, unit.r, unit.angle)

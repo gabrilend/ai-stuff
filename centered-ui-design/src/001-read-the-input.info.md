@@ -7,4 +7,4 @@ Reads `input/game-settings.lua` first thing and checks it.
 |---|---|---|
 | `read(project_dir)` | project folder (string) | the checked settings table; raises an error naming the first missing or wrong field |
 | `check_settings(settings, source_name)` | a table, a name for messages | nothing; raises on the first problem (missing field, wrong kind, out-of-range cap, plane outside the depth band, hub outside the edge, negative fold) |
-| `REQUIRED_FIELDS` | | list of { name, kind } — kind "whole" or "number" |
+| `REQUIRED_FIELDS` | | list of { name, kind } — kind "whole" or "number"; includes team_size (1..4) and seat (1..team_size) |

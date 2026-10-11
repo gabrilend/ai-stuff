@@ -1,47 +1,62 @@
-<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10,
-     reworked the same day after the owner's answers: the player clicks
-     only order buttons; dials are information only. -->
+<!-- written by Claude (Opus 5.5) during project initialisation, 2026-10-10;
+     reworked twice the same day: first when the owner said the player clicks
+     only order buttons and dials are information only, then when the owner
+     shaped the console as one hump of an M. Positions live as data in
+     src/014-the-dashboard.lua (arch units); this file holds the arrangement
+     and the reasons. -->
 
-# Dashboard layout
+# Console layout: the arch
+
+The owner's picture: "half of the M in the McDonald's golden arch, and that
+is the display of the map, while the interior part, the part that's below
+the M's curve but above its very bottom, that part is the dashboard surface.
+With multiple allies, you see only a section, but it grows to accommodate all
+of you, so it always remains the same size."
 
 ```
- ┌───────────────────────────────────────────────────────────────────────┐
- │   (map: far tiers, merged stands as  [lvl 7 · ×40 ▲▲])               │
- │                                                                       │
- │                 ╭───────────────────────────╮                         │
- │              ╭─╯  ◖ADVANCE◗   ◖HOLD◗   ◖FALL◗ ╰─╮                     │
- │             │  ⌒OCTOBER⌒          ⌒ 0412 ⌒      │   ⌒…⌒ = dial window │
- │             │    ⌒ 14 ⌒   ● ● ● ● ●  ⌒ 0087 ⌒   │   ◖ ◗ ● = buttons   │
- │             │  [DAY|MONTH]   ⌒ 03 ⌒            │                     │
- │              ╰─╮  ◖FLANK L◗ ◖SHIELD◗ ◖FLANK R◗╭─╯                     │
- │                 ╰───────────────────────────╯                         │
- │                       (hub beneath)                                   │
- │   (map: near tiers, individual stands)                                │
- └───────────────────────────────────────────────────────────────────────┘
+                 ╭───────────────╮            ← the band: gold-edged glass,
+   SEAT 4      ╭─╯   ┌OCTOBER─┐  ╰─╮    SEAT 2   the map seen through it
+  ╲  feet     ╱      ┌SATURDAY┐     ╲   feet  ╱
+   ╲         ╱          (10)         ╲        ╱
+    ╲       ╱  ●    (144)(6.9)(192)  ●╲      ╱  ← the surface: buttons ●
+     ╲     ╱   ●   ┌─SEAT 4·LV 7─┐   ● ╲    ╱     and dials ( ) ┌─┐
+      ╲   ╱    ●                     ●  ╲  ╱
+       ╲ ╱     ●   ESCAPE: SETTINGS  ●   ╲╱
+ ───────┴───────────────────────────────────┴──────  base
 ```
 
-## The two kinds of part
+## Parts
 
-- **Order buttons** — painted, bright, round, half-round or arc-shaped. The
-  only clickable things on the dashboard. Each is a verb: advance, attack,
-  hold, fall back, flank left, flank right, deploy shield, follow, build,
-  dismantle, adventure, and the calendar's day/month switch.
-- **Dial windows** — seamless glass cut-outs onto paper-thin discs below.
-  Never clickable. The game turns each disc to show its value: the calendar
-  (month word; weekday word; one level lower, the day number), resource
-  counts, couriers in flight, the selected stand's level and count, the
-  current seat's name.
+- **The band** — the arch's curve, from foot to foot: glass through which the
+  map behind is seen, bent a little like a lens, edged in gold. It is the
+  map's display; it is never clicked.
+- **The surface** — beneath the band, above the base: brushed metal.
+  - Calendar: an arc window showing the month, a second below it showing the
+    weekday, and a round hole below that onto the day number, one disc lower.
+  - Readouts: frames per second, frame time, unit count.
+  - The named slot: who the next order goes to.
+  - Order buttons in two columns up the inside of the legs: advance, attack,
+    hold, fall back on the left; flank left, flank right, shield, build on
+    the right.
+- **The neighbours** — with allies, the console is one arch per ally side by
+  side, sharing feet: an M with a hump each. You see your own arch whole and
+  your neighbours' feet at the sides, dimmer, labelled with their seat. Seats
+  form a ring, so with four allies seat 1's neighbours are seats 4 and 2.
+
+## Settings (Escape)
+
+The calendar and the named slot give way to a large dial showing the
+framerate cap, a row of painted −10, −1, +1, +10 buttons beneath it, and BACK
+and QUIT. The readouts stay.
 
 ## The rhythm
 
-Map, dashboard, map, dashboard. The first click (map) names who; the second
-(dashboard) says what. Nothing else is clickable on the dashboard, and the
-map does nothing on a second click in a row except change who is named.
+Map, console, map, console. The first click (map) names who; the second
+(console) says what. Only painted buttons answer clicks.
 
-## Why the dashboard is in the middle
+## Why the console is in the middle
 
-Your base is the middle of the world and every order starts there. Putting
-the controls on top of the base means every order visibly leaves from where
-it was given, and every return of the eye to the center sweeps across the
-surrounding map on the way — the dashboard's size is what makes that sweep
-happen.
+Your base is the middle of the world and every order starts there. Every
+return of the eye to the console sweeps across the map on the way, and the
+console's own band is a lens onto the map, so even while reading dials the
+map is in view.

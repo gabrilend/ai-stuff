@@ -16,12 +16,20 @@ by ring against one foe in each direction.
 
 ## The screen
 
-The **hub** is always at the center of the screen. The **dashboard** sits on
-it, large. Around the dashboard, on every side, is the map: a grid that
-really lies on a sphere, drawn flattened into a circle so that every tier is
-visible at once (see [datapath-accordion-view.md](datapath-accordion-view.md)).
+The **hub** is always at the center of the screen. The **console** sits on
+it, large, shaped as one hump of an M — an **arch**. Its curved band is glass
+through which the map is seen; beneath the band, above the base, is the
+**dashboard surface**. With allies the console is one arch per ally side by
+side (an M with a hump each); each player sees their own arch whole and
+their neighbours' feet at the sides. See [console-layout.md](console-layout.md).
+Around the console, on every side, is the map: a grid that really lies on a
+sphere, drawn flattened into a circle so that every tier is visible at once
+(see [datapath-accordion-view.md](datapath-accordion-view.md)).
 
-The dashboard has two kinds of part, and they never mix:
+Units on the map are small figures made of spheroids — body, head, two arms,
+two legs — whose limbs bend (deform, never swing rigidly) as they walk.
+
+The dashboard surface has two kinds of part, and they never mix:
 
 1. **Order buttons** — bright, painted, round or half-round. They are the
    only things on the dashboard the player clicks.

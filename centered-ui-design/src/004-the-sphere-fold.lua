@@ -121,6 +121,17 @@ float fold_radius(float r) {
     return hub_radius + fraction * (edge_radius - hub_radius);
 }
 
+// Ground units per tier at r. Twin of M.slope.
+float fold_slope(float r) {
+    if (fold_strength < 1e-6) {
+        // no fold: constant
+        return (edge_radius - hub_radius) / tiers_shown;
+    }
+    // folded: the logarithm's slope
+    return (edge_radius - hub_radius) * fold_strength
+         / ((1.0 + fold_strength * r) * log(1.0 + fold_strength * tiers_shown));
+}
+
 // How much a thing at r is shrunk (1 at the edge of tier 1).
 float fold_size_scale(float r) {
     return (1.0 + fold_strength) / (1.0 + fold_strength * r);

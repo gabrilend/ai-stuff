@@ -1,22 +1,34 @@
--- 014-the-dashboard.lua - the glass-and-metal dashboard, drawn as three layers.
+-- 014-the-dashboard.lua - the arch console, drawn as three layers.
 --
--- In plain terms: the dashboard over the hub is drawn into three pictures the
--- size of the window, which the view plane (015) later lays over the world:
+-- In plain terms: the console in the middle of the screen is an arch (one
+-- hump of an M, see 019). Its band is glass through which the map is seen;
+-- beneath its curve is the dashboard surface. Everything is drawn into three
+-- pictures the size of the window, which the view plane (015) lays over the
+-- world:
 --
---   face   the brushed-metal body, with windows cut out of it, painted
---          buttons, bezels and engraved labels
+--   face   the brushed-metal surface under the arch, with windows cut out,
+--          painted buttons, engraved labels, gold edges along the band; the
+--          neighbours' arches at the sides, dimmer
 --   dials  what lies beneath the windows: paper-thin discs with words and
---          numbers inscribed on them, turned by the game to show a value
---   glass  for each window, how strongly and which way its glass bends what
---          is beneath it (red = glass here; green and blue = the direction of
---          the bend, 0.5 meaning none)
+--          numbers inscribed on them, turned by the game to show a value,
+--          each clipped to its own window
+--   glass  for each window and for the band, how strongly and which way its
+--          glass bends what is beneath it (red = glass here; green and blue =
+--          the direction of the bend, 0.5 meaning none; alpha 1 = a dial is
+--          beneath, alpha 0.5 = the world is beneath — the band)
 --
--- The player clicks only painted buttons. Dials are information: they ignore
--- the mouse completely. The settings menu (Escape) is a panel of painted
--- buttons around one dial showing the framerate cap.
+-- The player clicks only painted buttons. Dials and the band are
+-- information: they ignore the mouse completely. The settings menu (Escape)
+-- is a panel of painted buttons around one dial showing the framerate cap.
+--
+-- Positions inside the arch are written in arch units (across from the
+-- center, up from the base, as shares of the arch's height), so the layout is
+-- data and keeps its proportions at any window size.
 --
 -- This is viewing code. Clicks on buttons are reported back to the game as
 -- verbs; the game decides what they mean.
+
+local arch = require("019-the-arch")
 
 local M = {}
 
@@ -25,28 +37,69 @@ M.MONTHS = { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY",
 M.MONTH_DAYS = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 M.WEEKDAYS = { "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" }
 
--- The order buttons: verb, label, paint, and where they sit on the face (an
--- angle in degrees, LÖVE's convention: 0 = right, 90 = down).
+-- The arch's proportions: height as a share of the window's height; width
+-- and band thickness as shares of the arch's height. Each section keeps
+-- these whatever the number of allies.
+M.ARCH_HEIGHT_SHARE = 0.74
+M.ARCH_WIDTH_SHARE = 1.0
+M.ARCH_BAND_SHARE = 0.085
+-- How much of each neighbour's arch shows beside your own, as a share of
+-- your arch's width.
+M.NEIGHBOUR_SHOWN = 0.17
+
+-- The center the calendar rings turn around (arch units).
+M.CALENDAR_CENTER = { 0, 0.20 }
+
+-- The order buttons: verb, label, paint, and where they sit (arch units):
+-- two columns up the inside of the arch's legs.
 M.ORDER_BUTTONS = {
-    { verb = "advance",   label = "ADVANCE",  paint = { 0.20, 0.85, 0.35 }, at = 140 },
-    { verb = "attack",    label = "ATTACK",   paint = { 0.95, 0.20, 0.18 }, at = 167 },
-    { verb = "hold",      label = "HOLD",     paint = { 1.00, 0.72, 0.10 }, at = 194 },
-    { verb = "fall_back", label = "FALL BACK", paint = { 0.20, 0.45, 1.00 }, at = 221 },
-    { verb = "flank_left", label = "FLANK L", paint = { 0.10, 0.85, 0.90 }, at = -41 },
-    { verb = "flank_right", label = "FLANK R", paint = { 0.65, 0.35, 1.00 }, at = -14 },
-    { verb = "shield",    label = "SHIELD",   paint = { 0.15, 0.80, 0.65 }, at = 13 },
-    { verb = "build",     label = "BUILD",    paint = { 1.00, 0.45, 0.10 }, at = 40 },
+    { verb = "advance",     label = "ADVANCE",   paint = { 0.20, 0.85, 0.35 }, across = -0.28, up = 0.33 },
+    { verb = "attack",      label = "ATTACK",    paint = { 0.95, 0.20, 0.18 }, across = -0.28, up = 0.24 },
+    { verb = "hold",        label = "HOLD",      paint = { 1.00, 0.72, 0.10 }, across = -0.28, up = 0.15 },
+    { verb = "fall_back",   label = "FALL BACK", paint = { 0.20, 0.45, 1.00 }, across = -0.28, up = 0.06 },
+    { verb = "flank_left",  label = "FLANK L",   paint = { 0.10, 0.85, 0.90 }, across = 0.28,  up = 0.33 },
+    { verb = "flank_right", label = "FLANK R",   paint = { 0.65, 0.35, 1.00 }, across = 0.28,  up = 0.24 },
+    { verb = "shield",      label = "SHIELD",    paint = { 0.15, 0.80, 0.65 }, across = 0.28,  up = 0.15 },
+    { verb = "build",       label = "BUILD",     paint = { 1.00, 0.45, 0.10 }, across = 0.28,  up = 0.06 },
+}
+M.ORDER_BUTTON_RADIUS = 0.04
+
+-- The settings menu's buttons (arch units).
+M.SETTINGS_BUTTONS = {
+    { verb = "cap_minus_10",   label = "-10",  paint = { 0.20, 0.45, 1.00 }, across = -0.24, up = 0.43 },
+    { verb = "cap_plus_10",    label = "+10",  paint = { 1.00, 0.45, 0.10 }, across = 0.24,  up = 0.43 },
+    { verb = "cap_minus_1",    label = "-1",   paint = { 0.10, 0.85, 0.90 }, across = -0.12, up = 0.43 },
+    { verb = "cap_plus_1",     label = "+1",   paint = { 1.00, 0.72, 0.10 }, across = 0.12,  up = 0.43 },
+    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, across = -0.10, up = 0.12 },
+    { verb = "quit",           label = "QUIT", paint = { 0.95, 0.20, 0.18 }, across = 0.10,  up = 0.12 },
+}
+M.SETTINGS_BUTTON_RADIUS = 0.042
+
+-- Every window, in arch units. `only` says when it is shown: "always",
+-- "orders" (settings shut) or "settings" (settings open).
+--   arc:   around the calendar center, between two radii and two angles
+--          (degrees, screen convention: -90 is straight up)
+--   round: a circular hole
+--   slot:  a rounded rectangle
+M.WINDOWS = {
+    { dial = "month",    shape = "arc",   only = "orders", inner = 0.46, outer = 0.53, from = -104, to = -76 },
+    { dial = "weekday",  shape = "arc",   only = "orders", inner = 0.36, outer = 0.43, from = -104, to = -76 },
+    { dial = "day",      shape = "round", only = "orders", across = 0, up = 0.49, radius = 0.035 },
+    { dial = "fps",      shape = "round", only = "always", across = -0.15, up = 0.30, radius = 0.055 },
+    { dial = "frame_ms", shape = "round", only = "always", across = 0,     up = 0.30, radius = 0.055 },
+    { dial = "units",    shape = "round", only = "always", across = 0.15,  up = 0.30, radius = 0.055 },
+    { dial = "named",    shape = "slot",  only = "orders", across = 0, up = 0.115, half_width = 0.17, half_height = 0.035 },
+    { dial = "cap",      shape = "round", only = "settings", across = 0, up = 0.56, radius = 0.075 },
 }
 
--- The settings menu's buttons: what each does to the framerate cap, and
--- where it sits (offset from the dashboard's center, in dashboard radii).
-M.SETTINGS_BUTTONS = {
-    { verb = "cap_minus_10", label = "-10", paint = { 0.20, 0.45, 1.00 }, dx = -0.42, dy = 0.11 },
-    { verb = "cap_minus_1",  label = "-1",  paint = { 0.10, 0.85, 0.90 }, dx = -0.24, dy = 0.30 },
-    { verb = "cap_plus_1",   label = "+1",  paint = { 1.00, 0.72, 0.10 }, dx = 0.24,  dy = 0.30 },
-    { verb = "cap_plus_10",  label = "+10", paint = { 1.00, 0.45, 0.10 }, dx = 0.42,  dy = 0.11 },
-    { verb = "close_settings", label = "BACK", paint = { 0.20, 0.85, 0.35 }, dx = -0.13, dy = 0.50 },
-    { verb = "quit",         label = "QUIT", paint = { 0.95, 0.20, 0.18 }, dx = 0.13,  dy = 0.50 },
+-- Engraved labels (arch units, centered there).
+M.LABELS = {
+    { text = "FRAMES / S", across = -0.15, up = 0.375, only = "always" },
+    { text = "FRAME MS",   across = 0,     up = 0.375, only = "always" },
+    { text = "UNITS",      across = 0.15,  up = 0.375, only = "always" },
+    { text = "NEXT ORDER GOES TO", across = 0, up = 0.175, only = "orders" },
+    { text = "ESCAPE: SETTINGS",   across = 0, up = 0.03,  only = "orders" },
+    { text = "MAXIMUM FRAMERATE   (0 = NO CAP)", across = 0, up = 0.665, only = "settings" },
 }
 
 local METAL_PIXEL = [[
@@ -55,8 +108,7 @@ uniform float face_radius;
 uniform vec3 base_tone;
 
 // Circular brushing: fine concentric streaks (their brightness depends only
-// on distance from the center), and two broad highlights on opposite sides,
-// the way light catches a brushed watch dial.
+// on distance from the center), and two broad highlights on opposite sides.
 vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
     vec2 d = screen - face_center;
     float reach = length(d) / face_radius;
@@ -65,18 +117,23 @@ vec4 effect(vec4 color, Image t, vec2 uv, vec2 screen) {
     float glint = pow(max(cos(a + 2.3), 0.0), 5.0) * 0.22
                 + pow(max(cos(a - 0.85), 0.0), 5.0) * 0.12;
     vec3 tone = base_tone * (0.88 + 0.12 * streak) + glint;
-    return vec4(tone, color.a);
+    return vec4(tone * color.rgb, color.a);
 }
 ]]
 
 -- {{{ function M.new()
-function M.new(width, height, radius_fraction)
+-- `team_size` (whole, 1..4) and `seat` (whole) decide which neighbours'
+-- arches show at the sides.
+function M.new(width, height, team_size, seat)
+    local arch_height = height * M.ARCH_HEIGHT_SHARE
+    local section = arch.new(width / 2, height / 2 + arch_height / 2, arch_height,
+        M.ARCH_WIDTH_SHARE, M.ARCH_BAND_SHARE)
     local dashboard = {
         width = width,
         height = height,
-        center_x = width / 2,
-        center_y = height / 2,
-        radius = height * radius_fraction,
+        section = section,
+        team_size = team_size,
+        seat = seat,
         face = love.graphics.newCanvas(width, height),
         dials = love.graphics.newCanvas(width, height),
         glass = love.graphics.newCanvas(width, height),
@@ -87,76 +144,85 @@ function M.new(width, height, radius_fraction)
         pressed_verb = nil,
         flash_seconds = 0,
     }
-    local radius = dashboard.radius
     dashboard.fonts = {
-        label = love.graphics.newFont(math.max(9, math.floor(radius * 0.034))),
-        dial = love.graphics.newFont(math.max(10, math.floor(radius * 0.05))),
-        small = love.graphics.newFont(math.max(9, math.floor(radius * 0.036))),
-        readout = love.graphics.newFont(math.max(12, math.floor(radius * 0.07))),
-        big = love.graphics.newFont(math.max(16, math.floor(radius * 0.13))),
+        label = love.graphics.newFont(math.max(9, math.floor(arch_height * 0.019))),
+        dial = love.graphics.newFont(math.max(10, math.floor(arch_height * 0.026))),
+        small = love.graphics.newFont(math.max(9, math.floor(arch_height * 0.022))),
+        readout = love.graphics.newFont(math.max(12, math.floor(arch_height * 0.037))),
+        big = love.graphics.newFont(math.max(16, math.floor(arch_height * 0.065))),
+        seat = love.graphics.newFont(math.max(10, math.floor(arch_height * 0.024))),
+        button = love.graphics.newFont(math.max(8, math.floor(arch_height * 0.0145))),
     }
     return dashboard
 end
 -- }}}
 
+-- {{{ local function shown()
+-- Whether something marked `only` is shown in the current mode.
+local function shown(dashboard, only)
+    -- always shown
+    if only == "always" then
+        return true
+    end
+    -- the settings menu's own parts
+    if only == "settings" then
+        return dashboard.settings_open
+    end
+    -- the order parts, hidden while the settings menu is open
+    return not dashboard.settings_open
+end
+-- }}}
+
 -- {{{ local function windows_of()
--- Every window cut into the face, as plain shapes in window pixels. A
--- window is either an arc slot (between two angles and two radii, around the
--- dashboard's center) or a round hole. `dial` names what lies beneath.
+-- The windows shown now, each with its pixel position filled in.
 local function windows_of(dashboard)
-    local cx, cy, R = dashboard.center_x, dashboard.center_y, dashboard.radius
-    local windows = {
-        { shape = "arc", dial = "month", from = -112, to = -68, inner = R * 0.80, outer = R * 0.92 },
-        { shape = "arc", dial = "weekday", from = 68, to = 112, inner = R * 0.80, outer = R * 0.92 },
-        { shape = "round", dial = "day", x = cx, y = cy + R * 0.69, radius = R * 0.066 },
-        { shape = "round", dial = "fps", x = cx - R * 0.24, y = cy - R * 0.30, radius = R * 0.105 },
-        { shape = "round", dial = "frame_ms", x = cx, y = cy - R * 0.40, radius = R * 0.105 },
-        { shape = "round", dial = "units", x = cx + R * 0.24, y = cy - R * 0.30, radius = R * 0.105 },
-    }
-    -- the settings menu shows one large round window for the cap, in place
-    -- of the named stand's window (orders cannot be given while it is open)
-    if dashboard.settings_open then
-        windows[#windows + 1] = { shape = "round", dial = "cap", x = cx, y = cy + R * 0.06, radius = R * 0.17 }
-    else
-        windows[#windows + 1] = { shape = "arc", dial = "named", from = 48, to = 132, inner = R * 0.30, outer = R * 0.42 }
+    local section = dashboard.section
+    local H = section.height
+    local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
+    local windows = {}
+    for _, layout in ipairs(M.WINDOWS) do
+        if shown(dashboard, layout.only) then
+            local window = { dial = layout.dial, shape = layout.shape }
+            -- an arc slot turns around the calendar center
+            if layout.shape == "arc" then
+                window.center_x, window.center_y = cx, cy
+                window.inner, window.outer = layout.inner * H, layout.outer * H
+                window.from, window.to = layout.from, layout.to
+            else
+                -- a round hole or a slot sits at its own spot
+                window.x, window.y = arch.at(section, layout.across, layout.up)
+                window.radius = (layout.radius or 0) * H
+                window.half_width = (layout.half_width or 0) * H
+                window.half_height = (layout.half_height or 0) * H
+            end
+            windows[#windows + 1] = window
+        end
     end
     return windows
 end
 -- }}}
 
--- {{{ local function arc_outline()
--- The outline of an arc slot as a flat list of x, y pairs (for polygons).
-local function arc_outline(cx, cy, window, steps)
-    local points = {}
-    for step = 0, steps do
-        local a = math.rad(window.from + (window.to - window.from) * step / steps)
-        points[#points + 1] = cx + window.outer * math.cos(a)
-        points[#points + 1] = cy + window.outer * math.sin(a)
-    end
-    for step = steps, 0, -1 do
-        local a = math.rad(window.from + (window.to - window.from) * step / steps)
-        points[#points + 1] = cx + window.inner * math.cos(a)
-        points[#points + 1] = cy + window.inner * math.sin(a)
-    end
-    return points
-end
--- }}}
-
 -- {{{ local function fill_window()
--- Fills a window's shape with the current color (used to cut it from the
--- face). Arc slots are drawn as a strip of quads so they stay exact.
-local function fill_window(dashboard, window)
+-- Fills a window's shape with the current color (to cut it from the face,
+-- or to clip a dial to it).
+local function fill_window(window)
     -- a round hole
     if window.shape == "round" then
         love.graphics.circle("fill", window.x, window.y, window.radius, 64)
         return
     end
-    -- an arc slot
-    local cx, cy = dashboard.center_x, dashboard.center_y
+    -- a rounded slot
+    if window.shape == "slot" then
+        love.graphics.rectangle("fill", window.x - window.half_width, window.y - window.half_height,
+            window.half_width * 2, window.half_height * 2, window.half_height, window.half_height, 16)
+        return
+    end
+    -- an arc slot, as a strip of quads so it stays exact
     local steps = 32
     for step = 0, steps - 1 do
         local a1 = math.rad(window.from + (window.to - window.from) * step / steps)
         local a2 = math.rad(window.from + (window.to - window.from) * (step + 1) / steps)
+        local cx, cy = window.center_x, window.center_y
         love.graphics.polygon("fill",
             cx + window.inner * math.cos(a1), cy + window.inner * math.sin(a1),
             cx + window.outer * math.cos(a1), cy + window.outer * math.sin(a1),
@@ -166,12 +232,47 @@ local function fill_window(dashboard, window)
 end
 -- }}}
 
+-- {{{ local function outline_window()
+-- A dark edge and a bright lip around a window.
+local function outline_window(window)
+    love.graphics.setColor(0.08, 0.08, 0.09, 0.9)
+    love.graphics.setLineWidth(3)
+    -- a round hole's bezel is two circles
+    if window.shape == "round" then
+        love.graphics.circle("line", window.x, window.y, window.radius + 1, 64)
+        love.graphics.setColor(0.92, 0.94, 0.97, 0.6)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.circle("line", window.x, window.y, window.radius + 4, 64)
+        return
+    end
+    -- a slot's bezel follows its rounded rectangle
+    if window.shape == "slot" then
+        love.graphics.rectangle("line", window.x - window.half_width - 1, window.y - window.half_height - 1,
+            window.half_width * 2 + 2, window.half_height * 2 + 2, window.half_height, window.half_height, 16)
+        return
+    end
+    -- an arc slot's bezel is its outline
+    local points = {}
+    local cx, cy = window.center_x, window.center_y
+    for step = 0, 32 do
+        local a = math.rad(window.from + (window.to - window.from) * step / 32)
+        points[#points + 1] = cx + window.outer * math.cos(a)
+        points[#points + 1] = cy + window.outer * math.sin(a)
+    end
+    for step = 32, 0, -1 do
+        local a = math.rad(window.from + (window.to - window.from) * step / 32)
+        points[#points + 1] = cx + window.inner * math.cos(a)
+        points[#points + 1] = cy + window.inner * math.sin(a)
+    end
+    love.graphics.polygon("line", points)
+end
+-- }}}
+
 -- {{{ local function glass_mesh_for()
--- A mesh covering the window whose colors say how the glass bends: red 1
--- everywhere; green and blue encode the outward direction, strongest at the
--- glass's edge and zero across its middle — so refraction grows toward the
--- rim, the way a lens's does.
-local function glass_mesh_for(dashboard, window)
+-- A mesh covering a window whose colors say how its glass bends: red 1;
+-- green and blue lean outward toward the rim, neutral across the middle;
+-- alpha 1 (a dial lies beneath).
+local function glass_mesh_for(window)
     local vertices = {}
     -- a round hole: a fan from a neutral center to a rim leaning outward
     if window.shape == "round" then
@@ -185,8 +286,19 @@ local function glass_mesh_for(dashboard, window)
         end
         return love.graphics.newMesh(vertices, "fan", "static")
     end
+    -- a slot: its top edge leans up, its bottom edge down, its middle neutral
+    if window.shape == "slot" then
+        local left, right = window.x - window.half_width, window.x + window.half_width
+        local top, middle, bottom = window.y - window.half_height, window.y, window.y + window.half_height
+        vertices = {
+            { left, top, 0, 0, 1, 0.5, 0, 1 }, { right, top, 0, 0, 1, 0.5, 0, 1 },
+            { left, middle, 0, 0, 1, 0.5, 0.5, 1 }, { right, middle, 0, 0, 1, 0.5, 0.5, 1 },
+            { left, bottom, 0, 0, 1, 0.5, 1, 1 }, { right, bottom, 0, 0, 1, 0.5, 1, 1 },
+        }
+        return love.graphics.newMesh(vertices, "strip", "static")
+    end
     -- an arc slot: a strip whose inner edge leans inward and outer edge outward
-    local cx, cy = dashboard.center_x, dashboard.center_y
+    local cx, cy = window.center_x, window.center_y
     for step = 0, 32 do
         local a = math.rad(window.from + (window.to - window.from) * step / 32)
         local c, s = math.cos(a), math.sin(a)
@@ -199,14 +311,56 @@ local function glass_mesh_for(dashboard, window)
 end
 -- }}}
 
+-- {{{ local function band_glass_mesh()
+-- The band's glass: a strip from foot to foot, its inner edge leaning in
+-- toward the dashboard and its outer edge leaning out, alpha 0.5 (the world
+-- lies beneath it, not a dial).
+local function band_glass_mesh(section)
+    local vertices = {}
+    for _, point in ipairs(arch.curve_points(section, 96)) do
+        local dx, dy = point[3] - point[1], point[4] - point[2]
+        local length = math.sqrt(dx * dx + dy * dy)
+        local nx, ny = dx / length, dy / length
+        vertices[#vertices + 1] = { point[1], point[2], 0, 0, 1, 0.5 - 0.5 * nx, 0.5 - 0.5 * ny, 0.5 }
+        vertices[#vertices + 1] = { point[3], point[4], 0, 0, 1, 0.5 + 0.5 * nx, 0.5 + 0.5 * ny, 0.5 }
+    end
+    return love.graphics.newMesh(vertices, "strip", "static")
+end
+-- }}}
+
+-- {{{ local function draw_band_edges()
+-- Gold edges along both curves of the band (the band itself stays clear on
+-- the face: its glass shows the world).
+local function draw_band_edges(section)
+    local inner, outer = {}, {}
+    for _, point in ipairs(arch.curve_points(section, 96)) do
+        inner[#inner + 1] = point[1]
+        inner[#inner + 1] = point[2]
+        outer[#outer + 1] = point[3]
+        outer[#outer + 1] = point[4]
+    end
+    love.graphics.setLineWidth(3)
+    love.graphics.setColor(0.55, 0.40, 0.10, 1)
+    love.graphics.line(inner)
+    love.graphics.line(outer)
+    love.graphics.setLineWidth(1.2)
+    love.graphics.setColor(1.0, 0.86, 0.42, 1)
+    love.graphics.line(inner)
+    love.graphics.line(outer)
+end
+-- }}}
+
 -- {{{ local function engraved()
--- Text cut into metal: a dark line with a faint light edge below it.
-local function engraved(font, text, x, y, width, align)
+-- Text cut into metal: a dark line with a faint light edge below it,
+-- centered on x, y.
+local function engraved(font, text, x, y)
     love.graphics.setFont(font)
+    local width = font:getWidth(text)
+    local top = y - font:getHeight() / 2
     love.graphics.setColor(1, 1, 1, 0.18)
-    love.graphics.printf(text, x, y + 1, width, align)
+    love.graphics.print(text, x - width / 2, top + 1)
     love.graphics.setColor(0.08, 0.09, 0.1, 0.85)
-    love.graphics.printf(text, x, y, width, align)
+    love.graphics.print(text, x - width / 2, top)
 end
 -- }}}
 
@@ -214,26 +368,18 @@ end
 -- Where every clickable button is right now: a list of
 -- { verb, label, paint, x, y, radius, de_selected }.
 local function button_spots(dashboard, someone_named)
-    local cx, cy, R = dashboard.center_x, dashboard.center_y, dashboard.radius
+    local section = dashboard.section
     local spots = {}
     -- the settings menu is open: only its buttons can be pressed
+    local list, radius, de_selected = M.ORDER_BUTTONS, M.ORDER_BUTTON_RADIUS, not someone_named
     if dashboard.settings_open then
-        for _, button in ipairs(M.SETTINGS_BUTTONS) do
-            spots[#spots + 1] = {
-                verb = button.verb, label = button.label, paint = button.paint,
-                x = cx + button.dx * R, y = cy + button.dy * R, radius = R * 0.075,
-                de_selected = false,
-            }
-        end
-        return spots
+        list, radius, de_selected = M.SETTINGS_BUTTONS, M.SETTINGS_BUTTON_RADIUS, false
     end
-    -- the order buttons: de-selected (dimmer) until someone is named
-    for _, button in ipairs(M.ORDER_BUTTONS) do
-        local a = math.rad(button.at)
+    for _, button in ipairs(list) do
+        local x, y = arch.at(section, button.across, button.up)
         spots[#spots + 1] = {
             verb = button.verb, label = button.label, paint = button.paint,
-            x = cx + R * 0.64 * math.cos(a), y = cy + R * 0.64 * math.sin(a),
-            radius = R * 0.088, de_selected = not someone_named,
+            x = x, y = y, radius = radius * section.height, de_selected = de_selected,
         }
     end
     return spots
@@ -241,7 +387,7 @@ end
 -- }}}
 
 -- {{{ function M.button_under()
--- The verb of the button under a pixel, or nil. Dials never answer.
+-- The verb of the button under a pixel, or nil. Dials and the band never answer.
 function M.button_under(dashboard, x, y, someone_named)
     for _, spot in ipairs(button_spots(dashboard, someone_named)) do
         local dx, dy = x - spot.x, y - spot.y
@@ -254,10 +400,10 @@ end
 -- }}}
 
 -- {{{ function M.covers()
--- Whether a pixel lies on the dashboard (so a click there is not a map click).
+-- Whether a pixel lies on your arch (its surface or its band), so a click
+-- there is not a map click.
 function M.covers(dashboard, x, y)
-    local dx, dy = x - dashboard.center_x, y - dashboard.center_y
-    return dx * dx + dy * dy <= dashboard.radius * dashboard.radius
+    return arch.in_interior(dashboard.section, x, y) or arch.in_band(dashboard.section, x, y)
 end
 -- }}}
 
@@ -268,55 +414,49 @@ local function turn_dial(dashboard, name, target, seconds)
     local current = dashboard.dial_angles[name]
     -- go the short way round
     local difference = (target - current + 540) % 360 - 180
-    local eased = difference * (1 - math.exp(-seconds * 6))
-    dashboard.dial_angles[name] = current + eased
+    dashboard.dial_angles[name] = current + difference * (1 - math.exp(-seconds * 6))
 end
 -- }}}
 
 -- {{{ local function draw_ring_dial()
--- A paper disc concentric with the dashboard, inscribed with words spaced
--- evenly around it; turned so `index` sits at `window_angle`. Words at the
--- bottom of the dashboard are turned to read upright.
-local function draw_ring_dial(dashboard, words, angle, radius, reads_at_bottom)
-    local cx, cy = dashboard.center_x, dashboard.center_y
+-- A paper ring around (cx, cy) inscribed with words spaced evenly around it,
+-- turned by `angle`; words read upright at the top.
+local function draw_ring_dial(dashboard, words, cx, cy, angle, radius)
     local spacing = 360 / #words
-    love.graphics.setFont(dashboard.fonts.dial)
+    local font = dashboard.fonts.dial
+    love.graphics.setFont(font)
+    love.graphics.setColor(0.12, 0.12, 0.14, 1)
     for index, word in ipairs(words) do
         local a = math.rad(angle + (index - 1) * spacing)
-        local x = cx + radius * math.cos(a)
-        local y = cy + radius * math.sin(a)
-        local turn = a + math.pi / 2
-        -- at the bottom, words run the other way so they are not upside down
-        if reads_at_bottom then
-            turn = a - math.pi / 2
-        end
-        local w = dashboard.fonts.dial:getWidth(word)
-        local h = dashboard.fonts.dial:getHeight()
-        love.graphics.setColor(0.12, 0.12, 0.14, 1)
-        love.graphics.print(word, x, y, turn, 1, 1, w / 2, h / 2)
+        love.graphics.print(word, cx + radius * math.cos(a), cy + radius * math.sin(a),
+            a + math.pi / 2, 1, 1, font:getWidth(word) / 2, font:getHeight() / 2)
     end
 end
 -- }}}
+
 -- {{{ local function window_named()
--- The window a dial lies under, found by the dial's name.
 local function window_named(dashboard, dial)
     for _, window in ipairs(windows_of(dashboard)) do
         if window.dial == dial then
             return window
         end
     end
-    error("dashboard: no window shows the dial '" .. dial .. "'")
+    return nil
 end
 -- }}}
 
 -- {{{ local function under_window()
--- Draws `draw_contents` clipped to one window's shape. Each dial is its own
--- disc at its own level; clipping each to its window keeps one disc's
--- inscriptions from showing through another disc's window.
+-- Draws `draw_contents` clipped to one window's shape: each dial is its own
+-- disc at its own level, so one disc's inscriptions never show through
+-- another disc's window. A window not shown now draws nothing.
 local function under_window(dashboard, dial, draw_contents)
     local window = window_named(dashboard, dial)
+    -- the window is hidden in this mode
+    if window == nil then
+        return
+    end
     love.graphics.stencil(function()
-        fill_window(dashboard, window)
+        fill_window(window)
     end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
     draw_contents(window)
@@ -325,10 +465,11 @@ end
 -- }}}
 
 -- {{{ local function draw_dials()
--- The layer beneath the windows. `state` carries the values to show (see
--- M.draw).
+-- The layer beneath the windows. `state` carries the values to show.
 local function draw_dials(dashboard, state, seconds)
-    local cx, cy, R = dashboard.center_x, dashboard.center_y, dashboard.radius
+    local section = dashboard.section
+    local H = section.height
+    local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
     love.graphics.setCanvas({ dashboard.dials, stencil = true })
     love.graphics.clear(0, 0, 0, 0)
 
@@ -336,35 +477,33 @@ local function draw_dials(dashboard, state, seconds)
     turn_dial(dashboard, "month", -90 - (state.month - 1) * 30, seconds)
     under_window(dashboard, "month", function()
         love.graphics.setColor(0.86, 0.83, 0.76, 1)
-        love.graphics.circle("fill", cx, cy, R * 0.95, 256)
-        draw_ring_dial(dashboard, M.MONTHS, dashboard.dial_angles.month, R * 0.86, false)
+        love.graphics.circle("fill", cx, cy, 0.6 * H, 256)
+        draw_ring_dial(dashboard, M.MONTHS, cx, cy, dashboard.dial_angles.month, 0.495 * H)
     end)
 
-    -- weekdays: a second ring at its own level, its word turned to the
-    -- bottom window
-    turn_dial(dashboard, "weekday", 90 - (state.weekday - 1) * (360 / 7), seconds)
+    -- weekdays: a second ring at its own level, one window lower
+    turn_dial(dashboard, "weekday", -90 - (state.weekday - 1) * (360 / 7), seconds)
     under_window(dashboard, "weekday", function()
-        love.graphics.setColor(0.84, 0.81, 0.74, 1)
-        love.graphics.circle("fill", cx, cy, R * 0.95, 256)
-        draw_ring_dial(dashboard, M.WEEKDAYS, dashboard.dial_angles.weekday, R * 0.86, true)
+        love.graphics.setColor(0.80, 0.77, 0.70, 1)
+        love.graphics.circle("fill", cx, cy, 0.6 * H, 256)
+        draw_ring_dial(dashboard, M.WEEKDAYS, cx, cy, dashboard.dial_angles.weekday, 0.395 * H)
     end)
 
-    -- the day number: one level lower, on a smaller, darker disc whose rim
-    -- passes under the round hole; the disc turns so today's number is there
+    -- the day number: one level lower again, on a darker disc whose rim passes
+    -- under the round hole; the disc turns so today's number is there
     turn_dial(dashboard, "day", 90 - (state.day - 1) * (360 / 31), seconds)
     under_window(dashboard, "day", function(window)
-        local disc_x, disc_y = window.x, window.y - R * 0.30
+        local disc_x, disc_y = window.x, window.y - 0.16 * H
+        local font = dashboard.fonts.dial
         love.graphics.setColor(0.66, 0.63, 0.57, 1)
-        love.graphics.circle("fill", disc_x, disc_y, R * 0.36, 96)
-        love.graphics.setFont(dashboard.fonts.dial)
+        love.graphics.circle("fill", disc_x, disc_y, 0.2 * H, 96)
+        love.graphics.setFont(font)
+        love.graphics.setColor(0.1, 0.1, 0.12, 1)
         for number = 1, 31 do
             local a = math.rad(dashboard.dial_angles.day + (number - 1) * (360 / 31))
             local text = tostring(number)
-            local w = dashboard.fonts.dial:getWidth(text)
-            local h = dashboard.fonts.dial:getHeight()
-            love.graphics.setColor(0.1, 0.1, 0.12, 1)
-            love.graphics.print(text, disc_x + R * 0.30 * math.cos(a), disc_y + R * 0.30 * math.sin(a),
-                a - math.pi / 2, 1, 1, w / 2, h / 2)
+            love.graphics.print(text, disc_x + 0.16 * H * math.cos(a), disc_y + 0.16 * H * math.sin(a),
+                a - math.pi / 2, 1, 1, font:getWidth(text) / 2, font:getHeight() / 2)
         end
     end)
 
@@ -373,11 +512,8 @@ local function draw_dials(dashboard, state, seconds)
         { dial = "fps", text = string.format("%d", state.fps) },
         { dial = "frame_ms", text = string.format("%.1f", state.frame_ms) },
         { dial = "units", text = string.format("%d", state.unit_count) },
+        { dial = "cap", text = tostring(state.cap), big = true },
     }
-    -- the settings menu shows the cap on its large dial
-    if dashboard.settings_open then
-        readouts[#readouts + 1] = { dial = "cap", text = tostring(state.cap), big = true }
-    end
     for _, readout in ipairs(readouts) do
         under_window(dashboard, readout.dial, function(window)
             local font = readout.big and dashboard.fonts.big or dashboard.fonts.readout
@@ -390,88 +526,98 @@ local function draw_dials(dashboard, state, seconds)
         end)
     end
 
-    -- the named stand's ring: who the next order goes to, or a reminder
+    -- the named stand's slot: who the next order goes to, or a reminder
     local named_text = state.named_text
     -- a button was pressed with no one named: the reminder flashes
     if dashboard.flash_seconds > 0 then
         named_text = "NAME SOMEONE FIRST"
         dashboard.flash_seconds = dashboard.flash_seconds - seconds
     end
-    -- the settings menu covers this window: nothing to draw beneath it
-    if dashboard.settings_open then
-        return
-    end
-    under_window(dashboard, "named", function()
+    under_window(dashboard, "named", function(window)
+        local font = dashboard.fonts.small
         love.graphics.setColor(0.86, 0.83, 0.76, 1)
-        love.graphics.circle("fill", cx, cy, R * 0.45, 192)
+        love.graphics.rectangle("fill", window.x - window.half_width, window.y - window.half_height,
+            window.half_width * 2, window.half_height * 2)
         love.graphics.setColor(0.12, 0.12, 0.14, 1)
-        love.graphics.setFont(dashboard.fonts.small)
-        love.graphics.printf(named_text, cx - R * 0.5, cy + R * 0.36 - dashboard.fonts.small:getHeight() / 2, R, "center")
+        love.graphics.setFont(font)
+        love.graphics.printf(named_text, window.x - window.half_width, window.y - font:getHeight() / 2,
+            window.half_width * 2, "center")
     end)
 end
 -- }}}
+
+-- {{{ local function draw_surface()
+-- One arch's metal surface (and its band cut away), brightness `tone`.
+local function draw_surface(dashboard, section, tone)
+    love.graphics.setShader(dashboard.metal_shader)
+    local cx, cy = arch.at(section, M.CALENDAR_CENTER[1], M.CALENDAR_CENTER[2])
+    dashboard.metal_shader:send("face_center", { cx, cy })
+    dashboard.metal_shader:send("face_radius", section.height)
+    dashboard.metal_shader:send("base_tone", { 0.52, 0.54, 0.57 })
+    love.graphics.setColor(tone, tone, tone, 1)
+    love.graphics.polygon("fill", arch.interior_polygon(section, 96))
+    love.graphics.setShader()
+    draw_band_edges(section)
+end
+-- }}}
+
+-- {{{ local function draw_neighbours()
+-- The neighbours' arches beside yours: dimmer, labelled with their seat,
+-- clipped to the strip of them your section shows.
+local function draw_neighbours(dashboard, seat_colors)
+    local section = dashboard.section
+    -- alone: an M of one hump, no neighbours
+    if dashboard.team_size < 2 then
+        return
+    end
+    local half_shown = section.width / 2 + section.width * M.NEIGHBOUR_SHOWN
+    love.graphics.setScissor(section.center_x - half_shown, 0, half_shown * 2, dashboard.height)
+    for _, side in ipairs({ -1, 1 }) do
+        local neighbour = arch.shifted(section, side)
+        -- seats are a ring: left of seat 1 is the last seat
+        local seat = (dashboard.seat - 1 + side) % dashboard.team_size + 1
+        draw_surface(dashboard, neighbour, 0.55)
+        local color = seat_colors[seat]
+        local x, y = arch.at(neighbour, -side * 0.36, 0.05)
+        love.graphics.setFont(dashboard.fonts.seat)
+        love.graphics.setColor(color[1], color[2], color[3], 0.9)
+        local label = "SEAT " .. seat
+        love.graphics.print(label, x - dashboard.fonts.seat:getWidth(label) / 2, y)
+    end
+    love.graphics.setScissor()
+end
+-- }}}
+
 -- {{{ local function draw_face()
 local function draw_face(dashboard, state)
-    local cx, cy, R = dashboard.center_x, dashboard.center_y, dashboard.radius
+    local section = dashboard.section
     love.graphics.setCanvas(dashboard.face)
     love.graphics.clear(0, 0, 0, 0)
 
-    -- the body: an outer gunmetal bezel and a steel face, brushed in circles
-    love.graphics.setShader(dashboard.metal_shader)
-    dashboard.metal_shader:send("face_center", { cx, cy })
-    dashboard.metal_shader:send("face_radius", R)
-    dashboard.metal_shader:send("base_tone", { 0.24, 0.25, 0.27 })
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.circle("fill", cx, cy, R, 256)
-    dashboard.metal_shader:send("base_tone", { 0.52, 0.54, 0.57 })
-    love.graphics.circle("fill", cx, cy, R * 0.955, 256)
-    love.graphics.setShader()
-
-    -- a thin chrome edge where bezel meets face
-    love.graphics.setColor(0.9, 0.92, 0.95, 0.55)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", cx, cy, R * 0.955, 256)
+    draw_neighbours(dashboard, state.seat_colors)
+    draw_surface(dashboard, section, 1)
 
     -- cut every window out of the metal: replace with nothing at all
     love.graphics.setBlendMode("replace")
     love.graphics.setColor(0, 0, 0, 0)
     for _, window in ipairs(windows_of(dashboard)) do
-        fill_window(dashboard, window)
+        fill_window(window)
     end
     love.graphics.setBlendMode("alpha")
-
-    -- bezels: a dark inner edge and a bright outer lip around each window
     for _, window in ipairs(windows_of(dashboard)) do
-        -- a round window's bezel is two circles
-        if window.shape == "round" then
-            love.graphics.setColor(0.08, 0.08, 0.09, 0.9)
-            love.graphics.setLineWidth(3)
-            love.graphics.circle("line", window.x, window.y, window.radius + 1, 64)
-            love.graphics.setColor(0.92, 0.94, 0.97, 0.6)
-            love.graphics.setLineWidth(1.5)
-            love.graphics.circle("line", window.x, window.y, window.radius + 4, 64)
-        else
-            -- an arc slot's bezel is its outline
-            love.graphics.setColor(0.08, 0.08, 0.09, 0.9)
-            love.graphics.setLineWidth(3)
-            love.graphics.polygon("line", arc_outline(cx, cy, window, 32))
+        outline_window(window)
+    end
+
+    -- engraved labels
+    for _, label in ipairs(M.LABELS) do
+        if shown(dashboard, label.only) then
+            local x, y = arch.at(section, label.across, label.up)
+            engraved(dashboard.fonts.label, label.text, x, y)
         end
     end
 
-    -- engraved labels above the readouts
-    local label_font = dashboard.fonts.label
-    engraved(label_font, "FRAMES / S", cx - R * 0.39, cy - R * 0.45, R * 0.3, "center")
-    engraved(label_font, "FRAME MS", cx - R * 0.15, cy - R * 0.555, R * 0.3, "center")
-    engraved(label_font, "UNITS", cx + R * 0.09, cy - R * 0.45, R * 0.3, "center")
-    -- the settings menu's own label replaces the order labels while open
-    if dashboard.settings_open then
-        engraved(label_font, "MAXIMUM FRAMERATE   (0 = NO CAP)", cx - R * 0.45, cy - R * 0.15, R * 0.9, "center")
-    else
-        engraved(label_font, "NEXT ORDER GOES TO", cx - R * 0.3, cy + R * 0.13, R * 0.6, "center")
-        engraved(label_font, state.settings_hint, cx - R * 0.4, cy + R * 0.50, R * 0.8, "center")
-    end
-
     -- painted buttons, each in a metal bezel
+    local label_font = dashboard.fonts.button
     for _, spot in ipairs(button_spots(dashboard, state.someone_named)) do
         local paint = spot.paint
         local strength = 1
@@ -479,13 +625,13 @@ local function draw_face(dashboard, state)
         if spot.de_selected then
             strength = 0.55
         end
-        love.graphics.setColor(0.16, 0.17, 0.18, 1)
-        love.graphics.circle("fill", spot.x, spot.y, spot.radius * 1.12, 48)
         local pressed = dashboard.pressed_verb == spot.verb
         -- pressed: the paint sinks and darkens
         if pressed then
             strength = strength * 0.7
         end
+        love.graphics.setColor(0.16, 0.17, 0.18, 1)
+        love.graphics.circle("fill", spot.x, spot.y, spot.radius * 1.12, 48)
         love.graphics.setColor(paint[1] * strength, paint[2] * strength, paint[3] * strength, 1)
         love.graphics.circle("fill", spot.x, spot.y + (pressed and 1.5 or 0), spot.radius, 48)
         -- hovered: the rim brightens
@@ -496,7 +642,8 @@ local function draw_face(dashboard, state)
         end
         -- a curved shine across the top of the paint
         love.graphics.setColor(1, 1, 1, 0.22 * strength)
-        love.graphics.arc("fill", spot.x, spot.y - spot.radius * 0.1, spot.radius * 0.8, math.pi * 1.1, math.pi * 1.9, 24)
+        love.graphics.arc("fill", spot.x, spot.y - spot.radius * 0.1, spot.radius * 0.8,
+            math.pi * 1.1, math.pi * 1.9, 24)
         love.graphics.setFont(label_font)
         love.graphics.setColor(0.05, 0.05, 0.06, 0.95)
         love.graphics.printf(spot.label, spot.x - spot.radius, spot.y - label_font:getHeight() / 2,
@@ -519,8 +666,11 @@ local function draw_glass(dashboard)
     love.graphics.clear(0, 0.5, 0.5, 0)
     love.graphics.setBlendMode("replace")
     love.graphics.setColor(1, 1, 1, 1)
+    local meshes = { band_glass_mesh(dashboard.section) }
     for _, window in ipairs(windows_of(dashboard)) do
-        local mesh = glass_mesh_for(dashboard, window)
+        meshes[#meshes + 1] = glass_mesh_for(window)
+    end
+    for _, mesh in ipairs(meshes) do
         love.graphics.draw(mesh)
         mesh:release()
     end
@@ -532,7 +682,7 @@ end
 -- Draws all three layers. `state` (plain values): month (1..12),
 -- weekday (1..7), day (1..31), fps (whole), frame_ms (number), unit_count,
 -- cap (whole), named_text (string), someone_named (boolean),
--- settings_hint (string). `seconds` is the frame's time, for dial motion.
+-- seat_colors (list of {r, g, b}). `seconds` is the frame's time.
 function M.draw(dashboard, state, seconds)
     love.graphics.push("all")
     love.graphics.setDepthMode("always", false)

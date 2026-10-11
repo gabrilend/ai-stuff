@@ -16,11 +16,13 @@
 --   group A  r            tier distance from the hub (0 = hub)
 --            angle        radians, 0 = north, clockwise
 --            heading      radians, the direction the unit faces on the ground
---            length       the spheroid's long radius (world units at tier 1)
---   group B  width        the spheroid's short radius
+--            length       the figure's size (its height, in units of the body
+--                         plan, before the world scale and the fold)
+--   group B  width        girth: width / length sets how stocky the figure is
 --            owner        seat index 0..3, or 4 for a foe (stored as float)
 --            level        the unit's level (float)
---            phase        a running clock for its idle bob, seconds
+--            phase        walking phase, radians 0..2pi (advanced by the move
+--                         box from ground speed; bends the limbs, see 018)
 --   group C  speed_r      tiers per second, outward positive
 --            speed_angle  radians per second, clockwise positive
 --            order_kind   the last order received (index into the verb list)

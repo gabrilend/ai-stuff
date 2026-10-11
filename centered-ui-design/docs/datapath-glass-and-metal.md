@@ -53,3 +53,15 @@ world.
 Voxel effects and hand-made building models are not built yet. Files:
 `src/012-made-by-formula.lua`, `src/013-the-world-renderer.lua`,
 `src/014-the-dashboard.lua`, `src/015-the-view-plane.lua`.
+
+### Changed the same day: the arch and the figures
+
+- The console is an arch (see console-layout.md). Its band is glass over the
+  world itself, not over a dial: the glass layer marks the band with alpha
+  0.5, and the sheet's shader samples the finished world picture there,
+  bent three times as strongly as a window bends its dial. So the sheet is
+  now drawn after the world picture is finished, onto the window, still
+  through the far camera's projection.
+- Units are figures of six spheroids from one mesh built once; each vertex
+  carries its part number, and the shader bends limbs by the body plan
+  (`src/018-the-body-plan.lua`) from each unit's walking phase.

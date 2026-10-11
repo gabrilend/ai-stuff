@@ -17,7 +17,7 @@
 local far_camera = require("003-the-far-camera")
 local sphere_fold = require("004-the-sphere-fold")
 local records = require("005-unit-records")
-local spheroid = require("011-the-spheroid")
+local body_plan = require("018-the-body-plan")
 local made_by_formula = require("012-made-by-formula")
 
 local M = {}
@@ -32,8 +32,13 @@ M.OWNER_COLORS = {
     { 0.42, 0.17, 0.15 },  -- foe, dark rust
 }
 
--- How large a unit is drawn relative to its record's sizes.
-M.UNIT_WORLD_SCALE = 1.7
+-- How tall a unit is drawn, in world units, per unit of its record's size
+-- (at tier 1; the fold shrinks it further out).
+M.UNIT_WORLD_SCALE = 5.0
+
+-- The ground speed (world units per second) at which a unit counts as walking
+-- at full stride; slower, its limbs bend less.
+M.FULL_PACE = 1.5
 
 local GROUND_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
 // The ground mesh stores each vertex as (tier distance, angle); the fold
@@ -54,13 +59,15 @@ vec4 effect(vec4 color, Image map, vec2 uv, vec2 screen) {
 }
 ]]
 
-local UNIT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. [[
-attribute vec4 UnitA;   // r, angle, heading, length
-attribute vec4 UnitB;   // width, owner, level, phase
+local UNIT_VERTEX = far_camera.GLSL .. sphere_fold.GLSL .. body_plan.GLSL .. [[
+attribute vec4 UnitA;   // r, angle, heading, size
+attribute vec4 UnitB;   // width (girth), owner, level, walking phase
 attribute vec4 UnitC;   // speed_r, speed_angle, order_kind, named
+attribute float PartIndex;  // which part of the body plan this vertex belongs to
 
 uniform vec3 owner_colors[5];
 uniform float unit_world_scale;
+uniform float full_pace;    // ground speed (world units / s) that counts as walking fully
 
 varying vec3 v_normal;
 varying vec3 v_color;
@@ -70,27 +77,30 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float r = UnitA.x;
     float angle = UnitA.y;
     float heading = UnitA.z;
-    float len = UnitA.w;
-    float wid = UnitB.x;
-    float hgt = wid * 0.8;
-    float s = fold_size_scale(r) * unit_world_scale;
+    float height = UnitA.w * unit_world_scale * fold_size_scale(r);
+    float girth = UnitB.x / UnitA.w / 0.53;
+    float walk = UnitB.w;
+
+    // how much the unit is walking: its ground speed, from the same
+    // arithmetic the move box uses to face it, against a full pace
+    float outward = fold_slope(r) * UnitC.x;
+    float sideways = fold_radius(r) * UnitC.y;
+    float moving = clamp(length(vec2(outward, sideways)) / full_pace, 0.0, 1.0);
+
+    // bend this vertex's part by the body plan (018): limbs deform, not rotate
+    vec3 local_normal;
+    vec3 local_point = bend_part(int(PartIndex + 0.5), vertex_position.xyz, walk, moving, girth, local_normal);
 
     // the unit's own axes on the ground: forward along its heading
     vec3 forward = vec3(sin(heading), 0.0, -cos(heading));
     vec3 right = vec3(cos(heading), 0.0, sin(heading));
     vec3 up = vec3(0.0, 1.0, 0.0);
 
-    // stretch the unit sphere into the spheroid, turn it, lift it so it
-    // rests on the ground, with a slight idle bob
-    vec3 local_point = vec3(vertex_position.x * wid, vertex_position.y * hgt, vertex_position.z * len);
-    float lift = hgt * (1.0 + 0.06 * sin(UnitB.w * 3.0));
+    // the figure's feet are at height 0 in the body plan: it stands on the ground
     vec3 world = fold_ground_position(r, angle)
-               + (right * local_point.x + up * local_point.y + forward * local_point.z) * s
-               + up * lift * s;
+               + (right * local_point.x + up * local_point.y + forward * local_point.z) * height;
 
-    // a stretched sphere's surface faces along (x/a, y/b, z/c)
-    vec3 n = vec3(vertex_position.x / wid, vertex_position.y / hgt, vertex_position.z / len);
-    v_normal = right * n.x + up * n.y + forward * n.z;
+    v_normal = right * local_normal.x + up * local_normal.y + forward * local_normal.z;
     v_color = owner_colors[int(UnitB.y + 0.5)];
     v_named = UnitC.w;
     return project_world(world);
@@ -189,12 +199,14 @@ function M.new(settings, camera, fold, unit_count)
     renderer.flat_map:setFilter("linear", "linear", 8)
     renderer.ground_mesh:setTexture(renderer.flat_map)
 
-    local sphere_vertices, sphere_triangles = spheroid.build(20, 32)
+    -- the figure: six unit spheres tagged by part, built once and never again
+    local figure_vertices, figure_triangles = body_plan.figure_vertices(12, 16)
     renderer.unit_mesh = love.graphics.newMesh({
         { "VertexPosition", "float", 3 },
         { "VertexTexCoord", "float", 2 },
-    }, sphere_vertices, "triangles", "static")
-    renderer.unit_mesh:setVertexMap(sphere_triangles)
+        { "PartIndex", "float", 1 },
+    }, figure_vertices, "triangles", "static")
+    renderer.unit_mesh:setVertexMap(figure_triangles)
     local skin = love.graphics.newImage(made_by_formula.unit_skin(512, 256), { mipmaps = true })
     skin:setFilter("linear", "linear", 8)
     skin:setMipmapFilter("linear")
@@ -209,6 +221,8 @@ function M.new(settings, camera, fold, unit_count)
 
     renderer.unit_shader:send("owner_colors", unpack(M.OWNER_COLORS))
     renderer.unit_shader:send("unit_world_scale", M.UNIT_WORLD_SCALE)
+    renderer.unit_shader:send("full_pace", M.FULL_PACE)
+    body_plan.send(renderer.unit_shader)
     return renderer
 end
 -- }}}
