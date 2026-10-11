@@ -263,7 +263,8 @@ varying float v_rim;
 vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float r = UnitA.x;
     float angle = UnitA.y;
-    float heading = UnitA.z;
+    // turned to its path on screen under the arch view (003)
+    float heading = apparent_heading(fold_ground_position(UnitA.x, UnitA.y), UnitA.z);
     float height = UnitA.w * unit_world_scale * fold_size_scale(r);
     float girth = UnitB.x / UnitA.w / 0.53;
     float walk = UnitB.w;
@@ -354,7 +355,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     vec3 n = sign(v) * pow(a, vec3(2.0 - roundness));
 
     float size = CubeA.w * fold_size_scale(CubeA.x);
-    float turn = CubeC.w;
+    float turn = apparent_heading(fold_ground_position(CubeA.x, CubeA.y), CubeC.w);
     vec3 forward = lean(vec3(sin(turn), 0.0, -cos(turn)), CubeA.y);
     vec3 right = lean(vec3(cos(turn), 0.0, sin(turn)), CubeA.y);
     vec3 up = lean(vec3(0.0, 1.0, 0.0), CubeA.y);

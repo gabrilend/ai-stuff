@@ -44,6 +44,7 @@ M.REQUIRED_FIELDS = {
     { name = "far_pole_tier",              kind = "number" },
     { name = "arch_reach",                 kind = "number" },
     { name = "arch_span_degrees",          kind = "number" },
+    { name = "figure_facing_follow",       kind = "number" },
     { name = "view_ground",                kind = "word", words = { "dots", "map" } },
     { name = "view_circle",                kind = "word", words = { "shade", "bars", "bars-open" } },
 }

@@ -111,6 +111,7 @@ function M.new(settings, aspect)
         arch_reach = settings.arch_reach,
         arch_hub_radius = settings.hub_radius,
         arch_span = math.rad(settings.arch_span_degrees),
+        figure_facing_follow = settings.figure_facing_follow,
     }
     return camera
 end
@@ -646,6 +647,39 @@ vec4 project_upright(vec3 anchor, vec3 offset) {
     return arch_clip(px, depth);
 }
 
+// Under the arch view, the heading a figure is drawn with: its way on the
+// ground turned toward its path on screen (the owner: "turn away from the
+// camera if they're walking toward the center, and turn toward the camera
+// if they're walking toward the sides"). The ground heading's sideways part
+// runs along the ring — whose curve rises toward the apex and falls toward
+// the feet — and its outward part across the ring; that screen path, read
+// as (across the screen, up the screen), becomes the figure's (sideways,
+// outward), since an upright figure shows sideways across and outward up.
+// `figure_facing_follow` blends: 0 the ground heading, 1 the path.
+uniform float figure_facing_follow;
+float apparent_heading(vec3 anchor, float heading) {
+    if (arch_view < 0.5) {
+        return heading;
+    }
+    float radius = length(anchor.xz);
+    float angle = atan(anchor.x, -anchor.z);
+    float from_chair = mod(angle - view_turn + 3.14159265, 6.28318531) - 3.14159265
+                     + 6.28318531 * arch_winding;
+    vec4 spot = arch_spot(radius, from_chair);
+    float s = spot.z;
+    float f = spot.w;
+    vec2 along = normalize(vec2(f * arch_half_width, 2.0 * f * arch_height * s));
+    vec2 outward = vec2(along.y, -along.x);
+    vec2 ground = vec2(sin(heading), -cos(heading));
+    float side_part = dot(ground, vec2(cos(angle), sin(angle)));
+    float out_part = dot(ground, vec2(sin(angle), -cos(angle)));
+    vec2 path = along * side_part + outward * out_part;     // pixels, y down
+    vec2 shown = vec2(path.x, -path.y);                       // across, up
+    vec2 parts = normalize(mix(vec2(side_part, out_part), shown, figure_facing_follow) + vec2(1e-6, 0.0));
+    vec3 forward = vec3(cos(angle), 0.0, sin(angle)) * parts.x + vec3(sin(angle), 0.0, -cos(angle)) * parts.y;
+    return atan(forward.x, -forward.z);
+}
+
 // The world through whichever view films it.
 vec4 project_world(vec3 p) {
     return project_anchored(vec3(p.x, 0.0, p.z), vec3(0.0, p.y, 0.0));
@@ -705,6 +739,7 @@ function M.send(camera, shader, flip_y, fixed)
         M.send_used(shader, "arch_span", camera.arch_span)
         M.send_used(shader, "figure_height_share", M.FIGURE_HEIGHT_SHARE)
         M.send_used(shader, "figure_depth_share", M.FIGURE_DEPTH_SHARE)
+        M.send_used(shader, "figure_facing_follow", camera.figure_facing_follow)
         M.send_used(shader, "arch_winding", camera.arch_winding or 0)
         M.send_used(shader, "arch_hub_radius", camera.arch_hub_radius)
         M.send_used(shader, "arch_reach", camera.arch_reach)

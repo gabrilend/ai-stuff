@@ -105,6 +105,13 @@ return {
     -- "magic circle"), the far side of the world showing at both ends
     arch_span_degrees = 450,
 
+    -- under the arch view, how much a villager turns to face its path on
+    -- screen: 0 faces its way on the ground (looks like walking left and
+    -- right), 1 follows the ring's curve (back to the camera walking toward
+    -- the middle, facing it walking toward the sides); between or beyond
+    -- to compare
+    figure_facing_follow = 1.0,
+
     -- the land: "dots", its points drawn as round sprites lit by the sun on
     -- an otherwise empty ground; or "map", the flat painted map (tier rings,
     -- quadrants, sections). Switched in the settings menu too.

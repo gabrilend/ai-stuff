@@ -60,7 +60,9 @@ third engine stage (step 14; pictures 070-073). The circles are now plain
 gradients (074-076), and the sun circles the hub's upright axis at a
 fixed height (077-079). The view dials are proven end to end through the
 key and wheel events (082-084); figures stand upright to the screen under
-the arch view (085-087).
+the arch view (085-087). Villagers turn to their on-screen path
+(`figure_facing_follow`, pictures 088-095); waiting on the owner's choice
+of strength.
 
 ## Intended Behavior
 
@@ -302,6 +304,20 @@ is just the depth effect applied down one scenery."
   the screen, like sprites: their height straight up the picture, a little
   of their front-to-back depth showing so they keep some volume, their
   width across; their feet still on their rings.
+- **Facing the way they walk on screen** (the owner: "if they're walking
+  around a curve, right now it just looks like they're walking left/right.
+  But they should turn away from the camera if they're walking toward the
+  center, and turn toward the camera if they're walking toward the sides
+  of the screen / the edges of the radial mapgraph. Their models are
+  rendering at the correct orientation right now, but their actual
+  direction that they're walking toward needs to change. Can you try some
+  examples and I'll let you know when it looks right?"). Under the arch
+  view, a figure's heading is turned to its path on screen: its walk along
+  the ring follows the ring's curve (rising toward the apex, falling toward
+  the feet), so walking toward the middle it turns its back to the camera,
+  toward the sides it turns to face it. A setting `figure_facing_follow`
+  blends: 0 as before, 1 following the curve exactly; examples at 0, 0.5,
+  1 and 1.5 for the owner to choose.
 - **Haze**: far ground fades toward a hazy colour (hub camera only).
 - **Focus blur, in a ring**: "if you apply blurring ... apply it in a
   semicircle around a radius zone" — sharp within a band of distance from the
@@ -413,6 +429,9 @@ is just the depth effect applied down one scenery."
     points are recorded as driven; same seed same lake.
 
 ## Open questions
+
+- Which facing strength looks right: 0 (ground heading), 0.5, 1 (follows
+  the ring's curve on screen) or 1.5? Started at 1.
 
 - The circling sun never sets: at the dials' midnight the land stays sunlit
   while figures, cuboids and console turn night-blue (picture 079). Should
