@@ -65,6 +65,14 @@ scripted run options (--drag, --tilt, --mouse, --key, --wheel,
                (never read from the screen, which may be covered by
                another window) → tmp/shared-memory/screenshot-FILE-VIEW.png
 
+--record turn|walk → frames numbered, each camera set by its number (a turn
+             on the plinth, or a walk holding at each station then gliding
+             to the next), drawn lit, halved, written raw to
+             tmp/shared-memory/frames/NAME/ → src/031 (one worker per
+             processor, joined in frame order) → a GIF (src/030: median-cut
+             colours, LZW) → scripts/render-gallery gathers stills and GIFs
+             of every model into output/gallery/ with an index page
+
 on closing → output/goodbye: file, format, triangles, parts, frames,
              seconds, ignored input, and per picture: view, share of
              pure-black pixels (a picture not drawn reads back black),

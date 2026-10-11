@@ -19,7 +19,12 @@ vortex strands; glowing beams; 15 stations composed like interior
 photographs (wide lens, level horizons, eyes well off the beams' line,
 which a first set showed filling the frame); every one of 19 parts seen.
 The physics of trapping and concentrating is in docs/physics-check.md
-(eighth round). Still to do: step 4, the tabs driven by phase 1's tab data
+(eighth round). Third round built: the pipe is 5 mm across with a
+mirror-coated cladding; stations and the vortex's pace are set in pipe
+radii (at 5 mm wide the hall is 80 radii long, and set as shares of its
+length every view looked too far); input/calculations/bend-light-hold.lua
+says the bend holds its light by reflection alone in the middle case, the
+mirror catching up to 12% in the worst. Still to do: step 4, the tabs driven by phase 1's tab data
 (101), which does not exist yet; so this issue stays open.
 
 ## Intended Behavior
@@ -78,6 +83,17 @@ angles."
 - The **coruscating vortex** is several glowing strands spiralling at
   different radii and colours; the beams and vortex **glow** (drawn as
   light, not lit surfaces; glTF's emissive colour carries it).
+- **Third round** (the owner, ninth round of the vision): "no air gap,
+  sure mirror coating, and the pipe should be about as wide as a thick
+  pair of glasses arms. It's a fiber-optic side-view cable remember? We
+  might not even need fluid tbh, though the internal reflection is pretty
+  important." The pipe is 5 mm across (a thick acetate temple arm is
+  5-6 mm tall): a side-emitting optical fibre, core and cladding trapping
+  light by total internal reflection, with a mirror coating outside the
+  cladding to catch what the reflection misses (input/calculations/
+  bend-light-hold.lua says how much that is on the bend). The liquid fills
+  only the tab chambers, where tabs cut through the core: there it removes
+  the glass-to-air boundaries the tabs would otherwise make.
 - Stations are composed like interior photographs: wide lens (a station
   may carry its own field of view), horizons level, eye a little below the
   middle, looking along the hall, up at the ceiling facets, across, back

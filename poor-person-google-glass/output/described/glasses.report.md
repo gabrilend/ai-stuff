@@ -1,4 +1,4 @@
-<!-- made by describe (src/016-describe.lua) on 2026-10-10 22:02 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/input/descriptions/glasses.txt, so the numbers behind the model can be read without opening it -->
+<!-- made by describe (src/016-describe.lua) on 2026-10-11 00:24 from /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/input/descriptions/glasses.txt, so the numbers behind the model can be read without opening it -->
 # glasses
 
 Measured in units (1 = a default part's width). Triangles: 1392.

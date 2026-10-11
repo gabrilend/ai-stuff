@@ -1,6 +1,6 @@
 # Conversation Summary: 7f8a12be-6564-4760-a645-c88c063fed48
 
-Generated on: 2026-10-10 23:39:52
+Generated on: 2026-10-11 00:09:57
 Models: claude-opus-5-5
 
 ## Contents
@@ -17,6 +17,15 @@ Models: claude-opus-5-5
    the camera-free head-worn projector, and the walkable inside of the light
    pipe is finished and committed. Next is your answer on the tiles: flat panel
    you look at, or small curved mirror?
+4. 2026-10-10 23:42, after Request 13 - You're building tools to design the
+   crown device, and I just made the 3D viewer turn models like an artifact on a
+   plinth, with tilt, zoom and edge-sliding. Next: try `./view-cad
+   output/models/light-pipe.gltf` and tell me if the edge-slide speed feels
+   right.
+5. 2026-10-11 00:00, after Request 14 - We're building 3D models and tools for
+   your head-worn projector; the light pipe now opens from inside as a faceted,
+   glowing hall, committed. Next, open it with ./view-cad
+   output/models/light-pipe.gltf and press n to walk the fifteen viewpoints.
 
 --------------------------------------------------------------------------------
 
@@ -1833,6 +1842,226 @@ of the edge zone are in the settings (`edge_speed = 0.8`, `edge_margin_pixels =
 How does that speed feel when you try it? Tell me once as too fast, too slow or
 right, and once more as how far you'd expect the stand to move for one push
 toward the edge.
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+yes excellent that's exceptional work. okay now the light-pipe just looks one
+flat color to me. Can you make sure that the camera for that one is placed
+inside the pipe, so we can see the structure of it's internals? remember, we
+want total internal reflection along that pipeline, and it should be
+concentrated out of an output aperture at the end. Any facets that we don't want
+to contribute to the final picture should have their mirrors tilted slightly to
+point backwards, to re-use the photons for a slightly different part of the
+coruscating vortex. Remember, make it sized like a room, picture an interior
+design magazine image, except we should have several images to show off all
+aspects of the design from multiple angles.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+> The cause is simple: the viewer opens every model from outside. From outside,
+> the light pipe is just the back of its tube wall, one flat silver. I'll fix
+> that and redesign the inside as you describe:
+>
+> - **Opening:** a model that has stations opens standing at its first one,
+>   inside.
+> - **The wall** becomes faceted mirror panels on the light-trapping
+>   (index-step) boundary:
+>   - the facets that feed the picture are flat, near the output;
+>   - every other facet is tilted slightly backwards, each by a slightly
+>     different amount along a spiral, so its light is sent back into a
+>     different part of the vortex.
+> - **The end** narrows into a funnel that concentrates the light into an output
+>   aperture.
+> - **The vortex** becomes several glowing strands, and the beams glow too: they
+>   give off their own light instead of being lit like walls.
+> - **The cameras** are composed like interior-design photographs: a wide lens
+>   and level horizons, from many places along the pipe.
+>
+> Updating the issue first:
+
+> Viewer and file format first: open at the first station, a field of view per
+> station, and glowing parts:
+
+> Now the redesigned light pipe model:
+
+> Building it and photographing every station:
+
+> This set reads like the hall it is, from fifteen places, and every part is
+> seen at least once. Wrapping up: tests, docs, a physics note, picture notes,
+> commit.
+
+> All tests pass. The light pipe's parts changed, so I'm refreshing its joint
+> records (pairs that no longer exist are kept, marked gone), then filling the
+> picture notes and committing:
+
+> All notes are filled (the error was only from an empty list). The light pipe
+> now has 50 joints (43 new, 20 old pairs kept and marked gone), found in 27 s
+> on its 73,500 triangles. Committing:
+
+*[commit] 3c0cb88d7 in ai-stuff - poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside*
+
+The light pipe now opens from inside. It looked like one flat colour because the
+viewer started outside, where you only see the back of the tube wall. Any model
+with viewpoints now opens at its first one. It's committed, and all tests pass.
+
+**The redesign** (`./view-cad output/models/light-pipe.gltf`, then `n` to step
+between viewpoints):
+- **Total internal reflection:** the wall is the boundary between the glass core
+  and a lower-index cladding, which turns back light that strikes it at a
+  glancing angle. You can see the dark-blue cladding through the seams between
+  the facets.
+- **Facets:** the wall is made of mirror facets. Those near the output lie flat
+  and pass light on toward it. Every other facet is tilted 2–6° backward, by
+  a slightly different amount along a spiral, so the light it turns back feeds a
+  different part of the vortex. They show as receding sawtooth rings.
+- **Output:** the last stretch narrows smoothly into a concentrator funnel. It
+  ends at a gold output aperture a third of the pipe's width, then comes the
+  store's drum and its slit.
+- **Glowing light:** the beams and the vortex are now drawn as light rather than
+  lit surfaces. The vortex is three strands: red, green and gold, at different
+  radii and spacing.
+
+**Fifteen magazine-style viewpoints:** each uses a wide lens with a level
+horizon and the eye a little below the middle of the hall. They show:
+- the hall from the back, the back mirror and emitters, and the emitters up
+  close;
+- the first tab, the ceiling facets, the recycling wall, the tab gallery and the
+  levers;
+- the vortex strands, looking back to the mirror, and the last tab;
+- the concentrator, the output aperture, the view from the store, and the
+  store's slit from inside the drum.
+
+My first set stood too close to the beams, which filled the frames as red and
+green wedges. I moved the viewpoints off the beams' line and thinned the light.
+All 19 parts are now seen from at least one viewpoint. Both sets are kept in
+`development-history/` (pictures 112–140).
+
+**Two physics points you'll want later,** now written up in
+`docs/physics-check.md`:
+- **Facet tilts must stay small.** Tilting a reflecting facet turns the light by
+  twice the tilt. With these glasses, light stays trapped only if it strikes
+  within about 15° of the wall, so a large tilt would let light escape into the
+  cladding instead of recycling it.
+- **The funnel can't concentrate for free.** Narrowing to a third of the radius
+  (a tenth of the area) spreads the outgoing light over about three times the
+  angle. Light that won't fit is turned back, which is where recycling it pays
+  off.
+
+**One cost:** with 73,500 triangles, finding the light pipe's joints now takes
+27 seconds; it found 50. If that starts to drag, the joint finder is the obvious
+place to spread the work across processor cores.
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+yes holy shit this is exactly what I want and am picturing. Good enough for now.
+Now, can we work on making the model more precise? How do we redirect the laser
+beams? Do we have numbers for the mechanical components? Tolerances?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+Short answers first: no optical part redirects the beams yet, the mechanical
+numbers are all placeholder guesses, and the tolerances are only partly done.
+Details:
+
+## How do we redirect the laser beams?
+
+So far the model only draws where the light should go; nothing in it turns the
+light. There are three places where it has to be turned, and one of them shows a
+real problem:
+
+1. **Into the pipe.** The emitters enter from the side (so light coming back
+   doesn't harm the laser diodes), and the model then simply kinks each beam
+   onto the pipe's centre line. That needs a real part: a small 45° prism
+   (glancing light reflects off its face with no coating), or a mirror, just in
+   front of the back mirror.
+
+2. **Around the curve.** This is the problem. A bent pipe keeps light inside
+   only if the bend is gentle compared with the pipe's width. For light
+   travelling along the pipe to stay trapped at the outer wall of the bend,
+   three things have to work together:
+   - the bend radius,
+   - the pipe's width,
+   - the index ratio (the cladding's refractive index divided by the core's).
+
+   Here the core is the glass plus the index-matched liquid, about 1.52, so the
+   cladding can't be the liquid. The model's pipe is 14 mm wide on a 90 mm bend.
+   How wide can it be for each cladding?
+
+   | Cladding | Index | Widest pipe that holds light on a 90 mm bend |
+   |---|---|---|
+   | ordinary low-index glass | 1.47 | **2.8 mm** |
+   | fluoropolymer (FEP, Teflon AF) | 1.31–1.34 | about 11–13 mm |
+   | air gap | 1.00 | about 37 mm (14 mm fine) |
+   | silver mirror coating | — | any width, but each bounce absorbs a little |
+
+   So as drawn, most of the light leaks out on the bend, unless the cladding is
+   air or a mirror coating, or the pipe gets much thinner.
+
+3. **Out toward the panel.** After the output aperture, something has to aim the
+   light at the panel on its arm, probably a small steering mirror that turns
+   with the arm. Nothing is designed there yet.
+
+The tabs don't redirect light; they let it through or block it. Only the
+recycling facets bend it, and only slightly.
+
+## Mechanical numbers?
+
+Only placeholders, chosen so the drawings look right. The pipe is 14 mm across
+on a 90 mm bend, the tabs are 10.5 × 4.9 mm, the hinge pins 0.4 mm, the levers
+3 mm, and the output aperture 4.5 mm.
+
+Nothing exists for the parts that move things:
+- tab motors, or how fast the tabs switch (the issue for timing the tabs is
+  still open);
+- the force needed to swing a tab through the liquid;
+- hinge clearances;
+- the arm's pistons;
+- any weights.
+
+The numbers also already disagree with each other. The tolerance calculation
+uses 0.30 mm tabs, while the model draws them 0.35 mm thick.
+
+## Tolerances?
+
+There are 6 calculations, plus the gap-under-heat check on each place two parts
+meet; two of those meeting points are filled in. Every limit in them is a guess.
+They're good enough to show where the hard problems are: the two eyes'
+alignment, the arm's oil warming, and the glass pipe against the nylon band.
+They aren't precise.
+
+## What I'd do to make it precise, most valuable first
+
+1. **One design-numbers file.** Every dimension and material is named once. The
+   models and the calculations both read from it, and a check flags any
+   disagreement, like the 0.30 vs 0.35 mm tabs.
+2. **Light-path calculations:** how much light leaks on the bend, the shape of
+   the injection prism, and how the funnel trades width for angle. Together
+   these pick the pipe's width and its cladding.
+3. **The tab mechanism:** the turning force needed to swing a tab through the
+   liquid fast enough, matched against real tiny motors (4 mm coreless motors,
+   piezo actuators, memory-metal wire), plus hinge clearances.
+4. **A ray tracer:** real rays fired through the model's triangles, reflecting
+   off the walls by the same rule as the table above, and drawn in the viewer.
+   It's the true answer to "how do the beams go", and the biggest of the four
+   jobs.
+
+The bend decides the pipe's whole design, so I need one choice from you before I
+start: an air gap, a mirror coating, or a thinner pipe?
+- An air gap means the glass core sits in a sealed space with no liquid around
+  it.
+- A mirror coating loses a little light at every bounce.
+- A thinner pipe means a smaller hall.
+
+Tell me first which feels closest to the device you picture. Then tell me again,
+as what you'd be willing to give up: light, liquid, or room.
 
 --------------------------------------------------------------------------------
 

@@ -360,6 +360,9 @@ function viewer.load(arguments)
         ["--mouse"] = { 3, function(v) return { at = tonumber(v[1]), kind = "mouse", x = tonumber(v[2]), y = tonumber(v[3]) } end },
         ["--wheel"] = { 2, function(v) return { at = tonumber(v[1]), kind = "wheel", notches = tonumber(v[2]) } end },
         ["--screenshot"] = { 1, function(v) return { at = tonumber(v[1]), kind = "screenshot" } end },
+        -- --record SECONDS turn|walk LENGTH-SECONDS FRAMES-PER-SECOND (issue 011)
+        ["--record"] = { 4, function(v) return { at = tonumber(v[1]), kind = "record", mode = v[2],
+            length = tonumber(v[3]), fps = tonumber(v[4]) } end },
     }
     while index <= #arguments do
         local word = arguments[index]
@@ -461,6 +464,8 @@ function viewer.update(seconds)
         elseif event.kind == "screenshot" then
             -- taken in draw(), where drawing is allowed
             viewer.screenshot_due = true
+        elseif event.kind == "record" then
+            viewer.start_recording(event)
         end
     end
 end
@@ -803,6 +808,100 @@ function viewer.write_coverage(name)
 end
 -- }}}
 
+-- {{{ recording (issue 011)
+-- A recording is a fixed number of frames, each with the camera set by the
+-- frame's number, not by the clock: the same recording always has the same
+-- frames, however fast the machine draws. Frames are drawn in the lit look,
+-- shrunk to half size, and written as raw pixels (4 bytes each, red, green,
+-- blue, alpha, row by row from the top) to tmp/shared-memory/frames/NAME/,
+-- with info.lua describing them; scripts/make-gif turns them into a GIF.
+--   turn  a full turn of the model on its pillar, from where the camera is
+--   walk  through the model's stations in order: at each, a moment's hold,
+--         then an eased glide (eye, look point and lens) to the next
+
+-- {{{ function viewer.start_recording()
+function viewer.start_recording(event)
+    if event.mode ~= "turn" and event.mode ~= "walk" then error("--record: the mode is turn or walk, not " .. tostring(event.mode), 0) end
+    if not (event.length and event.length > 0 and event.fps and event.fps > 0) then error("--record needs a length and frames per second", 0) end
+    if event.mode == "walk" and not (viewer.shape.stations and #viewer.shape.stations >= 2) then
+        error("--record walk: this model has fewer than two stations", 0)
+    end
+    local name = (viewer.shape.name:gsub("%.[^.]*$", "") .. "-" .. event.mode):gsub("[^%w%-]", "-")
+    local folder = viewer.project_dir .. "/tmp/shared-memory/frames/" .. name
+    -- a recording's folder is remade each time: frames of an older, longer
+    -- recording must not trail behind a newer one
+    os.execute("rm -rf '" .. folder .. "' && mkdir -p '" .. folder .. "'")
+    local width, height = viewer.canvas:getDimensions()
+    viewer.recording = { mode = event.mode, frame = 0, total = math.floor(event.length * event.fps + 0.5), fps = event.fps,
+        folder = folder, name = name, yaw = viewer.camera.yaw,
+        small = love.graphics.newCanvas(math.floor(width / 2), math.floor(height / 2)) }
+end
+-- }}}
+
+-- {{{ local function ease()
+local function ease(t) return t * t * (3 - 2 * t) end
+-- }}}
+
+-- {{{ local function place_walk_camera()
+-- The camera for frame i of a walk through n stations.
+local function place_walk_camera(r, i)
+    local stations = viewer.shape.stations
+    local legs = #stations - 1
+    local progress = i / r.total * legs
+    local leg = math.min(legs - 1, math.floor(progress))
+    local t = progress - leg
+    -- the first 30% of each leg holds at its station, the rest glides
+    t = (t < 0.3) and 0 or ease((t - 0.3) / 0.7)
+    local a, b = stations[leg + 1], stations[leg + 2]
+    local function mix(u, v) return { u[1] + (v[1] - u[1]) * t, u[2] + (v[2] - u[2]) * t, u[3] + (v[3] - u[3]) * t } end
+    local eye, look = mix(a.eye, b.eye), mix(a.look, b.look)
+    local ex, ey, ez = camera_math.transform(viewer.model_matrix, eye)
+    local lx, ly, lz = camera_math.transform(viewer.model_matrix, look)
+    camera_math.stand_at(viewer.camera, { ex, ey, ez }, { lx, ly, lz })
+    local fa = a.fov or viewer.settings.field_of_view_degrees
+    local fb = b.fov or viewer.settings.field_of_view_degrees
+    viewer.camera.fov = math.rad(fa + (fb - fa) * t)
+end
+-- }}}
+
+-- {{{ function viewer.record_frame()
+-- Draws, shrinks and writes one frame; after the last, writes info.lua and
+-- closes the viewer.
+function viewer.record_frame()
+    local r = viewer.recording
+    if r.mode == "turn" then
+        viewer.camera.yaw = r.yaw + 2 * math.pi * r.frame / r.total
+    else
+        place_walk_camera(r, r.frame)
+    end
+    render_view("lit")
+    love.graphics.setCanvas(r.small)
+    love.graphics.clear(0, 0, 0, 1)
+    love.graphics.draw(viewer.canvas, 0, 0, 0, 0.5, 0.5)
+    love.graphics.setCanvas()
+    local image = r.small:newImageData()
+    local path = string.format("%s/%04d.rgba", r.folder, r.frame)
+    local file, problem = io.open(path, "wb")
+    if file == nil then error("cannot write frame " .. path .. ": " .. tostring(problem), 0) end
+    file:write(image:getString())
+    file:close()
+    r.frame = r.frame + 1
+    if r.frame >= r.total then
+        local width, height = r.small:getDimensions()
+        local info = io.open(r.folder .. "/info.lua", "w")
+        info:write(string.format("-- written by src/010-the-viewer.lua (--record): the frames of %s, for scripts/make-gif\n"
+            .. "return { name = %q, mode = %q, frames = %d, fps = %g, width = %d, height = %d, model = %q }\n",
+            r.name, r.name, r.mode, r.total, r.fps, width, height, viewer.file_path or "none"))
+        info:close()
+        print(string.format("recorded %d frames: %s", r.total, r.folder))
+        viewer.recorded = { name = r.name, frames = r.total }
+        viewer.recording = nil
+        viewer.quit_next_frame = true
+    end
+end
+-- }}}
+-- }}}
+
 -- {{{ local function draw_panel()
 -- The figures in the corner, on the window only (not in saved pictures,
 -- which carry their own title line).
@@ -880,6 +979,7 @@ function viewer.draw()
         viewer.screenshot_due = false
         save_pictures()
     end
+    if viewer.recording then viewer.record_frame() end
     render_view(viewer.view)
     love.graphics.draw(viewer.canvas)
     -- {{{ the pillar, shown faintly for a moment after it moves

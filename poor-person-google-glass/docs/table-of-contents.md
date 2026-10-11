@@ -72,6 +72,8 @@ last issue completed in a project to belong to phase 1.
   format.
 - scripts/make-light-pipe - writes the light pipe's inside, with its
   stations, to output/models/light-pipe.gltf.
+- scripts/render-gallery - every model's stills and moving pictures (GIF)
+  into output/gallery/, with an index page.
 - input/viewer-settings.lua - the viewer's window, view and colours.
 - input/descriptions/ - objects described in words: a drum, a lamp, the
   crown, glasses.

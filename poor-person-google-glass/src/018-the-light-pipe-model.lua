@@ -40,7 +40,12 @@ local M = {}
 local CURVE_RADIUS = 90          -- mm, head centre to the pipe's middle line
 local BACK_ANGLE = 2.4           -- radians around the head: by the temple
 local FRONT_ANGLE = 0.15         -- radians: at the brow
-local PIPE_RADIUS = 7            -- mm, the hall's half-height
+-- 5 mm across: "about as wide as a thick pair of glasses arms" (the
+-- owner, ninth round); a side-emitting optical fibre. At this width total
+-- internal reflection alone holds the light round the band's bend
+-- (input/calculations/bend-light-hold.lua), the mirror coating catching the
+-- rest when heads are small
+local PIPE_RADIUS = 2.5          -- mm, the hall's half-height
 local CONCENTRATOR_STARTS = 0.80 -- s where the funnel begins
 local APERTURE_SHARE = 0.32      -- the output aperture's radius, share of PIPE_RADIUS
 local FACETS_ALONG = 96          -- facets from back mirror to output
@@ -91,6 +96,13 @@ local function across(s, phi)
     return add(scale(outward(s), math.cos(phi)), scale(UP, math.sin(phi)))
 end
 local function on_wall(s, phi, inset) return add(middle(s), scale(across(s, phi), radius_at(s) - (inset or 0))) end
+-- the pipe's length along its middle line, and s moved by a number of pipe
+-- radii: stations and the vortex's pace are set in radii, so they keep the
+-- look of a hall whatever the pipe's width (at 5 mm wide the hall is 80
+-- radii long; set as shares of the length, every view looked too far and
+-- the strands spiralled too slowly to read, pictures 141-154)
+local ARC_LENGTH = CURVE_RADIUS * math.abs(BACK_ANGLE - FRONT_ANGLE)
+local function radii(s, count) return s + count * PIPE_RADIUS / ARC_LENGTH end
 M.at, M.forward, M.radius_at = at, forward, radius_at
 -- }}}
 
@@ -331,7 +343,9 @@ function M.build()
     local contributing = part("contributing facets", { 0.86, 0.89, 0.93 })
     local recycling = part("recycling facets", { 0.60, 0.68, 0.80 })
     local facet_steps = part("facet steps", { 0.38, 0.44, 0.55 })
-    local cladding = part("cladding", { 0.10, 0.16, 0.32 })
+    -- the cladding, mirror-coated on its outside (the owner: "no air gap,
+    -- sure mirror coating"), seen through the seams between facets
+    local cladding = part("mirror-coated cladding", { 0.30, 0.36, 0.50 })
     local back_mirror = part("back mirror", { 0.95, 0.96, 0.98 })
     local red_emitter = part("red emitter", { 0.85, 0.15, 0.12 })
     local green_emitter = part("green emitter", { 0.15, 0.80, 0.25 })
@@ -388,14 +402,17 @@ function M.build()
     for _, s in ipairs({ 0.26, 0.45, 0.56, 0.68 }) do add_lever_pair(motors, levers, s, 1.25 * math.pi) end
 
     -- {{{ the coruscating vortex: three strands at different radii and pace
-    local strand_plan = { { radius = 0.80, phase = 0.0, turns = 7 }, { radius = 0.64, phase = 2.1, turns = 9 },
-                          { radius = 0.50, phase = 4.2, turns = 11 } }
+    -- one turn every 3, 3.6 and 4.5 pipe radii along the hall
+    local length_in_radii = ARC_LENGTH / PIPE_RADIUS
+    local strand_plan = { { radius = 0.80, phase = 0.0, turns = length_in_radii / 4.5 },
+                          { radius = 0.64, phase = 2.1, turns = length_in_radii / 3.6 },
+                          { radius = 0.50, phase = 4.2, turns = length_in_radii / 3.0 } }
     for index, plan in ipairs(strand_plan) do
         tube(strands[index], function(t)
             local s = 0.04 + 0.95 * t
             local phi = plan.phase + plan.turns * 2 * math.pi * t
             return add(middle(s), scale(across(s, phi), plan.radius * radius_at(s)))
-        end, 0.011 * PIPE_RADIUS, 1000, 8)
+        end, 0.011 * PIPE_RADIUS, 3000, 8)
     end
     -- }}}
 
@@ -416,19 +433,19 @@ function M.build()
     local function station(name, eye, look, fov) return { name = name, eye = eye, look = look, fov = fov or WIDE } end
     local f1 = forward(1)
     shape.stations = {
-        station("the-hall-from-the-back", at(0.10, -0.3, -0.45), at(0.24, -0.3, -0.45)),
-        station("back-mirror-and-emitters", at(0.17, -0.35, -0.5), at(0.0, 0.15, 0.1)),
-        station("emitters-close", at(0.10, 0.3, -0.45), at(0.05, 0.6, 0.0), 65),
-        station("first-tab", at(0.13, -0.35, 0.5), at(0.21, -0.35, 0)),
-        station("ceiling-facets", at(0.33, -0.5, -0.3), at(0.355, 0.9, 0), 80),
-        station("recycling-wall", at(0.37, -0.35, -0.6), at(0.40, -0.1, 0.9), 70),
-        station("tab-gallery", at(0.42, -0.3, -0.45), at(0.58, -0.3, -0.2)),
-        station("levers", at(0.47, -0.45, -0.25), at(0.505, -0.8, -0.45), 70),
-        station("vortex-strands", at(0.53, 0.45, 0.4), at(0.60, 0.45, -0.35)),
-        station("looking-back-to-the-mirror", at(0.64, -0.3, 0.45), at(0.44, -0.3, 0.45)),
-        station("last-tab", at(0.66, -0.3, 0.5), at(0.76, -0.3, 0)),
-        station("into-the-concentrator", at(0.79, -0.35, -0.45), at(1.0, 0, 0)),
-        station("the-output-aperture", at(0.93, -0.5, 0.35), add(store_centre, scale(f1, store_radius)), 60),
+        station("the-hall-from-the-back", at(radii(0.05, 2), -0.3, -0.45), at(radii(0.05, 9), -0.3, -0.45)),
+        station("back-mirror-and-emitters", at(radii(0, 5), -0.35, -0.5), at(0.0, 0.15, 0.1)),
+        station("emitters-close", at(radii(0.05, 1.5), 0.3, -0.45), at(0.05, 0.6, 0.0), 65),
+        station("first-tab", at(radii(0.20, -3), -0.35, 0.5), at(0.20, -0.35, 0)),
+        station("ceiling-facets", at(radii(0.33, 0), -0.5, -0.3), at(radii(0.33, 1), 0.9, 0), 80),
+        station("recycling-wall", at(radii(0.37, 0), -0.35, -0.6), at(radii(0.37, 1), -0.1, 0.9), 70),
+        station("tab-gallery", at(radii(0.40, -4), -0.3, -0.45), at(radii(0.40, 2), -0.3, -0.2)),
+        station("levers", at(radii(0.45, -2.5), -0.45, -0.25), at(radii(0.45, -0.5), -0.8, -0.45), 70),
+        station("vortex-strands", at(radii(0.53, 0), 0.45, 0.4), at(radii(0.53, 3), 0.45, -0.35)),
+        station("looking-back-to-the-mirror", at(radii(0.61, 3), -0.3, 0.45), at(radii(0.61, -4), -0.3, 0.45)),
+        station("last-tab", at(radii(0.71, -3.5), -0.3, 0.5), at(0.71, -0.3, 0)),
+        station("into-the-concentrator", at(radii(0.80, -3), -0.35, -0.45), at(1.0, 0, 0)),
+        station("the-output-aperture", at(radii(1.0, -2), -0.5, 0.35), add(store_centre, scale(f1, store_radius)), 60),
         station("from-the-store", add(store_centre, scale(UP, 0.35 * PIPE_RADIUS)), at(0.86, 0, 0)),
         -- inside the drum, by the entrance, facing the slit the light leaves by
         station("the-store-slit", add(store_centre, add(scale(f1, -0.45 * store_radius), scale(UP, -0.25 * PIPE_RADIUS))),
@@ -436,8 +453,11 @@ function M.build()
     }
     -- }}}
 
-    -- the index-matched liquid, as a pale haze thickening with distance
-    shape.filling = { colour = { 0.52, 0.74, 0.82 }, density = 0.03 }
+    -- the haze is the core itself: light crossing millimetres of clear
+    -- plastic, thickening with distance. (The index-matched liquid is now
+    -- only in the tab chambers, where tabs cut the core.) Denser per mm than
+    -- at 14 mm wide, so the hall reads the same at its new size.
+    shape.filling = { colour = { 0.52, 0.74, 0.82 }, density = 0.084 }
     return record.finish(shape)
 end
 -- }}}

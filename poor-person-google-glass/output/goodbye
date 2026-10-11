@@ -1,2 +1,75 @@
 goodbye from the CAD viewer (src/010-the-viewer.lua)
 seed         none (the viewer uses no randomness)
+file         /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf
+format       gltf
+triangles    169500
+parts        19
+frames       46
+ignored      0 real input events (a scripted run listens to its script only)
+seen         contributing facets  at  4 stations, largest  93.3% of the picture at into-the-concentrator
+seen         recycling facets     at 11 stations, largest  94.6% of the picture at the-hall-from-the-back
+seen         facet steps          at  6 stations, largest  10.4% of the picture at emitters-close
+seen         mirror-coated cladding at 12 stations, largest   0.5% of the picture at levers
+seen         back mirror          at  2 stations, largest   3.9% of the picture at emitters-close
+seen         red emitter          at  1 stations, largest   0.9% of the picture at emitters-close
+seen         green emitter        at  1 stations, largest   0.5% of the picture at emitters-close
+seen         red beam             at 13 stations, largest   2.5% of the picture at emitters-close
+seen         green beam           at 12 stations, largest   2.3% of the picture at recycling-wall
+seen         tabs                 at  8 stations, largest   3.2% of the picture at recycling-wall
+seen         tab hinges           at  6 stations, largest   0.4% of the picture at recycling-wall
+seen         lever motors         at  3 stations, largest   0.8% of the picture at levers
+seen         levers               at  3 stations, largest   0.2% of the picture at levers
+seen         vortex strand, red   at 13 stations, largest   3.1% of the picture at the-output-aperture
+seen         vortex strand, green at 13 stations, largest   2.9% of the picture at into-the-concentrator
+seen         vortex strand, gold  at 13 stations, largest   5.8% of the picture at looking-back-to-the-mirror
+seen         output aperture      at  2 stations, largest   5.6% of the picture at from-the-store
+seen         store                at  3 stations, largest  93.2% of the picture at the-store-slit
+seen         store slit           at  2 stations, largest   5.1% of the picture at the-store-slit
+unseen       0
+joints       50 empty, 0 waiting, 0 pass, 0 fail, 20 gone
+pictures     15
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-the-hall-from-the-back-lit.png
+  station    the-hall-from-the-back
+  camera     1280x800 yaw -2.1347 pitch 0.0000 distance 17.254 target -39.9889 -0.75 79.3704
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-back-mirror-and-emitters-lit.png
+  station    back-mirror-and-emitters
+  camera     1280x800 yaw 0.9309 pitch -0.0996 distance 12.5727 target -66.5498 0.375 60.9606
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-emitters-close-lit.png
+  station    emitters-close
+  camera     1280x800 yaw 1.1681 pitch -0.1904 distance 3.96394 target -59.1213 1.5 67.8578
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-first-tab-lit.png
+  station    first-tab
+  camera     1280x800 yaw -1.8277 pitch 0.0000 distance 7.6525 target -33.3163 -0.875 83.6064
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-ceiling-facets-lit.png
+  station    ceiling-facets
+  camera     1280x800 yaw -1.9362 pitch -0.9319 distance 4.36005 target -5.30026 2.25 89.8438
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-recycling-wall-lit.png
+  station    recycling-wall
+  camera     1280x800 yaw -2.5345 pitch -0.1376 distance 4.55546 target 2.86612 -0.25 92.2055
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-tab-gallery-lit.png
+  station    tab-gallery
+  camera     1280x800 yaw -1.5697 pitch 0.0000 distance 14.8604 target 11.2784 -0.75 88.7865
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-levers-lit.png
+  station    levers
+  camera     1280x800 yaw -1.3286 pitch 0.1741 distance 5.05226 target 14.9842 -2 87.6027
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-vortex-strands-lit.png
+  station    vortex-strands
+  camera     1280x800 yaw -0.9212 pitch 0.0000 distance 7.73337 target 38.4956 1.125 80.3825
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-looking-back-to-the-mirror-lit.png
+  station    looking-back-to-the-mirror
+  camera     1280x800 yaw 2.1002 pitch 0.0000 distance 17.6908 target 38.1683 -0.75 82.7463
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-last-tab-lit.png
+  station    last-tab
+  camera     1280x800 yaw -0.7103 pitch 0.0000 distance 8.89535 target 62.542 -0.75 64.7186
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-into-the-concentrator-lit.png
+  station    into-the-concentrator
+  camera     1280x800 yaw -0.4397 pitch -0.0186 distance 47.1573 target 88.9894 0 13.4494
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-the-output-aperture-lit.png
+  station    the-output-aperture
+  camera     1280x800 yaw -0.1354 pitch -0.0386 distance 11.18 target 89.9094 0 7.36231
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-from-the-store-lit.png
+  station    from-the-store
+  camera     1280x800 yaw 2.8493 pitch 0.0280 distance 31.2425 target 80.4439 0 40.3581
+picture      lit        black 0.0000  /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/tmp/shared-memory/screenshot-light-pipe.gltf-the-store-slit-lit.png
+  station    the-store-slit
+  camera     1280x800 yaw -0.1500 pitch -0.1371 distance 4.57415 target 89.9094 0 7.36231

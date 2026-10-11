@@ -25,6 +25,7 @@ luajit "${DIR}/src/011-the-tests.test.lua" "${DIR}" || exit 1
 luajit "${DIR}/src/017-the-word-tests.test.lua" "${DIR}" || exit 1
 luajit "${DIR}/src/023-the-tolerance-tests.test.lua" "${DIR}" || exit 1
 luajit "${DIR}/src/029-the-joint-tests.test.lua" "${DIR}" || exit 1
+luajit "${DIR}/src/032-the-gif-tests.test.lua" "${DIR}" || exit 1
 
 # the viewer, driven without a person: needs a screen to draw on
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then

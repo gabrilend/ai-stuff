@@ -44,6 +44,11 @@ For current done/open counts, run:
   calculation's inputs are bound to the joint's own measures and its parts'
   materials, worked out, and shown on the model as coloured marks.
 
+- **011 — Pictures and moving pictures.** Every model rendered into one
+  gallery, still and moving: turns on the plinth and a walk through the
+  light pipe, as GIFs from the project's own encoder, checked by its own
+  decoder and by ImageMagick.
+
 ## In progress
 - **005 — The viewer** works: pictures from its own canvas in six views,
   filed in development-history/. Waits on: reading on several threads; how

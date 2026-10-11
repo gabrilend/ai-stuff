@@ -217,6 +217,25 @@ tilt also changes which rays are glancing enough to be trapped: a ray
 arriving more squarely than the critical angle escapes into the cladding,
 so the tilts must stay small (the model uses 2–6°).
 
+### How light travels in a fibre (ninth round: "How does light pass
+through fiber-optic cables like that?")
+A fibre is a clear core inside a slightly lower-index cladding. Light
+entering the end within a cone (its half-angle is set by the two indices:
+sine = square root of core² − cladding²; about 31° for plastic fibre) meets
+the boundary at a glancing angle and is turned back in completely, with no
+loss at the reflection, zig-zagging along — which is why fibres carry light
+for kilometres. A bend makes some rays meet the boundary more squarely;
+past the critical angle they escape (input/calculations/bend-light-hold.lua).
+A **side-emitting** fibre leaks on purpose: scattering particles in the core,
+or a roughened or notched surface, knock a little light past the critical
+angle at every point, so the fibre glows softly along its length, dimming
+with distance from the lit end. For this device: reflection does the
+carrying, the mirror coating catches what escapes on the bend, and a
+side-glow section could light the band. The liquid is needed only where
+tabs cut through the core: a tab moving in a slot leaves glass-to-air
+boundaries (about 4% reflected at each, and bent) unless the slot is filled
+with liquid of the core's index.
+
 ### Concentrating into a smaller aperture
 A funnel cannot squeeze light into a smaller opening without widening its
 angles: the area of a beam times the spread of its directions (its
