@@ -431,29 +431,20 @@ out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" "cd ${SCRATCH}/here-by-another-name")"
 check "a move to another name of the current folder is refused without a permission" "$( [ "$(verdict_of "${out}")" = refused ] && echo yes || echo no)"
 check "the refusal says it is the same folder under another name" "$(grep -qi "same folder" <<< "$(reason_of "${out}")" && echo yes || echo no)"
 
-# Changing names in two steps (tried live 2026-10-18: Claude Code moved the
-# session's folder only when the real place changed, so a permitted move
-# from a folder's old name to its new name ran and was then put back). The
-# session steps out to the new name's parent (a real move) and then into the
-# new name. A permission naming the new name lets the step out through and
-# is kept, and is spent on the step in.
+# A change of name of the folder the session is in, when permitted, goes
+# through in one step (the two-step version, out to the new name's parent
+# and back, was taken out on 2026-10-18: the parent was outside the allowed
+# folders). A permission naming the new name is spent on it, with a notice.
 mkdir -p "${SCRATCH}/new-home"
 ln -s "${SCRATCH}" "${SCRATCH}/new-home/this-folder"
 printf '%s\n' "${SCRATCH}/new-home/this-folder" > "${CWD_TOKEN}"
 out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" "cd ${SCRATCH}/new-home/this-folder")"
-check "a direct move to the new name of the same folder is refused" "$( [ "$(verdict_of "${out}")" = refused ] && echo yes || echo no)"
-check "and its permission is kept" "$( [ -e "${CWD_TOKEN}" ] && echo yes || echo no)"
-check "and the refusal gives the two steps" "$(grep -q "cd ${SCRATCH}/new-home\b" <<< "$(reason_of "${out}")" && echo yes || echo no)"
-expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${SCRATCH}/new-home"
-check "the step out keeps the permission" "$( [ -e "${CWD_TOKEN}" ] && echo yes || echo no)"
-ASK_CWD="${SCRATCH}/new-home" expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${SCRATCH}/new-home/this-folder"
-check "the step in spends the permission" "$( [ -e "${CWD_TOKEN}" ] && echo no || echo yes)"
-# A permission for any one move is not spent on a same-folder move either (it
-# would be used up for nothing); the refusal says to name the folder instead.
+check "a permitted move to the new name of the same folder goes through" "$( [ "$(verdict_of "${out}")" = allowed ] && echo yes || echo no)"
+check "and spends its permission" "$( [ -e "${CWD_TOKEN}" ] && echo no || echo yes)"
+check "and tells the person it was a change of name" "$(grep -qi "same folder" <<< "$(reason_of "${out}")" && echo yes || echo no)"
 touch "${CWD_TOKEN}"
-out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" "cd ${SCRATCH}/here-by-another-name")"
-check "an unnamed permission is not spent on a same-folder move" "$( [ -e "${CWD_TOKEN}" ] && echo yes || echo no)"
-check "the refusal says to name the folder for the two steps" "$(grep -qi "two steps" <<< "$(reason_of "${out}")" && echo yes || echo no)"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${SCRATCH}/here-by-another-name"
+check "an unnamed permission is spent on a change of name too" "$( [ -e "${CWD_TOKEN}" ] && echo no || echo yes)"
 rm -f "${CWD_TOKEN}"
 
 # Every refusal says how a move is asked for so that it happens: alone on its

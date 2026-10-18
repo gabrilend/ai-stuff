@@ -82,24 +82,22 @@
 --
 -- A move to the folder the session is already in, by another name, changes
 -- only the name the session goes by (its prompt, its status line, the paths
--- it writes), and Claude Code does not keep it: tried live on 2026-10-18, a
--- permitted `cd` from a folder's old name to its new name ran, and the next
--- command was back at the old name, since Claude Code moves its record of
--- the session's folder only when the real place changes. So the name
--- changes in two steps, each its own command: out to the new name's parent
--- (a real move), then into the new name. A permission naming the new name
--- covers both: the step out is let through and the permission kept, the
--- step in spends it. A one-step move between names is refused, and no
--- permission is spent on it (it would be used up for nothing); the refusal
--- gives the two steps. Every move must be its own command: Claude Code
--- drops a leading `cd DIR &&` when DIR is the current folder, comparing
--- real places, so `cd /new/place && pwd` never reaches this gate.
---
+-- it writes). It needs a permission like any other; with one, it goes through
+-- in one step and the person sees a notice saying it was a change of name.
+-- (A two-step version, out to the new name's parent and back in, was built
+-- and tried on 2026-10-18 and taken out the same day: the parent was outside
+-- the session's allowed folders, where Claude Code resets the shell, and the
+-- name that stuck was never Claude Code's record anyway but the PWD each
+-- command's shell inherits from the `claude` program -- which
+-- carry-working-folder-name now carries.) Every move must be its own command:
+-- Claude Code drops a leading `cd DIR &&` when DIR is the current folder,
+-- comparing real places, so `cd /new/place && pwd` never reaches this gate.
+
 -- Reads the pending command as JSON on standard input. Says nothing when the
 -- command is fine; prints a refusal when it is not; prints a visible warning
 -- (and lets the command run) when it cannot read its input; prints a notice
--- to the person (and lets the command run) on the first of the two steps of
--- a change of names.
+-- to the person (and lets the command run) when a permission was spent on a
+-- change of name of the folder the session is in.
 --
 -- Usage: refuse-directory-change [token-path] [scripts-directory]
 
@@ -222,33 +220,8 @@ local function main()
     reason = reason .. " Do the work from where you are: git -C <dir>, make -C <dir>, tar -C <dir>, or absolute paths. A heredoc needs no directory change either -- git -C <dir> commit -F - reads from stdin perfectly well."
 
     local state, detail = read_permission()
-    -- the folder a named permission is for, where it really is, and the
-    -- parent of its name as written (the first of the two steps to it)
+    -- the folder a named permission is for, where it really is
     local allowed = state == "named" and real_place(detail, cwd) or nil
-    local step_out = state == "named" and detail:gsub("/+$", ""):match("^(.+)/[^/]+$") or nil
-    -- a named permission for the folder the session is already in, under
-    -- the name in the permission: the name changes in two steps, since
-    -- Claude Code moves its record of the session's folder only when the
-    -- real place changes (tried live 2026-10-18)
-    local renaming = allowed and here and allowed == here
-
-    if renaming and target and step_out and target == real_place(step_out, cwd) then
-        -- the first step: out to the new name's parent; the permission
-        -- waits for the second
-        allow_with_notice(json, "first of two steps to " .. detail .. ": the session moves out to " .. step_out .. "; the permission is kept for the second step, `cd " .. detail .. "` alone.")
-    end
-
-    if same and (state == "any" or renaming) then
-        -- a move between two names of one folder is not let through in one
-        -- step, and no permission is spent on it: Claude Code would put the
-        -- old name back, and the permission would be used up for nothing
-        if renaming then
-            reason = reason .. " The permission waiting is for this folder under the name " .. detail .. ". Claude Code changes the folder it has on record for the session only when the real place changes, so the name changes in two steps, each its own command: `cd " .. step_out .. "` (out to the new name's parent; the permission is kept), then `cd " .. detail .. "` (the permission is spent)."
-        else
-            reason = reason .. " A permission is waiting, for any one move, and was kept: Claude Code changes the folder it has on record for the session only when the real place changes, so a change of name takes two steps, out to the new name's parent and back in, and a permission naming the folder covers both (see below)."
-        end
-        gate.refuse(json, reason)
-    end
 
     if state == "expired" then
         reason = reason .. " A permission to move was there, made at " .. detail .. ", but it was older than " .. PERMISSION_MINUTES .. " minutes, so it expired and was removed without being used."
@@ -275,7 +248,7 @@ local function main()
     end
 
     local example = written or "<folder>"
-    reason = reason .. " If the user genuinely wants the directory moved, ask them to type: ! touch " .. TOKEN .. " (any one move, within " .. PERMISSION_MINUTES .. " minutes), or ! echo " .. example .. " > " .. TOKEN .. " (a move to that folder only; for a new name of the folder the session is in, it covers the two steps). Then make the move a command of its own, `cd " .. example .. "` alone: Claude Code drops a leading `cd DIR &&` when DIR is the folder the session is in under another name, so a chained move never reaches this gate and never happens."
+    reason = reason .. " If the user genuinely wants the directory moved, ask them to type: ! touch " .. TOKEN .. " (any one move, within " .. PERMISSION_MINUTES .. " minutes), or ! echo " .. example .. " > " .. TOKEN .. " (a move to that folder only). Then make the move a command of its own, `cd " .. example .. "` alone: Claude Code drops a leading `cd DIR &&` when DIR is the folder the session is in under another name, so a chained move never reaches this gate and never happens."
     gate.refuse(json, reason)
 end
 -- }}}

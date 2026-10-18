@@ -74,7 +74,15 @@ local function main()
     -- what changes the name `pwd` shows (setting PWD alone does not: a running
     -- bash keeps its own copy, tried 2026-10-18). Never a move to another
     -- place: the test first compares the two real places.
-    f:write("if [ \"$(builtin cd -- " .. quoted .. " 2>/dev/null && pwd -P)\" = \"$(pwd -P)\" ]; then builtin cd -- " .. quoted .. "; fi\n")
+    -- And when the shell is not in that folder (Claude Code may reset the
+    -- shell elsewhere without a CwdChanged, as it did on 2026-10-18, leaving
+    -- this line naming a folder the shell is no longer in), but its PWD is
+    -- still the name the `claude` program was launched with, that stale name
+    -- is replaced by the folder's real location, which is never wrong.
+    local launch = os.getenv("PWD")
+    local stale = (launch and launch ~= "" and launch ~= folder) and gate.shell_quote(launch) or nil
+    f:write("if [ \"$(builtin cd -- " .. quoted .. " 2>/dev/null && pwd -P)\" = \"$(pwd -P)\" ]; then builtin cd -- " .. quoted
+        .. (stale and ("; elif [ \"$PWD\" = " .. stale .. " ]; then builtin cd -P -- .") or "") .. "; fi\n")
     f:close()
     os.exit(0)
 end
