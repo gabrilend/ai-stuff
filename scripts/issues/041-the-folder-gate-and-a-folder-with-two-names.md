@@ -48,6 +48,42 @@ Left open by this (question 4): whether to ask Claude Code's makers to move
 the session's record when a permitted `cd` lands on another name of the same
 folder.
 
+**The name's real source, found 2026-10-18 17:xx:** not Claude Code's record
+of the folder (it was already `/mnt/kaun/wow-chat-2026`: "Shell cwd was reset
+to /mnt/kaun/wow-chat-2026"), but the environment. Every command starts a
+fresh shell, which inherits the `claude` program's own `PWD`
+(`/home/ritz/games/azeroth-core/wow-chat-2026`, set at launch; seen in
+`/proc/<claude>/environ`), and bash keeps an inherited `PWD` whenever it names
+the folder bash is really in. So the shell showed the launch name whatever
+Claude Code recorded.
+
+**Built for it: `carry-working-folder-name`,** a hook on `SessionStart` and
+`CwdChanged` (installed in `~/.claude/settings.json`). Claude Code gives those
+two events a file, `CLAUDE_ENV_FILE`, whose shell lines run before every later
+command; the hook writes one line there that re-enters the shell's own folder
+by the name Claude Code has on record, guarded so it runs only when that name
+is the folder the shell is in (it never moves the shell, and cannot make `pwd`
+lie). Pipe-tested: in the folder entered by its old name, `pwd` changed to the
+recorded name; elsewhere, nothing changed; with no file, a notice. (Exporting
+`PWD` alone was tried first and does nothing: a running bash keeps its own
+copy.)
+
+**Not proven live in the session that found it,** and why: after its extra
+folder `/mnt/kaun/wow-chat-2026` was removed (it had become the primary),
+Claude Code reset the shell to `/mnt/kaun/wow-chat-2026` after every command,
+the owner's own `!` commands included, so its record never changed and
+`CwdChanged` never fired (a permitted move into `scripts/` was reset too, and
+no environment file appeared). The `claude` program's own folder was still the
+old copy, by then inside `moved-to-kaun-2026-10-18/`, which is the likely
+cause. A session started in `/mnt/kaun/wow-chat-2026` inherits the right name
+at launch and gets the `SessionStart` half of the hook besides; the next such
+session is the live proof (Suggested Implementation Steps, step 6).
+
+The two-step move in the gate (out to the new name's parent, then in) stays
+built and tested, but in practice the parent is often outside the session's
+allowed folders (`/mnt/kaun` was), where Claude Code resets the shell on the
+first step. Question 5.
+
 **Before 2026-10-18,** the folder gate (`refuse-directory-change`, a hook in front of every shell
 command; `README-refusal-gates.md`) refuses a `cd` unless the owner has made
 the one-time permission file `/tmp/claude-allow-cwd-change`, and spends the
@@ -134,6 +170,9 @@ asks for the move, so it is where the answer belongs.
    on the next one, and after the owner runs a `!` command. If the session
    falls back to the old name, the cause is in Claude Code, not the gate:
    write down when it happens, here and in the guide.
+6. In a new session started in `/mnt/kaun/wow-chat-2026`: `pwd` shows that
+   name; `~/.claude/session-env/<session>/` holds the hook's file; a
+   permitted move into a subfolder and back shows each new name.
 
 ## Related
 
@@ -160,3 +199,8 @@ asks for the move, so it is where the answer belongs.
    to Claude Code's makers (the `/bug` command), or leave it written down
    here and in the guide, with "start a new session at the new name" as the
    answer?
+5. With `carry-working-folder-name` in place, the gate's two-step change of
+   names is likely unneeded (a one-step move that changes Claude Code's record
+   fires `CwdChanged`, and the hook carries the name). Keep the two steps, or
+   go back to allowing the one-step move with a notice once step 6 shows the
+   hook working?

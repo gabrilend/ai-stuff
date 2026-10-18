@@ -11,6 +11,7 @@ machine, in every project**.
 | `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` (any one move), or `echo /a/folder > /tmp/claude-allow-cwd-change` (a move there only); expires after ten minutes |
 | `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
 | `refuse-foreign-lines` | gate (before Bash) | refuses a plain `git commit` that would record anything, pointing at `commit-own-changes` | `touch /tmp/claude-allow-foreign-commit` |
+| `carry-working-folder-name` | hook (SessionStart, CwdChanged) | makes each command's shell show the folder name Claude Code has on record, not the one inherited at launch | — |
 | `record-own-edits` | note-taker (after Edit, Write, MultiEdit, NotebookEdit, Bash) | appends every line the session adds or removes to its edit ledger | — |
 | `commit-own-changes <repo> -F -` | command | commits only this session's lines, built on a private staging list | — |
 | `stage-own-changes [repo]` | command | previews what `commit-own-changes` would commit; writes nothing | — |
@@ -54,6 +55,13 @@ The directory gate's permission can name its folder, and it expires (issue
   `cd /new` (the new name's parent; a real move, the permission kept), then
   `cd /new/place` (the permission spent). A one-step move between names is
   refused, says so, and spends nothing.
+- **Why the old name sticks at all:** each command's fresh shell inherits the
+  `claude` program's own `PWD`, set when it was launched, and bash keeps an
+  inherited `PWD` that names the folder it is in. `carry-working-folder-name`
+  (a hook on `SessionStart` and `CwdChanged`, through Claude Code's
+  `CLAUDE_ENV_FILE`) re-enters the folder by the name Claude Code has on
+  record before every command. Start a session in the folder by the name you
+  want, and that name is what it shows.
 
 Found 2026-10-18, when a project moved disks and the session, started under
 the old name, could not be moved to the new one: the chained move was

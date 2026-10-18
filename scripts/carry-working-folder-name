@@ -1,0 +1,83 @@
+#!/usr/bin/env luajit
+--
+-- carry-working-folder-name
+--
+-- A hook that keeps the name a session's shell shows for its folder the same
+-- as the name Claude Code has on record for it.
+--
+-- Why it exists (found 2026-10-18, scripts issue 041): every command Claude
+-- Code runs starts a fresh shell, and every fresh shell inherits the PWD
+-- variable of the `claude` program itself, set once, when the person launched
+-- it. Bash keeps an inherited PWD whenever it names the folder bash is really
+-- in. So after a project was moved to another disk and its old folder name
+-- became a link to the new one, a session launched under the old name kept
+-- printing the old name for ever: Claude Code's own record of the folder said
+-- /mnt/kaun/wow-chat-2026 (it reset the shell there), and `pwd` said
+-- /home/ritz/games/azeroth-core/wow-chat-2026, because both names are the
+-- same folder and the inherited PWD won. The folder gate could let a move
+-- through, but nothing it did could reach that variable.
+--
+-- What it does: Claude Code gives SessionStart and CwdChanged hooks a file,
+-- CLAUDE_ENV_FILE, whose shell lines are run before every later command. This
+-- writes one line there: enter, by the name Claude Code has on record (the
+-- session's starting folder at SessionStart, the new folder at CwdChanged),
+-- the folder the shell is already in -- only when that name really is the
+-- folder the command's shell is in, so the line never moves the shell
+-- anywhere and can never make `pwd` lie.
+--
+-- Says nothing when it worked. When the hook input or the file is missing it
+-- prints a notice for the person (the command still runs; this hook decides
+-- nothing), since a hook that fails silently is the kind of bug it exists to
+-- end.
+--
+-- Usage (as a hook, reading the hook input on standard input):
+--   carry-working-folder-name [scripts-directory]
+-- Installed in ~/.claude/settings.json under SessionStart and CwdChanged.
+
+local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
+local NAME = "carry-working-folder-name"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+
+-- {{{ local function notice()
+-- Tells the person something went wrong, without stopping anything.
+local function notice(json, message)
+    io.stdout:write(json.encode({ systemMessage = NAME .. ": " .. message }), "\n")
+    io.stderr:write(NAME .. ": " .. message, "\n")
+    os.exit(0)
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(NAME, DIR)
+
+    -- the folder on record: a CwdChanged hook is told the new one, a
+    -- SessionStart hook the one the session starts in
+    local folder = input.new_cwd or input.cwd
+    if type(folder) ~= "string" or folder == "" then
+        notice(json, "the hook input names no folder (no new_cwd or cwd), so the shell keeps whatever name it inherited")
+    end
+
+    local env_file = os.getenv("CLAUDE_ENV_FILE")
+    if not env_file or env_file == "" then
+        notice(json, "Claude Code gave this hook no CLAUDE_ENV_FILE (event " .. tostring(input.hook_event_name) .. "), so the shell keeps whatever folder name it inherited")
+    end
+
+    local quoted = gate.shell_quote(folder)
+    local f, err = io.open(env_file, "w")
+    if not f then notice(json, "cannot write " .. env_file .. " (" .. tostring(err) .. ")") end
+    f:write("# written by " .. NAME .. " (" .. tostring(input.hook_event_name) .. "): the folder name Claude Code has on record\n")
+    -- only when the recorded name and the shell's folder are one place: then
+    -- the shell enters its own folder again by the recorded name, which is
+    -- what changes the name `pwd` shows (setting PWD alone does not: a running
+    -- bash keeps its own copy, tried 2026-10-18). Never a move to another
+    -- place: the test first compares the two real places.
+    f:write("if [ \"$(builtin cd -- " .. quoted .. " 2>/dev/null && pwd -P)\" = \"$(pwd -P)\" ]; then builtin cd -- " .. quoted .. "; fi\n")
+    f:close()
+    os.exit(0)
+end
+-- }}}
+
+main()
