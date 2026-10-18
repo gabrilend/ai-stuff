@@ -68,7 +68,21 @@ recorded name; elsewhere, nothing changed; with no file, a notice. (Exporting
 `PWD` alone was tried first and does nothing: a running bash keeps its own
 copy.)
 
-**Not proven live in the session that found it,** and why: after its extra
+**Proven live, 2026-10-18 16:49, in the session that found it** (which
+could not be restarted): the line was written straight into the session's
+environment folder (`~/.claude/session-env/<session>/sessionstart-hook-90.sh`,
+now `carry-working-folder-name --now /mnt/kaun/wow-chat-2026`), the owner gave
+one permission, and the session made one real move, into `scripts/`. Claude
+Code fired `CwdChanged` (the hook wrote `cwdchanged-hook-0.sh`), re-read the
+folder, reset the shell to the project folder as before, and from that
+command on `pwd` and `PWD` showed `/mnt/kaun/wow-chat-2026`. Two findings on
+the way: Claude Code reads those files only when one of the four hooks fires,
+and keeps their lines in memory (a file written by hand does nothing until
+then); and a line naming a subfolder stayed in force after Claude Code reset
+the shell to its parent without an event, which is why the hook's line now
+also replaces the stale launch name with the folder's real location.
+
+**Before that, it could not be shown,** and why: after its extra
 folder `/mnt/kaun/wow-chat-2026` was removed (it had become the primary),
 Claude Code reset the shell to `/mnt/kaun/wow-chat-2026` after every command,
 the owner's own `!` commands included, so its record never changed and
@@ -199,8 +213,7 @@ asks for the move, so it is where the answer belongs.
    to Claude Code's makers (the `/bug` command), or leave it written down
    here and in the guide, with "start a new session at the new name" as the
    answer?
-5. With `carry-working-folder-name` in place, the gate's two-step change of
-   names is likely unneeded (a one-step move that changes Claude Code's record
-   fires `CwdChanged`, and the hook carries the name). Keep the two steps, or
-   go back to allowing the one-step move with a notice once step 6 shows the
-   hook working?
+5. (Settled 2026-10-18, by the owner's permission for a one-step move to the
+   new name) The gate's two-step change of names was taken out: a permitted
+   move to another name of the current folder goes through in one step, with
+   a notice.

@@ -62,6 +62,11 @@ The directory gate's permission can name its folder, and it expires (issue
   `CLAUDE_ENV_FILE`) re-enters the folder by the name Claude Code has on
   record before every command. Start a session in the folder by the name you
   want, and that name is what it shows.
+- **A session already stuck on an old name** (one that cannot be restarted):
+  run `carry-working-folder-name --now /the/name/wanted`, then give one
+  permission and have the session make one real move (into a subfolder).
+  Claude Code reads the session's environment files only when one of its
+  hooks fires; after that move, every command shows the wanted name.
 
 Found 2026-10-18, when a project moved disks and the session, started under
 the old name, could not be moved to the new one: the chained move was

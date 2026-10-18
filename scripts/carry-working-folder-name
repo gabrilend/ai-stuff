@@ -33,7 +33,18 @@
 -- Usage (as a hook, reading the hook input on standard input):
 --   carry-working-folder-name [scripts-directory]
 -- Installed in ~/.claude/settings.json under SessionStart and CwdChanged.
+--
+-- Usage (by hand, for a session already stuck on an old name):
+--   carry-working-folder-name --now /the/name/wanted [scripts-directory]
+-- Writes the same line straight into this session's environment folder
+-- (~/.claude/session-env/<session>/sessionstart-hook-90.sh). Claude Code
+-- reads that folder only when a hook fires, so the person then gives one
+-- permission and the session makes one real move (into a subfolder, say);
+-- from then on every command shows the wanted name. Worked 2026-10-18 on the
+-- session that found the problem, which could not be restarted.
 
+local NOW, CHOSEN_FILE   -- CHOSEN_FILE: with --now, the environment file written instead of CLAUDE_ENV_FILE
+if arg[1] == "--now" then NOW = arg[2]; table.remove(arg, 1); table.remove(arg, 1) end
 local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
 local NAME = "carry-working-folder-name"
 
@@ -51,7 +62,26 @@ end
 
 -- {{{ local function main()
 local function main()
-    local input, json = gate.read_input(NAME, DIR)
+    local input, json
+    if NOW then
+        -- by hand: no hook input; the folder is the one asked for, and the
+        -- file is this session's own environment file
+        json = gate.load_json(DIR)
+        local session = os.getenv("CLAUDE_CODE_SESSION_ID")
+        if not session or session == "" then
+            io.stderr:write(NAME .. ": --now must be run from inside a Claude Code session (no CLAUDE_CODE_SESSION_ID)\n")
+            os.exit(1)
+        end
+        local folder_dir = os.getenv("HOME") .. "/.claude/session-env/" .. session
+        os.execute("mkdir -p '" .. folder_dir:gsub("'", "") .. "'")
+        input = { hook_event_name = "by hand, --now", cwd = NOW }
+        -- the hook body below reads CLAUDE_ENV_FILE
+        local file = folder_dir .. "/sessionstart-hook-90.sh"
+        io.stderr:write(NAME .. ": writing " .. file .. "; now make one permitted move into a subfolder so Claude Code reads it\n")
+        CHOSEN_FILE = file
+    else
+        input, json = gate.read_input(NAME, DIR)
+    end
 
     -- the folder on record: a CwdChanged hook is told the new one, a
     -- SessionStart hook the one the session starts in
@@ -60,7 +90,7 @@ local function main()
         notice(json, "the hook input names no folder (no new_cwd or cwd), so the shell keeps whatever name it inherited")
     end
 
-    local env_file = os.getenv("CLAUDE_ENV_FILE")
+    local env_file = CHOSEN_FILE or os.getenv("CLAUDE_ENV_FILE")
     if not env_file or env_file == "" then
         notice(json, "Claude Code gave this hook no CLAUDE_ENV_FILE (event " .. tostring(input.hook_event_name) .. "), so the shell keeps whatever folder name it inherited")
     end
