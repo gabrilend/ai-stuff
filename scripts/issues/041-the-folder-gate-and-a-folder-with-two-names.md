@@ -1,0 +1,102 @@
+# Issue #041: The folder gate, and a folder with two names
+
+## Current Behavior
+
+The folder gate (`refuse-directory-change`, a hook in front of every shell
+command; `README-refusal-gates.md`) refuses a `cd` unless the owner has made
+the one-time permission file `/tmp/claude-allow-cwd-change`, and spends the
+file on the `cd` it lets through.
+
+Found 2026-10-18 in the wow-chat-2026 project, right after the project was
+copied to `/mnt/kaun/wow-chat-2026` and every old folder name was turned into
+a link to its new place (wow-chat-2026's issue 188). The session had started
+in `/home/ritz/games/azeroth-core/wow-chat-2026`, an old name that now leads,
+through two links (`/home/ritz/games` -> `/mnt/mtwo/games`, then
+`/mnt/mtwo/games/azeroth-core/wow-chat-2026` -> `/mnt/kaun/wow-chat-2026`),
+to the very same folder as the new name. The owner made the permission file
+and asked the session to move to the new name. What happened, three times:
+
+- `cd /mnt/kaun/wow-chat-2026 && pwd` printed the old name.
+- The permission file was still there afterwards, unspent (made 16:19,
+  present after the `cd`).
+- The shell kept showing the old name (`pwd`), while `pwd -P` showed the new
+  one and both names had the same inode (93061121).
+
+What explains all three: the harness drops a leading `cd <the current
+directory> &&` from a command before hooks see it (already noted in the
+gate's own comments, "OBSERVED ON CLAUDE CODE 2.1.280"). It counts the new
+name as the current directory, because both names are one folder, so it
+dropped the `cd`, only `pwd` ran, and the gate never saw a `cd` to spend the
+permission on. One earlier `cd`, made before `/mnt/kaun/wow-chat-2026` was
+added to the session's allowed folders, did spend a permission and printed
+the new name; the shell was back at the old name by a later command.
+
+So two things are wrong, and one is missing:
+
+1. **A permission can be left armed.** The owner made the file for one move;
+   the move never reached the gate; the file stays, and the next `cd` the
+   session tries, for any reason, minutes or days later, goes through
+   silently and spends it. A one-time permission that outlives the request
+   it was made for is a standing permission.
+2. **Nobody is told.** The session saw only that the folder "didn't move";
+   it took reading the gate's comments to learn why.
+3. **No way to switch names.** When one folder has two names (a link left
+   behind by a move), there is no way to make the session show and use the
+   new name: the harness treats the move as a no-op, and its display keeps
+   the name the session started with.
+
+The gate is not the cause of 3 (the harness is), but it is where the person
+asks for the move, so it is where the answer belongs.
+
+## Intended Behavior
+
+- **A permission dies with its request.** The permission file is good for
+  one move, within a short time of its making (a number of minutes, set in
+  the gate), and the gate removes a permission older than that the next time
+  it runs at all, saying so ("an unused permission to move folders, made at
+  16:19, was removed: no move used it").
+- **A no-op move is said to be one.** When the gate can tell that a `cd`
+  target is the current directory under another name (both resolve to the
+  same real folder), it says so in words, and does not spend the permission:
+  "the session is already in that folder; it shows the name it started with.
+  To have it use the new name, start a new session there."
+- **The move between names has an answer, written down.** The gate's
+  documentation (`README-refusal-gates.md`) explains the case: a folder
+  reached by a link shows the name the session started with, and starting a
+  session at the new name is the way to change it; and that the saved list
+  of extra working folders (in the project's settings) should drop the old
+  name, or it will come back.
+
+## Suggested Implementation Steps
+
+1. Reproduce on paper: the gate's tests (beside the gate, as for the other
+   refusal gates) gain a case for a permission file older than the limit
+   (removed, with the message) and one for a `cd` to another name of the
+   current folder (allowed as a no-op, not spent, with the message). Two
+   names of one folder can be made in RAM with a link under the project's
+   `tmp/shared-memory/`.
+2. In the gate: before deciding, compare the permission file's age with the
+   limit; remove it and say so when it is older. When the command's `cd`
+   target resolves to the same real folder as the current one, say so and
+   leave the permission alone.
+3. Note in the gate's comments that a dropped `cd` never reaches it, so the
+   age limit is what keeps an unspent permission from lingering (the gate
+   cannot see the commands the harness swallows).
+4. Write the folder-with-two-names case into `README-refusal-gates.md`.
+
+## Related
+
+- `refuse-directory-change` (the gate), `libs/hook-gate.lua` (the shared
+  refusal and permission handling, which the other gates' permissions may
+  want the same age limit from), `README-refusal-gates.md`.
+- wow-chat-2026 issue 188 (the move to `/mnt/kaun`) and its links.
+- Issue 039 (a separate account for Claude): the same family of
+  safeguards, the gates being "an honour system with a witness".
+
+## Open Questions
+
+1. How long should a permission live: two minutes, five, ten?
+2. Should the age limit apply to every gate's permission file (the shared
+   `hook-gate.lua`), or only to the folder gate's?
+3. When a `cd` is a no-op under another name, should the gate refuse it (so
+   the session is told by the refusal itself), or let it pass with a note?
