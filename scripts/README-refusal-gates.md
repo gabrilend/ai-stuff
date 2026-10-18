@@ -8,7 +8,7 @@ machine, in every project**.
 
 | Script | Kind | What it does | Token to lift it once |
 | --- | --- | --- | --- |
-| `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` |
+| `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` (any one move), or `echo /a/folder > /tmp/claude-allow-cwd-change` (a move there only); expires after ten minutes |
 | `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
 | `refuse-foreign-lines` | gate (before Bash) | refuses a plain `git commit` that would record anything, pointing at `commit-own-changes` | `touch /tmp/claude-allow-foreign-commit` |
 | `record-own-edits` | note-taker (after Edit, Write, MultiEdit, NotebookEdit, Bash) | appends every line the session adds or removes to its edit ledger | — |
@@ -26,6 +26,34 @@ separate on purpose — allowing one directory change should not also allow one
 foreign commit, nor one blind reset. A token that cannot be deleted (a
 directory with something in it) is not honoured, since it would otherwise
 permit every later command.
+
+### Moving the session's folder when the person allows it
+
+The directory gate's permission can name its folder, and it expires (issue
+041 in `issues/`):
+
+- `! touch /tmp/claude-allow-cwd-change` allows any one move;
+  `! echo /new/place > /tmp/claude-allow-cwd-change` allows a move to that
+  folder only. A named permission does not let a move elsewhere through, and
+  is kept for the move it was made for. Folders are compared by where they
+  really are, so the old name of a folder and its new name match.
+- A permission older than ten minutes is removed the next time the gate sees
+  a move, the refusal says so, and it is not used. Without this, a
+  permission given for a move that never reached the gate (see below) waited
+  for whatever move came next.
+- **Ask for the move as a command of its own: `cd /new/place` alone.**
+  Claude Code drops a leading `cd DIR &&` when DIR is the folder the session
+  is in, comparing real places, so after a folder is moved and its old name
+  left as a link, `cd /new/place && pwd` from the old name never reaches the
+  gate and never moves; `cd /new/place` alone does.
+- A move to the folder the session is already in, by another name, is still
+  a move: it changes the name the session goes by. It needs a permission, its
+  refusal says it is the same folder, and when a permission is spent on it
+  the person sees a notice saying so.
+
+Found 2026-10-18, when a project moved disks and the session, started under
+the old name, could not be moved to the new one: the chained move was
+dropped, the permission was left armed, and nothing said why.
 
 ## Why each exists
 
@@ -206,6 +234,10 @@ characters. `git -C` leaves nothing to judge.
 **Observed on Claude Code 2.1.280:** the harness appears to drop a leading
 `cd <the current directory> &&` before hooks see the command, so that no-op
 shape passes live even though the directory gate refuses it when fed the text.
+"The current directory" is compared by real place: on 2026-10-18 it also
+dropped `cd /new/place && pwd` run from an old name that is a link to
+`/new/place`, which is a real move of names, not a no-op (see "Moving the
+session's folder" above: ask for it alone).
 To tell that from a broken gate, try a change inside a subshell — `(cd /tmp &&
 pwd)` — which the harness leaves alone and the gate refuses.
 

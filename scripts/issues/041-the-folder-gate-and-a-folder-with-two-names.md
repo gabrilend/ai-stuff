@@ -2,7 +2,39 @@
 
 ## Current Behavior
 
-The folder gate (`refuse-directory-change`, a hook in front of every shell
+**Built 2026-10-18 (the owner: "let's expand that functionality to allow
+for directory switching when specifically allowed"); proven in the gate
+tests, not yet tried live:**
+
+- **A permission can name its folder.** An empty
+  `/tmp/claude-allow-cwd-change` allows any one move; one holding a folder
+  (`! echo /new/place > /tmp/claude-allow-cwd-change`) allows a move to that
+  folder only, and a move elsewhere is refused with the permission kept.
+  Folders are compared by real place (`realpath -e`), so an old name and a
+  new name of one folder match, and a relative move is read from the folder
+  the session is in (the hook input's `cwd`).
+- **A permission expires** after ten minutes: an older one is removed the
+  next time the gate sees a move, the refusal says when it was made, and it
+  is not used.
+- **A move to another name of the current folder** is recognised (both
+  names resolve to one place): refused without a permission, saying it is
+  the same folder under another name; allowed with one, with a notice to the
+  person.
+- **Every refusal says how to ask for a move that happens:** alone on its
+  line, `cd /new/place`, since a chained `cd DIR &&` to the current folder
+  is dropped by the harness before the gate sees it; and both forms of the
+  permission.
+- `scripts/test-refusal-gates`: 16 new cases (199 in all, all passing),
+  built on a scratch folder reached by two names.
+- `README-refusal-gates.md`: a section on moving the session's folder.
+
+What is not known yet: whether, once a lone `cd /new/place` is allowed,
+Claude Code keeps the session at the new name, or puts it back at the name
+it started with (on 2026-10-18 the shell was seen back at the old name after
+the owner ran a `!` command). That needs one live try (Suggested
+Implementation Steps, step 5).
+
+**Before 2026-10-18,** the folder gate (`refuse-directory-change`, a hook in front of every shell
 command; `README-refusal-gates.md`) refuses a `cd` unless the owner has made
 the one-time permission file `/tmp/claude-allow-cwd-change`, and spends the
 file on the `cd` it lets through.
@@ -83,6 +115,11 @@ asks for the move, so it is where the answer belongs.
    age limit is what keeps an unspent permission from lingering (the gate
    cannot see the commands the harness swallows).
 4. Write the folder-with-two-names case into `README-refusal-gates.md`.
+5. Try it live: the owner names the new folder in the permission, the
+   session runs `cd /new/place` alone, and `pwd` is read on that command,
+   on the next one, and after the owner runs a `!` command. If the session
+   falls back to the old name, the cause is in Claude Code, not the gate:
+   write down when it happens, here and in the guide.
 
 ## Related
 
@@ -95,8 +132,12 @@ asks for the move, so it is where the answer belongs.
 
 ## Open Questions
 
-1. How long should a permission live: two minutes, five, ten?
+1. How long should a permission live: two minutes, five, ten? Built as
+   ten until the owner chooses (`PERMISSION_MINUTES` in the gate).
 2. Should the age limit apply to every gate's permission file (the shared
-   `hook-gate.lua`), or only to the folder gate's?
+   `hook-gate.lua`), or only to the folder gate's? Built for the folder
+   gate only, since only its moves are known to be dropped unseen.
 3. When a `cd` is a no-op under another name, should the gate refuse it (so
    the session is told by the refusal itself), or let it pass with a note?
+   Built as: it is a move (of names), so it is refused without a
+   permission and passes with one, with a notice.

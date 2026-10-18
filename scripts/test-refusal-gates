@@ -374,6 +374,72 @@ mkdir -p "${CWD_TOKEN}/inside"
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /tmp'
 rm -rf "${CWD_TOKEN}"
 
+printf '\nMoving when allowed: named, expiring, and between two names of one folder\n'
+# The owner moved a project to another disk and left a link at each old name
+# (2026-10-18; scripts issue 041). The session stood in the folder by its old
+# name and was told to move to the new one; the permission was given, the
+# move never happened, and the permission stayed armed. These cases are that
+# afternoon, on paper: a scratch folder reached by two names.
+REAL="${SCRATCH}/real-folder"
+mkdir -p "${REAL}" "${SCRATCH}/elsewhere"
+ln -s "${REAL}" "${SCRATCH}/old-name"
+ln -s "${SCRATCH}" "${SCRATCH}/here-by-another-name"
+
+# {{{ reason_of()
+# What the gate said: its refusal reason, or its notice to the person.
+reason_of() {
+    jq -r '.hookSpecificOutput.permissionDecisionReason // .systemMessage // ""' <<< "$1"
+}
+# }}}
+
+# A permission naming a folder lets a move there through, and is spent.
+printf '%s\n' "${REAL}" > "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${REAL}"
+check "a permission naming the folder moved to was spent" "$( [ -e "${CWD_TOKEN}" ] && echo no || echo yes)"
+
+# The same permission does not let a move somewhere else through, and is kept.
+printf '%s\n' "${REAL}" > "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused "cd ${SCRATCH}/elsewhere"
+check "a permission naming another folder is kept" "$( [ -e "${CWD_TOKEN}" ] && echo yes || echo no)"
+out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" "cd ${SCRATCH}/elsewhere")"
+check "the refusal names the folder the permission is for" "$(grep -q "${REAL}" <<< "$(reason_of "${out}")" && echo yes || echo no)"
+
+# Folders are compared by where they really are: a permission written with
+# the old name allows a move to the new one, and the reverse.
+printf '%s\n' "${SCRATCH}/old-name" > "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${REAL}"
+printf '%s\n' "${REAL}" > "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${SCRATCH}/old-name"
+# A relative move is read from the folder the session is in (the hook's cwd).
+printf '%s\n' "${REAL}" > "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd real-folder"
+
+# A permission older than its time is removed, said so, and not honoured.
+touch "${CWD_TOKEN}"
+touch -d '-30 minutes' "${CWD_TOKEN}"
+out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" 'cd /tmp')"
+check "an expired permission does not let a move through" "$( [ "$(verdict_of "${out}")" = refused ] && echo yes || echo no)"
+check "an expired permission is removed" "$( [ -e "${CWD_TOKEN}" ] && echo no || echo yes)"
+check "the refusal says the permission had expired" "$(grep -qi "expired\|older than" <<< "$(reason_of "${out}")" && echo yes || echo no)"
+rm -f "${CWD_TOKEN}"
+
+# A move to the folder the session is already in, by another name, is still a
+# move (it changes the name the session goes by), so it needs a permission,
+# and the refusal says what it is.
+out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" "cd ${SCRATCH}/here-by-another-name")"
+check "a move to another name of the current folder is refused without a permission" "$( [ "$(verdict_of "${out}")" = refused ] && echo yes || echo no)"
+check "the refusal says it is the same folder under another name" "$(grep -qi "same folder" <<< "$(reason_of "${out}")" && echo yes || echo no)"
+touch "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "cd ${SCRATCH}/here-by-another-name"
+
+# Every refusal says how a move is asked for so that it happens: alone on its
+# line (Claude Code drops a leading "cd DIR &&" when DIR is the current folder
+# under another name, and the gate never sees it), and how to name the folder.
+out="$(ask "${CWD_GATE}" "${CWD_TOKEN}" 'cd /tmp')"
+check "the refusal says to make the move a command of its own" "$(grep -qi "its own" <<< "$(reason_of "${out}")" && echo yes || echo no)"
+check "the refusal shows how to name the folder in the permission" "$(grep -q "echo /tmp > " <<< "$(reason_of "${out}")" && echo yes || echo no)"
+rm -f "${CWD_TOKEN}"
+
 printf '\nThe shell-word reader\n'
 if luajit "${DIR}/tests/test_shell-command-scan.lua" "${DIR}" > "${SCRATCH}/reader.log" 2>&1; then
     check "tests/test_shell-command-scan.lua passes ($(tail -1 "${SCRATCH}/reader.log"))" yes
