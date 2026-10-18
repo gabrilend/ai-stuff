@@ -46,17 +46,14 @@ The directory gate's permission can name its folder, and it expires (issue
   is in, comparing real places, so after a folder is moved and its old name
   left as a link, `cd /new/place && pwd` from the old name never reaches the
   gate and never moves; `cd /new/place` alone does.
-- A move to the folder the session is already in, by another name, is still
-  a move: it changes the name the session goes by. It needs a permission, its
-  refusal says it is the same folder, and when a permission is spent on it
-  the person sees a notice saying so.
-- **But the session will not keep the new name.** Tried live 2026-10-18: the
-  permitted lone `cd` ran and spent the permission, and the next command was
-  back at the old name. Claude Code starts each command in the folder it has
-  on record, and between two names of one real folder it keeps the name it
-  had. To have a session go by a folder's new name, start the session there,
-  and drop the old name from the project's saved extra folders
-  (`/permissions`).
+- **A new name for the folder the session is in takes two steps.** Tried
+  live 2026-10-18: a permitted one-step `cd` from a folder's old name to its
+  new name ran, and the next command was back at the old name, since Claude
+  Code moves its record of the session's folder only when the real place
+  changes. So: `! echo /new/place > /tmp/claude-allow-cwd-change`, then
+  `cd /new` (the new name's parent; a real move, the permission kept), then
+  `cd /new/place` (the permission spent). A one-step move between names is
+  refused, says so, and spends nothing.
 
 Found 2026-10-18, when a project moved disks and the session, started under
 the old name, could not be moved to the new one: the chained move was
