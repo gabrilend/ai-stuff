@@ -50,6 +50,13 @@ The directory gate's permission can name its folder, and it expires (issue
   a move: it changes the name the session goes by. It needs a permission, its
   refusal says it is the same folder, and when a permission is spent on it
   the person sees a notice saying so.
+- **But the session will not keep the new name.** Tried live 2026-10-18: the
+  permitted lone `cd` ran and spent the permission, and the next command was
+  back at the old name. Claude Code starts each command in the folder it has
+  on record, and between two names of one real folder it keeps the name it
+  had. To have a session go by a folder's new name, start the session there,
+  and drop the old name from the project's saved extra folders
+  (`/permissions`).
 
 Found 2026-10-18, when a project moved disks and the session, started under
 the old name, could not be moved to the new one: the chained move was

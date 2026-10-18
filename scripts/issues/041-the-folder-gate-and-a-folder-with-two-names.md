@@ -28,11 +28,25 @@ tests, not yet tried live:**
   built on a scratch folder reached by two names.
 - `README-refusal-gates.md`: a section on moving the session's folder.
 
-What is not known yet: whether, once a lone `cd /new/place` is allowed,
-Claude Code keeps the session at the new name, or puts it back at the name
-it started with (on 2026-10-18 the shell was seen back at the old name after
-the owner ran a `!` command). That needs one live try (Suggested
-Implementation Steps, step 5).
+**Tried live, 2026-10-18 16:3x** (step 5): the owner first wrote the
+placeholder `/new/place` into the permission; the session's `cd
+/mnt/kaun/wow-chat-2026` was refused, the refusal said it was the same
+folder under another name and that the permission was for `/new/place`, and
+the permission was kept, as built. The owner then named the real folder;
+the lone `cd /mnt/kaun/wow-chat-2026` was let through and the permission
+spent (the file gone). The very next command ran at the old name again
+(`/home/ritz/games/azeroth-core/wow-chat-2026`). So the gate's half works;
+the fall-back is Claude Code's: it starts each command in the folder it has
+on record for the session, and between two names of one real folder it
+keeps the name it had (it moves its record only when the real place
+changes, as far as can be seen from outside). The gate cannot change that
+record. The way to a session that goes by the new name is to start one
+there, and to drop the old name from the project's saved extra folders
+(`/permissions`), so it is not offered again.
+
+Left open by this (question 4): whether to ask Claude Code's makers to move
+the session's record when a permitted `cd` lands on another name of the same
+folder.
 
 **Before 2026-10-18,** the folder gate (`refuse-directory-change`, a hook in front of every shell
 command; `README-refusal-gates.md`) refuses a `cd` unless the owner has made
@@ -141,3 +155,8 @@ asks for the move, so it is where the answer belongs.
    the session is told by the refusal itself), or let it pass with a note?
    Built as: it is a move (of names), so it is refused without a
    permission and passes with one, with a notice.
+4. Claude Code puts the session back at the name it had after a permitted
+   move between two names of one folder (tried live 2026-10-18). Report it
+   to Claude Code's makers (the `/bug` command), or leave it written down
+   here and in the guide, with "start a new session at the new name" as the
+   answer?
