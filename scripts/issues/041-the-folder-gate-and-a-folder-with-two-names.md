@@ -199,20 +199,18 @@ asks for the move, so it is where the answer belongs.
 
 ## Open Questions
 
-1. How long should a permission live: two minutes, five, ten? Built as
-   ten until the owner chooses (`PERMISSION_MINUTES` in the gate).
+1. (Answered 2026-10-18: "sure fine whatever") How long should a permission
+   live? Ten minutes, as built (`PERMISSION_MINUTES` in the gate).
 2. Should the age limit apply to every gate's permission file (the shared
    `hook-gate.lua`), or only to the folder gate's? Built for the folder
    gate only, since only its moves are known to be dropped unseen.
-3. When a `cd` is a no-op under another name, should the gate refuse it (so
-   the session is told by the refusal itself), or let it pass with a note?
-   Built as: it is a move (of names), so it is refused without a
-   permission and passes with one, with a notice.
-4. Claude Code puts the session back at the name it had after a permitted
-   move between two names of one folder (tried live 2026-10-18). Report it
-   to Claude Code's makers (the `/bug` command), or leave it written down
-   here and in the guide, with "start a new session at the new name" as the
-   answer?
+3. (Answered 2026-10-18: "let's expand that functionality to allow for
+   directory switching when specifically allowed") A move between two names
+   of one folder is a move: refused without a permission, let through with
+   one, with a notice.
+4. (Answered 2026-10-18: "fix our hook scripts please"; starting a new
+   session was "not an option") Not reported: fixed in our hooks, by
+   `carry-working-folder-name` and its `--now`.
 5. (Settled 2026-10-18, by the owner's permission for a one-step move to the
    new name) The gate's two-step change of names was taken out: a permitted
    move to another name of the current folder goes through in one step, with
