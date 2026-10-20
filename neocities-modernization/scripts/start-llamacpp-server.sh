@@ -70,8 +70,9 @@ parse_arguments() {
 
 # {{{ resolve_server_config
 # Asks libs/inference-server-config.lua to resolve the chosen server (default
-# or --server=NAME override) and prints four lines to stdout: host, port,
-# model_path (relative to DIR), and the model identifier. Errors from the
+# or --server=NAME override) and prints to stdout, one per line: host, port,
+# model_path (relative to DIR), the model identifier, and then each word of
+# the server's launch_flags (zero or more lines). Errors from the
 # module (typoed --server, missing default) propagate to stderr verbatim.
 # Running the module in a subprocess keeps the parent shell free of any
 # stray Lua state and lets us capture exactly the fields we want.
@@ -103,6 +104,11 @@ resolve_server_config() {
         print(server.port)
         print(mc.model_path)
         print(mc.model)
+        -- One word per line so a flag and its value stay separate words in
+        -- the shell array they are read into.
+        for _, word in ipairs(server.launch_flags or {}) do
+            print(word)
+        end
     "
 }
 # }}}
@@ -201,11 +207,15 @@ launch_server() {
     #                 allocates its own KV cache, multiplying VRAM pressure
     #                 linearly. Also llama-server's default; set explicitly so a
     #                 future operator doesn't crank it up assuming it's free.
-    #   --mlock     : pin the model (~140 MB Q8_0) in RAM so the kernel cannot
+    #   --load-mode mmap+mlock : pin the model in RAM so the kernel cannot
     #                 swap parts of it back to disk under memory pressure. On
     #                 Pascal, swap-induced stuttering of forward passes can
     #                 extend a CUDA kernel's wall time past the display watchdog
-    #                 timeout. Cost is ~140 MB of pinned RAM, cheap on a 31 GB host.
+    #                 timeout. Cost is the model's size in pinned RAM (140-310 MB
+    #                 for the Q8_0 files here), cheap on a 31 GB host.
+    #                 Was "--mlock" until llama.cpp b11476 removed that flag
+    #                 (the server then refused to start); mmap+mlock is the
+    #                 same pairing the old flag gave with mmap on by default.
     #
     # -lv 1 (verbose) is added ONLY under --debug (NEOCITIES_LOG_DIR set): it
     # emits per-request slot lines that are gold for diagnosing a freeze, but
@@ -228,11 +238,14 @@ launch_server() {
         --batch-size 8192
         --ubatch-size 8192
         --parallel 1
-        --mlock
+        --load-mode mmap+mlock
     )
     if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
         launch_flags+=( -lv 1 )
     fi
+    # The server entry's launch_flags (config.lua) come last, so a GPU-specific
+    # setting there can also override one of the shared flags above.
+    launch_flags+=( "${SERVER_FLAGS[@]}" )
 
     # In --debug, pipe the server's stdout/stderr through fsync-logger so each
     # log line is committed to disk immediately (it survives a hard lock). The
@@ -271,6 +284,12 @@ wait_for_ready() {
         if [ "$code" = "200" ]; then
             return 0
         fi
+        # A server that has already exited will never answer. Without this
+        # check a refused flag (e.g. "invalid argument: --mlock") cost the full
+        # three minutes before the error was shown.
+        if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            return 2
+        fi
         sleep 1
         i=$((i + 1))
     done
@@ -301,11 +320,24 @@ main() {
     PORT=$(echo "$config" | sed -n 2p)
     MODEL_PATH=$(echo "$config" | sed -n 3p)
     MODEL=$(echo "$config" | sed -n 4p)
+    # Lines 5 onward: this server's own GPU flags from config.lua.
+    local server_flags_text
+    server_flags_text=$(echo "$config" | sed -n '5,$p')
+    SERVER_FLAGS=()
+    if [ -n "$server_flags_text" ]; then
+        # Present: the server entry states flags for its GPU; pass them on.
+        # Absent: llama-server's own defaults stand for anything not set below.
+        mapfile -t SERVER_FLAGS <<< "$server_flags_text"
+    fi
 
     if [ -n "$SERVER_NAME" ]; then
         echo -e "  ${C_GREEN}server${C_RESET}: $SERVER_NAME (--server override)"
     fi
     echo -e "  ${C_GREEN}model${C_RESET}:  $MODEL"
+    if [ "${#SERVER_FLAGS[@]}" -gt 0 ]; then
+        # Shown so the operator sees which GPU-specific choices are in force.
+        echo -e "  ${C_GREEN}gpu flags${C_RESET}: ${SERVER_FLAGS[*]}"
+    fi
 
     setup_env
     verify_artifacts
@@ -316,8 +348,17 @@ main() {
     fi
 
     launch_server
-    if ! wait_for_ready; then
-        echo -e "${C_RED}llama-server did not become responsive within 30 seconds${C_RESET}" >&2
+    local ready_status=0
+    wait_for_ready || ready_status=$?
+    if [ "$ready_status" -ne 0 ]; then
+        # 2: the process exited during startup (usually a refused flag or a
+        #    model file it cannot read) -- the log's last lines say which.
+        # 1: still running but never became ready within the wait.
+        if [ "$ready_status" -eq 2 ]; then
+            echo -e "${C_RED}llama-server exited during startup${C_RESET}" >&2
+        else
+            echo -e "${C_RED}llama-server did not become ready within 180 seconds${C_RESET}" >&2
+        fi
         echo -e "  Last 20 lines of log ($LOG_FILE):" >&2
         tail -n 20 "$LOG_FILE" >&2
         kill "$SERVER_PID" 2>/dev/null

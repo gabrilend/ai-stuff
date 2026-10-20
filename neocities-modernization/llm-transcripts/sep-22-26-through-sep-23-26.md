@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-26 13:26:43
+Generated on: 2026-10-04 17:30:08
 Models: claude-opus-5-5
 
 ## Contents
@@ -1347,6 +1347,8 @@ You can write the issue files for documentation sake, then let's implement them.
 
 > All mine; claiming the test file and committing.
 
+*[commit] 7efbdba70 - The mailbox name becomes a label; sending to yourself uses a word you pick*
+
 Both rmail changes are built, tested and committed, along with the contacts
 tidy-up and one older bug the tests turned up. The notes-project work from
 earlier is committed too.
@@ -1491,6 +1493,8 @@ sh /home/ritz/programs/r-mail/scripts/test-mailbox-selection.sh &gt; $S/sel.out
 
 > Everything passes. Committing the reversal.
 
+*[commit] 671d098b2 - Undo the separate self-address word: the mailbox name does both jobs again*
+
 I've reverted it: `name` both labels the mailbox and is the word for sending to
 yourself, as before. The self mark and the startup conversion are gone too. I
 kept three fixes: the home-network search change, the contacts tidy-up, and the
@@ -1595,6 +1599,8 @@ luac5.4 -p /home/ritz/programs/r-mail/rmail.lua || exit 1; sh
 
 ### Assistant Response 11 (continued)
 
+*[commit] 12861e4eb - Home-network search sends no names; a mailbox with no contacts keeps a timer*
+
 Both changes are built, tested (26 checks pass) and committed in rmail as
 `12861e4`. Restart both mail programs for them to take effect.
 
@@ -1655,6 +1661,8 @@ Then, let's get back to neocities-modernization work.
 ### Assistant Response 12
 
 > Handoff note and issue written; committing in both repos now.
+
+*[commit] d60041daf - Handoff note for the names-and-timers work; open question on mid-sync outbox saves*
 
 Both repos are committed and clean for my work, so you can push now.
 
@@ -1743,6 +1751,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 
 > Item 1 passes. Recording it in issue 11-009, then committing.
 
+*[commit] 4efe1f8c0 - Pages tell phones they are already dark*
+
 > Still repairing that commit; retrying with the commit named by hash instead of
 > a relative count.
 
@@ -1765,6 +1775,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 > Committing item 2 and the gate, working around the other session's staged
 > files the same way as before.
 
+*[commit] 2581237ed - A pre-flight gate checks what a build can fail before any stage starts*
+
 > Item 2 and the gate are committed (`2581237ed`), and the other session's
 > staged files are back as they were. Next, item 3: the progress-bar range
 > check.
@@ -1773,6 +1785,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 > corners, and it stays 84 at every fill. Fixing the test.
 
 > All pass. Recording item 3 in issue 8-045.
+
+*[commit] 94c62f1b8 - A progress bar refuses a percentage it cannot draw*
 
 > Item 3 committed (`94c62f1b8`). Starting item 4, the shared content-warning
 > box; reading how the current box is drawn so the new one matches it exactly.
@@ -1783,6 +1797,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 > it and updating issue 9-011.
 
 > Tests pass (29). Committing item 4 the same careful way.
+
+*[commit] 82f8b5207 - One content-warning box that always fits its frame*
 
 > Item 4 committed (`82f8b5207`). Item 5 now: moving the single-threaded builder
 > onto the date-based bar position.
@@ -1828,6 +1844,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 
 > Every test passes except `augment-embeddings-with-images.test.lua`. Checking
 > whether that one is mine.
+
+*[commit] 44baef269 - Progress bars follow the dates everywhere; undated poems are caught up front*
 
 All five roadmap items and the checks-first gate are done, tested and committed.
 Tonight's build now runs every cheap check in its first few seconds and stops
@@ -1927,6 +1945,8 @@ Sure sound great!
 
 > Item 1: the unreachable link fallback.
 
+*[commit] d808745ce - Remove the chronological-link fallback nothing can reach any more*
+
 > Item 1 committed. Item 2: finding the issue numbers that are used twice.
 
 > Renames and code references done. Fixing the note in the font issue and the
@@ -1936,6 +1956,8 @@ Sure sound great!
 
 > Those four "foreign" files were my own renames. There's nothing to restore
 > after this commit, so I'm clearing the saved patch.
+
+*[commit] bf89f101d - Give four doubly-used issue numbers their own*
 
 > I'll adjust the prep script so it only sets aside staged files outside this
 > project; my own staged renames stay put.
@@ -1961,6 +1983,8 @@ Sure sound great!
 > Only the pre-existing augmentation test fails. Everything in issue 10-025 is
 > now done, so I'm completing it.
 
+*[commit] 6820e5a5f - The anchor poem appears once, and same-numbered poems stop disappearing*
+
 > Item 3 committed. Item 4: the "Next Page" links. Reading the page-navigation
 > code.
 
@@ -1983,6 +2007,8 @@ Sure sound great!
 
 > Page 2's links are drawn twice (header and footer), so it has four, not two.
 > Fixing the test to check which pages it links to.
+
+*[commit] 63a456ab8 - Previous and Next only link to pages that were written*
 
 > Writing the worker that scans a share of pages.
 

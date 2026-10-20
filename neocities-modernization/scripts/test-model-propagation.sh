@@ -66,8 +66,12 @@ check "resolver default == config.lua default" "$CONFIG_DEFAULT" "$CONFIG_RAW"
 # {{{ an explicit --model propagates to the no-argument resolution, fresh process
 "${DIR}/scripts/write-run-overrides" "${DIR}" --model "propagation-probe:1b"
 check "get_selected_model honors override" "$(resolve)" "propagation-probe:1b"
+# The caches live on disk under assets/embeddings/, not in the RAM tier: /dev/shm
+# is emptied at logout on this host, so a RAM cache cost a ~20-minute rebuild
+# every session (see the note above embeddings_dir in libs/utils.lua). This
+# check had kept the RAM path after that reversal.
 check "embeddings_dir(nil) keys off override" \
-    "$(resolve_dir)" "${DIR}/tmp/shared-memory/cache/embeddings/propagation-probe_1b"
+    "$(resolve_dir)" "${DIR}/assets/embeddings/propagation-probe_1b"
 # }}}
 
 # {{{ no --model falls back to config.lua (override absent, not a hardcoded value)
@@ -81,6 +85,43 @@ check "no override -> config default" "$(resolve)" "$CONFIG_RAW"
 check "second write overwrites first" "$(resolve)" "second-run:9b"
 occurrences="$(grep -c "first-run" "${DIR}/tmp/shared-memory/run-overrides.lua" || true)"
 check "no stale value from prior run remains" "$occurrences" "0"
+# }}}
+
+# {{{ the server run.sh starts itself loads the run's model, not the default
+# When no server is reachable, run.sh launches one. It used to pass only the
+# server name, so the server loaded config.lua's default GGUF while the run
+# filed the vectors under --model's directory: one model's vectors wearing
+# another's label. Two halves are checked: run.sh hands the model over, and
+# the launcher turns that model name into the right file.
+autostart_line="$(grep -E '^\s*START_ARGS=\(' "${DIR}/run.sh")"
+case "$autostart_line" in
+    *'--model=$MODEL_NAME'*) passes_model="yes" ;;
+    *) passes_model="no" ;;
+esac
+check "run.sh's server auto-start passes --model" "$passes_model" "yes"
+# The same resolution start-llamacpp-server.sh performs for --model=NAME.
+resolved_gguf="$(luajit -e "
+    package.path = '${DIR}/libs/?.lua;' .. package.path
+    local inf = require('inference-server-config'); inf.set_project_root('${DIR}')
+    inf.set_selected_server('local')
+    inf.set_selected_model('embeddinggemma-2')
+    io.write(inf.get_selected_model_config().model_path)
+")"
+check "--model=embeddinggemma-2 resolves to its own GGUF" \
+    "$resolved_gguf" "assets/models/embeddinggemma-2-Q8_0.gguf"
+# }}}
+
+# {{{ each server's GPU flags reach the launcher, and only that server's
+# The start script reads lines 5+ of its config resolution as launch_flags.
+# local is a GTX 1080 Ti and states --flash-attn off; the remote server has
+# a different GPU and must not inherit that.
+resolve_flags() {  # resolve_flags <server>
+    bash -c "source <(sed -n '/^# {{{ resolve_server_config/,/^# }}}/p' '${DIR}/scripts/start-llamacpp-server.sh')
+        DIR='${DIR}'; SERVER_NAME='$1'; MODEL_OVERRIDE=''
+        resolve_server_config" | sed -n '5,$p' | tr '\n' ' ' | sed 's/ $//'
+}
+check "local server passes its GPU flags" "$(resolve_flags local)" "--flash-attn off"
+check "remote server gets no local GPU flags" "$(resolve_flags gpu-server)" ""
 # }}}
 
 # Leave the notepad clean (no override) so a later manual run is not surprised.

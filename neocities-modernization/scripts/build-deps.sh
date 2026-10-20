@@ -63,7 +63,13 @@ DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 # server/cli/embedding binaries from examples/ to tools/, so the build now also
 # needs -DLLAMA_BUILD_TOOLS=ON (see build_llamacpp) or it produces the shared
 # libs with no llama-server.
-LLAMACPP_VERSION="b9842"
+#
+# Bumped b9842 -> b11476 (Issue 1-010): EmbeddingGemma 2 is a new architecture
+# ("gemma-embedding2") that upstream learned on 2026-10-06; b11454 is the first
+# release tag that contains it. b11476 was the newest tag the day the bump was
+# made, chosen so the day-old architecture code carries its first follow-ups.
+# Untested at the time of writing: the operator runs this build.
+LLAMACPP_VERSION="b11476"
 
 # Model to download. The basename matches what config.lua's local server
 # entry's model_path expects; updating one without the other would mismatch.
@@ -767,10 +773,17 @@ smoke_test() {
         > "$log" 2>&1 &
     local pid=$!
 
-    # Wait up to 30 s for the server to become responsive.
+    # Wait up to 30 s for the server to become READY, not merely reachable.
+    # A server still loading its model answers /health with 503, and curl -s
+    # exits 0 on any HTTP reply -- so "curl succeeded" meant "a socket is
+    # open", and the embedding request below hit 503 "Loading model". Older
+    # llama.cpp opened its port only after loading, which hid this; b11476
+    # opens it first. Only a 200 counts (same rule as start-llamacpp-server.sh).
     local i=0
+    local code
     while [ "$i" -lt 30 ]; do
-        if curl -s --max-time 1 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 "http://127.0.0.1:$port/health")
+        if [ "$code" = "200" ]; then
             break
         fi
         sleep 1

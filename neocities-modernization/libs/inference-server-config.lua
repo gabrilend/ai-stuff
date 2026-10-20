@@ -148,14 +148,15 @@ function M.get_servers()
         return servers
     end
 
-    -- Fallback default if no servers configured. host:port matches the
-    -- operator's LAN-accessible llama.cpp box (192.168.1.100:10265) so a
-    -- bare-config run still resolves to the right endpoint.
+    -- Fallback default if no servers configured. host:port matches config.lua's
+    -- "local" entry (127.0.0.1:10265 -- loopback, so the unauthenticated server
+    -- is never exposed to the network) so a bare-config run still resolves to
+    -- the right endpoint.
     return {
         {
             name = "local",
             description = "Local llama.cpp instance (fallback)",
-            host = "192.168.1.100",
+            host = "127.0.0.1",
             port = 10265,
             model = "nomic-embed-text-v1.5"
         }

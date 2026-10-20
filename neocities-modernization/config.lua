@@ -273,6 +273,12 @@ return {
             -- poem so it never enters poems.json, clearing the whole "different" section.
             -- (Takes effect on the next extraction run.)
             "0129",
+            -- Another raw PDF (input/notes/reddit-comments/, content starts
+            -- %PDF-1.5): its binary bytes printed into chronological page 3 and
+            -- several "different" pages as over-wide garbage lines. Excluded by
+            -- hand, one by one, rather than by a "refuse PDFs" rule (owner,
+            -- 2026-10-07).
+            "tips for enlightenment that I've discovered that improved my life awakened",
         },
         messages = {
             -- Add message indices here, e.g.: "42"
@@ -463,6 +469,12 @@ return {
     --   available_models: (optional) List of models the host can serve
     --   embedding_prompt_prefix: (optional) Prefix prepended to every input
     --                            (e.g. "clustering: " for nomic-embed-text v1.5)
+    --   launch_flags: (optional) Extra llama-server flags for THIS machine's
+    --                 GPU, as a list of separate words ({ "--flash-attn", "off" }).
+    --                 start-llamacpp-server.sh appends them after its own
+    --                 flags. Only used by servers this project launches itself.
+    --                 Put a GPU's limits here so they are stated choices, not
+    --                 something llama.cpp quietly decides at load time.
     inference_servers = {
         {
             name = "gpu-server",
@@ -487,8 +499,18 @@ return {
         {
             name = "local",
             description = "Local llama.cpp instance (CUDA-enabled)",
-            host = "192.168.1.100",
+            -- Loopback only. This was the machine's LAN address (192.168.1.100),
+            -- and llama-server listens on whatever host it is told, so the
+            -- unauthenticated server (no API key, any web origin allowed, plus a
+            -- chat web page) was reachable by every device on the network.
+            -- Nothing off this machine uses it, so it now listens only here.
+            host = "127.0.0.1",
             port = 10265,
+            -- This machine is a GTX 1080 Ti (Pascal, compute 6.1). llama.cpp's
+            -- Flash Attention has no kernel for it: left on "auto", it found
+            -- that out at load time and switched itself off with a warning --
+            -- a silent fallback. Saying "off" here makes it a decision.
+            launch_flags = { "--flash-attn", "off" },
             -- nomic-embed-text v1.5 produces 768-dimensional vectors and
             -- requires a task-prefix on every input. For diversity ranking
             -- of poetry the right prefix is "clustering: ", which routes
@@ -522,6 +544,15 @@ return {
                     model_path = "assets/models/embeddinggemma-300M-Q8_0.gguf",
                     -- Trained WITH task prompts; the clustering task uses this
                     -- exact prefix per the model card, mirroring nomic's intent.
+                    embedding_prompt_prefix = "task: clustering | query: ",
+                },
+                {
+                    -- Issue 1-010: EmbeddingGemma 2 (740M total, of which the
+                    -- 270M text model is all this file holds; 8K-token context).
+                    -- Needs llama.cpp b11454 or later. The model card keeps the
+                    -- same symmetric clustering prompt as version 1.
+                    model = "embeddinggemma-2",
+                    model_path = "assets/models/embeddinggemma-2-Q8_0.gguf",
                     embedding_prompt_prefix = "task: clustering | query: ",
                 },
             },

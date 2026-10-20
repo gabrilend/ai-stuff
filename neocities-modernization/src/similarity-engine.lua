@@ -58,6 +58,13 @@ local embedding_models = {
         -- Uses a clustering task prompt, configured per inference_servers entry.
         requires_prompt_prefix = true,
     },
+    -- Issue 1-010: 768 is the full output; the model also supports cutting
+    -- vectors to 512/256/128 (Matryoshka), which this project does not use.
+    ["embeddinggemma-2"] = {
+        dimensions = 768,
+        timeout = 30,
+        requires_prompt_prefix = true,
+    },
     ["qwen3-embedding:4b"] = {
         dimensions = 2560,
         timeout = 60  -- bigger model, longer per-call

@@ -42,6 +42,10 @@ Other models considered and deferred (kept here for the record):
 - `Qwen3-Embedding-0.6B` (instruction-tunable: A/B "theme" vs "style" prompts).
 - `bge-large-en-v1.5` / `e5-large` (a different retrieval lineage).
 
+Pending fourth model: `embeddinggemma-2` (released 2026-10-06; 768 dims, 8K
+context). Installing and smoke-testing it is tracked in the reopened Issue
+1-010; it joins this comparison once it loads on the local server.
+
 ## Intended Behavior
 
 Create a framework for systematically evaluating and comparing embedding models to understand:
