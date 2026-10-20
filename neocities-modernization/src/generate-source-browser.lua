@@ -216,30 +216,30 @@ end
 
 -- {{{ list_published_files()
 -- Ask git for tracked files (honors .gitignore), then keep only allowlisted
--- ones. Returns (kept_list, skipped_dir_counts). Read-only git, no chaining.
+-- ones. Returns (kept_list, skipped_dir_counts, linked_files). Read-only git,
+-- no chaining.
 --
--- Symbolic links are left out. A link in this project points at a document
--- that belongs to ANOTHER project (docs/delta-guide.md is delta-version's
--- own guide), kept here so it can be read from this folder. Publishing it
--- would show another project's page under this one's name, with links
--- that are right in its home and dead here. "--stage" makes git print each
--- file's mode first; 120000 is git's mode for a link.
+-- linked_files: table, { [project path] = true } for every published file
+-- that is a symbolic link. Links ARE published, the target's content under
+-- the link's name: a project links in what it needs from elsewhere
+-- (docs/delta-guide.md is delta-version's maintainer guide), and that is
+-- part of reading this project. What a link's page cannot do is follow ITS
+-- relative links, which name files beside the target in the other project;
+-- the markdown renderer uses this set to turn those into plain text (see
+-- render_markdown_page). "--stage" makes git print each file's mode first;
+-- 120000 is git's mode for a link.
 local function list_published_files()
     local pipe = io.popen(string.format("git -C %q ls-files --stage", DIR))
     if not pipe then error("could not run git ls-files in " .. DIR) end
-    local kept, skipped = {}, {}
+    local kept, skipped, linked = {}, {}, {}
     for entry in pipe:lines() do
         -- "<mode> <hash> <stage>\t<path>"
         local mode, line = entry:match("^(%d+) %x+ %d+\t(.+)$")
         if not mode then error("unexpected git ls-files line: " .. entry) end
+        if mode == "120000" then linked[line] = true end
         local top = line:match("^([^/]+)/") or line  -- top-level dir, or root file
         local published
-        if mode == "120000" then
-            -- a link into another project: never published (see above), and
-            -- counted under its own heading in the skipped summary
-            top = "(links to other projects)"
-            published = false
-        elseif line:match("/") then
+        if line:match("/") then
             published = INCLUDE_DIRS[top] == true
         else
             local e = ext(line)
@@ -253,7 +253,7 @@ local function list_published_files()
     end
     pipe:close()
     table.sort(kept)
-    return kept, skipped
+    return kept, skipped, linked
 end
 -- }}}
 
@@ -467,12 +467,22 @@ end
 -- "13-002a-....md.html" -- because the browser publishes no file under the bare
 -- name, and every such link was a page-not-found (21 of them). A link to a file
 -- that is not published at all is left alone, so the site check still names it.
-local function render_markdown_page(rel, body, source_page_name)
+--
+-- is_linked_in: boolean, true when this document is a symbolic link to a file
+-- in another project. Its relative links were written for ITS home folder, so
+-- one that names no file published here cannot be fixed by this project: it
+-- is drawn as plain text (the label, unlinked) instead of a dead link. In this
+-- project's own documents the same case stays a link, so the site check
+-- still catches a real mistake.
+local function render_markdown_page(rel, body, source_page_name, is_linked_in)
     local html = markdown.render(body)
     local dir = rel:match("^(.*)/[^/]*$") or ""
-    html = html:gsub('href="([^"]*)"', function(href)
-        -- Addresses with a scheme, in-page anchors and site-absolute paths are
-        -- not files of this project.
+
+    -- {{{ local function resolve()
+    -- A relative address -> (project path, fragment), or nil for addresses
+    -- that are not files of this project (a scheme, an in-page anchor, a
+    -- site-absolute path).
+    local function resolve(href)
         if href:match("^%a[%w+.-]*:") or href:sub(1, 1) == "#" or href:sub(1, 1) == "/" then
             return nil
         end
@@ -486,9 +496,30 @@ local function render_markdown_page(rel, body, source_page_name)
                 parts[#parts + 1] = part
             end
         end
-        if source_page_name[table.concat(parts, "/")] then
+        return table.concat(parts, "/"), path, fragment
+    end
+    -- }}}
+
+    if is_linked_in then
+        -- links of another project's document: keep those that land on a
+        -- page here, unlink the rest
+        html = html:gsub('<a href="([^"]*)">(.-)</a>', function(href, label)
+            local target = resolve(href)
+            if target and not source_page_name[target] then
+                return label
+            end
+            return nil
+        end)
+    end
+    html = html:gsub('href="([^"]*)"', function(href)
+        local target, path, fragment = resolve(href)
+        -- not a file of this project: leave the address as written
+        if not target then return nil end
+        -- a published file: point at its page
+        if source_page_name[target] then
             return 'href="' .. path .. ".html" .. fragment .. '"'
         end
+        -- an unpublished file: left alone, for the site check to report
         return nil
     end)
     return page_header(rel) .. '<div class="md">' .. html .. "</div>"
@@ -837,7 +868,7 @@ end
 -- }}}
 
 local function main()
-    local all_files, skipped = list_published_files()
+    local all_files, skipped, linked_files = list_published_files()
     local out_root = DIR .. "/output/source"
     ensure_dir(out_root)
     write_style_file(out_root)
@@ -951,7 +982,7 @@ local function main()
             local body = utils.read_file(DIR .. "/" .. rel)
             if not body then skipped_files = skipped_files + 1; goto continue end
             if f.kind == "md" then
-                content = render_markdown_page(rel, body, source_page_name)
+                content = render_markdown_page(rel, body, source_page_name, linked_files[rel] == true)
             else
                 content = render_text_page(rel, body, LANGS[f.lang_id or "text"])
                 -- Feature D: comments here mention issues; link them to their pages.

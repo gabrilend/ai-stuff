@@ -45,13 +45,22 @@ code/doc files, and renders:
   current file's path opened, so every file is reachable from every other.
 
 The private `input/` corpus and `llm-transcripts/` are deliberately NOT published
-(allowlist), and every held-back directory is logged. Symbolic links are not
-published either (2026-10-20): a link here points at another project's file
-(`docs/delta-guide.md` is delta-version's guide, linked so it can be read from
-this folder), and publishing it showed that project's page under this one's
-name, with three links that work in its home and were dead here. Git's file
-list gives each file's mode, and a link's mode is skipped; the download zip
-(`scripts/build-download-zip`) applies the same rule so the two stay matched.
+(allowlist), and every held-back directory is logged.
+
+Symbolic links are published as the file they point at, under the link's
+name (owner, 2026-10-20: "What if we have something linked that we need?").
+`docs/delta-guide.md` is one: delta-version's maintainer guide, linked in.
+Such a document's relative links were written for its home folder, so one
+that names no file published here is drawn as plain text instead of a dead
+link (the guide's three further-reading entries); in this project's own
+documents the same case stays a link, so the site check still reports a
+real mistake. Git's file list gives each file's mode, which is how a link is
+known. The download zip packs linked files the same way.
+- Known gap: a linked document's relative link that happens to match a file
+  of THIS project lands there. The delta guide's "Roadmap" opens this
+  project's roadmap, not delta-version's.
+- No test yet: the page builders are local to the script, so nothing can
+  call them from a test file. Checked by regenerating and reading the page.
 
 Pages for files that are no longer published are NOT removed: the browser
 writes over `output/source/` without clearing it, so a page for a file that
