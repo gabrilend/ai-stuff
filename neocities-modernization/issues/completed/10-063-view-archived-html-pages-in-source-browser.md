@@ -11,6 +11,11 @@
 
 ## Current Behavior
 
+**Being replaced (2026-10-20):** Issue 10-073 keeps each snapshot as a small
+record of its words instead of a full HTML page, rebuilt on demand by a
+viewer tool, and the source browser stops publishing `archive/wordclouds/`.
+What follows describes this issue's design, which holds until that lands.
+
 `archive/` is published in the source browser, so its dated word-cloud snapshots
 (and the `first-published-wordcloud.html` keepsake) appear in the tree. Before this
 issue they were treated like any other HTML file -- as code -- so clicking one showed
