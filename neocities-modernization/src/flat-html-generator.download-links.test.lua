@@ -28,6 +28,12 @@ end
 
 setup_path()
 local generator = require("flat-html-generator")
+-- The pages-per-poem ceiling is normally worked out by a full build from the
+-- storage limit (Issue 10-057); this test renders pages on its own, so it
+-- sets one, large enough never to cap them. Without it the page builder
+-- stops with "the pages-per-poem limit has not been worked out yet", which
+-- is how this test sat broken after defaults left the code (10-071).
+generator.get_pagination_config().max_pages_per_poem = 100
 
 local passed, failed = 0, 0
 

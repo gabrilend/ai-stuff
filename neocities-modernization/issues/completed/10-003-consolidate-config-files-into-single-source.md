@@ -20,7 +20,7 @@ The work is split into three sub-issues covering different aspects of configurat
 
 | Issue | Description | Status |
 |-------|-------------|--------|
-| [10-003a](completed/10-003a-initial-config-file-consolidation.md) | Initial config file consolidation | **Completed** (2026-01-21) |
+| [10-003a](10-003a-initial-config-file-consolidation.md) | Initial config file consolidation | **Completed** (2026-01-21) |
 | [10-003b](10-003b-external-files-syncing-centralization.md) | External files syncing centralization | **Open** |
 | [10-015](10-015-unified-input-sources-config.md) | Unified input sources configuration | **Open** |
 

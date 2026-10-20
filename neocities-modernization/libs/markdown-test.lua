@@ -87,6 +87,13 @@ check("table alignment colons", "| L | R |\n|:--|--:|\n| a | b |", { "<th>L</th>
 check_absent("no emphasis in inline code", "`a*b*c`", { "<em>" })
 check_absent("no emphasis in fence", "```\nx = a*b*c\n```", { "<em>" })
 check_absent("html in code escaped", "`<script>`", { "<script>" })
+-- A double-backtick span holding a backtick must not throw the pairing off
+-- for the code spans after it (a link example in libs/markdown.info.md
+-- became a dead link to "url" this way).
+check("double-backtick span", "code (`` `x` ``), links `[t](url)`", {
+    "<code>`x`</code>", "<code>[t](url)</code>" })
+check_absent("no link from code after a double span", "code (`` `x` ``), links `[t](url)`",
+    { "<a " })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
