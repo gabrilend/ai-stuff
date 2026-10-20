@@ -97,6 +97,63 @@ do
     check("passes through on a dimension mismatch", es.centered(v, { 1, 2, 3 }) == v)
 end
 
+print("cosine_across_populations")
+do
+    -- Two populations, each parked at its own offset. Words live near (0,0,10)
+    -- -- every word shares that big third component, like a lone word's
+    -- "short text" habit -- and poems near (0,0,0). Word A means "x", word B
+    -- means "y"; poem X means "x", poem Y means "y", and poem S is a "short"
+    -- post that shares the words' offset but means nothing.
+    local word_a = { 1, 0, 10 }
+    local word_b = { 0, 1, 10 }
+    local poem_x = { 1, 0, 0 }
+    local poem_y = { 0, 1, 0 }
+    local poem_s = { 0, 0, 3 }
+    local words = { { embedding = word_a }, { embedding = word_b } }
+    local poems = { { embedding = poem_x }, { embedding = poem_y }, { embedding = poem_s } }
+    local word_mean = es.corpus_mean(words)
+    local poem_mean = es.corpus_mean(poems)
+
+    -- {{{ local function best_poem
+    local function best_poem(word, score)
+        local names = { "x", "y", "s" }
+        local best, best_s = nil, -2
+        for i, p in ipairs({ poem_x, poem_y, poem_s }) do
+            local s = score(word, p)
+            if s > best_s then best, best_s = names[i], s end
+        end
+        return best
+    end
+    -- }}}
+
+    -- The old rule: both sides centred on the POEM average. The words' offset
+    -- survives, and both words pick the same "short" poem -- the bug seen on
+    -- the live site, where every word page led with the same short posts.
+    local old_rule = function(w, p)
+        local a, b = es.centered(w, poem_mean), es.centered(p, poem_mean)
+        return es.cosine_across_populations(a, { 0, 0, 0 }, b, { 0, 0, 0 })
+    end
+    check("one shared average sends both words to the same short poem",
+        best_poem(word_a, old_rule) == "s" and best_poem(word_b, old_rule) == "s",
+        best_poem(word_a, old_rule) .. "," .. best_poem(word_b, old_rule))
+
+    -- The new rule: each side centred on its own population's average.
+    local new_rule = function(w, p)
+        return es.cosine_across_populations(w, word_mean, p, poem_mean)
+    end
+    check("own averages send word x to poem x", best_poem(word_a, new_rule) == "x",
+        best_poem(word_a, new_rule))
+    check("own averages send word y to poem y", best_poem(word_b, new_rule) == "y",
+        best_poem(word_b, new_rule))
+
+    check("a missing average is refused, not silently ignored",
+        not pcall(es.cosine_across_populations, word_a, nil, poem_x, poem_mean))
+    check("mixed dimensions are refused",
+        not pcall(es.cosine_across_populations, { 1, 2 }, { 0, 0 }, poem_x, poem_mean))
+    check("a vector equal to its average scores 0, not NaN",
+        es.cosine_across_populations(word_mean, word_mean, poem_x, poem_mean) == 0)
+end
+
 print("fingerprint")
 do
     local dir = "/tmp/embedding-space-test-" .. tostring(os.time())

@@ -326,9 +326,9 @@ local function compute_corpus_mean(poem_lookup)
     end
     local mean, detail = embedding_space.corpus_mean(entries)
     if not mean then
-        -- detail carries the reason. Reported, not swallowed: without a mean the
-        -- ranking silently reverts to the uncentred behaviour, which is the thing
-        -- this correction exists to replace.
+        -- detail carries the reason. The nil it returns then stops the ranking
+        -- outright: cosine_across_populations refuses to compare without both
+        -- averages rather than reverting to the uncentred measurement.
         utils.log_error("Could not centre the embedding space: " .. tostring(detail))
         return nil
     end
@@ -336,13 +336,6 @@ local function compute_corpus_mean(poem_lookup)
 end
 -- }}}
 
--- {{{ local function centered
--- Subtracts the shared direction from one vector. Thin alias for the shared
--- module, kept because the two call sites below read better with a bare name.
-local function centered(vec, mean)
-    return embedding_space.centered(vec, mean)
-end
--- }}}
 
 -- {{{ local function load_word_embeddings_cache
 local function load_word_embeddings_cache()
@@ -795,7 +788,11 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     else
         filename = tostring(poem.id or "unknown")
     end
-    local poem_identifier = " -> file: " .. category .. "/" .. filename
+    -- A long note name wraps at a dash or slash (text-formatter's
+    -- wrap_file_header), so the line never runs past the 80-wide column.
+    local source_path = category .. "/" .. filename
+    local poem_identifier = table.concat(
+        text_formatter.wrap_file_header(" -> file: ", source_path, 80), "\n")
 
     -- A boost is a reshared post, and it gets its own nested frame: red arrows
     -- into the corners, a blue outer wall, a teal inner box, the borrowed text in
@@ -961,7 +958,11 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
             local padded = content .. string.rep(" ", math.max(0, 80 - vlen))
             return string.format('<font color="%s"><b>║</b></font> %s │', hex_color, padded)
         end
-        table.insert(output, golden_line((poem_identifier:gsub("^%s+", ""))))
+        -- Inside the golden box the wall supplies the leading space, so the
+        -- label drops its own, and each wrapped piece gets its own walls.
+        for _, line in ipairs(text_formatter.wrap_file_header("-> file: ", source_path, 80)) do
+            table.insert(output, golden_line(line))
+        end
         table.insert(output, golden_line(""))
     else
         table.insert(output, poem_identifier)
@@ -1212,6 +1213,22 @@ function M.generate_word_html(options)
     end
     utils.log_info(string.format("Loaded %d word embeddings", word_count))
 
+    -- The words' own average, subtracted from each word before ranking (the
+    -- poems are centred on theirs). A lone word sits at a different offset from
+    -- the poems; centring it on the poem average left that difference in every
+    -- word and sent all 7,290 pages to the same short posts. See
+    -- cosine_across_populations in libs/embedding-space.lua.
+    local word_entries = {}
+    for _, emb in pairs(word_embeddings) do
+        word_entries[#word_entries + 1] = { embedding = emb }
+    end
+    local word_mean, word_mean_detail = embedding_space.corpus_mean(word_entries)
+    if not word_mean then
+        -- Refused rather than degraded: without it every word page reverts to
+        -- the one-offset ranking this replaced, and still looks complete.
+        error("Could not average the word embeddings: " .. tostring(word_mean_detail))
+    end
+
     -- Issue 8-043c: Load poem colors for semantic coloring
     -- Issue 10-034: Fixed path - poem_colors.json is in embeddings directory, not assets root
     local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
@@ -1320,16 +1337,16 @@ function M.generate_word_html(options)
         local word_embedding = word_embeddings[word]
         if word_embedding then
 
-            -- Rank every poem against the word, both sides mean-centered so the
-            -- shared direction described above cannot outvote the meaning.
-            local centered_word = centered(word_embedding, corpus_mean)
+            -- Rank every poem against the word, each centred on its own
+            -- population's average so neither kind of text's habitual offset
+            -- can outvote the meaning.
             local candidates = {}
             for poem_index_str, poem_embedding in pairs(poem_lookup) do
                 local poem_index = tonumber(poem_index_str)
                 local poem = poems_by_index[poem_index]
                 if poem and poem_embedding then
-                    local word_sim = cosine_similarity(
-                        centered_word, centered(poem_embedding, corpus_mean))
+                    local word_sim = embedding_space.cosine_across_populations(
+                        word_embedding, word_mean, poem_embedding, corpus_mean)
                     table.insert(candidates, {
                         poem = poem,
                         embedding = poem_embedding,

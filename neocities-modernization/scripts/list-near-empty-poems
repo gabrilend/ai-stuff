@@ -1,0 +1,189 @@
+#!/usr/bin/env luajit
+-- {{{ list-near-empty-poems
+-- Lists posts with almost no words in them, as candidates to hand-pick for
+-- leaving out of the similar, different and word-cloud pages.
+--
+-- General description (for a CEO): a post like "\" or "brb" gives the machine
+-- that turns writing into numbers almost nothing to read, so it lands in the
+-- middle of everything and turns up as a "similar" poem for hundreds of
+-- unrelated pieces. These posts still belong in the timeline. This script
+-- does not decide anything; it prints a short list, most-intrusive first, in
+-- the exact shape config.lua takes, so a person can copy the ones they agree
+-- with.
+--
+-- How a post is measured:
+--   letters  -- count of ASCII letters and digits after removing @mentions and
+--               links (an "@user-1074 thanks" has six letters, not sixteen).
+--   lists    -- how many other poems' top-33 similar lists it appears in, read
+--               from the chosen model's similarity_rankings_cache.json. The
+--               typical poem appears in about two dozen; a near-empty hub in
+--               hundreds. Only shown when --model is given and that model's
+--               cache exists.
+-- Pictures (image-only posts) are skipped: having no text is what they are.
+--
+-- Usage:
+--   scripts/list-near-empty-poems [DIR] --max-letters N [--model NAME]
+--     DIR            project directory (default: the hard-coded one below)
+--     --max-letters  include posts with at most this many letters/digits
+--     --model        embeddings directory name, for the "lists" column
+--
+-- Output IDs match what config.lua's poem lists expect per category:
+--   fediverse / fediverse_boost / messages: the four-digit file number
+--   notes:     the original filename without extension
+--   bluesky:   the number poems.json gives it (bluesky has no file name)
+-- }}}
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local TOP_K = 33
+
+-- {{{ local function parse_arguments
+local function parse_arguments(argv)
+    local opts = {}
+    local i = 1
+    while i <= #argv do
+        local a = argv[i]
+        if a == "--max-letters" then
+            opts.max_letters = tonumber(argv[i + 1])
+            i = i + 2
+        elseif a == "--model" then
+            opts.model = argv[i + 1]
+            i = i + 2
+        elseif a == "--help" or a == "-h" then
+            opts.help = true
+            i = i + 1
+        elseif a:sub(1, 1) ~= "-" then
+            opts.dir = a
+            i = i + 1
+        else
+            error("unknown option: " .. a)
+        end
+    end
+    return opts
+end
+-- }}}
+
+local opts = parse_arguments(arg)
+if opts.help then
+    for line in io.lines(arg[0]) do
+        if line:match("^%-%- }}}") then break end
+        if not line:match("^#!") then print((line:gsub("^%-%- ?", ""))) end
+    end
+    os.exit(0)
+end
+DIR = opts.dir or DIR
+if not opts.max_letters then
+    -- Asked for, not assumed: what counts as "near-empty" is the owner's call.
+    io.stderr:write("--max-letters N is required (try 8 for a first look)\n")
+    os.exit(2)
+end
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local dkjson = require("dkjson")
+
+-- {{{ local function read_all
+local function read_all(path)
+    local f = assert(io.open(path, "r"))
+    local s = f:read("*a")
+    f:close()
+    return s
+end
+-- }}}
+
+-- {{{ local function count_letters
+-- Mentions and links are addressing, not writing; counting them would let
+-- "@user-1135 @user-1103 @user-1074 Do tell" look like a thirty-letter post.
+local function count_letters(text)
+    local s = text:gsub("@[%w%-_%.]+", " "):gsub("https?://%S+", " ")
+    local _, n = s:gsub("%w", "")
+    return n
+end
+-- }}}
+
+-- {{{ local function config_id
+-- The identifier each extractor checks the exclusion lists against.
+local function config_id(poem)
+    if poem.category == "notes" then
+        local source = poem.metadata and poem.metadata.source_file
+            or error("note poem " .. poem.poem_index .. " has no source_file")
+        -- The extractor matches the filename WITHOUT its extension, but
+        -- source_file keeps one when the file had it ("...awakened.pdf").
+        return source:match("(.+)%..+$") or source
+    end
+    local file_number = (poem.filepath or ""):match("/(%d+)%.txt$")
+    return file_number or string.format("%04d", poem.id)
+end
+-- }}}
+
+-- {{{ local function load_list_counts
+-- How many top-K similar lists each poem_index appears in. nil when no model
+-- was named; an error when one was named but its cache is missing, because a
+-- silently absent column would read as "every post is harmless".
+local function load_list_counts(model)
+    if not model then return nil end
+    local path = DIR .. "/assets/embeddings/" .. model .. "/similarity_rankings_cache.json"
+    local f = io.open(path, "r")
+    if not f then
+        error("no similarity rankings for model '" .. model .. "' at " .. path
+            .. " -- build that model's similarity stage first, or leave out --model")
+    end
+    local s = f:read("*a")
+    f:close()
+    local counts = {}
+    for _, body in s:gmatch('"(%d+)":%s*%[([^%]]*)%]') do
+        local rank = 0
+        for n in body:gmatch("%d+") do
+            rank = rank + 1
+            if rank > TOP_K then break end
+            local idx = tonumber(n)
+            counts[idx] = (counts[idx] or 0) + 1
+        end
+    end
+    return counts
+end
+-- }}}
+
+local poems = dkjson.decode(read_all(DIR .. "/assets/poems.json")).poems
+local list_counts = load_list_counts(opts.model)
+
+local by_category, order = {}, {}
+local total = 0
+for _, p in ipairs(poems) do
+    if not p.is_image_only then
+        local text = p.content or ""
+        local letters = count_letters(text)
+        if letters <= opts.max_letters then
+            if not by_category[p.category] then
+                by_category[p.category] = {}
+                order[#order + 1] = p.category
+            end
+            table.insert(by_category[p.category], {
+                id = config_id(p),
+                letters = letters,
+                lists = list_counts and (list_counts[p.poem_index] or 0),
+                text = text:gsub("%s+", " "):gsub("^ ", ""):sub(1, 50),
+            })
+            total = total + 1
+        end
+    end
+end
+table.sort(order)
+
+print(string.format("-- %d candidates with at most %d letters/digits%s",
+    total, opts.max_letters,
+    list_counts and (", most-listed first (top-" .. TOP_K .. " similar lists, model "
+        .. opts.model .. ")") or ", fewest letters first"))
+for _, category in ipairs(order) do
+    local rows = by_category[category]
+    table.sort(rows, function(a, b)
+        if list_counts and a.lists ~= b.lists then return a.lists > b.lists end
+        if a.letters ~= b.letters then return a.letters < b.letters end
+        return a.id < b.id
+    end)
+    print("        " .. category .. " = {")
+    for _, r in ipairs(rows) do
+        local quoted = string.format("%q", r.id) .. ","
+        local lists = r.lists and string.format("in %3d lists, ", r.lists) or ""
+        print(string.format("            %-24s -- %s%2d letters: %s",
+            quoted, lists, r.letters, r.text))
+    end
+    print("        },")
+end
