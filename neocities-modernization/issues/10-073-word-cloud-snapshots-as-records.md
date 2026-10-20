@@ -97,15 +97,15 @@ The three snapshots from 2026-10-07 are uncommitted, waiting on this design.
    10-063); the records are text files and publish as text like any other.
    The download zip keeps carrying `archive/`. Remove the trimming library
    only if nothing else uses it.
-8. Ride-along: the shared commit tool (`commit-own-changes` and
-   `libs/own-changes-patch.lua` in the scripts project) carries changed
-   `llm-transcripts/*.md` of the commit's projects. Teach it to carry new
-   `archive/wordclouds/*.txt` records the same way. That change belongs to
-   the scripts project and gets its issue there.
+8. Ride-along: done by instruction, not by changing the shared commit tool
+   (owner, 2026-10-20: "There's no reason to add a patch to the hook if
+   it's just for this project"). The project's `CLAUDE.md` tells every
+   session to claim new records and include them in each commit.
 9. Tests run by the build.
 
 ## Answered Questions (2026-10-20)
 
-- Git: records ride along like the transcripts (step 8).
+- Git: records ride along like the transcripts, by the project
+  `CLAUDE.md` instruction (step 8).
 - Zip or text: plain text, for change detection.
 - Old HTML copies: deleted once converted and checked.
