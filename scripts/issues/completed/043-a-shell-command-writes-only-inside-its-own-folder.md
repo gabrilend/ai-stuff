@@ -2,16 +2,20 @@
 
 ## Current Behavior
 
-Built 2026-10-20, steps 1–8 done except installing the session-end hook (step 8), which
-needs the owner's one-time permission to write the settings. `harness-hooks/refuse-outside-writes` sits under the
-PreToolUse Bash matcher and the file-tool matcher in
-`~/.claude/settings.json` (the earlier settings kept as
-`settings.json.before-outside-writes-hook`), and refused a live shell write
-and a live Write to `/tmp` from the monorepo-root session that built it.
-`tests/test-refuse-outside-writes.sh` passes and runs inside
-`test-refusal-gates`; the reader's redirect tests pass in
-`tests/test_shell-command-scan.lua`. The session's own Claude Code scratchpad
-is allowed; every other place under `/tmp/claude-<uid>/` is refused.
+Complete, 2026-10-20. `harness-hooks/refuse-outside-writes` sits under the
+PreToolUse Bash matcher and the file-tool matcher, `answer-outside-write`
+before and after the question tool, and `merge-agent-scratchpad` on
+SessionEnd, all in `~/.claude/settings.json` (earlier settings kept as
+`settings.json.before-outside-writes-hook`). Checked live from the
+monorepo-root session that built it: a shell write and a Write to `/tmp`
+refused; a write into its own scratchpad allowed and into another
+session's refused; an Edit of `~/.claude/settings.json` refused, its
+question asked, answered Yes by the owner, read by the answer hook, and the
+same Edit then let through once, the grant spent. The session-end move has
+not yet been seen on a real session ending. Tests:
+`tests/test-refuse-outside-writes.sh`, `tests/test-answer-outside-write.sh`,
+`tests/test-merge-agent-scratchpad.sh`, and the reader's redirect cases in
+`tests/test_shell-command-scan.lua`, all run by `test-refusal-gates`.
 
 What follows is the problem as it was first described.
 
@@ -151,6 +155,39 @@ run, as every gate here does (`gate.warn_and_allow`).
      scratchpad cases in `tests/test-refuse-outside-writes.sh`.
    - Installed under `SessionEnd` in `~/.claude/settings.json`.
 
+9. Asking the person: Yes, Always, No. The owner, 2026-10-20: "we should
+   ask the user a question with three answers, yes, always, and no ...
+   That's the always answer. Yes is 'yes, but once.'" A hook cannot ask
+   the person anything itself (it runs without the terminal), and Claude
+   Code's own permission dialog can be answered by the auto-mode classifier,
+   so the agent asks with its question tool and a hook reads the answer:
+   - When the gate refuses a write whose places it could pin down, it
+     files a request in RAM (`/dev/shm/claude-outside-writes/requests/`,
+     itself outside every session's folder, so no agent can write one): an
+     id, the session, the places, and the exact question to ask. The
+     refusal gives the agent that question word for word: the places named
+     in the question text, and three answers, "Yes" (this once), "Always"
+     (anything in these folders, from now on, for every session) and "No".
+   - `harness-hooks/answer-outside-write`, after the question tool runs,
+     reads the answers Claude Code recorded (the person's, not the
+     agent's), finds the request by the id in the question, and checks the
+     question and its answers are exactly the ones filed and that the
+     session is the one refused. Yes: a grant for those places, for that
+     session, spent on the next write that needs no more than them. Always:
+     each place's folder (the folder a file is in, or the folder itself) is
+     added to the allowed list, `~/.claude/outside-write-allowed-folders`,
+     one real folder per line, kept on disk. No, anything else, or a
+     question that does not match: nothing.
+   - The same hook, before the question tool runs, refuses a call that
+     arrives with answers already filled in, since that would let an agent
+     answer for the person.
+   - The gate treats places inside an allowed folder as inside, and spends
+     a matching grant before refusing.
+   - Requests and grants last 30 minutes. The `! touch` permission stays as
+     the person's own way through: an agent cannot make the file, because
+     writing to /tmp is itself refused.
+   - Tests: `tests/test-answer-outside-write.sh`.
+
 ## Known Limits (stated, not built)
 
 - A program or script the command runs writes wherever it likes: the gate
@@ -176,11 +213,10 @@ run, as every gate here does (`gate.warn_and_allow`).
   yes?" Built (step 7).
 
 - The permission is not tied to a session or a place: whichever session
-  next has a write refused spends it, even one in another terminal. Should
-  it work like the folder gate's, where the file may name a folder
-  (`! echo /home/ritz/.claude/skills > /tmp/claude-allow-outside-write`)
-  and then allows only a write inside it, and expires after ten minutes?
-  Asked 2026-10-20; unanswered.
+  next has a write refused spends it. Answered 2026-10-20 by the owner's
+  question design (step 9): a "Yes" is a grant for one session and named
+  places. The `! touch` file is kept as the person's own route and still
+  belongs to no session.
 
 ## Related Documents and Tools
 

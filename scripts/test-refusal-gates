@@ -498,6 +498,12 @@ else
     cat "${SCRATCH}/outside-writes.log"
     check "tests/test-refuse-outside-writes.sh passes" no
 fi
+if bash "${DIR}/tests/test-answer-outside-write.sh" "${DIR}" > "${SCRATCH}/answer-outside.log" 2>&1; then
+    check "tests/test-answer-outside-write.sh passes ($(tail -1 "${SCRATCH}/answer-outside.log"))" yes
+else
+    cat "${SCRATCH}/answer-outside.log"
+    check "tests/test-answer-outside-write.sh passes" no
+fi
 if bash "${DIR}/tests/test-merge-agent-scratchpad.sh" "${DIR}" > "${SCRATCH}/merge-scratchpad.log" 2>&1; then
     check "tests/test-merge-agent-scratchpad.sh passes ($(tail -1 "${SCRATCH}/merge-scratchpad.log"))" yes
 else

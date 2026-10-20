@@ -65,6 +65,7 @@ package.path = DIR .. "/libs/?.lua;" .. package.path
 local gate = require("hook-gate")
 local scan = require("shell-command-scan")
 local tiers = require("own-ram-tiers")
+local permits = require("outside-write-permits")
 
 -- Redirection operators that write to their target. `>&` writes only when
 -- its target is a file name, not a descriptor (2>&1) or `-` (close).
@@ -367,8 +368,10 @@ end
 -- }}}
 
 -- {{{ local function is_allowed_place()
--- True when a filled-in target lies in the session's folder, its rooms, or
--- is a harmless device.
+-- True when a filled-in target lies in the session's folder, its rooms, its
+-- scratchpad, a folder the person allowed Always, or is a harmless device.
+-- Also gives the target's real place (nil for a device or one that cannot
+-- be placed), for the request a refusal files.
 local function is_allowed_place(filled, cwd, here, rooms, session_id)
     -- devices compared as written (relative ones never name a device)
     if HARMLESS_DEVICE[filled] or filled:match("^/dev/fd/%d+$") then return true end
@@ -378,17 +381,19 @@ local function is_allowed_place(filled, cwd, here, rooms, session_id)
     local place = tiers.real_place(path, false)
     -- cannot be placed: not allowed
     if not place then return false end
-    if tiers.is_inside(place, here) then return true end
+    if tiers.is_inside(place, here) then return true, place end
     for _, room in ipairs(rooms) do
-        if tiers.is_inside(place, room) then return true end
+        if tiers.is_inside(place, room) then return true, place end
     end
+    -- a folder the person answered Always for, in any session
+    if permits.is_allowed(place) then return true, place end
     -- this session's own Claude Code scratchpad, made yet or not: Claude
     -- Code tells every session to use it, and merge-agent-scratchpad carries
     -- it into the project's RAM room when the session ends (the owner's
     -- design, 2026-10-20: "let the agents write to their default
     -- directories, and then merge their stuff into the correct directory when
     -- they finish completely"). Another session's is outside.
-    return tiers.is_in_claude_scratchpad(place, session_id)
+    return tiers.is_in_claude_scratchpad(place, session_id), place
 end
 -- }}}
 
@@ -449,17 +454,24 @@ local function main()
     end
     local rooms = tiers.rooms_of(cwd)
 
-    local outside, unknown = {}, {}
+    local outside, unknown, places = {}, {}, {}
     for _, t in ipairs(found) do
-        if not t.filled then
-            -- a target with something unexpanded in it
+        local allowed, place = false, nil
+        if t.filled then allowed, place = is_allowed_place(t.filled, cwd, here, rooms, input.session_id) end
+        if not t.filled or (not allowed and not place) then
+            -- a target with something unexpanded in it, or one realpath
+            -- cannot place: nothing the person could be asked about
             unknown[#unknown + 1] = t.written
-        elseif not is_allowed_place(t.filled, cwd, here, rooms, input.session_id) then
+        elseif not allowed then
             outside[#outside + 1] = t.written
+            places[#places + 1] = place
         end
     end
     -- every place it writes is inside: say nothing, the classifier judges
     if #outside == 0 and #unknown == 0 then os.exit(0) end
+    -- the person said Yes to exactly this (or more) for this session: the
+    -- grant is spent, and the classifier judges as usual
+    if #unknown == 0 and permits.spend_grant(json, input.session_id, places) then os.exit(0) end
 
     local reason = "This " .. (input.tool_name == "Bash" and "command" or input.tool_name .. " call") .. " writes outside the folder this session is working in (" .. here .. ")"
     if #rooms > 0 then reason = reason .. ", its RAM scratch space (" .. table.concat(rooms, ", ") .. ")" end
@@ -472,8 +484,21 @@ local function main()
         reason = reason .. " This gate cannot tell where these point -- a relative or ~ path given to a file tool, a variable set outside the command, or a command substitution: " .. table.concat(unknown, ", ") .. ". Write the path out in full, as an absolute path; a waiting permission does not cover these, and was not spent."
         gate.refuse(json, reason)
     end
-    reason = reason .. " Files outside the session's folder belong to other work. If this write is genuinely needed, ask the user, who can allow one such write by typing: ! touch " .. TOKEN
-    gate.refuse_unless_token(json, TOKEN, reason)
+    reason = reason .. " Files outside the session's folder belong to other work."
+    -- the person's own one-time permission, typed at the prompt, still counts
+    local spent = gate.spend_token(TOKEN)
+    if spent then os.exit(0) end
+    -- file a request, so the person can be asked Yes / Always / No; the
+    -- answer is read by answer-outside-write from what Claude Code records,
+    -- never from the agent
+    local request, err = permits.file_request(json, input.session_id, places)
+    if not request then
+        reason = reason .. " (A question for the user could not be filed: " .. tostring(err) .. ". They can allow one such write by typing: ! touch " .. TOKEN .. ")"
+        gate.refuse(json, reason)
+    end
+    reason = reason .. " If this write is genuinely needed, ask the user with the AskUserQuestion tool, using exactly this one question, word for word, with no answers filled in: " .. json.encode({ questions = { request.question } })
+        .. " If they answer Yes or Always, run the same write again unchanged. If they answer No, do not write there."
+    gate.refuse(json, reason)
 end
 -- }}}
 

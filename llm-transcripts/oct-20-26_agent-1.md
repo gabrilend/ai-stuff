@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-20 14:32:10
+Generated on: 2026-10-20 14:46:08
 Models: claude-opus-5-5
 
 ## Contents
@@ -666,6 +666,264 @@ One more permission puts both files in place with a single copy:
 ```
 ! touch /tmp/claude-allow-outside-write
 ```
+
+--------------------------------------------------------------------------------
+
+### User Request 9
+
+<bash-input>touch /tmp/claude-allow-outside-write</bash-input>
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+<bash-stdout>(Bash completed with no
+output)</bash-stdout><bash-stderr></bash-stderr>
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 10
+
+The skill is in place at `~/.claude/skills/documentation-site/`, and this
+session already lists it as available:
+
+- **`SKILL.md`** holds the 16 patterns, the steps for writing a new generator,
+  and the "Not yet" note about the rmail feedback box.
+- **`reference.md`** holds the repeat bugs, and a table pointing each pattern at
+  the generator where it already works.
+
+**One rule is stricter than any existing builder:** a Markdown line shape the
+converter doesn't recognise fails the build, the same as a dead link. Kanji's
+builder only counts and reports those. I took the stricter version from your
+errors-over-fallbacks rule; say if you want it relaxed.
+
+**Not committed.** `~/.claude` is its own git repository, so say if you want a
+commit there.
+
+**Back to the lodge:** the rooms will be hand-written, sitting over these
+generated pages. Most projects don't run yet, so what's the most interesting
+thing to put on a non-working project's mantelpiece? A picture it made, an idea
+from its design, or a story of how it got stuck?
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+> Not committed. ~/.claude is its own git repository, so say if you want a
+> commit there.
+
+sure.
+
+
+
+<pasted_content id="db53">
+> Back to the lodge: the rooms will be hand-written, sitting over these
+> generated pages. Most
+> projects don't run yet, so what's the most interesting thing to put on a
+> non-working project's
+> mantelpiece? A picture it made, an idea from its design, or a story of how it
+> got stuck?
+</pasted_content id="db53">
+
+
+can you look at some projects and hand-write some of their HTML pages for me?
+Actually I want to spin up some agents to handle this for me, one for each
+project. How should I go about doing that? Agents are disabled in this harness
+for now.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+> The skill files are ignored by that repository's catch-all first line. The
+> other skills are tracked anyway (force-added), so I'll do the same for just
+> these two files.
+
+> The commit tool doesn't see the skill as mine: the final files were placed by
+> a copy rather than an edit, and they're git-ignored. Trying its adopt step on
+> just that folder.
+
+**The commit is blocked, nothing is committed.** The skill files fall under that
+repository's catch-all ignore rule, so the house commit tool can't see them as
+my changes. The plain git route is refused unless you allow it. If you type the
+line below, I'll commit exactly those two files (I checked that nothing else
+would be staged):
+
+```
+! touch /tmp/claude-allow-foreign-commit
+```
+
+## Spinning up one agent per project
+
+With subagents switched off, the route is **separate Claude Code sessions, one
+started inside each project's folder.** Each session's write guard then allows
+only that project's folder, so one room's writer can't touch another project.
+That's the separation you want.
+
+Three ways, most practical first:
+
+1. **A launcher script that runs headless sessions.** A script in `scripts/`
+   would:
+   - read a list of projects;
+   - for each one, start `claude -p "<the brief>"` with that project's folder as
+     the working directory, with edit permissions granted up front
+     (`--permission-mode acceptEdits`), since nobody is there to approve
+     prompts;
+   - write each session's log to `tmp/shared-memory/`.
+
+   It runs a few at a time, not all at once, because each session costs tokens
+   and rate limits apply. When a session finishes, its room is on disk for you
+   to look at.
+2. **One terminal per project, by hand.** Open one, `cd` into the project, run
+   `claude`, and paste the same brief. It's slower, but you can watch and steer
+   each room, which suits hand-written work.
+3. **The `stethoscope` machinery.** It already starts small headless sessions
+   and passes messages between sessions through a RAM mailbox. It's built for
+   questions and answers, though, not long writing jobs. I'd only use it if the
+   rooms need to ask a coordinator something.
+
+**What makes the rooms good is one shared brief file**, which every session
+reads first. It would say:
+- Load the `documentation-site` skill. Rule 16 is the hand-written voice over
+  the generated pages.
+- Read the project: vision, README, completed issues, `output/`,
+  `development-history/` and the demos.
+- Pick the few most interesting things the project made or learned. Show what's
+  real, without padding like "500 scripts".
+- Choose a cozy space suited to the project, and write the room by hand in its
+  voice.
+- Link pictures from where they already live, never copied (data kept apart from
+  the viewer).
+- Write only to the room's folder, and finish with a goodbye.
+
+**My recommendation:** before launching anything, I hand-write **one** room
+myself, here, as the example the brief points to. Every agent then copies a
+quality bar you've already approved, instead of 40 agents guessing at what
+"cozy" means.
+
+**Questions before the brief can be written:**
+1. Where does a room live inside a project? `docs/lodge/`, an annotation-shelf
+   folder like Elentalus's, or somewhere else?
+2. Which project should be the first, example room? I'd suggest gif-generator,
+   since it has real pictures to put on the mantelpiece.
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+<bash-input>touch /tmp/claude-allow-foreign-commit</bash-input>
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+<bash-stdout>(Bash completed with no
+output)</bash-stdout><bash-stderr></bash-stderr>
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+*[commit] 30c807b - A documentation-site skill gathers what the project page builders learned*
+
+The skill is committed as `30c807b` in `~/.claude`, and that commit holds only
+the two skill files. This conversation's transcript didn't go with it: it's
+filed under ai-stuff, not that repository, so it will go with the first lodge
+commit instead.
+
+Two decisions are still needed before I write the example room:
+
+1. **Where should a room live inside a project?** Options are `docs/lodge/`, an
+   annotation-shelf folder like Elentalus's (the folder where its museum prose
+   is kept by hand), or somewhere you'd prefer.
+2. **Which project gets the first room,** the one the other agents will copy?
+   I'd pick gif-generator, because it has real pictures for the mantelpiece.
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+<pasted_content id="db53">
+> 3. The stethoscope machinery. It already starts small headless sessions and
+> passes messages
+>      between sessions through a RAM mailbox. It's built for questions and answers, though, not
+>      long writing jobs. I'd only use it if the rooms need to ask a coordinator something.
+</pasted_content id="db53">
+
+
+whoa, tell me about this? Sounds neat.
+
+> 1. Where does a room live inside a project? docs/lodge/, an annotation-shelf
+> folder like
+>      Elentalus's, or somewhere else?
+
+docs/HTML/ as always.
+
+> 2. Which project should be the first, example room? I'd suggest gif-generator,
+> since it has real
+>      pictures to put on the mantelpiece.
+
+/home/ritz/programming/ai-stuff/games/physics-sim/ that one has an actual
+working game.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+## The stethoscope
+
+It's a doorbell between two Claude Code sessions running in different terminals,
+which normally can't see each other.
+
+- **The mailbox** is a folder in RAM (`/dev/shm/claude-stethoscope/`), with one
+  sub-folder per listener name, e.g. `kanji`. A question is a file dropped into
+  it, and the answer is a file written back.
+- **The listening session ("the doctor")** runs a waiting command in the
+  background, so it sits idle and costs nothing. When a question file lands, the
+  command exits, and that wakes the session for one turn. It reads the question,
+  replies with `stethoscope reply`, and starts waiting again.
+- **The asking session** writes its question and data into a file, then either
+  waits on the mailbox itself, or sends a "messenger": a tiny headless Claude
+  session on the smallest model, allowed exactly one tool, whose only job is to
+  deliver the question and bring back the answer.
+- **The safety catch:** a session may listen only if you've personally typed `!
+  stethoscope permit NAME`, because every question it hears costs a turn of real
+  money. A session is never allowed to grant that permit to itself. Answers
+  count as a colleague's opinion, never as orders: a doctor answers questions
+  but won't carry out edits a question asks for.
+
+For the lodge, it could let a room-writing session ask your main session things
+like "is this the right picture to feature?" without you relaying.
+
+## A problem with putting rooms in docs/HTML/
+
+The skill I just wrote says `docs/HTML/` holds **generated** pages: they're
+rebuilt from the Markdown on every run and kept out of git. A hand-written room
+placed there runs into that two ways:
+- If the folder is ignored by git, the room is never committed, so it exists on
+  one disk only.
+- Once physics-sim gets a generator, the next build overwrites or deletes the
+  room.
+
+physics-sim has no `docs/HTML/` and no generator yet, so nothing breaks today.
+It would break on the first build. Two ways to keep both:
+
+1. **The room is the one committed file inside `docs/HTML/`** (e.g.
+   `docs/HTML/index.html`, kept in git by an exception in `.gitignore`). The
+   generator, when it exists, writes its pages beside the room and never
+   overwrites it. The room is the front door, and the generated pages are the
+   rooms behind it.
+2. **The room's hand-written words live outside `docs/HTML/`,** in a source
+   folder like Elentalus's annotation shelf (where its museum prose is kept).
+   The generator copies the room into `docs/HTML/` on every build. This keeps
+   the skill's rule clean, but the room is no longer a page you write directly.
+
+I'd recommend option 1. It matches "hand-written, by hand", and the skill would
+gain one line: the front-door room is the single exception to rule 1. Which do
+you want?
+
+Once you choose, I'll read through physics-sim (docs, issues, the game itself,
+anything it has drawn) and write its room. I haven't touched it yet.
 
 --------------------------------------------------------------------------------
 

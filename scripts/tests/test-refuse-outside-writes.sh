@@ -33,6 +33,10 @@ export ARTIFACT_TIER_ROOT="${SCRATCH}/shm"
 # Claude Code's temp root, stood in the scratch folder: this session's
 # scratchpad (aaaa-1111, the id every case below carries) and another's
 export CLAUDE_CODE_TMPDIR="${SCRATCH}/claude-temp"
+# the person's permissions (requests, grants, the allowed list), kept in the
+# scratch folder so no case reads or writes the real ones
+export OUTSIDE_WRITE_STATE="${SCRATCH}/permits"
+export OUTSIDE_WRITE_ALLOWED="${SCRATCH}/allowed-folders"
 OWN_PAD="${CLAUDE_CODE_TMPDIR}/-some-project/aaaa-1111/scratchpad"
 OTHER_PAD="${CLAUDE_CODE_TMPDIR}/-some-project/bbbb-2222/scratchpad"
 mkdir -p "${OWN_PAD}" "${OTHER_PAD}"
@@ -199,10 +203,10 @@ rm -f "${TOKEN}"
 # the refusal names the place and the way through
 input="$(jq -n --arg cwd "${P}" --arg c "rm ${O}" '{tool_name: "Bash", tool_input: {command: $c}, cwd: $cwd}')"
 reason="$("${GATE}" "${TOKEN}" "${DIR}" <<< "${input}" | jq -r '.hookSpecificOutput.permissionDecisionReason')"
-if grep -qF "${O}" <<< "${reason}" && grep -qF "touch ${TOKEN}" <<< "${reason}"; then
+if grep -qF "${O}" <<< "${reason}" && grep -qF "AskUserQuestion" <<< "${reason}" && grep -qF "[outside-write " <<< "${reason}"; then
     PASSED=$((PASSED + 1))
 else
-    FAILED=$((FAILED + 1)); printf 'FAIL: the refusal does not name the place and the token: %s\n' "${reason}"
+    FAILED=$((FAILED + 1)); printf 'FAIL: the refusal does not name the place and the question to ask: %s\n' "${reason}"
 fi
 
 # the file tools: the path they name
