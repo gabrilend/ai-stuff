@@ -1,0 +1,97 @@
+# 10-072: Build the Site in RAM
+
+## Status
+- **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
+- **Priority**: Medium
+- **Type**: Storage change
+- **Status**: Open
+- **Created**: 2026-10-20
+- **Related**: 10-054 (moved regenerable caches to RAM to spare the disk; the
+  same goal for the caches, and the reason they went back to disk), 8-059
+  (the project's two RAM folders and the `tmp/` links into them), 10-057
+  (pipeline memory budget)
+
+## The owner's words (2026-10-20)
+
+> should be in RAM.
+
+Said of the built pages, after learning that a full build rewrites about
+4.7 GB of them on disk, and about the RAM folder being emptied at logout:
+"It's fine." The site is uploaded right after it is built, so losing it at
+logout costs a rebuild, nothing more.
+
+## Current Behavior
+
+The built site, `output/`, is an ordinary folder on the disk. Every full
+build rewrites it:
+
+| Part | Rewritten |
+|---|---|
+| similar and different pages (about 52,000 files) | every build |
+| word pages, the word cloud, chronological pages and text export, the source browser | every build |
+| `media/` (the pictures, about 1.5 GB) | only when a picture changes |
+
+Re-rendering with the same inputs gives byte-identical pages, so most of
+those writes replace a file with the same bytes. Measure with
+`du -sh output output/media`.
+
+One file already lives in RAM: the download zip is finished in
+`tmp/shared-memory/` and `output/` holds only a link to it
+(`scripts/build-download-zip`). Deploy (`scripts/deploy-to-neocities`)
+follows links, and stops with a "rebuild first" message if the RAM copy is
+gone. That is the pattern this issue extends to the whole site.
+
+About 32 places in `run.sh`, `src/`, `libs/` and `scripts/` name the
+`output/` folder directly, so moving it by changing each of them would be a
+large, error-prone edit.
+
+The RAM folder (`/dev/shm`, a 16 GB tmpfs on this machine) is emptied when
+the owner's last login session ends (elogind's `RemoveIPC`), not only at
+reboot. The owner has chosen to leave that setting alone.
+
+## Intended Behavior
+
+- `output/` is a link into the project's RAM folder
+  (`tmp/shared-memory/output/`), so every program that writes "output/..."
+  writes into RAM without being changed.
+- `output/media/` is a link back to a folder on disk, because pictures
+  rarely change and copying 1.5 GB into RAM after every logout is wasted
+  work. Pictures are still copied only when they change.
+- A build that finds the RAM folder empty (after a logout) recreates
+  `output/` there and builds normally. Nothing on disk is lost, because
+  nothing but pictures was ever kept there.
+- Deploy, the page check and anything else that reads `output/` and finds
+  the link pointing at nothing stops with a message saying to rebuild,
+  never a silent empty upload (a deploy with pruning against an empty
+  folder would delete the live site).
+
+## Suggested Implementation Steps
+
+1. Add one shared "make sure the site folder exists" step (in the helper
+   that already makes `tmp/shared-memory/`), which creates the RAM folder,
+   the `output/` link and the `output/media/` link to disk. `run.sh` calls
+   it before the first stage that writes pages.
+2. Move the current `output/` contents: pictures to the disk folder that
+   `output/media/` will point at, everything else is rebuilt. Keep the old
+   folder until one build and one deploy have worked from the new layout.
+3. Check every reader of `output/` for a missing-site message: deploy, the
+   page check, the download zip, the phase demos.
+4. `.gitignore` lists `output/`; the trailing slash matches only a folder,
+   and git sees a link as a file, so add `output` (no slash) or the link
+   shows up as untracked.
+5. Re-check the zip: its link sits inside `output/`, which is now in RAM
+   too, so it can live there directly.
+6. Tests: a scratch project folder where the RAM folder is emptied between
+   two builds (simulating a logout) — the second build must succeed and
+   deploy's file listing must find the pages; a dangling `output/` must
+   make deploy refuse.
+7. Measure: run a full build and count bytes written to the disk before and
+   after (`/proc/<pid>/io` write_bytes, or the disk's own counters).
+
+## Open Questions
+
+- Should pictures stay on disk as planned, or also move to RAM? 1.5 GB fits
+  (16 GB tmpfs), but would be re-copied after every logout.
+- The option from 2026-10-07, "only write a page whose content changed",
+  stops being needed for the disk once pages live in RAM. Is it still wanted
+  for speed? (Writing to RAM is already fast; probably not.)

@@ -122,10 +122,15 @@ decided by that comparison, not assumed.
   does not silence it, so no flag was added.
   7. "failed to mlock ... Cannot allocate memory": the start script's
      RAM pin (`--load-mode mmap+mlock`, formerly `--mlock`; b11476 removed
-     the old flag, which stopped the server from starting) needs more locked
-     memory than this login allows (`ulimit -l` is 8 MB; the model needs
-     ~171 MB). The pin has therefore never taken effect, for any model: a
-     silent fallback. Raise the limit for this user, or drop the pin?
+     the old flag, which stopped the server from starting) needed more locked
+     memory than that session allowed (`ulimit -l` read 8 MB on 2026-10-07;
+     the model needs ~171 MB). On 2026-10-20 `ulimit -l` reads 524288 KB
+     (512 MB) in a fresh shell, so the limit now differs between sessions
+     and the pin may already work. Note this limit is not the RAM folder's
+     size: the tmpfs (16 GB) holds files, while the lock limit caps how much
+     of one program's own memory may be held out of swap. Re-check by
+     starting the server and looking for the mlock warning; if it is gone,
+     this item closes. If it returns, find which login path gives 8 MB.
 - If EmbeddingGemma 2 wins the comparison, do all per-model caches get
   regenerated at once, or does the old model's directory stay as the live
   site until the new one is complete?
