@@ -234,24 +234,80 @@ Write index files
      gone (10-060); `libs/pipeline-validator.lua` was removed with the
      stand-alone HTML generator, its only user.
 
-1. **Audit**: Run grep for duplicated function names across all HTML generators
-   ```bash
-   grep -n "format_poem_entry\|generate_progress_dashes\|is_golden_poem" src/*.lua
-   ```
+1. **Audit (done 2026-10-20).** Four copies draw one poem's entry:
+   - the similar/different worker's `format_poem_entry` (inside the effil
+     worker in `src/flat-html-generator.lua`; draws ~52,000 pages);
+   - the chronological page loop in
+     `generate_chronological_index_with_navigation`, through the main
+     program's `format_content_with_warnings`, `apply_golden_poem_formatting`
+     and `render_attachment_images`;
+   - the single-threaded similar/different builder
+     (`format_single_poem_with_progress_and_color` and the
+     `generate_flat_poem_list_html*` / `generate_paginated_poem_page_html` /
+     `generate_all_paginated_pages_for_poem` family), reached with
+     `--threads 1` and also, silently, when the memory guard lowers the
+     worker count to 1;
+   - the word pages' own formatter in `src/generate-word-pages.lua`.
+   Bars, nav boxes, boost frames, warning boxes, wrapping and picture entries
+   already come from shared modules (`poem-bars`, `boost-bars`,
+   `text-formatter.format_cw_box`, `image-render`). What still differs, with
+   the number of poems each difference touches (measured over 8,622 poems):
 
-2. **Extract shared module**: Create `src/poem-formatter.lua` with all formatting logic
+   | Difference | Chronological | Similar/different worker | Poems |
+   |---|---|---|---|
+   | Emphasis (`*word*`, `~~word~~`, `` `code` ``) | styled, marks kept (Issue 4-003) | plain text | 968 |
+   | A line exactly 80 wide | kept whole (80 text columns + 1 indent) | wrapped (the 1 indent counted inside 80) | 1,214 lines |
+   | A "CW:" line after the first line | boxed | plain text | 3 |
+   | Golden poem indented lines | indent kept | indent stripped | 0 today |
+   | Boost picture alt text | quotes escaped, newlines removed | raw | 0 today |
 
-3. **Refactor workers**: Workers `require` the shared module instead of embedding code
+   Proposed (the owner's call): the first column wins every row. Emphasis
+   is the owner's 4-003 decision, which the worker never received; 80 text
+   columns is what golden poems already use; boxing a later CW line and
+   keeping an author's indent follow 9-011 and 8-056.
 
-4. **Migrate chronological**: Move chronological generation into worker scope
+2. **Extract the shared module.** `src/poem-entry.lua`: one function that
+   draws a poem's whole entry (top bar, warning boxes, text, pictures, nav
+   boxes, bottom bar; boosts and picture entries included) from the poem and
+   a small context (its colour, its progress, its three links). It requires
+   only the modules it uses. A worker loads it once when it starts: a code
+   file of a few dozen KB. (The worker bandwidth problem of 10-034 was
+   DATA: each worker loaded 700 MB of neighbour caches to use 80 KB of
+   them. The orchestrator still sends those slices; that does not change.)
 
-5. **Test parity**: Ensure output is byte-for-byte identical before/after refactor
+3. **Workers call it.** The worker's pasted `format_poem_entry` goes.
 
-6. **Remove main thread formatting**: Delete duplicated code from main thread
+4. **Chronological pages are built by the workers too.** A work item becomes
+   either "this poem's similar and different pages" or "chronological page
+   N". The page shell (title, page navigation, menu link) moves beside the
+   other page shells the worker writes. The main program keeps the
+   ordering, the timeline mapping and the queue.
+
+5. **The single-threaded builder goes** (owner, 2026-10-20: "we should
+   remove this"). One thread means one worker. The tests that call it
+   (`flat-html-generator.*.test.lua`: chronological-links, page-links,
+   progress-bars, anchor-once, download-links) are rewritten against
+   `poem-entry`; `src/main.lua`'s menu paths, `scripts/test-html-generation`,
+   `scripts/test-diversity-quick` and `demos/5-demo.lua` are pointed at it
+   or retired. The TXT exports and HTML archives it also wrote (off in the
+   shipped config, and never written by the threaded path) are checked
+   against `config.lua` before removal.
+
+6. **Word pages call it** in place of their own formatter.
+
+7. **Prove it.** Render every chronological page and a sample of similar
+   and different pages (golden, boost, CW, picture, emphasis and 80-wide
+   cases) with the code before and after, into a scratch folder, and
+   compare line by line: the only differences allowed are the rows chosen
+   in step 1. Then the whole-site check on the owner's next build.
+
+8. **Re-check the three bugs** listed above (progress bars past the frame,
+   anchor printed twice, warning boxes disagreeing) on the rebuilt pages.
 
 ## Edge Cases
 
-1. **Single-threaded mode**: Should still work when thread count = 1
+1. **Single-threaded mode**: thread count 1 means one worker, through the
+   same code path (step 5)
 2. **Progress display**: Main thread needs some way to show progress without doing work
 3. **Error handling**: Worker failures should be reported, not silently dropped
 4. **Memory pressure**: Large batches may need chunking within workers
