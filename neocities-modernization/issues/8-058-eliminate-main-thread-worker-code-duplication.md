@@ -25,8 +25,32 @@ endings left a carriage return on every line.
   both. The 80-column choice re-flows every wrapped long line on
   similar/different pages by up to one word, not only lines of exactly 80.
 - Pinned by `src/poem-entry.test.lua`.
-- Still to do: chronological pages built by the workers (step 4), the
-  single-threaded builder removed (step 5), the word pages (step 6).
+**Chronological pages built by the workers (2026-10-20).** One worker pool
+(`run_page_workers`) takes two kinds of job, "this poem's similar and
+different pages" and "chronological page N"; the main program sorts the
+poems, works out each one's timeline progress and hands out the jobs; a
+chronological job carries its poems, as the caller loaded them (a worker's own
+copy is poems.json from disk, with gallery pictures folded in for the ranked
+lists, which a filtering caller or a test must not get). The page frame moved
+to `src/chronological-page.lua` so workers can load it. The
+9 chronological pages take about 1 s instead of 33 (the old loop glued every
+poem onto a growing string). Byte-identical to the main-program build.
+Workers are now handed the selected model's folder: a worker cannot see which
+model the main program was told to use, and the render tool (which writes no
+run notepad) showed workers drawing another model's colours; a missing colour
+file now stops the worker instead of drawing every poem grey.
+
+**Found before removing the single-threaded builder (step 5, on hold for the
+owner):** it holds the only implementation of two features the live pages do
+not have, because every real build is threaded:
+- Previous/Next links between a poem's pages (8-012, 10-036): a live
+  similar page has no link to its own page 2.
+- The download offer and the per-poem .txt exports (8-013): config.lua says
+  `generate_txt_exports = true`, and the threaded build has never written one.
+Its tests (page-links, download-links, and the others that call it) test
+those features there. Port them into the worker pages, or drop them, before
+the builder goes.
+- Still to do: step 5 after that decision, the word pages (step 6).
 
 **Bars and navigation boxes: merged (2026-10-07).** The chronological pages
 (main thread) now draw every progress bar and every corner/nav box through

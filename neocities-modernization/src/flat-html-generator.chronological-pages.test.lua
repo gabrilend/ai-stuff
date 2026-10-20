@@ -69,7 +69,7 @@ do
     os.execute('rm -rf "' .. SCRATCH .. '"')
     os.execute('mkdir -p "' .. SCRATCH .. '"')
     local ok, err = pcall(generator.generate_chronological_index_with_navigation,
-        poems_data, SCRATCH, 2)
+        poems_data, SCRATCH, 2, 1)
     check("paginated pages build without error", ok, tostring(err))
     local page1 = read_file(SCRATCH .. "/chronological/01.html")
     local page3 = read_file(SCRATCH .. "/chronological/03.html")
@@ -106,7 +106,7 @@ do
         }
     end
     local ok, err = pcall(generator.generate_chronological_index_with_navigation,
-        { poems = golden_poems }, SCRATCH, 2)
+        { poems = golden_poems }, SCRATCH, 2, 1)
     check("a page with a golden poem builds", ok, tostring(err))
     -- Two per page puts the golden poem (third) on page 2. (Had everything
     -- fit on one page, the build writes chronological/index.html instead.)
@@ -131,7 +131,7 @@ do
     os.execute('rm -rf "' .. SCRATCH .. '"')
     os.execute('mkdir -p "' .. SCRATCH .. '"')
     local ok, err = pcall(generator.generate_chronological_index_with_navigation,
-        poems_data, SCRATCH, nil)
+        poems_data, SCRATCH, nil, 1)
     check("single-page build runs without error", ok, tostring(err))
 end
 -- }}}

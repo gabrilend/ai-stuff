@@ -55,7 +55,10 @@ if not similarity_data or not embeddings_data then
     -- Generate just the chronological index (HTML and TXT)
     local output_dir = DIR .. "/output"
     print("Generating chronological index...")
-    local result = flat_generator.generate_chronological_index_with_navigation(poems_data, output_dir)
+    -- the pages are built by worker threads (Issue 8-058); the count is the
+    -- second argument, required
+    local threads = tonumber(arg[2]) or error("usage: regenerate-clean-site.lua DIR THREADS")
+    local result = flat_generator.generate_chronological_index_with_navigation(poems_data, output_dir, nil, threads)
     if result then
         print("Successfully generated chronological.html at: " .. result)
     else

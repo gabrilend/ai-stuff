@@ -142,7 +142,7 @@ fresh_out()
 local poems_data = assert(utils.read_json_file(utils.asset_path("poems.json")), "poems.json did not load")
 local chrono_per_page = generator.get_pagination_config().chronological_poems_per_page
 -- the chronological pages: all of them, from every poem
-assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, chrono_per_page),
+assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, chrono_per_page, THREADS),
     "chronological pages failed")
 -- the similar/different pages: only the sample's anchors get pages; every
 -- poem keeps its place on the timeline and in the ranked lists

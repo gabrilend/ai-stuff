@@ -96,7 +96,9 @@ local function demo_flat_html_generation()
     
     -- Generate sample chronological index
     print("📄 Generating chronological index with navigation...")
-    local index_file = flat_gen.generate_chronological_index_with_navigation(poems_data, DIR .. "/demo-output")
+    -- the pages are built by worker threads (Issue 8-058); two is plenty for
+    -- the demo's small view
+    local index_file = flat_gen.generate_chronological_index_with_navigation(poems_data, DIR .. "/demo-output", nil, 2)
     
     if index_file then
         print("✅ Generated: " .. index_file)

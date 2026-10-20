@@ -648,7 +648,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Generate chronological index (main entry point)
     -- Issue 9-003: Pass chrono_per_page for CLI override of chronological pagination
-    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
+    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads)
     if not success then
         utils.log_error("Failed to generate chronological index")
         return false
@@ -822,7 +822,9 @@ function M.handle_tui_action(values)
         local poems_file = utils.asset_path("poems.json")
         local poems_data = utils.read_json_file(poems_file)
         if poems_data then
-            flat_html_generator.generate_chronological_index_with_navigation(poems_data, DIR .. "/output")
+            -- the menu always carries a thread count (its "Thread count" item)
+            flat_html_generator.generate_chronological_index_with_navigation(poems_data, DIR .. "/output", nil,
+                tonumber(values.thread_count))
             utils.log_info("Generated chronological.html")
         end
         executed = true

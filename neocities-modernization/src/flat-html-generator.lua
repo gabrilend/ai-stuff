@@ -294,6 +294,8 @@ load_layout_from_config()
 -- through it. Configured with the same palettes and text width the workers
 -- are handed, so the two cannot disagree.
 local poem_entry = require("poem-entry")
+-- the chronological pages' frame, also loaded by each worker (Issue 8-058)
+local chronological_page = require("chronological-page")
 poem_entry.configure({
     palette = COLOR_CONFIG,
     boost_palette = BOOST_COLOR_CONFIG,
@@ -2486,249 +2488,599 @@ function M.calculate_page_count(total_poems)
 end
 -- }}}
 
--- {{{ local function generate_chronological_page_navigation
--- Issue 8-039: Files now in chronological/ subdirectory, use simpler relative paths
-local function generate_chronological_page_navigation(current_page, total_pages)
-    -- Generate pagination navigation for chronological pages
-    -- Format: [« First] [‹ Prev] Page X of Y [Next ›] [Last »]
-    -- Issue 8-039: Using relative paths within chronological/ directory (01.html, not chronological-01.html)
-    if total_pages <= 1 then
-        return ""
+-- {{{ local function worker_config()
+-- What every page worker is handed when it starts (plain values only: a worker
+-- is its own Lua state). Callers add the fields their jobs need.
+--   dir, output_dir      : strings, the project and the site folder
+--   image_manifest_path  : string, the picture pseudo-poem manifest (Issue 9-013)
+--   embeddings_dir       : string, the selected model's folder (poem colours)
+--   palette, boost_palette : the colour tables from config.lua (Issue 8-058)
+--   layout               : the widths the drawer needs
+--   page_head            : string, the shared <head> lines
+local function worker_config(output_dir)
+    return {
+        dir = DIR,
+        output_dir = output_dir,
+        image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
+        -- the selected model's folder, named here because a worker cannot
+        -- see which model this program was told to use
+        embeddings_dir = utils.embeddings_dir(),
+        palette = COLOR_CONFIG,
+        boost_palette = BOOST_COLOR_CONFIG,
+        layout = { text_content_width = LAYOUT.TEXT_CONTENT_WIDTH },
+        page_head = PAGE_HEAD_BLOCK,
+    }
+end
+-- }}}
+
+-- {{{ local function run_page_workers()
+-- Builds pages on a pool of worker threads (Issue 10-034's orchestrator,
+-- shared by every page type since Issue 8-058). This program keeps the job
+-- list and the big neighbour caches; each worker asks for a job, gets just
+-- what that job needs, writes its pages and asks again.
+-- num_threads : number of workers, 1 or more (one thread is one worker: the
+--               single-threaded builder, a drifted copy, is gone)
+-- config      : table from worker_config(), plus job-specific fields
+-- jobs        : list of
+--   { kind = "poems", poem_index = n }  -- that poem's similar + different pages
+--   { kind = "chrono_page", page_num = n, total_pages = n,
+--     entries = { { poem = <a poem from the caller's poems>, progress_pct = number }, ... } }
+-- returns     : { similar = n, different = n, poems = n, chrono_pages = n }
+local function run_page_workers(num_threads, config, jobs)
+    if not has_threading then
+        -- Errors, not fallbacks (owner, 2026-09-22): there is no other builder
+        error("the threading library (effil) did not load: " .. tostring(effil_load_error))
+    end
+    local total_work = #jobs
+    utils.log_info(string.format("Building pages on %d worker thread(s): %d job(s)", num_threads, total_work))
+    -- Workers -> this program: requests and completions; this program ->
+    -- worker i: its next job, or shutdown
+    local work_request_channel = effil.channel()
+    local work_response_channels = {}
+    for t = 1, num_threads do
+        work_response_channels[t] = effil.channel()
     end
 
-    local nav_parts = {}
+    local threads = {}
+    local start_time = os.time()
+    for thread_id = 1, num_threads do
+        local thread_func = effil.thread(function(config, tid, request_channel, response_channel)
+            -- Set up package paths in thread context
+            package.path = config.dir .. "/libs/?.lua;" .. config.dir .. "/src/?.lua;" .. package.path
 
-    -- First page link
-    if current_page > 1 then
-        table.insert(nav_parts, "<a href='01.html'>« First</a>")
-    else
-        table.insert(nav_parts, "« First")
+            -- Load required modules in thread context
+            local t_utils = require('utils')
+            local t_dkjson = require('dkjson')
+            -- Issue 8-056: Shared text formatting module for whitespace preservation
+            local t_text_formatter = require('text-formatter')
+            -- The one poem drawer every page type uses (Issue 8-058). It
+            -- loads the bar, boost and text modules itself; the palette
+            -- and widths come from the main program in config, so this
+            -- worker draws with exactly the colours config.lua holds.
+            -- config arrives as effil's shared tables, not Lua tables;
+            -- effil.dump copies one into a plain table the drawer can read.
+            local t_poem_entry = require('poem-entry')
+            local t_effil = require('effil')
+            t_poem_entry.configure({
+                palette = t_effil.dump(config.palette),
+                boost_palette = t_effil.dump(config.boost_palette),
+                text_width = config.layout.text_content_width,
+            })
+            -- Issue 9-013: fold ranked image pseudo-poems into this worker's
+            -- poem list so it draws them instead of dropping unknown indices.
+            local t_image_render = require('image-render')
+            t_utils.init_assets_root({config.dir})
+
+            -- Load data files (each thread loads independently - files are in disk cache)
+            local poems_file = t_utils.asset_path("poems.json")
+            local poems_data = t_utils.read_json_file(poems_file)
+            if not poems_data then
+                error("Thread " .. tid .. ": Failed to load poems.json")
+            end
+            t_image_render.inject_pseudo_poems(poems_data,
+                t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
+
+            -- Build poem lookup by poem_index
+            local poem_lookup = {}
+            for i, poem in ipairs(poems_data.poems) do
+                if poem.poem_index then
+                    poem_lookup[poem.poem_index] = poem
+                end
+            end
+
+            -- Issue 10-034: Caches NOT loaded here - orchestrator sends work slices
+            -- This saves 700MB RAM per worker thread
+
+            -- Load poem colors (small file: ~900KB, acceptable per-worker).
+            -- From the folder the main program names (config.embeddings_dir):
+            -- a worker is its own Lua state and does not see which model the
+            -- main program was told to use, so resolving the folder here could
+            -- pick a different model's colours (found by the 8-058 render).
+            -- A missing file stops the worker: every poem would draw grey.
+            local poem_colors_file = config.embeddings_dir .. "/poem_colors.json"
+            local poem_colors_data = t_utils.read_json_file(poem_colors_file)
+            if not (poem_colors_data and poem_colors_data.poem_colors) then
+                error("Thread " .. tid .. ": no poem colours in " .. poem_colors_file)
+            end
+            local poem_colors = poem_colors_data.poem_colors
+
+
+            -- Local helper: Get unique filename ID for poem
+            local function get_unique_id(poem)
+                local cat_prefix = (poem.category or "unknown"):sub(1, 1):lower()
+                local id_num = poem.id or poem.poem_index or 0
+                return string.format("%s-%04d", cat_prefix, id_num)
+            end
+
+            -- {{{ Local helper: Get source path for poem identification in ranking headers
+            -- Issue 8-036: Returns human-readable source path for each category
+            local function get_source_path(poem)
+                local category = poem.category or "unknown"
+                if category == "notes" and poem.metadata and poem.metadata.source_file then
+                    -- Notes show original descriptive filename
+                    return "notes/" .. poem.metadata.source_file
+                elseif category == "bluesky" then
+                    -- Bluesky uses # notation
+                    return "bluesky#" .. (poem.id or 0)
+                elseif category == "fediverse" then
+                    -- Fediverse shows category/id
+                    return "fediverse/" .. (poem.id or 0)
+                elseif category == "messages" then
+                    -- Messages shows category/id
+                    return "messages/" .. (poem.id or 0)
+                else
+                    return category .. "/" .. (poem.id or poem.poem_index or 0)
+                end
+            end
+            -- }}}
+
+
+            -- Local helper: Build poem lookup by poem_index for ranking conversion
+            local function build_poem_by_index()
+                local lookup = {}
+                for i, poem in ipairs(poems_data.poems) do
+                    if poem.poem_index then
+                        lookup[poem.poem_index] = poem
+                    end
+                end
+                return lookup
+            end
+            local poem_by_index = build_poem_by_index()
+
+            -- Issue 10-034: Convert similarity ranking (raw indices) to poem objects
+            -- ranking_data is an array of poem indices received from orchestrator
+            local function convert_similarity_ranking(ranking_data, source_poem_index)
+                if not ranking_data then return {} end
+                local result = {}
+                for i, neighbor_index in ipairs(ranking_data) do
+                    -- Issue 10-025: the anchor is drawn once, above the
+                    -- list; a ranking that includes it must not draw it
+                    -- again (the diversity converter below already skips it).
+                    local neighbor_poem = neighbor_index ~= source_poem_index
+                        and poem_by_index[neighbor_index]
+                    if neighbor_poem then
+                        table.insert(result, {
+                            poem = neighbor_poem,
+                            rank = i
+                        })
+                    end
+                end
+                return result
+            end
+
+            -- Issue 10-034: Convert diversity sequence (raw indices) to poem objects
+            -- sequence_data is an array of poem indices received from orchestrator
+            -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
+            local function convert_diversity_sequence(sequence_data, source_poem_index)
+                if not sequence_data then return {} end
+                local result = {}
+                for step, neighbor_index in ipairs(sequence_data) do
+                    if neighbor_index ~= source_poem_index then
+                        local neighbor_poem = poem_by_index[neighbor_index]
+                        if neighbor_poem then
+                            table.insert(result, {
+                                id = neighbor_index,
+                                poem = neighbor_poem,
+                                step = step
+                            })
+                        end
+                    end
+                end
+                return result
+            end
+
+            -- {{{ local function format_poem_entry()
+            -- One poem's entry, drawn by the shared poem drawer. This
+            -- worker only supplies what the drawer is told: the poem's
+            -- colour, how far through the writing timeline it is, and
+            -- its three links.
+            local function format_poem_entry(poem, chrono_map, chrono_paged)
+                -- a picture-only entry draws its own box and needs no links
+                if poem.is_image then
+                    return t_poem_entry.format_entry(poem, {})
+                end
+                local poem_idx = poem.poem_index
+                local color_data = poem_colors[poem_idx]
+                -- Issue 8-045: a poem missing from the chronological map has
+                -- no place on the timeline and no chronological page. The
+                -- worker fails, and the orchestrator stops the run with this.
+                local chrono_info = chrono_map[poem_idx]
+                if not chrono_info then
+                    error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
+                end
+                -- Issue 16-006: the anchor is just the poem_index
+                local anchor_id = string.format("poem-%d", poem_idx)
+                -- Issue 8-039: paginated -> its numbered page; else index.html
+                local chrono_page = (chrono_paged and chrono_info.total_pages > 1)
+                    and string.format("%02d.html", chrono_info.page_number) or "index.html"
+                return t_poem_entry.format_entry(poem, {
+                    color_name = color_data and color_data.color or "gray",
+                    progress_pct = chrono_info.timeline_progress,
+                    similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_idx),
+                    different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
+                    chrono_link = string.format("<a href='../chronological/%s#%s'>chronological</a>",
+                        chrono_page, anchor_id),
+                })
+            end
+            -- }}}
+
+            -- Local helper: Generate paginated HTML page
+            -- Issue 9-003 Fix D: Added chrono_map and chrono_paged for full formatting
+            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged)
+                local start_idx = (page_num - 1) * poems_per_pg + 1
+                local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
+                if start_idx > #sorted_list then return nil end
+
+                local type_label = page_type == "similar" and "similarity" or "diversity"
+                local poem_idx_str = string.format("%04d", poem.poem_index or 0)
+                local filename = string.format("%s/%s/%s-%02d.html", out_dir, page_type, poem_idx_str, page_num)
+
+                -- Build HTML content with full formatting
+                -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+                -- Issue 16-010: shared head block -- viewport + shipped monospace font.
+                -- This path had the THINNEST head of the four: the bare font
+                -- stack, no viewport, and none of the centering rules the
+                -- chronological pages carry. That last omission is why an
+                -- attached image pulls the poem column off-centre here but
+                -- not there; the shared block ends all three divergences at
+                -- once, since these pages sit one level below the root just
+                -- like the chronological ones.
+                local html_parts = {
+                    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+                    '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
+                    PAGE_HEAD_BLOCK,
+                    '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
+                }
+
+                -- Add anchor poem with full formatting
+                table.insert(html_parts, "=== ANCHOR POEM ===\n")
+                table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
+                table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
+
+                -- Add poems for this page with full formatting
+                for i = start_idx, end_idx do
+                    local entry = sorted_list[i]
+                    local entry_poem = entry.poem
+                    if entry_poem then
+                        -- Issue 8-036: Add poem source path to ranking header
+                        local source_path = get_source_path(entry_poem)
+                        -- A long note name wraps at a dash or slash (shared
+                        -- rule, text-formatter's wrap_file_header). The
+                        -- closing " ---" is 4 wide and holds dashes the
+                        -- wrapper would break at, so the path wraps to 76
+                        -- and the closer is added to its last line.
+                        local header = t_text_formatter.wrap_file_header(
+                            string.format("--- #%d ", i), source_path, 76)
+                        header[#header] = header[#header] .. " ---"
+                        table.insert(html_parts, table.concat(header, "\n") .. "\n")
+                        -- Issue 9-013: text+image posts get a direct "image.png"
+                        -- link below their header (image entries are skipped --
+                        -- their title already deep-links into the gallery).
+                        if not entry_poem.is_image then
+                            local img_link = t_image_render.text_image_link(entry_poem)
+                            if img_link ~= "" then
+                                table.insert(html_parts, " " .. img_link .. "\n")
+                            end
+                        end
+                        table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
+                        table.insert(html_parts, "\n\n")
+                    end
+                end
+
+                table.insert(html_parts, '</pre></td></tr></table></body></html>')
+
+                -- Write file
+                local dir_path = filename:match("(.*/)")
+                os.execute('mkdir -p "' .. dir_path .. '"')
+                local f = io.open(filename, "w")
+                if f then
+                    f:write(table.concat(html_parts))
+                    f:close()
+                    return filename
+                end
+                return nil
+            end
+
+            -- Messages arrive as effil's shared tables; effil.dump makes a plain
+            -- Lua table of one, so the job can be read like any other table.
+            local t_effil = require('effil')
+            -- The chronological pages' frame (Issue 8-058): head, navigation,
+            -- the line above each poem, file names.
+            local t_chrono_page = require('chronological-page')
+
+            -- {{{ local function build_chrono_page()
+            -- One chronological page: each poem's header line and entry, in
+            -- the order given, inside the page frame. No chronological link on a
+            -- chronological page (Issue 9-003 Fix C).
+            -- The job carries its poems, exactly as the caller loaded them: a
+            -- caller may have filtered poems.json (regenerate-clean-site drops
+            -- PDF-damaged poems) or built its own (the tests), and this
+            -- worker's own copy is the file on disk, with gallery pictures
+            -- folded in for the ranked lists (Issue 9-013).
+            local function build_chrono_page(work)
+                local parts = {}
+                for _, e in ipairs(work.entries) do
+                    local poem = e.poem
+                    local color_data = poem_colors[poem.poem_index]
+                    parts[#parts + 1] = t_chrono_page.entry_header(poem)
+                    parts[#parts + 1] = t_poem_entry.format_entry(poem, {
+                        color_name = color_data and color_data.color or "gray",
+                        progress_pct = e.progress_pct,
+                        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem.poem_index),
+                        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem.poem_index),
+                        chrono_link = false,
+                    })
+                    parts[#parts + 1] = "\n\n"
+                end
+                local html = t_chrono_page.page_html(work.page_num, work.total_pages,
+                    config.page_head, table.concat(parts))
+                local dir_path = config.output_dir .. "/chronological"
+                os.execute('mkdir -p "' .. dir_path .. '"')
+                local file = dir_path .. "/" .. t_chrono_page.file_name(work.page_num, work.total_pages)
+                local f = io.open(file, "w")
+                if not f then error("could not write " .. file) end
+                f:write(html)
+                f:close()
+            end
+            -- }}}
+
+            -- {{{ local function build_poem_pages()
+            -- One poem's similar and different pages, from the ranked lists this
+            -- program sends (about 80 KB; Issue 10-034).
+            local function build_poem_pages(work, counts)
+                local poem_index = work.poem_index
+                local poem = poem_lookup[poem_index]
+                if not poem then
+                    error("poem " .. tostring(poem_index) .. " is not in poems.json")
+                end
+                local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
+                local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
+                -- Issue 10-036: which pages to write for one list. "--pages all"
+                -- means every page the list fills, up to the storage cap; "--pages
+                -- N" means pages 1 through N. A page past the end of the list is
+                -- skipped by generate_page itself.
+                local function pages_for(list)
+                    if config.pages_is_all then
+                        local count = math.min(math.ceil(#list / config.poems_per_page), config.max_pages_per_poem)
+                        local all = {}
+                        for p = 1, count do all[p] = p end
+                        return all
+                    end
+                    return config.pages_list
+                end
+                for _, page_num in ipairs(pages_for(similar_ranking)) do
+                    if generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page,
+                            config.output_dir, config.chrono_mapping, config.chrono_paginated) then
+                        counts.similar = counts.similar + 1
+                    end
+                end
+                for _, page_num in ipairs(pages_for(diverse_sequence)) do
+                    if generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page,
+                            config.output_dir, config.chrono_mapping, config.chrono_paginated) then
+                        counts.different = counts.different + 1
+                    end
+                end
+                counts.poems = counts.poems + 1
+            end
+            -- }}}
+
+            -- ask for a job, do it, report it, until told to stop
+            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0 }
+            while true do
+                request_channel:push({ type = "get_work", worker_id = tid })
+                local work = response_channel:pop()
+                -- {{{ dispatch on the kind of job
+                if not work or work.type == "shutdown" then
+                    -- no job: the channel closed, or all work is handed out
+                    break
+                end
+                work = t_effil.dump(work)
+                if work.type == "poems" then
+                    build_poem_pages(work, counts)
+                elseif work.type == "chrono_page" then
+                    build_chrono_page(work)
+                    counts.chrono_pages = counts.chrono_pages + 1
+                else
+                    error("unknown job type: " .. tostring(work.type))
+                end
+                -- }}}
+                request_channel:push({ type = "done", worker_id = tid })
+            end
+            return counts.similar, counts.different, counts.poems, counts.chrono_pages
+        end)
+        threads[thread_id] = thread_func(config, thread_id, work_request_channel, work_response_channels[thread_id])
     end
 
-    -- Previous page link
-    if current_page > 1 then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>‹ Prev</a>", current_page - 1))
-    else
-        table.insert(nav_parts, "‹ Prev")
+    -- {{{ hand out jobs until every worker has been told to stop
+    local work_queue_idx = 1
+    local completed_count = 0
+    local workers_active = num_threads
+    local workers_shutdown = {}
+    local last_progress_time = os.time()
+    while workers_active > 0 do
+        local msg = work_request_channel:pop(100)   -- wait up to 100 ms
+        if msg and msg.type == "get_work" then
+            local worker_id = msg.worker_id
+            if work_queue_idx <= total_work then
+                local job = jobs[work_queue_idx]
+                work_queue_idx = work_queue_idx + 1
+                -- {{{ build the message for this job
+                if job.kind == "poems" then
+                    -- the poem's two ranked lists, sliced from the caches here
+                    local key = tostring(job.poem_index)
+                    work_response_channels[worker_id]:push({
+                        type = "poems",
+                        poem_index = job.poem_index,
+                        similarity_ranking = SIMILARITY_RANKINGS_CACHE.rankings[key],
+                        diversity_sequence = DIVERSITY_CACHE.sequences[key],
+                    })
+                elseif job.kind == "chrono_page" then
+                    work_response_channels[worker_id]:push({
+                        type = "chrono_page",
+                        page_num = job.page_num,
+                        total_pages = job.total_pages,
+                        entries = job.entries,
+                    })
+                else
+                    error("unknown job kind: " .. tostring(job.kind))
+                end
+                -- }}}
+            elseif not workers_shutdown[worker_id] then
+                -- no jobs left: this worker stops
+                work_response_channels[worker_id]:push({ type = "shutdown" })
+                workers_shutdown[worker_id] = true
+                workers_active = workers_active - 1
+            end
+        elseif msg and msg.type == "done" then
+            completed_count = completed_count + 1
+        end
+
+        local now = os.time()
+        if now - last_progress_time >= 1 then
+            last_progress_time = now
+            -- A worker that raised an error stops asking for work, and this
+            -- loop would wait for it forever. Once a second, look for a failed
+            -- worker and stop the run with its error (Issue 8-045).
+            for tid, worker in pairs(threads) do
+                local status, worker_err, worker_stack = worker:status()
+                if status == "failed" then
+                    progress.finish()
+                    utils.log_error(string.format("HTML worker %d failed: %s", tid, tostring(worker_err)))
+                    if worker_stack then io.stderr:write(tostring(worker_stack), "\n") end
+                    os.exit(1)
+                end
+            end
+            local elapsed = now - start_time
+            local rate = elapsed > 0 and (completed_count / elapsed) or 0
+            local eta = rate > 0 and math.floor((total_work - completed_count) / rate) or 0
+            progress.update(string.format("   [%d threads]", num_threads), completed_count, total_work,
+                string.format("%.1f jobs/sec | ETA: %ds | Queue: %d", rate, eta, total_work - work_queue_idx + 1))
+        end
     end
+    -- }}}
+    progress.finish()
+    local elapsed = os.time() - start_time
+    print(string.format("   [%d threads] Complete: %d jobs in %ds (%.1f jobs/sec)",
+        num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
-    -- Current page indicator
-    table.insert(nav_parts, string.format("Page %d of %d", current_page, total_pages))
-
-    -- Next page link
-    if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>Next ›</a>", current_page + 1))
-    else
-        table.insert(nav_parts, "Next ›")
+    -- {{{ collect each worker's counts; one that did not finish stops the run
+    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0 }
+    for tid, thread in pairs(threads) do
+        local status, worker_err = thread:wait()
+        if status ~= "completed" then
+            -- a worker that did not finish built only part of its share
+            utils.log_error(string.format("HTML worker %d ended as '%s': %s",
+                tid, tostring(status), tostring(worker_err)))
+            os.exit(1)
+        end
+        local sim, diff, poems, chrono = thread:get()
+        totals.similar = totals.similar + sim
+        totals.different = totals.different + diff
+        totals.poems = totals.poems + poems
+        totals.chrono_pages = totals.chrono_pages + chrono
     end
-
-    -- Last page link
-    if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>Last »</a>", total_pages))
-    else
-        table.insert(nav_parts, "Last »")
-    end
-
-    -- Issue 8-052: Use Unicode box-drawing vertical for consistent HTML output
-    return table.concat(nav_parts, " │ ")
+    -- }}}
+    return totals
 end
 -- }}}
 
 -- {{{ function M.generate_chronological_index_with_navigation
--- Issue 9-003: chrono_per_page parameter allows CLI override of poems per page
-function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
+-- Writes the chronological pages: every poem in date order, a page at a time,
+-- each page built by a worker thread (Issue 8-058; they used to be built here,
+-- one long string at a time, which took ~33 s for 9 pages).
+-- poems_data      : the loaded poems.json
+-- output_dir      : the site folder
+-- chrono_per_page : number of poems per page, or nil for config.lua's value
+--                   (Issue 9-003); a number also turns pagination on
+-- num_threads     : number of worker threads, 1 or more
+-- returns         : the path of the first page written
+function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads)
+    if type(num_threads) ~= "number" or num_threads < 1 then
+        error("generate_chronological_index_with_navigation needs a worker count of 1 or more; got "
+            .. tostring(num_threads))
+    end
     -- Load pagination config for chronological settings (Issue 9-003 Fix F)
     load_pagination_config()
-
     local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
     local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page
-
-    -- Apply CLI override if provided. Pagination is enabled either by config
-    -- or by the operator supplying --chrono-per-page.
+    -- a per-page count from the command line overrides config and turns
+    -- pagination on
     if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
         poems_per_page = chrono_per_page
         chronological_paginated = true
     end
 
-    utils.log_info(string.format("Chronological pagination: %d poems/page", poems_per_page))
-
     -- Sort poems chronologically (by actual post dates)
-    local sorted_poems_with_timestamps = sort_poems_chronologically_by_dates(poems_data)
-    local total_poems = #sorted_poems_with_timestamps
-
-    -- Issue 8-045: Calculate timeline bounds for time-based progress bars
-    local first_timestamp = sorted_poems_with_timestamps[1] and sorted_poems_with_timestamps[1].timestamp or 0
-    local last_timestamp = sorted_poems_with_timestamps[total_poems] and sorted_poems_with_timestamps[total_poems].timestamp or 0
+    local sorted = sort_poems_chronologically_by_dates(poems_data)
+    local total_poems = #sorted
+    -- Issue 8-045: progress bars show how far through the writing timeline a
+    -- poem was written, by date, not by its place in the list
+    local first_timestamp = sorted[1] and sorted[1].timestamp or 0
+    local last_timestamp = sorted[total_poems] and sorted[total_poems].timestamp or 0
     local timeline_span = last_timestamp - first_timestamp
-    if timeline_span <= 0 then timeline_span = 1 end  -- Avoid division by zero
+    if timeline_span <= 0 then timeline_span = 1 end  -- one date: avoid dividing by zero
 
-    -- Calculate pagination
     local total_pages = chronological_paginated and math.ceil(total_poems / poems_per_page) or 1
     if total_pages < 1 then total_pages = 1 end
+    local per_page = chronological_paginated and poems_per_page or total_poems
+    utils.log_info(string.format("Chronological pages: %d poems, %d page(s), %d poems/page",
+        total_poems, total_pages, per_page))
 
-    utils.log_info(string.format("Generating chronological HTML for %d poems (%d pages, %d poems/page)...",
-        total_poems, total_pages, chronological_paginated and poems_per_page or total_poems))
-    local generation_start = os.time()
-
-    -- Load poem colors for progress bars
-    local poem_colors = load_poem_colors()
-
-    os.execute("mkdir -p " .. output_dir)
-
-    local files_written = {}
-
+    -- {{{ one job per page: its poems, in order, each with its timeline progress
+    local jobs = {}
     for page_num = 1, total_pages do
-        -- Calculate poem range for this page
-        local start_idx = (page_num - 1) * poems_per_page + 1
-        local end_idx = chronological_paginated and math.min(page_num * poems_per_page, total_poems) or total_poems
-
-        -- Generate page navigation
-        local page_nav = generate_chronological_page_navigation(page_num, total_pages)
-        local page_nav_html = page_nav ~= "" and string.format("<p>%s</p>", page_nav) or ""
-
-        -- Template with optional pagination navigation
-        -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-        -- Issue 16-010: shared head block -- viewport + shipped monospace font
-        local template
-        if chronological_paginated and total_pages > 1 then
-            -- This template is formatted TWICE: here (page numbers, head,
-            -- navigation) and again below with the poems (the "%%s" left
-            -- in).  So the head goes in as PAGE_HEAD_BLOCK_IN_TEMPLATE: an
-            -- argument is copied verbatim, so its doubled "%%" survive this
-            -- first pass and the second pass turns them back into "%".
-            -- Passing the plain block crashed the second pass on the
-            -- stylesheet's "100%;" (the stage-9 failure of 2026-09-23).
-            template = string.format([[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poetry Collection - Chronological Order (Page %d of %d)</title>
-%s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>Poems in true chronological order by post date</p>
-%s
-<p><a href="../wordcloud.html">Menu</a></p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%%s
-</pre>
-</td></tr></table>
-<center>%s</center>
-</body>
-</html>]], page_num, total_pages, PAGE_HEAD_BLOCK_IN_TEMPLATE, page_nav_html, page_nav_html)
-        else
-            template = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poetry Collection - Chronological Order</title>
-]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>All poems in true chronological order by post date</p>
-<p><a href="../wordcloud.html">Menu</a></p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%s
-</pre>
-</td></tr></table>
-</body>
-</html>]]
+        local entries = {}
+        local start_idx = (page_num - 1) * per_page + 1
+        for i = start_idx, math.min(page_num * per_page, total_poems) do
+            local info = sorted[i]
+            local stamp = info.timestamp or first_timestamp
+            entries[#entries + 1] = {
+                poem = info.poem,
+                progress_pct = ((stamp - first_timestamp) / timeline_span) * 100,
+            }
         end
+        jobs[#jobs + 1] = { kind = "chrono_page", page_num = page_num,
+            total_pages = total_pages, entries = entries }
+    end
+    -- }}}
 
-        -- Generate content for this page
-        local content = ""
-        for i = start_idx, end_idx do
-            local poem_info = sorted_poems_with_timestamps[i]
-            local poem = poem_info.poem
-            local poem_id = poem.poem_index
-
-            -- Progress output every 100 poems
-            if i % 100 == 0 or i == total_poems then
-                local elapsed = os.time() - generation_start
-                local rate = i / math.max(elapsed, 1)
-                local eta = (total_poems - i) / math.max(rate, 1)
-                local progress_msg = string.format("\r   Processing poem %d/%d (%.1f%%) - %.1f poems/sec, ETA: %ds",
-                    i, total_poems, (i / total_poems) * 100, rate, eta)
-                io.write(progress_msg .. string.rep(" ", math.max(0, 80 - #progress_msg)))
-                io.flush()
-            end
-
-            -- Issue 8-045: how far through the author's writing timeline this
-            -- poem was written (by date, not by its place in the list)
-            local poem_timestamp = poem_info.timestamp or first_timestamp
-            local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
-            local poem_color_data = poem_colors[poem_id]
-            local poem_index = poem.poem_index or 0
-
-            -- the anchor other pages link to, then the poem's file name
-            content = content .. string.format('<span id="%s"></span>', get_poem_anchor_id(poem))
-            content = content .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
-
-            -- the entry itself, from the one poem drawer (Issue 8-058); no
-            -- chronological link on a chronological page (Issue 9-003 Fix C)
-            content = content .. poem_entry.format_entry(poem, {
-                color_name = poem_color_data and poem_color_data.color or "gray",
-                progress_pct = timeline_progress,
-                similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_index),
-                different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_index),
-                chrono_link = false,
-            }) .. "\n\n"
-        end
-
-        -- Write page file
-        -- Issue 8-039: Files now in chronological/ subdirectory
-        local final_html = string.format(template, content)
-        local chrono_dir = output_dir .. "/chronological"
-        os.execute(string.format('mkdir -p "%s"', chrono_dir))
-
-        local output_file
-        if chronological_paginated and total_pages > 1 then
-            -- Paginated: chronological/01.html, chronological/02.html, etc.
-            output_file = string.format("%s/%02d.html", chrono_dir, page_num)
-        else
-            -- Single page: chronological/index.html (for clean URL)
-            output_file = chrono_dir .. "/index.html"
-        end
-
-        local success = utils.write_file(output_file, final_html)
-        if success then
-            table.insert(files_written, output_file)
-        else
-            utils.log_error("Failed to write: " .. output_file)
-        end
+    local done = run_page_workers(num_threads, worker_config(output_dir), jobs)
+    if done.chrono_pages ~= total_pages then
+        error(string.format("chronological pages: %d of %d written", done.chrono_pages, total_pages))
     end
 
-    io.write("\n")
-    local total_elapsed = os.time() - generation_start
-    utils.log_info(string.format("Chronological HTML generation complete: %d poems, %d pages in %d seconds",
-        total_poems, total_pages, total_elapsed))
-
-    -- Issue 8-039: For paginated chronological, create index.html redirect within the subdirectory
-    if chronological_paginated and total_pages > 1 then
-        local chrono_dir = output_dir .. "/chronological"
-        local redirect_html = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=01.html">
-<title>Redirecting...</title>
-</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<p>Redirecting to <a href="01.html">01.html</a>...</p>
-</body>
-</html>]]
-        utils.write_file(chrono_dir .. "/index.html", redirect_html)
+    -- Issue 8-039: a paginated view gets chronological/index.html as a redirect
+    -- to its first page
+    local chrono_dir = output_dir .. "/chronological"
+    if total_pages > 1 then
+        if not utils.write_file(chrono_dir .. "/index.html", chronological_page.redirect_html()) then
+            error("could not write " .. chrono_dir .. "/index.html")
+        end
         utils.log_info("✓ chronological/index.html created (redirect to 01.html)")
     end
-
-    return files_written[1]
+    return chrono_dir .. "/" .. chronological_page.file_name(1, total_pages)
 end
+-- }}}
 -- }}}
 
 -- {{{ function explore_page_shell()
@@ -3227,662 +3579,28 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     end
     local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
 
-    -- Check if parallel processing is available and requested
-    local use_parallel = num_threads > 1 and has_threading and effil
-
-    if use_parallel then
-        -- {{{ Parallel processing with effil threads (Issue 10-034: Orchestrator pattern)
-        -- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
-        utils.log_info(string.format("Using parallel processing with %d threads (orchestrator mode)", num_threads))
-
-        -- Issue 10-034: Create channels for orchestrator communication
-        -- Workers request work → main sends slices → workers report completion
-        local work_request_channel = effil.channel()  -- Workers → Main: work requests + completions
-        local work_response_channels = {}              -- Main → Worker[i]: work slices or shutdown
-        for t = 1, num_threads do
-            work_response_channels[t] = effil.channel()
-        end
-
-        -- Issue 10-034: Build work queue (all poem indices that need processing)
-        local work_queue = {}
-        for _, poem_index in ipairs(poem_indices) do
-            table.insert(work_queue, poem_index)
-        end
-        local total_work = #work_queue
-
-        -- Issue 10-036: chrono_mapping is now computed before parallel/sequential split
-        -- (see Issue 9-003 Fix D for original rationale)
-
-        -- Prepare shared config for threads (serializable data only)
-        local thread_config = {
-            dir = DIR,
-            output_dir = output_dir,
-            -- Issue 9-013: where the worker finds the image pseudo-poem manifest
-            image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
-            pages_is_all = pages_config.is_all,
-            pages_list = pages_config.pages,
-            poems_per_page = PAGINATION_CONFIG.poems_per_page,
-            -- Issue 10-036: "--pages all" stops at this storage cap (8-020)
-            max_pages_per_poem = PAGINATION_CONFIG.max_pages_per_poem,
-            generate_html_archives = PAGINATION_CONFIG.generate_html_archives,
-            generate_txt_exports = PAGINATION_CONFIG.generate_txt_exports,
-            -- Issue 9-003 Fix D: Full formatting data
-            chrono_mapping = chrono_mapping,
-            chrono_paginated = chronological_paginated,
-            -- Issue 8-058: the palettes the shared poem drawer is configured
-            -- with in each worker -- the same tables this program draws with,
-            -- read from config.lua, so no worker keeps a copy of its own
-            palette = COLOR_CONFIG,
-            boost_palette = BOOST_COLOR_CONFIG,
-            -- Issue 8-055: Pass layout constants to worker threads for consistency
-            layout = {
-                golden_poem_width = LAYOUT.GOLDEN_POEM_WIDTH or 84,
-                regular_poem_width = LAYOUT.REGULAR_POEM_WIDTH or 82,
-                text_content_width = LAYOUT.TEXT_CONTENT_WIDTH or 80,
-                golden_left_junction = LAYOUT.GOLDEN_LEFT_JUNCTION_POS or 10,
-                golden_right_junction = LAYOUT.GOLDEN_RIGHT_JUNCTION_POS or 71,
-                regular_left_junction = LAYOUT.REGULAR_LEFT_JUNCTION_POS or 10,
-                regular_right_junction = LAYOUT.REGULAR_RIGHT_JUNCTION_POS or 70
-            }
-        }
-
-        -- Create and launch worker threads
-        local threads = {}
-        local start_time = os.time()
-
-        -- Issue 10-034: Launch workers that request work from orchestrator
-        for thread_id = 1, num_threads do
-            -- effil.thread creates a new Lua state that runs the function
-            -- Workers receive work slices via channels instead of loading full caches
-            local thread_func = effil.thread(function(config, tid, request_channel, response_channel)
-                -- Set up package paths in thread context
-                package.path = config.dir .. "/libs/?.lua;" .. config.dir .. "/src/?.lua;" .. package.path
-
-                -- Load required modules in thread context
-                local t_utils = require('utils')
-                local t_dkjson = require('dkjson')
-                -- Issue 8-056: Shared text formatting module for whitespace preservation
-                local t_text_formatter = require('text-formatter')
-                -- The one poem drawer every page type uses (Issue 8-058). It
-                -- loads the bar, boost and text modules itself; the palette
-                -- and widths come from the main program in config, so this
-                -- worker draws with exactly the colours config.lua holds.
-                -- config arrives as effil's shared tables, not Lua tables;
-                -- effil.dump copies one into a plain table the drawer can read.
-                local t_poem_entry = require('poem-entry')
-                local t_effil = require('effil')
-                t_poem_entry.configure({
-                    palette = t_effil.dump(config.palette),
-                    boost_palette = t_effil.dump(config.boost_palette),
-                    text_width = config.layout.text_content_width,
-                })
-                -- Issue 9-013: fold ranked image pseudo-poems into this worker's
-                -- poem list so it draws them instead of dropping unknown indices.
-                local t_image_render = require('image-render')
-                t_utils.init_assets_root({config.dir})
-
-                -- Load data files (each thread loads independently - files are in disk cache)
-                local poems_file = t_utils.asset_path("poems.json")
-                local poems_data = t_utils.read_json_file(poems_file)
-                if not poems_data then
-                    error("Thread " .. tid .. ": Failed to load poems.json")
-                end
-                t_image_render.inject_pseudo_poems(poems_data,
-                    t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
-
-                -- Build poem lookup by poem_index
-                local poem_lookup = {}
-                for i, poem in ipairs(poems_data.poems) do
-                    if poem.poem_index then
-                        poem_lookup[poem.poem_index] = poem
-                    end
-                end
-
-                -- Issue 10-034: Caches NOT loaded here - orchestrator sends work slices
-                -- This saves 700MB RAM per worker thread
-
-                -- Load poem colors (small file: ~900KB, acceptable per-worker)
-                local poem_colors_file = t_utils.embeddings_dir() .. "/poem_colors.json"
-                local poem_colors_data = t_utils.read_json_file(poem_colors_file)
-                local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
-
-
-                -- Local helper: Get unique filename ID for poem
-                local function get_unique_id(poem)
-                    local cat_prefix = (poem.category or "unknown"):sub(1, 1):lower()
-                    local id_num = poem.id or poem.poem_index or 0
-                    return string.format("%s-%04d", cat_prefix, id_num)
-                end
-
-                -- {{{ Local helper: Get source path for poem identification in ranking headers
-                -- Issue 8-036: Returns human-readable source path for each category
-                local function get_source_path(poem)
-                    local category = poem.category or "unknown"
-                    if category == "notes" and poem.metadata and poem.metadata.source_file then
-                        -- Notes show original descriptive filename
-                        return "notes/" .. poem.metadata.source_file
-                    elseif category == "bluesky" then
-                        -- Bluesky uses # notation
-                        return "bluesky#" .. (poem.id or 0)
-                    elseif category == "fediverse" then
-                        -- Fediverse shows category/id
-                        return "fediverse/" .. (poem.id or 0)
-                    elseif category == "messages" then
-                        -- Messages shows category/id
-                        return "messages/" .. (poem.id or 0)
-                    else
-                        return category .. "/" .. (poem.id or poem.poem_index or 0)
-                    end
-                end
-                -- }}}
-
-
-                -- Local helper: Build poem lookup by poem_index for ranking conversion
-                local function build_poem_by_index()
-                    local lookup = {}
-                    for i, poem in ipairs(poems_data.poems) do
-                        if poem.poem_index then
-                            lookup[poem.poem_index] = poem
-                        end
-                    end
-                    return lookup
-                end
-                local poem_by_index = build_poem_by_index()
-
-                -- Issue 10-034: Convert similarity ranking (raw indices) to poem objects
-                -- ranking_data is an array of poem indices received from orchestrator
-                local function convert_similarity_ranking(ranking_data, source_poem_index)
-                    if not ranking_data then return {} end
-                    local result = {}
-                    for i, neighbor_index in ipairs(ranking_data) do
-                        -- Issue 10-025: the anchor is drawn once, above the
-                        -- list; a ranking that includes it must not draw it
-                        -- again (the diversity converter below already skips it).
-                        local neighbor_poem = neighbor_index ~= source_poem_index
-                            and poem_by_index[neighbor_index]
-                        if neighbor_poem then
-                            table.insert(result, {
-                                poem = neighbor_poem,
-                                rank = i
-                            })
-                        end
-                    end
-                    return result
-                end
-
-                -- Issue 10-034: Convert diversity sequence (raw indices) to poem objects
-                -- sequence_data is an array of poem indices received from orchestrator
-                -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
-                local function convert_diversity_sequence(sequence_data, source_poem_index)
-                    if not sequence_data then return {} end
-                    local result = {}
-                    for step, neighbor_index in ipairs(sequence_data) do
-                        if neighbor_index ~= source_poem_index then
-                            local neighbor_poem = poem_by_index[neighbor_index]
-                            if neighbor_poem then
-                                table.insert(result, {
-                                    id = neighbor_index,
-                                    poem = neighbor_poem,
-                                    step = step
-                                })
-                            end
-                        end
-                    end
-                    return result
-                end
-
-                -- {{{ local function format_poem_entry()
-                -- One poem's entry, drawn by the shared poem drawer. This
-                -- worker only supplies what the drawer is told: the poem's
-                -- colour, how far through the writing timeline it is, and
-                -- its three links.
-                local function format_poem_entry(poem, chrono_map, chrono_paged)
-                    -- a picture-only entry draws its own box and needs no links
-                    if poem.is_image then
-                        return t_poem_entry.format_entry(poem, {})
-                    end
-                    local poem_idx = poem.poem_index
-                    local color_data = poem_colors[poem_idx]
-                    -- Issue 8-045: a poem missing from the chronological map has
-                    -- no place on the timeline and no chronological page. The
-                    -- worker fails, and the orchestrator stops the run with this.
-                    local chrono_info = chrono_map[poem_idx]
-                    if not chrono_info then
-                        error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
-                    end
-                    -- Issue 16-006: the anchor is just the poem_index
-                    local anchor_id = string.format("poem-%d", poem_idx)
-                    -- Issue 8-039: paginated -> its numbered page; else index.html
-                    local chrono_page = (chrono_paged and chrono_info.total_pages > 1)
-                        and string.format("%02d.html", chrono_info.page_number) or "index.html"
-                    return t_poem_entry.format_entry(poem, {
-                        color_name = color_data and color_data.color or "gray",
-                        progress_pct = chrono_info.timeline_progress,
-                        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_idx),
-                        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
-                        chrono_link = string.format("<a href='../chronological/%s#%s'>chronological</a>",
-                            chrono_page, anchor_id),
-                    })
-                end
-                -- }}}
-
-                -- Local helper: Generate paginated HTML page
-                -- Issue 9-003 Fix D: Added chrono_map and chrono_paged for full formatting
-                local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged)
-                    local start_idx = (page_num - 1) * poems_per_pg + 1
-                    local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
-                    if start_idx > #sorted_list then return nil end
-
-                    local type_label = page_type == "similar" and "similarity" or "diversity"
-                    local poem_idx_str = string.format("%04d", poem.poem_index or 0)
-                    local filename = string.format("%s/%s/%s-%02d.html", out_dir, page_type, poem_idx_str, page_num)
-
-                    -- Build HTML content with full formatting
-                    -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-                    -- Issue 16-010: shared head block -- viewport + shipped monospace font.
-                    -- This path had the THINNEST head of the four: the bare font
-                    -- stack, no viewport, and none of the centering rules the
-                    -- chronological pages carry. That last omission is why an
-                    -- attached image pulls the poem column off-centre here but
-                    -- not there; the shared block ends all three divergences at
-                    -- once, since these pages sit one level below the root just
-                    -- like the chronological ones.
-                    local html_parts = {
-                        '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-                        '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                        PAGE_HEAD_BLOCK,
-                        '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
-                    }
-
-                    -- Add anchor poem with full formatting
-                    table.insert(html_parts, "=== ANCHOR POEM ===\n")
-                    table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
-                    table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
-
-                    -- Add poems for this page with full formatting
-                    for i = start_idx, end_idx do
-                        local entry = sorted_list[i]
-                        local entry_poem = entry.poem
-                        if entry_poem then
-                            -- Issue 8-036: Add poem source path to ranking header
-                            local source_path = get_source_path(entry_poem)
-                            -- A long note name wraps at a dash or slash (shared
-                            -- rule, text-formatter's wrap_file_header). The
-                            -- closing " ---" is 4 wide and holds dashes the
-                            -- wrapper would break at, so the path wraps to 76
-                            -- and the closer is added to its last line.
-                            local header = t_text_formatter.wrap_file_header(
-                                string.format("--- #%d ", i), source_path, 76)
-                            header[#header] = header[#header] .. " ---"
-                            table.insert(html_parts, table.concat(header, "\n") .. "\n")
-                            -- Issue 9-013: text+image posts get a direct "image.png"
-                            -- link below their header (image entries are skipped --
-                            -- their title already deep-links into the gallery).
-                            if not entry_poem.is_image then
-                                local img_link = t_image_render.text_image_link(entry_poem)
-                                if img_link ~= "" then
-                                    table.insert(html_parts, " " .. img_link .. "\n")
-                                end
-                            end
-                            table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
-                            table.insert(html_parts, "\n\n")
-                        end
-                    end
-
-                    table.insert(html_parts, '</pre></td></tr></table></body></html>')
-
-                    -- Write file
-                    local dir_path = filename:match("(.*/)")
-                    os.execute('mkdir -p "' .. dir_path .. '"')
-                    local f = io.open(filename, "w")
-                    if f then
-                        f:write(table.concat(html_parts))
-                        f:close()
-                        return filename
-                    end
-                    return nil
-                end
-
-                -- Issue 10-034: Orchestrator request/response loop
-                -- Workers request work, receive slices, generate pages, report completion
-                local similarity_count = 0
-                local diversity_count = 0
-                local processed = 0
-
-                while true do
-                    -- Request work from orchestrator
-                    request_channel:push({
-                        type = "get_work",
-                        worker_id = tid
-                    })
-
-                    -- Wait for response (blocks until data available)
-                    local work = response_channel:pop()
-
-                    if not work then
-                        -- Channel closed or error
-                        break
-                    end
-
-                    if work.type == "shutdown" then
-                        -- No more work, exit loop
-                        break
-                    end
-
-                    if work.type == "work" then
-                        local poem_index = work.poem_index
-                        local poem = poem_lookup[poem_index]
-
-                        if poem then
-                            -- Convert raw index arrays to poem objects using data from orchestrator
-                            local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
-                            local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
-
-                            -- Issue 10-036: which pages to write for one list.
-                            -- "--pages all" means every page the list fills, up
-                            -- to the storage cap; "--pages N" means pages 1
-                            -- through N (parse_pages_specification builds that
-                            -- list).  This used to write ONE page for "all".
-                            -- A page past the end of the list is skipped by
-                            -- generate_page itself.
-                            local function pages_for(list)
-                                if config.pages_is_all then
-                                    local count = math.ceil(#list / config.poems_per_page)
-                                    count = math.min(count, config.max_pages_per_poem)
-                                    local all = {}
-                                    for p = 1, count do all[p] = p end
-                                    return all
-                                end
-                                return config.pages_list or { 1 }
-                            end
-
-                            -- Generate similarity pages
-                            -- Issue 9-003 Fix D: Pass chrono_mapping and chrono_paginated for full formatting
-                            for _, page_num in ipairs(pages_for(similar_ranking)) do
-                                local page_file = generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                                if page_file then similarity_count = similarity_count + 1 end
-                            end
-
-                            -- Generate diversity pages
-                            for _, page_num in ipairs(pages_for(diverse_sequence)) do
-                                local page_file = generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                                if page_file then diversity_count = diversity_count + 1 end
-                            end
-
-                            processed = processed + 1
-
-                            -- Report completion to orchestrator
-                            request_channel:push({
-                                type = "done",
-                                worker_id = tid,
-                                poem_index = poem_index
-                            })
-                        end
-                    end
-                end
-
-                return similarity_count, diversity_count, processed
-            end)
-
-            -- Launch thread with channels for orchestrator communication
-            threads[thread_id] = thread_func(thread_config, thread_id, work_request_channel, work_response_channels[thread_id])
-        end
-
-        -- Issue 10-034: Orchestrator loop - serves work slices to workers
-        -- Main thread holds caches, sends ~80KB slices instead of workers loading 700MB
-
-        -- Track work state
-        local work_queue_idx = 1           -- Next poem index to assign
-        local completed_count = 0           -- Number of poems completed
-        local workers_active = num_threads  -- Number of workers still running
-        local workers_shutdown = {}         -- Track which workers have been told to shut down
-        for t = 1, num_threads do
-            workers_shutdown[t] = false
-        end
-
-        -- Get references to caches loaded in main thread (lines 3092-3096)
-        -- DIVERSITY_CACHE and SIMILARITY_RANKINGS_CACHE are module-level variables
-        local similarity_cache = SIMILARITY_RANKINGS_CACHE
-        local diversity_cache = DIVERSITY_CACHE
-
-        -- Progress tracking
-        local last_progress_time = os.time()
-        local progress_interval = 1  -- Update progress every 1 second
-
-        -- Orchestrator main loop: process requests until all work done and all workers shut down
-        while workers_active > 0 do
-            -- Non-blocking receive with short timeout (100ms)
-            local msg = work_request_channel:pop(100)
-
-            if msg then
-                if msg.type == "get_work" then
-                    local worker_id = msg.worker_id
-
-                    if work_queue_idx <= total_work then
-                        -- Get next poem index from queue
-                        local poem_index = work_queue[work_queue_idx]
-                        work_queue_idx = work_queue_idx + 1
-
-                        -- Extract work slice from caches (~80KB: similarity ranking + diversity sequence)
-                        local similarity_ranking = similarity_cache.rankings[tostring(poem_index)]
-                        local diversity_sequence = diversity_cache.sequences[tostring(poem_index)]
-
-                        -- Send work slice to worker
-                        work_response_channels[worker_id]:push({
-                            type = "work",
-                            poem_index = poem_index,
-                            similarity_ranking = similarity_ranking,
-                            diversity_sequence = diversity_sequence
-                        })
-                    else
-                        -- No more work - tell worker to shut down
-                        if not workers_shutdown[worker_id] then
-                            work_response_channels[worker_id]:push({
-                                type = "shutdown"
-                            })
-                            workers_shutdown[worker_id] = true
-                            workers_active = workers_active - 1
-                        end
-                    end
-
-                elseif msg.type == "done" then
-                    -- Worker completed a poem
-                    completed_count = completed_count + 1
-                end
-            end
-
-            -- Update progress display periodically
-            local now = os.time()
-            if now - last_progress_time >= progress_interval then
-                last_progress_time = now
-
-                -- A worker that raised an error stops asking for work, so the
-                -- loop above -- which ends when every worker has been told to
-                -- shut down -- would wait for it forever: an overnight build
-                -- that never finishes and never says why.  Once a second, look
-                -- for a failed worker and stop the whole run with its error.
-                -- (Workers raise errors on purpose now: a poem missing from
-                -- the chronological map, a bar outside 0-100 -- issue 8-045.)
-                for tid, worker in pairs(threads) do
-                    local status, worker_err, worker_stack = worker:status()
-                    if status == "failed" then
-                        progress.finish()
-                        utils.log_error(string.format("HTML worker %d failed: %s",
-                            tid, tostring(worker_err)))
-                        if worker_stack then io.stderr:write(tostring(worker_stack), "\n") end
-                        os.exit(1)
-                    end
-                end
-
-                local elapsed = now - start_time
-                local rate = elapsed > 0 and (completed_count / elapsed) or 0
-                local remaining = total_work - completed_count
-                local eta = rate > 0 and math.floor(remaining / rate) or 0
-                local pct = (completed_count / total_work) * 100
-
-                -- Show orchestrator progress as the shared bar. The rate, ETA,
-                -- and remaining queue depth ride along as the suffix.
-                local label = string.format("   [%d threads]", num_threads)
-                local suffix = string.format("%.1f poems/sec | ETA: %ds | Queue: %d",
-                    rate, eta, total_work - work_queue_idx + 1)
-                progress.update(label, completed_count, total_work, suffix)
-            end
-        end
-
-        -- Close the animated bar, then print a plain completion summary so it
-        -- survives in logs (the bar itself is suppressed when piped/quiet).
-        progress.finish()
-        local elapsed = os.time() - start_time
-        print(string.format("   [%d threads] Complete: %d poems in %ds (%.1f poems/sec)",
-            num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
-
-        -- Wait for all threads to fully complete and collect results
-        local total_similarity = 0
-        local total_diversity = 0
-        local total_processed = 0
-
-        for tid, thread in pairs(threads) do
-            -- Wait for thread completion (may already be done)
-            local status, worker_err = thread:wait()
-            if status == "completed" then
-                local sim_count, div_count, proc_count = thread:get()
-                total_similarity = total_similarity + (sim_count or 0)
-                total_diversity = total_diversity + (div_count or 0)
-                total_processed = total_processed + (proc_count or 0)
-            else
-                -- A worker that did not complete built only part of its share:
-                -- the site would ship with pages missing.  This used to log and
-                -- carry on (and read the error with thread:get(), which returns
-                -- nothing for a failed thread).  Stop instead.
-                utils.log_error(string.format("HTML worker %d ended as '%s': %s",
-                    tid, tostring(status), tostring(worker_err)))
-                os.exit(1)
-            end
-        end
-
-        -- Update results counts (we don't have individual filenames in parallel mode)
-        for i = 1, total_similarity do table.insert(results.similarity_pages, "parallel") end
-        for i = 1, total_diversity do table.insert(results.diversity_pages, "parallel") end
-        -- }}} End parallel processing
-
-    else
-        -- {{{ Sequential processing (original code path)
-        -- Reached only with --threads 1, or when the memory budget shrank the
-        -- worker count to one.  A missing threading library no longer lands
-        -- here: it stops the run where num_threads is normalised (issue 8-058).
-
-        -- Generate similarity and diversity pages for each poem
-        -- Note: Loop variable is poem_index (globally unique) not poem.id (per-category)
-        local progress_count = 0
-        for poem_index, poem_data in pairs(valid_poems) do
-            progress_count = progress_count + 1
-
-            -- Animate one progress line; throttle sparser under --debug (verbose).
-            local step = (progress.mode() == 2) and 100 or 25
-            if progress_count % step == 0 then
-                progress.update("   📄 HTML pages", progress_count, total_poems)
-            end
-
-            -- Generate unique filename identifier (category prefix for cross-category uniqueness)
-            local unique_id = get_unique_poem_filename_id(poem_data)
-
-            -- Generate similarity ranking (cache is keyed by poem_index)
-            local similar_ranking = M.generate_similarity_ranked_list(poem_index, poems_data, similarity_data)
-
-            -- Phase D (Issue 8-012): Use paginated generation
-            -- Note: Pagination uses poem_index (numeric) for file naming (similar/0001-01.html)
-            local pagination_result = M.generate_all_paginated_pages_for_poem(
-                poem_data,
-                similar_ranking,
-                "similar",
-                poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
-                output_dir,
-                pages_config.is_all and nil or pages_config.pages,  -- nil means "all pages"
-                -- Issue 10-036: the mapping computed above must travel with the
-                -- work, or the formatter guesses chronological page 01 for every
-                -- poem. It was in scope here all along and simply not handed over.
-                chrono_mapping,
-                chronological_paginated
-            )
-
-            if pagination_result and pagination_result.files_generated then
-                for _, file in ipairs(pagination_result.files_generated) do
-                    table.insert(results.similarity_pages, file)
-                end
-            end
-
-            -- Generate TXT version. NOT a full-corpus export, despite what this comment
-            -- used to claim: it receives the SAME ranked list the pages are built
-            -- from, already trimmed, so it holds what the reader is looking at
-            -- (~90 entries), unsplit by page. The old wording sent a reader
-            -- looking for a whole-collection download that is not produced here.
-            local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
-                                                           string.format("%s/similar/%s.txt", output_dir, unique_id))
-            if similar_txt then
-                table.insert(results.txt_files, similar_txt)
-            end
-
-            -- Generate HTML archive version: the same ranked list as the pages, with
-            -- images, in one unsplit file. Off by default, which is why the page
-            -- only advertises it when generate_html_archives is on.
-            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-            if PAGINATION_CONFIG.generate_html_archives then
-                local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
-                                                               string.format("%s/similar/%s-archive.html", output_dir, unique_id), chrono_mapping, chronological_paginated)
-                if similar_archive then
-                    table.insert(results.html_archives, similar_archive)
-                end
-            end
-
-            -- Generate diversity pages (cache is keyed by poem_index)
-            local diverse_sequence = M.generate_maximum_diversity_sequence(poem_index, poems_data, embeddings_data)
-
-            -- Phase D (Issue 8-012): Use paginated generation for diversity pages too
-            -- Note: Pagination uses poem_index (numeric) for file naming (different/0001-01.html)
-            local diversity_pagination_result = M.generate_all_paginated_pages_for_poem(
-                poem_data,
-                diverse_sequence,
-                "different",
-                poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
-                output_dir,
-                pages_config.is_all and nil or pages_config.pages,  -- nil means "all pages"
-                -- Issue 10-036: same mapping, same reason as the "similar" call above.
-                chrono_mapping,
-                chronological_paginated
-            )
-
-            if diversity_pagination_result and diversity_pagination_result.files_generated then
-                for _, file in ipairs(diversity_pagination_result.files_generated) do
-                    table.insert(results.diversity_pages, file)
-                end
-            end
-
-            -- Generate TXT version. NOT a full-corpus export, despite what this comment
-            -- used to claim: it receives the SAME ranked list the pages are built
-            -- from, already trimmed, so it holds what the reader is looking at
-            -- (~90 entries), unsplit by page. The old wording sent a reader
-            -- looking for a whole-collection download that is not produced here.
-            local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
-                                                          string.format("%s/different/%s.txt", output_dir, unique_id))
-            if diverse_txt then
-                table.insert(results.txt_files, diverse_txt)
-            end
-
-            -- Generate HTML archive version: the same ranked list as the pages, with
-            -- images, in one unsplit file. Off by default, which is why the page
-            -- only advertises it when generate_html_archives is on.
-            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-            if PAGINATION_CONFIG.generate_html_archives then
-                local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
-                                                              string.format("%s/different/%s-archive.html", output_dir, unique_id), chrono_mapping, chronological_paginated)
-                if diverse_archive then
-                    table.insert(results.html_archives, diverse_archive)
-                end
-            end
-        end
-        -- }}} End sequential processing
-        progress.finish()
+    -- Issue 8-058: every page is built by the worker pool; one thread is one
+    -- worker. (The single-threaded builder was a separate, drifted copy of
+    -- the page code, reached with --threads 1 and, quietly, whenever the
+    -- memory guard lowered the worker count to one.)
+    local jobs = {}
+    for _, poem_index in ipairs(poem_indices) do
+        jobs[#jobs + 1] = { kind = "poems", poem_index = poem_index }
     end
+    local config = worker_config(output_dir)
+    config.pages_is_all = pages_config.is_all
+    -- "--pages N" is pages 1..N (parse_pages_specification); "all" is decided
+    -- per list inside the worker
+    config.pages_list = pages_config.pages or {}
+    config.poems_per_page = PAGINATION_CONFIG.poems_per_page
+    -- Issue 10-036: "--pages all" stops at this storage cap (8-020)
+    config.max_pages_per_poem = PAGINATION_CONFIG.max_pages_per_poem
+    -- Issue 9-003 Fix D: where each poem sits on the timeline and its page
+    config.chrono_mapping = chrono_mapping
+    config.chrono_paginated = chronological_paginated
+    local done = run_page_workers(num_threads, config, jobs)
+    for i = 1, done.similar do table.insert(results.similarity_pages, "parallel") end
+    for i = 1, done.different do table.insert(results.diversity_pages, "parallel") end
     
     -- Note: Chronological index and explore.html are generated by main.lua before this function
     -- to avoid duplicate work. We only generate the TXT export here.
@@ -3930,7 +3648,11 @@ function M.main(interactive_mode)
         elseif choice == "2" then
             local poems_data = utils.read_json_file(poems_file)
             if poems_data then
-                M.generate_chronological_index_with_navigation(poems_data, output_dir)
+                -- the pages are built by worker threads (Issue 8-058): ask how many
+                io.write("How many worker threads? ")
+                local threads = tonumber(io.read())
+                if not threads then error("a thread count is a whole number of 1 or more") end
+                M.generate_chronological_index_with_navigation(poems_data, output_dir, nil, threads)
                 M.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
                 utils.log_info("Generated chronological/index.html and chronological.txt")
             end

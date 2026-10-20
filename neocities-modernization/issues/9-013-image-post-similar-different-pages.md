@@ -16,8 +16,20 @@ entries on the similar and different pages: the 2026-10-07 build's page
 check found picture titles on them. The old nearest-neighbour association
 code is gone from the source.
 
+**Bug found 2026-10-20 (Issue 8-058's render check): picture numbers collide
+with the newest poems.** The image step numbers the standalone pictures
+(class 3) from 8607 upward, but poems.json now holds poems up to 8622, so 16
+pictures share a number with a real poem. When the page workers fold the
+pictures into their poem list, the picture wins: those 16 poems appear in the
+similar/different lists as gallery pictures. (The chronological pages are not
+affected: they look poems up before the pictures are folded in.) Measure with
+a count of manifest records whose `poem_index` is also in poems.json. The fix
+belongs in the image step's numbering (start above the highest poem_index, not
+above the embedding count it was built against), then the similarity stage
+reruns.
+
 All three items of the redesign's "Pending" list are therefore done. Left
-before closing: rewrite this file as the blueprint of what was built (the
+before closing: the numbering bug above, and rewrite this file as the blueprint of what was built (the
 superseded design below can move to a short history note), and check the
 chronological pages draw images too.
 
