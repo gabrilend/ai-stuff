@@ -101,6 +101,9 @@ if [ ! -d "$DIR/output" ]; then
 fi
 
 OUT="$DIR/output"
+# output/ is a link into RAM (Issue 10-072); every find that starts at $OUT
+# takes -H, because find does not go into a starting point that is a link
+# unless told to.
 HOLD="$DIR/tmp/shared-memory/quarantine"
 WORK=""
 # }}}
@@ -170,7 +173,7 @@ build_reference_index() {
     # The token pattern deliberately admits far more than real filenames -- URLs
     # inside poems, ".txt" mentioned in prose. Every spurious token can only cause
     # a file to be KEPT, which is the safe direction.
-    find "$OUT" -name '*.html' -type f -print0 \
+    find -H "$OUT" -name '*.html' -type f -print0 \
         | xargs -0 grep -hoE "[^\"'<> ()]+\.[A-Za-z0-9]{1,6}" \
         | sort -u \
         | urldecode_stream \
@@ -424,7 +427,7 @@ do_move() {
     # emptied. output/debug-logs/ is the only group that empties a whole directory,
     # and leaving the empty shell behind would make --status ambiguous about
     # whether the group was held.
-    find "$OUT" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+    find -H "$OUT" -mindepth 1 -type d -empty -delete 2>/dev/null || true
 
     printf '\n  %s files (%s) now held in RAM at:\n    %s\n' \
         "$moved_files" "$(human_size "$moved_bytes")" "$HOLD"

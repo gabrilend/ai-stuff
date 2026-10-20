@@ -1106,6 +1106,19 @@ fi
 }
 # }}}
 
+# {{{ Put the built site in RAM
+# Issue 10-072: output/ is a link into tmp/shared-memory/site/, so the ~4.7 GB
+# of pages every build rewrites never touch the disk; output/media/ links back
+# to assets/site-media/ on disk. After a logout the RAM copy is gone and this
+# recreates an empty one -- the build then fills it as usual. It stops the run
+# if output/ is still a real folder (the one-time --migrate has not been run),
+# rather than building into the disk folder as before.
+"$DIR/scripts/ensure-site-in-ram" "$DIR" || {
+    echo "Error: the site folder is not set up in RAM (scripts/ensure-site-in-ram)" >&2
+    exit 1
+}
+# }}}
+
 # NOTE (Issue 10-065): the embedding-model resolution and the per-run overrides
 # notepad used to sit here. They moved BELOW the interactive menu and the
 # requirement gate, and the ordering is the point: the old code resolved the

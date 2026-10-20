@@ -9,8 +9,14 @@ tmp
 .stage-timings
 
 # Build products (regenerated each run)
+# output is a link into RAM (Issue 10-072, scripts/ensure-site-in-ram). git
+# sees a link as a file, which "output/" (folders only) does not match, so the
+# link is named on its own line. output-before-ram/ is the old on-disk site
+# that --migrate sets aside; assets/ holds the pictures' disk folder.
+/output
 output/
 output-backup/
+output-before-ram/
 assets/
 
 # Everything under input/ is regenerable, so none of it is tracked here. It is

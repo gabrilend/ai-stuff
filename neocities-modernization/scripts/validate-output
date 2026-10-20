@@ -79,10 +79,12 @@ OUTPUT="$(cd "$OUTPUT" && pwd)"
 # published for reference, whose words link to today's word pages -- and a word
 # with no page today is expected there (owner, 2026-10-07: "let's just not
 # check the archived pages"). Every other page is checked.
-PAGE_COUNT=$(find "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print | wc -l)
+# find -H: the site folder output/ is a link into RAM (Issue 10-072), and find
+# does not go into a starting point that is a link unless told to.
+PAGE_COUNT=$(find -H "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print | wc -l)
 echo "Checking $PAGE_COUNT pages under $OUTPUT on $JOBS processes (max width $MAX_WIDTH; archived word clouds skipped)..."
 export WORKER="$DIR/scripts/validate-output-worker.lua" FINDINGS_DIR="$WORK" MAX_WIDTH
-find "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print0 \
+find -H "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print0 \
     | xargs -0 -r -n 200 -P "$JOBS" sh -c \
         'exec luajit "$WORKER" "$MAX_WIDTH" "$FINDINGS_DIR/part.$$.tsv" "$@"' _
 SCAN_STATUS=$?
