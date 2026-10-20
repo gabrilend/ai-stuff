@@ -1,0 +1,155 @@
+#!/usr/bin/env luajit
+-- render-page-sample
+--
+-- WHAT IT DOES (for a CEO): before changing how poems are drawn, you want a
+-- picture of every page as it is, so that after the change you can say exactly
+-- what moved and prove nothing else did. This builds that picture: every
+-- chronological page, plus the similar and different pages of a fixed sample
+-- of poems chosen to include each hard case (golden poems, boosts, content
+-- warnings, emphasis, 80-wide lines, pictures), written into a folder of its
+-- own. Run it once with the old code and once with the new, then compare the
+-- two folders line by line (diff -r). The real site is never touched.
+-- (Issue 8-058, step 7.)
+--
+-- Usage:
+--   scripts/render-page-sample [DIR] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N
+--
+--   DIR       project directory (default below)
+--   --out     where the pages go; made fresh, must not exist yet
+--   --model   embedding model whose caches the pages are built from
+--   --server  inference server entry naming that model (config.lua)
+--   --threads worker threads for the similar/different pages
+--   --poems-per-page  poems on each similar/different page (the builds use 33)
+--
+-- The sample is chosen from poems.json by a fixed rule (no randomness), so two
+-- runs over the same poems pick the same anchors. One page per anchor per
+-- list ("--pages 1").
+-- The pictures folder is linked, not copied: the page builder skips a picture
+-- that already exists, so the sample costs no picture copies.
+
+-- {{{ arguments
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local OUT, MODEL, SERVER, THREADS, PER_PAGE
+do
+    local i = 1
+    while i <= #arg do
+        local a = arg[i]
+        if a == "--out" then OUT = arg[i + 1]; i = i + 1
+        elseif a == "--model" then MODEL = arg[i + 1]; i = i + 1
+        elseif a == "--server" then SERVER = arg[i + 1]; i = i + 1
+        elseif a == "--threads" then THREADS = tonumber(arg[i + 1]); i = i + 1
+        elseif a == "--poems-per-page" then PER_PAGE = tonumber(arg[i + 1]); i = i + 1
+        elseif a:sub(1, 2) == "--" then error("render-page-sample: unknown option " .. a)
+        else DIR = a end
+        i = i + 1
+    end
+end
+if not (OUT and MODEL and SERVER and THREADS and PER_PAGE) then
+    error("render-page-sample: --out, --model, --server, --threads and --poems-per-page are all required")
+end
+-- }}}
+
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
+inference_config.set_selected_server(SERVER)
+inference_config.set_selected_model(MODEL)
+utils.init_assets_root({ DIR })
+-- The page builder reads the project folder from the script's first
+-- command-line argument when it is loaded, so it is given one that is just
+-- the folder; this script's own options are already read above.
+arg = { DIR }
+local generator = require("flat-html-generator")
+
+-- {{{ local function run()
+-- A shell command that must succeed. LuaJIT reports success as 0, or as true
+-- when built with Lua 5.2 compatibility; both mean "exited 0".
+local function run(cmd)
+    local result = os.execute(cmd)
+    if result ~= 0 and result ~= true then
+        error("render-page-sample: command failed: " .. cmd)
+    end
+end
+-- }}}
+
+-- {{{ local function fresh_out()
+local function fresh_out()
+    local probe = io.open(OUT .. "/.", "r")
+    if probe then
+        probe:close()
+        error("render-page-sample: " .. OUT .. " already exists; give a new folder")
+    end
+    run(string.format("mkdir -p %q", OUT))
+    -- pictures: link the real folder so nothing is copied
+    local media = DIR .. "/output/media"
+    run(string.format("ln -s %q %q", media, OUT .. "/media"))
+end
+-- }}}
+
+-- {{{ local function pick_sample()
+-- A fixed, rule-based sample: for each hard case, the first poems (in
+-- poems.json order) that show it, so every kind of entry is drawn as an
+-- anchor; their ranked lists then bring many more cases in.
+local function pick_sample(poems)
+    local cases = {
+        golden   = function(p) return p.metadata and p.metadata.is_golden_poem end,
+        boost    = function(p) return p.metadata and p.metadata.is_boost end,
+        cw_field = function(p) return p.content_warning and p.content_warning ~= "" end,
+        emphasis = function(p) return (p.content or ""):find("%*[^%s%*][^%*\n]-%*") ~= nil end,
+        pictures = function(p) return p.attachments and #p.attachments > 0 end,
+        cw_later = function(p)
+            local n = 0
+            for line in ((p.content or "") .. "\n"):gmatch("(.-)\n") do
+                n = n + 1
+                if n > 1 and line:lower():match("^%s*cw%s*:") then return true end
+            end
+            return false
+        end,
+        wide80 = function(p)
+            for line in ((p.content or "") .. "\n"):gmatch("(.-)\n") do
+                if #line == 80 then return true end
+            end
+            return false
+        end,
+    }
+    local per_case = 25
+    local chosen, seen = {}, {}
+    for _, name in ipairs({ "golden", "boost", "cw_field", "emphasis", "pictures", "cw_later", "wide80" }) do
+        local got = 0
+        for _, p in ipairs(poems) do
+            if got >= per_case then break end
+            if p.poem_index and not seen[p.poem_index] and cases[name](p) then
+                seen[p.poem_index] = true
+                chosen[#chosen + 1] = p
+                got = got + 1
+            end
+        end
+    end
+    -- plus every 200th poem, for ordinary ones
+    for i = 1, #poems, 200 do
+        local p = poems[i]
+        if p.poem_index and not seen[p.poem_index] then
+            seen[p.poem_index] = true
+            chosen[#chosen + 1] = p
+        end
+    end
+    return chosen
+end
+-- }}}
+
+fresh_out()
+local poems_data = assert(utils.read_json_file(utils.asset_path("poems.json")), "poems.json did not load")
+local chrono_per_page = generator.get_pagination_config().chronological_poems_per_page
+-- the chronological pages: all of them, from every poem
+assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, chrono_per_page),
+    "chronological pages failed")
+-- the similar/different pages: only the sample's anchors get pages; every
+-- poem keeps its place on the timeline and in the ranked lists
+local sample = pick_sample(poems_data.poems)
+local anchors = {}
+for i, p in ipairs(sample) do anchors[i] = p.poem_index end
+assert(generator.generate_complete_flat_html_collection(
+    poems_data, nil, nil, OUT, "1", PER_PAGE, THREADS, chrono_per_page, anchors),
+    "similar/different pages failed")
+print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))

@@ -5,6 +5,29 @@ Medium
 
 ## Current Behavior
 
+**One poem drawer (2026-10-20).** `src/poem-entry.lua` draws a poem's whole
+entry, and both the similar/different workers and the chronological page loop
+call it; the worker's pasted 425-line copy and the chronological loop's own
+130-line drawing are gone. Each worker loads the module once and is handed the
+palettes from config.lua (it used to keep its own hard-coded colour table).
+Decisions, all from the chronological side as the owner chose: emphasis
+styled with marks kept, an 80-column text column, a "CW:" line boxed wherever
+it falls, screen-reader labels on bars. Two the other way, because the
+chronological behaviour was a flaw: a golden poem's picture comes before its
+navigation boxes (it used to split the golden frame), and no blank line after
+a picture. Found and fixed along the way: the post's own content warning was
+never escaped (a warning containing "<" could break a page), and Windows line
+endings left a carriage return on every line.
+- Proved by `scripts/render-page-sample`: every chronological page plus the
+  similar and different pages of 197 sample anchors, rendered before and
+  after. Every letter on all 404 pages is unchanged (on two pages some text
+  moved, with the golden pictures); 0 over-wide lines and 0 frame errors on
+  both. The 80-column choice re-flows every wrapped long line on
+  similar/different pages by up to one word, not only lines of exactly 80.
+- Pinned by `src/poem-entry.test.lua`.
+- Still to do: chronological pages built by the workers (step 4), the
+  single-threaded builder removed (step 5), the word pages (step 6).
+
 **Bars and navigation boxes: merged (2026-10-07).** The chronological pages
 (main thread) now draw every progress bar and every corner/nav box through
 `src/poem-bars.lua`, the drawer the similar/different workers and the word

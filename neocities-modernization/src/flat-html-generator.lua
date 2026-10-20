@@ -289,6 +289,17 @@ end
 -- Load layout from config on module initialization
 load_layout_from_config()
 
+-- The one poem drawer (Issue 8-058): the chronological pages drawn here and
+-- the similar/different pages drawn by the workers both draw each poem
+-- through it. Configured with the same palettes and text width the workers
+-- are handed, so the two cannot disagree.
+local poem_entry = require("poem-entry")
+poem_entry.configure({
+    palette = COLOR_CONFIG,
+    boost_palette = BOOST_COLOR_CONFIG,
+    text_width = LAYOUT.TEXT_CONTENT_WIDTH,
+})
+
 -- Diversity cache (pre-computed GPU sequences for fast HTML generation)
 -- Loaded from assets/embeddings/embeddinggemma_latest/diversity_cache.json
 local DIVERSITY_CACHE = nil
@@ -2648,137 +2659,26 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
                 io.flush()
             end
 
-            -- Issue 8-045: Calculate chronological progress based on actual timestamp
-            -- This shows temporal position in the author's timeline, not just poem count
+            -- Issue 8-045: how far through the author's writing timeline this
+            -- poem was written (by date, not by its place in the list)
             local poem_timestamp = poem_info.timestamp or first_timestamp
             local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
-            local progress_info = {
-                poem_id = poem_id,
-                total_poems = total_poems,
-                percentage = timeline_progress,  -- Issue 8-045: time-based, not position-based
-                position = i,
-                temporal_index = i
-            }
-
             local poem_color_data = poem_colors[poem_id]
-            local semantic_color = poem_color_data and poem_color_data.color or "gray"
-            local is_golden = is_golden_poem(poem)
-            local is_boost = is_boost_poem(poem)  -- Issue 10-040: Check for boosts
-            local anchor_id = get_poem_anchor_id(poem)
             local poem_index = poem.poem_index or 0
 
-            -- Add HTML anchor
-            content = content .. string.format('<span id="%s"></span>', anchor_id)
+            -- the anchor other pages link to, then the poem's file name
+            content = content .. string.format('<span id="%s"></span>', get_poem_anchor_id(poem))
             content = content .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
 
-            -- Navigation links (absolute paths for consistency)
-            -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
-            local base_path = ".."
-            local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
-            local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
-            local chronological_link = nil  -- Issue 9-003 Fix C: No chronological link on chronological pages
-
-            -- Issue 10-040: Apply boost formatting consistently on chronological pages
-            -- Uses same boost box styling as similar/different pages
-            if is_boost then
-                -- Escape HTML and apply markdown to content
-                local text = escape_html(poem.content or "")
-
-                -- Issue 10-037: Defensive fallback for blank boost content
-                if text == "" or text:match("^%s*$") then
-                    local original_uri = poem.metadata and poem.metadata.original_uri
-                    if original_uri then
-                        text = "External post: " .. escape_html(original_uri)
-                    else
-                        text = "(Boost content unavailable)"
-                    end
-                end
-
-                -- Issue 10-039: Make external boost URLs clickable
-                local external_pattern = "^External post: (https?://[^%s]+)$"
-                local external_url = text:match(external_pattern)
-                if external_url then
-                    -- Wrap the URL across box lines instead of overflowing.
-                    text = text_formatter.wrap_external_url("External post: ", external_url, boost_bars.CONTENT_WIDTH)
-                else
-                    -- Issue 10-041: Wrap long embedded content to fit boost box
-                    local BOOST_CONTENT_WIDTH = boost_bars.CONTENT_WIDTH
-                    local wrapped_lines = {}
-                    for line in (text .. "\n"):gmatch("(.-)\n") do
-                        local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
-                        for _, wrapped_line in ipairs(wrapped) do
-                            table.insert(wrapped_lines, wrapped_line)
-                        end
-                    end
-                    text = table.concat(wrapped_lines, "\n")
-                end
-
-                text = apply_markdown_formatting(text)
-
-                -- Calculate progress as decimal (0-1) for boost functions
-                local progress_decimal = progress_info.percentage / 100
-
-                -- Apply complete boost formatting (includes all frame elements)
-                local boost_formatted = apply_boost_poem_formatting(
-                    text, progress_decimal, similar_link, different_link, chronological_link
-                )
-                content = content .. boost_formatted .. "\n"
-
-                -- Render attached images after boost frame
-                if poem.attachments then
-                    content = content .. render_attachment_images(poem.attachments)
-                end
-            else
-                -- Standard formatting for golden and regular poems
-                -- Generate top progress bar
-                local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-                content = content .. string.format('<span %s>%s</span>\n',
-                                                  top_dashes.accessibility,
-                                                  top_dashes.visual)
-
-                -- Add poem content
-                local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
-                local formatted_content = format_content_with_warnings(
-                    poem.content or "", poem.category, poem,
-                    is_golden and similar_link or nil,
-                    is_golden and different_link or nil,
-                    is_golden and chronological_link or nil,
-                    is_golden and hex_color or nil,
-                    -- Fill count from the top bar just drawn (82 interior columns for
-                    -- golden), the same number the workers size the nav boxes with.
-                    is_golden and top_dashes.raw_progress or nil
-                )
-                content = content .. formatted_content
-
-                -- Add images if present
-                -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
-                if poem.attachments and #poem.attachments > 0 then
-                    content = content .. render_attachment_images(poem.attachments)
-                end
-
-                -- Add navigation box for regular poems
-                if not is_golden then
-                    -- Issue 8-035: Calculate progress_chars for nav box colorization
-                    local total_chars = LAYOUT.REGULAR_POEM_WIDTH
-                    local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
-
-                    content = content .. "\n"
-                    content = content .. generate_regular_corner_box_top(progress_chars, hex_color) .. "\n"
-                    content = content .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color) .. "\n"
-                else
-                    content = content .. "\n"
-                end
-            end
-
-            -- Generate bottom progress bar (skip for boosts - they have their own bottom border)
-            if not is_boost then
-                local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-                content = content .. string.format('<span %s>%s</span>\n\n',
-                                                  bottom_dashes.accessibility,
-                                                  bottom_dashes.visual)
-            else
-                content = content .. "\n"  -- Just add spacing between poems
-            end
+            -- the entry itself, from the one poem drawer (Issue 8-058); no
+            -- chronological link on a chronological page (Issue 9-003 Fix C)
+            content = content .. poem_entry.format_entry(poem, {
+                color_name = poem_color_data and poem_color_data.color or "gray",
+                progress_pct = timeline_progress,
+                similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_index),
+                different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_index),
+                chrono_link = false,
+            }) .. "\n\n"
         end
 
         -- Write page file
@@ -3143,7 +3043,12 @@ end
 -- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
 -- num_threads: (required) number of worker threads, 1 or more (Issue 10-065a: no default in code)
 -- chrono_per_page: (optional) CLI override for chronological poems per page (Issue 9-003)
-function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page)
+-- anchor_indices: (optional) list of poem_index numbers. Given, only these
+--   poems get similar/different pages; every poem in poems_data still takes
+--   its place on the timeline and in the ranked lists. Used by
+--   scripts/render-page-sample to draw a sample of the site (Issue 8-058);
+--   a build passes nothing and every poem gets its pages.
+function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, anchor_indices)
     -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
     -- Cache provides instant lookup of pre-computed GPU diversity sequences
     load_diversity_cache()
@@ -3211,9 +3116,23 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Note: poem.id is per-category and NOT unique across categories
     -- poem_index is the globally unique identifier used by embeddings/similarity
     local valid_poems = {}
+    -- anchors given: only those poems get pages (each must exist); none given:
+    -- every poem does
+    local wanted = nil
+    if anchor_indices then
+        wanted = {}
+        for _, idx in ipairs(anchor_indices) do wanted[idx] = true end
+    end
     for i, poem in ipairs(poems_data.poems) do
-        if poem.poem_index then
+        if poem.poem_index and (not wanted or wanted[poem.poem_index]) then
             valid_poems[poem.poem_index] = poem
+        end
+    end
+    if wanted then
+        for idx in pairs(wanted) do
+            if not valid_poems[idx] then
+                error("anchor poem " .. tostring(idx) .. " is not in poems_data")
+            end
         end
     end
 
@@ -3350,6 +3269,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             -- Issue 9-003 Fix D: Full formatting data
             chrono_mapping = chrono_mapping,
             chrono_paginated = chronological_paginated,
+            -- Issue 8-058: the palettes the shared poem drawer is configured
+            -- with in each worker -- the same tables this program draws with,
+            -- read from config.lua, so no worker keeps a copy of its own
+            palette = COLOR_CONFIG,
+            boost_palette = BOOST_COLOR_CONFIG,
             -- Issue 8-055: Pass layout constants to worker threads for consistency
             layout = {
                 golden_poem_width = LAYOUT.GOLDEN_POEM_WIDTH or 84,
@@ -3379,9 +3303,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 local t_dkjson = require('dkjson')
                 -- Issue 8-056: Shared text formatting module for whitespace preservation
                 local t_text_formatter = require('text-formatter')
-                -- Shared box/bar drawing (canonical geometry) so this worker copy
-                -- can't drift from the main thread's bars. See poem-bars.lua.
-                local t_poem_bars = require('poem-bars')
+                -- The one poem drawer every page type uses (Issue 8-058). It
+                -- loads the bar, boost and text modules itself; the palette
+                -- and widths come from the main program in config, so this
+                -- worker draws with exactly the colours config.lua holds.
+                -- config arrives as effil's shared tables, not Lua tables;
+                -- effil.dump copies one into a plain table the drawer can read.
+                local t_poem_entry = require('poem-entry')
+                local t_effil = require('effil')
+                t_poem_entry.configure({
+                    palette = t_effil.dump(config.palette),
+                    boost_palette = t_effil.dump(config.boost_palette),
+                    text_width = config.layout.text_content_width,
+                })
                 -- Issue 9-013: fold ranked image pseudo-poems into this worker's
                 -- poem list so it draws them instead of dropping unknown indices.
                 local t_image_render = require('image-render')
@@ -3412,11 +3346,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 local poem_colors_data = t_utils.read_json_file(poem_colors_file)
                 local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
 
-                -- Color config for progress bars
-                local color_config = {
-                    red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
-                    purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
-                }
 
                 -- Local helper: Get unique filename ID for poem
                 local function get_unique_id(poem)
@@ -3447,38 +3376,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
                 -- }}}
 
-                -- {{{ Local helper: Check if poem is golden (exactly 1024 chars when posted)
-                -- Issue 8-044: Use pre-calculated metadata as single source of truth
-                local function is_golden_poem(poem)
-                    if poem.metadata and poem.metadata.is_golden_poem then
-                        return true
-                    end
-                    return false
-                end
-                -- }}}
-
-                -- {{{ Local helper: Check if poem is a boost (Issue 8-057)
-                local function is_boost_poem(poem)
-                    if poem.metadata and poem.metadata.is_boost then
-                        return true
-                    end
-                    return false
-                end
-                -- }}}
-
-                -- Issue 8-057: Boost color configuration for worker thread
-                local BOOST_COLORS = {
-                    arrow = "#dc3c3c",      -- Red: ◀═ and ─▶ arrows, [BOOST] label
-                    outer_frame = "#3c78dc", -- Blue: ╔═╗║╚═╝ outer frame
-                    inner_box = "#2aa198",   -- Teal: ┌─┐│└─┘ inner content box
-                    content_text = "#c8b428" -- Yellow: boosted text content
-                }
-
-                -- Same shared boost-frame module the main thread uses; require()
-                -- reloads it fresh in this isolated worker state (only live
-                -- closures can't cross states, plain modules reload from disk).
-                local t_boost_bars = require('boost-bars')
-                t_boost_bars.configure(BOOST_COLORS)
 
                 -- Local helper: Build poem lookup by poem_index for ranking conversion
                 local function build_poem_by_index()
@@ -3534,452 +3431,40 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     return result
                 end
 
-                -- {{{ Issue 8-057: Boost formatting functions for worker thread
-
-                -- Worker: apply complete boost formatting. All geometry lives in
-                -- the shared boost-bars module (top/inner/content/nav/bottom +
-                -- the asymmetric fill-frontier right edge). The worker only splits
-                -- the pre-wrapped content into lines; txt_fmt is unused now that
-                -- the module owns visible-width padding.
-                local function worker_apply_boost_formatting(content, progress_percent, similar_link, different_link, chronological_link, txt_fmt)
-                    local lines = {}
-                    for line in (content .. "\n"):gmatch("(.-)\n") do
-                        table.insert(lines, line)
-                    end
-                    local include_nav = (similar_link and different_link) and true or false
-                    return t_boost_bars.format_boost(
-                        lines, progress_percent, similar_link, different_link, chronological_link, include_nav)
-                end
-                -- }}} End Issue 8-057: Boost formatting functions
-
-                -- Local helper: Format single poem with full formatting (Issue 9-003 Fix D)
-                -- Includes progress bars, navigation box, and chronological page links
-                -- Issue 8-044: Added golden poem formatting support
-                -- Issue 8-057: Added boost formatting support
-                local function format_poem_entry(poem, poem_colors_tbl, clr_config, chrono_map, chrono_paged)
-                    -- Issue 9-013: a ranked IMAGE entry draws as an image box, not a poem.
+                -- {{{ local function format_poem_entry()
+                -- One poem's entry, drawn by the shared poem drawer. This
+                -- worker only supplies what the drawer is told: the poem's
+                -- colour, how far through the writing timeline it is, and
+                -- its three links.
+                local function format_poem_entry(poem, chrono_map, chrono_paged)
+                    -- a picture-only entry draws its own box and needs no links
                     if poem.is_image then
-                        return t_image_render.format_image_entry(poem)
+                        return t_poem_entry.format_entry(poem, {})
                     end
                     local poem_idx = poem.poem_index
-                    local poem_color_data = poem_colors_tbl[poem_idx]
-                    local semantic_color = poem_color_data and poem_color_data.color or "gray"
-                    local hex_color = clr_config[semantic_color] or clr_config["gray"]
-                    -- Hand the shared bar module this state's palette (idempotent).
-                    t_poem_bars.configure(clr_config)
-
-                    -- Issue 8-044: Check if this is a golden poem
-                    local is_golden = is_golden_poem(poem)
-
-                    -- Issue 8-057: Check if this is a boost and handle with special formatting
-                    local is_boost = is_boost_poem(poem)
-
-                    -- Get chronological position from mapping
+                    local color_data = poem_colors[poem_idx]
                     -- Issue 8-045: a poem missing from the chronological map has
-                    -- no bar and no chronological page.  This used to draw a 50%
-                    -- bar and link page 1; now the worker fails, and the
-                    -- orchestrator stops the run with this message.
+                    -- no place on the timeline and no chronological page. The
+                    -- worker fails, and the orchestrator stops the run with this.
                     local chrono_info = chrono_map[poem_idx]
                     if not chrono_info then
                         error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
                     end
-                    -- Time-based: how far through the writing span, not poem count
-                    local progress_pct = chrono_info.timeline_progress
-
-                    -- Calculate progress bar chars
-                    -- Golden: 82 interior chars + 2 corners = 84 total
-                    -- Regular: 83 chars total (no corners on top bar)
-                    local total_bar_chars = is_golden and 82 or 83
-                    local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
-                    local remaining_chars = total_bar_chars - progress_chars
-
-                    -- Top bar from the shared poem-bars module (canonical 83
-                    -- regular / 84 golden). progress_chars above is still used to
-                    -- progressively colour the regular nav corner boxes below.
-                    local colored_progress = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "top", false).visual
-
-                    -- Navigation links (absolute paths for local testing)
-                    -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
-                    local base_path = ".."
-                    local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
-                    local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-                    -- Issue 16-006: Use poem_index for simpler, machine-readable anchor format
-                    -- Old format: "poem-fediverse-0042" (leaked category info)
-                    -- New format: "poem-4625" (just the unique poem_index)
-                    local anchor_id = string.format("poem-%d", poem.poem_index or 0)
-
-                    -- Issue 8-039: Chronological link points to subdirectory
-                    local chrono_link
-                    if chrono_paged and chrono_info.total_pages > 1 then
-                        -- Paginated: chronological/01.html, chronological/02.html, etc.
-                        chrono_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
-                            base_path, chrono_info.page_number, anchor_id)
-                    else
-                        -- Single page: chronological/index.html
-                        chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
-                    end
-
-                    -- Issue 8-057: Handle boost poems with special nested frame formatting
-                    -- Boosts return early with their complete formatting (arrows, [BOOST] label, nested frames)
-                    if is_boost then
-                        local boost_content = poem.content or ""
-                        -- Escape HTML in content
-                        boost_content = boost_content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-                        -- Issue 10-037: Defensive fallback for blank boost content (worker thread)
-                        -- If content is empty, display the original URI or diagnostic message
-                        if boost_content == "" or boost_content:match("^%s*$") then
-                            local original_uri = poem.metadata and poem.metadata.original_uri
-                            if original_uri then
-                                -- Escape HTML in URI
-                                local safe_uri = original_uri:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-                                boost_content = "External post: " .. safe_uri
-                            else
-                                boost_content = "(Boost content unavailable)"
-                            end
-                        end
-
-                        -- Issue 10-039: Make external boost URLs clickable (worker thread)
-                        -- Pattern: "External post: https://..." -> wrap URL in anchor tag
-                        local external_pattern = "^External post: (https?://[^%s]+)$"
-                        local external_url = boost_content:match(external_pattern)
-                        if external_url then
-                            -- Wrap the URL across box lines instead of overflowing.
-                            boost_content = t_text_formatter.wrap_external_url("External post: ", external_url, t_boost_bars.CONTENT_WIDTH)
-                        else
-                            -- Issue 10-041: Wrap long embedded content to fit the boost box.
-                            -- Only wrap non-external-post content (external posts keep URLs intact)
-                            local BOOST_CONTENT_WIDTH = t_boost_bars.CONTENT_WIDTH
-                            local wrapped_lines = {}
-                            for line in (boost_content .. "\n"):gmatch("(.-)\n") do
-                                local wrapped = t_text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
-                                for _, wrapped_line in ipairs(wrapped) do
-                                    table.insert(wrapped_lines, wrapped_line)
-                                end
-                            end
-                            boost_content = table.concat(wrapped_lines, "\n")
-                        end
-
-                        -- Calculate progress as decimal (0-1)
-                        local progress_decimal = progress_pct / 100
-
-                        -- Apply boost formatting with all frame elements
-                        local boost_formatted = worker_apply_boost_formatting(
-                            boost_content, progress_decimal,
-                            similar_link, different_link, chrono_link,
-                            t_text_formatter
-                        )
-
-                        -- Build output including any attached media
-                        local output = { boost_formatted }
-
-                        -- Handle media attachments for boosts (same logic as regular poems)
-                        local media_base = ".."
-                        local has_media = false
-                        local media_atts = {}
-                        if poem.attachments and #poem.attachments > 0 then
-                            for _, att in ipairs(poem.attachments) do
-                                local mt = att.media_type or ""
-                                if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
-                                    table.insert(media_atts, att)
-                                    has_media = true
-                                end
-                            end
-                        end
-
-                        if has_media then
-                            table.insert(output, "</pre>")
-                            for _, att in ipairs(media_atts) do
-                                local rpath = att.relative_path or ""
-                                -- media_href: namespace art by source+subdir,
-                                -- url-encode (this is the path that previously
-                                -- emitted the raw broken "...TROUBLE-U-?...png"
-                                -- link on the similarity pages); Mastodon stays flat.
-                                local media_src = "../media/" .. media_href(rpath)
-                                local media_type = att.media_type or "image/png"
-                                if media_type:match("^image/") then
-                                    local alt = att.description and att.description ~= "" and att.description or "Image attachment"
-                                    if att.width and att.height then
-                                        table.insert(output, string.format(
-                                            '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                                            media_src, alt, att.width, att.height
-                                        ))
-                                    else
-                                        table.insert(output, string.format(
-                                            '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                                            media_src, alt
-                                        ))
-                                    end
-                                elseif media_type:match("^audio/") then
-                                    table.insert(output, string.format(
-                                        '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the audio element.\n' ..
-                                        '  </audio>',
-                                        media_src, media_type
-                                    ))
-                                elseif media_type:match("^video/") then
-                                    if att.width and att.height then
-                                        table.insert(output, string.format(
-                                            '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                            '    <source src="%s" type="%s">\n' ..
-                                            '    Your browser does not support the video element.\n' ..
-                                            '  </video>',
-                                            att.width, att.height, media_src, media_type
-                                        ))
-                                    else
-                                        table.insert(output, string.format(
-                                            '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                            '    <source src="%s" type="%s">\n' ..
-                                            '    Your browser does not support the video element.\n' ..
-                                            '  </video>',
-                                            media_src, media_type
-                                        ))
-                                    end
-                                end
-                            end
-                            table.insert(output, "<pre>")
-                        end
-
-                        return table.concat(output, "\n")
-                    end
-
-                    -- Standard formatting for golden and regular (non-boost) poems
-                    -- Wrap content to 80 chars while preserving paragraph breaks
-                    -- Also handle content warnings (CW: or content warning:)
-                    local content = poem.content or ""
-
-                    -- Issue 8-041: Escape HTML special characters in poem content
-                    -- Prevents browser from interpreting poem content as HTML markup
-                    -- (e.g., a poem containing "</pre>" would otherwise close the preformatted block)
-                    -- Order: & first, then < and > (otherwise &lt; becomes &amp;lt;)
-                    content = content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-                    local wrapped_lines = {}
-
-                    -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
-                    -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
-                    -- Issue 9-011: warning boxes come from the shared builder
-                    -- (wraps long warnings after dashes and spaces, pads by
-                    -- visible width), indented one column as before.  These
-                    -- two copies used to put the whole warning on one line.
-                    local function add_cw_box(cw_display)
-                        local box = t_text_formatter.format_cw_box(cw_display, 80, true)
-                        for box_line in box:gmatch("[^\n]+") do
-                            table.insert(wrapped_lines, " " .. box_line)
-                        end
-                    end
-
-                    if poem.content_warning and poem.content_warning ~= "" then
-                        -- Box around the ActivityPub content warning
-                        add_cw_box("CW: " .. poem.content_warning)
-                        table.insert(wrapped_lines, "")  -- Empty line after CW
-                        table.insert(wrapped_lines, "")  -- Second empty line for spacing
-                    end
-
-                    -- Check for content warning at start
-                    local cw_text = nil
-                    local main_content = content
-                    local cw_match = content:match("^%s*[Cc][Ww]%s*:(.-)[\n\r]")
-                    if not cw_match then
-                        cw_match = content:match("^%s*[Cc]ontent [Ww]arning%s*:(.-)[\n\r]")
-                    end
-                    if cw_match then
-                        cw_text = cw_match:match("^%s*(.-)%s*$")  -- trim whitespace
-                        -- Remove the CW line from main content
-                        main_content = content:gsub("^%s*[Cc][Ww]%s*:[^\n\r]*[\n\r]?", "")
-                        main_content = main_content:gsub("^%s*[Cc]ontent [Ww]arning%s*:[^\n\r]*[\n\r]?", "")
-                    end
-
-                    -- If there's a content warning, format it in a box
-                    if cw_text and #cw_text > 0 then
-                        add_cw_box("CW: " .. cw_text)
-                        table.insert(wrapped_lines, "")  -- Empty line after CW
-                    end
-
-                    -- Issue 8-056: Preserve whitespace for ALL categories
-                    -- Poetry is artistic content - author's spacing must be respected
-                    -- Use shared text-formatter module for consistent behavior with main thread
-                    local content_lines = t_text_formatter.format_poem_content(main_content)
-                    for _, line in ipairs(content_lines) do
-                        table.insert(wrapped_lines, line)
-                    end
-
-                    -- Issue 8-044: Apply golden side borders to content lines
-                    -- Golden poems get ║ (colored) on left and │ on right
-                    -- Total width: ║ (1) + space (1) + 80 chars content + space (1) + │ (1) = 84 total
-                    if is_golden then
-                        local golden_lines = {}
-                        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-                        -- Issue 8-055: Use config layout values instead of hardcoded 80
-                        local CONTENT_WIDTH = config.layout and config.layout.text_content_width or 80
-
-                        -- Helper to count UTF-8 characters (not bytes)
-                        -- Box-drawing chars are 3 bytes each, so #str gives wrong count
-                        local function utf8_char_count(str)
-                            -- Remove UTF-8 continuation bytes (0x80-0xBF), count what remains
-                            return #(str:gsub("[\128-\191]", ""))
-                        end
-
-                        for _, line in ipairs(wrapped_lines) do
-                            -- Strip the leading space that word-wrap added (we'll add our own)
-                            local content = line:match("^%s*(.*)$") or line
-
-                            -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
-                            -- Issue 8-055: Also decode HTML entities for accurate width counting
-                            -- e.g., &gt; is 4 bytes but displays as 1 character (>)
-                            local visible_length = t_text_formatter.calculate_visible_width(content)
-
-                            -- Pad content to 80 chars
-                            local padded_content
-                            if visible_length >= CONTENT_WIDTH then
-                                padded_content = content
-                            else
-                                local padding_needed = CONTENT_WIDTH - visible_length
-                                padded_content = content .. string.rep(" ", padding_needed)
-                            end
-
-                            -- Add side borders: ║ + space + 80 chars + space + │ = 84 total
-                            table.insert(golden_lines, colored_wall .. " " .. padded_content .. " │")
-                        end
-                        wrapped_lines = golden_lines
-                    end
-
-                    -- Build navigation box matching reference implementation
-                    -- Regular poem structure: 83 chars total (positions 0-82)
-                    -- ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
-
-                    -- Issue 8-035: Helper to colorize box characters based on progress
-                    local function color_char(char, pos)
-                        if progress_chars > pos then
-                            return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
-                        end
-                        return char
-                    end
-
-                    -- Build nav_top and nav_mid
-                    -- Issue 8-044: Golden poems use different box characters
-                    -- Nav top + line come from the shared poem-bars module so this
-                    -- worker can't drift from the main thread (the whole point of
-                    -- the de-dup). Golden nav box dashes are not progress-tinted,
-                    -- which now matches the chronological (main-rendered) golden
-                    -- poems exactly.
-                    local nav_top, nav_mid
-                    if is_golden then
-                        nav_top = t_poem_bars.golden_corner_box_separator(hex_color, progress_chars)
-                        nav_mid = t_poem_bars.golden_corner_box_nav_line(similar_link, different_link, chrono_link, hex_color, progress_chars)
-                    else
-                        nav_top = t_poem_bars.corner_box_top(progress_chars, hex_color)
-                        nav_mid = t_poem_bars.corner_box_nav_line(similar_link, different_link, chrono_link, progress_chars, hex_color)
-                    end
-
-                    -- Bottom line: delegate to the shared poem-bars module so this
-                    -- worker cannot drift from the main thread's canonical geometry.
-                    -- The old inline copy used the 82-char CONTENT width as the BAR
-                    -- width, so the bar ended one column short of the nav boxes (and
-                    -- an earlier version produced 88-char bars with doubled ╧╧).
-                    -- progress_dashes is correct for both regular (83) and golden
-                    -- (84) and seats the junctions under the corner-box walls.
-                    local bottom_line = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "bottom", true).visual
-
-                    -- Build formatted output
-                    local output = {}
-                    table.insert(output, colored_progress)  -- Top progress bar (golden: 84 chars, regular: 83 chars)
-                    table.insert(output, table.concat(wrapped_lines, "\n"))  -- Content with preserved newlines
-
-                    -- Issue 8-040: Render attached images if present (from ActivityPub extraction)
-                    -- Images appear after poem content, before navigation links
-                    -- Must be inline since worker thread can't access main scope functions
-                    local base_path = ".."
-
-                    -- Issue 8-049: Check if we have any media to render (images, audio, video)
-                    -- Issue 9-010: Media stays with their original post only (no associated_images rendering)
-                    local has_any_media = false
-                    local media_attachments = {}
-                    if poem.attachments and #poem.attachments > 0 then
-                        for _, att in ipairs(poem.attachments) do
-                            local mt = att.media_type or ""
-                            if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
-                                table.insert(media_attachments, att)
-                                has_any_media = true
-                            end
-                        end
-                    end
-
-                    -- If there are media attachments, close </pre>, render them, reopen <pre>
-                    -- Issue 8-005 Fix: Media rendered outside <pre> for proper max-width behavior
-                    -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
-                    if has_any_media then
-                        table.insert(output, "</pre>")
-                        for _, attachment in ipairs(media_attachments) do
-                            -- Issue 8-048: Use flat output/media/ path structure
-                            local relative_path = attachment.relative_path or ""
-                            -- media_href: namespace art by source+subdir (collision-
-                            -- safe) + url-encode; Mastodon hashes stay flat.
-                            local media_src = base_path .. "/media/" .. media_href(relative_path)
-                            local media_type = attachment.media_type or ""
-
-                            if media_type:match("^image/") then
-                                local alt_text = attachment.description or attachment.alt_text or "Image attachment"
-                                -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
-                                alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
-                                alt_text = alt_text:gsub('"', '&quot;')
-                                -- Issue 8-053: title attribute provides mouse-over tooltip
-                                local img_tag = string.format(
-                                    '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                    media_src, alt_text, alt_text
-                                )
-                                if attachment.width and attachment.height then
-                                    img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
-                                end
-                                img_tag = img_tag .. '>'
-                                table.insert(output, img_tag)
-
-                            elseif media_type:match("^audio/") then
-                                -- Issue 8-049: Audio playback support
-                                local audio_tag = string.format(
-                                    '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
-                                    '    <source src="%s" type="%s">\n' ..
-                                    '    Your browser does not support the audio element.\n' ..
-                                    '  </audio>',
-                                    media_src, media_type
-                                )
-                                table.insert(output, audio_tag)
-
-                            elseif media_type:match("^video/") then
-                                -- Issue 8-049: Video playback support
-                                local video_tag
-                                if attachment.width and attachment.height then
-                                    video_tag = string.format(
-                                        '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the video element.\n' ..
-                                        '  </video>',
-                                        attachment.width, attachment.height, media_src, media_type
-                                    )
-                                else
-                                    video_tag = string.format(
-                                        '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the video element.\n' ..
-                                        '  </video>',
-                                        media_src, media_type
-                                    )
-                                end
-                                table.insert(output, video_tag)
-                            end
-                        end
-                        table.insert(output, "<pre>")
-                    end
-
-                    table.insert(output, nav_top)  -- Nav box top (golden: 84, regular: 83 chars)
-                    table.insert(output, nav_mid)  -- Nav box middle
-                    table.insert(output, bottom_line)  -- Bottom with junctions
-
-                    return table.concat(output, "\n")
+                    -- Issue 16-006: the anchor is just the poem_index
+                    local anchor_id = string.format("poem-%d", poem_idx)
+                    -- Issue 8-039: paginated -> its numbered page; else index.html
+                    local chrono_page = (chrono_paged and chrono_info.total_pages > 1)
+                        and string.format("%02d.html", chrono_info.page_number) or "index.html"
+                    return t_poem_entry.format_entry(poem, {
+                        color_name = color_data and color_data.color or "gray",
+                        progress_pct = chrono_info.timeline_progress,
+                        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_idx),
+                        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
+                        chrono_link = string.format("<a href='../chronological/%s#%s'>chronological</a>",
+                            chrono_page, anchor_id),
+                    })
                 end
+                -- }}}
 
                 -- Local helper: Generate paginated HTML page
                 -- Issue 9-003 Fix D: Added chrono_map and chrono_paged for full formatting
@@ -4011,7 +3496,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Add anchor poem with full formatting
                     table.insert(html_parts, "=== ANCHOR POEM ===\n")
-                    table.insert(html_parts, format_poem_entry(poem, poem_colors, color_config, chrono_map, chrono_paged))
+                    table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
                     table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
 
                     -- Add poems for this page with full formatting
@@ -4039,7 +3524,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                                     table.insert(html_parts, " " .. img_link .. "\n")
                                 end
                             end
-                            table.insert(html_parts, format_poem_entry(entry_poem, poem_colors, color_config, chrono_map, chrono_paged))
+                            table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
                             table.insert(html_parts, "\n\n")
                         end
                     end
