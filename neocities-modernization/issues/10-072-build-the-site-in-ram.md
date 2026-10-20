@@ -88,10 +88,13 @@ reboot. The owner has chosen to leave that setting alone.
 7. Measure: run a full build and count bytes written to the disk before and
    after (`/proc/<pid>/io` write_bytes, or the disk's own counters).
 
-## Open Questions
+## Answered Questions (2026-10-20)
 
-- Should pictures stay on disk as planned, or also move to RAM? 1.5 GB fits
-  (16 GB tmpfs), but would be re-copied after every logout.
-- The option from 2026-10-07, "only write a page whose content changed",
-  stops being needed for the disk once pages live in RAM. Is it still wanted
-  for speed? (Writing to RAM is already fast; probably not.)
+- Pictures stay on disk (owner: "yes").
+- "Only write a page whose content changed": not built. Once pages live in
+  RAM it saves no disk wear. The owner asked whether `--force` already does
+  it; it does not, they answer different questions. `--force` skips each
+  stage's "are my outputs already newer than my inputs?" check, so the
+  whole stage runs again. Write-if-changed would act inside a stage that
+  runs anyway, page by page, skipping a write whose bytes are the same.
+- The owner starts every rebuild; testing here uses a scratch project.

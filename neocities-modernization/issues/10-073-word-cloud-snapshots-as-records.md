@@ -48,8 +48,15 @@ The three snapshots from 2026-10-07 are uncommitted, waiting on this design.
 - **A record, not a page.** Each build saves a small text record of its
   cloud: when it was made, the seed, the number of poems and words, and then
   one line per word, in order: word, size, colour, bold. Nothing else.
-- **Records are kept in one zip** in `archive/`, each build adding its
-  record.
+- **Records are plain text files, one per build,** in `archive/wordclouds/`
+  — not a zip (owner, 2026-10-20: favour change detection over file size).
+  Git can see inside text, so each commit stores only what is new; a zip
+  would be a fresh opaque copy of every record in every commit. A 555-word
+  record is roughly 15 KB.
+- **Records ride along in git like the transcripts** (owner: "treat them
+  like llm-transcripts. They are low priority, but should be kept in git
+  whenever we can"): any commit in this project carries every new record,
+  whoever made the commit, the same way it carries changed transcripts.
 - **A viewer tool** (Lua, in `scripts/`):
   - with no argument, lists the records (date, word count, seed) and asks
     which one to show;
@@ -62,7 +69,8 @@ The three snapshots from 2026-10-07 are uncommitted, waiting on this design.
     a page for that word, then oh well").
 - **The existing HTML snapshots are converted** to records by the same
   reader that knows the cloud's layout, so the history from 2026-06-24 on is
-  kept.
+  kept, and then the HTML copies are deleted (owner: "sure"; git history
+  keeps them).
 - **The source browser stops publishing `archive/wordclouds/`**, since
   there are no HTML copies left to publish.
 
@@ -74,30 +82,30 @@ The three snapshots from 2026-10-07 are uncommitted, waiting on this design.
 2. Writer: replace the full-page copy in `src/wordcloud-generator.lua` with
    a record written from the same list of words, sizes and colours that the
    page is drawn from (not by reading the page back).
-3. Zip: add the record to the archive zip. Fail loudly if the zip cannot be
-   written, as the HTML copy does today.
+3. Write the record as its own text file, named as the HTML copies are
+   today (date, word count, seed) with a `.txt` ending. Fail loudly if it
+   cannot be written, as the HTML copy does today.
 4. Reader + page builder: a library that reads a record and builds the cloud
    paragraph. Test: build today's cloud through the generator and through a
    record of it, and check the two paragraphs are identical except for the
    link targets.
 5. Viewer: the script above. Open the browser the way the phase demos do.
 6. Converter: read each existing HTML snapshot, write its record, and check
-   that a page rebuilt from the record matches the old page's cloud.
-7. Source browser: drop `archive/wordclouds/` from what it publishes (it
-   stays in the download zip as the records zip). Remove the trimming
-   library only if nothing else uses it.
-8. Tests run by the build.
+   that a page rebuilt from the record matches the old page's cloud. Then
+   delete the HTML copies (`git rm`, so the deletion is one recorded step).
+7. Source browser: drop the HTML-snapshot handling (the "view" kind from
+   10-063); the records are text files and publish as text like any other.
+   The download zip keeps carrying `archive/`. Remove the trimming library
+   only if nothing else uses it.
+8. Ride-along: the shared commit tool (`commit-own-changes` and
+   `libs/own-changes-patch.lua` in the scripts project) carries changed
+   `llm-transcripts/*.md` of the commit's projects. Teach it to carry new
+   `archive/wordclouds/*.txt` records the same way. That change belongs to
+   the scripts project and gets its issue there.
+9. Tests run by the build.
 
-## Open Questions
+## Answered Questions (2026-10-20)
 
-- "Built into git and included automatically with any git push": does this
-  mean the records zip is committed automatically (for example by a hook
-  before each push), or that the records are tracked in git like any other
-  file and committed with the work?
-- A zip is a compressed binary: git cannot see inside it, so every commit
-  that adds a record stores a whole new copy of the zip. Plain-text records
-  in a folder would be small (a 555-word record is roughly 15 KB) and git
-  would store only what changed. Is the zip wanted for git too, or only as
-  the form the viewer reads?
-- Once every old snapshot is converted and checked, are the HTML copies
-  deleted from the working tree? Git history keeps them either way.
+- Git: records ride along like the transcripts (step 8).
+- Zip or text: plain text, for change detection.
+- Old HTML copies: deleted once converted and checked.
