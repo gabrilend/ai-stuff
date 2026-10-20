@@ -11,12 +11,11 @@ tmp
 # Build products (regenerated each run)
 # output is a link into RAM (Issue 10-072, scripts/ensure-site-in-ram). git
 # sees a link as a file, which "output/" (folders only) does not match, so the
-# link is named on its own line. output-before-ram/ is the old on-disk site
-# that --migrate sets aside; assets/ holds the pictures' disk folder.
+# link is named on its own line. assets/ holds the site's disk folders
+# (pictures, model comparison) besides the models and caches.
 /output
 output/
 output-backup/
-output-before-ram/
 assets/
 
 # Everything under input/ is regenerable, so none of it is tracked here. It is

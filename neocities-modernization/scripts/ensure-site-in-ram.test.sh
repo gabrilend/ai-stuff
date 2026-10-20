@@ -25,8 +25,9 @@ check() { # check <label> <actual> <expected>
 # Its own tmp/shared-memory/ is a plain folder: the helper only needs it to
 # exist, and a plain folder keeps the test away from the real RAM tier.
 P="$SCRATCH/project"
-mkdir -p "$P/tmp/shared-memory" "$P/output/media/my-art" "$P/output/similar"
+mkdir -p "$P/tmp/shared-memory" "$P/output/media/my-art" "$P/output/similar" "$P/output/model-evaluation"
 echo 'picture' > "$P/output/media/my-art/a.png"
+echo 'report' > "$P/output/model-evaluation/comparison-report.html"
 echo '<html><pre>old page</pre></html>' > "$P/output/similar/0001-01.html"
 # }}}
 
@@ -37,15 +38,25 @@ check "refusal names --migrate" "$(printf '%s' "$out" | grep -c -- '--migrate')"
 check "real output/ left as it was" "$([ -d "$P/output" ] && [ ! -L "$P/output" ] && echo yes)" "yes"
 # }}}
 
-# {{{ --migrate moves pictures to disk, keeps the old site, makes the layout
+# {{{ --migrate refuses, moving nothing, when a disk home is already taken
+mkdir -p "$P/assets/model-evaluation"
+"$DIR/scripts/ensure-site-in-ram" "$P" --migrate >/dev/null 2>&1
+check "migrate with a taken disk home: refused" "$?" "1"
+check "refused migrate: pictures not moved" "$(cat "$P/output/media/my-art/a.png")" "picture"
+check "refused migrate: old pages untouched" "$([ -f "$P/output/similar/0001-01.html" ] && echo yes)" "yes"
+rmdir "$P/assets/model-evaluation"
+# }}}
+
+# {{{ --migrate keeps the disk folders, deletes the rest, makes the layout
 "$DIR/scripts/ensure-site-in-ram" "$P" --migrate >/dev/null 2>&1
 check "migrate: exits cleanly" "$?" "0"
 check "output/ is now a link" "$([ -L "$P/output" ] && echo yes)" "yes"
 check "output/ points into RAM" "$(readlink "$P/output")" "tmp/shared-memory/site"
 check "pictures moved to the disk folder" "$(cat "$P/assets/site-media/my-art/a.png")" "picture"
 check "pictures reachable through the site" "$(cat "$P/output/media/my-art/a.png")" "picture"
-check "old pages kept aside" "$([ -f "$P/output-before-ram/similar/0001-01.html" ] && echo yes)" "yes"
-check "old site no longer holds the pictures" "$([ -e "$P/output-before-ram/media" ] && echo yes || echo no)" "no"
+check "model comparison moved to disk" "$(cat "$P/assets/model-evaluation/comparison-report.html")" "report"
+check "model comparison reachable through the site" "$(cat "$P/output/model-evaluation/comparison-report.html")" "report"
+check "old pages deleted" "$([ -e "$P/output/similar/0001-01.html" ] && echo yes || echo no)" "no"
 # }}}
 
 # {{{ running again changes nothing

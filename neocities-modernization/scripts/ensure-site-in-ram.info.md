@@ -1,7 +1,8 @@
 # ensure-site-in-ram
 
-Makes the built website live in RAM, with only its pictures on disk, so the
-pages each build rewrites never wear the disk. Design: Issue 10-072.
+Makes the built website live in RAM, with only the folders a build does not
+remake kept on disk, so the pages each build rewrites never wear the disk.
+Design: Issue 10-072.
 
 ## Usage
 
@@ -22,26 +23,32 @@ scripts/ensure-site-in-ram [DIR] [--migrate]
 | --- | --- | --- |
 | `output` | a relative link | `tmp/shared-memory/site` (RAM) |
 | `tmp/shared-memory/site/media` | an absolute link | `assets/site-media/` (disk) |
+| `tmp/shared-memory/site/model-evaluation` | an absolute link | `assets/model-evaluation/` (disk) |
+
+The disk folders are the script's kept-on-disk list (`KEPT_ON_DISK`): the
+pictures, copied in only when one changes, and the embedding-model comparison,
+written by `scripts/evaluate-embedding-models` rather than by the build. A new
+site folder that the build does not remake belongs in that list.
 
 Every program that writes `output/...` is unchanged; the link carries the
 writes into RAM. After a logout the RAM folder is empty: the next run makes an
-empty `site/` again and the build fills it.
+empty `site/` again, with its disk links, and the build fills it.
 
 ## --migrate
 
 For a project whose `output/` is still a real folder:
-1. `output/media/` is renamed to `assets/site-media/` (same disk: instant).
-2. The rest of `output/` is renamed `output-before-ram/` (ignored by git), to
-   delete by hand once a build and a deploy have worked.
+1. Each kept folder is renamed into its disk home (same disk: instant).
+2. The rest of `output/` is deleted; the next build remakes all of it.
 3. The links above are made.
 
-Nothing is deleted. Each step refuses if its target already exists.
+It checks every disk home before moving anything, so a refusal leaves the old
+site as it was.
 
 ## Refusals (exit 1, message on standard error)
 
 - `tmp/shared-memory/` does not exist (run `ensure-tmp-symlink` first).
 - `output` is a real folder or file and `--migrate` was not given.
-- `--migrate` finds `output-before-ram/` or `assets/site-media/` already there.
+- `--migrate` finds a kept folder's disk home already there.
 
 A refusal creates nothing.
 
@@ -55,6 +62,7 @@ A refusal creates nothing.
 
 ## Test
 
-`scripts/ensure-site-in-ram.test.sh` covers: refusal without `--migrate`,
-the migration, a second run, a simulated logout, the page check through the
-link, and deploy's two refusals. It works in a scratch project in RAM.
+`scripts/ensure-site-in-ram.test.sh` covers: refusal without `--migrate`, a
+refused migration that moves nothing, the migration, a second run, a
+simulated logout, the page check through the link, and deploy's two
+refusals. It works in a scratch project in RAM.

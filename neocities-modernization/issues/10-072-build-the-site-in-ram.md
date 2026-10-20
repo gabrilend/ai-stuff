@@ -24,13 +24,17 @@ logout costs a rebuild, nothing more.
 
 **Built (2026-10-20), waiting on the one-time move and the owner's first
 build.** `scripts/ensure-site-in-ram` makes `output` a link into
-`tmp/shared-memory/site/` with `media` inside it linking back to
-`assets/site-media/` on disk; `run.sh` calls it on every run, right after
-the RAM folders are set up. The owner's `output/` is still a real folder, so
-the next `run.sh` stops with a message until the one-time
-`scripts/ensure-site-in-ram --migrate` has been run (it moves the pictures
-to `assets/site-media/`, sets the rest aside as `output-before-ram/`, and
-makes the links; nothing is deleted).
+`tmp/shared-memory/site/`; inside it, each folder the build does not remake
+links back to a disk home: `media` (the pictures) to `assets/site-media/`,
+and `model-evaluation` (written by the model comparison, not the build) to
+`assets/model-evaluation/`. `run.sh` calls it on every run, right after the
+RAM folders are set up. The owner's `output/` is still a real folder, so the
+next `run.sh` stops with a message until the one-time
+`scripts/ensure-site-in-ram --migrate` has been run: it moves the two kept
+folders to their disk homes and deletes the rest, which the next build
+remakes (owner, 2026-10-20: "delete it now then"; checked first: every
+other file in `output/` was rewritten by the 2026-10-07 build, and the build
+record is rewritten every run).
 
 Readers that had to change: the page check and the stale-file tool now
 search with `find -H` (plain `find` does not go into a starting folder that
@@ -42,8 +46,7 @@ unchanged. Tested by `scripts/ensure-site-in-ram.test.sh` in a scratch
 project (see its `.info.md`).
 
 Left before closing: the owner runs `--migrate` and a full build, the
-whole-site check passes on it, one deploy works, and `output-before-ram/`
-is deleted. The download zip can then live directly in the RAM site
+whole-site check passes on it, and one deploy works. The download zip can then live directly in the RAM site
 instead of behind its own link (step 5); it works as it is.
 
 Before this issue: the built site, `output/`, was an ordinary folder on the
