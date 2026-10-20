@@ -114,15 +114,15 @@ check("a yes/no default is shown as no", screen.shown:find("[no]", 1, true) ~= n
 scripted({ "y" }, true)
 check("y means yes", ask.resolve(boosts) == true)
 
--- pages: a number, "all", or a range; a backwards range is asked again
+-- pages: a number or "all"; a range is no longer a pages value, so it is asked again
 local pages = { flag = "--pages", question = "Which pages?", kind = "pages",
     default = "1", default_source = "config.lua pagination.minimum_pages" }
 scripted({ "3" }, true)
 check("pages: a number is accepted, as text", ask.resolve(pages) == "3")
 scripted({ "all" }, true)
 check("pages: \"all\" is accepted", ask.resolve(pages) == "all")
-scripted({ "5-2", "2-5" }, true)
-check("pages: a backwards range is refused, a forward one accepted", ask.resolve(pages) == "2-5")
+scripted({ "2-5", "4" }, true)
+check("pages: a range is refused, a number accepted", ask.resolve(pages) == "4")
 
 -- end of input (Ctrl+D) is an error, not the default
 scripted({}, true)

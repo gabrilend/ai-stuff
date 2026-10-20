@@ -5,6 +5,28 @@ Medium
 
 ## Current Behavior
 
+**Bars and navigation boxes: merged (2026-10-07).** The chronological pages
+(main thread) now draw every progress bar and every corner/nav box through
+`src/poem-bars.lua`, the drawer the similar/different workers and the word
+pages already used. The main thread's own copies -- the 230-line bar drawer,
+the golden separator and nav line, the regular box top/bottom/nav line and a
+private colour helper -- were removed; two thin named hand-offs remain so the
+call sites read as before. Golden poems now pass their bar fill (82 interior
+columns) down to the nav boxes, as the workers do.
+- Why it was urgent: the copies had drifted into two designs. Chronological
+  golden poems drew a single-line "similar" box (`╟─┐`, `│ similar │`, `╧`
+  joint); every other page drew the double-line one (`╠═╗`, `║ similar ║`,
+  `╩`). The whole-site check expects the shared shape and failed on all 675.
+  The owner chose the shared design.
+- How the merge was kept honest: every chronological page was rendered before
+  and after into a scratch folder and compared line by line. Exactly 675
+  golden poems × 3 lines changed (box top, nav line, bottom); nothing else on
+  any page differed. The whole-site check then found 0 frame errors on them.
+- Pinned by the golden-poem case in
+  `src/flat-html-generator.chronological-pages.test.lua`.
+- Still duplicated: poem formatting (`format_poem_entry` and friends) between
+  the main thread and the worker, described below.
+
 The HTML generation pipeline has significant code duplication between the main thread and effil worker threads. Functions like `format_poem_entry()`, progress bar calculation, and poem formatting exist in two places:
 
 1. **Main thread scope** — used for chronological page generation

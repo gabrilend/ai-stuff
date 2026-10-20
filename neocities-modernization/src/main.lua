@@ -602,7 +602,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     local pagination = flat_html_generator.get_pagination_config()
     local accept_defaults = ask.wants_defaults(arg)
     pages_spec = ask.resolve({
-        flag = "--pages", question = "Which pages per poem? (a number, \"all\", or a range like 1-3)",
+        flag = "--pages", question = "How many pages per poem? (a number, or \"all\")",
         kind = "pages", given = pages_spec,
         default = tostring(pagination.minimum_pages),
         default_source = "config.lua pagination.minimum_pages",

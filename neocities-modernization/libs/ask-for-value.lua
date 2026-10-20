@@ -76,9 +76,10 @@ local parsers = {
         end
         return nil, "a whole number of 1 or more, or \"all\""
     end,
-    -- which pages to build, as the page builder reads it: a whole number of 1
-    -- or more ("2" = pages 1 to 2), "all", or a range "first-last" with
-    -- first <= last. Returned as the string typed, the form the builder takes.
+    -- how many pages to build per poem, as the page builder reads it: a whole
+    -- number of 1 or more ("2" = pages 1 and 2) or "all". Returned as text,
+    -- the form the builder takes. (Ranges such as "2-5" were removed
+    -- 2026-10-07: never used, and a reason a bare number got misread.)
     pages = function(text)
         local lower = text:lower()
         if lower == "all" then
@@ -88,12 +89,7 @@ local parsers = {
         if n and n >= 1 and n == math.floor(n) then
             return tostring(n)
         end
-        local first, last = text:match("^(%d+)%-(%d+)$")
-        first, last = tonumber(first), tonumber(last)
-        if first and last and first >= 1 and first <= last then
-            return text
-        end
-        return nil, "a whole number of 1 or more, \"all\", or a range like 1-10"
+        return nil, "a whole number of pages per poem (1 or more), or \"all\""
     end,
     -- yes or no
     yesno = function(text)

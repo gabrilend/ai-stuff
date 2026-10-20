@@ -86,6 +86,46 @@ do
 end
 -- }}}
 
+-- {{{ Case: a golden poem's frame is the shared design
+-- Chronological pages used to draw golden poems with their own older copy of
+-- the frame: a single-line "similar" box (╟─┐ │) with ╧ under it, while every
+-- other page drew the shared double-line box (╠═╗ ║) with ╩. The owner chose
+-- the shared design (2026-10-07) and the chronological pages now draw through
+-- src/poem-bars.lua. This pins it: if a private copy creeps back, it fails here.
+do
+    os.execute('rm -rf "' .. SCRATCH .. '"')
+    os.execute('mkdir -p "' .. SCRATCH .. '"')
+    local golden_poems = {}
+    for i = 1, 3 do
+        golden_poems[i] = {
+            poem_index = i, id = i, category = "notes",
+            title = "Poem " .. i,
+            content = "a golden poem, number " .. i,
+            creation_date = string.format("2024-02-%02dT00:00:00Z", i),
+            metadata = { is_golden_poem = (i == 3) },
+        }
+    end
+    local ok, err = pcall(generator.generate_chronological_index_with_navigation,
+        { poems = golden_poems }, SCRATCH, 2)
+    check("a page with a golden poem builds", ok, tostring(err))
+    -- Two per page puts the golden poem (third) on page 2. (Had everything
+    -- fit on one page, the build writes chronological/index.html instead.)
+    local page = read_file(SCRATCH .. "/chronological/02.html") or ""
+    local plain = page:gsub("<[^>]+>", "")
+    -- The last poem is the furthest through the timeline, so its bar has
+    -- filled past the "similar" box: the shared drawer's double-line form.
+    check("golden box top is the shared double-line form (╠ … ╗)",
+        plain:find("╠═════════╗", 1, true) ~= nil, "no ╠═════════╗ on the page")
+    check("golden nav line walls the similar box with ║ on both sides",
+        plain:find("║ similar ║", 1, true) ~= nil, "no ║ similar ║ on the page")
+    check("golden bottom joins the similar box with ╩",
+        plain:find("╚═════════╩", 1, true) ~= nil, "no ╚═════════╩ on the page")
+    check("the old private shape is gone (╟ … ┐, │ similar, ╧ joint)",
+        plain:find("╟─────────┐", 1, true) == nil
+            and plain:find("╚═════════╧", 1, true) == nil)
+end
+-- }}}
+
 -- {{{ Case: unpaginated -- everything on one page
 do
     os.execute('rm -rf "' .. SCRATCH .. '"')

@@ -150,10 +150,14 @@ M.BOOST_COLOR_CONFIG = BOOST_COLOR_CONFIG
 -- rules come from the shared module so all four generators cannot disagree.
 local page_head = require("page-head")
 
--- The bar-drawing module the page workers use.  The main thread still carries
--- its own bar copy (generate_progress_dashes, below; merging them is 8-058),
--- but both refuse an impossible percentage through the one shared check.
+-- The one bar-and-box drawer, used by the page workers AND (since 2026-10-07,
+-- Issue 8-058) by the main thread's chronological pages, whose own drifted copy
+-- was removed.
 local poem_bars_shared = require("poem-bars")
+-- The shared drawer takes the palette from its host, once per Lua state. The
+-- main thread now draws every bar and box through it (Issue 8-058), so it
+-- needs the same table the workers hand theirs.
+poem_bars_shared.configure(COLOR_CONFIG)
 
 -- {{{ POEM_PAGE_CSS
 -- True page-centering for the poem column. The old <table align="center">
@@ -688,8 +692,12 @@ end
 -- Supports formats:
 --   nil or "default"  → Use minimum_pages from config (usually {1})
 --   "all"             → Generate all pages up to max_pages_per_poem limit
---   "N"               → Single page number, e.g., "1" → {1}, "5" → {5}
---   "N-M"             → Range of pages, e.g., "1-10" → {1,2,...,10}
+--   "N"               → N pages per poem: pages 1 through N, e.g. "3" → {1,2,3}
+--
+-- A bare number is a COUNT, the same as stages 7 and 8 read it and as run.sh's
+-- help says ("pages generated per poem"). It briefly meant "only page N",
+-- which made "--pages 3" write nothing but the -03 file for every poem while
+-- every link on the site pointed at -01: 1.3 million broken links in one build.
 -- Returns: {pages = {1,2,3,...}, is_all = boolean}
 -- is_all flag indicates if we should generate all pages (respecting max_pages limit)
 local function parse_pages_specification(pages_spec, total_pages_possible)
@@ -710,33 +718,26 @@ local function parse_pages_specification(pages_spec, total_pages_possible)
         return {pages = nil, is_all = true}  -- nil means "generate all" in context
     end
 
-    -- Single page number: "5" → {5}
-    local single_num = tonumber(pages_spec)
-    if single_num then
-        return {pages = {single_num}, is_all = false}
-    end
-
-    -- Range: "1-10" → {1,2,3,...,10}
-    local start_page, end_page = pages_spec:match("^(%d+)%-(%d+)$")
-    if start_page and end_page then
-        start_page = tonumber(start_page)
-        end_page = tonumber(end_page)
-
-        if start_page and end_page and start_page <= end_page then
-            local pages = {}
-            for i = start_page, end_page do
-                table.insert(pages, i)
-            end
-            return {pages = pages, is_all = false}
-        else
-            -- Issue 10-036: this used to log and build page 1 anyway -- a whole
-            -- stage run on a guess about what was meant.
-            error(string.format("Invalid page range: %s (start must be <= end)", pages_spec))
+    -- A count: "3" → {1,2,3}
+    local count = tonumber(pages_spec)
+    if count then
+        if count < 1 or count ~= math.floor(count) then
+            error(string.format("Invalid --pages count: '%s' (a whole number of pages, 1 or more)", pages_spec))
         end
+        local pages = {}
+        for i = 1, count do
+            pages[i] = i
+        end
+        return {pages = pages, is_all = false}
     end
 
-    error(string.format("Invalid --pages format: '%s'. Expected: 1, all, or 1-10", pages_spec))
+    -- Anything else is refused. Ranges ("2-5", exactly those pages) were
+    -- removed 2026-10-07: never used, and a bare number is a count.
+    error(string.format("Invalid --pages value: '%s'. Expected a number of pages per poem (3) or all", pages_spec))
 end
+-- Exposed so src/flat-html-generator.pages-count.test.lua can pin what a
+-- --pages value writes, without building a site.
+M.parse_pages_specification = parse_pages_specification
 -- }}}
 
 -- {{{ local function get_poems_for_page
@@ -1152,239 +1153,16 @@ end
 -- }}}
 
 -- {{{ function generate_progress_dashes
+-- Issue 8-058: the chronological pages (built here, in the main thread) now draw
+-- their bars with the SAME shared drawer the similar/different workers and the
+-- word pages use. This file used to carry its own 230-line copy, which had
+-- drifted: golden poems on chronological pages got a single-line "similar" box
+-- with a ╧ joint under it, while every other page drew the double-line box
+-- with ╩ -- and the whole-site check, which expects the shared shape, flagged
+-- all 675 of them. The owner chose the shared design (2026-10-07). Kept as a
+-- named hand-off so the call sites read the same as before.
 local function generate_progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
-    -- For golden poems: 82 chars interior (+ 2 corners = 84 total)
-    -- For regular poems: 83 chars total (positions 0-82)
-    -- Golden poems have corner characters (╔/┐ or ╚/┘) that add 2 to the width,
-    -- so interior needs to be 1 less to maintain 84-char total alignment
-    poem_bars_shared.check_percentage(progress_info)  -- Issue 8-045: 0-100 or stop
-    local total_chars = is_golden and 82 or 83
-    local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
-    local remaining_chars = total_chars - progress_chars
-
-    -- Get color information
-    local hex_color = COLOR_CONFIG[color_name] or COLOR_CONFIG["gray"]
-
-    -- For golden bottom borders with corner boxes, we need to insert junction characters
-    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
-    -- Junction positions in the 82-char interior (0-indexed):
-    -- - Position 10: under "similar" box ┐ (same as regular poems)
-    -- - Position 71: under "different" box ┌ (regular + 1 due to wider golden poem)
-    local LEFT_JUNCTION_POS = 10   -- Same as regular: left box ┐ at position 10
-    local RIGHT_JUNCTION_POS = 71  -- Regular + 1: right box ┌ at position 71 (golden is 1 char wider)
-
-    -- Junction positions for regular poems (different from golden due to no outer walls)
-    -- Regular corner boxes: ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
-    -- Inner walls at positions 10 and 70 (0-indexed)
-    local REGULAR_LEFT_JUNCTION_POS = 10
-    local REGULAR_RIGHT_JUNCTION_POS = 70
-
-    local visual_output
-    if is_golden and position == "bottom" and has_corner_boxes then
-        -- Build progress bar with junction characters inserted
-        -- We need to construct the bar character by character to insert junctions at the right spots
-
-        -- Determine which junction character to use at each position
-        -- ╧ (U+2567) - up single and horizontal double (connects to ═) - COLORED
-        -- ┴ (U+2534) - up and horizontal single (connects to ─) - UNCOLORED
-        local left_in_progress = LEFT_JUNCTION_POS < progress_chars
-        local right_in_progress = RIGHT_JUNCTION_POS < progress_chars
-
-        -- Build colored junctions (╧ when in progress section)
-        local left_junction
-        if left_in_progress then
-            left_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            left_junction = "┴"
-        end
-
-        local right_junction
-        if right_in_progress then
-            right_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            right_junction = "┴"
-        end
-
-        -- Build the progress section (colored ═) and remaining section (─)
-        -- We need to split around the junction positions
-        local segments = {}
-        local current_pos = 0
-
-        -- Helper to add a segment with proper coloring
-        local function add_segment(start_pos, end_pos)
-            if end_pos <= start_pos then return end
-            local seg_len = end_pos - start_pos
-
-            -- Determine how much of this segment is progress vs remaining
-            local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-            local remaining_in_seg = seg_len - progress_in_seg
-
-            if progress_in_seg > 0 then
-                table.insert(segments, string.format('<font color="%s"><b>%s</b></font>',
-                    hex_color, string.rep("═", progress_in_seg)))
-            end
-            if remaining_in_seg > 0 then
-                table.insert(segments, string.rep("─", remaining_in_seg))
-            end
-        end
-
-        -- Bugfix: this copy started at 0 and ended at total_chars, landing the
-        -- left junction one column too far right (col 11) and the right one a
-        -- dash short -- so the bottom bar did not line up under the nav-box
-        -- corners. Start at 1 and end at total_chars+1 to match poem-bars (the
-        -- word pages, which were correct): 9 dashes before the left junction so
-        -- it sits at column 10, 11 after the right junction. Width is unchanged.
-        -- Segment 1: corner ╚ is column 0, so the first dash runs 1..left junction
-        add_segment(1, LEFT_JUNCTION_POS)
-        -- Insert left junction (colored if ╧, plain if ┴)
-        table.insert(segments, left_junction)
-
-        -- Segment 2: from left junction + 1 to right junction (exclusive)
-        add_segment(LEFT_JUNCTION_POS + 1, RIGHT_JUNCTION_POS)
-        -- Insert right junction (colored if ╧, plain if ┴)
-        table.insert(segments, right_junction)
-
-        -- Segment 3: from right junction + 1 to the far corner (exclusive of ┘)
-        add_segment(RIGHT_JUNCTION_POS + 1, total_chars + 1)
-
-        local interior = table.concat(segments, "")
-        -- Color the ╚ corner to match the progress bar
-        local colored_corner = string.format('<font color="%s"><b>╚</b></font>', hex_color)
-        visual_output = colored_corner .. interior .. "┘"
-
-    elseif not is_golden and position == "bottom" and has_corner_boxes then
-        -- Regular poem bottom border with corner characters and junctions connecting to corner boxes
-        -- Structure: ╘ (pos 0) + progress bar + ┴/╧ (pos 10) + progress bar + ┴/╧ (pos 69) + progress bar + ┘ (pos 81)
-        -- ╘ (U+2558) - up single and right double - closes left box, connects to ═ progress
-        -- ┘ (U+2518) - light up and left - closes right box, connects to ─ remaining
-
-        local left_in_progress = REGULAR_LEFT_JUNCTION_POS < progress_chars
-        local right_in_progress = REGULAR_RIGHT_JUNCTION_POS < progress_chars
-
-        -- Build colored junctions (╧ when in progress section, ┴ otherwise)
-        local left_junction
-        if left_in_progress then
-            left_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            left_junction = "┴"
-        end
-
-        local right_junction
-        if right_in_progress then
-            right_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            right_junction = "┴"
-        end
-
-        -- Left corner ╘ - colored if progress > 0 (position 0 is always in progress section if any progress)
-        local left_corner
-        if progress_chars > 0 then
-            left_corner = string.format('<font color="%s"><b>╘</b></font>', hex_color)
-        else
-            left_corner = "╘"
-        end
-
-        -- Right corner ┘ - always uncolored (position 82 is almost never in progress section)
-        local right_corner = "┘"
-
-        -- Build the progress bar with junctions
-        local segments = {}
-
-        -- Helper to add a segment with proper coloring
-        -- Note: positions are now 1-80 since 0 and 81 are corner characters
-        local function add_segment(start_pos, end_pos)
-            if end_pos <= start_pos then return end
-            local seg_len = end_pos - start_pos
-
-            local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-            local remaining_in_seg = seg_len - progress_in_seg
-
-            if progress_in_seg > 0 then
-                table.insert(segments, string.format('<font color="%s"><b>%s</b></font>',
-                    hex_color, string.rep("═", progress_in_seg)))
-            end
-            if remaining_in_seg > 0 then
-                table.insert(segments, string.rep("─", remaining_in_seg))
-            end
-        end
-
-        -- Start with left corner
-        table.insert(segments, left_corner)
-
-        -- Segment 1: from 1 to left junction (exclusive) - 9 chars
-        add_segment(1, REGULAR_LEFT_JUNCTION_POS)
-        table.insert(segments, left_junction)
-
-        -- Segment 2: from left junction + 1 to right junction (exclusive) - 59 chars
-        add_segment(REGULAR_LEFT_JUNCTION_POS + 1, REGULAR_RIGHT_JUNCTION_POS)
-        table.insert(segments, right_junction)
-
-        -- Segment 3: from right junction + 1 to end - 1 (exclusive of right corner) - 11 chars
-        add_segment(REGULAR_RIGHT_JUNCTION_POS + 1, total_chars - 1)
-
-        -- End with right corner
-        table.insert(segments, right_corner)
-
-        -- No padding needed - content has 1-space indent for alignment
-        visual_output = table.concat(segments, "")
-
-    elseif is_golden then
-        -- Golden poem top border or bottom without corner boxes
-        -- Create progress visualization using equals/dash distinction
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-
-        local colored_progress = string.format(
-            '<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section
-        )
-
-        -- Color the left corners to match the progress bar
-        local colored_top_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
-        local colored_bottom_corner = string.format('<font color="%s"><b>╚</b></font>', hex_color)
-
-        if position == "top" then
-            visual_output = colored_top_corner .. colored_progress .. "┐"
-        elseif position == "bottom" then
-            visual_output = colored_bottom_corner .. colored_progress .. "┘"
-        else
-            visual_output = colored_top_corner .. colored_progress .. "┐"
-        end
-    else
-        -- Regular poems: no padding needed - content has 1-space indent for alignment
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-
-        local colored_progress = string.format(
-            '<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section
-        )
-        visual_output = colored_progress
-    end
-
-    -- Screen reader accessible version - brief format for frequent use
-    local screen_reader_text
-    if is_golden then
-        screen_reader_text = string.format(
-            'aria-label="golden poem border. %s."',
-            color_name
-        )
-    else
-        screen_reader_text = string.format(
-            'aria-label="eighty dashes. %s."',
-            color_name
-        )
-    end
-
-    return {
-        visual = visual_output,
-        accessibility = screen_reader_text,
-        raw_progress = progress_chars,
-        raw_remaining = remaining_chars,
-        color = color_name,
-        percentage = progress_info.percentage,
-        is_golden = is_golden or false
-    }
+    return poem_bars_shared.progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
 end
 -- }}}
 
@@ -1876,196 +1654,31 @@ local function get_poem_display_filename(poem)
 end
 -- }}}
 
--- {{{ function generate_corner_box_separator
-local function generate_corner_box_separator(hex_color)
-    -- Generate the separator line with corner box tops for GOLDEN poems
-    -- Format: ╟─────────┐                    ┌───────────┤
-    -- Left box: 11 chars (╟ + 9×─ + ┐)
-    -- Right box: 13 chars (┌ + 11×─ + ┤)
-    -- Gap: 60 chars (spaces)
-    -- Total: 84 chars
-    -- The left junction ╟ is colored to match the progress bar
-    local colored_junction = string.format('<font color="%s"><b>╟</b></font>', hex_color)
-    local left_box = colored_junction .. string.rep("─", 9) .. "┐"
-    local right_box = "┌" .. string.rep("─", 11) .. "┤"
-    local gap = string.rep(" ", 60)
-    return left_box .. gap .. right_box
-end
--- }}}
-
--- {{{ function colorize_char
--- Helper to wrap a character in color tags
-local function colorize_char(char, hex_color)
-    if hex_color then
-        return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
-    end
-    return char
-end
--- }}}
+-- {{{ corner-box drawing: hand-offs to the shared drawer
+-- Issue 8-058: the navigation boxes under each poem come from src/poem-bars.lua,
+-- the one drawer every page type uses. The main thread's own copies (separator,
+-- nav line, regular top and bottom, and a private colorize_char) were removed
+-- with this change; see generate_progress_dashes above for why.
 
 -- {{{ function generate_regular_corner_box_top
--- Issue 8-035: Added progress_chars and hex_color for progressive colorization
 local function generate_regular_corner_box_top(progress_chars, hex_color)
-    -- Generate the top line of corner boxes for REGULAR poems (no side walls)
-    -- Format: ┌─────────┐                    ┌───────────┐
-    -- Left box: 11 chars (┌ + 9×─ + ┐) at positions 0-10
-    -- Right box: 13 chars (┌ + 11×─ + ┐) at positions 70-82
-    -- Gap: 59 chars (spaces) at positions 11-69
-    -- Total: 83 chars
-
-    progress_chars = progress_chars or 0
-
-    -- Left box (positions 0-10)
-    local left_parts = {}
-    -- Position 0: ┌
-    table.insert(left_parts, progress_chars > 0 and colorize_char("┌", hex_color) or "┌")
-    -- Positions 1-9: ─────────
-    for i = 1, 9 do
-        table.insert(left_parts, progress_chars > i and colorize_char("─", hex_color) or "─")
-    end
-    -- Position 10: ┐
-    table.insert(left_parts, progress_chars > 10 and colorize_char("┐", hex_color) or "┐")
-
-    -- Gap (positions 11-69) - spaces don't need coloring
-    local gap = string.rep(" ", 59)
-
-    -- Right box (positions 70-82)
-    local right_parts = {}
-    -- Position 70: ┌
-    table.insert(right_parts, progress_chars > 70 and colorize_char("┌", hex_color) or "┌")
-    -- Positions 71-81: ───────────
-    for i = 71, 81 do
-        table.insert(right_parts, progress_chars > i and colorize_char("─", hex_color) or "─")
-    end
-    -- Position 82: ┐
-    table.insert(right_parts, progress_chars > 82 and colorize_char("┐", hex_color) or "┐")
-
-    return table.concat(left_parts) .. gap .. table.concat(right_parts)
-end
--- }}}
-
--- {{{ function generate_regular_corner_box_bottom
-local function generate_regular_corner_box_bottom()
-    -- Generate the bottom line of corner boxes for REGULAR poems
-    -- Format: └─────────┘                    └───────────┘
-    -- Gap: 59 chars, Total: 83 chars
-    local left_box = "└" .. string.rep("─", 9) .. "┘"
-    local right_box = "└" .. string.rep("─", 11) .. "┘"
-    local gap = string.rep(" ", 59)
-    return left_box .. gap .. right_box
-end
--- }}}
-
--- {{{ function generate_corner_box_nav_line
-local function generate_corner_box_nav_line(similar_link, different_link, chronological_link, hex_color)
-    -- Generate the navigation line with corner box walls for GOLDEN poems (Issue 8-030)
-    -- Format: ║ similar │      chronological      │ different │
-    -- Left box: ║ + space + link + space + │ = 11 chars
-    -- Center text: chronological (13 chars visible) - or empty space if nil (on chronological.html)
-    -- Right box: │ + space + link + space + │ = 13 chars
-    -- Gaps: 2 gaps of ~23 chars each
-    -- Total: 84 chars
-    -- The left wall ║ is colored to match the progress bar
-
-    -- The links contain HTML, so we need to measure visible text
-    local similar_visible = similar_link:gsub("<[^>]+>", "")  -- "similar"
-    local different_visible = different_link:gsub("<[^>]+>", "")  -- "different"
-
-    -- Handle nil chronological_link (on chronological.html page, we don't show this link)
-    local center_text = ""
-    local center_visible_len = 0
-    if chronological_link then
-        center_text = chronological_link
-        center_visible_len = chronological_link:gsub("<[^>]+>", ""):len()  -- "chronological" = 13 chars
-    end
-
-    -- Left box: ║ (colored) + space + similar + padding + │
-    local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-    local left_content_width = 9  -- space between ║ and │
-    local similar_padding = left_content_width - 1 - #similar_visible  -- 1 for leading space
-    local left_box = colored_wall .. " " .. similar_link .. string.rep(" ", similar_padding) .. "│"
-
-    -- Right box: │ + space + different + padding + │
-    local right_content_width = 11  -- space between │ and │
-    local different_padding = right_content_width - 1 - #different_visible  -- 1 for leading space
-    local right_box = "│ " .. different_link .. string.rep(" ", different_padding) .. "│"
-
-    -- Calculate gaps: Total 84 - 11 (left) - center_visible - 13 (right) = remaining
-    -- If no center text, distribute all 47+13 = 60 chars into the gaps (30 left, 30 right)
-    -- If center text (13 chars), split remaining 47 into 22 left + 25 right
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap = string.rep(" ", 22)
-        right_gap = string.rep(" ", 25)
-    else
-        -- No chronological link - distribute 60 chars evenly (30+30)
-        left_gap = string.rep(" ", 30)
-        right_gap = string.rep(" ", 30)
-    end
-
-    return left_box .. left_gap .. center_text .. right_gap .. right_box
+    return poem_bars_shared.corner_box_top(progress_chars, hex_color)
 end
 -- }}}
 
 -- {{{ function generate_regular_corner_box_nav_line
--- Issue 8-035: Added progress_chars and hex_color for progressive colorization
 local function generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color)
-    -- Generate the navigation line with corner box walls for REGULAR poems (Issue 8-030)
-    -- Format: │ similar │      chronological      │ different │
-    -- Left box: │ + space + link + space + │ = 11 chars (positions 0-10)
-    -- Center text: chronological (13 chars visible) - or empty space if nil (on chronological.html)
-    -- Right box: │ + space + link + space + │ = 13 chars (positions 70-82)
-    -- Gaps: 2 gaps totaling 59 chars (with 13 char center text: 23 left + 23 right)
-    -- Total: 83 chars
-
-    progress_chars = progress_chars or 0
-
-    local similar_visible = similar_link:gsub("<[^>]+>", "")
-    local different_visible = different_link:gsub("<[^>]+>", "")
-
-    -- Handle nil chronological_link (on chronological.html page, we don't show this link)
-    local center_text = ""
-    local center_visible_len = 0
-    if chronological_link then
-        center_text = chronological_link
-        center_visible_len = chronological_link:gsub("<[^>]+>", ""):len()  -- "chronological" = 13 chars
-    end
-
-    -- Left box: │ + space + similar + padding + │
-    -- Wall characters at positions 0 and 10
-    local left_wall = progress_chars > 0 and colorize_char("│", hex_color) or "│"
-    local right_wall_of_left = progress_chars > 10 and colorize_char("│", hex_color) or "│"
-    local left_content_width = 9
-    local similar_padding = left_content_width - 1 - #similar_visible
-    local left_box = left_wall .. " " .. similar_link .. string.rep(" ", similar_padding) .. right_wall_of_left
-
-    -- Right box: │ + space + different + padding + │
-    -- Wall characters at positions 70 and 82
-    local left_wall_of_right = progress_chars > 70 and colorize_char("│", hex_color) or "│"
-    local right_wall = progress_chars > 82 and colorize_char("│", hex_color) or "│"
-    local right_content_width = 11
-    local different_padding = right_content_width - 1 - #different_visible
-    local right_box = left_wall_of_right .. " " .. different_link .. string.rep(" ", different_padding) .. right_wall
-
-    -- Calculate gaps: Total 83 - 11 (left) - 13 (right) = 59 for gaps + center
-    -- If no center text, distribute 59 chars into the gaps (29 left, 30 right)
-    -- If center text (13 chars), split remaining 46 into 23 left + 23 right
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap = string.rep(" ", 23)
-        right_gap = string.rep(" ", 23)
-    else
-        -- No chronological link - distribute 59 chars (29+30)
-        left_gap = string.rep(" ", 29)
-        right_gap = string.rep(" ", 30)
-    end
-
-    return left_box .. left_gap .. center_text .. right_gap .. right_box
+    return poem_bars_shared.corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color)
 end
+-- }}}
 -- }}}
 
 -- {{{ function apply_golden_poem_formatting
-local function apply_golden_poem_formatting(content, is_golden, similar_link, different_link, chronological_link, hex_color)
+-- progress_chars: number, how many of the golden bar's 82 interior columns the
+-- poem's progress fills. The shared drawer tints the nav boxes' dashes and
+-- picks the "similar" box's corner (╗ once filled past it, ┐ before) from it,
+-- exactly as the similar/different workers do.
+local function apply_golden_poem_formatting(content, is_golden, similar_link, different_link, chronological_link, hex_color, progress_chars)
     -- Golden poem side borders: ║ on left (colored), │ on right
     -- Interior width: 80 characters for content (with 1 space padding on each side)
     -- Format: ║ + space + 80 chars content (padded) + space + │ = 84 total
@@ -2117,11 +1730,12 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
     -- Add corner box navigation (separator + nav line) if links provided
     -- Issue 9-003 Fix: Only require similar and different links - chronological_link can be nil
     if similar_link and different_link then
-        -- Add separator line with corner box tops: ╟─────────┐      ┌───────────┤
-        table.insert(formatted_lines, generate_corner_box_separator(color))
-        -- Add navigation line with corner box walls: ║ similar │ chronological │ different │
-        -- chronological_link may be nil on chronological.html (shows empty space in center)
-        table.insert(formatted_lines, generate_corner_box_nav_line(similar_link, different_link, chronological_link, color))
+        -- Separator with the box tops, then the nav line: ╠═════════╗ ... ┌───┤
+        -- and ║ similar ║ ... │ different │, from the shared drawer (Issue 8-058).
+        -- chronological_link may be nil on chronological pages (empty centre).
+        table.insert(formatted_lines, poem_bars_shared.golden_corner_box_separator(color, progress_chars))
+        table.insert(formatted_lines, poem_bars_shared.golden_corner_box_nav_line(
+            similar_link, different_link, chronological_link, color, progress_chars))
     end
 
     return table.concat(formatted_lines, "\n")
@@ -2154,7 +1768,8 @@ end
 -- }}} End Issue 8-057: Boost Visual Formatting Functions
 
 -- {{{ function format_content_with_warnings
-local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, chronological_link, hex_color)
+-- golden_progress_chars: number, golden poems only -- see apply_golden_poem_formatting.
+local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, chronological_link, hex_color, golden_progress_chars)
     -- Issue 8-041: Escape HTML special characters in poem content FIRST
     -- This prevents browser from interpreting poem content as HTML markup
     -- (e.g., a poem containing "</pre>" would otherwise close the preformatted block)
@@ -2206,7 +1821,7 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
 
     -- Apply golden poem box-drawing formatting (with corner box nav inside)
     if is_golden then
-        formatted_content = apply_golden_poem_formatting(formatted_content, true, similar_link, different_link, chronological_link, hex_color)
+        formatted_content = apply_golden_poem_formatting(formatted_content, true, similar_link, different_link, chronological_link, hex_color, golden_progress_chars)
     else
         -- For regular poems, add 1-space left padding to each content line
         -- Content uses 1-space indent for alignment (83 chars total width)
@@ -2306,7 +1921,7 @@ local function format_single_poem_with_progress_and_color(poem, poem_colors, chr
     end
 
     -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
+    formatted = formatted .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
     -- Issue 9-013: text+image posts get a direct "image.png" link below the
     -- header. (Image entries never reach here -- they return early above.)
     local img_link = image_render.text_image_link(poem)
@@ -2394,7 +2009,10 @@ local function format_single_poem_with_progress_and_color(poem, poem_colors, chr
         is_golden and similar_link or nil,
         is_golden and different_link or nil,
         is_golden and chronological_link or nil,
-        is_golden and hex_color or nil
+        is_golden and hex_color or nil,
+        -- Fill count from the top bar just drawn (82 interior columns for
+        -- golden), the same number the workers size the nav boxes with.
+        is_golden and top_dashes.raw_progress or nil
     )
     formatted = formatted .. content_formatted
 
@@ -2443,7 +2061,7 @@ local function format_single_poem_with_warnings(poem)
     local formatted = ""
 
     -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
+    formatted = formatted .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
     formatted = formatted .. string.rep("-", 80) .. "\n"
 
     -- Format poem content with content warning handling and whitespace preservation
@@ -2465,7 +2083,7 @@ local function format_single_poem_80_width(poem)
     local formatted = ""
 
     -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
+    formatted = formatted .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
     formatted = formatted .. string.rep("-", 80) .. "\n"
 
     -- Strip HTML tags and format poem content to 80-character width
@@ -3051,7 +2669,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 
             -- Add HTML anchor
             content = content .. string.format('<span id="%s"></span>', anchor_id)
-            content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
+            content = content .. table.concat(text_formatter.wrap_file_header(" -> file: ", get_poem_display_filename(poem), 80), "\n") .. "\n"
 
             -- Navigation links (absolute paths for consistency)
             -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
@@ -3125,7 +2743,10 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
                     is_golden and similar_link or nil,
                     is_golden and different_link or nil,
                     is_golden and chronological_link or nil,
-                    is_golden and hex_color or nil
+                    is_golden and hex_color or nil,
+                    -- Fill count from the top bar just drawn (82 interior columns for
+                    -- golden), the same number the workers size the nav boxes with.
+                    is_golden and top_dashes.raw_progress or nil
                 )
                 content = content .. formatted_content
 
@@ -3518,7 +3139,7 @@ end
 -- similarity_data: similarity matrix
 -- embeddings_data: poem embeddings (for diversity calculation)
 -- output_dir: base output directory
--- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
+-- pages_spec: (optional) --pages flag value: nil/"default", "all", or a page count such as "3" (Phase D: Issue 8-012)
 -- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
 -- num_threads: (required) number of worker threads, 1 or more (Issue 10-065a: no default in code)
 -- chrono_per_page: (optional) CLI override for chronological poems per page (Issue 9-003)
@@ -3564,9 +3185,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         elseif pages_spec == "all" then
             pages = PAGINATION_CONFIG.max_pages_per_poem
         else
+            -- A count of pages per poem. (The second guess that read the last
+            -- number of a range, and the quiet fall back to minimum_pages,
+            -- went with ranges on 2026-10-07: an unreadable value is refused.)
             pages = tonumber(pages_spec)
-                or tonumber(tostring(pages_spec):match("(%d+)$"))
-                or PAGINATION_CONFIG.minimum_pages
+                or error(string.format("Invalid --pages value: '%s'. Expected a number of pages per poem (3) or all", tostring(pages_spec)))
         end
         local needed_k = pages * per_page
         local function check_cache(cache, label, regen_flag)
@@ -4398,7 +4021,15 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         if entry_poem then
                             -- Issue 8-036: Add poem source path to ranking header
                             local source_path = get_source_path(entry_poem)
-                            table.insert(html_parts, string.format("--- #%d %s ---\n", i, source_path))
+                            -- A long note name wraps at a dash or slash (shared
+                            -- rule, text-formatter's wrap_file_header). The
+                            -- closing " ---" is 4 wide and holds dashes the
+                            -- wrapper would break at, so the path wraps to 76
+                            -- and the closer is added to its last line.
+                            local header = t_text_formatter.wrap_file_header(
+                                string.format("--- #%d ", i), source_path, 76)
+                            header[#header] = header[#header] .. " ---"
+                            table.insert(html_parts, table.concat(header, "\n") .. "\n")
                             -- Issue 9-013: text+image posts get a direct "image.png"
                             -- link below their header (image entries are skipped --
                             -- their title already deep-links into the gallery).
@@ -4464,11 +4095,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                             -- Issue 10-036: which pages to write for one list.
                             -- "--pages all" means every page the list fills, up
-                            -- to the storage cap; a page list means exactly
-                            -- those page numbers.  This used to write ONE page
-                            -- for "all", and pages 1..N for a list of N pages
-                            -- (so "1,3" wrote 1 and 2).  A page past the end of
-                            -- the list is skipped by generate_page itself.
+                            -- to the storage cap; "--pages N" means pages 1
+                            -- through N (parse_pages_specification builds that
+                            -- list).  This used to write ONE page for "all".
+                            -- A page past the end of the list is skipped by
+                            -- generate_page itself.
                             local function pages_for(list)
                                 if config.pages_is_all then
                                     local count = math.ceil(#list / config.poems_per_page)

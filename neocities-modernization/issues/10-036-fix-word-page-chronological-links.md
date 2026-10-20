@@ -289,6 +289,13 @@ threading in `run.sh`'s word-cloud invocations.
 4. **Done 2026-09-22.** Fix the worker's page count so `--pages all` writes every page: it now
    writes every page its list fills, up to the storage cap, and a page list
    writes exactly those pages (it used to write pages 1..N for a list of N).
+   A bare number is a COUNT of pages per poem: `--pages 3` writes pages 1, 2
+   and 3, the same as stages 7-8 and run.sh's help read it (owner, 2026-10-07:
+   "never just one single page"). For a few weeks the page writer read it as
+   "only page 3", and a full build wrote only the -03 files while every link
+   pointed at -01. Ranges (`2-5`) were removed the same day (owner: "I don't
+   think we'll ever need it"); `--pages` takes a count or `all`, and anything
+   else is refused. Pinned by `src/flat-html-generator.pages-count.test.lua`.
 5. **Done 2026-09-22.** The missing-mapping cases are in
    `src/flat-html-generator.chronological-links.test.lua`; the page-link
    cases are in `src/flat-html-generator.page-links.test.lua` (page 1 only,
