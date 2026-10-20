@@ -184,5 +184,5 @@ The deletion-focused steps (10-048b, 10-048c, 10-048d) collectively remove an es
 - **Created**: 2026-06-15
 - **Phase**: 10 (Developer Tooling / Website Completion)
 - **Estimated Complexity**: Large (umbrella; individual sub-tasks range from Small to Medium)
-- **Dependencies**: None for the cleanup sub-tasks. The decomposition tasks (10-048f, 10-048g) are easier after the helper extraction in 10-048a.
+- **Dependencies**: None. (Inside this issue, the two decomposition sub-tasks, f and g in the list above, are easier after sub-task a's helper extraction. They are sections of this file, not issue files of their own, until one is promoted.)
 - **Affects**: HTML generation pipeline, config loading layer, source tree organization, test placement, main bash driver. No effect on rendered output if executed faithfully.

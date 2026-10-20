@@ -81,7 +81,22 @@ Generate text embeddings from image filenames:
 | 10-042a | Gallery Pages | None |
 | 10-042b | Chronological Interleaving | 10-042a |
 | 10-042c | Filename Embeddings | 10-042b |
+| 10-042d | Gallery Chronological Image List | 10-042a |
 | 10-042e | Shape Gifs Gallery Source | 10-042a |
+
+## Suggested Implementation Steps
+
+The sub-issues are the steps; each holds its own detail. Build order:
+
+1. 10-042a, gallery pages (done): one page per image source and an index,
+   linked from the word cloud's menu.
+2. 10-042d and 10-042e, in either order: the gallery's chronological image
+   list, and the shape gifs as one more source. Both only need the gallery.
+3. 10-042b, chronological interleaving: standalone images placed among the
+   poems by timestamp, honouring the source's `randomize_order` setting.
+4. 10-042c, filename embeddings: an embedding per image made from its file
+   name, so images take part in the similar and different rankings.
+5. Check every line of Acceptance Criteria below on a full build, then close.
 
 ## Files to Modify
 

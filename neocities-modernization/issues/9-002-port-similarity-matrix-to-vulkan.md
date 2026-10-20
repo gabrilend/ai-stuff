@@ -6,12 +6,16 @@ Port the similarity matrix generation from CPU-based Lua to Vulkan compute shade
 
 ## Current Behavior
 
-Similarity matrix is calculated in `src/similarity-engine.lua`:
-- Single-threaded Lua implementation
-- Calculates cosine similarity for all poem pairs
-- 6,641 × 6,641 = ~44 million comparisons
-- Each comparison: 768-dimensional dot product + norms
-- Estimated CPU time: Several hours for full matrix
+The similarity matrix is computed on the GPU and is the production default
+for the pipeline's similarity stage: one dispatch computes every poem pair,
+then C threads write the per-poem similarity files and the rankings cache
+(see 9-002b, which records the surviving path and the removal of the
+earlier per-poem path). The CPU similarity engine was deleted (9-001f).
+9-002a is done; 9-002b (the full-dataset validation record) and 9-002c
+(threaded file writing) are open.
+
+Before this issue (kept for the record): the matrix was computed in
+single-threaded Lua, every pair a 768-dimension dot product, taking hours.
 
 ## Intended Behavior
 
@@ -26,7 +30,7 @@ Similarity matrix is calculated in `src/similarity-engine.lua`:
 |-----------|-------------|--------|----------|
 | 9-002a | Design similarity matrix compute shader | ✅ Completed | High |
 | 9-002b | Validate GPU similarity implementation | 🔄 Open | High |
-| 9-002c | Parallelize similarity file writing with thread pool | 🔄 Open | Medium |
+| 9-002c | Parallelize similarity file writing with thread pool | ✅ Completed | Medium |
 
 ## Technical Approach
 
@@ -105,6 +109,16 @@ void main() {
 |--------|---------------|----------------|
 | Time | Hours | Minutes |
 | Pairs/sec | ~10K | ~100K+ |
+
+## Suggested Implementation Steps
+
+The sub-issues are the steps, in order:
+
+1. 9-002a, the similarity shader (done).
+2. 9-002b, validate on the full dataset: per-pair results match a CPU
+   reference within float32 tolerance, and the speedup is measured.
+3. 9-002c, write the per-poem files from a thread pool (done 2026-10-20:
+   the single-dispatch path writes them from C threads).
 
 ## Dependencies
 

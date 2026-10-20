@@ -5,7 +5,19 @@
 
 ## Current Behavior
 
-GPU similarity computation in `vk_similarity.lua` processes poems sequentially:
+**Built, by Option 3's route (closed 2026-10-20).** The GPU computes every
+poem pair in one dispatch, and the per-poem similarity files are then
+written by a pool of C threads (`file_writer_thread` in
+`libs/vulkan-compute/src/vk_similarity.c`, one context per thread, each
+writing its own share of poems), followed by the rankings cache built the
+same way (`cache_gen_thread`). The thread count follows the run's
+`--threads`. A thread that cannot start stops the run with an error after
+joining the threads already started. The sequential per-poem loop below,
+and the effil pool of Option 1, were never built that way: the per-poem GPU
+path was removed (9-002b), and effil is gone from the similarity path
+(9-001f).
+
+Before (kept for the record): GPU similarity computation in `vk_similarity.lua` processed poems sequentially:
 
 ```lua
 for i = 0, num_poems - 1 do
@@ -276,7 +288,7 @@ Speedup: 3.2×
 
 ---
 
-**ISSUE STATUS: OPEN**
+**ISSUE STATUS: COMPLETED (2026-10-20) — built as C threads after a single GPU dispatch; see Current Behavior**
 
 **Created**: 2026-01-17
 

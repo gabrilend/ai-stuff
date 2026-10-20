@@ -28,7 +28,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001f | Remove effil dependency | Open | Low |
 | 9-002 | Port similarity matrix generation to Vulkan | In Progress | Medium |
 | 9-002b | Validate GPU similarity implementation | Open | High |
-| 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
+| 9-002c | Parallelize similarity file writing with thread pool | Completed 2026-10-20 (C threads after one GPU dispatch) | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
 | 9-006 | Poem box format validator | Completed | Low |

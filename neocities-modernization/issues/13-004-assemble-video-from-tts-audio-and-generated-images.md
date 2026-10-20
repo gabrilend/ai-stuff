@@ -54,6 +54,16 @@ After the MVP, add optional transition effects:
 
 These are non-MVP enhancements and should be tracked in a separate sub-issue if desired.
 
+## Suggested Implementation Steps
+
+The sub-issues are the steps; each holds its own detail.
+
+1. 13-004a: read the audio manifest (13-002d) and the visual manifest
+   (13-003c) and write ffmpeg's list of images with how long each is shown.
+2. 13-004b: run ffmpeg on that list and the audio track, with sharp cuts
+   between images (the MVP).
+3. 13-004c (after the MVP): transitions between images.
+
 ## Technical Design
 
 ### Video Assembly with ffmpeg

@@ -3,17 +3,32 @@
 ## Priority
 Medium
 
-## Problem Statement
+## Current Behavior
 
-Image-only posts (fediverse posts containing just `🖼` or minimal text with an image attachment) cannot be meaningfully embedded because there's no semantic content to embed. An embedding of just `🖼` produces a nearly useless vector that won't cluster with related content.
+(2026-10-20.) The redesign below is built and runs in every build. The
+pipeline's image step (Stage 6.7 in `run.sh`, `src/augment-embeddings-with-images.lua`)
+runs after the embeddings and before the similarity matrix. It gives every
+text-less image a pseudo-embedding, the normalised average of the poems
+before and after it in time, folds those into the embedding set so the GPU
+ranks images alongside poems, and writes `image-manifest.json`. The page
+builder reads that manifest (`src/flat-html-generator.lua`) and draws image
+entries on the similar and different pages: the 2026-10-07 build's page
+check found picture titles on them. The old nearest-neighbour association
+code is gone from the source.
 
-**Current behavior:**
-- Image-only posts get embeddings based on minimal text (e.g., `🖼`)
-- These embeddings are semantically meaningless
-- Similar/different rankings for these posts are essentially random
-- Images don't appear on similar/different pages at all (see Issue 8-040)
+All three items of the redesign's "Pending" list are therefore done. Left
+before closing: rewrite this file as the blueprint of what was built (the
+superseded design below can move to a short history note), and check the
+chronological pages draw images too.
 
-## REDESIGN (2026-06-22): Neighbor-Averaged Pseudo-Embedding
+The original problem (kept for the record): image-only posts (fediverse
+posts containing just `🖼` or minimal text with an image attachment) cannot
+be meaningfully embedded because there is no semantic content to embed. An
+embedding of just `🖼` is a nearly useless vector, so their similar and
+different rankings were essentially random, and images did not appear on
+similar/different pages at all (see Issue 8-040).
+
+## Intended Behavior — REDESIGN (2026-06-22): Neighbor-Averaged Pseudo-Embedding
 
 > This supersedes the "Timestamp-Based Association (Nearest Neighbor)" design
 > further below, which was implemented (see Implementation Progress) and is kept
@@ -445,12 +460,12 @@ image_association = {
   read-only real-data pass: class1=343, class2=68, class3=692, 8362 → 9054.)
 
 **Pending (critical path before regeneration):**
-- [ ] Wire the augmentation step into run.sh between Stage 6 and Stage 7.
-- [ ] Renderer: flat-html-generator must draw image entries (poem_index beyond
+- [x] Wire the augmentation step into run.sh between Stage 6 and Stage 7 (Stage 6.7).
+- [x] Renderer: flat-html-generator must draw image entries (poem_index beyond
       the poem range, looked up in `image-manifest.json`) on
       similar/different/chronological pages instead of failing the poems.json
       lookup. THIS gates a correct regeneration.
-- [ ] Decide fate of the old nearest-neighbor `associate_image_only_posts()`.
+- [x] Decide fate of the old nearest-neighbor `associate_image_only_posts()` (removed; no longer in the source).
 
 ## Metadata
 
