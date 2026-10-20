@@ -24,7 +24,7 @@ set -o pipefail
 
 LIBRARY="${DIR}/libs/ensure-ram-tiers"
 LUA_LIBRARY="${DIR}/libs/ensure-ram-tiers.lua"
-HOOK="${DIR}/restore-ram-tiers"
+HOOK="${DIR}/harness-hooks/restore-ram-tiers"
 
 # The scratch world. The two roots stand in for /tmp and /dev/shm; DISK stands in
 # for "somewhere that is not RAM", which the library must refuse to build into.

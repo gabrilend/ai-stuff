@@ -30,9 +30,9 @@ set -uo pipefail
 
 DIR="${1:-/home/ritz/programming/ai-stuff/scripts}"
 
-CWD_GATE="${DIR}/refuse-directory-change"
-RELREF_GATE="${DIR}/refuse-relative-commit-ref"
-COMMIT_GATE="${DIR}/refuse-foreign-lines"
+CWD_GATE="${DIR}/harness-hooks/refuse-directory-change"
+RELREF_GATE="${DIR}/harness-hooks/refuse-relative-commit-ref"
+COMMIT_GATE="${DIR}/harness-hooks/refuse-foreign-lines"
 
 # Throwaway token paths, so a real pending permission is never spent by a test.
 SCRATCH="/tmp/claude-1000/refusal-gate-tests-$$"
@@ -481,6 +481,28 @@ if bash "${DIR}/tests/test-adopt-left-behind.sh" "${DIR}" > "${SCRATCH}/adopt.lo
 else
     cat "${SCRATCH}/adopt.log"
     check "tests/test-adopt-left-behind.sh passes" no
+fi
+
+printf '\nThe RAM-tier permission (the hook that widens, not refuses)\n'
+if bash "${DIR}/tests/test-allow-own-ram-tiers.sh" "${DIR}" > "${SCRATCH}/ram-tiers.log" 2>&1; then
+    check "tests/test-allow-own-ram-tiers.sh passes ($(tail -1 "${SCRATCH}/ram-tiers.log"))" yes
+else
+    cat "${SCRATCH}/ram-tiers.log"
+    check "tests/test-allow-own-ram-tiers.sh passes" no
+fi
+
+printf '\nThe shell-write gate\n'
+if bash "${DIR}/tests/test-refuse-outside-writes.sh" "${DIR}" > "${SCRATCH}/outside-writes.log" 2>&1; then
+    check "tests/test-refuse-outside-writes.sh passes ($(tail -1 "${SCRATCH}/outside-writes.log"))" yes
+else
+    cat "${SCRATCH}/outside-writes.log"
+    check "tests/test-refuse-outside-writes.sh passes" no
+fi
+if bash "${DIR}/tests/test-merge-agent-scratchpad.sh" "${DIR}" > "${SCRATCH}/merge-scratchpad.log" 2>&1; then
+    check "tests/test-merge-agent-scratchpad.sh passes ($(tail -1 "${SCRATCH}/merge-scratchpad.log"))" yes
+else
+    cat "${SCRATCH}/merge-scratchpad.log"
+    check "tests/test-merge-agent-scratchpad.sh passes" no
 fi
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"
