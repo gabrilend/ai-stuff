@@ -341,3 +341,7 @@ function is fulfilled by the word-cloud" -- and the file was removed (recorded
 in 10-060). The centroids themselves remain in use: `src/centroid-generator.lua`
 builds them, and the hope-card PDF export (6-012,
 `docs/centroids-for-hope-cards.md`) picks poems near the hope moods.
+
+## Blocks
+
+- 8-043

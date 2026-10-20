@@ -214,6 +214,10 @@ Transfer reduction: 3,000× less data
 
 - 9-001e (Lua FFI bindings) - COMPLETED
 
+## Blocks
+
+- 9-005
+
 ## Related Issues
 
 - **9-001e**: Current sequential implementation (baseline)
