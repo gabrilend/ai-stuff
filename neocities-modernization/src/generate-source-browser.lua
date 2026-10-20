@@ -217,14 +217,29 @@ end
 -- {{{ list_published_files()
 -- Ask git for tracked files (honors .gitignore), then keep only allowlisted
 -- ones. Returns (kept_list, skipped_dir_counts). Read-only git, no chaining.
+--
+-- Symbolic links are left out. A link in this project points at a document
+-- that belongs to ANOTHER project (docs/delta-guide.md is delta-version's
+-- own guide), kept here so it can be read from this folder. Publishing it
+-- would show another project's page under this one's name, with links
+-- that are right in its home and dead here. "--stage" makes git print each
+-- file's mode first; 120000 is git's mode for a link.
 local function list_published_files()
-    local pipe = io.popen(string.format("git -C %q ls-files", DIR))
+    local pipe = io.popen(string.format("git -C %q ls-files --stage", DIR))
     if not pipe then error("could not run git ls-files in " .. DIR) end
     local kept, skipped = {}, {}
-    for line in pipe:lines() do
+    for entry in pipe:lines() do
+        -- "<mode> <hash> <stage>\t<path>"
+        local mode, line = entry:match("^(%d+) %x+ %d+\t(.+)$")
+        if not mode then error("unexpected git ls-files line: " .. entry) end
         local top = line:match("^([^/]+)/") or line  -- top-level dir, or root file
         local published
-        if line:match("/") then
+        if mode == "120000" then
+            -- a link into another project: never published (see above), and
+            -- counted under its own heading in the skipped summary
+            top = "(links to other projects)"
+            published = false
+        elseif line:match("/") then
             published = INCLUDE_DIRS[top] == true
         else
             local e = ext(line)

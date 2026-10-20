@@ -58,9 +58,18 @@ rm -f "$ZIP_TMP"
 # generate-source-browser.lua's INCLUDE_DIRS / ROOT_FILE_EXTS exactly.
 # (archive/ was missing here until 2026-10-07, so the download lacked the
 # word-cloud snapshots the source browser shows.)
-SOURCE_LIST="$(cd "$DIR" && git ls-files | awk -F/ '
-    NF > 1 { if ($1 ~ /^(src|libs|scripts|issues|docs|notes|demos|archive)$/) print; next }
-    { if ($0 ~ /\.(lua|sh|md|c|h|json|css|html|txt)$/) print }
+# Links are left out, as in the source browser: a link here points at another
+# project's file (docs/delta-guide.md is delta-version's guide), and zip would
+# follow it and pack that project's file under this one's name. "--stage"
+# prints each file's mode before a tab; 120000 is git's mode for a link.
+SOURCE_LIST="$(git -C "$DIR" ls-files --stage | awk -F'\t' '
+    $1 ~ /^120000 / { next }
+    {
+        path = $2
+        n = split(path, part, "/")
+        if (n > 1) { if (part[1] ~ /^(src|libs|scripts|issues|docs|notes|demos|archive)$/) print path; next }
+        if (path ~ /\.(lua|sh|md|c|h|json|css|html|txt)$/) print path
+    }
 ')"
 printf '%s\n' "$SOURCE_LIST" | (cd "$DIR" && zip -q "$ZIP_TMP" -@)
 # }}}

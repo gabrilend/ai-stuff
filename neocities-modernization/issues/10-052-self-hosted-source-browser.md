@@ -45,7 +45,20 @@ code/doc files, and renders:
   current file's path opened, so every file is reachable from every other.
 
 The private `input/` corpus and `llm-transcripts/` are deliberately NOT published
-(allowlist), and every held-back directory is logged. Directory creation is
+(allowlist), and every held-back directory is logged. Symbolic links are not
+published either (2026-10-20): a link here points at another project's file
+(`docs/delta-guide.md` is delta-version's guide, linked so it can be read from
+this folder), and publishing it showed that project's page under this one's
+name, with three links that work in its home and were dead here. Git's file
+list gives each file's mode, and a link's mode is skipped; the download zip
+(`scripts/build-download-zip`) applies the same rule so the two stay matched.
+
+Pages for files that are no longer published are NOT removed: the browser
+writes over `output/source/` without clearing it, so a page for a file that
+was deleted, renamed or newly held back stays and is deployed. (Found
+2026-10-20: the delta guide's page outlived its removal.) Issue 10-072, which
+moves the built site into RAM, makes every build after a logout start empty,
+but a build in the same session still keeps stale pages. Directory creation is
 quoted so paths with spaces (e.g. a saved-webpage folder) publish correctly, and
 write failures are surfaced rather than swallowed.
 
@@ -113,6 +126,9 @@ These shape the implementation and are worth confirming:
    of this browser.
 8. Add a small validator that confirms every published file is reachable from the
    TOC and that no `.gitignore`d path leaked in.
+9. Remove stale pages: build into a fresh folder and swap it in at the end, or
+   delete pages under `output/source/` that no published file accounts for.
+   The swap is simpler and never leaves a half-built browser visible.
 
 ## Related Documents / Tools
 
