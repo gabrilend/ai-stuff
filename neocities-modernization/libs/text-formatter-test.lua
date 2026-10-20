@@ -282,5 +282,51 @@ do
 end
 -- }}}
 
+-- {{{ file header: long source names wrap at a dash or slash
+-- " -> file: notes/i-asked-chatgpt-..." was 97 columns wide and failed the
+-- whole-site width check. Owner's rule: wrap at a dash (dash stays up top) or
+-- a slash (slash goes down below), never anywhere else.
+do
+    local prefix = " -> file: "
+    local long = tf.wrap_file_header(prefix,
+        "notes/i-asked-chatgpt-to-rewrite-the-declaration-of-independence-with-todays-grievences", 80)
+    local fits = true
+    for _, line in ipairs(long) do
+        if tf.utf8_char_count(line) > 80 then fits = false end
+    end
+    check("file header: a long dashed name wraps to fit 80", #long == 2 and fits, show(long))
+    check("file header: the dash stays at the end of the upper line",
+        long[1]:sub(-1) == "-", long[1])
+    -- The cut is the furthest dash that fits: "...-independence-with-" is
+    -- exactly 80 wide, so "with-" stays on the upper line.
+    check("file header: the next line sits under the path",
+        long[2] == string.rep(" ", #prefix) .. "todays-grievences", long[2])
+
+    -- A slash goes to the start of the lower line. Width 30 forces the break
+    -- before the slash, the only cut that fits.
+    local slashed = tf.wrap_file_header(prefix, "notesfolder/aaaaaaaaaaaaaaa", 30)
+    check("file header: a slash starts the lower line",
+        #slashed == 2 and slashed[1] == prefix .. "notesfolder"
+            and slashed[2] == string.rep(" ", #prefix) .. "/aaaaaaaaaaaaaaa", show(slashed))
+
+    local short = tf.wrap_file_header(prefix, "fediverse/1234", 80)
+    check("file header: a short name stays one line", #short == 1 and short[1] == prefix .. "fediverse/1234")
+
+    -- Picture titles may also break after ": " (opts.colon). A hash name has
+    -- no dash; without the colon break it could not wrap at all.
+    local hash = "bafkreiafqepgssblxxrogv6lgqwertyuiopasdfghjklzxcvbnm1234567890abc.png"
+    local titled = tf.wrap_file_header("   ", "dnd-pictures-from-the-internet: " .. hash, 80, { colon = true })
+    check("picture title: breaks after the colon, colon on the upper line",
+        #titled == 2 and titled[1] == "   dnd-pictures-from-the-internet: " and titled[2] == "   " .. hash,
+        show(titled))
+    local plain = tf.wrap_file_header("   ", "dnd-pictures-from-the-internet: " .. hash, 80)
+    check("file header: no colon break unless asked for", plain[1]:sub(-2) ~= ": ", show(plain))
+
+    -- No dash or slash to break at: left over-wide so the site check names it.
+    local unbreakable = tf.wrap_file_header(prefix, string.rep("x", 90), 80)
+    check("file header: no dash or slash means no break", #unbreakable == 1)
+end
+-- }}}
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

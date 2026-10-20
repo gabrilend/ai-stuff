@@ -223,29 +223,49 @@ for i = 3, #arg do
         record_missing_link(page, 0, "(unreadable page) " .. page)
     else
         local inside_pre = false
+        -- true while a tag opened on an earlier line has not closed yet
+        local inside_tag = false
         local line_number = 0
         for line in handle:lines() do
             line_number = line_number + 1
 
-            -- Links: every href and src on the line.
-            for attr_value in line:gmatch('href="([^"]*)"') do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
+            -- Links: every href and src INSIDE A REAL TAG on the line. A page
+            -- that shows code (the source browser) writes it escaped --
+            -- "&lt;a href="%s"&gt;" -- so a reader sees the text, not a link.
+            -- Matching href="..." anywhere reported those as broken links (276
+            -- of them, all false). A real tag is the only place a literal "<"
+            -- appears; a tag still open at the end of the line counts too, since
+            -- a long tag can continue on the next line.
+            -- inside_tag carries over from the previous line: when it ended in
+            -- an unclosed tag, this line begins mid-tag, so a "<" is put back
+            -- in front for the scan.
+            local scan = inside_tag and ("<" .. line) or line
+            for tag in (scan .. "\n"):gmatch("<[^<>]*[>\n]") do
+                for attr_value in tag:gmatch('href="([^"]*)"') do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
+                end
+                for attr_value in tag:gmatch("href='([^']*)'") do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
+                end
+                for attr_value in tag:gmatch('src="([^"]*)"') do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
                 end
             end
-            for attr_value in line:gmatch("href='([^']*)'") do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
-                end
-            end
-            for attr_value in line:gmatch('src="([^"]*)"') do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
-                end
-            end
+            -- Does this line end inside a tag? Yes when its last "<" comes after
+            -- its last ">" (a tag opened and not closed), or when it began
+            -- mid-tag and holds no ">" at all.
+            local last_lt = scan:match(".*()<")
+            local last_gt = scan:match(".*()>")
+            inside_tag = (last_lt ~= nil and (last_gt == nil or last_lt > last_gt))
 
             -- Widths: only the part of the line inside a <pre> poem column.
             local measured = nil

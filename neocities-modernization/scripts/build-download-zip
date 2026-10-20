@@ -15,8 +15,8 @@
 # deployable, so it ships whole.
 #
 # HOW: assembles the archive in /dev/shm (RAM, and outside output/ so it can't zip
-# itself), then moves the finished file into output/<NAME>.zip, served at
-# /similar-different/<NAME>.zip.
+# itself), keeps the finished file there, and links output/<NAME>.zip to it,
+# served at /similar-different/<NAME>.zip.
 #
 # Usage:  scripts/build-download-zip [DIR]
 
@@ -30,8 +30,15 @@ NAME="similar-different"
 # Build in RAM, outside output/, so the archive never tries to contain itself.
 # A zip is data (never executed), so it belongs in the shared-memory tier:
 # tmp/shared-memory/ -> /dev/shm/{project}, guaranteed RAM on any host.
-ZIP_TMP="${DIR}/tmp/shared-memory/${NAME}.zip"
-FINAL="${DIR}/output/${NAME}.zip"
+ZIP_TMP="${DIR}/tmp/shared-memory/${NAME}.zip.building"
+# The finished zip STAYS in RAM (owner, 2026-10-07: rewriting ~3 GB to disk on
+# every build "sucks", and it is uploaded right after the build). output/ gets
+# a symbolic link to it, which is what the pages link to and what
+# scripts/deploy-to-neocities uploads. RAM here is emptied at logout: after
+# that the link points at nothing, the page check reports it broken, and the
+# deploy refuses to run -- rebuild before uploading.
+FINAL="${DIR}/tmp/shared-memory/${NAME}.zip"
+LINK="${DIR}/output/${NAME}.zip"
 # }}}
 
 # {{{ preflight
@@ -49,8 +56,10 @@ rm -f "$ZIP_TMP"
 # A path WITH a slash is kept only if its top directory is allowlisted; a root
 # file is kept only if its extension is a code/doc type. This mirrors
 # generate-source-browser.lua's INCLUDE_DIRS / ROOT_FILE_EXTS exactly.
+# (archive/ was missing here until 2026-10-07, so the download lacked the
+# word-cloud snapshots the source browser shows.)
 SOURCE_LIST="$(cd "$DIR" && git ls-files | awk -F/ '
-    NF > 1 { if ($1 ~ /^(src|libs|scripts|issues|docs|notes|demos)$/) print; next }
+    NF > 1 { if ($1 ~ /^(src|libs|scripts|issues|docs|notes|demos|archive)$/) print; next }
     { if ($0 ~ /\.(lua|sh|md|c|h|json|css|html|txt)$/) print }
 ')"
 printf '%s\n' "$SOURCE_LIST" | (cd "$DIR" && zip -q "$ZIP_TMP" -@)
@@ -96,9 +105,14 @@ rm -f "$README_TMP"
 (cd "$DIR" && zip -rq "$ZIP_TMP" output -x "output/${NAME}.zip")
 # }}}
 
-# {{{ publish: move the finished archive into output/ for serving
+# {{{ publish: finish in RAM, link it from output/ for serving
+# The rename happens only once the archive is complete, so the link never
+# points at a half-written zip. Whatever was at output/<NAME>.zip before -- the
+# previous link, or an older build's real file on disk -- is replaced by the link.
 mv -f "$ZIP_TMP" "$FINAL"
+rm -f "$LINK"
+ln -s "$FINAL" "$LINK"
 SIZE="$(du -h "$FINAL" | cut -f1)"
 COUNT="$(printf '%s\n' "$SOURCE_LIST" | grep -c . || true)"
-echo "[build-download-zip] built $FINAL ($SIZE): $COUNT source files + the rendered site"
+echo "[build-download-zip] built $FINAL ($SIZE, in RAM), linked from $LINK: $COUNT source files + the rendered site"
 # }}}

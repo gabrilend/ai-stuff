@@ -293,6 +293,63 @@ function M.wrap_preserving_indent(line, max_width)
 end
 -- }}}
 
+-- {{{ function M.wrap_file_header(prefix, path, width)
+-- Splits a poem's source line (" -> file: notes/some-long-name") into lines no
+-- wider than `width`, breaking ONLY at a dash or a slash -- the owner's rule:
+-- a dash stays at the END of the upper line; a slash goes to the START of the
+-- lower line. Continuation lines are indented to sit under the path, so the
+-- name still reads as one column:
+--
+--    -> file: notes/i-asked-chatgpt-to-rewrite-the-declaration-of-independence-
+--             with-todays-grievences
+--
+-- prefix: string, the label before the path (" -> file: ", or "-> file: "
+--         inside a golden box, whose wall already supplies the leading space).
+-- path:   string, "category/filename" as displayed.
+-- width:  number, the widest a line may be, in visible characters.
+-- opts:   optional table. opts.colon = true also breaks after ": " (the
+--         colon and its space stay on the upper line) -- picture titles are
+--         "gallery: folder: name", and some names are long hashes with no
+--         dash at all (owner, 2026-10-07: "can break on the colon").
+-- returns: array of strings, one per line, no newlines inside.
+--
+-- A name with no dash or slash that fits is left over-wide on purpose: it then
+-- fails the whole-site check (scripts/validate-output) by name, which says
+-- exactly which file to rename or exclude, instead of being cut somewhere the
+-- owner never chose.
+function M.wrap_file_header(prefix, path, width, opts)
+    local break_after_colon = opts and opts.colon
+    local lines = {}
+    local lead = prefix
+    local indent = string.rep(" ", M.utf8_char_count(prefix))
+    local rest = path
+    while M.utf8_char_count(lead .. rest) > width do
+        local budget = width - M.utf8_char_count(lead)
+        -- The cut is a byte position k: rest:sub(1, k) goes on this line.
+        -- After a dash, k is the dash itself; before a slash, k is the byte
+        -- just ahead of it. Keep the furthest cut that still fits.
+        local best = nil
+        for k = 1, #rest - 1 do
+            local ch, next_ch = rest:sub(k, k), rest:sub(k + 1, k + 1)
+            -- With opts.colon, k may also be the space after a ": ".
+            local cut_here = (ch == "-") or (next_ch == "/")
+                or (break_after_colon and ch == " " and k > 1 and rest:sub(k - 1, k - 1) == ":")
+            if cut_here and M.utf8_char_count(rest:sub(1, k)) <= budget then
+                best = k
+            end
+        end
+        if not best then
+            break
+        end
+        lines[#lines + 1] = lead .. rest:sub(1, best)
+        rest = rest:sub(best + 1)
+        lead = indent
+    end
+    lines[#lines + 1] = lead .. rest
+    return lines
+end
+-- }}}
+
 -- {{{ function M.wrap_external_url(prefix, url, content_width)
 -- Render `prefix .. url` as lines no wider than content_width, BREAKING the URL
 -- across lines so it fits its box instead of overflowing (the user prefers

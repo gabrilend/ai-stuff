@@ -45,6 +45,9 @@ local utils = require("utils")
 -- Issue 10-055: render Markdown (.md, .info.md, and extensionless prose like the
 -- vision doc) as formatted HTML instead of flat text.
 local markdown = require("markdown")
+-- Trims a saved word-cloud page to the cloud alone, words linked to the live
+-- site, for publishing under source/archive/ (libs/wordcloud-snapshot.lua).
+local snapshot = require("wordcloud-snapshot")
 
 -- {{{ Configuration
 -- ALLOWLIST: only files under these top-level directories are published. This
@@ -443,8 +446,37 @@ end
 -- lists, code, links) rather than numbered plain text. Used for .md / .info.md
 -- and for extensionless prose (the vision doc). The renderer escapes all text,
 -- so untrusted markup cannot inject tags.
-local function render_markdown_page(rel, body)
-    return page_header(rel) .. '<div class="md">' .. markdown.render(body) .. "</div>"
+-- source_page_name: table, { [project path] = true } for every file whose
+-- published page is "<path>.html" (documents and code). A relative link in the
+-- document to one of those is pointed at that page -- "13-002a-....md" becomes
+-- "13-002a-....md.html" -- because the browser publishes no file under the bare
+-- name, and every such link was a page-not-found (21 of them). A link to a file
+-- that is not published at all is left alone, so the site check still names it.
+local function render_markdown_page(rel, body, source_page_name)
+    local html = markdown.render(body)
+    local dir = rel:match("^(.*)/[^/]*$") or ""
+    html = html:gsub('href="([^"]*)"', function(href)
+        -- Addresses with a scheme, in-page anchors and site-absolute paths are
+        -- not files of this project.
+        if href:match("^%a[%w+.-]*:") or href:sub(1, 1) == "#" or href:sub(1, 1) == "/" then
+            return nil
+        end
+        local path, fragment = href:match("^([^#]*)(.*)$")
+        -- Resolve against the document's own folder, folding "." and "..".
+        local parts = {}
+        for part in ((dir ~= "" and (dir .. "/") or "") .. path):gmatch("[^/]+") do
+            if part == ".." then
+                parts[#parts] = nil
+            elseif part ~= "." then
+                parts[#parts + 1] = part
+            end
+        end
+        if source_page_name[table.concat(parts, "/")] then
+            return 'href="' .. path .. ".html" .. fragment .. '"'
+        end
+        return nil
+    end)
+    return page_header(rel) .. '<div class="md">' .. html .. "</div>"
 end
 -- }}}
 
@@ -829,7 +861,16 @@ local function main()
     end
 
     local rels = {}
-    for _, f in ipairs(renderable) do rels[#rels + 1] = f.rel end
+    -- Files published as "<path>.html" (every kind except archived pages shown
+    -- as themselves, saved mirrors, and images) -- for render_markdown_page's
+    -- link fixing.
+    local source_page_name = {}
+    for _, f in ipairs(renderable) do
+        rels[#rels + 1] = f.rel
+        if f.kind ~= "view" and f.kind ~= "mirror" and f.kind ~= "image" then
+            source_page_name[f.rel] = true
+        end
+    end
     local tree = build_tree(rels)
     local issue_index = build_issue_index(rels)  -- Feature D: comment -> issue links
     local written, images, write_failed = 0, 0, {}
@@ -846,14 +887,33 @@ local function main()
         end
 
         if f.kind == "view" then
-            -- Issue 10-063: an archived HTML page (a word-cloud snapshot) is copied
-            -- byte-for-byte into the source tree so the link resolves on the deployed
-            -- site (only output/source/ is uploaded). No source-view page is written
-            -- -- its sidebar entry (render_sidebar) opens this file directly, rendered.
-            if copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel) then
-                written = written + 1
+            -- Issue 10-063: an archived HTML page (a word-cloud snapshot) is
+            -- published as a real page; no source-view page is written -- its
+            -- sidebar entry (render_sidebar) opens this file directly, rendered.
+            -- It was copied byte-for-byte, which carried its menu and poem index
+            -- along with links written for the site root, all broken one level
+            -- down. Now only the cloud is published, its words pointing at the
+            -- live word pages (libs/wordcloud-snapshot.lua). The original in
+            -- archive/ is untouched.
+            local src = io.open(DIR .. "/" .. rel, "rb")
+            local html = src and src:read("*all")
+            if src then src:close() end
+            local trimmed, why = html and snapshot.cloud_only(html, snapshot.root_prefix_for(rel))
+            if not trimmed then
+                -- A snapshot in some other shape is a failure to publish, not a
+                -- reason to fall back to the raw copy and its broken links.
+                write_failed[#write_failed + 1] = rel .. " (" .. tostring(why or "unreadable") .. ")"
             else
-                write_failed[#write_failed + 1] = rel
+                local dst_abs = out_root .. "/" .. rel
+                ensure_dir(dst_abs:match("^(.*)/[^/]+$"))
+                local dst = io.open(dst_abs, "wb")
+                if dst then
+                    dst:write(trimmed)
+                    dst:close()
+                    written = written + 1
+                else
+                    write_failed[#write_failed + 1] = rel
+                end
             end
             goto continue
         end
@@ -876,7 +936,7 @@ local function main()
             local body = utils.read_file(DIR .. "/" .. rel)
             if not body then skipped_files = skipped_files + 1; goto continue end
             if f.kind == "md" then
-                content = render_markdown_page(rel, body)
+                content = render_markdown_page(rel, body, source_page_name)
             else
                 content = render_text_page(rel, body, LANGS[f.lang_id or "text"])
                 -- Feature D: comments here mention issues; link them to their pages.

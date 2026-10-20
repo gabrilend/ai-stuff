@@ -12,6 +12,10 @@
 
 local M = {}
 
+-- The one wrapping rule for source/file titles (libs/, pure Lua, so a worker's
+-- fresh Lua state can load it as easily as the main thread).
+local text_formatter = require("text-formatter")
+
 local manifest_cache = nil  -- per-process memoize (worker states each load once)
 
 -- {{{ function M.load_manifest()
@@ -180,13 +184,25 @@ function M.format_image_entry(poem)
     -- For a standalone catalog image, link the title to its spot on the
     -- chronological gallery page (Issue 9-013 gallery links). Image-only posts
     -- carry no gallery_anchor, so their title stays plain text.
-    local title_html = esc
-    if poem.gallery_anchor then
-        title_html = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, poem.gallery_anchor, esc)
+    --
+    -- A long title ("gallery: folder: long-file-name.png") wraps to the 80-wide
+    -- column at a dash, slash, or ": " (text-formatter's wrap_file_header), and
+    -- each piece becomes its own link, so every line stays clickable. Wrapped on
+    -- the raw title and escaped per piece, so a cut never lands inside "&amp;".
+    -- The three-column lead is the picture marker (two columns) and a space.
+    local pieces = text_formatter.wrap_file_header("   ", title, 80, { colon = true })
+    local title_lines = {}
+    for i, piece in ipairs(pieces) do
+        local lead = (i == 1) and "&#x1F5BC; " or "   "
+        local text = piece:sub(4):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        if poem.gallery_anchor then
+            text = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, poem.gallery_anchor, text)
+        end
+        title_lines[i] = string.format('<font color="#868E96"><b>%s%s</b></font>', lead, text)
     end
     return table.concat({
         "<hr>",
-        string.format('<font color="#868E96"><b>&#x1F5BC; %s</b></font>', title_html),
+        table.concat(title_lines, "\n"),
         table.concat(imgs, "\n"),
         "<hr>",
         "",

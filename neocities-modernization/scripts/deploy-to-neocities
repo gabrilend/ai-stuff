@@ -72,8 +72,23 @@ end
 -- stale pages, not just missing ones). bytes/cost are the same value (diff_upload
 -- sorts by .bytes; the adaptive loop batches by .cost).
 local function local_files()
+    -- output/similar-different.zip is a symbolic link into RAM
+    -- (scripts/build-download-zip), so the listing follows links (find -L):
+    -- without that it was skipped, and --prune would have DELETED the live zip.
+    -- A link whose target is gone (RAM is emptied at logout) is refused here,
+    -- because skipping it would do the same damage.
+    local dead = io.popen(string.format("find %q/output -xtype l", DIR))
+    local dead_links = {}
+    for line in dead:lines() do dead_links[#dead_links + 1] = line end
+    dead:close()
+    if #dead_links > 0 then
+        error("these files in output/ are links to something that no longer exists "
+            .. "(RAM is emptied at logout; rebuild before deploying):\n  "
+            .. table.concat(dead_links, "\n  "))
+    end
+
     local size_of = {}
-    local h = io.popen(string.format("find %q/output -type f -printf '%%s\\t%%P\\n' 2>/dev/null", DIR))
+    local h = io.popen(string.format("find -L %q/output -type f -printf '%%s\\t%%P\\n' 2>/dev/null", DIR))
     for line in h:lines() do
         local s, rel = line:match("^(%d+)\t(.+)$")
         if rel then size_of[rel] = tonumber(s) end
@@ -83,7 +98,7 @@ local function local_files()
     local items = {}
     -- one xargs sha1sum pass over relative paths (reads the build once to hash it)
     local g = io.popen(string.format(
-        "cd %q/output && find . -type f -print0 | xargs -0 sha1sum 2>/dev/null", DIR))
+        "cd %q/output && find -L . -type f -print0 | xargs -0 sha1sum 2>/dev/null", DIR))
     for line in g:lines() do
         local sha, rel = line:match("^(%x+)%s+%./(.+)$")
         if rel and not rel:match("^debug%-logs/") and rel ~= "diversity-cache-gpu-batch.bin" then

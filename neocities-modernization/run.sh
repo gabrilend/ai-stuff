@@ -246,7 +246,7 @@ Pipeline Stages:
   --full                Run all stages 1-10
 
 Required values ([n] = the stages that need it):
-  --threads N           Worker thread count                        [7,9]
+  --threads N           Worker thread count (and page-check workers) [7,9,10]
   --pages N             Pages generated per poem                   [7,8,9]
   --poems-per-page N    Poems per similar/different page           [7,8,9]
   --chrono-per-page N   Poems per chronological page               [9,10]
@@ -812,7 +812,10 @@ fi
 # contains a literal pipe. Choosing a separator that cannot appear in the data
 # keeps the split a plain one-line read instead of positional index arithmetic.
 REQUIRED_VALUES=(
-    "THREADS;--threads N;parallel worker count;GENERATE_SIMILARITY:7,GENERATE_HTML:9;threads"
+    # Stage 10 is listed because the page check that follows stages 9 and 10
+    # (run_validate_output) runs on --threads workers; it used to take every
+    # processor regardless of what the operator asked for.
+    "THREADS;--threads N;parallel worker count;GENERATE_SIMILARITY:7,GENERATE_HTML:9,GENERATE_WORDCLOUD:10;threads"
     "PAGES;--pages N;pages generated per poem;GENERATE_SIMILARITY:7,GENERATE_DIVERSITY:8,GENERATE_HTML:9;pages"
     "POEMS_PER_PAGE;--poems-per-page N;poems per similar/different page;GENERATE_SIMILARITY:7,GENERATE_DIVERSITY:8,GENERATE_HTML:9;poems_per_page"
     "CHRONO_PER_PAGE;--chrono-per-page N;poems per chronological page;GENERATE_HTML:9,GENERATE_WORDCLOUD:10;chrono_per_page"
@@ -919,18 +922,19 @@ validate_supplied_values() {
         esac
     fi
 
-    # --pages is read by stages 7 and 8 as a count of pages to build caches for,
-    # and by stage 9 as which pages to write. Stages 7-8 need a plain number;
-    # stage 9 also takes a range (2-5) or "all". Checked here so a mistyped
-    # value stops the run now, not hours in at the stage that reads it
-    # (Issue 10-036: stage 9 used to build page 1 on a value it could not read).
+    # --pages is a count of pages per poem everywhere: stages 7 and 8 build
+    # caches deep enough for that many, stage 9 writes pages 1 through N.
+    # Stages 7-8 need a plain number; stage 9 also takes "all". Checked here so
+    # a mistyped value stops the run now, not hours in at the stage that reads
+    # it (Issue 10-036: stage 9 used to build page 1 on a value it could not
+    # read). Ranges such as 2-5 were removed 2026-10-07.
     if [ -n "$PAGES" ]; then
         if { $GENERATE_SIMILARITY || $GENERATE_DIVERSITY; } && ! [[ "$PAGES" =~ ^[1-9][0-9]*$ ]]; then
             echo "ERROR: --pages '$PAGES': stages 7 and 8 need a whole number of pages (1 or more)." >&2
             exit 1
         fi
-        if $GENERATE_HTML && ! [[ "$PAGES" =~ ^([1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*|all)$ ]]; then
-            echo "ERROR: --pages '$PAGES': stage 9 takes a page number (3), a range (2-5) or 'all'." >&2
+        if $GENERATE_HTML && ! [[ "$PAGES" =~ ^([1-9][0-9]*|all)$ ]]; then
+            echo "ERROR: --pages '$PAGES': stage 9 takes a number of pages per poem (3) or 'all'." >&2
             exit 1
         fi
     fi
@@ -2205,11 +2209,31 @@ run_generate_html() {
         echo "       partial run is not something to continue past." >&2
         exit 1
     }
-    # NOTE: the downloadable zip is built at POST time by running
-    # scripts/build-download-zip directly, not here -- it is a deploy artifact, and
-    # there is no point regenerating a multi-GB archive on every local build. (The
-    # site's links are document-relative, so there is no URL-conversion step before
-    # upload; just upload output/ and build the zip.)
+    # The downloadable zip is built later in the run (run_build_download_zip),
+    # after the word cloud, so it holds every page. (The site's links are
+    # document-relative, so there is no URL-conversion step before upload.)
+}
+# }}}
+
+# {{{ run_build_download_zip
+# The "download everything" archive: the whole rendered site plus the published
+# source (scripts/build-download-zip). It used to be built only at deploy time,
+# to avoid a multi-GB archive on every local build -- but every source-browser
+# page links to it, so every check of a build without it failed, and a run is
+# only made when the site has changed anyway (owner, 2026-10-07: "we gotta build
+# the 3.2gb zip every time if it changed"). Assembled in RAM
+# (tmp/shared-memory/), then moved into output/ to be served.
+run_build_download_zip() {
+    log_stage "📦 Building the download-everything zip"
+    if $DRY_RUN; then
+        log_dry_run "$DIR/scripts/build-download-zip $DIR"
+        return 0
+    fi
+    if ! $NICE_PREFIX "$DIR/scripts/build-download-zip" "$DIR"; then
+        echo -e "${RED}❌ The download zip could not be built.${NC}" >&2
+        echo "   Every source-browser page links to it, so the site is not complete without it." >&2
+        exit 1
+    fi
 }
 # }}}
 
@@ -2222,10 +2246,10 @@ run_generate_html() {
 run_validate_output() {
     log_stage "📏 Checking every page: line widths and links"
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/validate-output $DIR --output $OUTPUT_DIR"
+        log_dry_run "$DIR/scripts/validate-output $DIR --output $OUTPUT_DIR --jobs $THREADS"
         return 0
     fi
-    if ! "$DIR/scripts/validate-output" "$DIR" --output "$OUTPUT_DIR"; then
+    if ! "$DIR/scripts/validate-output" "$DIR" --output "$OUTPUT_DIR" --jobs "$THREADS"; then
         echo -e "${RED}❌ The built site has over-wide lines or broken links (report above).${NC}" >&2
         echo "   The pages are all written; this run fails so nothing ships unnoticed." >&2
         exit 1
@@ -3068,7 +3092,13 @@ if $GENERATE_EMBEDDINGS && ! $DRY_RUN; then
         # only when non-empty, so an omitted --server meant this script started
         # whichever server config.lua named -- and then the EXIT trap shut down
         # a server the operator had never mentioned.
-        START_ARGS=("$DIR" "--server=$INFERENCE_SERVER")
+        #
+        # The model is passed for the same reason. Without it the server loaded
+        # its default GGUF (nomic) while this run filed the vectors under the
+        # --model directory, so "--model embeddinggemma-2" silently produced
+        # nomic vectors labelled as EmbeddingGemma 2. --model is required for
+        # this stage, so it is always set by here.
+        START_ARGS=("$DIR" "--server=$INFERENCE_SERVER" "--model=$MODEL_NAME")
         if "$DIR/scripts/start-llamacpp-server.sh" "${START_ARGS[@]}"; then
             WE_STARTED_INFERENCE_SERVER=true
 
@@ -3147,6 +3177,10 @@ $GENERATE_SIMILARITY && timed_stage generate-similarity run_generate_similarity
 $GENERATE_DIVERSITY && timed_stage generate-diversity run_generate_diversity
 $GENERATE_HTML && timed_stage generate-html run_generate_html
 $GENERATE_WORDCLOUD && timed_stage wordcloud run_generate_wordcloud
+# The download zip holds every page, so it is built once every page is written,
+# and BEFORE the check -- every source-browser page links to it, and checking a
+# link to a file that does not exist yet only ever reported it broken.
+{ $GENERATE_HTML || $GENERATE_WORDCLOUD; } && timed_stage download-zip run_build_download_zip
 # Issue 9-006: last, once every page is written.
 { $GENERATE_HTML || $GENERATE_WORDCLOUD; } && timed_stage validate-output run_validate_output
 

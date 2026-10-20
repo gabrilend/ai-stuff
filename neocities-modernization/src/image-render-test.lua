@@ -15,7 +15,8 @@
 
 -- {{{ locate the module beside this test, regardless of caller's cwd
 local DIR = arg[0]:match("^(.*)/[^/]+$") or "."
-package.path = DIR .. "/?.lua;" .. package.path
+-- ../libs too: image-render loads the shared title wrapper from libs/.
+package.path = DIR .. "/?.lua;" .. DIR .. "/../libs/?.lua;" .. package.path
 local image_render = require("image-render")
 -- }}}
 
