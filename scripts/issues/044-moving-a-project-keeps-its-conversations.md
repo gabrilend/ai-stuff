@@ -108,9 +108,10 @@ like this is a concern.")
    inside the symlink's target and the symlink is still a symlink. Repeat
    after a Claude Code update that changes how sessions are stored.
 2. (Done 2026-10-21.) **The skill**, `~/.claude/skills/move-project/SKILL.md`,
-   written from wow-chat-2026's issue 188 and this issue. Skills are not
-   kept in any git repository (`~/.claude/skills/` is a plain folder), so
-   this issue is its record.
+   written from wow-chat-2026's issue 188 and this issue. `~/.claude`
+   (really `/mnt/mtwo/.claude`) is its own git repository, which ignores
+   everything by default; each skill is added to it by name (`git add
+   -f`), so a new skill is untracked until someone does.
 3. The rebuild's refusal when a project has two raw-log names, in
    `backup-conversations`, with a test.
 4. Find projects already moved by hand (raw-log folders whose project path
@@ -124,9 +125,8 @@ like this is a concern.")
 1. (Answered 2026-10-21: a skill, done by hand, rather than a tool.)
 2. (Answered 2026-10-21: "probably fix them.") A project's `.claude/`
    settings that name the old path are rewritten.
-3. Skills live outside every repository, so their history is not kept.
-   Should `~/.claude/skills/` be tracked somewhere (a folder in this
-   repository that it links to, for example)?
+3. (Withdrawn 2026-10-21: the question assumed skills were not in git;
+   they are, in the `~/.claude` repository, added one by one.)
 
 ## Related
 

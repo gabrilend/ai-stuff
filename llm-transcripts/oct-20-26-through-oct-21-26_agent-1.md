@@ -1,6 +1,6 @@
 # Conversation Summary: 5473c7d4-c170-4c2f-a125-44eb0d9926e2
 
-Generated on: 2026-10-21 14:38:49
+Generated on: 2026-10-21 14:48:50
 Models: claude-opus-5-5
 
 ## Contents
@@ -1311,6 +1311,71 @@ for the hooks passes (207 cases, 0 failures).
 
 It's committed as `2029bc0b9`, and the write-check issue is closed again. The
 one untracked file left in `scripts/tests/` belongs to another session.
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+I don't think we should have a double question prompt, we have 4 option slots
+and we only need "yes" "always" "this-time" and "no"
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+> **[Asked the user]**
+>
+> *Q1 — Yes means:* With one question and four answers (Yes, Always, This
+> time, No), what should Yes mean, next to This time?
+> - Until session ends — Yes = allowed for the rest of this session. This time
+>   = just this one write. Always = from now on, this project only.
+> - Same as This time — Yes and This time both allow just this one write (so
+>   one of them is a spare). Tell me what the spare should be.
+> → **Answered:** yes is one single write, this time is until session closes,
+> always is forever, and no means no.
+>
+> *Q2 — Width:* With no "how wide" question, what should Yes (for the session)
+> and Always open?
+> - The file's folder — Anything inside the folder the refused file is in, as
+>   Always worked before today. Fewer questions.
+> - Just that file — Exactly the refused path; a new file beside it asks
+>   again. Narrower.
+> → **Selected:** The file's folder
+
+> Now the store: one question, new labels.
+
+> Now the answer hook: one question, folder width always.
+
+> Rewriting the flow tests for one question.
+
+> 42 pass. Updating the README and the store's notes.
+
+> All pass. Closing the issue and committing.
+
+*[commit] fd242a704 in ai-stuff - scripts: an outside write asks one question again -- Yes, This time, Always, No*
+
+It's back to one question with four answers:
+
+- **Yes:** this one write.
+- **This time:** anything in the file's folder, until the session closes.
+- **Always:** anything in the file's folder from now on, but only for sessions
+  working in this same project. It never applies to every session.
+- **No:** refused.
+
+The tests pass (42 for the question flow, 207 across all the hooks, 0 failures).
+This version hasn't come up live yet; it will the next time a session writes
+outside its folder.
+
+**Behind the scenes:**
+- The permission lists still record whether each entry covers one file or a
+  whole folder. Every answer now writes a folder entry, but a file-only answer
+  could come back later without changing the lists' format.
+- The permissions you've already given are all folder entries, so they still
+  work unchanged.
+- Questions already handed out in the old two-part format will just expire after
+  30 minutes.
+
+It's committed as `fd242a704`, and the write-check issue is closed again.
 
 --------------------------------------------------------------------------------
 
