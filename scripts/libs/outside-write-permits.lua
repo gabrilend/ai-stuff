@@ -3,35 +3,44 @@
 -- The permissions a person can give for a write outside a session's folder,
 -- kept where no agent can write them, for the write gate
 -- (harness-hooks/refuse-outside-writes) and the hook that reads the person's
--- answer (harness-hooks/answer-outside-write). Issue 043, step 9.
+-- answer (harness-hooks/answer-outside-write). Issue 043, steps 9-11.
 --
 -- In plain terms: when the gate refuses a write it could pin down, it files
--- a request -- which places, which session, and the exact question the agent
--- must put to the person. The person answers Yes (this once), Always (these
--- folders, from now on) or No. A Yes becomes a grant the session spends on
--- its next write that needs no more than those places; a This session adds
--- the folders to a list only that session's gate reads, until it ends; an
--- Always adds them to a list every session's gate reads.
+-- a request -- which places, which session, which project, and the two
+-- questions the agent must put to the person:
+--   How long?  Once / This session / Always / No
+--   How wide?  This file / This folder
+-- Once is a grant the session spends on its next write needing no more than
+-- those places. This session puts the file or folder on a list only that
+-- session's gate reads, until it ends. Always puts it on a list read by the
+-- gate of every session working in the same project folder -- never every
+-- session: the owner, 2026-10-21, "it should never give global
+-- permissions".
 --
 -- Where things live:
 --   requests  <state>/requests/<id>.json            in RAM; 30 minutes
 --   grants    <state>/grants/<session>/<id>.json    in RAM; 30 minutes
---   allowed   <allowed file>, one real folder per line, on disk
---   session   <state>/session-allowed/<session>, one real folder per line,
---             in RAM, removed when the session ends (forget-session-permits)
+--   session   <state>/session-allowed/<session>     in RAM, until the
+--             session ends (forget-session-permits); lines
+--             "<file|folder>\t<place>"
+--   always    <allowed file>, on disk; lines
+--             "<project>\t<file|folder>\t<place>"
 -- <state> is /dev/shm/claude-outside-writes and <allowed file> is
 -- ~/.claude/outside-write-allowed-folders; both are outside every project
 -- folder, so the gate itself refuses an agent writing them. The environment
 -- variables OUTSIDE_WRITE_STATE and OUTSIDE_WRITE_ALLOWED move them, for the
--- tests only.
+-- tests only. A "project" is the session's own folder as a real place, the
+-- same folder the gate measures inside by. A "file" line covers exactly its
+-- place; a "folder" line covers it and everything below.
 --
 -- A request file holds (JSON):
 --   id          string   8 hex digits from /dev/urandom
 --   session_id  string   the session that was refused
+--   project     string   that session's folder, as a real place
 --   places      list of strings, real places (links followed)
---   question    the question to ask, as the question tool takes it:
---               { question = string, header = string, multiSelect = false,
---                 options = list of { label = string, description = string } }
+--   questions   list of the two questions to ask, as the question tool
+--               takes them: { question = string, header = string,
+--               multiSelect = false, options = list of { label, description } }
 --   made        number   seconds since 1970
 -- A grant file holds { places = list of strings, made = number }.
 --
@@ -120,20 +129,37 @@ function permits.folders_for(places)
 end
 -- }}}
 
--- {{{ function permits.question_for()
--- The exact question the agent must ask for a request. Everything the
--- person needs to decide is in the words they see: the places, and what
--- Always would open.
-function permits.question_for(id, places)
+-- The answers' labels, named once: the answer hook acts on these.
+permits.ONCE, permits.SESSION, permits.ALWAYS, permits.NO = "Once", "This session", "Always", "No"
+permits.FILE, permits.FOLDER = "This file", "This folder"
+
+-- {{{ function permits.questions_for()
+-- The exact two questions the agent must ask for a request. Everything the
+-- person needs to decide is in the words they see: the places, the folders
+-- "This folder" would open, and the project "Always" belongs to. Both carry
+-- the request id, so the answer hook can find them.
+function permits.questions_for(id, project, places)
+    local folders = table.concat(permits.folders_for(places), ", ")
     return {
-        question = "Allow a write outside this session's folder, to " .. table.concat(places, ", ") .. "? [outside-write " .. id .. "]",
-        header = "Outside",
-        multiSelect = false,
-        options = {
-            { label = "Yes", description = "Allow this write, this once." },
-            { label = "This session", description = "Allow any write inside " .. table.concat(permits.folders_for(places), ", ") .. ", for this session only, until it ends." },
-            { label = "Always", description = "Allow any write inside " .. table.concat(permits.folders_for(places), ", ") .. ", for every session, from now on." },
-            { label = "No", description = "Keep it refused." },
+        {
+            question = "Allow a write outside this session's folder, to " .. table.concat(places, ", ") .. "? [outside-write " .. id .. "]",
+            header = "How long",
+            multiSelect = false,
+            options = {
+                { label = permits.ONCE, description = "Allow this write, this once." },
+                { label = permits.SESSION, description = "Allow from now until this session ends." },
+                { label = permits.ALWAYS, description = "Allow from now on, for sessions working in " .. project .. " only." },
+                { label = permits.NO, description = "Keep it refused." },
+            },
+        },
+        {
+            question = "If allowed for longer than once, how wide? [outside-write " .. id .. " width]",
+            header = "How wide",
+            multiSelect = false,
+            options = {
+                { label = permits.FILE, description = "Only " .. table.concat(places, ", ") .. "." },
+                { label = permits.FOLDER, description = "Anything inside " .. folders .. "." },
+            },
         },
     }
 end
@@ -142,13 +168,14 @@ end
 -- {{{ function permits.file_request()
 -- Files a request for a refused write and returns it (the table described
 -- at the top), or nil and a message.
-function permits.file_request(json, session_id, places)
+function permits.file_request(json, session_id, project, places)
     local id = new_id()
     local request = {
         id = id,
         session_id = session_id,
+        project = project,
         places = places,
-        question = permits.question_for(id, places),
+        questions = permits.questions_for(id, project, places),
         made = os.time(),
     }
     local ok, err = write_file(STATE .. "/requests/" .. id .. ".json", json.encode(request))
@@ -223,7 +250,7 @@ end
 -- }}}
 
 -- {{{ local function session_file()
--- Where one session's This-session folders are kept, or nil for an id
+-- Where one session's This-session permissions are kept, or nil for an id
 -- Claude Code would not give.
 local function session_file(session_id)
     if type(session_id) ~= "string" or not session_id:match("^[%w%-]+$") then return nil end
@@ -231,83 +258,111 @@ local function session_file(session_id)
 end
 -- }}}
 
--- {{{ local function folders_in()
--- The absolute folders listed in a file, one per line; anything else in
--- the file is ignored.
-local function folders_in(path)
-    local folders = {}
+-- {{{ local function lines_of()
+-- The lines of a file, split on tabs, as a list of lists of strings.
+local function lines_of(path)
+    local rows = {}
     for line in (path and read_file(path) or ""):gmatch("[^\n]+") do
-        -- only absolute folders count; anything else in the file is ignored
-        if line:sub(1, 1) == "/" then folders[#folders + 1] = line end
+        local row = {}
+        for field in (line .. "\t"):gmatch("([^\t]*)\t") do row[#row + 1] = field end
+        rows[#rows + 1] = row
     end
-    return folders
+    return rows
 end
 -- }}}
 
--- {{{ function permits.allowed_folders()
--- The folders on the allowed list (Always), as a list of strings.
-function permits.allowed_folders()
-    return folders_in(ALLOWED)
+-- {{{ local function covers()
+-- True when a permission of `kind` for `held` covers `place`. Anything that
+-- is not one of the two kinds covers nothing.
+local COVERS_OF_KIND = {
+    file = function(place, held) return place == held end,
+    folder = function(place, held) return is_inside(place, held) end,
+}
+local function covers(kind, held, place)
+    local test = COVERS_OF_KIND[kind]
+    return test ~= nil and type(held) == "string" and held:sub(1, 1) == "/" and test(place, held)
 end
 -- }}}
 
--- {{{ function permits.session_folders()
--- The folders one session was allowed until it ends (This session).
-function permits.session_folders(session_id)
-    return folders_in(session_file(session_id))
+-- {{{ function permits.entries_for()
+-- What an answer of `width` (FILE or FOLDER) puts on a list for these
+-- places: a list of { kind = "file"|"folder", place = string }.
+function permits.entries_for(width, places)
+    local entries = {}
+    if width == permits.FILE then
+        for _, place in ipairs(places) do entries[#entries + 1] = { kind = "file", place = place } end
+    else
+        for _, folder in ipairs(permits.folders_for(places)) do entries[#entries + 1] = { kind = "folder", place = folder } end
+    end
+    return entries
+end
+-- }}}
+
+-- {{{ function permits.session_entries()
+-- One session's This-session permissions, as { kind, place } entries.
+function permits.session_entries(session_id)
+    local entries = {}
+    for _, row in ipairs(lines_of(session_file(session_id))) do
+        entries[#entries + 1] = { kind = row[1], place = row[2] }
+    end
+    return entries
+end
+-- }}}
+
+-- {{{ function permits.project_entries()
+-- One project's Always permissions, as { kind, place } entries.
+function permits.project_entries(project)
+    local entries = {}
+    for _, row in ipairs(lines_of(ALLOWED)) do
+        -- only this project's lines
+        if row[1] == project then entries[#entries + 1] = { kind = row[2], place = row[3] } end
+    end
+    return entries
 end
 -- }}}
 
 -- {{{ function permits.is_allowed()
--- True when a real place lies in a folder on the allowed list, or in one
--- this session was allowed until it ends.
-function permits.is_allowed(place, session_id)
-    for _, folder in ipairs(permits.allowed_folders()) do
-        if is_inside(place, folder) then return true end
+-- True when a real place is covered by one of this project's Always
+-- permissions or this session's This-session permissions.
+function permits.is_allowed(place, session_id, project)
+    for _, e in ipairs(permits.project_entries(project)) do
+        if covers(e.kind, e.place, place) then return true end
     end
-    for _, folder in ipairs(permits.session_folders(session_id)) do
-        if is_inside(place, folder) then return true end
+    for _, e in ipairs(permits.session_entries(session_id)) do
+        if covers(e.kind, e.place, place) then return true end
     end
     return false
 end
 -- }}}
 
--- {{{ local function add_folders()
--- Adds each place's folder to the list in `path`, unless one already there
--- covers it.
-local function add_folders(path, places)
-    local listed = folders_in(path)
-    for _, folder in ipairs(permits.folders_for(places)) do
-        local covered = false
-        for _, have in ipairs(listed) do
-            if is_inside(folder, have) then covered = true end
-        end
-        if not covered then listed[#listed + 1] = folder end
-    end
-    return write_file(path, table.concat(listed, "\n") .. "\n")
-end
--- }}}
-
--- {{{ function permits.allow_always()
--- An Always: the folders added to the allowed list every session reads.
-function permits.allow_always(places)
-    return add_folders(ALLOWED, places)
-end
--- }}}
-
 -- {{{ function permits.allow_for_session()
--- A This session: the folders added to the session's own list.
-function permits.allow_for_session(session_id, places)
+-- A This session: the entries added to the session's own list.
+function permits.allow_for_session(session_id, width, places)
     local path = session_file(session_id)
     -- not a session id Claude Code gives: nothing kept
     if not path then return nil, "not a session id: " .. tostring(session_id) end
-    return add_folders(path, places)
+    local lines = {}
+    for _, row in ipairs(lines_of(path)) do lines[#lines + 1] = table.concat(row, "\t") end
+    for _, e in ipairs(permits.entries_for(width, places)) do lines[#lines + 1] = e.kind .. "\t" .. e.place end
+    return write_file(path, table.concat(lines, "\n") .. "\n")
+end
+-- }}}
+
+-- {{{ function permits.allow_for_project()
+-- An Always: the entries added to the list on disk, for this project only.
+function permits.allow_for_project(project, width, places)
+    -- a project must be an absolute folder, or no session could ever match it
+    if type(project) ~= "string" or project:sub(1, 1) ~= "/" then return nil, "not a project folder: " .. tostring(project) end
+    local lines = {}
+    for _, row in ipairs(lines_of(ALLOWED)) do lines[#lines + 1] = table.concat(row, "\t") end
+    for _, e in ipairs(permits.entries_for(width, places)) do lines[#lines + 1] = project .. "\t" .. e.kind .. "\t" .. e.place end
+    return write_file(ALLOWED, table.concat(lines, "\n") .. "\n")
 end
 -- }}}
 
 -- {{{ function permits.forget_session()
--- At the end of a session: its This-session folders and its unspent grants
--- are removed.
+-- At the end of a session: its This-session permissions and its unspent
+-- grants are removed.
 function permits.forget_session(session_id)
     local path = session_file(session_id)
     -- not a session id Claude Code gives: nothing to remove

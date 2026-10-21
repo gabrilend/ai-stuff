@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 01:27:59
+Generated on: 2026-10-21 14:23:52
 Models: claude-opus-5-5
 
 ## Contents
@@ -17,6 +17,10 @@ Models: claude-opus-5-5
    keep conversation logs whole when projects move; your answers are recorded
    and the move issue is written. Next: type `! touch
    /tmp/claude-allow-outside-write` so I can run the symlink and cache tests.
+4. 2026-10-21 01:31, after Request 5 - We're planning the file lock and the safe
+   way to move a project; the symlink test passed and the cache test's final
+   read finishes around 02:28. Next, please answer my three questions: skill or
+   CLAUDE.md line, the cache setting, and the old-path settings.
 
 --------------------------------------------------------------------------------
 
@@ -686,6 +690,242 @@ Three questions:
 
 Cleaning up the test symlink in `~/.claude/projects` afterwards will need one
 more "Yes".
+
+--------------------------------------------------------------------------------
+
+### User Request 6
+
+> Why your earlier "Yes" didn't take: each permission question expires 30
+> minutes after the gate asks it. Yours sat for about 3¼ hours (asked at 22:11,
+> answered at 01:25), so the hook had already thrown it away. Answered within a
+> few minutes, it worked.
+
+then after 30 minutes it should return to the llm agent and say "hey um the user
+client didn't respond? Can you try something else, maybe write down what you
+wanted to do here in the issue file and move on?" that way we can keep working
+even if the user doesn't notice.
+
+> - The five-minute headless copy still reads the whole conversation from the
+> cache. About 22,500 tokens were read rather than re-sent. Only its own new
+> part, about 7,700 tokens, was written, with the five-minute lifetime. It cost
+> $0.22.
+
+whoa, uh... 0.22 cents for 7,700 tokens? That doesn't seem right.
+
+> About "how is this the standard?": right now nothing makes it standard. The
+> only record is one project's move notes. The new issue proposes a move-project
+> tool in scripts/, so the procedure exists in one place.
+
+great let's build it.
+
+> 1. Should sessions find that tool through a small skill, or through one line
+> in your CLAUDE.md? A skill is triggered when someone says "move this folder".
+> A CLAUDE.md line is read every session whether it's needed or not.
+
+oh uh let's make it a skill file instead of a script or utility. harder to mess
+up if we do it by hand each time.
+
+> 2. Should I add ENABLE_PROMPT_CACHING_1H=1 to ~/.claude/settings.json anyway?
+> Then a change in Claude Code's default can't silently shorten your cache. That
+> file is outside this repository, so it will need another "Yes".
+
+um, sure, I guess?
+
+> 3. When the move tool finds the old path in a project's own .claude/ settings,
+> such as saved extra working folders, should it rewrite them or only list them?
+
+I dunno, probably fix them?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 6
+
+> I'm writing the move skill now. Afterwards I'll install it and the cache
+> setting together, under one permission question.
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/.claude/skills/move-project,
+> /mnt/mtwo/.claude/skills/move-project/SKILL.md,
+> /mnt/mtwo/.claude/settings.json.new, /mnt/mtwo/.claude/settings.json.new,
+> /mnt/mtwo/.claude/settings.json? [outside-write 361426b2]
+> - Yes — Allow this write, this once.
+> - Always — Allow any write inside /mnt/mtwo/.claude/skills,
+>   /mnt/mtwo/.claude/skills/move-project, /mnt/mtwo/.claude, for every session,
+>   from now on.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/.claude/skills/move-project,
+> /mnt/mtwo/.claude/skills/move-project/SKILL.md,
+> /mnt/mtwo/.claude/settings.json.new, /mnt/mtwo/.claude/settings.json.new,
+> /mnt/mtwo/.claude/settings.json? [outside-write 646e6c05]
+> - Yes — Allow this write, this once.
+> - This session — Allow any write inside /mnt/mtwo/.claude/skills,
+>   /mnt/mtwo/.claude/skills/move-project, /mnt/mtwo/.claude, for this session
+>   only, until it ends.
+> - Always — Allow any write inside /mnt/mtwo/.claude/skills,
+>   /mnt/mtwo/.claude/skills/move-project, /mnt/mtwo/.claude, for every session,
+>   from now on.
+> - No — Keep it refused.
+> → **Selected:** This session
+
+> Cleaning up the test files. I also found a small fault in the outside-write
+> gate along the way.
+
+> Now rewriting the move issue to match the decision to use a skill instead of a
+> tool:
+
+> Replacing lines 47–114 of the move issue with the skill version:
+
+*[commit] 497307e4f in ai-stuff - Plan: moving a project keeps its conversations; the lock's answers*
+
+I built the move skill, set the one-hour cache, and committed the planning work.
+The third cache read gave the answer we wanted, and your "after 30 minutes" idea
+doesn't work the way you described, for a reason below.
+
+**Cost:** it's 22 cents, not 0.22 cents, and most of it wasn't the headless
+copy. The cost a resumed or forked session reports includes the earlier turns it
+continues from, and the first turn alone was 18 cents. The headless copy's own
+turn cost about 4 cents. These are Claude Code's estimates at list price;
+whether you're actually charged per token depends on your plan.
+
+**Cache test result:** the read 62 minutes after the first turn found nothing.
+The whole conversation had to be written to the cache again, about 23,000
+tokens. So the five-minute headless copy reads the parent's cached conversation
+but does not keep the server's copy alive for another hour. The server holds
+memory only for the copy's own five minutes, which is the kind behaviour you
+wanted. The headless commit will run with the five-minute setting.
+
+**Done:**
+- **The move skill** is at `~/.claude/skills/move-project/SKILL.md`. It's
+  written from the wow-chat move and walks through each step by hand:
+  - stop the sessions working in the project;
+  - copy it with rsync, then prove the copy (same file counts and bytes, `git
+    fsck`);
+  - rewrite the old path in tracked files outside the transcripts, in untracked
+    files and links, in the project's `.claude/` settings, in your user
+    settings, and in Claude Code's own per-folder record;
+  - merge the raw session logs, stopping if two copies of one conversation
+    disagree;
+  - leave links at the old places, prove nothing still names the old path, and
+    start new sessions at the new place.
+- **`ENABLE_PROMPT_CACHING_1H=1`** is now set in `~/.claude/settings.json`.
+- **Committed** both issue files with the transcripts: your answers and the
+  cache results in the lock issue, and the new move issue.
+
+**Not done yet:** the change that makes the transcript rebuild refuse, rather
+than silently skip conversations, when a project has two raw-log folders. That
+was the "this is a concern" part. Should I build it now?
+
+**The 30-minute idea:** while the permission question waits for your click, the
+session is paused in the middle of its turn. No code of the agent runs, and
+hooks fire only when a tool starts or finishes. So nothing can come back to the
+agent after 30 minutes unless Claude Code itself gives up on the question, and I
+don't know of a setting that does that. What can be done, most useful first:
+1. **Honour a late answer.** The question stays valid for a day, and the 30
+   minutes count from your answer instead of from the asking. Your three late
+   "Yes" answers would all have worked.
+2. **Write it down before asking.** The refusal tells the agent to put what it
+   was about to do into the issue file first. If you're away, the intent is
+   already recorded.
+3. **Don't ask mid-turn.** The agent ends its turn with the request instead.
+   Nothing blocks, but nothing continues either.
+
+Which do you want? This belongs to the outside-write gate's issue, which another
+session built yesterday.
+
+**A fault in that gate:** it refused `rm` of a symlink because it judged the
+command by where the link points, but `rm` removes only the link itself. So one
+test symlink is still at
+`~/.claude/projects/-tmp-ai-stuff-scripts-move-test-project`. It points into
+`/tmp`, so the link will point at nothing after a reboot. You can remove it
+with:
+
+```
+! rm /home/ritz/.claude/projects/-tmp-ai-stuff-scripts-move-test-project
+```
+
+**Skills aren't kept in git.** `~/.claude/skills/` is a plain folder, so the
+move skill has no history apart from the issue that describes it. Should skills
+live in a folder in this repository, with `~/.claude/skills` linking to it?
+
+--------------------------------------------------------------------------------
+
+### User Request 7
+
+Hang on, I thought ~/.claude/ was a symlink to /home/ritz/programs/claude-code/
+which is a git repository? Can you investigate?
+
+> Cost: it's 22 cents, not 0.22 cents, and most of it wasn't the headless copy.
+> The cost a resumed or forked session reports includes the earlier turns it
+> continues from, and the first turn alone was 18 cents. The headless copy's own
+> turn cost about 4 cents. These are Claude Code's
+> estimates at list price; whether you're actually charged per token depends on
+> your plan.
+
+okay but that still seems absurd because 0.22 cents for 8k tokens when I
+commonly use sessions with millions of tokens... What on earth?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 7
+
+You were half right. `~/.claude` is itself a git repository. The link points the
+other way from what you remembered: `/home/ritz/programs/claude-code` links into
+it, at `/mnt/mtwo/.claude/claude-code`. I was wrong to say skills aren't kept in
+git, and I've corrected the move issue.
+
+**How the `~/.claude` repository works:** its ignore file starts by ignoring
+everything, then lets back in only `CLAUDE.md` and the `claude-code/` program
+folder. Each skill was then added on purpose, one by one. So a new skill stays
+untracked until someone adds it. Right now:
+
+| Tracked | Not tracked |
+|---|---|
+| `CLAUDE.md`, the Claude Code program folder, and 9 skills (issue-lifecycle, transcript-care, project-init, documentation-site, and others) | `settings.json`, which holds every hook and today's cache setting; the skills **see-in-3d**, **stethoscope**, **wait-for-change**, and the new **move-project** |
+
+The issue-lifecycle and transcript-care skills also have uncommitted edits
+there, and those aren't mine.
+
+## The cost
+
+The test turn wasn't 8,000 tokens. It sent about 30,000: Claude Code's own
+instructions, the tool list and your CLAUDE.md, which is long. Nearly all of
+that was **written** to the cache, because each test was a fresh conversation,
+and writing is the expensive part.
+
+I worked out the rates from Claude Code's own cost figures. These four turns fit
+them:
+
+| What happens to a token | About |
+|---|---|
+| written to the one-hour cache | $8 per million |
+| written to the five-minute cache | $5 per million |
+| read back from the cache | $0.20–0.40 per million |
+
+**Why your million-token sessions feel cheap:** each turn re-sends the whole
+conversation, but while the cache is warm almost all of it is a cheap read. A
+turn on a 1-million-token conversation costs roughly 20–40¢. Once the cache
+lapses, the next turn must write it all again, roughly $8 for that one turn.
+That's the "reload your tokens" moment you described, and it's exactly what the
+headless commit timer is meant to avoid. Our tiny test turns had the worst
+ratio: all writing, very little reading.
+
+These are list prices. Claude Code labels them that way and reports them
+whatever your plan is. On a subscription, they measure how much of your
+allowance a turn uses, not money charged.
+
+Two questions:
+1. Should I add the move skill to the `~/.claude` repository and commit it
+   there?
+2. `settings.json` holds every hook your safety gates depend on, but it isn't
+   tracked. Was that on purpose, perhaps because it can hold secrets? Or should
+   it be in git too, along with the three other untracked skills?
 
 --------------------------------------------------------------------------------
 

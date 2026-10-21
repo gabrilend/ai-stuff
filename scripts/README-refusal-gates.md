@@ -20,8 +20,8 @@ hook also calls with `--hook`.
 | `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
 | `refuse-foreign-lines` | gate (before Bash) | refuses a plain `git commit` that would record anything, pointing at `commit-own-changes` | `touch /tmp/claude-allow-foreign-commit` |
 | `refuse-outside-writes` | gate (before Bash, Edit, Write, MultiEdit, NotebookEdit) | refuses a file tool writing, or a command that writes (redirection, `sed -i`, `tee`, `cp`, `mv`, `rm`, …) anywhere but the session's folder, its two RAM rooms, or `/dev/null` and its kind; never answers "allow", so Claude Code's classifier still judges every command it lets by | `touch /tmp/claude-allow-outside-write` |
-| `answer-outside-write` | hook (before and after AskUserQuestion) | reads the person's Yes / This session / Always / No to the write gate's question from what Claude Code records, and grants once, allows the folder until the session ends, allows it for good, or grants nothing; refuses a question that arrives with its answers filled in | — |
-| `forget-session-permits` | hook (SessionEnd) | removes the folders a session was allowed "This session" and its unspent Yes grants | — |
+| `answer-outside-write` | hook (before and after AskUserQuestion) | reads the person's two answers to the write gate's questions (how long: Once / This session / Always / No; how wide: This file / This folder) from what Claude Code records, and grants once, allows the file or folder until the session ends, allows it from now on for that project only, or grants nothing; refuses a question that arrives with its answers filled in | — |
+| `forget-session-permits` | hook (SessionEnd) | removes what a session was allowed "This session" and its unspent Once grants | — |
 | `merge-agent-scratchpad` | hook (SessionEnd) | moves the session's Claude Code scratchpad into `/tmp/<name>/agent-scratchpads/<session>/` behind the session folder's `tmp` link; leaves it in place when there is no link | — |
 | `allow-own-ram-tiers` | permission (before Read, Edit, Write, MultiEdit, NotebookEdit, Glob, Grep) | answers "allow" for a path inside the session's own project's RAM tiers, so Claude Code's folder boundary does not ask; says nothing about any other path | — (it only widens) |
 | `carry-working-folder-name` | hook (SessionStart, CwdChanged) | makes each command's shell show the folder name Claude Code has on record, not the one inherited at launch | — |
@@ -133,21 +133,28 @@ answer it. Reading outside the folder stays free. A refusal here outranks
 `allow-own-ram-tiers`'s "allow" (a deny from any hook wins), though the two
 never disagree: the rooms are inside for both.
 
-**Asking the person: Yes, This session, Always, No.** When the gate refuses a write
-whose places it can pin down, it files a request (in
-`/dev/shm/claude-outside-writes/`) and hands the agent one question to ask
-word for word with the question tool: the places in its text, a tag
-`[outside-write <id>]`, and the answers Yes (this once), This session
-(anything in these folders, for this session until it ends), Always
-(anything in these folders, every session, from now on) and No. `answer-outside-write`
-reads the answer from what Claude Code records after the person picks one,
-checks the question was asked exactly as filed and by the session refused,
-and acts: a Yes is a grant that session spends on its next write needing no
-more than those places; a This session adds the folders to a list in RAM
-under the session's id, which `forget-session-permits` removes when the
-session ends; an Always adds the folders to
-`~/.claude/outside-write-allowed-folders`, which every session's gate
-reads. A hook cannot ask the person itself (it runs without the terminal),
+**Asking the person: how long, and how wide.** When the gate refuses a
+write whose places it can pin down, it files a request (in
+`/dev/shm/claude-outside-writes/`) and hands the agent two questions to ask
+in one call, word for word, both tagged `[outside-write <id>]`:
+
+- *How long?* Once (this write), This session (until the session ends),
+  Always (from now on, for sessions working in this same project folder),
+  No.
+- *How wide?* This file (exactly the places refused), This folder
+  (anything inside the folder each is in). Once covers just the write
+  either way.
+
+Always never reaches past the project that answered it (the owner,
+2026-10-21: "it should never give global permissions"); a project is the
+session's own folder. `answer-outside-write` reads both answers from what
+Claude Code records after the person picks them, checks both questions
+were asked exactly as filed and by the session refused, and acts: Once is a
+grant that session spends on its next write needing no more than those
+places; This session keeps the file or folder in a list in RAM under the
+session's id, which `forget-session-permits` removes when the session ends;
+Always keeps it in `~/.claude/outside-write-allowed-folders`, one line per
+permission: project, kind, place. A hook cannot ask the person itself (it runs without the terminal),
 and Claude Code's own permission dialog can be answered by the auto-mode
 classifier, hence the agent asking and a hook reading. The agent cannot
 forge any of it: the request store and the allowed list are outside every

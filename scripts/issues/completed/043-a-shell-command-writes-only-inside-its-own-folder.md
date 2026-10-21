@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-Complete, 2026-10-20; step 10 (a fourth answer, "This session") added and complete 2026-10-21. `harness-hooks/refuse-outside-writes` sits under the
+Complete, 2026-10-20; steps 10 and 11 (a This-session answer; how long and how wide asked apart, Always belonging to one project) added and complete 2026-10-21. `harness-hooks/refuse-outside-writes` sits under the
 PreToolUse Bash matcher and the file-tool matcher, `answer-outside-write`
 before and after the question tool, and `merge-agent-scratchpad` on
 SessionEnd, all in `~/.claude/settings.json` (earlier settings kept as
@@ -13,7 +13,11 @@ session's refused; an Edit of `~/.claude/settings.json` refused, its
 question asked, answered Yes by the owner, read by the answer hook, and the
 same Edit then let through once, the grant spent. On 2026-10-21 the
 four-answer question was asked live for another settings edit (answered
-Yes) and `forget-session-permits` installed under SessionEnd. The session-end move has
+Yes) and `forget-session-permits` installed under SessionEnd. Later that
+day the two-question form was asked live, answered Once, and used to
+rewrite the two global Always entries per project and the two live
+sessions' lists in the new format; a session in the project that answered
+Always was then let through, and one in another project refused. The session-end move has
 not yet been seen on a real session ending. Tests:
 `tests/test-refuse-outside-writes.sh`, `tests/test-answer-outside-write.sh`,
 `tests/test-merge-agent-scratchpad.sh`, and the reader's redirect cases in
@@ -204,6 +208,35 @@ run, as every gate here does (`gate.warn_and_allow`).
    - tests in `tests/test-answer-outside-write.sh`, which ends a session
      and checks This session and an unspent Yes are forgotten and Always is
      not.
+
+11. How long and how wide, asked apart; Always never global. The owner,
+   2026-10-21, wanting "yes, for this session only" for one file, and on
+   being told Always and a per-project answer differ only in who is
+   covered: "replace 'this project' with 'always'. That's what always
+   should be, it should never give global permissions. Can you prune any
+   that already exist and replace them with project specific
+   permissions?" So the one call to the question tool carries two
+   questions, both tagged with the request id:
+   - **How long?** Once (this write), This session (until it ends),
+     Always (from now on, for sessions working in this same project
+     folder), No.
+   - **How wide?** This file (exactly the places refused), This folder
+     (anything inside the folder each is in). Once covers just the write
+     either way; No ignores it.
+   - "This project" is the session's own folder, as a real place: the same
+     folder the gate measures "inside" by.
+   - The allowed list on disk holds one line per permission:
+     `<project>\t<file|folder>\t<place>`. The session list in RAM holds
+     `<file|folder>\t<place>`. A file permission covers exactly that place;
+     a folder permission covers it and everything below.
+   - The two global entries already on the list were rewritten for the
+     project whose session answered them (found in the sessions' logs:
+     `world-edit-to-execute/issues` for `/mnt/kaun/wow-chat-2026`,
+     `custom-client/docs` for
+     `/mnt/mtwo/games/azeroth-core/decomp-client`), and the two sessions'
+     This-session lists in RAM rewritten as folder lines.
+   - The answer hook grants nothing unless both questions were asked
+     exactly as filed and both answered.
 
 ## Known Limits (stated, not built)
 

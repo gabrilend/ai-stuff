@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 14:18:14
+Generated on: 2026-10-21 14:33:51
 Models: claude-opus-5-5
 
 ## Contents
@@ -23,6 +23,10 @@ Models: claude-opus-5-5
    physics-sim, and the documentation-site skill is now committed. Next, answer
    my three questions on room styling, page naming and the README, then I'll
    start on physics-sim.
+5. 2026-10-21 14:21, after Request 18 - We're building a hand-written "lodge"
+   front page for each project, and physics-sim's six rooms are built and
+   committed. Next, type `! touch /tmp/claude-allow-outside-write` so I can add
+   the lodge layout to the documentation-site skill.
 
 --------------------------------------------------------------------------------
 
@@ -1395,6 +1399,103 @@ allow it, type:
 To start on the questions, take the first: when the game is run for a picture,
 which moments would you most want it to be able to act out on its own? Dropping
 balls at a set second, buying a stage, opening the upgrade menu?
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+okay it looks good, but I'm going to offer some suggestions, and you're going to
+write them into the skill files as you'd describe my intentions to someone else.
+The idea being that we're working on the pattern right now, not one specific
+site.
+
+the story so far page is way too long. There needs to be more gifs, this game
+comes alive in motion. Try and get one gif for each mechanic - so have a small
+gif that just shows two balls exploding in contact with each other, then another
+gif that shows two balls where one survives and one explodes, and how the shards
+propagate. You might need to make test scenes or similar, but they should be
+made in RAM so as not to pollute the project too much. The story page needs to
+be a single page, right now you scroll scroll scroll scroll...
+
+we should not really reference issue files in the lodge. That's for the
+source-browser, which we should A. build for every project, and B. use as a git
+clone target for that repository, and C. link to from the lodge. The lodge is
+low stakes, it's supposed to be a cozy place to hang out. Eventually it'll have
+chat rooms and stuff. It's like how a software project might have a link to
+their github from their main page, but the main page is for selling people on
+the product. We're not like that, and instead we're just giving a place to hang
+out.
+
+This game is about pachinko. We could have links to articles, references,
+real-world inspiration pics, just anything we can think of that someone who is
+really into pachinko might be into. We could have links to our other projects
+that use similar systems (I don't think there are many tbh for this particular
+project, but good to keep in mind for the future.)
+
+also we shouldn't tell the user how to play. or how to download it. Keep it very
+much like a fan site on neocities or something.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+> I'll write your suggestions up as a new `lodge` skill, since the lodge is now
+> its own pattern rather than a corner of the documentation skill. Then I'll
+> update `documentation-site` so the source browser becomes the place for issues
+> and source, built for every project. Both files are drafted in the scratchpad
+> first, then copied into place with one permission.
+
+> Now the documentation-site skill: rule 16 becomes a pointer to the new skill,
+> and the source browser gets its own rule.
+
+Both skill files are drafted in the scratchpad. One copy command puts both in
+place:
+
+- **A new `lodge` skill**, written as your intentions described to someone else:
+  - **What it is:** a cozy fan site for hanging out, like something on
+    neocities. It's not a product page or a manual, and it should leave room for
+    chat rooms later.
+  - **What it's about:** the subject the project loves, not the software. For
+    pachinko that means articles, references, real-world inspiration pictures,
+    and links to sibling projects that share a system.
+  - **What it leaves out:** no instructions, no download or build steps, no
+    issue numbers, no salesmanship. Your "500 script files" line is quoted as
+    the rule.
+  - **Motion over words:** one small gif per mechanic, each showing one thing.
+    Your two exploding-ball examples are written in as the model. Each is staged
+    as a minimal test scene built in RAM, using the real program, not faked. If
+    the program can't stage a scene by itself, teaching it to comes first, as
+    its own project work.
+  - **The story room:** a single page, about one screen, carried by pictures.
+  - **The source browser:** one plain link to it, the door to the workshop.
+  - **What carries over from the first lodge:** hand-written rooms, a stylesheet
+    per room, a generator per project, built pages kept out of git.
+- **`documentation-site` updated.** Rule 16 is now only the museum-label case
+  and points to the lodge skill. A new rule 17 says every project gets a source
+  browser, which holds everything technical, is the address you `git clone`
+  from, and is what the lodge links to.
+
+Three open questions are written into the skills rather than decided by me:
+- **Where the finished gifs live.** I proposed the project's development
+  history.
+- **Outside pictures:** link to them where they are, or save copies with credit?
+- **How cloning from the source browser works.** One candidate: a bare
+  repository copy published beside the pages, which git can clone over plain
+  HTTP. Also whether one shared tool builds every project's browser.
+
+To allow the copy, type:
+
+```
+! touch /tmp/claude-allow-outside-write
+```
+
+The physics-sim lodge doesn't follow the new pattern yet. Its rooms still give
+controls and issue numbers, and the story is long. I haven't changed it, since
+you said this round is about the pattern.
+
+Starting with the first open question: when a gif shows two balls meeting and
+both exploding, should it live in the project's development history beside the
+other pictures, or does the lodge keep its own shelf of exhibits?
 
 --------------------------------------------------------------------------------
 
