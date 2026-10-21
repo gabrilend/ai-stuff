@@ -3,19 +3,21 @@
 -- The permissions a person can give for a write outside a session's folder,
 -- kept where no agent can write them, for the write gate
 -- (harness-hooks/refuse-outside-writes) and the hook that reads the person's
--- answer (harness-hooks/answer-outside-write). Issue 043, steps 9-11.
+-- answer (harness-hooks/answer-outside-write). Issue 043, steps 9-12.
 --
 -- In plain terms: when the gate refuses a write it could pin down, it files
--- a request -- which places, which session, which project, and the two
--- questions the agent must put to the person:
---   How long?  Once / This session / Always / No
---   How wide?  This file / This folder
--- Once is a grant the session spends on its next write needing no more than
--- those places. This session puts the file or folder on a list only that
--- session's gate reads, until it ends. Always puts it on a list read by the
--- gate of every session working in the same project folder -- never every
--- session: the owner, 2026-10-21, "it should never give global
--- permissions".
+-- a request -- which places, which session, which project, and the one
+-- question the agent must put to the person, with four answers. The owner,
+-- 2026-10-21: "yes is one single write, this time is until session closes,
+-- always is forever, and no means no", each reaching "the file's folder":
+--   Yes        a grant the session spends on its next write needing no
+--              more than those places
+--   This time  the folders on a list only that session's gate reads,
+--              until it ends
+--   Always     the folders on a list read by the gate of every session
+--              working in the same project folder -- never every session:
+--              "it should never give global permissions"
+--   No         nothing
 --
 -- Where things live:
 --   requests  <state>/requests/<id>.json            in RAM; 30 minutes
@@ -38,7 +40,7 @@
 --   session_id  string   the session that was refused
 --   project     string   that session's folder, as a real place
 --   places      list of strings, real places (links followed)
---   questions   list of the two questions to ask, as the question tool
+--   questions   list of the one question to ask, as the question tool
 --               takes them: { question = string, header = string,
 --               multiSelect = false, options = list of { label, description } }
 --   made        number   seconds since 1970
@@ -130,35 +132,29 @@ end
 -- }}}
 
 -- The answers' labels, named once: the answer hook acts on these.
-permits.ONCE, permits.SESSION, permits.ALWAYS, permits.NO = "Once", "This session", "Always", "No"
-permits.FILE, permits.FOLDER = "This file", "This folder"
+permits.ONCE, permits.SESSION, permits.ALWAYS, permits.NO = "Yes", "This time", "Always", "No"
+-- The widths a list entry can have. Answers write FOLDER only (step 12);
+-- FILE is kept so a narrower answer can return without a format change.
+permits.FILE, permits.FOLDER = "file", "folder"
 
 -- {{{ function permits.questions_for()
--- The exact two questions the agent must ask for a request. Everything the
--- person needs to decide is in the words they see: the places, the folders
--- "This folder" would open, and the project "Always" belongs to. Both carry
--- the request id, so the answer hook can find them.
+-- The exact question the agent must ask for a request, as a list of one
+-- (the question tool takes a list). Everything the person needs to decide
+-- is in the words they see: the places, the folders This time and Always
+-- would open, and the project Always belongs to. It carries the request
+-- id, so the answer hook can find it.
 function permits.questions_for(id, project, places)
     local folders = table.concat(permits.folders_for(places), ", ")
     return {
         {
             question = "Allow a write outside this session's folder, to " .. table.concat(places, ", ") .. "? [outside-write " .. id .. "]",
-            header = "How long",
+            header = "Outside",
             multiSelect = false,
             options = {
-                { label = permits.ONCE, description = "Allow this write, this once." },
-                { label = permits.SESSION, description = "Allow from now until this session ends." },
-                { label = permits.ALWAYS, description = "Allow from now on, for sessions working in " .. project .. " only." },
+                { label = permits.ONCE, description = "Allow this one write." },
+                { label = permits.SESSION, description = "Allow any write inside " .. folders .. " until this session ends." },
+                { label = permits.ALWAYS, description = "Allow any write inside " .. folders .. " from now on, for sessions working in " .. project .. " only." },
                 { label = permits.NO, description = "Keep it refused." },
-            },
-        },
-        {
-            question = "If allowed for longer than once, how wide? [outside-write " .. id .. " width]",
-            header = "How wide",
-            multiSelect = false,
-            options = {
-                { label = permits.FILE, description = "Only " .. table.concat(places, ", ") .. "." },
-                { label = permits.FOLDER, description = "Anything inside " .. folders .. "." },
             },
         },
     }
@@ -285,7 +281,7 @@ end
 -- }}}
 
 -- {{{ function permits.entries_for()
--- What an answer of `width` (FILE or FOLDER) puts on a list for these
+-- What an answer of `width` (permits.FILE or permits.FOLDER) puts on a list for these
 -- places: a list of { kind = "file"|"folder", place = string }.
 function permits.entries_for(width, places)
     local entries = {}

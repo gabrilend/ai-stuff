@@ -497,8 +497,8 @@ local function main()
         reason = reason .. " (A question for the user could not be filed: " .. tostring(err) .. ". They can allow one such write by typing: ! touch " .. TOKEN .. ")"
         gate.refuse(json, reason)
     end
-    reason = reason .. " If this write is genuinely needed, ask the user with the AskUserQuestion tool, in one call, using exactly these two questions, word for word, with no answers filled in: " .. json.encode({ questions = request.questions })
-        .. " If they answer Once, This session or Always, run the same write again unchanged. If they answer No, do not write there."
+    reason = reason .. " If this write is genuinely needed, ask the user with the AskUserQuestion tool, using exactly this one question, word for word, with no answers filled in: " .. json.encode({ questions = request.questions })
+        .. " If they answer Yes, This time or Always, run the same write again unchanged. If they answer No, do not write there."
     gate.refuse(json, reason)
 end
 -- }}}

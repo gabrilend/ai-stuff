@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 14:33:51
+Generated on: 2026-10-21 14:39:38
 Models: claude-opus-5-5
 
 ## Contents
@@ -27,6 +27,10 @@ Models: claude-opus-5-5
    front page for each project, and physics-sim's six rooms are built and
    committed. Next, type `! touch /tmp/claude-allow-outside-write` so I can add
    the lodge layout to the documentation-site skill.
+6. 2026-10-21 14:36, after Request 19 - You're turning your feedback into a
+   reusable lodge pattern, and both updated skill files are drafted and waiting
+   to be copied into place. To allow the copy, type ! touch
+   /tmp/claude-allow-outside-write.
 
 --------------------------------------------------------------------------------
 
@@ -1496,6 +1500,64 @@ you said this round is about the pattern.
 Starting with the first open question: when a gif shows two balls meeting and
 both exploding, should it live in the project's development history beside the
 other pictures, or does the lodge keep its own shelf of exhibits?
+
+--------------------------------------------------------------------------------
+
+### User Request 20
+
+> - Where the finished gifs live. I proposed the project's development history.
+
+sure, store them in the project.
+
+>   - Outside pictures: link to them where they are, or save copies with credit?
+
+links
+
+
+
+<pasted_content id="db53">
+> - How cloning from the source browser works. One candidate: a bare repository
+> copy published
+>     beside the pages, which git can clone over plain HTTP. Also whether one shared tool builds
+>     every project's browser.
+</pasted_content id="db53">
+
+
+ideally it'd be encrypted. If git isn't encrypted then we'll have to use rmail.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 20
+
+I've added all three answers to the drafts: gifs are kept in the project,
+outside pictures are links only, and the clone must be encrypted, with rmail as
+the fallback if git can't provide it. The drafts are still in the scratchpad;
+one copy installs them once you allow it:
+
+```
+! touch /tmp/claude-allow-outside-write
+```
+
+**"Encrypted" can mean two different things, and they lead to different
+designs:**
+
+- **Encrypted in transit.** Nobody between the server and the reader (the
+  network, the Wi-Fi, the internet provider) can read the code as it travels.
+  Git already does this whenever you clone over `https://` or `ssh://`: the
+  connection is wrapped in TLS or SSH, the same protection as a bank website. A
+  copy of the repository sitting next to the source browser pages, served over
+  HTTPS from the Linode, gives this with no extra work, so git is enough here.
+- **Encrypted end to end.** Only the intended reader can read the code, and even
+  the Linode storing it sees scrambled bytes. Plain git can't do this, because
+  the server holds the files readable. Add-on tools exist that encrypt a
+  repository before it leaves your machine, but every reader then needs the key,
+  which is the point where rmail might be simpler.
+
+Both are written into the documentation-site skill as an open question, so the
+skill doesn't pick one for you.
+
+Which do you mean? For example: is the worry someone watching the connection, or
+the Linode itself (or whoever runs it) being able to read the code?
 
 --------------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 14:23:52
+Generated on: 2026-10-21 14:39:16
 Models: claude-opus-5-5
 
 ## Contents
@@ -21,6 +21,10 @@ Models: claude-opus-5-5
    way to move a project; the symlink test passed and the cache test's final
    read finishes around 02:28. Next, please answer my three questions: skill or
    CLAUDE.md line, the cache setting, and the old-path settings.
+5. 2026-10-21 14:26, after Request 7 - I'm keeping saved conversations and setup
+   safe when projects move: the move skill and one-hour cache setting are done.
+   Next, decide whether to commit the move skill to the ~/.claude repository,
+   and whether settings.json belongs there too.
 
 --------------------------------------------------------------------------------
 
@@ -926,6 +930,140 @@ Two questions:
 2. `settings.json` holds every hook your safety gates depend on, but it isn't
    tracked. Was that on purpose, perhaps because it can hold secrets? Or should
    it be in git too, along with the three other untracked skills?
+
+--------------------------------------------------------------------------------
+
+### User Request 8
+
+can we make these skill files and my claude.md file into a public repository?
+Anything else we should include in there?
+
+we can call it "claude-code-utilities"
+
+
+
+<pasted_content id="f741">
+> I worked out the rates from Claude Code's own cost figures. These four turns
+> fit them:
+
+  ┌──────────────────────────────────┬────────────────────────┐
+  │     What happens to a token      │         About          │
+  ├──────────────────────────────────┼────────────────────────┤
+  │ written to the one-hour cache    │ $8 per million         │
+  ├──────────────────────────────────┼────────────────────────┤
+  │ written to the five-minute cache │ $5 per million         │
+  ├──────────────────────────────────┼────────────────────────┤
+  │ read back from the cache         │ $0.20–0.40 per million │
+  └──────────────────────────────────┴────────────────────────┘
+</pasted_content id="f741">
+
+
+if I ever have to pay per token, I will never be able to use AI again. I have
+like, 200$ and i have to feed myself with that money! I don't even know when I
+will get more dollars. But 100$ per month of claude-code max is vitally
+important. I could not see myself using tokens though, it's just not suitable to
+my patterns.
+
+> 1. Should I add the move skill to the ~/.claude repository and commit it
+> there?
+
+yes
+
+> 2. settings.json holds every hook your safety gates depend on, but it isn't
+> tracked. Was that on purpose, perhaps because it can hold secrets? Or should
+> it be in git too, along with the three other untracked skills?
+
+um, give me a report?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 8
+
+> Committing the skill is taking a bit of untangling: the commit tool doesn't
+> see the new file. Checking why.
+
+> The commit tool can't take a file the repository ignores, so I put the git
+> index back as it was. Now checking the settings file for anything private.
+
+I haven't created anything yet. Making the repository public is the step you
+can't take back, and one thing needs your decision first.
+
+## Before anything goes public: your CLAUDE.md
+
+Your global CLAUDE.md includes the paragraph about your childhood memories of
+incontinence, your sister's diapers and hiding wet pants. It also includes your
+name spelled out ("ritz", "ri-tselen") and the paths to your home folder.
+
+I checked: that paragraph is not in anything already published in `ai-stuff`.
+Once it's in a public repository it can be copied and indexed even if you delete
+it later. You may well want it public, since it's yours to share. Choose
+deliberately:
+- **A.** Publish CLAUDE.md as it is.
+- **B.** Publish it without that paragraph, and keep the full version private.
+- **C.** Hold CLAUDE.md back for now and publish only the skills.
+
+## What `claude-code-utilities` could hold
+
+| Include | Why |
+|---|---|
+| **Your 13 skills** (everything in `~/.claude/skills/` except `synced/`) | the core of it. `synced/` holds Anthropic's own skills (e.g. "morning"), not yours |
+| **CLAUDE.md** (A, B or C above) | the rules the skills assume |
+| **An example `settings.json`**, its hooks section | shows how the safety gates are wired in |
+| **A README pointing to `ai-stuff/scripts`** | the skills call the commit tool, the issue checker, the transcript exporter and 11 hook scripts. Those already live in your public `ai-stuff` repository, so linking avoids keeping two copies in step |
+| **A licence** | `ai-stuff` uses the AGPL; your own licence draft (RGPL) at the monorepo root could go here instead, once it's ready |
+
+**Not to include:** `.credentials.json` (your login token), `history.jsonl` (7
+MB of every prompt you've typed), and `projects/` (every raw conversation).
+
+**Machine paths:** nine skill files name paths on this machine
+(`/home/ritz/...`, `/mnt/...`). They work for you but not for anyone else. They
+can be generalised later; it isn't urgent.
+
+## Report: `settings.json` and the untracked skills
+
+**`settings.json` holds no secrets.** What's in it:
+- **hooks:** the folder gate, the outside-write gate and its answer hook, the
+  own-lines ledger, the foreign-lines refusal, the RAM tiers, and the
+  working-folder-name fix. All of them are scripts in
+  `ai-stuff/scripts/harness-hooks/`.
+- **permissions:** six allowed commands, the Agent tool denied, auto mode on.
+- **env:** the to-do tools and, since today, the one-hour cache.
+- **model and effort level, two official plugins, the status line, and display
+  preferences.**
+
+**Why it isn't tracked:** the `~/.claude` repository ignores everything, then
+lets back in only CLAUDE.md, the program folder and each skill added by name.
+The ignore-everything rule is a good guard: it keeps your credentials, prompt
+history and raw conversations out. `settings.json` was simply never let back in.
+Its history is being kept by hand instead, as six copies named
+`settings.json.before-*`, one saved before each hook was added. Tracking it in
+git would replace those copies. That repository has no remote, so tracking it
+there keeps it private.
+
+**Untracked skills:** see-in-3d, stethoscope, wait-for-change, and the new
+move-project.
+
+**Why move-project isn't committed yet:** the commit tool takes only files git
+is told to track. Because this repository ignores everything, it can't see a new
+skill. I tried, then put git's index back exactly as it was. The fix is two
+lines in the `~/.claude` ignore file that let every skill in automatically, the
+same way the program folder is. Then I can commit all four untracked skills and
+`settings.json` together.
+
+## About money
+
+You're on the Max plan, so none of those per-token prices apply to you. They're
+what the same work would cost someone paying per token. The tests today used a
+little of your plan's allowance, not dollars. The headless commit sessions will
+run on the same plan. The figures matter only to show why a lapsed cache is so
+expensive, which is the thing the timer is built to avoid.
+
+## Questions
+1. CLAUDE.md: A, B or C?
+2. May I add those two lines to the `~/.claude` ignore file, then commit the
+   four skills and `settings.json` there? This stays private.
+3. Should the public repository copy the hook scripts, or point to `ai-stuff`?
+   I'd point. Copies would drift apart.
 
 --------------------------------------------------------------------------------
 

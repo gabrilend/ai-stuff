@@ -4,12 +4,10 @@
 --
 -- A hook on Claude Code's question tool (AskUserQuestion) that turns the
 -- person's answer to "allow a write outside this folder?" into a permission
--- the write gate will honour. Two questions, asked in one call:
---   How long?  Once (this write), This session (until it ends), Always
---              (from now on, for sessions in this same project folder --
---              never every session), No
---   How wide?  This file (exactly the places refused), This folder
---              (anything in the folder each is in)
+-- the write gate will honour. One question, four answers (issue 043, step
+-- 12): Yes (this one write), This time (anything in the folder each place
+-- is in, until this session ends), Always (the same folders, from now on,
+-- for sessions in this same project folder -- never every session), No.
 --
 -- In plain terms: refuse-outside-writes cannot ask the person anything --
 -- a hook runs without the terminal -- and Claude Code's own permission
@@ -20,7 +18,7 @@
 -- The owner's design, 2026-10-20: "we should ask the user a question with
 -- three answers, yes, always, and no ... Yes is 'yes, but once.'" and,
 -- 2026-10-21, on Always: "it should never give global permissions." Issue
--- 043, steps 9-11; the requests, grants and lists are kept by
+-- 043, steps 9-12; the requests, grants and lists are kept by
 -- libs/outside-write-permits.lua.
 --
 -- Two moments, told apart by the hook input's hook_event_name:
@@ -32,12 +30,11 @@
 --   PostToolUse  the gate's questions in what Claude Code recorded
 --                (tool_response: { questions, answers }) are grouped by
 --                the request id in their text, and each request checked:
---                same session, and both questions asked in the one call
---                exactly as filed, so an agent cannot reword what the
---                person is agreeing to or leave one out. Then Once grants
---                the write, This session and Always keep the file or
---                folder the second answer named (for the session, or for
---                the project), and anything else grants nothing. The
+--                same session, and the question asked exactly as filed,
+--                so an agent cannot reword what the person is agreeing
+--                to. Then Yes grants the write, This time and Always keep
+--                the folders (for the session, or for the project), and
+--                anything else grants nothing. The
 --                request is closed in every case. What happened is told to
 --                the agent as added context.
 --
@@ -119,36 +116,33 @@ end
 -- }}}
 
 -- {{{ local function what_was_allowed()
--- The plain words for what a width answer opened.
-local function what_was_allowed(width, request)
-    if width == permits.FILE then return table.concat(request.places, ", ") end
+-- The plain words for the folders This time and Always open.
+local function what_was_allowed(request)
     return "anything inside " .. table.concat(permits.folders_for(request.places), ", ")
 end
 -- }}}
 
--- What each "how long" answer does, by the label the person picked. Anything
--- not here (No, or text typed into "Other") grants nothing. Once covers just
--- the write, whatever the width; This session and Always need a width.
+-- What each answer does, by the label the person picked. Anything not here
+-- (No, or text typed into "Other") grants nothing. This time and Always
+-- open the folder each place is in (the owner, 2026-10-21: "The file's
+-- folder").
 local ACT_ON_ANSWER = {
     [permits.ONCE] = function(json, input, request)
         local ok, err = permits.grant_once(json, input.session_id, request.id, request.places)
-        if not ok then return "The user answered Once, but the permission could not be kept (" .. tostring(err) .. "); ask them to type ! touch /tmp/claude-allow-outside-write instead." end
-        return "The user answered Once for " .. table.concat(request.places, ", ") .. ": run the same write again, once."
+        if not ok then return "The user answered Yes, but the permission could not be kept (" .. tostring(err) .. "); ask them to type ! touch /tmp/claude-allow-outside-write instead." end
+        return "The user answered Yes for " .. table.concat(request.places, ", ") .. ": run the same write again, once."
     end,
-    [permits.SESSION] = function(json, input, request, width)
-        local ok, err = permits.allow_for_session(input.session_id, width, request.places)
-        if not ok then return "The user answered This session, but the permission could not be kept (" .. tostring(err) .. ")." end
-        return "The user answered This session: writes to " .. what_was_allowed(width, request) .. " are allowed for this session until it ends. Run the same write again."
+    [permits.SESSION] = function(json, input, request)
+        local ok, err = permits.allow_for_session(input.session_id, permits.FOLDER, request.places)
+        if not ok then return "The user answered This time, but the permission could not be kept (" .. tostring(err) .. ")." end
+        return "The user answered This time: writes to " .. what_was_allowed(request) .. " are allowed until this session ends. Run the same write again."
     end,
-    [permits.ALWAYS] = function(json, input, request, width)
-        local ok, err = permits.allow_for_project(request.project, width, request.places)
+    [permits.ALWAYS] = function(json, input, request)
+        local ok, err = permits.allow_for_project(request.project, permits.FOLDER, request.places)
         if not ok then return "The user answered Always, but the permission could not be kept (" .. tostring(err) .. ")." end
-        return "The user answered Always: writes to " .. what_was_allowed(width, request) .. " are allowed from now on, for sessions working in " .. request.project .. ". Run the same write again."
+        return "The user answered Always: writes to " .. what_was_allowed(request) .. " are allowed from now on, for sessions working in " .. request.project .. ". Run the same write again."
     end,
 }
-
--- The widths a This session or Always may carry.
-local WIDTHS = { [permits.FILE] = true, [permits.FOLDER] = true }
 
 -- {{{ local function answer_request()
 -- One request's verdict, as a sentence for the agent; the request is closed.
@@ -156,27 +150,22 @@ local function answer_request(json, input, response, id, asked_list)
     local request = permits.read_request(json, id)
     -- the gate's tag, but no request filed under it (or expired)
     if not request then
-        return "No open request matches [outside-write " .. id .. "] (it may have expired); nothing was granted. Run the write again to be given new questions."
+        return "No open request matches [outside-write " .. id .. "] (it may have expired); nothing was granted. Run the write again to be given a new question."
     end
     permits.close_request(id)
     -- another session's request: never this session's to answer
     if request.session_id ~= input.session_id then
         return "The request [outside-write " .. id .. "] belongs to another session; nothing was granted."
     end
-    -- reworded, or one of the two left out: the person did not see what was filed
+    -- reworded: the person did not see what was filed
     if not same_questions(asked_list, request.questions) then
-        return "The questions for [outside-write " .. id .. "] were not asked exactly as given, both in one call, so nothing was granted. Run the write again and ask them word for word."
+        return "The question for [outside-write " .. id .. "] was not asked exactly as given, so nothing was granted. Run the write again and ask it word for word."
     end
-    local how_long = response.answers[request.questions[1].question]
-    local how_wide = response.answers[request.questions[2].question]
-    local act = ACT_ON_ANSWER[how_long]
+    local answer = response.answers[request.questions[1].question]
+    local act = ACT_ON_ANSWER[answer]
     -- No, or anything typed in: nothing granted
     if not act then return "The user did not allow the write to " .. table.concat(request.places, ", ") .. ". Do not write there." end
-    -- longer than once needs a width the person picked
-    if how_long ~= permits.ONCE and not WIDTHS[how_wide] then
-        return "The user answered " .. how_long .. " but not how wide (" .. tostring(how_wide) .. "), so nothing was granted. Run the write again to be asked again."
-    end
-    return act(json, input, request, how_wide)
+    return act(json, input, request)
 end
 -- }}}
 

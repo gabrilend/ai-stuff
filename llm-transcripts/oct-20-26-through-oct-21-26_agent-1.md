@@ -1,6 +1,6 @@
 # Conversation Summary: 5473c7d4-c170-4c2f-a125-44eb0d9926e2
 
-Generated on: 2026-10-21 14:16:55
+Generated on: 2026-10-21 14:38:49
 Models: claude-opus-5-5
 
 ## Contents
@@ -21,6 +21,10 @@ Models: claude-opus-5-5
    outside their own folder; that's finished and committed, including the new
    "This session" answer. Next, close a session started inside a project that
    has a tmp link, to confirm its scratchpad gets moved.
+5. 2026-10-21 14:19, after Request 17 - We're building checks that stop agents
+   from writing outside their folder, and now splitting the permission question
+   into "how long" and "how wide". Next, you confirm that design, including
+   whether "Always + This file" allows only that exact file.
 
 --------------------------------------------------------------------------------
 
@@ -1197,6 +1201,116 @@ ignored.
 One decision is left: when someone picks **Always + This file**, should only
 that exact path be allowed forever, so a new file next to it asks again? That's
 the strict choice, and the one I'd pick. Should I build it this way?
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+Oh, replace "this project" with "always". That's what always should be, it
+should never give global permissions. Can you prune any that already exist and
+replace them with project specific permissions? Then we should have room.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+> Two global "Always" entries already exist. Finding which sessions answered
+> them, so each can become a permission for that project.
+
+> Both came from sessions in other projects: one in `wow-chat-2026`, one in
+> `decomp-client`. I'll rewrite each as a permission for the project that asked.
+> Recording the design in issue 043 first.
+
+> Now rewriting the permission store for the two-question design.
+
+> Now the gate's three calls into the store.
+
+> Rewriting the answer hook to read both answers together.
+
+> Rewriting the flow tests for two questions and project-scoped Always.
+
+> 51 pass. Now converting the live lists to the new format. They sit outside
+> this folder, so the write check will refuse and ask you, as it should. First,
+> reading what's there:
+
+> The new two-question format came up live. Asking it word for word. **Once** is
+> the right answer here, since this is a one-time conversion.
+
+> **[Asked the user]**
+>
+> *Q1 — How long:* Allow a write outside this session's folder, to
+> /mnt/mtwo/.claude/outside-write-allowed-folders,
+> /dev/shm/claude-outside-writes/session-allowed/bf7987de-b3b0-4fe0-b11e-51f9b6577005,
+> /dev/shm/claude-outside-writes/session-allowed/e72751f8-8269-4e4c-b2e2-b2da34b042a7?
+> [outside-write 84934fcd]
+> - Once — Allow this write, this once.
+> - This session — Allow from now until this session ends.
+> - Always — Allow from now on, for sessions working in
+>   /mnt/mtwo/programming/ai-stuff only.
+> - No — Keep it refused.
+> → **Selected:** Once
+>
+> *Q2 — How wide:* If allowed for longer than once, how wide? [outside-write
+> 84934fcd width]
+> - This file — Only /mnt/mtwo/.claude/outside-write-allowed-folders,
+>   /dev/shm/claude-outside-writes/session-allowed/bf7987de-b3b0-4fe0-b11e-51f9b6577005,
+>   /dev/shm/claude-outside-writes/session-allowed/e72751f8-8269-4e4c-b2e2-b2da34b042a7.
+> - This folder — Anything inside /mnt/mtwo/.claude,
+>   /dev/shm/claude-outside-writes/session-allowed.
+> → **Selected:** This folder
+
+> Nothing printed means the check stayed silent, so those writes are allowed:
+> `jq` prints nothing when given no input. Checking that a project without the
+> permission is refused:
+
+> Refused, correctly. Those leftover requests expire on their own after 30
+> minutes, so I won't ask you about them. Updating the docs and running the full
+> suite.
+
+> All pass. Closing issue 043 and committing.
+
+*[commit] 2029bc0b9 in ai-stuff - scripts: an outside write asks how long and how wide; Always stays in its project*
+
+Always is now limited to one project, and the question is split into "how long"
+and "how wide", asked together in one box:
+
+- **How long?** Once, This session, Always, No
+- **How wide?** This file, This folder
+
+"Always" now means: from now on, but only for sessions working in the same
+project folder as the one that answered. A session in a different project gets
+refused and asked again. Your "yes, for this session only" for a single file is
+now **This session + This file**. Once covers just the write that was refused,
+whatever you pick for width.
+
+**The old global permissions are gone.** Two existed, and I found in the session
+logs which project's session had answered each one. Each now holds only for that
+project:
+
+| Project that answered | Folder it may write in |
+| --- | --- |
+| `/mnt/kaun/wow-chat-2026` | `world-edit-to-execute/issues` |
+| `/mnt/mtwo/games/azeroth-core/decomp-client` | `/mnt/kaun/custom-client/docs` |
+
+I checked both directions: `wow-chat-2026` may now write in
+`world-edit-to-execute/issues`, and `decomp-client` asking for the same folder
+is refused.
+
+Two sessions that are running right now also had "This session" permissions. The
+new code couldn't read them in their old format, so I converted them as well.
+Your **Once** answer to the new two-question box was the permission for that
+rewrite, which also tested the new format live.
+
+**Safety checks:** the answer hook grants nothing if either question was
+reworded or left out. It also grants nothing if "This session" or "Always" was
+picked without choosing a width.
+
+**Tests:** the question-and-answer tests pass (51). They cover each combination,
+and check that Always works in one project and not in another. The full test run
+for the hooks passes (207 cases, 0 failures).
+
+It's committed as `2029bc0b9`, and the write-check issue is closed again. The
+one untracked file left in `scripts/tests/` belongs to another session.
 
 --------------------------------------------------------------------------------
 

@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-Complete, 2026-10-20; steps 10 and 11 (a This-session answer; how long and how wide asked apart, Always belonging to one project) added and complete 2026-10-21. `harness-hooks/refuse-outside-writes` sits under the
+Complete, 2026-10-20; steps 10-12 added and complete 2026-10-21. The question is one question with four answers (Yes, This time, Always, No), step 12; steps 10 and 11 record the forms it passed through. `harness-hooks/refuse-outside-writes` sits under the
 PreToolUse Bash matcher and the file-tool matcher, `answer-outside-write`
 before and after the question tool, and `merge-agent-scratchpad` on
 SessionEnd, all in `~/.claude/settings.json` (earlier settings kept as
@@ -237,6 +237,23 @@ run, as every gate here does (`gate.warn_and_allow`).
      This-session lists in RAM rewritten as folder lines.
    - The answer hook grants nothing unless both questions were asked
      exactly as filed and both answered.
+
+12. One question again, four answers. The owner, 2026-10-21: "I don't
+   think we should have a double question prompt, we have 4 option slots
+   and we only need 'yes' 'always' 'this-time' and 'no'", and asked what
+   each means: "yes is one single write, this time is until session
+   closes, always is forever, and no means no." Width: "The file's
+   folder." So step 11's second question is gone:
+   - **Yes**: this one write (a grant, as Once was).
+   - **This time**: anything in the folder each place is in, for this
+     session until it ends (as This session + This folder was).
+   - **Always**: anything in those folders, from now on, for sessions in
+     this same project folder (step 11's project rule stands; "forever"
+     is in time, not in reach).
+   - **No**: nothing.
+   - The lists keep their `<file|folder>` kind column, so a file-wide
+     permission can come back without a format change; answers now only
+     ever write `folder` lines.
 
 ## Known Limits (stated, not built)
 
