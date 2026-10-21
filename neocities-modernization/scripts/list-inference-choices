@@ -109,7 +109,6 @@ local function collect_models()
     end
     for _, s in ipairs(servers) do
         if type(s) == "table" then
-            add(s.model)
             for _, m in ipairs(s.available_models or {}) do
                 if type(m) == "string" then
                     add(m)

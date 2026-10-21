@@ -9,6 +9,27 @@
   keeping the reasoning it was chosen over. Questions 10–13 surfaced during that
   pass and are unanswered, so the issue is not finished. The "Current Behavior"
   section describes the state this issue started from, not the state today.
+- **2026-10-21, the embedding model has no default anywhere** (owner: "we
+  should not have a default model. It should be manually specified"). run.sh
+  already required `--model`; the shared library still answered "no model
+  named" with each server entry's own `model` field (nomic), which programs
+  run on their own and the tests then used unchosen -- the image step's test
+  read nomic embeddings four months out of date. Now:
+  - `config.lua`: no server entry names a model of its own; each lists the
+    models it serves in `available_models`, every entry with its own GGUF and
+    prompt prefix.
+  - `libs/inference-server-config.lua`: `get_selected_model` takes `--model`
+    or the run notepad, else stops with an error naming the server's models;
+    `get_selected_model_config` refuses a model the server does not list
+    (embedding it without its prefix would put its vectors in the wrong part
+    of its space); with no servers configured it errors instead of inventing a
+    "local" one.
+  - `scripts/start-llamacpp-server.sh`: `--model` documented as required.
+  - Tests name their model (the page tests: embeddinggemma-2; the image
+    step's real-data check: every model with embeddings on disk; the batch
+    smoke test: the model the running server reports).
+    `scripts/test-model-propagation.sh` checks that a run without a model is
+    refused and that no server entry names one.
 - **Sub-issues**: 10-065a (the programs run.sh starts: run on their own, they
   ask for a missing value with the default in brackets, take defaults under
   --yes, and error when run.sh started them)

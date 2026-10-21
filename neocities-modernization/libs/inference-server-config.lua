@@ -112,7 +112,6 @@ local function prompt_for_server_fallback(bad_name)
     io.stderr:write(string.format("  name:  %s\n", default_server.name))
     io.stderr:write(string.format("  host:  %s\n", default_server.host or "(missing in config!)"))
     io.stderr:write(string.format("  port:  %s\n", tostring(default_server.port or "(missing in config!)")))
-    io.stderr:write(string.format("  model: %s\n", default_server.model or "(missing in config!)"))
     io.stderr:write("\n  1) Use the default\n")
     io.stderr:write("  2) Error and exit\n")
     io.stderr:write("\nSelect 1 or 2: ")
@@ -138,30 +137,30 @@ end
 -- }}}
 
 -- {{{ get_servers
--- Get all configured Inference servers
--- Returns array of server objects, or default fallback if none configured
+-- All configured inference servers. None configured is an error: a server
+-- invented here (it used to be a hard-coded "local" entry with a default
+-- model) would look like a choice nobody made.
 function M.get_servers()
     local cfg = load_config()
     local servers = cfg.inference_servers
-
-    if servers and #servers > 0 then
-        return servers
+    if not (servers and #servers > 0) then
+        error("inference-server-config: config.lua has no inference_servers")
     end
-
-    -- Fallback default if no servers configured. host:port matches config.lua's
-    -- "local" entry (127.0.0.1:10265 -- loopback, so the unauthenticated server
-    -- is never exposed to the network) so a bare-config run still resolves to
-    -- the right endpoint.
-    return {
-        {
-            name = "local",
-            description = "Local llama.cpp instance (fallback)",
-            host = "127.0.0.1",
-            port = 10265,
-            model = "nomic-embed-text-v1.5"
-        }
-    }
+    return servers
 end
+-- }}}
+
+-- {{{ function M.model_names
+-- The names of the models a server lists (its available_models), in order.
+-- server: a server entry from config.lua; returns a list of strings.
+function M.model_names(server)
+    local names = {}
+    for _, entry in ipairs(server.available_models or {}) do
+        names[#names + 1] = entry.model
+    end
+    return names
+end
+-- }}}
 -- }}}
 
 -- {{{ get_server_by_name
@@ -302,57 +301,35 @@ end
 -- }}}
 
 -- {{{ get_selected_model
--- Resolve the model identifier to send to the inference server.
---
--- The library does not validate --model=<name> against any local list.
--- The inference server is the source of truth for "what model is loaded"
--- — the config can only ever guess. If the operator passes a --model
--- that the server does not have, the server returns a "model not found"
--- error and the pipeline halts there. We deliberately do not want two
--- layers both claiming to be authoritative about model existence; that
--- produces drift bugs where the config lists models that are no longer
--- installed, or omits models that are.
---
--- The available_models field on each inference_servers entry is still
--- useful documentation for operators (and for list_servers' --list-servers
--- output), it is just not consulted here as a gate.
+-- The model this run uses, by name. There is no default (owner, 2026-10-21:
+-- "we should not have a default model. It should be manually specified").
 --
 -- Resolution order:
---   1. Resolve the server (delegates to get_selected_server, which errors
---      or prompts if --server=<name> did not resolve).
---   2. If --model=<name> was passed, return it verbatim.
---   3. Otherwise return server.model. If that field is missing in the
---      inference_servers entry, hard-error — config.lua is still the source
---      of truth for "what model do we use by default on this host."
+--   1. --model=<name>, as set by the program's command line;
+--   2. the model run.sh recorded on this run's notepad (tmp/run-overrides.lua),
+--      so every child stage of one run uses the model the run was given;
+--   3. neither: an error naming the server's models. (It used to return the
+--      server entry's own `model`, nomic, which a stage run on its own or a
+--      test then used without anyone choosing it.)
+--
+-- The name is not checked against the server's list here: stages that only
+-- read caches use it as a folder name, and the server is the authority on
+-- what is loaded. get_selected_model_config, which needs the model's file and
+-- prompt prefix, refuses a model the server does not list.
 function M.get_selected_model()
     local server = M.get_selected_server()
-
     if selected_model then
         return selected_model
     end
-
-    -- Model-propagation fix: a --model passed to run.sh is recorded once, at
-    -- startup, on the shared per-run notepad (tmp/run-overrides.lua). Consulting
-    -- it here means EVERY short-lived child process -- the HTML, word-cloud and
-    -- word-page stages that call this (or embeddings_dir() with no argument) --
-    -- resolves the SAME model the embedding stage used, instead of silently
-    -- reverting to server.model below. An absent notepad / absent key returns
-    -- nil, so a plain run (no --model) still falls through to config.lua exactly
-    -- as before. project_root is already resolved by get_selected_server above.
     local overrides = require("runtime-overrides")
     overrides.set_project_root(project_root)
     local override_model = overrides.get("model")
     if override_model then
         return override_model
     end
-
-    if not server.model then
-        error(string.format(
-            "inference-server-config: server '%s' has no 'model' field in config.lua's inference_servers entry. "
-            .. "Add a model = \"<name>\" field to that entry, or pass --model=<name> on the CLI.",
-            server.name))
-    end
-    return server.model
+    error(string.format(
+        "inference-server-config: no embedding model named. Pass --model=<name>; server '%s' serves: %s",
+        server.name, table.concat(M.model_names(server), ", ")))
 end
 -- }}}
 
@@ -444,17 +421,8 @@ function M.list_servers()
         print(string.format("  %s%s", server.name, default_marker))
         print(string.format("    %s", server.description or ""))
         print(string.format("    URL: %s", url))
-        print(string.format("    Model: %s", server.model or "nomic-embed-text"))
-
-        if server.available_models and #server.available_models > 0 then
-            -- available_models entries may be plain strings or {model=...} tables
-            -- (a table also carries its own GGUF + prompt); show just the names.
-            local names = {}
-            for _, entry in ipairs(server.available_models) do
-                names[#names + 1] = (type(entry) == "table") and entry.model or entry
-            end
-            print(string.format("    Available models: %s", table.concat(names, ", ")))
-        end
+        print(string.format("    Models (choose one with --model): %s",
+            table.concat(M.model_names(server), ", ")))
         print("")
     end
 end
@@ -483,35 +451,27 @@ end
 -- }}}
 
 -- {{{ get_selected_model_config
--- Resolve { model, model_path, embedding_prompt_prefix } for the SELECTED model
--- on the selected server. This is what lets one server entry serve several local
--- GGUFs: each available_models entry may be a table carrying its own model_path
--- and prompt prefix, so `--server local --model X` loads X with X's phrasing.
---
--- Resolution: if the selected model matches a TABLE entry in available_models,
--- use that entry's fields. Otherwise (a plain-string entry, or a server whose
--- available_models is documentation-only like the remote gpu-server) fall back
--- to the server's top-level model_path / embedding_prompt_prefix -- the default
--- model. So the common case (no --model, default model) is unchanged.
+-- { model, model_path, embedding_prompt_prefix } for the selected model, from
+-- its entry in the selected server's available_models. This is what lets one
+-- server serve several local GGUFs, each asked in its own phrasing. A model
+-- the server does not list is an error: there is no server-level path or
+-- prefix to fall back on, and embedding without the model's prefix would
+-- quietly produce vectors in the wrong part of its space.
 function M.get_selected_model_config()
     local server = M.get_selected_server()
     local model = M.get_selected_model()
-    if server.available_models then
-        for _, entry in ipairs(server.available_models) do
-            if type(entry) == "table" and entry.model == model then
-                return {
-                    model = model,
-                    model_path = entry.model_path or server.model_path,
-                    embedding_prompt_prefix = entry.embedding_prompt_prefix,
-                }
-            end
+    for _, entry in ipairs(server.available_models or {}) do
+        if entry.model == model then
+            return {
+                model = model,
+                model_path = entry.model_path,
+                embedding_prompt_prefix = entry.embedding_prompt_prefix,
+            }
         end
     end
-    return {
-        model = model,
-        model_path = server.model_path,
-        embedding_prompt_prefix = server.embedding_prompt_prefix,
-    }
+    error(string.format(
+        "inference-server-config: server '%s' does not list model '%s' (it lists: %s)",
+        server.name, model, table.concat(M.model_names(server), ", ")))
 end
 -- }}}
 

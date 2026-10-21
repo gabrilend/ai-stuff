@@ -45,22 +45,19 @@ resolve_dir() {  # the no-argument embeddings_dir() that stages 9/10 actually ca
 }
 # }}}
 
-# {{{ config default (the value a no-override run must fall back to)
-CONFIG_DEFAULT="$(luajit -e "
-    package.path = '${DIR}/libs/?.lua;' .. package.path
-    local inf = require('inference-server-config'); inf.set_project_root('${DIR}')
-    io.write(inf.get_selected_model())
-")"
-# Read straight from config.lua independently, so this test does not depend on
-# the very resolver it is checking to define "correct".
-CONFIG_RAW="$(luajit -e "
+# {{{ no model named: there is no default (owner, 2026-10-21)
+# With no --model and nothing on the notepad, the resolver refuses and names
+# the server's models. It used to return the server entry's own model (nomic).
+"${DIR}/scripts/write-run-overrides" "${DIR}" --model "" >/dev/null
+NO_MODEL_ERR="$(resolve 2>&1)"
+check "no model named -> refused" "$(printf '%s' "$NO_MODEL_ERR" | grep -c 'no embedding model named')" "1"
+check "the refusal lists the server's models" "$(printf '%s' "$NO_MODEL_ERR" | grep -c 'embeddinggemma-2')" "1"
+check "no server entry names a model of its own" "$(luajit -e "
     local c = dofile('${DIR}/config.lua')
-    -- inference_servers is an array of {name=...}; the default is selected by name.
-    for _, s in ipairs(c.inference_servers) do
-        if s.name == c.default_inference_server then io.write(s.model); break end
-    end
-")"
-check "resolver default == config.lua default" "$CONFIG_DEFAULT" "$CONFIG_RAW"
+    local n = 0
+    for _, s in ipairs(c.inference_servers) do if s.model then n = n + 1 end end
+    io.write(n)
+")" "0"
 # }}}
 
 # {{{ an explicit --model propagates to the no-argument resolution, fresh process
@@ -74,10 +71,6 @@ check "embeddings_dir(nil) keys off override" \
     "$(resolve_dir)" "${DIR}/assets/embeddings/propagation-probe_1b"
 # }}}
 
-# {{{ no --model falls back to config.lua (override absent, not a hardcoded value)
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model ""
-check "no override -> config default" "$(resolve)" "$CONFIG_RAW"
-# }}}
 
 # {{{ notepad is rewritten, not appended: a prior run's choice cannot leak in
 "${DIR}/scripts/write-run-overrides" "${DIR}" --model "first-run:9b"
@@ -115,13 +108,13 @@ check "--model=embeddinggemma-2 resolves to its own GGUF" \
 # The start script reads lines 5+ of its config resolution as launch_flags.
 # local is a GTX 1080 Ti and states --flash-attn off; the remote server has
 # a different GPU and must not inherit that.
-resolve_flags() {  # resolve_flags <server>
+resolve_flags() {  # resolve_flags <server> <model> (a model is required: no default)
     bash -c "source <(sed -n '/^# {{{ resolve_server_config/,/^# }}}/p' '${DIR}/scripts/start-llamacpp-server.sh')
-        DIR='${DIR}'; SERVER_NAME='$1'; MODEL_OVERRIDE=''
+        DIR='${DIR}'; SERVER_NAME='$1'; MODEL_OVERRIDE='$2'
         resolve_server_config" | sed -n '5,$p' | tr '\n' ' ' | sed 's/ $//'
 }
-check "local server passes its GPU flags" "$(resolve_flags local)" "--flash-attn off"
-check "remote server gets no local GPU flags" "$(resolve_flags gpu-server)" ""
+check "local server passes its GPU flags" "$(resolve_flags local embeddinggemma-2)" "--flash-attn off"
+check "remote server gets no local GPU flags" "$(resolve_flags gpu-server nomic-embed-text-v1.5)" ""
 # }}}
 
 # Leave the notepad clean (no override) so a later manual run is not surprised.

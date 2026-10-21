@@ -98,34 +98,45 @@ local function read_json(p)
     local f = io.open(p, "r"); if not f then return nil end
     local s = f:read("*a"); f:close(); return require("dkjson").decode(s)
 end
-local model = (os.getenv("MODEL_NAME") or "nomic-embed-text-v1.5"):gsub(":", "_")
-local real_emb = read_json(utils.embeddings_dir() .. "/embeddings.json")
+-- Every model with embeddings on disk is checked by name: config.lua names
+-- no default model (owner, 2026-10-21), and this check used to read
+-- "whichever model is the default" -- nomic, months out of date.
 local real_poems = read_json(DIR .. "/assets/poems.json")
 local real_cat = read_json(DIR .. "/assets/image-catalog.json")
-if real_emb and real_poems and real_cat then
-    local rout, rmanifest, rreport = A.augment(real_emb, real_poems, real_cat)
-    print(string.format("\n[real data] class1=%d class2=%d class3=%d skipped=%d  (%d -> %d entries)",
-        rreport.class1, rreport.class2, rreport.class3, rreport.skipped, #real_emb.embeddings, #rout))
-    check("real: image-only posts found (~52)", rreport.class2 >= 40 and rreport.class2 <= 70)
-    check("real: standalone images appended (~692)", rreport.class3 >= 600 and rreport.class3 <= 720)
-    -- one entry per poem that HAS an embedding, plus the pictures. Poems
-    -- without one (added after the embeddings were made) are counted and
-    -- shown: they are data to refresh, not a code fault.
-    local embedded = 0
-    local in_poems = {}
-    for _, p in ipairs(real_poems.poems) do in_poems[p.poem_index] = true end
-    for _, e in ipairs(real_emb.embeddings) do
-        if not e.is_image and in_poems[e.poem_index] then embedded = embedded + 1 end
+local listing = io.popen("ls " .. DIR .. "/assets/embeddings")
+local models = {}
+for name in listing:lines() do models[#models + 1] = name end
+listing:close()
+local checked = 0
+for _, model in ipairs(models) do
+    local real_emb = read_json(utils.embeddings_dir(model) .. "/embeddings.json")
+    -- a model folder without embeddings (an old evaluation leftover): nothing
+    -- to check for it
+    if real_emb and real_poems and real_cat then
+        checked = checked + 1
+        local rout, rmanifest, rreport = A.augment(real_emb, real_poems, real_cat)
+        print(string.format("\n[real data: %s] class1=%d class2=%d class3=%d skipped=%d  (%d -> %d entries)",
+            model, rreport.class1, rreport.class2, rreport.class3, rreport.skipped, #real_emb.embeddings, #rout))
+        check(model .. ": image-only posts found (~52)", rreport.class2 >= 40 and rreport.class2 <= 70)
+        check(model .. ": standalone images appended (~692)", rreport.class3 >= 600 and rreport.class3 <= 720)
+        -- one entry per poem that HAS an embedding, plus the pictures. Poems
+        -- without one (added after the embeddings were made) are counted and
+        -- shown: they are data to refresh, not a code fault.
+        local embedded = 0
+        local in_poems = {}
+        for _, p in ipairs(real_poems.poems) do in_poems[p.poem_index] = true end
+        for _, e in ipairs(real_emb.embeddings) do
+            if not e.is_image and in_poems[e.poem_index] then embedded = embedded + 1 end
+        end
+        print(string.format("[real data: %s] %d of %d poems have an embedding",
+            model, embedded, #real_poems.poems))
+        check(model .. ": output is the embedded poems plus the pictures", #rout == embedded + rreport.class3)
+        -- idempotency on real data (re-run on the augmented set)
+        local rout2 = A.augment({ embeddings = rout, metadata = {} }, real_poems, real_cat)
+        check(model .. ": idempotent entry count", #rout2 == #rout)
     end
-    print(string.format("[real data] %d of %d poems have an embedding in %s",
-        embedded, #real_poems.poems, utils.embeddings_dir()))
-    check("real: output is the embedded poems plus the pictures", #rout == embedded + rreport.class3)
-    -- idempotency on real data (re-run on the augmented set)
-    local rout2 = A.augment({ embeddings = rout, metadata = {} }, real_poems, real_cat)
-    check("real: idempotent entry count", #rout2 == #rout)
-else
-    print("\n[real data] skipped (data files not all present)")
 end
+check("real data: at least one model's embeddings were checked", checked > 0)
 -- }}}
 
 print(string.format("\naugment-embeddings: %d passed, %d failed", passed, failed))

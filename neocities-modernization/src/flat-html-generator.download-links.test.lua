@@ -28,6 +28,11 @@ end
 
 setup_path()
 local generator = require("flat-html-generator")
+-- The model whose colours and caches these pages are drawn with. Named
+-- here because config.lua names no default model (owner, 2026-10-21); a
+-- test that drew with "whatever the default is" tested nobody's choice.
+require("inference-server-config").set_selected_server("local")
+require("inference-server-config").set_selected_model("embeddinggemma-2")
 -- The pages-per-poem ceiling is normally worked out by a full build from the
 -- storage limit (Issue 10-057); this test renders pages on its own, so it
 -- sets one, large enough never to cap them. Without it the page builder

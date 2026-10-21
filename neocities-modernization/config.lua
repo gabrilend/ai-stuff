@@ -460,15 +460,20 @@ return {
     --   description: Human-readable description
     --   host: Server hostname or IP
     --   port: Inference server's HTTP port
-    --   model: Identifier sent in the OpenAI request body (informational;
-    --          llama-server serves whatever model it has loaded). Convention
-    --          is to use the GGUF basename without ".gguf".
-    --   model_path: Path to the GGUF model file on disk, relative to the
-    --               project DIR. start-llamacpp-server.sh resolves this
-    --               into the absolute path it passes to llama-server -m.
-    --   available_models: (optional) List of models the host can serve
-    --   embedding_prompt_prefix: (optional) Prefix prepended to every input
-    --                            (e.g. "clustering: " for nomic-embed-text v1.5)
+    --   available_models: the models this server can serve. There is no
+    --                     default: every run names its model with --model
+    --                     (owner, 2026-10-21: "we should not have a default
+    --                     model. It should be manually specified"). Each entry:
+    --     model: Identifier sent in the OpenAI request body (llama-server
+    --            serves whatever it has loaded). Convention is the GGUF
+    --            basename without ".gguf". Also the name of the model's cache
+    --            folder under assets/embeddings/.
+    --     model_path: (local models) the GGUF file, relative to the project
+    --                 DIR; start-llamacpp-server.sh passes it to llama-server -m.
+    --     embedding_prompt_prefix: (optional) prepended to every input
+    --                              (e.g. "clustering: " for nomic-embed-text v1.5).
+    --     A model this server does not list is refused when its prefix or
+    --     file is needed, rather than embedded without its prefix.
     --   launch_flags: (optional) Extra llama-server flags for THIS machine's
     --                 GPU, as a list of separate words ({ "--flash-attn", "off" }).
     --                 start-llamacpp-server.sh appends them after its own
@@ -481,11 +486,12 @@ return {
             description = "Remote GPU server (CUDA)",
             host = "192.168.0.115",
             port = 10265,
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             available_models = {
-                "nomic-embed-text-v1.5",
-                "mxbai-embed-large",
+                {
+                    model = "nomic-embed-text-v1.5",
+                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+                },
+                { model = "mxbai-embed-large" },
             }
         },
         {
@@ -493,8 +499,12 @@ return {
             description = "Remote GPU server (alternate port)",
             host = "192.168.0.115",
             port = 11434,
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+            available_models = {
+                {
+                    model = "nomic-embed-text-v1.5",
+                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+                },
+            },
         },
         {
             name = "local",
@@ -511,26 +521,24 @@ return {
             -- that out at load time and switched itself off with a warning --
             -- a silent fallback. Saying "off" here makes it a decision.
             launch_flags = { "--flash-attn", "off" },
-            -- nomic-embed-text v1.5 produces 768-dimensional vectors and
-            -- requires a task-prefix on every input. For diversity ranking
-            -- of poetry the right prefix is "clustering: ", which routes
-            -- the model through its clustering-oriented internal weights.
-            -- Switching models requires regenerating embeddings.json, the
-            -- similarity caches, the diversity cache, etc.
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
-            embedding_prompt_prefix = "clustering: ",
             -- This one machine can serve several local GGUFs (one at a time:
             -- start-llamacpp-server.sh --server=local --model=NAME loads the
-            -- chosen file). The default model above is nomic; the entries below
-            -- add the others. A plain-string entry (or the default model itself)
-            -- uses the server-level model_path/prefix above; a table entry brings
-            -- its OWN GGUF and the prompt phrasing its makers intend for
-            -- clustering/similarity, so each model is asked the same question
-            -- the right way. Switching the served model needs a server restart
-            -- (and regenerating the caches that depend on the embedding space).
+            -- chosen file). Each entry brings its own GGUF and the prompt
+            -- phrasing its makers intend for clustering/similarity, so each
+            -- model is asked the same question the right way. Switching the
+            -- served model needs a server restart (and regenerating the caches
+            -- that depend on the embedding space: embeddings.json, the
+            -- similarity and diversity caches).
             available_models = {
-                "nomic-embed-text-v1.5",
+                {
+                    -- nomic-embed-text v1.5: 768-dimensional, and requires a
+                    -- task prefix on every input. For diversity ranking of
+                    -- poetry the right prefix is "clustering: ", which routes
+                    -- the model through its clustering-oriented weights.
+                    model = "nomic-embed-text-v1.5",
+                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+                    embedding_prompt_prefix = "clustering: ",
+                },
                 {
                     model = "mxbai-embed-large-v1",
                     model_path = "assets/models/mxbai-embed-large-v1.Q8_0.gguf",

@@ -36,8 +36,8 @@ C_RESET="\033[0m"
 # {{{ parse_arguments
 # Recognized flags:
 #   --server=NAME : override the default_inference_server from config
-#   --model=NAME  : serve a specific model from that server's available_models
-#                   (loads that model's GGUF); defaults to the server's model
+#   --model=NAME  : required; the model to serve, one of that server's
+#                   available_models (loads its GGUF). There is no default.
 #   /path/to/dir  : override the project DIR (positional)
 parse_arguments() {
     for arg in "$@"; do
@@ -46,9 +46,9 @@ parse_arguments() {
                 SERVER_NAME="${arg#*=}"
                 ;;
             --model=*)
-                # Pick a specific model the server can serve (one of its
-                # available_models) and load that model's GGUF instead of the
-                # server default. Used by the model-comparison harness.
+                # The model to serve (one of the server's available_models):
+                # its GGUF is loaded. Required -- config.lua names no default
+                # model (2026-10-21); the library refuses a run without one.
                 MODEL_OVERRIDE="${arg#*=}"
                 ;;
             --help|-h)
@@ -92,13 +92,13 @@ resolve_server_config() {
         ${server_override}
         ${model_override}
         local server = inference.get_selected_server()
-        -- Resolve the GGUF for the SELECTED model (default = server.model), so a
-        -- --model override on a multi-model server loads the right file.
+        -- Resolve the GGUF for the model named with --model (there is no
+        -- default; the library refuses a run without one).
         local mc = inference.get_selected_model_config()
         if not mc.model_path then
             error('inference-server-config: model \"' .. tostring(mc.model)
                 .. '\" on server \"' .. server.name .. '\" has no model_path; add it '
-                .. 'to the server entry or to that model in available_models')
+                .. 'to that model in available_models')
         end
         print(server.host)
         print(server.port)
