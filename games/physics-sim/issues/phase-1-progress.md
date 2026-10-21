@@ -24,7 +24,8 @@ Core infrastructure: build system, threadpool, parallel processing, and configur
 | 114 | The lodge (front door, README)     | in-progress | -        |
 | 114a | Picture the game                  | completed | -          |
 | 114b | Lodge generator                   | completed | -          |
-| 114c | The rooms                         | completed | 114a ✓, 114b ✓ |
+| 114c | The rooms                         | completed | 114a ✓, 114b ✓, 115 ✓ |
+| 115 | Scene mode: stage a moment and film it | completed | -     |
 
 ## Progress Summary
 
@@ -32,10 +33,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 /mnt/mtwo/programming/ai-stuff/games/physics-sim -m`.
 
 **Phase status:** in progress. The infrastructure of March is complete; the
-lodge (114) is built and its three parts are done, and it stays open on
-three questions: whether the game should learn to be driven by script,
-whether its three warning-and-carry-on fallbacks should become errors, and
-how the stale tickets the lodge's back shelf lists should be put right.
+lodge (114) is built as a pachinko fan site and its three parts are done;
+the game can stage and film a single moment (115). The lodge stays open
+until the project's source browser exists for its workshop door, and on two
+questions: whether the game's three warning-and-carry-on fallbacks should
+become errors, and how the stale tickets the issue checker lists should be
+put right.
 
 ## Technical Notes
 
@@ -67,6 +70,14 @@ how the stale tickets the lodge's back shelf lists should be put right.
   and files each picture with notes into `development-history/`
 - Lesson: the game's window takes the keyboard when it opens, so unattended
   pictures are only trustworthy while nobody types
+
+### Scene mode (115)
+- `--scene FILE`, `--record DIR`, `--frames N`; input ignored in a scene;
+  `output/goodbye` written on every clean exit
+- `scripts/film-a-scene` turns a scene into a gif in `development-history/`;
+  `scripts/test-scene-mode` checks the refusals
+- Lesson: a filmed scene must step a fixed sixtieth of a second per frame,
+  or slow frame saving changes the physics being filmed
 
 ## Issue-Level Dependencies
 

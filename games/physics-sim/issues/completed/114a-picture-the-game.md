@@ -8,6 +8,10 @@
 
 None.
 
+## Blocks
+
+- 114c (the rooms hang its pictures)
+
 ## Current Behavior
 
 `scripts/picture-the-game` exists and works as described below, with one

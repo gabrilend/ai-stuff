@@ -1,10 +1,10 @@
-/* 059-the-workbench.css -- this room's own stylesheet.
+/* 058-the-drawing-table.css -- this room's own stylesheet.
    The lodge is a pachinko parlour after closing: a dark floor, brass
    fittings, and one lamp per room. Every room carries its own copy of this
    sheet; the rooms differ in --lamp, the colour their lamp throws. */
 
 :root {
-  --lamp: #e8d27a;          /* this room's lamp: a yellow bench lamp */
+  --lamp: #e8d27a;          /* this room's lamp: a yellow drafting lamp */
   --floor: #17141a;         /* the page */
   --wall: #201c24;          /* panels, the rail */
   --shelf: #2a2530;         /* table headers, code */

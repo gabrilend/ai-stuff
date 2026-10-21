@@ -1,10 +1,10 @@
-/* 057-the-machine-room.css -- this room's own stylesheet.
+/* 057-the-floor.css -- this room's own stylesheet.
    The lodge is a pachinko parlour after closing: a dark floor, brass
    fittings, and one lamp per room. Every room carries its own copy of this
    sheet; the rooms differ in --lamp, the colour their lamp throws. */
 
 :root {
-  --lamp: #7fd18b;          /* this room's lamp: a green work light */
+  --lamp: #ff8a4c;          /* this room's lamp: the orange of a lit machine */
   --floor: #17141a;         /* the page */
   --wall: #201c24;          /* panels, the rail */
   --shelf: #2a2530;         /* table headers, code */
@@ -140,4 +140,17 @@ hr { border: none; border-top: 1px solid var(--brass); margin: 2.5rem 0; }
   .room { padding: 1.5rem 16px 3rem; }
   h1 { font-size: 1.8rem; }
   table { display: block; overflow-x: auto; }
+}
+
+/* the floor alone: its films hang two by two, like machines in a row, so
+   the whole room fits on one screen; each film's caption carries its words */
+.room { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2rem; align-content: start; }
+.room > :not(figure) { grid-column: 1 / -1; }
+.room > figure { margin: 0.5rem 0 1rem; }
+.room > figure img { max-height: 30vh; }
+.room > figure figcaption { font-style: normal; color: var(--ink); }
+.room > figure figcaption strong { color: var(--lamp); }
+@media (max-width: 760px) {
+  .room { display: block; }
+  .room > figure img { max-height: 60vh; }
 }

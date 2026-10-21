@@ -551,8 +551,11 @@ local function render_room(room, ctx)
         href = ""
       end
       ctx.pictures = ctx.pictures + 1
+      -- loaded straight away, not lazily: the rooms are short, the gifs
+      -- small, and a lazily loaded picture is missing from a page captured
+      -- the moment it opens (the first headless photographs showed a dot)
       out[#out + 1] = "<figure" .. id .. '><img src="' .. escape(href) .. '" alt="' .. escape(block.caption)
-        .. '" loading="lazy"><figcaption>' .. text(block.caption) .. "</figcaption></figure>"
+        .. '"><figcaption>' .. text(block.caption) .. "</figcaption></figure>"
 
     elseif block.kind == "quote" then
       local inner = {}

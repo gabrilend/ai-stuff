@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 14:39:16
+Generated on: 2026-10-21 14:59:43
 Models: claude-opus-5-5
 
 ## Contents
@@ -25,6 +25,10 @@ Models: claude-opus-5-5
    safe when projects move: the move skill and one-hour cache setting are done.
    Next, decide whether to commit the move skill to the ~/.claude repository,
    and whether settings.json belongs there too.
+6. 2026-10-21 14:42, after Request 8 - You're setting up a public
+   "claude-code-utilities" repository for your skills and CLAUDE.md, and nothing
+   is published yet. Next, decide whether CLAUDE.md goes public whole, without
+   the paragraph about your childhood memories, or held back for now.
 
 --------------------------------------------------------------------------------
 
@@ -1064,6 +1068,101 @@ expensive, which is the thing the timer is built to avoid.
    four skills and `settings.json` there? This stays private.
 3. Should the public repository copy the hook scripts, or point to `ai-stuff`?
    I'd point. Copies would drift apart.
+
+--------------------------------------------------------------------------------
+
+### User Request 9
+
+> Not to include: .credentials.json (your login token), history.jsonl (7 MB of
+> every prompt you've typed), and projects/ (every raw conversation).
+
+does that history.jsonl happen to include the prompts from before our
+llm-transcript history was wiped?
+
+  1. CLAUDE.md: A, B or C?
+
+A
+
+> 2. May I add those two lines to the ~/.claude ignore file, then commit the
+> four skills and settings.json there? This stays private.
+
+sure.
+
+> 3. Should the public repository copy the hook scripts, or point to ai-stuff?
+> I'd point. Copies would drift apart.
+
+point.
+
+> Untracked skills: see-in-3d, stethoscope, wait-for-change, and the new
+> move-project.
+
+can you check these out and take ownership for them? We should git commit them,
+and the sessions that worked on them have long since lapsed.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 9
+
+> The prompt history goes back to December 2025. Now reading the three older
+> skills before taking them over:
+
+*[commit] b41baf337 in .claude - Every skill and the settings are tracked*
+
+*[commit] 700666bf9 in ai-stuff - Plan: the move skill is in git after all*
+
+The skill and settings commit is done, and your prompt history does reach back
+to before the wipe. I haven't built the public repository yet; I need two
+decisions from you first, below.
+
+## The prompt history
+
+`history.jsonl` begins on 15 December 2025 and has a record every month since,
+9,261 prompts in all. The oldest raw conversation log still on disk is from 6
+July 2026, so everything you typed from December to early July survives only in
+this file.
+
+What it keeps is **only what you typed**: each prompt, anything you pasted, the
+time, the project folder and the session ID. Claude's replies are not in it. One
+line is damaged and can't be read; the others are fine.
+
+Claude Code now keeps raw logs for 7,300 days (about 20 years), so the older
+logs were probably removed under an earlier, shorter setting.
+
+The file is ignored by git and has no backup. It's on a single disk, and nothing
+on this machine refers to its contents. A tool could turn those six months of
+prompts into a read-only, "your half only" transcript for each project. Want an
+issue for that?
+
+## Committed (private, `~/.claude`)
+
+- The ignore rules now let every skill in by default, except `synced/`, which
+  holds the service's own skills. They also let in `settings.json`; the login
+  token file stays ignored.
+- **Taken over and committed:** see-in-3d, stethoscope, wait-for-change, plus
+  move-project and `settings.json`. I read all three older skills first. Each
+  was last changed between 27 September and 10 October, and the tools they name
+  are all present.
+- **Left alone:** a session is working on skills right now. A new **lodge**
+  skill appeared, and the documentation-site skill has fresh edits. The edits to
+  issue-lifecycle, transcript-care and CLAUDE.md are also someone else's, still
+  uncommitted.
+- The correction to the move plan is committed in `ai-stuff`, with the
+  transcripts.
+
+## The public repository, before I build it
+
+1. **Where it lives and how it stays current.** I'd build a small script in
+   `ai-stuff/scripts/` that copies the skills and CLAUDE.md from `~/.claude`
+   into the `claude-code-utilities` folder, using only their last committed
+   versions, so nobody's half-finished edit is published. Running it again
+   refreshes the public copy, so the two never drift by hand. That needs an
+   issue file first, and I'd write that next. Agreed?
+2. **Lodge and documentation-site:** publish them once their session commits, or
+   now? Lodge isn't committed at all, so I'd wait.
+
+Before publishing I'll read every file that goes out: the ten skills I haven't
+read in full yet, and CLAUDE.md. Then I'll show you the file list before
+anything is pushed to GitHub.
 
 --------------------------------------------------------------------------------
 
