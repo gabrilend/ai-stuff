@@ -13,6 +13,8 @@ Design: Issue 8-058.
 | `escape_html(text)` | string | the text with control bytes removed and `& < >` escaped |
 | `apply_markdown(text)` | escaped string | `*x*`, `**x**`, `~~x~~` and `` `x` `` styled, the marks kept visible |
 | `media_href(path)` | an attachment's relative path (string) | its address under `media/`, url-encoded |
+| `to_plain(html)` | an entry's HTML (string) | the same as plain text: pictures as `[Image: …]`, `[Audio: …]`, `[Video: …]` lines, tags removed, entities decoded |
+| `utf8_char(cp)` | a Unicode code point (number) | its UTF-8 bytes (string) |
 
 `configure` must be called once in each Lua state (the main program and every
 worker thread) before `format_entry`.
@@ -26,6 +28,7 @@ worker thread) before `format_entry`.
 | `similar_link` | string | `<a>` to the poem's similar page |
 | `different_link` | string | `<a>` to the poem's different page |
 | `chrono_link` | string or `false` | `<a>` to its place on the chronological pages; `false` on those pages themselves |
+| `plain` | boolean, optional | `true` for a text export (Issue 8-013): no navigation boxes, the plain bottom bar, no HTML |
 
 ## What an entry looks like
 

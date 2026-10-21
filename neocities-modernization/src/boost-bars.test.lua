@@ -52,13 +52,13 @@ for _, pct in ipairs({0, 0.01, 0.37, 0.5, 0.99, 1.0}) do
     check("nav_separator 82 wide @ " .. pct, visible(B.nav_separator(pc)) == 82)
     check("nav_line(with chrono) 82 wide @ " .. pct, visible(B.nav_line(SIM, DIF, CHR, pc)) == 82)
     check("nav_line(no chrono) 82 wide @ " .. pct, visible(B.nav_line(SIM, DIF, nil, pc)) == 82)
-    check("bottom_border 84 wide @ " .. pct, visible(B.bottom_border(pct)) == 84)
+    check("bottom_border 84 wide @ " .. pct, visible(B.bottom_border(pct, true)) == 84)
 end
 
 -- No U+FFFD / ▢ anywhere (the byte-slice corruption produced these).
 for _, line in ipairs({
     B.top_border(0.4), B.inner_top(30), B.content_line("x", 30),
-    B.nav_separator(30), B.nav_line(SIM, DIF, CHR, 30), B.bottom_border(0.4),
+    B.nav_separator(30), B.nav_line(SIM, DIF, CHR, 30), B.bottom_border(0.4, true),
 }) do
     check("no replacement char in line", not line:find("\239\191\189", 1, true) and not line:find("▢", 1, true))
 end
@@ -67,7 +67,7 @@ end
 do
     local _, top = visible(B.top_border(0.1))
     local _, sep = visible(B.nav_separator(5))
-    local _, bot = visible(B.bottom_border(0.1))
+    local _, bot = visible(B.bottom_border(0.1, true))
     check("top-left is ╦", top:find("╦", 1, true) ~= nil)
     check("nav-sep-left is ╠", sep:find("╠", 1, true) ~= nil)
     check("bottom-left is ╚", bot:find("╚", 1, true) ~= nil)
@@ -88,8 +88,8 @@ do
 
     local _, sep_hi = visible(B.nav_separator(78))
     check("full progress: nav-sep-right double ╣", sep_hi:find("╣", 1, true) ~= nil)
-    local _, bot_lo = visible(B.bottom_border(0.1))
-    local _, bot_hi = visible(B.bottom_border(1.0))
+    local _, bot_lo = visible(B.bottom_border(0.1, true))
+    local _, bot_hi = visible(B.bottom_border(1.0, true))
     check("low progress: bottom-right single ┴ before arrow", bot_lo:find("┴─▶", 1, true) ~= nil)
     check("full progress: bottom-right double ╩ before arrow", bot_hi:find("╩─▶", 1, true) ~= nil)
 end
@@ -97,7 +97,7 @@ end
 -- Bottom-bar junctions sit at columns 12 and 69 (under the nav-box walls),
 -- i.e. bar-index 10 and 67 -- NOT the golden layout's 71.
 do
-    local _, bot = visible(B.bottom_border(1.0))  -- fully filled -> junctions are ╧
+    local _, bot = visible(B.bottom_border(1.0, true))  -- fully filled -> junctions are ╧
     local cols = columns_of(bot, { ["╧"] = true, ["┴"] = true })
     -- cols[1..2] are the two junctions; the trailing ╩ corner is also ┴-family
     -- so filter to the two that fall at 12 and 69.
@@ -127,6 +127,21 @@ do
     check("assembled frame has 8 lines (top+itop+2content+ibot+sep+nav+bottom)", #lines == 8)
     check("assembled first line is the top border", lines[1]:find("╦", 1, true) ~= nil)
     check("assembled last line is the bottom border", lines[#lines]:find("─▶", 1, true) ~= nil)
+end
+
+-- A frame without the nav strip (the text exports, Issue 8-013) has no walls
+-- landing on its bottom edge, so no junctions along it -- only the corner.
+do
+    for _, pct in ipairs({ 0.1, 1.0 }) do
+        local n, bot = visible(B.bottom_border(pct, false))
+        check("bottom_border without nav is 84 wide @ " .. pct, n == 84)
+        local _, j1 = bot:gsub("╧", "")
+        local _, j2 = bot:gsub("┴", "")
+        check("bottom_border without nav has only its corner joint @ " .. pct,
+            j1 + j2 == (pct >= 1.0 and 0 or 1))
+    end
+    local frame = B.format_boost({ "line" }, 0.5, SIM, DIF, CHR, false)
+    check("a frame without nav has no similar link", not frame:find("similar", 1, true))
 end
 
 print(string.format("\nboost-bars: %d passed, %d failed", passed, failed))

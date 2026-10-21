@@ -177,6 +177,52 @@ do
 end
 -- }}}
 
+-- {{{ plain text for the exports (Issue 8-013)
+do
+    local function plain(poem, color, pct)
+        local e = entry(color, pct, false)
+        e.plain = true
+        return E.format_entry(poem, e)
+    end
+    local function widest(s)
+        local w = 0
+        for _, l in ipairs(lines_of(s)) do w = math.max(w, visible_width(l)) end
+        return w
+    end
+    local golden = plain({ poem_index = 9, metadata = { is_golden_poem = true },
+        content = "a & b < c, *soft*", content_warning = "grief",
+        attachments = { { media_type = "image/png", relative_path = "x/a.png", description = 'a "big" sky' } } },
+        "yellow", 60)
+    check("plain text holds no tags", not golden:find("<[%a/]"))
+    check("plain text holds no entities", not golden:find("&%a+;") and not golden:find("&#%d+;"))
+    check("entities become their characters", golden:find("a & b < c", 1, true) ~= nil)
+    check("emphasis keeps its marks as text", golden:find("*soft*", 1, true) ~= nil)
+    check("a picture becomes its description", golden:find('[Image: a "big" sky]', 1, true) ~= nil, golden)
+    check("the golden walls stay", golden:find("║", 1, true) ~= nil and golden:find("│", 1, true) ~= nil)
+    check("no navigation boxes in plain text", not golden:find("similar", 1, true) and not golden:find("different", 1, true))
+    check("plain golden lines are at most 84 wide", widest(golden) <= 84, tostring(widest(golden)))
+    local ls = lines_of(golden)
+    -- (each junction looked for whole: a Lua [set] matches single bytes, and
+    -- these characters share bytes with ═)
+    local bottom_line = ls[#ls]
+    check("the golden bottom is the plain one (no box junctions)",
+        not bottom_line:find("╩", 1, true) and not bottom_line:find("╧", 1, true)
+        and not bottom_line:find("┴", 1, true), bottom_line)
+    local regular = plain({ poem_index = 9, content = "hello" }, "blue", 30)
+    check("a regular entry keeps its bars", lines_of(regular)[1]:find("═", 1, true) ~= nil)
+    check("a regular entry's text is indented as on a page", lines_of(regular)[2] == " hello")
+    local boost = plain({ poem_index = 9, metadata = { is_boost = true }, content = "shared" }, "gray", 30)
+    check("a boost keeps its frame in plain text", boost:find("[BOOST]", 1, true) ~= nil and not boost:find("similar", 1, true))
+    check("a code point becomes UTF-8", E.utf8_char(0x1F5BC) == "\240\159\150\188")
+    -- a description quoting code: "<stdio.h>" must count its columns
+    local code = plain({ poem_index = 9, content = "x", attachments = { { media_type = "image/png",
+        relative_path = "x/c.png", description = string.rep("lines of C code here ", 3)
+            .. "#include <stdio.h> int main(void) { return 0; }" } } }, "gray", 10)
+    check("a description quoting <code> wraps inside the frame", widest(code) <= 84, tostring(widest(code)))
+    check("the quoted code reads as written", code:find("<stdio.h>", 1, true) ~= nil)
+end
+-- }}}
+
 -- {{{ an unknown colour is an error, not grey
 do
     local ok = pcall(E.format_entry, { poem_index = 7, content = "x" }, entry("teal", 10, false))

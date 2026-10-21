@@ -2523,9 +2523,9 @@ end
 -- config      : table from worker_config(), plus job-specific fields
 -- jobs        : list of
 --   { kind = "poems", poem_index = n }  -- that poem's similar + different pages
---   { kind = "chrono_page", page_num = n, total_pages = n,
+--   { kind = "chrono_page", page_num = n, total_pages = n, total_poems = n,
 --     entries = { { poem = <a poem from the caller's poems>, progress_pct = number }, ... } }
--- returns     : { similar = n, different = n, poems = n, chrono_pages = n }
+-- returns     : { similar = n, different = n, poems = n, chrono_pages = n, text_files = n }
 local function run_page_workers(num_threads, config, jobs)
     if not has_threading then
         -- Errors, not fallbacks (owner, 2026-09-22): there is no other builder
@@ -2694,10 +2694,11 @@ local function run_page_workers(num_threads, config, jobs)
             -- worker only supplies what the drawer is told: the poem's
             -- colour, how far through the writing timeline it is, and
             -- its three links.
-            local function format_poem_entry(poem, chrono_map, chrono_paged)
+            -- plain: true for a text export (no navigation boxes, no HTML)
+            local function format_poem_entry(poem, chrono_map, chrono_paged, plain)
                 -- a picture-only entry draws its own box and needs no links
                 if poem.is_image then
-                    return t_poem_entry.format_entry(poem, {})
+                    return t_poem_entry.format_entry(poem, { plain = plain })
                 end
                 local poem_idx = poem.poem_index
                 local color_data = poem_colors[poem_idx]
@@ -2720,13 +2721,43 @@ local function run_page_workers(num_threads, config, jobs)
                     different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
                     chrono_link = string.format("<a href='../chronological/%s#%s'>chronological</a>",
                         chrono_page, anchor_id),
+                    plain = plain,
                 })
             end
             -- }}}
 
-            -- Local helper: Generate paginated HTML page
-            -- Issue 9-003 Fix D: Added chrono_map and chrono_paged for full formatting
-            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged)
+            -- {{{ local function ranked_header()
+            -- The line above the i-th poem of a list: "--- #i source ---"
+            -- (Issue 8-036). A long note name wraps at a dash or slash
+            -- (text-formatter's wrap_file_header); the closing " ---" is 4
+            -- wide and holds dashes the wrapper would break at, so the path
+            -- wraps to 76 and the closer goes on its last line.
+            local function ranked_header(i, entry_poem)
+                local header = t_text_formatter.wrap_file_header(
+                    string.format("--- #%d ", i), get_source_path(entry_poem), 76)
+                header[#header] = header[#header] .. " ---"
+                return table.concat(header, "\n") .. "\n"
+            end
+            -- }}}
+
+            -- {{{ local function write_file()
+            local function write_file(filename, text)
+                os.execute('mkdir -p "' .. filename:match("(.*/)") .. '"')
+                local f = io.open(filename, "w")
+                if not f then error("could not write " .. filename) end
+                f:write(text)
+                f:close()
+            end
+            -- }}}
+
+            -- {{{ local function generate_page()
+            -- One page of a poem's similar or different list: the anchor poem,
+            -- then poems start..end of the list. download: false, or
+            -- { file = "0001.txt", count = n } -- the line offering the
+            -- list's text export, after the last poem (Issue 8-013).
+            -- Returns the file written, or nil when the page would be past
+            -- the end of the list.
+            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged, download)
                 local start_idx = (page_num - 1) * poems_per_pg + 1
                 local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
                 if start_idx > #sorted_list then return nil end
@@ -2735,71 +2766,70 @@ local function run_page_workers(num_threads, config, jobs)
                 local poem_idx_str = string.format("%04d", poem.poem_index or 0)
                 local filename = string.format("%s/%s/%s-%02d.html", out_dir, page_type, poem_idx_str, page_num)
 
-                -- Build HTML content with full formatting
-                -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-                -- Issue 16-010: shared head block -- viewport + shipped monospace font.
-                -- This path had the THINNEST head of the four: the bare font
-                -- stack, no viewport, and none of the centering rules the
-                -- chronological pages carry. That last omission is why an
-                -- attached image pulls the poem column off-centre here but
-                -- not there; the shared block ends all three divergences at
-                -- once, since these pages sit one level below the root just
-                -- like the chronological ones.
+                -- Issue 16-010: the shared head block (viewport, shipped
+                -- monospace font, centring), as on the chronological pages
                 local html_parts = {
                     '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                     '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
                     PAGE_HEAD_BLOCK,
                     '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                 }
-
-                -- Add anchor poem with full formatting
                 table.insert(html_parts, "=== ANCHOR POEM ===\n")
                 table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
                 table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
-
-                -- Add poems for this page with full formatting
                 for i = start_idx, end_idx do
-                    local entry = sorted_list[i]
-                    local entry_poem = entry.poem
-                    if entry_poem then
-                        -- Issue 8-036: Add poem source path to ranking header
-                        local source_path = get_source_path(entry_poem)
-                        -- A long note name wraps at a dash or slash (shared
-                        -- rule, text-formatter's wrap_file_header). The
-                        -- closing " ---" is 4 wide and holds dashes the
-                        -- wrapper would break at, so the path wraps to 76
-                        -- and the closer is added to its last line.
-                        local header = t_text_formatter.wrap_file_header(
-                            string.format("--- #%d ", i), source_path, 76)
-                        header[#header] = header[#header] .. " ---"
-                        table.insert(html_parts, table.concat(header, "\n") .. "\n")
-                        -- Issue 9-013: text+image posts get a direct "image.png"
-                        -- link below their header (image entries are skipped --
-                        -- their title already deep-links into the gallery).
-                        if not entry_poem.is_image then
-                            local img_link = t_image_render.text_image_link(entry_poem)
-                            if img_link ~= "" then
-                                table.insert(html_parts, " " .. img_link .. "\n")
-                            end
+                    local entry_poem = sorted_list[i].poem
+                    table.insert(html_parts, ranked_header(i, entry_poem))
+                    -- Issue 9-013: text+image posts get a direct "image.png"
+                    -- link below their header (image entries are skipped --
+                    -- their title already deep-links into the gallery).
+                    if not entry_poem.is_image then
+                        local img_link = t_image_render.text_image_link(entry_poem)
+                        if img_link ~= "" then
+                            table.insert(html_parts, " " .. img_link .. "\n")
                         end
-                        table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
-                        table.insert(html_parts, "\n\n")
                     end
+                    table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
+                    table.insert(html_parts, "\n\n")
                 end
-
+                -- the download offer: on when the text export is (config.lua
+                -- pagination.generate_txt_exports), else no line at all
+                if download then
+                    table.insert(html_parts, string.format(
+                        " download this list as text: <a href='%s'>%s</a> (%d poems)\n",
+                        download.file, download.file, download.count))
+                end
                 table.insert(html_parts, '</pre></td></tr></table></body></html>')
-
-                -- Write file
-                local dir_path = filename:match("(.*/)")
-                os.execute('mkdir -p "' .. dir_path .. '"')
-                local f = io.open(filename, "w")
-                if f then
-                    f:write(table.concat(html_parts))
-                    f:close()
-                    return filename
-                end
-                return nil
+                write_file(filename, table.concat(html_parts))
+                return filename
             end
+            -- }}}
+
+            -- {{{ local function write_text_export()
+            -- The list's text export (Issue 8-013): the poems its pages hold,
+            -- in order, drawn as on the pages but as plain text -- frames
+            -- kept, no navigation boxes, no links, pictures as their
+            -- descriptions. No time stamp, so the same inputs write the same
+            -- bytes. count: how many of the list the pages hold.
+            local function write_text_export(poem, sorted_list, page_type, count, out_dir, chrono_map, chrono_paged)
+                local type_label = page_type == "similar" and "similarity" or "diversity"
+                local poem_idx_str = string.format("%04d", poem.poem_index or 0)
+                local parts = {
+                    string.format("Poems by %s to poem %s: %s\n", type_label, poem_idx_str, get_source_path(poem)),
+                    string.format("%d poems, in the order of its %s pages\n\n", count, page_type),
+                    "=== ANCHOR POEM ===\n",
+                    format_poem_entry(poem, chrono_map, chrono_paged, true),
+                    "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n",
+                }
+                for i = 1, count do
+                    local entry_poem = sorted_list[i].poem
+                    parts[#parts + 1] = ranked_header(i, entry_poem)
+                    parts[#parts + 1] = format_poem_entry(entry_poem, chrono_map, chrono_paged, true)
+                    parts[#parts + 1] = "\n\n"
+                end
+                write_file(string.format("%s/%s/%s.txt", out_dir, page_type, poem_idx_str), table.concat(parts))
+            end
+            -- }}}
 
             -- Messages arrive as effil's shared tables; effil.dump makes a plain
             -- Lua table of one, so the job can be read like any other table.
@@ -2832,6 +2862,11 @@ local function run_page_workers(num_threads, config, jobs)
                     })
                     parts[#parts + 1] = "\n\n"
                 end
+                -- Issue 8-013: the whole view as one text file, offered on
+                -- every page (written by the main program, chronological.txt)
+                parts[#parts + 1] = string.format(
+                    " download every poem as text: <a href='../chronological.txt'>chronological.txt</a> (%d poems)\n",
+                    work.total_poems)
                 local html = t_chrono_page.page_html(work.page_num, work.total_pages,
                     config.page_head, table.concat(parts))
                 local dir_path = config.output_dir .. "/chronological"
@@ -2868,24 +2903,41 @@ local function run_page_workers(num_threads, config, jobs)
                     end
                     return config.pages_list
                 end
-                for _, page_num in ipairs(pages_for(similar_ranking)) do
-                    if generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page,
-                            config.output_dir, config.chrono_mapping, config.chrono_paginated) then
-                        counts.similar = counts.similar + 1
+                -- {{{ local function build_list()
+                -- One list's pages, then its text export when exports are on
+                -- (config.lua pagination.generate_txt_exports, Issue 8-013).
+                -- The export holds what the pages hold: pages 1..N of
+                -- poems_per_page each, cut at the end of the list.
+                local function build_list(list, page_type)
+                    local pages = pages_for(list)
+                    local count = math.min(#list, #pages * config.poems_per_page)
+                    local download = false
+                    if config.txt_exports then
+                        download = { file = string.format("%04d.txt", poem_index), count = count }
                     end
-                end
-                for _, page_num in ipairs(pages_for(diverse_sequence)) do
-                    if generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page,
-                            config.output_dir, config.chrono_mapping, config.chrono_paginated) then
-                        counts.different = counts.different + 1
+                    local written = 0
+                    for _, page_num in ipairs(pages) do
+                        if generate_page(poem, list, page_type, page_num, config.poems_per_page,
+                                config.output_dir, config.chrono_mapping, config.chrono_paginated, download) then
+                            written = written + 1
+                        end
                     end
+                    if config.txt_exports and count > 0 then
+                        write_text_export(poem, list, page_type, count, config.output_dir,
+                            config.chrono_mapping, config.chrono_paginated)
+                        counts.text_files = counts.text_files + 1
+                    end
+                    return written
                 end
+                -- }}}
+                counts.similar = counts.similar + build_list(similar_ranking, "similar")
+                counts.different = counts.different + build_list(diverse_sequence, "different")
                 counts.poems = counts.poems + 1
             end
             -- }}}
 
             -- ask for a job, do it, report it, until told to stop
-            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0 }
+            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0 }
             while true do
                 request_channel:push({ type = "get_work", worker_id = tid })
                 local work = response_channel:pop()
@@ -2906,7 +2958,7 @@ local function run_page_workers(num_threads, config, jobs)
                 -- }}}
                 request_channel:push({ type = "done", worker_id = tid })
             end
-            return counts.similar, counts.different, counts.poems, counts.chrono_pages
+            return counts.similar, counts.different, counts.poems, counts.chrono_pages, counts.text_files
         end)
         threads[thread_id] = thread_func(config, thread_id, work_request_channel, work_response_channels[thread_id])
     end
@@ -2939,6 +2991,7 @@ local function run_page_workers(num_threads, config, jobs)
                         type = "chrono_page",
                         page_num = job.page_num,
                         total_pages = job.total_pages,
+                        total_poems = job.total_poems,
                         entries = job.entries,
                     })
                 else
@@ -2984,7 +3037,7 @@ local function run_page_workers(num_threads, config, jobs)
         num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
     -- {{{ collect each worker's counts; one that did not finish stops the run
-    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0 }
+    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0 }
     for tid, thread in pairs(threads) do
         local status, worker_err = thread:wait()
         if status ~= "completed" then
@@ -2993,11 +3046,12 @@ local function run_page_workers(num_threads, config, jobs)
                 tid, tostring(status), tostring(worker_err)))
             os.exit(1)
         end
-        local sim, diff, poems, chrono = thread:get()
+        local sim, diff, poems, chrono, texts = thread:get()
         totals.similar = totals.similar + sim
         totals.different = totals.different + diff
         totals.poems = totals.poems + poems
         totals.chrono_pages = totals.chrono_pages + chrono
+        totals.text_files = totals.text_files + texts
     end
     -- }}}
     return totals
@@ -3060,7 +3114,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
             }
         end
         jobs[#jobs + 1] = { kind = "chrono_page", page_num = page_num,
-            total_pages = total_pages, entries = entries }
+            total_pages = total_pages, total_poems = total_poems, entries = entries }
     end
     -- }}}
 
@@ -3361,28 +3415,42 @@ end
 -- }}}
 
 -- {{{ function M.generate_chronological_txt_file
+-- Every poem in date order as one text file (Issue 8-013), drawn as on the
+-- chronological pages but as plain text: each poem's file line and its frame,
+-- no navigation boxes, no links, pictures as their descriptions. No time
+-- stamp, so the same poems write the same bytes. Returns output_file.
 function M.generate_chronological_txt_file(poems_data, output_file)
-    -- Generate TXT export for all poems in chronological order
-    -- Uses actual post dates for sorting (not poem IDs)
-    -- Includes file header with metadata and all poems formatted at 80-char width
-
-    -- Sort poems chronologically by actual post dates
-    local sorted_poems = sort_poems_chronologically_by_dates(poems_data)
-    local total_poems = #sorted_poems
-
-    -- Generate header
-    local title = "POEMS IN CHRONOLOGICAL ORDER"
-    local header = generate_txt_file_header(title, total_poems)
-
-    -- Generate content for each poem
-    local content = header
-    for i, poem_info in ipairs(sorted_poems) do
-        content = content .. format_single_poem_80_width(poem_info.poem)
-        content = content .. "\n\n"
+    local sorted = sort_poems_chronologically_by_dates(poems_data)
+    local total = #sorted
+    -- Issue 8-045: progress by date through the writing timeline, as the pages
+    local first_timestamp = sorted[1] and sorted[1].timestamp or 0
+    local last_timestamp = sorted[total] and sorted[total].timestamp or 0
+    local span = last_timestamp - first_timestamp
+    if span <= 0 then span = 1 end  -- one date: avoid dividing by zero
+    local poem_colors = load_poem_colors()
+    local parts = {
+        "Poems in chronological order, by post date\n",
+        string.format("%d poems\n\n", total),
+    }
+    for _, info in ipairs(sorted) do
+        local poem = info.poem
+        local color_data = poem_colors[poem.poem_index]
+        parts[#parts + 1] = table.concat(text_formatter.wrap_file_header(" -> file: ",
+            chronological_page.display_filename(poem), 80), "\n") .. "\n"
+        parts[#parts + 1] = poem_entry.format_entry(poem, {
+            color_name = color_data and color_data.color or "gray",
+            progress_pct = (((info.timestamp or first_timestamp) - first_timestamp) / span) * 100,
+            similar_link = "", different_link = "", chrono_link = false,
+            plain = true,
+        })
+        parts[#parts + 1] = "\n\n"
     end
-
-    return utils.write_file(output_file, content) and output_file or nil
+    if not utils.write_file(output_file, table.concat(parts)) then
+        error("could not write " .. output_file)
+    end
+    return output_file
 end
+-- }}}
 -- }}}
 
 -- {{{ function M.generate_complete_flat_html_collection
@@ -3598,9 +3666,14 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Issue 9-003 Fix D: where each poem sits on the timeline and its page
     config.chrono_mapping = chrono_mapping
     config.chrono_paginated = chronological_paginated
+    -- Issue 8-013: each list's text export, and the download line on its pages
+    config.txt_exports = PAGINATION_CONFIG.generate_txt_exports
     local done = run_page_workers(num_threads, config, jobs)
     for i = 1, done.similar do table.insert(results.similarity_pages, "parallel") end
     for i = 1, done.different do table.insert(results.diversity_pages, "parallel") end
+    if config.txt_exports then
+        utils.log_info(string.format("Text exports written: %d (one per list)", done.text_files))
+    end
     
     -- Note: Chronological index and explore.html are generated by main.lua before this function
     -- to avoid duplicate work. We only generate the TXT export here.

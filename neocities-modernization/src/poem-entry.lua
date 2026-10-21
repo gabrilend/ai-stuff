@@ -154,8 +154,11 @@ local function media_tags(attachments)
             -- alt text: the post's description (ActivityPub) or alt_text, as
             -- one line with quotes escaped, since it sits in an attribute; it
             -- is also the hover title (Issue 8-053)
+            -- Escaped in full, not just its quotes: a description quoting
+            -- code ("#include <stdio.h>") put a raw "<" inside the attribute
+            -- (found by the 8-013 text exports, which measured it short).
             local alt = att.description or att.alt_text or "Image attachment"
-            alt = alt:gsub("\n", " "):gsub("\r", ""):gsub('"', "&quot;")
+            alt = M.escape_html(alt:gsub("\n", " "):gsub("\r", "")):gsub('"', "&quot;")
             -- width/height (when known) let the browser hold the space
             local size = (att.width and att.height)
                 and string.format(' width="%d" height="%d"', att.width, att.height) or ""
@@ -267,6 +270,86 @@ local function golden_walls(lines, hex_color)
 end
 -- }}}
 
+-- {{{ local function placeholder()
+-- A picture, sound or video as a line of text: "[Image: <description>]",
+-- "[Audio: <file name>]", "[Video: <file name>]" (the text exports, Issue
+-- 8-013). tag is one HTML media tag (or block); indent is the spaces it had.
+local function placeholder(indent, tag)
+    local alt = tag:match('alt="([^"]*)"')
+    if tag:match("^<img") then
+        return indent .. "[Image: " .. (alt or "picture") .. "]"
+    end
+    local src = tag:match('<source src="([^"]*)"') or ""
+    local name = src:match("([^/]+)$") or src
+    if tag:match("^<audio") then
+        return indent .. "[Audio: " .. name .. "]"
+    end
+    return indent .. "[Video: " .. name .. "]"
+end
+-- }}}
+
+-- {{{ local function decode_entities()
+-- Entities back to their characters, for text that is no longer HTML.
+-- "&amp;" goes last: "&amp;lt;" is the text "&lt;", not "<".
+local function decode_entities(s)
+    return (s:gsub("&#x(%x+);", function(h) return M.utf8_char(tonumber(h, 16)) end)
+        :gsub("&#(%d+);", function(d) return M.utf8_char(tonumber(d)) end)
+        :gsub("&quot;", '"'):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&amp;", "&"))
+end
+-- }}}
+
+-- {{{ function M.utf8_char
+-- One Unicode code point as UTF-8 bytes (LuaJIT has no utf8 library).
+function M.utf8_char(cp)
+    if cp < 0x80 then return string.char(cp) end
+    if cp < 0x800 then
+        return string.char(0xC0 + math.floor(cp / 0x40), 0x80 + cp % 0x40)
+    end
+    if cp < 0x10000 then
+        return string.char(0xE0 + math.floor(cp / 0x1000),
+            0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+    end
+    return string.char(0xF0 + math.floor(cp / 0x40000), 0x80 + math.floor(cp / 0x1000) % 0x40,
+        0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+end
+-- }}}
+
+-- {{{ function M.to_plain
+-- An entry's HTML as plain text, for the text exports (Issue 8-013): each
+-- picture, sound or video becomes one placeholder line (wrapped at the text
+-- column if its description is long), the <pre> breaks around them and the
+-- <hr> rules of a picture entry go, every other tag is removed, and entities
+-- become their characters. The frames are box-drawing characters already, so
+-- they survive as they are.
+function M.to_plain(html)
+    local width = settings and settings.text_width or 80
+    -- multi-line media blocks (audio, video) become one line first
+    html = html:gsub("(%s*)(<audio.-</audio>)", function(ind, tag) return placeholder(ind:gsub("\n", ""), tag) end)
+    html = html:gsub("(%s*)(<video.-</video>)", function(ind, tag) return placeholder(ind:gsub("\n", ""), tag) end)
+    local out = {}
+    for line in (html .. "\n"):gmatch("(.-)\n") do
+        local indent, img = line:match("^(%s*)(<img .*)$")
+        if img then
+            -- {{{ a picture: its placeholder, wrapped at the text column
+            -- Wrapped while still escaped, then decoded: the wrapper measures
+            -- width by skipping anything shaped like a tag, so a description
+            -- quoting "#include <stdio.h>" would measure short once decoded
+            -- and run past the frame.
+            local text = placeholder(indent, img)
+            for _, piece in ipairs(text_formatter.wrap_preserving_indent(text, width)) do
+                out[#out + 1] = decode_entities(piece)
+            end
+            -- }}}
+        elseif line == "</pre>" or line == "<pre>" or line == "<hr>" then
+            -- page structure around pictures: nothing to show in text
+        else
+            out[#out + 1] = decode_entities(line:gsub("<[^>]+>", ""))
+        end
+    end
+    return table.concat(out, "\n")
+end
+-- }}}
+
 -- {{{ local function boost_entry()
 -- A boost (someone else's post, shared): the nested boost frame from
 -- boost-bars around the shared text, then its pictures. Its text is
@@ -302,27 +385,17 @@ local function boost_entry(poem, entry)
     text = M.apply_markdown(text)
     local lines = {}
     for line in (text .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+    -- the navigation strip inside the frame: on a page; not in a text export
     local out = { boost_bars.format_boost(lines, entry.progress_pct / 100,
-        entry.similar_link, entry.different_link, entry.chrono_link or nil, true) }
+        entry.similar_link, entry.different_link, entry.chrono_link or nil, not entry.plain) }
     add_media(out, poem)
     return table.concat(out, "\n")
 end
 -- }}}
 
--- {{{ function M.format_entry
--- One poem's entry, as page text with no trailing newline (the page puts its
--- own spacing between entries).
--- poem  : a poem from poems.json (or a picture-only entry, is_image = true)
--- entry : {
---   color_name     = string, the poem's semantic colour ("gray" if none),
---   progress_pct   = number 0-100, how far through the writing timeline,
---   similar_link   = string, <a> to its similar page,
---   different_link = string, <a> to its different page,
---   chrono_link    = string <a> to its chronological page, or false on the
---                    chronological pages themselves (an empty centre box),
--- }
-function M.format_entry(poem, entry)
-    require_settings()
+-- {{{ local function draw_entry()
+-- The entry as HTML; format_entry below turns it into text for an export.
+local function draw_entry(poem, entry)
     -- {{{ dispatch on the kind of entry
     if poem.is_image then
         -- a picture-only entry: its own box (Issue 9-013)
@@ -340,7 +413,9 @@ function M.format_entry(poem, entry)
     end
     local progress = { percentage = entry.progress_pct, poem_id = poem.poem_index }
     local top = poem_bars.progress_dashes(progress, entry.color_name, is_golden, "top", false)
-    local bottom = poem_bars.progress_dashes(progress, entry.color_name, is_golden, "bottom", true)
+    -- the bottom bar joins the navigation boxes on a page; in a text export
+    -- there are none, so it is the plain bar
+    local bottom = poem_bars.progress_dashes(progress, entry.color_name, is_golden, "bottom", not entry.plain)
     -- the navigation boxes are tinted as far as the top bar is filled
     local fill = top.raw_progress
     local chrono_link = entry.chrono_link or nil
@@ -362,8 +437,11 @@ function M.format_entry(poem, entry)
     -- pictures go before the navigation boxes, for golden poems too, so the
     -- golden frame stays in one piece
     add_media(out, poem)
-    -- {{{ navigation boxes: golden's join its walls; regular ones stand alone
-    if is_golden then
+    -- {{{ navigation boxes: golden's join its walls; regular ones stand alone;
+    -- a text export has none (no links to follow in a text file)
+    if entry.plain then
+        -- no boxes
+    elseif is_golden then
         out[#out + 1] = poem_bars.golden_corner_box_separator(hex_color, fill)
         out[#out + 1] = poem_bars.golden_corner_box_nav_line(
             entry.similar_link, entry.different_link, chrono_link, hex_color, fill)
@@ -375,6 +453,29 @@ function M.format_entry(poem, entry)
     -- }}}
     out[#out + 1] = bar_line(bottom)
     return table.concat(out, "\n")
+end
+-- }}}
+
+-- {{{ function M.format_entry
+-- One poem's entry, with no trailing newline (the page puts its own spacing
+-- between entries).
+-- poem  : a poem from poems.json (or a picture-only entry, is_image = true)
+-- entry : {
+--   color_name     = string, the poem's semantic colour ("gray" if none),
+--   progress_pct   = number 0-100, how far through the writing timeline,
+--   similar_link   = string, <a> to its similar page,
+--   different_link = string, <a> to its different page,
+--   chrono_link    = string <a> to its chronological page, or false on the
+--                    chronological pages themselves (an empty centre box),
+--   plain          = true for a text export (Issue 8-013): no navigation
+--                    boxes and no HTML; absent or false for a page,
+-- }
+function M.format_entry(poem, entry)
+    require_settings()
+    local html = draw_entry(poem, entry)
+    -- a text export: the same entry as plain text; a page: as drawn
+    if entry.plain then return M.to_plain(html) end
+    return html
 end
 -- }}}
 

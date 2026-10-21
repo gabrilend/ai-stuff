@@ -4,8 +4,91 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Feature Implementation
-- **Status**: Completed (2025-12-23)
+- **Status**: Reopened (2026-10-20) -- the exports were never written by the
+  threaded build; rebuilt in the pages' own style (below). First completed
+  2025-12-23.
 - **Previously Blocked**: 8-012 (now unblocked)
+
+## Reopened 2026-10-20: text exports in the pages' style
+
+### The owner's words
+
+> Let's fix the .txt functionality and add a link to download it at the end
+> of the page. Can we format it like the similar/different/chronological
+> pages? Except without navigation of course. Just, with the boxes, and the
+> title and such. pretty printing...
+
+### Current Behavior (2026-10-21)
+
+**Built; waiting on the owner's next build, and on step 5.**
+- `src/poem-entry.lua` draws a plain-text form of any entry (`plain = true`):
+  frames kept, navigation boxes and links dropped, the bottom bar plain,
+  pictures as `[Image: …]` lines wrapped inside the frame, entities decoded.
+  The boost frame's bottom edge loses its junctions when it has no
+  navigation strip (`boost-bars.bottom_border`'s `has_nav`).
+- The page workers write `similar/NNNN.txt` and `different/NNNN.txt` for every
+  poem whose pages they build, holding what its pages hold, and end each page
+  with "download this list as text: NNNN.txt (N poems)". Both follow
+  `generate_txt_exports`.
+- `chronological.txt` is drawn the same way (10 MB for 8,622 poems), and
+  every chronological page ends with a line offering it.
+- Checked on the 197-poem sample render: 394 exports, none wider than 84
+  columns, no HTML left; the pages differ from before only by the download
+  line; the page check finds 0 over-wide lines and 0 frame errors. About
+  41 KB per 33 poems, so about 2 GB for all 17,244 lists at 99 poems each.
+- Found on the way: a picture's description went into the page's `alt="…"`
+  with only its quotes escaped, so a description quoting `<stdio.h>` put a raw
+  `<` in the attribute; it is now escaped in full.
+- Tests: `src/poem-entry.test.lua` (plain entries), `src/boost-bars.test.lua`
+  (the edge without the strip).
+- Left: step 5, retiring the old export writers with the single-threaded
+  builder (Issue 8-058).
+
+Before (2026-10-20): `config.lua` said `generate_txt_exports = true`, and no build had written a
+per-poem export since the page workers took over the similar and different
+pages: the export writer (`generate_similarity_txt_file` and
+`generate_diversity_txt_file` in `src/flat-html-generator.lua`) is called
+only by the single-threaded builder, which no build uses (Issue 8-058). The
+pages offer no download. `chronological.txt` is still written, in the old
+`====` style.
+
+### Intended Behavior
+
+- **One text file per list**: `similar/0001.txt` and `different/0001.txt`
+  beside that poem's pages, holding every poem the list's pages hold (with
+  `--pages 3` and 33 per page, 99), in the same order.
+- **Drawn like the pages, as plain text**: the same title, the anchor poem,
+  each ranked poem's `--- #n source ---` line, and each poem in its frame --
+  top bar, golden walls, warning boxes, text -- from the same poem drawer
+  (`src/poem-entry.lua`). Without navigation: no similar / different /
+  chronological boxes under each poem, so the bottom bar is the plain one,
+  and no links. No HTML at all: tags gone, entities as their characters.
+  Pictures become `[Image: description]`, sound `[Audio: file]`, video
+  `[Video: file]`; a gallery picture's entry becomes its title and
+  `[Image: title]`.
+- **A link at the end of each page**: after the last poem, "download this
+  list as text: 0001.txt (99 poems)". Off together with the export when
+  `generate_txt_exports` is false.
+- **No time stamp in the file**, so a rebuild with the same inputs writes the
+  same bytes.
+- Measured cost (2026-10-20): about 150 KB per file, about 2.5 GB for all
+  17,244 lists; the site is 4.7 GB and the storage ceiling 45 GB.
+
+### Suggested Implementation Steps
+
+1. `poem-entry.lua`: a plain-text form of an entry (`entry.plain = true`):
+   no navigation boxes, the plain bottom bar, then HTML turned to text
+   (pictures to placeholders, tags removed, entities decoded).
+2. The page worker writes `<list>/<NNNN>.txt` for each poem whose pages it
+   builds, from the same entries, when `generate_txt_exports` is on, and
+   adds the link after the last poem of each page.
+3. `chronological.txt` in the same style (its own step; it is written once,
+   by the main program).
+4. Tests: plain entries hold no `<` tag and no `&...;` entity, are no wider
+   than 84 columns, keep the frame and drop the navigation boxes; the page
+   carries the link only when the export is on.
+5. Retire the old export writers with the single-threaded builder (8-058
+   step 5).
 
 ## Blocking Relationship (RESOLVED)
 
