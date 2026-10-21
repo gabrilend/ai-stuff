@@ -1,6 +1,80 @@
 # Issue 8-019: Implement Unique poem_index System
 
-## Current Behavior
+## Reopened 2026-10-21: the index is unique but not stable
+
+### Current Behavior
+
+`src/poem-extractor.lua` sorts all poems by category, then by each source's
+own id, and numbers them 1..N in that order. A note's own id is its position
+in `find`'s listing of the notes folder (`scripts/extract-notes.lua`), which
+follows how ext4 stores the directory, not names or dates. So adding a note
+renumbers every note after it, and adding a poem to an earlier category
+renumbers everything in the categories after it.
+
+What it broke, found 2026-10-21:
+- 17 notes reached `~/notes` at 17:49 on 2026-10-07 (pittiless,
+  spirit-of-life, work-at-power, ...), between that day's noon extraction and
+  the 18:02 copy into `input/`. They landed all through the listing (note
+  positions 27 to 542), each pushing every later note up one. The last 16
+  notes -- old ones, division-by-zero, symbeline-superheros, rivers... --
+  were pushed past the old end, to 8607–8622.
+- The embeddings are filed by poem number. About 555 of the 582 notes now
+  sit at a number whose embedding was made from a different note: for notes
+  the recorded text length no longer tracks the real length (correlation
+  0.12 for EmbeddingGemma 2, 0.08 for the September EmbeddingGemma 300m;
+  1.00 for every other category). Every note's similar and different list on
+  the live site is ranked from another note's meaning.
+- The gallery pictures were numbered after the highest embedded poem, so 16
+  took 8607–8622 (fixed 2026-10-20 in the image step; see Issue 9-013).
+- Page addresses use the number (`similar/0001-01.html`), so a renumbering
+  also moves every page a link points to.
+
+### The three numbers each item needs (owner, 2026-10-21)
+
+> pictures should have their own index, for the gallery. But they should
+> also have another index that displays their providence. We already use a
+> dual-index system for fediverse / messages / notes, so look to that for
+> inspiration. This however adds a third index for the gallery which is just
+> separate.
+
+- **Source index** (provenance): which source and which item in it --
+  `fediverse/1583`, `notes/<file name>`, `my-art/<path>`. It must come from
+  the item itself (a post id, a file name), never from a listing position.
+- **Gallery index**: pictures only, their place in the gallery.
+- **Global number**: one number for every item, poem or picture, used to rank
+  them together and to name their pages.
+
+### Open question (for the owner)
+
+How is the global number given out?
+- **A. Once, on first sight, never reused.** An append-only register maps
+  each source index to its number; a new item gets the next number, and
+  nothing that already has one ever moves. Embeddings, rankings and page
+  addresses stay attached. Pictures are numbered the same way, so they can
+  never collide with a poem. Order on the pages (by date) comes from dates,
+  not from numbers.
+- **B. Re-derived each run in a meaningful order** (for example by date,
+  pictures interleaved among the poems). Every cache must then be filed by
+  source index and checked against the text it was made from, and every page
+  address changes whenever anything is added before it.
+- Recommended: A, with every cache also checked against a fingerprint of its
+  text, so a vector can never again attach to the wrong poem.
+
+### Suggested Implementation Steps (after the question is answered)
+
+1. Notes get a stable source id: the file name (exclusions already name
+   notes by file name).
+2. A register file, append-only, written by extraction (A) -- or the sort
+   order (B).
+3. The embedding cache stores each vector's text fingerprint and the
+   embedding stage re-embeds any poem whose fingerprint differs.
+4. A check (test and pre-flight) that every embedding's fingerprint matches
+   its poem.
+5. Re-embed the notes (and the 16 shifted poems) once.
+
+## Original issue (2025-12-25)
+
+### Current Behavior (then)
 
 The poem identification system uses `id` fields derived from source filenames, which creates **collisions across categories**:
 
