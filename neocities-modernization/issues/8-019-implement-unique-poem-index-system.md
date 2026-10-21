@@ -29,6 +29,25 @@ What it broke, found 2026-10-21:
 - Page addresses use the number (`similar/0001-01.html`), so a renumbering
   also moves every page a link points to.
 
+**The diversity cache was in positions, not poem numbers (found and fixed
+2026-10-21).** `scripts/precompute-diversity-sequences-gpu` wrote the GPU's
+positions (0 .. N-1, the order of the embeddings file) as both keys and
+entries, under a comment saying they were converted; the similarity cache is
+in poem numbers (1 .. N). The page builder read both as poem numbers, so
+since 2026-01-17 (the GPU diversity cache becoming the default) every
+"different" page showed the walk of the poem after its anchor, each listed
+poem one below the intended one; position 0 surfaced as a "poem 0" in 149
+lists, which the old page code dropped quietly. Found when the new page
+module refused a ranking naming a poem not in the poem list.
+- The writer now maps each position to the poem number stored at it in the
+  embeddings file, and marks the cache `numbering = "poem_index"`.
+- The page builder refuses a cache without the mark; `run.sh` stage 8
+  regenerates one whatever its date.
+- `scripts/renumber-diversity-cache --model NAME` repairs an old cache in
+  place in seconds (the original kept in RAM), checking it was made from the
+  same embeddings file. The EmbeddingGemma 2 cache is repaired; the older
+  models' caches are not.
+
 **Notes are numbered by date (2026-10-21).** Owner: "this is bad and wrong.
 We should replace it with by date." `scripts/extract-notes.lua` now sorts
 the notes by their file's modification time, oldest first (the file name

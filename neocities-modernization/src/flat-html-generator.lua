@@ -349,6 +349,16 @@ This takes ~1 minute with GPU (or ~42 hours with CPU using --cpu-only).
     if not cache_data.sequences then
         error("Diversity cache has invalid format (missing sequences table)")
     end
+    -- Before 2026-10-21 this cache held GPU positions (0 .. N-1) where the
+    -- pages read poem numbers, so every "different" page showed the next
+    -- poem's walk shifted by one (Issue 8-019). A cache written since says
+    -- so in its metadata; an older one is refused rather than misread.
+    if not (cache_data.metadata and cache_data.metadata.numbering == "poem_index") then
+        error(string.format([[
+Diversity cache %s holds GPU positions, not poem numbers (written before
+2026-10-21), so every "different" list would be off by one.
+Regenerate it: ./run.sh --generate-diversity (or a --force build).]], cache_file))
+    end
 
     DIVERSITY_CACHE = cache_data
     return cache_data
@@ -2605,138 +2615,27 @@ local function run_page_workers(num_threads, config, jobs)
             local poem_colors = poem_colors_data.poem_colors
 
 
-            -- Local helper: Get unique filename ID for poem
-            local function get_unique_id(poem)
-                local cat_prefix = (poem.category or "unknown"):sub(1, 1):lower()
-                local id_num = poem.id or poem.poem_index or 0
-                return string.format("%s-%04d", cat_prefix, id_num)
-            end
-
-            -- {{{ Local helper: Get source path for poem identification in ranking headers
-            -- Issue 8-036: Returns human-readable source path for each category
-            local function get_source_path(poem)
-                local category = poem.category or "unknown"
-                if category == "notes" and poem.metadata and poem.metadata.source_file then
-                    -- Notes show original descriptive filename
-                    return "notes/" .. poem.metadata.source_file
-                elseif category == "bluesky" then
-                    -- Bluesky uses # notation
-                    return "bluesky#" .. (poem.id or 0)
-                elseif category == "fediverse" then
-                    -- Fediverse shows category/id
-                    return "fediverse/" .. (poem.id or 0)
-                elseif category == "messages" then
-                    -- Messages shows category/id
-                    return "messages/" .. (poem.id or 0)
-                else
-                    return category .. "/" .. (poem.id or poem.poem_index or 0)
+            -- The ranked pages and their text exports, drawn by one module
+            -- (src/ranked-page.lua) that the tests call too (Issue 8-058).
+            local t_ranked_page = require('ranked-page')
+            local t_effil_for_ctx = require('effil')
+            -- {{{ local function ranked_ctx()
+            -- What every ranked page needs about the wider collection (see the
+            -- module's header for each field). Built on the first poem job:
+            -- a pool that only builds chronological pages is never handed the
+            -- ranking settings.
+            local page_ctx = false
+            local function ranked_ctx()
+                if not page_ctx then
+                    page_ctx = {
+                        colors = poem_colors,
+                        chrono_map = t_effil_for_ctx.dump(config.chrono_mapping),
+                        chrono_paged = config.chrono_paginated,
+                        poems_per_page = config.poems_per_page,
+                        head_block = PAGE_HEAD_BLOCK,
+                    }
                 end
-            end
-            -- }}}
-
-
-            -- Local helper: Build poem lookup by poem_index for ranking conversion
-            local function build_poem_by_index()
-                local lookup = {}
-                for i, poem in ipairs(poems_data.poems) do
-                    if poem.poem_index then
-                        lookup[poem.poem_index] = poem
-                    end
-                end
-                return lookup
-            end
-            local poem_by_index = build_poem_by_index()
-
-            -- Issue 10-034: Convert similarity ranking (raw indices) to poem objects
-            -- ranking_data is an array of poem indices received from orchestrator
-            local function convert_similarity_ranking(ranking_data, source_poem_index)
-                if not ranking_data then return {} end
-                local result = {}
-                for i, neighbor_index in ipairs(ranking_data) do
-                    -- Issue 10-025: the anchor is drawn once, above the
-                    -- list; a ranking that includes it must not draw it
-                    -- again (the diversity converter below already skips it).
-                    local neighbor_poem = neighbor_index ~= source_poem_index
-                        and poem_by_index[neighbor_index]
-                    if neighbor_poem then
-                        table.insert(result, {
-                            poem = neighbor_poem,
-                            rank = i
-                        })
-                    end
-                end
-                return result
-            end
-
-            -- Issue 10-034: Convert diversity sequence (raw indices) to poem objects
-            -- sequence_data is an array of poem indices received from orchestrator
-            -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
-            local function convert_diversity_sequence(sequence_data, source_poem_index)
-                if not sequence_data then return {} end
-                local result = {}
-                for step, neighbor_index in ipairs(sequence_data) do
-                    if neighbor_index ~= source_poem_index then
-                        local neighbor_poem = poem_by_index[neighbor_index]
-                        if neighbor_poem then
-                            table.insert(result, {
-                                id = neighbor_index,
-                                poem = neighbor_poem,
-                                step = step
-                            })
-                        end
-                    end
-                end
-                return result
-            end
-
-            -- {{{ local function format_poem_entry()
-            -- One poem's entry, drawn by the shared poem drawer. This
-            -- worker only supplies what the drawer is told: the poem's
-            -- colour, how far through the writing timeline it is, and
-            -- its three links.
-            -- plain: true for a text export (no navigation boxes, no HTML)
-            local function format_poem_entry(poem, chrono_map, chrono_paged, plain)
-                -- a picture-only entry draws its own box and needs no links
-                if poem.is_image then
-                    return t_poem_entry.format_entry(poem, { plain = plain })
-                end
-                local poem_idx = poem.poem_index
-                local color_data = poem_colors[poem_idx]
-                -- Issue 8-045: a poem missing from the chronological map has
-                -- no place on the timeline and no chronological page. The
-                -- worker fails, and the orchestrator stops the run with this.
-                local chrono_info = chrono_map[poem_idx]
-                if not chrono_info then
-                    error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
-                end
-                -- Issue 16-006: the anchor is just the poem_index
-                local anchor_id = string.format("poem-%d", poem_idx)
-                -- Issue 8-039: paginated -> its numbered page; else index.html
-                local chrono_page = (chrono_paged and chrono_info.total_pages > 1)
-                    and string.format("%02d.html", chrono_info.page_number) or "index.html"
-                return t_poem_entry.format_entry(poem, {
-                    color_name = color_data and color_data.color or "gray",
-                    progress_pct = chrono_info.timeline_progress,
-                    similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_idx),
-                    different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
-                    chrono_link = string.format("<a href='../chronological/%s#%s'>chronological</a>",
-                        chrono_page, anchor_id),
-                    plain = plain,
-                })
-            end
-            -- }}}
-
-            -- {{{ local function ranked_header()
-            -- The line above the i-th poem of a list: "--- #i source ---"
-            -- (Issue 8-036). A long note name wraps at a dash or slash
-            -- (text-formatter's wrap_file_header); the closing " ---" is 4
-            -- wide and holds dashes the wrapper would break at, so the path
-            -- wraps to 76 and the closer goes on its last line.
-            local function ranked_header(i, entry_poem)
-                local header = t_text_formatter.wrap_file_header(
-                    string.format("--- #%d ", i), get_source_path(entry_poem), 76)
-                header[#header] = header[#header] .. " ---"
-                return table.concat(header, "\n") .. "\n"
+                return page_ctx
             end
             -- }}}
 
@@ -2747,103 +2646,6 @@ local function run_page_workers(num_threads, config, jobs)
                 if not f then error("could not write " .. filename) end
                 f:write(text)
                 f:close()
-            end
-            -- }}}
-
-            -- the "« First │ ‹ Prev │ Page X of Y │ Next › │ Last »" line,
-            -- shared with the chronological pages (chronological-page.lua)
-            local t_page_links = require('chronological-page').page_links
-
-            -- {{{ local function generate_page()
-            -- One page of a poem's similar or different list: the anchor poem,
-            -- then poems start..end of the list. total_pages: how many pages
-            -- this list has (the navigation line links them, above and below;
-            -- Issues 8-012 and 10-036 -- page 1 used to have no way to page 2).
-            -- download: false, or { file = "0001.txt", count = n } -- the line
-            -- offering the list's text export, after the last poem (Issue
-            -- 8-013). Returns the file written, or nil when the page would be
-            -- past the end of the list.
-            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged, total_pages, download)
-                local start_idx = (page_num - 1) * poems_per_pg + 1
-                local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
-                if start_idx > #sorted_list then return nil end
-
-                local type_label = page_type == "similar" and "similarity" or "diversity"
-                local poem_idx_str = string.format("%04d", poem.poem_index or 0)
-                local filename = string.format("%s/%s/%s-%02d.html", out_dir, page_type, poem_idx_str, page_num)
-
-                -- Issue 16-010: the shared head block (viewport, shipped
-                -- monospace font, centring), as on the chronological pages
-                local html_parts = {
-                    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-                    '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                    PAGE_HEAD_BLOCK,
-                    '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
-                }
-                -- page navigation, when the list runs to more than one page
-                local nav = t_page_links(page_num, total_pages, function(n)
-                    return string.format("%s-%02d.html", poem_idx_str, n)
-                end)
-                if nav ~= "" then
-                    table.insert(html_parts, " " .. nav .. "\n\n")
-                end
-                table.insert(html_parts, "=== ANCHOR POEM ===\n")
-                table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
-                table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
-                for i = start_idx, end_idx do
-                    local entry_poem = sorted_list[i].poem
-                    table.insert(html_parts, ranked_header(i, entry_poem))
-                    -- Issue 9-013: text+image posts get a direct "image.png"
-                    -- link below their header (image entries are skipped --
-                    -- their title already deep-links into the gallery).
-                    if not entry_poem.is_image then
-                        local img_link = t_image_render.text_image_link(entry_poem)
-                        if img_link ~= "" then
-                            table.insert(html_parts, " " .. img_link .. "\n")
-                        end
-                    end
-                    table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
-                    table.insert(html_parts, "\n\n")
-                end
-                if nav ~= "" then
-                    table.insert(html_parts, " " .. nav .. "\n")
-                end
-                -- the download offer: on when the text export is (config.lua
-                -- pagination.generate_txt_exports), else no line at all
-                if download then
-                    table.insert(html_parts, string.format(
-                        " download this list as text: <a href='%s'>%s</a> (%d poems)\n",
-                        download.file, download.file, download.count))
-                end
-                table.insert(html_parts, '</pre></td></tr></table></body></html>')
-                write_file(filename, table.concat(html_parts))
-                return filename
-            end
-            -- }}}
-
-            -- {{{ local function write_text_export()
-            -- The list's text export (Issue 8-013): the poems its pages hold,
-            -- in order, drawn as on the pages but as plain text -- frames
-            -- kept, no navigation boxes, no links, pictures as their
-            -- descriptions. No time stamp, so the same inputs write the same
-            -- bytes. count: how many of the list the pages hold.
-            local function write_text_export(poem, sorted_list, page_type, count, out_dir, chrono_map, chrono_paged)
-                local type_label = page_type == "similar" and "similarity" or "diversity"
-                local poem_idx_str = string.format("%04d", poem.poem_index or 0)
-                local parts = {
-                    string.format("Poems by %s to poem %s: %s\n", type_label, poem_idx_str, get_source_path(poem)),
-                    string.format("%d poems, in the order of its %s pages\n\n", count, page_type),
-                    "=== ANCHOR POEM ===\n",
-                    format_poem_entry(poem, chrono_map, chrono_paged, true),
-                    "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n",
-                }
-                for i = 1, count do
-                    local entry_poem = sorted_list[i].poem
-                    parts[#parts + 1] = ranked_header(i, entry_poem)
-                    parts[#parts + 1] = format_poem_entry(entry_poem, chrono_map, chrono_paged, true)
-                    parts[#parts + 1] = "\n\n"
-                end
-                write_file(string.format("%s/%s/%s.txt", out_dir, page_type, poem_idx_str), table.concat(parts))
             end
             -- }}}
 
@@ -2896,60 +2698,51 @@ local function run_page_workers(num_threads, config, jobs)
             -- }}}
 
             -- {{{ local function build_poem_pages()
-            -- One poem's similar and different pages, from the ranked lists this
-            -- program sends (about 80 KB; Issue 10-034).
+            -- One poem's similar and different pages, and their text exports
+            -- when exports are on (config.lua pagination.generate_txt_exports,
+            -- Issue 8-013), from the ranked lists this program sends (about
+            -- 80 KB; Issue 10-034).
             local function build_poem_pages(work, counts)
                 local poem_index = work.poem_index
                 local poem = poem_lookup[poem_index]
                 if not poem then
                     error("poem " .. tostring(poem_index) .. " is not in poems.json")
                 end
-                local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
-                local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
-                -- Issue 10-036: which pages to write for one list. "--pages all"
-                -- means every page the list fills, up to the storage cap; "--pages
-                -- N" means pages 1 through N. A page past the end of the list is
-                -- skipped by generate_page itself.
-                local function pages_for(list)
-                    if config.pages_is_all then
-                        local count = math.min(math.ceil(#list / config.poems_per_page), config.max_pages_per_poem)
-                        local all = {}
-                        for p = 1, count do all[p] = p end
-                        return all
-                    end
-                    return config.pages_list
-                end
                 -- {{{ local function build_list()
-                -- One list's pages, then its text export when exports are on
-                -- (config.lua pagination.generate_txt_exports, Issue 8-013).
-                -- The export holds what the pages hold: pages 1..N of
-                -- poems_per_page each, cut at the end of the list.
-                local function build_list(list, page_type)
-                    local pages = pages_for(list)
-                    local count = math.min(#list, #pages * config.poems_per_page)
-                    -- pages that hold at least one poem: the ones written
-                    local total_pages = math.min(#pages, math.ceil(#list / config.poems_per_page))
-                    local download = false
-                    if config.txt_exports then
-                        download = { file = string.format("%04d.txt", poem_index), count = count }
+                local function build_list(ranking, page_type)
+                    -- a poem with no ranking: the caches were made without it
+                    -- (it arrived after the embeddings); stop rather than write
+                    -- a poem whose pages every other page links to but nobody wrote
+                    if not ranking then
+                        error(string.format("poem %d has no %s ranking in the caches", poem_index, page_type))
                     end
+                    local list = t_ranked_page.ranked_list(ranking, poem_index, poem_lookup)
+                    local pages, count, total_pages = t_ranked_page.plan(list,
+                        config.pages_is_all and "all" or config.pages_list,
+                        config.poems_per_page, config.max_pages_per_poem)
+                    local download = config.txt_exports
+                        and { file = string.format("%04d.txt", poem_index), count = count } or false
                     local written = 0
                     for _, page_num in ipairs(pages) do
-                        if generate_page(poem, list, page_type, page_num, config.poems_per_page,
-                                config.output_dir, config.chrono_mapping, config.chrono_paginated, total_pages, download) then
+                        local html = t_ranked_page.page_html(poem, list, page_type, page_num,
+                            total_pages, download, ranked_ctx())
+                        -- a page past the end of the list is not written
+                        if html then
+                            write_file(string.format("%s/%s/%04d-%02d.html", config.output_dir,
+                                page_type, poem_index, page_num), html)
                             written = written + 1
                         end
                     end
                     if config.txt_exports and count > 0 then
-                        write_text_export(poem, list, page_type, count, config.output_dir,
-                            config.chrono_mapping, config.chrono_paginated)
+                        write_file(string.format("%s/%s/%04d.txt", config.output_dir, page_type, poem_index),
+                            t_ranked_page.text_export(poem, list, page_type, count, ranked_ctx()))
                         counts.text_files = counts.text_files + 1
                     end
                     return written
                 end
                 -- }}}
-                counts.similar = counts.similar + build_list(similar_ranking, "similar")
-                counts.different = counts.different + build_list(diverse_sequence, "different")
+                counts.similar = counts.similar + build_list(work.similarity_ranking, "similar")
+                counts.different = counts.different + build_list(work.diversity_sequence, "different")
                 counts.poems = counts.poems + 1
             end
             -- }}}

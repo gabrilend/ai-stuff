@@ -173,6 +173,20 @@ local function main()
     local fp16_fresh = fp16_mtime and json_mtime and fp16_mtime >= json_mtime
 
     local num_poems, embedding_dim
+    -- position (0-based, the order the GPU uses) -> poem number (poem_index)
+    local position_numbers
+    -- {{{ local function numbers_by_position()
+    local function numbers_by_position(embeddings_data)
+        local numbers = {}
+        for i, entry in ipairs(embeddings_data.embeddings) do
+            if not entry.poem_index then
+                error("embedding entry " .. i .. " has no poem_index")
+            end
+            numbers[i - 1] = entry.poem_index
+        end
+        return numbers
+    end
+    -- }}}
     local embeddings_fp16  -- FFI uint16_t[?] buffer, fed to the GPU
 
     if fp16_fresh then
@@ -186,6 +200,7 @@ local function main()
             error("Failed to load embeddings or invalid format")
         end
         num_poems = #embeddings_data.embeddings
+        position_numbers = numbers_by_position(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
         embeddings_data = nil  -- let the GC reclaim the table
         collectgarbage("collect")
@@ -215,6 +230,7 @@ local function main()
             error("Failed to load embeddings or invalid format")
         end
         num_poems = #embeddings_data.embeddings
+        position_numbers = numbers_by_position(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
         print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 
@@ -354,26 +370,39 @@ local function main()
             generation_time_seconds = math.floor(elapsed),
             embeddings_file_size = get_file_size(embeddings_file),
             total_sequences = num_poems,
-            top_k = TOP_K
+            top_k = TOP_K,
+            -- keys and entries are poem numbers (poem_index); a cache without
+            -- this mark holds GPU positions and is refused by its readers
+            numbering = "poem_index"
         },
         sequences = {}
     }
 
-    -- Convert 0-indexed Lua tables to 1-indexed JSON strings
-    -- GPU returns: {[0] = {seq}, [1] = {seq}, ...}
-    -- JSON needs: {"0": [seq], "1": [seq], ...}
-    for poem_id = 0, num_poems - 1 do
-        local sequence = sequences[poem_id]
+    -- Positions to poem numbers. The GPU works in positions (0 .. N-1, the
+    -- order of the embeddings file); the pages read poem numbers (poem_index).
+    -- Until 2026-10-21 the positions were written as they came -- keys AND
+    -- entries -- while the comment here said they were converted, so every
+    -- "different" page since 2026-01-17 showed the walk of the next poem, with each
+    -- listed poem one below the intended one (Issue 8-019). Each position
+    -- maps to the number stored at it, not to position + 1, so a gap in the
+    -- numbering cannot shift it again.
+    for position = 0, num_poems - 1 do
+        local sequence = sequences[position]
         if not sequence then
-            error(string.format("Missing sequence for poem_id %d", poem_id))
+            error(string.format("Missing sequence for position %d", position))
         end
         -- Issue 10-057: keep only the first K of the diversity walk (the top-K).
-        if TOP_K > 0 and #sequence > TOP_K then
-            local capped = {}
-            for i = 1, TOP_K do capped[i] = sequence[i] end
-            sequence = capped
+        local length = (TOP_K > 0 and #sequence > TOP_K) and TOP_K or #sequence
+        local numbered = {}
+        for i = 1, length do
+            local number = position_numbers[sequence[i]]
+            if not number then
+                error(string.format("diversity walk for position %d names position %s, outside the embeddings",
+                    position, tostring(sequence[i])))
+            end
+            numbered[i] = number
         end
-        cache.sequences[tostring(poem_id)] = sequence
+        cache.sequences[tostring(position_numbers[position])] = numbered
     end
 
     print(string.format("[CPU] Formatted %d sequences", num_poems))

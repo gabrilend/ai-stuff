@@ -2079,9 +2079,12 @@ run_generate_diversity() {
     local stage_force=$FORCE
     $FORCE_STAGE_8 && stage_force=true
 
-    # Freshness check: skip if cache newer than embeddings
+    # Freshness check: skip if cache newer than embeddings AND written in poem
+    # numbers. A cache from before 2026-10-21 holds GPU positions (every
+    # "different" list off by one, Issue 8-019) and is regenerated, whatever
+    # its date; the page builder refuses one too.
     if ! $stage_force && [ -f "$cache_file" ]; then
-        if [ "$cache_file" -nt "$embeddings_file" ]; then
+        if [ "$cache_file" -nt "$embeddings_file" ] && grep -q '"numbering":"poem_index"' "$cache_file"; then
             log_info "   ⏭️  Diversity cache is fresh (newer than embeddings), skipping..."
             return 0
         fi
