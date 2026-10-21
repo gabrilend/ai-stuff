@@ -102,8 +102,9 @@ local function get_file_mtime(file_path)
         end
     end
 
-    -- Fallback to current time if stat fails
-    return os.time()
+    -- No date: an error, not "now". A note dated "now" would sort to the end
+    -- and take a number its real date would not give it (Issue 8-019).
+    error("could not read the modification time of " .. file_path)
 end
 -- }}}
 
@@ -224,7 +225,7 @@ for file_path in find_handle:lines() do
                 
                 -- Generate JSON format for HTML generation
                 local poem_entry = {
-                    id = string.format("%04d", i),
+                    id = string.format("%04d", i),  -- provisional: renumbered by date below
                     category = "notes",
                     source_file = filename,
                     creation_date = format_iso_date(mtime),
@@ -243,6 +244,25 @@ for file_path in find_handle:lines() do
 end
 
 find_handle:close()
+
+-- {{{ number the notes by date (Issue 8-019)
+-- A note's id is its place in date order (its file's modification time,
+-- oldest first; the file name breaks a tie), not its place in find's listing.
+-- find lists a folder in the order ext4 stores its entries, which changes as
+-- files are added: on 2026-10-07, 17 new notes landed all through that order
+-- and renumbered the notes after each one, so most notes ended up on another
+-- note's embedding. (Owner, 2026-10-21: "this is bad and wrong. We should
+-- replace it with by date.") The ISO date strings sort the same as the times.
+table.sort(poems_json, function(a, b)
+    if a.creation_date ~= b.creation_date then
+        return a.creation_date < b.creation_date
+    end
+    return a.source_file < b.source_file
+end)
+for n, entry in ipairs(poems_json) do
+    entry.id = string.format("%04d", n)
+end
+-- }}}
 
 -- {{{ Generate JSON output for HTML generation
 -- Create output directory

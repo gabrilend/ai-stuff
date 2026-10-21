@@ -29,6 +29,17 @@ What it broke, found 2026-10-21:
 - Page addresses use the number (`similar/0001-01.html`), so a renumbering
   also moves every page a link points to.
 
+**Notes are numbered by date (2026-10-21).** Owner: "this is bad and wrong.
+We should replace it with by date." `scripts/extract-notes.lua` now sorts
+the notes by their file's modification time, oldest first (the file name
+breaks a tie), before giving out ids; a note whose date cannot be read stops
+the extraction (it used to be dated "now"). Pinned by
+`scripts/notes-tooling-exclusion.test.sh`. The order no longer depends on how
+the disk lists the folder, but a note with an older date than the newest
+still renumbers the notes after it -- the open question below decides
+whether that matters. The next extraction renumbers the notes once, so the
+next build must re-embed them (`--force` does).
+
 ### The three numbers each item needs (owner, 2026-10-21)
 
 > pictures should have their own index, for the gallery. But they should

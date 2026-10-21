@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-21 14:06:40
+Generated on: 2026-10-21 14:33:42
 Models: claude-opus-5-5
 
 ## Contents
@@ -1698,6 +1698,264 @@ Should page 1 link to pages 2 and 3, and each page back to the one before? I'd
 add a line at the top and bottom of each similar and different page, like the
 chronological pages' "« First │ ‹ Prev │ Page 1 of 3 │ Next › │
 Last »". Once that's in, I can remove the single-threaded builder.
+
+--------------------------------------------------------------------------------
+
+### User Request 9
+
+> What happened. On Oct 7, 16 note files arrived after that day's embeddings
+> were made at 12:11, and poems.json was rebuilt with them at 18:03. They became
+> poems 8607 to 8622, with no embedding yet. Examples are "division-by-zero",
+> "symbeline-superheros" and
+>   "satisfactory-academic-progress-appeal".
+
+that's weird, those notes are very old. Can you investigate to find out where
+they came from?
+
+
+
+<pasted_content id="5619">
+> Why they showed as pictures. The image step gives each gallery picture its own
+> number, so it can be ranked beside the poems. It started counting after the
+> highest poem that had an embedding (8606), not the highest poem in the list.
+> So 16 pictures got the numbers 8607 to 8622. When
+> the page workers merge pictures into their poem list, the picture wins.
+> Wherever one of those notes would appear in a similar or different list on the
+> live site, a gallery picture such as weapons.jpg appears instead.
+>
+> The fix is committed: pictures now start after the highest poem, embedded or
+> not, and a new test pins it. Your next build adds embeddings for the 16 notes
+> and then renumbers and re-ranks everything, so the live site corrects itself
+> then.
+</pasted_content id="5619">
+
+
+ok, um... pictures should have their own index, for the gallery. But they should
+also have another index that displays their providence. We already use a
+dual-index system for fediverse / messages / notes, so look to that for
+inspiration. This however adds a third index for the gallery which is just
+separate. So I think what you've done is put the pictures instead of interleaved
+where they belong, put them at the end of the number range for their "global"
+ranking index, not their providential source index or their gallery index. Is
+that right? I think a better solution would be to A. find out where those extras
+came from, and B. interleave them correctly.
+
+
+
+<pasted_content id="5619">
+>   None were code faults:
+> - Two still expected the old rule for a picture's embedding: the average of
+> the poems written just before and after it. On June 23 that changed to taking
+> the first half of its numbers from the poem before and the second half from
+> the poem after. The rule's own test was updated
+>     then, but this one wasn't.
+> - The third expected an embedding for every poem. It reads the default model,
+> nomic, which has embeddings for only 7,904 of the 8,622 poems. That's the same
+> cause as the collision above. It now checks one entry per embedded poem, and
+> prints how many poems lack one.
+</pasted_content id="5619">
+
+
+we should not have a default model. It should be manually specified. Also will
+the first-half and the second-half produce valid comparisons?
+
+I removed the output/ directory.
+
+> No, that wasn't the cause. The Oct 7 build wrote three pages for every poem:
+> 8,622 each of -01, -02 and -03. Page 1 simply never links to page 2, so on
+> each of the similar and different sides about 17,000 pages can only be reached
+> by typing their address.
+
+well let's fix that then.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 9
+
+> Starting with where the 16 notes came from. Checking their files in the notes
+> folder:
+
+> Their dates are old, but those are the files' own dates, which a copy keeps.
+> Checking when each file actually arrived in this folder, and how that compares
+> with its neighbours:
+
+> The sync deletes `input/` and copies everything fresh from `/home/ritz/notes`,
+> so the real question is when these files appeared *there*. Checking:
+
+> Tracing how the notes extractor numbers notes. That decides whether these are
+> new arrivals or a re-numbering:
+
+> Each of them also exists in `/home/ritz/backups/notes-backup`. Checking
+> whether the project's exclusion list ever named them, and when that backup was
+> made:
+
+> The page writer gets the list's page count, and a navigation line at the top
+> and bottom of each page:
+
+> Parses. The render tool always builds one page per poem, so it can't show
+> navigation. Giving it a required `--pages` option:
+
+> Navigation works: 591 pages (197 poems × 3), each linking to its neighbours.
+> Running the page check and making sure no navigation link points at a missing
+> page:
+
+> An existing test asserts the opposite, "no dash or slash means no break".
+> Reading it before changing anything:
+
+> The helper is back to its committed state and its tests pass. Recording the
+> navigation in its issue and committing:
+
+*[commit] 2b97248c3 in ai-stuff - neocities: a poem's similar and different pages link to each other*
+
+> Navigation is committed. Next, no default model. Seeing how much leans on the
+> default today:
+
+> That's a real change across the config, the shared library, and a few scripts
+> and tests, so I'm reading the server entries in full first:
+
+> Config now has no default model. Now the library:
+
+> The splice script stopped safely: the last range is one line off. Fixing it
+> and re-running:
+
+> The library no longer has a default. Now the three other readers of a server's
+> `model` field:
+
+> Updating the model-propagation test: it now checks that a run without a model
+> is refused. (Fixing the plan's comment markers first; this is a shell file.)
+
+> The start script's own config lookup is called here with no model, which is
+> now refused. Its "remote gets no flags" check was passing only because the
+> error printed nothing. Reading the lookup:
+
+> My line numbers were one off and I broke the error message, and the file no
+> longer parses. Repairing those three lines exactly:
+
+> The diff is clean. Now the test's two lookups name a model:
+
+> 11 of 11 pass, and the remote-server check now tests something real. The other
+> two readers: the choices lister just drops the dead line. The batch-embedding
+> test needs its model named:
+
+> A running llama-server reports the model it has loaded, so the test asks the
+> server rather than guessing:
+
+> Now the full test set, which will show what else leaned on the default:
+
+> The write gate needs literal paths, so I'll do the six insertions from a small
+> scratch script that names each file in full:
+
+> 31 of 31 pass across all three models. Rerunning everything:
+
+> Those tests only put `src/` on the module path until the page builder loads,
+> and my lines run before that. Moving them to just after the page builder is
+> loaded:
+
+> Every test passes. Recording this in the "no defaults" issue and committing.
+> The changed files are mine, from the config edits, the library change and the
+> two test scripts:
+
+*[commit] 3a8d11c3c in ai-stuff - neocities: there is no default embedding model; every run names one*
+
+> Committed. Last, the poem numbering finding. It goes into the issue that
+> created the numbering (8-019, which promised a "unique, stable" index),
+> reopened, with the design question:
+
+*[commit] c2260da97 in ai-stuff - neocities: the poem numbers move when notes are added, so notes carry other notes' embeddings*
+
+I found where the 16 notes came from, and it turned up a bigger problem than the
+pictures. Page navigation is fixed, and there's no default model any more.
+Everything is committed. The bigger problem needs a decision from you (at the
+end).
+
+## Where the 16 notes came from
+
+They aren't new.
+- **What arrived:** 17 genuinely new notes reached `~/notes` at 17:49 on Oct 7,
+  among them pittiless, spirit-of-life, work-at-power and
+  temperance-as-a-virtue. That was between that day's noon extraction and the
+  18:02 copy into the project.
+- **How notes get numbered:** a note's number is its position in the folder
+  listing. That's the order ext4 happens to store the directory's entries in,
+  not names or dates.
+- **What happened:** the 17 new notes landed all through that order, at
+  positions 27 to 542. Each one pushed every later note up one. The last 16 old
+  notes (division-by-zero, rivers, symbeline-superheros…) were pushed past the
+  old end, to 8607–8622.
+
+**The bigger problem:** embeddings are filed by poem number, so about 555 of
+your 582 notes now sit on an embedding made from a *different* note.
+- **The evidence:** each embedding records the length of the text it was made
+  from. For every other category that tracks the real length exactly
+  (correlation 1.00). For notes it's 0.12.
+- **The effect:** every note's similar and different lists on the live site are
+  ranked from another note's meaning.
+- **A correction:** earlier I said no numbers had shifted. That check couldn't
+  detect this, because a note's id and its number both come from the same
+  listing position.
+- **Short-term fix:** your next build with `--force` re-embeds everything, which
+  lines the notes up again. They'll drift again the next time a note arrives.
+
+## Your index question
+
+You're right about how it works now. Pictures carry their source (gallery folder
+and path) and a gallery anchor, and their global number is simply appended after
+the poems. That design dates from June; my fix only moved where "after" begins.
+The underlying flaw is the one above: the global number comes from a position,
+so it moves.
+
+I reopened the poem-numbering issue with your three-number design:
+- **Source index:** which source, and which item in it. It comes from the item
+  itself, never from a listing position.
+- **Gallery index:** pictures only.
+- **Global number:** one shared number for ranking and page addresses.
+
+## The half-and-half picture embeddings
+
+They're valid to compare. The result is a unit vector in the same space, so its
+similarity to any poem is well defined.
+- **Why it isn't arbitrary:** nomic and both EmbeddingGemmas are trained so the
+  first part of a vector works on its own as a smaller embedding. The first half
+  is a real, coarse summary of the poem before. The second half is the poem
+  after's detail, which is less meaningful by itself.
+- **Why it replaced the average:** that was measured in June. Averaging two
+  poems pulled pictures toward the centre of the space, so they flooded every
+  poem's similar list.
+- **What it doesn't mean:** no text would produce such a vector, so "similar to
+  a picture" means "similar to the poem before it in theme, and the poem after
+  it in texture." That's a choice about meaning, not a correctness bug.
+
+## Done
+
+- **`output/`:** your build will create the RAM link itself.
+- **Page navigation:** every similar and different page now has "« First │
+  ‹ Prev │ Page X of Y │ Next › │ Last »" above and below. On a
+  3-page sample (591 pages), no navigation link points at a missing page.
+- **No default model:** no server in config names one. Without `--model` the
+  library stops and lists the server's models, and a model the server doesn't
+  list is refused instead of being embedded without its prompt prefix. Every
+  test now names its model, and all pass.
+- **Left alone:** the over-wide `fediverse-stars: ff80235…dotpng.png` title.
+  An earlier decision deliberately leaves unbreakable names too wide so the site
+  check reports them. Rename the picture, or allow a hard break?
+
+## The decision
+
+How should the global number be given out?
+- **A. Once, on first sight, never reused.** A register file records each item's
+  number. Nothing ever moves: embeddings, rankings and page addresses stay
+  attached. Pages show date order using dates, not numbers. This is my
+  recommendation, with each embedding also checked against its text so this
+  can't recur.
+- **B. Re-derived every run in a meaningful order,** with pictures interleaved
+  where they belong in time. Every cache would have to be filed by source index
+  instead, and every page address after a new poem would change, breaking any
+  links people have shared.
+
+A question back for you: when you say pictures should be interleaved "where they
+belong", do you mean their *number* should sit among the poems, or that they
+should *appear* among the poems on the pages? Option A gives you the second
+without the first.
 
 --------------------------------------------------------------------------------
 

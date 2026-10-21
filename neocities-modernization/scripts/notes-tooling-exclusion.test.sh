@@ -103,6 +103,32 @@ check "no mailbox file extracted" "$(grep -c 'should never be a poem' "${poems_j
 check "extractor names the skipped folder" "$(printf '%s' "${extract_output}" | grep -c 'skipped: rmail')" "1"
 # }}}
 
+# {{{ notes are numbered by date, not by the folder's listing order (8-019)
+# Created in one order, dated in another, named in a third: the ids must
+# follow the dates, oldest first, and a shared date falls back to the name.
+rm -rf "${FAKE_PROJECT}/input/notes"
+mkdir -p "${FAKE_PROJECT}/input/notes"
+for name in middle-b newest oldest middle-a; do
+    printf 'a poem called %s\n' "${name}" > "${FAKE_PROJECT}/input/notes/${name}"
+done
+touch -d '2021-01-01 00:00:00' "${FAKE_PROJECT}/input/notes/oldest"
+touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-a"
+touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-b"
+touch -d '2026-09-01 00:00:00' "${FAKE_PROJECT}/input/notes/newest"
+lua "${DIR}/scripts/extract-notes.lua" "${FAKE_PROJECT}" >/dev/null 2>&1
+check "date-order extraction succeeds" "$?" "0"
+order="$(luajit -e "
+    package.path = '${DIR}/libs/?.lua;' .. package.path
+    local f = io.open('${FAKE_PROJECT}/input/notes/files/poems.json')
+    local d = require('dkjson').decode(f:read('*a')); f:close()
+    table.sort(d.poems, function(a, b) return a.id < b.id end)
+    local names = {}
+    for _, p in ipairs(d.poems) do names[#names + 1] = p.id .. '=' .. p.source_file end
+    io.write(table.concat(names, ' '))
+")"
+check "ids follow the dates, the name breaks a tie" "${order}" "0001=oldest 0002=middle-a 0003=middle-b 0004=newest"
+# }}}
+
 # {{{ a stale exclusion (folder not in the source) refuses the sync
 write_fake_project "no-such-folder"
 refusal="$(run_sync)"
