@@ -9,13 +9,16 @@
 -- a request -- which places, which session, and the exact question the agent
 -- must put to the person. The person answers Yes (this once), Always (these
 -- folders, from now on) or No. A Yes becomes a grant the session spends on
--- its next write that needs no more than those places; an Always adds the
--- folders to a list every session's gate reads.
+-- its next write that needs no more than those places; a This session adds
+-- the folders to a list only that session's gate reads, until it ends; an
+-- Always adds them to a list every session's gate reads.
 --
 -- Where things live:
 --   requests  <state>/requests/<id>.json            in RAM; 30 minutes
 --   grants    <state>/grants/<session>/<id>.json    in RAM; 30 minutes
 --   allowed   <allowed file>, one real folder per line, on disk
+--   session   <state>/session-allowed/<session>, one real folder per line,
+--             in RAM, removed when the session ends (forget-session-permits)
 -- <state> is /dev/shm/claude-outside-writes and <allowed file> is
 -- ~/.claude/outside-write-allowed-folders; both are outside every project
 -- folder, so the gate itself refuses an agent writing them. The environment
@@ -128,6 +131,7 @@ function permits.question_for(id, places)
         multiSelect = false,
         options = {
             { label = "Yes", description = "Allow this write, this once." },
+            { label = "This session", description = "Allow any write inside " .. table.concat(permits.folders_for(places), ", ") .. ", for this session only, until it ends." },
             { label = "Always", description = "Allow any write inside " .. table.concat(permits.folders_for(places), ", ") .. ", for every session, from now on." },
             { label = "No", description = "Keep it refused." },
         },
@@ -218,11 +222,21 @@ function permits.spend_grant(json, session_id, places)
 end
 -- }}}
 
--- {{{ function permits.allowed_folders()
--- The folders on the allowed list, as a list of strings.
-function permits.allowed_folders()
+-- {{{ local function session_file()
+-- Where one session's This-session folders are kept, or nil for an id
+-- Claude Code would not give.
+local function session_file(session_id)
+    if type(session_id) ~= "string" or not session_id:match("^[%w%-]+$") then return nil end
+    return STATE .. "/session-allowed/" .. session_id
+end
+-- }}}
+
+-- {{{ local function folders_in()
+-- The absolute folders listed in a file, one per line; anything else in
+-- the file is ignored.
+local function folders_in(path)
     local folders = {}
-    for line in (read_file(ALLOWED) or ""):gmatch("[^\n]+") do
+    for line in (path and read_file(path) or ""):gmatch("[^\n]+") do
         -- only absolute folders count; anything else in the file is ignored
         if line:sub(1, 1) == "/" then folders[#folders + 1] = line end
     end
@@ -230,21 +244,39 @@ function permits.allowed_folders()
 end
 -- }}}
 
+-- {{{ function permits.allowed_folders()
+-- The folders on the allowed list (Always), as a list of strings.
+function permits.allowed_folders()
+    return folders_in(ALLOWED)
+end
+-- }}}
+
+-- {{{ function permits.session_folders()
+-- The folders one session was allowed until it ends (This session).
+function permits.session_folders(session_id)
+    return folders_in(session_file(session_id))
+end
+-- }}}
+
 -- {{{ function permits.is_allowed()
--- True when a real place lies in a folder on the allowed list.
-function permits.is_allowed(place)
+-- True when a real place lies in a folder on the allowed list, or in one
+-- this session was allowed until it ends.
+function permits.is_allowed(place, session_id)
     for _, folder in ipairs(permits.allowed_folders()) do
+        if is_inside(place, folder) then return true end
+    end
+    for _, folder in ipairs(permits.session_folders(session_id)) do
         if is_inside(place, folder) then return true end
     end
     return false
 end
 -- }}}
 
--- {{{ function permits.allow_always()
--- An Always: each folder added to the allowed list, unless it is already
--- covered by one there.
-function permits.allow_always(places)
-    local listed = permits.allowed_folders()
+-- {{{ local function add_folders()
+-- Adds each place's folder to the list in `path`, unless one already there
+-- covers it.
+local function add_folders(path, places)
+    local listed = folders_in(path)
     for _, folder in ipairs(permits.folders_for(places)) do
         local covered = false
         for _, have in ipairs(listed) do
@@ -252,7 +284,36 @@ function permits.allow_always(places)
         end
         if not covered then listed[#listed + 1] = folder end
     end
-    return write_file(ALLOWED, table.concat(listed, "\n") .. "\n")
+    return write_file(path, table.concat(listed, "\n") .. "\n")
+end
+-- }}}
+
+-- {{{ function permits.allow_always()
+-- An Always: the folders added to the allowed list every session reads.
+function permits.allow_always(places)
+    return add_folders(ALLOWED, places)
+end
+-- }}}
+
+-- {{{ function permits.allow_for_session()
+-- A This session: the folders added to the session's own list.
+function permits.allow_for_session(session_id, places)
+    local path = session_file(session_id)
+    -- not a session id Claude Code gives: nothing kept
+    if not path then return nil, "not a session id: " .. tostring(session_id) end
+    return add_folders(path, places)
+end
+-- }}}
+
+-- {{{ function permits.forget_session()
+-- At the end of a session: its This-session folders and its unspent grants
+-- are removed.
+function permits.forget_session(session_id)
+    local path = session_file(session_id)
+    -- not a session id Claude Code gives: nothing to remove
+    if not path then return end
+    os.remove(path)
+    os.execute("rm -rf -- " .. shell_quote(STATE .. "/grants/" .. session_id))
 end
 -- }}}
 

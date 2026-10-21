@@ -108,7 +108,7 @@ yes_if() { if "$@"; then printf yes; else printf no; fi; }
 out="$(ask_gate "echo x > ${E}/a.txt")"
 check "a write elsewhere is refused" "$(yes_if [ "$(jq -r '.hookSpecificOutput.permissionDecision' <<< "${out}")" = deny ])"
 q="$(question_from "${out}")"
-check "the refusal carries a question with three answers" "$(yes_if [ "$(jq -r '[.options[].label] | join(",")' <<< "${q}")" = "Yes,Always,No" ])"
+check "the refusal carries a question with four answers" "$(yes_if [ "$(jq -r '[.options[].label] | join(",")' <<< "${q}")" = "Yes,This session,Always,No" ])"
 check "the question names the place" "$(yes_if grep -qF "${E}/a.txt" <<< "$(jq -r .question <<< "${q}")")"
 said="$(context_of "$(answer_with "${q}" Yes)")"
 check "Yes is acknowledged to the agent" "$(yes_if grep -q "answered Yes" <<< "${said}")"
@@ -140,7 +140,7 @@ check "a typed-in answer grants nothing" "$(yes_if [ "$(verdict "echo x > ${F}/o
 # --- the agent cannot change what the person agrees to
 out="$(ask_gate "echo x > ${F}/r.txt")"
 q="$(question_from "${out}")"
-reworded="$(jq -c '.options[1].description = "Harmless, just this once."' <<< "${q}")"
+reworded="$(jq -c '.options[2].description = "Harmless, just this once."' <<< "${q}")"
 said="$(context_of "$(answer_with "${reworded}" Always)")"
 check "a reworded question grants nothing" "$(yes_if grep -q "not asked exactly" <<< "${said}")"
 check "and the folder is not allowed" "$(yes_if [ "$(verdict "echo x > ${F}/r.txt")" = refused ])"
@@ -158,7 +158,7 @@ check "an ordinary question passes untouched" "$(yes_if [ -z "${plain}" ])"
 # --- Always: the folder, every session, from now on
 out="$(ask_gate "echo x > ${E}/inner/d.txt")"
 q="$(question_from "${out}")"
-check "Always names the folder it would open" "$(yes_if grep -qF "${E}/inner" <<< "$(jq -r '.options[1].description' <<< "${q}")")"
+check "Always names the folder it would open" "$(yes_if grep -qF "${E}/inner" <<< "$(jq -r '.options[2].description' <<< "${q}")")"
 said="$(context_of "$(answer_with "${q}" Always)")"
 check "Always is acknowledged" "$(yes_if grep -q "answered Always" <<< "${said}")"
 check "the folder is on the allowed list" "$(yes_if grep -qxF "${E}/inner" "${OUTSIDE_WRITE_ALLOWED}")"
@@ -169,6 +169,32 @@ check "for any session" "$(yes_if [ "$(verdict "echo x > ${E}/inner/new.txt" eee
 check "the folder above is still refused" "$(yes_if [ "$(verdict "echo x > ${E}/up.txt")" = refused ])"
 q="$(question_from "$(ask_gate "echo x > ${E}/inner/x/y.txt")")"
 check "a place already covered is never asked about" "$(yes_if [ -z "${q}" ])"
+
+# --- This session: the folder, this session only, until it ends
+T="${SCRATCH}/for-a-while"
+mkdir -p "${T}"
+out="$(ask_gate "echo x > ${T}/a.txt")"
+q="$(question_from "${out}")"
+check "This session names the folder it would open" "$(yes_if grep -qF "${T}" <<< "$(jq -r '.options[1].description' <<< "${q}")")"
+said="$(context_of "$(answer_with "${q}" "This session")")"
+check "This session is acknowledged" "$(yes_if grep -q "answered This session" <<< "${said}")"
+check "the write goes through" "$(yes_if [ "$(verdict "echo x > ${T}/a.txt")" = silent ])"
+check "and again" "$(yes_if [ "$(verdict "echo x > ${T}/a.txt")" = silent ])"
+check "a new file beside it goes through" "$(yes_if [ "$(verdict "echo x > ${T}/b.txt")" = silent ])"
+check "another session is still refused" "$(yes_if [ "$(verdict "echo x > ${T}/a.txt" ffff-6666)" = refused ])"
+check "it is not on the every-session list" "$(yes_if [ -z "$(grep -xF "${T}" "${OUTSIDE_WRITE_ALLOWED}")" ])"
+
+# a Yes grant left unspent, then the session ends
+q="$(question_from "$(ask_gate "echo x > ${F}/unspent.txt")")"
+answer_with "${q}" Yes > /dev/null
+jq -n --arg s "${SESSION}" '{hook_event_name: "SessionEnd", session_id: $s}' \
+    | "${DIR}/harness-hooks/forget-session-permits" "${DIR}" 2>/dev/null
+check "after the session ends, This session is forgotten" "$(yes_if [ "$(verdict "echo x > ${T}/a.txt")" = refused ])"
+check "and so is an unspent Yes" "$(yes_if [ "$(verdict "echo x > ${F}/unspent.txt")" = refused ])"
+check "but Always stays" "$(yes_if [ "$(verdict "echo x > ${E}/inner/d.txt")" = silent ])"
+jq -n '{hook_event_name: "SessionEnd", session_id: "../../etc"}' \
+    | "${DIR}/harness-hooks/forget-session-permits" "${DIR}" 2>/dev/null
+check "a crafted session id removes nothing" "$(yes_if [ -f "${OUTSIDE_WRITE_ALLOWED}" ])"
 
 # --- an expired request grants nothing
 out="$(ask_gate "echo x > ${F}/late.txt")"

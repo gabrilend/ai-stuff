@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-20 14:24:56
+Generated on: 2026-10-21 01:27:59
 Models: claude-opus-5-5
 
 ## Contents
@@ -13,6 +13,10 @@ Models: claude-opus-5-5
    go stale and a safe way to move projects without breaking transcripts.
    Nothing is edited yet, so next I need your yes to record your answers and
    create the project-move issue.
+3. 2026-10-20 14:27, after Request 4 - You're having me plan the file lock and
+   keep conversation logs whole when projects move; your answers are recorded
+   and the move issue is written. Next: type `! touch
+   /tmp/claude-allow-outside-write` so I can run the symlink and cache tests.
 
 --------------------------------------------------------------------------------
 
@@ -569,6 +573,119 @@ questions for you:
 2. A project's `.claude/` settings can still name the old path, for example
    saved extra working folders. Should the tool rewrite those, or only report
    them?
+
+--------------------------------------------------------------------------------
+
+### User Request 5
+
+Ah sorry can you try again?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 5
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /tmp/ai-stuff-scripts/move-test/project,
+> /tmp/ai-stuff-scripts/move-test/log-target,
+> /tmp/ai-stuff-scripts/move-test/cache-project,
+> /mnt/mtwo/.claude/projects/-tmp-ai-stuff-scripts-move-test-project?
+> [outside-write 998aa8d6]
+> - Yes — Allow this write, this once.
+> - Always — Allow any write inside /tmp/ai-stuff-scripts/move-test,
+>   /mnt/mtwo/.claude/projects, for every session, from now on.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> I'm working out why your "Yes" didn't register: the permission hook lost the
+> request between the question and your answer.
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /tmp/ai-stuff-scripts/move-test/project,
+> /tmp/ai-stuff-scripts/move-test/log-target,
+> /tmp/ai-stuff-scripts/move-test/cache-project,
+> /mnt/mtwo/.claude/projects/-tmp-ai-stuff-scripts-move-test-project?
+> [outside-write 53c12c90]
+> - Yes — Allow this write, this once.
+> - Always — Allow any write inside /tmp/ai-stuff-scripts/move-test,
+>   /mnt/mtwo/.claude/projects, for every session, from now on.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /tmp/ai-stuff-scripts/move-test/project,
+> /tmp/ai-stuff-scripts/move-test/log-target,
+> /tmp/ai-stuff-scripts/move-test/cache-project,
+> /mnt/mtwo/.claude/projects/-tmp-ai-stuff-scripts-move-test-project?
+> [outside-write 93a7bbbb]
+> - Yes — Allow this write, this once.
+> - Always — Allow any write inside /tmp/ai-stuff-scripts/move-test,
+>   /mnt/mtwo/.claude/projects, for every session, from now on.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> The symlink test passed. Now the cache test, first turn:
+
+> Now recording the cache findings so far in the lock issue:
+
+The second try worked, and the symlink test passed. The cache test is half done,
+and its last read is scheduled for about 02:28.
+
+**Why your earlier "Yes" didn't take:** each permission question expires 30
+minutes after the gate asks it. Yours sat for about 3¼ hours (asked at 22:11,
+answered at 01:25), so the hook had already thrown it away. Answered within a
+few minutes, it worked.
+
+**Symlink test: passed.** I made the scratch project's raw-log folder a symlink
+pointing at another folder. One headless turn wrote its log inside the target,
+and the symlink was still a symlink afterwards. Claude Code follows the link
+instead of replacing it, so "leave a symlink where the old raw-log folder was"
+works. A future Claude Code update could change this, so the issue now says the
+move tool keeps this as a permanent test.
+
+**Cache test so far:**
+- **Your sessions already use the one-hour cache** with neither variable set
+  anywhere. Every cache write in the first turn was counted as one-hour. Setting
+  `ENABLE_PROMPT_CACHING_1H=1` would only make that explicit.
+- **The five-minute headless copy still reads the whole conversation from the
+  cache.** About 22,500 tokens were read rather than re-sent. Only its own new
+  part, about 7,700 tokens, was written, with the five-minute lifetime. It cost
+  $0.22.
+- **Still running:** a third read 62 minutes after the first turn. If it finds
+  the cache, the five-minute read renewed the one-hour copy. If it doesn't, the
+  headless copy only holds server memory for its own five minutes, which is what
+  you want. I'll report it when it finishes.
+
+**Written down, not committed:**
+- The lock issue (`scripts/issues/032c-…`) now holds all your answers, the
+  headless copy's job (commit, release the lock on what it committed, its
+  transcript rides with the next commit), and the cache findings.
+- The new move issue is
+  `scripts/issues/044-moving-a-project-keeps-its-conversations.md`, with the
+  symlink result.
+
+**About "how is this the standard?":** right now nothing makes it standard. The
+only record is one project's move notes. The new issue proposes a `move-project`
+tool in `scripts/`, so the procedure exists in one place.
+
+Three questions:
+1. Should sessions find that tool through a small skill, or through one line in
+   your CLAUDE.md? A skill is triggered when someone says "move this folder". A
+   CLAUDE.md line is read every session whether it's needed or not.
+2. Should I add `ENABLE_PROMPT_CACHING_1H=1` to `~/.claude/settings.json`
+   anyway? Then a change in Claude Code's default can't silently shorten your
+   cache. That file is outside this repository, so it will need another "Yes".
+3. When the move tool finds the old path in a project's own `.claude/` settings,
+   such as saved extra working folders, should it rewrite them or only list
+   them?
+
+Cleaning up the test symlink in `~/.claude/projects` afterwards will need one
+more "Yes".
 
 --------------------------------------------------------------------------------
 

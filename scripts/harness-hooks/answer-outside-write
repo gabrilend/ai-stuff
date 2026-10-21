@@ -4,7 +4,8 @@
 --
 -- A hook on Claude Code's question tool (AskUserQuestion) that turns the
 -- person's answer to "allow a write outside this folder?" into a permission
--- the write gate will honour: Yes (this once), Always (these folders, every
+-- the write gate will honour: Yes (this once), This session (these folders,
+-- until the session ends), Always (these folders, every
 -- session, from now on), or No.
 --
 -- In plain terms: refuse-outside-writes cannot ask the person anything --
@@ -30,7 +31,8 @@
 --                checked: same session, and the question and its three
 --                answers exactly as filed, so an agent cannot reword what
 --                the person is agreeing to. Then Yes grants once, Always
---                adds the folders, and anything else grants nothing. The
+--                adds the folders, This session adds them for this
+--                session only, and anything else grants nothing. The
 --                request is closed in every case. What happened is told to
 --                the agent as added context.
 --
@@ -105,6 +107,11 @@ local ACT_ON_ANSWER = {
         local ok, err = permits.grant_once(json, input.session_id, request.id, request.places)
         if not ok then return "The user answered Yes, but the permission could not be kept (" .. tostring(err) .. "); ask them to type ! touch /tmp/claude-allow-outside-write instead." end
         return "The user answered Yes for " .. table.concat(request.places, ", ") .. ": run the same write again, once."
+    end,
+    ["This session"] = function(json, input, request)
+        local ok, err = permits.allow_for_session(input.session_id, request.places)
+        if not ok then return "The user answered This session, but the permission could not be kept (" .. tostring(err) .. ")." end
+        return "The user answered This session: writes inside " .. table.concat(permits.folders_for(request.places), ", ") .. " are allowed for this session until it ends. Run the same write again."
     end,
     Always = function(json, input, request)
         local ok, err = permits.allow_always(request.places)

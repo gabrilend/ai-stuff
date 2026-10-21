@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-Complete, 2026-10-20. `harness-hooks/refuse-outside-writes` sits under the
+Complete, 2026-10-20; step 10 (a fourth answer, "This session") added and complete 2026-10-21. `harness-hooks/refuse-outside-writes` sits under the
 PreToolUse Bash matcher and the file-tool matcher, `answer-outside-write`
 before and after the question tool, and `merge-agent-scratchpad` on
 SessionEnd, all in `~/.claude/settings.json` (earlier settings kept as
@@ -11,7 +11,9 @@ monorepo-root session that built it: a shell write and a Write to `/tmp`
 refused; a write into its own scratchpad allowed and into another
 session's refused; an Edit of `~/.claude/settings.json` refused, its
 question asked, answered Yes by the owner, read by the answer hook, and the
-same Edit then let through once, the grant spent. The session-end move has
+same Edit then let through once, the grant spent. On 2026-10-21 the
+four-answer question was asked live for another settings edit (answered
+Yes) and `forget-session-permits` installed under SessionEnd. The session-end move has
 not yet been seen on a real session ending. Tests:
 `tests/test-refuse-outside-writes.sh`, `tests/test-answer-outside-write.sh`,
 `tests/test-merge-agent-scratchpad.sh`, and the reader's redirect cases in
@@ -187,6 +189,21 @@ run, as every gate here does (`gate.warn_and_allow`).
      the person's own way through: an agent cannot make the file, because
      writing to /tmp is itself refused.
    - Tests: `tests/test-answer-outside-write.sh`.
+10. A fourth answer, "This session", between Yes and Always. The owner,
+   2026-10-21: "update the yes / always / no to include a fourth option,
+   'yes-until-end-of-session' or 'always temporarily' or something
+   similar". It opens the same folders Always would, for the session that
+   was refused only, until that session ends (four is the most answers the
+   question tool takes):
+   - the folders are kept in RAM, `<state>/session-allowed/<session id>`,
+     one per line, and the gate reads them beside the allowed list;
+   - `harness-hooks/forget-session-permits`, on SessionEnd, removes that
+     file and the session's unspent grants. A session killed without
+     ending keeps them until a reboot empties RAM, or until it is resumed
+     and ends properly;
+   - tests in `tests/test-answer-outside-write.sh`, which ends a session
+     and checks This session and an unspent Yes are forgotten and Always is
+     not.
 
 ## Known Limits (stated, not built)
 

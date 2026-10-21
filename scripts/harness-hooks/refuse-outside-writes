@@ -385,8 +385,8 @@ local function is_allowed_place(filled, cwd, here, rooms, session_id)
     for _, room in ipairs(rooms) do
         if tiers.is_inside(place, room) then return true, place end
     end
-    -- a folder the person answered Always for, in any session
-    if permits.is_allowed(place) then return true, place end
+    -- a folder the person answered Always for (any session), or This session for this one
+    if permits.is_allowed(place, session_id) then return true, place end
     -- this session's own Claude Code scratchpad, made yet or not: Claude
     -- Code tells every session to use it, and merge-agent-scratchpad carries
     -- it into the project's RAM room when the session ends (the owner's
@@ -497,7 +497,7 @@ local function main()
         gate.refuse(json, reason)
     end
     reason = reason .. " If this write is genuinely needed, ask the user with the AskUserQuestion tool, using exactly this one question, word for word, with no answers filled in: " .. json.encode({ questions = { request.question } })
-        .. " If they answer Yes or Always, run the same write again unchanged. If they answer No, do not write there."
+        .. " If they answer Yes, This session or Always, run the same write again unchanged. If they answer No, do not write there."
     gate.refuse(json, reason)
 end
 -- }}}

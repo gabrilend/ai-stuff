@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-20 14:46:08
+Generated on: 2026-10-20 14:50:51
 Models: claude-opus-5-5
 
 ## Contents
@@ -924,6 +924,65 @@ you want?
 
 Once you choose, I'll read through physics-sim (docs, issues, the game itself,
 anything it has drawn) and write its room. I haven't touched it yet.
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+The room is basically the readme for the project. There's more than one room,
+and they're connected with links and such. Hmmmmm. How about we do
+project-root/lodge/? It should just have the .md that is generated into the
+docs/HTML/ files for the lodge-specific pages, and also it should have the
+generator like project-root/lodge/generator/ and project-root/lodge/pages/ etc.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+That layout fits the skill as written: rule 1 (pages are generated and never
+committed) and rule 16 (hand-written voice on its own shelf) both hold. Here's
+how I understand it:
+
+```
+physics-sim/
+  lodge/
+    pages/       the rooms, hand-written Markdown (the source; committed)
+    generator/   this project's own lodge builder (committed)
+  docs/HTML/     where the built room pages land, beside the other docs pages (not committed)
+```
+
+The rooms in `pages/` are the project's real README, spread across several
+connected rooms. The generator turns them into pages and links each room to the
+others and down into the documentation pages behind them.
+
+**Three questions before I start:**
+
+1. **How much can a room style itself?** Plain Markdown makes every room look
+   the same, which you wanted to avoid. I'd let a room's `.md` carry a few lines
+   at the top naming its theme (colours, a picture, the kind of space). The
+   generator would also pass small raw-HTML blocks straight through for the odd
+   special thing, like a playable embed. Is that enough freedom, or do you want
+   each room to be able to carry its own whole stylesheet?
+2. **What should the built rooms be called inside `docs/HTML/`?** Either a
+   subfolder (`docs/HTML/lodge/entrance.html`) or flat names beside the docs
+   pages (`docs/HTML/lodge-entrance.html`). The skill's flat-folder rule (every
+   link is just a file name) points to flat names.
+3. **Should the existing `README.md` stay?** If it stays, it would shrink to a
+   short sign on the door: "the lodge is in `lodge/`; build it with this
+   command". Or should it be left alone for now, like the README files at the
+   ai-stuff root?
+
+Your rules also call for a few things before I write code in physics-sim:
+- an issue file for the lodge, since it's a new feature;
+- vimfolds and a `${DIR}` argument in the generator;
+- an index number on each room file, so the rooms read in order
+  (`000-entrance.md`, `001-...`).
+
+The skill should also gain this layout under rule 16, which is one more write
+outside this folder.
+
+Should I go ahead with physics-sim? I'd read the project first, then write the
+issue, the rooms and the generator, in that order.
 
 --------------------------------------------------------------------------------
 
