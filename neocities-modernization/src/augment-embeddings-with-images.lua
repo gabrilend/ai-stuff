@@ -103,19 +103,24 @@ end
 function M.augment(embeddings_data, poems_data, catalog_data)
     local report = { class1 = 0, class2 = 0, class3 = 0, skipped = 0 }
 
-    -- Poem metadata by poem_index (content, date, attachments).
-    local poem_by_index = {}
+    -- Poem metadata by poem_index (content, date, attachments). max_index is
+    -- the highest poem number in poems.json: the standalone pictures are
+    -- numbered after it. It used to be the highest poem that HAD an
+    -- embedding, so when poems arrived after the embeddings were made (16
+    -- notes on 2026-10-07), pictures took the newest poems' numbers and drew
+    -- in their place on every similar and different page.
+    local poem_by_index, max_index = {}, 0
     for _, p in ipairs(poems_data.poems or {}) do
         poem_by_index[p.poem_index] = p
+        if p.poem_index > max_index then max_index = p.poem_index end
     end
 
     -- Drop any previously-appended image entries so re-runs are idempotent;
     -- keep only the genuine poem entries (poem_index present in poems.json).
-    local poem_entries, max_index = {}, 0
+    local poem_entries = {}
     for _, e in ipairs(embeddings_data.embeddings or {}) do
         if not e.is_image and poem_by_index[e.poem_index] then
             poem_entries[#poem_entries + 1] = e
-            if e.poem_index > max_index then max_index = e.poem_index end
         end
     end
 

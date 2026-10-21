@@ -52,9 +52,14 @@ check("class3 (standalone) appended", report.class3 == 1)
 check("no skips", report.skipped == 0)
 check("output has 5 entries (4 poems + 1 image)", #out == 5)
 
--- p4 (image-only @ Jan-4) sits between p2 (Jan-3) and p3 (Jan-5): avg -> (0,R2,R2).
+-- p4 (image-only @ Jan-4) sits between p2 (Jan-3) and p3 (Jan-5). Since
+-- 2026-06-23 an image CROSS-CUTS its neighbours (image-pseudo-embeddings.lua:
+-- the first half of its dimensions from the poem before, the rest from the
+-- poem after) instead of averaging them. With 3 dimensions the seam falls
+-- after the first: (p2[1], p3[2], p3[3]) = (0, 0, 1). This test still
+-- expected the old midpoint (0, R2, R2) until 2026-10-20.
 local p4 = out[4]
-check("class-2 embedding replaced with neighbor average", vapprox(p4.embedding, {0, R2, R2}))
+check("class-2 embedding is its neighbours cross-cut", vapprox(p4.embedding, {0, 0, 1}))
 -- catalog image @ Jan-2 sits between p1 (Jan-1) and p2 (Jan-3): avg -> (R2,R2,0).
 local appended = out[5]
 check("class-3 appended embedding is the midpoint", vapprox(appended.embedding, {R2, R2, 0}))
@@ -71,7 +76,21 @@ local emb2 = { embeddings = out, metadata = {} }
 local out2, _, report2 = A.augment(emb2, poems, catalog)
 check("idempotent: same entry count on re-run", #out2 == #out)
 check("idempotent: same class counts", report2.class2 == 1 and report2.class3 == 1)
-check("idempotent: class-2 embedding stable", vapprox(out2[4].embedding, {0, R2, R2}))
+check("idempotent: class-2 embedding stable", vapprox(out2[4].embedding, {0, 0, 1}))
+
+-- Pictures are numbered after the highest poem in poems.json, not after the
+-- highest poem that has an embedding. Poems can arrive after the embeddings
+-- were made (16 notes on 2026-10-07); numbering after the embeddings gave
+-- pictures those new poems' numbers, and the pictures drew in their place.
+do
+    local e, p, c = make_inputs()
+    -- a fifth poem, written after the embeddings were made: no embedding yet
+    p.poems[#p.poems + 1] = { poem_index = 5, id = 5, category = "notes",
+        content = "a note added later", creation_date = "2024-01-06T00:00:00Z" }
+    local o, m = A.augment(e, p, c)
+    check("a picture is numbered after the highest poem, embedded or not", o[#o].poem_index == 6)
+    check("no picture takes a real poem's number", m["5"] == nil)
+end
 -- }}}
 
 -- {{{ Part 2: real-data sanity (read-only)
@@ -89,7 +108,18 @@ if real_emb and real_poems and real_cat then
         rreport.class1, rreport.class2, rreport.class3, rreport.skipped, #real_emb.embeddings, #rout))
     check("real: image-only posts found (~52)", rreport.class2 >= 40 and rreport.class2 <= 70)
     check("real: standalone images appended (~692)", rreport.class3 >= 600 and rreport.class3 <= 720)
-    check("real: output grew by class3", #rout == #real_poems.poems + rreport.class3)
+    -- one entry per poem that HAS an embedding, plus the pictures. Poems
+    -- without one (added after the embeddings were made) are counted and
+    -- shown: they are data to refresh, not a code fault.
+    local embedded = 0
+    local in_poems = {}
+    for _, p in ipairs(real_poems.poems) do in_poems[p.poem_index] = true end
+    for _, e in ipairs(real_emb.embeddings) do
+        if not e.is_image and in_poems[e.poem_index] then embedded = embedded + 1 end
+    end
+    print(string.format("[real data] %d of %d poems have an embedding in %s",
+        embedded, #real_poems.poems, utils.embeddings_dir()))
+    check("real: output is the embedded poems plus the pictures", #rout == embedded + rreport.class3)
     -- idempotency on real data (re-run on the augmented set)
     local rout2 = A.augment({ embeddings = rout, metadata = {} }, real_poems, real_cat)
     check("real: idempotent entry count", #rout2 == #rout)

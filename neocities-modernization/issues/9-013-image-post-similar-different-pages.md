@@ -22,11 +22,21 @@ with the newest poems.** The image step numbers the standalone pictures
 pictures share a number with a real poem. When the page workers fold the
 pictures into their poem list, the picture wins: those 16 poems appear in the
 similar/different lists as gallery pictures. (The chronological pages are not
-affected: they look poems up before the pictures are folded in.) Measure with
-a count of manifest records whose `poem_index` is also in poems.json. The fix
-belongs in the image step's numbering (start above the highest poem_index, not
-above the embedding count it was built against), then the similarity stage
-reruns.
+affected: they draw the poems the caller loaded.) Measure with a count of
+manifest records whose `poem_index` is also in poems.json.
+- Cause: the image step numbered pictures after the highest poem that HAD an
+  embedding. 16 notes (poems 8607–8622) were added to poems.json at 18:03 on
+  2026-10-07, after that day's embeddings were made at 12:11, so they had no
+  embedding and the pictures took their numbers.
+- Fixed in code (2026-10-20): pictures are numbered after the highest poem in
+  poems.json, embedded or not; `src/augment-embeddings-with-images.test.lua`
+  pins it. The live site keeps the wrong numbers until the next build, whose
+  embedding stage adds the 16 notes and whose image and similarity stages
+  renumber and re-rank.
+- The same test's three failures were stale expectations, not code faults:
+  two still expected the midpoint rule that the 2026-06-23 cross-cut rule
+  replaced, and the real-data check expected one embedding per poem; it now
+  checks one entry per embedded poem and prints how many poems lack one.
 
 All three items of the redesign's "Pending" list are therefore done. Left
 before closing: the numbering bug above, and rewrite this file as the blueprint of what was built (the
