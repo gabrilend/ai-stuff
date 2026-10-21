@@ -1,6 +1,6 @@
 # Conversation Summary: 5473c7d4-c170-4c2f-a125-44eb0d9926e2
 
-Generated on: 2026-10-20 14:48:08
+Generated on: 2026-10-21 14:16:55
 Models: claude-opus-5-5
 
 ## Contents
@@ -17,6 +17,10 @@ Models: claude-opus-5-5
    own project folder, and that check is now live for shell commands and the
    edit tools. Next, I need your go-ahead to give each session a scratchpad in
    the project's RAM folder.
+4. 2026-10-21 14:03, after Request 15 - We're stopping agents from writing
+   outside their own folder; that's finished and committed, including the new
+   "This session" answer. Next, close a session started inside a project that
+   has a tmp link, to confirm its scratchpad gets moved.
 
 --------------------------------------------------------------------------------
 
@@ -1037,6 +1041,162 @@ Two things to know:
   `/mnt/mtwo/.claude`, so the question said `/mnt/mtwo/.claude/settings.json`.
   An "Always" given in such a question allows the `/mnt/mtwo/...` folder, which
   covers the same files.
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+okay can we update the yes / always / no to include a fourth option,
+"yes-until-end-of-session" or "always temporarily" or something similar?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+> Adding "This session" as a fourth answer, between Yes and Always. It allows
+> writes in the same folder Always would, but only until the session ends. The
+> question box allows at most four answers, so this fills it. Recording it in
+> issue 043 first.
+
+> Now the permission store.
+
+> Now the answer hook and the end-of-session cleanup hook.
+
+> Updating the flow tests for the fourth answer and the cleanup.
+
+> 42 pass. Updating the docs, then installing the cleanup hook.
+
+> Docs updated. Now installing the cleanup hook in settings, which goes through
+> the new question.
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/.claude/settings.json? [outside-write df8bebf2]
+> - Yes — Allow this write, this once.
+> - This session — Allow any write inside /mnt/mtwo/.claude, for this session
+>   only, until it ends.
+> - Always — Allow any write inside /mnt/mtwo/.claude, for every session, from
+>   now on.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> All passing. Closing issue 043 again and committing.
+
+*[commit] e16934e84 in ai-stuff - scripts: a fourth answer to an outside write, "This session"*
+
+The question now has a fourth answer, **This session**, between Yes and Always.
+Four is the most answers the question box allows.
+
+- **What it allows:** writes inside the same folder Always would open, but only
+  for the session that was refused, and only until that session ends. Other
+  sessions are still refused, and the folder is never added to the every-session
+  list.
+- **How it ends:** a new hook that runs when a session ends
+  (`harness-hooks/forget-session-permits`) removes that permission. It also
+  removes any Yes the session never used, so that doesn't carry over either.
+  Always stays.
+- **One gap:** a session that's killed rather than closed never runs that hook.
+  Its This-session permission stays until a reboot clears RAM, or until the
+  session is resumed and closed properly.
+
+The new question came up live when I added the end-of-session hook to your
+settings. All four answers showed, and your Yes let that one edit through. This
+session itself is only covered by tests, not tried live. The tests pass (42 for
+the question flow, 207 across all the hooks, 0 failures). I also fixed the line
+after the question: it now tells the agent to retry after Yes, This session or
+Always, not just Yes or Always.
+
+It's committed as `e16934e84`, and the write-check issue is closed again.
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+can we update the "allow a write outside this session's folder" to also have
+"yes, for this session only" as well? Any other candidates?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+Three things limit what we can add here:
+
+- **It already exists:** "This session" is a "yes, for this session only". It
+  allows writes in that folder until the session ends.
+- **The box is full:** the question box takes at most four answers, and we have
+  four.
+- **"This session" is folder-wide:** it opens the whole folder, not just the one
+  file.
+
+So I'm reading your request as one of two things. Either a new label, so it
+reads "Yes, for this session only". Or a narrower answer: just this file, for
+the rest of the session.
+
+The box does accept up to four separate questions at once. That means the choice
+can be split into parts, each with its own answers, instead of packing every
+combination into one list. Candidates, most useful first:
+
+1. **Split "how long" from "how wide".** One box with two questions:
+   - *How long?* Once, This session, This project, Always.
+   - *How wide?* This file, This folder.
+
+   That gives eight combinations, including the one you asked for: this file
+   only, for the rest of the session. A "No" on the first question would just be
+   a fifth "how long" answer, which doesn't fit, so No would move to the box's
+   own "Other" choice or a small first question of its own.
+2. **"This project".** Allowed for every session started in the same project
+   folder, from now on. It sits between This session and Always. It suits
+   outside folders that only one project ever needs, such as a game project
+   writing into its server's folder.
+3. **A time limit,** such as "for the next hour". It would end on the clock
+   instead of when the session ends, so it covers a session that gets killed and
+   never runs its end hook.
+4. **"Show me first".** The write doesn't happen. The agent shows you what it
+   would have written (the edit's text, or the command's target files), then
+   asks again. That's for when the path looks fine but you want to see the
+   change itself.
+
+Which did you mean by "yes, for this session only": a new label, or this file
+only? And do any of these four appeal? The first one would also give your
+file-only version.
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+> - How long? Once, This session, This project, Always.
+
+how is this project and always not the same thing? Seems similar to me. Can we
+remove that one to make room?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+They differ in who gets the permission:
+
+- **Always:** every session on the machine, from any project, may write in that
+  folder from now on.
+- **This project:** only sessions started in this project's folder may write
+  there. A session in another project still gets refused and asked.
+
+So "This project" is a narrower Always. It matters if you run many projects and
+one of them needs a folder the others shouldn't touch. If you mostly work in one
+monorepo, the two behave the same, and removing it costs little.
+
+With it removed, the box fits exactly:
+
+- **How long?** Once, This session, Always, No
+- **How wide?** This file, This folder
+
+That makes six "yes" combinations plus No. Your "yes, for this session only"
+becomes *This session + This file*. When the first answer is No, the second is
+ignored.
+
+One decision is left: when someone picks **Always + This file**, should only
+that exact path be allowed forever, so a new file next to it asks again? That's
+the strict choice, and the one I'd pick. Should I build it this way?
 
 --------------------------------------------------------------------------------
 
