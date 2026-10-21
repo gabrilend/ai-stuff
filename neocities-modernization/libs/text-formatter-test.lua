@@ -322,9 +322,18 @@ do
     local plain = tf.wrap_file_header("   ", "dnd-pictures-from-the-internet: " .. hash, 80)
     check("file header: no colon break unless asked for", plain[1]:sub(-2) ~= ": ", show(plain))
 
-    -- No dash or slash to break at: left over-wide so the site check names it.
+    -- No dash or slash to break at: cut at the column (owner, 2026-10-21:
+    -- "We should allow a hard-break"), never inside a multi-byte character.
     local unbreakable = tf.wrap_file_header(prefix, string.rep("x", 90), 80)
-    check("file header: no dash or slash means no break", #unbreakable == 1)
+    local fits = true
+    for _, l in ipairs(unbreakable) do if tf.utf8_char_count(l) > 80 then fits = false end end
+    check("file header: an unbreakable name is cut at the column", #unbreakable == 2 and fits, show(unbreakable))
+    check("file header: the cut loses nothing",
+        (unbreakable[1] .. unbreakable[2]:gsub("^%s+", "")):gsub("^" .. prefix:gsub("%p", "%%%0"), "") == string.rep("x", 90))
+    local accented = tf.wrap_file_header(prefix, string.rep("é", 90), 80)
+    local whole = true
+    for _, l in ipairs(accented) do if l:find("[\192-\255]$") then whole = false end end
+    check("file header: a cut never splits a character", whole)
 end
 -- }}}
 

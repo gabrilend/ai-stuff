@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-21 14:33:42
+Generated on: 2026-10-21 14:46:30
 Models: claude-opus-5-5
 
 ## Contents
@@ -30,6 +30,10 @@ Models: claude-opus-5-5
    committed. Next: decide whether worker pages get Previous/Next links and
    whether the .txt downloads return, so the old single-threaded builder can be
    deleted.
+7. 2026-10-21 14:36, after Request 9 - We're cleaning up the poetry site before
+   your next rebuild. Page navigation, text downloads and the required model are
+   done, and notes are carrying other notes' embeddings. Next: choose option A
+   or B for how poem numbers get given out.
 
 --------------------------------------------------------------------------------
 
@@ -1956,6 +1960,136 @@ A question back for you: when you say pictures should be interleaved "where they
 belong", do you mean their *number* should sit among the poems, or that they
 should *appear* among the poems on the pages? Option A gives you the second
 without the first.
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+> - How notes get numbered: a note's number is its position in the folder
+> listing. That's the order ext4 happens to store the directory's entries in,
+> not names or dates.
+
+ha this is bad and wrong. We should replace it with by date.
+
+> - What it doesn't mean: no text would produce such a vector, so "similar to a
+> picture" means "similar to the poem before it in theme, and the poem after it
+> in texture." That's a choice about meaning, not a correctness bug.
+
+does it do any image-to-text type processing? How does an embedding model
+compare two pictures of say, source-code documents to each other?
+
+>   How should the global number be given out?
+> - B. Re-derived every run in a meaningful order, with pictures interleaved
+> where they belong in time. Every cache would have to be filed by source index
+> instead, and every page address after a new poem would change, breaking any
+> links people have shared.
+
+so links are always broken when we update. But by "broken" I mean it "resolves
+to a new page" not that it fundamentally would not load. Is that correct?
+
+what is left unaddressed?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 10
+
+> Notes numbered by date is a small change in the notes extractor, so I'm making
+> it first. Reading the end of its loop:
+
+> The old numbering lines remain, but every id is now overwritten after sorting.
+> Marking that in the code, then reading the notes extractor's existing test:
+
+> Adding a date-order case to that test: three notes, created in one order,
+> dated in another and named in a third. The ids must follow the dates:
+
+> 13 of 13 pass. Recording it in the numbering issue and committing:
+
+*[commit] 0141a777c in ai-stuff - neocities: notes are numbered by date, not by how the disk lists the folder*
+
+> Before answering the picture question, checking whether anything in the
+> project looks at image pixels at all:
+
+Notes are now numbered by date, oldest first, with the file name breaking ties.
+That's committed, with a test that creates, dates and names files in three
+different orders. The next extraction renumbers the notes once, so your next
+build has to re-embed them, which `--force` does.
+
+## Do the pictures get any image processing?
+
+No. Nothing in the project reads a picture's pixels: no text recognition, no
+captioning, no vision model. A picture's embedding is built only from the poems
+written just before and just after it. So two screenshots of source code are
+"similar" only if they were posted next to similar poems; what's in them never
+counts.
+
+Options for comparing what's actually in the pictures, most useful first:
+
+1. **EmbeddingGemma 2 can embed pictures itself.** It's multimodal, and pictures
+   land in the same space as text, so a picture can be compared with poems
+   directly. I only downloaded its text part, so this needs its vision file
+   (it's listed beside the text model on Hugging Face) and a llama.cpp
+   image-embedding request. That needs testing before I'd promise it works.
+2. **Embed the descriptions you already wrote.** Fediverse pictures carry your
+   alt text, such as "39 lines of C code included in its original form…".
+   That's text, so the current model can embed it today. Gallery pictures only
+   have file names.
+3. **Read the text out of the pictures first** (OCR), then embed that. This
+   would work well for screenshots of code or documents, and badly for art.
+
+## Links under option B
+
+Mostly yes. A link like `similar/0001-01.html` would still load, but it would
+show whichever poem holds number 1 after the update. Two exceptions:
+- **Numbers past the new end:** if poems ever disappear (an exclusion, say), the
+  highest numbers stop existing, and those links really don't load.
+- **Links into a chronological page:** they point at a poem's spot on the page
+  (`#poem-1551`). After renumbering, that spot belongs to another poem or isn't
+  on that page any more, so the link lands on the right page in the wrong place.
+
+So under B nothing shared from outside stays pointed at the poem someone meant.
+Under A the number belongs to the poem permanently, and date order on the pages
+comes from the dates themselves.
+
+## What's left unaddressed
+
+**Waiting on your decision:**
+1. **How the global number is given out:** A (assigned once, never reused) or B
+   (recomputed every run). This decides how the numbering issue gets finished,
+   including picture numbers and checking each embedding against its text.
+2. **The over-wide `fediverse-stars: ff80235…dotpng.png` title:** rename the
+   picture, or allow a hard break mid-name.
+
+**Waiting on your build (I don't run builds):**
+3. **A `--force` rebuild.** It re-embeds the notes under their new numbers, adds
+   the 16 notes that never had embeddings, renumbers the pictures, and gives the
+   first real run of the new pages (the shared drawer, navigation, text
+   downloads, pages in RAM).
+4. **A deploy after that build.** Its result closes the site-in-RAM issue. The
+   first deploy also uploads the new text files, about 2 GB.
+
+**Code still to do:**
+5. **Remove the single-threaded builder,** now that navigation and text
+   downloads live in the workers, and rewrite its five tests against the shared
+   drawer.
+6. **Word pages:** they still have their own poem drawer, the last copy.
+7. **Word-cloud snapshots as small records,** with a viewer tool. It's planned
+   and answered, but not built.
+8. **The source browser keeps pages for deleted files.** Moving the site into
+   RAM partly covers this, since a logout clears them.
+
+**Loose ends from earlier:**
+9. **EmbeddingGemma 2:** three checks are unrun. Did the llama.cpp upgrade shift
+   the older models' vectors? How do long poems fit its 8K context? And there's
+   the model comparison, whose report went with `output/` when you deleted it;
+   it has to be rerun anyway.
+10. **Image-post issue:** it needs rewriting as a record of what was built.
+11. **The delta guide's "Roadmap" link** opens this project's roadmap, not
+    delta-version's.
+12. **The no-defaults issue:** four questions (10–13) are still open, so that
+    issue stays in progress.
+
+Where do you want to start: the numbering decision, so the rebuild re-embeds
+only once, or the builder removal while you decide?
 
 --------------------------------------------------------------------------------
 

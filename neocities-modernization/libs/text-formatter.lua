@@ -313,10 +313,10 @@ end
 --         dash at all (owner, 2026-10-07: "can break on the colon").
 -- returns: array of strings, one per line, no newlines inside.
 --
--- A name with no dash or slash that fits is left over-wide on purpose: it then
--- fails the whole-site check (scripts/validate-output) by name, which says
--- exactly which file to rename or exclude, instead of being cut somewhere the
--- owner never chose.
+-- A name with no dash, slash (or colon, with opts.colon) that fits is cut at
+-- the column itself, never inside a multi-byte character (owner, 2026-10-21:
+-- "we shouldn't rename. We should allow a hard-break"). Until then it was left
+-- over-wide on purpose, for the whole-site check to name.
 function M.wrap_file_header(prefix, path, width, opts)
     local break_after_colon = opts and opts.colon
     local lines = {}
@@ -339,7 +339,25 @@ function M.wrap_file_header(prefix, path, width, opts)
             end
         end
         if not best then
-            break
+            -- No dash, slash or colon to break at within the budget (a
+            -- gallery picture named by a 120-character hash): cut at the
+            -- budget itself, never inside a multi-byte character. (Owner,
+            -- 2026-10-21: "we shouldn't rename. We should allow a
+            -- hard-break." It used to be left over-wide for the site check
+            -- to report.)
+            local k = 0
+            for pos = 1, #rest do
+                local fits = M.utf8_char_count(rest:sub(1, pos)) <= budget
+                if not fits then break end
+                local next_byte = rest:byte(pos + 1)
+                -- a cut may fall only where a character ends
+                if (not next_byte) or next_byte < 128 or next_byte >= 192 then
+                    k = pos
+                end
+            end
+            -- not even one character fits beside the lead: nothing to cut
+            if k == 0 then break end
+            best = k
         end
         lines[#lines + 1] = lead .. rest:sub(1, best)
         rest = rest:sub(best + 1)

@@ -54,9 +54,9 @@ plain line two rows down sat at 80 and stayed whole.
     lines no wider than `width` (a number, visible characters), breaking only
     at a dash (kept at the end of the upper line) or a slash (moved to the
     start of the lower line). Continuation lines are indented under the path.
-  - A name with no usable dash or slash is left over-wide, so the whole-site
-    check (`scripts/validate-output`) names it rather than it being cut at a
-    place nobody chose.
+  - A name with no usable dash or slash is cut at the width itself, never
+    inside a multi-byte character (owner, 2026-10-21: allow a hard break
+    rather than rename).
   - Used by every page type: chronological, similar/different (both the
     ` -> file:` header and the `--- #N path ---` ranking header), word pages
     (plain and inside the golden box), and the text exports.
