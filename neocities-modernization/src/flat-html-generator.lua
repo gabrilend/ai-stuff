@@ -2750,14 +2750,20 @@ local function run_page_workers(num_threads, config, jobs)
             end
             -- }}}
 
+            -- the "« First │ ‹ Prev │ Page X of Y │ Next › │ Last »" line,
+            -- shared with the chronological pages (chronological-page.lua)
+            local t_page_links = require('chronological-page').page_links
+
             -- {{{ local function generate_page()
             -- One page of a poem's similar or different list: the anchor poem,
-            -- then poems start..end of the list. download: false, or
-            -- { file = "0001.txt", count = n } -- the line offering the
-            -- list's text export, after the last poem (Issue 8-013).
-            -- Returns the file written, or nil when the page would be past
-            -- the end of the list.
-            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged, download)
+            -- then poems start..end of the list. total_pages: how many pages
+            -- this list has (the navigation line links them, above and below;
+            -- Issues 8-012 and 10-036 -- page 1 used to have no way to page 2).
+            -- download: false, or { file = "0001.txt", count = n } -- the line
+            -- offering the list's text export, after the last poem (Issue
+            -- 8-013). Returns the file written, or nil when the page would be
+            -- past the end of the list.
+            local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged, total_pages, download)
                 local start_idx = (page_num - 1) * poems_per_pg + 1
                 local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
                 if start_idx > #sorted_list then return nil end
@@ -2774,6 +2780,13 @@ local function run_page_workers(num_threads, config, jobs)
                     PAGE_HEAD_BLOCK,
                     '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                 }
+                -- page navigation, when the list runs to more than one page
+                local nav = t_page_links(page_num, total_pages, function(n)
+                    return string.format("%s-%02d.html", poem_idx_str, n)
+                end)
+                if nav ~= "" then
+                    table.insert(html_parts, " " .. nav .. "\n\n")
+                end
                 table.insert(html_parts, "=== ANCHOR POEM ===\n")
                 table.insert(html_parts, format_poem_entry(poem, chrono_map, chrono_paged))
                 table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
@@ -2791,6 +2804,9 @@ local function run_page_workers(num_threads, config, jobs)
                     end
                     table.insert(html_parts, format_poem_entry(entry_poem, chrono_map, chrono_paged))
                     table.insert(html_parts, "\n\n")
+                end
+                if nav ~= "" then
+                    table.insert(html_parts, " " .. nav .. "\n")
                 end
                 -- the download offer: on when the text export is (config.lua
                 -- pagination.generate_txt_exports), else no line at all
@@ -2911,6 +2927,8 @@ local function run_page_workers(num_threads, config, jobs)
                 local function build_list(list, page_type)
                     local pages = pages_for(list)
                     local count = math.min(#list, #pages * config.poems_per_page)
+                    -- pages that hold at least one poem: the ones written
+                    local total_pages = math.min(#pages, math.ceil(#list / config.poems_per_page))
                     local download = false
                     if config.txt_exports then
                         download = { file = string.format("%04d.txt", poem_index), count = count }
@@ -2918,7 +2936,7 @@ local function run_page_workers(num_threads, config, jobs)
                     local written = 0
                     for _, page_num in ipairs(pages) do
                         if generate_page(poem, list, page_type, page_num, config.poems_per_page,
-                                config.output_dir, config.chrono_mapping, config.chrono_paginated, download) then
+                                config.output_dir, config.chrono_mapping, config.chrono_paginated, total_pages, download) then
                             written = written + 1
                         end
                     end

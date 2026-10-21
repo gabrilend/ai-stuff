@@ -15,20 +15,21 @@ local text_formatter = require("text-formatter")
 
 local M = {}
 
--- {{{ function M.navigation
+-- {{{ function M.page_links
 -- "« First │ ‹ Prev │ Page X of Y │ Next › │ Last »", each a link except
--- where there is nowhere to go; "" for a single page. Pages link to each
--- other by file name within chronological/ (Issue 8-039).
+-- where there is nowhere to go; "" for a single page. Shared by every page
+-- type that comes in numbered pages (chronological, similar, different).
 -- current_page, total_pages: numbers, 1-based
-function M.navigation(current_page, total_pages)
+-- file_for: function(page number) -> the file name to link (same folder)
+function M.page_links(current_page, total_pages, file_for)
     if total_pages <= 1 then
         return ""
     end
     local parts = {}
     -- {{{ backward links: live unless on the first page
     if current_page > 1 then
-        parts[#parts + 1] = "<a href='01.html'>« First</a>"
-        parts[#parts + 1] = string.format("<a href='%02d.html'>‹ Prev</a>", current_page - 1)
+        parts[#parts + 1] = string.format("<a href='%s'>« First</a>", file_for(1))
+        parts[#parts + 1] = string.format("<a href='%s'>‹ Prev</a>", file_for(current_page - 1))
     else
         parts[#parts + 1] = "« First"
         parts[#parts + 1] = "‹ Prev"
@@ -37,8 +38,8 @@ function M.navigation(current_page, total_pages)
     parts[#parts + 1] = string.format("Page %d of %d", current_page, total_pages)
     -- {{{ forward links: live unless on the last page
     if current_page < total_pages then
-        parts[#parts + 1] = string.format("<a href='%02d.html'>Next ›</a>", current_page + 1)
-        parts[#parts + 1] = string.format("<a href='%02d.html'>Last »</a>", total_pages)
+        parts[#parts + 1] = string.format("<a href='%s'>Next ›</a>", file_for(current_page + 1))
+        parts[#parts + 1] = string.format("<a href='%s'>Last »</a>", file_for(total_pages))
     else
         parts[#parts + 1] = "Next ›"
         parts[#parts + 1] = "Last »"
@@ -46,6 +47,16 @@ function M.navigation(current_page, total_pages)
     -- }}}
     -- Issue 8-052: the box-drawing vertical, so it matches the frames
     return table.concat(parts, " │ ")
+end
+-- }}}
+
+-- {{{ function M.navigation
+-- The chronological pages' links: 01.html, 02.html, ... within
+-- chronological/ (Issue 8-039).
+function M.navigation(current_page, total_pages)
+    return M.page_links(current_page, total_pages, function(n)
+        return string.format("%02d.html", n)
+    end)
 end
 -- }}}
 

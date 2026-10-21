@@ -12,7 +12,7 @@
 -- (Issue 8-058, step 7.)
 --
 -- Usage:
---   scripts/render-page-sample [DIR] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N
+--   scripts/render-page-sample [DIR] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N
 --
 --   DIR       project directory (default below)
 --   --out     where the pages go; made fresh, must not exist yet
@@ -20,16 +20,17 @@
 --   --server  inference server entry naming that model (config.lua)
 --   --threads worker threads for the similar/different pages
 --   --poems-per-page  poems on each similar/different page (the builds use 33)
+--   --pages   pages per poem, a count or "all" (as run.sh --pages)
 --
 -- The sample is chosen from poems.json by a fixed rule (no randomness), so two
 -- runs over the same poems pick the same anchors. One page per anchor per
--- list ("--pages 1").
+-- list.
 -- The pictures folder is linked, not copied: the page builder skips a picture
 -- that already exists, so the sample costs no picture copies.
 
 -- {{{ arguments
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-local OUT, MODEL, SERVER, THREADS, PER_PAGE
+local OUT, MODEL, SERVER, THREADS, PER_PAGE, PAGES
 do
     local i = 1
     while i <= #arg do
@@ -39,13 +40,14 @@ do
         elseif a == "--server" then SERVER = arg[i + 1]; i = i + 1
         elseif a == "--threads" then THREADS = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--poems-per-page" then PER_PAGE = tonumber(arg[i + 1]); i = i + 1
+        elseif a == "--pages" then PAGES = arg[i + 1]; i = i + 1
         elseif a:sub(1, 2) == "--" then error("render-page-sample: unknown option " .. a)
         else DIR = a end
         i = i + 1
     end
 end
-if not (OUT and MODEL and SERVER and THREADS and PER_PAGE) then
-    error("render-page-sample: --out, --model, --server, --threads and --poems-per-page are all required")
+if not (OUT and MODEL and SERVER and THREADS and PER_PAGE and PAGES) then
+    error("render-page-sample: --out, --model, --server, --threads, --poems-per-page and --pages are all required")
 end
 -- }}}
 
@@ -150,6 +152,6 @@ local sample = pick_sample(poems_data.poems)
 local anchors = {}
 for i, p in ipairs(sample) do anchors[i] = p.poem_index end
 assert(generator.generate_complete_flat_html_collection(
-    poems_data, nil, nil, OUT, "1", PER_PAGE, THREADS, chrono_per_page, anchors),
+    poems_data, nil, nil, OUT, PAGES, PER_PAGE, THREADS, chrono_per_page, anchors),
     "similar/different pages failed")
 print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))

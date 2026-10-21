@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-20 15:04:40
+Generated on: 2026-10-21 14:06:40
 Models: claude-opus-5-5
 
 ## Contents
@@ -25,6 +25,11 @@ Models: claude-opus-5-5
    before a rebuild. The site-in-RAM change is built, and the poem-drawing merge
    is planned. Next, you run the one-time migrate command, then tell me whether
    chronological pages' styling should win on all three differences.
+6. 2026-10-20 15:07, after Request 7 - Goal: one poem drawer for every page
+   type, which now covers chronological, similar and different pages, all
+   committed. Next: decide whether worker pages get Previous/Next links and
+   whether the .txt downloads return, so the old single-threaded builder can be
+   deleted.
 
 --------------------------------------------------------------------------------
 
@@ -1483,6 +1488,216 @@ for one decision of yours, at the end.
 
 So: should the worker pages get Previous/Next links between a poem's pages? And
 should the `.txt` downloads come back, or should that setting be turned off?
+
+--------------------------------------------------------------------------------
+
+### User Request 8
+
+> - 16 gallery pictures share a number with the 16 newest poems. On the live
+> site those poems show up in similar/different lists as pictures. The fix is in
+> the image step's numbering, and then the similarity stage has to rerun. It's
+> written into the image-post issue.
+
+tell me more.
+
+> - The image-embedding step's test fails 3 checks. It doesn't touch page
+> drawing, and the failures don't come from these changes.
+
+tell me more.
+
+> 1. The site move. Your output/ is still the old folder on disk, and the
+> permission check blocked me from running the move:
+> !
+> /mnt/mtwo/programming/ai-stuff/neocities-modernization/scripts/ensure-site-in-ram
+> --migrate
+
+does this matter if we're going to re-run the generation soon anyway? Why don't
+we just delete it?
+
+> 2. The single-threaded builder holds the only copy of two features the live
+> site lacks. Every real build uses the workers, so:
+>      - a poem's similar page has no link to its own page 2, even when --pages 3 writes three pages;
+
+is this because the generation from last time only had 1 page per poem?
+
+>      - there's no download offer, and the per-poem .txt exports have never been written, even though config.lua says generate_txt_exports = true.
+
+Let's fix the .txt functionality and add a link to download it at the end of the
+page. Can we format it like the similar/different/chronological pages? Except
+without navigation of course. Just, with the boxes, and the title and such.
+
+pretty printing...
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 8
+
+> Looking into the two "tell me more" items first. The picture numbering:
+
+> They're 16 note files that arrived on Oct 7 between the embedding run and the
+> page build. Now the image-embedding test's three failures:
+
+> 22 of 22 pass. Updating the image-post issue and committing the two fixes:
+
+*[commit] 4f5371c84 in ai-stuff - neocities: gallery pictures are numbered after the last poem, not the last embedding*
+
+> Now your page-2 question. Checking how many pages per poem the Oct 7 build
+> wrote:
+
+> The user wants the pages' look (boxes and title) rather than the old `====`
+> separators. Reopening the issue with the new design:
+
+> Building step 1: a plain-text form of an entry in the shared drawer.
+
+> Now the regular path: no navigation boxes and the plain bottom bar in a text
+> export, and every entry type passes through the plain conversion:
+
+> Existing tests still pass. Adding tests for the plain form:
+
+> The bar is right; the check was wrong. A Lua character class matches single
+> bytes, and these box characters share bytes with `═`. Checking each junction
+> character as a whole:
+
+> 36 of 36 pass. Step 2: each worker writes the text file for each list it
+> builds, and each page gets the download link. Reading the worker's page writer
+> as it stands now:
+
+> Restructuring the page writer: the line above each ranked poem becomes a small
+> function the text export reuses, the page takes an optional download note, and
+> a text writer sits beside it:
+
+> Now the job that builds a poem's pages: it works out how many poems the pages
+> hold, passes the download note, and writes the text file:
+
+> Adding the text-file count to the worker's tallies, and the export setting to
+> the job config:
+
+> Parses. Rendering the sample with the exports on:
+
+> A new safety hook wants every path that gets written spelled out in full.
+> Rewriting the command that way:
+
+> The pages differ only by the new line (my first check counted a
+> trailing-newline difference that `grep` adds). Looking at a text export:
+
+> The boost drawer draws the junctions whether or not the navigation strip is
+> there. Giving its bottom edge the same switch:
+
+> Every page passes `true`, so changing the "no strip" case touches only the
+> text exports:
+
+> Adding a boost test for the edge without the strip:
+
+> Checking every text export for leftover HTML and for lines wider than the
+> 84-column frame:
+
+> Those are correct: poems whose own text quotes HTML or C code, now shown as
+> the reader would see it. Finding the two lines at 85 columns:
+
+> Adding that case to the tests, then re-rendering and re-checking:
+
+> Still 85. So the wrapper also misreads the escaped form: it seems to decode
+> entities first and then strip tags. Testing it directly:
+
+> Rewriting it to draw like the chronological pages, as plain text. The page is
+> now assembled from parts rather than one growing string:
+
+> Now a download line on the chronological pages too, pointing at that file. The
+> chronological jobs need to carry the total poem count for it:
+
+> Rendering and checking the chronological export:
+
+> Every test passes. Updating the export issue and the drawer's reference, then
+> committing:
+
+*[commit] e30d90ece in ai-stuff - neocities: every list gets a text download drawn like its pages*
+
+The text downloads are built and committed, and page-to-page links are still the
+open question at the end. Here's the rest:
+
+## The 16 notes drawn as pictures
+
+**What happened.** On Oct 7, 16 note files arrived after that day's embeddings
+were made at 12:11, and poems.json was rebuilt with them at 18:03. They became
+poems 8607 to 8622, with no embedding yet. Examples are "division-by-zero",
+"symbeline-superheros" and "satisfactory-academic-progress-appeal".
+
+**Why they showed as pictures.** The image step gives each gallery picture its
+own number, so it can be ranked beside the poems. It started counting after the
+highest poem that *had an embedding* (8606), not the highest poem in the list.
+So 16 pictures got the numbers 8607 to 8622. When the page workers merge
+pictures into their poem list, the picture wins. Wherever one of those notes
+would appear in a similar or different list on the live site, a gallery picture
+such as `weapons.jpg` appears instead.
+
+**The fix** is committed: pictures now start after the highest poem, embedded or
+not, and a new test pins it. Your next build adds embeddings for the 16 notes
+and then renumbers and re-ranks everything, so the live site corrects itself
+then.
+
+## The image step's three failing tests
+
+None were code faults:
+- **Two still expected the old rule** for a picture's embedding: the average of
+  the poems written just before and after it. On June 23 that changed to taking
+  the first half of its numbers from the poem before and the second half from
+  the poem after. The rule's own test was updated then, but this one wasn't.
+- **The third expected an embedding for every poem.** It reads the default
+  model, nomic, which has embeddings for only 7,904 of the 8,622 poems. That's
+  the same cause as the collision above. It now checks one entry per embedded
+  poem, and prints how many poems lack one.
+
+All 22 checks pass now.
+
+## Deleting `output/` instead of migrating
+
+Yes, deleting it works. Nothing in it is lost for good:
+- the pictures get copied in again from your image folders on the next build
+  (1.5 GB, once);
+- the model comparison (24 MB) is the only thing a build doesn't remake, and it
+  needs rerunning for EmbeddingGemma 2 anyway.
+
+It does matter that one of the two happens before you build. The build stops if
+`output/` is still a real folder. Once it's gone, the build makes the link into
+RAM itself. So either run:
+```
+! rm -rf /mnt/mtwo/programming/ai-stuff/neocities-modernization/output
+```
+or the `--migrate` command, which does the same but keeps those two folders.
+
+## Page 2 links
+
+No, that wasn't the cause. The Oct 7 build wrote three pages for every poem:
+8,622 each of `-01`, `-02` and `-03`. Page 1 simply never links to page 2, so on
+each of the similar and different sides about 17,000 pages can only be reached
+by typing their address.
+
+## Text downloads
+
+- **One file per list:** `similar/0001.txt` and `different/0001.txt` sit beside
+  each poem's pages and hold the same poems in the same order.
+- **Drawn like the pages:** the same title, the anchor poem, the `--- #n source
+  ---` lines, and each poem's frame (bars, golden walls, warning boxes). There
+  are no navigation boxes and no links, and pictures appear as `[Image:
+  description]`.
+- **A link at the end of every page:** "download this list as text: 0001.txt (99
+  poems)".
+- **The chronological view:** `chronological.txt` is redrawn the same way (10
+  MB), and every chronological page ends with a line offering it.
+- **On the 197-poem sample:**
+  - all 394 files fit the 84-column frame and contain no HTML;
+  - the pages changed only by the new line;
+  - the page check finds 0 problems.
+- **Cost:** about 2 GB added to the site, which is 4.7 GB now against a 45 GB
+  limit.
+- **A small bug fixed along the way:** a picture's description wasn't fully
+  escaped in the page. One that quoted `#include <stdio.h>` put a raw `<` into
+  the HTML.
+
+Should page 1 link to pages 2 and 3, and each page back to the one before? I'd
+add a line at the top and bottom of each similar and different page, like the
+chronological pages' "« First │ ‹ Prev │ Page 1 of 3 │ Next › │
+Last »". Once that's in, I can remove the single-threaded builder.
 
 --------------------------------------------------------------------------------
 

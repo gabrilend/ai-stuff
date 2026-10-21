@@ -275,7 +275,17 @@ threading in `run.sh`'s word-cloud invocations.
 2. In paginated builds, never write a link through `chronological/index.html`;
    the redirect cannot carry the `#poem` anchor. (Unpaginated builds keep
    `index.html`, which is the real page there.)
-3. **Done 2026-09-22.** Compute "Next Page" and "Last Page" on similar / different pages from the set
+3. **Correction 2026-10-21: this step was built in the single-threaded
+   builder only**, which no build uses (Issue 8-058), so the live similar and
+   different pages had no page navigation at all: page 1 never linked to page
+   2 (the 2026-10-07 build wrote three pages per poem). Rebuilt in the page
+   workers: each page carries "« First │ ‹ Prev │ Page X of Y │ Next › │
+   Last »" above the anchor poem and below the last poem, over the pages the
+   list actually fills (`page_links` in `src/chronological-page.lua`, shared
+   with the chronological pages). Checked on a 3-page sample render: 591
+   pages, no navigation link to a missing page. The record below describes
+   the single-threaded version.
+   **Done 2026-09-22.** Compute "Next Page" and "Last Page" on similar / different pages from the set
    of pages actually written, not from the number of pages the list could fill:
    pass the list of pages being generated into the previous/next navigation
    builder, and omit a link whose target is not in that list. Built:
