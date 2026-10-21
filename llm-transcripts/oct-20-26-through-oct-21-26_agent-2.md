@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-20 14:50:51
+Generated on: 2026-10-21 14:18:14
 Models: claude-opus-5-5
 
 ## Contents
@@ -18,6 +18,11 @@ Models: claude-opus-5-5
    from the good ideas in your 14 HTML generators, and the draft is ready but a
    hook is blocking the write. To let me save it, type `! touch
    /tmp/claude-allow-outside-write`.
+4. 2026-10-20 14:53, after Request 15 - You're building a cozy "lodge" of
+   hand-written rooms over each project's documentation, starting with
+   physics-sim, and the documentation-site skill is now committed. Next, answer
+   my three questions on room styling, page naming and the README, then I'll
+   start on physics-sim.
 
 --------------------------------------------------------------------------------
 
@@ -983,6 +988,413 @@ outside this folder.
 
 Should I go ahead with physics-sim? I'd read the project first, then write the
 issue, the rooms and the generator, in that order.
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+we should also have a one-page description of the development process so far. We
+should use that whole page as best we can, so be verbose, yet precise, and don't
+elide details if you can avoid it, but be sure to only include the relevant and
+important details. Stuff that the user emphasizes in the llm-transcripts is
+probably a good idea to incorporate.
+
+
+
+<pasted_content id="db53">
+> 1. How much can a room style itself? Plain Markdown makes every room look the
+> same, which you
+>      wanted to avoid. I'd let a room's .md carry a few lines at the top naming its theme (colours,
+>      a picture, the kind of space). The generator would also pass small raw-HTML blocks straight
+>      through for the odd special thing, like a playable embed. Is that enough freedom, or do you
+>      want each room to be able to carry its own whole stylesheet?
+</pasted_content id="db53">
+
+
+every room gets it's own stylesheet. If they all look the same as the main page,
+they should still duplicate that stylesheet several times.
+
+
+
+<pasted_content id="db53">
+> 2. What should the built rooms be called inside docs/HTML/? Either a subfolder
+>      (docs/HTML/lodge/entrance.html) or flat names beside the docs pages
+>      (docs/HTML/lodge-entrance.html). The skill's flat-folder rule (every link is just a file
+>      name) points to flat names.
+</pasted_content id="db53">
+
+
+sub-folder.
+
+
+
+<pasted_content id="db53">
+> 3. Should the existing README.md stay? If it stays, it would shrink to a short
+> sign on the door:
+>      "the lodge is in lodge/; build it with this command". Or should it be left alone for now,
+>      like the README files at the ai-stuff root?
+</pasted_content id="db53">
+
+
+we need to link to it from the lodge. Same for in ai-stuff.
+
+
+
+<pasted_content id="db53">
+>   Your rules also call for a few things before I write code in physics-sim:
+>   - an issue file for the lodge, since it's a new feature;
+>   - vimfolds and a ${DIR} argument in the generator;
+> - an index number on each room file, so the rooms read in order
+> (000-entrance.md, 001-...).
+</pasted_content id="db53">
+
+
+great, let's work on those too.
+
+
+
+<pasted_content id="db53">
+> The skill should also gain this layout under rule 16, which is one more write
+> outside this
+  folder.
+
+> Should I go ahead with physics-sim? I'd read the project first, then write the
+> issue, the rooms
+>   and the generator, in that order.
+</pasted_content id="db53">
+
+
+sure.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+> Starting by reading physics-sim and finding its conversation history.
+
+> Still reading physics-sim's history: it's a pachinko game built in C over five
+> days in March. Reading the rest of the earlier progress report on it next.
+
+> Reading the game's controls; next I'll take real screenshots of it running, so
+> the rooms show pictures it actually drew.
+
+The game will open a window on your screen for about 45 seconds while I
+photograph it. Nothing needs pressing, and it closes itself.
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+Base directory for this skill: /home/ritz/.claude/skills/issue-lifecycle
+
+# Issue lifecycle
+
+The owner's CLAUDE.md is the authority on what issue files are for and what
+they must contain; where it and this skill ever disagree, CLAUDE.md wins. This
+skill adds the mechanics CLAUDE.md leaves open: which tools answer which
+question, in what order, and what to do when a tool says no.
+
+All tools live in one place and are called by absolute path:
+
+| Tool | Answers |
+|---|---|
+| `/home/ritz/programming/ai-stuff/scripts/validate-issues <project>` | is the issue tree consistent; next free number per phase |
+| `validate-issues <project> --next <phase>` | the number to give a new issue |
+| `validate-issues <project> --file <issue>` | is this one issue well-formed and are its links matched |
+| `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m` | done/open counts per phase (for progress files and demos) |
+| `/home/ritz/programming/ai-stuff/scripts/commit-own-changes <repo> -F -` | commits exactly the lines this session wrote, plus the changed transcripts of the commit's projects (any conversation's), and runs the repository's commit hooks, without touching the shared staging area |
+| `/home/ritz/programming/ai-stuff/scripts/stage-own-changes <repo>` | previews what that commit would take; writes nothing |
+| `/home/ritz/programming/ai-stuff/scripts/claim-own-change <file>` | records lines this session changed by a route the edit ledger cannot see (see Committing) |
+| `/home/ritz/programming/ai-stuff/scripts/adopt-left-behind-changes <repo> -- <path>...` | takes ownership, line by line, of uncommitted work a finished session left, leaving lines any other session still holds (see Committing) |
+
+Each tool has a `.info.md` beside it; read that rather than the source.
+
+## Before writing a new issue
+
+1. **Search first, including `issues/completed/`.** Grep the issue tree for
+   the feature's nouns, not just the likely title. A completed issue about the
+   same machinery is reopened and extended rather than duplicated: history is
+   more useful stacked vertically in one file than spread across several.
+2. **Pick the phase by what the work builds on**, not by when it is being
+   done. Lower numbers are foundations; later issues depend on earlier ones.
+3. **Take the number from the tool:** `validate-issues <project> --next
+   <phase>`.
+   It reads the project's own naming shape (522, 1001, 9-007, A04) and never
+   reuses a number that a completed file already holds.
+4. **Write the blueprint** with the three sections CLAUDE.md requires, plus
+   link fields in the shape the project already uses (look at a neighbour).
+   Name related functions, structures and files instead of pasting code.
+5. **Check it:** `validate-issues <project> --file <new-issue>`, and fix what it
+   reports on the new file. If the new issue blocks or is blocked by others,
+   add the matching line to the other side too.
+
+## While working
+
+- Keep **Current Behavior** true. It is the only section that changes while
+  an issue is in progress; rewrite it in place rather than appending a log.
+- A question that surfaces is written into the issue (an "Open questions"
+  section) and then asked. An issue with an unanswered question is in
+  progress, not done.
+- Anything discovered that changes another issue's assumptions is written into
+  that issue now, not at completion.
+
+## Splitting into sub-issues
+
+Split when an issue holds work streams that could be built, tested or reviewed
+separately, or when it cannot be finished in one sitting. Do not split an issue
+that is already one mechanism. When splitting, produce and then write out:
+
+1. **A table** — `| ID | Name | Dependencies | Description |`, where ID is the
+   parent number plus a lower-case letter (103a, 103b), Name is dash-separated
+   lower-case words, Dependencies is "None" or sibling IDs.
+2. **The rationale** — the distinct work streams, why one issue cannot hold
+   them, what splitting buys.
+3. **The execution order** — a small dependency graph, e.g.
+   `103a (foundation) → 103b (needs 103a) → 103c (parallel with 103b)`.
+
+Each row becomes a file `{parent}{letter}-{name}.md` with the three sections.
+The parent keeps its blueprint and gains a short list of its sub-issues; the
+analysis itself is not appended to the parent (that would be worklog, not
+blueprint). Run `validate-issues` afterwards: it reports orphaned sub-issues
+and one-sided links.
+
+## Completing an issue
+
+An issue is complete only when nothing in it is deferred and no open question
+is unanswered. Then, in this order:
+
+1. **Run the project's tests.** A fixed bug gets a test that would have caught
+   it.
+2. **Rewrite the issue as the blueprint of what was built**: Current Behavior
+   states the built system; steps name the real functions and files; decisions
+   not taken are stated with their reason. Poetry the owner wrote during the
+   work goes into the issue verbatim.
+3. **Move it** into `issues/completed/` (`git mv`, so the history follows).
+4. **Update `issues/phase-<N>-progress.md`** for that phase. Take counts from
+   `progress-dashboard.lua <project> -m`, or better, name the command instead
+   of copying numbers that will go stale.
+5. **Update related issues** whose Current Behavior or assumptions changed.
+6. **Run `validate-issues <project>`** and fix new findings that the change
+   caused. Findings older than the change are reported to the owner, not
+   silently fixed in passing.
+7. **Commit** as below.
+
+## Committing
+
+The rule (CLAUDE.md): a commit carries exactly the lines this session wrote —
+never another session's work, even if it sits in the same file — and every
+changed transcript of the commit's projects rides along — the session's own
+project folder and the projects of the files it commits — this
+conversation's and any other's left behind (a session that committed, talked
+on and quit), so each project's story in git stays whole.
+
+Commit small and often: each piece as soon as it is done and checked, not a
+pile at the end.
+
+1. Optionally preview: `stage-own-changes <repo>` lists what would be taken
+   and what left out, and writes nothing.
+2. Commit: `commit-own-changes <repo> -F -` with the message on standard
+   input. It builds the commit on a private staging list from this session's
+   own lines (the edit ledger the edit hook keeps) plus those transcripts, and
+   never touches the shared staging area, so nothing another
+   session has staged can ride along. Plain `git commit` is refused by the
+   commit gate.
+3. Message style: say what the software now does, in plain English and by
+   mechanism or analogy; mention any extra changes and why. No function names.
+
+**When it stops or leaves something out.**
+
+- **A tangled ("mixed") block** means another session changed lines right
+  next to or on top of yours. Nothing is committed. Tell the owner which file
+  and line; decide together what that region should say. `--leave-mixed`
+  commits your other blocks meanwhile.
+- **Lines that are yours but were written by a route the ledger could not see**
+  (a script you ran, a generator, `sed`, a rename): record them with
+  `claim-own-change <file>` and say so in the commit message.
+- **Nothing to commit, but the work is there**: an earlier session wrote it
+  and ended, or the machine rebooted and emptied the ledgers. Look first with
+  `adopt-left-behind-changes <repo> --dry-run -- <path>...`, then adopt and
+  commit one batch at a time with `commit-own-changes <repo> -F - --
+  <path>...`. Lines reported as **held** belong to another session. Take them
+  (`--from <session>`) only if that session has finished, and ask the owner
+  if unsure. Say in the commit message that the work was adopted and from
+  whom. This is the route for a left-behind backlog, not the token.
+- **A warning about the shared staging area** means someone had staged that
+  file by hand in a way that overlaps your commit; their entry was left alone.
+  Tell the owner.
+
+The one-time permission tokens (`/tmp/claude-allow-*`) belong to the person.
+Never create one; if a gate names a token, relay the gate's message and let
+the owner decide.
+
+## Open questions
+
+- Phase ≥ 10 in compact names depends on the project's issue-number width;
+  `validate-issues` decides it from evidence (progress files, `phase-N-demo`
+  names). A project with none of those gets a warning. Should the house rule
+  fix one width (two digits, as in the 522 example) for every new project?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+> Writing the lodge's issue file now. First checking how physics-sim numbers its
+> files, so the new ones continue its order.
+
+> The issue tree checks clean for the new files. The validator found 8 problems
+> that were already there before today, which I'll list at the end. Now writing
+> the picture tool.
+
+> Filing the first three pictures, then a second run with more moments to catch
+> what happens between 20 and 45 seconds.
+
+> Fixing one flaw before testing: the issue-number linker would have linked only
+> the first number in a run like "issues 901, 902 and 903".
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /tmp/physics-sim/lodge-test/pages, /tmp/physics-sim/lodge-test/out,
+> /tmp/physics-sim/lodge-test/issues/completed? [outside-write 358d35f1]
+> - Yes — Allow this write, this once.
+> - This session — Allow any write inside /tmp/physics-sim/lodge-test,
+>   /tmp/physics-sim/lodge-test/issues, for this session only, until it ends.
+> - Always — Allow any write inside /tmp/physics-sim/lodge-test,
+>   /tmp/physics-sim/lodge-test/issues, for every session, from now on.
+> - No — Keep it refused.
+> → **Selected:** This session
+
+> All 17 generator tests pass. Gathering the last facts for the story room:
+> commits per day, and what the July commit changed.
+
+> The board editor compiles cleanly too. Adding an `--editor` switch to the
+> picture tool so the workbench room can show the editor as well.
+
+> Writing the rooms now: six of them, each with its own stylesheet.
+
+> Two rooms are written: the front door and the machine room. Writing the two
+> boards next.
+
+> Four rooms are written. Checking two editor details before writing the long
+> story room.
+
+> Four rooms are done. Checking two quotations against their sources before
+> writing the story room.
+
+> Writing the story room now: the long page, told day by day from the commits,
+> tickets and reports.
+
+> Five rooms are written. Writing the last one, the back shelf: what's
+> unfinished, out of date, or still only on paper.
+
+> Now the stylesheets. Each room gets its own copy, differing in the colour of
+> its lamp.
+
+> Stylesheets in place. First build:
+
+The lodge built on the first try: 6 rooms, 45 links followed, 16 backlinks
+drawn, 3 pictures hung. Now photographing the built pages in a windowless
+Firefox so I can look at them.
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+[Image: original 1280x2200, displayed at 1164x2000. Multiply coordinates by 1.10
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+> The front door renders as intended: the lamp glow, the brass rail with the
+> current room marked, the picture with its caption. Checking the story room and
+> a backlink note.
+
+> Updating the issue files to describe what was actually built. The three parts
+> are complete; the parent stays open because its questions are still
+> unanswered.
+
+> Now the parent issue's current behaviour and the phase-1 progress file.
+
+> The lodge builds clean after the move. The 8 issue-validator findings are the
+> same ones that were there before today. Previewing what the commit would take.
+
+> I'm claiming the files that scripts and copy commands wrote for this session:
+> the stylesheets, the pictures and their notes, the build script, the moved
+> issue, and the goodbye note.
+
+*[commit] fa0244c21 in ai-stuff - physics-sim: a lodge at the front door, and the game's first pictures*
+
+physics-sim now has a lodge: six connected rooms that act as its README. It's
+committed as `fa0244c21` in ai-stuff, and that commit holds only this session's
+files. Run `games/physics-sim/lodge/build`, then open
+`docs/HTML/lodge/index.html`.
+
+**The rooms**, each written by hand with its own stylesheet (one design, with a
+different lamp colour per room):
+
+| Room | What it holds |
+|---|---|
+| The Front Door | what the game is, how to run it, every control, and a real picture of it running |
+| The Machine Room | the 11 worker threads, why the physics needs no locks (every ball exists twice: a list everyone reads and a list each job writes only its own slot of), and the three waits in each frame |
+| The Two Boards | a ball's life (credits, bounce, gates, damage, breaking, wrapping), the opponent, and buying stages |
+| The Workbench | the board editor, where an object's colour is its physics: red sets bounce, green sets grip, blue sets bonus points |
+| The Story So Far | the long page: 16–21 March hour by hour, the "167/167 complete" commit, the repair two days later, then May, July and October |
+| The Back Shelf | what's unfinished, the places the game quietly makes do, and tickets that no longer match the game |
+
+**The story page.** No conversation from March survives, so it's told from the
+223 commits, the tickets and the reports, and it says so. It quotes verbatim the
+only March commit in your own words (*"uh this didn't get committed somehow.
+/shrug"*), your July commit message, and your instruction from today about not
+padding.
+
+**What else was built:**
+- **The generator** follows the documentation-site skill. A dead link or a
+  Markdown line it doesn't understand stops the build. Section backlinks work as
+  you described: a "Pointed at from" note at the end of the section that's
+  pointed at, leading back to the exact paragraph. All 17 tests pass, including
+  the four that must fail.
+- **`scripts/picture-the-game`** runs the game (or the editor, with `--editor`)
+  with nobody at the keyboard and photographs its window. There are 12 pictures
+  in `development-history/`, each with its notes filled in. These are the first
+  pictures ever taken of the game.
+
+**Found along the way:**
+- **The game window takes the keyboard when it opens.** During the first photo
+  run, some typing turned on automatic dropping and scrolled the view off the
+  board.
+- **The editor still builds cleanly from the March sources, with two small
+  layout faults:** the "1:Peg" button overlaps the title, and the left drawer is
+  missing the Track tool.
+
+**Still open.** The lodge issue (114) stays in progress until we settle these
+three:
+1. Should the game get options to be driven by script (press a key, click, take
+   a screenshot at a set second, leave a goodbye note), so pictures stop
+   depending on nobody typing?
+2. Three places print a warning and carry on: a built-in ramp stage when a board
+   file won't load, assuming four threads when cores can't be counted, and
+   building the latest raylib or cJSON when the pinned version is missing. Your
+   rules treat a fallback as an error. Should these become errors?
+3. The back shelf lists stale tickets: issue 221 is still open although its five
+   parts are done, two files are both numbered 902b, and some headers and
+   numbers date from before the renumbering. Should they be corrected in place,
+   reopened, or left as the record of that week? The issue checker's 8 findings
+   are all of this kind and were there before today.
+
+**The skill isn't updated yet.** The lodge layout (`lodge/pages`,
+`lodge/generator`, built pages in `docs/HTML/lodge/`) still needs adding to the
+documentation-site skill's rule 16. That file is outside this folder, so to
+allow it, type:
+
+```
+! touch /tmp/claude-allow-outside-write
+```
+
+To start on the questions, take the first: when the game is run for a picture,
+which moments would you most want it to be able to act out on its own? Dropping
+balls at a set second, buying a stage, opening the upgrade menu?
 
 --------------------------------------------------------------------------------
 

@@ -172,8 +172,14 @@ when resuming costs too much or the session cannot be resumed.
   - The Stop hook starts a detached timer labelled with the session id,
     after stopping any earlier timer with the same label. A new prompt
     (the UserPromptSubmit hook) stops it too.
-  - When it fires: `claude --resume <session-id> --fork-session -p
-    "<commit your finished lines, or write down why not>"`. The fork
+  - What the fork does (owner, 2026-10-20): commits the finished lines
+    and the transcripts, leaves uncommitted what is not fit for git, and
+    writes down why; **the lock on the committed files is freed**, and
+    the lines it left stay locked to the parent session. Any later turn
+    of the parent stops the timer and starts it again.
+  - When it fires: `FORCE_PROMPT_CACHING_5M=1 claude --resume
+    <session-id> --fork-session -p "<commit your finished lines, or
+    write down why not>"`. The fork
     reads the same conversation (so the server's warm cache is used, and
     the turn is cheap) but writes its own new session record, so the
     live session's transcript is never written by two processes. The
@@ -220,30 +226,63 @@ when resuming costs too much or the session cannot be resumed.
 
 ## Open Questions
 
-1. **Folders:** is a folder locked when any file inside is, or only when
-   a session holds lines in a file directly in it?
-2. **A waiting session's lock:** a session waiting for its person may sit
-   for hours. Should its lock expire, or hold until it commits?
+1. (Answered 2026-10-20: "no.") **Folders** are never locked; only files.
+   `is-locked <folder>` reports the files inside it that are locked.
+2. (Answered 2026-10-20: "No it shouldn't expire.") **A waiting
+   session's lock** holds until it commits, however long its person
+   takes.
 3. (Answered 2026-10-20) **How the wake gets in:** a timer in the Stop
-   hook and a forked headless resume (Going idle with grace). Still
-   open: does Claude Code tell a hook the cache's lifetime, or must the
-   timer be told it?
+   hook and a forked headless resume (Going idle with grace). **The
+   cache's lifetime:** Claude Code does not tell hooks; it is set. Third-
+   party pages (not Anthropic's documentation) name two environment
+   variables: `ENABLE_PROMPT_CACHING_1H=1` asks for the hour,
+   `FORCE_PROMPT_CACHING_5M=1` forces five minutes. Owner: "let's be sure
+   to set those variables correctly. The headless commit session can use
+   the 5 minute one." So working sessions get the hour (set in
+   `~/.claude/settings.json`), the timer is told one hour, and the fork
+   runs with the five-minute one.
 5. (Answered 2026-10-20) **Fork, then let go of the server's copy.**
    The owner: "fork, but we need to clear the server's cache after we
    finish. We can't make a coherent commit message without the full
-   context." Still open: **how to clear it.** Nothing known here empties
-   the cache from this side: `/clear` and `/compact` are local, and
-   `claude --help` (checked 2026-10-20) offers no cache-lifetime or
-   eviction option. Candidates, to be checked against Anthropic's
-   documentation: an eviction call in the API, if one exists; a
-   setting (an environment variable or settings key) that gives the
-   fork the five-minute lifetime instead of the hour, so its renewal
-   lapses twelve times sooner; asking Anthropic. Until one is found the
-   fork renews the hour once per wake, and the issue says so.
-4. (Answered 2026-10-20) **Unclaimed files lock too:** git status is the
-   judge (Enforcing it, above). Still open: the person's own uncommitted
-   work is then refused to every session. Is that wanted, or does the
-   person get a way to hand a file to a session?
+   context," and "we should try our hardest to support our hardware
+   infrastructure partners." Nothing empties the cache from this side;
+   the fork's five-minute setting is the way to use less, **if** a
+   five-minute read of an entry written for an hour does not renew it
+   for the hour. Still open until tested ("let's test that then"): a
+   session written with the hour, a forked five-minute read a minute
+   later, then a read past the original hour. A hit on that last read
+   means the five-minute read renewed the hour.
+   **Tested 2026-10-21**, from the usage figures `claude -p
+   --output-format json` reports, in a scratch project
+   (`/tmp/ai-stuff-scripts/move-test/cache-project`):
+   - With no setting at all, this account's sessions already write the
+     one-hour cache (all cache writes counted as one-hour). The
+     one-hour variable makes that explicit; it changes nothing today.
+   - A forked turn with `FORCE_PROMPT_CACHING_5M=1`, run right after a
+     one-hour turn, **read** the parent's cache (about 22,500 tokens
+     read, not re-written) and wrote only its own new part (about
+     7,700 tokens) with the five-minute lifetime. So the fork is
+     cheap (about 4 cents at list price) and still sees the whole
+     conversation. The `total_cost_usd` a resumed or forked session
+     reports includes the parent's earlier turns, so the fork's own
+     cost is the difference from the parent's figure.
+   - A third read 62 minutes after the first turn **missed**: the
+     conversation was written to the cache afresh (about 23,000 tokens),
+     and only the part every session shares was read. So the
+     five-minute read did not renew the parent's hour; the parent's
+     copy lapsed on its own clock. **Answer: the fork runs with
+     `FORCE_PROMPT_CACHING_5M=1`**, and costs the server only its own
+     five minutes.
+   - `ENABLE_PROMPT_CACHING_1H=1` is now set in `~/.claude/settings.json`
+     (2026-10-21, owner: "um, sure, I guess?"), so a change in Claude
+     Code's default cannot shorten working sessions' cache unseen. The
+     timer is told one hour.
+4. (Answered 2026-10-20: "no, if I edit it, I should commit it.")
+   **The person's own uncommitted work** is refused to every session,
+   with no way to hand it over.
+6. (Answered 2026-10-20) **The fork's own transcript** cannot be complete
+   in its own commit (the transcript is written when the turn ends, after
+   the commit). Its remainder rides along with the next commit.
 
 ## Related
 
