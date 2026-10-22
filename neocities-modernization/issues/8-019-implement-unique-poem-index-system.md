@@ -74,33 +74,91 @@ next build must re-embed them (`--force` does).
 - **Global number**: one number for every item, poem or picture, used to rank
   them together and to name their pages.
 
-### Open question (for the owner)
+### Decision: the global number is counted fresh each run (owner, 2026-10-21)
 
-How is the global number given out?
-- **A. Once, on first sight, never reused.** An append-only register maps
-  each source index to its number; a new item gets the next number, and
-  nothing that already has one ever moves. Embeddings, rankings and page
-  addresses stay attached. Pictures are numbered the same way, so they can
-  never collide with a poem. Order on the pages (by date) comes from dates,
-  not from numbers.
-- **B. Re-derived each run in a meaningful order** (for example by date,
-  pictures interleaved among the poems). Every cache must then be filed by
-  source index and checked against the text it was made from, and every page
-  address changes whenever anything is added before it.
-- Recommended: A, with every cache also checked against a fingerprint of its
-  text, so a vector can never again attach to the wrong poem.
+> recomputed each run. This should be a trivial computation, just... counting
+> in a specific order with a specific method. Probably no branches even at
+> all.
 
-### Suggested Implementation Steps (after the question is answered)
+The alternative, a register handing each item a number once and forever, was
+de-selected: it keeps old numbers meaningful, but it is a second record that
+must be kept in step with the sources, and its numbers carry no order.
 
-1. Notes get a stable source id: the file name (exclusions already name
-   notes by file name).
-2. A register file, append-only, written by extraction (A) -- or the sort
-   order (B).
-3. The embedding cache stores each vector's text fingerprint and the
-   embedding stage re-embeds any poem whose fingerprint differs.
-4. A check (test and pre-flight) that every embedding's fingerprint matches
-   its poem.
-5. Re-embed the notes (and the 16 shifted poems) once.
+So the number is a view, not an identity. Every run sorts all items, poems
+and pictures together, in one fixed order (date, then source name to break a
+tie) and counts 1..N. Nothing stored on disk is keyed by the number; it is
+worked out again each run from what is stored.
+
+### What identifies an item: its source name
+
+The source name (the provenance index above) is what every cache, link and
+anchor that must survive a run is keyed by:
+- a post: `fediverse/2339`, `messages/618`, `bluesky/<id>`;
+- a note: `notes/` plus its path inside the notes folder, subfolder
+  included: `notes/reddit-comments/harambe-conspiracy`. The file name alone
+  is not unique: 2 of the 35 notes in `reddit-comments/` are byte-identical
+  copies of notes at the top of the folder (`harambe-conspiracy`,
+  `planes-and-trains-and-tanks`), so today two poems show the same name;
+- a picture: its source and path, `my-art/<path>`.
+Two items with one source name stop the extraction with both paths named.
+
+### Links when the numbers move (owner, 2026-10-21)
+
+> if the specified poem ID doesn't exist on that page, we take them to the
+> top of the page?
+
+Anchors are named by source name, not by number:
+`chronological/02.html#fediverse-2339`. A link written before poems were
+added then does one of two things, with no code on the page:
+- the poem is still on page 02: the browser lands on it;
+- the additions pushed it onto page 03: page 02 has no such anchor, and a
+  browser that cannot find an anchor shows the top of the page. That is the
+  owner's rule, and every browser already does it.
+A numbered anchor (`#poem-1551`) would never reach the top-of-page case:
+with numbers counted by date and pages cut by date, poem 1551 is always on
+page 02, so after additions the old link lands on a different poem without
+any sign. Numbered anchors go.
+
+An anchor id is the source name with `/` and every character outside
+letters, digits, `-`, `_` and `.` written as `-` (six note names hold `?`,
+`=`, `’` or spaces). Two items whose ids come out the same stop the build.
+
+### Suggested Implementation Steps
+
+1. **Source names unique and stable.** `scripts/extract-notes.lua` gives a
+   note its path inside the notes folder as its source name; the extraction
+   stops on two items with one name. The open question below decides the two
+   duplicate notes.
+2. **One counting step.** After extraction, sort every item (poems and
+   gallery pictures) by date, then source name, and number 1..N. Pictures
+   then sit among the poems by date (Issue 9-013), and the gallery index is
+   counted separately over the pictures alone.
+3. **Caches keyed by source name, checked by text.** The embeddings store
+   each vector under its source name with a fingerprint of the text it was
+   made from; the embedding stage re-embeds any item whose fingerprint
+   differs, and refuses to hand a vector to an item whose text does not
+   match. The similarity rankings and the diversity walk store source names
+   (or are rebuilt each run from the vectors); the page builder turns them
+   into this run's numbers with one table, source name to number.
+4. **Anchors by source name** on the chronological pages, and every link to
+   them (`ranked-page`, word pages, word cloud, source browser).
+5. **A check** (test and pre-flight): every vector's fingerprint matches its
+   item's text, and every anchor id is unique.
+6. **Re-embed once** under the new keys (the next `--force` build).
+
+### Open questions (for the owner)
+
+- **The two duplicate notes.** `harambe-conspiracy` and
+  `planes-and-trains-and-tanks` are each in the notes folder twice, the same
+  bytes at the top and under `reddit-comments/`. Show both, show one (which
+  folder wins?), or should the extraction refuse identical copies so the
+  notes folder gets tidied by hand?
+- **Similar and different page addresses** are numbered too
+  (`similar/1551-01.html`). Counted fresh, a bookmarked address shows a
+  different poem's list after additions, and unlike an anchor it cannot fall
+  back to the top of a page. Name these pages by source name as well
+  (`similar/fediverse-2339-01.html`; note names make long addresses), or
+  accept that these addresses move?
 
 ## Original issue (2025-12-25)
 

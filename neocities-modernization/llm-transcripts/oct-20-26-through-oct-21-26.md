@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-21 14:46:30
+Generated on: 2026-10-21 21:21:37
 Models: claude-opus-5-5
 
 ## Contents
@@ -34,6 +34,10 @@ Models: claude-opus-5-5
    your next rebuild. Page navigation, text downloads and the required model are
    done, and notes are carrying other notes' embeddings. Next: choose option A
    or B for how poem numbers get given out.
+8. 2026-10-21 15:15, after Request 11 - We're cleaning up the poetry site before
+   its next rebuild; notes are now numbered by date and everything is committed.
+   Next: decide whether a poem's global number is assigned once and kept
+   forever, or recomputed every run.
 
 --------------------------------------------------------------------------------
 
@@ -2090,6 +2094,703 @@ comes from the dates themselves.
 
 Where do you want to start: the numbering decision, so the rebuild re-embeds
 only once, or the builder removal while you decide?
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+> 1. EmbeddingGemma 2 can embed pictures itself. It's multimodal, and pictures
+> land in the same space as text, so a picture can be compared with poems
+> directly. I only downloaded its text part, so this needs its vision file (it's
+> listed beside the text model on Hugging Face) and a
+>      llama.cpp image-embedding request. That needs testing before I'd promise it works.
+
+let's test this and see if it extracts meaning from pictures of text.
+
+> 2. Embed the descriptions you already wrote. Fediverse pictures carry your alt
+> text, such as "39 lines of C code included in its original form…". That's
+> text, so the current model can embed it today. Gallery pictures only have file
+> names.
+
+we should include this in the embedding somehow...?
+
+> 3. Read the text out of the pictures first (OCR), then embed that. This would
+> work well for screenshots of code or documents, and badly for art.
+
+so if we did this, we'd need a multi-front approach that combined more than one
+data stream into something reasonable.
+
+> - Links into a chronological page: they point at a poem's spot on the page
+> (#poem-1551). After renumbering, that spot belongs to another poem or isn't on
+> that page any more, so the link lands on the right page in the wrong place.
+
+well hang on, don't we have the same number of poems on each chronological page?
+So, poem 1551 would always point to the right page.
+
+oh, no, we don't. So if the link is to chronological page 30 and we link
+directly to poem 1551, then... yeah... I see how that would be a problem. Would
+it make more sense to say that the links should point to the N'th poem on that
+page? Or is that bad
+
+> 1. How the global number is given out: A (assigned once, never reused) or B
+> (recomputed every run). This decides how the numbering issue gets finished,
+> including picture numbers and checking each embedding against its text.
+
+recomputed each run. This should be a trivial computation, just... counting in a
+specific order with a specific method. Probably no branches even at all.
+
+> 2. The over-wide fediverse-stars: ff80235…dotpng.png title: rename the
+> picture, or allow a hard break mid-name.
+
+we shouldn't rename. We should allow a hard-break.
+
+> 5. Remove the single-threaded builder, now that navigation and text downloads
+> live in the workers, and rewrite its five tests against the shared drawer.
+
+let's do this too.
+
+>   6. Word pages: they still have their own poem drawer, the last copy.
+
+let's fix that? We should have unified pipelines.
+
+> 7. Word-cloud snapshots as small records, with a viewer tool. It's planned and
+> answered, but not built.
+
+dont' worry about it for now.
+
+> 8. The source browser keeps pages for deleted files. Moving the site into RAM
+> partly covers this, since a logout clears them.
+
+um, the source browser shouldn't be able to see build output. Can you confirm?
+
+>   10. Image-post issue: it needs rewriting as a record of what was built.
+
+okay
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+> Starting with the hard break, which you've now approved. Re-applying the
+> cut-at-the-column change and updating the test that pinned the old choice:
+
+> 44 of 44 pass. Checking the helper's reference for the old wording:
+
+*[commit] 9533310b2 in ai-stuff - neocities: a name with nowhere to break is cut at the frame's edge*
+
+> The build includes the multimodal tools. Checking how the server takes a
+> vision file and whether its embedding endpoint accepts images:
+
+> The server takes a vision file (`--mmproj`). Whether its embedding endpoint
+> accepts pictures isn't in the help, so I'm checking the documentation and the
+> model's files:
+
+> The model page lists only the text files, though on Oct 7 I recorded vision
+> and audio projector files beside them. Checking the repository's actual file
+> list:
+
+> The projector exists: `mmproj-embeddinggemma-2-Q8_0.gguf`, 555 MB. Now the
+> request format, from the llama.cpp server documentation:
+
+> Found four real screenshots and 43 GB free. Downloading the projector beside
+> the text model and checking it against the published size:
+
+> The size matches exactly. Starting a test server on a side port (10275) with
+> the text model and the projector:
+
+> Writing the test: embed each picture and each text, then show, for every
+> picture, how close each text sits. The poems' clustering prefix goes on the
+> texts, as in the real pipeline:
+
+> Stopped (exit 144 is the stop signal). Restarting with a 2,048-token budget:
+
+> Running the promoted tool once against a fresh test server, to be sure it
+> works as committed:
+
+> Same result from the tool as committed: all 8 pictures still match the right
+> text. Writing its reference file and recording the experiment in the
+> image-post issue:
+
+> Task 10 (rewriting the image-post issue as a record of what was built) covers
+> the same file, so I'm doing both now. Reading it in full:
+
+*[commit] dceea8083 in ai-stuff - neocities: the embedding model reads pictures of words; the image issue is rewritten as built*
+
+> Two tasks done (pictures, issue rewrite). Now removing the single-threaded
+> builder. First, what its five tests check, so the replacement covers the same
+> ground on the real worker-built pages:
+
+> Writing the module. Same output as today; the worker will load it, and tests
+> can call it directly:
+
+> Now the worker uses the module. Reading its per-poem job as it stands:
+
+> The worker now draws through the module. Rendering the 3-page sample again and
+> comparing it with the last render. The two should be byte-identical:
+
+> Chronological-only runs don't carry the ranking settings, and I built the page
+> context at worker start. Building it on the first poem job instead:
+
+> The new error caught something on its first run: poem 240's ranking includes
+> poem number **0**, and numbering starts at 1. The old code quietly dropped it.
+> Looking at what the 0s in the cache are:
+
+> The fast path reads a saved half-precision copy of the embeddings and never
+> opens embeddings.json, so it has no poem numbers. Reading how that copy is
+> named and checked:
+
+> Both paths read embeddings.json anyway, so both can record each position's
+> poem number before freeing it. Making the change:
+
+> The splices applied; the parse check failed only because this file isn't pure
+> Lua at the top. Looking:
+
+> The Lua sits inside a single-quoted bash string (the file even warns about
+> this), and my comment "the GPU's order" closed the quote. Removing apostrophes
+> from my additions:
+
+> Bash parses now. Checking that the Lua inside also parses:
+
+> Both layers parse. Now the reader: a diversity cache without the new numbering
+> mark gets refused instead of misread. Finding where the page builder loads it:
+
+> A build without `--force` would call an old-format cache "fresh" because of
+> its date, and then stop at the page stage. Counting a cache without the
+> numbering mark as stale instead:
+
+*[commit] d731d1909 in ai-stuff - neocities: every "different" page has shown the wrong poem's list since January*
+
+> The bar is drawn correctly; the test's pattern was wrong again. In Lua, `═+`
+> repeats only the last byte of the multi-byte character. Counting `═`
+> characters directly instead:
+
+> 26 of 26 pass. The emphasis test checks the main program's copy of the
+> emphasis rules, which `poem-entry` now duplicates. Checking who else uses that
+> copy before deleting:
+
+> Only the test uses it. Moving the emphasis test onto the shared drawer's copy
+> of the rules, which is the one the pages use:
+
+> 11 of 11 pass against the shared rules. Now the deletion. Listing the page
+> builder's top-level functions to pick out the single-threaded builder's
+> pieces:
+
+> Removed 31 sections, about 1,300 lines, and the file still parses. Now looking
+> for anything that still names a removed function, here or elsewhere:
+
+The two leftover helpers are unused now, so they go too. The menu paths:
+
+--------------------------------------------------------------------------------
+
+*Prompt is too long*
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+/compact
+
+--------------------------------------------------------------------------------
+
+### Session Recap (written by the harness, not by either speaker)
+
+This session is being continued from a previous conversation that ran out of
+context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Opening request:** "get this system up-to-date in git": analyse the Oct 7
+     work, its status, whether to rebuild, and quick tasks. Done in commits.
+   - **Later explicit requests, mostly done:**
+     - fix the one-sided issue links and settle all issue-checker findings myself ("24 judgement calls is very expensive for a human. Please handle this yourself");
+     - fix the stale 10-003 table;
+     - publish symlinked files ("we should not skip links");
+     - site in RAM (10-072);
+     - delete the old output (the user did it);
+     - text exports styled like the pages, with a download link ("pretty printing");
+     - page-to-page navigation;
+     - no default embedding model ("should be manually specified");
+     - number notes by date ("this is bad and wrong. We should replace it with by date");
+     - hard break for unbreakable names ("we shouldn't rename. We should allow a hard-break");
+     - test EmbeddingGemma 2 on pictures of text;
+     - rewrite the image-post issue 9-013 as built;
+     - the poem-numbering decision: option B, "recomputed each run. This should be a trivial computation, just... counting in a specific order with a specific method".
+   - **Requested, not yet finished:**
+     - "Remove the single-threaded builder ... let's do this too" (in progress);
+     - "Word pages ... let's fix that? We should have unified pipelines";
+     - the source browser must not see build output: confirmed it doesn't.
+   - **User questions still open:**
+     - whether chronological links should point to "the N'th poem on that page";
+     - combining picture data streams: "we should include this [alt text] in the embedding somehow...?" and "we'd need a multi-front approach that combined more than one data stream".
+   - "Word-cloud snapshots ... dont' worry about it for now."
+   - Constraints:
+     - The user initiates rebuilds; I do not run full builds. Scratch renders via render-page-sample are fine.
+     - It's a monorepo; ignore other projects' changes.
+
+2. Key Technical Concepts:
+   - **Repository and commit tooling**
+     - Lua/LuaJIT project in the monorepo at /mnt/mtwo/programming/ai-stuff.
+     - Commits go through `/home/ritz/programming/ai-stuff/scripts/commit-own-changes /mnt/mtwo/programming/ai-stuff -F -`.
+     - Edits made by sed or scripts are claimed with `claim-own-change`.
+     - Other tools: `adopt-left-behind-changes`, `validate-issues`, `fix-issue-links`.
+     - Issue workflow skill (issue-lifecycle). Commit messages are plain English with no function names, ending with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+   - **Hooks**
+     - The `cd` gate refuses changing directory.
+     - The write gate requires literal absolute paths: no `$VAR` in write targets.
+     - The Lua inside `precompute-diversity-sequences-gpu` sits in a single-quoted bash `luajit -e '...'`, so no apostrophes are allowed in it.
+   - **Page workers (effil)**
+     - `run_page_workers(num_threads, config, jobs)` with job kinds "poems" and "chrono_page".
+     - Messages are converted with `effil.dump`.
+     - Workers load modules from disk.
+     - The main program passes `embeddings_dir`, the palettes and the layout.
+   - **Shared modules**
+     - `poem-entry.lua`: the drawer, with a plain-text mode.
+     - `chronological-page.lua`: the frame, plus `page_links`.
+     - `ranked-page.lua`: similar/different pages and text exports.
+   - **Site in RAM:** output → tmp/shared-memory/site; media and
+     model-evaluation are linked to assets/.
+   - **Numbering**
+     - Global poem_index is positional: sort by category, then id.
+     - Note ids are now by date.
+     - The diversity cache was in 0-based positions; it is now in poem_index, with `metadata.numbering="poem_index"`.
+   - **Picture embeddings**
+     - The cross-cut pseudo-embedding is unchanged.
+     - The EmbeddingGemma 2 vision projector (mmproj) works via `/v1/embeddings` with an image_url content part.
+   - Lua patterns are byte-based: a multibyte char class or `═+` doesn't work;
+     count with gsub of the whole character.
+
+3. Files and Code Sections (most relevant, recent):
+   - **`src/flat-html-generator.lua`**: heavily restructured.
+     - `worker_config(output_dir)` returns dir, output_dir, image_manifest_path, embeddings_dir, palette, boost_palette, layout{text_content_width} and page_head.
+     - `run_page_workers` is the pool.
+     - Worker `build_poem_pages` uses `t_ranked_page.ranked_list`/`plan`/`page_html`/`text_export`, with a lazy `ranked_ctx()`. It errors if a ranking is missing.
+     - The worker's `build_chrono_page` takes `e.poem` from the job and adds a download line for chronological.txt (`work.total_poems`).
+     - `M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads)` is required-threads and builds jobs `{kind="chrono_page", page_num, total_pages, total_poems, entries={poem, progress_pct}}`.
+     - `M.generate_complete_flat_html_collection(..., chrono_per_page, anchor_indices)`.
+     - `load_diversity_cache` refuses a cache unless `metadata.numbering=="poem_index"`.
+     - `M.generate_chronological_txt_file` now uses `poem_entry` in plain mode.
+     - Just removed: 31 single-threaded sections, plus strip_html_tags and wrap_text_80_chars.
+     - Remaining references to removed functions:
+       - M.main around lines ~2288/2318 call `M.generate_flat_poem_list_html`;
+       - `M.generate_similarity_ranked_list` and `M.generate_maximum_diversity_sequence` may now be unused (check);
+       - the empty "corner-box drawing" and "Boost Visual Formatting" wrapper sections may be left behind.
+   - **`src/ranked-page.lua`** (new): functions `source_path`, `ranked_list`
+     (errors on an unknown number), `plan(list, pages|"all", per_page,
+     max_pages)` → (numbers, count, total_pages), `page_html(anchor, list,
+     page_type, page_num, total_pages, download, ctx)`, `text_export(anchor,
+     list, page_type, count, ctx)`. ctx fields: colors, chrono_map,
+     chrono_paged, poems_per_page, head_block. It also has `.info.md`.
+   - **`src/ranked-page.test.lua`** (new, 26 pass, not yet committed): replaces
+     the old anchor-once, chronological-links, download-links, page-links and
+     progress-bars tests.
+   - **`src/poem-entry.lua`** (+ test 38 pass, + .info.md): `configure`,
+     `format_entry(poem, entry{color_name, progress_pct, similar_link,
+     different_link, chrono_link|false, plain})`, `escape_html` (CRLF →
+     newline), `apply_markdown`, `media_href`, `to_plain`, `utf8_char`. Alt text
+     is fully escaped.
+   - **`src/poem-entry.emphasis.test.lua`**: git mv'd from
+     flat-html-generator.emphasis.test.lua, now uses `entry.apply_markdown`; 11
+     pass. Not yet committed.
+   - **`src/chronological-page.lua`**: `page_links(current, total, file_for)`,
+     `navigation`, `display_filename`, `entry_header`, `file_name`, `page_html`,
+     `redirect_html`.
+   - **`src/boost-bars.lua`**: `bottom_border(progress_pct, has_nav)`.
+   - **`libs/text-formatter.lua`**: `wrap_file_header` hard-cuts at the width
+     when there is no break point; the test is updated (44 pass).
+   - **`libs/inference-server-config.lua`**:
+     - no default model; `get_selected_model` errors with the server's model list;
+     - `get_selected_model_config` refuses an unlisted model;
+     - `model_names(server)`;
+     - `get_servers` errors when there are none.
+   - **`config.lua`**: no `model` field on any server; models live in
+     `available_models` tables.
+   - **`scripts/extract-notes.lua`**: sorts notes by creation_date, then
+     source_file, before assigning ids; an unreadable mtime is an error. Test in
+     `notes-tooling-exclusion.test.sh` (13 pass).
+   - **`scripts/precompute-diversity-sequences-gpu`**: position → poem_index
+     mapping (`numbers_by_position`), `metadata.numbering`.
+   - **`scripts/renumber-diversity-cache`** (new): repairs old caches. The
+     gemma-2 cache is repaired; the original is in
+     tmp/shared-memory/diversity_cache.positions.json.
+   - **`run.sh`**:
+     - calls ensure-site-in-ram;
+     - the stage 8 freshness check also requires `"numbering":"poem_index"`;
+     - the zip is built before the check.
+   - **Other scripts:**
+     - `scripts/ensure-site-in-ram` (+ test, 26 pass, + info);
+     - `scripts/render-page-sample` (`--out --model --server --threads --poems-per-page --pages`);
+     - `scripts/compare-picture-embeddings` (+ info);
+     - `scripts/deploy-to-neocities` refuses a missing or empty site before any network call.
+   - **Issues touched:** 8-058, 8-013 (reopened), 8-019 (reopened), 9-013
+     (rewritten), 10-072, 10-073, 10-065, 10-052, 10-036, 1-010, and the project
+     `CLAUDE.md`.
+   - **`src/main.lua`**: the build passes num_threads.
+     `M.test_single_similarity_page` and `M.test_single_difference_page` (around
+     lines 870–945) still call the removed `generate_flat_poem_list_html`.
+
+4. Errors and fixes:
+   - **Shell and gate errors**
+     - Splice-plan line numbers off by one: the splice tool asserts and aborts safely; I corrected the numbers.
+     - Mangled the start-llamacpp-server.sh error message with an off-by-one sed edit: repaired with Edit.
+     - Apostrophes inside the single-quoted bash Lua: removed.
+     - The write gate rejected `$VAR` paths: I used literal paths or a Lua script.
+     - The `cd` was refused: I used absolute paths.
+   - **Worker and data errors**
+     - Effil tables failed the type check: fixed with `effil.dump`.
+     - Workers resolved the wrong model's colours: the main program now passes `embeddings_dir`.
+     - Chronological jobs ignored the caller's poems: jobs now carry the poems.
+     - Picture-collision and class-2 workarounds: removed once jobs carried poems.
+     - `page_ctx` failed on chronological-only runs: made lazy.
+   - **Test errors**
+     - Test patterns on multibyte characters: count the whole `═` character instead.
+     - Tests needing a model after the default was removed: they now name embeddinggemma-2, inserted after `require("flat-html-generator")` (moved there because of the path setup).
+   - **Changes I reverted**
+     - The hard-break change at first went against a prior deliberate design: I reverted it, then reapplied it after the user approved.
+     - The symlink exclusion: reverted per the user.
+   - **Errors reported to the user, not fixed by me**
+     - The classifier blocked running `--migrate`; the user deleted output/ instead.
+   - **Corrections I owed the user**
+     - My earlier "no shift" check for notes was invalid. I told the user.
+     - The 80-column rule re-flows more than lines of exactly 80. I told the user.
+
+5. Problem Solving:
+   - **Solved**
+     - **Duplicated drawers:** one drawer plus modules; verified by before/after renders (every letter unchanged, 0 frame or over-wide errors).
+     - **Diversity off-by-one since 2026-01-17:** found and fixed.
+     - **Notes shifted under their embeddings:** about 555 of 582 misaligned; needs re-embedding, which a `--force` build does.
+     - **The 16-note picture collision.**
+     - **Vision test:** 8/8 pictures closest to the right text; a paraphrase ranked second.
+   - **Ongoing**
+     - Removing the single-threaded builder: callers left in main.lua, the generator's M.main, demos/5-demo.lua, scripts/test-html-generation and scripts/test-diversity-quick. The five old test files are still to delete.
+
+6. All user messages:
+   - "Hi we need to get this system up-to-date in git. Can you help me analyze
+     what we were working on, it's status, and whether or not we should rebuild
+     the site quickly? Also, are there any quick and easy tasks we could
+     accomplish from the issue files before we rebuild?"
+   - Reply to the first report:
+     - On the pages not being in RAM: "why aren't these on RAM?"
+     - On my first quick-task list ("Commit the Oct 7 work first, in a few commits split by topic…" through "Close the ranking issue…"): "sure" to each of the five.
+     - On the shared git area: "it's a monorepo. Don't worry about those other projects."
+     - On disk wear: "should be in RAM. I'd be surprised if there isn't an issue file related to this."
+     - On RemoveIPC: "It's fine."
+     - On the memory pin: "I don't think that's true? We've stored multiple gigabytes on the tmpfs before."
+     - On the snapshots: "every build takes a snapshot, but they should be compressed into a zip file I think maybe?"
+   - Second reply:
+     - "24 judgement calls is very expensive for a human. Please handle this yourself."
+     - On the delta guide: "we should not skip links probably. What if we have something linked that we need? Also, what's wrong with including the delta-version guide?"
+     - On the snapshot plan: "sounds good to me...?"
+     - "treat them like llm-transcripts. They are low priority, but should be kept in git whenever we can."
+     - "so basically, change detection, versus file size? Let's favor change detection, and do plain text instead of .zip then."
+     - On deleting the HTML copies: "sure".
+     - On keeping pictures on disk: "yes".
+     - On write-if-changed: "it's less important, but isn't that what the --force flag is for? I pretty much always run with it on, anyway."
+     - On the RAM build: "yes, but I initiate the rebuilds."
+     - On the poem formatting: "oh that sounds pretty high-priority. Tell me more?"
+   - Third reply:
+     - On output-before-ram: "delete it now then", and "we should be able to just clear output/ is that correct? Is there anything there that we need to keep?"
+     - "what kind of links are these? I thought they were just... file references?"
+     - "Hmmmmm let's just do it as a matter of course in the claude.md or similar then. There's no reason to add a patch to the hook if it's just for this project."
+     - On the single-threaded builder: "we should remove this."
+     - "content warning...? Why is it not part of all the pages?"
+     - "why can't we build chronological the same as similar/different?"
+     - "okay...?"
+     - On the three old bugs: "let's work through these then and fix them if they're still present after we merge."
+     - "loading from disk was a bandwidth problem if I remember correctly. Better to just load the specific files that each worker needs."
+   - "agreed" (chronological behaviour wins all three choices).
+   - Fourth reply:
+     - On the notes collision: "that's weird, those notes are very old. Can you investigate to find out where they came from?"
+     - On picture numbering: "ok, um... pictures should have their own index, for the gallery. But they should also have another index that displays their providence. We already use a dual-index system for fediverse / messages / notes, so look to that for inspiration. This however adds a third index for the gallery which is just separate. So I think what you've done is put the pictures instead of interleaved where they belong, put them at the end of the number range for their "global" ranking index, not their providential source index or their gallery index. Is that right? I think a better solution would be to A. find out where those extras came from, and B. interleave them correctly."
+     - "we should not have a default model. It should be manually specified. Also will the first-half and the second-half produce valid comparisons?"
+     - "I removed the output/ directory."
+     - On page 2 links: "well let's fix that then."
+   - Fifth reply:
+     - "tell me more." on the 16-note collision, and again on the failing image-step test.
+     - On the site move: "does this matter if we're going to re-run the generation soon anyway? Why don't we just delete it?"
+     - On page links: "is this because the generation from last time only had 1 page per poem?"
+     - "Let's fix the .txt functionality and add a link to download it at the end of the page. Can we format it like the similar/different/chronological pages? Except without navigation of course. Just, with the boxes, and the title and such. pretty printing..."
+   - Sixth reply:
+     - On numbering notes: "ha this is bad and wrong. We should replace it with by date."
+     - "does it do any image-to-text type processing? How does an embedding model compare two pictures of say, source-code documents to each other?"
+     - On option B: "so links are always broken when we update. But by "broken" I mean it "resolves to a new page" not that it fundamentally would not load. Is that correct?"
+     - "what is left unaddressed?"
+   - Seventh reply:
+     - On picture embeddings: "let's test this and see if it extracts meaning from pictures of text."
+     - On alt text: "we should include this in the embedding somehow...?"
+     - On OCR: "so if we did this, we'd need a multi-front approach that combined more than one data stream into something reasonable."
+     - "well hang on, don't we have the same number of poems on each chronological page? ... oh, no, we don't. So if the link is to chronological page 30 and we link directly to poem 1551, then... yeah... I see how that would be a problem. Would it make more sense to say that the links should point to the N'th poem on that page? Or is that bad"
+     - On the numbering decision: "recomputed each run. This should be a trivial computation, just... counting in a specific order with a specific method. Probably no branches even at all."
+     - On the over-wide title: "we shouldn't rename. We should allow a hard-break."
+     - On removing the builder: "let's do this too."
+     - On the word pages: "let's fix that? We should have unified pipelines."
+     - On the snapshot records: "dont' worry about it for now."
+     - "um, the source browser shouldn't be able to see build output. Can you confirm?"
+     - On the image-post rewrite: "okay"
+
+7. Pending Tasks:
+   - **Task 4 (in progress):** finish removing the single-threaded builder.
+     - Fix or remove the callers: main.lua `test_single_similarity_page`/`test_single_difference_page`, the generator's M.main menu choices (around lines 2288/2318), demos/5-demo.lua (line ~156), scripts/test-html-generation, scripts/test-diversity-quick.
+     - Check whether `M.generate_similarity_ranked_list` and `M.generate_maximum_diversity_sequence` are still used.
+     - Remove empty leftover wrapper sections.
+     - Delete the old tests (flat-html-generator.anchor-once/chronological-links/download-links/page-links/progress-bars.test.lua).
+     - Run all tests and the sample render.
+     - Claim the edits and commit, together with ranked-page.test.lua and the emphasis test move.
+     - Update 8-058's Current Behavior (step 5 done) and the progress files.
+   - **Task 8:** move the word pages (src/generate-word-pages.lua) onto
+     `poem-entry`, verified by a before/after render.
+   - **Task 9:** plan the recomputed numbering (8-019 option B) in a blueprint.
+     - The global number is counted each run in a specific order (likely date order, pictures interleaved).
+     - Caches keyed or checked by source identity plus a text fingerprint.
+     - Answer the user's "N'th poem on the page" link question (with date-ordered numbers, poem-N is the Nth poem).
+   - Picture-meaning design questions in 9-013 (combining pixels, alt text, post
+     text and neighbours): open for the user.
+   - The user's eventual `--force` rebuild re-embeds the notes, renumbers the
+     pictures and regenerates diversity. The 10-072 issue closes after that
+     build and a deploy.
+   - 1-010 leftovers: vector-shift check, long-text check, model comparison
+     rerun.
+   - 10-065 open questions 10–13.
+
+8. Current Work:
+   I was removing the single-threaded builder (task 4). I had just:
+   - created `src/ranked-page.lua` and `src/ranked-page.test.lua` (26 pass) and
+     moved the emphasis test to `src/poem-entry.emphasis.test.lua` (11 pass);
+   - run `remove-sections.lua` on `src/flat-html-generator.lua`, removing 31
+     sections, then strip_html_tags and wrap_text_80_chars; the file parses;
+   - grepped the remaining references. Callers left:
+     - `demos/5-demo.lua:156` (`generate_flat_poem_list_html`);
+     - the generator's M.main at ~2288/2318;
+     - `src/main.lua` 895/936;
+     - scripts/test-html-generation and scripts/test-diversity-quick;
+     - the five old test files.
+   - read main.lua's `M.test_single_similarity_page(poem_id)`, which loads
+     similarity_matrix.json and calls
+     `flat_html_generator.generate_flat_poem_list_html(poem_data, ranking,
+     "similar", poem_id,
+     flat_html_generator.compute_chronological_mapping(poems_data, nil),
+     false)`, and `M.test_single_difference_page`, which uses diversity_chaining
+     and `generate_flat_poem_list_html(..., "different", poem_id, nil)`. These
+     are legacy menu dev paths.
+   None of this deletion is committed yet. Files edited by scripts need
+   claim-own-change: flat-html-generator.lua and the test files.
+
+9. Optional Next Step:
+   Continue "Remove the single-threaded builder ... let's do this too" (user):
+   1. Replace or remove the remaining callers. Point the main.lua and M.main
+      single-page menu paths at `render-page-sample`/`ranked-page`, or retire
+      them; same for demos/5-demo.lua and the two scripts.
+   2. git rm the five old flat-html-generator.*.test.lua files that
+      ranked-page.test.lua replaces.
+   3. Check whether `generate_similarity_ranked_list` and
+      `generate_maximum_diversity_sequence` are still used.
+   4. Rerun all tests and the 3-page sample render (expect similar pages
+      identical to render-after7).
+   5. Claim and commit, then update issue 8-058.
+
+   After that, task 8 (the word pages: "let's fix that? We should have unified
+   pipelines").
+
+If you need specific details from before compaction (like exact code snippets,
+error messages, or content you generated), read the full transcript at:
+/home/ritz/.claude/projects/-mnt-mtwo-programming-ai-stuff-neocities-modernization/f45ed287-573d-4fdf-a76c-f359ddce591d.jsonl
+Continue the conversation from where it left off without asking the user any
+further questions. Resume directly — do not acknowledge the summary, do not
+recap what was happening, do not preface with "I'll continue" or similar. Pick
+up the last task as if the break never happened.
+
+--------------------------------------------------------------------------------
+
+`/compact` - Compacted (ctrl+o to see full summary)
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+please continue
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+> Still removing the old one-thread page builder: pointing the leftover "test
+> one poem's page" menu options at the real worker pipeline.
+
+> Rewiring the last callers of the old builder (a demo, two test scripts, two
+> menu entries) onto the shared page path.
+
+> Replacing the two "test one page" menu items with one that runs the real page
+> workers for a chosen poem.
+
+> Still on the demo: pointing its sample-page step at the real page workers.
+
+> Retiring the two old test scripts (renamed `-done` for one commit, per your
+> rule) and removing the two ranking helpers only they used.
+
+> Now removing the two now-unused ranking helpers and checking what else in the
+> generator lost its last caller.
+
+> All four were used only by the removed builder; removing them.
+
+> Generator trimmed to 1973 lines. Deleting the five old builder tests (the
+> shared-module tests replace them), then running every test.
+
+> All 19 Lua test files pass. Running the shell tests and the sample render
+> next.
+
+> The 1192 sample pages match the previous render byte for byte. (The pictures
+> link points at the deleted site's media folder, so neither render has it.)
+> Next I'm testing the new single-poem option.
+
+> It refuses correctly, but only after drawing every chronological page. Moving
+> the check ahead of the drawing.
+
+> Refuses at once now, before making the folder. Next I'm checking the menu path
+> itself.
+
+> I'm changing the test-pages menu action to ask for the page size the same way
+> a build does.
+
+> Menu action works. Now the picture warnings: the sample renderer links its
+> pictures folder to the site's, and the site folder no longer exists until you
+> rebuild.
+
+> Now updating the issue for this work (8-058).
+
+> Checking the reference notes (`.info.md`) for the removed functions.
+
+> Two open plans point their future work at removed functions: 11-007 (word
+> strip) and 10-064 (reverse ordering). Re-pointing them at the shared
+> ranked-page module.
+
+> Checking the issue tree and the commit preview.
+
+> Already committed earlier. Committing this piece.
+
+*[commit] 44ae398fc in ai-stuff - neocities: one way to draw a similar or different page; the one-thread builder is gone*
+
+> The staging warning comes from my own earlier `git mv` and `git rm`, which
+> wrote into the shared staging area. Checking it now matches the commit.
+
+> The old builder is gone, and the shared staging entry now matches the commit.
+> Next is the word pages: moving them onto the shared poem drawer.
+
+> Working on the word pages. First I need a way to render them into a scratch
+> folder for a before/after comparison.
+
+> Adding a `--words N` option to the sample renderer, so it can also draw the
+> first N word pages. That gives the word pages the same before/after proof the
+> other pages had.
+
+> Writing the `--words` extension to the sample renderer.
+
+> Rendering the "before" word pages with the current code (60 words, 50 poems
+> each).
+
+> Before-render done: 60 word pages, no picture warnings. Now replacing the word
+> page's own poem drawer with the shared one.
+
+> Rendering the "after" word pages.
+
+> Only the 60 word pages changed, as expected. Now checking what changed:
+> comparing the visible words page by page, ignoring frame lines and spacing.
+
+> Confirmed: the same code drew 13 of 60 word pages differently on two runs.
+> This is an older bug, not caused by my change. Finding where the order comes
+> from.
+
+> Fixing it: every walk whose order matters goes through the table's keys in
+> sorted order, and the sorts break ties by poem number (or colour name).
+> Checking the word-colour step too.
+
+> Word list was already tie-broken. Writing the test for the order rules.
+
+> The test passes. Rendering the word pages twice more to confirm runs now
+> match.
+
+> Both runs with the fix now match exactly. Next I'm comparing the old drawer's
+> pages with the new ones, entry by entry, setting aside the order of tied
+> copies.
+
+> My pattern hit the multibyte trap again (a Lua `?` after `│` applies only to
+> its last byte). Stripping the edge in a separate step.
+
+> 0 over-wide lines and 0 frame errors on all 464 pages, the 60 word pages
+> included. Taking one look at a golden poem on a new word page.
+
+> Frames are intact. Running all tests again, then updating the docs and the
+> issue.
+
+> All 21 Lua test files and the shell tests pass. Neither the word-page builder
+> nor the sample renderer has its `.info.md` reference note yet, so writing
+> both.
+
+> Updating the issue (8-058) with the word-page work.
+
+> That issue's blueprint describes the old call chains, which are gone now.
+> Rewriting its "chain" section to match what was built.
+
+> Committing. The two `-done` scripts have now been through one commit, so
+> they're removed in this one, per your rule.
+
+*[commit] 5a3bd66a2 in ai-stuff - neocities: word pages draw their poems with the shared drawer, and come out the same every run*
+
+Both jobs are done and committed. The old one-thread page builder is gone, and
+the word pages now draw each poem with the same shared drawer as every other
+page. All tests pass. I rendered sample pages before and after each change to
+check nothing else moved.
+
+**Removing the old builder** (commit 44ae398fc)
+- Every similar and different page is now drawn by the page workers through one
+  shared module. About 1,500 lines of the old builder left the page generator,
+  plus helpers only it used. Its five tests were rewritten against the shared
+  module.
+- To look at one poem's pages without a build: the sample renderer takes
+  `--anchor N`, where N is the site's poem number. The main menu now has one
+  "Test one poem's pages" item that runs it into RAM, replacing the two "test
+  one page" items. The phase 5 demo draws through it too.
+- The 3-page sample (1,192 pages) came out byte-identical before and after.
+- The chronological text export used to fall back to seven made-up colours when
+  the colour file was missing. It now stops with an error, like the workers.
+
+**Word pages** (commit 5a3bd66a2)
+- What changes on the page: pictures and videos now appear (97 poems in the
+  60-page sample have them), emphasis is styled, and a golden poem's file line
+  sits above its frame instead of inside it.
+- **Bug found:** word pages weren't the same from one run to the next. Running
+  the same code twice drew 13 of 60 pages differently.
+  - Cause: the poem table was walked in an order that changes every run, so when
+    the same post appears twice (equal similarity), whichever copy came first
+    won. The averages subtracted before comparing were also summed in that
+    changing order, which nudged near-ties.
+  - Fix: those walks now go in a fixed order, and ties go to the lower poem
+    number. Two runs now come out byte-identical, and a new test checks this.
+- Before/after on 60 word pages:
+  - Each poem's text is unchanged on 59 pages. On the 60th, one place now holds
+    a different near-identical one-emoji reply (❤️ before, 🥰 after), a
+    near-tie the fixed order now decides.
+  - Poems changed position only among duplicate copies.
+  - 0 over-wide lines and 0 frame errors across all 464 sample pages.
+
+**Things you should know**
+- The sample renderer links its pictures to the folder your next build fills,
+  and that folder doesn't exist yet. Until then it stops with a message.
+  `--copy-pictures` copies about 1.5 GB of pictures into its RAM folder instead.
+- Every sample render prints one warning: with no earlier pages to measure, the
+  storage limit on pages per poem isn't applied. This was there before my
+  changes. I haven't changed it.
+- Still to do after your next build: check the whole site, and re-check the
+  three old bugs (progress bars past the frame, the anchor poem printed twice,
+  warning boxes that disagree).
+
+**Open question:** the word pages are still built one word after another on a
+single thread, outside the worker pool (200 words a build). Should they become a
+third kind of worker job, beside "a poem's pages" and "a chronological page", so
+every page on the site comes from one pipeline?
+
+Next on my list is the plan for numbering poems fresh each run. Your earlier
+question belongs there: should a link point to "the Nth poem on that page"? What
+do you expect such a link to land on after new poems are added in the middle of
+the timeline?
 
 --------------------------------------------------------------------------------
 

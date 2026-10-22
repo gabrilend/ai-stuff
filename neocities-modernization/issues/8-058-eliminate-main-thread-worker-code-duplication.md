@@ -96,6 +96,24 @@ every poem, or every heading, grey).
   outside the worker pool (200 words a build). Should they become a third
   kind of worker job, beside "a poem's pages" and "a chronological page",
   so every page on the site comes from one pipeline?
+  Measured 2026-10-21 (EmbeddingGemma 2, 8,622 poems, one thread): 200
+  words take 32 s. About 13 s is loading (the 129 MB embeddings file, the
+  two averages, the timeline); then each word costs about 0.09 s, of which
+  drawing its 50 poems is about 0.013 s and ranking all 8,622 poems against
+  the word is the rest. The ranking re-centres every poem vector for every
+  word, so most of that work repeats. Options, most useful first:
+  1. Centre the poem vectors and take their lengths once, so each word's
+     ranking is one dot product per poem (no new threads; most of the 18 s
+     of per-word work goes).
+  2. Rank every word at once on the GPU: all words against all poems is one
+     matrix product, the shape the diversity step already runs on Vulkan,
+     and the house rule for batch work.
+  3. Worker jobs: the main program ranks, workers draw. Moves only the
+     0.013 s per page; one pipeline in name.
+  4. Worker jobs that rank too: each worker must hold every poem vector.
+     Parsing the JSON in each worker repeats the 13 s load per thread (the
+     bandwidth problem of 10-034); the 14 MB half-precision file the GPU step
+     already writes would avoid it.
 
 **Bars and navigation boxes: merged (2026-10-07).** The chronological pages
 (main thread) now draw every progress bar and every corner/nav box through
