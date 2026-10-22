@@ -25,6 +25,14 @@
 --             once. Given, only these poems get similar/different pages,
 --             instead of the fixed sample -- the way to look at one poem's
 --             pages without a build.
+--   --copy-pictures
+--             copy the pictures into FOLDER/media instead of linking the
+--             site's (assets/site-media); for when no build has filled that
+--             yet. Give FOLDER in RAM (tmp/shared-memory/): about 1.5 GB.
+--   --words N --poems-per-word-page M
+--             also draw the word pages of the first N words of the word
+--             cloud, M poems each (the word embeddings and word colours must
+--             exist, from a build's word-cloud stage)
 --
 -- The sample is chosen from poems.json by a fixed rule (no randomness), so two
 -- runs over the same poems pick the same anchors. One page per anchor per
@@ -36,6 +44,8 @@
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 local OUT, MODEL, SERVER, THREADS, PER_PAGE, PAGES
 local ANCHORS = {}
+local WORDS, PER_WORD_PAGE
+local COPY_PICTURES = false
 do
     local i = 1
     while i <= #arg do
@@ -46,6 +56,9 @@ do
         elseif a == "--threads" then THREADS = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--poems-per-page" then PER_PAGE = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--pages" then PAGES = arg[i + 1]; i = i + 1
+        elseif a == "--copy-pictures" then COPY_PICTURES = true
+        elseif a == "--words" then WORDS = tonumber(arg[i + 1]); i = i + 1
+        elseif a == "--poems-per-word-page" then PER_WORD_PAGE = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--anchor" then
             ANCHORS[#ANCHORS + 1] = tonumber(arg[i + 1])
                 or error("render-page-sample: --anchor takes a poem number, not " .. tostring(arg[i + 1]))
@@ -57,6 +70,9 @@ do
 end
 if not (OUT and MODEL and SERVER and THREADS and PER_PAGE and PAGES) then
     error("render-page-sample: --out, --model, --server, --threads, --poems-per-page and --pages are all required")
+end
+if (WORDS == nil) ~= (PER_WORD_PAGE == nil) then
+    error("render-page-sample: --words and --poems-per-word-page go together")
 end
 -- }}}
 
@@ -90,17 +106,24 @@ end
 -- RAM links its media folder there; scripts/ensure-site-in-ram), filled by a
 -- build. Without it the page builder would try to copy every picture into a
 -- link that leads nowhere and warn once per picture, so it is an error here.
+-- --copy-pictures: OUT/media is a plain folder, and the page builder copies
+-- the pictures into it as a build would into the site's.
 local function fresh_out()
     local probe = io.open(OUT .. "/.", "r")
     if probe then
         probe:close()
         error("render-page-sample: " .. OUT .. " already exists; give a new folder")
     end
+    if COPY_PICTURES then
+        run(string.format("mkdir -p %q", OUT .. "/media"))
+        print("render-page-sample: copying the pictures into " .. OUT .. "/media (--copy-pictures)")
+        return
+    end
     local media = DIR .. "/assets/site-media"
     local pictures = io.open(media .. "/.", "r")
     if not pictures then
         error("render-page-sample: no pictures folder at " .. media
-            .. "; a build fills it (./run.sh), so build the site once first")
+            .. "; a build fills it (./run.sh). Build the site once, or give --copy-pictures")
     end
     pictures:close()
     run(string.format("mkdir -p %q", OUT))
@@ -192,3 +215,16 @@ assert(generator.generate_complete_flat_html_collection(
     poems_data, nil, nil, OUT, PAGES, PER_PAGE, THREADS, chrono_per_page, anchors),
     "similar/different pages failed")
 print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))
+
+-- {{{ word pages (--words)
+-- The word-page builder reads its settings from the command line when it is
+-- loaded, as the page builder does, so it is loaded with the ones this
+-- sample uses (the same as run.sh passes it).
+if WORDS then
+    arg = { DIR, "--html-only", "--words", tostring(WORDS), "--poems-per-page", tostring(PER_WORD_PAGE),
+        "--chrono-per-page", tostring(chrono_per_page), "--model", MODEL, "--server", SERVER }
+    local word_pages = require("generate-word-pages")
+    assert(word_pages.generate_word_html({ output_dir = OUT }), "word pages failed")
+    print(string.format("render-page-sample: word pages for %d words under %s/wordcloud", WORDS, OUT))
+end
+-- }}}

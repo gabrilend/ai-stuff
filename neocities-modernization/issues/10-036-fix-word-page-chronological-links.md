@@ -113,17 +113,21 @@ exported so the word-cloud generators reuse the exact same sort, tiebreaker and
 page size. Its companion `default_chrono_per_page` hard-errors on a missing
 config key rather than guessing a size.
 
-**Similar / different pages** (flat-html-generator):
-`generate_all_paginated_pages_for_poem` → `generate_paginated_poem_page_html` →
-`format_all_poems_with_progress_and_color` →
-`format_single_poem_with_progress_and_color`, which writes the link. The archive
-variants `generate_similarity_html_archive` / `generate_diversity_html_archive`
-join the chain at `generate_flat_poem_list_html`.
+**Similar / different pages**: the page worker in flat-html-generator builds
+the mapping into its context, and `src/ranked-page.lua` writes each poem's
+link (`chronological/NN.html#poem-N`, or `index.html` for a one-page view).
+(The single-threaded chain that used to carry it, from
+`generate_all_paginated_pages_for_poem` down to
+`format_single_poem_with_progress_and_color`, was removed 2026-10-21, Issue
+8-058.)
 
-**Word pages** (generate-word-pages): `chrono_page_map` →`generate_word_page` →
-`format_poem_for_word_page`. Note this generator stores pre-formatted `"01"`
-strings, where flat-html-generator stores entry tables — the same information in
-two shapes, which is itself a latent source of drift.
+**Word pages** (generate-word-pages): the mapping's entry tables (timeline
+progress, page number, page count) → `generate_word_page` →
+`format_poem_for_word_page`, which names the page with
+`chronological-page.file_name`, the rule the chronological pages name
+themselves by. (Until 2026-10-21 this generator kept a second table of
+pre-formatted `"01"` strings, with an `"01"` guess for a missing poem; both
+are gone.)
 
 **Word cloud** (wordcloud-generator): its own `chrono_page_map` built from the
 shared mapping function.

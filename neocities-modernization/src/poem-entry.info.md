@@ -1,7 +1,7 @@
 # poem-entry.lua
 
-The one drawer for a poem's whole entry on a page. Chronological, similar and
-different pages all draw through it, so a poem looks the same everywhere.
+The one drawer for a poem's whole entry on a page. Chronological, similar,
+different and word pages all draw through it, so a poem looks the same everywhere.
 Design: Issue 8-058.
 
 ## Functions
