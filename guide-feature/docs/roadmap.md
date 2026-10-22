@@ -1,92 +1,85 @@
 # Roadmap
 
 The phases group the work by what it is, not by when it is done. Lower
-phases are the pieces higher phases stand on. It is normal for the last issue
+phases are what higher ones stand on. It is normal for the last issue
 finished to belong to phase 1. Every phase ends with a demo in
-`issues/completed/demos/`, run by `run-phase-demo` in the project root.
+`issues/completed/demos/phase-N-demo`, run from `run-phase-demo` in the
+project root.
 
-## Phase 1 — The fit and the fade
+## Phase 1 — The canvas and the blit
 
-The page keeper's thinking, with no network at all: read a frame, check that
-it fits the display box, recognise thoughts carried forward by the angle
-between their word counts, fade the rest, and lay out the page. It is fed by
-dropping frame files into a folder by hand or from a script.
+The shared grid of characters and the rule for writing onto it, with no
+network: read and write the canvas text, find its words, work out what a
+voice changed against its base, and blit those changes, blanking any word
+that loses part of itself. Fed by dropping canvases into a folder.
 
-Builds: the frame reader, the word-space similarity measure, the fit checker
-(shared later with the thinkers), the relevance rules, the page layout, and
-the page keeper's main loop over the arrivals folder.
+Ends with: a scripted series of edits by three voices, some made from stale
+bases and some overlapping, played onto one canvas, with the count of words
+written, blanked and in conflict after each version.
 
-Ends with: a demo that replays a scripted conversation of three voices into
-the arrivals folder and shows, page by page, which thoughts survived, which
-faded, and how long each lasted. It also shows the fit checker's error report
-for a frame that is too wide.
+## Phase 2 — The canvas for viewers
 
-## Phase 2 — The page protocol
+Marks for skimming (changed words and their sentences, aging), the
+viewer-side reader, the canvas files in RAM with history, the HTTP canvas
+server, and how the canvas size changes.
 
-The page leaves the page keeper: written as files on kuvalu and served over
-HTTP, in the one plain-text format every viewer reads. Includes the box rules
-that let viewers say their size.
-
-Builds: the page writer, the Lua page reader, the RAM page folder with
-history, the HTTP page server with waiting requests, the box rules.
-
-Ends with: a demo that runs the phase-1 replay while two readers watch, one
-on the files and one over HTTP, and shows that both received every page,
-byte for byte the same. It then changes the box mid-run and shows the page
-reshaping.
+Ends with: two readers, one on files and one on HTTP, receiving identical
+versions, and a text rendering of the marks aging over a replay.
 
 ## Phase 3 — The relay through rmail
 
-Frames and pages travel as living rmail messages: kuvalu's mailbox on port
-1223, the arrival hooks, and the page sent back to the voices. Rehearsed
-entirely on kuvalu with three extra mailboxes posing as the fg-sora
-machines.
+kuvalu's mailbox on port 1223, the arrival hook, the canvas mailed to the
+voices as a living message, and the turn hook on each voice that keeps only
+the newest canvas and runs one turn at a time. Rehearsed on kuvalu with three
+extra mailboxes posing as the mini-computers and stand-in turns.
 
-Builds: the kuvalu mailbox setup, the arrival hook, the page as a living
-message, the loopback rehearsal with scripted stand-in voices.
+Ends with: the round trip through real rmail, measured.
 
-Ends with: a demo of three stand-in voices on kuvalu sending frames through
-real rmail. It measures how long each frame took to reach the page and how
-long the page took to come back.
+## Phase 4 — The turn
 
-## Phase 4 — The thinkers
+The endpoints file and runtime selection, the llama.cpp client, the turn's
+prompt, and the ask-until-it-fits loop with compiler-style reports. Running
+on kuvalu's llama.cpp server.
 
-The program that is a voice: reads the page, gathers random context, asks a
-language model, sends the misfits back like compiler errors, writes the
-frame. The model can be local or remote, with the voice acting as a relay.
-Built and tested on kuvalu before any fg-sora is touched.
+Ends with: three real turns per version on kuvalu, showing fit retries,
+change counts against the budget, and the canvas changing.
 
-Builds: the context gatherer, the prompt builder, the table of inference
-backends (local llama.cpp, remote llama.cpp, remote hosted service), the
-retry-on-misfit loop, the thinker's main loop.
+## Phase 5 — Looking into the project
 
-Ends with: a demo where three thinkers on kuvalu, using different backends,
-talk on one page. It shows fit retries per backend, give-ups, and how many
-frames each thought survived.
+The project clone (in RAM if it fits), the embedding index contract and the
+guide for building an index for a project, and the look tool with its
+focused-to-broad setting.
 
-## Phase 5 — Bringing up the fg-sora machines
+Ends with: the same question asked at several focus levels, showing which
+pieces came back and how similar each was. Then a turn that used the look
+tool.
 
-The three mini-computers become the voices: check their C library and tools,
-install rmail, install llama.cpp built for their processor (or set them up
-as relays), deploy the thinker, and run the whole system for real.
+## Phase 6 — Distill mode
 
-Builds: the survey script, the rmail install, the model install, the
-thinker deployment, and a health check that reports on all three.
+kuvalu's second merge mode: a language model combines the voices' newest
+canvases into one edit before it is blitted.
 
-Ends with: the full system running across four machines, with a demo that
-shows each voice's turn time, its rmail delay, and its backend.
+Ends with: the same scripted rounds in both modes, side by side, with words
+changed per version and conflicts per mode.
 
-## Phase 6 — Viewers for the desk and the browser
+## Phase 7 — Bringing up the mini-computers
 
-Builds: the terminal view, the Lua window, the HTML page.
+Survey (C library, curl, free memory), rmail on each, reaching the endpoints
+from each, deploying the turn hook, the network rules checked from each
+machine, and one health check across all four.
 
-Ends with: a demo that opens all three on the same live (or replayed) page,
-screenshots each, and shows pages drawn and fade timings side by side.
+Ends with: the whole system running on four machines.
 
-## Phase 7 — Viewers for the pocket and the wrist
+## Phase 8 — Viewers for the desk and the browser
 
-Builds: the Android app and the Apple Watch app, both reading the page
-server over HTTP and telling it their size.
+Terminal view, Lua window, HTML page.
 
-Ends with: a demo that shows the page at watch size and phone size, captured
-from each device or its emulator.
+Ends with: all three showing the same versions side by side, with
+screenshots.
+
+## Phase 9 — Viewers for the pocket and the wrist
+
+Android app, Apple Watch app.
+
+Ends with: the canvas on a phone and a watch, captured beside the Lua
+window.

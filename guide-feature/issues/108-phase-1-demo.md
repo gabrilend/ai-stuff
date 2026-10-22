@@ -1,35 +1,33 @@
-# 108 — Phase 1 demo: a scripted conversation fading
+# 108 — Phase 1 demo: three voices on one canvas
 
-phase 1, the fit and the fade
+phase 1, the canvas and the blit
 
 ## Current behavior
 
 No demos exist. `run-phase-demo` in the project root reports that no phase
-is complete.
+has one.
 
 ## Intended behavior
 
-`issues/completed/demos/phase-1-demo` replays a scripted conversation of
-three voices (a folder of frame files, written to show carrying, crossing
-between voices, fading and vanishing) into the page keeper's arrivals folder,
-then shows the numbers:
+`issues/completed/demos/phase-1-demo` plays a scripted series of voice
+canvases into the blitter's arrivals folder. The series is made by a small
+generator script, not by hand, and is written to show single-word edits,
+overlapping writes, stale bases and conflicts. The demo then shows:
 
-- for each page: thoughts listed, fading, hidden by the box;
-- for each thought: how many frames it survived, and whether another voice
-  carried it;
-- a relevance-over-time chart per thought, drawn in the terminal or in a
-  small window;
-- the fit checker's report for one deliberately oversized frame, exactly as
-  a language model would receive it.
+- each version of the canvas, drawn at its real size in the terminal, with
+  the cells that changed in that version highlighted;
+- after each version: words written, words blanked by the whole-word rule,
+  removals, conflicts;
+- one deliberately oversized canvas being refused, and the fit check's report
+  for it, exactly as a model would read it.
 
-The numbers come from the page keeper's log and goodbye receipt, not from
-the demo itself, so the demo shows what the page keeper really did.
+The numbers come from the blitter's log and goodbye receipt, so the demo
+shows what the blitter really did.
 
 ## Suggested implementation steps
 
-1. Write the scripted frames with a small generator script, not by hand, so
-   longer conversations can be made by changing its settings.
-2. The run script and the chart.
+1. The scripted-series generator.
+2. The run script and the drawing.
 3. Fill in `issues/phase-1-progress.md`.
 
 ## Related documents

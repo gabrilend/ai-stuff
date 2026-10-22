@@ -1,15 +1,15 @@
-# Phase 2 Progress — The page protocol
+# Phase 2 Progress — The canvas for viewers
 
 ## Goals
-The page leaves the page keeper in one plain-text format that any language
-can read: as files in RAM on kuvalu with full history, and over HTTP with
-waiting requests, so phones and watches hear of new pages without polling.
-Viewers can say their size, and box rules decide the page's size from that.
-Ends with two readers, one on files and one on HTTP, receiving identical
-pages while the box changes size. (`docs/roadmap.md`, phase 2)
+Marks that let a person skim what changed (words and their sentences,
+aging), the viewer-side reader, the canvas files with history, the HTTP
+canvas server, and how the canvas size changes. Ends with two readers
+receiving identical versions and the marks aging over a replay.
+(`docs/roadmap.md`, phase 2)
 
 Counts of done and open issues:
 `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/guide-feature -m`
 
 ## Completed Issues
-(None yet.)
+(None yet. Each completed issue adds a line here saying what it built
+and how it moves the phase toward its goals.)

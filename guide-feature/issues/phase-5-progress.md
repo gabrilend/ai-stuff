@@ -1,14 +1,15 @@
-# Phase 5 Progress — Bringing up the fg-sora machines
+# Phase 5 Progress — Looking into the project
 
 ## Goals
-The three mini-computers at 192.168.1.11–13 become the voices: surveyed
-(C library, tools, ports), given rmail on ports 10101, 20202 and 30303, given
-a model or set up as relays, running the thinker on boot, and watched by one
-health check. Ends with the whole system live across four machines.
+The project being worked on, cloned onto each voice (in RAM if it fits),
+the embedding index contract and its build guide, and the look tool that
+answers focused or broad. Ends with one question asked at five focus
+levels.
 (`docs/roadmap.md`, phase 5)
 
 Counts of done and open issues:
 `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/guide-feature -m`
 
 ## Completed Issues
-(None yet.)
+(None yet. Each completed issue adds a line here saying what it built
+and how it moves the phase toward its goals.)

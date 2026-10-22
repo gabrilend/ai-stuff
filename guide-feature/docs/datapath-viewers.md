@@ -1,56 +1,54 @@
-# Datapath: from the page to a person's eyes
+# Datapath: from the canvas to a person's eyes
 
-Every viewer reads the page protocol (`docs/page-protocol.md`) and draws the
-display box (`docs/display-box.md`). No viewer computes relevance. Each one
-only decides how a relevance number looks on its kind of screen.
+Every viewer reads the canvas protocol (`docs/canvas-protocol.md`). No viewer
+changes the characters. Each one only decides how marks look on its kind of
+screen. The point of the marks: "This should enable users to skim, and see
+the changed sections from all three."
 
 ## The path
 
-    page keeper
-       │ builds page N
-       ├──► tmp/shared-memory/page/current ──► terminal view   (kuvalu)
-       │                                   └─► Lua window      (kuvalu)
-       └──► page server (HTTP) ──► GET /page?after=N&box=WxH
-                                     ├─► HTML page   (any browser)
-                                     ├─► Android app (phone)
-                                     └─► Apple Watch app (watch)
+    blitter
+       │ version N
+       ├──► tmp/shared-memory/canvas/current ──► terminal view   (kuvalu)
+       │                                     └─► Lua window      (kuvalu)
+       └──► canvas server (HTTP) ──► GET /canvas?after=N
+                                       ├─► HTML page
+                                       ├─► Android app
+                                       └─► Apple Watch app
+                                       (reachability: docs/network.md)
 
-## The shared parts
+## The viewer-side reader (Lua)
 
-- **Page reader (Lua).** A small library: page text in, a page record out.
-  The two Lua viewers use it, and the phase-2 tests check it against the
-  protocol examples. Fields of the page record:
-  - number (whole number), built (string), box width and height, share
-    width and height (whole numbers);
-  - voices (list of strings), over-box voices (list of strings);
-  - thoughts (list of records: voice string, frame whole number, relevance
-    number 0–1, text string).
+Built on the canvas reader (`docs/canvas-format.md`), plus what viewers need
+on top:
 
-  The page reader throws an error on a malformed page. It does not return a
-  partly-filled record.
-- **Waiting for the next page.** Local viewers watch `page/current`. Remote
-  viewers hold a `GET /page?after=N` open (`docs/page-protocol.md`).
-- **The other viewers** (HTML, Android, Apple Watch) each parse the page in
-  their own language from the protocol document alone. That is the test that
-  the protocol really is a protocol and not one program's private format.
+- a grid of cells, `H` rows by `W` columns, each cell a record of character
+  (string, one code point) and mark (nothing, or a record of voice string,
+  version whole number, and kind `word` or `sentence`);
+- the age of each mark: the canvas version minus the mark's version (whole
+  number), which viewers turn into faintness;
+- the cells that changed since the previous version the viewer saw, so a
+  viewer can draw the new words "writing over what was in that slot".
 
-## How each viewer shows relevance
+## How each viewer shows a change
 
-| Viewer | Screen | Relevance becomes | Notes |
+| Viewer | Screen | A mark becomes | Notes |
 |---|---|---|---|
-| Lua window | desktop window on kuvalu | opacity and a slow fade-out animation between pages; each voice its own colour | the recommended viewer, with the most room for display ideas |
-| terminal view | any terminal on kuvalu | three or four brightness steps of the voice's colour, using standard terminal colour codes; below the lowest step, the thought is not drawn | "limited display features": no animation, no partial opacity |
-| HTML page | any browser that can reach the page server | CSS opacity, a fade transition | the remote-access viewer |
-| Android app | phone | opacity | asks the page server with its own screen size as `box=` |
-| Apple Watch app | watch | opacity, or brightness | the smallest box. Under the `smallest-viewer` box rule it decides the size of the page for everyone |
+| Lua window | desktop window on kuvalu | the voice's colour behind the cells, fading with age. New words are drawn arriving over the old ones | the recommended viewer |
+| terminal view | any terminal on kuvalu | the voice's colour, in a few brightness steps by age, using standard colour codes | no animation |
+| HTML page | a browser | CSS colour and a transition | the remote-access viewer |
+| Android app | phone | colour fading with age | |
+| Apple Watch app | watch | colour | the smallest screen; whether the canvas size should follow it is an open question |
 
-A viewer whose screen is larger than the box draws the box inside it. A
-viewer whose screen is smaller than the box has the wrong box rule for this
-setup. It shows an error saying so, rather than squeezing the page.
+A `word` mark is drawn stronger than a `sentence` mark, so the exact
+changed words stand out inside their changed sentence.
+
+A screen smaller than the canvas shows an error naming both sizes. It does
+not crop or rewrap.
 
 ## What each viewer counts
 
-The desktop viewers write a goodbye receipt (`output/goodbye`) with pages
-received, pages drawn, frames drawn, seconds run. They take
-`--screenshot SECONDS` and `--key SECONDS NAME` run options, so a test can
-drive them without a person and file the picture under `development-history/`.
+The desktop viewers write a goodbye receipt: versions received, versions
+drawn, seconds run. They take `--screenshot SECONDS`, `--key SECONDS NAME`
+and `--replay FOLDER` (draw a history folder instead of the live canvas), so
+a test can drive them without a person.

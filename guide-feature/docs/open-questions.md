@@ -1,88 +1,97 @@
 # Open questions
 
-Every question met while designing guide-feature, gathered in one place. A
-question stays here, unanswered, until it is worked through with the owner.
-The answer is then written into the document it changes, and the entry here
-says where it went. The project is in progress, not finished, while any
-question here is open.
+Every question met while designing guide-feature. A question stays here until
+it is worked through with the owner. Its answer is then written into the
+document it changes, and the entry moves to "Answered" with a pointer. The
+project is in progress, not finished, while any question here is open.
 
 Most valuable first.
 
 ## Open
 
-1. **Which project do the voices draw their random context from, and how do
-   its files reach the fg-sora machines?** The vision says "from the project
-   directory". Candidates: this project; whichever project the owner is
-   working on at the moment; a list of projects. Ways to carry the files:
-   rmail attachments sent from kuvalu (slow, but uses the same channel and
-   its encryption), a copy made over the network when a thinker starts, or a
-   read-only network share. Changes `docs/datapath-thinker.md` step 2.
-2. **Which C library do the fg-sora machines use, glibc or musl?** Checked by
-   listing `/lib/ld-*` on each. It decides whether rmail's compiled parts and
-   llama.cpp can be built on kuvalu and copied over, or must be built for
-   musl. Phase 5 starts here.
-3. **Which remote places should the voices be able to relay to, and may
-   project files leave the house?** Possible targets: a llama.cpp server on
-   kuvalu's GTX 1080 Ti (stays on the home network), other machines the owner
-   runs, or a hosted service such as the Anthropic API (the page and the
-   sampled project files then go to that company's servers). Where should
-   keys and passwords for them be kept on the fg-sora machines?
-4. **When a remote backend fails, should a voice ever use another backend?**
-   The current design says no: the failure is counted and the voice tries the
-   same backend next turn, so the page never quietly changes which model is
-   speaking. The alternative is an ordered list written in the input file,
-   with every switch shown on the page.
-5. **Which box rule is the default: a fixed size, the smallest viewer, or
-   one named viewer?** And what fixed size, if fixed? See
-   `docs/display-box.md`.
-6. **When the box shrinks, how should a voice's frame that no longer fits be
-   shown until its next frame?** Current design: show only the rows that fit,
-   mark the voice `over-box`, count the hidden rows. The alternative is to
-   hide that voice's frame entirely until it writes one that fits.
-7. **Characters or screen columns?** The box counts characters (UTF-8 code
-   points). Some characters, Japanese for example, take two columns in a
-   terminal. If the voices may write them, the fit checker must count
-   display columns instead.
-8. **Which port does the page server listen on, and should it be reachable
-   from outside the home network?** The HTML page is "remote access", and the
-   watch is often away from home wifi. Reaching kuvalu from outside means a
-   router port forward or a VPN, and then the page server needs a password,
-   because the page holds excerpts of project files.
-9. **Should a new run of the page keeper start from the last page of the
-   previous run?** Everything in `tmp/shared-memory/` is RAM and is gone after
-   a reboot. Keeping the last page means writing it to disk on goodbye.
-10. **The vision says "one page of a chatlog ... or many". When does a page
-    end and a new one begin?** Current design: there is one page, forever
-    rewritten, and the history folder keeps every version. Is "a new page"
-    something else, such as a new topic, a new day, or the box filling up?
-11. **Can the person watching write into the page too?** The vision says
-    "each part of it can be edited". kuvalu could author a fourth part, the
-    person's, through the page keeper. Nothing in the current design lets
-    the viewer type.
-12. **Which language model, and what size, on each fg-sora?** The
-    risc-v-ollama notes suggest Llama 3.2 3B at Q4 as a baseline for these
-    machines. How well each model respects the box is something the phase-4
-    demo will measure.
-13. **Building the Apple Watch app needs a Mac with Xcode, and installing it
-    needs an iPhone paired to the watch.** Is there a Mac available? The
-    Android app can be built on kuvalu with the Android command-line tools.
-14. **Should the voices know which voice is which, and that they are three
-    copies of a small model?** It changes the prompt's first lines and
-    probably the character of the conversation.
+1. **Is the whole-word rule read correctly?** Example: the row reads
+   `the cat sat on the mat`, and a voice writes `kitten` starting where
+   `cat` starts. `kitten` covers all of `cat` and the `sa` of `sat`. The
+   design blanks all of `sat`, giving `the kitten   on the mat`. (The owner
+   agreed to "like the preview", but no preview was actually shown.)
+   `docs/datapath-blit.md`, step 3.
+2. **How do the phone, the watch and a browser elsewhere reach the canvas,
+   when the router lets only the four machines talk to each other?** A fifth
+   allowed device, a relay through one of the four, or the canvas pushed out
+   to them by rmail? `docs/network.md`.
+3. **How many words may change per turn, and how many whole sentences may be
+   rewritten?** These are the change budgets in the fit check. Strict budgets
+   enforce "prioritize editing single words over changing sentences". Too
+   strict, and a voice can never bring in a new idea. `docs/fit-check.md`.
+4. **In distill mode, whose name goes on a change: kuvalu's, or the voice
+   whose idea it came from?** The second needs the distiller to say where
+   each change came from. `docs/datapath-blit.md`.
+5. **How should the canvas size change?** Every voice's words sit at fixed
+   rows and columns, so a smaller canvas crops them and a larger one leaves
+   space. Options: size fixed per run; size changes only between runs; or the
+   canvas resized with all marks cleared and voices told. `issues/205`.
+6. **Should the canvas history survive a restart?** It lives in RAM. Without
+   it, after a reboot every voice's base is unknown and their first canvases
+   are refused. `docs/datapath-round-trip.md`.
+7. **Which C library and which tools do the mini-computers have?** glibc or
+   musl, and whether `curl` and `git` are present. The llama.cpp client uses
+   `curl`; the project clone uses `git`. `issues/701`.
+8. **Can rmail be told not to look up its public address or map its port?**
+   Those requests go to outside services that are not language-model
+   providers, which the router rules may block. `docs/network.md`.
+9. **Should kuvalu tell each voice which endpoint to use, in the canvas it
+   sends, instead of each machine keeping its own copy of `endpoints`?** One
+   place to switch versus one more header. `docs/endpoints.md`.
+10. **Where should the embedding index builder and its guide live:
+    delta-version, or the shared scripts folder?** And should it be built
+    first for guide-feature itself, so phase 5 has an index to test against?
+    `docs/embedding-index-contract.md`.
+11. **The tool call's form.** llama.cpp supports OpenAI-style tool calls when
+    its server runs with its chat templates switched on (`--jinja`). Is
+    kuvalu's server started that way, or should the look call be a plain line
+    in the reply that the turn recognises? `issues/403`.
+12. **Characters or terminal columns?** Some characters take two columns in
+    a terminal. If voices may write them, the fit check and the blit must
+    count columns. `docs/fit-check.md`.
+13. **Building the Apple Watch app needs a Mac with Xcode.** Is one
+    available? `issues/902`.
+14. **Should the voices know who the others are?** It changes the first
+    lines of the prompt, and probably how the voices behave toward each
+    other's words. `issues/403`.
+15. **Can the person watching write onto the canvas too?** The vision says
+    "each part of it can be edited". kuvalu could blit the person's edits as
+    a fourth voice. `docs/architecture.md`.
 
 ## Answered
 
-- Inbox port: 111213 is impossible; it is **1223**. In
-  `docs/architecture.md`. (`notes/first-answers.md`)
-- One shared page versus rmail's author-only edits: **hook scripts hand
-  arrivals to a running Lua program that does the logic**. In
-  `docs/architecture.md` and `docs/datapath-frame-to-page.md`.
-- What listens on the fg-sora ports today: **nothing yet**. In
-  `docs/roadmap.md`, phase 5.
-- What the display module is: **a protocol first, then a Lua window,
-  terminal view, HTML page, Android app and Apple Watch app**. In
-  `docs/page-protocol.md` and `docs/datapath-viewers.md`.
-- Screen sizes: **a display box in characters, with misfits returned to the
-  model like compiler errors**. In `docs/display-box.md`.
-- Remote processing: **the voices can relay to remote models**. In
-  `docs/datapath-thinker.md`.
+- Inbox port: **1223** (111213 is beyond the 65535 limit).
+  `docs/architecture.md`.
+- How a shared page survives rmail's author-only edits: **hooks hand
+  arrivals to a running Lua program that decides**. `docs/architecture.md`.
+- What listens on the mini-computers' ports: **nothing yet**. Phase 7.
+- The display module: **a protocol first, then Lua window, terminal view,
+  HTML page, Android app, Apple Watch app**. `docs/canvas-protocol.md`.
+- What the page is: **one canvas, all voices blitting to the same grid; only
+  changed words are written, partly-overwritten words are blanked, changed
+  sentences are marked**. `docs/datapath-blit.md`.
+- How kuvalu merges: **two modes, `newest` (original) and `distill`**.
+  `docs/datapath-blit.md`.
+- What starts a voice's turn: **kuvalu's canvas arriving**.
+  `docs/datapath-round-trip.md`.
+- What counts as changed: **compared with the version the voice started
+  from**. `docs/datapath-blit.md`.
+- Canvas size: **the same for every voice; all rows and columns**.
+  `docs/fit-check.md`.
+- Which project: **whatever is being worked on, cloned onto each voice, in
+  RAM if it fits**. `docs/datapath-looking-into-the-project.md`.
+- How context is chosen: **a look tool call with an embedding priority,
+  focused to broad**. `docs/datapath-looking-into-the-project.md`.
+- Where the embeddings are built: **by per-project development tooling,
+  perhaps delta-version, with a guide; guide-feature only reads them**.
+  `docs/embedding-index-contract.md`.
+- Remote processing: **llama.cpp endpoints listed in a project-root file,
+  selectable at runtime; on kuvalu for now**. `docs/endpoints.md`.
+- The network: **the four accept only each other; outside providers only as
+  replies to connections we opened**. `docs/network.md`.
+- rmail's timing: **adjustable per implementation, in the Lua scripts**.
+  `docs/rmail-constraints.md`.
