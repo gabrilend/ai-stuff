@@ -222,7 +222,8 @@ print(string.format("render-page-sample: %d anchors; pages under %s", #sample, O
 -- sample uses (the same as run.sh passes it).
 if WORDS then
     arg = { DIR, "--html-only", "--words", tostring(WORDS), "--poems-per-page", tostring(PER_WORD_PAGE),
-        "--chrono-per-page", tostring(chrono_per_page), "--model", MODEL, "--server", SERVER }
+        "--chrono-per-page", tostring(chrono_per_page), "--model", MODEL, "--server", SERVER,
+        "--threads", tostring(THREADS) }
     local word_pages = require("generate-word-pages")
     assert(word_pages.generate_word_html({ output_dir = OUT }), "word pages failed")
     print(string.format("render-page-sample: word pages for %d words under %s/wordcloud", WORDS, OUT))

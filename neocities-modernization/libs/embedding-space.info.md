@@ -52,6 +52,19 @@ invalidates every cache built from it.
   mean degrades to the previous behaviour rather than to zeros. Callers that must
   not degrade silently should check `corpus_mean`'s second return value.
 
+### `M.centre_once(vec, mean)`
+- **vec**: Lua array of numbers. **mean**: its population's average (required).
+- **returns**: `{ v = <centred array>, sq = <sum of the squares of v> }`, a
+  vector prepared once for many comparisons.
+- Errors on a missing average or a length mismatch.
+
+### `M.cosine_centred(a, b)`
+- **a, b**: two vectors from `centre_once`.
+- **returns**: the same number as `cosine_across_populations` on the raw
+  vectors, to the last bit (same arithmetic, same order); 0 when either equals
+  its average. Used by the word pages to rank every poem against every word
+  without re-centring each poem for each word (Issue 10-035).
+
 ### `M.cosine_across_populations(a, a_mean, b, b_mean)`
 - **a, b**: Lua arrays of numbers (same length) from two different populations
   of text — e.g. a single word and a poem.

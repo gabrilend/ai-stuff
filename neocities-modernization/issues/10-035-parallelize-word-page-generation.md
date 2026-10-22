@@ -2,10 +2,38 @@
 
 ## Current Behavior
 
-The word pages (one per word-cloud word, 200 a build) are built by
-`src/generate-word-pages.lua` in one thread, one word after another. Each
-poem on them is drawn by the shared drawer (`src/poem-entry.lua`, Issue
-8-058), and the same data draws the same pages on every run.
+**Steps 1 and 3 built (2026-10-22); step 2 (GPU) to do.**
+- Centre once: `embedding-space.centre_once` / `cosine_centred`; the poems
+  are prepared once per run, each word once. The centre-poem search keeps
+  each poem's length too, and walks the poems in an order worked out once
+  (it re-sorted all 8,622 keys for every word). Scores are the same to the
+  last bit (tested on 50 random pairs); 200 pages byte-identical.
+- Worker jobs: `src/generate-word-pages.lua` plans each page (poems, order,
+  heading colour, centre link) and
+  `flat-html-generator.generate_word_pages_on_workers` has the page workers
+  draw them through `src/word-page.lua`. The jobs carry their poems, as the
+  chronological jobs do: the workers' own poem list marks image-only posts
+  to be drawn as a gallery picture box, which drew 11 of 200 pages
+  differently (see the open question). `--threads` added, passed by
+  `run.sh` stage 10 and `scripts/render-page-sample`. 200 pages
+  byte-identical; 60 sample word pages identical to the last render.
+- Three quiet fallbacks became errors: a word with no recorded colour (grey
+  heading), a page with no centre poem (link to the top of the timeline), a
+  word with no vector (page skipped with a warning). None fired on 200 words.
+- Time for 200 words: 32 s → 22 s. Left: ~13 s reading the 129 MB vector
+  file once, ~4 s ranking, 2 s drawing on 4 workers.
+- Tests: `libs/embedding-space.test.lua` (centred score),
+  `src/word-page.test.lua` (module and worker job),
+  `src/generate-word-pages.order.test.lua`.
+
+### Open question
+- The workers' poem list tags image-only posts (a post that is only a
+  picture, 84 in the current manifest) to be drawn as a gallery picture box
+  titled "fediverse: image post", and that box's picture description is that
+  title rather than the post's own description. The similar and different
+  pages draw them that way; the chronological and word pages (whose jobs
+  carry plain poems) draw them as ordinary posts with their own picture
+  description. Which way should every page draw them? (Issue 9-013.)
 
 Measured 2026-10-21 (EmbeddingGemma 2, 8,622 poems, 200 words, 50 poems a
 page): 32 s.

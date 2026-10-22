@@ -154,6 +154,33 @@ do
         es.cosine_across_populations(word_mean, word_mean, poem_x, poem_mean) == 0)
 end
 
+print("centre once, compare many (Issue 10-035)")
+do
+    -- fixed pseudo-random vectors (a small LCG, the same on every machine)
+    local x = 12345
+    local function rnd()
+        x = (x * 1103515245 + 12345) % 2147483648
+        return x / 2147483648 - 0.5
+    end
+    local function vec(n) local v = {} for j = 1, n do v[j] = rnd() end return v end
+    local dim = 64
+    local a_mean, b_mean = vec(dim), vec(dim)
+    local same, total = 0, 0
+    for _ = 1, 50 do
+        local a, b = vec(dim), vec(dim)
+        local slow = es.cosine_across_populations(a, a_mean, b, b_mean)
+        local fast = es.cosine_centred(es.centre_once(a, a_mean), es.centre_once(b, b_mean))
+        total = total + 1
+        if slow == fast then same = same + 1 end
+    end
+    check("the prepared score equals the one-step score to the last bit (50 pairs)", same == total,
+        string.format("%d of %d equal", same, total))
+    local flat = es.centre_once(a_mean, a_mean)
+    check("a vector equal to its average scores 0", es.cosine_centred(flat, es.centre_once(vec(dim), b_mean)) == 0)
+    check("a missing average is an error", not pcall(es.centre_once, vec(dim), nil))
+    check("vectors of two lengths are an error", not pcall(es.centre_once, vec(dim), vec(dim + 1)))
+end
+
 print("fingerprint")
 do
     local dir = "/tmp/embedding-space-test-" .. tostring(os.time())

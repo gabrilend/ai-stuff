@@ -47,6 +47,7 @@ local function parse_args(args)
     -- config.lua says"; a value here overrides both (see the --model branch).
     local model = nil
     local server = nil
+    local threads = nil  -- Issue 10-035: page workers; nil means not given: asked for
     local i = 1
 
     while i <= #(args or {}) do
@@ -115,6 +116,8 @@ local function parse_args(args)
             model = args[i + 1]; i = i + 2
         elseif a:match("^%-%-model=") then
             model = a:match("^%-%-model=(.+)$"); i = i + 1
+        elseif a == "--threads" then
+            threads = tonumber(args[i + 1]); i = i + 2
         elseif a == "--server" then
             server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then
@@ -129,12 +132,12 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, threads
 end
 -- }}}
 
 local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
-      CLI_MODEL, CLI_SERVER = parse_args(arg)
+      CLI_MODEL, CLI_SERVER, CLI_THREADS = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -158,19 +161,10 @@ local progress = require("progress-display")
 -- Reused here so the word-page "chronological" links resolve to the SAME page
 -- and anchor the chronological pages actually emit (Issue 10-049 follow-up).
 local flat_html = require("flat-html-generator")
--- The one poem drawer every page type uses (Issue 8-058); the page builder
--- above configured it with the site's palettes when it loaded. Boosts,
--- golden poems, warnings and pictures all come from it.
-local poem_entry = require("poem-entry")
--- How the chronological pages name their files and their poems, so a link
--- from here lands on the page and the poem they actually hold.
+-- How the chronological pages name their files, so a link from here lands
+-- on the page that holds the poem. (The pages themselves are drawn by the
+-- page workers through src/word-page.lua, Issue 10-035.)
 local chronological_page = require("chronological-page")
--- The " -> file:" line above each poem, wrapped at a dash or slash.
-local text_formatter = require("text-formatter")
--- One owner for what every page's <head> contains (viewport, shipped font,
--- text-size lock). Four generators used to keep four copies of the font stack
--- and none of them declared a viewport.
-local page_head = require("page-head")
 -- How this project prepares vectors before comparing them, and the note that
 -- says which preparation a cache was built with (libs/embedding-space.lua).
 local embedding_space = require("embedding-space")
@@ -214,6 +208,28 @@ local function settle_word_count()
     -- "all" means no limit
     CONFIG.max_words = (answer == "all") and math.huge or answer
     return CONFIG.max_words
+end
+-- }}}
+
+-- {{{ settle_threads()
+-- Issue 10-035: how many page workers draw the word pages: --threads, else
+-- asked (no default: run.sh passes the build's one thread count). Only the
+-- page-writing mode needs it. Settled once.
+local settled_threads = nil
+local function settle_threads()
+    if settled_threads then
+        return settled_threads
+    end
+    settled_threads = ask.resolve({
+        flag = "--threads",
+        question = "How many worker threads?",
+        kind = "count",
+        given = CLI_THREADS,
+        default = nil,
+        default_source = nil,
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_threads
 end
 -- }}}
 
@@ -644,24 +660,38 @@ end
 -- }}}
 
 -- {{{ local function find_closest_poem_to_centroid
--- Issue 8-050e: Find the poem whose embedding is closest to the given centroid
--- Returns poem data or nil if no match found
-local function find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
-    if not centroid then return nil end
-
+-- Issue 8-050e: the poem whose (raw) vector is closest to the centroid, the
+-- page's link into the timeline.
+-- prepared_poems: the run's candidate list, in poem order, each row carrying
+--   its raw vector (embedding) and that vector's sum of squares (raw_sq),
+--   worked out once per run (Issue 10-035: the lengths and the key order used
+--   to be redone for every word). Only poems can win; a picture's stand-in
+--   vector is not a candidate, since it has no chronological place to link.
+-- The arithmetic is cosine_similarity's, in the same order, so the result is
+-- the same to the last bit; on a tie the lowest poem number stays the best.
+local function find_closest_poem_to_centroid(centroid, prepared_poems)
     local best_poem = nil
     local best_similarity = -1
-
-    -- in poem order: on a tie the lowest poem number stays the best
-    for _, poem_id_str in ipairs(ordered_keys(poem_lookup)) do
-        local poem_embedding = poem_lookup[poem_id_str]
-        local sim = cosine_similarity(centroid, poem_embedding)
+    local dim = #centroid
+    for _, row in ipairs(prepared_poems) do
+        local emb = row.embedding
+        local sim = 0
+        if #emb == dim then
+            local dot, n1 = 0, 0
+            for i = 1, dim do
+                dot = dot + (centroid[i] * emb[i])
+                n1 = n1 + (centroid[i] * centroid[i])
+            end
+            local norm1, norm2 = math.sqrt(n1), math.sqrt(row.raw_sq)
+            if norm1 ~= 0 and norm2 ~= 0 then
+                sim = dot / (norm1 * norm2)
+            end
+        end
         if sim > best_similarity then
             best_similarity = sim
-            best_poem = poems_by_index[tonumber(poem_id_str)]
+            best_poem = row.poem
         end
     end
-
     return best_poem
 end
 -- }}}
@@ -769,112 +799,6 @@ local function build_poem_embeddings_lookup(embeddings_data)
     end
 
     return lookup
-end
--- }}}
-
--- {{{ local function format_poem_for_word_page
--- One poem on a word page: its " -> file:" line, then its entry drawn by the
--- shared drawer (src/poem-entry.lua), the one every other page type uses, so
--- a poem looks the same here as on its chronological, similar and different
--- pages (Issue 8-058). This page kept its own drawer until 2026-10-21; it had
--- no pictures, no emphasis styling, and put golden poems' file line inside
--- their frame.
--- The bar fills by the poem's place on the writing timeline (8-045), not by
--- how close it is to the word, so a reader knows when it was written.
--- chrono_map: poem_index -> { timeline_progress, page_number, total_pages }
-local function format_poem_for_word_page(poem, poem_colors, chrono_map)
-    local poem_idx = poem.poem_index
-    local chrono_info = chrono_map[poem_idx]
-    if not chrono_info then
-        -- a poem with no place on the timeline has no bar and no page to link
-        error("word page: poem " .. tostring(poem_idx) .. " is not in the chronological map")
-    end
-    local color_data = poem_colors[poem_idx]
-    -- Issue 16-006: the anchor on the chronological page is the poem_index;
-    -- the page is named as the chronological pages name theirs
-    local chrono_page = chronological_page.file_name(chrono_info.page_number, chrono_info.total_pages)
-    local header = table.concat(text_formatter.wrap_file_header(" -> file: ",
-        chronological_page.display_filename(poem), 80), "\n")
-    return header .. "\n" .. poem_entry.format_entry(poem, {
-        color_name = color_data and color_data.color or "gray",
-        progress_pct = chrono_info.timeline_progress,
-        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem_idx),
-        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem_idx),
-        chrono_link = string.format("<a href='../chronological/%s#poem-%d'>chronological</a>", chrono_page, poem_idx),
-    })
-end
--- }}}
-
--- {{{ local function generate_word_page
--- Generates HTML page for a single word showing similar poems
--- Issue 8-043c: Now uses same box-drawing format as similar/different pages
--- Issue 8-050c: Word color shown in header, per-poem colors for progress bars
--- Issue 8-050e: Chronological link points to centroid-based location in timeline
--- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, chrono_map, word_hex_color, chrono_center_link)
-    local safe_word = word:lower():gsub("[^%w]", "")
-    local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
-
-    -- Ensure directory exists
-    os.execute('mkdir -p "' .. output_dir .. '/wordcloud"')
-
-    -- Take top N poems
-    local top_poems = {}
-    for i = 1, math.min(poems_per_page, #ranked_poems) do
-        top_poems[i] = ranked_poems[i]
-    end
-
-    -- Issue 8-050c: Use word's semantic color for header (default to gray if not provided)
-    local header_color = word_hex_color or "#888888"
-
-    -- Issue 8-050e: Use centroid-based chronological link if provided, else default
-    local base_path = ".."
-    local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
-
-    -- Generate HTML.
-    -- The <head> -- charset, mobile viewport, shipped monospace font, text-size
-    -- lock -- comes from the shared page-head module, so this page cannot drift
-    -- away from the similar/different/chronological pages the way it had.
-    -- Same centering CSS those pages use: each <pre> centers as an inline-block
-    -- (text stays left), so the poem column lands on the page centerline even
-    -- when an attached image is wider.
-    local head = page_head.head({
-        title = "Poems similar to: " .. word,
-        base_path = base_path,
-        extra_css = "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; }\n"
-                 .. "img, video, audio { margin-left: auto; margin-right: auto; }",
-    })
-    local html_parts = {}
-    table.insert(html_parts, string.format([[<!DOCTYPE html>
-<html>
-%s
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
-<p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>
-<!-- Issue 16-011: Changed main.html to wordcloud.html (main.html doesn't exist) -->
-<p><a href="%s/wordcloud.html">Menu</a> │ <a href="%s">Chronological</a></p>
-</center>
-<hr>
-<table align="center"><tr><td>
-<pre>
-]], head, header_color, word, #top_poems, base_path, chrono_link))
-
-    -- Add ranked poems, each drawn by the shared drawer
-    for i, entry in ipairs(top_poems) do
-        local formatted = format_poem_for_word_page(entry.poem, poem_colors, chrono_map)
-        table.insert(html_parts, formatted)
-        table.insert(html_parts, "\n")
-    end
-
-    table.insert(html_parts, [[</pre>
-</td></tr></table>
-</body>
-</html>
-]])
-
-    local html = table.concat(html_parts)
-    return utils.write_file(output_file, html)
 end
 -- }}}
 
@@ -989,6 +913,7 @@ function M.generate_word_html(options)
     settle_word_count()
     settle_poems_per_page()
     resolve_chrono_per_page()
+    local num_threads = settle_threads()
     local output_dir = options.output_dir or (DIR .. "/output")
 
     -- Load poems
@@ -1148,12 +1073,37 @@ function M.generate_word_html(options)
         end
     end
 
+    -- Every poem that can appear on a word page, centred on the poem average
+    -- once for the whole run, in poem order (Issue 10-035: it used to be
+    -- re-centred for every word). A vector with no poem in poems.json (a
+    -- gallery picture's stand-in) is not a candidate.
+    local prepared_poems = {}
+    for _, poem_index_str in ipairs(ordered_keys(poem_lookup)) do
+        local poem = poems_by_index[tonumber(poem_index_str)]
+        local poem_embedding = poem_lookup[poem_index_str]
+        if poem and poem_embedding then
+            local raw_sq = 0
+            for i = 1, #poem_embedding do
+                raw_sq = raw_sq + (poem_embedding[i] * poem_embedding[i])
+            end
+            prepared_poems[#prepared_poems + 1] = {
+                poem = poem,
+                embedding = poem_embedding,
+                raw_sq = raw_sq,  -- for the centre-poem search
+                prepared = embedding_space.centre_once(poem_embedding, corpus_mean),
+            }
+        end
+    end
+
     -- Get word list (same as embedding generation to ensure consistency)
     local stop_words = load_stop_words()
     local words = get_word_list(poems_data, stop_words, 5, CONFIG.max_words, 3)
 
     -- Generate pages for each word
-    local pages_generated = 0
+    -- Each word's page is planned here (which poems, in which order, the
+    -- heading colour, the centre link) and drawn by the page workers, the
+    -- same pool that draws every other page (Issue 10-035).
+    local jobs = {}
     for i, word in ipairs(words) do
         -- Issue 10-065: update OUTSIDE the has-an-embedding test below, so the
         -- bar tracks position in the word list rather than only the words that
@@ -1177,22 +1127,17 @@ function M.generate_word_html(options)
 
             -- Rank every poem against the word, each centred on its own
             -- population's average so neither kind of text's habitual offset
-            -- can outvote the meaning.
+            -- can outvote the meaning. The poems were centred once, above;
+            -- the word is centred here, once.
+            local word_prepared = embedding_space.centre_once(word_embedding, word_mean)
             local candidates = {}
-            for _, poem_index_str in ipairs(ordered_keys(poem_lookup)) do
-                local poem_embedding = poem_lookup[poem_index_str]
-                local poem_index = tonumber(poem_index_str)
-                local poem = poems_by_index[poem_index]
-                if poem and poem_embedding then
-                    local word_sim = embedding_space.cosine_across_populations(
-                        word_embedding, word_mean, poem_embedding, corpus_mean)
-                    table.insert(candidates, {
-                        poem = poem,
-                        embedding = poem_embedding,
-                        word_similarity = word_sim,
-                        similarity = word_sim  -- for generate_word_page compatibility
-                    })
-                end
+            for r, row in ipairs(prepared_poems) do
+                local word_sim = embedding_space.cosine_centred(word_prepared, row.prepared)
+                candidates[r] = {
+                    poem = row.poem,
+                    embedding = row.embedding,
+                    word_similarity = word_sim,
+                }
             end
 
             -- Most relevant first, then spread the colours across that page.
@@ -1210,42 +1155,71 @@ function M.generate_word_html(options)
             local ranked_poems = spread_colors_across_page(top_n, poem_colors)
 
             -- Issue 8-050c: Get word's semantic color for header
+            -- A word with no colour recorded, or a colour the palette lacks,
+            -- stops the build: the word-colour cache is older than the word
+            -- list (rerun the word-cloud stage, --embeddings-only). It used to
+            -- draw the heading in a grey outside the palette.
             local word_color_entry = word_colors[word]
-            local word_semantic_color = word_color_entry and word_color_entry.color or "gray"
-            local word_hex_color = color_config and color_config[word_semantic_color] or "#888888"
+                or error("word page: '" .. word .. "' has no colour in word_colors.json; run the word-cloud stage (--embeddings-only)")
+            local word_hex_color = color_config[word_color_entry.color]
+                or error("word page: '" .. word .. "' has colour '" .. tostring(word_color_entry.color) .. "', which config.lua's palette lacks")
 
-            -- Issue 8-050e: Compute centroid-based chronological link
-            local chrono_center_link = nil
+            -- Issue 8-050e: the page's link into the timeline, at the poem
+            -- nearest the centre of the page's poems. Every page has poems with
+            -- vectors, so there is always a centre and a nearest poem; a page
+            -- without one stops the build (it used to link to the top of the
+            -- chronological view instead).
+            local chrono_center_link
             do
-                -- Compute centroid of selected poems
                 local centroid = compute_centroid(ranked_poems, poem_lookup)
-                if centroid then
-                    -- Find the poem closest to the centroid
-                    local center_poem = find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
-                    if center_poem and center_poem.poem_index then
-                        -- Anchor must match the spans the chronological pages emit:
-                        -- get_poem_anchor_id() = "poem-<poem_index>". The old
-                        -- "poem-CATEGORY-ID" form matched no anchor, so this top
-                        -- "chronological" link landed at the page top, not the poem.
-                        local anchor_id = string.format("poem-%d", center_poem.poem_index)
-                        -- The chronological page that holds it, named as those
-                        -- pages name themselves. Every poem is on the timeline;
-                        -- one that is not stops the build (10-036: a guessed
-                        -- page sent readers to the wrong place).
-                        local center_info = chrono_map[center_poem.poem_index]
-                            or error("word page: centre poem " .. center_poem.poem_index .. " is not in the chronological map")
-                        chrono_center_link = string.format("../chronological/%s#%s",
-                            chronological_page.file_name(center_info.page_number, center_info.total_pages), anchor_id)
-                    end
-                end
+                    or error("word page: '" .. word .. "' has no poems with vectors to take a centre of")
+                local center_poem = find_closest_poem_to_centroid(centroid, prepared_poems)
+                    or error("word page: '" .. word .. "': no poem is nearest its centre")
+                -- Anchor must match the spans the chronological pages emit:
+                -- get_poem_anchor_id() = "poem-<poem_index>". The old
+                -- "poem-CATEGORY-ID" form matched no anchor, so this top
+                -- "chronological" link landed at the page top, not the poem.
+                local anchor_id = string.format("poem-%d", center_poem.poem_index)
+                -- The chronological page that holds it, named as those
+                -- pages name themselves. Every poem is on the timeline;
+                -- one that is not stops the build (10-036: a guessed
+                -- page sent readers to the wrong place).
+                local center_info = chrono_map[center_poem.poem_index]
+                    or error("word page: centre poem " .. center_poem.poem_index .. " is not in the chronological map")
+                chrono_center_link = string.format("../chronological/%s#%s",
+                    chronological_page.file_name(center_info.page_number, center_info.total_pages), anchor_id)
             end
 
-            -- Generate page with semantic colors and chronological position
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, chrono_map, word_hex_color, chrono_center_link) then
-                pages_generated = pages_generated + 1
+            -- The page's job: its first poems_per_word_page poems in this
+            -- order, each with its place on the timeline (8-045) and the
+            -- chronological page that holds it.
+            local entries = {}
+            for k = 1, math.min(CONFIG.poems_per_word_page, #ranked_poems) do
+                local poem = ranked_poems[k].poem
+                local index = poem.poem_index
+                local info = chrono_map[index]
+                if not info then
+                    -- a poem with no place on the timeline has no bar and no page to link
+                    error("word page: poem " .. tostring(index) .. " is not in the chronological map")
+                end
+                entries[k] = {
+                    poem = poem,
+                    progress_pct = info.timeline_progress,
+                    chrono_file = chronological_page.file_name(info.page_number, info.total_pages),
+                }
             end
+            jobs[#jobs + 1] = {
+                word = word,
+                header_color = word_hex_color,
+                centre_link = chrono_center_link,
+                entries = entries,
+            }
         else
-            utils.log_warn(string.format("Missing embedding for word '%s', skipping", word))
+            -- The word list and the word embeddings come from the same settings
+            -- (--words, the stop list); a word without a vector means the
+            -- embeddings were made for a different list. Stop rather than ship
+            -- a word cloud whose words lead nowhere (it used to warn and skip).
+            error(string.format("word page: no embedding for word '%s'; rerun the word-cloud stage (--embeddings-only) with the same --words", word))
         end
     end
     -- Close the animated line. progress.finish() is a no-op in verbose and quiet
@@ -1253,6 +1227,7 @@ function M.generate_word_html(options)
     -- line into every piped log.
     progress.finish()
 
+    local pages_generated = flat_html.generate_word_pages_on_workers(jobs, output_dir, num_threads)
     utils.log_info(string.format("Generated %d word similarity pages in %s/wordcloud/", pages_generated, output_dir))
     return pages_generated
 end

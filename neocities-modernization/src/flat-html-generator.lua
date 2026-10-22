@@ -1009,7 +1009,14 @@ end
 --   { kind = "poems", poem_index = n }  -- that poem's similar + different pages
 --   { kind = "chrono_page", page_num = n, total_pages = n, total_poems = n,
 --     entries = { { poem = <a poem from the caller's poems>, progress_pct = number }, ... } }
--- returns     : { similar = n, different = n, poems = n, chrono_pages = n, text_files = n }
+--   { kind = "word_page", word = string, header_color = "#rrggbb", centre_link = string,
+--     entries = { { poem = <a poem from the caller's poems>, progress_pct = number, chrono_file = "03.html" }, ... } }
+--     -- one word-cloud word's page (Issue 10-035); the poems are already
+--     -- chosen and ordered by src/generate-word-pages.lua, and carried in
+--     -- the job as the chronological jobs carry theirs (this worker's own
+--     -- copy has the gallery pictures folded in, which draws an image-only
+--     -- post as a picture box)
+-- returns     : { similar = n, different = n, poems = n, chrono_pages = n, text_files = n, word_pages = n }
 local function run_page_workers(num_threads, config, jobs)
     if not has_threading then
         -- Errors, not fallbacks (owner, 2026-09-22): there is no other builder
@@ -1171,6 +1178,28 @@ local function run_page_workers(num_threads, config, jobs)
             end
             -- }}}
 
+            -- The word pages' frame and entry (Issue 10-035).
+            local t_word_page = require('word-page')
+
+            -- {{{ local function build_word_page()
+            -- One word's page: its poems, in the order given, each with its
+            -- file line and entry, inside the word-page frame. The poems come
+            -- in the job, as the caller loaded them (see run_page_workers).
+            local function build_word_page(work)
+                local parts = {}
+                for _, e in ipairs(work.entries) do
+                    local poem = e.poem
+                    local color_data = poem_colors[poem.poem_index]
+                    parts[#parts + 1] = t_word_page.entry(poem,
+                        color_data and color_data.color or "gray", e.progress_pct, e.chrono_file)
+                    parts[#parts + 1] = "\n"
+                end
+                write_file(config.output_dir .. "/wordcloud/" .. t_word_page.file_name(work.word),
+                    t_word_page.page_html(work.word, work.header_color, work.centre_link,
+                        #work.entries, table.concat(parts)))
+            end
+            -- }}}
+
             -- {{{ local function build_poem_pages()
             -- One poem's similar and different pages, and their text exports
             -- when exports are on (config.lua pagination.generate_txt_exports,
@@ -1222,7 +1251,7 @@ local function run_page_workers(num_threads, config, jobs)
             -- }}}
 
             -- ask for a job, do it, report it, until told to stop
-            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0 }
+            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0, word_pages = 0 }
             while true do
                 request_channel:push({ type = "get_work", worker_id = tid })
                 local work = response_channel:pop()
@@ -1237,13 +1266,16 @@ local function run_page_workers(num_threads, config, jobs)
                 elseif work.type == "chrono_page" then
                     build_chrono_page(work)
                     counts.chrono_pages = counts.chrono_pages + 1
+                elseif work.type == "word_page" then
+                    build_word_page(work)
+                    counts.word_pages = counts.word_pages + 1
                 else
                     error("unknown job type: " .. tostring(work.type))
                 end
                 -- }}}
                 request_channel:push({ type = "done", worker_id = tid })
             end
-            return counts.similar, counts.different, counts.poems, counts.chrono_pages, counts.text_files
+            return counts.similar, counts.different, counts.poems, counts.chrono_pages, counts.text_files, counts.word_pages
         end)
         threads[thread_id] = thread_func(config, thread_id, work_request_channel, work_response_channels[thread_id])
     end
@@ -1277,6 +1309,14 @@ local function run_page_workers(num_threads, config, jobs)
                         page_num = job.page_num,
                         total_pages = job.total_pages,
                         total_poems = job.total_poems,
+                        entries = job.entries,
+                    })
+                elseif job.kind == "word_page" then
+                    work_response_channels[worker_id]:push({
+                        type = "word_page",
+                        word = job.word,
+                        header_color = job.header_color,
+                        centre_link = job.centre_link,
                         entries = job.entries,
                     })
                 else
@@ -1322,7 +1362,7 @@ local function run_page_workers(num_threads, config, jobs)
         num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
     -- {{{ collect each worker's counts; one that did not finish stops the run
-    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0 }
+    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0, word_pages = 0 }
     for tid, thread in pairs(threads) do
         local status, worker_err = thread:wait()
         if status ~= "completed" then
@@ -1331,15 +1371,36 @@ local function run_page_workers(num_threads, config, jobs)
                 tid, tostring(status), tostring(worker_err)))
             os.exit(1)
         end
-        local sim, diff, poems, chrono, texts = thread:get()
+        local sim, diff, poems, chrono, texts, words = thread:get()
         totals.similar = totals.similar + sim
         totals.different = totals.different + diff
         totals.poems = totals.poems + poems
         totals.chrono_pages = totals.chrono_pages + chrono
         totals.text_files = totals.text_files + texts
+        totals.word_pages = totals.word_pages + words
     end
     -- }}}
     return totals
+end
+-- }}}
+
+-- {{{ function M.generate_word_pages_on_workers
+-- Draws the word-cloud word pages on the page workers (Issue 10-035).
+-- jobs        : list of { word, header_color, centre_link, entries } as
+--               run_page_workers takes for kind "word_page" (kind is set here)
+-- output_dir  : the site folder; pages go to output_dir/wordcloud/
+-- num_threads : worker threads, 1 or more
+-- returns     : the number of pages written
+function M.generate_word_pages_on_workers(jobs, output_dir, num_threads)
+    if type(num_threads) ~= "number" or num_threads < 1 then
+        error("generate_word_pages_on_workers: num_threads must be 1 or more (got " .. tostring(num_threads) .. ")")
+    end
+    for _, job in ipairs(jobs) do job.kind = "word_page" end
+    local totals = run_page_workers(num_threads, worker_config(output_dir), jobs)
+    if totals.word_pages ~= #jobs then
+        error(string.format("word pages: %d asked for, %d written", #jobs, totals.word_pages))
+    end
+    return totals.word_pages
 end
 -- }}}
 

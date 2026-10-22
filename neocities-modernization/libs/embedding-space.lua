@@ -122,6 +122,54 @@ function M.centered(vec, mean)
 end
 -- }}}
 
+-- {{{ function M.centre_once
+-- One vector prepared for many comparisons: centred on its population's
+-- average, with the sum of its squared parts. cosine_centred then compares
+-- two prepared vectors with the same arithmetic, in the same order, as
+-- cosine_across_populations, so the score is the same to the last bit -- the
+-- subtraction is just not repeated for every comparison (Issue 10-035: the
+-- word pages re-centred all 8,622 poem vectors for each of 200 words).
+-- vec, mean: Lua arrays of numbers, same length (a mismatch is an error: two
+-- models' vectors mixed).
+-- returns: { v = <centred array>, sq = <number, sum of squares> }
+function M.centre_once(vec, mean)
+    if not mean then
+        error("centre_once: the population average is required")
+    end
+    if #vec ~= #mean then
+        error(string.format("centre_once: dimension mismatch (vector %d, average %d) -- two models' vectors mixed",
+            #vec, #mean))
+    end
+    local v, sq = {}, 0
+    for j = 1, #vec do
+        local x = vec[j] - mean[j]
+        v[j] = x
+        sq = sq + x * x
+    end
+    return { v = v, sq = sq }
+end
+-- }}}
+
+-- {{{ function M.cosine_centred
+-- The cosine of two vectors prepared by centre_once; equal to
+-- cosine_across_populations on the raw vectors and their averages.
+-- 0 when either has no direction left (it equalled its average).
+function M.cosine_centred(a, b)
+    local av, bv = a.v, b.v
+    if #av ~= #bv then
+        error(string.format("cosine_centred: dimension mismatch (%d, %d)", #av, #bv))
+    end
+    local dot = 0
+    for j = 1, #av do
+        dot = dot + av[j] * bv[j]
+    end
+    if a.sq == 0 or b.sq == 0 then
+        return 0
+    end
+    return dot / (math.sqrt(a.sq) * math.sqrt(b.sq))
+end
+-- }}}
+
 -- {{{ function M.cosine_across_populations
 -- Cosine similarity between a vector from one population of text and a vector
 -- from another, each first centred on the average of ITS OWN population.

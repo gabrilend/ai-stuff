@@ -1,0 +1,8 @@
+29%  dkjson.lua:scanvalue
+14%  embedding-space.lua:cosine_centred
+11%  generate-word-pages.lua:cosine_similarity
+ 9%  dkjson.lua:str2num
+ 8%  dkjson.lua:scanwhite
+ 7%  generate-word-pages.lua:326
+ 5%  generate-word-pages.lua:343
+ 5%  dkjson.lua:replace

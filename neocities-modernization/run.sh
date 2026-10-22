@@ -2297,6 +2297,9 @@ run_generate_wordcloud() {
     local wordcloud_words_arg="--words $WORDCLOUD_WORDS"
     local wordcloud_poems_arg="--poems-per-page $WORDCLOUD_POEMS"
     local chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
+    # Issue 10-035: the word pages are drawn by the page workers, as many as
+    # the build's one thread count.
+    local word_threads_arg="--threads $THREADS"
 
     # The dry-run check comes BEFORE the clear below, and that ordering is a bug
     # fix, not a style choice: it used to come after, so --dry-run DELETED every
@@ -2306,7 +2309,7 @@ run_generate_wordcloud() {
     if $DRY_RUN; then
         log_dry_run "rm $OUTPUT_DIR/wordcloud/*.html (clear stale per-word pages)"
         log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG"
         return 0
     fi
 
@@ -2344,7 +2347,7 @@ run_generate_wordcloud() {
     }
 
     log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG || {
         echo "Error: Word similarity page generation failed" >&2
         exit 1
     }
