@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-21 21:21:37
+Generated on: 2026-10-21 21:31:38
 Models: claude-opus-5-5
 
 ## Contents
@@ -38,6 +38,10 @@ Models: claude-opus-5-5
    its next rebuild; notes are now numbered by date and everything is committed.
    Next: decide whether a poem's global number is assigned once and kept
    forever, or recomputed every run.
+9. 2026-10-21 21:24, after Request 13 - Goal: one shared way to draw every page
+   on the site. The old one-thread builder is gone, and word pages now use the
+   shared drawer. Next: decide whether word pages should become worker jobs too,
+   then plan numbering poems fresh each run.
 
 --------------------------------------------------------------------------------
 
@@ -2791,6 +2795,116 @@ Next on my list is the plan for numbering poems fresh each run. Your earlier
 question belongs there: should a link point to "the Nth poem on that page"? What
 do you expect such a link to land on after new poems are added in the middle of
 the timeline?
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+> Open question: the word pages are still built one word after another on a
+> single thread, outside the worker pool (200 words a build). Should they become
+> a third kind of worker job, beside "a poem's pages" and "a chronological
+> page", so every page on the site comes from one
+  pipeline?
+
+give me a report on this.
+
+> Next on my list is the plan for numbering poems fresh each run. Your earlier
+> question belongs there: should a link point to "the Nth poem on that page"?
+> What do you expect such a link to land on after new poems are added in the
+> middle of the timeline?
+
+let's work on this next. How about, if the specified poem ID doesn't exist on
+that page, we take them to the top of the page?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+> Now measuring the word-page stage for the report.
+
+> Measurements are in. Now writing the numbering plan into the issue (8-019):
+> your answer (option B), and how links behave under it.
+
+> Two note names each appear twice. Checking why before writing the plan,
+> because the plan names anchors after these names.
+
+> The same note was extracted twice: identical text, one file on disk. Looking
+> for the second path.
+
+> Adding the word-page measurements to the open question in issue 8-058, then
+> committing.
+
+*[commit] af821ed26 in ai-stuff - neocities: plan for numbering poems fresh each run, and measurements for the word-page question*
+
+## Word pages: should they become worker jobs?
+
+I timed the word-page step on its own (EmbeddingGemma 2, 8,622 poems, one
+thread): 200 words take **32 s**.
+
+| part | time | what it is |
+|---|---|---|
+| loading | ~13 s, once | reading the 129 MB file of poem vectors, the two averages, the timeline |
+| ranking | ~0.08 s per word | comparing all 8,622 poems to the word |
+| drawing | ~0.013 s per word | drawing its 50 poems and writing the file |
+
+Drawing is the small part. Most of the time goes to loading and ranking. The
+ranking subtracts the average from every poem's vector again for every word, so
+the same work is redone 200 times.
+
+Options, most useful first:
+1. **Do the subtraction once.** Subtract the average from each poem's vector and
+   measure its length one time. Each word then needs only one multiply-and-add
+   pass per poem. This needs no threads and removes most of the ~18 s of
+   per-word work.
+2. **Rank all the words at once on the GPU.** Every word against every poem is
+   one big table multiplication. That is the same shape as the step that already
+   runs on the GPU, and your rule says batch work belongs there.
+3. **Worker jobs where the main program ranks and workers draw.** It makes one
+   pipeline in name, but it only moves the 0.013 s per page.
+4. **Worker jobs that also rank.** Every worker then needs every poem's vector.
+   Reading the large file in each worker repeats the 13 s load per thread, the
+   same bandwidth problem as before. The 14 MB compact copy of the vectors that
+   the GPU step already writes would avoid that.
+
+What would "one pipeline" mean to you: every page passing through the same
+worker queue, or every batch job running in parallel? Option 3 gives the first,
+options 1 and 2 give the second.
+
+## Numbering fresh each run: plan written (issue 8-019)
+
+Your top-of-page rule works with no code, as long as anchors are named after
+something that doesn't move. If a page has no anchor matching the link, the
+browser already shows the top of the page.
+
+The catch is with numbered anchors like `#poem-1551`. The numbers are counted by
+date and the pages are cut by date, so poem 1551 is always on page 02. After new
+poems are added, an old link still finds a `#poem-1551` on page 02, but it's a
+different poem. The top-of-page case would never happen. So the plan:
+- **Anchors and caches use the source name**, like `#fediverse-2339`. An old
+  link either lands on its poem, or, if the poem was pushed to the next page,
+  lands at the top of the page. That is your rule.
+- **The number is counted fresh each run** (date, then source name), and nothing
+  on disk is keyed by it. The cache of poem vectors stores each vector under the
+  source name, plus a fingerprint of the text it was made from, so a vector
+  can't attach to the wrong poem again.
+
+**Found while planning:** two notes, `harambe-conspiracy` and
+`planes-and-trains-and-tanks`, are in the notes folder twice. The copies are
+byte-identical, one at the top and one under `reddit-comments/`. The site shows
+both, under the same name, because the name leaves out the subfolder. The plan
+names notes by their path inside the folder.
+
+**Two questions before I build it:**
+1. Those two duplicate notes: show both, show one (which folder wins?), or have
+   the extraction refuse identical copies so you tidy the folder by hand?
+2. The similar and different page addresses are numbered too
+   (`similar/1551-01.html`). After additions, a bookmarked address shows a
+   different poem's list, and unlike an anchor it has no top-of-page to fall
+   back to. Name these pages by source name as well
+   (`similar/fediverse-2339-01.html`, longer for notes), or accept that these
+   addresses move?
+
+Committed as af821ed26.
 
 --------------------------------------------------------------------------------
 

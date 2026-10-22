@@ -2,26 +2,68 @@
 
 ## Current Behavior
 
-Word similarity pages are generated sequentially:
-```
-Generating word page 7135/7135: particularly
-```
+The word pages (one per word-cloud word, 200 a build) are built by
+`src/generate-word-pages.lua` in one thread, one word after another. Each
+poem on them is drawn by the shared drawer (`src/poem-entry.lua`, Issue
+8-058), and the same data draws the same pages on every run.
 
-Each word page requires:
-1. Cosine similarity calculation: word_embedding × 8,275 poem_embeddings
-2. Sorting 8,275 candidates by similarity
-3. Balanced color selection (optional, from top 350 candidates)
-4. HTML generation
-
-With 7,135 words, this means ~59 million similarity calculations done sequentially.
+Measured 2026-10-21 (EmbeddingGemma 2, 8,622 poems, 200 words, 50 poems a
+page): 32 s.
+- ~13 s loading, once: the 129 MB poem-vector file, the two averages, the
+  timeline.
+- ~0.08 s per word ranking: every poem against the word, each poem vector
+  re-centred on the poem average for every word (the same subtraction done
+  200 times).
+- ~0.013 s per word drawing 50 poems and writing the page.
 
 ## Intended Behavior
 
-Parallel word page generation using orchestrator pattern (like Issue 10-034):
-- Expected speedup: 4-8× with multiple threads
-- Memory-efficient: workers share nothing except small work slices
+Owner, 2026-10-22, choosing three of the four options in 8-058:
+"let's do these three", and on what one pipeline means: "we want both. If
+the other 'worker queue' implementations aren't running in parallel, then we
+need to update them to do so." So: every page passes through the one worker
+queue, and the batch work runs in parallel.
 
-## Key Difference from Poem Page Parallelization
+1. **Centre once.** Every poem vector is centred on the poem average and its
+   length taken once per run; every word is centred on the word average once.
+   A word's score against a poem is then one dot product divided by the two
+   lengths -- the same number `cosine_across_populations` gives, without
+   repeating the subtraction for every word.
+2. **Rank every word at once on the GPU.** All words against all poems is one
+   rectangular table of dot products (words x poems), a new compute shader
+   beside the all-pairs similarity shader in `libs/vulkan-compute/`. The
+   build ranks on the GPU; the CPU version of step 1 stays in a test as the
+   reference the GPU's numbers are checked against (not a second runtime
+   path).
+3. **Word pages are worker jobs.** The main program ranks, picks each page's
+   poems, spreads the colours and finds the centre poem, then hands out one
+   job per word: the word, its colour, the centre link, and the page's poems
+   in order (numbers, timeline progress, chronological page). The page
+   workers (`run_page_workers` in `src/flat-html-generator.lua`) draw and
+   write them, beside "a poem's pages" and "a chronological page"; the page
+   shell moves to `src/word-page.lua` so a worker can load it.
+
+## Suggested Implementation Steps
+
+1. Step 1 (centre once), in `generate_word_html`; render 60 word pages
+   before and after (`scripts/render-page-sample --words 60
+   --poems-per-word-page 50 --copy-pictures`) and compare; differences only
+   where two scores were within rounding of each other.
+2. Step 3: `src/word-page.lua` (page shell, one entry), a `word_page` job in
+   the worker pool, a thread count for the word-page step (`--threads`,
+   passed by `run.sh` stage 10 and by the render tool). Byte-identical to
+   step 1's pages.
+3. Step 2: shader `similarity_cross.comp`, a C entry point and a Lua binding
+   that take two sets of centred, unit-length vectors and return the table of
+   dot products; the word-page step ranks from it. A test compares the GPU's
+   table with the CPU reference to within half-precision rounding.
+4. Tests: the order test (`src/generate-word-pages.order.test.lua`) still
+   passes; a new test for the centred score against
+   `cosine_across_populations`; the pool test for a `word_page` job.
+
+## Earlier analysis (2026, before the owner's decision of 2026-10-22)
+
+### Key Difference from Poem Page Parallelization
 
 **Poem pages** (Issue 10-034):
 - Work slice = 80KB (pre-computed ranking for one poem)
@@ -119,10 +161,9 @@ Could create `word_similarity_cache.json`:
 ## Related Documents
 
 - Issue 10-034: Lazy loading orchestrator for parallel HTML (completed)
+- Issue 8-058: one page drawer, one worker queue (the word pages joined the drawer 2026-10-21)
+- Issue 10-074: every batch step runs in parallel (this is its step 1)
 - `src/generate-word-pages.lua`: Current sequential implementation
 - `src/flat-html-generator.lua:3162-4231`: Orchestrator pattern reference
 
-## Status
-
-**OPEN** - Ready for implementation
 

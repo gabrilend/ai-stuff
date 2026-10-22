@@ -89,26 +89,44 @@ and pictures together, in one fixed order (date, then source name to break a
 tie) and counts 1..N. Nothing stored on disk is keyed by the number; it is
 worked out again each run from what is stored.
 
-### What identifies an item: its source name
+### What identifies an item: its source key (owner: "Say what index it is, and what table it's from")
 
-The source name (the provenance index above) is what every cache, link and
-anchor that must survive a run is keyed by:
-- a post: `fediverse/2339`, `messages/618`, `bluesky/<id>`;
-- a note: `notes/` plus its path inside the notes folder, subfolder
-  included: `notes/reddit-comments/harambe-conspiracy`. The file name alone
-  is not unique: 2 of the 35 notes in `reddit-comments/` are byte-identical
-  copies of notes at the top of the folder (`harambe-conspiracy`,
-  `planes-and-trains-and-tanks`), so today two poems show the same name;
-- a picture: its source and path, `my-art/<path>`.
-Two items with one source name stop the extraction with both paths named.
+Today every source's own number (the `id` field, shown as `fediverse/2339`)
+is a **position in a list**, not an id the item carries, so it shifts when an
+earlier item is removed (a deleted post, an excluded message, an older note
+added):
+
+| source | table it comes from | today's number | the item's own id (stable) |
+|---|---|---|---|
+| fediverse post | `outbox.json` (Mastodon export), `orderedItems` | position in `orderedItems` (`scripts/extract-fediverse.lua`) | the status id, the last part of `object.id` (`…/statuses/115694838355975221`) |
+| fediverse boost | `outbox.json`, `orderedItems` (type `Announce`) | a separate boost counter | the status id in the activity's own `id` |
+| message | `export.json` (Element "Messages to yourself" export), `messages` | position in `messages` (`scripts/extract-messages.lua`) | the Matrix `event_id` (`$jKjJakTOHqT-…`) |
+| bluesky post | `repo-*.car` (Bluesky repository archive), `app.bsky.feed.post` records | rank after sorting by `createdAt` (`scripts/extract-bluesky-data`) | the record's `createdAt` time (the record key needs the archive's tree walk, which the extractor does not do) |
+| note | the notes folder (`~/notes`, copied to `input/notes`) | rank by file date (`scripts/extract-notes.lua`) | its path inside the folder: `reddit-comments/harambe-conspiracy` |
+| picture | the picture sources in config.lua (`my-art`, `poem-pictures`, …) | -- | its source name and path inside that source |
+
+The **source key** is the table plus that stable id, written
+`<source>:<id>`: `fediverse:115694838355975221`,
+`messages:$jKjJakTOHqT-…`, `notes:reddit-comments/harambe-conspiracy`.
+Every cache, page address and anchor is keyed by it. The position number
+stays as a readable label where the site shows one, named for what it is
+("item 2339 of the fediverse outbox").
+
+Two items with one source key stop the extraction with both named. The one
+case on 2026-10-21, two notes in the folder twice (the same bytes and the
+same date at the top and under `reddit-comments/`), was settled by the owner
+("if they're reddit comments, then we should delete the note version and
+leave the reddit-comments version"); the top-level copies of
+`harambe-conspiracy` and `planes-and-trains-and-tanks` were deleted from
+`~/notes` and `input/notes`.
 
 ### Links when the numbers move (owner, 2026-10-21)
 
 > if the specified poem ID doesn't exist on that page, we take them to the
 > top of the page?
 
-Anchors are named by source name, not by number:
-`chronological/02.html#fediverse-2339`. A link written before poems were
+Anchors are named by source key, not by number:
+`chronological/02.html#fediverse-115694838355975221`. A link written before poems were
 added then does one of two things, with no code on the page:
 - the poem is still on page 02: the browser lands on it;
 - the additions pushed it onto page 03: page 02 has no such anchor, and a
@@ -119,16 +137,24 @@ with numbers counted by date and pages cut by date, poem 1551 is always on
 page 02, so after additions the old link lands on a different poem without
 any sign. Numbered anchors go.
 
-An anchor id is the source name with `/` and every character outside
+An anchor id is the source key with `:`, `/` and every character outside
 letters, digits, `-`, `_` and `.` written as `-` (six note names hold `?`,
-`=`, `’` or spaces). Two items whose ids come out the same stop the build.
+`=`, `’` or spaces; message ids hold `$`). Two items whose ids come out the
+same stop the build.
+
+**Similar and different pages are named by source key too** (owner,
+2026-10-21: "we will have to name these pages by source name as well"):
+`similar/fediverse-115694838355975221-01.html`. A bookmarked address then
+keeps showing its own poem's list, or, when the poem is gone, no page at
+all.
 
 ### Suggested Implementation Steps
 
-1. **Source names unique and stable.** `scripts/extract-notes.lua` gives a
-   note its path inside the notes folder as its source name; the extraction
-   stops on two items with one name. The open question below decides the two
-   duplicate notes.
+1. **Source keys unique and stable.** Each extractor records its item's
+   stable id from the table above (`scripts/extract-fediverse.lua`: status
+   id; `extract-messages.lua`: event id; `extract-bluesky-data`: createdAt;
+   `extract-notes.lua`: path inside the folder) as the item's source key;
+   extraction stops on two items with one key.
 2. **One counting step.** After extraction, sort every item (poems and
    gallery pictures) by date, then source name, and number 1..N. Pictures
    then sit among the poems by date (Issue 9-013), and the gallery index is
@@ -140,25 +166,20 @@ letters, digits, `-`, `_` and `.` written as `-` (six note names hold `?`,
    match. The similarity rankings and the diversity walk store source names
    (or are rebuilt each run from the vectors); the page builder turns them
    into this run's numbers with one table, source name to number.
-4. **Anchors by source name** on the chronological pages, and every link to
-   them (`ranked-page`, word pages, word cloud, source browser).
+4. **Anchors and page addresses by source key**: the chronological pages'
+   anchors, the similar and different page file names, and every link to
+   them (`ranked-page`, word pages, word cloud, source browser, the
+   storage measure that counts page files).
 5. **A check** (test and pre-flight): every vector's fingerprint matches its
    item's text, and every anchor id is unique.
 6. **Re-embed once** under the new keys (the next `--force` build).
 
 ### Open questions (for the owner)
 
-- **The two duplicate notes.** `harambe-conspiracy` and
-  `planes-and-trains-and-tanks` are each in the notes folder twice, the same
-  bytes at the top and under `reddit-comments/`. Show both, show one (which
-  folder wins?), or should the extraction refuse identical copies so the
-  notes folder gets tidied by hand?
-- **Similar and different page addresses** are numbered too
-  (`similar/1551-01.html`). Counted fresh, a bookmarked address shows a
-  different poem's list after additions, and unlike an anchor it cannot fall
-  back to the top of a page. Name these pages by source name as well
-  (`similar/fediverse-2339-01.html`; note names make long addresses), or
-  accept that these addresses move?
+- Bluesky posts carry no id the extractor reads; the plan keys them by their
+  `createdAt` time. Good enough (two posts in the same millisecond would
+  stop the extraction), or should the extractor learn to read each record's
+  key from the archive?
 
 ## Original issue (2025-12-25)
 
