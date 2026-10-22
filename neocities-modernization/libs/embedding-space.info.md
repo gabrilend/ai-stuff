@@ -111,7 +111,7 @@ opened and found plausible.
 |---|---|---|
 | 7 — similarity matrix | `libs/vulkan-compute/lua/vk_similarity.lua` | centered when packing the flat GPU buffer; everything downstream inherits it |
 | 8 — diversity cache | `scripts/precompute-diversity-sequences-gpu` | centered before FP32→FP16 conversion |
-| 10 — word pages | `src/generate-word-pages.lua` | centered per comparison |
+| 10 — word pages | `src/generate-word-pages.lua` | centered once per run (`centre_once`); scored on the GPU (`vk_cross`), the shortlist re-scored exactly (`cosine_centred`) |
 
 Safe to feed the shaders centered vectors: `similarity_full.comp` computes both
 norms itself rather than assuming unit length.

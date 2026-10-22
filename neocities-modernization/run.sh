@@ -2287,6 +2287,15 @@ run_generate_wordcloud() {
     # against an empty directory. See require_embeddings_for_model.
     require_embeddings_for_model "stage 10 (generate-wordcloud)"
 
+    # Issue 10-035: the word pages rank every word against every poem on the
+    # GPU, with the cross-similarity shader. Missing, it is a hard error, as
+    # for stages 7 and 8.
+    if [ ! -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ] || [ ! -f "$DIR/libs/vulkan-compute/build/similarity_cross.spv" ]; then
+        echo "Error: GPU library or shader not found: libs/vulkan-compute/build/ (libvkcompute.so, similarity_cross.spv)" >&2
+        echo "Build it: cd libs/vulkan-compute && make" >&2
+        exit 1
+    fi
+
     # Word-cloud arguments. WORDCLOUD_WORDS is a number or "all"; --words carries
     # either ("--words all" == every word, per the generators).
     # Issue 10-065: all three passed unconditionally. The chrono_per_page one is

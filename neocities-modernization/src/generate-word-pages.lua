@@ -139,7 +139,7 @@ end
 local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
       CLI_MODEL, CLI_SERVER, CLI_THREADS = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
-package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
@@ -361,6 +361,33 @@ local function more_similar_first(a, b)
         return a.word_similarity > b.word_similarity
     end
     return a.poem.poem_index < b.poem.poem_index
+end
+-- }}}
+
+-- {{{ local function shortlist
+-- Which poems to score exactly for one word, from the GPU's single-precision
+-- scores (Issue 10-035). Keeps every poem whose GPU score is within MARGIN
+-- of the keep-th best GPU score. A GPU score differs from the exact one by
+-- about a millionth (libs/vk-cross.test.lua), far less than half the margin,
+-- so every poem that belongs in the exact top `keep` -- ties included -- is
+-- kept, and the page is the same as scoring every poem exactly.
+-- score_of(r) : the GPU score of candidate r, r = 1..count
+-- returns     : list of candidate numbers r, ascending
+local SHORTLIST_MARGIN = 1e-4
+local function shortlist(score_of, count, keep)
+    local rows = {}
+    if keep >= count then
+        for r = 1, count do rows[r] = r end
+        return rows
+    end
+    local sorted = {}
+    for r = 1, count do sorted[r] = score_of(r) end
+    table.sort(sorted)                                   -- ascending
+    local threshold = sorted[count - keep + 1] - SHORTLIST_MARGIN
+    for r = 1, count do
+        if score_of(r) >= threshold then rows[#rows + 1] = r end
+    end
+    return rows
 end
 -- }}}
 
@@ -806,6 +833,7 @@ end
 M.ordered_keys = ordered_keys
 M.more_similar_first = more_similar_first
 M.spread_colors_across_page = spread_colors_across_page
+M.shortlist = shortlist
 
 -- {{{ function M.generate_word_embeddings
 -- Issue 8-043b: Stage 6 - Generate word embeddings only (expensive operation)
@@ -1104,6 +1132,34 @@ function M.generate_word_html(options)
     -- heading colour, the centre link) and drawn by the page workers, the
     -- same pool that draws every other page (Issue 10-035).
     local jobs = {}
+
+    -- {{{ every word against every poem, at once, on the GPU (Issue 10-035)
+    -- Each word centred on the word average once; the GPU scores all words
+    -- against all prepared poems in one dispatch. Each word then scores
+    -- only its shortlist exactly (see shortlist).
+    local prepared_words = {}
+    for i, word in ipairs(words) do
+        local word_embedding = word_embeddings[word]
+        if not word_embedding then
+            -- The word list and the word embeddings come from the same
+            -- settings (--words, the stop list); a word without a vector means
+            -- the embeddings were made for a different list. Stop rather than
+            -- ship a word cloud whose words lead nowhere (it used to warn and
+            -- skip the word).
+            error(string.format("word page: no embedding for word '%s'; rerun the word-cloud stage (--embeddings-only) with the same --words", word))
+        end
+        prepared_words[i] = embedding_space.centre_once(word_embedding, word_mean)
+    end
+    local gpu_score
+    do
+        local a, b = {}, {}
+        for i, w in ipairs(prepared_words) do a[i] = w.v end
+        for r, row in ipairs(prepared_poems) do b[r] = row.prepared.v end
+        gpu_score = require("vk_cross").cosine_table(DIR, a, b)
+        utils.log_info(string.format("Scored %d words against %d poems on the GPU", #a, #b))
+    end
+    -- }}}
+
     for i, word in ipairs(words) do
         -- Issue 10-065: update OUTSIDE the has-an-embedding test below, so the
         -- bar tracks position in the word list rather than only the words that
@@ -1122,18 +1178,20 @@ function M.generate_word_html(options)
             progress.update("   🔤 Word pages", i, #words, word)
         end
 
-        local word_embedding = word_embeddings[word]
-        if word_embedding then
+        do
 
             -- Rank every poem against the word, each centred on its own
             -- population's average so neither kind of text's habitual offset
-            -- can outvote the meaning. The poems were centred once, above;
-            -- the word is centred here, once.
-            local word_prepared = embedding_space.centre_once(word_embedding, word_mean)
+            -- can outvote the meaning. Both were centred once, above; the
+            -- GPU's scores pick the shortlist, scored here exactly.
+            local word_prepared = prepared_words[i]
             local candidates = {}
-            for r, row in ipairs(prepared_poems) do
+            local rows = shortlist(function(r) return gpu_score(i, r) end,
+                #prepared_poems, CONFIG.poems_per_word_page)
+            for k, r in ipairs(rows) do
+                local row = prepared_poems[r]
                 local word_sim = embedding_space.cosine_centred(word_prepared, row.prepared)
-                candidates[r] = {
+                candidates[k] = {
                     poem = row.poem,
                     embedding = row.embedding,
                     word_similarity = word_sim,
@@ -1214,12 +1272,6 @@ function M.generate_word_html(options)
                 centre_link = chrono_center_link,
                 entries = entries,
             }
-        else
-            -- The word list and the word embeddings come from the same settings
-            -- (--words, the stop list); a word without a vector means the
-            -- embeddings were made for a different list. Stop rather than ship
-            -- a word cloud whose words lead nowhere (it used to warn and skip).
-            error(string.format("word page: no embedding for word '%s'; rerun the word-cloud stage (--embeddings-only) with the same --words", word))
         end
     end
     -- Close the animated line. progress.finish() is a no-op in verbose and quiet

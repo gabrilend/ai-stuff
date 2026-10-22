@@ -112,5 +112,35 @@ do
 end
 -- }}}
 
+-- {{{ the GPU shortlist keeps every poem of the exact top list (Issue 10-035)
+do
+    -- exact scores with ties, and "GPU" scores off by up to a millionth
+    local exact, gpu = {}, {}
+    local x = 99
+    for r = 1, 500 do
+        x = (x * 1103515245 + 12345) % 2147483648
+        exact[r] = math.floor((x / 2147483648) * 200) / 200     -- many exact ties
+        x = (x * 1103515245 + 12345) % 2147483648
+        gpu[r] = exact[r] + ((x / 2147483648) - 0.5) * 2e-6
+    end
+    local keep = 50
+    local rows = W.shortlist(function(r) return gpu[r] end, #exact, keep)
+    local in_list = {}
+    for _, r in ipairs(rows) do in_list[r] = true end
+    -- the exact top 50, ties by number
+    local order = {}
+    for r = 1, #exact do order[r] = r end
+    table.sort(order, function(p, q)
+        if exact[p] ~= exact[q] then return exact[p] > exact[q] end
+        return p < q
+    end)
+    local missing = 0
+    for k = 1, keep do if not in_list[order[k]] then missing = missing + 1 end end
+    check("the shortlist holds all of the exact top 50", missing == 0, missing .. " missing")
+    check("the shortlist is short (not every poem)", #rows < #exact, #rows .. " of " .. #exact)
+    check("asking for more than there are keeps them all", #W.shortlist(function(r) return gpu[r] end, 10, 50) == 10)
+end
+-- }}}
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

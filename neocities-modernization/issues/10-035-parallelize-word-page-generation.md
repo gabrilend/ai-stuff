@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-**Steps 1 and 3 built (2026-10-22); step 2 (GPU) to do.**
+**All three steps built (2026-10-22).** One open question below.
 - Centre once: `embedding-space.centre_once` / `cosine_centred`; the poems
   are prepared once per run, each word once. The centre-poem search keeps
   each poem's length too, and walks the poems in an order worked out once
@@ -17,14 +17,26 @@
   differently (see the open question). `--threads` added, passed by
   `run.sh` stage 10 and `scripts/render-page-sample`. 200 pages
   byte-identical; 60 sample word pages identical to the last render.
+- GPU ranking: `libs/vulkan-compute/lua/vk_cross.lua` runs
+  `shaders/similarity_cross.comp`, every word against every poem in one
+  dispatch (200 x 8,622 scores). Each word keeps a shortlist -- every poem
+  within 0.0001 of its 50th-best GPU score (`shortlist`) -- and scores only
+  those exactly on the CPU. The GPU's single-precision scores differ from the
+  exact ones by about a millionth, so the shortlist always holds the exact
+  top list, ties included: 200 pages byte-identical. `run.sh` stage 10 now
+  checks for the GPU library and shader, as stages 7 and 8 do.
 - Three quiet fallbacks became errors: a word with no recorded colour (grey
   heading), a page with no centre poem (link to the top of the timeline), a
   word with no vector (page skipped with a warning). None fired on 200 words.
-- Time for 200 words: 32 s → 22 s. Left: ~13 s reading the 129 MB vector
-  file once, ~4 s ranking, 2 s drawing on 4 workers.
+- Time for 200 words: 32 s → 18 s. Left: ~13 s reading the 129 MB vector
+  file (the JSON reader), well under a second on the GPU, 2 s drawing on 4
+  workers. Reading the vectors from a binary file would cut the 13 s; the
+  half-precision file the diversity step writes is not exact enough to give
+  the same pages.
 - Tests: `libs/embedding-space.test.lua` (centred score),
-  `src/word-page.test.lua` (module and worker job),
-  `src/generate-word-pages.order.test.lua`.
+  `libs/vk-cross.test.lua` (GPU against CPU), `src/word-page.test.lua`
+  (module and worker job), `src/generate-word-pages.order.test.lua` (order
+  rules and the shortlist).
 
 ### Open question
 - The workers' poem list tags image-only posts (a post that is only a
