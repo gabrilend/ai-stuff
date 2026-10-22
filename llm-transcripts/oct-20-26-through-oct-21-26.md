@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 21:02:44
+Generated on: 2026-10-21 21:09:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -1223,6 +1223,92 @@ the items under "Open work".
 Separately: your prompt history from December 2025 to July 2026 survives only in
 `history.jsonl`, with no backup. Do you want an issue for turning it into "your
 half only" transcripts per project?
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+> 1. Sync script: may I write an issue, then a script in ai-stuff/scripts/ that
+> copies the last committed version of each skill and CLAUDE.md from ~/.claude
+> into the public repository? Re-running it would refresh the copy. You've
+> already chosen to publish CLAUDE.md as it is, and to
+>      point to ai-stuff for the hook scripts rather than copy them.
+
+sure that sounds good. We can attach it to the ai-stuff git pull, so that it's
+always up to date.
+
+>   2. The lodge skill: wait until its session commits it, or publish it now?
+
+let that issue handle it, it's still in progress I think.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+> Writing the sync script now.
+
+> Writing its tests:
+
+> The tests pass, 22 of 22. A dry run against your real skills should also work
+> before GitHub has the repository, so I'm adding that:
+
+> Now a dry run against your real skills, which pushes nothing:
+
+> Before anything is pushed, I'm reading every file that would go out:
+
+> Last, the five reference scripts that ship with the patch skill:
+
+> I read all 27 files, and none needs holding back. Writing the script's
+> companion description, then committing:
+
+*[commit] 40b16dfdc in ai-stuff - A tool keeps a public copy of the skills current*
+
+The publishing tool is built, tested and committed. The public repository
+doesn't exist yet: creating it is the one step you should take yourself.
+
+**What the tool does:**
+- It copies only two things out of `~/.claude`: every skill and CLAUDE.md, each
+  as last committed there. Anything else in that folder, including your login
+  token, prompt history, raw conversations and settings, never goes out.
+- It adds a README listing the skills and pointing to `ai-stuff/scripts` for the
+  tools they call, plus the same AGPL licence `ai-stuff` uses.
+- It pushes only when something changed.
+- It stops the push if any file contains something shaped like a key or token.
+- Its working copy is fresh in RAM on every run.
+
+**Tested:** a scratch stand-in for `~/.claude` and a local stand-in for GitHub.
+All checks pass:
+- a committed skill goes out; an uncommitted edit, the service's own skills and
+  the settings don't;
+- a removed skill disappears from the public copy;
+- a run with nothing new makes no commit;
+- a dry run pushes nothing;
+- a fake key stops the push;
+- a missing repository is never created without your say-so.
+
+**Dry run on your real files:** 27 files would go out: CLAUDE.md, the README,
+the licence, and 13 skills. The lodge skill isn't among them; it will join on
+the first run after its session commits it. I read all 27 before offering them:
+- I found no secrets.
+- One skill names a local-network address, 192.168.0.88, for your image server.
+  That's a home-network address and can't be reached from outside.
+- Another names your private projects, such as double-diaper-dungeon. Those
+  names are already public throughout `ai-stuff`.
+
+**To create the repository and publish, type:**
+```
+! /home/ritz/programming/ai-stuff/scripts/publish-claude-code-utilities --create
+```
+
+**Which git action should run it automatically?** You said attach it to the
+`ai-stuff` pull. A pull brings changes down from GitHub, but your skills change
+here in `~/.claude`, so a pull would almost never find anything new to publish.
+A **push** is when you're sending things out anyway, and `ai-stuff` already has
+a pre-push hook, for the transcript pages, it could sit beside. My suggestion is
+push. Pull, push, or both?
+
+The lock, the transcript-rebuild refusal, and the expiring-permission fix are
+still waiting.
 
 --------------------------------------------------------------------------------
 
