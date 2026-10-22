@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 14:59:43
+Generated on: 2026-10-21 21:02:44
 Models: claude-opus-5-5
 
 ## Contents
@@ -29,6 +29,11 @@ Models: claude-opus-5-5
    "claude-code-utilities" repository for your skills and CLAUDE.md, and nothing
    is published yet. Next, decide whether CLAUDE.md goes public whole, without
    the paragraph about your childhood memories, or held back for now.
+7. 2026-10-21 15:02, after Request 9 - You want your skills and CLAUDE.md
+   published as a public "claude-code-utilities" repository, and they're now
+   committed privately in your Claude settings folder. Next, I need your yes on
+   a script that copies only their committed versions into the public
+   repository.
 
 --------------------------------------------------------------------------------
 
@@ -1163,6 +1168,61 @@ issue for that?
 Before publishing I'll read every file that goes out: the ten skills I haven't
 read in full yet, and CLAUDE.md. Then I'll show you the file list before
 anything is pushed to GitHub.
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+okay where are we at?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 10
+
+The public repository is waiting on your answers to two questions (at the
+bottom). Everything else from this conversation is done and committed, except
+the items under "Open work".
+
+## Done
+- **File locks:** all your answers are written into the lock issue, and the
+  cache tests settled the last two:
+  - the headless commit session runs with the five-minute cache;
+  - it reads the parent conversation cheaply and doesn't keep the server's
+    one-hour copy alive.
+- **The one-hour cache** is set explicitly in your settings.
+- **Moving projects:** the move-project skill is written and installed. The test
+  showed Claude Code writes through a symlinked raw-log folder, so the "leave
+  links behind" step works.
+- **`~/.claude` repository:** every skill and `settings.json` are now tracked. I
+  took over the three older skills (see-in-3d, stethoscope, wait-for-change) and
+  committed them.
+
+## Open work
+- **The lock itself:** still only a plan; none of it is built.
+- **Transcript rebuild:** it should refuse, instead of silently skipping old
+  conversations, when a project has two raw-log folders. Not built.
+- **The permission question that expires after 30 minutes:** three options are
+  waiting for your pick, the strongest being to honour a late answer.
+- **A leftover test symlink** I couldn't remove, because the gate wrongly judges
+  `rm` on a link by where the link points. To remove it:
+  ```
+  ! rm /home/ritz/.claude/projects/-tmp-ai-stuff-scripts-move-test-project
+  ```
+- **The other session's skill work** is still uncommitted: the new lodge skill,
+  plus edits to documentation-site, issue-lifecycle and transcript-care. I
+  haven't touched any of it.
+
+## Waiting on you before I build `claude-code-utilities`
+1. **Sync script:** may I write an issue, then a script in `ai-stuff/scripts/`
+   that copies the last committed version of each skill and CLAUDE.md from
+   `~/.claude` into the public repository? Re-running it would refresh the copy.
+   You've already chosen to publish CLAUDE.md as it is, and to point to
+   `ai-stuff` for the hook scripts rather than copy them.
+2. **The lodge skill:** wait until its session commits it, or publish it now?
+
+Separately: your prompt history from December 2025 to July 2026 survives only in
+`history.jsonl`, with no backup. Do you want an issue for turning it into "your
+half only" transcripts per project?
 
 --------------------------------------------------------------------------------
 

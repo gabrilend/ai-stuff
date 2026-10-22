@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 14:39:38
+Generated on: 2026-10-21 16:15:42
 Models: claude-opus-5-5
 
 ## Contents
@@ -31,6 +31,10 @@ Models: claude-opus-5-5
    reusable lodge pattern, and both updated skill files are drafted and waiting
    to be copied into place. To allow the copy, type ! touch
    /tmp/claude-allow-outside-write.
+7. 2026-10-21 15:20, after Request 23 - We're turning projects into cozy
+   fan-site lodges, and physics-sim's is rebuilt and committed, with gifs the
+   game films itself. Next, I need your answer: why can't the Linode use HTTPS
+   for cloning the source?
 
 --------------------------------------------------------------------------------
 
@@ -1558,6 +1562,278 @@ skill doesn't pick one for you.
 
 Which do you mean? For example: is the worry someone watching the connection, or
 the Linode itself (or whoever runs it) being able to read the code?
+
+--------------------------------------------------------------------------------
+
+### User Request 21
+
+can you remake the physics-sim pages?
+
+touch /tmp/claude-allow-outside-write
+
+done
+
+> "Encrypted" can mean two different things, and they lead to different designs:
+
+um well my understanding is that we can't use HTTPS. But we want to be able to
+git clone. So, what are our options?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 21
+
+> Writing the scene-mode issue first, then the code.
+
+> The scene reader is written. Now wiring it into the game's main program.
+
+> Built with no warnings. Writing the first test scene into RAM: two balls on an
+> empty board, both weakened, heading straight at each other.
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /dev/shm/physics-sim/scenes? [outside-write 0cd38730]
+> - Yes — Allow this one write.
+> - This time — Allow any write inside /dev/shm/physics-sim until this session
+>   ends.
+> - Always — Allow any write inside /dev/shm/physics-sim from now on, for
+>   sessions working in /mnt/mtwo/programming/ai-stuff only.
+> - No — Keep it refused.
+> → **Selected:** This time
+
+> Both balls broke this time (the goodbye reports zero balls left). Looking at
+> the frames to find the moment and the crop.
+
+> The filming script is ready. Recording the first gif, both balls breaking:
+
+> The first gif works: 216 × 372 pixels, 88 KB. The balls approach, meet, and
+> each breaks into wedges, one ball's pieces streaming up and the other's down.
+> Writing the other scenes.
+
+> The second gif works: the green ball bounces off and survives, the magenta one
+> breaks, and all of its pieces fan out downward, away from where it was hit.
+> Now the gentle bump.
+
+The bump is restaged with both balls surviving. Checking how it looks.
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+[Image: original 2232x408, displayed at 2000x366. Multiply coordinates by 1.12
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> The full fall works, but the last 4 seconds are an empty board: the ball
+> crosses the gate around frame 400 and is gone. Re-filming it trimmed to 480
+> frames.
+
+Four mechanics are filmed now. Adding one busy scene for the front door: a row
+of balls from each side meeting on the real board.
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+[Image: original 2232x472, displayed at 2000x423. Multiply coordinates by 1.12
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> Links confirmed. Filling in the notes for the nine new gifs, then rewriting
+> the rooms.
+
+> Built: 5 rooms, 25 links, 7 pictures. Photographing two of the new rooms to
+> check how they look.
+
+> The images aren't showing: each picture is a single dot. Checking the image
+> paths in the built pages.
+
+> The films still stack one above another: two half-width boxes plus the gap
+> between them don't fit on one line. Switching the room to a two-column grid.
+
+> All six scene-mode tests pass. Filing the four page photographs from this
+> round, broken ones included, with their notes.
+
+> Updating the issue files: scene mode is complete, and the lodge issue now
+> describes the fan-site design.
+
+> Adding the scene code's companion page and bumping the file index, then
+> validating and committing.
+
+> The issue checker now reports 79 findings, up from 8. Checking whether my
+> changes caused that.
+
+*[commit] 22e88ff7a - physics-sim: the game films its own moments, and the lodge becomes a fan site*
+
+Both are done, with commits `fa0244c21` (the first lodge) and `22e88ff7a` (this
+round).
+
+## The physics-sim lodge, remade
+
+- **The game can now film itself.** Give it a small scene file and it places
+  exactly the balls described, with their speed and health, ignores the
+  keyboard, saves every frame into RAM, quits by itself, and leaves a goodbye
+  note. The scenes and frames stay in RAM; only the finished gifs are kept in
+  `development-history/`.
+  - **Bug found while building it:** saving each frame is slow, and the game
+    moved balls by the real time between frames, so the first two test balls
+    jumped straight through each other. While filming, each frame now counts as
+    exactly 1/60 of a second.
+  - A new test checks six ways a bad scene is refused before any window opens;
+    all pass.
+- **Nine gifs**, one mechanic each:
+  - both balls breaking on contact;
+  - one surviving while the other's pieces spray away from the hit;
+  - a slow lean that costs nothing;
+  - one ball's long way down through the pegs;
+  - a crowd of balls from both sides meeting.
+  - Failed takes are kept too, as the house rules ask. I deleted one by mistake
+    and re-filmed it for the record.
+- **Five rooms**, no instructions and no ticket numbers: the front door, the
+  floor (four films, two by two, on one screen), the drawing table, the parlour
+  wall, and a story that fits on one screen.
+  - The parlour wall is about real pachinko: its history from the Corinthian
+    bagatelle, the Masamura museum in Nagoya, photographs on Wikimedia Commons,
+    collectors, and the Galton board. I opened each link to check it before
+    using it.
+- **Still missing:** the lodge has no door to the source browser yet, because
+  physics-sim doesn't have one. The front door says the workshop isn't open, and
+  the issue stays open for it.
+
+## Cloning without HTTPS
+
+Before the options: your Linode may already have HTTPS. double-diaper-dungeon's
+publish script protects a `.well-known/` folder on abcd-games.net "because the
+certificate's renewal writes its challenge files there". That's the trace of an
+automatic certificate service, which suggests HTTPS is already set up on that
+machine.
+
+If HTTPS really is out, here are the options, most likely to work first:
+
+1. **Clone over SSH.** SSH encrypts the connection with no certificate needed.
+   Make a read-only `git` account on the Linode that can do nothing except hand
+   out repositories, and a reader runs `git clone
+   ssh://git@host/physics-sim.git`. The catch: SSH normally needs an account or
+   key per person. Anonymous read-only access is possible with a restricted
+   account, but it takes careful setup.
+2. **An encrypted bundle.** `git bundle` packs the whole repository into one
+   file. Encrypt that file (with `age` or GPG), then publish it over plain HTTP
+   or send it by rmail. The reader decrypts it and runs `git clone
+   physics-sim.bundle`. It's simple and matches your rmail fallback, but there's
+   no live updating: each update is a new bundle.
+3. **An encrypted repository over plain HTTP.** A tool called git-remote-gcrypt
+   stores the repository on the server already encrypted. Anyone can download
+   it, only key holders can read it, and normal `git pull` keeps working.
+   Readers need the tool installed and a key.
+4. **A Tor onion address.** The connection is encrypted, and the address itself
+   proves which server you reached, so no certificate is needed. Readers need
+   Tor running.
+
+What's the reason HTTPS is off the table: the Linode setup, cost, or something
+about certificates themselves? Put another way, is it the encryption you can't
+get, or the web server you don't want to run?
+
+Sources: [Pachinko](https://en.wikipedia.org/wiki/Pachinko) · [Masamura
+Pachinko Museum](https://en.wikipedia.org/wiki/Masamura_Pachinko_Museum) ·
+[Vintage Pachinko](https://vintagepachinko.com/aboutpachinkos/) ·
+[PachiTalk](https://www.pachitalk.com/forums/showthread.php?p=339424) ·
+[we-make-money-not-art: the pachinko
+museum](https://we-make-money-not-art.com/?p=3173) · [Nikkei Voice:
+tamakorogashi](https://nikkeivoice.ca/arcade-origins-in-the-japanese-rolling-ball-how-tamakorogashi-shaped-the-world-of-modern-gaming/)
+· [Sea Lion Press: pinballs and shopping
+malls](https://www.sealionpress.co.uk/post/chains-of-consequences-pinballs-and-shopping-malls-the-strangely-prophetic-history-of-pachinko)
+· [Wikimedia Commons:
+Pachinko](https://commons.wikimedia.org/wiki/Category:Pachinko) · [Bean
+machine](https://en.wikipedia.org/wiki/Bean_machine)
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+> - The game can now film itself. Give it a small scene file and it places
+> exactly the balls described, with their speed and health, ignores the
+> keyboard, saves every frame into RAM, quits by itself, and leaves a goodbye
+> note. The scenes and frames stay in RAM; only the finished gifs
+>     are kept in development-history/.
+
+this seems like a tool suitable for the gif-generator, can you look into that?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+Yes, it fits, but only half of it. The scene-file format belongs to physics-sim:
+it knows about balls, owners and boards. The part that turns a program's saved
+frames into a small, cropped, looping gif, filed with notes, is the same job for
+any program, and that half belongs in gif-generator.
+
+## What gif-generator already is
+
+It's a **studio** with its own painters. Today it turns a "score" (a small
+closed vocabulary of 2D strokes) into glowing particles-on-black gifs. It has:
+- its own GIF encoder, `src/004-gif.lua`, with no external library;
+- a seven-colour glow palette;
+- a runner that writes a goodbye note.
+
+Its open issue, *one studio, one canvas, two spaces* (701), is already gathering
+the house's scattered image tools into it. Your words from 1 October in that
+issue: *"I think we should try and coalesce our tooling a bit."* 701 plans:
+- moving delta-version's 3D shape films in as a second painter;
+- bringing their viewer in;
+- a card beside every film carrying its ratings on a five-step scale (701e).
+
+## How the filmer would fit
+
+**Where it goes.** It would be a **third input to the studio: a camera pointed
+at another program**, rather than a painter. The physics-sim filming script
+would be split in two:
+
+| Stays in physics-sim | Moves to gif-generator |
+|---|---|
+| scene mode in the game: read the scene, place the balls, ignore input, step evenly, save frames, quit, goodbye | the camera: check the goodbye is fresh, read the frames, crop, thin, shrink, encode, file the gif and its notes into the *calling project's* history |
+
+**The contract.** Any program can be filmed if it can be given a scene, save its
+frames to a folder, quit after N frames, and write a goodbye. That's your
+existing rule for graphical programs (scripted input, screenshots, the goodbye
+receipt), turned into something a tool can rely on. physics-sim would be the
+first client, and each later game gets the camera for free.
+
+**What it would gain:** films made with the studio's own encoder instead of
+ImageMagick, and a card per film so they can be rated like everything else the
+studio makes (701e).
+
+## Two technical problems
+
+1. **Reading the frames.** The game saves PNG files, and reading PNG needs a
+   decompressor that gif-generator doesn't have. The simplest fix is to have
+   scene mode save frames as PPM: a 15-byte header followed by raw colour bytes,
+   which Lua can read in a dozen lines.
+2. **Colours.** The studio's palette is seven glow hues, made for its own
+   particles. A real game frame has dozens of colours (pegs, gates, ball colours
+   that change every game), so the camera needs a general palette-picker that
+   chooses the best 256 colours per film. That's new work. ImageMagick does it
+   today, and I'd keep using it until the studio has its own.
+
+## Questions before I write an issue for it
+
+1. **Where does a filmed gif live?** You said earlier to store them in the
+   project (physics-sim's history). If the studio also keeps and rates them,
+   they'd have two homes. Should the project hold the gif and the studio only a
+   card pointing at it, or should the studio hold all films?
+2. **ImageMagick or the studio's own encoder from the start?** ImageMagick works
+   today. Doing it the studio's way means writing the palette-picker first.
+3. **Should this join issue 701** as a lettered part, or be its own issue in
+   gif-generator? 701 is about merging painters; this is a new way in.
+
+I haven't changed anything in gif-generator. To start with the first question:
+when a visitor rates the film of two balls breaking, where should that rating
+live — next to the gif in physics-sim, or in the studio?
 
 --------------------------------------------------------------------------------
 
