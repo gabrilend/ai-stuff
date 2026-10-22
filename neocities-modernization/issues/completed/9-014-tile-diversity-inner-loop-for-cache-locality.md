@@ -2,34 +2,33 @@
 
 ## Current Behavior
 
-The GPU diversity-sequence shader processes every iteration by having each
-workgroup scan all candidate poem embeddings in a single strided pass over
-the full embedding table:
+**Built (June 2026; the file was moved to completed on 2026-10-22, when it
+was found still open).** All three levers below are in the stage-8 path:
+- **Half-precision storage**: the wrapper
+  (`scripts/precompute-diversity-sequences-gpu`) writes the centred vectors
+  once as `embeddings_mean-centered-v1_fp16.bin` in the model's folder and
+  uploads it as packed half floats; the shaders load half precision and
+  compute in single precision (the Pascal rule below).
+- **Dispatch per tile**: `shaders/diversity_scan_tile.comp` scans one tile
+  of candidates and keeps a running best per walk in storage buffers;
+  `shaders/diversity_commit_iteration.comp` takes each step's winner. The
+  tile size comes from the L2 size and the vector width
+  (`compute_all_diversity_sequences_batched` in
+  `libs/vulkan-compute/lua/vk_compute.lua`). The older in-shader tile loop
+  (`diversity_full.comp`) stays as the batch shader.
+- **Pipelining**: `vkc_dispatch_async` / `vkc_wait_async_all` in
+  `libs/vulkan-compute/src/vk_compute.c`, two command buffers in flight.
+Commits 0805518d7 (in-shader tiles) and e38847bae (dispatch per tile and
+pipelining). Output is the same walk as before, step for step.
 
-- Embedding table is ~25 MB (8,359 poems × 768 dimensions × 4 bytes)
-- L2 cache on a GTX 1080 Ti is 5.5 MB
-- The table is ~4.5× bigger than the cache, so consecutive reads thrash
-
-Each iteration, all 3,584 workgroups want to read the same embedding
-table. In principle the L2 should help — many workgroups read the same
-poem at the same time — but the GPU does not run all workgroups in
-lockstep. The scheduler issues them as waves limited by SM residency
-(roughly 80-100 concurrent on this hardware), so at any given moment
-some workgroups are early in their scan and others are late. The L2
-ends up juggling multiple "regions" of the table at once, evicting and
-re-fetching, and we see roughly 22% of theoretical memory bandwidth.
-
-Empirically, the first ~25% of a batch run is dominated by memory
-bandwidth; iteration rate then climbs sharply as the mask sparsifies
-and the working set naturally shrinks below cache size. The slow part
-of the run is the part where the table doesn't fit in cache.
-
-Relevant files:
-
-- The GLSL shader for the inner scan and reduction
-- The C wrapper that creates the pipeline and pushes constants
-- The Lua driver that loops over chunks and sizes them adaptively
-- The wrapper script that loads embeddings and kicks off the run
+**What the build still paid, found 2026-10-22.** Stage 8 still took about
+51 minutes a build (`.stage-timings`). The cause was not the memory pattern
+this issue is about: every walk went the full length, 9,265 steps, and the
+wrapper then kept the first 99 (3 pages of 33). The walk now stops at the
+length the pages show (`max_steps`, Issue 10-074): 84 s for all 9,266
+walks, and the first 99 poems of every walk identical to the full-length
+cache. The same change keeps the walk's own poem plus 99 (it kept 99 in all,
+so each poem's last "different" page held 32 poems).
 
 ## Intended Behavior
 
@@ -219,6 +218,8 @@ should account for the halved per-candidate footprint.
 
 ## Related Documents
 
+- Issue 10-074: the walk-length cap (stage 8's remaining cost) and the
+  survey of every build step's parallelism.
 - This optimization came up as part of the stage-8 GPU performance
   investigation, which produced the wall-clock timing fix
   (`socket.gettime` instead of `os.clock`), the shader-internal

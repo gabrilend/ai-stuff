@@ -89,28 +89,36 @@ and pictures together, in one fixed order (date, then source name to break a
 tie) and counts 1..N. Nothing stored on disk is keyed by the number; it is
 worked out again each run from what is stored.
 
-### What identifies an item: its source key (owner: "Say what index it is, and what table it's from")
+### What identifies an item: its source key
 
-Today every source's own number (the `id` field, shown as `fediverse/2339`)
-is a **position in a list**, not an id the item carries, so it shifts when an
-earlier item is removed (a deleted post, an excluded message, an older note
-added):
+Every source's own number (the `id` field, shown as `fediverse/2339`) is a
+position in that source's list, counted 1, 2, 3...:
 
-| source | table it comes from | today's number | the item's own id (stable) |
-|---|---|---|---|
-| fediverse post | `outbox.json` (Mastodon export), `orderedItems` | position in `orderedItems` (`scripts/extract-fediverse.lua`) | the status id, the last part of `object.id` (`…/statuses/115694838355975221`) |
-| fediverse boost | `outbox.json`, `orderedItems` (type `Announce`) | a separate boost counter | the status id in the activity's own `id` |
-| message | `export.json` (Element "Messages to yourself" export), `messages` | position in `messages` (`scripts/extract-messages.lua`) | the Matrix `event_id` (`$jKjJakTOHqT-…`) |
-| bluesky post | `repo-*.car` (Bluesky repository archive), `app.bsky.feed.post` records | rank after sorting by `createdAt` (`scripts/extract-bluesky-data`) | the record's `createdAt` time (the record key needs the archive's tree walk, which the extractor does not do) |
-| note | the notes folder (`~/notes`, copied to `input/notes`) | rank by file date (`scripts/extract-notes.lua`) | its path inside the folder: `reddit-comments/harambe-conspiracy` |
-| picture | the picture sources in config.lua (`my-art`, `poem-pictures`, …) | -- | its source name and path inside that source |
+| source | table it comes from | its number |
+|---|---|---|
+| fediverse post | `outbox.json` (Mastodon export), `orderedItems` | position in that list (`scripts/extract-fediverse.lua`) |
+| fediverse boost | the same list, type `Announce` | a separate count of boosts |
+| message | `export.json` (Element "Messages to yourself" export), `messages` | position in that list (`scripts/extract-messages.lua`) |
+| bluesky post | `repo-*.car` (Bluesky repository archive), post records | rank by `createdAt` (`scripts/extract-bluesky-data`) |
+| note | the notes folder (`~/notes`, copied to `input/notes`) | rank by file date (`scripts/extract-notes.lua`) |
+| picture | the picture sources in config.lua | rank in the gallery |
 
-The **source key** is the table plus that stable id, written
-`<source>:<id>`: `fediverse:115694838355975221`,
-`messages:$jKjJakTOHqT-…`, `notes:reddit-comments/harambe-conspiracy`.
-Every cache, page address and anchor is keyed by it. The position number
-stays as a readable label where the site shows one, named for what it is
-("item 2339 of the fediverse outbox").
+**The source key is that counting number with its source**:
+`fediverse-2339`, `messages-618`, `notes-41`. Owner, 2026-10-22, on the
+long ids each item also carries (a post's status id, a message's event id):
+"yo what that ID is brutal. We should have an incremental ID, none of this
+randomly generated GUID nonsense." A counting number shifts when an earlier
+item leaves (a deleted post, something removed because it put someone at
+risk) or an older note arrives, and that is accepted: "that's okay because
+it's rare, and only for the most recent things ... Let's just shift
+everything down. Sometimes words have the wrong link and that's okay." New
+items arrive at the end of their source, so in the usual case nothing
+shifts; and a shift in one source never moves another source's keys (today
+the global number moves every page after an addition in any source).
+
+What a shift must never do is attach a vector to the wrong poem (the notes
+of 2026-10-07 did): every cached vector carries a fingerprint of its text,
+and a mismatch is re-embedded (step 3).
 
 Two items with one source key stop the extraction with both named. The one
 case on 2026-10-21, two notes in the folder twice (the same bytes and the
@@ -125,8 +133,8 @@ leave the reddit-comments version"); the top-level copies of
 > if the specified poem ID doesn't exist on that page, we take them to the
 > top of the page?
 
-Anchors are named by source key, not by number:
-`chronological/02.html#fediverse-115694838355975221`. A link written before poems were
+Anchors are named by source key, not by the global number:
+`chronological/02.html#fediverse-2339`. A link written before poems were
 added then does one of two things, with no code on the page:
 - the poem is still on page 02: the browser lands on it;
 - the additions pushed it onto page 03: page 02 has no such anchor, and a
@@ -137,24 +145,21 @@ with numbers counted by date and pages cut by date, poem 1551 is always on
 page 02, so after additions the old link lands on a different poem without
 any sign. Numbered anchors go.
 
-An anchor id is the source key with `:`, `/` and every character outside
-letters, digits, `-`, `_` and `.` written as `-` (six note names hold `?`,
-`=`, `’` or spaces; message ids hold `$`). Two items whose ids come out the
-same stop the build.
+An anchor id is the source key as it is (`fediverse-2339`): letters, digits
+and one dash. Two items with one key stop the build.
 
 **Similar and different pages are named by source key too** (owner,
 2026-10-21: "we will have to name these pages by source name as well"):
-`similar/fediverse-115694838355975221-01.html`. A bookmarked address then
-keeps showing its own poem's list, or, when the poem is gone, no page at
-all.
+`similar/fediverse-2339-01.html`. A bookmarked address keeps showing its
+poem's list until something earlier in that source is removed; then it
+shows the neighbour's, as the owner accepted above.
 
 ### Suggested Implementation Steps
 
-1. **Source keys unique and stable.** Each extractor records its item's
-   stable id from the table above (`scripts/extract-fediverse.lua`: status
-   id; `extract-messages.lua`: event id; `extract-bluesky-data`: createdAt;
-   `extract-notes.lua`: path inside the folder) as the item's source key;
-   extraction stops on two items with one key.
+1. **Source keys.** The key is the source and its counting number
+   (`fediverse-2339`), from the numbers the extractors already give out;
+   pictures get theirs from the gallery order. Extraction stops on two items
+   with one key.
 2. **One counting step.** After extraction, sort every item (poems and
    gallery pictures) by date, then source name, and number 1..N. Pictures
    then sit among the poems by date (Issue 9-013), and the gallery index is
@@ -174,12 +179,12 @@ all.
    item's text, and every anchor id is unique.
 6. **Re-embed once** under the new keys (the next `--force` build).
 
-### Open questions (for the owner)
+### Answered questions
 
-- Bluesky posts carry no id the extractor reads; the plan keys them by their
-  `createdAt` time. Good enough (two posts in the same millisecond would
-  stop the extraction), or should the extractor learn to read each record's
-  key from the archive?
+- Long ids or counting numbers: counting numbers (owner, 2026-10-22, quoted
+  above).
+- Bluesky posts carry no id the extractor reads: counting them by creation
+  time is enough ("I have not made two posts in the same millisecond").
 
 ## Original issue (2025-12-25)
 

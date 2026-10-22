@@ -56,6 +56,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21 |
 | 9-012 | Use archive alt-text for images | Completed | 2026-01-21 |
 | 9-006 | Poem box format validator | Completed | 2026-03-18 |
+| 9-014 | Diversity walks: tiles, one dispatch per tile, pipelining, half-precision vectors (built June 2026; filed 2026-10-22, with the walk-length finding of 10-074) | Completed | 2026-10-22 |
 
 **9-006: Poem Box Format Validator** - COMPLETED (2026-03-18)
 - ✅ Created `scripts/validate-poem-box-format` (476 lines)

@@ -16,12 +16,34 @@ cd "$DIR" || {
 # Export DIR so Lua can access it
 export DIR
 
+# Options after DIR. The Lua program below runs inline (luajit -e), which
+# passes it no command-line arguments, so the options travel as environment
+# variables instead (until 2026-10-22 --save-binary was read from arguments
+# that never arrived):
+#   --output PATH   write the cache to PATH, not the model folder -- to try
+#                   the step without replacing the cache a build reads
+#   --save-binary   also save the raw GPU sequences (debugging)
+#   --model NAME    the embedding model, when run on its own (a build names
+#                   it on the run notepad, which this reads otherwise)
+[ $# -gt 0 ] && shift   # past DIR
+_model_args=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --output) [ -n "$2" ] || { echo "Error: --output needs a file path" >&2; exit 1; }
+                  export DIVERSITY_OUTPUT="$2"; shift 2 ;;
+        --save-binary) export DIVERSITY_SAVE_BINARY=1; shift ;;
+        --model) [ -n "$2" ] || { echo "Error: --model needs a model name" >&2; exit 1; }
+                 export DIVERSITY_MODEL="$2"; _model_args=(--model "$2"); shift 2 ;;
+        *) echo "Error: unknown option $1" >&2; exit 1 ;;
+    esac
+done
+
 # Ensure the on-disk diversity-cache directory exists BEFORE the (~40-minute) GPU
 # run, inferring it from the selected model via scripts/cache-dir --disk (the one
 # place that maps a model name to its directory). run.sh already creates this at
 # model-load; this keeps the wrapper safe when invoked on its own. Without it a
 # brand-new model would compute for an hour and only then fail at the final write.
-_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --disk)"
+_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --disk "${_model_args[@]}")"
 [ -n "$_disk_dir" ] && mkdir -p "$_disk_dir"
 
 # Run the Lua script
@@ -71,6 +93,10 @@ local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
 -- apostrophe-free, or move this program into its own .lua file.
 local inference_config = require("inference-server-config")
 inference_config.set_project_root(DIR)
+-- --model (see the bash part), else the run notepad
+if os.getenv("DIVERSITY_MODEL") then
+    inference_config.set_selected_model(os.getenv("DIVERSITY_MODEL"))
+end
 local MODEL_NAME = inference_config.get_selected_model()
 
 -- Issue 10-057: cap each diversity sequence to the top-K poems any page set can show
@@ -92,13 +118,10 @@ do
 end
 
 -- Parse command line arguments
-local SAVE_BINARY = false  -- Optional: save binary format for debug
-for i = 2, #arg do
-    local a = arg[i]
-    if a == "--save-binary" then
-        SAVE_BINARY = true
-    end
-end
+-- Options, from the environment (see the bash part above)
+local SAVE_BINARY = os.getenv("DIVERSITY_SAVE_BINARY") == "1"  -- raw GPU sequences too (debugging)
+-- write the cache here instead of the model folder (Issue 10-074)
+local OUTPUT_OVERRIDE = os.getenv("DIVERSITY_OUTPUT")
 
 -- {{{ local function get_file_size
 local function get_file_size(filepath)
@@ -122,7 +145,7 @@ local function main()
     -- Issue 10-054: read embeddings from the movable cache (RAM), but write the
     -- diversity cache to disk (embeddings_dir_disk) so it survives a reboot.
     local embeddings_file = utils.embeddings_dir(MODEL_NAME) .. "/embeddings.json"
-    local output_file = utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json"
+    local output_file = OUTPUT_OVERRIDE or (utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json")
     -- The on-disk output directory is created by the wrapper (bash, above) and by
     -- run.sh at model-load, so it exists by the time we write here.
     local binary_file = string.format("%s/output/diversity-cache-gpu-batch.bin", DIR)
@@ -346,7 +369,8 @@ local function main()
         num_poems,
         embedding_dim,
         SAVE_BINARY and binary_file or nil,  -- Optional binary output
-        BATCH_SIZE
+        BATCH_SIZE,
+        TOP_K   -- each walk stops after the K poems the pages can show (0: walk them all)
     )
 
     local elapsed = wall_clock() - start_time
@@ -391,8 +415,11 @@ local function main()
         if not sequence then
             error(string.format("Missing sequence for position %d", position))
         end
-        -- Issue 10-057: keep only the first K of the diversity walk (the top-K).
-        local length = (TOP_K > 0 and #sequence > TOP_K) and TOP_K or #sequence
+        -- Issue 10-057: keep the starting poem and the first K of the walk. The
+        -- start is the poem itself, which its page leaves out, so K + 1 entries
+        -- give the pages their K poems (until 2026-10-22 it kept K entries, and
+        -- every last "different" page was one poem short).
+        local length = (TOP_K > 0 and #sequence > TOP_K + 1) and (TOP_K + 1) or #sequence
         local numbered = {}
         for i = 1, length do
             local number = position_numbers[sequence[i]]

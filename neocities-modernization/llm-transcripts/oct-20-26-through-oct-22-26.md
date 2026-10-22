@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-21 21:31:38
+Generated on: 2026-10-22 11:16:47
 Models: claude-opus-5-5
 
 ## Contents
@@ -42,6 +42,10 @@ Models: claude-opus-5-5
    on the site. The old one-thread builder is gone, and word pages now use the
    shared drawer. Next: decide whether word pages should become worker jobs too,
    then plan numbering poems fresh each run.
+10. 2026-10-21 21:34, after Request 14 - We're unifying how the poem site builds
+    pages and planning fresh-each-run poem numbering. Next: please answer my two
+    questions, whether to show both copies of the two duplicate notes and
+    whether similar/different page addresses should use source names.
 
 --------------------------------------------------------------------------------
 
@@ -2905,6 +2909,288 @@ names notes by their path inside the folder.
    addresses move?
 
 Committed as af821ed26.
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+<pasted_content id="5619">
+> The catch is with numbered anchors like #poem-1551. The numbers are counted by
+> date and the pages are cut by date, so poem 1551 is always on page 02. After
+> new poems are added, an old link still finds a #poem-1551 on page 02, but it's
+> a different poem. The top-of-page case would
+>   never happen. So the plan:
+> - Anchors and caches use the source name, like #fediverse-2339. An old link
+> either lands on its poem, or, if the poem was pushed to the next page, lands
+> at the top of the page. That is your rule.
+> - The number is counted fresh each run (date, then source name), and nothing
+> on disk is keyed by it. The cache of poem vectors stores each vector under the
+> source name, plus a fingerprint of the text it was made from, so a vector
+> can't attach to the wrong poem again.
+</pasted_content id="5619">
+
+
+this is a good idea. Say what index it is, and what table it's from.
+
+> Found while planning: two notes, harambe-conspiracy and
+> planes-and-trains-and-tanks, are in the notes folder twice. The copies are
+> byte-identical, one at the top and one under reddit-comments/. The site shows
+> both, under the same name, because the name leaves out the subfolder. The
+>   plan names notes by their path inside the folder.
+
+if they're reddit comments, then we should delete the note version and leave the
+reddit-comments version. Are they the same date? That's the important part.
+
+> 2. The similar and different page addresses are numbered too
+> (similar/1551-01.html). After additions, a bookmarked address shows a
+> different poem's list, and unlike an anchor it has no top-of-page to fall back
+> to. Name these pages by source name as well
+>      (similar/fediverse-2339-01.html, longer for notes), or accept that these addresses move?
+
+we will have to name these pages by source name as well.
+
+
+
+<pasted_content id="5619">
+> Drawing is the small part. Most of the time goes to loading and ranking. The
+> ranking subtracts the average from every poem's vector again for every word,
+> so the same work is redone 200 times.
+
+  Options, most useful first:
+</pasted_content id="5619">
+
+> 1. Do the subtraction once. Subtract the average from each poem's vector and
+> measure its length one time. Each word then needs only one multiply-and-add
+> pass per poem. This needs no threads and removes most of the ~18 s of per-word
+> work.
+> 2. Rank all the words at once on the GPU. Every word against every poem is one
+> big table multiplication. That is the same shape as the step that already runs
+> on the GPU, and your rule says batch work belongs there.
+> 3. Worker jobs where the main program ranks and workers draw. It makes one
+> pipeline in name, but it only moves the 0.013 s per page.
+
+let's do these three.
+
+> What would "one pipeline" mean to you: every page passing through the same
+> worker queue, or every batch job running in parallel? Option 3 gives the
+> first, options 1 and 2 give the second.
+
+we want both. If the other "worker queue" implementations aren't running in
+parallel, then we need to update them to do so.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+> Identical bytes, same dates, and nothing refers to the top-level copies.
+> Deleting the top-level copies as you asked. The `reddit-comments/` copies keep
+> the same content.
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/notes/harambe-conspiracy,
+> /mnt/mtwo/notes/planes-and-trains-and-tanks? [outside-write df776b43]
+> - Yes — Allow this one write.
+> - This time — Allow any write inside /mnt/mtwo/notes until this session
+>   ends.
+> - Always — Allow any write inside /mnt/mtwo/notes from now on, for sessions
+>   working in /mnt/mtwo/programming/ai-stuff/neocities-modernization only.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> Duplicates deleted. Next, your request to say which index each name is and
+> which table it comes from. Checking where each source's own number originates.
+
+> The extracted files keep only the position, never the source's own id.
+> Checking what the raw exports hold.
+
+> I have each source's real id now. Updating the plan with an index table, the
+> duplicate-notes decision and the page-naming decision.
+
+> Plan updated. Now surveying every batch step in the pipeline: which already
+> run in parallel, and which run one item at a time.
+
+> The survey shows which steps run one item at a time. Next I'm reading the
+> worker pool to add word pages as a third kind of job.
+
+> Before building, checking for an existing issue on making every batch step
+> parallel.
+
+> Two existing issues already cover parts of this: 10-035 (parallel word pages,
+> from the old 7,135-word days) and 9-014 (the slow GPU walk). Checking the GPU
+> library before writing the plans.
+
+> Writing the plans first: rewriting issue 10-035 with your three choices, and
+> starting a new issue for the parallel survey.
+
+> Now the new issue for the parallel survey. Checking what the picture catalog
+> does per picture.
+
+> Plans written; the issue tree checks clean. Closing the open question in 8-058
+> and committing the plans before building.
+
+*[commit] cbeb0dd94 in ai-stuff - neocities: plans for stable source keys, parallel word pages, and a parallel survey of every step*
+
+> Plans committed. Starting step 1: subtract the average from each vector once.
+> Done carefully, the scores stay identical to the last bit, so the pages should
+> come out byte-identical.
+
+> Adding tests and the reference notes for the two new functions.
+
+> The new score matches the old one to the last bit on 50 random pairs.
+> Switching the word pages to it.
+
+> All 200 pages are byte-identical, but the time only fell from 32 s to 26 s.
+> Profiling where the rest goes.
+
+> Still on the word pages: making the centre-poem search reuse each poem's
+> length instead of recomputing it for every word.
+
+> Now adding the word-page job to the worker pool.
+
+> Next, the word-page builder: a thread count setting, and it hands out jobs
+> instead of drawing.
+
+> Word pages are now handed to the page workers as jobs. Tidying unused
+> leftovers, then checking that the pages come out byte-identical.
+
+> 84 picture entries share a number with a real poem, not just the 16 found
+> before. Looking at one.
+
+> My edit script tripped over Lua's `]]` string ending (nothing was changed).
+> Fixing the script.
+
+> A syntax slip from my edit (one block end too many). Fixing it.
+
+> The fallbacks are gone, and the pages are still identical (none of them had
+> fired). Next, passing the thread count from `run.sh` and the sample renderer.
+
+> `run.sh` already lists the thread count as required for stage 10, so it's
+> always set there. Running the tests, then the sample render's word pages
+> against the earlier render.
+
+> All tests pass, and the 60 sample word pages match the earlier render exactly.
+> Writing a test for the word-page module and the new worker job.
+
+> 13 pass. Writing the module's reference note, updating the word-page notes and
+> the issue, then committing steps 1 and 3 before starting the GPU step.
+
+> Committing steps 1 and 3.
+
+*[commit] 330bf7e94 in ai-stuff - neocities: word pages are planned once and drawn by the page workers*
+
+> A stray file named `10` was committed by mistake; I must have created it.
+> Checking what it is.
+
+> It's profiler output: my earlier `-jp=F,10` run treated "10" as an output file
+> name. Removing it in a follow-up commit.
+
+*[commit] 678394698 in ai-stuff - neocities: remove a stray profiler report committed by mistake*
+
+> Starting the GPU step: ranking every word against every poem as one batch.
+> Reading how the existing GPU similarity code sets up its buffers and runs a
+> shader.
+
+> The library's general functions (make a buffer, upload, run a shader,
+> download) may already be callable from Lua, which would mean only a new shader
+> is needed. Checking.
+
+> Writing the shader: one thread per (word, poem) pair.
+
+> The shader compiles. Now the Lua side: a small module that uploads both sets,
+> runs the shader once and returns the score table.
+
+> The GPU matches the CPU to single-precision rounding. Wiring it into the word
+> pages: GPU shortlist, then exact CPU scores for the shortlist.
+
+> All 200 pages are still byte-identical, now 18 s in total. Adding a test for
+> the shortlist rule, then running everything.
+
+> All tests pass. The compiled shader lives in the library's build folder, which
+> isn't in git. Checking that the build process compiles new shaders.
+
+> Builds are manual: stages 7 and 8 check for the GPU library and say how to
+> build it. Adding the same check to stage 10, naming the new shader.
+
+> Writing the new GPU module's reference note, updating the issue, and
+> committing.
+
+> The row was never updated: my earlier script used a pattern search that
+> silently matched nothing. Fixing it now.
+
+*[commit] cb2a81e44 in ai-stuff - neocities: word pages rank every word against every poem on the GPU at once*
+
+All three word-page changes are built and committed. All 200 word pages are
+byte-identical to before, 200 words now take 18 s instead of 32 s, and all tests
+pass. I also wrote down which index each source key is and which table it comes
+from, deleted the duplicate notes, and listed every build step that still
+processes items one at a time.
+
+## Duplicate notes
+Both pairs had the same date and identical bytes. I deleted the top-level copies
+of `harambe-conspiracy` and `planes-and-trains-and-tanks` from `~/notes` and
+from `input/notes`. The `reddit-comments/` copies stay.
+
+## Which index, and which table (issue 8-019)
+Every source's number today (the `2339` in `fediverse/2339`) is a **position in
+a list**, not an id the item carries. So it shifts when an earlier item is
+removed (a deleted post, an excluded message, an older note added). The plan now
+keys everything by each item's own id:
+
+| source | table it comes from | today's number | stable id the plan uses |
+|---|---|---|---|
+| fediverse post / boost | `outbox.json` (Mastodon export), `orderedItems` | position in that list | the status id, e.g. `115694838355975221` |
+| message | `export.json` (Element chat export), `messages` | position in that list | the Matrix `event_id` |
+| bluesky post | `repo-*.car` archive, post records | rank after sorting by date | the post's `createdAt` time |
+| note | `~/notes` | rank by file date | its path inside the folder |
+| picture | the picture sources in config.lua | — | source name plus path |
+
+Anchors and the similar/different page addresses get named by this key, as you
+decided: `similar/fediverse-115694838355975221-01.html`. That part is planned,
+not built yet.
+
+## Word pages (issue 10-035)
+1. **Subtract once:** each poem's average-subtracted vector and its length are
+   worked out once per run. Scores are identical to the last bit.
+2. **GPU:** a new shader scores all 200 words against all 8,622 poems in one
+   pass.
+   - The GPU works in single precision, so each word keeps a shortlist: every
+     poem within 0.0001 of its 50th-best GPU score.
+   - Only the shortlist is scored exactly on the CPU, which is why the pages
+     don't change.
+   - `run.sh` stage 10 now checks that the GPU library and the new shader are
+     built, like stages 7 and 8.
+3. **Worker jobs:** the word step plans each page, and the same worker queue
+   that draws every other page draws it.
+- Three quiet fallbacks are now errors: a word with no colour (it got a grey
+  heading), a page with no centre poem, and a word with no vector (its page was
+  skipped). None fired.
+- Most of the remaining 18 s is reading the 129 MB vector file.
+
+## Steps that still run one item at a time (new issue 10-074)
+These are from the recorded times of past builds:
+- **Diversity walks:** about 51 minutes per build. They already run on the GPU;
+  the slowness is how the shader reads memory, which issue 9-014 covers.
+- **Picture catalog:** about 2 minutes, one picture at a time, starting four
+  helper programs for each.
+- **Download zip:** about 2 minutes in one `zip` process.
+- **Smaller ones:** the gallery and source-browser pages, folding pictures into
+  the embeddings, extraction, and semantic colours.
+
+The issue has a step-by-step plan. I'd start with the picture catalog next.
+
+## Questions
+1. **Image-only posts** (a post that is just a picture; 84 in the current list
+   of gallery pictures). The similar/different pages draw them as a gallery
+   picture box captioned "fediverse: image post", and that box also replaces the
+   post's own picture description. The chronological and word pages draw them as
+   ordinary posts with their real description. Which way should every page draw
+   them?
+2. **Bluesky posts** carry no id the extractor reads, so the plan keys them by
+   creation time; two posts in the same millisecond would stop the extraction.
+   Is that good enough, or should the extractor learn to read each post's own
+   key from the archive?
 
 --------------------------------------------------------------------------------
 

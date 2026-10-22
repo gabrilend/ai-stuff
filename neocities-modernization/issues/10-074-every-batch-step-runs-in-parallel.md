@@ -16,7 +16,7 @@ in `.stage-timings` (read them with the plan view, `./run.sh --dry-run`);
 
 | stage | time (last / average) | how | parallel today? |
 |---|---|---|---|
-| 8 diversity walks | 3059 s / 3106 s | GPU, batches of 3,584 walks | yes (GPU). Its own header still says "~58 seconds"; the slow part is memory traffic, Issue 9-014 |
+| 8 diversity walks | 3059 s / 3106 s; **84 s** measured after the fix below | GPU, batches of 3,584 walks | yes (GPU). The time was not parallelism: every walk went all 9,265 steps and 99 were kept. Fixed 2026-10-22 (step 7) |
 | 6 embeddings | 9 s / 428 s | batched requests to the inference server (GPU) | yes (Issue 10-050) |
 | 9 pages (similar, different, chronological) | 282 s / 104 s | worker pool | yes |
 | 10 word cloud + word pages | 56 s / 152 s | one thread, one word after another | **no**: Issue 10-035 |
@@ -59,8 +59,20 @@ in `.stage-timings` (read them with the plan view, `./run.sh --dry-run`);
 6. Download zip: measure compression against reading; a parallel compressor,
    or writing the zip without compression (the site's pictures are already
    compressed), whichever is the cost.
-7. Diversity walks: Issue 9-014 (already on the GPU; the memory pattern is
-   the cost).
+7. **Diversity walks (done 2026-10-22).** Issue 9-014's tiling, pipelining
+   and half-precision storage were already built (June). The cost was the
+   walk length: the GPU walked every poem (9,265 steps) and
+   `scripts/precompute-diversity-sequences-gpu` kept the first 99. Now
+   `compute_all_diversity_sequences_batched` takes `max_steps` and stops each
+   walk at the K the pages show (pages x poems per page). A greedy walk's
+   first K steps do not depend on its length: all 9,266 walks matched the
+   full-length cache on their first 99 poems, in 84 s instead of 3,046 s.
+   The walk keeps its own poem plus K (it kept K in all, so every poem's last
+   "different" page was one poem short). The wrapper also gained `--model`
+   and `--output PATH` (try the step without replacing the cache), passed
+   through the environment because its Lua runs inline and never received
+   arguments (its `--save-binary` never worked). Pinned by
+   `libs/vk-diversity-walk-length.test.lua`.
 
 Each step: a before/after check that its output is unchanged, and the
 stage's time from `.stage-timings` before and after.
@@ -69,7 +81,7 @@ stage's time from `.stage-timings` before and after.
 
 - Issue 10-035: parallel word pages (step 1)
 - Issue 8-058: one page drawer, one worker queue
-- Issue 9-014: diversity shader memory pattern (step 7)
+- Issue 9-014: diversity shader memory pattern (built in June; completed)
 - Issue 10-050: batched embedding requests (already parallel)
 - `scripts/stage-timing.sh`, `.stage-timings`: where the times come from
 
