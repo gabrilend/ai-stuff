@@ -52,10 +52,10 @@ The canvas server on kuvalu (port set in `input/canvas-server`):
 
 Anything else is `404`.
 
-The owner's router lets only the four machines connect to each other
-(`docs/network.md`), so today only kuvalu itself and the three voices could
-reach this server. How a phone, a watch or a browser elsewhere reaches it is
-an open question (`docs/open-questions.md`).
+From outside the home network, this server is the only thing that can be
+reached: the router forwards one port to it, the "narrow cause-way"
+(`docs/network.md`). It is read-only and answers nothing beyond the routes
+above.
 
 ## Rules a viewer must follow
 

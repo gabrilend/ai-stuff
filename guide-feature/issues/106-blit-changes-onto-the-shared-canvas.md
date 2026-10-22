@@ -4,33 +4,46 @@ phase 1, the canvas and the blit
 
 ## Current behavior
 
-Nothing exists. The blit is designed in `docs/datapath-blit.md`, steps 2–3.
+Nothing exists. The blit is designed in `docs/datapath-blit.md`, steps 2–3,
+and the collision rules in "Collision rules" there.
 
 ## Intended behavior
 
-The blit: the current canvas and a voice's changes (from 104) in, the new
-canvas and a change report out.
+The blit: the current canvas, a voice's changes (from 104) and the
+collision rule's name in, the new canvas and a change report out.
 
 1. **Removals**: a removed word is blanked only if the current canvas still
    holds exactly that word at that place. Otherwise another voice changed it
    after this voice's base, so it is left alone and counted as a conflict.
-2. **Writes**, in reading order: the word's characters go into its cells.
-   Then any word on the canvas (as it was before this write) that lost some
-   but not all of its letters is blanked entirely, so no fragment of a word is
-   left. A word that lost every letter is simply covered.
+2. **Writes**, in reading order: the word's characters go into its cells. A
+   word on the canvas (as it was before this write) that lost some but not all
+   of its letters is a **cut word**, and is handed to the collision rule. A
+   word that lost every letter is simply covered.
 
-The change report lists every cell written and every cell blanked, each with
-the word it belonged to, and counts: words written, words blanked by the
-whole-word rule, removals applied, conflicts. Marks (201) are made from
+**Collision rules** are a table from rule name to a function that takes the
+canvas, the cut word and the write, and changes the canvas. The owner
+confirmed `blank-whole` as the default ("yes, but we probably want to play
+around with it"). The other rules designed are `fade-fragments`,
+`keep-fragments`, `refuse-cut`, `push-aside` and `blank-sentence`
+(`docs/datapath-blit.md`). This issue builds the table, `blank-whole`, and
+`keep-fragments`, the plain overwrite that the others are measured against.
+Each further rule is added to the table as its own sub-issue once the owner
+picks it.
+
+The change report lists every cell written and blanked, each with the word
+it belonged to, and every cut word with what the rule did to it. It also
+counts words written, words cut (by rule outcome), removals applied, and
+conflicts. Marks (201) and the tell-the-voice cut lines (303) are made from
 this report. The blit itself does not mark.
 
 ## Suggested implementation steps
 
-1. The cell-owner grid from 103 finds the words a write cuts into.
-2. Tests built from the example in `docs/datapath-blit.md` (`the cat sat on
-   the mat` + `kitten`), and: a write that exactly covers a word; a write
-   spanning three words; a removal of a word another voice already changed;
-   two writes in one blit that touch.
+1. The cell-owner grid from 103 finds the words a write cuts.
+2. The rule table, with `blank-whole` and `keep-fragments`.
+3. Tests from the example in `docs/datapath-blit.md` (`the cat sat on the
+   mat` + `kitten`, and `dog` over `kitten`) under both rules, and: a write
+   exactly covering a word; a write spanning three words; a removal of a word
+   another voice already changed; two writes in one blit that touch.
 
 ## Related documents
 
@@ -38,7 +51,7 @@ this report. The blit itself does not mark.
 
 ## Open questions
 
-- Is the whole-word rule read correctly? (`docs/open-questions.md`, 1)
+- Which collision rules to build next (`docs/open-questions.md`, 1).
 
 ## Blocked by
 
@@ -46,4 +59,4 @@ this report. The blit itself does not mark.
 
 ## Blocks
 
-107, 201.
+107, 201, 303.

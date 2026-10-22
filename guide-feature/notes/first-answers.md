@@ -113,3 +113,24 @@ The display box:
 > the user, meaning they should try and change as minimal as they can in order
 > to keep the important stuff from before displayed, while also fitting in new
 > stuff. They should prioritize editing single words over changing sentences.
+
+## The third round
+
+On kuvalu's existing llama.cpp server (words-pdf's, found not answering):
+
+> we should start up and spin down that server whenever we use the words-pdf
+> project. We will be implementing our own server for this project, no
+> cross-project interrequirements are encouraged. When needed and possible,
+> we should create a git upstream to one of our local directories containing
+> the project, so we can update the project-specific implementation by
+> copying from the local directory. essentially.
+
+On the router rules blocking the phone, the watch and outside browsers:
+
+> they talk to just the kuvalu program server. the router can be open for a
+> single route of approach. Like a narrow cause-way at a castle.
+
+On whether a word that loses part of itself disappears entirely:
+
+> yes, but we probably want to play around with it. Think of options to give
+> us for this functionality here.

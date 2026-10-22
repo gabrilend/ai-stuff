@@ -29,8 +29,11 @@ starts and ends the same way, using two small shared Lua modules:
   `name: value` line each, sorted, so two receipts can be compared with
   `diff`. A crash writes nothing, so a missing or stale goodbye is the crash
   report. A run log goes to `tmp/shared-memory/<program>.log`.
-- Both make sure the RAM tiers exist first, through the shared
-  `ensure-ram-tiers.lua` in `/mnt/mtwo/programming/ai-stuff/scripts/libs/`.
+- Both make sure the RAM tiers exist first, through this project's own copy
+  of the house `ensure-ram-tiers.lua`, `libs/ensure-ram-tiers.lua`, copied
+  from `/mnt/mtwo/programming/ai-stuff/scripts/libs/` with an `.upstream`
+  note (`docs/vendored-code.md`). No guide-feature program reaches into
+  another folder of the monorepo at run time.
 
 The settings reader also reads the project-root `endpoints` file
 (`docs/endpoints.md`), which uses the same format.

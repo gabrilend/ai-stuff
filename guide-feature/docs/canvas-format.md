@@ -17,6 +17,8 @@ handle all of them.
     <exactly H rows>
     marks:
     <zero or more mark lines>
+    cuts:                          (kuvalu → voices only)
+    <zero or more cut lines>
 
 The number of rows is known from the `size` header, so an empty row (a row
 of spaces, or an empty line) is never confused with the end of the rows.
@@ -45,7 +47,7 @@ any marks it sends are ignored and counted.
 | LENGTH | whole number | how many cells, on that row only |
 | VOICE | name | who changed it: `fg-sora-1`, `-2`, `-3`, or `kuvalu` (the distiller) |
 | VERSION | whole number | the canvas version at which it changed |
-| KIND | `word` or `sentence` | `word`: these cells were written or blanked. `sentence`: the rest of the sentence holding a changed word |
+| KIND | `word`, `sentence` or `orphan` | `word`: these cells were written or blanked. `sentence`: the rest of the sentence holding a changed word. `orphan`: leftover letters of a word cut under the `fade-fragments` collision rule (`docs/datapath-blit.md`), to be drawn dim; VOICE is the voice that cut it |
 
 A **sentence** is the words, in reading order (left to right, top to
 bottom), between sentence-ending punctuation (`.` `!` `?` at the end of a
@@ -54,6 +56,19 @@ word) or an entirely empty row.
 A cell has at most one mark: the newest. When a newer change covers older
 marks, the older ones are gone. Marks older than a setting's number of
 versions are dropped, so a canvas that stops changing ends with no marks.
+
+### Cuts
+
+Only in the canvas kuvalu sends to the voices, and only when the
+tell-the-voice setting is on (`docs/datapath-blit.md`, "Collision rules").
+One line per word cut since that voice's previous turn landed:
+
+    cut: VOICE VERSION ROW COLUMN TEXT
+
+VOICE is the voice that did the cutting, VERSION the version it happened
+at, ROW and COLUMN where the cut word stood, and TEXT the whole word as it
+was. Every voice receives the same body, and each voice's turn reads only
+its own lines, so one living message still serves all three.
 
 ## Headers, kuvalu → voices (`the-canvas`)
 

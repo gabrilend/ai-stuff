@@ -9,16 +9,16 @@ Most valuable first.
 
 ## Open
 
-1. **Is the whole-word rule read correctly?** Example: the row reads
-   `the cat sat on the mat`, and a voice writes `kitten` starting where
-   `cat` starts. `kitten` covers all of `cat` and the `sa` of `sat`. The
-   design blanks all of `sat`, giving `the kitten   on the mat`. (The owner
-   agreed to "like the preview", but no preview was actually shown.)
-   `docs/datapath-blit.md`, step 3.
-2. **How do the phone, the watch and a browser elsewhere reach the canvas,
-   when the router lets only the four machines talk to each other?** A fifth
-   allowed device, a relay through one of the four, or the canvas pushed out
-   to them by rmail? `docs/network.md`.
+1. **Which collision rules should be built after `blank-whole`?** Six are
+   designed: `blank-whole`, `fade-fragments`, `keep-fragments`,
+   `refuse-cut`, `push-aside`, `blank-sentence`, plus the tell-the-voice
+   switch. Each one built must be tested beside the others.
+   `docs/datapath-blit.md`, "Collision rules".
+2. **Does the causeway need a key, and encryption?** The canvas server is
+   the one program reachable from outside. Without a key, anyone who finds
+   the port can read the canvas. Without HTTPS, the canvas crosses the
+   internet as readable text. Which port does the router forward?
+   `docs/network.md`, "Keeping the causeway narrow".
 3. **How many words may change per turn, and how many whole sentences may be
    rewritten?** These are the change budgets in the fit check. Strict budgets
    enforce "prioritize editing single words over changing sentences". Too
@@ -42,10 +42,11 @@ Most valuable first.
 9. **Should kuvalu tell each voice which endpoint to use, in the canvas it
    sends, instead of each machine keeping its own copy of `endpoints`?** One
    place to switch versus one more header. `docs/endpoints.md`.
-10. **Where should the embedding index builder and its guide live:
-    delta-version, or the shared scripts folder?** And should it be built
-    first for guide-feature itself, so phase 5 has an index to test against?
-    `docs/embedding-index-contract.md`.
+10. **Where should the embedding index builder's guide live, given that
+    projects should not depend on each other?** If it lives in delta-version,
+    each project copies the builder into itself (`docs/vendored-code.md`).
+    Should it be built first for guide-feature itself, so phase 5 has an index
+    to test against? `docs/embedding-index-contract.md`.
 11. **The tool call's form.** llama.cpp supports OpenAI-style tool calls when
     its server runs with its chat templates switched on (`--jinja`). Is
     kuvalu's server started that way, or should the look call be a plain line
@@ -63,6 +64,17 @@ Most valuable first.
     a fourth voice. `docs/architecture.md`.
 
 ## Answered
+
+- The whole-word rule: **yes, a word that loses part of itself is blanked
+  whole, as the default, with other collision rules to play with**.
+  `docs/datapath-blit.md`, "Collision rules".
+- How the phone, the watch and outside browsers reach the canvas: **one
+  forwarded port to kuvalu's canvas server only, "a narrow cause-way"**.
+  `docs/network.md`.
+- Using words-pdf's llama.cpp server: **no. This project runs its own,
+  built from its own clone with words-pdf's local checkout as upstream. No
+  project depends on another; reused code is copied in and refreshed from
+  its local upstream**. `docs/vendored-code.md`, `docs/endpoints.md`.
 
 - Inbox port: **1223** (111213 is beyond the 65535 limit).
   `docs/architecture.md`.

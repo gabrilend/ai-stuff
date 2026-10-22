@@ -51,23 +51,42 @@ For each written word, in reading order:
 
 1. Its characters are written into its cells of `C`.
 2. Any word in `C` (as it was before this write) that lost **some but not
-   all** of its letters to the write is blanked entirely: all of its cells
-   that the write did not cover become spaces. A word that lost all of its
-   letters is simply gone under the new one.
+   all** of its letters to the write is a **cut word**. What happens to a cut
+   word is decided by the collision rule (below). A word that lost all of its
+   letters is simply gone under the new one, whatever the rule.
 
-So no fragment of a word is ever left on the canvas. The owner's words: "if
-any letter in a word is overwritten and can't fit, then that word is deleted
-entirely."
+### Collision rules
 
-Example, on one row:
+The owner confirmed the whole-word rule as the default, and asked for room to
+play: "yes, but we probably want to play around with it. Think of options to
+give us for this functionality here." The rule is a setting in
+`input/blitter`, read on every arrival, and each rule is one entry in a
+table from rule name to function. Most promising first:
+
+| Rule | What happens to a cut word | Why try it |
+|---|---|---|
+| `blank-whole` (default) | All of its remaining letters become spaces. No fragment is ever left. | The owner's rule: "if any letter in a word is overwritten and can't fit, then that word is deleted entirely." |
+| `fade-fragments` | Its remaining letters stay, with an `orphan` mark. Viewers draw them dimmed, and they are blanked after a set number of versions unless a voice writes over or reuses them. | A cut turns into a fade instead of a vanishing, which is closest to the vision's "fade from the viewer's sight". |
+| `keep-fragments` | Its remaining letters stay, unmarked, as a plain overwrite would leave them (like a terminal). | The baseline. It shows how much the other rules actually change. |
+| `refuse-cut` | The write that would cut it is not applied at all, and a conflict is counted. To replace a word, a voice must first erase it. | The strictest restraint: nothing is destroyed by accident. |
+| `push-aside` | The cut word slides right, along its row, to the nearest gap wide enough to hold it. If there is none, it is blanked. | Words survive collisions, at the cost of the row reshuffling. |
+| `blank-sentence` | The whole sentence holding the cut word is blanked. | A sentence with a word cut out is broken anyway. This clears space fastest. |
+
+Independently of the rule, **tell-the-voice** (on or off) lists the words a
+voice cut in the next canvas it receives, so its next turn can see what its
+edit destroyed.
+
+Example, on one row, under `blank-whole`:
 
     before:          the cat sat on the mat
     write "kitten" at the column where "cat" starts
     "kitten" covers all of "cat" and the "sa" of "sat"
     after:           the kitten   on the mat
 
-(This reading of the rule is waiting for the owner's confirmation. See
-`docs/open-questions.md`.)
+A shorter word written over a longer one is the same case seen from the
+other side. `dog` written over the start of `kitten` cuts `kitten`, so its
+`ten` is blanked under `blank-whole`, kept dim under `fade-fragments`, and so
+on.
 
 ## Step 4 — marks
 
@@ -77,6 +96,8 @@ sentence that holds a marked word get a `sentence` mark. That is how "that
 sentence would be marked as 'changed'" reaches the viewer. Marks and sentences
 are defined in `docs/canvas-format.md`. A newer mark replaces an older one on
 the same cell, and marks older than a set number of versions are dropped.
+Under `fade-fragments`, a cut word's leftover letters get `orphan` marks
+instead, and when an orphan mark expires its cells are blanked.
 
 ## Step 5 — publish
 
@@ -114,8 +135,12 @@ Only each voice's newest canvas is kept, so a queue cannot build up.
 
 ## Settings
 
-Mark lifetime in versions, merge mode. Kept in `input/blitter`; changes to
-their values go into `docs/balance-updates.md` with the reason.
+Mark lifetime in versions, orphan lifetime in versions, merge mode,
+collision rule, tell-the-voice. Kept in `input/blitter`, and changes to
+their values go into `docs/balance-updates.md` with the reason. Every
+collision rule that is built is tested on the same scripted series as
+`blank-whole`, because a mode is not done until it is shown working beside
+the others.
 
 ## Why one thread
 

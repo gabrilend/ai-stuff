@@ -36,7 +36,7 @@ Four computers.
 
 | Machine | Address | rmail port | Runs |
 |---|---|---|---|
-| kuvalu, the desktop | 192.168.1.100 | 1223 | rmail mailbox `guide`; the blitter; the canvas server for viewers; the desktop viewers; for now, the llama.cpp servers every voice uses |
+| kuvalu, the desktop | 192.168.1.100 | 1223 | rmail mailbox `guide`; the blitter; the canvas server for viewers (the only program reachable from outside, through one forwarded port); the desktop viewers; for now, this project's own llama.cpp servers, which every voice uses |
 | fg-sora-1 | 192.168.1.11 | 10101 | rmail mailbox; the turn hook; a clone of the project being worked on (in RAM if it fits) |
 | fg-sora-2 | 192.168.1.12 | 20202 | the same |
 | fg-sora-3 | 192.168.1.13 | 30303 | the same |
@@ -106,4 +106,5 @@ program did not end cleanly.
 - `docs/datapath-blit.md` — how changes land on the shared canvas, in both merge modes.
 - `docs/datapath-looking-into-the-project.md` — the look tool.
 - `docs/datapath-viewers.md` — from the canvas to a person's eyes.
+- `docs/vendored-code.md` — what this project copies in from elsewhere, and from where.
 - `docs/roadmap.md`, `docs/open-questions.md`, `docs/roads-not-taken.md`.

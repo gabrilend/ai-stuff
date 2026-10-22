@@ -22,7 +22,11 @@ first steps:
 - the other cells of every sentence (103) holding a marked word get a
   `sentence` mark with the same voice and version;
 - a newer mark replaces an older one on the same cell;
-- marks older than the mark lifetime (a setting, in versions) are dropped.
+- marks older than the mark lifetime (a setting, in versions) are dropped;
+- when the collision rule leaves fragments to fade (`fade-fragments`), their
+  cells get `orphan` marks, and when an orphan mark outlives the orphan
+  lifetime its cells are blanked. That makes a new version marked as
+  changed by `kuvalu`.
 
 Marks are kept per cell in the blitter and written as runs (row, column,
 length) in the canvas text (`docs/canvas-format.md`).

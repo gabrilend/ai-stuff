@@ -28,7 +28,7 @@ with age.
 
 ## Open questions
 
-- How the phone reaches kuvalu under the router rules
+- Whether the causeway needs a key and HTTPS; the app must send it if so
   (`docs/open-questions.md`, 2).
 
 ## Blocked by

@@ -30,7 +30,7 @@ or one of the voices (`docs/network.md`).
 
 ## Open questions
 
-- How a browser elsewhere reaches it (`docs/open-questions.md`, 2).
+- Whether the causeway needs a key and HTTPS (`docs/open-questions.md`, 2).
 
 ## Blocked by
 

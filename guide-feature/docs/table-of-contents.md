@@ -27,6 +27,8 @@ and issue files do not; they have their own indexes.
   - docs/network.md - the router rules, and what each part needs from them.
   - docs/rmail-constraints.md - what rmail provides and what is built around
     it.
+  - docs/vendored-code.md - code this project keeps its own copy of, and the
+    local upstream each copy is refreshed from.
 - Datapaths (one per major feature; updated as issues change them)
   - docs/datapath-round-trip.md - the canvas going out to the voices and
     coming back.
