@@ -158,6 +158,16 @@ function M.text_image_link(poem)
 end
 -- }}}
 
+-- {{{ local function attribute_text()
+-- Text made safe for an HTML attribute: one line, control bytes dropped,
+-- & < > and " escaped (a description quoting code put a raw "<" into an
+-- attribute once; see poem-entry's pictures).
+local function attribute_text(text)
+    return (text:gsub("[\r\n]+", " "):gsub("[%z\1-\8\11\12\14-\31]", "")
+        :gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+-- }}}
+
 -- {{{ function M.format_image_entry()
 -- Render a ranked IMAGE as a compact, CSS-free box: a marker + the
 -- source-qualified title, the image(s), then a closing rule. Self-contained
@@ -165,20 +175,27 @@ end
 -- main thread and in each effil worker without needing their private helpers.
 function M.format_image_entry(poem)
     local title = poem.display_title or "image"
-    local esc = title:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
     local imgs = {}
     for _, att in ipairs(poem.attachments or {}) do
         -- media_href namespaces art by source+subdir (so same-named pieces don't
         -- collide in output/media/) and url-encodes; Mastodon hashes stay flat.
         local src = MEDIA_BASE .. media_href(att.relative_path or att.url or "")
+        -- What a screen reader says for the picture: its own description
+        -- when it has one (an image-only post's, from the archive: 80 of 85
+        -- such pictures have one), else the title, which for a gallery
+        -- picture is its source and file name. Until 2026-10-22 every
+        -- picture here was described by the title alone, so an image-only
+        -- post read as "fediverse: image post".
+        local described = att.description or att.alt_text
+        local alt = attribute_text((described and described:match("%S")) and described or title)
         if att.width and att.height then
             imgs[#imgs + 1] = string.format(
-                '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                src, esc, att.width, att.height)
+                '  <img src="%s" alt="%s" title="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
+                src, alt, alt, att.width, att.height)
         else
             imgs[#imgs + 1] = string.format(
-                '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                src, esc)
+                '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
+                src, alt, alt)
         end
     end
     -- For a standalone catalog image, link the title to its spot on the

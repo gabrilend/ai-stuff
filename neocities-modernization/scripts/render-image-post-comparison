@@ -1,0 +1,209 @@
+#!/usr/bin/env luajit
+-- render-image-post-comparison
+--
+-- WHAT IT DOES (for a CEO): a post that is only a picture can be drawn two
+-- ways on the site -- as a gallery picture box (a title and the picture), or
+-- as an ordinary post (its text, warnings, pictures and links). The similar
+-- and different pages use the first, the chronological and word pages the
+-- second. This makes one page that shows the same posts both ways, side by
+-- side, with what a screen reader says for each picture written out under
+-- it, so the owner can choose one way for every page. (Issue 9-013.)
+--
+-- The posts are chosen by a fixed rule, so two runs show the same ones: the
+-- first image-only posts (in poems.json order) that have some text, a content
+-- warning, several pictures, and a picture with no description, then a few
+-- plain ones. Their pictures are copied next to the page, so it works before
+-- a build has filled the site's picture folder. The site is not touched.
+--
+-- Usage:
+--   scripts/render-image-post-comparison [DIR] --out FOLDER --model NAME
+--
+--   DIR      project directory (default below)
+--   --out    where the page goes; made fresh, must not exist yet (put it in
+--            tmp/shared-memory/); open FOLDER/pages/compare.html
+--   --model  the embedding model whose picture list marks the image-only
+--            posts (image-manifest.json in its folder)
+
+-- {{{ arguments
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local OUT, MODEL
+do
+    local i = 1
+    while i <= #arg do
+        local a = arg[i]
+        if a == "--out" then OUT = arg[i + 1]; i = i + 1
+        elseif a == "--model" then MODEL = arg[i + 1]; i = i + 1
+        elseif a:sub(1, 2) == "--" then error("render-image-post-comparison: unknown option " .. a)
+        else DIR = a end
+        i = i + 1
+    end
+end
+if not (OUT and MODEL) then
+    error("render-image-post-comparison: --out and --model are required")
+end
+-- }}}
+
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
+inference_config.set_selected_model(MODEL)
+utils.init_assets_root({ DIR })
+-- the page builder configures the shared poem drawer with the site's palettes
+-- when it loads, and reads the project folder from the first argument
+arg = { DIR }
+require("flat-html-generator")
+local poem_entry = require("poem-entry")
+local image_render = require("image-render")
+local page_head = require("page-head")
+
+-- {{{ local function run()
+local function run(cmd)
+    local result = os.execute(cmd)
+    if result ~= 0 and result ~= true then
+        error("render-image-post-comparison: command failed: " .. cmd)
+    end
+end
+-- }}}
+
+-- {{{ local function copy_table()
+-- A deep copy, so tagging one copy as a gallery picture leaves the other
+-- an ordinary post.
+local function copy_table(t)
+    if type(t) ~= "table" then return t end
+    local out = {}
+    for k, v in pairs(t) do out[k] = copy_table(v) end
+    return out
+end
+-- }}}
+
+-- {{{ local function choose()
+-- The fixed sample: for each case, the first image-only post that shows it.
+local function choose(image_only)
+    local cases = {
+        { name = "has some text", test = function(p) return (p.content or ""):match("%S") end },
+        { name = "has a content warning", test = function(p) return p.content_warning and p.content_warning ~= "" end },
+        { name = "has several pictures", test = function(p) return #(p.attachments or {}) > 1 end },
+        { name = "a picture without a description", test = function(p)
+            for _, a in ipairs(p.attachments or {}) do
+                if not ((a.description or a.alt_text or ""):match("%S")) then return true end
+            end
+            return false
+        end },
+        { name = "picture only", test = function(p) return not (p.content or ""):match("%S") end },
+    }
+    local chosen, seen = {}, {}
+    for _, case in ipairs(cases) do
+        for _, p in ipairs(image_only) do
+            if not seen[p.poem_index] and case.test(p) then
+                seen[p.poem_index] = true
+                chosen[#chosen + 1] = { poem = p, why = case.name }
+                break
+            end
+        end
+    end
+    return chosen
+end
+-- }}}
+
+-- {{{ local function spoken()
+-- What a screen reader says for each picture in some drawn HTML: the alt
+-- text of every <img>, in order, as page text.
+local function spoken(html)
+    local lines = {}
+    for alt in html:gmatch('<img[^>]-alt="([^"]*)"') do
+        lines[#lines + 1] = "  screen reader: " .. alt
+    end
+    if #lines == 0 then lines[1] = "  screen reader: (no pictures)" end
+    return table.concat(lines, "\n")
+end
+-- }}}
+
+-- the image-only posts, as the picture list marks them (class 2)
+local poems_data = assert(utils.read_json_file(utils.asset_path("poems.json")), "poems.json did not load")
+local manifest_file = utils.embeddings_dir() .. "/image-manifest.json"
+local manifest = assert(utils.read_json_file(manifest_file), "no picture list at " .. manifest_file)
+local by_index = {}
+for _, p in ipairs(poems_data.poems) do by_index[p.poem_index] = p end
+local marked = {}
+for _, rec in pairs(manifest.images or manifest) do
+    if type(rec) == "table" and rec.class == 2 then marked[rec.poem_index] = rec end
+end
+local image_only = {}
+for _, p in ipairs(poems_data.poems) do
+    if marked[p.poem_index] then image_only[#image_only + 1] = p end
+end
+local sample = choose(image_only)
+if #sample == 0 then error("render-image-post-comparison: the picture list marks no image-only posts") end
+
+-- the folder, and the pictures next to the page
+do
+    local probe = io.open(OUT .. "/.", "r")
+    if probe then probe:close(); error("render-image-post-comparison: " .. OUT .. " already exists") end
+end
+run(string.format("mkdir -p %q %q", OUT .. "/pages", OUT .. "/media"))
+for _, s in ipairs(sample) do
+    for _, att in ipairs(s.poem.attachments or {}) do
+        local from = DIR .. "/input/media_attachments/" .. (att.relative_path or "")
+        run(string.format("cp %q %q", from, OUT .. "/media/" .. poem_entry.media_href(att.relative_path or "")))
+    end
+end
+
+-- the page: one row per post, gallery box on the left, ordinary post on the right
+local rows = {}
+for _, s in ipairs(sample) do
+    local p = s.poem
+    local as_box = copy_table(p)
+    as_box.is_image = true
+    as_box.image_class = 2
+    as_box.display_title = (marked[p.poem_index].category or p.category or "") .. ": image post"
+    local box_html = image_render.format_image_entry(as_box)
+    local post_html = poem_entry.format_entry(copy_table(p), {
+        color_name = "gray",
+        progress_pct = 50,
+        similar_link = "<a href='#'>similar</a>",
+        different_link = "<a href='#'>different</a>",
+        chrono_link = "<a href='#'>chronological</a>",
+    })
+    rows[#rows + 1] = string.format([[
+<tr><td colspan="2"><h2>poem %d (%s/%s): %s</h2></td></tr>
+<tr>
+<td valign="top"><pre>
+%s
+%s
+</pre></td>
+<td valign="top"><pre>
+%s
+%s
+</pre></td>
+</tr>]], p.poem_index, p.category or "?", tostring(p.id), s.why,
+        box_html, spoken(box_html), post_html, spoken(post_html))
+end
+
+-- two equal columns: a picture is never wider than its column, and the
+-- monospace text scrolls inside its column rather than widening it
+local head = page_head.head({ title = "Image-only posts, two ways", base_path = "..",
+    extra_css = "td pre { overflow-x: auto; white-space: pre; } td img { max-width: 100% !important; }" })
+local html = string.format([[<!DOCTYPE html>
+<!-- made by scripts/render-image-post-comparison (Issue 9-013), to choose how
+     image-only posts are drawn on every page -->
+<html>
+%s
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+<center>
+<h1>Image-only posts, two ways</h1>
+<p>Left: the gallery picture box (the similar and different pages today).<br>
+Right: the ordinary post (the chronological and word pages today).<br>
+Under each: what a screen reader says for each picture.</p>
+</center>
+<table border="1" cellpadding="8" align="center" width="100%%" style="table-layout:fixed">
+<tr><th width="50%%">gallery picture box</th><th width="50%%">ordinary post</th></tr>
+%s
+</table>
+</body>
+</html>
+]], head, table.concat(rows, "\n"))
+local f = assert(io.open(OUT .. "/pages/compare.html", "w"))
+f:write(html)
+f:close()
+print(string.format("render-image-post-comparison: %d posts; open %s/pages/compare.html", #sample, OUT))

@@ -86,7 +86,26 @@ a poem. A text + picture post gets a direct "image.png" link under its
 ranking line (`image-render.text_image_link`). The chronological pages draw
 the poems as the caller loaded them (no folding): a picture-only post shows
 as itself, its picture with its own description. Gallery pictures are not on
-the chronological pages (Issue 10-042b).
+the chronological pages (Issue 10-042b). The word pages do the same (their
+jobs carry their poems, Issue 10-035).
+
+**Picture descriptions in the box (fixed 2026-10-22).** The box described
+every picture by its title, so a screen reader read each image-only post's
+pictures as "fediverse: image post", though 80 of their 85 pictures have
+their own description. Each picture is now described by its own
+description, falling back to the title only when it has none, escaped for
+the attribute and repeated as the hover title, as the ordinary post does
+(`format_image_entry`; three checks in `src/image-render.test.lua`).
+
+**Open question: one way for every page.** The 68 image-only posts are
+drawn as the picture box on similar and different pages and as ordinary
+posts on chronological and word pages. The box also leaves out the post's
+text (38 of the 68 have some), its content warning (24 have one) and its
+similar/different/chronological links. Owner, 2026-10-22: "I'll need a test
+page showing the 'gallery picture box' and 'ordinary post' to compare."
+`scripts/render-image-post-comparison --out FOLDER --model NAME` draws five
+of them both ways side by side, with what a screen reader says under each.
+Waiting on the owner's choice.
 
 ### Tests
 

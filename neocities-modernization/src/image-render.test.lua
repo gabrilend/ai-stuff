@@ -72,5 +72,21 @@ do
     check("pure-text poem gets no link", R.text_image_link({ content = "just words" }) == "")
 end
 
+-- What a screen reader hears for a picture in the box: its own description,
+-- else the box title (2026-10-22: every picture used to read as the title,
+-- "fediverse: image post", though 80 of 85 had a description).
+do
+    local box = R.format_image_entry({ display_title = "fediverse: image post", attachments = {
+        { relative_path = "a/one.png", description = 'a cat saying "hi" <3' },
+        { relative_path = "a/two.png", description = "   " },
+        { relative_path = "a/three.png" },
+    } })
+    check("a described picture is read by its description, quotes and < escaped",
+        box:find('alt="a cat saying &quot;hi&quot; &lt;3"', 1, true) ~= nil)
+    local _, titled = box:gsub('alt="fediverse: image post"', "")
+    check("a blank or missing description falls back to the box title (2 of 3)", titled == 2)
+    check("the description is also the hover title", box:find('title="a cat saying &quot;hi&quot; &lt;3"', 1, true) ~= nil)
+end
+
 print(string.format("\nimage-render: %d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
