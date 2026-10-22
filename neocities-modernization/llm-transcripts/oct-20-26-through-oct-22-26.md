@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-22 11:16:47
+Generated on: 2026-10-22 11:48:30
 Models: claude-opus-5-5
 
 ## Contents
@@ -46,6 +46,10 @@ Models: claude-opus-5-5
     pages and planning fresh-each-run poem numbering. Next: please answer my two
     questions, whether to show both copies of the two duplicate notes and
     whether similar/different page addresses should use source names.
+11. 2026-10-22 11:19, after Request 15 - We're making every build step run in
+    parallel and giving poems stable ids; the word pages now rank on the GPU and
+    draw on the worker queue. Next: answer how image-only posts should look,
+    then I'll parallelize the picture catalog.
 
 --------------------------------------------------------------------------------
 
@@ -3191,6 +3195,200 @@ The issue has a step-by-step plan. I'd start with the picture catalog next.
    creation time; two posts in the same millisecond would stop the extraction.
    Is that good enough, or should the extractor learn to read each post's own
    key from the archive?
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+> Anchors and the similar/different page addresses get named by this key, as you
+> decided: similar/fediverse-115694838355975221-01.html. That part is planned,
+> not built yet.
+
+yo what that ID is brutal. We should have an incremental ID, none of this
+randomly generated GUID nonsense.
+
+> Every source's number today (the 2339 in fediverse/2339) is a position in a
+> list, not an id the item carries. So it shifts when an earlier item is removed
+> (a deleted post, an excluded message, an older note added).
+
+that's okay because it's rare, and only for the most recent things. Though
+sometimes I might remove something if it puts someone else at risk... It's okay.
+Let's just shift everything down. Sometimes words have the wrong link and that's
+okay.
+
+> - Diversity walks: about 51 minutes per build. They already run on the GPU;
+> the slowness is how the shader reads memory, which issue 9-014 covers.
+
+tell me about issue 9-014? Can we complete it?
+
+> 1. Image-only posts (a post that is just a picture; 84 in the current list of
+> gallery pictures). The similar/different pages draw them as a gallery picture
+> box captioned "fediverse: image post", and that box also replaces the post's
+> own picture description. The chronological and
+>      word pages draw them as ordinary posts with their real description. Which way should every page draw them?
+
+um, we should first of all make sure the alt-text is included correctly for
+screen-readers. Second, I'll need a test page showing the "gallery picture box"
+and "ordinary post" to compare.
+
+> 2. Bluesky posts carry no id the extractor reads, so the plan keys them by
+> creation time; two posts in the same millisecond would stop the extraction. Is
+> that good enough, or should the extractor learn to read each post's own key
+> from the archive?
+
+I have not made two posts in the same millisecond.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+> Parts of 9-014 look already built: the code has a "scan tile" shader, a
+> half-precision vector file and a "9-014 pipelining" function. Checking what's
+> actually done.
+
+> The job looks far too slow for its size. Each "different" list is only 99
+> poems long, yet the step took 3,046 s. Checking whether the GPU computes
+> full-length walks and then throws away all but 99.
+
+> Also checking for an off-by-one: each walk starts with its own poem, so
+> keeping 99 entries leaves only 98 "different" poems for 99 slots.
+
+> This script runs standalone only inside a build, which tells it the model.
+> Adding a `--model` option so it can run on its own.
+
+> 84 seconds instead of 3,046 (about 36× faster). Comparing every walk with the
+> cache from the full-length run.
+
+> The test passes. Now issue 9-014: rewriting it as the record of what was built
+> in June, and moving it to completed. Reading the June commit's notes for the
+> measured results.
+
+> Next: updating the parallel-steps issue for the diversity fix, then revising
+> the numbering plan to use per-source counting numbers.
+
+> Now revising the numbering plan as you asked: per-source counting numbers
+> instead of the long ids.
+
+> Running all tests, then committing the diversity fix and the plan updates.
+
+*[commit] ec9ba781b in ai-stuff - neocities: the "different" walks stop at the length the pages show, 51 minutes down to 84 seconds*
+
+> Clean. Now the image-only posts: first checking how each way of drawing sets
+> the picture description screen readers read.
+
+> The gallery picture box uses its title ("fediverse: image post") as every
+> picture's description and ignores the post's own description. Checking how the
+> ordinary post sets it.
+
+> The ordinary post uses each picture's own description. Counting how many of
+> the 84 image-only posts have descriptions, i.e. how many screen-reader users
+> currently get "fediverse: image post" instead.
+
+> Adding tests for the description rule.
+
+> 21 pass. Now the comparison page you asked for. Checking where a post's
+> pictures live on disk so the page can show them before a build has filled the
+> site's picture folder.
+
+The page is built: 5 posts, 10 pictures. Taking a screenshot to check it
+renders.
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+[Image: original 1700x2600, displayed at 1308x2000. Multiply coordinates by 1.30
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+> The page renders, but the layout is off: the left picture spreads to full size
+> and squeezes the right column, because table cells don't limit picture widths.
+> Fixing it with two fixed, equal columns.
+
+The `%` in my new width settings trips Lua's text formatter (the same trap issue
+8-058 recorded). Escaping them.
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+[Image: original 1700x2600, displayed at 1308x2000. Multiply coordinates by 1.30
+to map to original image.]
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+*[commit] 79ec71e68 in ai-stuff - neocities: picture boxes read each picture's own description, and a page to compare the two ways image-only posts are drawn*
+
+Issue 9-014 was already finished back in June; the real reason the step took 51
+minutes was a different waste, which I've fixed. That step now takes 84 seconds.
+I also fixed the screen-reader text on image-only posts and built the comparison
+page you asked for. Everything is committed and all tests pass.
+
+## Issue 9-014
+- **What it was:** a plan to speed up the GPU step that works out each poem's
+  "different" list. The step sends the GPU a walk per poem: start at the poem,
+  then repeatedly add the poem furthest from everything picked so far.
+- **Status:** all three planned speedups (tiles, pipelining, half-size vectors)
+  were built in June. The issue file was never closed, so I rewrote it as a
+  record of what was built and moved it to completed.
+- **The real cost:** every walk went through all 9,265 other poems, and the step
+  then kept only the first 99 (3 pages × 33).
+  - Each walk now stops at 99. The early steps of a walk don't depend on how far
+    it goes, and all 9,266 walks matched the existing results on their first 99
+    poems.
+  - **3,046 s → 84 s.** Your next build produces the new results; I ran it
+    only into RAM, so your current results are untouched.
+- **Also fixed:**
+  - Each walk includes its own poem, which the page leaves out, so every poem's
+    third "different" page showed 32 poems. Walks now keep 100.
+  - The step's command-line options never reached it (`--save-binary` has never
+    worked). That's fixed, and it now takes `--model` and `--output` so it can
+    be tried without touching your results.
+
+## Numbering plan (8-019)
+The plan now uses each source's counting number, as you said:
+`similar/fediverse-2339-01.html`, `#fediverse-2339`. When an older item is
+removed, the ones after it shift down, which you've accepted. Each stored
+embedding (the meaning-vector made from a poem's text) also gets a fingerprint
+of that text, so a shift can't attach it to the wrong poem.
+
+Bluesky is settled: posts are numbered by creation time, since no two share a
+millisecond. The plan isn't built yet.
+
+## Duplicate notes
+Both pairs had identical bytes and dates. I deleted the top-level copies of
+`harambe-conspiracy` and `planes-and-trains-and-tanks` from `~/notes` and
+`input/notes`; the `reddit-comments/` copies stay.
+
+## Image-only posts
+**Screen readers:** the picture box gave every picture the description
+"fediverse: image post", although 80 of the 85 pictures have their own
+description. It now uses each picture's own description and falls back to the
+title only when there is none.
+
+**Comparison page:** open
+`/dev/shm/neocities-modernization/image-post-compare/pages/compare.html` in
+Firefox. It's in RAM, so it disappears on reboot;
+`scripts/render-image-post-comparison --out FOLDER --model embeddinggemma-2`
+rebuilds it.
+- It shows 5 posts, one for each case: some text, a content warning, several
+  pictures, a picture with no description, and picture only.
+- Each post appears both ways side by side, with what a screen reader says
+  written under each picture.
+
+Beyond the descriptions, the picture box leaves out three things the ordinary
+post shows:
+- the post's text (38 of the 68 image-only posts have some);
+- the content warning (24 have one; the first row of the page shows this);
+- the links to that post's similar, different and chronological pages.
+
+After you've looked at it: should every page draw these posts the ordinary way,
+or should the picture box gain the missing parts?
 
 --------------------------------------------------------------------------------
 

@@ -76,8 +76,8 @@ among the poems.
 ### How the pages draw it
 
 The page workers fold the manifest into their poem list
-(`image-render.inject_pseudo_poems`: kind 2 tagged in place, kind 3
-appended) and draw a ranked picture with `image-render.format_image_entry`
+(`image-render.inject_pseudo_poems`: kind 3 appended; kind 2, the
+image-only posts, left as the ordinary posts they are -- see below) and draw a ranked picture with `image-render.format_image_entry`
 through the shared poem drawer (`src/poem-entry.lua`): a picture box with
 its source-qualified title (`gallery: folder: file`, wrapping at dashes,
 slashes and colons, cut at the column when a name has none), each title line
@@ -97,15 +97,18 @@ description, falling back to the title only when it has none, escaped for
 the attribute and repeated as the hover title, as the ordinary post does
 (`format_image_entry`; three checks in `src/image-render.test.lua`).
 
-**Open question: one way for every page.** The 68 image-only posts are
-drawn as the picture box on similar and different pages and as ordinary
-posts on chronological and word pages. The box also leaves out the post's
-text (38 of the 68 have some), its content warning (24 have one) and its
-similar/different/chronological links. Owner, 2026-10-22: "I'll need a test
-page showing the 'gallery picture box' and 'ordinary post' to compare."
-`scripts/render-image-post-comparison --out FOLDER --model NAME` draws five
-of them both ways side by side, with what a screen reader says under each.
-Waiting on the owner's choice.
+**Every post with pictures is drawn as an ordinary post (2026-10-22).**
+The 68 image-only posts were drawn as the picture box on similar and
+different pages and as ordinary posts on chronological and word pages; the
+box left out the post's text (38 of the 68 have some), its content warning
+(24 have one) and its links. Owner, after the comparison page
+(`scripts/render-image-post-comparison`, both ways side by side with what a
+screen reader says, wrapped at 80 columns): "I think every post with
+pictures should follow the example in the right column, the one with all
+the extra information." So `inject_pseudo_poems` no longer tags them; the
+picture box is now only for gallery pictures (kind 3), which have no post.
+Checked on poem 133's pages: no picture boxes, its content warning shown,
+0 over-wide lines and 0 frame errors.
 
 ### Tests
 

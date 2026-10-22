@@ -72,30 +72,24 @@ end
 -- renderer's poem_index lookups resolve them. Idempotent: a second call is a
 -- no-op (guarded by a marker on poems_data), so it is safe to call after every
 -- poems.json load. Class 2 (image-only posts) ALREADY exist in poems_data with
--- their real poem_index -- we only TAG those in place; class 3 (standalone
--- catalog images, poem_index beyond the poem range) are genuinely new and get
--- appended.
+-- their real poem_index and are left as they are: they are drawn as the
+-- ordinary posts they are, with their text, content warning, pictures (each
+-- with its own description) and links -- owner, 2026-10-22: "every post with
+-- pictures should follow the example in the right column, the one with all
+-- the extra information" (scripts/render-image-post-comparison). Until then
+-- they were tagged to be drawn as a gallery picture box, which left all of
+-- that out. Class 3 (standalone catalog images, poem_index beyond the poem
+-- range) are genuinely new and get appended.
 function M.inject_pseudo_poems(poems_data, manifest)
     if not poems_data or not poems_data.poems then return poems_data end
     if poems_data._images_injected then return poems_data end
     poems_data._images_injected = true
     if not manifest then return poems_data end
 
-    -- Index existing poems so class-2 entries can be tagged in place.
-    local by_index = {}
-    for _, p in ipairs(poems_data.poems) do by_index[p.poem_index] = p end
-
     for key, rec in pairs(manifest) do
         local pidx = rec.poem_index or tonumber(key)
         if rec.class == 2 then
-            -- Tag the existing image-only post so the formatter draws it as an
-            -- image. Its attachments + content already live in poems_data.
-            local p = by_index[pidx]
-            if p then
-                p.is_image = true
-                p.image_class = 2
-                p.display_title = rec.category and (rec.category .. ": image post") or "image post"
-            end
+            -- an image-only post: already in poems_data, drawn as itself
         else
             -- Class 3: build a fresh pseudo-poem carrying the catalog image as a
             -- normal attachment. The attachment keeps the FULL relative_path (not

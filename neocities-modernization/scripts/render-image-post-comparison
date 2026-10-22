@@ -108,11 +108,20 @@ end
 
 -- {{{ local function spoken()
 -- What a screen reader says for each picture in some drawn HTML: the alt
--- text of every <img>, in order, as page text.
+-- text of every <img>, in order, as page text wrapped at the poems' 80
+-- columns (owner: "80 character widths please"), each wrapped line under
+-- the first one's text.
+local text_formatter = require("text-formatter")
 local function spoken(html)
     local lines = {}
     for alt in html:gmatch('<img[^>]-alt="([^"]*)"') do
-        lines[#lines + 1] = "  screen reader: " .. alt
+        -- the alt text is already escaped for HTML; the wrapper measures
+        -- what shows, so &quot; counts as one column
+        local label = "  screen reader: "
+        local wrapped = text_formatter.wrap_preserving_indent(alt, 80 - #label)
+        for i, piece in ipairs(wrapped) do
+            lines[#lines + 1] = ((i == 1) and label or string.rep(" ", #label)) .. piece
+        end
     end
     if #lines == 0 then lines[1] = "  screen reader: (no pictures)" end
     return table.concat(lines, "\n")
@@ -183,7 +192,7 @@ end
 -- two equal columns: a picture is never wider than its column, and the
 -- monospace text scrolls inside its column rather than widening it
 local head = page_head.head({ title = "Image-only posts, two ways", base_path = "..",
-    extra_css = "td pre { overflow-x: auto; white-space: pre; } td img { max-width: 100% !important; }" })
+    extra_css = "td img { max-width: 100% !important; }" })
 local html = string.format([[<!DOCTYPE html>
 <!-- made by scripts/render-image-post-comparison (Issue 9-013), to choose how
      image-only posts are drawn on every page -->

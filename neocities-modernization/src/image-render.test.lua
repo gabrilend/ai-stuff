@@ -26,10 +26,11 @@ local manifest = {
 
 R.inject_pseudo_poems(poems, manifest)
 
--- Class 2: existing post tagged in place, NOT duplicated.
+-- Class 2: an image-only post stays the ordinary post it is (owner, 2026-10-22),
+-- drawn with its text, warning and links, and is not duplicated.
 local p4
 for _, p in ipairs(poems.poems) do if p.poem_index == 4 then p4 = p end end
-check("class-2 post tagged is_image in place", p4 and p4.is_image == true and p4.image_class == 2)
+check("class-2 post is left an ordinary post", p4 and not p4.is_image and p4.image_class == nil)
 check("class-2 keeps its original attachments", p4 and p4.attachments[1].relative_path == "files/1/2/y.png")
 
 -- Class 3: appended as a new pseudo-poem with a usable attachment.
