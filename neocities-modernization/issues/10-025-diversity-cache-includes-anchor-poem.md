@@ -39,11 +39,11 @@ Every poem carries two numbers, and mixing them causes this defect:
   poem_index`). The diversity reader already skipped the anchor.
 - **Threaded renderer.** The worker's similarity converter now skips the
   anchor's global index, like its diversity converter.
-- **Single-threaded formatter.** The three "skip the anchor" checks compare
+- **One ranked list for every page** (`src/ranked-page.lua`, since the single-threaded formatter went in 2026-10-21, Issue 8-058). The "skip the anchor" check compares
   global indices, so the anchor prints once and a poem from another category
   that shares the anchor's per-category id is shown.
 - Callers that relied on the anchor being first in the list were updated:
-  `scripts/test-html-generation` prints entries 1-3 as the top three.
+  `scripts/test-html-generation` printed entries 1-3 as the top three (that script was retired 2026-10-21). `src/ranked-page.test.lua` pins the anchor-once rule.
 - Before 2026-09-22: the single-threaded list builder inserted the anchor at
   rank 1 under its global index (looked up by array position) while the page
   compared per-category ids, so the anchor printed twice and same-id poems

@@ -214,18 +214,11 @@ local function build_menu_config()
                 type = "single",
                 items = {
                     {
-                        id = "test_similar",
-                        label = "Test single similarity page",
+                        id = "test_pages",
+                        label = "Test one poem's pages",
                         type = "checkbox",
                         value = "0",
-                        description = "Generate one similarity page for testing"
-                    },
-                    {
-                        id = "test_different",
-                        label = "Test single difference page",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Generate one difference page for testing"
+                        description = "Draw one poem's similar and different pages into tmp/shared-memory/test-pages/"
                     }
                 }
             },
@@ -236,11 +229,11 @@ local function build_menu_config()
                 type = "multi",  -- Allow multiple options to be set
                 items = {
                     {
-                        id = "test_poem_id",
-                        label = "Test poem ID",
+                        id = "test_poem_number",
+                        label = "Test poem number",
                         type = "flag",
                         value = "1:5",  -- value:width format
-                        description = "Poem ID for test page generation"
+                        description = "The poem's number on the site (poem-N) for the test pages"
                     },
                     {
                         id = "thread_count",
@@ -842,14 +835,10 @@ function M.handle_tui_action(values)
     end
 
     -- Testing actions
-    if values.test_similar == "1" then
-        local poem_id = tonumber(values.test_poem_id) or 1
-        M.test_single_similarity_page(poem_id)
-        executed = true
-    end
-    if values.test_different == "1" then
-        local poem_id = tonumber(values.test_poem_id) or 1
-        M.test_single_difference_page(poem_id)
+    if values.test_pages == "1" then
+        M.test_one_poem_pages(
+            tonumber(values.test_poem_number) or error("the test poem number is a whole number, as on the site (poem-N)"),
+            tonumber(values.thread_count) or error("the thread count is a whole number of 1 or more"))
         executed = true
     end
 
@@ -867,83 +856,34 @@ function M.handle_tui_action(values)
 end
 -- }}}
 
--- {{{ function M.test_single_similarity_page
--- Test generating a single similarity page for debugging
-function M.test_single_similarity_page(poem_id)
-    utils.log_info("Testing similarity page for poem " .. poem_id .. "...")
-    local poems_file = utils.asset_path("poems.json")
-    local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
-    local output_dir = DIR .. "/output"
-
-    local poems_data = utils.read_json_file(poems_file)
-    local similarity_data = utils.read_json_file(similarity_file)
-
-    if poems_data and similarity_data then
-        local poem_data = nil
-        for _, poem in ipairs(poems_data.poems) do
-            if poem.id == poem_id then
-                poem_data = poem
-                break
-            end
-        end
-
-        if poem_data then
-            local ranking = flat_html_generator.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities or similarity_data)
-            -- Every poem needs its chronological map entry (progress bar and
-            -- chronological link, issues 8-045 / 10-036); an unpaginated map is
-            -- right for a one-off test page.
-            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id,
-                flat_html_generator.compute_chronological_mapping(poems_data, nil), false)
-            local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
-            os.execute("mkdir -p " .. output_dir)
-            utils.write_file(test_file, html)
-            utils.log_info("Test file written: " .. test_file)
-        else
-            utils.log_error("Poem ID " .. poem_id .. " not found")
-        end
-    else
-        utils.log_error("Failed to load required data files")
+-- {{{ function M.test_one_poem_pages
+-- Draws one poem's similar and different pages (first page of each), and all
+-- the chronological pages they link to, into a fresh folder in RAM, through
+-- the same page workers a build uses (Issue 8-058: there is one way to draw
+-- a page). The site is not touched. poem_number is the site's number (the N
+-- of poem-N); threads is how many workers draw; poems_per_page is asked for
+-- as a build asks, config.lua's value offered, since the neighbour caches
+-- hold only as many poems as the builds' page size needs.
+function M.test_one_poem_pages(poem_number, threads, poems_per_page)
+    local out = string.format("%s/tmp/shared-memory/test-pages/poem-%d-%s", DIR, poem_number, os.date("%Y%m%d-%H%M%S"))
+    local per_page = ask.resolve({
+        flag = "--poems-per-page", question = "How many poems on each similar/different page?",
+        kind = "count", given = poems_per_page,
+        default = flat_html_generator.get_pagination_config().poems_per_page,
+        default_source = "config.lua pagination.poems_per_page",
+        accept_defaults = ask.wants_defaults(arg),
+    })
+    local cmd = string.format("%q %q --out %q --model %q --server %q --threads %d --poems-per-page %d --pages 1 --anchor %d",
+        DIR .. "/scripts/render-page-sample", DIR, out,
+        inference_config.get_selected_model(), inference_config.get_selected_server().name,
+        threads, per_page, poem_number)
+    utils.log_info("Running: " .. cmd)
+    local result = os.execute(cmd)
+    -- LuaJIT reports success as 0, or as true when built with 5.2 compatibility
+    if result ~= 0 and result ~= true then
+        error("test pages failed for poem " .. poem_number)
     end
-end
--- }}}
-
--- {{{ function M.test_single_difference_page
--- Test generating a single difference page for debugging
-function M.test_single_difference_page(poem_id)
-    utils.log_info("Testing difference page for poem " .. poem_id .. "...")
-    local poems_file = utils.asset_path("poems.json")
-    local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
-    local output_dir = DIR .. "/output"
-
-    local poems_data = utils.read_json_file(poems_file)
-    local embeddings_data = utils.read_json_file(embeddings_file)
-
-    if poems_data and embeddings_data then
-        local poem_data = nil
-        for _, poem in ipairs(poems_data.poems) do
-            if poem.id == poem_id then
-                poem_data = poem
-                break
-            end
-        end
-
-        if poem_data then
-            local diversity_chaining = require("diversity-chaining")
-            local ranking = diversity_chaining.generate_diversity_chain(poem_id, poems_data, embeddings_data)
-            -- Issue 10-036: nil chrono_mapping here on purpose -- this is a dev test, not the
-            -- site build. The formatter now warns once and points at
-            -- chronological/index.html, which exists in both pagination modes.
-            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "different", poem_id, nil)
-            local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
-            os.execute("mkdir -p " .. output_dir)
-            utils.write_file(test_file, html)
-            utils.log_info("Test file written: " .. test_file)
-        else
-            utils.log_error("Poem ID " .. poem_id .. " not found")
-        end
-    else
-        utils.log_error("Failed to load required data files")
-    end
+    utils.log_info(string.format("Pages written under %s (similar/%04d-01.html, different/%04d-01.html)", out, poem_number, poem_number))
 end
 -- }}}
 

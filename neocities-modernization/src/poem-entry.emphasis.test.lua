@@ -13,7 +13,11 @@
 -- bytes, every emphasized line lost budget to markup nobody can see. The
 -- end-to-end case below is the poem that exposed it.
 --
--- Run directly:  luajit src/flat-html-generator.emphasis.test.lua
+-- Run directly:  luajit src/poem-entry.emphasis.test.lua
+--
+-- The rules live in poem-entry.lua (apply_markdown), the one drawer every page
+-- uses; until 2026-10-21 this tested a copy in the page builder that only the
+-- chronological pages ran (Issue 8-058).
 
 -- {{{ local function setup_path()
 local function setup_path()
@@ -26,7 +30,7 @@ end
 -- }}}
 
 setup_path()
-local generator = require("flat-html-generator")
+local entry = require("poem-entry")
 local tf = require("text-formatter")
 
 local passed, failed = 0, 0
@@ -48,7 +52,7 @@ end
 -- Run one snippet through the markdown pass and turn the sentinels back into
 -- the asterisks they stand for, which is what the page finally carries.
 local function rendered(src)
-    return (generator.apply_markdown_formatting(src):gsub("\1", "*"))
+    return (entry.apply_markdown(src):gsub("\1", "*"))
 end
 -- }}}
 
@@ -91,7 +95,7 @@ check("a bold span is not re-read as two italics",
 -- two words early for as long as the wrapper measured bytes.
 local source_line =
     "who would have thought, people *want* to do good. People also want to take the"
-local formatted = generator.apply_markdown_formatting(source_line)
+local formatted = entry.apply_markdown(source_line)
 local wrapped = tf.wrap_preserving_indent(formatted, 80)
 
 check("the poem line is 78 columns wide as written",

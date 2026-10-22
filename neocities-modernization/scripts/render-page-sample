@@ -21,6 +21,10 @@
 --   --threads worker threads for the similar/different pages
 --   --poems-per-page  poems on each similar/different page (the builds use 33)
 --   --pages   pages per poem, a count or "all" (as run.sh --pages)
+--   --anchor  a poem number (as on the site: poem-N); may be given more than
+--             once. Given, only these poems get similar/different pages,
+--             instead of the fixed sample -- the way to look at one poem's
+--             pages without a build.
 --
 -- The sample is chosen from poems.json by a fixed rule (no randomness), so two
 -- runs over the same poems pick the same anchors. One page per anchor per
@@ -31,6 +35,7 @@
 -- {{{ arguments
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 local OUT, MODEL, SERVER, THREADS, PER_PAGE, PAGES
+local ANCHORS = {}
 do
     local i = 1
     while i <= #arg do
@@ -41,6 +46,10 @@ do
         elseif a == "--threads" then THREADS = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--poems-per-page" then PER_PAGE = tonumber(arg[i + 1]); i = i + 1
         elseif a == "--pages" then PAGES = arg[i + 1]; i = i + 1
+        elseif a == "--anchor" then
+            ANCHORS[#ANCHORS + 1] = tonumber(arg[i + 1])
+                or error("render-page-sample: --anchor takes a poem number, not " .. tostring(arg[i + 1]))
+            i = i + 1
         elseif a:sub(1, 2) == "--" then error("render-page-sample: unknown option " .. a)
         else DIR = a end
         i = i + 1
@@ -76,15 +85,25 @@ end
 -- }}}
 
 -- {{{ local function fresh_out()
+-- Makes OUT and links its pictures folder to the site's, so nothing is
+-- copied. The site's pictures live on disk in assets/site-media (the site in
+-- RAM links its media folder there; scripts/ensure-site-in-ram), filled by a
+-- build. Without it the page builder would try to copy every picture into a
+-- link that leads nowhere and warn once per picture, so it is an error here.
 local function fresh_out()
     local probe = io.open(OUT .. "/.", "r")
     if probe then
         probe:close()
         error("render-page-sample: " .. OUT .. " already exists; give a new folder")
     end
+    local media = DIR .. "/assets/site-media"
+    local pictures = io.open(media .. "/.", "r")
+    if not pictures then
+        error("render-page-sample: no pictures folder at " .. media
+            .. "; a build fills it (./run.sh), so build the site once first")
+    end
+    pictures:close()
     run(string.format("mkdir -p %q", OUT))
-    -- pictures: link the real folder so nothing is copied
-    local media = DIR .. "/output/media"
     run(string.format("ln -s %q %q", media, OUT .. "/media"))
 end
 -- }}}
@@ -140,17 +159,35 @@ local function pick_sample(poems)
 end
 -- }}}
 
-fresh_out()
+-- {{{ local function named_anchors()
+-- The poems --anchor named, by poem number; a number no poem has is an error.
+local function named_anchors(poems)
+    local by_index = {}
+    for _, p in ipairs(poems) do
+        if p.poem_index then by_index[p.poem_index] = p end
+    end
+    local chosen = {}
+    for i, n in ipairs(ANCHORS) do
+        chosen[i] = by_index[n] or error("render-page-sample: no poem is numbered " .. n)
+    end
+    return chosen
+end
+-- }}}
+
 local poems_data = assert(utils.read_json_file(utils.asset_path("poems.json")), "poems.json did not load")
+-- the anchors are chosen first, so a poem number no poem has stops the run
+-- before anything is drawn. --anchor given: those poems; otherwise the fixed
+-- sample.
+local sample = #ANCHORS > 0 and named_anchors(poems_data.poems) or pick_sample(poems_data.poems)
+local anchors = {}
+for i, p in ipairs(sample) do anchors[i] = p.poem_index end
+fresh_out()
 local chrono_per_page = generator.get_pagination_config().chronological_poems_per_page
 -- the chronological pages: all of them, from every poem
 assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, chrono_per_page, THREADS),
     "chronological pages failed")
--- the similar/different pages: only the sample's anchors get pages; every
--- poem keeps its place on the timeline and in the ranked lists
-local sample = pick_sample(poems_data.poems)
-local anchors = {}
-for i, p in ipairs(sample) do anchors[i] = p.poem_index end
+-- the similar/different pages: only the anchors get pages; every poem keeps
+-- its place on the timeline and in the ranked lists
 assert(generator.generate_complete_flat_html_collection(
     poems_data, nil, nil, OUT, PAGES, PER_PAGE, THREADS, chrono_per_page, anchors),
     "similar/different pages failed")
