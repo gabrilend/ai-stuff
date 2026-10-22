@@ -24,8 +24,8 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 10-001 | Integrate TUI into phase-demo.sh | Open | High |
-| 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
+| 10-001 | Integrate TUI into phase-demo.sh | Completed (filed 2026-10-22; built earlier) | High |
+| 10-002 | Integrate TUI into generate-embeddings | Completed (filed 2026-10-22; built earlier) | Medium |
 | 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
 | 10-008 | Implement multiline command wrapping | Completed | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
