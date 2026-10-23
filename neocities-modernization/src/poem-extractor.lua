@@ -13,7 +13,7 @@ end
 local DIR = setup_dir_path(arg and arg[1])
 
 -- Load required libraries
-package.path = DIR .. "/libs/?.lua;" .. package.path
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local utils = require("utils")
 
@@ -393,6 +393,63 @@ function M.detect_input_mode(base_directory)
 end
 -- }}}
 
+-- {{{ function M.number_poems
+-- Gives every poem its source key and its number (Issue 8-019).
+--
+-- The source key names the poem by its source and that source's own counting
+-- number: "fediverse-2339", "messages-618", "notes-41". It is what links,
+-- anchors, page names and cached vectors hold on to. A counting number can
+-- shift when an earlier item of that source leaves (a deleted post, something
+-- removed because it put someone at risk) or an older note arrives, and that
+-- is accepted (owner, 2026-10-22: "Let's just shift everything down"); a
+-- shift in one source never moves another source's keys.
+--
+-- The number (poem_index) is counted fresh every run, 1..N, in date order,
+-- ties broken by source key (owner: "recomputed each run ... just counting
+-- in a specific order with a specific method"). Nothing stored keeps it as
+-- an identity: every cache made from the numbers records the numbering's
+-- fingerprint (a code made from the keys in order), and a reader refuses a
+-- cache made under another numbering.
+--
+-- poems  : list of poems, each with category, id (number) and a date
+-- returns: the same list, sorted and numbered, and the numbering's
+--          fingerprint (string). Two poems with one key, or a poem with no
+--          date, stop the extraction with the poems named.
+function M.number_poems(poems)
+    local poem_dates = require("poem-dates")
+    local text_fingerprint = require("text-fingerprint")
+    local seen = {}
+    local dated = {}
+    for i, poem in ipairs(poems) do
+        local id = tonumber(poem.id)
+        if not id then
+            error(string.format("poem %d (%s) has no counting number: id %s",
+                i, tostring(poem.category), tostring(poem.id)))
+        end
+        local key = string.format("%s-%d", poem.category or "unknown", id)
+        if seen[key] then
+            error("two poems have the source key " .. key .. "; each source must count its items once")
+        end
+        seen[key] = true
+        poem.source_key = key
+        local timestamp = poem_dates.timestamp(poem)
+            or error("poem " .. key .. " has no date: no creation_date, no date in its first line, no file to read one from")
+        dated[i] = { poem = poem, timestamp = timestamp }
+    end
+    table.sort(dated, function(a, b)
+        if a.timestamp ~= b.timestamp then return a.timestamp < b.timestamp end
+        return a.poem.source_key < b.poem.source_key
+    end)
+    local numbered, keys = {}, {}
+    for i, d in ipairs(dated) do
+        d.poem.poem_index = i
+        numbered[i] = d.poem
+        keys[i] = d.poem.source_key
+    end
+    return numbered, text_fingerprint.of(table.concat(keys, "\n"))
+end
+-- }}}
+
 -- {{{ function assign_nearest_text_poem_index
 -- Issue 9-010: After poem_index is assigned, map nearest_text_poem to poem_index
 -- This allows the embedding generator to look up embeddings by index
@@ -465,20 +522,9 @@ function M.extract_poems_auto(base_directory, output_file, opts)
         print(string.format("Excluded %d boost posts (include_boosts=false)", removed))
     end
 
-    -- Sort poems by category, then by ID for consistent ordering
-    table.sort(poems, function(a, b)
-        if a.category ~= b.category then
-            return (a.category or "") < (b.category or "")
-        end
-        return (a.id or 0) < (b.id or 0)
-    end)
-
-    -- Assign poem_index after sorting (unique, array-aligned identifier)
-    -- This solves cross-category ID collisions: fediverse/0002.txt and messages/0002.txt
-    -- both have id=2 but different poem_index values. See Issue 8-019.
-    for i, poem in ipairs(poems) do
-        poem.poem_index = i
-    end
+    -- Every poem's source key, and its number counted by date (Issue 8-019).
+    local numbering
+    poems, numbering = M.number_poems(poems)
 
     -- Issue 9-010: Assign nearest_text_poem_index for embedding inheritance
     -- Image-only posts inherit embeddings from nearest text poem
@@ -492,9 +538,16 @@ function M.extract_poems_auto(base_directory, output_file, opts)
             source_path = source_path,
             extracted_at = os.date("%Y-%m-%d %H:%M:%S"),
             total_poems = #poems,
-            extraction_version = "2.3",  -- Bumped for embedding inheritance (Issue 9-010)
+            extraction_version = "2.4",  -- 2.4: source keys, numbers by date (Issue 8-019)
+            -- what the numbers are and the code of this run's numbering: every
+            -- cache made from the numbers copies it, and its readers compare
+            numbering = {
+                order = "date, then source key",
+                fingerprint = numbering,
+            },
             features = {
                 poem_index = true,              -- Issue 8-019
+                source_key = true,              -- Issue 8-019
                 embedding_inheritance = true    -- Issue 9-010 (replaces image_only_association)
             }
         },
@@ -528,19 +581,9 @@ function M.extract_poems(input_file, output_file)
     
     print("Found " .. #poems .. " poems")
     
-    -- Sort poems by category, then by ID for consistent ordering
-    table.sort(poems, function(a, b)
-        if a.category ~= b.category then
-            return (a.category or "") < (b.category or "")
-        end
-        return (a.id or 0) < (b.id or 0)
-    end)
-
-    -- Assign poem_index after sorting (unique, array-aligned identifier)
-    -- See Issue 8-019 for rationale.
-    for i, poem in ipairs(poems) do
-        poem.poem_index = i
-    end
+    -- source keys and numbers by date, as the main path (Issue 8-019)
+    local numbering
+    poems, numbering = M.number_poems(poems)
 
     -- Create output structure
     local output_data = {
@@ -548,7 +591,8 @@ function M.extract_poems(input_file, output_file)
             source_file = input_file,
             extracted_at = os.date("%Y-%m-%d %H:%M:%S"),
             total_poems = #poems,
-            extraction_version = "1.1"  -- Bumped for poem_index addition
+            extraction_version = "1.1",  -- Bumped for poem_index addition
+            numbering = { order = "date, then source key", fingerprint = numbering },
         },
         poems = poems
     }
