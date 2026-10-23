@@ -437,7 +437,7 @@ local function generate_gallery_chronological(images)
     table.insert(html, generate_html_header("Images — Chronological"))
     table.insert(html, '<center>')
     table.insert(html, '<h1>Images &mdash; Chronological</h1>')
-    table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../index.html">Menu</a></p>')
+    table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../wordcloud.html">Menu</a></p>')  -- the site's menu, as on the other gallery pages
     table.insert(html, '<hr>')
     table.insert(html, '<p>' .. #images .. ' images from all collections, in time order</p>')
     table.insert(html, '</center>')

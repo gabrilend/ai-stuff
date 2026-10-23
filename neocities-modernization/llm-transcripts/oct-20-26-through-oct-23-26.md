@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-22 16:52:09
+Generated on: 2026-10-23 11:29:08
 Models: claude-opus-5-5
 
 ## Contents
@@ -55,6 +55,14 @@ Models: claude-opus-5-5
     (`/dev/shm/neocities-modernization/image-post-compare/pages/compare.html`)
     and choose whether every page draws them as ordinary posts or as picture
     boxes.
+13. 2026-10-22 16:55, after Request 19 - We're getting the site ready for its
+    next push; picture posts and the walk speedup are committed. Next I'll start
+    stable per-source poem numbering (8-019) and four quick issue fixes, once
+    you say yes.
+14. 2026-10-22 17:42, after Request 20 - Everything you approved is done: stable
+    poem keys and date numbering, tests run before every build, and the issue
+    clean-up. All tests pass. Next, run your build with --force, then deploy
+    with --prune.
 
 --------------------------------------------------------------------------------
 
@@ -3589,6 +3597,426 @@ The first build afterwards needs `--force`, to re-embed under the new names.
 
 Shall I go ahead with 8-019 and the four easy ones, and close the superseded
 issues?
+
+--------------------------------------------------------------------------------
+
+### User Request 20
+
+> - 10-066 says word pages are two thirds of the site. That was 7,290 pages;
+> there are now 200, about 24 MB.
+
+this will change dynamically so we should just strike that statistic from the
+records.
+
+  I'd want your yes before closing these.
+
+everything else is yes, let's move forward
+
+> 1. 10-010: the tests never run during a build. A small script that runs every
+> test, called from run.sh before stage 1, would make them run every time.
+>   2. 10-049: remove the leftover Ollama script and server entry.
+>   3. 10-066: close it with a fresh size measurement after the build.
+
+let's work on these too.
+
+> Shall I go ahead with 8-019 and the four easy ones, and close the superseded
+> issues?
+
+yes please.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 20
+
+> Starting with the superseded issues. Each gets a short note at the top saying
+> what replaced it, then moves to completed. 10-042 stays open, because three of
+> its sub-issues (b, d, e) are still open; I'm correcting its out-of-date
+> description instead.
+
+> Now 10-042's description, which still says the picture catalog is never used.
+
+> Committing the closures and the measuring tool, then moving on to the test
+> runner.
+
+*[commit] 0dd3f0231 in ai-stuff - neocities: close four superseded issues, and measure page sizes with a tool instead of quoted numbers*
+
+> The warnings are from my own `git mv` again. Clearing those staging entries;
+> from now on I'll move files with plain `mv`.
+
+> Some of the older `-test.lua` files may need the inference server or never
+> exit. Running each one once (with a time limit) to see which can run during
+> every build.
+
+> 40 pass, 1 can't run (no server), in 60 s. Removing a leftover no-op from the
+> file search, then wiring the runner into `run.sh` beside the pre-flight check.
+
+> The dry run shows the test step first. Writing the runner's reference note and
+> recording issue 10-010 as built.
+
+*[commit] 5a3c52bbf in ai-stuff - neocities: every build runs every test first*
+
+> Removing the old Ollama start script and the Ollama-port server entry, and
+> pointing the documents that named the script at the llama.cpp one.
+
+> It passes alone but fails when run beside the others, so two tests share a
+> scratch folder. Finding which.
+
+> Running all tests twice to check the collision is gone.
+
+> Both runs clean. Updating the docs that name the old findings path, recording
+> 10-049 as done, and committing.
+
+> Committing the Ollama clean-up and the page-check fix.
+
+*[commit] 8735dfc47 in ai-stuff - neocities: the last of Ollama goes, and two page checks at once no longer wipe each other*
+
+> Adding the generator's `--out` option.
+
+> Now pointing the seed test at a trial folder in RAM and running it.
+
+> The generator needs a model named for the word colours; other tests name
+> `embeddinggemma-2`, so this one will too.
+
+> The seed test passes. Checking no archive records were added, then renaming it
+> so the test runner picks it up.
+
+> The word-cloud generator has no reference note yet. Writing a short one, then
+> committing.
+
+*[commit] 7e168442c in ai-stuff - neocities: the seed test runs before every build, as a trial that touches nothing*
+
+> Starting 8-019. First reading how poem numbers are given out today, and
+> everything that stores them.
+
+> I'm going to read the embedding stage's main loop next, since step 3 changes
+> how it decides whether a stored vector can be reused.
+
+> Every source carries a `creation_date`, so dates are reliable. Moving the two
+> date functions out of the page builder into `src/poem-dates.lua`, unchanged,
+> so the extractor can use them too.
+
+> Both files parse. Now a small text-fingerprint library: FNV-1a 64-bit, a fast
+> and well-known way to turn a text into a 16-character code.
+
+> Trying the new numbering on today's poem list, without writing anything:
+> checking for duplicate keys, missing dates, and how many numbers move.
+
+> All 8,622 poems get unique keys and dates, in 0.04 s. As expected, nearly
+> every number changes once, which is why the first build afterwards re-embeds.
+> Writing a test for the numbering rule.
+
+*[commit] 8d13f5e2e in ai-stuff - neocities: poems get source keys and are numbered by date*
+
+> Writing the edits to the embedding stage.
+
+> The retry report also looks poems up by the old number. Making it report by
+> key: changed text, or no stored vector.
+
+> Still on 8-019 step 2: the helper is written. Now the four cache writers stamp
+> their files. Checking how the diversity step reads the vectors' metadata.
+
+> Every writer now stamps its cache. Now the two readers: stage 9 (pages) and
+> stage 10 (word pages). Checking where the page builder reads each cache from.
+
+> Now tests. The reuse rule sits inside a function that needs the inference
+> server, so I'm moving the decision into its own small function to test it
+> directly.
+
+> 15 pass. One more cache writer: the diversity repair tool from earlier also
+> writes the walks, so it needs the stamp too.
+
+> Recording steps 1 and 2 in the issue, then running all tests and committing.
+
+*[commit] b9334b3f0 in ai-stuff - neocities: a stored vector follows its poem and its text, and every cache says which numbering it is in*
+
+> Step 2 is committed. Step 3 is naming anchors and page files by key. Listing
+> every place that builds a number-based page name or anchor.
+
+> Now switching every page to the new addresses.
+
+> The import line I added to `ranked-page.lua` broke its syntax. Looking.
+
+> Running the tests to find everything still using numbers.
+
+> Still on the numbering work: my inline Lua didn't receive its arguments (the
+> same trap as before). Feeding the script on standard input instead.
+
+> The seed test passes again. Now the three test fixtures: their made-up poems
+> get keys, and the expected links change to key-based ones.
+
+> The worker loads the address module after the chronological-page code that
+> uses it. Moving the line up.
+
+> Adding one check to the chronological test: the page carries each poem's key
+> as its anchor.
+
+> Still on 8-019, step 3: every page and anchor is now named by key. Writing the
+> address module's reference note and updating the others that mention
+> number-based names.
+
+> The deploy has a `--prune` option that deletes remote files the build no
+> longer has, so the first deploy after this build should use it. Recording step
+> 3 in the issue and committing.
+
+*[commit] 516699d3c in ai-stuff - neocities: every poem's address is named by its source key*
+
+> Committed. The retired repair tool has now been through one commit, so it
+> goes.
+
+*[commit] 8fe0013a1 in ai-stuff - neocities: remove the retired diversity-cache repair tool*
+
+Everything you said yes to is done and committed, and all 44 tests pass. The
+45th needs the inference server, which is down, so it's listed as "could not
+run". 8-019 is built. I couldn't render whole pages to check it, because the
+page builder needs the keyed poem list your next build writes.
+
+**Your next build has two requirements:**
+- **Run it with `--force`.** Nearly every poem's number changes once, so all
+  vectors are made fresh.
+- **Deploy with `scripts/deploy-to-neocities --prune`.** Every similar and
+  different page has a new file name, and without `--prune` the old number-named
+  pages stay on the site.
+
+**8-019, numbering and addresses**
+- **Keys:** each poem has a key made of its source and that source's own
+  counting number, like `fediverse-2339`. Pages, anchors and links all use it:
+  `similar/fediverse-2339-01.html`, `chronological/03.html#fediverse-2339`. An
+  old link whose poem has moved to the next page lands at that page's top, as
+  you asked.
+- **Numbers:** poems are numbered fresh on every extraction by date, with ties
+  broken by key. Two poems with the same key, or a poem with no date, stop the
+  extraction.
+- **Stored vectors:** each one is now tied to its poem's key and to a
+  fingerprint of the exact text it was made from. It's reused only when both
+  match, which rules out the October 7 notes mix-up. This also fixed a second
+  way vectors could go astray: image-only posts looked up their neighbour's
+  vector under the previous run's number.
+- **Caches:** every file built from the numbers (colours, picture list,
+  similarity rankings, diversity walks) records which numbering it was made
+  under. The page and word-page stages refuse a mismatched one and say what to
+  rerun.
+- **Not done:** gallery pictures aren't yet placed among the poems by date. That
+  belongs to issue 10-042b, and no page is named by their numbers.
+
+**Tests every build**
+- `scripts/run-tests` runs all 45 tests, 12 at a time, in about a minute, before
+  stage 1. A failure stops the build.
+- Running tests side by side exposed a real bug: two page checks at once wiped
+  each other's results. Each check now works in its own folder.
+- The seed test now writes into RAM. It no longer writes into the site folder or
+  adds word-cloud archive records.
+
+**Issue clean-up**
+- **Done but never filed:** four finished issues moved to completed (10-001,
+  10-002, 6-033, 5-026).
+- **Superseded:** four closed with a note saying what replaced them (9-007,
+  10-029, 8-031, 10-042c).
+- **10-049:** the Ollama start script and its config entry are removed.
+- **10-010:** recorded as built (the test runner above).
+- **10-066:** no longer quotes any sizes. `scripts/measure-page-bytes` measures
+  them instead. It shows a word page now costs about the same per poem as a
+  similar page, and roughly half of every page's bytes are colour markup.
+- **Picture posts:** every post with pictures is drawn the full way, as you
+  chose.
+
+**Still open, each waiting on your build:**
+- 9-011: whole-site width check.
+- 10-058: the two seed checks only a real build can make.
+- 10-066: a size measurement of the built site.
+- 8-019: a check of every link on the built site.
+
+Earlier I asked what went wrong when you last tried stopping the "different"
+walks early. Each step still scans every remaining poem, and the walks matched
+the full run on their first 99 poems for all 9,266 poems. If the earlier problem
+was something else, I'd like to check it against this.
+
+--------------------------------------------------------------------------------
+
+### User Request 21
+
+Okay. Can you think of anything we should move into the config file? Also,
+there's lots of notes and deprecated warnings and such in the config file, and
+presumably elsewhere in the codebase. Can you give me a report on how much we
+could clear from all of our code? We want to prune it down, lower the cognitive
+load required to understand and use the system. History written in a comment is
+less valuable than it's prominence in our codebase suggests, because you can
+always git blame a file and see when and why it was changed or modified.
+
+the build has run. I haven't pushed to neocities yet, please remind me. I ran
+with --force. Please check the logs and see if there were any errors.
+
+also... I was running the compilation and I ran out of RAM space? Can you tell
+me about what we automatically do in that situation?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 21
+
+> Starting with the build logs.
+
+> `/dev/shm` is full right now (16 GB used of 16 GB), and swap is nearly full
+> too. Finding what fills it.
+
+> Down to 3.6 GB used. Now the build itself: finding its logs.
+
+> Still on the build check. The RAM-full problem has two parts: nothing checks
+> free space before writing the site, and the page writers ignore failed writes.
+> Looking at the file-writing helpers.
+
+> Before fixing anything, here's the data for your two report questions. First,
+> config candidates: issue 10-071 already keeps a list of settings still written
+> in code.
+
+> Now searching for tuning numbers set inside the code: names in capitals given
+> a literal value.
+
+> Now the comment survey. Measuring every source file: how many lines are
+> comments, and how many of those are history ("used to", "until 2026", dates,
+> issue numbers, "deprecated", "legacy", "removed").
+
+> Single matching lines undercount, since history notes run as paragraphs.
+> Measuring whole comment blocks that contain a history marker, and running the
+> project's own orphan-file audit for unused code.
+
+The build ran out of room because of my leftover files, and the site it produced
+is half empty, so please don't push it to Neocities yet. Space is now freed.
+With your yes, I'd fix the silent write failures (below) and you'd re-run the
+last two stages.
+
+## The build
+**What worked:**
+- All 8,667 embeddings were made fresh.
+- The "different" walks took 104 s instead of about 3,000.
+- The 175 chronological pages are complete.
+
+**What failed:**
+
+| part | files | empty |
+|---|---|---|
+| similar pages | 17,334 | 9,130 |
+| different pages | 17,334 | 9,133 |
+| gallery pages | 7 | 7 |
+| source-browser pages | 603 | 603 |
+| `chronological.txt` | 1 | 1 (0 bytes) |
+
+The word cloud, the download zip and the final page check never ran. There's no
+log file from this run, so I can't tell you what message the build stopped with;
+your terminal will have it.
+
+**Why: this was my fault.** My trial renders with `--copy-pictures` each copied
+1.5 GB of pictures into RAM, and I left six of them, plus one more check,
+behind. That was about 11 GB of the 16 GB RAM folder (`/dev/shm`). I've deleted
+them, and it's now at 3.6 GB used, 12 GB free.
+
+## What the build does automatically when RAM runs out
+Almost nothing, and that's the second bug:
+- **The memory budgeter (issue 10-057)** only measures memory for running
+  programs. Before the page workers and the GPU walks start, it lowers the
+  worker count to fit. If even that won't fit, it warns and continues on one
+  worker. It never looks at the RAM folder the site is written into.
+- **Nothing checks free space** in that folder before writing the site or the
+  zip.
+- **The file writers never check that a write succeeded.** The shared write
+  helper and the page workers' writer both discard the write's result. So on a
+  full disk they leave an empty file and carry on. That's how 18,000 empty pages
+  got made without the build stopping.
+
+**Fixes I'd make, in order:**
+1. Every write checks its result, and a failed write stops the build with the
+   file named.
+2. A free-space check before stage 9: the size of the last site plus the zip
+   must fit, or the build stops before writing.
+3. `--copy-pictures` makes links to each picture instead of copying it, so a
+   trial render costs almost no RAM.
+
+## Rebuilding
+After fix 1 (or now, since there's room), only stages 9 and 10 need to run; the
+caches are on disk and fine:
+```
+./run.sh --generate-html --generate-wordcloud --force --threads 6 --pages 1 --poems-per-page 100 --chrono-per-page 50 --wordcloud-words 2000 --wordcloud-poems 10 --model embeddinggemma-2
+```
+**Reminder for afterwards:** push with `scripts/deploy-to-neocities --prune`.
+Every similar and different page has a new name, and `--prune` removes the old
+number-named ones from the site.
+
+## What could move into `config.lua`
+1. **The picture-source lists in the gallery code.**
+   `src/generate-gallery-pages.lua` keeps its own list of sources, folder names
+   and titles, while config already lists the picture sources.
+2. **The test and demo model.** `embeddinggemma-2` / `local` is written into
+   five tests and the phase 5 demo; one config entry would serve them all.
+3. **Word-cloud colours.** The code reads `config.colors`, a section that
+   doesn't exist, so editing the real colours in config changes nothing (issue
+   10-071 found this).
+4. **The fediverse home instance (`tech.lgbt`) and the privacy defaults**,
+   written into the fediverse extractor.
+5. **Picture limits**: supported formats and the 10 MB size cap in the picture
+   catalog.
+6. **Layout numbers**: gallery columns, thumbnail width, gaps.
+7. **GPU tuning**: walk batch size, the GPU's cache size, chunk timing. These
+   describe your GTX 1080 Ti, so they'd move with a GPU swap.
+8. **`TUI_LIBS`**, an absolute path to the shared scripts folder in
+   `src/main.lua`.
+
+The frame geometry (bar widths, where the box corners meet) I'd leave in code.
+It's design, and the tests pin it.
+
+## What we could clear
+Measured across 130 source files, about 46,000 lines:
+
+| | lines |
+|---|---|
+| code | ~31,000 |
+| comments | ~10,000 (22%) |
+| comment paragraphs that are history ("until 2026-…", "used to", issue numbers, "removed", "legacy") | **~4,850**: half of all comments, a tenth of all lines |
+
+Most history, by file:
+
+| file | history-marker lines |
+|---|---|
+| `run.sh` | 181 |
+| `src/flat-html-generator.lua` | 102 |
+| `src/generate-word-pages.lua` | 64 |
+| `src/similarity-engine.lua` | 59 |
+| `src/wordcloud-generator.lua` | 41 |
+| `config.lua` | 40 |
+
+`config.lua` is 890 lines, 312 of them comments. It still carries notes about
+removed sections (`image_sync` DEPRECATED, `input_sources` REMOVED, "removed
+stale options"), which could go entirely.
+
+**Unused code, from the project's own orphan audit**, about 4,700 lines across
+13 modules nothing uses:
+- the validation suite: `run-validation`, `run-validation-with-reports`,
+  `validation-engine`, `report-generator`;
+- `similarity-calculator` and `diversity-chaining`;
+- `triangular-similarity-matrix` and `triangular-similarity-access`;
+- `hubness-experiment` and `regenerate-clean-site`;
+- three files in `src/html-generator/`.
+
+The audit also lists 22 scripts nothing calls. Some are hand-run tools to keep
+(`measure-page-bytes`, `render-image-post-comparison`). Others look dead, like
+`migrate-to-triangular-files.lua` and `generate-diversity-cache.sh`.
+
+**Unread config settings:** the config-key audit flags six, but it misses
+settings read by name at run time. `generate_txt_exports` is flagged and is in
+fact used, so each needs a hand check.
+
+**What I'd keep in comments:** why a design is the way it is (the "why it works
+so" rule in your instructions) and the owner decisions quoted from you. What
+would go: before/after stories, issue-number trails, dates and "this used to…"
+accounts, which git blame already holds.
+
+## Questions
+1. Shall I make fixes 1–3 now, before you re-run stages 9 and 10?
+2. For the comment pruning, which do you prefer?
+   - **(a) A single sweep** under one issue file, file by file, largest first.
+   - **(b) A linter** that flags history-style comments (dates, "used to", issue
+     trails), to run as part of `run-tests`, so they don't come back.
+
+   My recommendation is (a), then (b).
+3. Delete the 13 unused modules after a check by hand? Your rule would rename
+   each `-done` for one commit first.
 
 --------------------------------------------------------------------------------
 

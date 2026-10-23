@@ -824,10 +824,20 @@ local function classify_file(rel)
     elseif IMAGE_EXTS[e] then
         return "image"
     elseif e == "" then
-        -- No extension: prose unless the bytes say binary (a NUL is the giveaway).
+        -- No extension: a script when its first line names an interpreter
+        -- ("#!/usr/bin/env luajit"), shown as code in that language; otherwise
+        -- prose, unless the bytes say binary (a NUL is the giveaway). Scripts
+        -- used to be read as Markdown, so code like cases[name](p) became a
+        -- link to a page named "p".
         local body = utils.read_file(DIR .. "/" .. rel)
-        if body and not body:find("\0", 1, true) then return "md" end
-        return "skip"
+        if not body or body:find("\0", 1, true) then return "skip" end
+        local shebang = body:match("^#!([^\n]*)")
+        if shebang then
+            if shebang:find("lua", 1, true) then return "code", "lua" end
+            if shebang:find("bash", 1, true) or shebang:find("/sh", 1, true) then return "code", "sh" end
+            return "code", "text"
+        end
+        return "md"
     end
     return "skip"
 end
