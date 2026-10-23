@@ -29,7 +29,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
 | 10-008 | Implement multiline command wrapping | Completed | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
-| 10-010 | Integrate test suites into development pipeline | Open | Medium |
+| 10-010 | Integrate test suites into development pipeline | Completed 2026-10-22 (scripts/run-tests, run before every build) | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-018 | Animated command option transitions | Completed | Low |
 | 10-019 | Document config structure and field usage | Completed | Low |
@@ -377,7 +377,7 @@ phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <proj
 - [x] Multi-Ollama server configuration (10-017)
 - [x] TUI per-stage regeneration options (10-016)
 - [ ] TUI integration for all interactive scripts
-- [ ] Test suite integration (10-010)
+- [x] Test suite integration (10-010)
 
 ---
 

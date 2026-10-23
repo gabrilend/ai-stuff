@@ -1,0 +1,144 @@
+#!/usr/bin/env luajit
+-- run-tests
+--
+-- WHAT IT DOES (for a CEO): runs every test the project has, several at a
+-- time, and says plainly which passed, which failed and which could not run
+-- (a test that needs the inference server, when it is down). run.sh runs it
+-- before the first stage of every build, so a broken part stops the build
+-- before hours of work start (Issue 10-010).
+--
+-- Tests are found by name, so a new test runs without being listed anywhere:
+--   src/*.test.lua  src/*-test.lua  libs/*.test.lua  libs/*-test.lua
+--   scripts/*.test.sh
+-- A Lua test is run as `luajit FILE DIR`, a shell test as `bash FILE`; each
+-- passes by exiting 0. A test whose last line starts with "SKIP" could not
+-- run here; it is reported, not counted as passed.
+--
+-- Usage:
+--   scripts/run-tests [DIR] --jobs N [--match TEXT]
+--
+--   DIR      project directory (default below)
+--   --jobs   how many tests run at once (required; run.sh passes --threads)
+--   --match  only tests whose file name contains TEXT
+--
+-- Each test's output goes to tmp/shared-memory/tests/<test>.log; a summary
+-- is printed, and the exit status is 1 when any test failed.
+
+-- {{{ arguments
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local JOBS, MATCH
+do
+    local i = 1
+    while i <= #arg do
+        local a = arg[i]
+        if a == "--jobs" then JOBS = tonumber(arg[i + 1]); i = i + 1
+        elseif a == "--match" then MATCH = arg[i + 1]; i = i + 1
+        elseif a:sub(1, 2) == "--" then error("run-tests: unknown option " .. a)
+        else DIR = a end
+        i = i + 1
+    end
+end
+if not JOBS or JOBS < 1 then
+    error("run-tests: --jobs N is required (how many tests run at once)")
+end
+-- }}}
+
+local LOG_DIR = DIR .. "/tmp/shared-memory/tests"
+
+-- {{{ local function run()
+local function run(cmd)
+    local result = os.execute(cmd)
+    if result ~= 0 and result ~= true then
+        error("run-tests: command failed: " .. cmd)
+    end
+end
+-- }}}
+
+-- {{{ local function read_lines()
+local function read_lines(cmd)
+    local p = assert(io.popen(cmd))
+    local out = {}
+    for line in p:lines() do out[#out + 1] = line end
+    p:close()
+    return out
+end
+-- }}}
+
+-- {{{ the tests, by name
+local patterns = { "src/*.test.lua", "src/*-test.lua", "libs/*.test.lua", "libs/*-test.lua", "scripts/*.test.sh" }
+local tests, seen = {}, {}
+for _, pattern in ipairs(patterns) do
+    -- a pattern with no files is normal (not every folder has every kind of
+    -- test), so ls stays quiet about it
+    for _, path in ipairs(read_lines(string.format("ls %q/%s 2>/dev/null", DIR, pattern))) do
+        local name = path:match("[^/]+$")
+        if not seen[path] and (not MATCH or name:find(MATCH, 1, true)) then
+            seen[path] = true
+            tests[#tests + 1] = path
+        end
+    end
+end
+table.sort(tests)
+if #tests == 0 then error("run-tests: no tests found under " .. DIR) end
+-- }}}
+
+-- {{{ run them, JOBS at a time
+-- One shell line per test writes its log and then its exit status to a
+-- status file; xargs keeps JOBS of them running.
+run(string.format("mkdir -p %q", LOG_DIR))
+run(string.format("rm -f %q/*.log %q/*.status", LOG_DIR, LOG_DIR))
+local list_file = LOG_DIR .. "/list.txt"
+do
+    local f = assert(io.open(list_file, "w"))
+    for _, path in ipairs(tests) do f:write(path, "\n") end
+    f:close()
+end
+local runner = LOG_DIR .. "/one-test.sh"
+do
+    local f = assert(io.open(runner, "w"))
+    f:write([==[#!/usr/bin/env bash
+# one test: its output to LOG_DIR/<name>.log, its exit status to <name>.status
+path="$1"; dir="$2"; log_dir="$3"
+name="$(basename "$path")"
+case "$path" in
+    *.sh) bash "$path" > "$log_dir/$name.log" 2>&1 ;;
+    *)    luajit "$path" "$dir" > "$log_dir/$name.log" 2>&1 ;;
+esac
+echo $? > "$log_dir/$name.status"
+]==])
+    f:close()
+end
+local started = os.time()
+run(string.format("xargs -a %q -P %d -I{} bash %q {} %q %q", list_file, JOBS, runner, DIR, LOG_DIR))
+local elapsed = os.time() - started
+-- }}}
+
+-- {{{ the summary
+local passed, failed, skipped = {}, {}, {}
+for _, path in ipairs(tests) do
+    local name = path:match("[^/]+$")
+    local sf = io.open(LOG_DIR .. "/" .. name .. ".status")
+    local status = sf and tonumber(sf:read("*l")) or -1
+    if sf then sf:close() end
+    local last = ""
+    for line in io.lines(LOG_DIR .. "/" .. name .. ".log") do
+        if line:match("%S") then last = line end
+    end
+    local rel = path:sub(#DIR + 2)
+    if status ~= 0 then
+        failed[#failed + 1] = rel .. "  -- " .. last
+    elseif last:match("^%s*SKIP") then
+        skipped[#skipped + 1] = rel .. "  -- " .. last
+    else
+        passed[#passed + 1] = rel
+    end
+end
+print(string.format("run-tests: %d passed, %d failed, %d could not run (%d tests, %d at a time, %d s)",
+    #passed, #failed, #skipped, #tests, JOBS, elapsed))
+for _, line in ipairs(skipped) do print("  could not run: " .. line) end
+for _, line in ipairs(failed) do print("  FAILED: " .. line) end
+if #failed > 0 then
+    print("  logs: " .. LOG_DIR .. "/<test>.log")
+    os.exit(1)
+end
+-- }}}

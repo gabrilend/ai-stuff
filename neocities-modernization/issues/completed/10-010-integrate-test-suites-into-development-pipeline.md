@@ -2,22 +2,28 @@
 
 **Phase**: 10 (Developer Tooling)
 **Priority**: Low
-**Status**: Open
+**Status**: Completed 2026-10-22
 **Created**: 2026-01-12
 
 ## Current Behavior
 
-Test suites exist for various modules but are run manually:
-- `libs/hope-card-formatter-test.lua` - Tests formatting functionality
-- Other test files scattered throughout the codebase
-- No automated validation during development
-- Tests must be explicitly invoked by developers
+**Built 2026-10-22.** `scripts/run-tests` finds every test by name
+(`src/*.test.lua`, `src/*-test.lua`, `libs/*.test.lua`, `libs/*-test.lua`,
+`scripts/*.test.sh`), runs them several at a time (`--jobs N`, through
+`xargs -P`), writes each one's output to `tmp/shared-memory/tests/`, and
+prints one summary: passed, failed, and could not run (a test whose last
+line starts with `SKIP`, such as the batched-embedding test when the
+inference server is down). Exit 1 on any failure.
 
-This means:
-- Edge cases can slip through undetected
-- Data integrity issues may only be caught in production
-- Regression testing is inconsistent
-- No continuous validation of module contracts
+`run.sh` runs it right after the pre-flight gate, before any stage, one test
+per processor; a failure stops the run with nothing built (a dry run only
+names it). This puts the tests on the build's path, which the plan below
+ruled out ("NOT on critical path"); the owner chose it (2026-10-22: "the
+tests never run during a build ... called from run.sh before stage 1"),
+and they take about a minute against a build of an hour or more.
+
+The runner is Lua rather than the bash sketched in Step 1 below, and it
+finds the newer `*.test.lua` names as well as `*-test.lua`.
 
 ## Intended Behavior
 

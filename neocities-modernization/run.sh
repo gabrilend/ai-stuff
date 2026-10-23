@@ -2826,6 +2826,24 @@ if ! "$DIR/scripts/preflight-gate" "${PREFLIGHT_ARGS[@]}"; then
 fi
 # }}}
 
+# {{{ Issue 10-010: every test, before any stage
+# Tests are cheap (about a minute) and a build is long, so every run starts by
+# running all of them; one failure stops the run before any stage. They run
+# one per processor (nproc): they share the machine with nothing else yet,
+# and their count is not a build setting. A test that cannot run here (one
+# needing the inference server, when it is down) is listed, not failed.
+# A dry run only says it would run them: it changes nothing.
+if $DRY_RUN; then
+    log_dry_run "$DIR/scripts/run-tests $DIR --jobs $(nproc)"
+else
+    log_info "🧪 Running every test ($(nproc) at a time)..."
+    if ! "$DIR/scripts/run-tests" "$DIR" --jobs "$(nproc)"; then
+        echo "Error: a test failed; nothing was built. Logs: tmp/shared-memory/tests/" >&2
+        exit 1
+    fi
+fi
+# }}}
+
 # {{{ Record this run's choices where the child programs will find them
 # Why this exists: run.sh launches a fresh luajit process per stage, and argv
 # reaches only the stages we remember to thread it through. Before the notepad, a
