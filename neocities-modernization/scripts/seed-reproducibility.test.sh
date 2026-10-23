@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-seed-reproducibility.sh
+# seed-reproducibility.test.sh
 #
 # Issue 10-058 validator. In one sentence for the general: it proves that the
 # word cloud's "random" word order is actually controlled by a single seed -- run
@@ -22,7 +22,7 @@
 # error here, not a skipped check -- a test that silently passes on no data is worse
 # than no test.
 #
-# Usage: scripts/test-seed-reproducibility.sh [DIR]
+# Usage: scripts/seed-reproducibility.test.sh [DIR]
 #   DIR defaults to the hard-coded project path; pass a path to run from anywhere.
 
 set -u
@@ -30,7 +30,13 @@ set -u
 # {{{ paths + preconditions
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 GENERATOR="$DIR/src/wordcloud-generator.lua"
-WORDCLOUD_HTML="$DIR/output/wordcloud.html"
+# a trial run (--out): the page goes into RAM, not the site, and no record is
+# added to archive/wordclouds/
+TRIAL_DIR="$DIR/tmp/shared-memory/seed-test/trial"
+# the model whose word colours the cloud is drawn with; config.lua names no
+# default (owner, 2026-10-21), so the test names one
+MODEL="embeddinggemma-2"
+WORDCLOUD_HTML="$TRIAL_DIR/wordcloud.html"
 POEMS_JSON="$DIR/assets/poems.json"
 # Ephemeral snapshots go to the RAM-backed tmp/shared-memory/ tier (project convention).
 SNAP_DIR="$DIR/tmp/shared-memory/seed-test"
@@ -59,7 +65,8 @@ run_with_seed() {
     local snapshot="$2"
     # --yes: take config.lua's word count and page size without asking (Issue
     # 10-065a); this test is about the seed, and runs with no one at the keyboard
-    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
+    rm -f "$WORDCLOUD_HTML"
+    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes --model "$MODEL" --out "$TRIAL_DIR" >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
     [ -f "$WORDCLOUD_HTML" ] || fail "generator produced no wordcloud.html for seed $seed"
     cp "$WORDCLOUD_HTML" "$SNAP_DIR/$snapshot" || fail "could not snapshot seed $seed"
 }

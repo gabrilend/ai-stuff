@@ -4,14 +4,17 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: Medium
 - **Type**: Feature / Reproducibility
-- **Status**: Implemented — pending full-pipeline validation (2026-06-26). All six
-  steps are coded and the word-cloud reproducibility is tested and passing
-  (`scripts/test-seed-reproducibility.sh`: same seed => byte-identical page,
-  different seed => different word order, seed stamped in the page). Seed precedence
-  (CLI > config > auto) and the `output/generation-metadata.json` record are verified
-  in `run.sh` via dry-run. NOT yet exercised on a real end-to-end run (the assistant
-  cannot run the pipeline): (a) image-order reproducibility against live sources, and
-  (b) the metadata round-trip on a true build. Run a full pipeline to close those.
+- **Status**: Implemented; closes after the owner's next build (2026-10-22).
+  The word-cloud check (`scripts/seed-reproducibility.test.sh`: same seed =>
+  byte-identical page, different seed => different word order, seed stamped
+  in the page) now runs before every build with the other tests
+  (`scripts/run-tests`, Issue 10-010). It runs the generator as a trial
+  (`--out FOLDER`, into RAM): the page does not go into the site and no record
+  is added to `archive/wordclouds/` -- it used to write `output/wordcloud.html`.
+  Seed precedence (CLI > config > auto) and the `output/generation-metadata.json`
+  record are verified in `run.sh` via dry-run. Left for the next real build:
+  (a) image-order reproducibility against live sources, and (b) the metadata
+  round-trip on a true build.
 - **Builds on**: 10-030 (image-source position randomization — already has a
   seeded RNG; this issue generalizes its pattern and its config field)
 - **Mirrors**: 10-057 (which stamps `top_k` into cache metadata so a later run can
@@ -112,7 +115,7 @@ to be canonical is the one that is wrong:
   `wordcloud-<date>_<time>-<N>words-seed<S>.html`, so an old cloud's seed can be
   read off its name. Copies made before that change carry no seed in the name;
   their seed is in the comment at the top of the file.
-  `scripts/test-seed-reproducibility.sh` still passes (run against a scratch copy
+  `scripts/seed-reproducibility.test.sh` still passes (run against a scratch copy
   of the project, because the test writes over the live page).
 
 Still open: the record-versus-page mismatch (step 7). Until it is found, the

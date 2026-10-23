@@ -41,10 +41,14 @@ local function parse_args(args)
     -- notepad, then config.lua; a value here overrides both.
     local model = nil
     local server = nil
+    local out = nil  -- --out FOLDER: a trial run (see the --help text)
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
-        if a == "--all" then
+        if a == "--out" then
+            out = args[i + 1] or error("--out needs a folder")
+            i = i + 2
+        elseif a == "--all" then
             all_words = true
             i = i + 1
         elseif a == "--seed" then
@@ -105,7 +109,7 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page, seed, model, server
+    return dir, all_words, max_words, chrono_per_page, seed, model, server, out
 end
 -- }}}
 
@@ -130,6 +134,9 @@ if arg[1] == "--help" or arg[1] == "-h" then
     print("                       by run.sh; if omitted a seed is auto-generated and")
     print("                       logged to stderr.")
     print("  --yes, -y            Take config.lua's default for any value not given")
+    print("  --out FOLDER         A trial run: write wordcloud.html into FOLDER, not")
+    print("                       the site, and keep no record in archive/wordclouds/")
+    print("                       (that record is for builds)")
     print("  --help               Show this help message")
     print("")
     print("A value not given is asked for, with config.lua's default in brackets;")
@@ -140,7 +147,7 @@ end
 -- }}}
 
 local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
-      CLI_MODEL, CLI_SERVER = parse_args(arg)
+      CLI_MODEL, CLI_SERVER, CLI_OUT = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
@@ -674,8 +681,12 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
     if success then
         utils.log_info("Generated: " .. output_file)
-        -- Keep a dated copy of this build's cloud in archive/wordclouds/.
-        archive_wordcloud(html, #words)
+        -- Keep a dated copy of this build's cloud in archive/wordclouds/ --
+        -- a build's, not a trial's (--out): a test that ran the generator
+        -- would otherwise add records of clouds nobody published.
+        if not CLI_OUT then
+            archive_wordcloud(html, #words)
+        end
         return output_file
     else
         utils.log_error("Failed to write: " .. output_file)
@@ -720,7 +731,9 @@ function M.main()
         return nil
     end
 
-    local output_dir = DIR .. "/output"
+    -- --out: a trial run writes into its own folder, not the site
+    local output_dir = CLI_OUT or (DIR .. "/output")
+    if CLI_OUT then utils.ensure_directory(output_dir) end  -- the site folder is made by run.sh (in RAM)
     return M.generate_wordcloud(poems_data, output_dir)
 end
 -- }}}

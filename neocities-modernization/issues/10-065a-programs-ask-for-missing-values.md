@@ -32,7 +32,7 @@ the Intended Behavior table; reference in `libs/ask-for-value.info.md`; test
 copy of the project: each program errors with no keyboard and under
 `NEOCITIES_NO_PROMPTS=1`; `--yes` prints one notice per default and runs; a
 typed answer under a pretend terminal (`script`) takes effect (a typed 75 gave
-a 75-word cloud); `--help` asks nothing. `scripts/test-seed-reproducibility.sh`
+a 75-word cloud); `--help` asks nothing. `scripts/seed-reproducibility.test.sh`
 now passes `--yes` and still passes.
 
 Found and fixed on the way:
