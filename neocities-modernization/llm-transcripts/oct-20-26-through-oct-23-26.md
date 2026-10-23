@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 11:29:08
+Generated on: 2026-10-23 12:43:51
 Models: claude-opus-5-5
 
 ## Contents
@@ -63,6 +63,10 @@ Models: claude-opus-5-5
     poem keys and date numbering, tests run before every build, and the issue
     clean-up. All tests pass. Next, run your build with --force, then deploy
     with --prune.
+15. 2026-10-23 11:32, after Request 21 - The goal is a trustworthy site and a
+    leaner codebase; the build left half the pages empty because my leftover
+    files filled RAM, which I've now cleared. Next: your yes on making failed
+    writes stop the build before you rerun stages 9 and 10.
 
 --------------------------------------------------------------------------------
 
@@ -4017,6 +4021,141 @@ accounts, which git blame already holds.
    My recommendation is (a), then (b).
 3. Delete the 13 unused modules after a check by hand? Your rule would rename
    each `-done` for one commit first.
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+> The word cloud, the download zip and the final page check never ran. There's
+> no log file from this run, so I can't tell you what message the build stopped
+> with; your terminal will
+  have it.
+
+we should be writing the terminal output to a RAM backed log file. Can you find
+it?
+
+okay can we do a refactoring pass? After the next compilation is confirmed
+successful.
+
+>   1. Shall I make fixes 1–3 now, before you re-run stages 9 and 10?
+
+nah
+
+okay I'm rebuilding stage 9 and 10.
+
+
+
+<pasted_content id="5619">
+═══════════════════════════════════════════════════════════════════
+  📏 Checking every page: line widths and links
+═══════════════════════════════════════════════════════════════════
+Checking 20108 pages under
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/output on 6 processes
+(max width 84; archived word clouds skipped)...
+validate-output report
+  site:      /mnt/mtwo/programming/ai-stuff/neocities-modernization/output
+  pages:     20108
+  max width: 84 visible characters
+
+Over-wide lines: 0
+
+Frame pieces the wrong width or with a junction out of place: 0
+
+Broken links: 2
+         1  p
+         1  ../index.html
+
+Examples, five per cause (page:line  width  text):
+  [link]
+  /mnt/mtwo/programming/ai-stuff/neocities-modernization/output/source/scripts/render-page-sample.html:661
+  -> p (1 times)
+  [link]
+  /mnt/mtwo/programming/ai-stuff/neocities-modernization/output/gallery/chronological.html:13
+  -> ../index.html (1 times)
+
+Every over-wide line and misshapen frame piece, and every missing link
+target with its count
+and first page, tab-separated:
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/tmp/shared-memory/validate-output/run-2397/findings.tsv
+(full report:
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/tmp/shared-memory/validate-output-report.txt)
+❌ The built site has over-wide lines or broken links (report above).
+   The pages are all written; this run fails so nothing ships unnoticed.
+Build did not complete; restored the previous build record.
+  (/mnt/mtwo/programming/ai-stuff/neocities-modernization/output/generation-metadata.json)
+</pasted_content id="5619">
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> Starting with the two broken links, then the log.
+
+> The cause: Lua code `cases[name](p)` reads as a Markdown link `[name](p)`. The
+> browser treats files without an extension as prose, but this one is a script.
+> Reading how it decides.
+
+> Every other gallery page links the menu as `../wordcloud.html`; this one was
+> the odd one out. Fixing both links.
+
+> Both fixed. Now the terminal log: checking what `run.sh` writes to a file.
+
+*[commit] b633e7cb2 in ai-stuff - neocities: the two broken links the build's page check found*
+
+> Checking that this build's pages are whole this time.
+
+Your rebuild worked: every page is written and none are empty, so the 18,000
+empty pages are gone. The page check failed on just two broken links, both now
+fixed and committed. Before pushing, stages 9 and 10 need one more run.
+
+**This build**
+
+| part | files | empty |
+|---|---|---|
+| similar pages | 17,334 (8,667 pages plus their text exports) | 0 |
+| different pages | 17,334 | 0 |
+| chronological pages | 175 | 0 |
+| word pages | 2,000 | 0 |
+| gallery pages | 7 | 0 |
+| source-browser pages | 603 | 0 |
+
+The page check found 0 over-wide lines and 0 misshapen frames. The RAM folder is
+at 9.7 GB used, 6 GB free.
+
+**The two broken links (fixed):**
+1. **Gallery chronological page:** its "Menu" link pointed to `../index.html`,
+   which the site doesn't have. It now links to `../wordcloud.html`, like the
+   other gallery pages.
+2. **Source browser:** it showed any file without an extension as Markdown text.
+   In `render-page-sample` (a script with no extension), the Lua code
+   `cases[name](p)` therefore became a link to a page called "p". Files whose
+   first line names an interpreter (`#!/usr/bin/env luajit`) are now shown as
+   code.
+
+**Next steps:**
+1. Re-run stages 9 and 10, so the gallery and source browser are redrawn and the
+   page check passes:
+   ```
+   ./run.sh --generate-html --generate-wordcloud --force --threads 6 --pages 1 --poems-per-page 100 --chrono-per-page 50 --wordcloud-words 2000 --wordcloud-poems 10 --model embeddinggemma-2
+   ```
+2. **Reminder:** you haven't pushed to Neocities yet. Once the check passes,
+   deploy with `scripts/deploy-to-neocities --prune`. Every similar and
+   different page has a new name, and `--prune` removes the old number-named
+   pages from the site.
+
+**The terminal log.** I haven't made this change yet, because it has a
+trade-off. The obvious way to save the terminal output is to send it through
+`tee` into a RAM file. But that hides it from being a terminal, so the progress
+bars would go quiet. Two ways:
+- **(a)** Run the build under `script`, which records everything into
+  `tmp/shared-memory/logs/run-<date>.log` while the build still sees a terminal.
+  The bars keep animating, but the log fills with their redraws.
+- **(b)** Use `tee`, which gives a clean log but loses the animated bars.
+
+My recommendation is (a). Which do you want?
+
+**Refactoring pass:** noted. I'll start it once you confirm the next build
+succeeds.
 
 --------------------------------------------------------------------------------
 
