@@ -899,7 +899,8 @@ function M.test_one_poem_pages(poem_number, threads, poems_per_page)
     if result ~= 0 and result ~= true then
         error("test pages failed for poem " .. poem_number)
     end
-    utils.log_info(string.format("Pages written under %s (similar/%04d-01.html, different/%04d-01.html)", out, poem_number, poem_number))
+    -- pages are named by the poem's source key (Issue 8-019)
+    utils.log_info(string.format("Pages written under %s (similar/ and different/, page 01 of poem %d)", out, poem_number))
 end
 -- }}}
 

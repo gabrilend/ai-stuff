@@ -132,17 +132,17 @@ end
 
 -- {{{ Get list of existing poem files
 local function get_existing_poem_indices(directory, prefix)
-    -- Find all files like similar/0001-01.html and extract the poem index
+    -- Find all files like similar/fediverse-2339-01.html and take the poem's
+    -- source key from the name (pages are named by key, Issue 8-019)
     local cmd = string.format('find "%s/%s" -type f -name "*-01.html" 2>/dev/null', directory, prefix)
     local handle = io.popen(cmd)
     if not handle then return {} end
 
     local indices = {}
     for line in handle:lines() do
-        -- Extract poem index from filename like "0001-01.html"
-        local index = line:match("/(%d+)%-01%.html$")
-        if index then
-            indices[tonumber(index)] = true
+        local key = line:match("/([^/]+)%-01%.html$")
+        if key then
+            indices[key] = true
         end
     end
     handle:close()
@@ -185,13 +185,12 @@ local function validate(options)
         print(string.format("  Found %d poems in corpus", #poems))
     end
 
-    -- Build set of expected poem indices
+    -- Build set of expected poems, by source key (Issue 8-019)
     local expected_indices = {}
     for _, poem in ipairs(poems) do
-        local idx = poem.poem_index
-        if idx then
-            expected_indices[idx] = true
-        end
+        local key = poem.source_key
+            or error("poem " .. tostring(poem.poem_index) .. " has no source key; rerun the extraction (stage 3)")
+        expected_indices[key] = true
     end
 
     -- Check similar pages
@@ -325,7 +324,7 @@ local function output_summary(results, options)
         local show = math.min(10, #results.stats.missing_similar)
         local indices = {}
         for i = 1, show do
-            table.insert(indices, string.format("%04d", results.stats.missing_similar[i]))
+            table.insert(indices, tostring(results.stats.missing_similar[i]))
         end
         print("  " .. table.concat(indices, ", "))
         if #results.stats.missing_similar > 10 then
@@ -338,7 +337,7 @@ local function output_summary(results, options)
         local show = math.min(10, #results.stats.missing_different)
         local indices = {}
         for i = 1, show do
-            table.insert(indices, string.format("%04d", results.stats.missing_different[i]))
+            table.insert(indices, tostring(results.stats.missing_different[i]))
         end
         print("  " .. table.concat(indices, ", "))
         if #results.stats.missing_different > 10 then

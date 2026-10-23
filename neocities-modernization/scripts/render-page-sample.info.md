@@ -18,7 +18,7 @@ frames). Design: Issue 8-058, step 7.
 | `--model`, `--server` | the embedding model whose caches are drawn from, and the server entry naming it (no default) |
 | `--threads` | worker threads |
 | `--poems-per-page`, `--pages` | similar/different page size and pages per poem, as `run.sh` takes them |
-| `--anchor N` | a poem number (the N of `poem-N`), any number of times: only these get similar/different pages. A number no poem has stops the run before anything is drawn |
+| `--anchor N` | a poem number (its number in this run's poems.json, counted by date), any number of times: only these get similar/different pages. A number no poem has stops the run before anything is drawn |
 | `--copy-pictures` | copy the pictures into `FOLDER/media` (about 1.5 GB, so in RAM) instead of linking `assets/site-media`; for before a build has filled that folder |
 | `--words N --poems-per-word-page M` | also draw the word pages of the first N words, M poems each (needs the word-cloud stage's caches) |
 

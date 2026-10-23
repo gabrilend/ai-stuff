@@ -55,6 +55,33 @@ fi
 TMP_TARGET="$(readlink -f "$DIR/tmp" 2>/dev/null || echo "$DIR/tmp")"
 mkdir -p "$TMP_TARGET" || fail "could not create tmp target $TMP_TARGET"
 mkdir -p "$SNAP_DIR" || fail "could not create snapshot dir $SNAP_DIR"
+
+# The test's own assets folder, in RAM: every entry linked to the real one,
+# except poems.json, a copy numbered the way the extraction numbers (source
+# keys, by date; Issue 8-019). The tests run before a build's extraction,
+# so the real list may be from before keys; the word cloud needs them.
+TEST_ASSETS="$SNAP_DIR/assets"
+rm -rf "$TEST_ASSETS"
+mkdir -p "$TEST_ASSETS" || fail "could not create $TEST_ASSETS"
+for entry in "$DIR"/assets/*; do
+    [ "$(basename "$entry")" = "poems.json" ] && continue
+    ln -s "$entry" "$TEST_ASSETS/$(basename "$entry")" || fail "could not link $entry"
+done
+# (the Lua arrives on standard input: "luajit -e CODE ARGS" would read the
+# first argument as a script to run)
+luajit - "$DIR" "$TEST_ASSETS/poems.json" >/dev/null 2>&1 <<'LUA' || fail "could not number a copy of poems.json"
+local dir, out = arg[1], arg[2]
+package.path = dir .. "/libs/?.lua;" .. dir .. "/src/?.lua;" .. package.path
+arg = { dir }
+local json = require("dkjson")
+local extractor = require("poem-extractor")
+local f = assert(io.open(dir .. "/assets/poems.json")); local data = json.decode(f:read("*a")); f:close()
+local numbered, numbering = extractor.number_poems(data.poems)
+data.poems = numbered
+data.metadata = data.metadata or {}
+data.metadata.numbering = { order = "date, then source key", fingerprint = numbering }
+local w = assert(io.open(out, "w")); w:write(json.encode(data)); w:close()
+LUA
 # }}}
 
 # {{{ run_with_seed(seed, snapshot_name)
@@ -66,7 +93,7 @@ run_with_seed() {
     # --yes: take config.lua's word count and page size without asking (Issue
     # 10-065a); this test is about the seed, and runs with no one at the keyboard
     rm -f "$WORDCLOUD_HTML"
-    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes --model "$MODEL" --out "$TRIAL_DIR" >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
+    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes --model "$MODEL" --out "$TRIAL_DIR" --dir "$TEST_ASSETS" >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
     [ -f "$WORDCLOUD_HTML" ] || fail "generator produced no wordcloud.html for seed $seed"
     cp "$WORDCLOUD_HTML" "$SNAP_DIR/$snapshot" || fail "could not snapshot seed $seed"
 }

@@ -145,7 +145,8 @@ local function demo_timeline_progress()
     end
     -- the poem in the middle of the numbering, so its neighbours spread
     -- across the timeline
-    local anchor = poems_data.poems[math.floor(#poems_data.poems / 2)].poem_index
+    local anchor_poem = poems_data.poems[math.floor(#poems_data.poems / 2)]
+    local anchor = anchor_poem.poem_index
     local out = string.format("%s/demo-output/timeline-progress-%s", DIR, os.date("%Y%m%d-%H%M%S"))
     print(string.format("🎯 Drawing poem %d's similar page (%s) into %s", anchor, DEMO_MODEL, out))
     local cmd = string.format("%q %q --out %q --model %q --server %q --threads 4 --poems-per-page 33 --pages 1 --anchor %d",
@@ -155,7 +156,8 @@ local function demo_timeline_progress()
         print("❌ The page workers failed: " .. cmd)
         return false
     end
-    local page = string.format("%s/similar/%04d-01.html", out, anchor)
+    -- pages are named by the poem's source key (Issue 8-019)
+    local page = string.format("%s/similar/%s-01.html", out, anchor_poem.source_key or "?")
     local html = utils.read_file(page)
     if not html then
         print("❌ No page at " .. page)

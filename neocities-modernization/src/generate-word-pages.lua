@@ -1253,7 +1253,7 @@ function M.generate_word_html(options)
                 -- get_poem_anchor_id() = "poem-<poem_index>". The old
                 -- "poem-CATEGORY-ID" form matched no anchor, so this top
                 -- "chronological" link landed at the page top, not the poem.
-                local anchor_id = string.format("poem-%d", center_poem.poem_index)
+                local anchor_id = require("poem-address").anchor(center_poem)  -- Issue 8-019
                 -- The chronological page that holds it, named as those
                 -- pages name themselves. Every poem is on the timeline;
                 -- one that is not stops the build (10-036: a guessed

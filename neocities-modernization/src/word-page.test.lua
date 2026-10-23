@@ -52,7 +52,9 @@ end
 
 -- {{{ fixtures
 local function poem(index, category, id, content)
-    return { poem_index = index, id = id, category = category, content = content }
+    -- source_key as the extractor gives it (Issue 8-019)
+    return { poem_index = index, id = id, category = category, content = content,
+        source_key = category .. "-" .. id }
 end
 local poems = {
     poem(3, "fediverse", 3, "the first poem, 100% sure of itself"),
@@ -69,9 +71,9 @@ do
     local e = word_page.entry(poems[1], "blue", 50, "03.html")
     check("an entry starts with its file line", e:find("^ %-> file: fediverse/3\n") ~= nil, e:sub(1, 40))
     check("an entry links to its chronological page and anchor",
-        e:find("../chronological/03.html#poem-3", 1, true) ~= nil)
+        e:find("../chronological/03.html#fediverse-3", 1, true) ~= nil)
     check("an entry links to its similar and different pages",
-        e:find("../similar/0003-01.html", 1, true) ~= nil and e:find("../different/0003-01.html", 1, true) ~= nil)
+        e:find("../similar/fediverse-3-01.html", 1, true) ~= nil and e:find("../different/fediverse-3-01.html", 1, true) ~= nil)
     local page = word_page.page_html("love", "#dc3c3c", "../chronological/02.html#poem-4", 1, e .. "\n")
     check("the page heading names the word in its colour",
         page:find('<font color="#dc3c3c">love</font>', 1, true) ~= nil)

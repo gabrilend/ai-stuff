@@ -446,7 +446,9 @@ local function generate_poem_index(poems_data)
         local per_page = resolve_chrono_per_page()
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
         for poem_index, info in pairs(mapping) do
-            chrono_page_map[poem_index] = string.format("%02d", info.page_number)
+            -- named as the chronological pages name themselves ("03.html",
+            -- or "index.html" for a one-page view)
+            chrono_page_map[poem_index] = require("chronological-page").file_name(info.page_number, info.total_pages)
         end
     end
 
@@ -509,9 +511,13 @@ local function generate_poem_index(poems_data)
             -- instead of index.html (a redirect that drops the anchor -> page 1)
             -- and instead of the old "poem-CATEGORY-ID" anchor that matched
             -- nothing.
-            local pidx = poem.poem_index or 0
-            local anchor_id = string.format("poem-%d", pidx)
-            local page_str = chrono_page_map[pidx] or "01"
+            -- Issue 8-019: the anchor is the poem's source key; a poem with
+            -- no place on the timeline stops the page (it used to guess page
+            -- 01)
+            local pidx = poem.poem_index
+            local anchor_id = require("poem-address").anchor(poem)
+            local page_file = chrono_page_map[pidx]
+                or error("word cloud: poem " .. anchor_id .. " is not on the chronological pages")
             local id_str = tostring(poem.id or 0)
 
             -- Keep column alignment with leading spaces, but place them OUTSIDE
@@ -520,8 +526,8 @@ local function generate_poem_index(poems_data)
             -- columns still line up.
             local pad = string.rep(" ", math.max(0, 4 - #id_str))
             local link = pad .. string.format(
-                '<a href="chronological/%s.html#%s">%s</a>',
-                page_str, anchor_id, id_str)
+                '<a href="chronological/%s#%s">%s</a>',
+                page_file, anchor_id, id_str)
             table.insert(line_ids, link)
 
             -- Output line when we reach IDS_PER_LINE or end of poems

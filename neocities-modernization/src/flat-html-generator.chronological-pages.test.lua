@@ -61,7 +61,7 @@ end
 local poems = {}
 for i = 1, 5 do
     poems[i] = {
-        poem_index = i, id = i, category = "notes",
+        poem_index = i, id = i, category = "notes", source_key = "notes-" .. i,
         title = "Poem " .. i,
         content = (i == 3) and "one hundred % sure" or ("words of poem " .. i),
         creation_date = string.format("2024-01-%02dT00:00:00Z", i),
@@ -84,6 +84,9 @@ do
             page1:find("text-size-adjust: 100%;", 1, true) ~= nil
             and page1:find("100%%;", 1, true) == nil)
         check("page 1 carries its poems", page1:find("words of poem 1", 1, true) ~= nil)
+        -- Issue 8-019: a poem is found on its page by its source key
+        check("each poem is anchored by its source key", page1:find('<span id="notes-1">', 1, true) ~= nil)
+        check("no anchor is named by number", not page1:find('id="poem%-'))
     end
     local page2 = read_file(SCRATCH .. "/chronological/02.html")
     check("a poem's own % survives both passes",
@@ -103,7 +106,7 @@ do
     local golden_poems = {}
     for i = 1, 3 do
         golden_poems[i] = {
-            poem_index = i, id = i, category = "notes",
+            poem_index = i, id = i, category = "notes", source_key = "notes-" .. i,
             title = "Poem " .. i,
             content = "a golden poem, number " .. i,
             creation_date = string.format("2024-02-%02dT00:00:00Z", i),

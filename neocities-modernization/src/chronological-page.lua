@@ -77,7 +77,8 @@ end
 -- pages link to ("poem-<poem_index>", Issue 16-006) and the " -> file: <name>"
 -- line, wrapped at a dash or slash if the name is long. Ends with a newline.
 function M.entry_header(poem)
-    return string.format('<span id="poem-%d"></span>', poem.poem_index or 0)
+    -- the anchor is the poem's source key (Issue 8-019, src/poem-address.lua)
+    return string.format('<span id="%s"></span>', require("poem-address").anchor(poem))
         .. table.concat(text_formatter.wrap_file_header(" -> file: ", M.display_filename(poem), 80), "\n")
         .. "\n"
 end

@@ -51,7 +51,11 @@ local poems = {
     { poem_index = 12, id = 5, category = "messages", content = "the last message" },
 }
 local by_index = {}
-for _, p in ipairs(poems) do by_index[p.poem_index] = p end
+for _, p in ipairs(poems) do
+    -- each poem's source key, as the extractor gives it (Issue 8-019)
+    p.source_key = p.category .. "-" .. p.id
+    by_index[p.poem_index] = p
+end
 local function ctx(paged)
     return {
         colors = { [7] = { color = "blue" } },
@@ -88,13 +92,24 @@ end
 do
     local list = R.ranked_list({ 7, 8, 9, 10 }, 7, by_index)
     local html = R.page_html(anchor, list, "similar", 1, 2, false, ctx(true))
-    check("the anchor links to its own chronological page", html:find("chronological/02.html#poem-7", 1, true) ~= nil)
-    check("a neighbour on page 41 links to 41", html:find("chronological/41.html#poem-8", 1, true) ~= nil)
-    check("a neighbour on page 83 links to 83", html:find("chronological/83.html#poem-9", 1, true) ~= nil)
+    -- the anchors are source keys (Issue 8-019), the pages are where each poem sits
+    check("the anchor links to its own chronological page", html:find("chronological/02.html#fediverse-7", 1, true) ~= nil)
+    check("a neighbour on page 41 links to 41", html:find("chronological/41.html#notes-7", 1, true) ~= nil)
+    check("a neighbour on page 83 links to 83", html:find("chronological/83.html#messages-2", 1, true) ~= nil)
     check("a single-digit page is zero-padded", not html:find("chronological/2.html", 1, true))
     local flat = R.page_html(anchor, list, "similar", 1, 2, false, ctx(false))
     check("an unpaginated view links to index.html",
-        flat:find("chronological/index.html#poem-7", 1, true) ~= nil and not flat:find("chronological/02.html", 1, true))
+        flat:find("chronological/index.html#fediverse-7", 1, true) ~= nil and not flat:find("chronological/02.html", 1, true))
+    check("similar and different pages are named by key",
+        html:find("../similar/notes-7-01.html", 1, true) ~= nil and html:find("../different/messages-2-01.html", 1, true) ~= nil)
+    check("no page or anchor is named by number", not html:find("poem%-%d") and not html:find("/%d%d%d%d%-01%.html"))
+    local keyless = { poem_index = 13, id = 9, category = "notes", content = "no key" }
+    by_index[13] = keyless
+    local ctx_missing = ctx(true)
+    ctx_missing.chrono_map[13] = { page_number = 1, total_pages = 90, timeline_progress = 0 }
+    check("a poem without a source key stops the page",
+        not pcall(R.page_html, anchor, R.ranked_list({ 7, 13 }, 7, by_index), "similar", 1, 1, false, ctx_missing))
+    by_index[13] = nil
     local missing = ctx(true)
     missing.chrono_map[8] = nil
     local ok, err = pcall(R.page_html, anchor, list, "similar", 1, 2, false, missing)
@@ -129,7 +144,7 @@ do
     check("all pages: three pages hold all five poems", #pages == 3 and count == 5 and total == 3)
     local two = R.page_html(anchor, list, "similar", 2, total, false, ctx(true))
     check("page 2 links back to 1 and on to 3",
-        two:find("<a href='0007-01.html'>‹ Prev</a>", 1, true) ~= nil and two:find("<a href='0007-03.html'>Next ›</a>", 1, true) ~= nil)
+        two:find("<a href='fediverse-7-01.html'>‹ Prev</a>", 1, true) ~= nil and two:find("<a href='fediverse-7-03.html'>Next ›</a>", 1, true) ~= nil)
     pages, count, total = R.plan(list, { 1, 2, 3, 4 }, 2, 15)
     check("a requested page past the end is not counted", total == 3)
     check("a page past the end is not drawn", R.page_html(anchor, list, "similar", 4, total, false, ctx(true)) == nil)

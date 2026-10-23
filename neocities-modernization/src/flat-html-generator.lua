@@ -1042,6 +1042,8 @@ local function run_page_workers(num_threads, config, jobs)
             -- The chronological pages' frame (Issue 8-058): head, navigation,
             -- the line above each poem, file names.
             local t_chrono_page = require('chronological-page')
+            -- Every address by the poem's source key (Issue 8-019).
+            local t_poem_address = require('poem-address')
 
             -- {{{ local function build_chrono_page()
             -- One chronological page: each poem's header line and entry, in
@@ -1061,8 +1063,8 @@ local function run_page_workers(num_threads, config, jobs)
                     parts[#parts + 1] = t_poem_entry.format_entry(poem, {
                         color_name = color_data and color_data.color or "gray",
                         progress_pct = e.progress_pct,
-                        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", poem.poem_index),
-                        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", poem.poem_index),
+                        similar_link = t_poem_address.list_link(poem, "similar"),
+                        different_link = t_poem_address.list_link(poem, "different"),
                         chrono_link = false,
                     })
                     parts[#parts + 1] = "\n\n"
@@ -1086,6 +1088,7 @@ local function run_page_workers(num_threads, config, jobs)
 
             -- The word pages' frame and entry (Issue 10-035).
             local t_word_page = require('word-page')
+
 
             -- {{{ local function build_word_page()
             -- One word's page: its poems, in the order given, each with its
@@ -1130,20 +1133,20 @@ local function run_page_workers(num_threads, config, jobs)
                         config.pages_is_all and "all" or config.pages_list,
                         config.poems_per_page, config.max_pages_per_poem)
                     local download = config.txt_exports
-                        and { file = string.format("%04d.txt", poem_index), count = count } or false
+                        and { file = t_poem_address.text_file(poem), count = count } or false
                     local written = 0
                     for _, page_num in ipairs(pages) do
                         local html = t_ranked_page.page_html(poem, list, page_type, page_num,
                             total_pages, download, ranked_ctx())
                         -- a page past the end of the list is not written
                         if html then
-                            write_file(string.format("%s/%s/%04d-%02d.html", config.output_dir,
-                                page_type, poem_index, page_num), html)
+                            write_file(string.format("%s/%s/%s", config.output_dir,
+                                page_type, t_poem_address.page_file(poem, page_num)), html)
                             written = written + 1
                         end
                     end
                     if config.txt_exports and count > 0 then
-                        write_file(string.format("%s/%s/%04d.txt", config.output_dir, page_type, poem_index),
+                        write_file(string.format("%s/%s/%s", config.output_dir, page_type, t_poem_address.text_file(poem)),
                             t_ranked_page.text_export(poem, list, page_type, count, ranked_ctx()))
                         counts.text_files = counts.text_files + 1
                     end

@@ -25,6 +25,8 @@
 
 local text_formatter = require("text-formatter")
 local poem_entry = require("poem-entry")
+-- where a poem lives on the site, by its source key (Issue 8-019)
+local poem_address = require("poem-address")
 local image_render = require("image-render")
 local page_links = require("chronological-page").page_links
 
@@ -112,11 +114,11 @@ local function entry(poem, ctx, plain)
     return poem_entry.format_entry(poem, {
         color_name = color_data and color_data.color or "gray",
         progress_pct = chrono.timeline_progress,
-        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", index),
-        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", index),
+        -- Issue 8-019: every address by the poem's source key
+        similar_link = poem_address.list_link(poem, "similar"),
+        different_link = poem_address.list_link(poem, "different"),
         -- Issue 16-006: the anchor on the chronological page is the poem_index
-        chrono_link = string.format("<a href='../chronological/%s#poem-%d'>chronological</a>",
-            chrono_page, index),
+        chrono_link = poem_address.chrono_link(poem, chrono_page),
         plain = plain,
     })
 end
@@ -146,24 +148,23 @@ end
 -- One page of a poem's similar or different list, or nil when page_num is
 -- past the end of the list. total_pages: how many pages the list has (the
 -- navigation line links them, above and below; Issues 8-012, 10-036).
--- download: false, or { file = "0001.txt", count = n } -- the line offering
+-- download: false, or { file = "fediverse-2339.txt", count = n } -- the line offering
 -- the list's text export, after the last poem (Issue 8-013).
 function M.page_html(anchor, list, page_type, page_num, total_pages, download, ctx)
     local first = (page_num - 1) * ctx.poems_per_page + 1
     local last = math.min(first + ctx.poems_per_page - 1, #list)
     if first > #list then return nil end
     local type_label = labels(page_type)
-    local number = string.format("%04d", anchor.poem_index)
     -- Issue 16-010: the shared head block, as on the chronological pages
     local parts = {
         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-        '<title>Poems by ' .. type_label .. ' to poem ' .. number .. ' (page ' .. page_num .. ')</title>',
+        '<title>Poems by ' .. type_label .. ' to ' .. M.source_path(anchor) .. ' (page ' .. page_num .. ')</title>',
         ctx.head_block,
         '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
     }
     -- page navigation, when the list runs to more than one page
     local nav = page_links(page_num, total_pages, function(n)
-        return string.format("%s-%02d.html", number, n)
+        return poem_address.page_file(anchor, n)
     end)
     if nav ~= "" then parts[#parts + 1] = " " .. nav .. "\n\n" end
     parts[#parts + 1] = "=== ANCHOR POEM ===\n"
@@ -200,7 +201,7 @@ end
 function M.text_export(anchor, list, page_type, count, ctx)
     local type_label = labels(page_type)
     local parts = {
-        string.format("Poems by %s to poem %04d: %s\n", type_label, anchor.poem_index, M.source_path(anchor)),
+        string.format("Poems by %s to %s\n", type_label, M.source_path(anchor)),
         string.format("%d poems, in the order of its %s pages\n\n", count, page_type),
         "=== ANCHOR POEM ===\n",
         entry(anchor, ctx, true),

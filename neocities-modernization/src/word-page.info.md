@@ -24,7 +24,7 @@ hands each job to the pool as kind `word_page`:
 | --- | --- | --- |
 | `word` | string | the word as shown |
 | `header_color` | string | `"#rrggbb"` |
-| `centre_link` | string | `../chronological/NN.html#poem-N` |
+| `centre_link` | string | `../chronological/NN.html#<source key>` (Issue 8-019) |
 | `entries` | list of `{ poem, progress_pct, chrono_file }` | the page's poems in order, carried in the job (the worker's own poem list has gallery pictures folded in) |
 
 ## Tests

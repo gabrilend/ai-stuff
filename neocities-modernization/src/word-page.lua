@@ -10,6 +10,8 @@ local poem_entry = require("poem-entry")
 local chronological_page = require("chronological-page")
 local text_formatter = require("text-formatter")
 local page_head = require("page-head")
+-- where a poem lives on the site, by its source key (Issue 8-019)
+local poem_address = require("poem-address")
 
 local M = {}
 
@@ -29,16 +31,14 @@ end
 -- progress_pct: number 0-100, its place on the writing timeline (8-045)
 -- chrono_file : string, the chronological page holding it ("03.html")
 function M.entry(poem, color_name, progress_pct, chrono_file)
-    local index = poem.poem_index
     local header = table.concat(text_formatter.wrap_file_header(" -> file: ",
         chronological_page.display_filename(poem), 80), "\n")
     return header .. "\n" .. poem_entry.format_entry(poem, {
         color_name = color_name,
         progress_pct = progress_pct,
-        similar_link = string.format("<a href='../similar/%04d-01.html'>similar</a>", index),
-        different_link = string.format("<a href='../different/%04d-01.html'>different</a>", index),
-        -- Issue 16-006: the anchor on the chronological page is the poem number
-        chrono_link = string.format("<a href='../chronological/%s#poem-%d'>chronological</a>", chrono_file, index),
+        similar_link = poem_address.list_link(poem, "similar"),
+        different_link = poem_address.list_link(poem, "different"),
+        chrono_link = poem_address.chrono_link(poem, chrono_file),
     })
 end
 -- }}}

@@ -4,8 +4,11 @@
 
 ### Current Behavior
 
-**Built 2026-10-22 (steps 1-3 of the steps below; the first build after it
-must re-embed, `--force`):**
+**Built 2026-10-22 (steps 1-5 of the steps below). The first build after it
+must re-embed (`--force`), and the first deploy after that should prune
+(`scripts/deploy-to-neocities --prune`): every similar and different page
+has a new file name, and the old number-named pages would otherwise stay on
+the site.**
 - `poem-extractor.number_poems` gives each poem its source key
   (`fediverse-2339`) and numbers all poems 1..N by date, a tie broken by key
   (dates from `src/poem-dates.lua`, shared with the chronological pages).
@@ -31,7 +34,22 @@ must re-embed, `--force`):**
 - Tests: `src/poem-extractor.numbering.test.lua`,
   `src/similarity-engine.reuse.test.lua` (reuse by key and text, the
   2026-10-07 swap, the stamps), `libs/text-fingerprint.test.lua`.
-- Not yet: anchors and page names by key (step 4).
+- Every address is named by the source key, from one module
+  (`src/poem-address.lua`): chronological anchors (`<span id="fediverse-2339">`),
+  similar and different pages (`similar/fediverse-2339-01.html`), text
+  exports (`fediverse-2339.txt`), and every link to them -- ranked pages,
+  chronological pages, word pages and their centre links, the word cloud's
+  poem index. A poem without a key stops the page. The poem-representation
+  checker (`scripts/validate-poem-representation`) reads pages by key too.
+- Until the next extraction writes keys into poems.json, the page workers
+  stop on the old list (it has no keys), so whole-site and sample renders
+  wait for that build; the tests use their own keyed poems, and the seed
+  test numbers a copy of the real list in RAM.
+- Not built: pictures counted among the poems by date. Gallery pictures
+  still take the numbers after the poems; where they sit on the timeline is
+  Issue 10-042b, and their numbers name no page.
+- After the owner's next build: confirm the site's links with
+  `scripts/validate-output` (run by the build) and deploy with `--prune`.
 
 **Before 2026-10-22:**
 `src/poem-extractor.lua` sorted all poems by category, then by each source's
