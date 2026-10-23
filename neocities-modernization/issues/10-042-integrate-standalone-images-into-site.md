@@ -2,7 +2,20 @@
 
 ## Current Behavior
 
-The image-manager (`src/image-manager.lua`) catalogs standalone images from configured directories into `assets/image-catalog.json`, but this catalog is never consumed for display. Images exist in:
+**Where it stands (2026-10-22).** The catalog is used now:
+- Gallery pages, one per source, are built from it (10-042a, completed;
+  `src/generate-gallery-pages.lua`).
+- Gallery pictures appear on similar and different pages, each ranked by a
+  stand-in vector made from the posts written around it (Issue 9-013). That
+  replaced the plan to embed their file names (10-042c, superseded).
+- Still open: pictures among the poems on the chronological pages (10-042b),
+  a chronological list on the gallery (10-042d), and the shape-gifs source
+  (10-042e).
+
+The table below is the inventory taken when the issue was written; count the
+current one with `src/image-manager.lua` (stage 5) rather than reading it here.
+
+The image-manager (`src/image-manager.lua`) catalogs standalone images from configured directories into `assets/image-catalog.json`. When this issue was written the catalog was never consumed for display. Images were in:
 
 | Source | Count | Path | Has `randomize_order` |
 |--------|-------|------|----------------------|

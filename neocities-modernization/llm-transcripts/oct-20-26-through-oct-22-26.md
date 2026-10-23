@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-22 11:48:30
+Generated on: 2026-10-22 16:52:09
 Models: claude-opus-5-5
 
 ## Contents
@@ -50,6 +50,11 @@ Models: claude-opus-5-5
     parallel and giving poems stable ids; the word pages now rank on the GPU and
     draw on the worker queue. Next: answer how image-only posts should look,
     then I'll parallelize the picture catalog.
+12. 2026-10-22 11:51, after Request 18 - I'm speeding up and unifying the site
+    build, now handling image-only posts. Next, open the comparison page
+    (`/dev/shm/neocities-modernization/image-post-compare/pages/compare.html`)
+    and choose whether every page draws them as ordinary posts or as picture
+    boxes.
 
 --------------------------------------------------------------------------------
 
@@ -3389,6 +3394,201 @@ post shows:
 
 After you've looked at it: should every page draw these posts the ordinary way,
 or should the picture box gain the missing parts?
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+<pasted_content id="5619">
+  - The real cost: every walk went through all 9,265 other poems, and the step
+    then kept only the first 99 (3 pages × 33).
+    - Each walk now stops at 99. The early steps of a walk don't depend on how far it goes, and all 9,266 walks matched the existing results on their first 99 poems.
+>     - 3,046 s → 84 s. Your next build produces the new results; I ran it only into RAM, so your current results are untouched.
+</pasted_content id="5619">
+
+
+I think we already tried this, and the problem is we need to compare to all of
+the poems. How would we pick the first 99? Randomly? Not ideal. We need to test
+every single poem against every single other poem. It's unavoidable as far as I
+can tell.
+
+Can we work on 8-019?
+
+> Screen readers: the picture box gave every picture the description "fediverse:
+> image post", although 80 of the 85 pictures have their own description. It now
+> uses each picture's own
+>   description and falls back to the title only when there is none.
+
+on the comparison page, the screen-reader text scrolled far to the right - can
+we instead have it respect the same width rules as the
+similar/different/chronological poems? 80 character widths please. If someone
+cares enough, they'll figure out what size the text-entry box was on Mastodon in
+like, 2022 or whatever, and they can see if anything lines up or whatever. But I
+don't recall ever intentionally doing that.
+
+I think every post with pictures should follow the example in the right column,
+the one with all the extra information.
+
+can you look through the issue files for issues similar to 9-014 that look
+unfinished, but actually have been implemented? We should clean up the issues/
+directory if we can, and maybe while you're going through them we can find some
+that would be easy to knock out and get finished before our next push to the
+website.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+> Quick answer on the walks first, because I think we mean different things by
+> "first 99". Each walk still compares against every poem at every step; I
+> didn't limit which poems it looks at. A walk builds its list one step at a
+> time:
+> - step 1: scan all 9,265 other poems and pick the one furthest from the start;
+> - step 2: scan all remaining poems again and pick the one furthest from the
+>   two picked so far;
+> - and so on.
+>
+> Before, each walk ran 9,265 steps and we threw away everything after step 99.
+> Now it stops after step 99, but each of those 99 steps still scans every poem.
+> Nothing is random, and each walk's first 99 poems came out identical to the
+> full run for all 9,266 poems. What was the problem when we tried this before?
+> If you remember, I'd like to check it against this.
+>
+> Now the comparison page: wrapping the screen-reader text at 80 columns.
+
+> Screen-reader lines now fit within 80 columns. Next: making every post with
+> pictures draw the ordinary way. Checking what else depends on image-only posts
+> being marked as gallery pictures.
+
+> Only the drawing code reads the mark. Removing the marking, so an image-only
+> post is drawn as the ordinary post it is.
+
+> Rendering one image-only post's pages to confirm they now draw the ordinary
+> way.
+
+> The picture boxes are gone, and poem 133's content warning now shows on its
+> similar page. Checking widths and frames on those pages.
+
+*[commit] 68cca1036 in ai-stuff - neocities: every post with pictures is drawn as an ordinary post, and the comparison page wraps at 80 columns*
+
+> Both committed. Now the issue survey: listing every open issue with the status
+> it claims.
+
+> Some issues look finished from their checkboxes or wording, and some are
+> marked complete in the progress files but still sit in `issues/`. Reading each
+> candidate's current-behavior section.
+
+> Many of these "current behavior" sections still describe the state before the
+> work. Checking each claim against the code.
+
+> This needs a pass over the 50 or so older issues one by one. I'm extracting
+> each one's built/not-built notes in batches.
+
+> 10-001 and 10-002 are done: both scripts load the menu library, and every
+> checklist item is ticked. Checking the next group.
+
+> No code calls Ollama any more; only a config entry on Ollama's port and the
+> old start script remain. Next batch.
+
+> Moved. Updating the three progress files, then committing.
+
+*[commit] a9b3c96bb in ai-stuff - neocities: file four issues that were finished long ago but never moved*
+
+> The moves themselves didn't go in (the commit tool takes only files I've
+> claimed). Claiming them and committing.
+
+*[commit] 8246c5c11 in ai-stuff - neocities: the four finished issues move into completed*
+
+The comparison page now wraps at 80 columns, every page draws picture posts the
+full way you picked, and four long-finished issues are filed in `completed/`. I
+haven't started 8-019 yet; I'd start it next. Everything is committed.
+
+## The "different" walks
+I may not have explained this well last time. Nothing is picked at random, and
+each walk still compares against every poem:
+1. **Step 1** scans all 9,265 other poems and takes the one furthest from the
+   starting poem.
+2. **Step 2** scans every poem not yet picked and takes the one furthest from
+   the two chosen so far.
+3. And so on, one poem per step.
+
+Before, the GPU ran 9,265 steps per walk and then discarded everything after
+step 99. Now it stops at step 99. Each of those 99 steps still scans every
+remaining poem. I compared all 9,266 walks with the old full-length results, and
+every one had the same first 99 poems.
+
+What went wrong the last time you tried this? If it was limiting which poems
+each step looks at, that's not what this does.
+
+## Comparison page and picture posts
+- **Screen-reader lines** now wrap at 80 columns. Page:
+  `/dev/shm/neocities-modernization/image-post-compare/pages/compare.html`.
+- **Every post with pictures** is now drawn like the right-hand column: its
+  text, content warning, pictures with their own descriptions, and links. The
+  picture box is now used only for gallery pictures, which have no post behind
+  them. I checked one such post's pages: its content warning shows, and widths
+  and frames are clean.
+
+## Issue survey (112 open)
+**Filed as done:**
+- 10-001 and 10-002: the menus for the phase demo and the embedding script.
+- 6-033: cleaner text sent for embedding.
+- 5-026: the slow chronological page.
+
+**Built, with only a check or small leftover remaining:**
+- 10-049 (replace Ollama): no code calls Ollama any more. Left over are
+  `scripts/start-ollama-cuda.sh` and a server entry in `config.lua` on Ollama's
+  port. Shall I remove both?
+- 10-050 (batched embeddings): marked "live verification left", but every build
+  since June has run it.
+- 10-058 (seeded randomness): marked "pending full-pipeline validation". A seed
+  test script already exists.
+- 9-002 (GPU similarity): says COMPLETED. Its validation sub-issue, 9-002b, is
+  still open.
+- 9-011 (warning boxes): built. It only needs the whole-site width check, which
+  needs a build.
+- 9-006 (page checker): built. The phase-demo part is still missing.
+- 8-013 (text exports): built, waiting on your next build.
+- 9-009 (rendering fixes): parts A–F are done; image compression (G) and
+  box-character size (H) are still open.
+
+**Probably superseded or no longer true:**
+- 10-066 says word pages are two thirds of the site. That was 7,290 pages; there
+  are now 200, about 24 MB.
+- 9-007 (shared memory for page workers): replaced by the worker queue that
+  hands each worker only the data its job needs.
+- 10-029: a menu to choose the Ollama server, which is gone.
+- 8-031: converting between three similarity formats, when only one remains.
+- 10-042c: making pictures searchable by their file names, which the 9-013
+  picture embeddings replaced.
+- 10-042: its description says the picture catalog is never used, but the
+  gallery uses it.
+
+I'd want your yes before closing these.
+
+**Easy to finish before the next push:**
+1. **10-010:** the tests never run during a build. A small script that runs
+   every test, called from `run.sh` before stage 1, would make them run every
+   time.
+2. **10-049:** remove the leftover Ollama script and server entry.
+3. **10-066:** close it with a fresh size measurement after the build.
+4. **10-058:** run the existing seed test and close it.
+
+The rest are mostly future features (phases 11–17) or deliberately open work.
+
+## 8-019, next
+The steps:
+1. Name each item by its source and counting number, like `fediverse-2339`.
+2. Number everything in one pass by date, with gallery pictures placed among the
+   poems.
+3. Key the embedding cache by that name, plus a fingerprint of the text each
+   vector was made from.
+4. Name chronological anchors and similar/different page files by that name too.
+
+The first build afterwards needs `--force`, to re-embed under the new names.
+
+Shall I go ahead with 8-019 and the four easy ones, and close the superseded
+issues?
 
 --------------------------------------------------------------------------------
 

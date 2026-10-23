@@ -1,5 +1,11 @@
 # 10-042c: Filename Embeddings
 
+**Superseded (closed 2026-10-22, owner's yes).** Gallery pictures reach the
+similar and different pages another way: each gets a stand-in vector made
+from the posts written around it (Issue 9-013), and the embedding model can
+read pictures directly (tested 2026-10-21, Issue 9-013). File names are not
+embedded.
+
 ## Parent Issue
 
 10-042: Integrate Standalone Images Into Site

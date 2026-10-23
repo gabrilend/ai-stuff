@@ -1,0 +1,90 @@
+#!/usr/bin/env luajit
+-- measure-page-bytes
+--
+-- WHAT IT DOES (for a CEO): says where the bytes of the built site go, so a
+-- question like "why is this page type so big?" is answered by measuring,
+-- never by a number copied into a document that goes stale (Issue 10-066).
+-- For each kind of page (similar, different, chronological, word pages,
+-- gallery, the rest) it counts the pages and their bytes, and splits those
+-- bytes into what a reader sees (the letters), the markup around them (tags,
+-- colours), and blank space.
+--
+-- Usage:
+--   scripts/measure-page-bytes [DIR] [--site FOLDER]
+--
+--   DIR     project directory (default below)
+--   --site  a built site, or a sample from scripts/render-page-sample
+--           (default DIR/output)
+
+-- {{{ arguments
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local SITE
+do
+    local i = 1
+    while i <= #arg do
+        local a = arg[i]
+        if a == "--site" then SITE = arg[i + 1]; i = i + 1
+        elseif a:sub(1, 2) == "--" then error("measure-page-bytes: unknown option " .. a)
+        else DIR = a end
+        i = i + 1
+    end
+end
+SITE = SITE or (DIR .. "/output")
+-- }}}
+
+-- {{{ local function kind_of()
+-- A page's kind, from the first folder under the site ("similar", ...);
+-- pages at the top of the site are "top".
+local function kind_of(relative)
+    return relative:match("^([^/]+)/") or "top"
+end
+-- }}}
+
+-- {{{ local function split_bytes()
+-- One page's bytes as (seen, markup, blank): tags and entities' extra bytes
+-- are markup; spaces, tabs and newlines are blank; everything else is what a
+-- reader sees (an entity like &amp; counts as one seen byte).
+local function split_bytes(html)
+    local markup = 0
+    local without_tags = html:gsub("<[^>]*>", function(tag) markup = markup + #tag; return "" end)
+    local without_entities = without_tags:gsub("&#?%w+;", function(e) markup = markup + #e - 1; return "x" end)
+    local _, blank = without_entities:gsub("%s", "")
+    return #without_entities - blank, markup, blank
+end
+-- }}}
+
+local listing = io.popen(string.format("find -L %q -name '*.html' -type f", SITE))
+local kinds, order = {}, {}
+for path in listing:lines() do
+    local relative = path:sub(#SITE + 2)
+    local kind = kind_of(relative)
+    local k = kinds[kind]
+    if not k then
+        k = { pages = 0, bytes = 0, seen = 0, markup = 0, blank = 0 }
+        kinds[kind] = k
+        order[#order + 1] = kind
+    end
+    local f = assert(io.open(path, "rb"))
+    local html = f:read("*a")
+    f:close()
+    local seen, markup, blank = split_bytes(html)
+    k.pages = k.pages + 1
+    k.bytes = k.bytes + #html
+    k.seen, k.markup, k.blank = k.seen + seen, k.markup + markup, k.blank + blank
+end
+listing:close()
+if #order == 0 then error("measure-page-bytes: no pages under " .. SITE) end
+
+table.sort(order, function(a, b) return kinds[a].bytes > kinds[b].bytes end)
+local total = 0
+for _, kind in ipairs(order) do total = total + kinds[kind].bytes end
+local function mb(n) return n / (1024 * 1024) end
+print(string.format("pages under %s, by kind (largest first)\n", SITE))
+print(string.format("%-14s %7s %10s %7s %10s   %5s %6s %5s", "kind", "pages", "MB", "share", "KB/page", "seen", "markup", "blank"))
+for _, kind in ipairs(order) do
+    local k = kinds[kind]
+    print(string.format("%-14s %7d %10.1f %6.1f%% %10.1f   %4.0f%% %5.0f%% %4.0f%%",
+        kind, k.pages, mb(k.bytes), 100 * k.bytes / total, k.bytes / k.pages / 1024,
+        100 * k.seen / k.bytes, 100 * k.markup / k.bytes, 100 * k.blank / k.bytes))
+end
+print(string.format("%-14s %7s %10.1f", "all", "", mb(total)))

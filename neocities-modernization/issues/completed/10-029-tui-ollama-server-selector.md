@@ -1,5 +1,10 @@
 # Issue 10-029: TUI Ollama Server Selector
 
+**Superseded (closed 2026-10-22, owner's yes).** Ollama is no longer used
+(Issue 10-049): the inference servers are llama.cpp servers listed in
+config.lua, chosen with `--server NAME` and `--model NAME`. A menu choice of
+server, if wanted, would be a new issue about those.
+
 ## Status
 - **Phase**: 10
 - **Priority**: Medium

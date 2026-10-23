@@ -1,5 +1,9 @@
 # Issue 8-031: Convert Between Similarity Matrix Formats
 
+**Superseded (closed 2026-10-22, owner's yes).** Only one similarity format
+remains -- the per-poem files and the rankings cache made on the GPU (Issues
+8-034, 9-002) -- so there is nothing to convert between.
+
 ## Current Behavior
 
 The project maintains three different similarity matrix storage formats, each serving a distinct purpose:

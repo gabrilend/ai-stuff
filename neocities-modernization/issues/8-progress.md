@@ -29,7 +29,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-016 | Validate poem representation in pagination | Open | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | In Progress | High |
-| 8-031 | Convert between similarity matrix formats | Open | Low |
+| 8-031 | Convert between similarity matrix formats | Superseded 2026-10-22 (one format remains) | Low |
 | 8-034 | Refactor to triangular individual files only | Open | Low |
 | 8-058 | Eliminate main thread / worker code duplication | Open | Medium |
 

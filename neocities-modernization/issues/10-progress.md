@@ -40,7 +40,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-026 | Merge sources and external_files config sections | Completed | Low |
 | 10-027 | Fix golden poem trailing whitespace detection | Resolved (Mastodon limitation) | Medium |
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
-| 10-029 | TUI Ollama server selector dropdown | Open | Medium |
+| 10-029 | TUI Ollama server selector dropdown | Superseded 2026-10-22 (Ollama gone; servers chosen with --server) | Medium |
 | 10-030 | Image source position randomization | Completed | Low |
 | 10-031 | Embedding model evaluation framework | Open | Medium |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
@@ -56,7 +56,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-042 | Integrate standalone images into site (umbrella) | Open | Medium |
 | 10-042a | Gallery pages for standalone images | Completed | Medium |
 | 10-042b | Chronological interleaving of images | Open | Medium |
-| 10-042c | Filename embeddings for similar/different | Open | Low |
+| 10-042c | Filename embeddings for similar/different | Superseded 2026-10-22 (pictures get stand-in vectors, 9-013) | Low |
 | 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
 | 10-044 | Integrate conversation-starters as unified source | Open | Medium |
 | 10-045 | Integrate Android phone pictures as source | Open | Low |

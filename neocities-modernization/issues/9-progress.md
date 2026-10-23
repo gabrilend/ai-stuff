@@ -32,7 +32,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
 | 9-006 | Poem box format validator | Completed | Low |
-| 9-007 | C shared memory for HTML generation | Open | Low |
+| 9-007 | C shared memory for HTML generation | Superseded 2026-10-22 (workers get slices from the main program) | Low |
 | 9-008 | Streaming HTML generation with progress | Open | Low |
 | 9-009 | HTML rendering and performance fixes | Open | Medium |
 | 9-013 | Image-only post timestamp association | Open | Medium |

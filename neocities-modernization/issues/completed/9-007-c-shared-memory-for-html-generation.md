@@ -1,5 +1,11 @@
 # Issue 9-007: C Shared Memory for HTML Generation Threading
 
+**Superseded (closed 2026-10-22, owner's yes).** The problem this issue set
+out to solve -- every page worker loading the large caches itself -- was
+solved another way: the main program holds the caches and hands each worker
+only the slice its job needs (Issue 10-034's orchestrator; the one worker
+queue of Issue 8-058). No shared C memory was needed.
+
 ## Priority
 High
 
