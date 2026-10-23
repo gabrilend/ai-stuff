@@ -14,7 +14,7 @@
 #   ./scripts/start-llamacpp-server.sh /custom/dir    # Override project DIR
 #   ./scripts/start-llamacpp-server.sh --help         # Show this message
 #
-# Replaces scripts/start-ollama-cuda.sh as the embedding-backend launcher
+# Replaces the old Ollama launcher (removed 2026-10-22) as the embedding-backend launcher
 # per issue 10-049. The on-disk binary at libs/llama.cpp/bin/llama-server
 # is produced by scripts/build-deps.sh; if it is missing, run that script
 # first.

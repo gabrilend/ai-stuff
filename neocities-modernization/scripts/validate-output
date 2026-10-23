@@ -63,8 +63,19 @@ fi
 # }}}
 
 "$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null || exit 1
-WORK="$DIR/tmp/shared-memory/validate-output"
-rm -rf "$WORK"
+# Each run works in its own folder, named by its process id: two checks at
+# once (the test runner runs several tests side by side, two of which run
+# this) used to share one folder, and each wiped the other's findings. A
+# finished run's folder stays until the next run starts, so its
+# findings.tsv can be read; then it is cleared, unless that run is still
+# going.
+WORK_BASE="$DIR/tmp/shared-memory/validate-output"
+mkdir -p "$WORK_BASE"
+for old_run in "$WORK_BASE"/run-*; do
+    [ -d "$old_run" ] || continue
+    kill -0 "${old_run##*-}" 2>/dev/null || rm -rf "$old_run"
+done
+WORK="$WORK_BASE/run-$$"
 mkdir -p "$WORK"
 mkdir -p "$(dirname "$REPORT")"
 

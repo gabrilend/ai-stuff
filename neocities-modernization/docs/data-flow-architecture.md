@@ -360,13 +360,14 @@ kinds of work:
   matrix-heavy numeric work where the per-operation memory footprint
   beats CPU cache and the GPU's parallelism dwarfs the available CPU
   threads.
-- **CUDA via Ollama** — embedding generation itself runs on the GPU
-  through Ollama's CUDA build (see `scripts/start-ollama-cuda.sh`).
+- **CUDA via llama.cpp** — embedding generation itself runs on the GPU
+  through a llama.cpp server (see `scripts/start-llamacpp-server.sh`;
+  Issue 10-049 replaced Ollama).
 
-One step of the pipeline that is still single-threaded is word page
-generation in `src/generate-word-pages.lua`. Issue 10-035 captures the
-design (effil-orchestrator pattern, modelled on the completed Issue
-10-034 HTML orchestrator) but the change has not landed yet.
+Word pages are ranked on the GPU, every word against every poem at once,
+and drawn by the same page workers as every other page (Issue 10-035). The
+steps that still handle their items one at a time are listed in Issue
+10-074.
 
 ---
 

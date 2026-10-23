@@ -2,6 +2,20 @@
 
 ## Current Behavior
 
+**Done (completed 2026-10-22).** Every embedding call goes to a llama.cpp
+server's `/v1/embeddings` (batched, Issue 10-050); servers are listed in
+config.lua `inference_servers` and started with
+`scripts/start-llamacpp-server.sh --server=NAME --model=NAME`. No code calls
+Ollama (`grep -rli ollama src libs scripts --include=*.lua` finds only
+comments). The last leftovers were removed on 2026-10-22, owner's yes:
+`scripts/start-ollama-cuda.sh` and the `gpu-server-alt` server entry on
+Ollama's port 11434; the two critical-path notes and the data-flow document
+now name the llama.cpp launcher.
+
+The rest of this file is the plan as written before the work.
+
+### Before (as written)
+
 The embedding-generation pipeline talks to an Ollama HTTP server for
 every embedding call. Ollama is a thin convenience wrapper around its
 own model registry; it manages model downloads, switches models on

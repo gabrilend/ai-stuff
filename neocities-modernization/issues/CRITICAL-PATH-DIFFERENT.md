@@ -98,7 +98,7 @@ Total: ~75 hours
 
 ### Commands
 ```bash
-./scripts/start-ollama-cuda.sh
+./scripts/start-llamacpp-server.sh --server=NAME --model=NAME
 ./generate-embeddings.sh
 ```
 
@@ -254,7 +254,7 @@ For origin poem P₀:
 ### FAST PATH (Recommended)
 ```bash
 # Steps 1-2 (same as Similar)
-./scripts/start-ollama-cuda.sh
+./scripts/start-llamacpp-server.sh --server=NAME --model=NAME
 ./generate-embeddings.sh
 lua src/similarity-engine-parallel.lua
 
@@ -271,7 +271,7 @@ ls output/different/*.html | wc -l  # Should be ~116,895
 ### SLOW PATH (Not Recommended)
 ```bash
 # Steps 1-2 (same as Similar)
-./scripts/start-ollama-cuda.sh
+./scripts/start-llamacpp-server.sh --server=NAME --model=NAME
 ./generate-embeddings.sh
 lua src/similarity-engine-parallel.lua
 

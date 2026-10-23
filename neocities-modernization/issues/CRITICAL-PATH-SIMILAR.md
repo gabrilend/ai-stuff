@@ -78,7 +78,7 @@ This document tracks the critical path for generating all **similar/** HTML page
 ### Commands
 ```bash
 # 1. Ensure Ollama is running with CUDA acceleration
-./scripts/start-ollama-cuda.sh
+./scripts/start-llamacpp-server.sh --server=NAME --model=NAME
 
 # 2. Verify Ollama is responding
 OLLAMA_HOST=192.168.0.115:10265 curl http://192.168.0.115:10265/api/tags
@@ -225,7 +225,7 @@ For each poem P:
 
 ```bash
 # Full pipeline for Similar pages only
-./scripts/start-ollama-cuda.sh
+./scripts/start-llamacpp-server.sh --server=NAME --model=NAME
 ./generate-embeddings.sh
 lua src/similarity-engine-parallel.lua
 ./scripts/generate-html-parallel 8 --similar-only

@@ -495,18 +495,6 @@ return {
             }
         },
         {
-            name = "gpu-server-alt",
-            description = "Remote GPU server (alternate port)",
-            host = "192.168.0.115",
-            port = 11434,
-            available_models = {
-                {
-                    model = "nomic-embed-text-v1.5",
-                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
-                },
-            },
-        },
-        {
             name = "local",
             description = "Local llama.cpp instance (CUDA-enabled)",
             -- Loopback only. This was the machine's LAN address (192.168.1.100),

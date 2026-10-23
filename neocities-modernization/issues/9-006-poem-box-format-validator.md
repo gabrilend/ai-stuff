@@ -23,7 +23,7 @@ and, under the fediverse/696 sample (see 9-011):
 - It walks every `*.html` under `output/` (or `--output PATH`), 200 pages per
   batch, one `luajit scripts/validate-output-worker.lua` per processor
   (`nproc`), each writing its findings to its own file in
-  `tmp/shared-memory/validate-output/`; the coordinator merges them.
+  `tmp/shared-memory/validate-output/run-<process id>/` (one folder per run since 2026-10-22, so two checks at once do not wipe each other); the coordinator merges them.
 - Width: each line inside `<pre>` has its tags removed, each entity counted as
   one character and each UTF-8 character as one column. Every line is held to
   `--max-width` (default 84, the golden frame, the widest drawn).
@@ -53,7 +53,7 @@ and, under the fediverse/696 sample (see 9-011):
 - Report: counts per cause with the widest of each, the 20 most common
   missing link targets, five examples per cause, written to
   `tmp/shared-memory/validate-output-report.txt`. The detail file
-  `tmp/shared-memory/validate-output/findings.tsv` holds every over-wide line
+  `tmp/shared-memory/validate-output/run-<process id>/findings.tsv` holds every over-wide line
   but only one row per missing link target per worker (with a count and the
   first page it was seen on): the first version wrote a row per broken link,
   and against today's `output/` (similar/different/chronological pages absent,
