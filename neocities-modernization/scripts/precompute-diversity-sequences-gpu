@@ -92,6 +92,7 @@ local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
 -- open a file literally named "selected"). Keep these comments
 -- apostrophe-free, or move this program into its own .lua file.
 local inference_config = require("inference-server-config")
+local numbering_stamp = require("numbering-stamp")
 inference_config.set_project_root(DIR)
 -- --model (see the bash part), else the run notepad
 if os.getenv("DIVERSITY_MODEL") then
@@ -198,6 +199,7 @@ local function main()
     local num_poems, embedding_dim
     -- position (0-based, the order the GPU uses) -> poem number (poem_index)
     local position_numbers
+    local diversity_numbering
     -- {{{ local function numbers_by_position()
     local function numbers_by_position(embeddings_data)
         local numbers = {}
@@ -224,6 +226,9 @@ local function main()
         end
         num_poems = #embeddings_data.embeddings
         position_numbers = numbers_by_position(embeddings_data)
+        -- the numbering these vectors are filed under (Issue 8-019), stamped
+        -- beside the cache below
+        diversity_numbering = numbering_stamp.of_embeddings(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
         embeddings_data = nil  -- let the GC reclaim the table
         collectgarbage("collect")
@@ -254,6 +259,9 @@ local function main()
         end
         num_poems = #embeddings_data.embeddings
         position_numbers = numbers_by_position(embeddings_data)
+        -- the numbering these vectors are filed under (Issue 8-019), stamped
+        -- beside the cache below
+        diversity_numbering = numbering_stamp.of_embeddings(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
         print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 
@@ -444,6 +452,9 @@ local function main()
     end
     f:write(json_str)
     f:close()
+    -- Issue 8-019: which numbering of the poems these walks are in, beside
+    -- the cache; stage 9 refuses walks made under another numbering
+    numbering_stamp.write(output_file, diversity_numbering)
 
     local output_size = get_file_size(output_file)
     print(string.format("[CPU] ✅ Written %.2f MB", output_size / 1024 / 1024))

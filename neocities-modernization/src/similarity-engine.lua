@@ -18,6 +18,8 @@ local utils = require("utils")
 local dkjson = require("dkjson")
 local inference_config = require("inference-server-config")
 local poem_extractor = require("poem-extractor")
+-- the code of the exact text each vector was made from (Issue 8-019)
+local text_fingerprint = require("text-fingerprint")
 -- Issue 10-050: batched + chunked embedding generation. We pass this module our
 -- OWN endpoint and prompt-formatter (inference_config above) so the batch path
 -- shares this file's server selection instead of fuzzy-computing's separate
@@ -439,6 +441,37 @@ function M.checkpoint_cooldown_until(now, save_seconds, duty)
 end
 -- }}}
 
+-- {{{ function M.reusable_vector
+-- Whether a stored vector may serve this poem again (Issue 8-019).
+-- poem      : a poem from poems.json (source_key, content, is_image_only,
+--             nearest_text_poem_index)
+-- prior     : the stored entry under the poem's source key, or nil
+-- dims      : the model's vector length
+-- returns   : the reuse (boolean) and a reason (string):
+--   "reuse"         its own vector, from this exact text
+--   "new"           nothing stored for this poem
+--   "made_fresh"    an image-only post or an empty poem: made every run
+--   "text_changed"  the stored vector came from other text
+--   "invalid_dimensions"  the stored vector has the wrong length
+-- A vector is matched by the poem it came from and the text it came from,
+-- never by number: numbers are counted fresh each run, and the notes of
+-- 2026-10-07 kept their old numbers' vectors.
+function M.reusable_vector(poem, prior, dims)
+    local poem_text = poem_extractor.extract_pure_poem_content_for_embedding(poem.content)
+    if poem_text == "" or (poem.is_image_only and poem.nearest_text_poem_index) then
+        return false, "made_fresh"
+    end
+    if not prior then return false, "new" end
+    if prior.text_fingerprint ~= text_fingerprint.of(poem_text) then
+        return false, "text_changed"
+    end
+    if type(prior.embedding) ~= "table" or #prior.embedding ~= dims then
+        return false, "invalid_dimensions"
+    end
+    return true, "reuse"
+end
+-- }}}
+
 -- {{{ function M.generate_all_embeddings
 function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, incremental, model_name)
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
@@ -476,9 +509,25 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         return false
     end
     local poems = poems_data.poems
-    
+    -- Issue 8-019: every poem carries its source key, and the list its
+    -- numbering's fingerprint; a list without them is from before source
+    -- keys, and vectors cannot be matched to it safely
+    local numbering = poems_data.metadata and poems_data.metadata.numbering
+    if not (numbering and numbering.fingerprint) then
+        error("poems.json has no numbering fingerprint (made before source keys, Issue 8-019); rerun the extraction (stage 3)")
+    end
+    for _, poem in ipairs(poems) do
+        if not poem.source_key then
+            error("poem " .. tostring(poem.poem_index) .. " has no source key; rerun the extraction (stage 3)")
+        end
+    end
+
     -- Load existing embeddings if incremental mode enabled
     local existing_embeddings = {}
+    -- the reusable ones, by source key: only a vector made from a poem's own
+    -- text (not inherited, not random) and marked with its key and the code
+    -- of that text (Issue 8-019)
+    local existing_by_key = {}
     -- Pull the dimension from the model registry. If the model is unknown,
     -- leave dim at nil here; it will be populated from the first embedding
     -- we actually receive below, so the metadata reflects ground truth.
@@ -490,7 +539,11 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             embedding_dimension = model_dim,
             generated_at = os.date("%Y-%m-%d %H:%M:%S"),
             endpoint = endpoint,
-            incremental_update = incremental
+            incremental_update = incremental,
+            -- the poem list's numbering these vectors are filed under; every
+            -- cache made from this file copies it, and its readers compare
+            -- (Issue 8-019)
+            numbering = numbering.fingerprint,
         },
         embeddings = {}
     }
@@ -520,6 +573,11 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 end
             end
 
+            for _, emb in pairs(existing_embeddings) do
+                if emb.source_key and emb.text_fingerprint and not emb.is_inherited and not emb.is_random then
+                    existing_by_key[emb.source_key] = emb
+                end
+            end
             -- Preserve existing metadata
             if existing_data.metadata then
                 embeddings_data.metadata.original_generated_at = existing_data.metadata.generated_at
@@ -539,33 +597,36 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     if incremental then
         -- Incremental mode: Check existing embeddings and only process missing/invalid ones
         for i, poem in ipairs(poems) do
-            -- Use poem_index if available, fallback to array index for legacy poems.json
-            -- This ensures correct matching even when the same id appears in multiple categories.
-            local lookup_key = poem.poem_index or i
-
-            -- Only skip if embedding is valid AND dimensions are correct
-            if existing_embeddings[lookup_key] and
-               existing_embeddings[lookup_key].embedding and
-               type(existing_embeddings[lookup_key].embedding) == "table" and
-               #existing_embeddings[lookup_key].embedding == model_config.dimensions then
-                -- Skip: valid embedding found
-                embeddings_data.embeddings[lookup_key] = existing_embeddings[lookup_key]
+            local lookup_key = poem.poem_index
+            -- Issue 8-019: a stored vector is reused only when it was made
+            -- from this poem (its source key) and from this exact text (the
+            -- text's code), whatever number either run gave the poem. Until
+            -- 2026-10-22 a vector was reused by number alone, so renumbered
+            -- notes kept their old numbers' vectors (about 555 of 582 on
+            -- 2026-10-07). Image-only posts and empty poems are made fresh
+            -- every run (they borrow a neighbour's vector, or get a placed
+            -- one), so they are never reused.
+            local prior = existing_by_key[poem.source_key]
+            local reuse, reason = M.reusable_vector(poem, prior, model_config.dimensions)
+            if reuse then
+                -- Skip: this poem's own vector, from this text; filed under
+                -- this run's number
+                local reused = {}
+                for k, v in pairs(prior) do reused[k] = v end
+                reused.poem_index = lookup_key
+                embeddings_data.embeddings[lookup_key] = reused
                 skipped_count = skipped_count + 1
             else
                 -- Re-process: no embedding, invalid embedding, or error state
                 table.insert(poems_to_process, {index = lookup_key, poem = poem})
 
-                -- Track retry reasons for reporting
-                if existing_embeddings[lookup_key] then
-                    if existing_embeddings[lookup_key].error then
-                        retry_count = retry_count + 1
-                        local error_type = existing_embeddings[lookup_key].error
-                        retry_reasons[error_type] = (retry_reasons[error_type] or 0) + 1
-                    elseif existing_embeddings[lookup_key].embedding then
-                        -- Invalid embedding dimensions
-                        retry_count = retry_count + 1
-                        retry_reasons["invalid_dimensions"] = (retry_reasons["invalid_dimensions"] or 0) + 1
-                    end
+                -- Why this poem is made again, for the summary: its stored
+                -- vector came from other text, or had the wrong length (the
+                -- old file's error entries carry no key; a poem without a
+                -- stored vector of its own is simply new)
+                if reason == "text_changed" or reason == "invalid_dimensions" then
+                    retry_count = retry_count + 1
+                    retry_reasons[reason] = (retry_reasons[reason] or 0) + 1
                 end
             end
         end
@@ -604,7 +665,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     else
         utils.log_info("Full regeneration mode: Processing all " .. #poems .. " poems...")
         for i, poem in ipairs(poems) do
-            table.insert(poems_to_process, {index = i, poem = poem})
+            table.insert(poems_to_process, {index = poem.poem_index, poem = poem})
         end
     end
     
@@ -669,8 +730,10 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     -- is unaffected by the switch to batching.
     local function store_success(poem, poem_index, poem_text, embedding)
         embeddings_data.embeddings[poem_index] = {
-            poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
+            poem_index = poem_index,  -- this run's number (Issue 8-019)
             id = poem.id,             -- Original source file ID (for display)
+            source_key = poem.source_key,                     -- which poem (Issue 8-019)
+            text_fingerprint = text_fingerprint.of(poem_text), -- from which text
             embedding = embedding,
             content_length = #poem_text,
             generated_at = os.date("%Y-%m-%d %H:%M:%S"),
@@ -711,13 +774,15 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     local function handle_deferred(poem, poem_index, poem_text)
         if poem.is_image_only and poem.nearest_text_poem_index then
             local nearest_index = poem.nearest_text_poem_index
+            -- The neighbour's vector from THIS run: reused or made, it is
+            -- filed under this run's number. (The old file's vectors are
+            -- filed under the old run's numbers; looking the neighbour up
+            -- there, as this did until 2026-10-22, could borrow another
+            -- poem's vector after a renumbering. Issue 8-019.)
             local nearest_embedding = nil
             if embeddings_data.embeddings[nearest_index] and
                embeddings_data.embeddings[nearest_index].embedding then
                 nearest_embedding = embeddings_data.embeddings[nearest_index].embedding
-            elseif existing_embeddings[nearest_index] and
-                   existing_embeddings[nearest_index].embedding then
-                nearest_embedding = existing_embeddings[nearest_index].embedding
             end
 
             if nearest_embedding then
@@ -731,6 +796,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 embeddings_data.embeddings[poem_index] = {
                     poem_index = poem_index,
                     id = poem.id,
+                    source_key = poem.source_key,
                     embedding = inherited,
                     content_length = #poem_text,
                     is_inherited = true,
@@ -745,6 +811,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 embeddings_data.embeddings[poem_index] = {
                     poem_index = poem_index,
                     id = poem.id,
+                    source_key = poem.source_key,
                     embedding = random_embedding,
                     content_length = 0,
                     is_random = true,
@@ -763,6 +830,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             embeddings_data.embeddings[poem_index] = {
                 poem_index = poem_index,  -- Issue 8-019
                 id = poem.id,
+                source_key = poem.source_key,
                 embedding = random_embedding,
                 content_length = 0,
                 is_random = true,

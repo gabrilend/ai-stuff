@@ -632,6 +632,22 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
+    -- {{{ Issue 8-019: every cache must be in this run's numbering
+    -- Poems are numbered fresh on every extraction, and these caches are
+    -- filed by number; one made under another numbering would give poems
+    -- each other's neighbours and colours. Each carries a stamp of the
+    -- numbering it was made under; stop before drawing a page if one differs.
+    do
+        local numbering_stamp = require("numbering-stamp")
+        local numbering = numbering_stamp.of_poems(poems_data)
+        local edir, ddir = utils.embeddings_dir(), utils.embeddings_dir_disk()
+        numbering_stamp.check(edir .. "/poem_colors.json", numbering, "poem colours", "stage 6 (--force-stage 6)")
+        numbering_stamp.check(edir .. "/image-manifest.json", numbering, "picture list", "stage 6 (--force-stage 6)")
+        numbering_stamp.check(edir .. "/similarity_rankings_cache.json", numbering, "similarity rankings", "stage 7 (--force-stage 7)")
+        numbering_stamp.check(ddir .. "/diversity_cache.json", numbering, "diversity walks", "stage 8 (--force-stage 8)")
+    end
+    -- }}}
+
     -- Note: similarity_data and embeddings_data parameters below are nil
     -- This is safe because generator functions use cache lookups (Issue 10-033)
     local similarity_data = nil

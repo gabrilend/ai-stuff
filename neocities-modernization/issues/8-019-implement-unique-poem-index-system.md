@@ -4,7 +4,37 @@
 
 ### Current Behavior
 
-`src/poem-extractor.lua` sorts all poems by category, then by each source's
+**Built 2026-10-22 (steps 1-3 of the steps below; the first build after it
+must re-embed, `--force`):**
+- `poem-extractor.number_poems` gives each poem its source key
+  (`fediverse-2339`) and numbers all poems 1..N by date, a tie broken by key
+  (dates from `src/poem-dates.lua`, shared with the chronological pages).
+  Two poems with one key, or a poem with no date, stop the extraction.
+  poems.json records `metadata.numbering.fingerprint`, a code made from the
+  keys in order (`libs/text-fingerprint.lua`, FNV-1a 64).
+- The embedding stage stores each vector with its source key and the code
+  of the text it was made from, and reuses a stored vector only when both
+  match (`similarity-engine.reusable_vector`); image-only posts and empty
+  poems are made fresh every run, and an image-only post now borrows its
+  neighbour's vector from this run only (it used to look in the old file,
+  filed under the old numbers). embeddings.json records the numbering.
+- Every cache made from the numbers is stamped with the numbering it was
+  made under, in a file beside it (`<cache>.numbering`,
+  `libs/numbering-stamp.lua`): poem colours, the picture list, the
+  similarity rankings, the diversity walks. Stage 9 (`main.lua`
+  `generate_website_html`) and stage 10 (`generate-word-pages` on a build)
+  check every stamp against poems.json and stop with what to rerun. The
+  checks are at the stages' doors, not in the shared drawing functions, so
+  the tests and the sample renderer still draw from today's caches.
+- `scripts/renumber-diversity-cache` is retired (`-done`): it repaired old
+  caches; stage 8 now regenerates the walks in about 84 s.
+- Tests: `src/poem-extractor.numbering.test.lua`,
+  `src/similarity-engine.reuse.test.lua` (reuse by key and text, the
+  2026-10-07 swap, the stamps), `libs/text-fingerprint.test.lua`.
+- Not yet: anchors and page names by key (step 4).
+
+**Before 2026-10-22:**
+`src/poem-extractor.lua` sorted all poems by category, then by each source's
 own id, and numbers them 1..N in that order. A note's own id is its position
 in `find`'s listing of the notes folder (`scripts/extract-notes.lua`), which
 follows how ext4 stores the directory, not names or dates. So adding a note
@@ -43,7 +73,7 @@ module refused a ranking naming a poem not in the poem list.
   embeddings file, and marks the cache `numbering = "poem_index"`.
 - The page builder refuses a cache without the mark; `run.sh` stage 8
   regenerates one whatever its date.
-- `scripts/renumber-diversity-cache --model NAME` repairs an old cache in
+- `scripts/renumber-diversity-cache --model NAME` (retired 2026-10-22, now `-done`) repaired an old cache in
   place in seconds (the original kept in RAM), checking it was made from the
   same embeddings file. The EmbeddingGemma 2 cache is repaired; the older
   models' caches are not.

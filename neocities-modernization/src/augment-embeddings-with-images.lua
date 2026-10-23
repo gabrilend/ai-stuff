@@ -256,6 +256,9 @@ local function main()
 
     write_json(emb_path, embeddings_data)
     write_json(manifest_path, { metadata = report, images = manifest })
+    -- Issue 8-019: the pictures are filed by number after the poems; record
+    -- which numbering, beside the list (the embeddings keep theirs)
+    require("numbering-stamp").write(manifest_path, require("numbering-stamp").of_embeddings(embeddings_data))
 
     print(string.format(
         "[augment] class1(text+img) kept=%d  class2(image-only) replaced=%d  class3(standalone) appended=%d  skipped=%d",

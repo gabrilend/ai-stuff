@@ -961,6 +961,22 @@ function M.generate_word_html(options)
     end
     local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
 
+    -- {{{ Issue 8-019: the vectors and colours must be in this run's numbering
+    -- Both are filed by poem number, and numbers are counted fresh on every
+    -- extraction; one made under another numbering would put the wrong
+    -- poems on a word's page. Stop if either differs from the poem list.
+    -- Checked on a build (options.check_numbering, set by main()); a trial
+    -- render (scripts/render-page-sample) draws from whatever caches exist.
+    if options.check_numbering then
+        local numbering_stamp = require("numbering-stamp")
+        local numbering = numbering_stamp.of_poems(poems_data)
+        if numbering_stamp.of_embeddings(embeddings_data) ~= numbering then
+            error("embeddings.json was made under another numbering of the poems; rerun stage 6 (--force-stage 6)")
+        end
+        numbering_stamp.check(utils.embeddings_dir() .. "/poem_colors.json", numbering, "poem colours", "stage 6 (--force-stage 6)")
+    end
+    -- }}}
+
     -- The direction every embedding shares, subtracted before any comparison.
     --
     -- The model does not spread its output over the whole sphere. Measured on
@@ -1308,9 +1324,9 @@ function M.main(mode)
     if mode == "embeddings" then
         return M.generate_word_embeddings()
     elseif mode == "html" then
-        return M.generate_word_html()
+        return M.generate_word_html({ check_numbering = true })
     else
-        return M.generate_word_pages()
+        return M.generate_word_pages({ check_numbering = true })
     end
 end
 -- }}}

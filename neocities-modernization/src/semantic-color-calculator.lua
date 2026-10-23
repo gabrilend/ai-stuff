@@ -272,7 +272,10 @@ function M.precompute_poem_colors(poems_data, poem_embeddings_data, color_embedd
     output_data.color_distribution = color_counts
     
     utils.write_json_file(output_file, output_data)
-    
+    -- Issue 8-019: the colours are filed by poem number; record which
+    -- numbering, beside the file, and stages 9 and 10 check it
+    require("numbering-stamp").write(output_file, require("numbering-stamp").of_embeddings(poem_embeddings_data))
+
     utils.log_info(string.format("Precomputed colors for %d poems", processed_count))
     utils.log_info("Color distribution:")
     for color, count in pairs(color_counts) do
