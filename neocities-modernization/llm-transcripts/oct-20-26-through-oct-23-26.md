@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 17:34:30
+Generated on: 2026-10-23 17:58:22
 Models: claude-opus-5-5
 
 ## Contents
@@ -4516,6 +4516,460 @@ bash"`.
 continue the refactoring pass in order? The remaining steps are: retire the
 unused files, move settings into `config.lua`, prune the history comments, then
 add a check against new ones.
+
+--------------------------------------------------------------------------------
+
+### User Request 26
+
+Sure.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 26
+
+> Starting with the `print()` calls. The plan: a tool converts each one to
+> `out.print(...)`, a version of `print` that also writes to the run's log.
+> Three kinds of call need care:
+> - calls inside the page workers' thread code, which can't reach a module
+>   loaded outside the thread;
+> - Lua written inline inside bash scripts;
+> - deliberately terminal-only output: help text, progress bars, and tests.
+>
+> Surveying those first.
+
+> Writing the conversion tool. It only changes a `print(` that starts a
+> statement, so a "print(" inside a string or comment is left alone.
+
+> That one is its usage text, printed while reading arguments, before the path
+> is set. Help belongs on the terminal anyway, so it goes back to plain `print`.
+> Then the path line for the seven.
+
+> A slip in my script: `assert` with a message passes the message along as the
+> second value. Fixing it. The first part already ran, so it now skips if that
+> change is already made.
+
+> All seven load. Now the real check: the full test suite, a few converted
+> scripts run for real, and a small sample render, which exercises the page
+> workers' prints inside their threads.
+
+> `validate-pipeline-data` is a bash script I didn't convert, but its inline Lua
+> loads `utils`, which now loads the output module. Running that inline call by
+> hand to see the hidden error.
+
+> Help test: 120 of 120. Recording step 4 in the issue and committing. The
+> tool's edits get claimed by hand.
+
+*[commit] 5929c4455 - neocities: the programs' own messages reach the run's log too*
+
+> Logging is complete. Now step 2, the unused files. Before retiring anything
+> I'm checking each one by hand: what it is, and whether anything names it,
+> including docs, demos and `run.sh`.
+
+> An issue for this already exists and is in progress: 10-060, "Retire
+> untethered dead code". Reading its decisions before touching anything; some
+> files may have been kept on purpose.
+
+> Eleven files retired. Next, the scripts nothing calls. Most are hand-run tools
+> to keep. Checking the doubtful ones by their headers.
+
+> The two docs name the rankings script as the GPU step. Stage 7 now does that
+> through `vk_similarity.lua`, so I'm pointing both docs there and retiring the
+> seven.
+
+> Tests pass, and the orphan audit is down from 13 modules to 3, the three I'm
+> keeping on purpose. Recording this in issue 10-060 and committing.
+
+*[commit] 506aa9e8f - neocities: retire eighteen files nothing uses*
+
+> Committed. Now the removal commit for those eighteen `-done` files.
+
+*[commit] 2d9002258 - neocities: remove the eighteen retired files*
+
+> Still on step 3: the gallery now reads its sources and grid from `config.lua`.
+> Drawing the gallery into a scratch folder to compare with the one your last
+> build made.
+
+> Identical to the built gallery. Next, the word-cloud colours: the code reads
+> `config.colors`, a section that doesn't exist, so it always uses its own
+> built-in colours.
+
+> Checking the cloud is unchanged: drawing it again with the seed and settings
+> your last build recorded, then comparing with the built one.
+
+> The word cloud comes out byte-identical. Next, the model the tests and demos
+> use, written into about six files. It becomes one `testing` entry in
+> `config.lua`.
+
+> The end of `config.lua` holds a comment-only section describing the similarity
+> algorithms of the section I just removed. It goes too. Reading it whole.
+
+> Replacing that section with the new `testing` entry, and pointing the tests
+> and demo at it.
+
+> Config already holds the privacy values, so the extractor's copies just go.
+> Reading the picture catalog's three-level fallback.
+
+Found a real bug: `preserve_original_length =
+config.privacy.preserve_original_length or true` is always true, because Lua's
+`or` treats a configured `false` as missing. Checking what config sets.
+
+--------------------------------------------------------------------------------
+
+*Prompt is too long*
+
+--------------------------------------------------------------------------------
+
+### User Request 27
+
+can you examine the currently built site in RAM, and compare it with the build
+website? I'm trying to remember the algorithmic improvements we made, not the
+cleanup stuff, but rather the ranking and sorting and such.
+
+--------------------------------------------------------------------------------
+
+*Prompt is too long*
+
+--------------------------------------------------------------------------------
+
+### User Request 28
+
+/compact
+
+--------------------------------------------------------------------------------
+
+### Session Recap (written by the harness, not by either speaker)
+
+This session is being continued from a previous conversation that ran out of
+context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Latest request (unanswered):** "can you examine the currently built site
+     in RAM, and compare it with the build website? I'm trying to remember the
+     algorithmic improvements we made, not the cleanup stuff, but rather the
+     ranking and sorting and such." The answer is to come from conversation
+     context: the list of ranking/sorting/algorithmic changes, recorded under
+     Current Work.
+   - **Ongoing refactoring pass, issue 10-048** (user: "Sure." to the order):
+     1. logging — done;
+     2. retire unused files — done;
+     3. move settings into `config.lua` — in progress;
+     4. prune history comments;
+     5. add a test that flags new history-style comments.
+   - **Comment convention:** user: "instead of my 'quoted decisions' can we
+     include a reference or link to the conversation in the llm-transcripts ...
+     Stuff that doesn't exist in the transcripts (from before we lost our
+     history) can be left verbatim. Maybe with some search terms". Implemented
+     as a date plus a short exact phrase, checked with
+     `scripts/find-in-transcripts`.
+   - **Earlier requests, all done:**
+     - `--help` on every script, especially `deploy-to-neocities`;
+     - every run keeps a log in RAM. User: "we should not do it through bash, but rather in the lua... pass it through a function with a 'logged' value". C output into the log: "yes". `run.sh` banners: "leave them as-is ... Maybe also mark it as a potential refactor target". Logs: "However many, until a reboot. Name them with the date / time that the run started.";
+     - user declined the write-failure and free-space fixes: "nah";
+     - refactoring pass "After the next compilation is confirmed successful" (confirmed);
+     - 8-019 counting-number keys: "We should have an incremental ID, none of this randomly generated GUID nonsense"; "Let's just shift everything down";
+     - similar/different pages named by key: "we will have to name these pages by source name as well";
+     - the top-level duplicate notes deleted;
+     - every post with pictures drawn like the ordinary post;
+     - screen-reader text on the comparison page wrapped at 80 columns;
+     - strike the statistics from 10-066.
+   - **Reminder still owed:** the user has not pushed to Neocities. Push with
+     `scripts/deploy-to-neocities --prune`, because page names changed.
+
+2. Key Technical Concepts:
+   - **Project and tooling**
+     - Lua/LuaJIT monorepo project at `/mnt/mtwo/programming/ai-stuff/neocities-modernization`.
+     - Commits go through `/home/ritz/programming/ai-stuff/scripts/commit-own-changes /mnt/mtwo/programming/ai-stuff -F -`.
+     - Script-made edits are claimed with `claim-own-change`.
+     - Issue tree is checked with `validate-issues`.
+   - **Site and build state**
+     - The site lives in RAM: `output` → `tmp/shared-memory/site`; `media` links to `assets/site-media`.
+     - The tmpfs is 16 GB; it filled because of my scratch renders.
+   - **Page drawing:** effil page workers (`run_page_workers`) take job kinds
+     `poems`, `chrono_page` and `word_page`.
+   - **Numbering and identity**
+     - Source keys (`category-id`, e.g. `fediverse-2339`); poems numbered by date, ties broken by key.
+     - Numbering fingerprint: FNV-1a 64 over the keys in order.
+     - Each derived cache has a `<cache>.numbering` stamp file.
+     - Embedding reuse requires a matching key and text fingerprint.
+   - **GPU work**
+     - Vulkan cross-similarity shader for word pages.
+     - Diversity walk `max_steps`.
+   - **Logging and help**
+     - Logging through `libs/output.lua` (`say`, `print`, `stage`, `guard`); `NEOCITIES_RUN_LOG`; C side `vkc_say`.
+     - `libs/script-help.lua` / `.sh` print a script's own header as `--help`.
+
+3. Files and Code Sections (most recent work):
+   - **`config.lua`** (uncommitted)
+     - Each gallery source in `sources.images.directories` has a `gallery = { slug, title }` entry (dnd: `slug = "dnd-pictures", title = "dnd-pictures-from-the-internet"`).
+     - Added `gallery_layout = { columns = 4, thumbnail_width = 200, column_gap = 16, picture_gap = 8 }`.
+     - `word_cloud.colors` added, values unchanged: red `#FF6B6B`, orange `#FFA94D`, yellow `#FFE066`, green `#69DB7C`, blue `#74C0FC`, purple `#DA77F2`, gray `#868E96`.
+     - Removed the "Algorithm Reference" section; added `testing = { model = "embeddinggemma-2", server = "local" }`.
+     - The `similarity` section was removed earlier (committed).
+   - **`src/generate-gallery-pages.lua`** (uncommitted)
+     - `STANDALONE_SOURCES`, `SOURCE_SLUGS`, `SOURCE_TITLES` and the layout now come from config, and a missing value is an error.
+     - `M.generate(output_dir)` takes an optional output folder.
+     - Verified identical to the built gallery.
+   - **`src/wordcloud-generator.lua`** (uncommitted)
+     - `setting(key)` errors on a missing value; `CONFIG.colors` comes from `word_cloud.colors`. It used to read `config.colors`, a section that doesn't exist.
+     - Earlier change: `--out` trial mode skips the archive record.
+     - Verified byte-identical to the built `wordcloud.html` (seed 109427239, 2000 words, chrono-per-page 50).
+   - **`scripts/extract-fediverse.lua`** (uncommitted): `privacy(key)` reads
+     each privacy value from config. This fixed a bug: `preserve_original_length
+     = config.privacy.preserve_original_length or true` was always true.
+   - **`src/image-manager.lua`** (uncommitted): `supported_formats` and
+     `max_file_size_mb` come only from `sources.images`; the built-in fallback
+     of 10 MB contradicted config's 200 MB.
+   - **Tests and demo** (uncommitted): `src/word-page.test.lua`,
+     `src/flat-html-generator.chronological-pages.test.lua`,
+     `src/generate-word-pages.order.test.lua`,
+     `scripts/seed-reproducibility.test.sh` and `demos/5-demo.lua` read the
+     model and server from `config.testing`. All 47 tests pass.
+   - **Where the GPU tuning numbers are found** (next to move):
+     - `scripts/precompute-diversity-sequences-gpu` line 101: `local BATCH_SIZE = 3584`. This file is bash with inline single-quoted Lua, so no apostrophes inside it. It already loads config via `config_loader` at about line 129.
+     - `libs/vulkan-compute/lua/vk_compute.lua`, lines 469–484: `PROBE_ITERS = math.min(10, walk_steps)`, `TARGET_CHUNK_SECONDS = 1.5`, `SAFETY_FACTOR = 0.6`, `L2_BYTES = 5*1024*1024 + 512*1024`, tile factor 0.85.
+   - Also still to move: `TUI_LIBS` in `src/main.lua` line 38 (an absolute
+     path), and the rest of 10-071's list.
+   - **Earlier committed this session**
+     - Logging: `libs/output.lua` (`say(text, where)`, `print(...)`, `stage`, `guard`); `utils.log_*` → both; `run.sh` exports `NEOCITIES_RUN_LOG=tmp/shared-memory/logs/run-<start>.log`; `--debug` disk log moved to `logs/debug/`; `vkc_say` in `vk_compute.c`.
+     - 864 `print()` calls converted to `require("output").print(`.
+     - Help: `script-help` helpers, `script-help.test.sh`, `find-in-transcripts` with its test.
+     - Retirements: 18 files retired and removed.
+     - Issues: 10-075 completed; 10-060 updated; 10-048 holds the plan and the comment convention.
+
+4. Errors and fixes:
+   - **I caused the RAM-full build.** Scratch renders made with
+     `--copy-pictures` used about 11 GB. I deleted them.
+     - The failed build left about 18,000 empty page files, because writes are unchecked; the user rebuilt.
+     - Fixes for unchecked writes, and a free-space check, were offered; user: "nah".
+   - Edit-script bug: writing the same file twice without closing it truncated
+     `ranked-page.lua`. Fixed; scripts now close files.
+   - `luajit -e CODE ARGS` reads ARGS as a script name. Use `luajit - ARGS
+     <<'LUA'` instead.
+   - `git mv` / `git rm` left stale shared staging entries. Fixed with `git
+     restore --staged`; plain `mv` is used now.
+   - The write gate rejects `$VAR` paths; I used literal paths or Lua scripts.
+     `cd` is refused.
+   - `assert(x, msg)` returns `msg` as its second value; I fixed the misuse.
+   - `validate-pipeline-data` worked out the model's folders before handling
+     `--help`; the help call now comes first.
+   - The profiler wrote a stray file named `10`; removed.
+   - Lua multibyte pattern trap (`│?`).
+
+5. Problem Solving (the algorithmic improvements the user is asking about, all
+   from context):
+   - **Diversity ("different") lists**
+     - Cache was in GPU positions, not poem numbers, since 2026-01-17: every different page showed the next poem's walk, each poem one below the intended one. Fixed.
+     - Walks stop at pages × poems per page: 51 min → 84–104 s, with identical results. Each walk keeps its own poem plus K, so the last different page has 33 poems, not 32.
+   - **Notes**
+     - Numbered by date instead of directory order. Directory order had misattached about 555 of 582 notes' embeddings; they were re-embedded on the `--force` build.
+     - Two duplicate notes deleted.
+   - **Global numbering**
+     - Counted fresh each run by date, then source key.
+     - Pages and anchors named by source key; an old link whose poem moved lands at the page top.
+   - **Embedding reuse**
+     - By source key plus text fingerprint, never by number.
+     - Image-only posts borrow their neighbour's vector from this run, not from the previous numbering.
+     - Numbering stamps on caches; stages 9 and 10 refuse mismatched caches.
+   - **Ranked lists**
+     - The anchor is shown once; a lookalike with the same per-source id stays (10-025).
+     - Unknown numbers are an error.
+     - Page-to-page navigation; per-list text exports; correct chronological page and anchor links.
+   - **Word pages**
+     - Deterministic: 13 of 60 pages differed between runs. Now there is a fixed walk order, ties go to the lower poem number, and averages are summed in a fixed order.
+     - Each vector is centred once, with bit-identical scores.
+     - GPU scores every word against every poem; a shortlist within 1e-4 of the 50th-best score is rescored exactly.
+     - The centre-poem search covers poems only.
+     - Drawn by the page workers.
+   - **Pictures**
+     - Gallery picture numbers no longer collide with poem numbers.
+     - Image-only posts are drawn as ordinary posts everywhere.
+     - Picture-box alt text uses each picture's own description.
+   - **The drawer**
+     - One shared drawer: emphasis styled, 80-column text, CW boxes anywhere, golden picture order, hard-break of unbreakable names.
+     - Progress bars show place on the writing timeline.
+   - **Live site comparison:** not possible without tools. The live Neocities
+     site is the old build (not pushed since).
+
+6. All user messages (this compaction segment):
+   - "Okay. Can you think of anything we should move into the config file? Also,
+     there's lots of notes and deprecated warnings ... History written in a
+     comment is less valuable ... git blame ... the build has run. I haven't
+     pushed to neocities yet, please remind me. I ran with --force. Please check
+     the logs and see if there were any errors. also... I was running the
+     compilation and I ran out of RAM space? Can you tell me about what we
+     automatically do in that situation?"
+   - "we should be writing the terminal output to a RAM backed log file. Can you
+     find it? okay can we do a refactoring pass? After the next compilation is
+     confirmed successful. 1. ... nah. okay I'm rebuilding stage 9 and 10."
+     (pasted validation output with 2 broken links)
+   - "we should not do it through bash, but rather in the lua. We don't have to
+     write progress bar updates to the log. Anytime we would output something to
+     the terminal, pass it through a function with a 'logged' value ... Easy.
+     I'll redo the compilation now."
+   - "1. ... I don't know, what kind of output is it? 2. ... leave them as-is,
+     and in the lua when we would pass to the next stage, write it just to the
+     log and not the terminal. Maybe also mark it as a potential refactor
+     target. 3. ... However many, until a reboot. Name them with the date / time
+     that the run started." (pasted successful validation)
+   - "we need a --help cli command on all of the scripts ... Specifically
+     deploy-to-neocities. $ scripts/deploy-to-neocities --help Hashing the local
+     build and listing the live site ... ^C not ideal ... yes [to C logging] ...
+     instead of my 'quoted decisions' can we include a reference or link to the
+     conversation in the llm-transcripts ... left verbatim. Maybe with some
+     search terms that will definitely bring us to them."
+   - "Sure."
+   - Latest: "can you examine the currently built site in RAM, and compare it
+     with the build website? I'm trying to remember the algorithmic improvements
+     we made, not the cleanup stuff, but rather the ranking and sorting and
+     such."
+   - Standing constraints:
+     - user initiates rebuilds (I don't run full builds);
+     - monorepo: ignore other projects;
+     - commit only my own lines;
+     - deleting outside the project needs the user's approval through the gate.
+
+7. Pending Tasks:
+   - Answer the latest question: list the algorithmic improvements (from Problem
+     Solving above). Note that comparing against the live site needs fetching
+     it, and the live site is still the old build.
+   - Remind the user to push: `scripts/deploy-to-neocities --prune`.
+   - Finish step 3, config moves: GPU tuning numbers, `TUI_LIBS`, the remaining
+     10-071 items. Then commit the uncommitted config work (gallery, word cloud,
+     testing entry, privacy, catalog).
+   - Step 4: prune history comments, largest files first. Replace quoted owner
+     decisions with transcript pointers (date plus phrase, verified with
+     `find-in-transcripts`); keep pre-transcript quotes verbatim with search
+     words.
+   - Step 5: a check in run-tests that flags history-style comments.
+   - Two compiler warnings (unused `debug_callback`, `check_vk_result` in
+     `vk_compute.c`) are noted for cleanup.
+   - Open question for the user: should the word cloud use the site's semantic
+     palette instead of its lighter palette?
+
+8. Current Work:
+   - Was in refactoring step 3, moving the GPU tuning numbers into `config.lua`.
+     I had just located them (`BATCH_SIZE` in
+     `precompute-diversity-sequences-gpu`; `TARGET_CHUNK_SECONDS`,
+     `SAFETY_FACTOR`, `L2_BYTES`, `PROBE_ITERS` in `vk_compute.lua`).
+   - Uncommitted changes pending: config.lua, generate-gallery-pages.lua,
+     wordcloud-generator.lua, extract-fediverse.lua, image-manager.lua, four
+     tests, demos/5-demo.lua. All tests pass with them.
+   - Then the user interrupted with the algorithm-recall question.
+
+9. Optional Next Step:
+   - Answer the user's latest question in plain text: "I'm trying to remember
+     the algorithmic improvements we made, not the cleanup stuff, but rather the
+     ranking and sorting and such."
+   - Give the ranking, sorting and numbering improvements listed in section 5.
+     Note the live site still shows the pre-change build, which can be confirmed
+     by comparing once it's pushed. Remind them to push with `--prune`.
+   - Afterwards, resume step 3 (GPU tuning into config, then commit) only if the
+     user continues the refactoring pass.
+
+If you need specific details from before compaction (like exact code snippets,
+error messages, or content you generated), read the full transcript at:
+/home/ritz/.claude/projects/-mnt-mtwo-programming-ai-stuff-neocities-modernization/f45ed287-573d-4fdf-a76c-f359ddce591d.jsonl
+Continue the conversation from where it left off without asking the user any
+further questions. Resume directly — do not acknowledge the summary, do not
+recap what was happening, do not preface with "I'll continue" or similar. Pick
+up the last task as if the break never happened.
+
+--------------------------------------------------------------------------------
+
+`/compact` - Compacted (ctrl+o to see full summary)
+
+--------------------------------------------------------------------------------
+
+### User Request 29
+
+please continue
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 29
+
+I didn't compare files one by one. The live Neocities site is still the build
+from before this work, because nothing has been pushed since, so almost every
+page would show up as different. The list below comes from the changes we made.
+
+## Ranking and sorting changes since the last push
+
+**1. The "different" lists were off by one poem.** Since 2026-01-17 the
+diversity cache was saved by each poem's position on the graphics card, not by
+its poem number. So every "different" page showed the walk that belonged to the
+poem after it. They now line up with their own poem.
+
+**2. The diversity walks stop early.** A walk used to run through all the poems.
+Now it stops once it has enough poems to fill the pages people actually see
+(pages × poems per page). The visible results are exactly the same, and the
+stage dropped from about 51 minutes to 84–104 seconds. The walk now always
+includes its starting poem, so the last "different" page holds 33 poems, not 32.
+
+**3. Poems are numbered by date.**
+- Numbers are worked out fresh every run: oldest first, and poems with the same
+  date are ordered by source name (for example `fediverse-2339`).
+- Notes used to be numbered in folder order. That had attached the wrong
+  embedding to about 555 of the 582 notes, and the `--force` build re-embedded
+  them.
+- The two duplicate notes are gone.
+
+**4. Pages are named by source name, not number.** Similar pages, different
+pages and chronological anchors use the source name, so a poem keeps its address
+when the numbering shifts. An old link to a poem that has moved lands at the top
+of its page.
+
+**5. Embeddings are reused by source name plus a fingerprint of the text, never
+by number.**
+- A poem's saved vector is only reused when both match.
+- Posts with only a picture borrow their neighbour's vector from the current
+  run, not from the old numbering.
+- Each saved cache carries a fingerprint of the numbering it was built with. The
+  similar-page and different-page stages refuse a cache whose numbering doesn't
+  match.
+
+**6. Ranked-list fixes.**
+- The poem a list is about appears once at the top, not again inside its own
+  list.
+- A different poem that happens to share its per-source id still stays in the
+  list.
+- An unknown poem number is now an error, not silently skipped.
+- Lists link page to page, each list has a plain-text export, and the links to
+  chronological pages and anchors are correct.
+
+**7. Word pages are deterministic.** Two runs used to disagree on 13 of 60 word
+pages.
+- The walk order is fixed, a tie goes to the lower poem number, and averages are
+  added up in a fixed order.
+- Each vector is centred once, so scores are bit-identical between runs.
+- The graphics card scores every word against every poem. Any poem within 0.0001
+  of the 50th-best score is then rescored exactly on the processor, so the
+  cutoff never depends on rounding.
+- The search for each word page's centre poem only looks at poems.
+
+**8. Pictures.**
+- Gallery picture numbers no longer collide with poem numbers.
+- Picture-only posts are drawn like ordinary posts everywhere.
+- Each picture's alt text uses that picture's own description.
+- Pictures follow the golden-ratio order.
+
+**9. Progress bars** show where each poem sits on the writing timeline.
+
+## When you push
+
+Use `scripts/deploy-to-neocities --prune`. Many page names changed from numbers
+to source names, and `--prune` removes the old numbered pages from Neocities.
+
+## Still in progress
+
+The refactoring pass isn't finished. I'm partway through step 3, moving settings
+into the config file. The gallery, word-cloud, privacy, image and test settings
+are moved but not yet committed. The graphics-card tuning numbers are next.
+Steps 4 (removing history comments) and 5 (a test that flags new ones) haven't
+started.
+
+One open question: the word cloud uses its own lighter palette. Should it use
+the site's main colours instead?
 
 --------------------------------------------------------------------------------
 

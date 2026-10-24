@@ -33,9 +33,12 @@ GENERATOR="$DIR/src/wordcloud-generator.lua"
 # a trial run (--out): the page goes into RAM, not the site, and no record is
 # added to archive/wordclouds/
 TRIAL_DIR="$DIR/tmp/shared-memory/seed-test/trial"
-# the model whose word colours the cloud is drawn with; config.lua names no
-# default (owner, 2026-10-21), so the test names one
-MODEL="embeddinggemma-2"
+# the model whose word colours the cloud is drawn with: config.lua testing
+MODEL="$(luajit - "$DIR" <<'LUA'
+package.path = arg[1] .. "/libs/?.lua;" .. package.path
+io.write(require("config-loader").load().testing.model)
+LUA
+)"
 WORDCLOUD_HTML="$TRIAL_DIR/wordcloud.html"
 POEMS_JSON="$DIR/assets/poems.json"
 # Ephemeral snapshots go to the RAM-backed tmp/shared-memory/ tier (project convention).

@@ -181,13 +181,21 @@ local function load_boost_content_cache()
 end
 -- }}}
 
+-- every value from config.lua's privacy section; a missing one is an error
+-- (Issue 10-071). `x or true` cannot express a setting: it turned a
+-- configured false into true.
+local function privacy(key)
+    local value = config.privacy and config.privacy[key]
+    if value == nil then error("config.lua privacy." .. key .. " is missing") end
+    return value
+end
 local privacy_config = {
-    mode = config.privacy.mode or "clean",
-    anonymization_prefix = config.privacy.anonymization_prefix or "user-",
+    mode = privacy("mode"),
+    anonymization_prefix = privacy("anonymization_prefix"),
     include_boosts = get_include_boosts(),
-    preserve_original_length = config.privacy.preserve_original_length or true,
-    store_anonymization_map = config.privacy.store_anonymization_map or false,
-    local_server_domain = config.privacy.local_server_domain or "tech.lgbt",
+    preserve_original_length = privacy("preserve_original_length"),
+    store_anonymization_map = privacy("store_anonymization_map"),
+    local_server_domain = privacy("local_server_domain"),
     debug_anonymization = false  -- Debug flag, not in config
 }
 

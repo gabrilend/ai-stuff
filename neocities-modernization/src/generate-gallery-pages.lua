@@ -74,39 +74,26 @@ local config = config_loader.load()
 local M = {}
 
 -- {{{ Configuration
--- Sources to include in gallery (exclude fediverse-media which is inline with poems)
-local STANDALONE_SOURCES = {
-    "my-art",
-    "things-I-almost-posted",
-    "poem-pictures",
-    "dnd-pictures-from-the-internet",
-    "fediverse-stars"
-}
-
--- Map source names to URL-friendly slugs
-local SOURCE_SLUGS = {
-    ["my-art"] = "my-art",
-    ["things-I-almost-posted"] = "things-i-almost-posted",
-    ["poem-pictures"] = "poem-pictures",
-    ["dnd-pictures-from-the-internet"] = "dnd-pictures",
-    ["fediverse-stars"] = "fediverse-stars"
-}
-
--- Map source names to display titles
-local SOURCE_TITLES = {
-    ["my-art"] = "My Art",
-    ["things-I-almost-posted"] = "Things I Almost Posted",
-    ["poem-pictures"] = "Poem Pictures",
-    -- Keep the full source name so it is clear these were found, not authored
-    ["dnd-pictures-from-the-internet"] = "dnd-pictures-from-the-internet",
-    ["fediverse-stars"] = "Fediverse Stars"
-}
-
--- Grid layout
-local COLUMNS = 4
-local THUMBNAIL_WIDTH = 200
-local MASONRY_GAP = 16   -- px between COLUMNS (horizontal)
-local MASONRY_VGAP = 8   -- px between stacked images WITHIN a column (vertical) -- tight pack
+-- The gallery's sources, their page names and titles, and the grid, all
+-- from config.lua (sources.images): a source with a `gallery` entry is on
+-- the gallery, in the order config lists it.
+local images_config = config.sources and config.sources.images
+    or error("config.lua has no sources.images section")
+local STANDALONE_SOURCES, SOURCE_SLUGS, SOURCE_TITLES = {}, {}, {}
+for _, source in ipairs(images_config.directories or {}) do
+    if source.gallery then
+        STANDALONE_SOURCES[#STANDALONE_SOURCES + 1] = source.name
+        SOURCE_SLUGS[source.name] = source.gallery.slug
+            or error("config.lua: gallery source " .. source.name .. " has no slug")
+        SOURCE_TITLES[source.name] = source.gallery.title
+            or error("config.lua: gallery source " .. source.name .. " has no title")
+    end
+end
+local layout = images_config.gallery_layout or error("config.lua has no sources.images.gallery_layout")
+local COLUMNS = layout.columns or error("gallery_layout.columns missing")
+local THUMBNAIL_WIDTH = layout.thumbnail_width or error("gallery_layout.thumbnail_width missing")
+local MASONRY_GAP = layout.column_gap or error("gallery_layout.column_gap missing")     -- px between columns
+local MASONRY_VGAP = layout.picture_gap or error("gallery_layout.picture_gap missing")  -- px between stacked pictures
 -- }}}
 
 -- {{{ load_image_catalog
@@ -305,8 +292,8 @@ end
 -- {{{ generate_source_gallery
 -- Generate a gallery page for a specific source
 local function generate_source_gallery(source_name, images)
-    local slug = SOURCE_SLUGS[source_name] or source_name:lower():gsub("%s+", "-")
-    local title = SOURCE_TITLES[source_name] or source_name
+    local slug = SOURCE_SLUGS[source_name]
+    local title = SOURCE_TITLES[source_name]
 
     local html = {}
     table.insert(html, generate_html_header("Gallery: " .. title))
@@ -365,8 +352,8 @@ local function generate_gallery_index(grouped_images)
     for _, source_name in ipairs(STANDALONE_SOURCES) do
         local images = grouped_images[source_name]
         if images and #images > 0 then
-            local slug = SOURCE_SLUGS[source_name] or source_name:lower():gsub("%s+", "-")
-            local title = SOURCE_TITLES[source_name] or source_name
+            local slug = SOURCE_SLUGS[source_name]
+            local title = SOURCE_TITLES[source_name]
 
             -- Pick a representative image (first one)
             local rep_img = images[1]
@@ -465,7 +452,9 @@ end
 -- }}}
 
 -- {{{ M.generate
-function M.generate()
+-- output_dir: where the pages go (default the site's gallery/; another
+-- folder for a trial)
+function M.generate(output_dir)
     require("output").print("Loading image catalog...")
     local catalog = load_image_catalog()
     if not catalog then
@@ -480,7 +469,7 @@ function M.generate()
     local grouped = group_by_source(standalone)
 
     -- Create output directory
-    local output_dir = DIR .. "/output/gallery"
+    output_dir = output_dir or (DIR .. "/output/gallery")
     os.execute("mkdir -p " .. output_dir)
 
     -- Generate index page

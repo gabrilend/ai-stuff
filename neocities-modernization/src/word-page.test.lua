@@ -21,8 +21,10 @@ setup_path()
 local generator = require("flat-html-generator")
 -- The model whose poem colours the workers read (config.lua names no
 -- default model, owner 2026-10-21).
-require("inference-server-config").set_selected_server("local")
-require("inference-server-config").set_selected_model("embeddinggemma-2")
+-- config.lua testing names the model and server the checks use
+local testing = require("config-loader").load().testing
+require("inference-server-config").set_selected_server(testing.server)
+require("inference-server-config").set_selected_model(testing.model)
 local word_page = require("word-page")
 
 local SCRATCH = "/tmp/neocities-modernization/tmp/word-page-test"

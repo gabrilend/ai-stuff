@@ -28,8 +28,10 @@ local generator = require("flat-html-generator")
 -- The model whose colours and caches these pages are drawn with. Named
 -- here because config.lua names no default model (owner, 2026-10-21); a
 -- test that drew with "whatever the default is" tested nobody's choice.
-require("inference-server-config").set_selected_server("local")
-require("inference-server-config").set_selected_model("embeddinggemma-2")
+-- config.lua testing names the model and server the checks use
+local testing = require("config-loader").load().testing
+require("inference-server-config").set_selected_server(testing.server)
+require("inference-server-config").set_selected_model(testing.model)
 
 local SCRATCH = "/tmp/neocities-modernization/tmp/chronological-pages-test"
 

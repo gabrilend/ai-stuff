@@ -19,7 +19,9 @@ end
 local project_dir = setup_path()
 -- the page builder reads its settings from the command line when it loads;
 -- these tests use none of them, but the model must be named (no default)
-arg = { project_dir, "--html-only", "--model", "embeddinggemma-2", "--server", "local" }
+-- config.lua testing names the model and server the checks use
+local testing = require("config-loader").load().testing
+arg = { project_dir, "--html-only", "--model", testing.model, "--server", testing.server }
 local W = require("generate-word-pages")
 
 local passed, failed = 0, 0

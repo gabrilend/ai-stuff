@@ -116,32 +116,34 @@ end
 -- {{{ --help
 -- Answered before anything else runs: the word count is settled at startup and
 -- may ask a question (Issue 10-065a), which a request for help must not trigger.
+-- Plain print, not the run log: help is for the person at the terminal, and
+-- it runs before package.path can find libs/.
 if arg[1] == "--help" or arg[1] == "-h" then
-    require("output").print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
-    require("output").print("")
-    require("output").print("Generates a word cloud HTML page from the poetry collection.")
-    require("output").print("Words are sized by frequency, with stop words filtered out.")
-    require("output").print("")
-    require("output").print("Options:")
-    require("output").print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-    require("output").print("  --all                Include all words (no max_words limit)")
-    require("output").print("  --words N            Maximum words to display")
-    require("output").print("  --chrono-per-page N  Chronological page size; MUST match the value the")
-    require("output").print("                       chronological pages were built with, or poem links")
-    require("output").print("                       point at the wrong page.")
-    require("output").print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
-    require("output").print("                       Same seed => identical word order. Normally passed")
-    require("output").print("                       by run.sh; if omitted a seed is auto-generated and")
-    require("output").print("                       logged to stderr.")
-    require("output").print("  --yes, -y            Take config.lua's default for any value not given")
-    require("output").print("  --out FOLDER         A trial run: write wordcloud.html into FOLDER, not")
-    require("output").print("                       the site, and keep no record in archive/wordclouds/")
-    require("output").print("                       (that record is for builds)")
-    require("output").print("  --help               Show this help message")
-    require("output").print("")
-    require("output").print("A value not given is asked for, with config.lua's default in brackets;")
-    require("output").print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
-    require("output").print("missing value is an error instead.")
+    print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
+    print("")
+    print("Generates a word cloud HTML page from the poetry collection.")
+    print("Words are sized by frequency, with stop words filtered out.")
+    print("")
+    print("Options:")
+    print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+    print("  --all                Include all words (no max_words limit)")
+    print("  --words N            Maximum words to display")
+    print("  --chrono-per-page N  Chronological page size; MUST match the value the")
+    print("                       chronological pages were built with, or poem links")
+    print("                       point at the wrong page.")
+    print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
+    print("                       Same seed => identical word order. Normally passed")
+    print("                       by run.sh; if omitted a seed is auto-generated and")
+    print("                       logged to stderr.")
+    print("  --yes, -y            Take config.lua's default for any value not given")
+    print("  --out FOLDER         A trial run: write wordcloud.html into FOLDER, not")
+    print("                       the site, and keep no record in archive/wordclouds/")
+    print("                       (that record is for builds)")
+    print("  --help               Show this help message")
+    print("")
+    print("A value not given is asked for, with config.lua's default in brackets;")
+    print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
+    print("missing value is an error instead.")
     os.exit(0)
 end
 -- }}}
@@ -240,7 +242,7 @@ local M = {}
 
 -- {{{ Configuration
 -- Issue 10-003: Load word_cloud config from unified config (including embedded stop_words)
-local wc = unified_config.word_cloud or {}
+local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
 
 -- How many words the cloud shows: --all / --words from the command line, or
 -- (Issue 10-065a) asked, offering config.lua's word_cloud.max_words as the
@@ -259,13 +261,20 @@ local words_answer = ask.resolve({
 -- "all" means no limit
 local effective_max_words = (words_answer == "all") and math.huge or words_answer
 
+-- every value from config.lua's word_cloud section; a missing one is an
+-- error (Issue 10-071: defaults live only in config.lua)
+local function setting(key)
+    local value = wc[key]
+    if value == nil then error("config.lua word_cloud." .. key .. " is missing") end
+    return value
+end
 local CONFIG = {
-    min_occurrences = wc.min_occurrences or 5,
+    min_occurrences = setting("min_occurrences"),
     max_words = effective_max_words,
-    font_size_min = wc.font_size_min or 1,
-    font_size_max = wc.font_size_max or 7,
-    min_word_length = wc.min_word_length or 3,
-    output_file = wc.output_file or "wordcloud.html"
+    font_size_min = setting("font_size_min"),
+    font_size_max = setting("font_size_max"),
+    min_word_length = setting("min_word_length"),
+    output_file = setting("output_file"),
 }
 -- }}}
 
@@ -579,15 +588,16 @@ end
 local function generate_wordcloud_html(words, output_dir, poems_data)
     -- Issue 16-011: Load word colors and color configuration for colorized display
     local word_colors = load_word_colors()
-    local color_config = unified_config.colors or {
-        red = "#FF6B6B",
-        orange = "#FFA94D",
-        yellow = "#FFE066",
-        green = "#69DB7C",
-        blue = "#74C0FC",
-        purple = "#DA77F2",
-        gray = "#868E96"
-    }
+    -- config.lua semantic_colors: the site's one palette, shared with the
+    -- progress bars, so a red word and a red bar mean the same thing
+    local palette = unified_config.semantic_colors or error("config.lua has no semantic_colors section")
+    -- {{{ local function hex_of()
+    local function hex_of(name)
+        local entry = palette[name]
+        if not entry or not entry.hex then error("config.lua semantic_colors." .. tostring(name) .. ".hex is missing") end
+        return entry.hex
+    end
+    -- }}}
 
     -- Shuffle words for visual variety (not just sorted by size)
     local shuffled = {}
@@ -617,14 +627,14 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         -- significance rather than visual noise on every word.
         local is_significant = entry.font_size >= 5
         local bold_open, bold_close = "", ""
-        local hex_color = "#868E96"  -- neutral gray for the long tail
+        local hex_color = hex_of("gray")  -- neutral gray for the long tail
         if is_significant then
             bold_open, bold_close = "<b>", "</b>"
             -- Issue 16-011: Look up this word's semantic color. Large words never
             -- render gray (gray belongs to the de-emphasised small words), so we take
             -- the strongest NON-gray color from the word's full color ranking.
             local semantic_color = top_nongray_color(word_colors[safe_word]) or "gray"
-            hex_color = color_config[semantic_color] or "#868E96"
+            hex_color = hex_of(semantic_color)
         end
 
         -- Each word links to its similarity page, colored by semantic meaning

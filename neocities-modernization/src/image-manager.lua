@@ -136,9 +136,11 @@ local function load_config()
     local config = {
         enabled = sources_loader.is_enabled("images"),
         image_directories = image_directories,
-        -- Use sources.images settings, fall back to image_integration for legacy compat
-        supported_formats = images_source.supported_formats or display_config.supported_formats or {"png", "jpg", "jpeg", "gif", "webp", "svg"},
-        max_file_size_mb = images_source.max_file_size_mb or display_config.max_file_size_mb or 10,
+        -- from config.lua sources.images; a missing one is an error (Issue 10-071)
+        supported_formats = images_source.supported_formats
+            or error("config.lua sources.images.supported_formats is missing"),
+        max_file_size_mb = images_source.max_file_size_mb
+            or error("config.lua sources.images.max_file_size_mb is missing"),
         -- Keep display settings from image_integration
         output_path = display_config.output_path,
         catalog_file = display_config.catalog_file
@@ -266,7 +268,7 @@ local function scan_directory_for_images(directory, config, dir_config)
     for file_path in handle:lines() do
         if is_supported_format(file_path, config.supported_formats) then
             local file_size = get_file_size(file_path)
-            local max_size = (config.max_file_size_mb or 10) * 1024 * 1024
+            local max_size = config.max_file_size_mb * 1024 * 1024
 
             if file_size <= max_size then
                 local width, height = extract_image_dimensions(file_path)

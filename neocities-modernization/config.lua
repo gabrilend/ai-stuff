@@ -139,6 +139,9 @@ return {
             --            you only want a handful of files out of it.
             -- This keeps excluded_images as one flat list; the flag decides
             -- whether a source's lines subtract from "all" or add to "none".
+            -- gallery (per source): { slug, title } puts the source on the
+            -- gallery pages, as gallery/<slug>.html under that title, in the
+            -- order listed here; a source without it is not in the gallery.
             directories = {
                 {
                     name = "fediverse-media",
@@ -154,6 +157,7 @@ return {
                 },
                 {
                     name = "my-art",
+                    gallery = { slug = "my-art", title = "My Art" },
                     include_by_default = true,
                     path = "input/images/my-art",
                     description = "artwork made in kolourpaint",
@@ -164,6 +168,7 @@ return {
                 },
                 {
                     name = "things-I-almost-posted",
+                    gallery = { slug = "things-i-almost-posted", title = "Things I Almost Posted" },
                     include_by_default = true,
                     path = "input/images/things-i-almost-posted",
                     external = {
@@ -173,6 +178,7 @@ return {
                 },
                 {
                     name = "poem-pictures",
+                    gallery = { slug = "poem-pictures", title = "Poem Pictures" },
                     include_by_default = true,
                     path = "input/images/poem-pictures",
                     external = {
@@ -181,6 +187,9 @@ return {
                 },
                 {
                     name = "dnd-pictures-from-the-internet",
+                    -- the full name as the title, so it is clear these were
+                    -- found, not made
+                    gallery = { slug = "dnd-pictures", title = "dnd-pictures-from-the-internet" },
                     include_by_default = true,
                     path = "input/images/dnd-pictures",
                     external = {
@@ -195,6 +204,7 @@ return {
                     -- NOTE: external syncs to fediverse-stars, sources reads from here
                     -- Path updated to match sync destination (was fediverse-backup)
                     name = "fediverse-stars",
+                    gallery = { slug = "fediverse-stars", title = "Fediverse Stars" },
                     include_by_default = true,
                     path = "input/images/fediverse-stars",
                     external = {
@@ -205,6 +215,9 @@ return {
                     randomize_order = true;
                 },
             },
+            -- the gallery pages' grid: columns, each picture's width, and the
+            -- gaps between columns and between stacked pictures (px)
+            gallery_layout = { columns = 4, thumbnail_width = 200, column_gap = 16, picture_gap = 8 },
             supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
             max_file_size_mb = 200,
             preserve_structure = true,
@@ -625,6 +638,8 @@ return {
         min_word_length = 3,        -- Ignore words shorter than this
         font_size_min = 1,          -- HTML font tag: 1-7 scale
         font_size_max = 7,
+        -- The words' colours are semantic_colors above, the same ones the
+        -- progress bars use: a word's colour means what a bar's colour means.
 
         -- Stop words: common words to exclude from word cloud
         -- Organized by category for easy editing
@@ -862,20 +877,10 @@ return {
     },
     -- }}}
 
-    -- {{{ Algorithm Reference (documentation only)
-    -- These algorithm descriptions are for reference only - not read by scripts.
-    -- The actual algorithm is selected via similarity.default_algorithm above.
-    --
-    -- Available algorithms:
-    --   cosine:    Angle between vectors, range [-1, 1], fast, best for text embeddings
-    --   euclidean: Distance converted to similarity, range [0, 1], fast
-    --   manhattan: L1 distance converted to similarity, range [0, 1], robust to outliers
-    --   angular:   Normalized angle, range [0, 1], good for directional data
-    --   pearson:   Correlation coefficient, range [0, 1], for statistical analysis
-    --
-    -- Removed stale options (2026-01-21, Issue 10-003):
-    --   output_format: Only JSON is supported, no need for config
-    --   preserve_timestamps: Always preserved, not configurable
-    --   validation_settings: Over-engineering, not implemented
+    -- {{{ testing
+    -- The embedding model and server the tests, the sample renderer's checks
+    -- and the demos draw from. A build names its own (--model, --server);
+    -- this is only the one the checks use, so they agree with each other.
+    testing = { model = "embeddinggemma-2", server = "local" },
     -- }}}
 }

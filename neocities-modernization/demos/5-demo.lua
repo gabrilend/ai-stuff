@@ -133,7 +133,9 @@ end
 -- uses (scripts/render-page-sample --anchor; Issue 8-058), then shows the
 -- progress bars above its first few entries: each bar fills by where that
 -- poem sits on the writing timeline.
-local DEMO_MODEL, DEMO_SERVER = "embeddinggemma-2", "local"
+-- config.lua testing names the model and server the demos draw from
+local DEMO_MODEL = require("config-loader").load().testing.model
+local DEMO_SERVER = require("config-loader").load().testing.server
 local function demo_timeline_progress()
     print("🎨 DEMO 2: VISUAL TIMELINE PROGRESS WITH SEMANTIC COLORS")
     print(string.rep("-", 80))
