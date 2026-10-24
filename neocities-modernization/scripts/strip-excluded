@@ -120,14 +120,14 @@ local function validate_images(smap)
         if not image_resolves(entry, smap) then bad[#bad + 1] = entry end
     end
     if #bad == 0 then return true end
-    print(string.format(
+    require("output").print(string.format(
         "[strip-excluded] ERROR: %d excluded_images %s to no real file:",
         #bad, #bad == 1 and "entry resolves" or "entries resolve"))
     for _, entry in ipairs(bad) do
-        print("    - " .. entry ..
+        require("output").print("    - " .. entry ..
               "   (no input/images/ copy and no match in its rsync source)")
     end
-    print("[strip-excluded] Fix config.lua's excluded_images and re-run. " ..
+    require("output").print("[strip-excluded] Fix config.lua's excluded_images and re-run. " ..
           "Nothing was stripped.")
     return false
 end
@@ -139,7 +139,7 @@ local function strip_one(rel)
     if not file_exists(abs) then return "absent" end
     local ok, err = os.remove(abs)
     if not ok then
-        print(string.format("[strip-excluded] WARNING: could not remove %s (%s)", rel, tostring(err)))
+        require("output").print(string.format("[strip-excluded] WARNING: could not remove %s (%s)", rel, tostring(err)))
         return "error"
     end
     return "removed"
@@ -155,7 +155,7 @@ if not validate_images(source_map) then
     os.exit(1)
 end
 if check_only then
-    print(string.format("[strip-excluded] check passed: all %d image exclusions resolve.",
+    require("output").print(string.format("[strip-excluded] check passed: all %d image exclusions resolve.",
         #(config.excluded_images or {})))
     os.exit(0)
 end
@@ -164,7 +164,7 @@ local removed, absent = 0, 0
 local function account(result, rel)
     if result == "removed" then
         removed = removed + 1
-        print("[strip-excluded] removed: " .. rel)
+        require("output").print("[strip-excluded] removed: " .. rel)
     elseif result == "absent" then
         absent = absent + 1
     end
@@ -247,7 +247,7 @@ for _, cat in ipairs({ "fediverse", "messages", "bluesky" }) do
     for _ in ipairs(excluded_poems[cat] or {}) do combined = combined + 1 end
 end
 
-print(string.format(
+require("output").print(string.format(
     "[strip-excluded] %d removed, %d already absent | %d combined-source exclusions handled at extraction",
     removed, absent, combined))
 -- }}}

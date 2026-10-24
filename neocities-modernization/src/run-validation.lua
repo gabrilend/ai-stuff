@@ -13,28 +13,28 @@ local json = require("libs.json")
 
 -- {{{ function show_usage
 function show_usage()
-    print("Similarity Validation Runner")
-    print("===========================")
-    print("")
-    print("Usage:")
-    print("  lua src/run-validation.lua [options]")
-    print("")
-    print("Options:")
-    print("  -h, --help              Show this help message")
-    print("  -I, --interactive       Run in interactive mode")
-    print("  -a, --algorithm ALGO    Similarity algorithm to use (default: cosine)")
-    print("  -t, --tolerance NUM     Tolerance for similarity comparison (default: 0.001)")
-    print("  -s, --sample SIZE       Sample size for validation (default: all)")
-    print("  -o, --output DIR        Output directory for reports (default: ./validation_reports)")
-    print("  --similarity FILE       Similarity matrix file to validate")
-    print("  --embeddings FILE       Embeddings file for recalculation")
-    print("  --test                  Run validation engine tests")
-    print("")
-    print("Examples:")
-    print("  lua src/run-validation.lua --test")
-    print("  lua src/run-validation.lua -I")
-    print("  lua src/run-validation.lua -a cosine -t 0.001 -s 1000")
-    print("  lua src/run-validation.lua --similarity matrix.json --embeddings embed.json")
+    require("output").print("Similarity Validation Runner")
+    require("output").print("===========================")
+    require("output").print("")
+    require("output").print("Usage:")
+    require("output").print("  lua src/run-validation.lua [options]")
+    require("output").print("")
+    require("output").print("Options:")
+    require("output").print("  -h, --help              Show this help message")
+    require("output").print("  -I, --interactive       Run in interactive mode")
+    require("output").print("  -a, --algorithm ALGO    Similarity algorithm to use (default: cosine)")
+    require("output").print("  -t, --tolerance NUM     Tolerance for similarity comparison (default: 0.001)")
+    require("output").print("  -s, --sample SIZE       Sample size for validation (default: all)")
+    require("output").print("  -o, --output DIR        Output directory for reports (default: ./validation_reports)")
+    require("output").print("  --similarity FILE       Similarity matrix file to validate")
+    require("output").print("  --embeddings FILE       Embeddings file for recalculation")
+    require("output").print("  --test                  Run validation engine tests")
+    require("output").print("")
+    require("output").print("Examples:")
+    require("output").print("  lua src/run-validation.lua --test")
+    require("output").print("  lua src/run-validation.lua -I")
+    require("output").print("  lua src/run-validation.lua -a cosine -t 0.001 -s 1000")
+    require("output").print("  lua src/run-validation.lua --similarity matrix.json --embeddings embed.json")
 end
 -- }}}
 
@@ -81,7 +81,7 @@ function parse_arguments(args)
         elseif arg == "--test" then
             config.run_tests = true
         else
-            print(string.format("Unknown argument: %s", arg))
+            require("output").print(string.format("Unknown argument: %s", arg))
             config.show_help = true
         end
         
@@ -94,15 +94,15 @@ end
 
 -- {{{ function interactive_mode
 function interactive_mode()
-    print("🔍 Interactive Validation Mode")
-    print("==============================")
+    require("output").print("🔍 Interactive Validation Mode")
+    require("output").print("==============================")
     
     -- Algorithm selection
     local algorithms = {"cosine", "euclidean", "manhattan", "angular", "pearson_correlation", "dot_product", "normalized_euclidean", "chebyshev"}
     
-    print("\nSelect similarity algorithm:")
+    require("output").print("\nSelect similarity algorithm:")
     for i, algo in ipairs(algorithms) do
-        print(string.format("  %d. %s", i, algo))
+        require("output").print(string.format("  %d. %s", i, algo))
     end
     io.write("Choice (1-" .. #algorithms .. ") [1]: ")
     local algo_choice = tonumber(io.read()) or 1
@@ -119,9 +119,9 @@ function interactive_mode()
     local sample_size = sample_input ~= "" and tonumber(sample_input) or nil
     
     -- File selection
-    print("\nSelect validation mode:")
-    print("  1. Use default project files")
-    print("  2. Specify custom files")
+    require("output").print("\nSelect validation mode:")
+    require("output").print("  1. Use default project files")
+    require("output").print("  2. Specify custom files")
     io.write("Choice (1-2) [1]: ")
     local file_choice = tonumber(io.read()) or 1
     
@@ -157,8 +157,8 @@ end
 
 -- {{{ function run_validation
 function run_validation(config)
-    print("\n🔍 Starting Validation Process")
-    print("==============================")
+    require("output").print("\n🔍 Starting Validation Process")
+    require("output").print("==============================")
     
     -- Check files exist
     if not utils.file_exists(config.similarity_file) then
@@ -172,13 +172,13 @@ function run_validation(config)
     -- Create output directory
     os.execute("mkdir -p " .. config.output_dir)
     
-    print(string.format("Configuration:"))
-    print(string.format("  - Algorithm: %s", config.algorithm))
-    print(string.format("  - Tolerance: %f", config.tolerance))
-    print(string.format("  - Sample size: %s", config.sample_size and tostring(config.sample_size) or "full dataset"))
-    print(string.format("  - Similarity file: %s", config.similarity_file))
-    print(string.format("  - Embeddings file: %s", config.embeddings_file))
-    print(string.format("  - Output directory: %s", config.output_dir))
+    require("output").print(string.format("Configuration:"))
+    require("output").print(string.format("  - Algorithm: %s", config.algorithm))
+    require("output").print(string.format("  - Tolerance: %f", config.tolerance))
+    require("output").print(string.format("  - Sample size: %s", config.sample_size and tostring(config.sample_size) or "full dataset"))
+    require("output").print(string.format("  - Similarity file: %s", config.similarity_file))
+    require("output").print(string.format("  - Embeddings file: %s", config.embeddings_file))
+    require("output").print(string.format("  - Output directory: %s", config.output_dir))
     
     -- Run validation
     local report = validation_module.validate_single_file(
@@ -199,27 +199,27 @@ function run_validation(config)
     utils.write_json_file(report_file, report)
     
     -- Print summary
-    print("\n📊 Validation Results Summary")
-    print("=============================")
-    print(string.format("Algorithm: %s", report.algorithm))
-    print(string.format("Duration: %d seconds", report.duration_seconds))
-    print(string.format("Total comparisons: %d", report.statistics.total_comparisons))
-    print(string.format("Accuracy rate: %.2f%%", report.statistics.accuracy_rate * 100))
-    print(string.format("Missing embeddings: %d", report.statistics.missing_embeddings))
-    print(string.format("Calculation errors: %d", report.errors.count))
-    print(string.format("Discrepancies: %d", report.discrepancies.count))
-    print(string.format("Performance: %.1f comparisons/sec", report.performance.comparisons_per_second))
+    require("output").print("\n📊 Validation Results Summary")
+    require("output").print("=============================")
+    require("output").print(string.format("Algorithm: %s", report.algorithm))
+    require("output").print(string.format("Duration: %d seconds", report.duration_seconds))
+    require("output").print(string.format("Total comparisons: %d", report.statistics.total_comparisons))
+    require("output").print(string.format("Accuracy rate: %.2f%%", report.statistics.accuracy_rate * 100))
+    require("output").print(string.format("Missing embeddings: %d", report.statistics.missing_embeddings))
+    require("output").print(string.format("Calculation errors: %d", report.errors.count))
+    require("output").print(string.format("Discrepancies: %d", report.discrepancies.count))
+    require("output").print(string.format("Performance: %.1f comparisons/sec", report.performance.comparisons_per_second))
     
     if report.discrepancies.max_difference then
-        print(string.format("Maximum discrepancy: %.6f", report.discrepancies.max_difference))
+        require("output").print(string.format("Maximum discrepancy: %.6f", report.discrepancies.max_difference))
     end
     
-    print(string.format("\nDetailed report saved: %s", report_file))
+    require("output").print(string.format("\nDetailed report saved: %s", report_file))
     
     if #report.recommendations > 0 then
-        print("\nRecommendations:")
+        require("output").print("\nRecommendations:")
         for i, rec in ipairs(report.recommendations) do
-            print(string.format("  %d. %s", i, rec))
+            require("output").print(string.format("  %d. %s", i, rec))
         end
     end
     
@@ -254,7 +254,7 @@ function main(args)
     -- Validate required parameters
     if not config.similarity_file or not config.embeddings_file then
         if not config.interactive then
-            print("Error: Must specify similarity and embeddings files or use interactive mode")
+            require("output").print("Error: Must specify similarity and embeddings files or use interactive mode")
             show_usage()
             return 1
         end
@@ -265,10 +265,10 @@ function main(args)
     end)
     
     if success then
-        print("\n✅ Validation completed successfully")
+        require("output").print("\n✅ Validation completed successfully")
         return 0
     else
-        print(string.format("\n❌ Validation failed: %s", result))
+        require("output").print(string.format("\n❌ Validation failed: %s", result))
         return 1
     end
 end

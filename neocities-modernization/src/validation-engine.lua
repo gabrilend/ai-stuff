@@ -149,7 +149,7 @@ function ValidationEngine:collect_pairs_from_store(similarities_dir, want_pairs)
         end
     end
 
-    print(string.format("Read %d stored pairs from %d of %d per-poem files",
+    require("output").print(string.format("Read %d stored pairs from %d of %d per-poem files",
         #pairs_out, opened, #files))
     return pairs_out
 end
@@ -168,7 +168,7 @@ function ValidationEngine:validate_similarity_matrix(similarity_source, embeddin
     end
 
     self.validation_results.start_time = os.time()
-    print(string.format("Starting validation: %s vs %s", similarity_source, embeddings_file))
+    require("output").print(string.format("Starting validation: %s vs %s", similarity_source, embeddings_file))
 
     if similarity_source:match("%.json$") then
         error(string.format(
@@ -183,7 +183,7 @@ function ValidationEngine:validate_similarity_matrix(similarity_source, embeddin
     if not embeddings_by_index then
         error("Failed to load embeddings: " .. tostring(count_or_err))
     end
-    print(string.format("Loaded %d embeddings", count_or_err))
+    require("output").print(string.format("Loaded %d embeddings", count_or_err))
 
     -- Recompute in the SAME vector space the stored scores were built in.
     --
@@ -201,7 +201,7 @@ function ValidationEngine:validate_similarity_matrix(similarity_source, embeddin
     for idx, vec in pairs(embeddings_by_index) do
         self.centered_embeddings[idx] = embedding_space.centered(vec, mean)
     end
-    print(string.format("Recomputing in the %s space", embedding_space.SPACE_VERSION))
+    require("output").print(string.format("Recomputing in the %s space", embedding_space.SPACE_VERSION))
 
     -- Say whether the store claims the same space. A mismatch does not stop the
     -- run -- the numbers are the real evidence -- but it explains a wall of
@@ -209,7 +209,7 @@ function ValidationEngine:validate_similarity_matrix(similarity_source, embeddin
     local store_root = similarity_source:gsub("/similarities/?$", "")
     local stamped = embedding_space.read_fingerprint(store_root)
     if stamped ~= embedding_space.SPACE_VERSION then
-        print(string.format(
+        require("output").print(string.format(
             "  NOTE: the stored scores are marked '%s' but this check recomputes in '%s'."
             .. " Expect discrepancies until stage 7 is re-run.",
             stamped or "unmarked", embedding_space.SPACE_VERSION))
@@ -221,12 +221,12 @@ function ValidationEngine:validate_similarity_matrix(similarity_source, embeddin
         error("Failed to read stored similarities: " .. tostring(collect_err))
     end
 
-    print(string.format("Validating %d similarity pairs...", #validation_pairs))
+    require("output").print(string.format("Validating %d similarity pairs...", #validation_pairs))
 
     local progress_interval = math.max(1, math.floor(#validation_pairs / 20))
     for i, pair in ipairs(validation_pairs) do
         if i % progress_interval == 0 then
-            print(string.format("Progress: %d/%d (%.1f%%)", i, #validation_pairs, (i/#validation_pairs)*100))
+            require("output").print(string.format("Progress: %d/%d (%.1f%%)", i, #validation_pairs, (i/#validation_pairs)*100))
             if self.progress_callback then
                 self.progress_callback(i, #validation_pairs)
             end
@@ -468,7 +468,7 @@ local function run_comprehensive_validation(similarity_files, embeddings_files, 
     }
     
     for _, algorithm in ipairs(algorithms) do
-        print(string.format("Testing algorithm: %s", algorithm))
+        require("output").print(string.format("Testing algorithm: %s", algorithm))
         
         local calculator = SimilarityCalculator:new(algorithm, {cache_enabled = true})
         local engine = ValidationEngine:new({
@@ -487,7 +487,7 @@ local function run_comprehensive_validation(similarity_files, embeddings_files, 
         for i, similarity_file in ipairs(similarity_files) do
             local embeddings_file = embeddings_files[i]
             
-            print(string.format("Validating file %d/%d with %s", i, #similarity_files, algorithm))
+            require("output").print(string.format("Validating file %d/%d with %s", i, #similarity_files, algorithm))
             
             local success, validation_result = pcall(function()
                 return engine:validate_similarity_matrix(similarity_file, embeddings_file)
@@ -499,7 +499,7 @@ local function run_comprehensive_validation(similarity_files, embeddings_files, 
                 algorithm_results.total_accuracy = algorithm_results.total_accuracy + validation_result.statistics.accuracy_rate
                 comprehensive_results.overall_statistics.successful_validations = comprehensive_results.overall_statistics.successful_validations + 1
             else
-                print(string.format("Validation failed: %s", validation_result))
+                require("output").print(string.format("Validation failed: %s", validation_result))
                 comprehensive_results.overall_statistics.failed_validations = comprehensive_results.overall_statistics.failed_validations + 1
             end
         end
@@ -515,7 +515,7 @@ local function run_comprehensive_validation(similarity_files, embeddings_files, 
     local report_file = output_dir .. "/validation_comprehensive_report.json"
     utils.write_json_file(report_file, comprehensive_results)
     
-    print(string.format("Comprehensive validation complete. Report saved: %s", report_file))
+    require("output").print(string.format("Comprehensive validation complete. Report saved: %s", report_file))
     
     return comprehensive_results
 end

@@ -16,10 +16,10 @@ local dkjson = require('dkjson')
 local function migrate_files(similarities_dir, dry_run)
     dry_run = dry_run or false
 
-    print("🔄 Migrating similarity files to triangular format")
-    print("   Directory: " .. similarities_dir)
-    print("   Dry run: " .. tostring(dry_run))
-    print()
+    require("output").print("🔄 Migrating similarity files to triangular format")
+    require("output").print("   Directory: " .. similarities_dir)
+    require("output").print("   Dry run: " .. tostring(dry_run))
+    require("output").print()
 
     -- Get list of all similarity files
     local files = {}
@@ -33,12 +33,12 @@ local function migrate_files(similarities_dir, dry_run)
     end
 
     if #files == 0 then
-        print("❌ No similarity files found in " .. similarities_dir)
+        require("output").print("❌ No similarity files found in " .. similarities_dir)
         return false
     end
 
-    print(string.format("Found %d files to migrate", #files))
-    print()
+    require("output").print(string.format("Found %d files to migrate", #files))
+    require("output").print()
 
     local migrated = 0
     local skipped = 0
@@ -50,7 +50,7 @@ local function migrate_files(similarities_dir, dry_run)
         -- Extract poem ID from filename
         local poem_id = tonumber(filepath:match("poem_(%d+)%.json$"))
         if not poem_id then
-            print(string.format("⚠️  Skipping %s (can't extract poem ID)", filepath))
+            require("output").print(string.format("⚠️  Skipping %s (can't extract poem ID)", filepath))
             skipped = skipped + 1
             goto continue
         end
@@ -58,7 +58,7 @@ local function migrate_files(similarities_dir, dry_run)
         -- Read existing file
         local file_data = utils.read_json_file(filepath)
         if not file_data or not file_data.similarities then
-            print(string.format("⚠️  Skipping poem %d (can't read file)", poem_id))
+            require("output").print(string.format("⚠️  Skipping poem %d (can't read file)", poem_id))
             skipped = skipped + 1
             goto continue
         end
@@ -99,7 +99,7 @@ local function migrate_files(similarities_dir, dry_run)
         if not dry_run then
             local success = utils.write_json_file(filepath, file_data)
             if not success then
-                print(string.format("❌ Error writing poem %d", poem_id))
+                require("output").print(string.format("❌ Error writing poem %d", poem_id))
                 errors = errors + 1
                 goto continue
             end
@@ -110,7 +110,7 @@ local function migrate_files(similarities_dir, dry_run)
         -- Progress indicator
         if migrated % 100 == 0 then
             local reduction_pct = ((orig_size - new_size) / orig_size) * 100
-            print(string.format("Progress: %d/%d migrated (poem %d: %d → %d entries, %.1f%% reduction)",
+            require("output").print(string.format("Progress: %d/%d migrated (poem %d: %d → %d entries, %.1f%% reduction)",
                 migrated, #files, poem_id, orig_size, new_size, reduction_pct))
         end
 
@@ -118,24 +118,24 @@ local function migrate_files(similarities_dir, dry_run)
     end
 
     -- Summary
-    print()
-    print("📊 Migration Summary:")
-    print(string.format("   Total files: %d", #files))
-    print(string.format("   ✅ Migrated: %d", migrated))
-    print(string.format("   ⏭️  Skipped: %d (already triangular)", skipped))
-    print(string.format("   ❌ Errors: %d", errors))
-    print()
-    print(string.format("   Entries before: %.1fM", total_size_before / 1000000))
-    print(string.format("   Entries after: %.1fM", total_size_after / 1000000))
-    print(string.format("   Reduction: %.1f%%",
+    require("output").print()
+    require("output").print("📊 Migration Summary:")
+    require("output").print(string.format("   Total files: %d", #files))
+    require("output").print(string.format("   ✅ Migrated: %d", migrated))
+    require("output").print(string.format("   ⏭️  Skipped: %d (already triangular)", skipped))
+    require("output").print(string.format("   ❌ Errors: %d", errors))
+    require("output").print()
+    require("output").print(string.format("   Entries before: %.1fM", total_size_before / 1000000))
+    require("output").print(string.format("   Entries after: %.1fM", total_size_after / 1000000))
+    require("output").print(string.format("   Reduction: %.1f%%",
         ((total_size_before - total_size_after) / total_size_before) * 100))
-    print()
+    require("output").print()
 
     if dry_run then
-        print("🔍 DRY RUN: No files were modified")
-        print("   Run without --dry-run to apply changes")
+        require("output").print("🔍 DRY RUN: No files were modified")
+        require("output").print("   Run without --dry-run to apply changes")
     else
-        print("✅ Migration complete!")
+        require("output").print("✅ Migration complete!")
     end
 
     return errors == 0
@@ -146,9 +146,9 @@ if arg and arg[0] then
     local similarities_dir = arg[1] or "assets/embeddings/embeddinggemma_latest/similarities"
     local dry_run = arg[2] == "--dry-run"
 
-    print("Triangular Similarity Files Migration")
-    print("=====================================")
-    print()
+    require("output").print("Triangular Similarity Files Migration")
+    require("output").print("=====================================")
+    require("output").print()
 
     local success = migrate_files(similarities_dir, dry_run)
     os.exit(success and 0 or 1)

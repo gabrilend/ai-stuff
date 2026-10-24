@@ -289,11 +289,11 @@ end
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("Semantic Color Calculator - Interactive Mode")
-        print("1. Generate color embeddings only")
-        print("2. Precompute poem colors (requires existing embeddings)")
-        print("3. Generate color embeddings + precompute poem colors")
-        print("4. Test color calculation on single poem")
+        require("output").print("Semantic Color Calculator - Interactive Mode")
+        require("output").print("1. Generate color embeddings only")
+        require("output").print("2. Precompute poem colors (requires existing embeddings)")
+        require("output").print("3. Generate color embeddings + precompute poem colors")
+        require("output").print("4. Test color calculation on single poem")
         io.write("Select option (1-4): ")
         local choice = io.read()
         
@@ -314,7 +314,7 @@ function M.main(interactive_mode)
         end
         
         if choice == "1" or choice == "3" then
-            print("Generating color embeddings...")
+            require("output").print("Generating color embeddings...")
             local color_embeddings = M.generate_color_embeddings(
                 color_config.color_names, 
                 "embeddinggemma:latest"
@@ -337,7 +337,7 @@ function M.main(interactive_mode)
         end
         
         if choice == "2" or choice == "3" then
-            print("Loading poem embeddings...")
+            require("output").print("Loading poem embeddings...")
             local poems_data = utils.read_json_file(poems_file)
             local embeddings_data = utils.read_json_file(embeddings_file)
             
@@ -345,7 +345,7 @@ function M.main(interactive_mode)
             local color_embeddings_data = utils.read_json_file(color_embeddings_file)
             
             if poems_data and embeddings_data and color_embeddings_data then
-                print("Precomputing poem colors...")
+                require("output").print("Precomputing poem colors...")
                 M.precompute_poem_colors(
                     poems_data,
                     embeddings_data, 
@@ -386,18 +386,18 @@ function M.main(interactive_mode)
                             color_embeddings_data.embeddings
                         )
                         
-                        print(string.format("Poem %d (%s):", poem_id, poem_data.category or "unknown"))
-                        print("Content preview:", poem_data.content:sub(1, 100) .. "...")
-                        print(string.format("Semantic color: %s (similarity: %.3f)", color, similarity))
+                        require("output").print(string.format("Poem %d (%s):", poem_id, poem_data.category or "unknown"))
+                        require("output").print("Content preview:", poem_data.content:sub(1, 100) .. "...")
+                        require("output").print(string.format("Semantic color: %s (similarity: %.3f)", color, similarity))
                         
                         -- Show all color similarities
-                        print("All color similarities:")
+                        require("output").print("All color similarities:")
                         for color_name, color_embedding in pairs(color_embeddings_data.embeddings) do
                             local sim = cosine_similarity(poem_embedding, color_embedding)
-                            print(string.format("  %s: %.3f", color_name, sim))
+                            require("output").print(string.format("  %s: %.3f", color_name, sim))
                         end
                     else
-                        print("Could not find poem or embedding for ID:", poem_id)
+                        require("output").print("Could not find poem or embedding for ID:", poem_id)
                     end
                 end
             end

@@ -54,7 +54,7 @@ end
 -- Issue 10-015a: Get notes path from unified sources config (no fallback - errors if not configured)
 local notes_directories = sources_loader.get_directories("notes")
 if #notes_directories == 0 then
-    print(COLOR_RED .. "❌ Error: sources.notes not configured in config.lua" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ Error: sources.notes not configured in config.lua" .. COLOR_RESET)
     os.exit(1)
 end
 -- Use the primary directory from sources config
@@ -68,10 +68,10 @@ end
 local source_base_path
 if OVERRIDE_SOURCE then
     source_base_path = OVERRIDE_SOURCE
-    print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
 else
     source_base_path = DIR .. "/" .. notes_backup_path
-    print("🔄 Using configured source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using configured source: " .. relative_path(source_base_path))
 end
 
 -- Set up paths
@@ -158,14 +158,14 @@ local function is_valid_note_file(file_path)
 end
 -- }}}
 
-print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
+require("output").print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
 
 -- Issue 6-031: Load poem exclusion filter
 -- For notes, exclusion IDs are filenames (without extension)
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count("notes") > 0 then
     -- Issue 7-006: Full-line coloring for info messages
-    print(COLOR_YELLOW .. "🚫 Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries" .. COLOR_RESET)
+    require("output").print(COLOR_YELLOW .. "🚫 Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries" .. COLOR_RESET)
 end
 
 local excluded_count = 0
@@ -185,7 +185,7 @@ for _, subdirectory_name in ipairs(excluded_subdirectories) do
         .. shell_escape(notes_dir .. "/" .. subdirectory_name)
 end
 if prune_expression ~= "" then
-    print("🚫 Notes tooling subdirectories skipped: "
+    require("output").print("🚫 Notes tooling subdirectories skipped: "
         .. table.concat(excluded_subdirectories, ", "))
     prune_expression = "\\( " .. prune_expression .. " \\) -prune -o "
 end
@@ -286,10 +286,10 @@ f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
 -- Issue 7-006: Full-line coloring for success messages
-print(COLOR_GREEN .. "✅ Notes extraction complete" .. COLOR_RESET)
-print("   📄 Generated: " .. relative_path(json_file))
-print("   📊 Notes processed: " .. #poems_json)
+require("output").print(COLOR_GREEN .. "✅ Notes extraction complete" .. COLOR_RESET)
+require("output").print("   📄 Generated: " .. relative_path(json_file))
+require("output").print("   📊 Notes processed: " .. #poems_json)
 if excluded_count > 0 then
-    print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
+    require("output").print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
 end
 -- }}}

@@ -423,7 +423,7 @@ function ReportGenerator:generate_html_report(result, output_file)
     local success = utils.write_file(output_file, html_template)
     
     if success then
-        print(string.format("HTML validation report generated: %s", output_file))
+        require("output").print(string.format("HTML validation report generated: %s", output_file))
         return output_file
     else
         error("Failed to write HTML report: " .. output_file)
@@ -501,7 +501,7 @@ function ReportGenerator:generate_markdown_report(result, output_file)
     local success = utils.write_file(output_file, content)
     
     if success then
-        print(string.format("Markdown validation report generated: %s", output_file))
+        require("output").print(string.format("Markdown validation report generated: %s", output_file))
         return output_file
     else
         error("Failed to write Markdown report: " .. output_file)
@@ -514,7 +514,7 @@ function ReportGenerator:generate_json_report(result, output_file)
     local success = utils.write_json_file(output_file, result)
     
     if success then
-        print(string.format("JSON validation report generated: %s", output_file))
+        require("output").print(string.format("JSON validation report generated: %s", output_file))
         return output_file
     else
         error("Failed to write JSON report: " .. output_file)
@@ -707,7 +707,7 @@ function ReportGenerator:generate_comparative_markdown_report(comparison_data, o
     local success = utils.write_file(output_file, content)
     
     if success then
-        print(string.format("Comparative Markdown report generated: %s", output_file))
+        require("output").print(string.format("Comparative Markdown report generated: %s", output_file))
         return output_file
     else
         error("Failed to write comparative Markdown report: " .. output_file)

@@ -2,8 +2,7 @@
 
 ## Current Behavior
 
-**Built 2026-10-23 (steps 1-3, 5, 6, and the GPU library); step 4 in
-progress.**
+**Built 2026-10-23 (all steps).**
 - `libs/output.lua`: `say(text, where)` with where "terminal", "log" or
   "both"; `stage(name, event)` writes a stage's start or end to the log
   only; `guard(name, main, ...)` runs a program's main and logs its start,
@@ -30,10 +29,15 @@ progress.**
   their own when run by hand.
 - Tests: `libs/output.test.lua` (11 checks: each place, the stamp, the two
   refusals, a stopping error in the log, the helpers).
-- Still to do (step 4): the programs' own `print()` and `io.write` calls
-  (about 885 and 116) go to the terminal only. Each becomes `say(..., "both")`
-  for a message or stays terminal-only for a redrawn progress line, one
-  program at a time, the stages first.
+- The programs' own `print()` calls go through `output.print` (print's
+  behaviour, plus the log): 864 calls in 54 files, converted by a tool that
+  changes only a `print(` starting a statement. Each is written
+  `require("output").print(...)`, so the page workers' thread code needs
+  nothing from outside its thread. Seven standalone scripts that set no
+  library path gained one line pointing at `libs/`.
+- Terminal only, on purpose: help and usage text, progress redraws
+  (`io.write`), the tests' own output (the runner keeps each test's log), and
+  the few inline Lua snippets inside `run.sh`.
 
 **Before:** Terminal output today comes from:
 - `utils.log_info` / `log_warn` / `log_error` (`libs/utils.lua`), the shared
@@ -113,6 +117,6 @@ or the terminal, or both. Easy."
 
 ## Metadata
 
-- **Status**: In progress (step 4: the programs' own print calls)
+- **Status**: Completed 2026-10-23
 - **Created**: 2026-10-23
 - **Phase**: 10

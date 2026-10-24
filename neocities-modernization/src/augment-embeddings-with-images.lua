@@ -245,7 +245,7 @@ local function main()
     local poems_data = assert(read_json(DIR .. "/assets/poems.json"), "missing poems.json")
     local catalog_data = read_json(DIR .. "/assets/image-catalog.json")
     if not catalog_data then
-        print("[augment] No image-catalog.json; only image-only posts will be pseudo-embedded.")
+        require("output").print("[augment] No image-catalog.json; only image-only posts will be pseudo-embedded.")
         catalog_data = { images = {} }
     end
 
@@ -260,11 +260,11 @@ local function main()
     -- which numbering, beside the list (the embeddings keep theirs)
     require("numbering-stamp").write(manifest_path, require("numbering-stamp").of_embeddings(embeddings_data))
 
-    print(string.format(
+    require("output").print(string.format(
         "[augment] class1(text+img) kept=%d  class2(image-only) replaced=%d  class3(standalone) appended=%d  skipped=%d",
         report.class1, report.class2, report.class3, report.skipped))
-    print(string.format("[augment] embeddings: %d entries -> %s", #out, emb_path))
-    print(string.format("[augment] manifest: %s", manifest_path))
+    require("output").print(string.format("[augment] embeddings: %d entries -> %s", #out, emb_path))
+    require("output").print(string.format("[augment] manifest: %s", manifest_path))
 end
 -- }}}
 

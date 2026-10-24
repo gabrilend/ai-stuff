@@ -55,7 +55,7 @@ end
 -- Issue 10-015a: Get messages path from unified sources config (no fallback - errors if not configured)
 local messages_directories = sources_loader.get_directories("messages")
 if #messages_directories == 0 then
-    print(COLOR_RED .. "❌ Error: sources.messages not configured in config.lua" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ Error: sources.messages not configured in config.lua" .. COLOR_RESET)
     os.exit(1)
 end
 -- Use the primary directory from sources config
@@ -69,10 +69,10 @@ end
 local source_base_path
 if OVERRIDE_SOURCE then
     source_base_path = OVERRIDE_SOURCE
-    print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
 else
     source_base_path = DIR .. "/" .. messages_backup_path
-    print("🔄 Using configured source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using configured source: " .. relative_path(source_base_path))
 end
 
 -- Set up file paths (try multiple possible locations for export.json)
@@ -90,17 +90,17 @@ if not file_handle then
     file = DIR .. "/input/extract/export/export.json"
     file_handle = io.open(file, "r")
     if file_handle then
-        print("🔄 Found export.json in temp extraction: " .. relative_path(file))
+        require("output").print("🔄 Found export.json in temp extraction: " .. relative_path(file))
     end
 end
 local save_location = DIR .. "/" .. messages_backup_path .. "/files"
 
 if not file_handle then
     -- Issue 7-006: Full-line coloring for error messages
-    print(COLOR_RED .. "❌ Error: Could not find export.json at any expected location" .. COLOR_RESET)
-    print("   Tried: " .. relative_path(source_base_path .. "/extract/export.json"))
-    print("   Tried: " .. relative_path(source_base_path .. "/extract/export/export.json"))
-    print("   Tried: " .. relative_path(DIR .. "/input/extract/export/export.json"))
+    require("output").print(COLOR_RED .. "❌ Error: Could not find export.json at any expected location" .. COLOR_RESET)
+    require("output").print("   Tried: " .. relative_path(source_base_path .. "/extract/export.json"))
+    require("output").print("   Tried: " .. relative_path(source_base_path .. "/extract/export/export.json"))
+    require("output").print("   Tried: " .. relative_path(DIR .. "/input/extract/export/export.json"))
     os.exit(1)
 end
 
@@ -113,7 +113,7 @@ local messages = {}
 -- {{{ function format_date
 local function format_date(timestamp)
    if type(timestamp) ~= "number" then
-      print("Warning: Invalid timestamp, using current time.")
+      require("output").print("Warning: Invalid timestamp, using current time.")
       timestamp = os.time()
    end
    return os.date("%Y-%m-%d %H:%M:%S", timestamp)
@@ -173,7 +173,7 @@ end
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count("messages") > 0 then
     -- Issue 7-006: Full-line coloring for info messages
-    print(COLOR_YELLOW .. "🚫 Messages exclusion filter: " .. poem_exclusions:count("messages") .. " entries" .. COLOR_RESET)
+    require("output").print(COLOR_YELLOW .. "🚫 Messages exclusion filter: " .. poem_exclusions:count("messages") .. " entries" .. COLOR_RESET)
 end
 
 -- {{{ Issue 8-054: Build image lookup from extract/images/ directory
@@ -222,7 +222,7 @@ local image_lookup_count = 0
 for _ in pairs(image_lookup) do image_lookup_count = image_lookup_count + 1 end
 if image_lookup_count > 0 then
     -- Issue 7-006: Full-line coloring for info messages
-    print(COLOR_BLUE .. "ℹ️ Found " .. image_lookup_count .. " images in extract/images/" .. COLOR_RESET)
+    require("output").print(COLOR_BLUE .. "ℹ️ Found " .. image_lookup_count .. " images in extract/images/" .. COLOR_RESET)
 end
 -- }}}
 
@@ -325,14 +325,14 @@ f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
 -- Issue 7-006: Full-line coloring for success messages
-print(COLOR_GREEN .. "✅ Messages extraction complete" .. COLOR_RESET)
-print("   📄 Generated: " .. relative_path(json_file))
-print("   📊 Messages processed: " .. #poems_json)
+require("output").print(COLOR_GREEN .. "✅ Messages extraction complete" .. COLOR_RESET)
+require("output").print("   📄 Generated: " .. relative_path(json_file))
+require("output").print("   📊 Messages processed: " .. #poems_json)
 if image_count > 0 then
-    print("   🖼️  Media messages: " .. image_count .. " (with attachments)")
+    require("output").print("   🖼️  Media messages: " .. image_count .. " (with attachments)")
 end
 if excluded_count > 0 then
-    print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
+    require("output").print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
 end
 -- }}}
 

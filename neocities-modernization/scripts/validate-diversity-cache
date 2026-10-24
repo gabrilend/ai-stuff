@@ -45,13 +45,13 @@ local function validate_file_size(file)
     file:seek("set", 0)
 
     local total_entries = size / 4
-    print(string.format("📏 File size analysis:"))
-    print(string.format("   File size: %d bytes (%.2f MB)", size, size / 1024 / 1024))
-    print(string.format("   Total uint32 entries: %d", total_entries))
-    print()
+    require("output").print(string.format("📏 File size analysis:"))
+    require("output").print(string.format("   File size: %d bytes (%.2f MB)", size, size / 1024 / 1024))
+    require("output").print(string.format("   Total uint32 entries: %d", total_entries))
+    require("output").print()
 
     -- Try to find the best fit
-    print("   Testing possible structures:")
+    require("output").print("   Testing possible structures:")
     local best_match = nil
     local best_diff = math.huge
 
@@ -62,7 +62,7 @@ local function validate_file_size(file)
         local diff = math.abs(test_size - size)
 
         if diff < 100 then
-            print(string.format("   → %d sequences × %d entries = %d bytes (diff: %d bytes)",
+            require("output").print(string.format("   → %d sequences × %d entries = %d bytes (diff: %d bytes)",
                 sequences, rounded, test_size, diff))
             if diff < best_diff then
                 best_diff = diff
@@ -72,14 +72,14 @@ local function validate_file_size(file)
     end
 
     if best_match then
-        print()
-        print(string.format("   ✅ Best fit: %d sequences × %d entries (diff: %d bytes)",
+        require("output").print()
+        require("output").print(string.format("   ✅ Best fit: %d sequences × %d entries (diff: %d bytes)",
             best_match.sequences, best_match.entries, best_match.diff))
         NUM_SEQUENCES_IN_FILE = best_match.sequences
         ENTRIES_PER_SEQUENCE = best_match.entries
         return true
     else
-        print("   ❌ Could not determine file structure")
+        require("output").print("   ❌ Could not determine file structure")
         return false
     end
 end
@@ -116,7 +116,7 @@ local function validate_poem_sequence(file, poem_index, verbose)
     end
 
     if verbose and poem_index < 3 then
-        print(string.format("   Sequence %d first 10: %s", poem_index,
+        require("output").print(string.format("   Sequence %d first 10: %s", poem_index,
             table.concat({sequence[1], sequence[2], sequence[3], sequence[4], sequence[5],
                          sequence[6], sequence[7], sequence[8], sequence[9], sequence[10]}, ", ")))
     end
@@ -127,24 +127,24 @@ end
 
 -- {{{ local function main
 local function main()
-    print("🔍 Diversity Cache Validation")
-    print(string.format("   Cache file: %s", CACHE_FILE))
-    print()
+    require("output").print("🔍 Diversity Cache Validation")
+    require("output").print(string.format("   Cache file: %s", CACHE_FILE))
+    require("output").print()
 
     -- Open file
     local file = io.open(CACHE_FILE, "rb")
     if not file then
-        print("❌ Failed to open cache file")
+        require("output").print("❌ Failed to open cache file")
         return false
     end
 
     -- Validate file size
     local size_ok = validate_file_size(file)
-    print()
+    require("output").print()
 
     -- Validate sequences
-    print()
-    print("🔍 Validating sequences:")
+    require("output").print()
+    require("output").print("🔍 Validating sequences:")
     local sequences_ok = 0
     local sequences_errors = 0
     local sample_errors = {}
@@ -163,7 +163,7 @@ local function main()
 
         -- Progress indicator
         if (sequence_index + 1) % 1000 == 0 then
-            print(string.format("   Progress: %d/%d sequences validated...",
+            require("output").print(string.format("   Progress: %d/%d sequences validated...",
                 sequence_index + 1, NUM_SEQUENCES_IN_FILE))
         end
     end
@@ -171,40 +171,40 @@ local function main()
     file:close()
 
     -- Summary
-    print()
-    print("📊 Validation Summary:")
-    print(string.format("   Sequences in file: %d", NUM_SEQUENCES_IN_FILE))
-    print(string.format("   Entries per sequence: %d", ENTRIES_PER_SEQUENCE))
-    print(string.format("   Total poems in corpus: %d", TOTAL_POEMS_IN_CORPUS))
-    print(string.format("   ✅ Valid sequences: %d", sequences_ok))
-    print(string.format("   ❌ Sequences with errors: %d", sequences_errors))
+    require("output").print()
+    require("output").print("📊 Validation Summary:")
+    require("output").print(string.format("   Sequences in file: %d", NUM_SEQUENCES_IN_FILE))
+    require("output").print(string.format("   Entries per sequence: %d", ENTRIES_PER_SEQUENCE))
+    require("output").print(string.format("   Total poems in corpus: %d", TOTAL_POEMS_IN_CORPUS))
+    require("output").print(string.format("   ✅ Valid sequences: %d", sequences_ok))
+    require("output").print(string.format("   ❌ Sequences with errors: %d", sequences_errors))
 
     if NUM_SEQUENCES_IN_FILE < TOTAL_POEMS_IN_CORPUS then
-        print(string.format("   ⚠️  Missing: %d sequences", TOTAL_POEMS_IN_CORPUS - NUM_SEQUENCES_IN_FILE))
+        require("output").print(string.format("   ⚠️  Missing: %d sequences", TOTAL_POEMS_IN_CORPUS - NUM_SEQUENCES_IN_FILE))
     end
 
     if sequences_errors > 0 then
-        print()
-        print("❌ Sample errors:")
+        require("output").print()
+        require("output").print("❌ Sample errors:")
         for sequence_index, errors in pairs(sample_errors) do
-            print(string.format("   Sequence %d:", sequence_index))
+            require("output").print(string.format("   Sequence %d:", sequence_index))
             for i, err in ipairs(errors) do
                 if i <= 3 then  -- Limit to 3 errors per sequence
-                    print(string.format("      - %s", err))
+                    require("output").print(string.format("      - %s", err))
                 end
             end
             if #errors > 3 then
-                print(string.format("      ... and %d more errors", #errors - 3))
+                require("output").print(string.format("      ... and %d more errors", #errors - 3))
             end
         end
     end
 
-    print()
+    require("output").print()
     if size_ok and sequences_errors == 0 then
-        print("✅ VALIDATION PASSED: Diversity cache is valid!")
+        require("output").print("✅ VALIDATION PASSED: Diversity cache is valid!")
         return true
     else
-        print("❌ VALIDATION FAILED: Please regenerate the diversity cache")
+        require("output").print("❌ VALIDATION FAILED: Please regenerate the diversity cache")
         return false
     end
 end

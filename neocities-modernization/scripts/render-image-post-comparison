@@ -218,4 +218,4 @@ Under each: what a screen reader says for each picture.</p>
 local f = assert(io.open(OUT .. "/pages/compare.html", "w"))
 f:write(html)
 f:close()
-print(string.format("render-image-post-comparison: %d posts; open %s/pages/compare.html", #sample, OUT))
+require("output").print(string.format("render-image-post-comparison: %d posts; open %s/pages/compare.html", #sample, OUT))

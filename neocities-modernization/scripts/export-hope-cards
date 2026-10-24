@@ -36,46 +36,46 @@ for i = 1, #arg do
     elseif a:match("^--output=") then
         output_file = a:match("^--output=(.+)")
     elseif a == "--help" or a == "-h" then
-        print("Usage: export-hope-cards [OPTIONS]")
-        print("")
-        print("Options:")
-        print("  --anchor=<id>          Export from anchor poem ID")
-        print("  --from-centroid=<name> Export using centroid (e.g., 'hope')")
-        print("  --limit=<n>            Max poems (default: 200)")
-        print("  --output=<file>        Output file (default: temp/hope-cards.txt)")
-        print("")
-        print("Examples:")
-        print("  export-hope-cards --anchor=123 --limit=200")
-        print("  export-hope-cards --from-centroid=hope --limit=200")
+        require("output").print("Usage: export-hope-cards [OPTIONS]")
+        require("output").print("")
+        require("output").print("Options:")
+        require("output").print("  --anchor=<id>          Export from anchor poem ID")
+        require("output").print("  --from-centroid=<name> Export using centroid (e.g., 'hope')")
+        require("output").print("  --limit=<n>            Max poems (default: 200)")
+        require("output").print("  --output=<file>        Output file (default: temp/hope-cards.txt)")
+        require("output").print("")
+        require("output").print("Examples:")
+        require("output").print("  export-hope-cards --anchor=123 --limit=200")
+        require("output").print("  export-hope-cards --from-centroid=hope --limit=200")
         os.exit(0)
     end
 end
 -- }}}
 
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print("  Hope Card Exporter")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print("")
+require("output").print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+require("output").print("  Hope Card Exporter")
+require("output").print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+require("output").print("")
 
 -- {{{ Validate arguments
 if mode == "anchor" and not anchor_id then
-    print("❌ Error: --anchor=<id> required in anchor mode")
+    require("output").print("❌ Error: --anchor=<id> required in anchor mode")
     os.exit(1)
 end
 
 if mode == "centroid" and not centroid_name then
-    print("❌ Error: --from-centroid=<name> required in centroid mode")
+    require("output").print("❌ Error: --from-centroid=<name> required in centroid mode")
     os.exit(1)
 end
 -- }}}
 
 -- {{{ Load poems
-print("📚 Loading poems...")
+require("output").print("📚 Loading poems...")
 local poems_file = DIR .. "/assets/poems.json"
 local poems_data = utils.read_json_file(poems_file)
 
 if not poems_data then
-    print("❌ Error: Cannot load poems.json")
+    require("output").print("❌ Error: Cannot load poems.json")
     os.exit(1)
 end
 
@@ -91,21 +91,21 @@ for id_str, poem in pairs(poems_data) do
     end
 end
 
-print(string.format("   Loaded %d poems", poem_count))
+require("output").print(string.format("   Loaded %d poems", poem_count))
 -- }}}
 
 -- {{{ Load similarity data based on mode
 local selected_poems = {}
 
 if mode == "anchor" then
-    print(string.format("🎯 Mode: Anchor-based (poem %d)", anchor_id))
+    require("output").print(string.format("🎯 Mode: Anchor-based (poem %d)", anchor_id))
 
     -- Load similarity rankings for anchor
     local sim_file = string.format("%s/assets/similarity/%d.json", DIR, anchor_id)
     local sim_data = utils.read_json_file(sim_file)
 
     if not sim_data or not sim_data.sorted then
-        print("❌ Error: Cannot load similarity data for anchor " .. anchor_id)
+        require("output").print("❌ Error: Cannot load similarity data for anchor " .. anchor_id)
         os.exit(1)
     end
 
@@ -120,58 +120,58 @@ if mode == "anchor" then
     end
 
 elseif mode == "centroid" then
-    print(string.format("🎯 Mode: Centroid-based ('%s')", centroid_name))
+    require("output").print(string.format("🎯 Mode: Centroid-based ('%s')", centroid_name))
 
     -- Check if centroid pages exist
     local centroid_file = string.format("%s/output/centroid/%s-similar.html", DIR, centroid_name)
 
     if not utils.file_exists(centroid_file) then
-        print("⚠️  Warning: Centroid HTML not generated yet")
-        print("   Run: lua src/centroid-generator.lua")
-        print("   Then: Generate HTML with centroids enabled")
-        print("")
-        print("❌ Cannot proceed without centroid data")
+        require("output").print("⚠️  Warning: Centroid HTML not generated yet")
+        require("output").print("   Run: lua src/centroid-generator.lua")
+        require("output").print("   Then: Generate HTML with centroids enabled")
+        require("output").print("")
+        require("output").print("❌ Cannot proceed without centroid data")
         os.exit(1)
     end
 
     -- TODO: Parse HTML or use cached centroid similarity data
     -- For now, error with helpful message
-    print("❌ Centroid parsing not yet implemented")
-    print("   Coming in Phase 2 of Issue 6-012")
+    require("output").print("❌ Centroid parsing not yet implemented")
+    require("output").print("   Coming in Phase 2 of Issue 6-012")
     os.exit(1)
 end
 -- }}}
 
 -- {{{ Validate selection
 if #selected_poems == 0 then
-    print("❌ Error: No poems selected")
+    require("output").print("❌ Error: No poems selected")
     os.exit(1)
 end
 
-print(string.format("✅ Selected %d poems", #selected_poems))
+require("output").print(string.format("✅ Selected %d poems", #selected_poems))
 -- }}}
 
 -- {{{ Format and write
-print("")
-print("📝 Formatting for words-pdf...")
+require("output").print("")
+require("output").print("📝 Formatting for words-pdf...")
 
 local success, err = formatter.write_to_file(selected_poems, output_file)
 
 if not success then
-    print("❌ Error writing file: " .. (err or "unknown"))
+    require("output").print("❌ Error writing file: " .. (err or "unknown"))
     os.exit(1)
 end
 
-print(string.format("✅ Wrote: %s", output_file))
+require("output").print(string.format("✅ Wrote: %s", output_file))
 -- }}}
 
 -- {{{ Show next steps
-print("")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print("  Next: Generate PDF")
-print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print("")
-print("Run:")
-print(string.format("  ./scripts/generate-hope-card-pdf %s output/hope-card.pdf", output_file))
-print("")
+require("output").print("")
+require("output").print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+require("output").print("  Next: Generate PDF")
+require("output").print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+require("output").print("")
+require("output").print("Run:")
+require("output").print(string.format("  ./scripts/generate-hope-card-pdf %s output/hope-card.pdf", output_file))
+require("output").print("")
 -- }}}

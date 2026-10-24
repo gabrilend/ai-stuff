@@ -108,23 +108,23 @@ for i, p in ipairs(pictures) do
         image_url = { url = "data:image/png;base64," .. b64(p[2]) } } } } } })
     pv[i] = data[1].embedding
 end
-print(string.format("dimensions: text %d, picture %d", #tv[1], #pv[1]))
+require("output").print(string.format("dimensions: text %d, picture %d", #tv[1], #pv[1]))
 
 -- picture -> text: each row ranked, closest first
-print("\nEach picture's three closest texts (cosine):")
+require("output").print("\nEach picture's three closest texts (cosine):")
 for i, p in ipairs(pictures) do
     local r = {}
     for j, t in ipairs(texts) do r[#r + 1] = { t[1], cos(pv[i], tv[j]) } end
     table.sort(r, function(a, b) return a[2] > b[2] end)
-    print(string.format("  %-32s %s %.3f | %s %.3f | %s %.3f", p[1], r[1][1], r[1][2], r[2][1], r[2][2], r[3][1], r[3][2]))
+    require("output").print(string.format("  %-32s %s %.3f | %s %.3f | %s %.3f", p[1], r[1][1], r[1][2], r[2][1], r[2][2], r[3][1], r[3][2]))
 end
 
-print("\nPicture to picture (cosine):")
+require("output").print("\nPicture to picture (cosine):")
 local head = "                                 "
 for j = 1, #pictures do head = head .. string.format(" %5d", j) end
-print(head)
+require("output").print(head)
 for i, p in ipairs(pictures) do
     local row = string.format("  %d %-30s", i, p[1])
     for j = 1, #pictures do row = row .. string.format(" %5.2f", cos(pv[i], pv[j])) end
-    print(row)
+    require("output").print(row)
 end

@@ -245,14 +245,14 @@ end
 local function scan_directory_for_images(directory, config, dir_config)
     local images = {}
 
-    print("🔍 Scanning directory: " .. relative_path(directory))
+    require("output").print("🔍 Scanning directory: " .. relative_path(directory))
 
     -- Check if directory exists
     local check_cmd = string.format("test -d '%s'", shell_escape(directory))
     local exists = os.execute(check_cmd) == true or os.execute(check_cmd) == 0
 
     if not exists then
-        print("⚠️  Directory not found: " .. relative_path(directory))
+        require("output").print("⚠️  Directory not found: " .. relative_path(directory))
         return images
     end
 
@@ -303,9 +303,9 @@ local function scan_directory_for_images(directory, config, dir_config)
     
     handle:close()
     
-    print(string.format("   📄 Processed: %d images", processed_count))
+    require("output").print(string.format("   📄 Processed: %d images", processed_count))
     if skipped_count > 0 then
-        print(string.format("   ⏩ Skipped: %d images (size/format)", skipped_count))
+        require("output").print(string.format("   ⏩ Skipped: %d images (size/format)", skipped_count))
     end
     
     return images
@@ -415,11 +415,11 @@ end
 
 -- {{{ function M.discover_images
 function M.discover_images()
-    print("🖼️  Starting image discovery...")
+    require("output").print("🖼️  Starting image discovery...")
 
     local config = load_config()
     if not config.enabled then
-        print("❌ Image integration disabled in configuration")
+        require("output").print("❌ Image integration disabled in configuration")
         return {}
     end
 
@@ -439,7 +439,7 @@ function M.discover_images()
     -- Issue 10-030: Apply randomization before sorting
     local randomized_count = apply_randomization(all_images)
     if randomized_count > 0 then
-        print(string.format("🎲 Randomized timestamps for %d images", randomized_count))
+        require("output").print(string.format("🎲 Randomized timestamps for %d images", randomized_count))
     end
 
     -- Sort by modification time (newest first)
@@ -447,7 +447,7 @@ function M.discover_images()
         return a.modification_time > b.modification_time
     end)
 
-    print(string.format("✅ Image discovery complete: %d images found", #all_images))
+    require("output").print(string.format("✅ Image discovery complete: %d images found", #all_images))
     return all_images
 end
 -- }}}
@@ -522,7 +522,7 @@ function M.generate_catalog(images, output_file)
 
     -- Report duplicate resolution
     if duplicate_count > 0 then
-        print(string.format("🔄 Resolved %d duplicates (kept newest of each group)", duplicate_count))
+        require("output").print(string.format("🔄 Resolved %d duplicates (kept newest of each group)", duplicate_count))
     end
     
     -- Generate statistics (using filtered_images which has duplicates removed)
@@ -602,7 +602,7 @@ function M.generate_catalog(images, output_file)
     file:write(dkjson.encode(catalog, { indent = true }))
     file:close()
     
-    print("📄 Generated catalog: " .. relative_path(catalog_path))
+    require("output").print("📄 Generated catalog: " .. relative_path(catalog_path))
     return catalog
 end
 -- }}}
@@ -620,7 +620,7 @@ local function print_aligned(rows, indent)
     local widest = 0
     for _, row in ipairs(rows) do widest = math.max(widest, #row[1]) end
     for _, row in ipairs(rows) do
-        print(indent .. row[1] .. ":" .. string.rep(" ", widest - #row[1] + 1) .. row[2])
+        require("output").print(indent .. row[1] .. ":" .. string.rep(" ", widest - #row[1] + 1) .. row[2])
     end
 end
 -- }}}
@@ -628,7 +628,7 @@ end
 function M.show_statistics(catalog, verbose)
     local stats = catalog.metadata.statistics
 
-    print("\n=== IMAGE CATALOG STATISTICS ===")
+    require("output").print("\n=== IMAGE CATALOG STATISTICS ===")
     print_aligned({
         { "Total Images",     string.format("%d", stats.total_images) },
         { "Unique Images",    string.format("%d", stats.unique_images) },
@@ -639,7 +639,7 @@ function M.show_statistics(catalog, verbose)
 
     -- Detailed statistics only shown when verbose flag is set
     if verbose then
-        print("\nFormat Distribution:")
+        require("output").print("\nFormat Distribution:")
         -- Most common format first (pairs() order changed from run to run).
         local formats = {}
         for format, count in pairs(stats.format_distribution) do
@@ -655,14 +655,14 @@ function M.show_statistics(catalog, verbose)
         end
         print_aligned(format_rows, "  ")
 
-        print("\nSize Distribution:")
+        require("output").print("\nSize Distribution:")
         print_aligned({
             { "Small (<100KB)",      string.format("%d images", stats.size_distribution.small) },
             { "Medium (100KB-1MB)",  string.format("%d images", stats.size_distribution.medium) },
             { "Large (>1MB)",        string.format("%d images", stats.size_distribution.large) },
         }, "  ")
 
-        print("\nResolution Distribution:")
+        require("output").print("\nResolution Distribution:")
         print_aligned({
             { "Low (<500px)",        string.format("%d images", stats.resolution_distribution.low) },
             { "Medium (500-1500px)", string.format("%d images", stats.resolution_distribution.medium) },
@@ -680,14 +680,14 @@ end
 -- {{{ function M.main
 -- Issue 10-015a: Added verbose parameter for detailed statistics output
 function M.main(verbose)
-    print("🖼️  Image Integration System")
-    print("Project Directory: " .. relative_path(DIR))
+    require("output").print("🖼️  Image Integration System")
+    require("output").print("Project Directory: " .. relative_path(DIR))
 
     -- Discover all images
     local images = M.discover_images()
 
     if #images == 0 then
-        print("❌ No images found in configured directories")
+        require("output").print("❌ No images found in configured directories")
         return false
     end
 
@@ -697,7 +697,7 @@ function M.main(verbose)
     -- Show statistics (detailed distribution only when verbose=true)
     M.show_statistics(catalog, verbose)
 
-    print("\n✅ Image integration system ready")
+    require("output").print("\n✅ Image integration system ready")
     return true
 end
 -- }}}

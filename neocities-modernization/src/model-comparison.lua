@@ -163,7 +163,7 @@ local function cmd_select(flags)
         seed = seed, sample_size = #sample, anchor_count = #anchors,
         anchors = anchors, sample = sample,
     })
-    print(string.format("[select] sample=%d anchors=%d seed=%d -> %s/sample.json",
+    require("output").print(string.format("[select] sample=%d anchors=%d seed=%d -> %s/sample.json",
         #sample, #anchors, seed, EVAL_DIR))
 end
 -- }}}
@@ -244,7 +244,7 @@ local function cmd_embed(flags)
     write_json(model_dir(model) .. "/sample-embeddings.json", {
         model = model, server = server, dimensions = dim, embeddings = embeddings,
     })
-    print(string.format("[embed] %s: %d vectors x %d dims", model, total, dim))
+    require("output").print(string.format("[embed] %s: %d vectors x %d dims", model, total, dim))
 end
 -- }}}
 
@@ -453,7 +453,7 @@ local function cmd_report(flags)
     local fh = assert(io.open(html_path, "w"), "cannot write " .. html_path)
     fh:write(table.concat(h)); fh:close()
     write_json(EVAL_DIR .. "/metrics.json", metrics)
-    print("[report] wrote " .. html_path)
+    require("output").print("[report] wrote " .. html_path)
 end
 -- }}}
 

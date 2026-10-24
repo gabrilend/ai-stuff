@@ -33,6 +33,8 @@
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+-- the project's libraries, for the logged print (libs/output.lua, Issue 10-075)
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
@@ -256,8 +258,8 @@ local function main()
         corpus[rel] = strip_comment_lines(corpus[rel])
     end
     local unread = 0
-    print(string.format("config.lua settings vs %d program files under %s", #paths, DIR))
-    print("")
+    require("output").print(string.format("config.lua settings vs %d program files under %s", #paths, DIR))
+    require("output").print("")
 
     -- first pass: which sections are read at all, so lists inside them can
     -- vouch for the tables they index
@@ -273,10 +275,10 @@ local function main()
         -- a section nothing names: every setting inside it is unread too
         if #readers == 0 then
             unread = unread + 1
-            print("UNREAD SECTION  " .. section)
+            require("output").print("UNREAD SECTION  " .. section)
         else
             if show_all then
-                print("read section    " .. section .. "  <- " .. table.concat(readers, ", "))
+                require("output").print("read section    " .. section .. "  <- " .. table.concat(readers, ", "))
             end
             -- settings inside the section, looked for only where the section is
             -- read (a setting named elsewhere is a different thing that shares
@@ -290,7 +292,7 @@ local function main()
                 end
             end
             if walked_by and show_all then
-                print("                (every setting read by a loop in " .. walked_by .. ")")
+                require("output").print("                (every setting read by a loop in " .. walked_by .. ")")
             end
             if type(config[section]) == "table" and not walked_by then
                 for _, key in ipairs(sorted_string_keys(config[section])) do
@@ -301,10 +303,10 @@ local function main()
                     end
                     if #key_readers == 0 then
                         unread = unread + 1
-                        print("UNREAD SETTING  " .. section .. "." .. key
+                        require("output").print("UNREAD SETTING  " .. section .. "." .. key
                             .. "   (section read by: " .. table.concat(readers, ", ") .. ")")
                     elseif show_all then
-                        print("read setting    " .. section .. "." .. key
+                        require("output").print("read setting    " .. section .. "." .. key
                             .. "  <- " .. table.concat(key_readers, ", "))
                     end
                 end
@@ -314,11 +316,11 @@ local function main()
 
     local stale = check_read_by_comments(DIR, corpus)
     for _, finding in ipairs(stale) do
-        print(finding)
+        require("output").print(finding)
     end
 
-    print("")
-    print(unread .. " unread section(s)/setting(s), " .. #stale .. " stale \"Read by\" comment(s)")
+    require("output").print("")
+    require("output").print(unread .. " unread section(s)/setting(s), " .. #stale .. " stale \"Read by\" comment(s)")
     os.exit((unread + #stale) > 0 and 1 or 0)
 end
 -- }}}

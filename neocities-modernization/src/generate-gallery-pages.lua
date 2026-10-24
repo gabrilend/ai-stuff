@@ -114,7 +114,7 @@ local function load_image_catalog()
     local catalog_path = DIR .. "/assets/image-catalog.json"
     local file = io.open(catalog_path, "r")
     if not file then
-        print("Error: Could not open " .. catalog_path)
+        require("output").print("Error: Could not open " .. catalog_path)
         return nil
     end
 
@@ -123,7 +123,7 @@ local function load_image_catalog()
 
     local data, pos, err = dkjson.decode(content)
     if err then
-        print("Error parsing image catalog: " .. tostring(err))
+        require("output").print("Error parsing image catalog: " .. tostring(err))
         return nil
     end
 
@@ -466,17 +466,17 @@ end
 
 -- {{{ M.generate
 function M.generate()
-    print("Loading image catalog...")
+    require("output").print("Loading image catalog...")
     local catalog = load_image_catalog()
     if not catalog then
         return false
     end
 
-    print("Filtering standalone images...")
+    require("output").print("Filtering standalone images...")
     local standalone = filter_standalone_images(catalog)
-    print("Found " .. #standalone .. " standalone images")
+    require("output").print("Found " .. #standalone .. " standalone images")
 
-    print("Grouping by source...")
+    require("output").print("Grouping by source...")
     local grouped = group_by_source(standalone)
 
     -- Create output directory
@@ -484,43 +484,43 @@ function M.generate()
     os.execute("mkdir -p " .. output_dir)
 
     -- Generate index page
-    print("Generating gallery index...")
+    require("output").print("Generating gallery index...")
     local index_html = generate_gallery_index(grouped)
     local index_file = io.open(output_dir .. "/index.html", "w")
     if index_file then
         index_file:write(index_html)
         index_file:close()
-        print("  Created: output/gallery/index.html")
+        require("output").print("  Created: output/gallery/index.html")
     end
 
     -- Issue 10-042d: chronological images page (all sources, by time)
-    print("Generating chronological images page...")
+    require("output").print("Generating chronological images page...")
     local chrono_html = generate_gallery_chronological(standalone)
     local chrono_file = io.open(output_dir .. "/chronological.html", "w")
     if chrono_file then
         chrono_file:write(chrono_html)
         chrono_file:close()
-        print("  Created: output/gallery/chronological.html")
+        require("output").print("  Created: output/gallery/chronological.html")
     end
 
     -- Generate per-source gallery pages
     for _, source_name in ipairs(STANDALONE_SOURCES) do
         local images = grouped[source_name]
         if images and #images > 0 then
-            print("Generating gallery for " .. source_name .. " (" .. #images .. " images)...")
+            require("output").print("Generating gallery for " .. source_name .. " (" .. #images .. " images)...")
             local page_html, filename = generate_source_gallery(source_name, images)
             local page_file = io.open(output_dir .. "/" .. filename, "w")
             if page_file then
                 page_file:write(page_html)
                 page_file:close()
-                print("  Created: output/gallery/" .. filename)
+                require("output").print("  Created: output/gallery/" .. filename)
             end
         else
-            print("Skipping " .. source_name .. " (no images)")
+            require("output").print("Skipping " .. source_name .. " (no images)")
         end
     end
 
-    print("Gallery generation complete!")
+    require("output").print("Gallery generation complete!")
     return true
 end
 -- }}}

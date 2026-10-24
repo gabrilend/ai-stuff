@@ -29,6 +29,8 @@
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+-- the project's libraries, for the logged print (libs/output.lua, Issue 10-075)
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
@@ -275,17 +277,17 @@ local function main()
     -- --check: report, change nothing
     if check_only then
         if updated == doc then
-            print("docs/config-reference.md is up to date")
+            require("output").print("docs/config-reference.md is up to date")
             os.exit(0)
         end
-        print("docs/config-reference.md is out of date; run scripts/generate-config-reference")
+        require("output").print("docs/config-reference.md is out of date; run scripts/generate-config-reference")
         os.exit(1)
     end
 
     local f = assert(io.open(doc_path, "w"))
     f:write(updated)
     f:close()
-    print("wrote the section reference into " .. doc_path)
+    require("output").print("wrote the section reference into " .. doc_path)
 end
 -- }}}
 

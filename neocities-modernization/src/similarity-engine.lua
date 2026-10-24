@@ -1856,14 +1856,14 @@ end
 function M.main(interactive_mode)
     if interactive_mode then
         utils.log_info("=== Similarity Engine Interactive Mode ===")
-        print("1. Generate embeddings for all poems")
-        print("2. Calculate similarity matrix (sparse, top-N)")
-        print("3. Calculate FULL similarity matrix (all pairs)")
-        print("4. Generate similarity analysis report")
-        print("5. Run complete pipeline")
-        print("6. Generate matrices for ALL eligible models")
-        print("7. Show multi-model status")
-        print("8. Compare model similarities")
+        require("output").print("1. Generate embeddings for all poems")
+        require("output").print("2. Calculate similarity matrix (sparse, top-N)")
+        require("output").print("3. Calculate FULL similarity matrix (all pairs)")
+        require("output").print("4. Generate similarity analysis report")
+        require("output").print("5. Run complete pipeline")
+        require("output").print("6. Generate matrices for ALL eligible models")
+        require("output").print("7. Show multi-model status")
+        require("output").print("8. Compare model similarities")
         io.write("Select option (1-8): ")
         local choice = io.read()
         
@@ -1954,7 +1954,7 @@ function M.main(interactive_mode)
             local results = M.compare_model_similarities(poem_id, base_output_dir, {}, use_full_matrix)
             utils.log_info("Model comparison complete.")
         else
-            print("Invalid choice")
+            require("output").print("Invalid choice")
         end
     else
         -- Default: run similarity analysis on existing data

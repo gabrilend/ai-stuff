@@ -76,6 +76,17 @@ function M.say(text, where)
 end
 -- }}}
 
+-- {{{ function M.print
+-- Lua's print, also written to the run's log: its arguments turned to text
+-- and joined by tabs, as print does. The programs' own print calls go
+-- through this; progress redraws do not (they use io.write).
+function M.print(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    M.say(table.concat(parts, "\t"), "both")
+end
+-- }}}
+
 -- {{{ function M.stage
 -- A stage's start or end, to the log only: run.sh prints its banners itself.
 -- name: the program or stage (string); event: "start", "end" or a word.
@@ -96,7 +107,7 @@ function M.guard(name, main, ...)
         error(results[2], 0)
     end
     M.stage(name, "end")
-    return unpack(results, 2)
+    return (table.unpack or unpack)(results, 2)   -- unpack is table.unpack in Lua 5.2+
 end
 -- }}}
 

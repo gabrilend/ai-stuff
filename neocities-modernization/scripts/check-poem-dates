@@ -51,4 +51,4 @@ if not ok then
     io.stderr:write(tostring(err), "\n")
     os.exit(1)
 end
-print(string.format("every one of %d poems has a date", #poems_data.poems))
+require("output").print(string.format("every one of %d poems has a date", #poems_data.poems))

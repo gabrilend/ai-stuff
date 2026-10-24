@@ -273,7 +273,7 @@ end
 
 -- {{{ function M.validate_poems
 function M.validate_poems(poems_file, output_file)
-    print("Loading poems from: " .. relative_path(poems_file))
+    require("output").print("Loading poems from: " .. relative_path(poems_file))
     
     -- Load poems data
     local file = io.open(poems_file, "r")
@@ -290,7 +290,7 @@ function M.validate_poems(poems_file, output_file)
     end
     
     local poems = data.poems
-    print("Validating " .. #poems .. " poems...")
+    require("output").print("Validating " .. #poems .. " poems...")
     
     -- Analyze each poem
     local analyses = {}
@@ -299,11 +299,11 @@ function M.validate_poems(poems_file, output_file)
     end
     
     -- Detect duplicates
-    print("Checking for duplicate content...")
+    require("output").print("Checking for duplicate content...")
     local duplicates = detect_duplicates(poems)
 
     -- Generate statistics
-    print("Generating statistics...")
+    require("output").print("Generating statistics...")
     local statistics = generate_statistics(analyses)
 
     -- Create validation report
@@ -333,20 +333,20 @@ function M.validate_poems(poems_file, output_file)
     output:close()
     
     -- Print summary
-    print("\n=== VALIDATION SUMMARY ===")
-    print("Total Poems: " .. statistics.total_poems)
-    print("Non-empty Poems: " .. statistics.non_empty_poems)
-    print("Empty Poems: " .. statistics.empty_poems)
-    print("Average Length: " .. string.format("%.1f", statistics.average_length) .. " characters")
-    print("Median Length: " .. string.format("%.1f", statistics.median_length) .. " characters")
-    print("Fediverse Compatible (≤1024 chars): " .. statistics.fediverse_compatible)
-    print("Golden Poems (exactly 1024 chars): " .. statistics.golden_poems)
-    print("Duplicate Content: " .. #duplicates .. " pairs")
+    require("output").print("\n=== VALIDATION SUMMARY ===")
+    require("output").print("Total Poems: " .. statistics.total_poems)
+    require("output").print("Non-empty Poems: " .. statistics.non_empty_poems)
+    require("output").print("Empty Poems: " .. statistics.empty_poems)
+    require("output").print("Average Length: " .. string.format("%.1f", statistics.average_length) .. " characters")
+    require("output").print("Median Length: " .. string.format("%.1f", statistics.median_length) .. " characters")
+    require("output").print("Fediverse Compatible (≤1024 chars): " .. statistics.fediverse_compatible)
+    require("output").print("Golden Poems (exactly 1024 chars): " .. statistics.golden_poems)
+    require("output").print("Duplicate Content: " .. #duplicates .. " pairs")
     
     -- Add character distribution report
-    print("\n" .. generate_character_distribution_report(statistics))
+    require("output").print("\n" .. generate_character_distribution_report(statistics))
     
-    print("\nValidation report saved to: " .. relative_path(output_file))
+    require("output").print("\nValidation report saved to: " .. relative_path(output_file))
     return report
 end
 -- }}}
@@ -354,9 +354,9 @@ end
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("=== Poem Validation Tool ===")
-        print("1. Validate extracted poems.json")
-        print("2. Validate custom file")
+        require("output").print("=== Poem Validation Tool ===")
+        require("output").print("1. Validate extracted poems.json")
+        require("output").print("2. Validate custom file")
         io.write("Select option (1-2): ")
         local choice = io.read()
         
@@ -371,7 +371,7 @@ function M.main(interactive_mode)
             io.write("Enter output file path: ")
             output_file = io.read()
         else
-            print("Invalid choice")
+            require("output").print("Invalid choice")
             return
         end
         

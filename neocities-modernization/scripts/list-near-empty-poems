@@ -167,7 +167,7 @@ for _, p in ipairs(poems) do
 end
 table.sort(order)
 
-print(string.format("-- %d candidates with at most %d letters/digits%s",
+require("output").print(string.format("-- %d candidates with at most %d letters/digits%s",
     total, opts.max_letters,
     list_counts and (", most-listed first (top-" .. TOP_K .. " similar lists, model "
         .. opts.model .. ")") or ", fewest letters first"))
@@ -178,12 +178,12 @@ for _, category in ipairs(order) do
         if a.letters ~= b.letters then return a.letters < b.letters end
         return a.id < b.id
     end)
-    print("        " .. category .. " = {")
+    require("output").print("        " .. category .. " = {")
     for _, r in ipairs(rows) do
         local quoted = string.format("%q", r.id) .. ","
         local lists = r.lists and string.format("in %3d lists, ", r.lists) or ""
-        print(string.format("            %-24s -- %s%2d letters: %s",
+        require("output").print(string.format("            %-24s -- %s%2d letters: %s",
             quoted, lists, r.letters, r.text))
     end
-    print("        },")
+    require("output").print("        },")
 end

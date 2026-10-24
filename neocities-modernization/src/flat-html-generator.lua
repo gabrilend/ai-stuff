@@ -1267,7 +1267,7 @@ local function run_page_workers(num_threads, config, jobs)
     -- }}}
     progress.finish()
     local elapsed = os.time() - start_time
-    print(string.format("   [%d threads] Complete: %d jobs in %ds (%.1f jobs/sec)",
+    require("output").print(string.format("   [%d threads] Complete: %d jobs in %ds (%.1f jobs/sec)",
         num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
     -- {{{ collect each worker's counts; one that did not finish stops the run
@@ -1886,10 +1886,10 @@ end
 -- builder went with it (Issue 8-058).
 function M.main(interactive_mode)
     if interactive_mode then
-        print("Flat HTML Generator - Interactive Mode")
-        print("1. Generate complete flat HTML collection")
-        print("2. Generate chronological index only")
-        print("3. Generate instructions page only")
+        require("output").print("Flat HTML Generator - Interactive Mode")
+        require("output").print("1. Generate complete flat HTML collection")
+        require("output").print("2. Generate chronological index only")
+        require("output").print("3. Generate instructions page only")
         io.write("Select option (1-3): ")
         local choice = io.read()
 

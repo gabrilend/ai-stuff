@@ -90,7 +90,7 @@ for i = #pool, 2, -1 do
     local j = math.random(i); pool[i], pool[j] = pool[j], pool[i]
 end
 local N = math.min(SAMPLE, #pool)
-print(string.format("model %s: %d vectors, %d dims -- sampling %d with usable text",
+require("output").print(string.format("model %s: %d vectors, %d dims -- sampling %d with usable text",
     MODEL, #all_vec, D, N))
 
 local V, IDX = {}, {}
@@ -159,10 +159,10 @@ end
 
 io.write("computing raw neighbours... "); io.flush()
 local raw_lists = neighbours(unit_set(false))
-print("done")
+require("output").print("done")
 io.write("computing centred neighbours... "); io.flush()
 local cen_lists = neighbours(unit_set(true))
-print("done")
+require("output").print("done")
 
 -- {{{ [A] hubness
 local function hub_stats(lists)
@@ -251,20 +251,20 @@ end
 -- }}}
 
 local hr, hc = hub_stats(raw_lists), hub_stats(cen_lists)
-print("")
-print(string.format("[A] HUBNESS over %d poems, top-%d lists", N, K))
-print("                        as-is      centred")
-print(string.format("  skew of appearances  %7.3f    %7.3f   (lower = fewer poems flooding lists)", hr.skew, hc.skew))
-print(string.format("  most-listed poem     %7d    %7d   (out of %d possible)", hr.max, hc.max, N))
-print(string.format("  top 1%% take          %6.1f%%     %6.1f%%   (share of all neighbour slots)", 100*hr.head_share, 100*hc.head_share))
-print(string.format("  never a neighbour    %7d    %7d   (poems no list contains)", hr.orphans, hc.orphans))
+require("output").print("")
+require("output").print(string.format("[A] HUBNESS over %d poems, top-%d lists", N, K))
+require("output").print("                        as-is      centred")
+require("output").print(string.format("  skew of appearances  %7.3f    %7.3f   (lower = fewer poems flooding lists)", hr.skew, hc.skew))
+require("output").print(string.format("  most-listed poem     %7d    %7d   (out of %d possible)", hr.max, hc.max, N))
+require("output").print(string.format("  top 1%% take          %6.1f%%     %6.1f%%   (share of all neighbour slots)", 100*hr.head_share, 100*hc.head_share))
+require("output").print(string.format("  never a neighbour    %7d    %7d   (poems no list contains)", hr.orphans, hc.orphans))
 
-print("")
-print(string.format("[B] DISPLACEMENT"))
-print(string.format("  average top-%d overlap between the two: %.1f%%", K, 100 * overlap(raw_lists, cen_lists)))
+require("output").print("")
+require("output").print(string.format("[B] DISPLACEMENT"))
+require("output").print(string.format("  average top-%d overlap between the two: %.1f%%", K, 100 * overlap(raw_lists, cen_lists)))
 
 local lr, lc = lexical_score(raw_lists), lexical_score(cen_lists)
-print("")
-print("[C] LEXICAL AGREEMENT (rare shared words with the query, per neighbour)")
-print(string.format("  as-is   %.3f", lr))
-print(string.format("  centred %.3f   (%+.1f%%)", lc, 100 * (lc - lr) / lr))
+require("output").print("")
+require("output").print("[C] LEXICAL AGREEMENT (rare shared words with the query, per neighbour)")
+require("output").print(string.format("  as-is   %.3f", lr))
+require("output").print(string.format("  centred %.3f   (%+.1f%%)", lc, 100 * (lc - lr) / lr))

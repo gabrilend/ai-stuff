@@ -262,14 +262,14 @@ end
 
 -- {{{ local function scrape_boosts
 local function scrape_boosts()
-    print("=== Boost Content Scraper ===")
-    print("Project directory: " .. DIR)
-    print("Force rescrape: " .. tostring(FORCE_RESCRAPE))
-    print("Dry run: " .. tostring(DRY_RUN))
+    require("output").print("=== Boost Content Scraper ===")
+    require("output").print("Project directory: " .. DIR)
+    require("output").print("Force rescrape: " .. tostring(FORCE_RESCRAPE))
+    require("output").print("Dry run: " .. tostring(DRY_RUN))
     if MAX_SCRAPE then
-        print("Max URIs to scrape: " .. MAX_SCRAPE)
+        require("output").print("Max URIs to scrape: " .. MAX_SCRAPE)
     end
-    print("")
+    require("output").print("")
 
     -- Load existing cache
     local cache = load_cache()
@@ -279,16 +279,16 @@ local function scrape_boosts()
     for _ in pairs(cache.entries or {}) do
         existing_count = existing_count + 1
     end
-    print("Existing cache entries: " .. existing_count)
+    require("output").print("Existing cache entries: " .. existing_count)
 
     -- Get list of URIs to scrape
     local uris, err = get_external_boost_uris()
     if not uris then
-        print("ERROR: " .. err)
+        require("output").print("ERROR: " .. err)
         return false
     end
-    print("Found " .. #uris .. " external boost URIs in poems.json")
-    print("")
+    require("output").print("Found " .. #uris .. " external boost URIs in poems.json")
+    require("output").print("")
 
     -- Filter to URIs not yet cached (unless force rescrape)
     local to_scrape = {}
@@ -301,12 +301,12 @@ local function scrape_boosts()
         end
     end
 
-    print("URIs already cached: " .. skipped)
-    print("URIs to scrape: " .. #to_scrape)
+    require("output").print("URIs already cached: " .. skipped)
+    require("output").print("URIs to scrape: " .. #to_scrape)
 
     -- Apply max scrape limit
     if MAX_SCRAPE and #to_scrape > MAX_SCRAPE then
-        print("Limiting to first " .. MAX_SCRAPE .. " URIs")
+        require("output").print("Limiting to first " .. MAX_SCRAPE .. " URIs")
         local limited = {}
         for i = 1, MAX_SCRAPE do
             limited[i] = to_scrape[i]
@@ -314,10 +314,10 @@ local function scrape_boosts()
         to_scrape = limited
     end
 
-    print("")
+    require("output").print("")
 
     if #to_scrape == 0 then
-        print("Nothing to scrape - all URIs already cached!")
+        require("output").print("Nothing to scrape - all URIs already cached!")
         return true
     end
 
@@ -328,25 +328,25 @@ local function scrape_boosts()
 
     -- Dry run: just show what would be scraped
     if DRY_RUN then
-        print("=== DRY RUN - Would scrape these URIs ===")
+        require("output").print("=== DRY RUN - Would scrape these URIs ===")
         local domains = {}
         for _, uri in ipairs(to_scrape) do
             local domain = extract_domain(uri)
             domains[domain] = (domains[domain] or 0) + 1
-            print("  " .. uri)
+            require("output").print("  " .. uri)
         end
-        print("")
-        print("=== Domains to contact ===")
+        require("output").print("")
+        require("output").print("=== Domains to contact ===")
         local domain_list = {}
         for domain, count in pairs(domains) do
             table.insert(domain_list, {domain = domain, count = count})
         end
         table.sort(domain_list, function(a, b) return a.count > b.count end)
         for _, d in ipairs(domain_list) do
-            print(string.format("  %3d URIs from %s", d.count, d.domain))
+            require("output").print(string.format("  %3d URIs from %s", d.count, d.domain))
         end
-        print("")
-        print("Estimated time: " .. math.ceil(#to_scrape * CONFIG.delay_between_requests / 60) .. " minutes")
+        require("output").print("")
+        require("output").print("Estimated time: " .. math.ceil(#to_scrape * CONFIG.delay_between_requests / 60) .. " minutes")
         return true
     end
 
@@ -400,14 +400,14 @@ local function scrape_boosts()
                     type = content_data.type
                 }
                 success_count = success_count + 1
-                print("OK")
+                require("output").print("OK")
             else
                 cache.errors[uri] = {
                     attempted_at = os.date("!%Y-%m-%dT%H:%M:%SZ"),
                     error = extract_err or "Unknown extraction error"
                 }
                 error_count = error_count + 1
-                print("EXTRACT ERROR: " .. (extract_err or "unknown"))
+                require("output").print("EXTRACT ERROR: " .. (extract_err or "unknown"))
             end
         else
             cache.errors[uri] = {
@@ -416,7 +416,7 @@ local function scrape_boosts()
                 status_code = result.status_code
             }
             error_count = error_count + 1
-            print("ERROR: " .. result.error)
+            require("output").print("ERROR: " .. result.error)
         end
 
         last_domain = domain
@@ -432,12 +432,12 @@ local function scrape_boosts()
 
     -- Summary
     local elapsed = os.time() - start_time
-    print("")
-    print("=== Scraping Complete ===")
-    print("Scraped: " .. success_count .. " URIs")
-    print("Errors: " .. error_count .. " URIs")
-    print("Time: " .. elapsed .. " seconds")
-    print("Cache saved to: " .. CONFIG.cache_path)
+    require("output").print("")
+    require("output").print("=== Scraping Complete ===")
+    require("output").print("Scraped: " .. success_count .. " URIs")
+    require("output").print("Errors: " .. error_count .. " URIs")
+    require("output").print("Time: " .. elapsed .. " seconds")
+    require("output").print("Cache saved to: " .. CONFIG.cache_path)
 
     return true
 end

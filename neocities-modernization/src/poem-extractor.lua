@@ -45,7 +45,7 @@ local function load_json_file(filepath)
     
     local data, pos, err = dkjson.decode(content, 1, nil)
     if err then
-        print("Warning: Failed to parse JSON file " .. filepath .. ": " .. err)
+        require("output").print("Warning: Failed to parse JSON file " .. filepath .. ": " .. err)
         return nil
     end
     
@@ -134,7 +134,7 @@ local function mark_image_only_posts(poems)
         return poems  -- No image-only posts to process
     end
 
-    print(string.format("  Found %d image-only posts for embedding inheritance", #image_posts))
+    require("output").print(string.format("  Found %d image-only posts for embedding inheritance", #image_posts))
 
     -- Sort text poems by timestamp for efficient searching
     table.sort(text_poems, function(a, b)
@@ -169,7 +169,7 @@ local function mark_image_only_posts(poems)
         end
     end
 
-    print(string.format("  Linked %d image-only posts to nearest text poems for embedding", linked_count))
+    require("output").print(string.format("  Linked %d image-only posts to nearest text poems for embedding", linked_count))
 
     -- Return original poems list (now modified with is_image_only flags)
     return poems
@@ -260,7 +260,7 @@ function M.load_extracted_json(input_directory)
     local fediverse_data = load_json_file(fediverse_file)
     local attachment_count = 0
     if fediverse_data and fediverse_data.poems then
-        print("Loading " .. #fediverse_data.poems .. " fediverse poems from JSON")
+        require("output").print("Loading " .. #fediverse_data.poems .. " fediverse poems from JSON")
         for _, poem in ipairs(fediverse_data.poems) do
             local poem_entry = {
                 id = tonumber(poem.id),
@@ -282,17 +282,17 @@ function M.load_extracted_json(input_directory)
             table.insert(poems, poem_entry)
         end
         if attachment_count > 0 then
-            print("  Found " .. attachment_count .. " media attachments in fediverse poems")
+            require("output").print("  Found " .. attachment_count .. " media attachments in fediverse poems")
         end
     else
-        print("No fediverse poems found at: " .. fediverse_file)
+        require("output").print("No fediverse poems found at: " .. fediverse_file)
     end
     
     -- Load messages poems  
     local messages_file = input_directory .. "/messages/files/poems.json"
     local messages_data = load_json_file(messages_file)
     if messages_data and messages_data.poems then
-        print("Loading " .. #messages_data.poems .. " messages poems from JSON")
+        require("output").print("Loading " .. #messages_data.poems .. " messages poems from JSON")
         for _, poem in ipairs(messages_data.poems) do
             table.insert(poems, {
                 id = tonumber(poem.id),
@@ -305,14 +305,14 @@ function M.load_extracted_json(input_directory)
             })
         end
     else
-        print("No messages poems found at: " .. messages_file)
+        require("output").print("No messages poems found at: " .. messages_file)
     end
     
     -- Load notes poems  
     local notes_file = input_directory .. "/notes/files/poems.json"
     local notes_data = load_json_file(notes_file)
     if notes_data and notes_data.poems then
-        print("Loading " .. #notes_data.poems .. " notes poems from JSON")
+        require("output").print("Loading " .. #notes_data.poems .. " notes poems from JSON")
         for _, poem in ipairs(notes_data.poems) do
             table.insert(poems, {
                 id = tonumber(poem.id),
@@ -326,14 +326,14 @@ function M.load_extracted_json(input_directory)
             })
         end
     else
-        print("No notes poems found at: " .. notes_file)
+        require("output").print("No notes poems found at: " .. notes_file)
     end
 
     -- Load bluesky poems
     local bluesky_file = input_directory .. "/bluesky/files/poems.json"
     local bluesky_data = load_json_file(bluesky_file)
     if bluesky_data and bluesky_data.poems then
-        print("Loading " .. #bluesky_data.poems .. " bluesky poems from JSON")
+        require("output").print("Loading " .. #bluesky_data.poems .. " bluesky poems from JSON")
         for _, poem in ipairs(bluesky_data.poems) do
             table.insert(poems, {
                 id = tonumber(poem.id),
@@ -347,7 +347,7 @@ function M.load_extracted_json(input_directory)
             })
         end
     else
-        print("No bluesky poems found at: " .. bluesky_file)
+        require("output").print("No bluesky poems found at: " .. bluesky_file)
     end
 
     -- Issue 9-010: Mark image-only posts for embedding inheritance
@@ -477,7 +477,7 @@ local function assign_nearest_text_poem_index(poems)
     end
 
     if assigned_count > 0 then
-        print(string.format("   Assigned nearest_text_poem_index to %d image-only posts", assigned_count))
+        require("output").print(string.format("   Assigned nearest_text_poem_index to %d image-only posts", assigned_count))
     end
 
     return poems
@@ -496,16 +496,16 @@ function M.extract_poems_auto(base_directory, output_file, opts)
 
     local poems
     if mode == "json" then
-        print("Using modern JSON extraction from: " .. relative_path(source_path))
+        require("output").print("Using modern JSON extraction from: " .. relative_path(source_path))
         poems = M.load_extracted_json(source_path)
     elseif mode == "compiled" then
-        print("Using legacy compiled.txt extraction from: " .. relative_path(source_path))
+        require("output").print("Using legacy compiled.txt extraction from: " .. relative_path(source_path))
         poems = parse_compiled_file(source_path)
     else
         error("No valid input found: neither JSON extracts nor compiled.txt available in " .. base_directory)
     end
 
-    print("Found " .. #poems .. " poems")
+    require("output").print("Found " .. #poems .. " poems")
 
     -- Optionally drop reshared boost posts. A boost is identified by its
     -- directory-derived category (e.g. "fediverse_boost") or a metadata flag.
@@ -519,7 +519,7 @@ function M.extract_poems_auto(base_directory, output_file, opts)
             if is_boost then removed = removed + 1 else kept[#kept + 1] = p end
         end
         poems = kept
-        print(string.format("Excluded %d boost posts (include_boosts=false)", removed))
+        require("output").print(string.format("Excluded %d boost posts (include_boosts=false)", removed))
     end
 
     -- Every poem's source key, and its number counted by date (Issue 8-019).
@@ -528,7 +528,7 @@ function M.extract_poems_auto(base_directory, output_file, opts)
 
     -- Issue 9-010: Assign nearest_text_poem_index for embedding inheritance
     -- Image-only posts inherit embeddings from nearest text poem
-    print("Assigning nearest text poem indices for embedding inheritance...")
+    require("output").print("Assigning nearest text poem indices for embedding inheritance...")
     poems = assign_nearest_text_poem_index(poems)
 
     -- Create output structure
@@ -566,7 +566,7 @@ function M.extract_poems_auto(base_directory, output_file, opts)
         output:write(json_output)
         output:close()
         
-        print("Poems extracted and saved to: " .. relative_path(output_file))
+        require("output").print("Poems extracted and saved to: " .. relative_path(output_file))
     end
 
     return output_data
@@ -575,11 +575,11 @@ end
 
 -- {{{ function M.extract_poems
 function M.extract_poems(input_file, output_file)
-    print("Extracting poems from: " .. relative_path(input_file))
+    require("output").print("Extracting poems from: " .. relative_path(input_file))
     
     local poems = parse_compiled_file(input_file)
     
-    print("Found " .. #poems .. " poems")
+    require("output").print("Found " .. #poems .. " poems")
     
     -- source keys and numbers by date, as the main path (Issue 8-019)
     local numbering
@@ -608,7 +608,7 @@ function M.extract_poems(input_file, output_file)
     output:write(json_output)
     output:close()
     
-    print("Poems extracted and saved to: " .. relative_path(output_file))
+    require("output").print("Poems extracted and saved to: " .. relative_path(output_file))
     return output_data
 end
 -- }}}
@@ -616,10 +616,10 @@ end
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("=== Poem Extraction Tool ===")
-        print("1. Auto-detect input source (JSON or compiled.txt)")
-        print("2. Force extract from compiled.txt")
-        print("3. Force extract from custom file")
+        require("output").print("=== Poem Extraction Tool ===")
+        require("output").print("1. Auto-detect input source (JSON or compiled.txt)")
+        require("output").print("2. Force extract from compiled.txt")
+        require("output").print("3. Force extract from custom file")
         io.write("Select option (1-3): ")
         local choice = io.read()
         
@@ -637,7 +637,7 @@ function M.main(interactive_mode)
             output_file = io.read()
             M.extract_poems(input_file, output_file)
         else
-            print("Invalid choice")
+            require("output").print("Invalid choice")
             return
         end
     else

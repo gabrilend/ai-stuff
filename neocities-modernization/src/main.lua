@@ -710,7 +710,7 @@ end
 
 -- {{{ function M.show_project_status
 function M.show_project_status()
-    print("\n=== PROJECT STATUS ===")
+    require("output").print("\n=== PROJECT STATUS ===")
 
     local paths = utils.get_project_paths(DIR)
     local assets_root = utils.get_assets_root()
@@ -732,12 +732,12 @@ function M.show_project_status()
     }
 
     -- Show assets location
-    print(string.format("%-20s: %s", "Assets Location", assets_root))
+    require("output").print(string.format("%-20s: %s", "Assets Location", assets_root))
 
     for _, item in ipairs(status_items) do
         local name, filepath = item[1], item[2]
         local status = utils.file_exists(filepath) and "✅ Found" or "❌ Missing"
-        print(string.format("%-20s: %s", name, status))
+        require("output").print(string.format("%-20s: %s", name, status))
     end
 
     -- Show poem count if available
@@ -746,11 +746,11 @@ function M.show_project_status()
         local content = utils.read_file(poems_file)
         if content then
             local poem_count = select(2, content:gsub('"id":', '"id":'))
-            print(string.format("%-20s: %d poems", "Dataset Size", poem_count))
+            require("output").print(string.format("%-20s: %d poems", "Dataset Size", poem_count))
         end
     end
 
-    print("")
+    require("output").print("")
 end
 -- }}}
 
@@ -916,7 +916,7 @@ function M.main(options)
             local action, values = M.show_tui_menu()
 
             if action == "quit" then
-                print("Goodbye!")
+                require("output").print("Goodbye!")
                 break
             elseif action == "run" then
                 local executed = M.handle_tui_action(values)
@@ -924,12 +924,12 @@ function M.main(options)
                 if executed then
                     -- Don't pause after status display
                     if values.status ~= "1" then
-                        print("\nPress Enter to continue...")
+                        require("output").print("\nPress Enter to continue...")
                         io.read()
                     end
                 else
-                    print("No action selected. Use space to toggle options, then press Enter or select [Run].")
-                    print("\nPress Enter to continue...")
+                    require("output").print("No action selected. Use space to toggle options, then press Enter or select [Run].")
+                    require("output").print("\nPress Enter to continue...")
                     io.read()
                 end
             end

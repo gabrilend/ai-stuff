@@ -57,7 +57,7 @@ end
 -- Print a message if verbose mode is enabled
 local function log(msg)
     if verbose then
-        print(msg)
+        require("output").print(msg)
     end
 end
 -- }}}
@@ -65,7 +65,7 @@ end
 -- {{{ local function log_success
 local function log_success(msg)
     if verbose then
-        print(COLOR_GREEN .. msg .. COLOR_RESET)
+        require("output").print(COLOR_GREEN .. msg .. COLOR_RESET)
     end
 end
 -- }}}
@@ -79,7 +79,7 @@ end
 -- {{{ local function log_warning
 local function log_warning(msg)
     if verbose then
-        print(COLOR_YELLOW .. msg .. COLOR_RESET)
+        require("output").print(COLOR_YELLOW .. msg .. COLOR_RESET)
     end
 end
 -- }}}
@@ -417,19 +417,19 @@ function M.print_sources()
     local sources = M.list_sources()
 
     if #sources == 0 then
-        print("No external sources configured")
+        require("output").print("No external sources configured")
         return
     end
 
-    print("External sources (" .. #sources .. "):")
-    print(string.rep("-", 70))
+    require("output").print("External sources (" .. #sources .. "):")
+    require("output").print(string.rep("-", 70))
 
     for _, source in ipairs(sources) do
-        print(string.format("  %s", source.name))
-        print(string.format("    FROM: %s", source.source))
+        require("output").print(string.format("  %s", source.name))
+        require("output").print(string.format("    FROM: %s", source.source))
         -- Show "input/" for empty destination, otherwise "input/{dest}"
         local dest_display = source.destination == "" and "input/" or ("input/" .. source.destination)
-        print(string.format("    TO:   %s", dest_display))
+        require("output").print(string.format("    TO:   %s", dest_display))
     end
 end
 -- }}}

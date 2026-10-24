@@ -110,7 +110,7 @@ end
 local function detect_archives(input_directory)
     local archives = {}
     
-    print("🔍 Scanning for ZIP archives in: " .. relative_path(input_directory))
+    require("output").print("🔍 Scanning for ZIP archives in: " .. relative_path(input_directory))
 
     -- Scan for ZIP files
     local find_cmd = string.format("find '%s' -name '*.zip' -type f", input_directory)
@@ -134,10 +134,10 @@ local function detect_archives(input_directory)
                     mtime = mtime,
                     mtime_date = os.date("%Y-%m-%d", mtime)
                 })
-                print("📦 Found " .. archive_type .. " archive: " .. basename .. " (" .. os.date("%Y-%m-%d", mtime) .. ")")
+                require("output").print("📦 Found " .. archive_type .. " archive: " .. basename .. " (" .. os.date("%Y-%m-%d", mtime) .. ")")
             else
                 -- Issue 7-006: Full-line coloring for warnings
-                print(COLOR_YELLOW .. "⚠️  Unknown archive type: " .. basename .. COLOR_RESET)
+                require("output").print(COLOR_YELLOW .. "⚠️  Unknown archive type: " .. basename .. COLOR_RESET)
             end
         end
     end
@@ -186,7 +186,7 @@ local function extract_archive_data(archive_info, temp_base_dir)
     local temp_dir = temp_base_dir .. "/" .. archive_info.type
     local extract_dir = temp_dir .. "/extract"
     
-    print("📂 Creating temporary directory: " .. relative_path(extract_dir))
+    require("output").print("📂 Creating temporary directory: " .. relative_path(extract_dir))
     os.execute("mkdir -p " .. extract_dir)
     
     local extract_files = {}
@@ -200,14 +200,14 @@ local function extract_archive_data(archive_info, temp_base_dir)
         local media_result = os.execute(media_cmd)
         -- Issue 7-006: Full-line coloring for success messages
         if media_result == 0 or media_result == true then
-            print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
+            require("output").print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
         else
             -- Try alternative: extract all and filter, or list-and-extract approach (suppress verbose output)
             local alt_cmd = string.format(
                 "unzip -l '%s' 2>/dev/null | grep media_attachments | awk '{print $4}' | xargs -I{} unzip -o '%s' '{}' -d '%s' >/dev/null 2>&1",
                 archive_info.path, archive_info.path, extract_dir)
             os.execute(alt_cmd)
-            print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
+            require("output").print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
         end
     elseif archive_info.type == "messages" then
         -- Matrix exports have nested directory structure
@@ -226,7 +226,7 @@ local function extract_archive_data(archive_info, temp_base_dir)
         -- If either extraction worked, we're good
         -- Issue 7-006: Full-line coloring for success messages
         if result1 == 0 or result2 == 0 then
-            print(COLOR_GREEN .. "✅ Extracted notes directory/text files" .. COLOR_RESET)
+            require("output").print(COLOR_GREEN .. "✅ Extracted notes directory/text files" .. COLOR_RESET)
         end
 
         -- Skip the normal file extraction loop for notes
@@ -240,7 +240,7 @@ local function extract_archive_data(archive_info, temp_base_dir)
         local result = os.execute(cmd)
         -- Issue 7-006: Full-line coloring for success messages
         if result == 0 then
-            print(COLOR_GREEN .. "✅ Extracted: " .. file .. COLOR_RESET)
+            require("output").print(COLOR_GREEN .. "✅ Extracted: " .. file .. COLOR_RESET)
             extracted_count = extracted_count + 1
             break  -- Stop after first successful extraction
         end
@@ -254,10 +254,10 @@ local function extract_archive_data(archive_info, temp_base_dir)
     
     -- Issue 7-006: Full-line coloring for success/error messages
     if found_file and found_file ~= "" then
-        print(COLOR_GREEN .. "✅ Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename .. COLOR_RESET)
+        require("output").print(COLOR_GREEN .. "✅ Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename .. COLOR_RESET)
         return temp_dir
     else
-        print(COLOR_RED .. "❌ No extractable files found in " .. archive_info.basename .. COLOR_RESET)
+        require("output").print(COLOR_RED .. "❌ No extractable files found in " .. archive_info.basename .. COLOR_RESET)
         return nil
     end
 end
@@ -297,20 +297,20 @@ local all_archives = detect_archives(DIR .. "/input")
 
 -- Issue 7-006: Full-line coloring for error messages
 if #all_archives == 0 then
-    print(COLOR_RED .. "❌ No valid archives found to extract" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ No valid archives found to extract" .. COLOR_RESET)
     os.exit(1)
 end
 
 -- Issue 7-005: Select most recent archive per type, warn about skipped
 local selected, skipped = select_archives_by_type(all_archives)
 
-print("\n📊 Archive selection:")
-print("   Total found: " .. #all_archives .. ", Selected: " .. #selected .. ", Skipped: " .. #skipped)
+require("output").print("\n📊 Archive selection:")
+require("output").print("   Total found: " .. #all_archives .. ", Selected: " .. #selected .. ", Skipped: " .. #skipped)
 
 -- Warn about skipped archives with full yellow text
 if #skipped > 0 then
     for _, archive in ipairs(skipped) do
-        print(COLOR_YELLOW .. "   ⚠️  Skipped older: " .. relative_path(archive.path) ..
+        require("output").print(COLOR_YELLOW .. "   ⚠️  Skipped older: " .. relative_path(archive.path) ..
               " (" .. archive.mtime_date .. ")" .. COLOR_RESET)
     end
 end
@@ -318,12 +318,12 @@ end
 -- Extract only selected archives (most recent per type)
 local summary = create_extraction_summary(selected, TEMP_DIR)
 
-print("\n📋 Extraction summary:")
-print("   Archives processed: " .. summary.extracted_archives .. "/" .. summary.total_archives)
+require("output").print("\n📋 Extraction summary:")
+require("output").print("   Archives processed: " .. summary.extracted_archives .. "/" .. summary.total_archives)
 for archive_type, count in pairs(summary.by_type) do
-    print("   " .. archive_type .. ": " .. count .. " archive(s)")
+    require("output").print("   " .. archive_type .. ": " .. count .. " archive(s)")
     if summary.extraction_paths[archive_type] then
-        print("   → " .. relative_path(summary.extraction_paths[archive_type]))
+        require("output").print("   → " .. relative_path(summary.extraction_paths[archive_type]))
     end
 end
 
@@ -333,11 +333,11 @@ local f = io.open(summary_file, "w")
 f:write(dkjson.encode(summary, { indent = true }))
 f:close()
 
-print("💾 Extraction summary saved: " .. relative_path(summary_file))
+require("output").print("💾 Extraction summary saved: " .. relative_path(summary_file))
 -- Issue 7-003: Removed redundant "extraction completed" line - summary already shows completion
 
 -- Issue 7-006: Full-line coloring for error messages
 if summary.extracted_archives == 0 then
-    print(COLOR_RED .. "❌ No archives could be extracted" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ No archives could be extracted" .. COLOR_RESET)
     os.exit(1)
 end

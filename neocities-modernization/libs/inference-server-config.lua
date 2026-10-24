@@ -410,20 +410,20 @@ function M.list_servers()
     local servers = M.get_servers()
     local default_name = cfg.default_inference_server  -- may be nil; that's fine here
 
-    print("Available Inference servers:")
-    print(string.rep("-", 70))
+    require("output").print("Available Inference servers:")
+    require("output").print(string.rep("-", 70))
 
     for _, server in ipairs(servers) do
         local is_default = (default_name ~= nil and server.name == default_name)
         local default_marker = is_default and " (default)" or ""
         local url = M.build_host_url(server)
 
-        print(string.format("  %s%s", server.name, default_marker))
-        print(string.format("    %s", server.description or ""))
-        print(string.format("    URL: %s", url))
-        print(string.format("    Models (choose one with --model): %s",
+        require("output").print(string.format("  %s%s", server.name, default_marker))
+        require("output").print(string.format("    %s", server.description or ""))
+        require("output").print(string.format("    URL: %s", url))
+        require("output").print(string.format("    Models (choose one with --model): %s",
             table.concat(M.model_names(server), ", ")))
-        print("")
+        require("output").print("")
     end
 end
 -- }}}

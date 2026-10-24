@@ -243,9 +243,9 @@ end
 
 -- {{{ function M.show_menu
 function M.show_menu(title, options)
-    print("\n=== " .. title .. " ===")
+    require("output").print("\n=== " .. title .. " ===")
     for i, option in ipairs(options) do
-        print(string.format("%d. %s", i, option))
+        require("output").print(string.format("%d. %s", i, option))
     end
     io.write("Select option (1-" .. #options .. "): ")
     local choice = tonumber(io.read())
@@ -253,7 +253,7 @@ function M.show_menu(title, options)
     if choice and choice >= 1 and choice <= #options then
         return choice
     else
-        print("Invalid choice")
+        require("output").print("Invalid choice")
         return nil
     end
 end

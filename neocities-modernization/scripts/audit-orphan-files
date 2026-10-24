@@ -27,6 +27,8 @@
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+-- the project's libraries, for the logged print (libs/output.lua, Issue 10-075)
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
@@ -261,18 +263,18 @@ local function main()
     for _, heading in ipairs(headings) do
         local list = groups[heading.key]
         if #list > 0 then
-            print(heading.text)
+            require("output").print(heading.text)
             for _, candidate in ipairs(list) do
-                print("  " .. candidate)
+                require("output").print("  " .. candidate)
                 if show_why and #referrers[candidate] > 0 then
-                    print("      named by: " .. table.concat(referrers[candidate], ", "))
+                    require("output").print("      named by: " .. table.concat(referrers[candidate], ", "))
                 end
             end
-            print("")
+            require("output").print("")
             total = total + #list
         end
     end
-    print(total .. " of " .. #candidates .. " modules have no live user. Check each by hand before deleting:"
+    require("output").print(total .. " of " .. #candidates .. " modules have no live user. Check each by hand before deleting:"
         .. " a name built at run time is invisible here.")
 
     -- information only: scripts nothing calls (usually run by hand on purpose)
@@ -293,10 +295,10 @@ local function main()
         end
     end
     if #uncalled > 0 then
-        print("")
-        print("Scripts nothing else calls (fine if you run them by hand; not counted above):")
+        require("output").print("")
+        require("output").print("Scripts nothing else calls (fine if you run them by hand; not counted above):")
         for _, rel in ipairs(uncalled) do
-            print("  " .. rel)
+            require("output").print("  " .. rel)
         end
     end
     os.exit(total > 0 and 1 or 0)

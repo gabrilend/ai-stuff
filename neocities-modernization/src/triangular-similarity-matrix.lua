@@ -171,7 +171,7 @@ function M.generate_triangular_matrix(embeddings_file, output_file, force_regene
             local remaining = (total_comparisons - completed_comparisons) / rate
             local progress_pct = (completed_comparisons / total_comparisons) * 100
 
-            print()  -- Newline after the carriage-return line
+            require("output").print()  -- Newline after the carriage-return line
             utils.log_info(string.format("Progress: %.2f%% (%.1fM/%.1fM comparisons)",
                 progress_pct, completed_comparisons / 1000000, total_comparisons / 1000000))
             utils.log_info(string.format("Rate: %d comparisons/sec, Est. remaining: %d minutes",
@@ -189,7 +189,7 @@ function M.generate_triangular_matrix(embeddings_file, output_file, force_regene
     end
 
     -- Final save
-    print()  -- Newline after last carriage-return
+    require("output").print()  -- Newline after last carriage-return
     local success = utils.write_json_file(output_file, triangular_matrix)
 
     if success then
@@ -285,11 +285,11 @@ if arg and arg[0] then
     local output_file = arg[2] or (model_dir .. "/similarity_matrix_triangular.json")
     local force = arg[3] == "--force"
 
-    print("Triangular Similarity Matrix Generator")
-    print("Input:  " .. embeddings_file)
-    print("Output: " .. output_file)
-    print("Force:  " .. tostring(force))
-    print()
+    require("output").print("Triangular Similarity Matrix Generator")
+    require("output").print("Input:  " .. embeddings_file)
+    require("output").print("Output: " .. output_file)
+    require("output").print("Force:  " .. tostring(force))
+    require("output").print()
 
     local success, stats = M.generate_triangular_matrix(embeddings_file, output_file, force)
     os.exit(success and 0 or 1)

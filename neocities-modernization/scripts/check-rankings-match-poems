@@ -120,5 +120,5 @@ if #problems > 0 then
     io.stderr:write("rebuild them by including stage 7 (--generate-similarity) in the run\n")
     os.exit(1)
 end
-print(string.format("saved rankings match: %d entries for %d poems and images",
+require("output").print(string.format("saved rankings match: %d entries for %d poems and images",
     ranking_count, expected_count))

@@ -62,7 +62,7 @@ end
 
 -- {{{ Print usage
 local function print_usage()
-    print([[
+    require("output").print([[
 Usage: sync-external-files [OPTIONS] [NAME]
 
 Sync external files into the project's input/ directory.

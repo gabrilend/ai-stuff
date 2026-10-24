@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 17:07:29
+Generated on: 2026-10-23 17:34:30
 Models: claude-opus-5-5
 
 ## Contents
@@ -67,6 +67,11 @@ Models: claude-opus-5-5
     leaner codebase; the build left half the pages empty because my leftover
     files filled RAM, which I've now cleared. Next: your yes on making failed
     writes stop the build before you rerun stages 9 and 10.
+16. 2026-10-23 17:10, after Request 24 - We're cleaning up the poetry site's
+    build system, and the latest build passed every check, so it's ready to
+    push. Next: you push with `scripts/deploy-to-neocities --prune`, and tell me
+    whether the GPU library's errors should go into the run log so I can start
+    the refactoring pass.
 
 --------------------------------------------------------------------------------
 
@@ -4330,6 +4335,187 @@ after each group of files:
    don't creep back.
 
 Shall I start with step 1?
+
+--------------------------------------------------------------------------------
+
+### User Request 25
+
+we need a --help cli command on all of the scripts that we have in this project.
+Specifically deploy-to-neocities.
+
+$ scripts/deploy-to-neocities --help
+Hashing the local build and listing the live site ...
+^C
+
+not ideal
+
+> My recommendation: send the errors and status lines to the log through one
+> small C function that appends to the run's log, and keep the bar
+> terminal-only, the same rule as the Lua
+> side. The errors are exactly what you'd want after a crash. Shall I do it that
+> way?
+
+yes
+
+
+
+<pasted_content id="5619">
+> Refactoring pass: with the build confirmed, I'd go in this order, committing
+> after each group of files:
+> 1. Write the logging change. Every later step then leaves a trail in the run's
+> log.
+> 2. Retire the 13 modules nothing uses, about 4,700 lines. I'll check each by
+> hand first; per your rule, each is renamed -done for one commit, then removed.
+> 3. Move the config candidates I listed into config.lua. That starts with the
+> gallery's own copy of the picture-source list and the word-cloud colours,
+> which the code currently reads
+>      from a config section that doesn't exist.
+> 4. Prune the history comments, about 4,850 lines, largest files first. I'd
+> keep why a design is the way it is and your quoted decisions, and drop the
+> before-and-after stories, dates
+>      and issue-number trails.
+> 5. Add a check to the tests that flags new history-style comments, so they
+> don't creep back.
+</pasted_content id="5619">
+
+
+instead of my "quoted decisions" can we include a reference or link to the
+conversation in the llm-transcripts that we are going to be referencing? Stuff
+that doesn't exist in the transcripts (from before we lost our history) can be
+left verbatim. Maybe with some search terms that will definitely bring us to
+them.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 25
+
+> Starting with `deploy-to-neocities --help`, since asking for help made it go
+> online and start work. Reading its option parsing.
+
+> My bash version repeats a mistake from earlier (`luajit -e` treats the next
+> argument as a script to run) and has a junk fallback. Rewriting it.
+
+> Two are sourced libraries (`exit-status.sh`, `stage-timing.sh`), which their
+> headers say. Writing the insertion tool.
+
+> Added to 47 scripts. Now checking each one: run with `--help`, it must print
+> its header, exit cleanly within seconds, and do nothing else.
+
+> All seven now print real help. Next, `deploy-to-neocities` gets a stricter
+> rule: an option it doesn't know stops it instead of being ignored. That's how
+> `--help` slipped through.
+
+> Writing the test that keeps it this way. It checks that every script has a
+> help call, and runs `--help` only on scripts that pass that check, so a new
+> script without help is never run by accident.
+
+> One left: `zip-extractor.lua`, with a two-line header. Checking how it's
+> called so its header can say so.
+
+> All 118 checks pass. Running the full suite and committing. The 47 scripts
+> were edited by my tool, so I'm claiming them by hand.
+
+*[commit] af26b0b0d in ai-stuff - neocities: every script answers --help without doing any work*
+
+> `--help` is done and committed. Next, your idea of pointing to the transcripts
+> instead of quoting. Checking how the transcripts are laid out, so a reference
+> can say exactly where to look.
+
+> It finds the phrase across the line break. Simplifying its matching code,
+> which has a redundant first pass.
+
+> Pointing the convention at the tool instead of grep, adding a test, and
+> committing.
+
+*[commit] 13e7210db in ai-stuff - neocities: the refactoring plan, and a tool to find the owner's words in the transcripts*
+
+> Committed. Now step 1, the logging change. Reading the current message helpers
+> first.
+
+> Writing the output module.
+
+> The message helpers now write to both. Next, `run.sh` names one log for the
+> whole run. Checking what uses the `--debug` log folder before replacing it.
+
+> `logs/` is already ignored by git. Next, the GPU library's C output. Finding
+> its progress-bar code first, so the replacement leaves the bar alone.
+
+> File writes and the progress bar are untouched; 99 prints now go through
+> `vkc_say`. Rebuilding the GPU library and running its tests.
+
+> The build runs eight of these programs, and a few more are run by hand.
+> Wrapping each entry call so its start, its end, and any error that stops it go
+> to the log.
+
+> All eleven load cleanly. Writing the output module's test.
+
+> All 11 pass. One side effect to head off: run outside `run.sh`, every test
+> program would start its own log file. The test runner will give them one
+> shared log, unless the run already has one.
+
+> 47 pass, and the whole test run left exactly one log file. Recording what's
+> built in the issue and committing. Converting the 885 `print()` calls is the
+> part still to do.
+
+*[commit] 45b011e19 in ai-stuff - neocities: every run keeps a log in RAM*
+
+> Checking the new log line on a dry run before reporting.
+
+Every script now answers `--help` without doing anything else, and every run
+keeps a log in RAM. Both are committed and all 47 tests pass. Your next build is
+the first one that will write a log.
+
+**Reminder:** the site from your last build passed every check and is ready to
+push: `scripts/deploy-to-neocities --prune`.
+
+**`--help` on every script**
+- `deploy-to-neocities` skipped any option it didn't know, so `--help` was
+  ignored and the deploy started. Now every script answers `--help` (or `-h`) by
+  printing its own header comment and exiting, before touching anything.
+- One shared helper does this, in Lua and in bash. The 47 scripts without help
+  each gained two lines.
+- The deploy script now also stops on an option it doesn't recognise.
+- Seven scripts had headers too thin to help, and one, `compile`, had none. Each
+  now says what it does and how to run it.
+- Five of those seven turned out to be unused and are marked for the refactoring
+  pass. `compile` looks broken (it needs folder settings nothing in this project
+  gives it) and appears to belong to your words repository.
+- A new test checks that every script answers `--help`. It only runs `--help` on
+  scripts that have the help call, so a new script without one is reported,
+  never run.
+
+**The run's log**
+- `run.sh` prints the log's path at the start, e.g.
+  `tmp/shared-memory/logs/run-2026-10-23_17-34-16.log`. One file per run, named
+  by when it started, kept until a reboot.
+- Messages, warnings and errors go to both the terminal and the log; progress
+  bars stay on the terminal.
+- Each build program logs its own start and end, and an error that stops one is
+  logged with its traceback. A log that can't be written stops the program.
+- The GPU library's errors and status lines also go to the log; its progress bar
+  doesn't.
+- `run.sh`'s banners are unchanged and marked as a refactor target.
+- `--debug` still keeps its disk copy, for a freeze that forces a power-off,
+  since RAM is lost then. Its folder moved out of the site (where it would have
+  been uploaded) into `logs/debug/`.
+- **Not done yet:** about 885 `print()` calls inside the programs still reach
+  only the terminal. That's the next part of the logging work.
+
+**Pointing at your words instead of quoting them.** The refactoring plan is now
+in issue 10-048. A comment points at one of your decisions by its date and a
+short exact phrase, e.g. `owner, 2026-10-23, llm-transcripts: "not do it through
+bash"`.
+- A phrase rather than a file name or line number, because transcript files get
+  renamed as a conversation grows (`…oct-22-26.md` became `…oct-23-26.md`).
+- The transcripts wrap at 80 columns, so a phrase can be split across two lines.
+  A new tool, `scripts/find-in-transcripts "PHRASE"`, finds it anyway and shows
+  where it was said.
+- Decisions from before the transcripts stay verbatim, with a few search words.
+
+**Next,** shall I finish moving the 885 `print()` calls over to the log, then
+continue the refactoring pass in order? The remaining steps are: retire the
+unused files, move settings into `config.lua`, prune the history comments, then
+add a check against new ones.
 
 --------------------------------------------------------------------------------
 

@@ -119,7 +119,7 @@ local function fresh_out()
     end
     if COPY_PICTURES then
         run(string.format("mkdir -p %q", OUT .. "/media"))
-        print("render-page-sample: copying the pictures into " .. OUT .. "/media (--copy-pictures)")
+        require("output").print("render-page-sample: copying the pictures into " .. OUT .. "/media (--copy-pictures)")
         return
     end
     local media = DIR .. "/assets/site-media"
@@ -217,7 +217,7 @@ assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, c
 assert(generator.generate_complete_flat_html_collection(
     poems_data, nil, nil, OUT, PAGES, PER_PAGE, THREADS, chrono_per_page, anchors),
     "similar/different pages failed")
-print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))
+require("output").print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))
 
 -- {{{ word pages (--words)
 -- The word-page builder reads its settings from the command line when it is
@@ -229,6 +229,6 @@ if WORDS then
         "--threads", tostring(THREADS) }
     local word_pages = require("generate-word-pages")
     assert(word_pages.generate_word_html({ output_dir = OUT }), "word pages failed")
-    print(string.format("render-page-sample: word pages for %d words under %s/wordcloud", WORDS, OUT))
+    require("output").print(string.format("render-page-sample: word pages for %d words under %s/wordcloud", WORDS, OUT))
 end
 -- }}}

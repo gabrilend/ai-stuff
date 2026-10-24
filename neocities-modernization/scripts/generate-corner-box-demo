@@ -185,24 +185,24 @@ end
 
 -- {{{ main
 local function main()
-    print("[INFO] Loading poems data...")
+    require("output").print("[INFO] Loading poems data...")
     local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
     if not poems_data then
-        print("[ERROR] Could not load poems data")
+        require("output").print("[ERROR] Could not load poems data")
         return
     end
 
-    print("[INFO] Loading poem colors...")
+    require("output").print("[INFO] Loading poem colors...")
     local poem_colors_data = utils.read_json_file(DIR .. "/assets/embeddings/embeddinggemma_latest/poem_colors.json")
     local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
 
-    print("[INFO] Generating corner box demo page...")
+    require("output").print("[INFO] Generating corner box demo page...")
     local output_file = DIR .. "/output/corner-box-demo.html"
 
     if generate_demo_page(poems_data, poem_colors, output_file) then
-        print("[INFO] Demo page generated: " .. output_file)
+        require("output").print("[INFO] Demo page generated: " .. output_file)
     else
-        print("[ERROR] Failed to generate demo page")
+        require("output").print("[ERROR] Failed to generate demo page")
     end
 end
 -- }}}

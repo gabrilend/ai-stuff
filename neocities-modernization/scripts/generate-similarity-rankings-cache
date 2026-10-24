@@ -35,7 +35,7 @@ local function load_all_triangular_similarities(model_name)
     -- Issue 10-054: similarities + ranking cache are movable (embeddings_dir, RAM).
     local similarities_dir = utils.similarities_dir(model_name)
 
-    print(string.format("[SIMILARITY CACHE] Loading triangular files from: %s", similarities_dir))
+    require("output").print(string.format("[SIMILARITY CACHE] Loading triangular files from: %s", similarities_dir))
 
     -- Build full similarity map: poem_index -> {target_index -> similarity}
     -- Using triangular property: similarity(A,B) = similarity(B,A)
@@ -59,7 +59,7 @@ local function load_all_triangular_similarities(model_name)
             table.insert(files, line)
         end
         handle:close()
-        print(string.format("[SIMILARITY CACHE] Using poem_index_*.json files (%d found)", #files))
+        require("output").print(string.format("[SIMILARITY CACHE] Using poem_index_*.json files (%d found)", #files))
     else
         -- Fall back to legacy poem_*.json files (excluding poem_index_*)
         handle = io.popen(string.format("find '%s' -maxdepth 1 -name 'poem_*.json' ! -name 'poem_index_*' 2>/dev/null",
@@ -68,11 +68,11 @@ local function load_all_triangular_similarities(model_name)
             table.insert(files, line)
         end
         handle:close()
-        print(string.format("[SIMILARITY CACHE] Using legacy poem_*.json files (%d found)", #files))
+        require("output").print(string.format("[SIMILARITY CACHE] Using legacy poem_*.json files (%d found)", #files))
     end
 
     local total_files = #files
-    print(string.format("[SIMILARITY CACHE] Found %d similarity files", total_files))
+    require("output").print(string.format("[SIMILARITY CACHE] Found %d similarity files", total_files))
 
     local skipped_count = 0
     for _, filepath in ipairs(files) do
@@ -113,7 +113,7 @@ local function load_all_triangular_similarities(model_name)
             if files_processed % 500 == 0 then
                 local elapsed = os.time() - start_time
                 local rate = files_processed / math.max(elapsed, 1)
-                print(string.format("[SIMILARITY CACHE] Progress: %d/%d files (%.1f%%), %.1f files/sec",
+                require("output").print(string.format("[SIMILARITY CACHE] Progress: %d/%d files (%.1f%%), %.1f files/sec",
                                   files_processed, total_files,
                                   (files_processed / total_files) * 100, rate))
             end
@@ -122,10 +122,10 @@ local function load_all_triangular_similarities(model_name)
     end
 
     if skipped_count > 0 then
-        print(string.format("[SIMILARITY CACHE] Skipped %d files without poem_index", skipped_count))
+        require("output").print(string.format("[SIMILARITY CACHE] Skipped %d files without poem_index", skipped_count))
     end
 
-    print(string.format("[SIMILARITY CACHE] Loaded similarities for %d poems from %d files",
+    require("output").print(string.format("[SIMILARITY CACHE] Loaded similarities for %d poems from %d files",
                        utils.table_count(full_similarities), files_processed))
 
     return full_similarities
@@ -144,7 +144,7 @@ end
 -- {{{ function generate_sorted_rankings
 -- Convert full similarity map to pre-sorted rankings
 local function generate_sorted_rankings(full_similarities)
-    print("[SIMILARITY CACHE] Generating sorted rankings...")
+    require("output").print("[SIMILARITY CACHE] Generating sorted rankings...")
 
     local rankings = {}
     local total_poems = utils.table_count(full_similarities)
@@ -177,12 +177,12 @@ local function generate_sorted_rankings(full_similarities)
         processed = processed + 1
         if processed % 1000 == 0 then
             local elapsed = os.time() - start_time
-            print(string.format("[SIMILARITY CACHE] Sorted: %d/%d poems (%.1f%%)",
+            require("output").print(string.format("[SIMILARITY CACHE] Sorted: %d/%d poems (%.1f%%)",
                               processed, total_poems, (processed / total_poems) * 100))
         end
     end
 
-    print(string.format("[SIMILARITY CACHE] Generated rankings for %d poems", processed))
+    require("output").print(string.format("[SIMILARITY CACHE] Generated rankings for %d poems", processed))
     return rankings
 end
 -- }}}
@@ -207,7 +207,7 @@ local function save_rankings_cache(rankings, model_name)
         rankings = rankings
     }
 
-    print(string.format("[SIMILARITY CACHE] Saving cache to: %s", cache_file))
+    require("output").print(string.format("[SIMILARITY CACHE] Saving cache to: %s", cache_file))
     local start_time = os.time()
 
     utils.write_json_file(cache_file, cache_data)
@@ -217,7 +217,7 @@ local function save_rankings_cache(rankings, model_name)
     local file_size = file_handle:seek("end")
     file_handle:close()
 
-    print(string.format("[SIMILARITY CACHE] ✅ Cache saved: %.1f MB in %d seconds",
+    require("output").print(string.format("[SIMILARITY CACHE] ✅ Cache saved: %.1f MB in %d seconds",
                        file_size / 1024 / 1024, elapsed))
 
     return cache_file
@@ -226,9 +226,9 @@ end
 
 -- {{{ main
 local function main()
-    print("=" .. string.rep("=", 60))
-    print("[SIMILARITY CACHE] Pre-sorted Similarity Rankings Generator")
-    print("=" .. string.rep("=", 60))
+    require("output").print("=" .. string.rep("=", 60))
+    require("output").print("[SIMILARITY CACHE] Pre-sorted Similarity Rankings Generator")
+    require("output").print("=" .. string.rep("=", 60))
 
     local overall_start = os.time()
 
@@ -242,9 +242,9 @@ local function main()
     local cache_file = save_rankings_cache(rankings)
 
     local total_time = os.time() - overall_start
-    print("")
-    print(string.format("[SIMILARITY CACHE] ✅ Complete! Total time: %.1f minutes", total_time / 60))
-    print(string.format("[SIMILARITY CACHE] Cache file: %s", cache_file))
+    require("output").print("")
+    require("output").print(string.format("[SIMILARITY CACHE] ✅ Complete! Total time: %.1f minutes", total_time / 60))
+    require("output").print(string.format("[SIMILARITY CACHE] Cache file: %s", cache_file))
 end
 
 main()

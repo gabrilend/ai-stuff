@@ -1039,7 +1039,7 @@ follow any path down through the tree.</p>
     end
 
     -- Report what was published and -- loudly -- what was held back.
-    print(string.format("[source-browser] published %d text + %d images to %s",
+    require("output").print(string.format("[source-browser] published %d text + %d images to %s",
         written, images, out_root))
     do
         -- Feature F: count saved pages now linked out to the web, and the assets we
@@ -1048,26 +1048,26 @@ follow any path down through the tree.</p>
         local linked_out = 0
         for _ in pairs(mirror_url) do linked_out = linked_out + 1 end
         if linked_out > 0 then
-            print(string.format("[source-browser] %d saved page(s) link out to the original article; %d of their assets held back (not hosted)",
+            require("output").print(string.format("[source-browser] %d saved page(s) link out to the original article; %d of their assets held back (not hosted)",
                 linked_out, held_assets))
         end
         if #mirror_missing > 0 then
-            print(string.format("[source-browser] WARNING: %d saved page(s) had no canonical/og:url and were held back -- add a MIRROR_URL_OVERRIDES entry: %s",
+            require("output").print(string.format("[source-browser] WARNING: %d saved page(s) had no canonical/og:url and were held back -- add a MIRROR_URL_OVERRIDES entry: %s",
                 #mirror_missing, table.concat(mirror_missing, ", ")))
         end
     end
     if skipped_files > 0 then
-        print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
+        require("output").print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
     end
     if #write_failed > 0 then
-        print(string.format("[source-browser] WARNING: %d pages failed to write (odd path characters): %s",
+        require("output").print(string.format("[source-browser] WARNING: %d pages failed to write (odd path characters): %s",
             #write_failed, table.concat(write_failed, ", ")))
     end
     local skip_report = {}
     for dir, count in pairs(skipped) do skip_report[#skip_report + 1] = string.format("%s (%d)", dir, count) end
     table.sort(skip_report)
     if #skip_report > 0 then
-        print("[source-browser] NOT published (allowlist held these back): " .. table.concat(skip_report, ", "))
+        require("output").print("[source-browser] NOT published (allowlist held these back): " .. table.concat(skip_report, ", "))
     end
 end
 -- }}}
