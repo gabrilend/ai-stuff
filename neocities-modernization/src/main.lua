@@ -980,7 +980,8 @@ if arg then
         package.path = DIR .. "/libs/?.lua;" .. package.path
     end
 
-    M.main(options)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("main.lua", M.main, options)
 end
 
 return M

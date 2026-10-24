@@ -268,7 +268,8 @@ Output Control:
   --quiet               Suppress progress messages
   --verbose             Show detailed progress
   --dry-run             Show what would run, without running it
-  --debug               Write logs to output/debug-logs/ and keep them
+  --debug               Also keep a disk copy of all output in logs/debug/
+                        (survives a freeze that needs a power-off)
   --low-priority        Run heavy stages at nice -n 10
 
 Other:
@@ -1026,11 +1027,26 @@ cd "$DIR" || {
 }
 # }}}
 
+# {{{ Issue 10-075: the run's log, in RAM
+# One file per run, named by the moment the run started, kept until a
+# reboot. Every Lua program of the run writes its messages, warnings and
+# errors to it (libs/output.lua reads NEOCITIES_RUN_LOG); progress bars stay
+# on the terminal only. This script's own banners are terminal only: the
+# stages log their own start and end. (A refactor target: the stage
+# sequence could move into Lua, and its banners would go through the same
+# output function.)
+RUN_STARTED="$(date +%Y-%m-%d_%H-%M-%S)"
+mkdir -p "$DIR/tmp/shared-memory/logs"
+export NEOCITIES_RUN_LOG="$DIR/tmp/shared-memory/logs/run-$RUN_STARTED.log"
+echo "Log: tmp/shared-memory/logs/run-$RUN_STARTED.log"
+# }}}
+
 # {{{ --debug: persistent logging
 # Why this exists: a hard GPU lock forces a power-cycle, and the tmp/ symlink
 # points at a tmpfs subdir under /tmp/ (RAM) that the reboot wipes — so the
 # logs that would explain the freeze are gone before they can be read.
-# --debug routes logs to output/debug-logs/ (durable disk) instead.
+# --debug routes logs to logs/debug/ (durable disk, outside the site so it is
+# never uploaded) instead.
 #
 # Two mechanisms, working together:
 #   1. NEOCITIES_LOG_DIR is exported so the child scripts that own the
@@ -1048,7 +1064,7 @@ cd "$DIR" || {
 # to disk. Durable disk still captures vastly more than tmpfs, but the final
 # line or two before the lock can still be lost.
 if $DEBUG; then
-    LOG_DIR="$OUTPUT_DIR/debug-logs"
+    LOG_DIR="$DIR/logs/debug"
     mkdir -p "$LOG_DIR"
     export NEOCITIES_LOG_DIR="$LOG_DIR"
     # The Vulkan C library reads VKC_DEBUG to switch its progress bars from the

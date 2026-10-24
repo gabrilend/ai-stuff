@@ -527,7 +527,8 @@ end
 
 -- Run if executed directly
 if arg and arg[0]:match("generate%-gallery%-pages%.lua$") then
-    M.generate()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("generate-gallery-pages.lua", M.generate)
 end
 
 return M

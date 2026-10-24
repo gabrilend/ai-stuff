@@ -1360,7 +1360,8 @@ if arg and #arg >= 0 and debug.getinfo(3) == nil then
         os.exit(0)
     end
 
-    M.main()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("generate-word-pages.lua", M.main)
 end
 -- }}}
 

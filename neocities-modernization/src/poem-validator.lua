@@ -395,7 +395,8 @@ if arg and arg[0] and arg[0]:match("poem%-validator%.lua$") then
         end
     end
 
-    M.main(interactive_mode)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("poem-validator.lua", M.main, interactive_mode)
 end
 
 return M

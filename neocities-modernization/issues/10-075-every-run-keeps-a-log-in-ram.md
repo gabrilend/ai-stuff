@@ -2,14 +2,40 @@
 
 ## Current Behavior
 
-A build's terminal output is kept nowhere unless it runs with `--debug`,
-which reroutes all of `run.sh`'s output through `scripts/fsync-logger` into
-`output/debug-logs/run.log` -- now inside the site folder in RAM (Issue
-10-072), so it would be uploaded with the site and is cleared with it. A
-normal run's messages exist only on the terminal. When the 2026-10-22 build
-ran out of RAM, nothing recorded where or how it stopped.
+**Built 2026-10-23 (steps 1-3, 5, 6, and the GPU library); step 4 in
+progress.**
+- `libs/output.lua`: `say(text, where)` with where "terminal", "log" or
+  "both"; `stage(name, event)` writes a stage's start or end to the log
+  only; `guard(name, main, ...)` runs a program's main and logs its start,
+  its end, or the error and traceback that stopped it. Every log line is
+  stamped with the time; a log that cannot be opened or written is an
+  error.
+- `utils.log_info` / `log_warn` / `log_error` go to both.
+- `run.sh` names the run's log `tmp/shared-memory/logs/run-<started>.log`,
+  prints its path once, and exports it (`NEOCITIES_RUN_LOG`); its banners
+  stay terminal-only and are marked as a refactor target. `--debug` keeps
+  its disk copy for freezes that need a power-off, moved from
+  `output/debug-logs/` (inside the site, so it would have been uploaded) to
+  `logs/debug/`.
+- The build's programs run their main through `guard`: `src/main.lua`,
+  `generate-word-pages`, `wordcloud-generator`, `generate-source-browser`,
+  `generate-gallery-pages`, `augment-embeddings-with-images`,
+  `semantic-color-calculator`, `similarity-engine`, and by hand
+  `poem-extractor`, `poem-validator`, `image-manager`.
+- The GPU library: `vkc_say` in `libs/vulkan-compute/src/vk_compute.c`
+  (with `VKC_SAY` / `VKC_SAY_ERR`) prints a line and appends it, stamped,
+  to the run's log; its 99 message lines go through it, the progress bar
+  does not. Run on its own (no `NEOCITIES_RUN_LOG`) it prints only.
+- `scripts/run-tests` gives the tests the run's log, or one shared log of
+  their own when run by hand.
+- Tests: `libs/output.test.lua` (11 checks: each place, the stamp, the two
+  refusals, a stopping error in the log, the helpers).
+- Still to do (step 4): the programs' own `print()` and `io.write` calls
+  (about 885 and 116) go to the terminal only. Each becomes `say(..., "both")`
+  for a message or stays terminal-only for a redrawn progress line, one
+  program at a time, the stages first.
 
-Terminal output today comes from:
+**Before:** Terminal output today comes from:
 - `utils.log_info` / `log_warn` / `log_error` (`libs/utils.lua`), the shared
   message helpers;
 - about 885 `print()` calls and 116 `io.write` / `io.stderr:write` calls
@@ -87,6 +113,6 @@ or the terminal, or both. Easy."
 
 ## Metadata
 
-- **Status**: Open (ready to build)
+- **Status**: In progress (step 4: the programs' own print calls)
 - **Created**: 2026-10-23
 - **Phase**: 10

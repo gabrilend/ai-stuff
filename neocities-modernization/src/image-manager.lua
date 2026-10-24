@@ -712,7 +712,8 @@ if arg and arg[0] and arg[0]:match("image%-manager%.lua$") then
             break
         end
     end
-    M.main(verbose)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("image-manager.lua", M.main, verbose)
 end
 
 return M

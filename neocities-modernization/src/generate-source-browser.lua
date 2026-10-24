@@ -1072,4 +1072,5 @@ follow any path down through the tree.</p>
 end
 -- }}}
 
-main()
+-- start, end and any stopping error go to the run's log (Issue 10-075)
+require("output").guard("generate-source-browser.lua", main)

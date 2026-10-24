@@ -419,7 +419,8 @@ if arg then
         end
     end
     
-    M.main(interactive)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("semantic-color-calculator.lua", M.main, interactive)
 end
 
 return M

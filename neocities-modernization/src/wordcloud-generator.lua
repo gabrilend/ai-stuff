@@ -747,7 +747,8 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
 
-    M.main()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("wordcloud-generator.lua", M.main)
 end
 -- }}}
 

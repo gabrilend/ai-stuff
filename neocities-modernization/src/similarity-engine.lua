@@ -2099,7 +2099,8 @@ if arg and arg[0] then
         end
     end
 
-    M.main(interactive_mode)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("similarity-engine.lua", M.main, interactive_mode)
 end
 
 return M

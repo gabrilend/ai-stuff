@@ -112,7 +112,16 @@ echo $? > "$log_dir/$name.status"
     f:close()
 end
 local started = os.time()
-run(string.format("xargs -a %q -P %d -I{} bash %q {} %q %q", list_file, JOBS, runner, DIR, LOG_DIR))
+-- the tests' messages go to the run's log when run.sh started this; run on
+-- its own, they share one log of their own (one per test program would be a
+-- pile of files; Issue 10-075)
+local run_log = os.getenv("NEOCITIES_RUN_LOG")
+if not run_log or run_log == "" then
+    run(string.format("mkdir -p %q", DIR .. "/tmp/shared-memory/logs"))
+    run_log = string.format("%s/tmp/shared-memory/logs/tests-%s.log", DIR, os.date("%Y-%m-%d_%H-%M-%S"))
+end
+run(string.format("NEOCITIES_RUN_LOG=%q xargs -a %q -P %d -I{} bash %q {} %q %q",
+    run_log, list_file, JOBS, runner, DIR, LOG_DIR))
 local elapsed = os.time() - started
 -- }}}
 

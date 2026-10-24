@@ -17,21 +17,25 @@ end
 -- Module configuration
 M.DIR = setup_dir_path()
 
+-- The message helpers say each line on the terminal and in the run's log
+-- (libs/output.lua, Issue 10-075).
+local output = require("output")
+
 -- {{{ function M.log_info
 function M.log_info(message)
-    print(string.format("[INFO] %s", message))
+    output.say(string.format("[INFO] %s", message), "both")
 end
 -- }}}
 
 -- {{{ function M.log_warn
 function M.log_warn(message)
-    print(string.format("[WARN] %s", message))
+    output.say(string.format("[WARN] %s", message), "both")
 end
 -- }}}
 
 -- {{{ function M.log_error
 function M.log_error(message)
-    print(string.format("[ERROR] %s", message))
+    output.say(string.format("[ERROR] %s", message), "both")
 end
 -- }}}
 

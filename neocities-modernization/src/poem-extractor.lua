@@ -658,7 +658,8 @@ if arg and #arg > 0 and debug.getinfo(3) == nil then
         end
     end
     
-    M.main(interactive_mode)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("poem-extractor.lua", M.main, interactive_mode)
 end
 
 -- {{{ function remove_reply_syntax

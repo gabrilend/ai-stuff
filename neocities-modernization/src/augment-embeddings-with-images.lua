@@ -270,7 +270,8 @@ end
 
 -- Run main() only when invoked as a script (not when required by the test).
 if not _G.AUGMENT_NO_MAIN then
-    main()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("augment-embeddings-with-images.lua", main)
 end
 
 return M
