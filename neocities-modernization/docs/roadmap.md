@@ -284,7 +284,7 @@ chosen stages need and lists every missing one at once (Issue 10-065).
 - ✅ GPU-accelerated diversity sequence generation
   (`scripts/precompute-diversity-sequences-gpu`)
 - ✅ GPU-accelerated similarity rankings cache
-  (`scripts/generate-similarity-rankings-cache`)
+  (run.sh stage 7, `libs/vulkan-compute/lua/vk_similarity.lua`)
 - ✅ LuaJIT FFI integration layer (`libs/vulkan-compute/lua/vk_compute.lua`)
 - ✅ effil retained for HTML generation (orchestrator pattern in
   `src/flat-html-generator.lua`); Vulkan replaces it for the numeric

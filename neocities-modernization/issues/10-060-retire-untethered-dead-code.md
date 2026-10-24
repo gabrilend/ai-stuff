@@ -7,6 +7,33 @@
 - **Status**: In progress
 
 ## Current Behavior
+**2026-10-23, the refactoring pass (Issue 10-048 step 2; owner's yes to
+retiring after a check by hand).** Renamed `-done` for one commit, then
+removed:
+- modules: `libs/triangular-similarity-access.lua`,
+  `src/triangular-similarity-matrix.lua`, `src/regenerate-clean-site.lua`,
+  `src/html-generator/golden-poem-indicators.lua`,
+  `src/html-generator/embedding-list-generator.lua` (and its test), and the
+  validation suite (`run-validation`, `run-validation-with-reports`,
+  `validation-engine`, `report-generator`, `similarity-calculator`) with
+  `config.similarity`, which only the calculator read;
+- scripts: `compile` (belongs to the words repository and needs folder
+  settings nothing here gives it), `generate-diversity-cache.sh` (checked a
+  model folder that no longer exists), `run-fediverse` and `run-messages`
+  (the update stage does that extraction), `migrate-to-triangular-files.lua`
+  (a one-time migration, done), `generate-similarity-rankings-cache` (stage 7
+  writes that cache on the GPU), `validate-diversity-cache` (a binary cache
+  format the build no longer uses).
+- Kept on purpose: `src/hubness-experiment.lua` (the measurement tool for the
+  open picture-embedding questions, Issue 9-013), `src/diversity-chaining.lua`
+  (named as the reference algorithm by Issues 13-004 and 14-001),
+  `src/html-generator/url-manager.lua` (demo 3 uses it until 10-056 rewrites
+  the demo), and the hand-run tools (`scrape-boost-content.lua`,
+  `quarantine-stale-output`, `check-inline-lua-quotes`, `test-effil-simple`,
+  the measuring scripts).
+- `scripts/audit-orphan-files` now reports those 3 modules and nothing else.
+
+**Earlier:**
 
 Modules left behind by superseded implementations still sit in `src/`, only kept
 "alive" by their own tests. A test that exercises dead code stays green forever and

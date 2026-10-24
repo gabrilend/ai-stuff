@@ -438,15 +438,6 @@ return {
     -- }}}
     -- }}}
 
-    -- {{{ similarity
-    -- Algorithm settings for computing poem-to-poem similarity scores.
-    -- Read by: src/similarity-calculator.lua
-    -- Available algorithms: "cosine", "euclidean", "manhattan", "angular", "pearson_correlation"
-    similarity = {
-        default_algorithm = "cosine"    -- Cosine is standard for text embeddings
-    },
-    -- }}}
-
     -- {{{ inference_servers
     -- Issue 10-049: Inference-server configuration for embedding generation.
     -- Originally written for Ollama under 10-017; renamed and re-shaped for

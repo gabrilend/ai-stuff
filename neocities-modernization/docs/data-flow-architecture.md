@@ -353,8 +353,8 @@ kinds of work:
   effil channels, format HTML, and write files. This is the right tool
   for embarrassingly-parallel work whose unit is "render one page".
 - **Vulkan compute shaders (GPU)** — used in
-  `scripts/precompute-diversity-sequences-gpu` and
-  `scripts/generate-similarity-rankings-cache`, both of which dispatch
+  `scripts/precompute-diversity-sequences-gpu` and the similarity stage
+  (run.sh stage 7, `libs/vulkan-compute/lua/vk_similarity.lua`), both of which dispatch
   cosine-distance and greedy-selection work to the GPU via the
   `libs/vulkan-compute/` FFI wrapper. This is the right tool for
   matrix-heavy numeric work where the per-operation memory footprint
