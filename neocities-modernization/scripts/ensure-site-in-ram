@@ -43,6 +43,10 @@
 # Requires: tmp/shared-memory/ already exists (run.sh calls ensure-tmp-symlink
 # first). Exits 1 with a message on any refusal.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -eu
 
 # {{{ DIR resolution

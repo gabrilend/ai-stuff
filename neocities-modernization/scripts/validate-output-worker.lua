@@ -25,6 +25,9 @@
 --                  links, and one row each filled 4 GB of RAM.
 --   PAGE...        the HTML files to check
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 local MAX_WIDTH = tonumber(arg[1])
 local FINDINGS_FILE = arg[2]
 assert(MAX_WIDTH and FINDINGS_FILE and arg[3],

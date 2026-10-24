@@ -4,6 +4,9 @@
 -- Reads existing poem_*.json files and removes redundant lower-triangle entries
 -- Each file will only contain similarities where other_id > this_id
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 local DIR = DIR or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. '/libs/?.lua;' .. package.path
 

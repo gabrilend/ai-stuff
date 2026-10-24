@@ -26,6 +26,10 @@
 #   scripts/ensure-tmp-symlink /path/to/project/root    # overrides DIR
 #   source scripts/ensure-tmp-symlink                   # bash callers can source
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -eu
 
 # {{{ DIR resolution

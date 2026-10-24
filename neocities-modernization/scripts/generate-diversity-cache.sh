@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
-# Wrapper script for diversity cache generation
-# Ensures GPU version is used by default
+# generate-diversity-cache.sh -- checks for the GPU library, then runs
+# scripts/precompute-diversity-sequences-gpu.
+#
+# Nothing in the build calls it (run.sh runs the GPU step itself), and its
+# embeddings check names a model folder that no longer exists
+# (embeddinggemma_latest), so it stops there. Kept for now; listed for the
+# refactoring pass.
+#
+# Usage:  scripts/generate-diversity-cache.sh [DIR]
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -euo pipefail
 

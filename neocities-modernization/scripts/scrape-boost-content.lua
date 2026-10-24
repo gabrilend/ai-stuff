@@ -12,6 +12,9 @@
 --
 -- The --force flag will re-scrape URIs even if they are already cached.
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
     -- Return provided dir if it's a valid path (not a flag)

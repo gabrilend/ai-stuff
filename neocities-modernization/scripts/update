@@ -3,6 +3,10 @@
 # Automatically detects ZIP archives and extracts JSON data for poem processing pipeline
 # Implements freshness checking to skip extraction when outputs are up to date
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -euo pipefail
 
 # {{{ setup_dir_path

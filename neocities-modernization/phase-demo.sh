@@ -7,6 +7,10 @@
 #
 # Usage: ./phase-demo.sh [DIRECTORY]
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/libs/script-help.sh"
+script_help "$0" "$@"
+
 # {{{ setup_dir_path
 setup_dir_path() {
     if [ -n "$1" ]; then

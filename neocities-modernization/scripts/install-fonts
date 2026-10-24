@@ -22,6 +22,10 @@
 # font that is not there falls silently back to the broken rendering -- the
 # failure looks like nothing at all, so the build must be the thing that notices.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -euo pipefail
 
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"

@@ -16,6 +16,9 @@
 --   scripts/cache-dir [DIR] --model NAME --disk -> on-disk cache dir (diversity)
 -- DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 -- {{{ setup_dir_path()
 local function setup_dir_path(provided)
     if provided then return provided end

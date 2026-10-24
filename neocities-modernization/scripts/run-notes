@@ -1,6 +1,14 @@
 #!/bin/bash
-# Notes extraction runner script
-# Processes notes directory and generates JSON output
+# run-notes -- turns the notes folder into poems JSON.
+#
+# Runs scripts/extract-notes.lua over input/notes. Called by scripts/update
+# during the build's update stage.
+#
+# Usage:  scripts/run-notes [DIR]
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -euo pipefail
 

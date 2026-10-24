@@ -1,6 +1,15 @@
 #!/bin/bash
-# Messages content extraction script  
-# Extracts personal messages from ZIP archives and processes them
+# run-messages -- extracts messages from the chat export (an older route).
+#
+# Unzips the Element "Messages to yourself" export and runs the messages
+# extractor. Nothing in the build calls it any more (stage 2, scripts/update,
+# does the extraction); listed for the refactoring pass.
+#
+# Usage:  scripts/run-messages [DIR]
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -euo pipefail
 

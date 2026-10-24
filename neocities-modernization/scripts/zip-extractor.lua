@@ -1,6 +1,14 @@
 #!/usr/bin/env lua
--- ZIP archive extraction script for content processing
--- Detects and extracts JSON data from ZIP archives for poem extraction pipeline
+-- zip-extractor.lua -- finds the source archives (the Mastodon export, the
+-- chat export) among the input zips and unpacks the JSON the extractors read.
+-- Called by scripts/update during the build's update stage.
+--
+-- Usage:  lua scripts/zip-extractor.lua DIR TEMP_DIR
+--   DIR       project folder
+--   TEMP_DIR  where to unpack (required)
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)

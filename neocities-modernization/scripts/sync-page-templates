@@ -18,6 +18,10 @@
 #   scripts/sync-page-templates [DIR]
 # DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -eu
 
 # {{{ paths

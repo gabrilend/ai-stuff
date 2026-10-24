@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 12:47:38
+Generated on: 2026-10-23 17:07:29
 Models: claude-opus-5-5
 
 ## Contents
@@ -4218,6 +4218,118 @@ fresh and an edit mid-build could change what later stages run.
 Once you tell me the build succeeded, I'll start the refactoring pass and this
 logging change. And the reminder: after the page check passes, push with
 `scripts/deploy-to-neocities --prune`.
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+> 1. The GPU library's C code prints about 146 lines of its own. Should those go
+> into the log too, through a small C function, or stay terminal-only?
+
+I don't know, what kind of output is it?
+
+> 2. run.sh's stage banners are written in bash. I'd add a one-line bash
+> function that appends each banner to the log. Is that all right, given you
+> said not through bash? I'm reading
+>      that as not rerouting the whole terminal through bash.
+
+leave them as-is, and in the lua when we would pass to the next stage, write it
+just to the log and not the terminal. Maybe also mark it as a potential refactor
+target.
+
+> 3. How many old logs should stay in RAM: every one until a reboot, or the last
+> few runs?
+
+However many, until a reboot. Name them with the date / time that the run
+started.
+
+
+
+<pasted_content id="5619">
+═══════════════════════════════════════════════════════════════════
+  📏 Checking every page: line widths and links
+═══════════════════════════════════════════════════════════════════
+Checking 20109 pages under
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/output on 6 processes
+(max width 84; archived word clouds skipped)...
+validate-output report
+  site:      /mnt/mtwo/programming/ai-stuff/neocities-modernization/output
+  pages:     20109
+  max width: 84 visible characters
+
+Over-wide lines: 0
+
+Frame pieces the wrong width or with a junction out of place: 0
+
+Broken links: 0
+
+Examples, five per cause (page:line  width  text):
+
+Every over-wide line and misshapen frame piece, and every missing link
+target with its count
+and first page, tab-separated:
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/tmp/shared-memory/validate-output/run-21243/findings.tsv
+(full report:
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/tmp/shared-memory/validate-output-report.txt)
+
+✅ Pipeline completed successfully
+</pasted_content id="5619">
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+> The build passed: 0 over-wide lines, 0 frame errors, 0 broken links.
+> **Reminder: push it now with `scripts/deploy-to-neocities --prune`**, so the
+> old number-named pages are removed from the site.
+>
+> For your first question, sorting the GPU library's C output by kind:
+
+> Updating the logging issue with your answers.
+
+*[commit] 4ce1c3cee in ai-stuff - neocities: the logging plan takes the owner's answers*
+
+The build passed (0 over-wide lines, 0 frame errors, 0 broken links), so the
+site is ready to push. Push it with `scripts/deploy-to-neocities --prune`. Every
+similar and different page has a new name this build, and `--prune` removes the
+old number-named ones from Neocities.
+
+**What the GPU library prints:**
+
+| kind | about | examples |
+|---|---|---|
+| Error messages | 66 lines | "failed to create buffer", "shader not found", "dispatch failed", each with the reason |
+| Status lines | 25 lines | the GPU found, how many MB of vectors uploaded, buffer sizes, "initialization complete" |
+| Its progress bar | — | the redrawn bar during the walks and the similarity step |
+
+My recommendation: send the errors and status lines to the log through one small
+C function that appends to the run's log, and keep the bar terminal-only, the
+same rule as the Lua side. The errors are exactly what you'd want after a crash.
+Shall I do it that way?
+
+**Your other two answers are in the plan (issue 10-075):**
+- `run.sh`'s banners stay as they are. Each Lua stage writes its own start and
+  end to the log only, and the banners are marked as a refactor target.
+- Logs stay in RAM until a reboot, each named by when its run started, e.g.
+  `run-2026-10-23_14-05-09.log`.
+
+**Refactoring pass:** with the build confirmed, I'd go in this order, committing
+after each group of files:
+1. **Write the logging change.** Every later step then leaves a trail in the
+   run's log.
+2. **Retire the 13 modules nothing uses,** about 4,700 lines. I'll check each by
+   hand first; per your rule, each is renamed `-done` for one commit, then
+   removed.
+3. **Move the config candidates I listed into `config.lua`.** That starts with
+   the gallery's own copy of the picture-source list and the word-cloud colours,
+   which the code currently reads from a config section that doesn't exist.
+4. **Prune the history comments,** about 4,850 lines, largest files first. I'd
+   keep why a design is the way it is and your quoted decisions, and drop the
+   before-and-after stories, dates and issue-number trails.
+5. **Add a check to the tests** that flags new history-style comments, so they
+   don't creep back.
+
+Shall I start with step 1?
 
 --------------------------------------------------------------------------------
 

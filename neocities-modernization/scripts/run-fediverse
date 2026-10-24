@@ -1,6 +1,15 @@
 #!/bin/bash
-# Fediverse content extraction script
-# Extracts posts from ActivityPub ZIP archives and processes them
+# run-fediverse -- extracts posts from the Mastodon archive (an older route).
+#
+# Unzips the ActivityPub export and runs the fediverse extractor. Nothing in
+# the build calls it any more (stage 2, scripts/update, does the extraction);
+# listed for the refactoring pass.
+#
+# Usage:  scripts/run-fediverse [DIR]
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -euo pipefail
 

@@ -33,6 +33,9 @@
 --       Used only to COMPARE two scorings of the same corpus, never as truth.
 -- }}}
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 local MODEL = arg[1] or "embeddinggemma-300m"
 local SAMPLE = tonumber(arg[2]) or 2500   -- corpus sample for the all-pairs work

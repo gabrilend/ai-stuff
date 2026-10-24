@@ -1,4 +1,20 @@
 #!/bin/bash
+# compile -- joins the words collection into one text file and an encrypted zip.
+#
+# WHAT IT DOES (for a CEO): runs the update script, then appends every file
+# under the source folder, oldest first, to one 80-column text file (each
+# followed by its file name and a rule), copies that file into the PDF input
+# folder, and zips the whole target folder with a password.
+#
+# It expects TARGET_DIR, TARGET_FILE, SOURCE_DIR and UPDATE_SCRIPT to be set by
+# whoever runs it; nothing in this project does (it came from the words
+# repository), so run on its own it stops at the first unset one.
+#
+# Usage:  TARGET_DIR=... TARGET_FILE=... SOURCE_DIR=... UPDATE_SCRIPT=... scripts/compile
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 set -euo pipefail
 
 TARGET_ZIP_FILE="${TARGET_DIR}/words.zip"

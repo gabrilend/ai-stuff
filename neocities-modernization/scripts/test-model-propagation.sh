@@ -12,6 +12,10 @@
 # fresh process; (b) no override falls back to config.lua; (c) the notepad is
 # rewritten (never appended) so a previous run's choice cannot leak in.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -u
 DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
