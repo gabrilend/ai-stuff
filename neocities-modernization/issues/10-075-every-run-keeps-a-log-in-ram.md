@@ -48,10 +48,16 @@ or the terminal, or both. Easy."
    each log line stamped with the time; a write to the log that fails is an
    error (a log that silently stops is worse than none).
 2. `utils.log_info` / `log_warn` / `log_error` go through `say(..., "both")`.
-3. `run.sh` names the run's log, exports it, and writes its own banners to
-   it with a one-line bash function that appends (the banners are the
-   triage trail). Its `--debug` rerouting goes, and with it the log inside
-   the site folder.
+3. `run.sh` names the run's log after the moment the run started
+   (`run-2026-10-23_14-05-09.log`) and exports it; its own banners stay as
+   they are, terminal only (owner, 2026-10-23: "leave them as-is, and in the
+   lua when we would pass to the next stage, write it just to the log and
+   not the terminal. Maybe also mark it as a potential refactor target.").
+   So each Lua stage, as it starts and as it ends, writes a line naming
+   itself to the log only. The banners are marked in `run.sh` as a refactor
+   target: the stage sequence could move into Lua, where they would go
+   through `say` like everything else. Its `--debug` rerouting goes, and
+   with it the log inside the site folder.
 4. Replace `print()` / `io.write` in the pipeline's programs with `say`
    (`"both"` for messages, `"terminal"` for redrawn progress), one program
    at a time, the stages first.
@@ -62,13 +68,20 @@ or the terminal, or both. Easy."
 
 ## Open Questions
 
-1. The GPU library's C code prints about 146 lines itself (`printf`). Send
-   them through the same log (a small C function that appends to the file
-   named in `NEOCITIES_RUN_LOG`), or leave the C lines terminal-only?
-2. `run.sh` is bash; its banners need an append to the log file. Is that
-   one bash function acceptable, given "not through bash" meant not
-   rerouting the whole terminal through bash?
-3. How many old logs to keep in RAM: all until reboot, or the last N runs?
+1. The GPU library's C code prints its own lines: about 66 error messages
+   (a device, buffer, shader or dispatch that failed, with the reason),
+   about 25 status lines (device found, buffer sizes, "initialization
+   complete"), and its progress bar. Recommended: errors and status lines
+   into the log through one small C function that appends to the file named
+   in `NEOCITIES_RUN_LOG`, the bar terminal-only, as in Lua. Owner to decide.
+
+## Answered Questions
+
+- `run.sh`'s banners: left as they are; each Lua stage logs its start and
+  end to the log only; the banners are a refactor target (owner, quoted in
+  step 3).
+- Old logs: "However many, until a reboot. Name them with the date / time
+  that the run started." Kept in RAM, so a reboot clears them.
 
 ## Related Documents
 
@@ -78,7 +91,6 @@ or the terminal, or both. Easy."
 
 ## Metadata
 
-- **Status**: Open (waiting for the owner's next build to finish before code
-  changes; three open questions)
+- **Status**: Open (one open question)
 - **Created**: 2026-10-23
 - **Phase**: 10

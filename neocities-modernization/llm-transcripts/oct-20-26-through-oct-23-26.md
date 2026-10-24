@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 12:43:51
+Generated on: 2026-10-23 12:47:38
 Models: claude-opus-5-5
 
 ## Contents
@@ -4156,6 +4156,68 @@ My recommendation is (a). Which do you want?
 
 **Refactoring pass:** noted. I'll start it once you confirm the next build
 succeeds.
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+> The terminal log. I haven't made this change yet, because it has a trade-off.
+
+we should not do it through bash, but rather in the lua. We don't have to write
+progress bar updates to the log. Anytime we would output something to the
+terminal, pass it through a function with a "logged" value (just a 0 or 1 or
+whatever) and either write it to the log, or the terminal, or both. Easy.
+
+I'll redo the compilation now.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> I'll hold off on code changes while your build runs: each stage loads its Lua
+> files fresh, so editing them mid-build could change what the later stages run.
+> Writing the plan into an issue file now (it isn't part of the build) and
+> checking for an existing logging issue first.
+
+> No existing issue covers this, so it gets a new one (10-075). The scale: 885
+> `print()` calls across the Lua files, plus the shared `log_info` / `log_warn`
+> / `log_error` helpers.
+
+*[commit] 061b350b3 in ai-stuff - neocities: plan for every run keeping a log in RAM*
+
+I've written your logging design into a new issue (10-075) and committed it. No
+code changes until your build finishes, since each stage loads its Lua files
+fresh and an edit mid-build could change what later stages run.
+
+**The plan:**
+- **One output function.** A new `libs/output.lua` provides `say(text, where)`,
+  where `where` is the terminal, the log, or both. The shared `log_info` /
+  `log_warn` / `log_error` helpers use it, and the 885 `print()` calls move over
+  to it one program at a time, starting with the build stages.
+- **One log per run.** `run.sh` names the log file
+  (`tmp/shared-memory/logs/run-<date>-<time>.log`) and passes it to every stage,
+  so the whole run lands in one file. A program run on its own starts its own
+  log.
+- **Progress bars stay on the terminal only,** so they keep animating and the
+  log stays clean.
+- **Errors go to the log too.** A failed write to the log stops the program, and
+  an error that stops a program is logged with its traceback before it exits.
+- **The `--debug` rerouting goes,** along with its log folder inside the site
+  (which, now that the site lives in RAM, would have been uploaded).
+
+**Three questions before I build it:**
+1. The GPU library's C code prints about 146 lines of its own. Should those go
+   into the log too, through a small C function, or stay terminal-only?
+2. `run.sh`'s stage banners are written in bash. I'd add a one-line bash
+   function that appends each banner to the log. Is that all right, given you
+   said not through bash? I'm reading that as not rerouting the whole terminal
+   through bash.
+3. How many old logs should stay in RAM: every one until a reboot, or the last
+   few runs?
+
+Once you tell me the build succeeded, I'll start the refactoring pass and this
+logging change. And the reminder: after the page check passes, push with
+`scripts/deploy-to-neocities --prune`.
 
 --------------------------------------------------------------------------------
 
