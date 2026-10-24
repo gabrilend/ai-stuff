@@ -66,16 +66,12 @@ or the terminal, or both. Easy."
 6. A test: a message said to "both" is on the terminal and in the log, one
    said to "terminal" only on the terminal, a failed log write is an error.
 
-## Open Questions
-
-1. The GPU library's C code prints its own lines: about 66 error messages
-   (a device, buffer, shader or dispatch that failed, with the reason),
-   about 25 status lines (device found, buffer sizes, "initialization
-   complete"), and its progress bar. Recommended: errors and status lines
-   into the log through one small C function that appends to the file named
-   in `NEOCITIES_RUN_LOG`, the bar terminal-only, as in Lua. Owner to decide.
-
 ## Answered Questions
+
+- The GPU library's C output (about 66 error lines, 25 status lines, its
+  progress bar): errors and status lines into the log through one small C
+  function that appends to the file named in `NEOCITIES_RUN_LOG`, the bar
+  terminal-only (owner, 2026-10-23: "yes").
 
 - `run.sh`'s banners: left as they are; each Lua stage logs its start and
   end to the log only; the banners are a refactor target (owner, quoted in
@@ -91,6 +87,6 @@ or the terminal, or both. Easy."
 
 ## Metadata
 
-- **Status**: Open (one open question)
+- **Status**: Open (ready to build)
 - **Created**: 2026-10-23
 - **Phase**: 10
