@@ -1,4 +1,11 @@
 # Critical Path: Similar Pages Generation
+> **Status: will not implement (retired 2026-10-25).** Owner: "For E, the
+> only one we should touch now are those outdated critical path files." Its
+> goal was reached another way: the similar and different pages are built
+> by the GPU stages of `run.sh`, not by the route this plan lays out, so its
+> remaining steps will not be done. Moved from `issues/` to
+> `issues/will-not-implement/`.
+
 
 > **Historical record (January 2026).** This plan describes the route as it
 > stood before similarity and diversity moved to the GPU. The tools it names

@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 13:57:33
+Generated on: 2026-10-25 16:06:39
 Models: claude-opus-5-5
 
 ## Contents
@@ -85,6 +85,15 @@ Models: claude-opus-5-5
     picture fills about two-thirds of the "different" lists: 93 photos share one
     identical vector, and it's not a graphics card bug. Next: pick how to give
     those photos distinct vectors, and whether to keep the waiting fix.
+20. 2026-10-25 14:00, after Request 36 - We're giving the 93 notebook-page
+    photos their own meaning, since they currently share one identical vector
+    that shows up in two-thirds of the "different" lists. Next, you choose:
+    embed the photos directly, transcribe them to text, or blend either with the
+    neighbouring posts.
+21. 2026-10-25 15:27, after Request 37 - Pictures are now placed among the poems
+    by what the model sees in them; that work is built, tested and committed.
+    Next, tell me whether to keep or undo the uncommitted graphics-card waiting
+    fix, then run your build.
 
 --------------------------------------------------------------------------------
 
@@ -5668,6 +5677,307 @@ Then I'd add 2 later if you want the text shown on the page.
 A question for you: should a notebook page count as one of your poems? If yes,
 transcription matters, because the words would appear on its page and in the
 word cloud. If no, the picture's own vector is enough to place it.
+
+--------------------------------------------------------------------------------
+
+### User Request 37
+
+> Photo vectors would need centring on their own average before they're ranked
+> beside poems, as the words already are. Otherwise photos would become each
+> other's
+>     neighbours again.
+
+I think this is fine so long as they are different from one another. The error
+was that they were all embedded the same. If they have different embeddings,
+that's what we want.
+
+> and a check that a picture still lands near what it shows.
+
+not sure how we'd implement that?
+
+okay I think I just want the photo embedding, nothing else. Can we build that?
+Issue files and everything?
+
+> A question for you: should a notebook page count as one of your poems? If yes,
+> transcription matters, because the words would appear on its page and in the
+> word cloud. If no, the
+>   picture's own vector is enough to place it.
+
+so, yes, but I don't want to classify them manually, so, no.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 37
+
+> Building it. Reading the parts it touches first: the picture step, how the
+> build starts and stops the embedding server, and the model settings.
+
+> The picture step's structure is clear. Next I'm checking what image-only posts
+> carry: how many pictures each has, and whether any are video.
+
+> Three image-only posts have no picture: two are video only and one is audio
+> only. Checking whether the vision add-on also accepts sound:
+
+> **[Asked the user]**
+>
+> *Q1 — No picture:* Three image-only posts have no picture: two are
+> video-only (fediverse-1192, fediverse-3641) and one is audio-only
+> (fediverse-3808). The model also accepts sound (its log calls audio input
+> experimental). How should these get a vector?
+> - Frame + sound (Recommended) — Videos: embed one still frame from the
+>   middle of the clip. Audio: embed the sound through the same model. Every
+>   post gets its own vector from its own media.
+> - Frame only, skip audio — Videos get a middle frame; the audio-only post is
+>   left off the similar/different lists (the build says so each run).
+> - Leave all three off — Only real pictures are embedded; the three
+>   media-only posts are left off the similar/different lists, named in the
+>   build output.
+> → **Answered:** let's just do the before/after poem system that we currently
+> have. For those three.
+>
+> *Q2 — Text+picture:* Posts with both text and a picture currently rank by
+> their text alone. Should that stay as it is?
+> - Keep text only (Recommended) — Only posts and gallery files with no text
+>   get picture vectors; the 'nothing else' choice, and nothing changes for
+>   posts with words.
+> - Blend in the picture — Text+picture posts get the average of their text
+>   vector and their pictures' vectors.
+> → **Selected:** Blend in the picture
+
+> I've read everything the change touches. Writing the plan into the picture
+> issue now, before any code.
+
+> Step 1: the server with eyes.
+
+> Step 1 is done: the server launcher loads the vision add-on for EmbeddingGemma
+> 2. Now step 2, the picture step that runs in Stage 6.
+
+> 1,199 pictures (532 in posts, 667 in the gallery), about 1.1 GB, and every
+> file is present. Writing the picture step:
+
+> Now the test for the picture step. It uses real files, a real fingerprint and
+> a real shrink, and a stand-in for the server.
+
+> Flattening works: half-clear yellow over white came out as (254, 255, 127). My
+> check's expected pattern was too strict for JPEG rounding. Fixing the check,
+> not the code:
+
+> Now the build step in `run.sh`, run inside Stage 6 while the server is up:
+
+> The build step is in. Now step 3: the placement step reads those vectors.
+> Reading its current test first:
+
+> Now the placement step's main part: it loads the picture cache and looks each
+> picture up by its fingerprint.
+
+> Now the reuse rule in Stage 6, so a blended vector is never treated as the
+> post's text vector:
+
+> The carry-over is written inline in a large function, so I'm pulling it out
+> into a small function of its own. That way the test can reach it.
+
+> The reuse rule passes its checks. Now rewriting the placement test for the new
+> rules:
+
+> Now starting the server the build's way, through the launcher I changed, then
+> running the sight test against it:
+
+> Server stopped. Now the docs: an info file for the new step, plus every
+> document that still says pictures are placed by their neighbours.
+
+> All 48 runnable tests pass. The other two are the server tests, which skip
+> with no server up; the sight test passed against the server earlier.
+> Previewing the commit:
+
+> The shader's waiting fix is still waiting on your keep-or-undo answer, so I'm
+> leaving it out and committing only the picture work:
+
+*[commit] 3b2d3a4c1 - neocities: pictures are placed among the poems by what they show*
+
+The picture embedding is built and committed. Every picture is now placed by
+what the model sees in it. All 48 runnable tests pass, and the 5 notebook pages
+I ran through the new step now get different vectors: 0.68 to 0.81 similar to
+each other, where all 93 used to be identical.
+
+**What each kind of post gets:**
+- **Picture-only posts and gallery pictures** use the vector of their own
+  picture. A post with several pictures uses the average of them.
+- **Posts with text and pictures** are half text vector, half picture vector, as
+  you chose.
+- **The three posts with only a video or a sound** keep the before-and-after
+  placement.
+- **A model that can't see pictures** stops the build with an error, instead of
+  quietly going back to the old placement.
+
+**How it fits into the build:**
+- The embedding server now loads the model's vision add-on when the model has
+  one, so a single server reads both poems and pictures.
+- A new step in Stage 6 sends each picture to that server, shrunk to 1,800
+  pixels on its long side. Pictures are recognised by their contents, so each
+  one is sent once. A picture you edit is sent again.
+- Stage 6.7 only reads those saved vectors. A picture without one stops the
+  build and tells you to run Stage 6.
+- A blended post also keeps its text-only vector, and Stage 6 carries that
+  forward. Without this, a post would be blended again on every run and drift
+  further toward its pictures each time.
+
+**Your question about checking that a picture lands near what it shows:** the
+test draws its own pictures of known words, such as "the river remembers / every
+rain that fed it". It sends them to the server the same way the build does, and
+checks that each one comes out closest to its own sentence. With the server
+running it passed 4 of 4. Without a server it reports SKIP rather than failing.
+
+**Your next build:**
+- **First run:** about 1,200 pictures need embedding. At 3–4 seconds each
+  that's roughly an hour, once. Later builds only send new or changed pictures.
+- **Push:** use `scripts/deploy-to-neocities --prune`, because page names
+  changed.
+
+**Still open:**
+1. **The waiting fix in the card's walk program is uncommitted.** I left it out
+   of this commit. It changes no output on this card; it only closes a gap that
+   could matter on other hardware. Should I commit it or undo it?
+2. **One check is left after your build.** I'll count how often a picture's most
+   similar entries are other pictures. That tells us whether pictures now crowd
+   each other's "similar" lists. The picture issue stays in progress until that
+   count is done.
+
+--------------------------------------------------------------------------------
+
+### User Request 38
+
+> - First run: about 1,200 pictures need embedding. At 3–4 seconds each that's
+> roughly an hour, once. Later builds only send new or changed pictures.
+
+do we store these on disk?
+
+> 1. The waiting fix in the card's walk program is uncommitted. I left it out of
+> this commit. It changes no output on this card; it only closes a gap that
+> could matter on other
+>      hardware. Should I commit it or undo it?
+
+I dunno.
+
+What else should we be doing right now? Anything we can build? Can you give me a
+summary of the remaining issues? We might have to mark some as
+"will-not-implement"
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 38
+
+> 105 open issues. Pulling each one's status line so the summary reflects what
+> each file actually says, not my memory of it:
+
+> Many files have no clear status line, so I'm reading the opening of "current
+> behaviour" for those, plus the ones I think this session may already have
+> finished:
+
+## The picture cache
+
+It's on disk, in `assets/embeddings/embeddinggemma-2/picture_embeddings.json`,
+next to the poem embeddings. A reboot doesn't touch it. It isn't in git, because
+the whole `assets/` folder is excluded. It will be about 15 MB.
+
+## The waiting fix
+
+My recommendation is to **commit it**. The graphics card's walk produced
+identical results with and without the fix, all 9,334 lists. Without it, the
+card's threads can read a value while another thread is resetting it. On this
+card that never happened, but a different card or driver could schedule the
+threads differently and quietly corrupt the "different" lists. It costs nothing,
+so I'll commit it unless you say otherwise.
+
+## The 105 open issues
+
+I read each file's status line, and the opening of "current behaviour" for about
+twenty of them. I haven't checked the others against the code, so groups B and C
+below are my estimates.
+
+**A. Built, closing after your next build (5).** These need only your build,
+then a check.
+- Numbering every poem by its source name (8-019; its file already says
+  complete)
+- Reproducible random seeds (10-058)
+- Word pages being two-thirds of the site (10-066; a measurement after the
+  build)
+- The plain-text exports (8-013)
+- Pictures placed by what they show (9-013; the count of how many similar
+  entries are pictures)
+
+**B. Probably already finished by later work (about 12).** Each needs a short
+check against the code before it moves to completed.
+- EmbeddingGemma 2 is now the model in use (1-010).
+- The graphics-card work is in place (9-001, 9-002, 9-002b).
+- HTML generation is in the pipeline and multi-threaded (8-001, 8-002, 8-058).
+- The pagination defect lived in the single-threaded builder, which we removed
+  (8-020).
+- Rebuilding similarity when the embeddings change is covered by the numbering
+  stamps (2-010).
+- Also: the old storage formats (8-034), the word-page speed-up (10-035, one
+  question left), and the anchor-poem test gap (10-025).
+
+**C. Engineering we can do now, with no design questions (about 20).**
+- The current refactoring pass: settings into config, removing history comments,
+  and a test that flags new ones (10-048, 10-071, 10-060).
+- Stricter command-line values and the up-front pre-build check (10-065,
+  10-065a, 10-069).
+- Memory and parallel work (10-057, 10-074, 10-072, 10-050).
+- Page fixes: pure-black backgrounds (11-009, audited but not fixed), content
+  warnings (9-011), the box-shape validator (9-006), monospace fonts (16-010),
+  word-page chronological links (10-036).
+- Pictures on the chronological pages (10-042b, 10-042d, 10-062, 10-064).
+- Re-measuring the colour imbalance (6-013). Its figures, 64% red, come from an
+  older model.
+
+**D. Features that need your design decisions first (about 20).**
+- The explore and maze pages (11-001 to 11-008, 11-010)
+- New sources: conversation starters, phone pictures, LLM transcripts (10-044,
+  10-045, 10-046)
+- The source browser (10-052, 10-055)
+- A second home at ritzmenardi.com (8-061)
+- The settings editor in the terminal (10-013)
+- Stage checkboxes (10-043)
+- Comparing embedding models (10-031)
+- The phase demos (10-056)
+- PDF export (6-012)
+- More similarity methods (5-024)
+
+**E. Candidates for will-not-implement (about 35).** These are large,
+speculative, or tied to tools we've moved away from.
+- Text-to-speech, generated images and video (13-001 to 13-004, 17 files)
+- The Android app, local network server, HTTPS and torrents (16-001 to 16-009, 9
+  files)
+- An LLM for navigation, and a second similarity axis (12-001, 12-002)
+- Book tapestry and chromatic text (14-001, 15-001; both marked vision)
+- Style transfer (17-001)
+- Maze on the graphics card (9-004, only if the maze is dropped)
+- Incremental centre updates (10-009)
+- Removing effil (9-001f). effil still runs the page workers and works well, so
+  this one is a will-not-implement.
+- The two early planning files (CRITICAL-PATH-SIMILAR and
+  CRITICAL-PATH-DIFFERENT). They say "Step 2 can begin immediately", which is
+  long out of date.
+
+## What I'd do now, most valuable first
+
+1. **A close-out sweep of B.** Check each against the code, move the finished
+   ones to completed, and update the progress files. It's cheap and leaves the
+   list showing what's really open.
+2. **Finish the refactoring pass.** That's the rest of moving settings into
+   config, removing history comments, and adding the check.
+3. **The small page fixes in C**, starting with pure-black backgrounds, which is
+   already audited.
+
+## How to mark will-not-implement
+
+The issues folder has a `superseded/` folder. I could give each declined issue a
+status of "will not implement", with your reason in your own words, and move it
+there, so it stays on record. Or I could move them to `completed/` with that
+status, as the house rules do for finished issues. Which do you want?
+
+Then go through group E and tell me which to drop. You can reply with phase
+numbers, like "all of 13 and 16".
 
 --------------------------------------------------------------------------------
 

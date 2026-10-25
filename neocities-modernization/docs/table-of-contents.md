@@ -73,8 +73,8 @@ of what the code does is only visible from outside it.
   - `/docs/Your URL Is Your State_files/` - Its supporting files
 
 ### 🚨 Critical Path Documents
-- `/issues/CRITICAL-PATH-SIMILAR.md` - Critical path for generating similarity-based navigation pages
-- `/issues/CRITICAL-PATH-DIFFERENT.md` - Critical path for generating diversity-based navigation pages
+- `/issues/will-not-implement/CRITICAL-PATH-SIMILAR.md` - Critical path for generating similarity-based navigation pages (retired 2026-10-25)
+- `/issues/will-not-implement/CRITICAL-PATH-DIFFERENT.md` - Critical path for generating diversity-based navigation pages (retired 2026-10-25)
 
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface
