@@ -63,6 +63,13 @@ and the classifier lets it through. A command that only writes into the
 project's own tiers is still judged by the classifier, because what it runs
 (`lua tmp/tmp/build.lua`) can do anything.
 
+Staying silent did not make such a command go through on its own: Claude
+Code also checks a shell command's write targets against its working folders,
+and asked about the tiers, which lie outside them (found 2026-10-23). Issue
+042 answers that without an "allow": `libs/ensure-ram-tiers` gives each
+project's local settings a path rule per tier, so Claude Code's check passes
+while this gate and the classifier still judge.
+
 **Where a command writes**, by command word (a table from command name to a
 small reader of its arguments):
 

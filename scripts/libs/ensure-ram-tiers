@@ -34,7 +34,9 @@
 #   convert  run by a person, on purpose. Replaces a `tmp` that is not the
 #            standard door (an empty folder on disk, or a link into the wrong
 #            place that holds nothing) with the standard door, and refuses
-#            whenever anything would be lost.
+#            whenever anything would be lost. In a git repository it also
+#            adds `tmp` to the project's .gitignore, as init-project.sh does
+#            for a new project: the door is a build artifact.
 #
 # Usage, sourced (the normal way; nothing runs on source):
 #   source "${DIR}/libs/ensure-ram-tiers"
@@ -360,14 +362,54 @@ ram_tier_is_empty_or_missing() {
 }
 # }}}
 
+# {{{ ram_tier_ignore_in_git
+# Adds `tmp` to the project's own .gitignore when the project is inside a git
+# repository, so the door is never committed: it is a build artifact, a link to
+# a place in RAM named after this machine's folders. The projects did this
+# three ways before (some committed the link, some ignored it, some left it
+# untracked); the owner, 2026-10-25: "it's a build artifact right? maybe we
+# should just .gitignore it."
+#
+# The same line, and the same only-ever-add rule, as init-project.sh's
+# write_project_gitignore gives a new project. A door git already tracks stays
+# tracked: ignoring does not untrack, and untracking is a commit for the
+# project's own owner to make.
+ram_tier_ignore_in_git() {
+   local project_dir="$1"
+   if ! git -C "${project_dir}" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+      # Not in a git repository: there is nothing to keep the door out of, and
+      # a .gitignore here would be clutter.
+      return 0
+   fi
+   local gitignore="${project_dir}/.gitignore"
+   # Only the bare line counts. `tmp/` does not cover the door: a trailing
+   # slash matches folders only, and git sees a link as a file (llm-http had
+   # `tmp/` and still showed its door as untracked, 2026-10-25).
+   if [ -f "${gitignore}" ] && grep -Fxq "tmp" "${gitignore}"; then
+      # Already ignored by the project's own file: nothing to add.
+      return 0
+   fi
+   # Missing file or missing line: add the line, creating the file if needed.
+   printf 'tmp\n' >> "${gitignore}" || { ram_tier_complain "could not add tmp to ${gitignore}"; return 1; }
+}
+# }}}
+
 # {{{ convert_ram_tiers
 # convert mode: give a project the standard door in place of whatever `tmp` it
-# has, but only when nothing would be lost.
+# has, but only when nothing would be lost, and keep the door out of git.
 #
 # Run by a person, never by a hook or a run script: an empty `tmp` folder is
 # also what a project inside an init-project sandbox correctly has, and only a
 # person knows which one this is. Anything holding files is refused with what
 # is in the way, so the person can move it first or leave the project alone.
+#
+# Repointing a door is the one way a room's path rule goes stale: the project's
+# settings keep the rule for the old room beside the new one, since the rules
+# are not marked as this library's (see ram_tier_allow_in_settings). Moving or
+# renaming the project does not do this - the door travels with it and still
+# leads to the same rooms - but the move-project skill names the old rules as
+# something to look for when a door is repointed during a move. The owner,
+# 2026-10-25, chose a note over marking and pruning.
 convert_ram_tiers() {
    local project_dir
    project_dir=$(ram_tier_normalise_project "$1") || return 1
@@ -377,8 +419,9 @@ convert_ram_tiers() {
       local target
       target=$(ram_tier_link_target "${door}") || return 1
       if ram_tier_path_is_under "${target}" "${EXEC_TIER_ROOT}"; then
-         # Already a standard door: converting is repairing.
-         ensure_ram_tiers "${project_dir}"
+         # Already a standard door: converting is repairing, and ignoring.
+         ensure_ram_tiers "${project_dir}" || return 1
+         ram_tier_ignore_in_git "${project_dir}"
          return
       fi
       # A door into the wrong place: replaced only when it leads to nothing.
@@ -397,7 +440,8 @@ convert_ram_tiers() {
    fi
    # else: no tmp at all, and ensure mode builds it from nothing
 
-   ensure_ram_tiers "${project_dir}"
+   ensure_ram_tiers "${project_dir}" || return 1
+   ram_tier_ignore_in_git "${project_dir}"
 }
 # }}}
 

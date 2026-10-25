@@ -298,6 +298,18 @@ printf 'a file\n' > "${c7}/tmp"
 check "a file named tmp is refused" refuses "is a file" bash "${LIBRARY}" --convert "${c7}"
 check "  ...and survives" [ "$(cat "${c7}/tmp")" = "a file" ]
 
+check "convert outside a git repository writes no .gitignore" [ ! -e "${c1}/.gitignore" ]
+g=$(new_project zulu-in-git)
+git -C "${g}" init -q
+printf 'build/\n' > "${g}/.gitignore"
+mkdir "${g}/tmp"
+check "convert inside a git repository succeeds" bash "${LIBRARY}" --convert "${g}"
+check "  ...and adds tmp to the project's .gitignore after its own lines" \
+    [ "$(cat "${g}/.gitignore")" = "$(printf 'build/\ntmp')" ]
+check "  ...so git no longer sees the door" [ -z "$(git -C "${g}" status --porcelain -- tmp)" ]
+check "converting again succeeds" bash "${LIBRARY}" --convert "${g}"
+check "  ...and adds no second line" [ "$(grep -cx tmp "${g}/.gitignore")" -eq 1 ]
+
 echo "executed form"
 check "an unknown flag is refused, not treated as ensure" refuses "unknown option" bash "${LIBRARY}" --restroe "${p}"
 check "no project is refused" refuses "exactly one project" bash "${LIBRARY}"

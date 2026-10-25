@@ -8,8 +8,7 @@ permissions prompt sometimes when projects want to make or modify files in
 their /tmp/ or /dev/shm/ directories. Even in the ones that they technically
 *should* own."
 
-**Built and proven, 2026-10-23 to 2026-10-25** (in progress only for the two
-open questions at the end):
+**Complete, 2026-10-25.** Built and proven:
 
 - `libs/ensure-ram-tiers` gives each project's local Claude Code settings
   (`<project>/.claude/settings.local.json`) one path rule per room,
@@ -19,18 +18,22 @@ open questions at the end):
   classifier and issue 043's gate still judge the command.
 - Each room must lie under its own RAM root, in the library as in the hooks.
 - `convert` mode replaces an empty disk `tmp`, or a link into the wrong place
-  that leads nowhere, with the standard door.
-- `tests/test-ram-tiers.sh`: 85 cases, all passing (25 new: rules written,
-  merged, not rewritten, refused on bad files; the one-root rule; convert;
-  the Lua wrapper's convert; jq missing). `test-refusal-gates`: 207 cases, all
-  passing.
+  that leads nowhere, with the standard door, and in a git repository adds
+  `tmp` to the project's `.gitignore`.
+- `tests/test-ram-tiers.sh`: 91 cases, all passing (31 new: rules written,
+  merged, not rewritten, refused on bad files; the one-root rule; convert and
+  its .gitignore line; the Lua wrapper's convert; jq missing).
+  `test-refusal-gates`: 207 cases, all passing.
 - Rolled out on the machine: all 44 projects with a `tmp` link were repaired
   (which wrote their rules), and seven empty disk `tmp` folders (hexfire,
   ao3-source-code-import, authorship-tool, factor-IDE-2, llm-http,
   symbeline-2, translation-layer-wow-chat-city-of-chat) and warcraft-iii's
   wrong-root link were converted; 51 projects in all. The ten settings files
   that existed before were backed up first and compared after: each differs
-  only by the two new rules.
+  only by the two new rules. The six converted projects inside git repositories
+  were converted again once convert learned the `.gitignore` line, so their
+  doors no longer show as untracked; llm-http and symbeline-2 are their own
+  repositories, the other four live in the monorepo.
 - Proven live with headless sessions (`claude -p`, Haiku, "accept edits"
   mode, which lets file commands through inside the allowed places and asks
   outside them, an ask showing as a refusal in the session's result record),
@@ -56,9 +59,10 @@ open questions at the end):
 Why shell commands were asked about (found 2026-10-23 by feeding the hooks
 made-up inputs and reading Claude Code's program text, 2.1.284):
 
-- **The first open question's premise was wrong.** Claude Code does check
-  shell commands against its folder list: for the commands that write
-  (`mkdir`, `touch`, `rm`, `cp`, `mv`, `>` and the rest) it compares each
+- **The first open question's premise was wrong**, and so was
+  `README-refusal-gates.md`, where it came from (both corrected). Claude Code
+  does check shell commands against its folder list: for the commands that
+  write (`mkdir`, `touch`, `rm`, `cp`, `mv`, `>` and the rest) it compares each
   target with the session's working folders and answers "ask" for one outside
   them ("... was blocked. For security, Claude Code may only write to files in
   the allowed working directories for this session"). Issue 043's gate never
@@ -185,6 +189,15 @@ both rules is not rewritten at all. A file that is not readable JSON, or whose
 rule list is not a list, is refused with a message and left untouched, never
 replaced.
 
+The rules are not marked as the tool's, so the tool never prunes them. A rule
+goes stale only when a door is repointed to another room: moving or renaming
+a project carries the door with it, still leading to the same rooms. The
+owner, 2026-10-25, asked for a note rather than marking and pruning ("let's
+make a note in the tool about this"): it sits beside convert mode in the
+library, in `libs/ensure-ram-tiers.info.md`, and in the move-project skill,
+the guide for moving projects (no tool in delta-version moves them), at its
+step for fixing paths in the project's own settings.
+
 **One rule for where a room may be, in both definitions.** The exec room
 must lie strictly below `/tmp`, the artifact room strictly below `/dev/shm`,
 in `libs/ensure-ram-tiers` exactly as in `libs/own-ram-tiers.lua`. A `tmp`
@@ -199,6 +212,15 @@ replaced when that target is missing or empty. Anything holding files, or a
 file named `tmp`, is refused with a message. It is for a person to run, never
 a hook or a run script: an empty `tmp` folder is also what a project inside an
 init-project sandbox correctly has.
+
+**The door stays out of git.** Convert mode, in a git repository, adds the
+bare line `tmp` to the project's own `.gitignore` (creating it if needed, only
+ever adding), as init-project.sh does for a new project. The owner,
+2026-10-25: "it's a build artifact right? maybe we should just .gitignore
+it." Only the bare line counts: `tmp/` matches folders only, and git sees a
+link as a file, which is why llm-http's door showed as untracked despite its
+`tmp/` line. A door git already tracks (gif-generator, scripts) stays tracked:
+ignoring does not untrack, and untracking is a commit for that project.
 
 ## Suggested Implementation Steps
 
@@ -258,7 +280,12 @@ Added 2026-10-23, for shell commands:
    `ram_tier_is_empty_or_missing` holds for its target; an empty disk folder
    is removed with `rmdir`; then ensure mode builds the standard door. The
    Lua wrapper gains `tiers.convert`.
-10. `tests/test-ram-tiers.sh`: the rules are made when there is no file; a
+10. `libs/ensure-ram-tiers`: `ram_tier_ignore_in_git`, called by convert mode
+    after every success: inside a git work tree (`git rev-parse
+    --is-inside-work-tree`), append `tmp` to `<project>/.gitignore` unless that
+    exact line is there; outside one, do nothing. Beside convert mode, the note
+    on stale rules.
+11. `tests/test-ram-tiers.sh`: the rules are made when there is no file; a
     person's own rule stays first and other keys survive; a file already
     holding both rules keeps its inode (not rewritten); a file that is not
     JSON, JSON that is not an object, and a rule list that is not a list are
@@ -267,34 +294,36 @@ Added 2026-10-23, for shell commands:
     convert takes an empty folder, a wrong-root door leading nowhere or to an
     empty folder, a standard project and a project with no `tmp`, and refuses
     a folder with files, a wrong-root door whose target holds files, and a
-    file named `tmp`; the library refuses without jq.
-11. Roll out on the machine: back up each project's existing local settings
+    file named `tmp`; convert outside git writes no `.gitignore`, inside git
+    adds `tmp` after the file's own lines (and git then shows no door), and a
+    second convert adds no second line; the library refuses without jq.
+12. Roll out on the machine: back up each project's existing local settings
     file, run restore mode over every project with a `tmp` link and convert
     mode over the empty disk folders and warcraft-iii, then compare each
     backed-up file with its new self.
-12. Prove it live with headless sessions in pretend projects (the four
+13. Prove it live with headless sessions in pretend projects (the four
     probes in Current Behavior), reading the result from Claude Code's own
     record of refusals and from the filesystem, never from what the model
     says.
-13. Write it down: the library's header and a `libs/ensure-ram-tiers.info.md`
-    beside it, `init-project.info.md`, `README-refusal-gates.md`, the
-    project-init skill's list of what a new project gets, issue 033's rule
-    for where rooms may be, and issue 043's note on why its gate never says
-    "allow".
+14. Write it down: the library's header and `libs/ensure-ram-tiers.info.md`
+    beside it, `init-project.info.md`, `README-refusal-gates.md` (correcting
+    its claim that Claude Code never checks shell commands against its
+    folders), the project-init skill's list of what a new project gets, the
+    move-project skill's settings step, issue 033's rule for where rooms may
+    be, and issue 043's note on why its gate never says "allow".
 
 ## Open Questions
 
-- A rule the tool wrote for a room that later moves (a renamed project, a
-  repointed link) stays in the file, since the tool cannot tell its rules
-  from the person's. Is a stale rule acceptable, or should the tool mark and
-  prune its own?
-- Six of the converted projects (ao3-source-code-import, authorship-tool,
-  factor-IDE-2, llm-http, symbeline-2, translation-layer-wow-chat-city-of-chat)
-  now show their new `tmp` link as an untracked file in git. The projects do
-  this three ways today: gif-generator and scripts commit the link, apple-IIds
-  ignores it, delta-version leaves it untracked; init-project.sh puts `tmp` in
-  a new project's `.gitignore`. Which way should these six go, and should
-  convert mode do it?
+- (Answered 2026-10-25.) A rule the tool wrote for a room whose door is
+  later repointed stays in the file, since the tool cannot tell its rules from
+  the person's. Acceptable, or mark and prune? The owner: "let's make a note
+  in the tool about this. Isn't there a tool, maybe in delta-version, for
+  moving project directories? Maybe it could go there." Noted in the tool and
+  in the move-project skill (delta-version has no moving tool).
+- (Answered 2026-10-25.) Six converted projects showed their new `tmp` link
+  as untracked; which way should they go, and should convert do it? The
+  owner: "it's a build artifact right? maybe we should just .gitignore it."
+  Convert mode adds the line; the six were converted again.
 - (Answered 2026-10-24, by the probes.) After a reboot, does Claude Code
   honour the rooms before the session-start hook has rebuilt them? Not as
   extra working folders; yes as path rules, which is why rules were chosen.
@@ -316,8 +345,11 @@ Added 2026-10-23, for shell commands:
 - `issues/completed/043-a-shell-command-writes-only-inside-its-own-folder.md`
   — the gate that judges where a shell command writes.
 - `libs/ensure-ram-tiers` (and `libs/ensure-ram-tiers.info.md`) — the one
-  definition of the layout, its roots, and the rules it writes.
+  definition of the layout, its roots, the rules it writes and the
+  `.gitignore` line convert mode adds.
 - `harness-hooks/restore-ram-tiers` — the session-start hook that rebuilds
   the tiers (and walks upward, which this hook deliberately does not).
 - `libs/hook-gate.lua`, `README-refusal-gates.md` — the shared hook parts.
 - `tests/test-ram-tiers.sh`, `tests/test-allow-own-ram-tiers.sh`.
+- `~/.claude/skills/move-project/SKILL.md` — what to do about the rules when
+  a project moves.

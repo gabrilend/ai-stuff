@@ -102,10 +102,25 @@ another project's rooms are not this session's. It never refuses, and when it ca
 read its input it announces that and gives no answer, leaving Claude Code's
 own boundary in charge (issue 042, `tests/test-allow-own-ram-tiers.sh`).
 
-Shell commands are not covered by that hook: Claude Code does not check
-them against its folder list at all, which is why a `sed -i` outside the
-folder used to go through. `refuse-outside-writes` covers them instead, as
-a refusal only (issue 043, `tests/test-refuse-outside-writes.sh`). It reads
+Shell commands reach the same rooms by another route, because that hook
+answers only for the file tools and a hook's "allow" for a shell command
+would skip the classifier. Claude Code does check the places a shell command
+writes (`mkdir`, `touch`, `rm`, `cp`, `mv`, `>`, …) against its folders, and
+asks about any outside them; so `libs/ensure-ram-tiers` gives every project's
+own `.claude/settings.local.json` one path rule per room,
+`Edit(//tmp/<name>/**)` and `Edit(//dev/shm/<name>/**)`, each time it builds
+or repairs the rooms (including at every session start, through
+`restore-ram-tiers`). With them the check passes, and the classifier and the
+gate below still judge every command. Rules, not extra working folders: an
+extra folder that is missing when Claude Code starts, as the rooms are after
+a reboot, is not honoured for that session; a rule is (issue 042, proven with
+headless sessions).
+
+That check is not a guard on its own, though: in auto mode its question can
+be answered by the classifier, and a `sed -i` on another project's file does
+not look risky, so such writes used to go through. `refuse-outside-writes`
+stands in front of them, as a refusal only (issue 043,
+`tests/test-refuse-outside-writes.sh`). It reads
 the command with the shared reader, which keeps redirection targets aside
 for it, and asks a table of commands where each writes (`sed`/`perl` with
 `-i`, `tee`, `cp`, `mv`, `rm`, `touch`, `mkdir`, `chmod`, `ln`, `install`,
