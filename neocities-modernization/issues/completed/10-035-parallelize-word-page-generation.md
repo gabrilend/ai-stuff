@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-**All three steps built (2026-10-22).** One open question below.
+**All three steps built (2026-10-22); its question answered; completed 2026-10-25.**
 - Centre once: `embedding-space.centre_once` / `cosine_centred`; the poems
   are prepared once per run, each word once. The centre-poem search keeps
   each poem's length too, and walks the poems in an order worked out once
@@ -38,7 +38,12 @@
   (module and worker job), `src/generate-word-pages.order.test.lua` (order
   rules and the shortlist).
 
-### Open question
+### Answered question
+- **Answered (owner, 2026-10-22, recorded in Issue 9-013):** "I think every
+  post with pictures should follow the example in the right column, the one
+  with all the extra information." Every page now draws an image-only post
+  as the ordinary post it is; the picture box is only for gallery pictures.
+  The question, as asked:
 - The workers' poem list tags image-only posts (a post that is only a
   picture, 84 in the current manifest) to be drawn as a gallery picture box
   titled "fediverse: image post", and that box's picture description is that

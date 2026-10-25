@@ -46,7 +46,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
-| 10-035 | Parallelize word page generation | Open | Medium |
+| 10-035 | Parallelize word page generation | Completed (2026-10-25) | Medium |
 | 10-036 | Fix word page chronological links | Completed | Medium |
 | 10-037 | Blank fediverse_boost content | Completed | Medium |
 | 10-038 | Separate ID numbering for fediverse_boost | Completed | Low |

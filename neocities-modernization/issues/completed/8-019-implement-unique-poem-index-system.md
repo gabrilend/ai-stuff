@@ -508,7 +508,10 @@ invisible", and the fix differs completely.
 
 **Completed**: 2025-12-25
 
-**Status**: Complete
+**Status**: Complete -- moved to completed/ 2026-10-25. The re-embedding
+build (`--force`) ran on 2026-10-23; the first deploy after it should prune
+(`scripts/deploy-to-neocities --prune`), since every similar and different
+page has a new file name.
 
 **Estimated Effort**: Medium (touches multiple files but straightforward logic)
 

@@ -2,7 +2,21 @@
 
 ## Status
 - **Phase**: 2 (Similarity Engine)
-- **Status**: REOPENED 2026-09-22 — the first round (November 2025, recorded
+- **Status**: COMPLETED (2026-10-25). The reopened scope was built under
+  Issue 8-019, a little differently from steps 1-2 below: every cache keyed
+  by poem number has a stamp file beside it (`<cache>.numbering`,
+  `libs/numbering-stamp.lua`) holding the fingerprint of the numbering it was
+  made under -- FNV-1a over every poem's source key in numbering order, so
+  two poems trading places changes it too, the case the pre-flight count
+  check could not see. Before Stage 9 draws a page, `src/main.lua` checks the
+  poem colours, the picture list, the similarity rankings and the diversity
+  walks against the live numbering, and refuses with the stage to rerun on
+  any difference or a missing stamp; the word pages check theirs the same
+  way. Pinned by `src/similarity-engine.reuse.test.lua` (a stamp-less cache
+  and one from another numbering are refused, and the refusal names the
+  stage to rerun). Inside the page builders poems are found by number only
+  (`src/ranked-page.lua`, 10-025).
+- **Reopened** 2026-09-22 — the first round (November 2025, recorded
   further down) guarded the similarity matrix against a changed *embedding
   count*. It did not guard the caches that the HTML stage actually reads against
   a changed *poem numbering*. That gap is the reopened scope.
