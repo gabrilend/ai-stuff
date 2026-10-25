@@ -2,7 +2,21 @@
 
 ## Current Behavior
 
-The HTML page generation in `src/flat-html-generator.lua` is single-threaded. Generating all ~12,000 pages (6000+ similar + 6000+ different) takes a very long time because:
+**Built (checked 2026-10-25).** Stage 9 draws every page on a pool of effil
+worker threads (`run_page_workers` in `src/flat-html-generator.lua`): the
+similar and different pages, the chronological pages, the poems' text
+exports and the word pages are all jobs on one shared queue, and the
+single-threaded builder was removed once the pool produced the same pages
+(compared page by page before its removal). `run.sh` passes the thread
+count. Each worker loads the shared data itself and writes its own files;
+a worker that fails stops the whole build with its error (Issue 8-045),
+which is the house rule -- errors over quiet partial output -- and the
+reverse of the criterion this issue first wrote. Stage 9's recent times
+are in `.stage-timings` (`generate-html`). The diversity order is no longer
+worked out here at all: Stage 8 computes it on the GPU (Issue 9-001), so
+the two options below for its O(n²) cost are moot.
+
+Before this issue (kept for the record): The HTML page generation in `src/flat-html-generator.lua` is single-threaded. Generating all ~12,000 pages (6000+ similar + 6000+ different) takes a very long time because:
 
 1. **Similarity pages**: Fast to generate (simple sorting), but still limited by sequential I/O
 2. **Difference pages**: Slow due to O(n²) centroid-based diversity algorithm - each page requires iterating through all poems multiple times
@@ -52,11 +66,11 @@ Expected speedup: 8-16x on typical multi-core systems.
 - [x] Add thread count argument (default 8)
 - [x] Add `--test` flag for limited test runs
 - [x] Add `--similar-only` and `--different-only` flags
-- [ ] Integrate into run.sh or main.lua
+- [x] Integrate into run.sh or main.lua (Stage 9 runs it)
 
 ### Step 6: Optimize difference page generation ✅ COMPLETED (Option C)
-- [ ] Option A: Limit diversity sequence to first N poems (e.g., 500)
-- [ ] Option B: Use inverse similarity instead of centroid-based algorithm
+- [ ] Option A: Limit diversity sequence to first N poems (e.g., 500) -- moot: Stage 8 computes it on the GPU
+- [ ] Option B: Use inverse similarity instead of centroid-based algorithm -- moot, as above
 - [x] **Option C: Pre-compute all diversity sequences and cache to disk**
   - [x] Created `scripts/precompute-diversity-sequences` with thermal management
   - [x] Cache stored in `assets/embeddings/EmbeddingGemma_latest/diversity_cache.json`
@@ -115,12 +129,12 @@ The diversity algorithm is O(n²) per page. Consider:
 
 ## Quality Assurance Criteria
 
-- [ ] Generation completes without thread-related crashes
-- [ ] Output files identical to single-threaded generation
-- [ ] Progress reporting shows parallel activity
-- [ ] Memory usage reasonable (shared data, not duplicated)
-- [ ] Error in one thread doesn't kill entire generation
-- [ ] Speedup of at least 4x on 8-core system
+- [x] Generation completes without thread-related crashes (every build since)
+- [x] Output files identical to single-threaded generation (compared before the single-threaded builder was removed)
+- [x] Progress reporting shows parallel activity ("[N threads] ... jobs/sec")
+- [ ] Memory usage reasonable (shared data, not duplicated) -- each worker loads its own copy instead; Issue 10-057 budgets the memory
+- [ ] Error in one thread doesn't kill entire generation -- reversed by design: a failed worker stops the build with its error (Issue 8-045)
+- [ ] Speedup of at least 4x on 8-core system -- not measured against the removed single-threaded builder; times are in `.stage-timings`
 
 ## Related Issues
 
@@ -129,7 +143,7 @@ The diversity algorithm is O(n²) per page. Consider:
 
 ---
 
-**ISSUE STATUS: IN PROGRESS**
+**ISSUE STATUS: COMPLETED (2026-10-25)**
 
 **Created**: 2025-12-14
 

@@ -1,6 +1,19 @@
 # Issue 10-025: The Anchor Poem Appears Exactly Once on Similar and Different Pages
 
-## Status: REOPENED (2026-09-22) — built, one test gap
+## Status: COMPLETED (2026-10-25)
+
+- **The test gap is closed.** The single-threaded formatter is gone, and the
+  page workers build both rankings, similar and different, through one
+  function, `ranked_list` in `src/ranked-page.lua` (8-058). Its test,
+  `src/ranked-page.test.lua`, checks the anchor is left out of the list, a
+  lookalike sharing the anchor's per-source id stays, the anchor's words
+  appear exactly once on the page, and an unknown number in a ranking is an
+  error. The old `src/flat-html-generator.anchor-once.test.lua` tested the
+  removed path and went with it.
+- **On the built site** (the owner's 2026-10-23 build): none of 300 random
+  similar pages lists its own poem among the ranked entries.
+
+Earlier record:
 
 - **Originally completed**: 2026-02-13, for the diversity ("different") pages in
   the threaded renderer only.

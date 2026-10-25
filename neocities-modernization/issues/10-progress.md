@@ -36,7 +36,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-022 | Fix empty embeddings validation | Completed | High |
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | Medium |
 | 10-024 | Force flag should clear output directories | Completed | High |
-| 10-025 | Diversity cache includes anchor poem | Completed | Medium |
+| 10-025 | Diversity cache includes anchor poem | Completed (reopened 2026-09-22, closed again 2026-10-25) | Medium |
 | 10-026 | Merge sources and external_files config sections | Completed | Low |
 | 10-027 | Fix golden poem trailing whitespace detection | Resolved (Mastodon limitation) | Medium |
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |

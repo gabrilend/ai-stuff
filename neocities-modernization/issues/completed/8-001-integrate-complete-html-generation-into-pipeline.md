@@ -6,7 +6,24 @@ This issue tracks the complete pipeline from raw input files to deployed static 
 
 ## Current Behavior
 
-The `run.sh` script currently runs 7 stages:
+**Built (checked 2026-10-25).** `run.sh` regenerates the whole website from
+the raw inputs in ten numbered stages, each run by a flag and all by
+`--full`: update words, extract archives, parse, validate, catalog
+pictures, embeddings (with the picture embeddings, the colours and the
+word embeddings; Stage 6.7 places the pictures), the GPU similarity table,
+the GPU diversity walks, the HTML pages (then the download zip and the
+every-page check), and the word cloud with its word pages. The stage list
+is `run.sh --help`; what to run next for the data on disk is
+`scripts/validate-pipeline-data --suggest-commands`; each stage's recent
+times are in `.stage-timings`. On the 2026-10-23 build every one of the
+8,667 poems had its first similar page and its first different page,
+named by its source key (`similar/fediverse-2339-01.html`, Issue 8-019),
+each with its plain-text export beside it.
+
+The rest of this section is the state before this issue, kept for the
+record (its scripts and times no longer exist or hold).
+
+The `run.sh` script then ran 7 stages:
 
 | Stage | Name | Script | Description |
 |-------|------|--------|-------------|
@@ -185,8 +202,8 @@ Diversity cache precomputation with:
 ### Full Pipeline Criteria
 - [x] `run.sh --all` generates complete website from scratch (using cached embeddings)
 - [x] `run.sh --full` runs all 10 stages including embedding generation
-- [ ] All poem IDs have corresponding similar/{category}-{id}.html files
-- [ ] All poem IDs have corresponding different/{category}-{id}.html files
+- [x] All poem IDs have corresponding similar pages (2026-10-25: all 8,667, named `similar/{source key}-01.html` since Issue 8-019)
+- [x] All poem IDs have corresponding different pages (2026-10-25: all 8,667, `different/{source key}-01.html`)
 - [x] Generation completes in reasonable time (<10 minutes for incremental)
 - [x] Pipeline fails early with clear error if dependencies missing
 - [x] Resume capability works after interruption (via freshness checks)
@@ -220,7 +237,7 @@ The diversity cache (Stage 8) takes ~42 hours due to O(n²) similarity calculati
 
 ---
 
-**ISSUE STATUS: IN PROGRESS** (Phases 1-6 complete, pending full HTML generation test)
+**ISSUE STATUS: COMPLETED (2026-10-25)** -- the full generation was checked on the 2026-10-23 build: every poem has its similar and different pages
 
 **Created**: 2025-12-14
 
