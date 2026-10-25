@@ -78,8 +78,8 @@ end
 -- syncs from .../fediverse-backup, and this map captures that.
 local function build_source_map(cfg)
     local map = {}
-    local dirs = cfg.sources and cfg.sources.images
-                 and cfg.sources.images.directories or {}
+    local dirs = cfg.sources and cfg.sources.images and cfg.sources.images.directories
+                 or error("config.lua sources.images.directories is missing")
     for _, d in ipairs(dirs) do
         local key = d.path and d.path:match("^input/images/(.+)$")
         if key then
@@ -116,6 +116,7 @@ end
 -- the operation atomic: all-good-then-strip, or stop and change nothing.
 local function validate_images(smap)
     local bad = {}
+    -- optional: absent means no pictures are excluded
     for _, entry in ipairs(config.excluded_images or {}) do
         if not image_resolves(entry, smap) then bad[#bad + 1] = entry end
     end
@@ -156,6 +157,7 @@ if not validate_images(source_map) then
 end
 if check_only then
     require("output").print(string.format("[strip-excluded] check passed: all %d image exclusions resolve.",
+        -- optional: absent means no pictures are excluded
         #(config.excluded_images or {})))
     os.exit(0)
 end
@@ -178,6 +180,7 @@ end
 --                                       strip every OTHER file under the source.
 --    Same flat list either way; the flag flips subtract-from-all vs add-to-none.
 local by_source = {}
+-- optional: absent means no pictures are excluded
 for _, entry in ipairs(config.excluded_images or {}) do
     local key = entry:match("^([^/]+)/") or entry
     by_source[key] = by_source[key] or {}
@@ -233,6 +236,7 @@ end
 
 -- 2. Excluded notes: each note's source file is input/notes/<id> (no extension).
 --    The extractor tombstones the content; we delete the leftover source.
+-- optional: absent means no poems are excluded
 local excluded_poems = config.excluded_poems or {}
 for _, note_id in ipairs(excluded_poems.notes or {}) do
     account(strip_one("input/notes/" .. note_id), "input/notes/" .. note_id)

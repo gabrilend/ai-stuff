@@ -57,4 +57,24 @@ function M.handle(args)
 end
 -- }}}
 
+-- {{{ function M.handle_if_run
+-- For a file that is both a program and a library other programs load: it
+-- answers --help only when it is the program that was started. A library
+-- that answered whenever arg held --help would print its own header, and
+-- stop, inside whichever program loaded it.
+-- args : the arg table (arg[0] is the started program's path)
+-- self : this file's own path (debug.getinfo(1, "S").source:sub(2))
+function M.handle_if_run(args, self)
+    if not args or not args[0] then return end   -- loaded by an embedding host: not run
+    local function real(path)
+        local p = io.popen("readlink -f " .. string.format("%q", path))
+        local out = p:read("*l")
+        p:close()
+        return out or path
+    end
+    -- run: the started program is this file; loaded: it is another, so carry on
+    if real(args[0]) == real(self) then M.handle(args) end
+end
+-- }}}
+
 return M

@@ -1,4 +1,16 @@
 #!/usr/bin/env lua
+-- poem-validator.lua: Stage 4's check of the poem list.
+--
+-- WHAT IT DOES (for a CEO): reads assets/poems.json and reports what is in
+-- it -- how many poems, how many empty, duplicates, the spread of lengths,
+-- the "golden" poems of exactly 1024 characters -- and writes the
+-- validation report. main.lua --validate-only calls it in a build.
+--
+-- Usage: luajit src/poem-validator.lua [DIR] [-I]
+--   DIR  project folder (default below); -I  ask before each step
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)

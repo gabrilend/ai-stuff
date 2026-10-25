@@ -17,6 +17,8 @@
 --
 -- Note: fediverse-media is excluded as those images are inline with poems
 -- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -215,11 +217,12 @@ end
 
 -- {{{ generate_html_header
 local function generate_html_header(title)
-    local theme = config.html_theme or {}
-    local bg = theme.background or "#000000"
-    local text = theme.text or "#FFFFFF"
-    local link = theme.link or "#6699FF"
-    local vlink = theme.vlink or "#9966FF"
+    -- every colour from config.lua html_theme; a missing one is an error (Issue 10-071)
+    local theme = config.html_theme or error("config.lua has no html_theme section")
+    local bg = theme.background or error("config.lua html_theme.background is missing")
+    local text = theme.text or error("config.lua html_theme.text is missing")
+    local link = theme.link or error("config.lua html_theme.link is missing")
+    local vlink = theme.vlink or error("config.lua html_theme.vlink is missing")
 
     return string.format([[<!DOCTYPE html>
 <html>

@@ -78,7 +78,7 @@ Use sources-loader.get_all_external_syncs() to collect all sync entries.
 |---|---|---|
 | `bluesky` | table of 3 |  |
 | `fediverse` | table of 5 |  |
-| `images` | table of 6 |  |
+| `images` | table of 7 |  |
 | `messages` | table of 4 |  |
 | `notes` | table of 3 |  |
 
@@ -110,7 +110,7 @@ Finding poem IDs:
 | `bluesky` | table of 0 |  |
 | `fediverse` | table of 0 |  |
 | `messages` | table of 0 |  |
-| `notes` | list of 1 |  |
+| `notes` | list of 2 |  |
 
 ### excluded_images
 
@@ -174,14 +174,6 @@ Why a list of associations instead of the bare color word: the bare word "red" e
 | `red` | list of 13 |  |
 | `yellow` | list of 13 |  |
 
-### similarity
-
-Algorithm settings for computing poem-to-poem similarity scores. Read by: src/similarity-calculator.lua Available algorithms: "cosine", "euclidean", "manhattan", "angular", "pearson_correlation"
-
-| Setting | Current value | Note |
-|---|---|---|
-| `default_algorithm` | "cosine" | Cosine is standard for text embeddings |
-
 ### inference_servers
 
 Issue 10-049: Inference-server configuration for embedding generation. Originally written for Ollama under 10-017; renamed and re-shaped for llama.cpp. Define multiple servers (local, remote GPU, etc.) and switch between them via TUI selection or CLI flags. Read by: libs/inference-server-config.lua CLI overrides: --server NAME, --model NAME, --list-servers
@@ -191,23 +183,70 @@ Fields per server:
       description: Human-readable description
       host: Server hostname or IP
       port: Inference server's HTTP port
-      model: Identifier sent in the OpenAI request body (informational;
-             llama-server serves whatever model it has loaded). Convention
-             is to use the GGUF basename without ".gguf".
-      model_path: Path to the GGUF model file on disk, relative to the
-                  project DIR. start-llamacpp-server.sh resolves this
-                  into the absolute path it passes to llama-server -m.
-      available_models: (optional) List of models the host can serve
-      embedding_prompt_prefix: (optional) Prefix prepended to every input
-                               (e.g. "clustering: " for nomic-embed-text v1.5)
+      available_models: the models this server can serve. There is no
+                        default: every run names its model with --model
+                        (owner, 2026-10-21: "we should not have a default
+                        model. It should be manually specified"). Each entry:
+        model: Identifier sent in the OpenAI request body (llama-server
+               serves whatever it has loaded). Convention is the GGUF
+               basename without ".gguf". Also the name of the model's cache
+               folder under assets/embeddings/.
+        model_path: (local models) the GGUF file, relative to the project
+                    DIR; start-llamacpp-server.sh passes it to llama-server -m.
+        embedding_prompt_prefix: (optional) prepended to every input
+                                 (e.g. "clustering: " for nomic-embed-text v1.5).
+        A model this server does not list is refused when its prefix or
+        file is needed, rather than embedded without its prefix.
+      launch_flags: (optional) Extra llama-server flags for THIS machine's
+                    GPU, as a list of separate words ({ "--flash-attn", "off" }).
+                    start-llamacpp-server.sh appends them after its own
+                    flags. Only used by servers this project launches itself.
+                    Put a GPU's limits here so they are stated choices, not
+                    something llama.cpp quietly decides at load time.
 
-Current value: list of 3
+Current value: list of 2
 
 ### default_inference_server
 
 Default server name (must match a name above) If not set, first server in list is used
 
 Current value: "local"
+
+### libraries
+
+Libraries built or kept outside this project, by where this machine keeps them. Another machine edits these two lines.
+
+| Setting | Current value | Note |
+|---|---|---|
+| `effil_cpath` | "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so" | the LuaJIT build of the effil threading library, as a package.cpath entry ("?" is the module name); read by libs/effil-loader.lua |
+| `tui_lua_dir` | "/home/ritz/programming/ai-stuff/scripts/libs" | the terminal menu library (shared scripts); read by src/main.lua |
+
+### gpu
+
+Tuning for the graphics card, measured on a GTX 1080 Ti; another card wants its own numbers. Read by: scripts/precompute-diversity-sequences-gpu (Stage 8), which hands them to libs/vulkan-compute/lua/vk_compute.lua.
+
+| Setting | Current value | Note |
+|---|---|---|
+| `diversity` | table of 6 |  |
+
+### deploy
+
+How scripts/deploy-to-neocities paces its requests to Neocities (libs/neocities-sync.lua). Each batch carries up to "budget" worth of work; after grow_after batches in a row succeed the budget grows by "grow" (up to max_budget); a batch the site refuses as too large halves it (never below floor). A refusal for going too fast waits and retries, up to max_retries times. pause_seconds is a courtesy wait between calls. Read by: scripts/deploy-to-neocities
+
+| Setting | Current value | Note |
+|---|---|---|
+| `deletions` | table of 8 | budget in files per request |
+| `uploads` | table of 8 | budget in bytes of file data per request |
+
+### picture_embeddings
+
+How pictures get their place among the poems (Issue 9-013): the vision model embeds each picture itself. Read by: src/picture-embeddings.lua, src/augment-embeddings-with-images.lua
+
+| Setting | Current value | Note |
+|---|---|---|
+| `long_side` | 1800 | pixels; a picture is shrunk to this before it is sent (handwriting read better at 1800 than 900) |
+| `request_seconds` | 300 | how long one picture may take before the server is called stuck |
+| `text_share` | 0.5 | a text + picture post: this much its text, the rest its pictures |
 
 ### image_integration
 
@@ -280,6 +319,15 @@ Dark mode theme colors applied via HTML body attributes (CSS-free). Uses true bl
 | `link` | "#6699FF" | Blue for unvisited links |
 | `text` | "#FFFFFF" | White text for readability |
 | `vlink` | "#9966FF" | Purple for visited links |
+
+### testing
+
+The embedding model and server the tests, the sample renderer's checks and the demos draw from. A build names its own (--model, --server); this is only the one the checks use, so they agree with each other.
+
+| Setting | Current value | Note |
+|---|---|---|
+| `model` | "embeddinggemma-2" |  |
+| `server` | "local" |  |
 
 <!-- END section reference -->
 

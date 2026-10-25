@@ -409,8 +409,17 @@ end
 -- FFI float[?] was a measurable bottleneck on ~20 million floats, and
 -- the new path uses ffi.copy from a binary file straight into the
 -- target buffer instead.
-function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poems, embedding_dim, output_file, batch_size, max_steps)
-    batch_size = batch_size or 3584
+-- tuning: { probe_steps, chunk_seconds, safety_factor, l2_cache_bytes,
+--          cache_share } (numbers; config.lua gpu.diversity, Issue 10-071),
+--          all required. batch_size is required too.
+function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poems, embedding_dim, output_file, batch_size, max_steps, tuning)
+    if type(batch_size) ~= "number" then error("compute_all_diversity_sequences_batched: batch_size is required (config.lua gpu.diversity.batch_size)") end
+    if type(tuning) ~= "table" then error("compute_all_diversity_sequences_batched: tuning is required (config.lua gpu.diversity)") end
+    for _, name in ipairs({ "probe_steps", "chunk_seconds", "safety_factor", "l2_cache_bytes", "cache_share" }) do
+        if type(tuning[name]) ~= "number" then
+            error("compute_all_diversity_sequences_batched: tuning." .. name .. " is required (config.lua gpu.diversity)")
+        end
+    end
     -- steps per walk: max_steps poems after the start, never more than exist
     local walk_steps = num_poems - 1
     if max_steps and max_steps > 0 and max_steps < walk_steps then
@@ -466,22 +475,22 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         -- a ~100-chunk batch. The first chunk is intentionally tiny so a
         -- pathologically slow GPU still survives it.
         -- size of the warm-up probe (no longer than the walk itself)
-        local PROBE_ITERS = math.min(10, walk_steps)
-        local TARGET_CHUNK_SECONDS = 1.5  -- aim for this much GPU work per dispatch
-        local SAFETY_FACTOR = 0.6         -- pad below the measured ceiling so jitter doesn't trip the watchdog
+        local PROBE_ITERS = math.min(tuning.probe_steps, walk_steps)
+        local TARGET_CHUNK_SECONDS = tuning.chunk_seconds  -- aim for this much GPU work per dispatch
+        local SAFETY_FACTOR = tuning.safety_factor         -- pad below the measured ceiling so jitter doesn't trip the watchdog
 
         local total_iters = walk_steps
         local batch_start_time = wall_clock()
 
         -- 9-014: tile size for the inner candidate scan. Target tile working
         -- set ≤ L2 cache with margin. With FP16-packed storage each
-        -- candidate occupies embedding_dim × 2 bytes. The 0.85 factor
-        -- leaves room for the centroid, the mask, and shader code in L2.
-        -- L2_BYTES is the published spec for the GTX 1080 Ti (5.5 MiB);
-        -- a future port to a different card should query this at runtime.
-        local L2_BYTES = 5 * 1024 * 1024 + 512 * 1024  -- 5.5 MiB
+        -- candidate occupies embedding_dim × 2 bytes. cache_share leaves
+        -- room for the centroid, the mask, and shader code in L2.
+        -- l2_cache_bytes is the card's published spec (config.lua gpu);
+        -- a future port to a different card could query it at runtime.
+        local L2_BYTES = tuning.l2_cache_bytes
         local bytes_per_candidate = embedding_dim * 2
-        local tile_size = math.max(1, math.floor(L2_BYTES * 0.85 / bytes_per_candidate))
+        local tile_size = math.max(1, math.floor(L2_BYTES * tuning.cache_share / bytes_per_candidate))
         if tile_size > num_poems then tile_size = num_poems end
 
         -- Probe: small dispatch, time it. The probe uses the same tile_size

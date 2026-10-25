@@ -1,0 +1,160 @@
+#!/usr/bin/env luajit
+-- audit-config-fallbacks
+--
+-- Lists the places where a program reads a setting and writes its own
+-- fallback value beside it: `config.pagination.size or 5`. The owner's rule
+-- (Issue 10-071) is that defaults live only in config.lua; a fallback in the
+-- code either repeats config.lua (and will quietly disagree with it the day
+-- one of them is edited) or replaces a setting config.lua lacks (and nobody
+-- reading config.lua can see what the program does).
+--
+-- In general terms: it reads every tracked Lua program (and the Lua written
+-- inside shell scripts), strips comments, and finds expressions of the shape
+-- "a setting, then `or`, then a value written out" -- a number, a quoted
+-- string, true/false, or a table. A "setting" is a name chain whose first
+-- word looks like settings: config, cfg, conf, settings, options, opts, or a
+-- name listed below that the code uses as an alias for a config section.
+-- Two kinds are reported separately:
+--   value     `x.size or 5` -- a fallback value; each should become an
+--             error naming the missing setting, or move into config.lua
+--   section   `config.layout or {}` -- an absent section treated as empty;
+--             each is either a real optional section (say so in a comment
+--             where it is read) or a silent default
+-- A fallback that is meant -- a setting that may be absent, where absence
+-- means something (no stop words, no extra server flags) -- is declared by
+-- a comment containing "optional:" and the reason, on the same line or the
+-- line above. Those are listed apart, as declared, and do not fail the check.
+--
+-- This is a candidate list, not a verdict: an alias the list below does not
+-- know is missed, and a local table that merely looks like settings is
+-- reported. It exists so the inventory in Issue 10-071 can be re-run instead
+-- of trusted.
+--
+-- Usage:
+--   scripts/audit-config-fallbacks [DIR]           report, grouped by file
+--   scripts/audit-config-fallbacks [DIR] --count   only the totals
+--   scripts/audit-config-fallbacks [DIR] --declared  also list the declared
+--                                                     optional ones
+--
+-- Exit status: 0 none found (declared ones aside), 1 some found.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local COUNT_ONLY, SHOW_DECLARED = false, false
+for _, a in ipairs(arg) do
+    if a == "--count" then COUNT_ONLY = true
+    elseif a == "--declared" then SHOW_DECLARED = true
+    elseif a:match("^%-") then io.stderr:write("audit-config-fallbacks: unknown option " .. a .. "\n"); os.exit(2)
+    else DIR = a end
+end
+
+-- Names the code uses for config sections (aliases like `local wc =
+-- config.word_cloud`). Add one here when the code grows a new alias.
+local SETTING_ROOTS = {
+    config = true, cfg = true, conf = true, settings = true, setting = true,
+    options = true, opts = true, unified_config = true, config_data = true,
+    wc = true, privacy = true, layout = true, pagination = true, server = true,
+    model_config = true, mc = true, sources = true,
+}
+
+-- {{{ local function tracked_files()
+-- The project's tracked Lua files and shell scripts (git knows which are ours).
+local function tracked_files()
+    local p = assert(io.popen(string.format("git -C %q ls-files", DIR)))
+    local files = {}
+    for path in p:lines() do
+        local keep = path:match("%.lua$")
+            or (path:match("^scripts/[^/]+$") and not path:match("%.md$"))
+            or path:match("%.sh$")
+        local skip = path:match("^llm%-transcripts/") or path:match("^archive/")
+            or path:match("%.test%.lua$") or path:match("%-test%.lua$") or path:match("%.test%.sh$")
+            or path:match("^libs/[^/]+/") and not path:match("^libs/vulkan%-compute/")
+        if keep and not skip then files[#files + 1] = path end
+    end
+    p:close()
+    table.sort(files)
+    return files
+end
+-- }}}
+
+-- {{{ local function code_part()
+-- A line without its Lua comment ("--" outside a quoted string). Good enough
+-- for a candidate list; a "--" inside a long string is rare here.
+local function code_part(line)
+    -- a shell comment line (run.sh, scripts): all comment
+    if line:match("^%s*#") then return "" end
+    local quote, i = nil, 1
+    while i <= #line do
+        local c = line:sub(i, i)
+        if quote then
+            if c == "\\" then i = i + 1 elseif c == quote then quote = nil end
+        elseif c == '"' or c == "'" then
+            quote = c
+        elseif line:sub(i, i + 1) == "--" then
+            return line:sub(1, i - 1)
+        end
+        i = i + 1
+    end
+    return line
+end
+-- }}}
+
+-- {{{ local function findings_in()
+-- returns array of { line = n, kind = "value"|"section"|"declared", text = expression }
+local function findings_in(path)
+    local f = io.open(DIR .. "/" .. path, "r")
+    if not f then return {} end
+    local found, n, previous = {}, 0, ""
+    for line in f:lines() do
+        n = n + 1
+        local code = code_part(line)
+        -- "optional:" in this line's comment or the line above declares it
+        local declared = line:sub(#code + 1):find("optional:", 1, true) or previous:find("optional:", 1, true)
+        previous = line
+        -- a name chain (a.b.c, a["b"].c), then `or`, then a written-out value
+        for chain, value in code:gmatch("([%a_][%w_]*[%w_%.%[%]\"']*)%s+or%s+([%-%d\"'{tf][^%s,%)]*)") do
+            local root = chain:match("^([%a_][%w_]*)")
+            local is_value = value:match("^%-?%d") or value:match("^[\"']") or value == "true" or value == "false"
+            local is_table = value:match("^{")
+            if SETTING_ROOTS[root] and chain:find("[%.%[]") and (is_value or is_table) then
+                local kind = declared and "declared"
+                    or ((value == "{}" or value:match("^{}")) and "section" or "value")
+                found[#found + 1] = { line = n, kind = kind, text = chain .. " or " .. value }
+            end
+        end
+    end
+    f:close()
+    return found
+end
+-- }}}
+
+local totals = { value = 0, section = 0, declared = 0 }
+local by_file = {}
+for _, path in ipairs(tracked_files()) do
+    local found = findings_in(path)
+    if #found > 0 then
+        by_file[#by_file + 1] = { path = path, found = found }
+        for _, item in ipairs(found) do totals[item.kind] = totals[item.kind] + 1 end
+    end
+end
+
+if not COUNT_ONLY then
+    for _, entry in ipairs(by_file) do
+        local shown = {}
+        for _, item in ipairs(entry.found) do
+            if item.kind ~= "declared" or SHOW_DECLARED then shown[#shown + 1] = item end
+        end
+        if #shown > 0 then
+            print(entry.path)
+            for _, item in ipairs(shown) do
+                print(string.format("  %5d  %-8s  %s", item.line, item.kind, item.text))
+            end
+        end
+    end
+    print("")
+end
+print(string.format("%d fallback values, %d absent sections treated as empty; %d declared optional",
+    totals.value, totals.section, totals.declared))
+os.exit((totals.value + totals.section) == 0 and 0 or 1)

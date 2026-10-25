@@ -21,6 +21,8 @@
 -- scripts/evaluate-embedding-models; this file does the data, not the process
 -- management -- separation of concerns.
 -- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/?.lua;" .. DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path

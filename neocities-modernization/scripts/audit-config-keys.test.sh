@@ -7,7 +7,8 @@
 #
 # Pins: an unnamed section and an unnamed setting are reported; a setting read
 # through a local alias, through a quoted name, through a loop over its
-# section, or through a list of names elsewhere in config.lua is not; a mention
+# section, through a list of names elsewhere in config.lua, or through a
+# table key listing its settings (`section = { "name" }`) is not; a mention
 # inside a comment does not count as a read; a "Read by" comment naming a file
 # that never reads the section is reported, and "file.lua:function" is
 # understood as a file.
@@ -49,6 +50,7 @@ return {
     names = { "alpha", "beta" },
     by_name = { alpha = 1, beta = 2 },
     quoted = { gamma = 1 },
+    listed = { delta = 1 },
     -- Read by: src/never.lua
     only_in_comment = { x = 1 },
     nobody = { y = 1 },
@@ -62,6 +64,9 @@ for k, v in pairs(config.walked) do print(k, v) end
 for _, n in ipairs(config.names) do print(config.by_name[n]) end
 local key = "gamma"
 print(config.quoted[key])
+-- a list of a section's settings, read through config[section]
+local REQUIRED = { listed = { "delta" } }
+for section, keys in pairs(REQUIRED) do print(config[section][keys[1] ]) end
 -- config.only_in_comment.x is mentioned here only in a comment
 EOF
 cat > "${SCRATCH}/src/never.lua" <<'EOF'
@@ -83,6 +88,7 @@ refuse "a setting read through an alias is not"         'aliased\.used'
 refuse "a section walked by a loop is fully read"       'walked'
 refuse "a table indexed by a config list is read"       'by_name'
 refuse "a setting read by a quoted name is read"        'quoted'
+refuse "a section named as a list of its settings is read" 'listed'
 expect "a comment mention does not count as a read"     '^UNREAD SECTION  only_in_comment$'
 expect "a stale Read by comment is reported"            'STALE COMMENT   only_in_comment: .*src/never\.lua, which never reads it'
 refuse "file.lua:function is read as the file"          'STALE COMMENT   walked'

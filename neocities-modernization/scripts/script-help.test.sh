@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # script-help.test.sh -- every script answers --help, and answering does no work.
 #
-# Two checks for each script in scripts/ and the project folder's own
-# scripts (sourced libraries, tests and retired "-done" files left out):
+# Two checks for each script in scripts/, the project folder's own scripts,
+# and the programs in src/ that can be run directly (they start with "#!";
+# src/main.lua once ran the whole pipeline when asked for help) -- sourced
+# libraries, tests and retired "-done" files left out:
 #   1. it can answer: it calls libs/script-help (or handles --help itself);
 #   2. only then, it is run with --help: it must print its header (three
 #      lines or more) and exit 0 within 15 seconds.
@@ -28,11 +30,11 @@ check() {
 }
 # }}}
 
-for f in "$DIR"/scripts/* "$DIR"/*.sh; do
+for f in "$DIR"/scripts/* "$DIR"/*.sh "$DIR"/src/*.lua; do
     [ -f "$f" ] || continue
     name="$(basename "$f")"
     case "$name" in
-        *.md|*.test.sh|*-done) continue ;;
+        *.md|*.test.sh|*-done|*.test.lua|*-test.lua) continue ;;
     esac
     head -c 2 "$f" | grep -q '#!' || continue
     head -c 600 "$f" | grep -q "sourced library" && continue

@@ -17,6 +17,42 @@
 
 ## Current Behavior
 
+**Where it stands (2026-10-25).** Steps 1-3 are built; step 4 is done for
+every site the checker finds; the two open questions below are the owner's.
+- **The checker (step 1):** `scripts/audit-config-fallbacks` lists every
+  place a program reads a setting with its own fallback beside it --
+  "value" (`x.size or 5`) and "section" (`config.layout or {}`) -- and
+  lists apart the fallbacks declared meant by an `optional:` comment with
+  the reason, on the line or the line above. Run it for the live inventory;
+  the table below is the inventory of 2026-10-04, kept for the record.
+- **Moved into config.lua and made required** (a missing one is an error
+  naming it): the gallery sources' names, titles and layout; the word
+  cloud's settings, its colours now the site's `semantic_colors` (owner,
+  2026-10-25); the fediverse extractor's privacy settings (one could never
+  be turned off: a `false` fell through to `or true`); the picture
+  importer's formats and size limit (its built-in 10 MB contradicted
+  config's 200 MB); the gallery theme's colours; the deploy's request
+  pacing (`deploy.uploads`, `deploy.deletions`, with the values the code
+  used); the GPU walk's tuning (`gpu.diversity`: batch size, probe steps,
+  chunk time, safety factor, the card's L2 size and the share of it a tile
+  uses; all 9,334 walks came out identical before and after); the two
+  libraries kept outside the project (`libraries.tui_lua_dir`,
+  `libraries.effil_cpath`); the tests' model and server (`testing`).
+- **Made required where the code assumed them:** a server's model list and
+  name, the `sources`, `word_cloud` and `image_integration` sections, the
+  image source folders, the plain-text column width.
+- **Declared optional, with the reason:** stop words (none beyond the
+  short-word rule), excluded pictures and poems (none excluded), a source's
+  excluded subfolders, a server's extra launch flags and its description, a
+  model's vision projector (a text-only model has none), the page builder's
+  per-section read (so every missing setting is named in one error), and a
+  call option in the kept `url-manager.lua`.
+- **Retired with the modules:** `similarity-calculator`,
+  `report-generator` and `validation-engine` and their settings (10-060).
+
+Before (2026-10-04):
+
+
 Much of the code reads a setting with a fallback written beside it:
 `config.section.setting or 5`. When `config.lua` has the setting, the number
 in the code is dead weight that will quietly disagree with `config.lua` the

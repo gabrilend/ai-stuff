@@ -2,6 +2,8 @@
 
 -- Core flat HTML page generation system for neocities-modernization
 -- Generates 13,680+ pages with similarity/diversity ranking in compiled.txt format
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -562,6 +564,8 @@ local function load_pagination_config()
     local targets = { pagination = PAGINATION_CONFIG, storage = STORAGE_CONFIG }
     local missing = {}
     for section, names in pairs(REQUIRED_SETTINGS) do
+        -- every missing setting is named in the one error below, not just the first;
+        -- optional: so an absent section is read as empty here
         local source = unified_config[section] or {}
         for _, name in ipairs(names) do
             if source[name] == nil then

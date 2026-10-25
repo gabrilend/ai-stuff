@@ -155,7 +155,10 @@ end
 -- server: a server entry from config.lua; returns a list of strings.
 function M.model_names(server)
     local names = {}
-    for _, entry in ipairs(server.available_models or {}) do
+    -- a server with no models cannot embed anything: config.lua must list them
+    local models = server.available_models
+        or error("config.lua server '" .. tostring(server.name) .. "' lists no available_models")
+    for _, entry in ipairs(models) do
         names[#names + 1] = entry.model
     end
     return names
@@ -352,7 +355,7 @@ function M.build_host_url(server)
         server = M.get_selected_server()
     end
 
-    local name = server.name or "(unnamed server)"
+    local name = server.name or error("config.lua has a server entry with no name")
     if not server.host then
         error(string.format(
             "inference-server-config: server '%s' has no 'host' field in config.lua. "
@@ -419,6 +422,7 @@ function M.list_servers()
         local url = M.build_host_url(server)
 
         require("output").print(string.format("  %s%s", server.name, default_marker))
+        -- optional: a server's description is for the listing only; absent prints a blank line
         require("output").print(string.format("    %s", server.description or ""))
         require("output").print(string.format("    URL: %s", url))
         require("output").print(string.format("    Models (choose one with --model): %s",
@@ -460,7 +464,9 @@ end
 function M.get_selected_model_config()
     local server = M.get_selected_server()
     local model = M.get_selected_model()
-    for _, entry in ipairs(server.available_models or {}) do
+    local models = server.available_models
+        or error("config.lua server '" .. tostring(server.name) .. "' lists no available_models")
+    for _, entry in ipairs(models) do
         if entry.model == model then
             return {
                 model = model,

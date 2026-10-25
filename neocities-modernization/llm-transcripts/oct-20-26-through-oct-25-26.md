@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 16:06:39
+Generated on: 2026-10-25 16:38:24
 Models: claude-opus-5-5
 
 ## Contents
@@ -94,6 +94,10 @@ Models: claude-opus-5-5
     by what the model sees in them; that work is built, tested and committed.
     Next, tell me whether to keep or undo the uncommitted graphics-card waiting
     fix, then run your build.
+22. 2026-10-25 16:09, after Request 38 - We're cleaning up the poetry site's
+    open issues now that pictures are placed by what they show. Next, tell me
+    which group E issues to drop, and whether they go to superseded/ or
+    completed/.
 
 --------------------------------------------------------------------------------
 
@@ -5978,6 +5982,249 @@ status, as the house rules do for finished issues. Which do you want?
 
 Then go through group E and tell me which to drop. You can reply with phase
 numbers, like "all of 13 and 16".
+
+--------------------------------------------------------------------------------
+
+### User Request 39
+
+Okay a rebuild will help us address A, we should check up on B now, C seems to
+be something we should do before a rebuild, D we can skip for now. For E, the
+only one we should touch now are those outdated critical path files. Let's
+rename superseded/ to will-not-implement.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 39
+
+> The issue tools already count a `will-not-implement` folder as retired, so the
+> rename needs no tool changes. Renaming it, then retiring the two planning
+> files:
+
+*[commit] c61bd2639 - neocities: retired issues live in will-not-implement/*
+
+> The rename and the two retired files are committed. Next, the waiting fix for
+> the graphics card's walk, which you didn't object to:
+
+*[commit] e3b1fef4e - neocities: the card's walk waits before it resets the winner*
+
+> Now group B. For each issue I'm pulling out what the file itself says is left:
+> unchecked steps, open questions, and anything marked deferred or remaining.
+
+> Some of these will need real checks, not just a status change. I'll go through
+> them in small groups, starting with the three graphics-card issues.
+
+> The files record poem numbers. Writing the check:
+
+> The check passes for EmbeddingGemma 2 and correctly skips the two old models.
+> That's enough to close 9-002b and its parent 9-002. Reading 9-002 first:
+
+> Updating both issues in place. The plan lists stay, with each step marked as
+> done, replaced, or no longer applicable.
+
+*[commit] 5b2554651 - neocities: the graphics card's similarity table is checked against plain arithmetic*
+
+> All 8,667 poems have both pages, and 17,334 files is exactly two per poem (the
+> page plus its text export). Reading 8-001 and 8-002 to update them:
+
+> I'm on 8-058. Its last steps are a whole-site check and a re-check of three
+> page bugs. Every build runs the whole-site check, so I'm looking for its
+> result in the logs of your last build:
+
+> Your last build ran before the run logs existed, so its check result isn't
+> saved. The check only reads the site, so I'll run it again on the built site
+> now:
+
+> The whole-site check passes on all 20,109 pages: no over-wide lines, no
+> misshapen frames, no broken links. That's 8-058's step 7. Step 8 is
+> re-checking three specific bugs; reading what they are:
+
+> The page's own poem has a bar 43 of 83 columns full. To check that this is
+> right and not the old bug, I'll compare bars on 300 random pages against each
+> poem's place on the writing timeline:
+
+> That came out wrong: only 15 pages measured, and 9 flagged. More likely my
+> matching is off than the pages. Looking at one flagged page directly:
+
+> Bars sit on the timeline: median half a column off, 95% within one column. No
+> page lists its own poem a second time. One bar is 10.9 columns off, so I'm
+> finding which poem that is:
+
+> All three bugs are gone from the built pages. 8-058 has one success criterion
+> left, "the main thread draws no pages", so I'm checking what the main thread
+> still writes:
+
+> Both kinds of page share one list builder, so closing 10-025:
+
+*[commit] fa57c2d24 - neocities: four page-building issues checked against the built site and closed*
+
+> 2-010's reopened scope, guarding the caches against a change in the poems'
+> numbering, is what the numbering stamps from 8-019 do. Confirming from its
+> steps and the code:
+
+*[commit] 68b9df833 - neocities: three more finished issues move to completed*
+
+I've checked group B. Ten issues are closed and committed, each checked against
+the code or the built site rather than just re-labelled. Four are still open:
+one needs your answers, one needs a decision, and two have work left.
+
+**Closed:**
+
+| Issue | How it was checked |
+|---|---|
+| Card's similarity table (9-002, 9-002b) | New test recomputes 12 poems against every other poem on the processor. Worst difference: 0.0000008. It now runs with the other tests. |
+| Build pipeline (8-001) | All 8,667 poems have their similar and different pages. |
+| Page workers (8-002) | Every page is drawn by the shared pool of worker threads. A failing worker stops the build, per your errors-over-fallbacks rule; the issue now says so. |
+| One shared drawer (8-058) | Whole-site check on all 20,109 pages: 0 over-wide lines, 0 bad frames, 0 broken links. The three old bugs are gone on 300 sampled pages (details below). |
+| Poem shown once in its own list (10-025) | The test gap is closed. Both list kinds are built by one shared function that has a test. |
+| Numbering guard (2-010) | Already built as part of the poem-numbering work. Stage 9 refuses caches built under another numbering, and a test covers that. |
+| Word pages in the worker pool (10-035) | Its one question was answered by you on 22 October. |
+| Poems named by source (8-019) | Done since the 23 October rebuild. The issue notes that the first deploy after it needs `--prune`. |
+
+The three old bugs on the sampled pages:
+- Progress bars sit within one column of each poem's place on the timeline.
+- No page lists its own poem a second time.
+- Content-warning boxes now come from one drawer, and 12 sampled posts show the
+  same box on two kinds of page.
+
+One judgement call: the main thread still writes four single files itself (the
+two explore pages, the chronological redirect and the text version). None of
+them draws a poem, so I recorded that criterion as deliberately not met, with
+that reason.
+
+**Still open:**
+- **9-001 (graphics-card setup):** all that's left is removing effil, and effil
+  still runs the page workers. You said to leave group E for now, so it waits.
+- **8-034 (halving the similarity files):** this needs your decision. The plan
+  was to store each pair once instead of twice, but the card writes every pair
+  both ways, about 4.5 GB on disk. Build the smaller format, or mark it
+  will-not-implement?
+- **8-020 (pagination):** it was written for a single full chronological page,
+  and the chronological pages are now split into numbered pages. I'll go through
+  it with group C, since its leftover navigation fix is in 10-036.
+- **1-010 (EmbeddingGemma 2):** three questions in its file:
+  1. Did the word-cloud fix hold with the new model? I can count how many word
+     pages the most frequent poem appears on. That's a read of the built site,
+     so I can do it now.
+  2. Should `scripts/build-deps.sh` download every model in the list, not only
+     nomic? Three of the four are currently fetched by hand.
+  3. When the model loads, the server prints six warnings. Five are about text
+     generation or token labelling, which this project doesn't use. The one that
+     may matter: the server has no access key and accepts requests from any
+     website, and it listens on your home-network address. Should it listen only
+     on this machine (127.0.0.1)?
+
+Next I'll start group C, the engineering to finish before your rebuild,
+beginning with the refactoring pass I was partway through. Answer the three
+1-010 questions and the 8-034 decision whenever suits you.
+
+--------------------------------------------------------------------------------
+
+### User Request 40
+
+> One judgement call: the main thread still writes four single files itself (the
+> two explore pages, the chronological redirect and the text version). None of
+> them draws a poem, so I
+>   recorded that criterion as deliberately not met, with that reason.
+
+that's fine, we don't have to multithread that.
+
+
+
+<pasted_content id="5619">
+>   The three old bugs on the sampled pages:
+>   - Progress bars sit within one column of each poem's place on the timeline.
+>   - No page lists its own poem a second time.
+> - Content-warning boxes now come from one drawer, and 12 sampled posts show
+> the same box on two kinds of page.
+</pasted_content id="5619">
+
+
+explain?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 40
+
+These three bugs came from your bug report of 22 September, in the
+`next-issue-please-sort` inbox. All three had one cause: the same drawing job
+was written in several places, and a fix reached some copies but not others. The
+pages you looked at back then were drawn by an old single-threaded copy of the
+page builder, which hadn't received the fixes. That copy has since been deleted,
+and every page now goes through one drawer. I checked the built site to confirm
+the bugs are really gone.
+
+## 1. Progress bars
+
+**What it is:** the line of `═` across the top of each poem's frame is a
+timeline. How far the coloured part reaches shows how far through your writing
+history that poem was written. A poem from your first week should show a nearly
+empty bar, and one from last month a nearly full one.
+
+**What was wrong:** the old copy worked out the fill by dividing the poem's
+number by the largest number in the list. Those numbers mixed two counting
+schemes: the per-source number (messages/260) and the site-wide one. So an early
+poem like messages/260 could show an almost-full bar. Some bars even ran past
+the right edge of the 83-column frame (messages/1514, messages/1106).
+
+**How I checked:** I picked 300 similar pages at random. For each one, I counted
+how many columns of the page's own poem bar are coloured. Then I worked out
+where that bar *should* end: the poem's date, as a fraction of the way from your
+first poem's date to your last, times 83 columns.
+- Typical difference: half a column. 95% were within one column, which is
+  rounding.
+- Every one that looked further off was a boosted post. Its bar has the word
+  `[BOOST]` and two end marks written inside it. My count skipped those 9
+  characters, and adding them back put those within a column or two as well.
+- None run past the frame. The whole-site check reports no over-wide lines
+  anywhere.
+
+## 2. The page's own poem listed twice
+
+**What it is:** a similar page shows its own poem at the top, then a ranked list
+of the poems most like it.
+
+**What was wrong:** a poem is always most similar to itself, so the old copy put
+it at rank 1 of its own list. A filter was meant to remove it, but it compared
+the per-source numbers instead of the site-wide ones. That caused two mistakes
+at once:
+- The page's own poem wasn't recognised, so it appeared twice: once at the top
+  and again at #1.
+- A different poem that happened to share its per-source number was removed. For
+  example, notes/260 would vanish from the list of messages/260.
+
+**How I checked:** on the same 300 pages, I read every ranked entry's label
+(`--- #6 fediverse/3025 ---`). I compared each one exactly against the page's
+own label. There were no matches on any page.
+
+My first attempt at this check wrongly flagged 9 pages. I'd used Lua's pattern
+matching, where `-` is a special character, so "fediverse/200" also matched
+"fediverse/2001". With exact text comparison there are none.
+
+## 3. Content-warning boxes
+
+**What it is:** a post with a content warning shows a boxed `CW: …` line in
+its frame.
+
+**What was wrong:** five separate pieces of code drew that box, in different
+places:
+- the chronological pages had one, and it was the only one that wrapped long
+  warnings onto a second line (badly);
+- the similar/different workers had two;
+- the word pages had their own.
+
+None of them agreed, so the same post's warning looked different depending on
+which page you were reading it on.
+
+**How I checked:** two ways.
+1. **In the code:** I searched every source file for code that draws a warning
+   box. Only the shared drawer (`src/poem-entry.lua`) does. The one other file
+   that mentions warnings only reads them in from your posts.
+2. **On the built pages:** I took 12 posts with warnings (out of 1,781). For
+   each one I found its box on its own similar page and on the chronological
+   page where it sits. All 12 were identical.
+
+12 is a sample, not every post. But since only one piece of code can draw the
+box now, a post can't get two different versions of it.
 
 --------------------------------------------------------------------------------
 

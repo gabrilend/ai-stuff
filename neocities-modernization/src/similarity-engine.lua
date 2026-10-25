@@ -1,4 +1,17 @@
 #!/usr/bin/env lua
+-- similarity-engine.lua: Stage 6's text embeddings, and the tools around them.
+--
+-- WHAT IT DOES (for a CEO): sends every poem's text to the embedding server
+-- and keeps the vector that comes back, reusing a poem's stored vector when
+-- its text has not changed (Issue 8-019), cutting long poems into pieces and
+-- averaging them (Issue 10-050). generate-embeddings.sh drives it in a
+-- build; run on its own it offers the same work from a menu.
+--
+-- Usage: luajit src/similarity-engine.lua [DIR] [-I]
+--   DIR  project folder (default below); -I  the menu
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -2109,9 +2122,11 @@ end
 -- }}}
 
 -- Command line execution
--- Issue 8-032: Only run main() when executed as script (arg[0] exists),
--- not when required as module from luajit -e (where arg exists but arg[0] is nil)
-if arg and arg[0] then
+-- Issue 8-032: Only run main() when this file is the program that was
+-- started. arg[0] alone is not enough: when another program started from a
+-- file loads this one, arg[0] names that program, and the menu would start
+-- inside it. (Loaded from luajit -e, arg[0] is nil.)
+if arg and arg[0] and arg[0]:match("similarity%-engine%.lua$") then
     local interactive_mode = false
     for i, arg_val in ipairs(arg) do
         if arg_val == "-I" then

@@ -150,6 +150,7 @@ local function run_rsync(source_path, dest_path, options)
     -- that happens to share the name. The trailing slash limits it to
     -- directories. Names were checked to be single path components by
     -- sync_source before we get here.
+    -- optional: a source may exclude no subfolders; absent means copy them all
     for _, subdirectory_name in ipairs(options.excluded_subdirectories or {}) do
         rsync_opts = rsync_opts .. " --exclude='/" .. subdirectory_name .. "/'"
     end

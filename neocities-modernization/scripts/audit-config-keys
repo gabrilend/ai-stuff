@@ -118,12 +118,15 @@ end
 -- brackets, or (for a setting) as a quoted string anywhere -- the colour and
 -- source tables are reached by a name held in a variable that was set from a
 -- literal like "blue". A plain-word mention ("pagination is ...") does not
--- count.
+-- count. A section may also be named as a table key holding a list of its
+-- settings (`pagination = { "poems_per_page", ... }`): src/flat-html-generator.lua
+-- reads its required settings that way, through config[section].
 local function names(content, name, allow_quoted)
     local escaped = name:gsub("%p", "%%%0")
     return content:find("%." .. escaped .. "%f[^%w_]") ~= nil
         or content:find("%[%s*[\"']" .. escaped .. "[\"']%s*%]") ~= nil
         or (allow_quoted and content:find("[\"']" .. escaped .. "[\"']") ~= nil)
+        or content:find("%f[%w_]" .. escaped .. "%s*=%s*{%s*[\"']") ~= nil
 end
 -- }}}
 

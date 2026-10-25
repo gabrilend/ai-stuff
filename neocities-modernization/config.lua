@@ -567,6 +567,66 @@ return {
     default_inference_server = "local",
     -- }}}
 
+    -- {{{ libraries
+    -- Libraries built or kept outside this project, by where this machine
+    -- keeps them. Another machine edits these two lines.
+    libraries = {
+        -- the terminal menu library (shared scripts); read by src/main.lua
+        tui_lua_dir = "/home/ritz/programming/ai-stuff/scripts/libs",
+        -- the LuaJIT build of the effil threading library, as a package.cpath
+        -- entry ("?" is the module name); read by libs/effil-loader.lua
+        effil_cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so",
+    },
+    -- }}}
+
+    -- {{{ gpu
+    -- Tuning for the graphics card, measured on a GTX 1080 Ti; another card
+    -- wants its own numbers. Read by: scripts/precompute-diversity-sequences-gpu
+    -- (Stage 8), which hands them to libs/vulkan-compute/lua/vk_compute.lua.
+    gpu = {
+        diversity = {
+            batch_size = 3584,            -- walks run at once: one per CUDA core of a 1080 Ti (lowered to fit free memory)
+            probe_steps = 10,             -- steps in the timing run each batch starts with
+            chunk_seconds = 1.5,          -- GPU work per dispatch; the display watchdog kills one that runs ~2 s
+            safety_factor = 0.6,          -- aim this far below chunk_seconds, so jitter stays under the watchdog
+            l2_cache_bytes = 5767168,     -- the card's L2 cache, 5.5 MiB on a 1080 Ti: one tile of poems is sized to fit
+            cache_share = 0.85,           -- of that cache, the part a tile may fill (the rest holds the centre, the mask, the code)
+        },
+    },
+    -- }}}
+
+    -- {{{ deploy
+    -- How scripts/deploy-to-neocities paces its requests to Neocities
+    -- (libs/neocities-sync.lua). Each batch carries up to "budget" worth of
+    -- work; after grow_after batches in a row succeed the budget grows by
+    -- "grow" (up to max_budget); a batch the site refuses as too large halves
+    -- it (never below floor). A refusal for going too fast waits and retries,
+    -- up to max_retries times. pause_seconds is a courtesy wait between calls.
+    -- Read by: scripts/deploy-to-neocities
+    deploy = {
+        uploads = {                       -- budget in bytes of file data per request
+            budget = 8 * 1024 * 1024,
+            max_count = 60,               -- files per request, at most
+            floor = 1,
+            grow = 1.5,
+            grow_after = 3,
+            max_budget = 64 * 1024 * 1024,
+            pause_seconds = 0.2,
+            max_retries = 8,
+        },
+        deletions = {                     -- budget in files per request
+            budget = 50,
+            max_count = 50,
+            floor = 1,
+            grow = 1.5,
+            grow_after = 3,
+            max_budget = 64 * 1024 * 1024,
+            pause_seconds = 0.2,
+            max_retries = 8,
+        },
+    },
+    -- }}}
+
     -- {{{ picture_embeddings
     -- How pictures get their place among the poems (Issue 9-013): the vision
     -- model embeds each picture itself.

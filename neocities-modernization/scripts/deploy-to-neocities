@@ -60,6 +60,20 @@ local dkjson = require("dkjson")
 local api = require("neocities-api")
 local sync = require("neocities-sync")
 local socket = require("socket")           -- for socket.sleep (politeness/backoff)
+-- {{{ local function pacing()
+-- The request pacing for one kind of call, from config.lua deploy (Issue
+-- 10-071); a missing number is an error naming it.
+local function pacing(kind)
+    local deploy = require("config-loader").load().deploy or error("config.lua has no deploy section")
+    local p = deploy[kind] or error("config.lua deploy." .. kind .. " is missing")
+    local out = {}
+    for _, name in ipairs({ "budget", "max_count", "floor", "grow", "grow_after", "max_budget", "max_retries" }) do
+        out[name] = p[name] or error("config.lua deploy." .. kind .. "." .. name .. " is missing")
+    end
+    out.base_delay = p.pause_seconds or error("config.lua deploy." .. kind .. ".pause_seconds is missing")
+    return out
+end
+-- }}}
 local REMOTE_DIR = "similar-different"
 -- }}}
 
@@ -229,7 +243,8 @@ if #todo > 0 then
     math.randomseed(os.time())
     for k = #todo, 2, -1 do local j = math.random(k); todo[k], todo[j] = todo[j], todo[k] end
 
-    local opts = { budget = 8 * 1024 * 1024, max_count = 60, base_delay = 0.2, sleep = socket.sleep }
+    local opts = pacing("uploads")
+    opts.sleep = socket.sleep
     local use_bars = (require("progress-display").mode() == 1)   -- animated only on a TTY
 
     if use_bars then
@@ -338,14 +353,14 @@ if prune then
         end
         local del_items = {}
         for _, p in ipairs(stale) do del_items[#del_items + 1] = { path = p, cost = 1 } end
+        local del_opts = pacing("deletions")                 -- count-based; deletes per request
+        del_opts.sleep = socket.sleep
+        del_opts.log = function(m) io.write("  [adapt] " .. m .. "\n") end
         local dstats, derr = sync.run_adaptive(del_items, function(batch)
             local paths = {}
             for _, it in ipairs(batch) do paths[#paths + 1] = it.path end
             return api.delete_batch(paths)
-        end, {
-            budget = 50, max_count = 50, base_delay = 0.2,   -- count-based; deletes per request
-            sleep = socket.sleep, log = function(m) io.write("  [adapt] " .. m .. "\n") end,
-        })
+        end, del_opts)
         io.write("\n")
         if not dstats then
             io.write("PRUNE STOPPED: " .. tostring(derr) .. "\nRe-run --prune to continue (already-deleted files are gone).\n")

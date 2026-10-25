@@ -55,8 +55,10 @@ vk.fp32_to_fp16(f32, f16, num * dim)
 -- }}}
 
 local ctx = vk.init(false)
-local full = vk.compute_all_diversity_sequences_batched(ctx, f16, num, dim, nil, 128)
-local short = vk.compute_all_diversity_sequences_batched(ctx, f16, num, dim, nil, 128, 20)
+-- the card tuning the build uses (config.lua gpu.diversity)
+local tuning = require("config-loader").load().gpu.diversity
+local full = vk.compute_all_diversity_sequences_batched(ctx, f16, num, dim, nil, 128, nil, tuning)
+local short = vk.compute_all_diversity_sequences_batched(ctx, f16, num, dim, nil, 128, 20, tuning)
 vk.shutdown(ctx)
 
 local same, right_length = 0, 0

@@ -284,6 +284,7 @@ local function load_stop_words()
     local stop_words = {}
 
     -- Load from config (array of words)
+    -- optional: absent means no stop words beyond the built-in short-word rule
     local config_stop_words = wc.stop_words or {}
     for _, word in ipairs(config_stop_words) do
         stop_words[word:lower()] = true

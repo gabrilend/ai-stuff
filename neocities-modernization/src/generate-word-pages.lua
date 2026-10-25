@@ -25,6 +25,8 @@
 --   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ Setup
 local function setup_dir_path(provided_dir)
@@ -175,7 +177,7 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
-local wc = unified_config.word_cloud or {}
+local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
 -- Issue 10-065a: a value missing from the command line is asked for (config.lua's
 -- value offered in brackets), taken from config.lua with a notice under --yes,
 -- or an error when run.sh started this program or nobody is at the keyboard.
@@ -775,7 +777,8 @@ end
 -- Issue 10-003: Load stop words from embedded config.word_cloud.stop_words array
 local function load_stop_words()
     local stop_words = {}
-    local wc = unified_config.word_cloud or {}
+    local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
+    -- optional: absent means no stop words beyond the built-in short-word rule
     for _, word in ipairs(wc.stop_words or {}) do
         stop_words[word:lower()] = true
     end

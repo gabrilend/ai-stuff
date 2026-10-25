@@ -8,6 +8,8 @@
 -- The generator reads assets/centroids.json, embeds each centroid's combined content,
 -- and outputs the results to assets/embeddings/{model}/centroids.json for use by
 -- the HTML generator.
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)

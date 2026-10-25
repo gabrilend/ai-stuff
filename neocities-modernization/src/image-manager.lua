@@ -2,6 +2,8 @@
 
 -- Image discovery and cataloging system
 -- Scans configured directories for supported image formats and creates metadata catalog
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -132,7 +134,7 @@ local function load_config()
     end
 
     -- Build config from sources.images settings (with image_integration fallbacks for display settings)
-    local display_config = unified_config.image_integration or {}
+    local display_config = unified_config.image_integration or error("config.lua has no image_integration section")
     local config = {
         enabled = sources_loader.is_enabled("images"),
         image_directories = image_directories,

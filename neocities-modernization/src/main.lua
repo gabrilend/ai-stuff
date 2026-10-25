@@ -1,4 +1,34 @@
 #!/usr/bin/env luajit
+-- main.lua: the poetry site's core stages, one at a time or all together.
+--
+-- WHAT IT DOES (for a CEO): reads the exported posts and notes into one
+-- list of poems, checks that list, finds the pictures, and draws the
+-- website's pages from the poems and the caches the GPU stages made. run.sh
+-- calls it once per stage (3, 4, 5 and 9); asking for no stage runs them
+-- all in order, and -I opens a menu instead.
+--
+-- Usage: luajit src/main.lua [PROJECT_DIR] [MODE] [OPTIONS]
+--   PROJECT_DIR          the project folder (default below)
+-- Modes (one at most; none = the whole pipeline):
+--   --parse-only         stage 3: the exports become assets/poems.json
+--   --validate-only      stage 4: check the poems, write the validation report
+--   --catalog-only       stage 5: find every picture, write the image catalog
+--   --html-only          stage 9: draw every page into output/
+--   -I, --interactive    a menu of the stages
+-- Options:
+--   --dir PATH           where assets/ lives (run.sh passes it)
+--   --force              redo a stage even when its output looks current
+--   --threads N          page workers for --html-only (asked for if missing)
+--   --pages LIST         similar/different pages per poem: 1, all, 1-10
+--   --poems-per-page N   poems on each similar/different page
+--   --chrono-per-page N  poems on each chronological page
+--   --seed N             the build's random seed
+--   --no-boosts / --include-boosts   leave out or keep boosted posts
+--   -v, --verbose        more detail
+--   --help               this text, and nothing else
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ Early argument parsing (before package.path setup)
 -- Parse arguments to extract directory path, skipping flags like -I
@@ -34,9 +64,19 @@ end
 local DIR = setup_dir_path(parse_dir_from_args(arg))
 
 -- Load required libraries
--- Include TUI library from shared scripts location (updates propagate automatically)
-local TUI_LIBS = "/home/ritz/programming/ai-stuff/scripts/libs"
-package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. package.path
+-- The TUI library lives in the shared scripts folder (updates propagate
+-- automatically); where that is on this machine is config.lua
+-- libraries.tui_lua_dir (Issue 10-071).
+local system_path = package.path
+package.path = DIR .. "/libs/?.lua;" .. system_path   -- long enough to read config.lua
+local TUI_LIBS
+do
+    local libraries = require("config-loader").load().libraries
+        or error("config.lua has no libraries section")
+    TUI_LIBS = libraries.tui_lua_dir or error("config.lua libraries.tui_lua_dir is missing")
+end
+-- the project first, then the TUI library, then the system's own
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. system_path
 local utils = require("utils")
 
 -- Initialize asset path configuration (CLI --dir takes precedence over config)

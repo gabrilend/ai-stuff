@@ -1,4 +1,18 @@
 #!/usr/bin/env lua
+-- poem-extractor.lua: Stage 3's reader -- every export becomes one list of poems.
+--
+-- WHAT IT DOES (for a CEO): reads the fediverse posts, boosts, messages,
+-- notes and Bluesky posts the earlier stages unpacked, keeps each one's
+-- text, date, pictures and content warning, numbers them all by date
+-- (Issue 8-019), and writes them to assets/poems.json for every later stage.
+-- main.lua --parse-only calls it in a build; other programs load it for its
+-- text helpers.
+--
+-- Usage: luajit src/poem-extractor.lua [DIR] [-I]
+--   DIR  project folder (default below); -I  ask before each step
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)

@@ -322,7 +322,10 @@ end
 -- become their characters. The frames are box-drawing characters already, so
 -- they survive as they are.
 function M.to_plain(html)
-    local width = settings and settings.text_width or 80
+    -- the column width comes from configure() (config.lua layout); drawing
+    -- plain text before it was set is an error, not a guess at 80
+    local width = settings and settings.text_width
+        or error("poem-entry.to_plain: configure() has not given a text width")
     -- multi-line media blocks (audio, video) become one line first
     html = html:gsub("(%s*)(<audio.-</audio>)", function(ind, tag) return placeholder(ind:gsub("\n", ""), tag) end)
     html = html:gsub("(%s*)(<video.-</video>)", function(ind, tag) return placeholder(ind:gsub("\n", ""), tag) end)

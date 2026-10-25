@@ -106,9 +106,10 @@ resolve_server_config() {
         print(mc.model_path)
         print(mc.model)
         -- Issue 9-013: the picture-reading add-on, when this model has one
-        print(mc.vision_projector or '-')
+        print(mc.vision_projector or '-')  -- optional: a text-only model has none
         -- One word per line so a flag and its value stay separate words in
         -- the shell array they are read into.
+        -- optional: absent means llama-server's own defaults for these
         for _, word in ipairs(server.launch_flags or {}) do
             print(word)
         end

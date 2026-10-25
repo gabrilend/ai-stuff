@@ -15,6 +15,8 @@
 --      is a cliff, so this can flip more sharply than the smooth cosine.
 --
 -- Prefer running this over trusting a number written in a doc. Knobs below.
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dk = require("dkjson")

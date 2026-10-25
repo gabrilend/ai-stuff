@@ -83,7 +83,7 @@ end
 -- Get the sources table from config
 local function get_sources()
     local cfg = load_config()
-    return cfg.sources or {}
+    return cfg.sources or error("config.lua has no sources section")
 end
 -- }}}
 

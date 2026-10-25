@@ -7,6 +7,21 @@
 - **Status**: In progress
 
 ## Current Behavior
+**2026-10-25, found by widening the --help test to src/ (Issue 10-048).**
+Renamed `-done` for one commit, then removed:
+- `src/test-report-generator.lua`, `src/test-similarity-calculator.lua`,
+  `src/test-validation-engine.lua`: tests of the validation suite retired on
+  2026-10-23; they load modules that no longer exist, so they could not run,
+  and nothing ran them.
+- `libs/vulkan-compute/test-batch-full.lua`: a hand-run test of the GPU
+  walks that hands the library a Lua table of numbers; the library takes a
+  half-precision buffer since the storage change, so it could not run.
+  `libs/vk-diversity-walk-length.test.lua` and Stage 8 itself cover it.
+- Renamed, not retired: `src/test-diversity-chaining.lua` became
+  `src/diversity-chaining.test.lua`, so `scripts/run-tests` runs it (it
+  passes; its module is kept on purpose, below). It had sat outside the
+  runner's naming pattern since the runner was written.
+
 **2026-10-23, the refactoring pass (Issue 10-048 step 2; owner's yes to
 retiring after a check by hand).** Renamed `-done` for one commit, then
 removed:

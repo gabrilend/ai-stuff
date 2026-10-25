@@ -98,7 +98,16 @@ local socket = require("socket")
 local wall_clock = socket.gettime
 
 -- Configuration
-local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
+-- the card tuning, from config.lua gpu.diversity (Issue 10-071): a missing
+-- number is an error. BATCH_SIZE may be lowered below to fit free memory.
+local GPU_TUNING
+do
+    local config_loader = require("config-loader")
+    config_loader.set_project_root(DIR)
+    local gpu = config_loader.load().gpu or error("config.lua has no gpu section")
+    GPU_TUNING = gpu.diversity or error("config.lua gpu.diversity is missing")
+end
+local BATCH_SIZE = GPU_TUNING.batch_size or error("config.lua gpu.diversity.batch_size is missing")
 -- The model determines the embeddings directory we read from. It is resolved
 -- through inference-server-config, which reads the overrides notepad for this
 -- run (tmp/run-overrides.lua, written by run.sh from --model) and falls back to
@@ -397,7 +406,8 @@ local function main()
         embedding_dim,
         SAVE_BINARY and binary_file or nil,  -- Optional binary output
         BATCH_SIZE,
-        TOP_K   -- each walk stops after the K poems the pages can show (0: walk them all)
+        TOP_K,  -- each walk stops after the K poems the pages can show (0: walk them all)
+        GPU_TUNING
     )
 
     local elapsed = wall_clock() - start_time
