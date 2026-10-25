@@ -71,8 +71,9 @@ parse_arguments() {
 # {{{ resolve_server_config
 # Asks libs/inference-server-config.lua to resolve the chosen server (default
 # or --server=NAME override) and prints to stdout, one per line: host, port,
-# model_path (relative to DIR), the model identifier, and then each word of
-# the server's launch_flags (zero or more lines). Errors from the
+# model_path (relative to DIR), the model identifier, the model's
+# vision_projector (relative to DIR, or "-" for a model without one), and then
+# each word of the server's launch_flags (zero or more lines). Errors from the
 # module (typoed --server, missing default) propagate to stderr verbatim.
 # Running the module in a subprocess keeps the parent shell free of any
 # stray Lua state and lets us capture exactly the fields we want.
@@ -104,6 +105,8 @@ resolve_server_config() {
         print(server.port)
         print(mc.model_path)
         print(mc.model)
+        -- Issue 9-013: the picture-reading add-on, when this model has one
+        print(mc.vision_projector or '-')
         -- One word per line so a flag and its value stay separate words in
         -- the shell array they are read into.
         for _, word in ipairs(server.launch_flags or {}) do
@@ -243,6 +246,17 @@ launch_server() {
     if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
         launch_flags+=( -lv 1 )
     fi
+    # Issue 9-013: a model with a vision projector loads it, so the same
+    # server embeds pictures (Stage 6's picture step) as well as text.
+    # "-": a text-only model; no projector is loaded.
+    if [ "$VISION_PROJECTOR" != "-" ]; then
+        local abs_projector="${DIR}/${VISION_PROJECTOR}"
+        if [ ! -f "$abs_projector" ]; then
+            echo -e "${C_RED}Vision projector not found: $abs_projector${C_RESET}" >&2
+            exit 1
+        fi
+        launch_flags+=( --mmproj "$abs_projector" )
+    fi
     # The server entry's launch_flags (config.lua) come last, so a GPU-specific
     # setting there can also override one of the shared flags above.
     launch_flags+=( "${SERVER_FLAGS[@]}" )
@@ -320,9 +334,10 @@ main() {
     PORT=$(echo "$config" | sed -n 2p)
     MODEL_PATH=$(echo "$config" | sed -n 3p)
     MODEL=$(echo "$config" | sed -n 4p)
-    # Lines 5 onward: this server's own GPU flags from config.lua.
+    VISION_PROJECTOR=$(echo "$config" | sed -n 5p)
+    # Lines 6 onward: this server's own GPU flags from config.lua.
     local server_flags_text
-    server_flags_text=$(echo "$config" | sed -n '5,$p')
+    server_flags_text=$(echo "$config" | sed -n '6,$p')
     SERVER_FLAGS=()
     if [ -n "$server_flags_text" ]; then
         # Present: the server entry states flags for its GPU; pass them on.

@@ -472,6 +472,30 @@ function M.reusable_vector(poem, prior, dims)
 end
 -- }}}
 
+-- {{{ function M.reused_entry
+-- The stored entry carried into this run, filed under this run's number.
+-- prior      : the stored entry (a table; it is not changed)
+-- poem_index : this run's number for the poem (integer)
+-- returns    : a new entry, a copy of prior
+-- Issue 9-013: a text + picture post was blended with its pictures by Stage
+-- 6.7, which kept the pure text vector beside the blend (text_embedding). The
+-- text vector is what this stage makes, so it is the one carried over, and
+-- Stage 6.7 blends again from it. Taking the blend would blend a blend, and
+-- the post would drift toward its pictures a little more every run.
+function M.reused_entry(prior, poem_index)
+    local reused = {}
+    for k, v in pairs(prior) do reused[k] = v end
+    reused.poem_index = poem_index
+    if prior.text_embedding then
+        -- blended last run: carry the text vector, not the blend
+        reused.embedding = prior.text_embedding
+        reused.text_embedding = nil
+    end
+    -- else: a text-only poem's vector, carried as it is
+    return reused
+end
+-- }}}
+
 -- {{{ function M.generate_all_embeddings
 function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, incremental, model_name)
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
@@ -611,10 +635,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             if reuse then
                 -- Skip: this poem's own vector, from this text; filed under
                 -- this run's number
-                local reused = {}
-                for k, v in pairs(prior) do reused[k] = v end
-                reused.poem_index = lookup_key
-                embeddings_data.embeddings[lookup_key] = reused
+                embeddings_data.embeddings[lookup_key] = M.reused_entry(prior, lookup_key)
                 skipped_count = skipped_count + 1
             else
                 -- Re-process: no embedding, invalid embedding, or error state

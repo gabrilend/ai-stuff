@@ -89,6 +89,20 @@ do
 end
 -- }}}
 
+-- {{{ a blended vector is never reused as the text vector (Issue 9-013)
+do
+    local text_vector, blended = { 1, 0, 0, 0 }, { 0.7, 0.7, 0, 0 }
+    local prior = { source_key = "fediverse-7", poem_index = 12, embedding = blended, text_embedding = text_vector }
+    local carried = engine.reused_entry(prior, 30)
+    check("a blended post carries its text vector into the new run", carried.embedding == text_vector)
+    check("and not the blend beside it", carried.text_embedding == nil)
+    check("filed under this run's number", carried.poem_index == 30)
+    check("the stored entry is left as it was", prior.embedding == blended and prior.poem_index == 12)
+    local plain = engine.reused_entry({ source_key = "notes-1", embedding = text_vector }, 4)
+    check("a text-only poem carries its own vector", plain.embedding == text_vector)
+end
+-- }}}
+
 -- {{{ numbering stamps
 do
     local dir = "/tmp/neocities-modernization/tmp/numbering-stamp-test"

@@ -1681,6 +1681,25 @@ run_generate_word_embeddings() {
 }
 # }}}
 
+# {{{ run_generate_picture_embeddings
+# Issue 9-013: the vision model embeds every picture the site ranks (post
+# pictures and gallery pictures) while the Stage 6 server is up. Only pictures
+# not already in the model's picture cache are sent; Stage 6.7 reads the cache.
+run_generate_picture_embeddings() {
+    log_info "   Embedding pictures by what they show..."
+    if $DRY_RUN; then
+        log_dry_run "luajit $DIR/src/picture-embeddings.lua $DIR --model $MODEL_NAME --server $INFERENCE_SERVER"
+        return 0
+    fi
+    $NICE_PREFIX luajit "$DIR/src/picture-embeddings.lua" "$DIR" --model "$MODEL_NAME" --server "$INFERENCE_SERVER" || {
+        echo "Error: picture embedding failed" >&2
+        echo "       Pictures are placed among the poems by these vectors;" >&2
+        echo "       Stage 6.7 cannot place a picture that has none." >&2
+        exit 1
+    }
+}
+# }}}
+
 # {{{ run_generate_semantic_colors
 run_generate_semantic_colors() {
     # Regenerate poem_colors.json if stale or missing
@@ -1891,13 +1910,16 @@ run_generate_semantic_colors() {
 # }}}
 
 # {{{ run_augment_images
-# Issue 9-013: give every text-less image a pseudo-embedding (the normalized
-# average of the poem before and after it chronologically) and fold those into
-# embeddings.json so the GPU similarity stage ranks images alongside poems.
-# Also writes image-manifest.json, which the HTML renderer reads to draw image
-# entries. Cheap and idempotent, so it runs each time before the matrix build.
+# Issue 9-013: place every picture among the poems by its own vector (from
+# Stage 6's picture step): picture-only posts and gallery pictures take their
+# pictures' vectors, text + picture posts blend text and pictures, and the
+# three posts whose media has no picture keep the before/after-poem placement.
+# Folds them into embeddings.json so the GPU similarity stage ranks pictures
+# alongside poems, and writes image-manifest.json, which the HTML renderer
+# reads to draw picture entries. Cheap and idempotent: it runs each time
+# before the matrix build.
 run_augment_images() {
-    log_stage "🖼️  Stage 6.7: Folding images into the embedding set (pseudo-embeddings)"
+    log_stage "🖼️  Stage 6.7: Placing pictures among the poems"
     local model_dir_name="${MODEL_NAME//:/_}"
     local embeddings_file="$(emb_cache_dir)/embeddings.json"
     if [ ! -f "$embeddings_file" ]; then
@@ -3227,6 +3249,8 @@ $PARSE && timed_stage parse run_parse
 $VALIDATE && timed_stage validate run_validate
 $CATALOG_IMAGES && timed_stage catalog-images run_catalog_images
 $GENERATE_EMBEDDINGS && timed_stage generate-embeddings run_generate_embeddings
+# Issue 9-013: pictures are embedded by the same server, while it is up
+$GENERATE_EMBEDDINGS && timed_stage generate-picture-embeddings run_generate_picture_embeddings
 # Semantic colors are part of embedding generation (Stage 6.5)
 # Only regenerate when embeddings are generated - HTML should use existing poem_colors.json
 $GENERATE_EMBEDDINGS && timed_stage generate-semantic-colors run_generate_semantic_colors

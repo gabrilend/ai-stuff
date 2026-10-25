@@ -466,6 +466,9 @@ function M.get_selected_model_config()
                 model = model,
                 model_path = entry.model_path,
                 embedding_prompt_prefix = entry.embedding_prompt_prefix,
+                -- the picture-reading add-on (relative to the project), or
+                -- nil for a text-only model (Issue 9-013)
+                vision_projector = entry.vision_projector,
             }
         end
     end

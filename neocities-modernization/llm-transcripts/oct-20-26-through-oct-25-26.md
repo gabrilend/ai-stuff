@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-23 17:58:22
+Generated on: 2026-10-25 13:57:33
 Models: claude-opus-5-5
 
 ## Contents
@@ -72,6 +72,19 @@ Models: claude-opus-5-5
     push. Next: you push with `scripts/deploy-to-neocities --prune`, and tell me
     whether the GPU library's errors should go into the run log so I can start
     the refactoring pass.
+17. 2026-10-23 18:07, after Request 30 - We're partway through the refactoring
+    pass, moving settings into the config file; the word cloud now uses the
+    site's main colours and that's committed. Next: tell me whether the
+    "different" pages should keep the spreading walk or become a simple
+    least-alike ranking.
+18. 2026-10-23 18:30, after Request 34 - We're checking whether the "different"
+    lists are correct, and one gallery picture wrongly appears in 65% of them
+    because of a graphics-card bug. Next: your go-ahead to run a 90-second card
+    test, written to a scratch file.
+19. 2026-10-24 13:19, after Request 35 - We're tracking down why one gallery
+    picture fills about two-thirds of the "different" lists: 93 photos share one
+    identical vector, and it's not a graphics card bug. Next: pick how to give
+    those photos distinct vectors, and whether to keep the waiting fix.
 
 --------------------------------------------------------------------------------
 
@@ -4970,6 +4983,691 @@ started.
 
 One open question: the word cloud uses its own lighter palette. Should it use
 the site's main colours instead?
+
+--------------------------------------------------------------------------------
+
+### User Request 30
+
+<pasted_content id="5619">
+> 2. The diversity walks stop early. A walk used to run through all the poems.
+> Now it stops once it has enough poems to fill the pages people actually see
+> (pages × poems per page).
+> The visible results are exactly the same, and the stage dropped from about 51
+> minutes to 84–104 seconds. The walk now always includes its starting poem,
+> so the last "different" page
+>   holds 33 poems, not 32.
+</pasted_content id="5619">
+
+
+why do we even have to walk at all if we already know which ones to start with?
+If we know where to walk, can't we just say "walk to the end of that line" and
+then move on?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 30
+
+> Switching the word cloud to the site's main colours now, then I'll answer the
+> walk question.
+
+> Editing with a short Lua script, so the config, the generator and the
+> fallbacks all change together.
+
+> The word cloud script breaks on `--help`: it asks for the logging library
+> before it has set up the paths to find it. Checking that now.
+
+> Only the word cloud has this problem. The other three are libraries, which
+> their callers load after the paths are already set.
+
+> Now a trial render to the scratchpad, compared against the built word cloud.
+
+> Same words, same counts per colour, and only the colours changed. Running the
+> tests next.
+
+*[commit] 9384a8376 - neocities: gallery, word cloud, privacy and test settings come from config*
+
+The word cloud now uses the site's main colours, the same ones the progress bars
+use. A test render matched the built cloud word for word, with the same number
+of words in each colour. Only the shades changed: red is now `#dc3c3c` instead
+of `#FF6B6B`, the small grey words `#787878` instead of `#868E96`, and so on.
+It's committed, and all 47 tests pass; one test couldn't run because no
+embedding server was up.
+
+While testing it I found that `--help` on the word cloud script had broken. My
+earlier logging change made its help text ask for the logging library before the
+script had set up the paths to find it. I fixed that in the same commit. No
+other script has the problem.
+
+## Why the "different" list needs a walk
+
+We only know where the walk starts. We don't know where it goes until we take
+each step, because every step changes the target for the next one.
+
+Here's how one walk builds a poem's "different" list:
+
+1. Start with the poem itself. The **centre** is that poem's position in
+   meaning-space.
+2. Check every remaining poem and pick the one **furthest from the centre**.
+3. Add it to the list. The centre is now the average of everything picked so
+   far, so it moves.
+4. Repeat until the visible pages are full.
+
+So it isn't a straight line. Picture a group of people spreading out in a room,
+where each new person stands as far as possible from the middle of the group.
+Every new arrival moves the middle, so the best spot for the next person moves
+too. You can't place person 20 without first knowing where persons 1 to 19
+stood.
+
+The early stop works for the same reason. Step 33 never affects steps 1 to 32,
+so once the pages are full, the rest of the walk only produced poems nobody
+would see.
+
+## A possible shortcut
+
+There is one mathematical shortcut, but it wouldn't remove the walk. With these
+normalised vectors, "furthest from the centre" picks the same poem as "lowest
+total similarity to everything picked so far". So each step could just add each
+poem's similarity to the newest pick onto a running total, then take the lowest
+total. We already compute every poem-to-poem similarity for the "similar" pages,
+so a step becomes a lookup and an addition rather than a fresh comparison
+against the centre. It would still be one step after another, and the stage
+already takes under two minutes, so I wouldn't change it unless it becomes slow
+again.
+
+A question for you: what would a "different" list look like if it really were a
+line? One version is "the poems least like this one, ranked", the reverse of the
+similar list. That needs no walk. But its top 30 would probably be 30 poems that
+all resemble each other, because they all sit at the far end from this poem. The
+walk is there to spread the list out instead. Which of the two do you want the
+"different" pages to show?
+
+**Still waiting on you:** push with `scripts/deploy-to-neocities --prune` when
+you're ready. Many page names changed, so `--prune` is needed to remove the old
+numbered pages.
+
+--------------------------------------------------------------------------------
+
+### User Request 31
+
+<pasted_content id="5619">
+> 1. Start with the poem itself. The centre is that poem's position in
+> meaning-space.
+>   2. Check every remaining poem and pick the one furthest from the centre.
+> 3. Add it to the list. The centre is now the average of everything picked so
+> far, so it moves.
+>   4. Repeat until the visible pages are full.
+</pasted_content id="5619">
+
+
+so, at each step, we'll have to "resort" the list of distant poems. That's
+literally what this stage is for. How are you determining the "most distant"
+poem from the center?
+
+> There is one mathematical shortcut, but it wouldn't remove the walk. With
+> these normalised vectors, "furthest from the centre" picks the same poem as
+> "lowest total similarity to
+> everything picked so far". So each step could just add each poem's similarity
+> to the newest pick onto a running total, then take the lowest total. We
+> already compute every
+> poem-to-poem similarity for the "similar" pages, so a step becomes a lookup
+> and an addition rather than a fresh comparison against the centre.
+
+but we don't calculate the similarity for the combination of two poems. So we'd
+have to re-do our calculation here anyway.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 31
+
+## How the "most distant" poem is chosen
+
+It isn't sorted. Each step does one pass over the poems and keeps only the
+winner, so nothing is ranked.
+
+- **The centre** is a list of 768 numbers, the average of the starting poem and
+  every poem picked so far. When a poem is picked, each number moves toward that
+  poem's value: (old × count + new) ÷ (count + 1).
+- **Each candidate's distance** is 1 minus the cosine similarity between the
+  candidate's vector and the centre. Cosine similarity is the angle between two
+  arrows, ignoring how long they are.
+- **Picking the winner:** the graphics card splits the poems among 256 threads.
+  Each thread keeps the largest distance it has seen. The 256 then compare in
+  pairs (256 → 128 → … → 1) until one remains. That poem joins the list,
+  is marked as used, and the centre moves.
+- About 3,500 walks run at once, each with its own centre.
+
+So at each step only the top spot changes. Everything below it is never put in
+order.
+
+## The "combination of two poems"
+
+You're right that we never compare a poem against a combination of poems. The
+shortcut doesn't need to, because comparing against an average works out to
+comparing against each member and adding up:
+
+- the centre is the sum of the picked poems divided by how many there are;
+- the "how closely they point the same way" part of cosine similarity (the dot
+  product) can be split: candidate · (A + B + C) = candidate·A + candidate·B
+  + candidate·C;
+- the cosine divides by the centre's length, but at any one step that length is
+  the same for every candidate. Dividing all candidates by the same number
+  doesn't change which one is smallest.
+
+So "least like the average of A, B and C" picks the same poem as "lowest total
+of its similarities to A, B and C". Those are ordinary two-poem similarities,
+which is what the similar pages compute. Each step would then add one number per
+candidate, instead of 768 multiplications per candidate.
+
+**Two things I haven't checked, and either could sink it:**
+
+1. **The vectors would need to be the same length.** If some vectors are longer
+   than others, the longer ones get more weight in the sum than they do in the
+   angle. The shader divides by each poem's length, which suggests they might
+   not all be one length.
+2. **The full table might not be saved.** The shortcut needs every poem's
+   similarity to every other poem. If the similar-pages stage only keeps each
+   poem's top matches, the numbers aren't there. A full table also takes memory:
+   10,000 poems would need about 200 MB at half precision.
+
+The results also wouldn't match today's bit for bit, because the rounding
+happens in a different order. A near-tie could fall the other way, so a few
+lists might change by a poem.
+
+The stage already takes under two minutes, so I'd only check these two things if
+you want the walk cheaper. Do you want me to?
+
+Here's something to think about while you decide: the walk picks the poem
+furthest from the average, and the average then moves toward that pick. After
+many steps, what happens to the centre? Does it settle somewhere, and which
+poems would win then?
+
+--------------------------------------------------------------------------------
+
+### User Request 32
+
+> 1. The vectors would need to be the same length. If some vectors are longer
+> than others, the longer ones get more weight in the sum than they do in the
+> angle. The shader divides by
+>      each poem's length, which suggests they might not all be one length.
+
+what causes them to have longer or shorter vectors? I don't think they're
+normalized.
+
+> 2. The full table might not be saved. The shortcut needs every poem's
+> similarity to every other poem. If the similar-pages stage only keeps each
+> poem's top matches, the numbers
+>      aren't there. A full table also takes memory: 10,000 poems would need about 200 MB at half precision.
+
+200mb is doable.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 32
+
+> The walk reads the *mean-centred* file, not the raw embeddings. Measuring
+> vector lengths in both:
+
+> Now measuring the actual lengths, raw and centred:
+
+## What makes the vectors longer or shorter
+
+I measured all 9,334 poem vectors. They come in two kinds:
+
+| | shortest | median | longest |
+|---|---|---|---|
+| straight from the model | 0.95 | 1.00 | 1.00 |
+| centred (what the walk uses) | 0.30 | 0.44 | 1.39 |
+
+- **From the model, they are normalised.** The model hands back vectors of
+  length 1. The few shorter ones are long poems: those are cut into pieces, each
+  piece is embedded, and the pieces' vectors are averaged. Averaging arrows that
+  point in slightly different directions gives a shorter arrow.
+- **Centring makes the lengths vary a lot.** Before comparing, the project
+  subtracts the direction every poem shares. Without that step, a few poems were
+  everyone's neighbour and 226 poems were nobody's. That shared direction is
+  0.89 long. What's left after subtracting it is only what makes each poem
+  different. A poem close to the typical poem keeps a short leftover (0.30). An
+  unusual one keeps a long one (up to 1.39). So length now roughly measures how
+  unusual a poem is.
+
+## The lengths don't block the shortcut
+
+The walk's score for a candidate is its cosine to the centre: the dot product
+with the sum of picked poems, divided by the candidate's length and by the sum's
+length.
+
+- The sum's length is the same for every candidate at a given step, so it can't
+  change the winner. Drop it.
+- The candidate's own length is fixed for the whole run, so it can be measured
+  once.
+
+That leaves: **score = (total of the candidate's dot products with each picked
+poem) ÷ the candidate's length.** This is exactly today's rule with no
+approximation, and it works whatever the lengths are.
+
+## The table already exists
+
+The similar-pages stage saves the full table. Each poem has its own file with
+all 9,333 comparisons, about 4.5 GB of text in total. Re-reading that text would
+be slow, so I wouldn't use those files. The walk stage could rebuild the table
+on the graphics card in one large multiplication (9,334 × 9,334 × 768, roughly
+a second) and keep it there: about 175 MB at half precision, or 350 MB at full.
+
+| | each step, per walk |
+|---|---|
+| now | 9,334 candidates × 768 multiply-adds against the moving centre |
+| with the table | 9,334 lookups and additions (each candidate's running total gains its dot product with the newest pick) |
+
+That's roughly 768 times less work per step. The stage's 84–104 seconds would
+probably drop to a few seconds, with the table build and writing the results
+becoming the bulk of the time.
+
+**It won't match today's output exactly.** The arithmetic is equal, but the
+rounding happens in a different order, and today's centre is averaged step by
+step. So a near-tie could fall the other way, and a few lists might differ by a
+poem. Before switching, I'd run both versions and count how many lists differ.
+
+## Unrelated: a stale number in a comment
+
+The comment explaining why vectors are centred says the shared direction is
+0.766 long. It measures 0.892 now, probably because the comment was written with
+an earlier model. The comment does say to re-run the measuring script, so it
+isn't wrong, but its quoted figure is out of date.
+
+Do you want this built? It would be an issue file first, then the table-based
+walk running beside the old one so we can compare the two.
+
+A question for you: since a poem's leftover length now means "how unusual it
+is", should the walk divide by it at all? Dividing compares only direction. Not
+dividing would favour unusual poems in every "different" list. Which of those is
+what a "different" page is for?
+
+--------------------------------------------------------------------------------
+
+### User Request 33
+
+> Here's something to think about while you decide: the walk picks the poem
+> furthest from the average, and the average then moves toward that pick. After
+> many steps, what happens to
+>   the centre? Does it settle somewhere, and which poems would win then?
+
+if the entire corpus is a circle, and the first poem is on the outer ring, then
+the eventual shape of the "different" centroid would be approximately the ring.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 33
+
+> Measuring rather than guessing: three real walks, tracking how long the centre
+> is at each step.
+
+Your ring describes the **picks**. The **centre** does something else: it falls
+into the middle and keeps shrinking.
+
+## What three real walks showed
+
+I re-ran the walk on the actual poems from three starting points and tracked the
+centre's length (how far it sits from the middle of the corpus) at each step:
+
+| step | walk A | walk B | walk C |
+|---|---|---|---|
+| 1 (the start poem alone) | 1.38 | 0.42 | 0.43 |
+| 2 | 0.68 | 0.25 | 0.27 |
+| 10 | 0.14 | 0.08 | 0.08 |
+| 33 (end of the visible pages) | 0.043 | 0.034 | 0.034 |
+| 200 | 0.0074 | 0.0079 | 0.0080 |
+
+The centre's length falls roughly as 1 ÷ step. That means the **sum** of the
+picks stays about the same length the whole way: 0.0074 × 201 poems ≈ 1.5.
+Each new pick cancels most of the current lean and adds a small lean of its own.
+
+It's like keeping a tray level by always setting the next glass on the side
+that's sagging. The glasses spread around the whole tray, which is your ring.
+The point of balance goes to the middle and stays there.
+
+## It settles in place, but never in direction
+
+Cosine ignores length, so the shrinking doesn't matter to the walk. What decides
+each pick is which way the sum leans. That flips every step, because every pick
+creates a new lean. So the poems that win later are not "the far side of the
+corpus". Each one is **the poem that best cancels whatever imbalance the last
+few picks left**.
+
+## Your circle is too small, but only by dimensions
+
+On a flat circle, "opposite" is a single point. These vectors have 768 numbers
+each, and in that much room nearly every poem sits almost at a right angle to
+nearly every other. The last column shows it: the winning poem's cosine to the
+centre is only −0.12 to −0.35. Even the most opposite poem is only slightly
+opposite. So the picks aren't a thin ring on the far side. They point off in
+hundreds of directions, all roughly perpendicular to each other.
+
+## A question this raises
+
+By step 200, the starting poem is one of 201 parts of the sum. Each pick reacts
+to the picks before it, not to where the walk began.
+
+- What would you expect from two walks that start from different poems: do their
+  later picks drift toward the same poems?
+- If so, does page 5 of one poem's "different" list differ from page 5 of any
+  other poem's?
+
+I can measure the overlap between walks the same way. That would tell us whether
+the later pages are still about their own poem.
+
+--------------------------------------------------------------------------------
+
+### User Request 34
+
+> - What would you expect from two walks that start from different poems: do
+> their later picks drift toward the same poems?
+
+I mean, there's thousands of poems. Ideally they wouldn't, but if they started
+with similar subject matter, then probably.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 34
+
+> Measuring it from the real "different" lists the build saved:
+
+> One poem shows up in 5,884 of the 9,334 lists, which is far outside the
+> pattern. Checking which poem it is and how many picks are actually shown on
+> the pages:
+
+> Poem number 9007 is picked in 6,105 lists, but it doesn't appear in the poem
+> file under that number. Looking it up:
+
+> The card's copy is correct, so the fault is in how the card does the walk, not
+> in its data. Reading how the walk is split into tiles and chunks:
+
+> The wrong picks are spread evenly across batches, so the batches aren't the
+> cause. Reading the code that drives the card through each step:
+
+Your guess was right: walks from unrelated poems don't drift together, and walks
+from similar poems share only a few picks. But checking it turned up a bug. One
+gallery picture appears in 65% of all "different" lists, and the maths never
+chooses it. The graphics card does.
+
+## How much the lists overlap
+
+These are the average number of poems two lists share in the same stretch,
+measured over all 9,334 saved lists:
+
+| stretch of the list | pure chance | two unrelated starting poems | a poem and its most similar neighbour |
+|---|---|---|---|
+| picks 1–10 | 0.01 | 0.02 | 0.81 of 10 |
+| picks 11–33 | 0.06 | 0.07 | 1.52 of 23 |
+| picks 34–100 | 0.48 | 0.96 | 4.86 of 67 |
+
+- Unrelated walks overlap about as much as chance, so they don't converge.
+- Similar starting poems share about 7% of their picks the whole way down.
+- Across all walks, 8,600–9,000 different poems get picked, so the lists
+  spread over nearly the whole collection.
+
+The page size is 200 and each walk is 100 picks long, so all 100 picks show on
+one page.
+
+## The one poem that breaks the pattern
+
+Gallery picture number 9007 sits in **6,105 of 9,334 lists**. The next
+most-picked poem is in 393. It rarely shows up in the first 10 picks, and
+appears more often the further down the list you go.
+
+I ruled out these causes:
+
+- **Pictures in general:** pictures are 7.1% of the vectors but fill only
+  0.6–2.5% of the slots. It's this one picture.
+- **A bad vector:** its length is 0.4398, the median. The card's saved copy of
+  all 9,334 vectors matches the embeddings to within 0.00012.
+- **Batches or tiles:** the wrong picks are spread evenly across the card's
+  three batches of walks, and the picture's row isn't near a tile edge.
+- **The maths:** I re-ran three walks on the processor at full precision. None
+  of them ever picks the picture. In walk 1 the card picked it at step 82. At
+  step 60 the picture's cosine to the centre was −0.086 while the true
+  winner's was −0.140. That's far too big a gap for rounding, so at that point
+  the card is working from a different centre.
+
+## My best suspect
+
+Each step ends with a small program in which 256 threads move the centre toward
+the new pick. All 256 threads first read two shared values: which poem won, and
+how many poems are in the list so far. At the end, thread 0 resets "which poem
+won" to empty and adds one to the count. **Nothing makes thread 0 wait for the
+others to finish reading.** The threads run in groups of 32, and a group that
+starts late can read the value after thread 0 has already reset it:
+
+- If a late group reads "which poem won" after the reset, it sees "no winner"
+  and skips its share of the centre. That share is 64 of the 768 numbers, and
+  they stay stale.
+- If it reads the count after the increment, it averages its numbers with the
+  wrong weight.
+
+Late in a walk, the correctly updated numbers have shrunk to about 1/100 of
+their size, while any stale ones have not. So the stale numbers could end up
+steering the walk.
+
+I haven't proven this. Proving it means running the walk on the card a second
+time with a "wait here" line added before thread 0's writes, then checking it
+against the processor walks. That's about 90 seconds of card time, written to a
+scratch file rather than the build.
+
+A question for you: if stale numbers are the cause, why would so many different
+walks land on the *same* picture rather than each on its own wrong poem? What
+would those stale numbers have to have in common across walks?
+
+Want me to run that test?
+
+--------------------------------------------------------------------------------
+
+### User Request 35
+
+what picture is it? What are the two poems it derives its embedding from? Can
+you do the test with the wait and confirm?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 35
+
+> Several other pictures share the exact same halves, because every picture
+> between the same two poems gets the same spliced vector. Leaving pictures out
+> to find the actual poems:
+
+> First a control run of the card's walk exactly as it stands today, written to
+> the scratchpad. If two identical runs disagree, that alone points to a race.
+
+> Now the fix: thread 0 reads the winner and the count once, all threads wait,
+> and everyone uses that copy.
+
+> Compiled. Running the walk with the fix:
+
+> Comparing four versions: the build's saved lists, the control run, the fixed
+> run, and exact processor walks for 30 starting poems. Identical vectors count
+> as the same pick.
+
+The wait didn't change anything, and there is no graphics card bug. My race
+theory was wrong. The picture keeps appearing because of how its vector was
+made.
+
+## The picture
+
+- **File:** `poem-pictures/kooky-dookerie/20240527_124755.jpg`, from 27 May
+  2024.
+- **Its vector:** gallery pictures have no text, so each one gets a vector
+  spliced from its two neighbours in time. The first 384 numbers come from the
+  post before it and the last 384 from the post after it. Both halves match
+  their poem exactly (half-match cosine 1.000000).
+  - **Before**, fediverse-1615, 10:35: *"If Obi-Wan told his therapist that he
+    felt a great disturbance in the force like billions of voices cried out in
+    terror and were suddenly silenced they'd probably call him a necropath or
+    something"*
+  - **After**, fediverse-1616, 18:42: *"they say learning Linux is hard, but
+    it's the only free operating system so really it's a question of learning
+    Linux now, when you have time, or later, when you're busy."*
+- **The real finding:** 93 photos from that folder were taken between those two
+  posts (numbers 8977–9069), so all 93 have **exactly the same vector**.
+  Picture 9007 is simply the copy the graphics card's tie-break favours.
+
+## The wait test
+
+I added the wait: thread 0 reads the winner and the count once, every thread
+waits, then all of them use that copy. I ran the card's walk with and without
+it, both into the scratchpad, and compared against the build's saved lists:
+
+| comparison | result |
+|---|---|
+| build's saved lists vs today's code, re-run | all 9,334 identical |
+| today's code vs the version with the wait | all 9,334 identical |
+| exact processor walks (30 starts) vs the card | 27 of 30 identical for all 100 picks; the other 3 first differ at steps 56, 61 and 73, from near-ties in rounding |
+| processor walks that reach the kooky-dookerie vector within 100 picks | 19 of 30 (63%) |
+| card walks that reach it | 6,105 of 9,334 (65%) |
+
+So the full-precision processor walk picks that vector just as often as the card
+does. Last time I wrongly said the processor never picks it. My check only
+looked for number 9007, and the processor's tie-break picks a different copy of
+the same vector, number 8977.
+
+The race in the code is real, but on this card it never fired. I've left the
+waiting fix in the shader file and its compiled copy, uncommitted. It changes no
+output, so it is safe to keep or undo; your call.
+
+## What the 93 copies cost
+
+- In about two-thirds of all "different" lists, one of those 93 photos takes a
+  slot. Picking one copy pulls the centre toward that vector, so the other 92
+  copies never get picked in the same list.
+- In the similar lists it's worse. Each of the 93 photos has the other 92 as its
+  top matches at similarity 1.0. That's certain from the vectors being
+  identical, though I didn't open their pages to look.
+
+I don't know yet why this one vector draws so many walks. Other spliced pictures
+appear in at most about 390 lists, which is roughly five times a normal poem but
+nowhere near 6,105. My guess is that 93 identical copies and the splice itself
+both contribute, but I haven't measured either.
+
+## Ways to give the photos their own vectors
+
+Most promising first:
+
+1. **Move the splice point with time.** A photo taken 30% of the way from the
+   Obi-Wan post to the Linux post would take 70% of its numbers from Obi-Wan and
+   30% from Linux. A burst of photos then spreads smoothly between the two posts
+   instead of stacking on one point.
+2. **Treat a burst of photos as one entry** on the similar and different pages.
+3. **Embed the photos themselves.** We tested the current embedding model on
+   pictures of text earlier; I don't remember the result well enough to say it
+   would work on ordinary photos.
+
+Which would you like? And keep or undo the waiting fix?
+
+--------------------------------------------------------------------------------
+
+### User Request 36
+
+Okay. Maybe we need image recognition and OCR to run on the pictures, and the
+outputs can be embedded and added to the "before/after poem" vector?
+
+Can you tell me what would be involved in the image recognition pipeline? Or
+possibly, the embedding of the photo itself. I'm not sure what that'll output.
+Like, what is the embedding of a picture of a notebook page, when compared to
+another picture of the same notebook, but a different page? Does it pick up on
+the specifics of what's written inside?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 36
+
+> Taking a look at what the kooky-dookerie photos actually show (shrunk copies
+> in the scratchpad):
+
+> While the server loads, I'm reading a few more pages so I can write out their
+> words for the comparison.
+
+> Results are in. Stopping the side server first.
+
+> The server is stopped (the only match is the check itself). Recording the
+> result in the picture-meaning issue, beside the earlier picture test:
+
+Yes, it picks up what's written on the page. I tested it on four of the
+kooky-dookerie photos, which turned out to be handwritten notebook pages:
+
+- the spell rules for a scripting language;
+- "The girl who taught animals to talk with their minds…";
+- the Overwatch game-loop notes;
+- the Mandelbrot and dimensions page.
+
+I wrote out what each page says. The photo of every page came out closest to its
+own page's words, at both image sizes I tried.
+
+| | own page closest | photo vs its own page | photo vs the other pages |
+|---|---|---|---|
+| photo vs the page's words, 900 px | 4 of 4 | 0.73–0.80 | 0.63–0.70 |
+| photo vs the page's words, 1800 px | 4 of 4 | 0.78–0.82 | 0.60–0.68 |
+| photo vs the subject reworded with no shared key words | 4 of 4 | 0.70–0.76 | 0.58–0.69 |
+
+- **It reads the meaning, not just the letters.** The reworded test still
+  matched 4 of 4. For example, "thoughts on team shooter video games and how
+  squads of players clash along a front" found the Overwatch page.
+- **Larger photos read better.** At 1800 px the gap between the right page and
+  the wrong ones widened. The model probably can't read small handwriting well
+  at 900 px.
+- **Photos sit close to each other whatever they say** (0.70–0.80). That's
+  higher than any photo's match with a wrong page. It's the same kind of shared
+  lean the poems had before centring. Photo vectors would need centring on their
+  own average before they're ranked beside poems, as the words already are.
+  Otherwise photos would become each other's neighbours again.
+- **The two posts they currently borrow from don't help.** The Obi-Wan post and
+  the Linux post match these pages no better than any unrelated text
+  (0.59–0.66).
+- **Speed:** eight photos plus ten texts took 16 seconds, so about 1–2 seconds
+  per photo. All 1,100+ pictures would take roughly 20–40 minutes, done once
+  and then cached.
+
+Four pages is a small sample. My transcriptions are approximate, and the
+Mandelbrot page is partly sketches. I added these results to the picture-meaning
+issue.
+
+## What each pipeline would involve
+
+**1. Embed the photo itself.** This is the most direct route.
+- The current embedding model already does this when its vision add-on is
+  loaded. That's a 555 MB file we already have.
+- The build would start its embedding server with that add-on and send each
+  picture. Each picture would get its own vector, cached by its file
+  fingerprint, then centred on the pictures' own average.
+- What you get is one vector per picture, nothing readable.
+- New parts: one server flag, one embedding step for pictures, the centring rule
+  for pictures, and a check that a picture still lands near what it shows. The
+  script from the earlier picture test can be that check.
+
+**2. Transcribe the pictures to text, then embed the text** (your recognition
+and OCR idea).
+- Ordinary OCR (Tesseract) reads print well and handwriting badly, so these
+  pages would need a model that looks at the picture and writes out what it says
+  or shows.
+- That's a separate model, several GB, run through the same llama.cpp program we
+  already use. On the 1080 Ti I'd guess tens of seconds per page; I haven't
+  measured it.
+- What you get is **text**. It can be shown under the picture, read by screen
+  readers as alt text, counted in the word cloud, and embedded like a poem. Then
+  it sits among the poems with no separate shared lean to correct for.
+- Costs: a large model to download and run, and transcriptions that will
+  sometimes be wrong. It would also be worth reviewing the transcriptions by
+  hand once.
+
+**3. Your blend:** the picture's own meaning (from 1 or 2) plus a little of the
+posts before and after it. The neighbours would then add context instead of
+being the whole vector. That also fixes the 93 identical copies, because each
+page would contribute its own part. The open question is how much weight the
+neighbours get. Given how little they matched these pages, I'd keep their share
+small.
+
+I'd start with 1, because it costs one flag and about half an hour of embedding.
+Then I'd add 2 later if you want the text shown on the page.
+
+A question for you: should a notebook page count as one of your poems? If yes,
+transcription matters, because the words would appear on its page and in the
+word cloud. If no, the picture's own vector is enough to place it.
 
 --------------------------------------------------------------------------------
 

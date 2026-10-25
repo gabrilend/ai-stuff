@@ -3,13 +3,21 @@
 ## Priority
 Medium
 
-## Current Behavior (the system as built, 2026-10-21)
+## Current Behavior (the system as built, 2026-10-25)
 
 Pictures take part in the similar and different rankings as entries of their
-own. Every picture without text gets an embedding made from the poems around
-it in time, the embedding set grows by those pictures, the GPU ranks
-everything together, and the pages draw a picture entry where a ranked
-picture falls.
+own. Since 2026-10-25 each picture is placed by what it shows: Stage 6 asks
+the vision model for every picture's vector (`src/picture-embeddings.lua`,
+cached in `picture_embeddings.json`), and Stage 6.7 folds them in by the
+rules under "The design" below. The embedding set grows by the gallery
+pictures, the GPU ranks everything together, and the pages draw a picture
+entry where a ranked picture falls. Built and tested (the step, the
+placement, the reuse rule, and the sight test against a running vision
+server); the first build with it -- about 1,200 pictures to embed, 3-4 s
+each on the 1080 Ti -- and the hubness count after it (step 7 below) are
+the owner's to run. The section "The embedding a picture gets" describes
+the neighbours-in-time cross-cut, which is now used only for the three
+posts whose media has no picture.
 
 ### Three kinds of picture
 
@@ -119,7 +127,7 @@ Checked on poem 133's pages: no picture boxes, its content warning shown,
 - `src/image-render.test.lua`, `src/image-render-test.lua` -- the picture
   entry, its title wrapping and links.
 
-## Intended Behavior (next): pictures embedded from what they show
+## Intended Behavior: pictures embedded from what they show
 
 ### Tested 2026-10-21
 
@@ -148,38 +156,102 @@ closest to each other (0.75–0.81). It reads the words and carries their
 meaning, not only their letters. A larger picture budget (`-b 2048 -ub 2048`)
 changed almost nothing.
 
-### What it would replace or join
+### Tested 2026-10-25: handwritten notebook pages
 
-A picture can now have up to four sources of meaning:
-1. **its pixels** (the vision model: reads words and recognises subjects);
-2. **its description** (alt text, fediverse attachments only: often a full
-   transcription, e.g. "39 lines of C code included in its original form");
-3. **its post's text** (kind 1);
-4. **its neighbours in time** (the cross-cut above).
+Why it mattered: the 93 photos in `input/images/poem-pictures/kooky-dookerie/`
+are handwritten notebook pages photographed between the same two posts, so
+the neighbours-in-time cross-cut gave all 93 one identical vector, and the
+diversity walk put that one direction into about two-thirds of all
+"different" lists.
 
-Open questions (for the owner):
-- How are they combined into one embedding? One shape: the normalised
-  average of the sources a picture has, perhaps weighted; text OCR is
-  probably unnecessary now that the model reads words itself.
-- Does a text + picture post (kind 1) keep only its text, or gain its
-  picture too?
-- Is the neighbours-in-time cross-cut kept at all once a picture has its own
-  meaning, or only for pictures the model cannot read?
-- This needs EmbeddingGemma 2 to be the build's model (the others are
-  text-only), a server started with the projector, and the image step
-  calling the server -- 1,100+ pictures, measured speed not yet known.
+Four pages were embedded from their photos (900 and 1800 px on the long
+side) and compared with what each page says, read by eye, and with a
+re-wording of each page's subject that shares no key word:
 
-## Suggested Implementation Steps (the picture-meaning design, once answered)
+| | own page closest | own-page cosine | other pages' cosine |
+|---|---|---|---|
+| photo vs the page's words, 900 px | 4 of 4 | 0.73–0.80 | 0.63–0.70 |
+| photo vs the page's words, 1800 px | 4 of 4 | 0.78–0.82 | 0.60–0.68 |
+| photo vs the re-worded subject, either size | 4 of 4 | 0.70–0.76 | 0.58–0.69 |
 
-1. Settle the open questions above with the owner.
-2. The image step asks the server for each picture's own embedding (and its
-   description's, where it has one) and combines the sources by the chosen
-   rule; `scripts/compare-picture-embeddings` is the check that a picture
-   still lands near what it shows.
-3. The build starts its EmbeddingGemma 2 server with the projector
-   (`model_path` beside an `mmproj_path` in `config.lua`'s model entry).
-4. Re-run the hubness measurement from 2026-06-23 on the new picture
-   embeddings: pictures must not flood the similar lists.
+So the model tells one page of the same notebooks from another by what is
+written on it, carries the meaning past the exact words, and reads
+handwriting better from the larger photo. Two cautions came with it: photos
+sit close to one another whatever they say (0.70–0.80, above any photo's
+match with a wrong page), the same kind of shared offset a poem population
+has, so photo vectors would need centring on their own average (as words
+are, see libs/embedding-space.lua) before ranking beside poems; and the
+two posts the cross-cut borrowed from matched the pages no better than any
+unrelated text (0.59–0.66). Speed: eight photos and ten texts in 16 s on
+the 1080 Ti. Four pages is a small sample.
+
+### The design (owner, 2026-10-25)
+
+Owner: "I think I just want the photo embedding, nothing else." No
+transcription, no descriptions folded in, no neighbours mixed into a picture
+that has pixels. Answers to the earlier questions:
+
+- **Picture-only posts (kind 2) and gallery pictures (kind 3)** take the
+  vision model's embedding of their own picture. A post with several pictures
+  takes the normalised average of its pictures' embeddings.
+- **Text + picture posts (kind 1)** blend: the normalised average of the
+  post's text embedding and its pictures' average, half and half
+  (`config.lua` `picture_embeddings.text_share`, 0.5). Owner chose "Blend in
+  the picture" over keeping the text alone.
+- **Posts whose media has no picture** (two video-only posts and one
+  audio-only post in 2026-10) keep the neighbours-in-time cross-cut. Owner:
+  "let's just do the before/after poem system that we currently have. For
+  those three."
+- **No separate centring for pictures.** Owner: "I think this is fine so
+  long as they are different from one another. The error was that they were
+  all embedded the same." The one shared centring (libs/embedding-space.lua)
+  covers pictures and poems together.
+- **A model without vision cannot place pictures**, and the build stops
+  with an error naming the models that can, rather than quietly falling back
+  to the cross-cut.
+- **Notebook pages are not treated as poems.** Owner: "yes, but I don't want
+  to classify them manually, so, no." Nothing transcribes them.
+
+Size: each picture is shrunk to 1800 px on its long side before it is sent
+(`picture_embeddings.long_side`), since handwriting read better at 1800 than
+900 px. Transparent pictures are flattened onto white, and an animated GIF
+uses its first frame.
+
+## Suggested Implementation Steps (the picture-meaning design)
+
+1. **Server with eyes.** A model entry in `config.lua` may name its
+   `vision_projector` (the mmproj GGUF). `scripts/start-llamacpp-server.sh`
+   passes `--mmproj` when it is named.
+2. **Picture vectors are made in Stage 6**, while the embedding server is
+   up: a new step `src/picture-embeddings.lua` (run.sh
+   `run_generate_picture_embeddings`, after the text embeddings) finds every
+   picture the site ranks (kinds 1-3), fingerprints each file by its
+   contents (md5, in parallel), shrinks the new ones in parallel into RAM,
+   asks the server for each one's embedding, and keeps them in
+   `picture_embeddings.json` beside the model's other caches, keyed by
+   fingerprint and size. A picture already there is not sent again; a
+   changed file has a new fingerprint and is sent again.
+3. **Stage 6.7 only reads those vectors.** `src/augment-embeddings-with-images.lua`
+   looks each picture up by its fingerprint; a picture with no vector is an
+   error that says to run Stage 6. Kind 2 is replaced by its pictures'
+   average, kind 3 is appended with its picture's vector, kind 1 is blended,
+   and the three media-only posts take the cross-cut.
+4. **A blended vector is never blended twice.** Kind 1 entries keep the
+   pure text vector beside the blend (`text_embedding`), the blend is always
+   made from that, and Stage 6's reuse of a post's vector takes the
+   `text_embedding` when one is there (`src/similarity-engine.lua`).
+5. **The manifest says how each picture was placed** (`placed_by`:
+   picture, text and picture, or neighbours), and the step prints the counts.
+6. **Tests.** The augment test covers each kind with stand-in picture
+   vectors, the error for a missing one, and that re-running does not
+   compound the blend; the reuse test covers `text_embedding`; a picture
+   step test covers the cache (a known picture is not sent again, a changed
+   one is) with a stand-in server; and a sight test
+   (`scripts/picture-sight.test.sh`) draws pictures of known words and checks
+   each lands closest to its own sentence when a vision server is up,
+   skipping otherwise.
+7. After the owner's next build: count how many of a picture's top similar
+   entries are other pictures, the hubness check from 2026-06-23.
 
 ## History
 
@@ -205,8 +277,8 @@ Open questions (for the owner):
 
 ## Metadata
 
-- **Status**: Open -- the ranked-picture system is built and in every build;
-  the picture-meaning design above is open, waiting on its questions.
+- **Status**: In progress -- the ranked-picture system is built and in every build;
+  the picture-meaning design above is decided (2026-10-25) and being built.
 - **Created**: 2026-01-20
 - **Phase**: 9 (originally), moved to Phase 8 roadmap
 - **Dependencies**: Issue 8-040

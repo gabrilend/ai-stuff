@@ -554,6 +554,10 @@ return {
                     model = "embeddinggemma-2",
                     model_path = "assets/models/embeddinggemma-2-Q8_0.gguf",
                     embedding_prompt_prefix = "task: clustering | query: ",
+                    -- Issue 9-013: the vision projector that lets this model
+                    -- embed pictures into the same space as text. A model
+                    -- without one cannot place pictures, and the build stops.
+                    vision_projector = "assets/models/mmproj-embeddinggemma-2-Q8_0.gguf",
                 },
             },
         },
@@ -561,6 +565,17 @@ return {
     -- Default server name (must match a name above)
     -- If not set, first server in list is used
     default_inference_server = "local",
+    -- }}}
+
+    -- {{{ picture_embeddings
+    -- How pictures get their place among the poems (Issue 9-013): the vision
+    -- model embeds each picture itself.
+    -- Read by: src/picture-embeddings.lua, src/augment-embeddings-with-images.lua
+    picture_embeddings = {
+        long_side = 1800,     -- pixels; a picture is shrunk to this before it is sent (handwriting read better at 1800 than 900)
+        text_share = 0.5,     -- a text + picture post: this much its text, the rest its pictures
+        request_seconds = 300, -- how long one picture may take before the server is called stuck
+    },
     -- }}}
 
     -- {{{ image_integration
