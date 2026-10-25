@@ -11,8 +11,10 @@ for the pipeline's similarity stage: one dispatch computes every poem pair,
 then C threads write the per-poem similarity files and the rankings cache
 (see 9-002b, which records the surviving path and the removal of the
 earlier per-poem path). The CPU similarity engine was deleted (9-001f).
-9-002a is done; 9-002b (the full-dataset validation record) and 9-002c
-(threaded file writing) are open.
+All three sub-issues are done: 9-002a (the shader), 9-002b (validation,
+2026-10-25: `src/similarity-gpu-matches-cpu.test.lua` checks the built table
+against a direct calculation, worst difference 7.9e-07 on its first run) and
+9-002c (threaded file writing).
 
 Before this issue (kept for the record): the matrix was computed in
 single-threaded Lua, every pair a 768-dimension dot product, taking hours.
@@ -29,7 +31,7 @@ single-threaded Lua, every pair a 768-dimension dot product, taking hours.
 | Sub-Issue | Description | Status | Priority |
 |-----------|-------------|--------|----------|
 | 9-002a | Design similarity matrix compute shader | ✅ Completed | High |
-| 9-002b | Validate GPU similarity implementation | 🔄 Open | High |
+| 9-002b | Validate GPU similarity implementation | ✅ Completed (2026-10-25) | High |
 | 9-002c | Parallelize similarity file writing with thread pool | ✅ Completed | Medium |
 
 ## Technical Approach
@@ -99,9 +101,9 @@ void main() {
 - [x] Memory usage stays within VRAM limits
 - [x] Shader compiled and integrated with pipeline
 - [x] Lua FFI bindings complete
-- [ ] Full integration testing with actual dataset (Issue 9-002b)
-- [ ] Performance benchmarking (Issue 9-002b)
-- [ ] Validation against CPU reference (Issue 9-002b)
+- [x] Full integration testing with actual dataset (Issue 9-002b: it is the only Stage 7 path)
+- [x] Performance benchmarking (Issue 9-002b: each build's time is in `.stage-timings`)
+- [x] Validation against CPU reference (Issue 9-002b: against a direct calculation, the CPU engine having been removed)
 
 ## Performance Targets
 
@@ -172,4 +174,4 @@ Created GPU-accelerated similarity matrix computation adapted for triangular ind
 
 **Priority**: Medium (after diversity sequences)
 
-**Note**: Implementation complete, integration and benchmarking pending
+**Note**: Implementation, integration and validation complete (2026-10-25).

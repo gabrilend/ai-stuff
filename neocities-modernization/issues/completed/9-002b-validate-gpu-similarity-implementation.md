@@ -13,8 +13,9 @@ Stage 7. There is now exactly **one** GPU code path:
   with C pthreads. (`generate_similarity_matrix_gpu_parallel` in
   `vk_similarity.lua` → `vks_compute_all_similarities_parallel` in
   `vk_similarity.c`.)
-- A CPU-only fallback still exists in `run.sh` (`--cpu-only`) for machines
-  without a working Vulkan device.
+- There is no CPU fallback: `--cpu-only` and the CPU similarity engine
+  (`src/similarity-engine-parallel.lua`) were removed (Issue 9-001f /
+  10-057). A machine without a working Vulkan device cannot run Stage 7.
 
 The earlier **sequential per-poem** GPU path was removed (it pre-dated the
 single-dispatch design and was never used in production). It re-uploaded one
@@ -27,10 +28,22 @@ sort/write fan-out and never touches GPU compute. Removed entry points:
 `vks_compute_similarities_for_poem` and `vks_compute_all_similarities` (C +
 header + Lua FFI), and the deprecated Lua `generate_similarity_matrix_gpu`.
 
-Validation status of the surviving parallel path:
-- Runs on the full poem dataset as the default Stage 7 path
-- Speedup vs CPU documented in commit history
-- Per-pair results match the CPU reference within float32 tolerance
+Validation of the surviving parallel path (2026-10-25):
+- It runs on the full poem collection as the only Stage 7 path; its time
+  per build is kept in `.stage-timings` (section `generate-similarity`).
+- `src/similarity-gpu-matches-cpu.test.lua` checks the built table against
+  plain arithmetic: twelve poems picked at random (seeded), each compared
+  with every other poem in double precision on the processor, from the same
+  embeddings and the same centring (`libs/embedding-space.lua`). Every score
+  must agree within 1e-4; each file must list every other poem once, most
+  similar first, filed under its own poem. First run, EmbeddingGemma 2:
+  12 x 9,333 pairs, worst difference 7.9e-07. It runs with the other tests
+  (`scripts/run-tests`) and skips a model whose table is older than its
+  embeddings or was made under another numbering of the poems
+  (`libs/numbering-stamp.lua`), saying so.
+- Until that test, the claim "matches the CPU reference" rested on nothing
+  in the repository: the CPU reference had been deleted and no comparison
+  was ever kept.
 
 ## Intended Behavior
 
@@ -41,6 +54,11 @@ Validation status of the surviving parallel path:
 - Confidence that GPU implementation is production-ready
 
 ## Implementation Steps
+
+Status of the steps below (2026-10-25): the CPU reference they compare
+against no longer exists, so the comparison was rebuilt against a direct
+calculation instead (above). Steps 1-2 are done that way; step 3's CPU
+benchmark is moot (no CPU path); steps 4-5 are done by the pipeline itself.
 
 ### Step 1: Create Test Script
 - [ ] Create `libs/vulkan-compute/test-similarity.lua`
@@ -156,7 +174,8 @@ Based on similarity_batch.comp design and GTX 1080 Ti specs:
 
 ---
 
-**ISSUE STATUS: OPEN**
+**ISSUE STATUS: COMPLETED (2026-10-25)** -- validated by
+`src/similarity-gpu-matches-cpu.test.lua`
 
 **Created**: 2026-01-17
 
