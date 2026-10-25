@@ -15,7 +15,15 @@
 #                                                      builds, anything read or
 #                                                      written but never run
 #
-# Two modes, one definition:
+# Each time it builds or repairs the rooms, it also gives the project's own
+# Claude Code settings (<project>/.claude/settings.local.json,
+# permissions.allow) one path rule per room - "Edit(//tmp/<name>/**)" - so a
+# Claude Code session started in the project may write into its own rooms from
+# a shell command without being asked, while every other check still applies
+# (scripts issue 042). That file is in the owner's global git ignore, so this
+# machine's paths stay out of every repository.
+#
+# Three modes, one definition:
 #
 #   ensure   for tools that are about to write into tmp/. Creates the door if
 #            the project has none, then repairs the rooms.
@@ -23,18 +31,24 @@
 #            already exists, and never gives a directory a door it did not
 #            have - a session can start anywhere, and planting symlinks
 #            wherever one landed would make the hook untrustworthy.
+#   convert  run by a person, on purpose. Replaces a `tmp` that is not the
+#            standard door (an empty folder on disk, or a link into the wrong
+#            place that holds nothing) with the standard door, and refuses
+#            whenever anything would be lost.
 #
 # Usage, sourced (the normal way; nothing runs on source):
 #   source "${DIR}/libs/ensure-ram-tiers"
 #   ensure_ram_tiers  <project-dir>  || exit 1
 #   restore_ram_tiers <project-dir>  || exit 1
+#   convert_ram_tiers <project-dir>  || exit 1
 #
 # Usage, executed:
-#   ensure-ram-tiers [--restore] <project-dir>
+#   ensure-ram-tiers [--ensure | --restore | --convert] <project-dir>
 #
 # The functions print one line to stderr and return 1 when they cannot do the
 # job; they never exit, because exiting from a sourced library would take the
-# caller's shell down with it. Success is silent.
+# caller's shell down with it. Success is silent. Writing the rules needs jq;
+# without it the functions refuse rather than leave the rooms without rules.
 
 # DIR is where this library lives, and it is set only when the file is run
 # directly. Sourced, it must not touch DIR: every script that sources it has a
@@ -62,19 +76,27 @@ ram_tier_complain() {
 }
 # }}}
 
-# {{{ ram_tier_path_is_ram
-# Is this absolute, normalised path inside one of the two RAM roots?
+# {{{ ram_tier_path_is_under
+# Is this absolute, normalised path strictly below the given RAM root?
 #
 # The tiers are RAM by convention, and the convention is the point: scratch data
 # that lands on spinning disk wears it out and outlives the session it belonged
 # to. A link that points anywhere else is either a mistake or a decision someone
 # should make on purpose, and rebuilding it silently would bless it.
-ram_tier_path_is_ram() {
+#
+# Each room has its own root: the exec tier under the exec root, the artifact
+# tier under the artifact root. This once accepted either root for either room,
+# while the hooks that grant a session its rooms (libs/own-ram-tiers.lua)
+# accepted only the matching one, so a project whose door led into /dev/shm got
+# rooms rebuilt that no session was ever let into (warcraft-iii, found
+# 2026-10-23). One rule in both places keeps them from disagreeing again.
+ram_tier_path_is_under() {
    local candidate="$1"
+   local root="$2"
    case "${candidate}" in
-      # Inside the exec root or the artifact root: the two places a tier may be.
-      "${EXEC_TIER_ROOT}"/?*|"${ARTIFACT_TIER_ROOT}"/?*) return 0 ;;
-      # Anywhere else, including the roots themselves, is not a tier.
+      # Strictly inside the root: a place a tier may be.
+      "${root}"/?*) return 0 ;;
+      # Anywhere else, including the root itself, is not a tier.
       *) return 1 ;;
    esac
 }
@@ -124,8 +146,93 @@ ram_tier_make_directory() {
 }
 # }}}
 
+# {{{ ram_tier_allow_in_settings
+# Gives the project's local Claude Code settings one path rule per room,
+# "Edit(/<room>/**)" (the doubled slash is Claude Code's mark for an absolute
+# path), naming each room by its real place.
+#
+# Why: Claude Code checks a shell command's writes against the folders a
+# session may work in, and the rooms are outside the project folder, so every
+# `mkdir` or `>` into them stopped for a question. A path rule makes that check
+# pass for the rooms; the classifier and the refuse-outside-writes gate still
+# judge every command (the owner's "both tests"), which a hook answering
+# "allow" would have skipped.
+#
+# Why a rule and not an extra working folder (permissions.additionalDirectories,
+# built first): headless sessions tried both on 2026-10-24. An extra folder
+# that does not exist when Claude Code starts is not honoured for that session,
+# and after every reboot the rooms do not exist until the session-start hook
+# rebuilds them - by which time Claude Code has read its settings. A rule is a
+# pattern, not a folder, and was honoured with the rooms erased at start.
+# Either kind written by the session-start hook counts only from the next
+# session, since the settings are read before the hook runs.
+#
+# The file is only ever added to: other keys, other rules and their order are
+# left as they were, and a file that already holds both rules is not rewritten
+# at all, so a session start does not touch it every time. A file that is not a
+# JSON object, or whose rule list is not a list, is refused and left untouched:
+# replacing it would throw away the person's own settings. The new content goes
+# to a file beside it and is moved into place in one step, so a failure part
+# way never leaves half a file for Claude Code to read.
+#
+# A rule for a room that later moves stays behind: the file does not record
+# which rules this wrote, so it cannot tell them from the person's.
+ram_tier_allow_in_settings() {
+   local project_dir="$1"
+   local exec_tier="$2"
+   command -v jq >/dev/null \
+      || { ram_tier_complain "jq is not installed, so the rooms of ${project_dir} could not be allowed in its Claude Code settings"; return 1; }
+
+   local exec_room artifact_room
+   exec_room=$(realpath -e -- "${exec_tier}") \
+      || { ram_tier_complain "the exec tier ${exec_tier} is missing after it was built"; return 1; }
+   artifact_room=$(realpath -e -- "${exec_tier}/shared-memory") \
+      || { ram_tier_complain "the artifact tier behind ${exec_tier}/shared-memory is missing after it was built"; return 1; }
+   local exec_rule="Edit(/${exec_room}/**)"
+   local artifact_rule="Edit(/${artifact_room}/**)"
+
+   local settings="${project_dir}/.claude/settings.local.json"
+   local current='{}'
+   if [ -e "${settings}" ]; then
+      # An existing file: its contents are the starting point.
+      current=$(cat -- "${settings}") || { ram_tier_complain "cannot read ${settings}"; return 1; }
+   fi
+   # else: no file yet, so the starting point is an empty object
+
+   # The rules the file does not hold yet, one per line. jq fails (and says
+   # why on stderr) when the text is not JSON or the rule list is not a list.
+   local missing
+   missing=$(jq -r --arg exec "${exec_rule}" --arg artifact "${artifact_rule}" '
+      if type != "object" then error("the file is not a JSON object") else . end
+      | ([$exec, $artifact] - (.permissions.allow // []))[]
+   ' <<< "${current}") \
+      || { ram_tier_complain "${settings} could not be read as Claude Code settings; it was left untouched and the rooms were not allowed"; return 1; }
+   if [ -z "${missing}" ]; then
+      # Both rules already there: nothing to write.
+      return 0
+   fi
+
+   local updated
+   updated=$(jq --arg exec "${exec_rule}" --arg artifact "${artifact_rule}" '
+      .permissions.allow =
+         ((.permissions.allow // [])
+          + ([$exec, $artifact] - (.permissions.allow // [])))
+   ' <<< "${current}") \
+      || { ram_tier_complain "could not add the rules to ${settings}; it was left untouched"; return 1; }
+
+   mkdir -p -- "${project_dir}/.claude" \
+      || { ram_tier_complain "could not create ${project_dir}/.claude"; return 1; }
+   local writing="${settings}.writing-$$"
+   printf '%s\n' "${updated}" > "${writing}" \
+      || { rm -f -- "${writing}"; ram_tier_complain "could not write ${writing}"; return 1; }
+   mv -- "${writing}" "${settings}" \
+      || { rm -f -- "${writing}"; ram_tier_complain "could not move the new settings into ${settings}"; return 1; }
+}
+# }}}
+
 # {{{ ram_tier_repair_behind_door
-# Rebuilds both rooms behind a door whose target is already known.
+# Rebuilds both rooms behind a door whose target is already known, then allows
+# them in the project's Claude Code settings.
 #
 # The exec tier is rebuilt wherever the door points, because an existing link
 # records where the project wants its tier (two projects on disk use a name
@@ -136,8 +243,8 @@ ram_tier_repair_behind_door() {
    local project_dir="$1"
    local exec_tier="$2"
 
-   ram_tier_path_is_ram "${exec_tier}" \
-      || { ram_tier_complain "${project_dir}/tmp points at ${exec_tier}, which is not under ${EXEC_TIER_ROOT} or ${ARTIFACT_TIER_ROOT}; refusing to build scratch space on disk"; return 1; }
+   ram_tier_path_is_under "${exec_tier}" "${EXEC_TIER_ROOT}" \
+      || { ram_tier_complain "${project_dir}/tmp points at ${exec_tier}, which is not under ${EXEC_TIER_ROOT}; refusing to build the exec tier there (ensure-ram-tiers --convert repoints an empty or missing one)"; return 1; }
 
    ram_tier_make_directory "${exec_tier}" || return 1
    ram_tier_make_directory "${exec_tier}/tmp" || return 1
@@ -148,8 +255,8 @@ ram_tier_repair_behind_door() {
       # wiped): rebuild the room it names, after checking it names RAM.
       local artifact_tier
       artifact_tier=$(ram_tier_link_target "${artifact_link}") || return 1
-      ram_tier_path_is_ram "${artifact_tier}" \
-         || { ram_tier_complain "${artifact_link} points at ${artifact_tier}, which is not RAM; refusing"; return 1; }
+      ram_tier_path_is_under "${artifact_tier}" "${ARTIFACT_TIER_ROOT}" \
+         || { ram_tier_complain "${artifact_link} points at ${artifact_tier}, which is not under ${ARTIFACT_TIER_ROOT}; refusing"; return 1; }
       ram_tier_make_directory "${artifact_tier}" || return 1
    elif [ -e "${artifact_link}" ]; then
       # A real folder or file named shared-memory. The convention says this is
@@ -166,6 +273,8 @@ ram_tier_repair_behind_door() {
       ln -s -- "${artifact_tier}" "${artifact_link}" \
          || { ram_tier_complain "could not link ${artifact_link} to ${artifact_tier}"; return 1; }
    fi
+
+   ram_tier_allow_in_settings "${project_dir}" "${exec_tier}"
 }
 # }}}
 
@@ -198,8 +307,10 @@ ensure_ram_tiers() {
    elif [ -e "${door}" ]; then
       # tmp is a real folder. Inside an init-project sandbox that is correct
       # and deliberate - the whole project already lives in RAM, and a link out
-      # would dangle inside the mount namespace - so it is left exactly as it is.
-      # A tool that then needs tmp/shared-memory creates it as a folder there.
+      # would dangle inside the mount namespace - so it is left exactly as it is,
+      # and no rules are written (there are no rooms outside the project to
+      # allow). A tool that then needs tmp/shared-memory creates it as a folder
+      # there. Outside a sandbox, convert mode replaces it on request.
       return 0
    else
       # No door at all: a new project, or one made by hand. Build the rooms
@@ -237,24 +348,79 @@ restore_ram_tiers() {
 }
 # }}}
 
+# {{{ ram_tier_is_empty_or_missing
+# True when nothing is at this path, or an empty folder is: the two states in
+# which replacing it loses nothing.
+ram_tier_is_empty_or_missing() {
+   local place="$1"
+   # Nothing there at all.
+   [ -e "${place}" ] || return 0
+   # A folder with nothing in it.
+   [ -d "${place}" ] && [ -z "$(ls -A -- "${place}")" ]
+}
+# }}}
+
+# {{{ convert_ram_tiers
+# convert mode: give a project the standard door in place of whatever `tmp` it
+# has, but only when nothing would be lost.
+#
+# Run by a person, never by a hook or a run script: an empty `tmp` folder is
+# also what a project inside an init-project sandbox correctly has, and only a
+# person knows which one this is. Anything holding files is refused with what
+# is in the way, so the person can move it first or leave the project alone.
+convert_ram_tiers() {
+   local project_dir
+   project_dir=$(ram_tier_normalise_project "$1") || return 1
+   local door="${project_dir}/tmp"
+
+   if [ -L "${door}" ]; then
+      local target
+      target=$(ram_tier_link_target "${door}") || return 1
+      if ram_tier_path_is_under "${target}" "${EXEC_TIER_ROOT}"; then
+         # Already a standard door: converting is repairing.
+         ensure_ram_tiers "${project_dir}"
+         return
+      fi
+      # A door into the wrong place: replaced only when it leads to nothing.
+      ram_tier_is_empty_or_missing "${target}" \
+         || { ram_tier_complain "${door} leads to ${target}, which is not under ${EXEC_TIER_ROOT} and holds files; move them out first, then convert again"; return 1; }
+      rm -- "${door}" || { ram_tier_complain "could not remove the link ${door}"; return 1; }
+   elif [ -d "${door}" ]; then
+      # A folder on disk: replaced only when empty.
+      ram_tier_is_empty_or_missing "${door}" \
+         || { ram_tier_complain "${door} is a folder on disk that holds files; move them out first, then convert again"; return 1; }
+      rmdir -- "${door}" || { ram_tier_complain "could not remove the empty folder ${door}"; return 1; }
+   elif [ -e "${door}" ]; then
+      # A file named tmp: it is someone's, and not ours to remove.
+      ram_tier_complain "${door} is a file, not a folder or link; it is in the way of the door"
+      return 1
+   fi
+   # else: no tmp at all, and ensure mode builds it from nothing
+
+   ensure_ram_tiers "${project_dir}"
+}
+# }}}
+
 # {{{ ram_tier_main
 # The executed form. A dispatch table maps the mode flag to the function, so a
-# third mode is one line here rather than another branch.
+# new mode is one line here rather than another branch.
 ram_tier_main() {
    declare -A mode_functions=(
       [--ensure]=ensure_ram_tiers
       [--restore]=restore_ram_tiers
+      [--convert]=convert_ram_tiers
    )
    local mode="--ensure"
    case "${1:-}" in
-      # An explicit mode flag: take it off the front.
-      --ensure|--restore) mode="$1"; shift ;;
       --help|-h)
-         sed -n '2,40p' "${BASH_SOURCE[0]}"
+         # The header, up to the first blank line, is the help.
+         sed -n '2,/^$/p' "${BASH_SOURCE[0]}"
          return 0 ;;
-      # Any other flag is a typo, and a typo must not fall through to ensure
-      # mode, which creates things.
-      -*) ram_tier_complain "unknown option: $1"; return 1 ;;
+      -*)
+         # A mode flag: take it off the front. Any other flag is a typo, and a
+         # typo must not fall through to ensure mode, which creates things.
+         [ -n "${mode_functions[$1]:-}" ] || { ram_tier_complain "unknown option: $1"; return 1; }
+         mode="$1"; shift ;;
       # No flag: ensure mode, which is what a tool wants.
       *) ;;
    esac

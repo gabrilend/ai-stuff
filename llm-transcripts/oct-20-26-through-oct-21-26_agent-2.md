@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 16:15:42
+Generated on: 2026-10-21 21:30:18
 Models: claude-opus-5-5
 
 ## Contents
@@ -35,6 +35,10 @@ Models: claude-opus-5-5
    fan-site lodges, and physics-sim's is rebuilt and committed, with gifs the
    game films itself. Next, I need your answer: why can't the Linode use HTTPS
    for cloning the source?
+8. 2026-10-21 16:18, after Request 24 - The goal is to give each project a cozy
+   fan-site lodge, and I'm looking at moving physics-sim's gif filmer into
+   gif-generator. Next, you decide whether a film's ratings live in the project
+   beside the gif or in the studio.
 
 --------------------------------------------------------------------------------
 
@@ -1834,6 +1838,211 @@ studio makes (701e).
 I haven't changed anything in gif-generator. To start with the first question:
 when a visitor rates the film of two balls breaking, where should that rating
 live — next to the gif in physics-sim, or in the studio?
+
+--------------------------------------------------------------------------------
+
+### User Request 25
+
+sounds like we should have a claude.md instruction that says how to build
+software such that it's easy to create test scenes and such that fit the gif
+generator. Just, general patterns and such. Actually I think that might go
+pretty well in the gif generator skill file?
+
+after all, we'd only build that functionality if we wanted to create some gifs.
+
+for the gif generator, can we create a cli tool that opens up a text entry box
+that you can type in, then it'll process your text and create a gif for you. If
+it doesn't recognize any words, it'll update an issue file (properly handling it
+being in completed/ if we move it there for some reason, it should re-open it
+when there's new words added) to create a mapping for that word based on the
+context. The idea is, we create an error report then instantly solve it.
+In-fact, can we then have it open up a headless claude-code session, build the
+new functionality, then build the gif? So, one for each of the unrecognized
+words. After the initial text prompt, the user can message the headless AI (it
+displays a simple chat log in the terminal program) and update how it's words
+are managed - these aren't passed through the new issue pipeline, they're just a
+back-and-forth dynamic until the gif is perfect (we should have a small viewer
+open up to display the gif too)
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 25
+
+> **[Asked the user]**
+>
+> *Q1 — Word runs:* When a prompt has several unrecognized words, should their
+> headless sessions run one at a time or all at once?
+> - One at a time (Recommended) — Each word's session finishes (vocabulary
+>   added, tests pass) before the next starts. Slower, but they all edit the
+>   same vocabulary files, so they can't collide.
+> - All at once — One session per word in parallel. Faster, but they edit the
+>   same files at the same time, so each would need its own copy of the project
+>   (a git worktree) and the results merged afterwards.
+> → **Answered:** All at once. Each pattern should be it's own file, so they
+> shouldn't be modifying more than one at once. Also, we'll add the words to the
+> tracker issue file in one pass.
+>
+> *Q2 — Word issues:* Where should the per-word issue files go?
+> - A new phase for words (Recommended) — A phase 8, 'the growing vocabulary':
+>   801-word-spiral.md, 802-word-bounce.md, ... One file per word, reopened
+>   (moved back out of completed/) when the word comes up again in a new
+>   context.
+> - Sub-issues of the translator — Lettered parts of issue 601
+>   (601a-word-spiral, ...). Keeps them beside the translator, but only 26
+>   letters fit.
+> → **Answered:** in RAM, until they're complete, then we just update the
+> tracker issue with the ones we finished.
+>
+> *Q3 — Chat reach:* In the chat after the first gif, what may the headless AI
+> change?
+> - Score and word map only (Recommended) — Chat edits only this gif's score
+>   and the word-to-meaning glossary; no code. Matches 'not through the issue
+>   pipeline', since nothing it does is new functionality.
+> - Code too — Chat may also change how the studio draws things. More
+>   powerful, but then code changes skip the issue files, against the house rule
+>   that every change has one.
+> → **Selected:** Code too
+>
+> *Q4 — Viewer:* Which viewer should open to show the gif?
+> - The house's own LÖVE viewer — delta-version's gif-viewer, which issue
+>   701a is moving into gif-generator anyway. Needs a 'reload when the file
+>   changes' mode added.
+> - feh, reloading (Recommended) — Already installed; `feh --reload 1` redraws
+>   whenever the gif changes. Nothing to build, but it's an outside program.
+> → **Selected:** The house's own LÖVE viewer
+
+> Reading the score reader so the pattern design fits how it actually works.
+
+> The issues check clean. Starting on 604a, the word files: reading a real score
+> and the compiler's vocabulary tables first.
+
+> The index counter says 34 is the next free number, so the new files will be
+> 034 onward. Writing the word-file loader now.
+
+> The score test just needs the project's RAM folders, which its `bootstrap`
+> script creates. Running it:
+
+> Existing tests still pass after the reader change (19 compile, 12 score).
+> Writing the word loader.
+
+> Both example words pass the full check: the ring's strokes go through the real
+> wall. Now the renderer has to load the word files, so scores in `input/` can
+> use patterns.
+
+> All 17 word tests pass. Adding the pattern call to the score format document,
+> then the companion pages.
+
+> Word files done (604a). Next, 604b: the finder that decides which words in a
+> prompt are unrecognized.
+
+> The lexicon tests pass. As a sanity check on how many sessions a real prompt
+> would start, here's the vision's own paragraph:
+
+> Five unknown words in the whole vision paragraph, a sensible number. But
+> "hands" and "hand" would each start a session. Fixing: when a word is found,
+> its stems are marked as seen too.
+
+> Both new lexicon tests pass. Now 604c: the parallel word sessions and the
+> one-pass tracker update.
+
+> Only the test's expectation was wrong: git reports the tracker as renamed and
+> then modified ("RM"), which is correct. Loosening that check.
+
+> All 11 word-session tests pass. Next, 604d: the director session. It needs a
+> JSON reader for Claude's replies, so I'm checking the house's shared library
+> shelf first.
+
+> The director is written. Testing it with a stand-in that first writes a
+> misspelled score (so the wall refuses it), then fixes it when sent the
+> refusal, then changes colour when chatted to.
+
+> All 10 director tests pass: the misspelled draft is refused once, the fix
+> renders, and a chat message re-renders. Now the viewer's watch mode. Reading
+> the LÖVE viewer.
+
+> Adding a `--watch=FILE` mode to the viewer: it shows one gif, checks the file
+> a few times a second, and reloads it whenever it changes. Until the first
+> picture arrives it shows a waiting line.
+
+> The viewer passes its full test (19 reader checks, the window, and now the
+> watched single file). Next, the `say` program itself: the box, the status
+> lines, the viewer, and the chat.
+
+> The program looked for its own code inside the project folder it was given,
+> and the scratch project has no `src/`. It should load its code from where the
+> program itself lives. Fixing:
+
+> The whole run passes end to end with stand-ins: all 14 checks. Here's what the
+> terminal showed:
+
+> Before updating the issues, I'm running every test in gif-generator to make
+> sure the reader change broke nothing elsewhere.
+
+> All 21 test files pass, the 16 old ones included. Updating the architecture
+> document and the issues.
+
+> Issues check clean. Claiming the files my scripts wrote, then committing.
+
+*[commit] b4fda71db - gif-generator: say what you want to see, and unknown words teach themselves*
+
+I've built `./say` in gif-generator and committed it as `b4fda71db`. Every part
+passes its tests, but they use stand-ins for Claude and the viewer. **It has not
+yet run with real Claude sessions or a real window.** That first run should be
+yours to type, since it starts real sessions.
+
+**How a run goes:**
+1. A box opens in the terminal. Type what you want to see; an empty line
+   finishes.
+2. Every word the studio doesn't know gets its own headless Claude session, all
+   started at once. Each session writes exactly one file, `words/<word>.lua`,
+   and checks it against the studio's own rules for scores. A word becomes one
+   of two kinds:
+   - a **pattern**: a small recipe that turns into strokes the studio already
+     draws (`words/ring.lua` is the hand-written example);
+   - a **plain** word: understood, with a sentence on how to express it using
+     the existing vocabulary (`words/slowly.lua`).
+3. The words that came out right are added to the tracker issue (605) in one
+   write. If the tracker had been moved to `completed/`, it is moved back and
+   reopened first.
+4. A director session draws the whole description. If the studio refuses its
+   score, the reasons go back to it, up to 4 tries. The gif opens in the house
+   LÖVE viewer, which now has a `--watch` mode that reloads whenever the gif
+   changes.
+5. Then the terminal becomes a chat with the director, which may change the
+   score, the word files or code. `/done` keeps the prose, score, gif and chat
+   log in `output/say/<run>/`.
+
+**Tests:** 51 new checks across five test files, plus all 16 older test files
+and the viewer's test, all passing.
+
+**Fixed while building it:**
+- In the session command, `--allowedTools` would have swallowed the prompt that
+  followed it, so the prompt now comes first.
+- Programs can't run from `/dev/shm`, so test stand-ins live in the `/tmp` tier.
+- "hands" and "hand" would each have started their own session; a word now
+  covers its plurals and other endings.
+
+**Not proven yet:** whether a real headless session, under your hooks and these
+permissions, writes its file cleanly; and the viewer actually reloading on a
+change (the test proves it loads the gif, not that it reloads).
+
+**The filmable-program patterns** for the skill are drafted in the scratchpad as
+a new section of `canvas-and-paintbrush`, the studio skill that exists today;
+gif-generator's own skill (issue 701f) isn't written yet. To install it, type:
+```
+! touch /tmp/claude-allow-outside-write
+```
+
+**Two open questions, written into issue 604:**
+1. Should the word sessions and the director commit their own work, or leave it
+   uncommitted for you or a later session to review?
+2. Should there be a cap on how many word sessions run at once? Each one is a
+   full Claude Code session. The vision paragraph found only 5 unknown words,
+   but a long first prompt in an empty studio could start dozens.
+
+Starting with the second: when a prompt has twenty words the studio doesn't
+know, should all twenty sessions start at once, or should they queue a few at a
+time?
 
 --------------------------------------------------------------------------------
 
