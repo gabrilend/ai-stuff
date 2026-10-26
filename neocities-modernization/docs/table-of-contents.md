@@ -104,6 +104,7 @@ of what the code does is only visible from outside it.
 - `/scripts/generate-config-reference.info.md` - Builds the config reference from config.lua
 - `/scripts/audit-orphan-files.info.md` - Lists source files nothing uses
 - `/scripts/check-table-of-contents.info.md` - Checks this page against the files it lists
+- `/scripts/audit-config-fallbacks.info.md` - Lists settings the code gives its own fallback value
 
 ### 📝 Notes
 - `/notes/` - Project planning and vision documents, raw ideas, and reference images
@@ -111,6 +112,9 @@ of what the code does is only visible from outside it.
   - `/notes/golden-poem-example` - What the golden poem frame looks like
   - `/notes/HTML-file-format.png` - Reference image of the page layout
   - `/notes/boost-post-image-style.png` - Reference image of a boosted post's style
+
+### 📷 Development History
+- `/development-history/` - Every picture the project takes of itself, in order (001-name.png ...), each with notes saying what made it, what changed since the previous picture, what it shows, and the story so far; filed by `scripts/file-screenshot`
 
 ---
 

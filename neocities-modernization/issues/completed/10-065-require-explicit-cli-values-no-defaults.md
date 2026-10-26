@@ -4,8 +4,8 @@
 - **Phase**: 10
 - **Priority**: High
 - **Type**: Design change (breaking CLI change)
-- **Status**: IN PROGRESS — built and verified; all 13 questions are answered
-  below. Waiting only on its sub-issue, 10-065a. The verification table was
+- **Status**: COMPLETED (2026-10-25) — built and verified; all 13 questions are
+  answered below, and its sub-issue 10-065a is complete. The verification table was
   re-run on 2026-10-25 and passes (see Verification). The "Current Behavior"
   section describes the state this issue started from, not the state today.
 - **2026-10-21, the embedding model has no default anywhere** (owner: "we

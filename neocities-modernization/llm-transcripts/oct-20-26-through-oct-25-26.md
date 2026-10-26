@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 17:39:21
+Generated on: 2026-10-25 18:10:25
 Models: claude-opus-5-5
 
 ## Contents
@@ -6709,6 +6709,182 @@ column.
 
 Next in group C: the stricter command-line values and the up-front pre-build
 check (issues 10-065, 10-065a and 10-069).
+
+--------------------------------------------------------------------------------
+
+### User Request 45
+
+okay let's keep going.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 45
+
+> Every step is marked done, and the issue's own verification table is a list of
+> cheap commands: refusals and dry runs that do no building. Running them now
+> against today's code:
+
+> Four of the six behave as the issue says. `--stage 5` didn't: it was supposed
+> to stop and ask for `--seed`, but it ran until my 60-second timeout cut it
+> off. Finding out what it was doing:
+
+> The image catalog wasn't touched; it's still dated 23 October. Reading the
+> run's own log:
+
+> Adding the model check ahead of the pre-build checks, for any run whose stages
+> read an existing model's caches (7–10 without stage 6):
+
+> A typo'd model name now gets the helpful message, with the models that do have
+> embeddings listed, and no stray folder is left. A test should cover it.
+> Looking at the existing model test:
+
+> That test isn't run by the test runner either: its name,
+> `test-model-propagation.sh`, doesn't match the `*.test.sh` pattern. Checking
+> that it still passes, then renaming it and adding the typo case:
+
+> The similar and different parts were already updated for source-key names;
+> only the chronological part is stale. Running it as it is:
+
+> Writing the coverage checker's test: a made-up site with three poems, complete
+> first, then with one page removed and one poem missing from the chronological
+> pages.
+
+> Now wiring it into the build's page check, so it runs right after the
+> whole-site check:
+
+*[commit] cde1a1482 - neocities: every build checks each poem has its pages; a mistyped model is named up front*
+
+> 9-011's three steps are all done, and the whole site has no over-wide lines,
+> so it can close. 9-006 lists a step 4 and a step 8 as open. Reading them:
+
+> I'm holding a line with no box characters to 82 columns: the 2-column indent
+> plus the 80-character text. Lines with walls or box pieces (golden frames,
+> boosts, warning boxes) stay at 84.
+
+> The formatter test passes 46 of 46, including the two new deep-indent cases.
+> Adding a validator check for the 82-column rule, then re-rendering the sample:
+
+*[commit] 15306f864 - neocities: a regular poem's text is held to its 80 columns; two page issues close*
+
+> Committed. Next is 16-010, the monospace font on phones. Its notes say you
+> asked to reverse the "scroll sideways" decision, so reading what it intends:
+
+> **[Asked the user]**
+>
+> *Q1 — Phone layout:* How should an 84-column poem page fit a phone (about
+> 390 pixels wide, no JavaScript)?
+> - A phone-width layout too (Recommended) — Each poem page is also drawn at a
+>   narrower width (about 44 columns: frames, bars and boxes redrawn, poem lines
+>   wrapped to fit), and the page's style picks which one to show by screen
+>   width. Readable everywhere and always aligned. Costs: lines of a poem wrap
+>   differently on phones, and the site's page data roughly doubles (it is well
+>   under the 45 GB limit, but the word pages are the bulk).
+> - Scale to fit, with a floor — The text shrinks with the screen so the whole
+>   84-column frame fits, down to a readable minimum (say 10 pixels); on screens
+>   narrower than that minimum allows, the page scrolls sideways. Poems keep
+>   their line breaks; no second set of pages. Phones in portrait still scroll a
+>   little.
+> - Always scale to fit — The text always shrinks until the 84 columns fit,
+>   however small (about 7.7 pixels on a 390-pixel phone); the reader pinches to
+>   zoom. Simplest, poems keep their line breaks, never scrolls sideways, but
+>   small on phones.
+> → **Selected:** Always scale to fit
+> → **They added:** scale the font size, not the text columns.
+>
+> *Q2 — Emoji:* Emoji are drawn from another font, so a line with one shifts
+> the frame after it. What should happen to emoji in poems?
+> - Keep, forced into the grid (Recommended) — Each emoji keeps its colour
+>   picture but is drawn in a box exactly two cells wide (the width terminals
+>   give emoji), and the line's padding counts it as two, so the frame stays
+>   straight.
+> - Replace with a symbol — Each emoji is swapped for a one-cell monospace
+>   symbol or its name in brackets, e.g. [smile]; perfectly aligned, but the
+>   colour picture is gone.
+> → **Selected:** Keep, forced into the grid (Recommended)
+
+> Writing the emoji-aware measurer and the emoji box into the shared text
+> formatter, so the drawer and the validator count the same way:
+
+> That script didn't run: its own text contained `]]`, which ends a Lua long
+> string, so it failed to parse and nothing was written. Redoing it with `[=[`
+> brackets:
+
+> The page-head edit needs one correction: in Lua a long string can't be
+> followed directly by `:gsub`; it needs parentheses. Fixing, then checking that
+> every file still loads:
+
+> The test only adds `src/` to its search path, and the page head now reads
+> config.lua through a library in `libs/`. Real callers all have both. Fixing
+> the test, and adding checks for the new rules:
+
+> Now the validator needs the same counting, or it would measure an emoji line
+> one column short. Then tests for the counting and the emoji box:
+
+> That counter also counted an escaped character like `&amp;` as five columns
+> instead of one, so a boost line with an ampersand was padded short. The shared
+> measurer fixes both:
+
+> All three come out at the boost frame's 82 columns. Adding those two cases to
+> the boost test, then re-checking the sample:
+
+> That command was blocked before anything ran, because the gate can't resolve
+> `rm` paths written with variables. Rerunning with the paths written out in
+> full:
+
+*[commit] 6e1874133 - neocities: poem pages fit a phone by scaling the font; emoji hold two cells*
+
+Phones now work the way you chose: the font shrinks until the 84-column grid
+fits the screen, and emoji keep their pictures in a box exactly two cells wide.
+It's committed, and all 53 runnable tests pass.
+
+**What this round did:**
+- **Checking each poem has its pages (10-065a).** The checker that confirms
+  every poem has its similar page, its different page and a place on a
+  chronological page now runs in every build. It had been crashing before
+  checking anything (one more breakage from the earlier switch to logging), and
+  it was looking for the chronological pages under old file names. On your last
+  build all 8,667 poems pass.
+- **Mistyped `--model`.** The build now refuses it before any other check, names
+  the typo, and lists the models that do have embeddings.
+  - The model test now runs with the others. Its file name had kept the test
+    runner from ever running it, and two of its checks had broken unnoticed (my
+    vision-add-on change moved a line they read).
+- **The pre-build check issue (10-069)** is complete and moved to completed.
+- **Line widths.** The whole-site check holds a regular poem's text lines to 82
+  columns (the indent plus 80) and lines with box characters to 84. It found one
+  line too wide: a note with 74 spaces before the word "quickly". When an indent
+  is too deep for the text to fit, it now shrinks just enough for the line to
+  end at column 80.
+  - The content-warning issue (9-011) and the frame-checker issue (9-006) are
+    closed. 9-006's last item, showing its counts in the phase demo, moved to
+    the phase-demo issue.
+- **Phones and emoji (16-010).**
+  - Every poem block is the grid's full width, so blocks split around a picture
+    line up.
+  - Emoji are counted as two columns everywhere widths are measured.
+  - The boosted-post frame was miscounting widths: an `&amp;` took five columns
+    and an emoji one. Fixed.
+  - Firefox screenshots at 360, 390 and 430 pixels show the whole grid aligned
+    with no sideways scrolling, and the 1280-pixel desktop view looks the same
+    as before. They're in `tmp/shared-memory/screenshots/`.
+
+**Questions for you:**
+1. **The coverage checker (10-065a).** I repaired it rather than retiring it,
+   because nothing else catches a poem with no pages. Keep it? If yes, 10-065a
+   and its parent 10-065 can both close.
+2. **Screenshots.** Your global rules say every screenshot should be filed in a
+   numbered `development-history/` folder with a notes file beside it, filed by
+   a tool. This project has no such folder or tool, so the four phone
+   screenshots are only in RAM. Should I build that filing tool here, or are
+   these four not worth keeping?
+
+**After your next build:** look at a page on a real phone. That is the last step
+of 16-010 (and of the pure-black issue, 11-009). Then deploy with `--prune`.
+
+Still in group C: memory and parallel work (10-057, 10-074, 10-072, 10-050),
+page links and pictures on the chronological pages (10-036, 10-042b, 10-042d,
+10-062, 10-064), re-measuring the colour imbalance (6-013), and pagination
+(8-020).
 
 --------------------------------------------------------------------------------
 

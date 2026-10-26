@@ -60,7 +60,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
 | 10-044 | Integrate conversation-starters as unified source | Open | Medium |
 | 10-045 | Integrate Android phone pictures as source | Open | Low |
-| 10-065a | Programs run on their own ask for missing values | In progress | Medium |
+| 10-065a | Programs run on their own ask for missing values | Completed (2026-10-25) | Medium |
 | 10-071 | Defaults live only in config.lua, never in the code | Open | Medium |
 
 ### Completed Issues

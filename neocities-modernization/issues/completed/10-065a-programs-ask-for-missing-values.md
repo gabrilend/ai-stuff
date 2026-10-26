@@ -4,7 +4,7 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: Medium
 - **Type**: Design change
-- **Status**: In progress -- see Current Behavior for what is built
+- **Status**: COMPLETED (2026-10-25) -- every program in the table asks, takes `--yes`, or errors under run.sh; the poem-coverage checker was repaired, on the owner's yes
 - **Created**: 2026-10-04
 - **Parent**: 10-065 (`run.sh` demands every value). That issue made `run.sh`
   refuse to start without the values a build needs. This one covers the
@@ -141,7 +141,7 @@ code moves to `config.lua` -- as the word-page size did.
    looks for chronological pages where they used to live. Repair it, or retire
    it under 10-060? (The two HTML generators asked about here were removed on
    the owner's decision, 2026-10-04.)
-   - **Repaired 2026-10-25, awaiting the owner's yes.** It checks what nothing
+   - **Answered (owner, 2026-10-25): "sure let's keep it."** Repaired 2026-10-25: It checks what nothing
      else does: that every poem has its first similar and different page and
      sits on a chronological page (a page never written has no broken line or
      link for `scripts/validate-output` to find). It had been broken twice
