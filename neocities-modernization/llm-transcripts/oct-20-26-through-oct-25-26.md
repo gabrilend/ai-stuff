@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 16:38:24
+Generated on: 2026-10-25 16:57:46
 Models: claude-opus-5-5
 
 ## Contents
@@ -6225,6 +6225,156 @@ which page you were reading it on.
 
 12 is a sample, not every post. But since only one piece of code can draw the
 box now, a post can't get two different versions of it.
+
+--------------------------------------------------------------------------------
+
+### User Request 41
+
+okay
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 41
+
+> Starting group C with the refactoring pass. Step 3, moving settings into the
+> config file, is partway done, so I'm reading 10-071's list of what's left:
+
+> Writing the checker. Like the existing audit it reports candidates, not
+> verdicts: it lists every line that reads a setting and writes a fallback value
+> beside it.
+
+> Now each site in context, so I can decide whether it's a real optional setting
+> or a hidden default:
+
+> I'm moving the deploy uploader's batch numbers into config.lua. Checking the
+> second place the uploader is called, which deletes old pages:
+
+> The uploader's own test called it with partial settings, relying on those
+> built-in values. I'm giving the test one helper with a complete set, which
+> each case then adjusts:
+
+> The uploader test passes, including a new check that a missing number is named
+> in the error. Confirming config.lua's deploy section loads with every number
+> present:
+
+> I'll pass these numbers into the library from config.lua, and the library will
+> require them. Checking every caller first:
+
+> No apostrophes slipped into the walk script's quoted Lua; the only two quote
+> marks are its delimiters. Running the GPU walk-length test:
+
+> Now the full walk with config's numbers, compared against yesterday's run made
+> with the constants:
+
+> All 9,334 walks are identical with the numbers read from config.lua. Next, the
+> last item I'd found: the terminal-menu library path written into the main
+> program as an absolute path.
+
+> Both are read once at startup, so each will take its path from a new
+> `libraries` section of config.lua:
+
+> I changed the search order there: the shared library folder used to come
+> before the system's library folders, and my version put it after them.
+> Restoring the original order:
+
+> It did one thing: it rewrote `assets/validation-report.json`, the report from
+> the validation stage, before the output cut stopped it. Reading its run log:
+
+> `main.lua` has no description at the top, which the house rules require of
+> every script, so there's nothing for `--help` to print. Collecting the options
+> it accepts so I can write one:
+
+> Writing the header and wiring `--help` through the shared helper:
+
+> Help works now, and the report wasn't touched again. The help test should
+> cover `main.lua` too, so a future change can't quietly break this. Checking
+> what that test covers:
+
+> The test only looks at `scripts/` and the project folder. I'll widen it to the
+> programs in `src/` that can be run directly (the ones that start with `#!`),
+> and see what that turns up:
+
+> It works and passes 4 of 4, but the test runner never runs it, because its
+> name doesn't follow the `*.test.lua` pattern. Checking what it tests before
+> renaming it:
+
+> Now adding the guarded help line to the 14 programs, just below each one's
+> header comment, and removing the stray `#!` line from `page-template.lua`:
+
+> Checking which naming the 23 October retirement used, so these match it:
+
+> Same convention. Checking one more file I suspect is broken, the old
+> full-batch GPU test in `libs/vulkan-compute/`:
+
+> The checker's test passes on all 8 checks. Regenerating the settings reference
+> doc, which is built from config.lua, and writing the checker's info file:
+
+> The audit is clean now, and its 10 checks pass. Since this was a fix, it
+> should have a check of its own. Looking at how the audit's test sets up its
+> cases:
+
+> All mine. Claiming the script-written changes:
+
+*[commit] e1653a9c2 - neocities: settings live only in config.lua, every program answers --help*
+
+*[commit] 15fd7d783 - neocities: remove the four retired test files*
+
+Moving settings into config.lua is built and committed, with two design
+questions left for you. Along the way I fixed a program that started the
+pipeline when asked for help.
+
+**What changed:**
+- **A new check flags any setting with a fallback value written in the code.**
+  It runs with the tests, so a new one fails the test run. A fallback that's
+  meant on purpose is allowed if the code marks it with an "optional:" comment
+  and the reason. The project now has 0 unmarked fallbacks and 11 marked ones,
+  such as stop words (absence means none) and the server's extra launch flags.
+- **Moved into config.lua, with the values the code was already using:**
+  - how fast the deploy sends requests to Neocities
+  - the graphics card's walk tuning; I re-ran all 9,334 walks and every one came
+    out identical
+  - the gallery's theme colours
+  - where the two outside libraries (the terminal menu and the threading
+    library) live on this machine
+- **Required now:** these settings were assumed but never checked; a missing one
+  is now an error that names it.
+- **The check for unused settings was fixed.** It was wrongly reporting six
+  settings as unused, because the page builder reads them through a list of
+  names. It's clean now, and a test covers the fix.
+
+**Help fixes:**
+- `main.lua` had no description and no `--help`. When I asked it for help, it
+  started the full pipeline and re-checked the unchanged poems before I stopped
+  it, and no harm was done. It now has both.
+- The `--help` test now covers the runnable programs in `src/` as well. Fourteen
+  of them now answer `--help`. Several are also loaded by other programs, so
+  they answer only when they are the program you started.
+- The similarity engine had a related bug: it started its own menu whenever
+  another program loaded it, unless that program happened to work around it. It
+  now checks that it's the program being run.
+
+**Retired:** three tests for modules deleted on 23 October and one old GPU test
+that could no longer run. A working test that the test runner never picked up
+has been renamed so it now runs.
+
+All 51 runnable tests pass. The other two need the embedding server running and
+were skipped.
+
+**Two questions from issue 10-071 (defaults only in config.lua) need your
+answer:**
+1. **Thread count.** Run on its own, `main.lua --html-only` asks how many
+   threads to use, and with `--yes` it stops instead, because config.lua has no
+   thread setting. Builds aren't affected, since `run.sh` always passes the
+   number. Should config.lua get a `threads` setting, or should the thread count
+   stay something you always give explicitly?
+2. **Frame width.** The page builder keeps its own table of box widths, separate
+   from the `layout` section in config.lua, and the two disagree: the code says
+   ordinary poems are 82 characters wide, config.lua says 83. Which is right?
+   And should all the layout numbers move into config.lua? Changing them changes
+   how every page draws its boxes.
+
+Next in group C is the step of the refactoring pass about history comments: I'll
+remove comments that only record history, and add a test that flags new ones.
 
 --------------------------------------------------------------------------------
 

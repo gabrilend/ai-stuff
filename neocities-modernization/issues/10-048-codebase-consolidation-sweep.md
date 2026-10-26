@@ -36,6 +36,11 @@ file". To be done after a confirmed build (confirmed 2026-10-23).
 4. Prune history comments, largest files first.
 5. A check in `scripts/run-tests` that flags new history-style comments.
 
+Where the order stands (2026-10-25): steps 1-3 are done (step 3 in Issue
+10-071, with `scripts/audit-config-fallbacks` keeping it done). Steps 4-5
+are set aside by the owner for now ("let's skip this for now", 2026-10-25),
+so this issue stays open with them.
+
 ### What a comment keeps, and how it points at a decision
 
 - Kept: why a design is the way it is -- the reasoning a reader needs to

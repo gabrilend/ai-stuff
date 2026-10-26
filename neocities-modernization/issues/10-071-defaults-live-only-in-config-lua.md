@@ -110,7 +110,10 @@ values written in its own code, and editing `config.lua` changes nothing.
 
 ## Open Questions
 
-1. **A thread count in config.lua?** `main.lua --html-only` now asks for the
+1. **Answered (owner, 2026-10-25): "always explicit."** No `threads`
+   setting in config.lua; the thread count is always given (`--threads`, which
+   run.sh always passes), and a program run on its own asks for it.
+   The question, as asked: **A thread count in config.lua?** `main.lua --html-only` now asks for the
    thread count when it is not given, with no default, because `config.lua`
    has none -- so `--yes` stops and names `--threads`. `run.sh` always passes
    it, so builds are unaffected. Add a `threads` setting to `config.lua` so
