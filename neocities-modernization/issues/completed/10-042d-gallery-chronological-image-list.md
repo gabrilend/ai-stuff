@@ -13,6 +13,17 @@
 
 ## Current Behavior
 
+**Built (checked 2026-10-25).** `generate_gallery_chronological` in
+`src/generate-gallery-pages.lua` writes `gallery/chronological.html`: every
+picture from every gallery source (667 on the 2026-10-23 build), oldest
+first by the catalog's `modification_time`, each pair of neighbours
+separated by a caption block naming the picture above and the picture below
+(so every title appears twice), titles colon-joined from the picture's path
+below its source (`poem-pictures: oodles-of-doodles: those-diplomatic.jpg`).
+The gallery index's "Chronological" link opens it. Paging it and a
+newest-first view are Issue 10-062. The text below is the state before.
+
+
 The gallery (`gallery/index.html`) has a "chronological" link in its top nav, but
 it does not lead to an images-only chronological view. Images are browsable only
 per-source as grids (10-042a). There is no single page that walks every image
@@ -119,7 +130,7 @@ it once and share it.
 
 ## Metadata
 
-- **Status**: 📋 Specced, not started
+- **Status**: COMPLETED (built; checked 2026-10-25)
 - **Created**: 2026-06-22
 - **Phase**: 10 (Integrate Standalone Images)
 - **Estimated Complexity**: Low–Medium (new static page + one shared helper)

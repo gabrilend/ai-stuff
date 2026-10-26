@@ -28,6 +28,19 @@ Issue 8-012 implemented a pagination system for all pages. This issue refines th
 
 ## Current Behavior
 
+**Built and checked (2026-10-25).** Similar and different pages are written
+up to a per-poem page ceiling worked out each build from the storage limit
+(config.lua `storage.limit_gb`, 45 GB, less the reserves) and the measured
+size of the last build's pages (the log line "storage ceiling: 263 pages,
+45GB"); `--pages all` stops there (`src/ranked-page.test.lua`: '"all" stops
+at the storage cap'), and the pages link only to pages actually written
+(10-036). The chronological view took a different road from the one below:
+it is paginated (`chronological/01.html` ... by `--chrono-per-page`), and the
+whole archive in one file is `chronological.txt`; every poem is on a
+chronological page (`scripts/validate-poem-representation`, run in every
+build: 8,667 of 8,667 on the 2026-10-23 build). The text below is the state
+of 2026-09-22, kept for the record.
+
 Similar / different pages are paginated, but on 2026-09-22 a known defect in
 the page set was found: the single-threaded page builder writes "Next Page ▶"
 and "Last Page" links based on how many pages a poem's list *could* fill, while
@@ -257,7 +270,7 @@ Truncation would mean similar/0068.html only shows 500 poems, period. Pagination
 
 **Created**: 2025-12-25
 
-**Status**: In Progress (core implementation complete, pending full generation test)
+**Status**: Completed (2026-10-25)
 
 ### 2026-01-28: Implementation Status Verified
 
@@ -272,9 +285,9 @@ Truncation would mean similar/0068.html only shows 500 poems, period. Pagination
 - 8 chronological pages + index redirect (~500 poems each)
 - Total: ~11 GB
 
-**Pending validation:**
-- Regenerate HTML after boost formatting (8-057) implementation
-- Verify all 7,844 poems have anchors in chronological pages
-- Verify max_pages_per_poem limit is respected when generating all pages
+**Validated (2026-10-25):**
+- Regenerate HTML after boost formatting (8-057) implementation -- every build since
+- Verify all poems have anchors in chronological pages -- 8,667 of 8,667 (`scripts/validate-poem-representation`)
+- Verify max_pages_per_poem limit is respected when generating all pages -- `src/ranked-page.test.lua`
 
 **Modifies**: 8-012
