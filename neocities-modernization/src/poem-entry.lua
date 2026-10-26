@@ -256,6 +256,8 @@ local function text_lines(poem, text)
             end
         end
     end
+    -- each emoji in its two-cell box (libs/text-formatter.lua grid_emoji)
+    for i, line in ipairs(lines) do lines[i] = text_formatter.grid_emoji(line) end
     return lines
 end
 -- }}}
@@ -396,7 +398,8 @@ local function boost_entry(poem, entry)
     -- }}}
     text = M.apply_markdown(text)
     local lines = {}
-    for line in (text .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+    -- each emoji in its two-cell box, as in a poem's own text
+    for line in (text .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = text_formatter.grid_emoji(line) end
     -- the navigation strip inside the frame: on a page; not in a text export
     local out = { boost_bars.format_boost(lines, entry.progress_pct / 100,
         entry.similar_link, entry.different_link, entry.chrono_link or nil, not entry.plain) }

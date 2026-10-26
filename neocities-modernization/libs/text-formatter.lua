@@ -123,13 +123,142 @@ function M.utf8_char_count(str)
 end
 -- }}}
 
+-- {{{ emoji: two grid cells each (owner, 2026-10-25)
+-- The site's font has no emoji, so a browser draws each one from a colour
+-- emoji font, wider than one cell; a line holding one used to push the rest
+-- of its frame out of line. Each emoji is now drawn in a box exactly two
+-- cells wide (M.grid_emoji, styled by src/page-head.lua's ".e" rule) and
+-- counted as two columns, the width terminals give emoji, so padding and
+-- wrapping leave room for it.
+--
+-- What counts (codepoints):
+--   1F000-1FAFF  pictographs, emoticons, transport, symbols: an emoji, 2
+--   1F1E6-1F1FF  regional indicators: a pair is one flag, 2 (the second 0)
+--   1F3FB-1F3FF  skin-tone marks: part of the emoji before them, 0
+--   200D         zero-width joiner: joins the next emoji to this one, 0 (and
+--                the joined emoji 0: "family" is one picture)
+--   FE0F / FE0E  colour / text presentation marks, 0; a symbol from 2600-27BF
+--                (★ ☀ ✔) is one cell, as the font draws it, unless FE0F asks
+--                for its colour emoji, then 2
+local function emoji_kind(cp)
+    if cp == 0x200D then return "joiner" end
+    if cp == 0xFE0F or cp == 0xFE0E then return "mark" end
+    if cp >= 0x1F3FB and cp <= 0x1F3FF then return "mark" end
+    if cp >= 0x1F1E6 and cp <= 0x1F1FF then return "flag" end
+    if cp >= 0x1F000 and cp <= 0x1FAFF then return "emoji" end
+    if cp >= 0x2600 and cp <= 0x27BF then return "symbol" end
+    return nil
+end
+
+-- {{{ local function codepoints()
+-- The UTF-8 characters of s as { cp = number, text = string } (a stray byte
+-- is its own character).
+local function codepoints(s)
+    local out = {}
+    for ch in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        local b1 = ch:byte(1)
+        local cp
+        if b1 < 0x80 then cp = b1
+        elseif b1 < 0xE0 then cp = (b1 % 0x20) * 0x40 + (ch:byte(2) or 0x80) % 0x40
+        elseif b1 < 0xF0 then cp = (b1 % 0x10) * 0x1000 + ((ch:byte(2) or 0x80) % 0x40) * 0x40 + (ch:byte(3) or 0x80) % 0x40
+        else cp = (b1 % 0x08) * 0x40000 + ((ch:byte(2) or 0x80) % 0x40) * 0x1000
+            + ((ch:byte(3) or 0x80) % 0x40) * 0x40 + (ch:byte(4) or 0x80) % 0x40 end
+        out[#out + 1] = { cp = cp, text = ch }
+    end
+    return out
+end
+-- }}}
+
+-- {{{ local function clusters()
+-- Splits plain text (no tags) into display units: each is { text, width,
+-- emoji = true/false }. An emoji with its marks, joiners and joined emoji is
+-- one unit of width 2; any other character is one unit of width 1.
+local function clusters(s)
+    local cps = codepoints(s)
+    local units = {}
+    local i = 1
+    while i <= #cps do
+        local c = cps[i]
+        local kind = emoji_kind(c.cp)
+        local is_emoji = kind == "emoji" or kind == "flag"
+            or (kind == "symbol" and cps[i + 1] and cps[i + 1].cp == 0xFE0F)
+        if is_emoji then
+            local parts = { c.text }
+            local j = i + 1
+            if kind == "flag" and cps[j] and emoji_kind(cps[j].cp) == "flag" then
+                parts[#parts + 1] = cps[j].text; j = j + 1
+            end
+            while cps[j] do
+                local k = emoji_kind(cps[j].cp)
+                if k == "mark" then
+                    parts[#parts + 1] = cps[j].text; j = j + 1
+                elseif k == "joiner" and cps[j + 1] then
+                    parts[#parts + 1] = cps[j].text; parts[#parts + 1] = cps[j + 1].text; j = j + 2
+                else
+                    break
+                end
+            end
+            units[#units + 1] = { text = table.concat(parts), width = 2, emoji = true }
+            i = j
+        elseif kind == "mark" or kind == "joiner" then
+            -- a stray mark or joiner, after no emoji: draws nothing
+            units[#units + 1] = { text = c.text, width = 0, emoji = false }
+            i = i + 1
+        else
+            units[#units + 1] = { text = c.text, width = 1, emoji = false }
+            i = i + 1
+        end
+    end
+    return units
+end
+-- }}}
+
+-- {{{ function M.display_columns
+-- The columns plain text (no tags, entities already decoded) takes on the
+-- grid: one per character, two per emoji (see above).
+function M.display_columns(plain)
+    if not plain or plain == "" then return 0 end
+    if not plain:find("[\226\240\239]") then return M.utf8_char_count(plain) end  -- no emoji possible
+    local width = 0
+    for _, u in ipairs(clusters(plain)) do width = width + u.width end
+    return width
+end
+-- }}}
+
+-- {{{ function M.grid_emoji
+-- An HTML line with every emoji (outside tags) wrapped in <span class="e">,
+-- which page-head.lua draws exactly two cells wide. Text inside a tag (an
+-- alt or title attribute) is left alone.
+function M.grid_emoji(html)
+    if not html:find("[\240\226]") then return html end
+    local out = {}
+    local pos = 1
+    while pos <= #html do
+        local tag_start = html:find("<", pos, true)
+        local text = html:sub(pos, (tag_start or (#html + 1)) - 1)
+        if text ~= "" then
+            for _, u in ipairs(clusters(text)) do
+                out[#out + 1] = u.emoji and ('<span class="e">' .. u.text .. "</span>") or u.text
+            end
+        end
+        if not tag_start then break end
+        local tag_end = html:find(">", tag_start, true)
+        if not tag_end then out[#out + 1] = html:sub(tag_start); break end
+        out[#out + 1] = html:sub(tag_start, tag_end)
+        pos = tag_end + 1
+    end
+    return table.concat(out)
+end
+-- }}}
+-- }}}
+
 -- {{{ function M.calculate_visible_width
 -- Calculates the visible display width of a string containing HTML entities.
--- Combines entity decoding and UTF-8 character counting.
+-- Combines entity decoding and grid-column counting (an emoji is two).
 -- Used for padding calculations in golden poem formatting.
 function M.calculate_visible_width(content)
     local decoded = M.decode_html_entities_for_width(content)
-    return M.utf8_char_count(decoded)
+    return M.display_columns(decoded)
 end
 -- }}}
 

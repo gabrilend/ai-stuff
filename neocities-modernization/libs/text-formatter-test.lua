@@ -99,6 +99,18 @@ check("emphasized line past the margin still wraps",
     #tf.wrap_preserving_indent(overlong, 80) > 1)
 -- }}}
 
+-- {{{ an emoji is two grid cells (owner, 2026-10-25)
+check("an emoji counts as two columns", tf.display_columns("hi 😀 there") == 11)
+check("a skin-tone mark adds nothing", tf.display_columns("👍🏽") == 2)
+check("a joined family is one picture, two columns", tf.display_columns("👨‍👩‍👧") == 2)
+check("a flag is two letters, one picture, two columns", tf.display_columns("🇺🇸") == 2)
+check("a symbol the font draws stays one column", tf.display_columns("★") == 1)
+check("a symbol asking for its colour emoji is two", tf.display_columns("☀️") == 2)
+check("each emoji is boxed", tf.grid_emoji("a 😀 b") == 'a <span class="e">😀</span> b')
+check("text inside a tag is left alone", tf.grid_emoji('<img alt="😺">') == '<img alt="😺">')
+check("a boxed emoji still measures two", tf.calculate_visible_width(tf.grid_emoji("😀")) == 2)
+-- }}}
+
 -- {{{ an indent too deep to leave room shrinks instead of overflowing
 -- notes-619: 74 spaces, then "quickly" -- 81 columns. It used to come back
 -- whole, one past the text column.

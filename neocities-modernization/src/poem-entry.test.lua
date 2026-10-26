@@ -248,6 +248,18 @@ do
 end
 -- }}}
 
+-- {{{ a golden poem's right wall stays put on a line with an emoji
+do
+    local out = E.format_entry({ poem_index = 7, content = "sun 😀 and moon", metadata = { is_golden_poem = true } },
+        entry("gray", 10, false))
+    local walled
+    for _, l in ipairs(lines_of(out)) do if l:find("moon", 1, true) then walled = l end end
+    local tf = require("text-formatter")
+    check("the emoji is boxed in the poem's line", walled and walled:find('<span class="e">😀</span>', 1, true) ~= nil)
+    check("and the line is still the frame's 84 columns", walled and tf.calculate_visible_width(walled) == 84)
+end
+-- }}}
+
 -- {{{ regular and golden text start in the same column (owner, 2026-10-25)
 do
     local function text_column(out, word)

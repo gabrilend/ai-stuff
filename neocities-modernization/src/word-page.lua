@@ -59,7 +59,8 @@ function M.page_html(word, header_color, centre_link, count, body)
     local head = page_head.head({
         title = "Poems similar to: " .. word,
         base_path = base_path,
-        extra_css = "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; }\n"
+        extra_css = "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; width: "
+                 .. page_head.frame_columns() .. "ch; }\n"
                  .. "img, video, audio { margin-left: auto; margin-right: auto; }",
     })
     return string.format([[<!DOCTYPE html>

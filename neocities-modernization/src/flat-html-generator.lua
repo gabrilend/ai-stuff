@@ -163,9 +163,12 @@ poem_bars_shared.configure(COLOR_CONFIG,
 -- centers as a block (text stays left-aligned inside), and media centers via
 -- auto margins. Now a vertical line down the page bisects every poem AND image,
 -- regardless of how wide any single image is.
+-- Every <pre> is the grid's full width (page_head.frame_columns, in cells),
+-- so blocks split around a picture all centre the same and their frames
+-- line up; a block only as wide as its widest line used to shift.
 local POEM_PAGE_CSS = [[
 td { text-align: center; }
-pre { display: inline-block; text-align: left; margin: 0 auto; }
+pre { display: inline-block; text-align: left; margin: 0 auto; width: ]] .. page_head.frame_columns() .. [[ch; }
 img, video, audio { margin-left: auto; margin-right: auto; }]]
 -- }}}
 

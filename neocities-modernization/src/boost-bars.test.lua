@@ -144,5 +144,14 @@ do
     check("a frame without nav has no similar link", not frame:find("similar", 1, true))
 end
 
+-- A content line holding an entity or an emoji keeps the frame's width: the
+-- padding measures as the grid shows (an entity one column, an emoji two).
+do
+    local tf = require("text-formatter")
+    check("a line with &amp; stays 82 wide",
+        tf.calculate_visible_width(B.content_line("Tom &amp; Jerry", 30)) == 82)
+    check("a line with emoji stays 82 wide",
+        tf.calculate_visible_width(B.content_line(tf.grid_emoji("world 🌍🌏🌎"), 30)) == 82)
+end
 print(string.format("\nboost-bars: %d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

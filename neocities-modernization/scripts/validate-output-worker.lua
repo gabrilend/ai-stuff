@@ -44,14 +44,19 @@ assert(MAX_WIDTH and FINDINGS_FILE and arg[3],
 local POEM_FOLDERS = { similar = true, different = true, chronological = true, wordcloud = true }
 -- }}}
 
+-- the drawer's own column counting (libs/text-formatter.lua), so the check
+-- and the pages agree on how wide an emoji is
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
+local display_columns = require("text-formatter").display_columns
+
 -- {{{ local function visible_width
 -- Width as a reader sees it: tags removed, each entity (&amp; &#39;) one
--- character, each UTF-8 character one column.
+-- character, each UTF-8 character one column, an emoji two (as the drawer
+-- counts and draws it).
 local function visible_width(text)
     local plain = text:gsub("<[^>]*>", "")
     plain = plain:gsub("&#?%w+;", "x")
-    local without_continuation_bytes = plain:gsub("[\128-\191]", "")
-    return #without_continuation_bytes, plain
+    return display_columns(plain), plain
 end
 -- }}}
 
