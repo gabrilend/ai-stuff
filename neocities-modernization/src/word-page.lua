@@ -65,7 +65,7 @@ function M.page_html(word, header_color, centre_link, count, body)
     return string.format([[<!DOCTYPE html>
 <html>
 %s
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+]] .. require("page-theme").body_tag() .. [[
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>

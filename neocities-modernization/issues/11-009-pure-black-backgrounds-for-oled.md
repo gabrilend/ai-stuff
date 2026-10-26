@@ -178,6 +178,20 @@ new page type correct by default rather than correct by remembering.
 
 ## Open Questions
 
+Answered by the owner, 2026-10-25:
+- Q1, one place for the colours: "yes." `src/page-theme.lua` reads
+  config.lua `html_theme` once per Lua state and writes every page's body
+  tag (chronological, similar/different, word pages, the menu, the explore
+  pages, the gallery); the source browser takes its background shades from
+  it too.
+- Q2, the diagnostic pages: "I don't think we need this report anymore."
+  The model-comparison report is to be retired (its tool and its pages).
+- Q3, text colour: "sure let's soften them." `html_theme.text` is now
+  `#E0E0E0` (was `#FFFFFF`).
+- Q4, link colours: "yeah, for now." `#6699FF` / `#9966FF` stay.
+
+The questions, as asked:
+
 1. **Should the palette be centralised?** Every generator currently spells out
    its own colours. Putting them in `config.lua` would make drift impossible and
    the OLED intent explicit — but it is a wider change than fixing the one broken

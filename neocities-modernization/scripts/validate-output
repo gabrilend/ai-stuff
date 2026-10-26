@@ -20,7 +20,9 @@
 #                passes its --threads value, so one number governs the whole run)
 #   --output     the built site to check (default DIR/output)
 #   --max-width  widest allowed line inside a poem column, in visible
-#                characters (default 84, the golden frame -- the widest drawn)
+#                characters, and the width every frame piece must be
+#                (default: config.lua layout.text_content_width + 4 -- a
+#                wall, a space, the text, a space, a wall: 84)
 #   --report     where the full report goes (default
 #                DIR/tmp/shared-memory/validate-output-report.txt)
 #
@@ -32,7 +34,7 @@ script_help "$0" "$@"
 
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 OUTPUT=""
-MAX_WIDTH=84
+MAX_WIDTH=""
 REPORT=""
 JOBS=""
 
@@ -48,6 +50,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$OUTPUT" ] || OUTPUT="$DIR/output"
+# the frame's width, from the text width in config.lua (src/poem-bars.lua draws
+# every frame from the same setting)
+if [ -z "$MAX_WIDTH" ]; then
+    MAX_WIDTH=$(luajit -e "package.path = '$DIR/libs/?.lua;' .. package.path
+        local layout = require('config-loader').load().layout or error('config.lua has no layout section')
+        print((layout.text_content_width or error('config.lua layout.text_content_width is missing')) + 4)") || exit 1
+fi
 [ -n "$REPORT" ] || REPORT="$DIR/tmp/shared-memory/validate-output-report.txt"
 # Required, not defaulted to every processor: the run's --threads is the
 # operator's statement of how much of the machine this build may take, and

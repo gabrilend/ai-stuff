@@ -26,14 +26,11 @@ return {
     -- These values are read by src/flat-html-generator.lua:load_layout_from_config()
     -- Width values are in characters. Junction positions are character offsets.
     layout = {
-        regular_poem_width = 83,        -- Width of standard poem boxes
-        golden_poem_width = 85,         -- Width of golden poem boxes (1024 chars)
-        text_content_width = 80,        -- Inner content area width
-        left_box_width = 11,            -- Left navigation box width
-        right_box_width = 13,           -- Right navigation box width
-        gap_width = 59,                 -- Gap between left and right boxes
-        left_junction_pos = 5,          -- Position of left box junction point
-        right_junction_pos = 6          -- Position of right box junction point
+        -- The widest a poem's line may be. Every frame is drawn from it
+        -- (src/poem-bars.lua): a wall, a space, the text, a space, a wall --
+        -- text_content_width + 4 columns (owner, 2026-10-25). The checker
+        -- (scripts/validate-output) holds every page to the same width.
+        text_content_width = 80,
     },
     -- }}}
 
@@ -941,12 +938,15 @@ return {
     -- }}}
 
     -- {{{ html_theme
-    -- Dark mode theme colors applied via HTML body attributes (CSS-free).
-    -- Uses true black (#000000) for OLED power savings and maximum contrast.
-    -- These colors are applied to <body bgcolor="..." text="..." link="..." vlink="...">
+    -- The site's colours, in one place (owner, 2026-10-25): every page's
+    -- <body bgcolor="..." text="..." link="..." vlink="..."> and the source
+    -- browser's backgrounds come from here, through src/page-theme.lua.
+    -- Pure black (#000000) background: on an OLED screen a black pixel is an
+    -- unlit one (Issue 11-009).
+    -- Read by: src/page-theme.lua
     html_theme = {
         background = "#000000",     -- True black background (OLED-friendly)
-        text = "#FFFFFF",           -- White text for readability
+        text = "#E0E0E0",           -- Soft white: gentler than pure #FFFFFF on pure black in a dark room (owner, 2026-10-25)
         link = "#6699FF",           -- Blue for unvisited links
         vlink = "#9966FF"           -- Purple for visited links
     },

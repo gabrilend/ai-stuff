@@ -170,8 +170,8 @@ do
     end
     local list = R.ranked_list({ 7, 8, 9 }, 7, by_index)
     local html = R.page_html(anchor, list, "similar", 1, 1, false, ctx(true))
-    check("the latest poem's bar is full (83 of 83)", filled(html, "the anchor poem speaks") == 83)
-    check("a poem halfway through the timeline is about half (41 of 83)", filled(html, "a lookalike") == 41)
+    check("the latest poem's bar is full (84 of 84)", filled(html, "the anchor poem speaks") == 84)
+    check("a poem halfway through the timeline is about half (42 of 84)", filled(html, "a lookalike") == 42)
     check("the earliest poem's bar is empty", filled(html, "a message") == 0)
 end
 -- }}}

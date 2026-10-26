@@ -218,12 +218,9 @@ end
 
 -- {{{ generate_html_header
 local function generate_html_header(title)
-    -- every colour from config.lua html_theme; a missing one is an error (Issue 10-071)
-    local theme = config.html_theme or error("config.lua has no html_theme section")
-    local bg = theme.background or error("config.lua html_theme.background is missing")
-    local text = theme.text or error("config.lua html_theme.text is missing")
-    local link = theme.link or error("config.lua html_theme.link is missing")
-    local vlink = theme.vlink or error("config.lua html_theme.vlink is missing")
+    -- every colour from config.lua html_theme, through the shared theme (one place)
+    local theme = require("page-theme").colours()
+    local bg, text, link, vlink = theme.background, theme.text, theme.link, theme.vlink
 
     return string.format([[<!DOCTYPE html>
 <html>

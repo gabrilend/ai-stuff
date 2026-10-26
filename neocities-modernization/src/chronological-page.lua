@@ -107,7 +107,7 @@ function M.page_html(page_num, total_pages, head_block, body)
             '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n',
             string.format("<title>Poetry Collection - Chronological Order (Page %d of %d)</title>\n", page_num, total_pages),
             head_block, "</head>\n",
-            '<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">\n<center>\n',
+            require("page-theme").body_tag() .. "\n<center>\n",
             "<h1>Poetry Collection</h1>\n<p>Poems in true chronological order by post date</p>\n",
             nav_html, "\n",
             '<p><a href="../wordcloud.html">Menu</a></p>\n</center>\n',
@@ -121,7 +121,7 @@ function M.page_html(page_num, total_pages, head_block, body)
         '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n',
         "<title>Poetry Collection - Chronological Order</title>\n",
         head_block, "</head>\n",
-        '<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">\n<center>\n',
+        require("page-theme").body_tag() .. "\n<center>\n",
         "<h1>Poetry Collection</h1>\n<p>All poems in true chronological order by post date</p>\n",
         '<p><a href="../wordcloud.html">Menu</a></p>\n</center>\n',
         '<table align="center"><tr><td>\n<pre>\n', body, "\n</pre>\n</td></tr></table>\n",
@@ -142,7 +142,7 @@ function M.redirect_html()
 <meta http-equiv="refresh" content="0;url=01.html">
 <title>Redirecting...</title>
 </head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+]] .. require("page-theme").body_tag() .. [[
 <p>Redirecting to <a href="01.html">01.html</a>...</p>
 </body>
 </html>]]

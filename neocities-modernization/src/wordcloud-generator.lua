@@ -671,7 +671,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 %s
 <title>Menu - Poetry Collection</title>
 %s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], MASTER_SEED, MASTER_SEED, page_head.viewport_meta(), head_block) .. string.format([[
+]] .. require("page-theme").body_tag() .. [[]], MASTER_SEED, MASTER_SEED, page_head.viewport_meta(), head_block) .. string.format([[
 
 <center>
 <h1>Menu</h1>

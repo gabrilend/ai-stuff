@@ -150,7 +150,9 @@ local poem_bars_shared = require("poem-bars")
 -- The shared drawer takes the palette from its host, once per Lua state. The
 -- main thread now draws every bar and box through it (Issue 8-058), so it
 -- needs the same table the workers hand theirs.
-poem_bars_shared.configure(COLOR_CONFIG)
+poem_bars_shared.configure(COLOR_CONFIG,
+    (unified_config.layout or error("config.lua has no layout section")).text_content_width
+        or error("config.lua layout.text_content_width is missing"))
 
 -- {{{ POEM_PAGE_CSS
 -- True page-centering for the poem column. The old <table align="center">
@@ -220,67 +222,16 @@ local REQUIRED_SETTINGS = {
     storage = { "limit_gb", "reserved_for_maze_gb", "reserved_headroom_gb" },
 }
 
--- Layout constants: Single source of truth for box widths and positions
--- Issue 8-037: Centralized to prevent drift between calculations
--- Issue 10-003: Values can be overridden in unified config (config.lua) "layout" section
--- Reference: All progress bars, nav boxes, and content should use these
+-- The text column's width, from config.lua layout.text_content_width: a
+-- poem's line is at most this many characters, and src/poem-bars.lua draws
+-- every frame from it (a wall, a space, the text, a space, a wall). The box
+-- widths and junction columns that used to sit here (and in config.lua) were
+-- never what the pages were drawn with, and disagreed with them (owner's
+-- rule, 2026-10-25).
 local LAYOUT = {
-    -- Total visible width for regular poems (positions 0-82)
-    REGULAR_POEM_WIDTH = 82,
-    -- Total visible width for golden poems: 84 chars
-    -- Structure: ╔ (1) + interior (82) + ┐ (1) = 84
-    GOLDEN_POEM_WIDTH = 84,
-    -- Maximum text content width (80 chars by default +1 space padding on left and +1 on right)
-    TEXT_CONTENT_WIDTH = 80,
-
-    -- Regular poem nav box positions (within 83-char line):
-    -- ┌─────────┐                                                           ┌───────────┐
-    -- positions: 0-10 = left box (11 chars), 11-69 = gap (59 chars), 70-82 = right box (13 chars)
-    REGULAR_LEFT_BOX_WIDTH = 11,      -- ┌─────────┐
-    REGULAR_RIGHT_BOX_WIDTH = 13,     -- ┌───────────┐
-    REGULAR_GAP_WIDTH = 59,           -- 83 - 11 - 13 = 59
-    REGULAR_LEFT_JUNCTION_POS = 10,   -- Position of ┐/┴ under left box
-    REGULAR_RIGHT_JUNCTION_POS = 70,  -- Position of ┌/┴ under right box
-
-    -- Golden poem nav box positions (within 84-char line):
-    -- Structure: ║ (1) + content (80) + space (1) + │ (1) = 83 interior + corners
-    GOLDEN_LEFT_BOX_WIDTH = 11,
-    GOLDEN_RIGHT_BOX_WIDTH = 13,
-    GOLDEN_GAP_WIDTH = 58,            -- 84 - 2 corners - 11 - 13 = 58
-    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
-    GOLDEN_LEFT_JUNCTION_POS = 10,    -- Same as regular (left box ┐ at position 10)
-    GOLDEN_RIGHT_JUNCTION_POS = 71,   -- Regular + 1 (right box ┌ at position 71 due to wider golden)
+    TEXT_CONTENT_WIDTH = (unified_config.layout or error("config.lua has no layout section")).text_content_width
+        or error("config.lua layout.text_content_width is missing"),
 }
-
--- {{{ function load_layout_from_config
--- Issue 10-003: Loads layout settings from unified config, with fallback to LAYOUT defaults
-local function load_layout_from_config()
-    local layout = unified_config.layout
-    if not layout then return end
-
-    -- Override LAYOUT values from config
-    if layout.regular_poem_width then LAYOUT.REGULAR_POEM_WIDTH = layout.regular_poem_width end
-    if layout.golden_poem_width then LAYOUT.GOLDEN_POEM_WIDTH = layout.golden_poem_width end
-    if layout.text_content_width then LAYOUT.TEXT_CONTENT_WIDTH = layout.text_content_width end
-    if layout.left_box_width then
-        LAYOUT.REGULAR_LEFT_BOX_WIDTH = layout.left_box_width
-        LAYOUT.GOLDEN_LEFT_BOX_WIDTH = layout.left_box_width
-    end
-    if layout.right_box_width then
-        LAYOUT.REGULAR_RIGHT_BOX_WIDTH = layout.right_box_width
-        LAYOUT.GOLDEN_RIGHT_BOX_WIDTH = layout.right_box_width
-    end
-    if layout.gap_width then
-        LAYOUT.REGULAR_GAP_WIDTH = layout.gap_width
-        LAYOUT.GOLDEN_GAP_WIDTH = layout.gap_width
-    end
-    if layout.left_junction_pos then LAYOUT.REGULAR_LEFT_JUNCTION_POS = layout.left_junction_pos end
-    if layout.right_junction_pos then LAYOUT.REGULAR_RIGHT_JUNCTION_POS = layout.right_junction_pos end
-end
--- }}}
-
--- Load layout from config on module initialization
-load_layout_from_config()
 
 -- The one poem drawer (Issue 8-058): the chronological pages drawn here and
 -- the similar/different pages drawn by the workers both draw each poem
@@ -1416,7 +1367,7 @@ local function explore_page_shell(title, heading, body)
 <meta charset="UTF-8">
 <title>%s</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+]] .. require("page-theme").body_tag() .. [[
 <center>
 <h1>%s</h1>
 </center>

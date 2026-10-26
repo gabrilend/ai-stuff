@@ -60,7 +60,7 @@ function M.configure(opts)
         error("poem-entry.configure: the palette has no gray, the colour of an uncoloured poem")
     end
     settings = { palette = opts.palette, text_width = opts.text_width }
-    poem_bars.configure(opts.palette)
+    poem_bars.configure(opts.palette, opts.text_width)
     boost_bars.configure(opts.boost_palette)
 end
 -- }}}
@@ -241,9 +241,15 @@ local function text_lines(poem, text)
             -- a warning line in the text: boxed where it stands
             add_box(line)
         else
-            -- an ordinary line: wrapped at the text column, indent kept
-            for _, wrapped in ipairs(text_formatter.wrap_preserving_indent(line, width)) do
-                lines[#lines + 1] = wrapped
+            -- an ordinary line: wrapped at the text column, indent kept,
+            -- and any spaces at its end dropped: the text is at most the
+            -- text column wide, and a trailing space past the 80th character
+            -- would push into the frame's own space (owner, 2026-10-25)
+            -- (before wrapping too: an 80-character line with a space after it
+            -- would otherwise be wrapped one word early)
+            local trimmed = line:gsub("%s+$", "")
+            for _, wrapped in ipairs(text_formatter.wrap_preserving_indent(trimmed, width)) do
+                lines[#lines + 1] = (wrapped:gsub("%s+$", ""))
             end
         end
     end

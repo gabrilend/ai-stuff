@@ -85,7 +85,7 @@ body, pre {
 :root {
   color-scheme: dark;
 }
-/* The poem column is a fixed 83-character grid and must never reflow. On a
+/* The poem column is a fixed 84-character grid and must never reflow. On a
    screen narrower than that the page scrolls sideways, which is the honest
    outcome: wrapping the frames would break the alignment they exist to show. */
 pre {

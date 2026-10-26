@@ -8,23 +8,60 @@
 -- ╧╧ junctions on similar/different pages while the main-thread chronological
 -- pages stayed correct at 83. One module -> one bar -> no drift.
 --
--- Geometry (regular poems, 83 chars wide, 0-indexed):
---   left corner box  : positions 0-10  (┌ + 9×─ + ┐ , walls at 0 and 10)
---   gap              : positions 11-69 (59 spaces)
---   right corner box : positions 70-82 (┌ + 11×─ + ┐, walls at 70 and 82)
--- Bottom-bar junctions sit UNDER the inner walls, at positions 10 and 70.
--- Golden poems are 84 wide (2 outer ║ walls); the right junction shifts to 71.
+-- Geometry (owner, 2026-10-25): a poem's text is at most text_width
+-- characters (80, config.lua layout.text_content_width), and its frame is a
+-- wall, a space, the text, a space, a wall -- text_width + 4 = 84 columns,
+-- 0-indexed 0..83, for regular and golden poems alike:
+--   left corner box  : columns 0-10  (11 wide; walls at 0 and 10)
+--   gap              : columns 11-70 (60 spaces)
+--   right corner box : columns 71-83 (13 wide; walls at 71 and 83)
+-- Bottom-bar junctions sit UNDER the inner walls, at columns 10 and 71. A
+-- regular poem's bar fills all 84 columns; a golden poem's fills the 82
+-- inside its two outer walls. (Regular poems were drawn 83 wide until
+-- 2026-10-25, one column short of the rule.)
 
 local M = {}
 
--- Color config (name -> hex). Injected by the host so this module needs no
--- knowledge of the project's palette. configure() is called once per Lua state
--- (main thread and each worker).
+-- Color config (name -> hex) and the frame's columns, set by configure()
+-- once per Lua state (main thread and each worker): the host injects them so
+-- this module needs no knowledge of the project's palette or config.
 local color_config = {}
+local F = nil
+
+-- {{{ function M.frame()
+-- The frame's columns for a text width (number): { width, left_box,
+-- right_box, gap, left_junction, right_junction, regular_fill, golden_fill }.
+function M.frame(text_width)
+    local width = text_width + 4                -- wall, space, text, space, wall
+    local left_box, right_box = 11, 13          -- "│ similar │", "│ different │"
+    return {
+        width = width,
+        left_box = left_box,
+        right_box = right_box,
+        gap = width - left_box - right_box,
+        left_junction = left_box - 1,           -- the similar box's right wall
+        right_junction = width - right_box,     -- the different box's left wall
+        regular_fill = width,
+        golden_fill = width - 2,                -- inside the two outer walls
+    }
+end
+-- }}}
 
 -- {{{ function M.configure()
-function M.configure(cfg)
-    color_config = cfg or {}
+-- palette    : { colour name -> hex }
+-- text_width : the widest a poem's line may be (config.lua layout.text_content_width)
+function M.configure(palette, text_width)
+    if type(text_width) ~= "number" then
+        error("poem-bars.configure: text_width (config.lua layout.text_content_width) is required")
+    end
+    color_config = palette or {}
+    F = M.frame(text_width)
+end
+-- }}}
+
+-- {{{ local function frame()
+local function frame()
+    return F or error("poem-bars: configure() first (it sets the frame's width)")
 end
 -- }}}
 
@@ -65,16 +102,17 @@ end
 -- Returns { visual = <html>, accessibility = <aria-label attr> }.
 function M.progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
     M.check_percentage(progress_info)
-    local total_chars = is_golden and 82 or 83
+    local f = frame()
+    local total_chars = is_golden and f.golden_fill or f.regular_fill
     local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
     local remaining_chars = total_chars - progress_chars
 
     local hex_color = color_config[color_name] or color_config["gray"]
 
-    local LEFT_JUNCTION_POS = 10
-    local RIGHT_JUNCTION_POS = 71            -- golden: right inner wall (1 wider)
-    local REGULAR_LEFT_JUNCTION_POS = 10
-    local REGULAR_RIGHT_JUNCTION_POS = 70
+    local LEFT_JUNCTION_POS = f.left_junction
+    local RIGHT_JUNCTION_POS = f.right_junction
+    local REGULAR_LEFT_JUNCTION_POS = f.left_junction
+    local REGULAR_RIGHT_JUNCTION_POS = f.right_junction
 
     local visual_output
     if is_golden and position == "bottom" and has_corner_boxes then
@@ -105,10 +143,10 @@ function M.progress_dashes(progress_info, color_name, is_golden, position, has_c
             end
         end
 
-        -- Junctions sit at columns 10 and 71, under the nav-box corners. The ╚
+        -- Junctions sit at the inner walls, under the nav-box corners. The ╚
         -- corner is column 0 so the first dash segment starts at 1; the last
-        -- segment runs to total_chars+1 so the interior is exactly 82 wide and
-        -- the junctions line up with the separator above (the reflection).
+        -- segment runs to total_chars+1 so the interior is exactly golden_fill
+        -- wide and the junctions line up with the separator above.
         add_segment(1, LEFT_JUNCTION_POS)
         segments[#segments + 1] = left_junction
         add_segment(LEFT_JUNCTION_POS + 1, RIGHT_JUNCTION_POS)
@@ -188,26 +226,30 @@ end
 -- }}}
 
 -- {{{ function M.corner_box_top()
--- Top line of the nav corner boxes for REGULAR poems: ┌──┐ ... ┌────┐ (83 wide).
+-- Top line of the nav corner boxes for REGULAR poems: ┌──┐ ... ┌────┐
+-- (frame width). A column is coloured once the bar above has filled it.
 function M.corner_box_top(progress_chars, hex_color)
+    local f = frame()
     progress_chars = progress_chars or 0
+    local lj, rj, last = f.left_junction, f.right_junction, f.width - 1
     local left = {}
     left[#left + 1] = progress_chars > 0 and colorize_char("┌", hex_color) or "┌"
-    for i = 1, 9 do left[#left + 1] = progress_chars > i and colorize_char("─", hex_color) or "─" end
-    left[#left + 1] = progress_chars > 10 and colorize_char("┐", hex_color) or "┐"
-    local gap = string.rep(" ", 59)
+    for i = 1, lj - 1 do left[#left + 1] = progress_chars > i and colorize_char("─", hex_color) or "─" end
+    left[#left + 1] = progress_chars > lj and colorize_char("┐", hex_color) or "┐"
+    local gap = string.rep(" ", f.gap)
     local right = {}
-    right[#right + 1] = progress_chars > 70 and colorize_char("┌", hex_color) or "┌"
-    for i = 71, 81 do right[#right + 1] = progress_chars > i and colorize_char("─", hex_color) or "─" end
-    right[#right + 1] = progress_chars > 82 and colorize_char("┐", hex_color) or "┐"
+    right[#right + 1] = progress_chars > rj and colorize_char("┌", hex_color) or "┌"
+    for i = rj + 1, last - 1 do right[#right + 1] = progress_chars > i and colorize_char("─", hex_color) or "─" end
+    right[#right + 1] = progress_chars > last and colorize_char("┐", hex_color) or "┐"
     return table.concat(left) .. gap .. table.concat(right)
 end
 -- }}}
 
 -- {{{ function M.corner_box_nav_line()
 -- The │ similar │ ... chronological ... │ different │ line for REGULAR poems
--- (83 wide). chronological_link is nil on the chronological page itself.
+-- (frame width). chronological_link is nil on the chronological page itself.
 function M.corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color)
+    local f = frame()
     progress_chars = progress_chars or 0
     local similar_visible = similar_link:gsub("<[^>]+>", "")
     local different_visible = different_link:gsub("<[^>]+>", "")
@@ -219,38 +261,40 @@ function M.corner_box_nav_line(similar_link, different_link, chronological_link,
     end
 
     local left_wall = progress_chars > 0 and colorize_char("│", hex_color) or "│"
-    local right_wall_of_left = progress_chars > 10 and colorize_char("│", hex_color) or "│"
-    local similar_padding = 9 - 1 - #similar_visible
+    local right_wall_of_left = progress_chars > f.left_junction and colorize_char("│", hex_color) or "│"
+    local similar_padding = f.left_box - 3 - #similar_visible
     local left_box = left_wall .. " " .. similar_link .. string.rep(" ", similar_padding) .. right_wall_of_left
 
-    local left_wall_of_right = progress_chars > 70 and colorize_char("│", hex_color) or "│"
-    local right_wall = progress_chars > 82 and colorize_char("│", hex_color) or "│"
-    local different_padding = 11 - 1 - #different_visible
+    local left_wall_of_right = progress_chars > f.right_junction and colorize_char("│", hex_color) or "│"
+    local right_wall = progress_chars > f.width - 1 and colorize_char("│", hex_color) or "│"
+    local different_padding = f.right_box - 3 - #different_visible
     local right_box = left_wall_of_right .. " " .. different_link .. string.rep(" ", different_padding) .. right_wall
 
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap, right_gap = string.rep(" ", 23), string.rep(" ", 23)
-    else
-        left_gap, right_gap = string.rep(" ", 29), string.rep(" ", 30)
-    end
+    -- the gap between the boxes, split around the centre link (if any)
+    local spare = f.gap - center_visible_len
+    local left_gap = string.rep(" ", math.floor(spare / 2))
+    local right_gap = string.rep(" ", spare - math.floor(spare / 2))
     return left_box .. left_gap .. center_text .. right_gap .. right_box
 end
 -- }}}
 
 -- {{{ function M.corner_box_bottom()
 function M.corner_box_bottom()
-    return "└" .. string.rep("─", 9) .. "┘" .. string.rep(" ", 59) .. "└" .. string.rep("─", 11) .. "┘"
+    local f = frame()
+    return "└" .. string.rep("─", f.left_box - 2) .. "┘" .. string.rep(" ", f.gap)
+        .. "└" .. string.rep("─", f.right_box - 2) .. "┘"
 end
 -- }}}
 
 -- {{{ function M.golden_corner_box_separator()
--- GOLDEN poem nav separator (84 wide): ╠═════════╗ ... ┌───────────┤
+-- GOLDEN poem nav separator (frame width): ╠═════════╗ ... ┌───────────┤
 -- The LEFT box is DOUBLE-line (╠ + 9×═ + ╗) because it fuses with the golden
 -- poem's ║ outer wall; the RIGHT box is single-line (┌ + 11×─ + ┤) because the
 -- golden poem's right wall is │. 60-space gap between.
 function M.golden_corner_box_separator(hex_color, progress_chars)
-    progress_chars = progress_chars or 84  -- default: fully filled (back-compat)
+    local f = frame()
+    progress_chars = progress_chars or f.width  -- default: fully filled (back-compat)
+    local lj, rj, last = f.left_junction, f.right_junction, f.width - 1
     -- Each dash MIRRORS the progress bar at that column: ═ (double, colored)
     -- where progress has reached, ─ (single) where it has not -- so the box top
     -- reads as a continuation of the bar. Corners are structural: ╠ joins the
@@ -259,23 +303,25 @@ function M.golden_corner_box_separator(hex_color, progress_chars)
         return (progress_chars > pos) and colorize_char("═", hex_color) or "─"
     end
     local left = { colorize_char("╠", hex_color) }
-    for i = 1, 9 do left[#left + 1] = dash(i) end
+    for i = 1, lj - 1 do left[#left + 1] = dash(i) end
     -- Right corner of the similar box is the FILL FRONTIER: double (╗) only once
-    -- progress has swept past column 10, single (┐) until then.
-    left[#left + 1] = (progress_chars > 10) and colorize_char("╗", hex_color) or "┐"
-    local right = { (progress_chars > 70) and colorize_char("┌", hex_color) or "┌" }
-    for i = 71, 81 do right[#right + 1] = dash(i) end
-    right[#right + 1] = (progress_chars > 82) and colorize_char("┤", hex_color) or "┤"
-    return table.concat(left) .. string.rep(" ", 60) .. table.concat(right)
+    -- progress has swept past it, single (┐) until then.
+    left[#left + 1] = (progress_chars > lj) and colorize_char("╗", hex_color) or "┐"
+    -- a golden bar's fill counts from inside the ║ wall, one column behind
+    local right = { (progress_chars > rj - 1) and colorize_char("┌", hex_color) or "┌" }
+    for i = rj, last - 2 do right[#right + 1] = dash(i) end
+    right[#right + 1] = (progress_chars > last - 1) and colorize_char("┤", hex_color) or "┤"
+    return table.concat(left) .. string.rep(" ", f.gap) .. table.concat(right)
 end
 -- }}}
 
 -- {{{ function M.golden_corner_box_nav_line()
--- GOLDEN poem nav line (84 wide): ║ similar ║ ... chronological ... │ different │
+-- GOLDEN poem nav line (frame width): ║ similar ║ ... chronological ... │ different │
 -- Left box ║...║ = 11 (double-line, joins the ║ frame), right box │...│ = 13
 -- (single-line); gaps 22+25 with center, 30+30 without.
 function M.golden_corner_box_nav_line(similar_link, different_link, chronological_link, hex_color, progress_chars)
-    progress_chars = progress_chars or 84  -- default fully filled (back-compat)
+    local f = frame()
+    progress_chars = progress_chars or f.width  -- default fully filled (back-compat)
     local similar_visible = similar_link:gsub("<[^>]+>", "")
     local different_visible = different_link:gsub("<[^>]+>", "")
     local center_text, center_visible_len = "", 0
@@ -286,15 +332,15 @@ function M.golden_corner_box_nav_line(similar_link, different_link, chronologica
     local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
     -- Left wall joins the ║ frame (always double). The RIGHT wall is the fill
     -- frontier: double ║ once progress passes column 10, single │ until then.
-    local right_wall_of_left = (progress_chars > 10) and colored_wall or "│"
-    local left_box = colored_wall .. " " .. similar_link .. string.rep(" ", 9 - 1 - #similar_visible) .. right_wall_of_left
-    local right_box = "│ " .. different_link .. string.rep(" ", 11 - 1 - #different_visible) .. "│"
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap, right_gap = string.rep(" ", 22), string.rep(" ", 25)
-    else
-        left_gap, right_gap = string.rep(" ", 30), string.rep(" ", 30)
-    end
+    local right_wall_of_left = (progress_chars > f.left_junction) and colored_wall or "│"
+    local left_box = colored_wall .. " " .. similar_link .. string.rep(" ", f.left_box - 3 - #similar_visible) .. right_wall_of_left
+    local right_box = "│ " .. different_link .. string.rep(" ", f.right_box - 3 - #different_visible) .. "│"
+    -- the gap split around the centre link, as on a regular poem's nav line
+    -- (the golden line put it one column left of the regular one until
+    -- 2026-10-25; now the two sit in the same column)
+    local spare = f.gap - center_visible_len
+    local left_gap = string.rep(" ", math.floor(spare / 2))
+    local right_gap = string.rep(" ", spare - math.floor(spare / 2))
     return left_box .. left_gap .. center_text .. right_gap .. right_box
 end
 -- }}}

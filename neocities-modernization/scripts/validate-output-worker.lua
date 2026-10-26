@@ -10,7 +10,9 @@
 --
 -- Usage: luajit scripts/validate-output-worker.lua MAX_WIDTH FINDINGS_FILE PAGE...
 --   MAX_WIDTH      widest allowed line inside a poem column, in visible
---                  characters (84: the golden frame, the widest one drawn)
+--                  characters: the frame's width (84: a wall, a space, 80
+--                  characters of text, a space, a wall), which every frame
+--                  piece, regular or golden, must be exactly
 --   FINDINGS_FILE  where this worker writes its findings, one per line:
 --                  wide <TAB> page <TAB> line number <TAB> width <TAB> cause
 --                       <TAB> excerpt
@@ -103,18 +105,24 @@ local function P(spelling)
         return assert(map[letter], "no stand-in for @" .. letter)
     end))
 end
+-- Every frame is the same width (the owner's rule, 2026-10-25): MAX_WIDTH.
+-- The junctions sit under the similar box's right wall (column 10) and the
+-- different box's left wall (13 columns from the right edge), as
+-- src/poem-bars.lua draws them.
+local W = MAX_WIDTH
+local RIGHT_JUNCTION = W - 13
 local FRAME_SHAPES = {
-    { name = "bar",             pattern = P("^[@H@h]+$"),               width = 83 },
-    { name = "golden bar",      pattern = P("^@N[@H@h]+@r$"),           width = 84 },
-    { name = "bottom",          pattern = P("^@L[@H@h@J@j]+@R$"),       width = 83,
-      junctions = { [10] = P("[@J@j]"), [70] = P("[@J@j]") } },
-    { name = "golden bottom",   pattern = P("^@M[@H@h@K@k@J@j]+@R$"),   width = 84,
-      junctions = { [10] = P("[@K@k@j]"), [71] = P("[@J@j]") } },
-    { name = "nav top",         pattern = P("^@O@h+@r +@O@h+@r$"),      width = 83 },
-    { name = "nav bottom",      pattern = P("^@U@h+@R +@U@h+@R$"),      width = 83 },
-    { name = "golden nav top",  pattern = P("^@T@H+@Q +@O@h+@t$"),      width = 84 },
-    { name = "nav line",        pattern = P("^@V similar @V.*@V different @V$"), width = 83 },
-    { name = "golden nav line", pattern = P("^@W similar @W.*@V different @V$"), width = 84 },
+    { name = "bar",             pattern = P("^[@H@h]+$"),               width = W },
+    { name = "golden bar",      pattern = P("^@N[@H@h]+@r$"),           width = W },
+    { name = "bottom",          pattern = P("^@L[@H@h@J@j]+@R$"),       width = W,
+      junctions = { [10] = P("[@J@j]"), [RIGHT_JUNCTION] = P("[@J@j]") } },
+    { name = "golden bottom",   pattern = P("^@M[@H@h@K@k@J@j]+@R$"),   width = W,
+      junctions = { [10] = P("[@K@k@j]"), [RIGHT_JUNCTION] = P("[@J@j]") } },
+    { name = "nav top",         pattern = P("^@O@h+@r +@O@h+@r$"),      width = W },
+    { name = "nav bottom",      pattern = P("^@U@h+@R +@U@h+@R$"),      width = W },
+    { name = "golden nav top",  pattern = P("^@T@H+@Q +@O@h+@t$"),      width = W },
+    { name = "nav line",        pattern = P("^@V similar @V.*@V different @V$"), width = W },
+    { name = "golden nav line", pattern = P("^@W similar @W.*@V different @V$"), width = W },
 }
 -- }}}
 

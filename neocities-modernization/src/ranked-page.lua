@@ -160,7 +160,7 @@ function M.page_html(anchor, list, page_type, page_num, total_pages, download, c
         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
         '<title>Poems by ' .. type_label .. ' to ' .. M.source_path(anchor) .. ' (page ' .. page_num .. ')</title>',
         ctx.head_block,
-        '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
+        '</head>' .. require("page-theme").body_tag() .. '<table align="center"><tr><td><pre>'
     }
     -- page navigation, when the list runs to more than one page
     local nav = page_links(page_num, total_pages, function(n)

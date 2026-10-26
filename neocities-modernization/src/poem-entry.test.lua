@@ -99,6 +99,24 @@ do
 end
 -- }}}
 
+-- {{{ a line's trailing spaces are dropped (owner, 2026-10-25)
+do
+    local line80 = string.rep("word ", 15) .. "abcde"     -- 80 characters
+    local out = E.format_entry({ poem_index = 7, content = "@user-803 \n" .. line80 .. "   " },
+        entry("gray", 10, false))
+    local kept_short, kept_long, any_trailing = false, false, false
+    for _, l in ipairs(lines_of(out)) do
+        local plain = l:gsub("<[^>]+>", "")
+        if plain == " @user-803" then kept_short = true end
+        if plain == " " .. line80 then kept_long = true end
+        if plain:find("[^%s] +$") and not plain:find("[│║┐┘┤]") then any_trailing = true end
+    end
+    check("a short line loses its trailing space", kept_short)
+    check("an 80-wide line with spaces after it stays one 80-wide line", kept_long)
+    check("no text line ends in a space", not any_trailing)
+end
+-- }}}
+
 -- {{{ content warnings: the post's own, and one written partway down
 do
     local out = E.format_entry({ poem_index = 7, content_warning = "loss & grief",

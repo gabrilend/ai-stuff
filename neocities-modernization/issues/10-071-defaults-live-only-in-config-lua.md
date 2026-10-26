@@ -118,7 +118,21 @@ values written in its own code, and editing `config.lua` changes nothing.
    has none -- so `--yes` stops and names `--threads`. `run.sh` always passes
    it, so builds are unaffected. Add a `threads` setting to `config.lua` so
    `--yes` can take it, or keep threads always explicit?
-2. **The box layout.** `src/flat-html-generator.lua` keeps a table of box
+2. **Answered (owner, 2026-10-25).** "The maximum amount of text inside a
+   poem is 80 characters. It is possible, but rare, for a poem to have a
+   trailing space or something, but these should be either stripped out or
+   ignored somehow. The left side of the box needs a |, then a space, then
+   the poem text, then a space, then a |. That's the constraint." So every
+   frame is `text_content_width + 4` = 84 columns, regular and golden alike
+   (regular poems were 83, one short); `src/poem-bars.lua` derives every
+   column from the text width it is configured with; the page builder's
+   own box table and config.lua's other `layout` numbers (which nothing drew
+   with, and which disagreed: 83/85 widths, junctions "5" and "6") are gone,
+   leaving `layout.text_content_width = 80`; a line's trailing spaces are
+   dropped before and after wrapping (`src/poem-entry.lua`); and
+   `scripts/validate-output` holds every frame piece to the same width,
+   taken from the same setting. The owner chose "Widen regular to 84".
+   The question, as asked: **The box layout.** `src/flat-html-generator.lua` keeps a table of box
    widths and positions with different names and more entries than
    `config.lua`'s `layout` section, and the two disagree (the code says regular
    poems are 82 characters wide, `config.lua` says 83). Which is right, and

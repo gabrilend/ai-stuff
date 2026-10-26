@@ -362,7 +362,7 @@ local function page_shell(title, sidebar, content)
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="%s_style.css">
 </head>
-<body bgcolor="#000000">
+<body bgcolor="]] .. require("page-theme").colours().background .. [[">
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
@@ -565,7 +565,7 @@ local function write_style_file(out_root)
    told apart by their border lines (--rule), not by a lighter fill. */
 :root{
   color-scheme: dark;
-  --ink:#000000; --ink-2:#000000; --panel:#000000;
+  --ink:]] .. require("page-theme").colours().background .. [[; --ink-2:]] .. require("page-theme").colours().background .. [[; --panel:]] .. require("page-theme").colours().background .. [[;
   --paper:#e9e4d8; --paper-dim:#9b9484; --paper-faint:#6a6457;
   --gold:#d8b14a; --gold-soft:#c6b257; --blue:#74a0e6; --teal:#5f9c92; --coral:#e08363;
   --rule:#24262f; --rule-soft:#191b22;
