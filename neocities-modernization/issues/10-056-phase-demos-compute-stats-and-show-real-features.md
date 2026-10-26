@@ -70,6 +70,11 @@ describe functionality as it stood several phases ago, not as it is now.
 
 ## Suggested Implementation Steps
 
+- (From 9-006, 2026-10-25.) Show the whole-site check's counts
+  (`scripts/validate-output`: pages checked, over-wide lines by cause,
+  misshapen frame pieces, broken links) in the phase demo.
+
+
 1. Audit each demo against the current feature set: list what it claims vs. what
    exists now. Note every hardcoded number and every described-but-changed
    feature.

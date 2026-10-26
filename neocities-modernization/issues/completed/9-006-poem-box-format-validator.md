@@ -1,7 +1,9 @@
 # Issue 9-006: Poem Box Format Validator
 
 ## Status
-- **Status**: REOPENED (2026-09-22). Sorted from `next-issue-please-sort`.
+- **Status**: COMPLETED (2026-10-25). Reopened 2026-09-22 from
+  `next-issue-please-sort`; every step is built. Showing its counts in the
+  phase demo (half of step 8) belongs to the phase-demo rewrite, Issue 10-056.
 - **Build this first** among the issues reopened on 2026-09-22 (8-045, 9-011,
   10-025, 10-036, 16-010, 2-010). It measures the problems those issues fix, so
   it gives a baseline before any of them change and a pass/fail check after.
@@ -30,13 +32,20 @@ and, under the fediverse/696 sample (see 9-011):
 - Frame shapes (2026-09-23, folded in from the retired one-file checker): a
   line recognised as a frame piece -- progress bar, bottom line, the tops,
   middles and bottoms of the similar/different boxes, regular and golden --
-  must be exactly its frame's width (83 regular, 84 golden), and a bottom line
-  must carry its junctions at columns 10 and 70 (golden: 10 and 71). The
+  must be exactly the frame's width, and a bottom line must carry its
+  junctions at columns 10 and 71. Since 2026-10-25 every frame is 84
+  (`--max-width`, by default config.lua `layout.text_content_width` + 4: a
+  wall, a space, the text, a space, a wall), regular and golden alike. The
   shapes are a table in `scripts/validate-output-worker.lua`, matched over a
   one-letter spelling of each box character, since Lua patterns work on bytes
   and would confuse box characters built from the same bytes. Ordinary text
-  lines inside a regular frame are still only held to 84, not to their
-  frame's own width.
+  lines are held to their kind's width (step 4, 2026-10-25): a line drawn
+  with box characters (frame pieces, golden walls, boosts, warning boxes) to
+  84, a line with none -- a regular poem's text -- to 82, its 2-column indent
+  and 80 characters. The first run of that rule found one line past it:
+  notes-619's 74-space indent before "quickly", which the wrapper had
+  returned whole; it now shrinks an indent that leaves under 10 columns
+  (`libs/text-formatter.lua`).
 - Widths and frame shapes are checked only on pages that show poems -- those
   in `similar/`, `different/`, `chronological/` and `wordcloud/`. The first
   run with frame shapes flagged 1,302 decorative 78-column rules on the

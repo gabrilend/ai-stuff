@@ -228,9 +228,20 @@ function M.wrap_preserving_indent(line, max_width)
     local indent_width = M.utf8_char_count(leading)
     local content_width = max_width - indent_width
 
-    -- Edge case: if indent is so large we can't fit meaningful content
+    -- An indent so deep it leaves under 10 columns (a word pushed far to
+    -- the right, notes-619's 74 spaces before "quickly"): the line used to
+    -- come back whole and run past the text column. The indent shrinks
+    -- instead -- just enough that the text ends at the column's edge, which
+    -- keeps the word where the author pushed it; or, for text longer than
+    -- that, to leave 10 columns, and the text wraps within them.
     if content_width < 10 then
-        return {line}
+        local text_width = M.calculate_visible_width(remainder)
+        if text_width <= max_width then
+            return { string.rep(" ", max_width - text_width) .. remainder }
+        end
+        leading = string.rep(" ", max_width - 10)
+        indent_width = max_width - 10
+        content_width = 10
     end
 
     local result_lines = {}

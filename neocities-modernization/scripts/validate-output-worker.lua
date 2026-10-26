@@ -78,8 +78,8 @@ end
 -- them: a bar one column short shears the frame just as badly.  Each row is a
 -- piece a line can be recognised as, the exact width it must have, and -- for
 -- the bottom lines -- the columns (0-based) where its junctions must sit.
--- Regular frames are 83 wide, golden (1024-character) poems 84; the shapes
--- come from src/poem-bars.lua, which draws them.  (Folded in 2026-09-23 from
+-- Every frame is MAX_WIDTH wide (84), regular and golden; the shapes come
+-- from src/poem-bars.lua, which draws them.  (Folded in 2026-09-23 from
 -- the retired one-file checker, scripts/validate-poem-box-format.)
 --
 -- Patterns are written over a one-letter spelling of the line (BOX_LETTERS),
@@ -291,7 +291,14 @@ for i = 3, #arg do
             end
             if measured and holds_poems then
                 local width, plain = visible_width(measured)
-                if width > MAX_WIDTH then
+                -- A line drawn with box characters (a frame piece, a golden
+                -- poem's walled line, a boost, a warning box) may fill the
+                -- frame's width. A line with none is a regular poem's text:
+                -- its 2-column indent and at most 80 characters, so two
+                -- columns less (the owner's rule, 2026-10-25: text at most
+                -- 80, the frame wall-space-text-space-wall).
+                local allowed = plain:find("[\226][\148-\149]") and MAX_WIDTH or (MAX_WIDTH - 2)
+                if width > allowed then
                     record("wide", page, line_number, width, cause_of(plain), plain)
                 end
                 -- A frame piece must be exactly its frame's width, junctions

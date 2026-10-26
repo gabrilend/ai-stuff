@@ -36,7 +36,17 @@ Medium
 > well as spaces. A character counting script, run on the entire output, would
 > help identify these issues, which we could solve one by one.
 
-## Current Behavior (reopened)
+## Current Behavior (completed 2026-10-25)
+
+Every content-warning box on the site is drawn by one function,
+`format_cw_box` in `libs/text-formatter.lua`, through the shared poem drawer
+(`src/poem-entry.lua`), on every page type; it is the only code that draws
+one. On the owner's 2026-10-23 build the whole-site check
+(`scripts/validate-output`) found 0 over-wide lines on all 20,109 pages, and
+12 sampled posts showed the same box on their chronological page and their
+similar page. The text below is the state the reopening found, kept for the
+record.
+
 
 - **There are five separate content-warning box builders**, and they disagree:
   - The main-thread `format_warning_box` in `src/flat-html-generator.lua`

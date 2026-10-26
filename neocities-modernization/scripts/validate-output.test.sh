@@ -83,6 +83,18 @@ check "the 83-wide bar is named" "$(grep -c '83 wide, must be 84' "$SCRATCH/shap
 check "the moved junction is named" "$(grep -c 'no junction at column 10' "$SCRATCH/shapes-bad.txt")" "1"
 # }}}
 
+# {{{ a regular poem's text line is held to 82 (indent + 80); a walled line to 84
+TEXTS="$SCRATCH/texts"
+mkdir -p "$TEXTS/similar"
+PLAIN83="  $(printf 'x%.0s' $(seq 1 81))"                                  # 2 + 81: one too many
+PLAIN82="  $(printf 'x%.0s' $(seq 1 80))"                                  # 2 + 80: fine
+WALLED84="║ $(printf 'x%.0s' $(seq 1 80)) │"                              # a golden line: fine
+{ echo '<html><pre>'; echo "$PLAIN83"; echo "$PLAIN82"; echo "$WALLED84"; echo '</pre></html>'; } > "$TEXTS/similar/t.html"
+"$DIR/scripts/validate-output" "$DIR" --jobs 1 --output "$TEXTS" --report "$SCRATCH/texts.txt" >/dev/null 2>&1
+check "a text line of 83 fails" "$?" "1"
+check "only the 83-wide text line is reported" "$(grep -c '^Over-wide lines: 1$' "$SCRATCH/texts.txt")" "1"
+# }}}
+
 # {{{ pages that show no poems are held only to their links
 # The gallery draws its own 78-column rules and the source browser quotes code
 # and old broken examples; neither is a poem frame.

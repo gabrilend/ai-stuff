@@ -99,6 +99,22 @@ check("emphasized line past the margin still wraps",
     #tf.wrap_preserving_indent(overlong, 80) > 1)
 -- }}}
 
+-- {{{ an indent too deep to leave room shrinks instead of overflowing
+-- notes-619: 74 spaces, then "quickly" -- 81 columns. It used to come back
+-- whole, one past the text column.
+do
+    local deep = (" "):rep(74) .. "quickly"
+    local out = tf.wrap_preserving_indent(deep, 80)
+    check("a deep-indented word ends at the text column's edge",
+        #out == 1 and tf.calculate_visible_width(out[1]) == 80 and out[1]:match("quickly$") ~= nil, show(out))
+    local long = (" "):rep(75) .. ("word "):rep(6)
+    local wrapped = tf.wrap_preserving_indent(long, 80)
+    local widest = 0
+    for _, l in ipairs(wrapped) do widest = math.max(widest, tf.calculate_visible_width(l)) end
+    check("longer text after a deep indent wraps within the column", widest <= 80, show(wrapped))
+end
+-- }}}
+
 -- {{{ entities and multi-byte characters cost one column each
 check("&amp; costs one column, not five",
     tf.calculate_visible_width("a &amp; b") == 5,
