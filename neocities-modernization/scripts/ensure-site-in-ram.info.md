@@ -23,11 +23,10 @@ scripts/ensure-site-in-ram [DIR] [--migrate]
 | --- | --- | --- |
 | `output` | a relative link | `tmp/shared-memory/site` (RAM) |
 | `tmp/shared-memory/site/media` | an absolute link | `assets/site-media/` (disk) |
-| `tmp/shared-memory/site/model-evaluation` | an absolute link | `assets/model-evaluation/` (disk) |
 
 The disk folders are the script's kept-on-disk list (`KEPT_ON_DISK`): the
-pictures, copied in only when one changes, and the embedding-model comparison,
-written by `scripts/evaluate-embedding-models` rather than by the build. A new
+pictures, copied in only when one changes. (The embedding-model comparison
+pages were the second, until their tool was retired on 2026-10-25.) A new
 site folder that the build does not remake belongs in that list.
 
 Every program that writes `output/...` is unchanged; the link carries the

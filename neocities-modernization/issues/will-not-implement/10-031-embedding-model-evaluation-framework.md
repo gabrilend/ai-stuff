@@ -4,7 +4,14 @@
 - **Phase**: 10
 - **Priority**: Medium
 - **Type**: Research / Tooling
-- **Status**: Open
+- **Status**: Will not implement (retired 2026-10-25). Owner, asked whether
+  its report should match the site's pure-black pages: "I don't think we need
+  this report anymore." The tool, its script and its library were retired
+  (`src/model-comparison.lua`, `scripts/evaluate-embedding-models`,
+  `libs/model-evaluator.lua`: renamed `-done` for one commit, then removed),
+  and the report's pages left the site (the `model-evaluation` folder kept
+  on disk by `scripts/ensure-site-in-ram`). The build uses EmbeddingGemma 2
+  (Issue 1-010); the model list in config.lua stays, for choosing another.
 - **Created**: 2026-03-18
 
 ## Current Behavior

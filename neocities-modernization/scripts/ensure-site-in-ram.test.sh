@@ -25,9 +25,8 @@ check() { # check <label> <actual> <expected>
 # Its own tmp/shared-memory/ is a plain folder: the helper only needs it to
 # exist, and a plain folder keeps the test away from the real RAM tier.
 P="$SCRATCH/project"
-mkdir -p "$P/tmp/shared-memory" "$P/output/media/my-art" "$P/output/similar" "$P/output/model-evaluation"
+mkdir -p "$P/tmp/shared-memory" "$P/output/media/my-art" "$P/output/similar"
 echo 'picture' > "$P/output/media/my-art/a.png"
-echo 'report' > "$P/output/model-evaluation/comparison-report.html"
 echo '<html><pre>old page</pre></html>' > "$P/output/similar/0001-01.html"
 # }}}
 
@@ -39,12 +38,12 @@ check "real output/ left as it was" "$([ -d "$P/output" ] && [ ! -L "$P/output" 
 # }}}
 
 # {{{ --migrate refuses, moving nothing, when a disk home is already taken
-mkdir -p "$P/assets/model-evaluation"
+mkdir -p "$P/assets/site-media"
 "$DIR/scripts/ensure-site-in-ram" "$P" --migrate >/dev/null 2>&1
 check "migrate with a taken disk home: refused" "$?" "1"
 check "refused migrate: pictures not moved" "$(cat "$P/output/media/my-art/a.png")" "picture"
 check "refused migrate: old pages untouched" "$([ -f "$P/output/similar/0001-01.html" ] && echo yes)" "yes"
-rmdir "$P/assets/model-evaluation"
+rmdir "$P/assets/site-media"
 # }}}
 
 # {{{ --migrate keeps the disk folders, deletes the rest, makes the layout
@@ -54,8 +53,6 @@ check "output/ is now a link" "$([ -L "$P/output" ] && echo yes)" "yes"
 check "output/ points into RAM" "$(readlink "$P/output")" "tmp/shared-memory/site"
 check "pictures moved to the disk folder" "$(cat "$P/assets/site-media/my-art/a.png")" "picture"
 check "pictures reachable through the site" "$(cat "$P/output/media/my-art/a.png")" "picture"
-check "model comparison moved to disk" "$(cat "$P/assets/model-evaluation/comparison-report.html")" "report"
-check "model comparison reachable through the site" "$(cat "$P/output/model-evaluation/comparison-report.html")" "report"
 check "old pages deleted" "$([ -e "$P/output/similar/0001-01.html" ] && echo yes || echo no)" "no"
 # }}}
 

@@ -16,7 +16,6 @@
 #
 #   output                                  -> tmp/shared-memory/site        (relative; RAM)
 #   tmp/shared-memory/site/media            -> ${DIR}/assets/site-media       (absolute; disk)
-#   tmp/shared-memory/site/model-evaluation -> ${DIR}/assets/model-evaluation (absolute; disk)
 #
 # output's link is relative so it follows the project's own tmp/ link chain
 # (scripts/ensure-tmp-symlink): tmp/ -> /tmp/<project>/, and inside it
@@ -75,13 +74,12 @@ SITE_LINK_TARGET="tmp/shared-memory/site"
 # (disk home relative to DIR). Everything else in the site is rebuilt each run.
 #   media            -- the pictures, 1.5 GB, copied in only when one changes
 #                       (src/flat-html-generator.lua, the media flattening step)
-#   model-evaluation -- the embedding-model comparison pages, written by
-#                       scripts/evaluate-embedding-models, not by the build
+# (The embedding-model comparison pages, model-evaluation, were the second;
+# their tool was retired on 2026-10-25, owner's choice.)
 # A new folder that the build does not remake belongs in this list, or a
 # logout loses it and a pruning deploy deletes it from the live site.
 KEPT_ON_DISK=(
     "media:assets/site-media"
-    "model-evaluation:assets/model-evaluation"
 )
 # }}}
 

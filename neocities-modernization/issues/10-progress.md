@@ -42,7 +42,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
 | 10-029 | TUI Ollama server selector dropdown | Superseded 2026-10-22 (Ollama gone; servers chosen with --server) | Medium |
 | 10-030 | Image source position randomization | Completed | Low |
-| 10-031 | Embedding model evaluation framework | Open | Medium |
+| 10-031 | Embedding model evaluation framework | Will not implement (2026-10-25) | Medium |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
@@ -273,7 +273,7 @@ phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <proj
 - Line-specific $, 0: end/start of current line; G/gg: end/start of command
 - Files modified: /home/ritz/programming/ai-stuff/scripts/libs/menu.lua
 
-**10-031: Embedding Model Evaluation Framework** - OPEN
+**10-031: Embedding Model Evaluation Framework** - WILL NOT IMPLEMENT (2026-10-25: the owner no longer needs its report; the tool was retired)
 - Systematic comparison of embedding models (nomic, mxbai, etc.)
 - Generate similarity rankings for test anchor poems across models
 - Analyze model "personality" (semantic vs structural, verbs vs nouns)
