@@ -41,8 +41,11 @@ local M = {}
 -- and is not.
 --   palette    : table, colour name (string) -> "#rrggbb" (string); config.lua
 --                semantic_colors, as the main program reads it
---   text_width : number, the text column (80): regular poems put a 1-column
---                indent before it, golden poems put their walls around it
+--   text_width : number, the text column (80): golden poems put their walls
+--                around it ("║ " before, " │" after); regular poems have no
+--                walls but the same 2-column indent, so their text starts in
+--                the same column and only the borders tell them apart (owner,
+--                2026-10-25)
 local settings = nil
 -- }}}
 
@@ -435,11 +438,13 @@ local function draw_entry(poem, entry)
     if is_golden then
         for _, line in ipairs(golden_walls(lines, hex_color)) do out[#out + 1] = line end
     else
-        -- the 1-column indent goes on lines with text; a blank line stays
-        -- empty (a lone space shows nothing and costs a byte on every
-        -- blank line of ~52,000 pages)
+        -- the 2-column indent (as wide as a golden poem's "║ ") goes on lines
+        -- with text, so regular and golden text start in the same column and
+        -- only the borders tell them apart (owner, 2026-10-25); a blank line
+        -- stays empty (spaces show nothing and cost bytes on every blank line
+        -- of ~52,000 pages)
         for _, line in ipairs(lines) do
-            out[#out + 1] = line == "" and "" or (" " .. line)
+            out[#out + 1] = line == "" and "" or ("  " .. line)
         end
     end
     -- }}}

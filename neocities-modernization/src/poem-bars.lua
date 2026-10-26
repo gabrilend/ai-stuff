@@ -9,9 +9,12 @@
 -- pages stayed correct at 83. One module -> one bar -> no drift.
 --
 -- Geometry (owner, 2026-10-25): a poem's text is at most text_width
--- characters (80, config.lua layout.text_content_width), and its frame is a
--- wall, a space, the text, a space, a wall -- text_width + 4 = 84 columns,
--- 0-indexed 0..83, for regular and golden poems alike:
+-- characters (80, config.lua layout.text_content_width), and a golden poem's
+-- frame is a wall, a space, the text, a space, a wall -- text_width + 4 = 84
+-- columns, 0-indexed 0..83. Only golden poems are walled (that is what sets
+-- them apart); a regular poem's bars and boxes span the same 84 columns and
+-- its text is indented to the same column (src/poem-entry.lua), so only the
+-- borders tell the two apart:
 --   left corner box  : columns 0-10  (11 wide; walls at 0 and 10)
 --   gap              : columns 11-70 (60 spaces)
 --   right corner box : columns 71-83 (13 wide; walls at 71 and 83)

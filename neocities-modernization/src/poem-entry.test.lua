@@ -93,9 +93,9 @@ do
     local out = E.format_entry({ poem_index = 7, content = line80 }, entry("gray", 10, false))
     local found = false
     for _, l in ipairs(lines_of(out)) do
-        if l == " " .. line80 then found = true end
+        if l == "  " .. line80 then found = true end
     end
-    check("an 80-wide line is kept whole, after the 1-column indent", found)
+    check("an 80-wide line is kept whole, after the 2-column indent", found)
 end
 -- }}}
 
@@ -107,8 +107,8 @@ do
     local kept_short, kept_long, any_trailing = false, false, false
     for _, l in ipairs(lines_of(out)) do
         local plain = l:gsub("<[^>]+>", "")
-        if plain == " @user-803" then kept_short = true end
-        if plain == " " .. line80 then kept_long = true end
+        if plain == "  @user-803" then kept_short = true end
+        if plain == "  " .. line80 then kept_long = true end
         if plain:find("[^%s] +$") and not plain:find("[│║┐┘┤]") then any_trailing = true end
     end
     check("a short line loses its trailing space", kept_short)
@@ -167,7 +167,7 @@ do
     local ls = lines_of(out)
     check("the top bar carries a screen-reader label", ls[1]:find('aria-label="eighty dashes. blue."', 1, true) ~= nil)
     check("the bottom bar carries a screen-reader label", ls[#ls]:find('aria-label=', 1, true) ~= nil)
-    check("the text has a 1-column indent", ls[2] == " hello")
+    check("the text has a 2-column indent", ls[2] == "  hello")
     check("the entry ends without a newline", out:sub(-1) ~= "\n")
     check("no chronological link on a chronological page", not out:find("chronological", 1, true))
 end
@@ -228,7 +228,7 @@ do
         and not bottom_line:find("┴", 1, true), bottom_line)
     local regular = plain({ poem_index = 9, content = "hello" }, "blue", 30)
     check("a regular entry keeps its bars", lines_of(regular)[1]:find("═", 1, true) ~= nil)
-    check("a regular entry's text is indented as on a page", lines_of(regular)[2] == " hello")
+    check("a regular entry's text is indented as on a page", lines_of(regular)[2] == "  hello")
     local boost = plain({ poem_index = 9, metadata = { is_boost = true }, content = "shared" }, "gray", 30)
     check("a boost keeps its frame in plain text", boost:find("[BOOST]", 1, true) ~= nil and not boost:find("similar", 1, true))
     check("a code point becomes UTF-8", E.utf8_char(0x1F5BC) == "\240\159\150\188")
@@ -245,6 +245,27 @@ end
 do
     local ok = pcall(E.format_entry, { poem_index = 7, content = "x" }, entry("teal", 10, false))
     check("an unknown colour is refused", not ok)
+end
+-- }}}
+
+-- {{{ regular and golden text start in the same column (owner, 2026-10-25)
+do
+    local function text_column(out, word)
+        for _, l in ipairs(lines_of(out)) do
+            local plain = l:gsub("<[^>]+>", "")
+            local at = plain:find(word, 1, true)
+            if at then
+                local col = 0
+                for _ in plain:sub(1, at - 1):gmatch("[%z\1-\127\194-\244][\128-\191]*") do col = col + 1 end
+                return col
+            end
+        end
+    end
+    local regular = E.format_entry({ poem_index = 7, content = "alignment" }, entry("gray", 10, false))
+    local golden = E.format_entry({ poem_index = 7, content = "alignment", metadata = { is_golden_poem = true } },
+        entry("gray", 10, false))
+    check("a regular poem's text starts in the golden poem's column",
+        text_column(regular, "alignment") ~= nil and text_column(regular, "alignment") == text_column(golden, "alignment"))
 end
 -- }}}
 

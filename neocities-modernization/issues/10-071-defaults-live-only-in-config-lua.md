@@ -131,7 +131,13 @@ values written in its own code, and editing `config.lua` changes nothing.
    leaving `layout.text_content_width = 80`; a line's trailing spaces are
    dropped before and after wrapping (`src/poem-entry.lua`); and
    `scripts/validate-output` holds every frame piece to the same width,
-   taken from the same setting. The owner chose "Widen regular to 84".
+   taken from the same setting. The owner chose "Widen regular to 84",
+   then: "only the golden poems should be framed. That's what separates them
+   from the rest. But, the spacing of the other poems should be such that you
+   can't tell, based on their text alignment, whether or not they're regular
+   or golden - only the borders will tell you." So regular poems stay
+   unwalled, and their text takes a 2-column indent (as wide as "║ "),
+   starting in the golden text's column.
    The question, as asked: **The box layout.** `src/flat-html-generator.lua` keeps a table of box
    widths and positions with different names and more entries than
    `config.lua`'s `layout` section, and the two disagree (the code says regular

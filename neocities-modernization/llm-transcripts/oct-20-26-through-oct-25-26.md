@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 17:06:01
+Generated on: 2026-10-25 17:31:19
 Models: claude-opus-5-5
 
 ## Contents
@@ -98,6 +98,10 @@ Models: claude-opus-5-5
     open issues now that pictures are placed by what they show. Next, tell me
     which group E issues to drop, and whether they go to superseded/ or
     completed/.
+23. 2026-10-25 17:09, after Request 42 - I'm working through the pre-rebuild
+    cleanup list, and pure-black pages for OLED screens are done, including the
+    source browser. Next I need your answers to five questions, starting with
+    whether to keep pure-white text on black.
 
 --------------------------------------------------------------------------------
 
@@ -6462,6 +6466,184 @@ screens is done and committed, and all 51 runnable tests pass.
 Next in group C, in order: the stricter command-line values and the up-front
 pre-build check, the memory and parallel work, pictures on the chronological
 pages, and the other page fixes.
+
+--------------------------------------------------------------------------------
+
+### User Request 43
+
+> 1. Pure white text. The text is pure white (#FFFFFF) on pure black. Slightly
+> off-white text would keep the black pixels unlit but be gentler on the eyes in
+> a dark room. Keep pure
+>      white, or soften it?
+
+sure let's soften them.
+
+> 2. Link colours. The links are #6699FF (blue) and, once visited, #9966FF
+> (purple). Keep those?
+
+yeah, for now.
+
+> 3. One place for the colours. Each page generator writes its own colours.
+> Should they all read from one section of config.lua, so a new page type can't
+> drift off black?
+
+yes.
+
+> 4. Diagnostic pages. The model-comparison report still uses its dark blue-grey
+> palette. It isn't linked from the site. Should it go black too, or stay as it
+> is?
+
+I don't think we need this report anymore.
+
+  5. Poem frame width. The page builder says a poem's frame is 82 characters
+     wide, and config.lua's layout section says 83. Which is right? Should all
+     the frame numbers live in
+     config.lua?
+
+The maximum amount of text inside a poem is 80 characters. It is possible, but
+rare, for a poem to have a trailing space or something, but these should be
+either stripped out or ignored somehow. The left side of the box needs a |, then
+a space, then the poem text, then a space, then a |. That's the constraint.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 43
+
+> Clear. Working through them in order. The frame width matters most because it
+> changes every page, so I'll start by reading what the page builder actually
+> draws today against your rule: a side bar, a space, up to 80 characters, a
+> space, a side bar.
+
+> **[Asked the user]**
+>
+> *Q1 — Frame width:* Regular poems (no side bars) are drawn 83 wide, golden
+> poems 84. Your rule (bar, space, 80, space, bar) gives 84. Should regular
+> poems widen to 84 so both match?
+> - Widen regular to 84 (Recommended) — Regular poems' progress bar and
+>   navigation line gain one column, so every frame on the site is 84 wide, with
+>   one space between the text and the right edge. Every regular poem's frame
+>   changes by one column.
+> - Keep regular at 83 — Regular poems have no side bars, so they keep their
+>   83 width; only golden poems follow the bar-space-80-space-bar rule.
+> - Give regular side bars — Regular poems get their own │ walls on every
+>   text line, like golden ones but in a plain style: 84 wide, every line boxed.
+>   A bigger visual change.
+> → **Selected:** Widen regular to 84 (Recommended)
+> → **They added:** yes, but your golden poem example is broken.
+
+> The bar drawer will take the text width when it's configured, and work out
+> every column from it. The other frame drawer, the one for boosted posts, needs
+> checking too:
+
+> Now the bar drawer's own test, which pins the old 83:
+
+> The validator already receives the frame width (84) as its maximum line width,
+> so its frame shapes can use that number too. Its default 84 will now come from
+> config.lua's text width plus 4.
+
+> This test draws real frames with the bar drawer, which now has to be
+> configured first. Adding that, then running the frame tests:
+
+> The one failure is the ranked-page test, which still expects a full bar to be
+> 83 columns and a half bar 41. Both follow from the width: now 84 and 42.
+
+> Stripping trailing spaces at the one place every wrapped line passes through:
+
+> The frame work is done. Next are the colours: softer text, read from one
+> place. Finding every place a page writes its colours:
+
+> Four of them sit inside long page templates, so each needs its own look.
+> Viewing them:
+
+> The source browser's page template goes through `string.format`, so I'll join
+> the theme's background into the template the same way as the others, and into
+> its stylesheet's three background shades:
+
+> Updating the theme section's comment to say where it's read:
+
+> Every kind of page now gets its colours from the one theme. The source browser
+> keeps its own warm off-white text colour, which is already soft. Running all
+> the checks:
+
+> That's only because `page-theme.lua` is new and not yet tracked; the audit
+> reads the files git knows about. It'll clear once committed. Recording the
+> decisions in the issues, then committing:
+
+*[commit] b7118d8bc - neocities: every frame is 84 wide, and the colours come from one place*
+
+> Committed, and the settings audit is clean again. One decision left before I
+> retire the model-comparison report:
+
+> **[Asked the user]**
+>
+> *Q1 — Retire report:* The model-comparison report is made by Issue 10-031's
+> tool (src/model-comparison.lua, run by scripts/evaluate-embedding-models), and
+> its pages sit in assets/model-evaluation/ on disk, linked into the site. How
+> far should retiring it go?
+> - Tool, issue and pages (Recommended) — Retire both scripts (named -done for
+>   one commit, then removed), move Issue 10-031 to will-not-implement with your
+>   words, drop the site link so the pages stop being published (the next
+>   --prune deploy removes them from Neocities), and delete
+>   assets/model-evaluation/.
+> - Tool and issue, keep pages on disk — As above, but leave
+>   assets/model-evaluation/ on disk (unpublished), in case you want to look at
+>   an old report.
+> - Only stop publishing it — Keep the tool and 10-031 open; just take the
+>   report off the site.
+> → **Selected:** Tool, issue and pages (Recommended)
+
+> Retiring all of it. Finding every reference first:
+
+> The pages folder is already empty. There's also `libs/model-evaluator.lua`,
+> and `build-deps.sh` mentions the tool. Checking both:
+
+*[commit] cacc5859d - neocities: retire the embedding-model comparison report*
+
+> Now the second half of the retirement: removing the four `-done` files.
+
+*[commit] 673896044 - neocities: remove the retired model-comparison files*
+
+I've made all five of your answers, and they're committed. All 51 runnable tests
+pass; the 2 that need the embedding server were skipped.
+
+**Frames.** Every poem frame is now 84 columns: a wall, a space, up to 80
+characters of text, a space, a wall.
+- Regular poems were 83 wide, one short. They now match golden ones, with the
+  boxes, their junctions and the "chronological" link in the same columns on
+  both.
+- The drawer works every column out from config.lua's single text-width setting
+  (80). The old box tables in the code and config.lua that nothing drew with,
+  and that disagreed, are gone.
+- Trailing spaces are stripped from each line before and after wrapping. Before,
+  an 80-character line ending in a space was wrapped one word early.
+- The whole-site check holds every frame to the same width, taken from the same
+  setting. I re-rendered 400 sample pages: no over-wide lines and no misshapen
+  frames.
+
+**Colours.**
+- A new module, `src/page-theme.lua`, reads config.lua's theme and writes every
+  page's opening tag. It replaces eight hand-written copies; the gallery and the
+  source browser's backgrounds read it too.
+- Text is softened from `#FFFFFF` to `#E0E0E0`, a light grey I picked. It's one
+  setting in config.lua if you want it lighter or warmer.
+- The links keep their blue and purple.
+
+**Model-comparison report.** Retired as you chose:
+- the tool, the script that ran it and the library it used are removed, after
+  the usual one-commit `-done` step;
+- its issue (10-031) is moved to will-not-implement with your words;
+- its pages no longer go into the site, so the next `--prune` deploy removes
+  them from Neocities too.
+
+**Still waiting on your rebuild:**
+- A rebuild redraws every page with the new frames and colours. Then deploy with
+  `scripts/deploy-to-neocities --prune`.
+- The pure-black issue (11-009) has one last step after that rebuild: open a
+  poem page and a source-browser page on a phone, or in Firefox's responsive
+  mode, and confirm they show a single black. That's your check to make.
+
+Next in group C: the stricter command-line values and the up-front pre-build
+check (10-065, 10-065a, 10-069).
 
 --------------------------------------------------------------------------------
 
