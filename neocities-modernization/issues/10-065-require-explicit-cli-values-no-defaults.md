@@ -4,10 +4,9 @@
 - **Phase**: 10
 - **Priority**: High
 - **Type**: Design change (breaking CLI change)
-- **Status**: IN PROGRESS — the implementation is in place and verified (see
-  Verification). Questions 1–9 were worked through and are answered below, each
-  keeping the reasoning it was chosen over. Questions 10–13 surfaced during that
-  pass and are unanswered, so the issue is not finished. The "Current Behavior"
+- **Status**: IN PROGRESS — built and verified; all 13 questions are answered
+  below. Waiting only on its sub-issue, 10-065a. The verification table was
+  re-run on 2026-10-25 and passes (see Verification). The "Current Behavior"
   section describes the state this issue started from, not the state today.
 - **2026-10-21, the embedding model has no default anywhere** (owner: "we
   should not have a default model. It should be manually specified"). run.sh
@@ -28,7 +27,7 @@
   - Tests name their model (the page tests: embeddinggemma-2; the image
     step's real-data check: every model with embeddings on disk; the batch
     smoke test: the model the running server reports).
-    `scripts/test-model-propagation.sh` checks that a run without a model is
+    `scripts/model-propagation.test.sh` checks that a run without a model is
     refused and that no server entry names one.
 - **Sub-issues**: 10-065a (the programs run.sh starts: run on their own, they
   ask for a missing value with the default in brackets, take defaults under
@@ -246,6 +245,17 @@ through the whole script makes possible.
 
 Run these; they are cheap and they cover each property the issue claims.
 
+Re-run 2026-10-25: every row behaves as listed, with two corrections. `--stage
+5` no longer asks for `--seed`: Issue 10-058 later made the seed optional (an
+absent seed is chosen at random and recorded), so that row is out of date.
+And a mistyped `--model` used to reach the pre-flight gate first, which said
+only that a file was missing under a folder named after the typo; the model
+check now runs before the gate for any run whose stages read the model's
+caches, naming the model and listing the ones with embeddings (pinned by
+`scripts/model-propagation.test.sh`, renamed from `test-model-propagation.sh`
+so the test runner runs it -- its name did not match the runner's pattern,
+and two of its checks had gone stale unseen).
+
 | Command | Expected |
 |---|---|
 | `./run.sh --generate-html` | Reports 5 absent values, all marked stage 9 |
@@ -438,8 +448,9 @@ this shell script does not have.
 
 The current `output/` was built under seed `747235867` with
 `"seed_source": "auto-generated"` — the removed third tier, caught in the act.
-Deliberately left alone. `--seed` is required from here on, so whatever is typed
-next becomes the deliberate, recorded value.
+Deliberately left alone. (Superseded by Issue 10-058: `--seed` is optional; an
+absent seed is chosen at random and written into the build record, which is
+what makes an unseeded build reproducible after the fact.)
 
 ### 9. When the build record is written — ANSWERED: write early, roll back on failure
 

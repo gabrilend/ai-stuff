@@ -107,6 +107,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-070 | Menu fixes: drawable markers, no hang on leaving, copy to both clipboards | Completed | 2026-10-04 |
 | 10-049 | Replace Ollama with llama.cpp (last leftovers removed) | Completed | 2026-10-22 |
 | 10-075 | Every run keeps a log in RAM (terminal, log or both, one output function) | Completed | 2026-10-23 |
+| 10-069 | One pre-flight gate: every cheap check a selected stage can fail, before any stage | Completed | 2026-10-25 |
 
 These tables are hand-kept and fall behind. For current done and open counts per
 phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.

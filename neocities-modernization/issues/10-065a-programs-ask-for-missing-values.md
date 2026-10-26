@@ -71,7 +71,7 @@ reading each program's argument handling):
 | `src/flat-html-generator.lua` (a library, used through `main.lua --html-only`) | pages per poem, poems per page, chronological page size, threads | a built-in table, then `config.lua` `pagination`, then the command line | built: `main.lua` settles all four before any work (asked, or `--yes`, or an error); the library holds no numbers of its own -- its page and storage settings are read from `config.lua` as it loads, every missing one named in one error (test: `src/flat-html-generator.required-settings.test.lua`, 8 checks); the thread count, which `config.lua` has no value for, is asked with no default |
 | `scripts/generate-html-parallel` | pages, poems per page | built-in 15 and 100, then `config.lua` | removed 2026-10-04 (owner's decision) |
 | `scripts/generate-html-pthreads` | pages, poems per page | `config.pagination.pages` (a setting that does not exist), else 5; poems per page else 100 | removed 2026-10-04 (owner's decision) |
-| `scripts/validate-poem-representation` | chronological page size | `config.lua`, else 500 | not yet: stale, see below |
+| `scripts/validate-poem-representation` | chronological page size | `config.lua`, else 500 | repaired 2026-10-25 (see open question 1): it no longer needs the page size |
 
 Three of these programs were stale beyond their fallbacks, found while making
 this inventory:
@@ -141,3 +141,15 @@ code moves to `config.lua` -- as the word-page size did.
    looks for chronological pages where they used to live. Repair it, or retire
    it under 10-060? (The two HTML generators asked about here were removed on
    the owner's decision, 2026-10-04.)
+   - **Repaired 2026-10-25, awaiting the owner's yes.** It checks what nothing
+     else does: that every poem has its first similar and different page and
+     sits on a chronological page (a page never written has no broken line or
+     link for `scripts/validate-output` to find). It had been broken twice
+     over: it crashed before checking anything (the logged print needs the
+     libraries' path, which it never set), and its chronological check looked
+     for `chronological-*.html` and `chronological.html`. Now it finds each
+     poem's anchor (`id="<source key>"`) on the pages in `chronological/` and
+     the redirect at `chronological/index.html`, takes `--output` and
+     `--poems`, and runs in every build right after the whole-site check
+     (`run_validate_output` in run.sh). On the 2026-10-23 build: 8,667 of
+     8,667 poems on all three. Test: `scripts/validate-poem-representation.test.sh`.

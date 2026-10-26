@@ -1,6 +1,6 @@
 # Conversation Summary: f45ed287-573d-4fdf-a76c-f359ddce591d
 
-Generated on: 2026-10-25 17:31:19
+Generated on: 2026-10-25 17:39:21
 Models: claude-opus-5-5
 
 ## Contents
@@ -102,6 +102,10 @@ Models: claude-opus-5-5
     cleanup list, and pure-black pages for OLED screens are done, including the
     source browser. Next I need your answers to five questions, starting with
     whether to keep pure-white text on black.
+24. 2026-10-25 17:34, after Request 43 - We're finishing the engineering work to
+    do before your rebuild; the 84-wide frames, softer text colour and retired
+    model report are done and committed. Next, I'll start on the stricter
+    command-line values and the pre-build check.
 
 --------------------------------------------------------------------------------
 
@@ -6644,6 +6648,67 @@ characters of text, a space, a wall.
 
 Next in group C: the stricter command-line values and the up-front pre-build
 check (10-065, 10-065a, 10-069).
+
+--------------------------------------------------------------------------------
+
+### User Request 44
+
+> Frames. Every poem frame is now 84 columns: a wall, a space, up to 80
+> characters of text, a space, a wall.
+> - Regular poems were 83 wide, one short. They now match golden ones, with the
+> boxes, their junctions and the "chronological" link in the same columns on
+> both.
+
+only the golden poems should be framed. That's what separates them from the
+rest. But, the spacing of the other poems should be such that you can't tell,
+based on their text alignment, whether or not they're regular or golden - only
+the borders will tell you.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 44
+
+> Understood, and that matches what's built: only golden poems have side walls,
+> and regular poems still have none. The text, though, doesn't line up yet.
+> Golden text starts at column 2 (after `║` and a space), while regular text
+> starts at column 1 (after one space). Regular poems need a two-space indent so
+> both start in the same column. Finding where the indent is set:
+
+> Regular poem lines get a two-space indent, the same width as golden's `║ `,
+> so the text starts in column 2 on both:
+
+> Two older checks still expect the 1-column indent. My new test is also wrong:
+> the third argument of the test helper is the chronological link, not "golden".
+> Checking how a poem is judged golden:
+
+> All 42 pass. Re-rendering the sample to see both kinds of poem together:
+
+*[commit] 7c48b7eff - neocities: regular poems' text lines up with golden poems'*
+
+Fixed and committed. Only golden poems have walls. Regular poem text now starts
+in the same column as golden poem text, so only the borders tell the two apart.
+
+Before this, regular text sat one column further left: one space, where golden
+poems have `║ `. Regular lines now get a two-space indent instead.
+
+From the re-rendered sample:
+
+```
+══════════════════════════════════════════════════════──────────────────────────────
+  I feel like any family member that cared about another person would forgive
+  them for how they behaved in the past. like... "I was a stressed and depressed
+┌─────────┐                                                            ┌───────────┐
+
+╔══════════════════════════════════════════════════────────────────────────────────┐
+║ ┌──────────────────────┐                                                         │
+```
+
+All 400 sample pages pass the whole-site check, and all 51 runnable tests pass,
+including a new one that checks regular and golden text start in the same
+column.
+
+Next in group C: the stricter command-line values and the up-front pre-build
+check (issues 10-065, 10-065a and 10-069).
 
 --------------------------------------------------------------------------------
 

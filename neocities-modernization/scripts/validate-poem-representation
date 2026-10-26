@@ -9,6 +9,8 @@
 --   ./scripts/validate-poem-representation [OPTIONS]
 --
 -- Options:
+--   --output PATH      the built site to check (default: the project's output/)
+--   --poems PATH       the poem list (default: the project's assets/poems.json)
 --   --fix              Regenerate missing pages (not implemented yet)
 --   --quiet            Only output errors and summary
 --   --json             Output results as JSON
@@ -27,9 +29,17 @@ else
     DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
 
+-- the project's libraries (the logged print, the config loader)
+package.path = DIR .. "/libs/?.lua;" .. package.path
+
 -- Paths relative to project directory
 local POEMS_JSON = DIR .. "/assets/poems.json"
 local OUTPUT_DIR = DIR .. "/output"
+-- --output / --poems point it at another site or poem list (the test does)
+for i = 1, #arg do
+    if arg[i] == "--output" and arg[i + 1] then OUTPUT_DIR = arg[i + 1] end
+    if arg[i] == "--poems" and arg[i + 1] then POEMS_JSON = arg[i + 1] end
+end
 -- Issue 10-014: Migrated from input-sources.json to unified config.lua
 local CONFIG_FILE = DIR .. "/config.lua"
 -- }}}
@@ -253,40 +263,60 @@ local function validate(options)
         end
     end
 
-    -- Check chronological pages
+    -- Check chronological pages: every poem sits on one of them, found by its
+    -- anchor (id="<source key>", Issue 8-019). The pages live in
+    -- output/chronological/ as 01.html, 02.html, ... with index.html
+    -- redirecting to the first. How many poems a page holds is the build's
+    -- --chrono-per-page, so the page count is reported, not judged: the
+    -- poem-by-poem check below is the test.
     if not options.quiet then
         require("output").print("\nChecking chronological pages...")
     end
-
-    local chrono_count = count_files(OUTPUT_DIR, "chronological-*.html")
-    results.stats.chronological_pages = chrono_count
-
-    -- Load config to get poems_per_page (Issue 10-014: using config.lua)
-    local poems_per_page = 500  -- default
-    local ok, config = pcall(dofile, CONFIG_FILE)
-    if ok and config and config.pagination and config.pagination.chronological_poems_per_page then
-        poems_per_page = config.pagination.chronological_poems_per_page
+    local chrono_dir = OUTPUT_DIR .. "/chronological"
+    local chrono_count = 0
+    local on_a_page = {}
+    local listing = io.popen(string.format('find "%s" -maxdepth 1 -type f -name "[0-9]*.html"', chrono_dir))
+    for page in listing:lines() do
+        chrono_count = chrono_count + 1
+        local f = io.open(page, "r")
+        if f then
+            for key in f:read("*a"):gmatch('<span id="([^"]+)">') do on_a_page[key] = true end
+            f:close()
+        end
     end
-
-    local expected_chrono_pages = math.ceil(results.stats.total_poems / poems_per_page)
-
+    listing:close()
+    results.stats.chronological_pages = chrono_count
+    local missing_chrono = {}
+    for key in pairs(expected_indices) do
+        if not on_a_page[key] then missing_chrono[#missing_chrono + 1] = key end
+    end
+    table.sort(missing_chrono)
+    results.stats.missing_chronological = missing_chrono
+    if #missing_chrono > 0 then
+        results.pass = false
+        table.insert(results.errors, string.format("%d poems on no chronological page", #missing_chrono))
+    end
     if not options.quiet then
-        require("output").print(string.format("  Found %d chronological pages (expected ~%d at %d poems/page)",
-            chrono_count, expected_chrono_pages, poems_per_page))
-        if chrono_count >= expected_chrono_pages then
-            require("output").print("  ✓ Chronological pages complete")
+        require("output").print(string.format("  Found %d chronological pages", chrono_count))
+        if #missing_chrono == 0 then
+            require("output").print("  ✓ Every poem is on a chronological page")
         else
-            require("output").print("  ⚠ Fewer chronological pages than expected")
+            require("output").print(string.format("  ⚠ %d poems are on no chronological page, e.g. %s",
+                #missing_chrono, missing_chrono[1]))
         end
     end
 
-    -- Check for redirect file
-    local has_redirect = file_exists(OUTPUT_DIR .. "/chronological.html")
+    -- the redirect to the first page
+    local has_redirect = file_exists(chrono_dir .. "/index.html")
+    if not has_redirect then
+        results.pass = false
+        table.insert(results.errors, "chronological/index.html (the redirect to the first page) is missing")
+    end
     if not options.quiet then
         if has_redirect then
-            require("output").print("  ✓ chronological.html redirect exists")
+            require("output").print("  ✓ chronological/index.html redirect exists")
         else
-            require("output").print("  ⚠ chronological.html redirect missing")
+            require("output").print("  ⚠ chronological/index.html redirect missing")
         end
     end
 

@@ -4,7 +4,9 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: High (full builds run overnight, unattended)
 - **Type**: Feature
-- **Status**: IN PROGRESS
+- **Status**: COMPLETED (2026-10-25). Both planned checks and two more are
+  built and tested; the gate is a list, and later checks join it under the
+  issue that needs them (as the date and rankings checks did).
 - **Created**: 2026-09-22
 - **Related**: 10-053 (exclusion validation, `strip-excluded --check`),
   10-065 (explicit CLI values; `validate_supplied_values`), 8-058
@@ -45,7 +47,10 @@ without anymore input from us."
      number has a ranking and every ranking and neighbour is a real number
      (2-010). About a second.
 - `run.sh` also checks the `--pages` value up front (10-036), alongside the
-  other command-line values.
+  other command-line values, and, just before the gate, that a run whose
+  stages read a model's caches (7-10 without 6) names a model with
+  embeddings on disk -- naming the typo and listing the models that have
+  them (10-065, 2026-10-25).
 - The gate's test now also covers rankings built for fewer poems (fails,
   naming the unranked poem and the vanished neighbour) and the real rankings
   (passes): 18 checks.

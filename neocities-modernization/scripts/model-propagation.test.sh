@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# test-model-propagation.sh -- pins the fix for the silent-model-fallback bug.
-# Run: bash scripts/test-model-propagation.sh
+# model-propagation.test.sh -- pins the fix for the silent-model-fallback bug.
+# Run: bash scripts/model-propagation.test.sh
 #
 # The bug: run.sh launches a fresh luajit per stage, and a --model override only
 # reached the stages run.sh explicitly threaded it through; the HTML, word-cloud
@@ -112,13 +112,33 @@ check "--model=embeddinggemma-2 resolves to its own GGUF" \
 # The start script reads lines 5+ of its config resolution as launch_flags.
 # local is a GTX 1080 Ti and states --flash-attn off; the remote server has
 # a different GPU and must not inherit that.
-resolve_flags() {  # resolve_flags <server> <model> (a model is required: no default)
+# resolve_server_config prints host, port, model path, model, the vision
+# projector ("-" for a text-only model; Issue 9-013), then the launch flags.
+resolve_line() {  # resolve_line <server> <model> <sed range>
     bash -c "source <(sed -n '/^# {{{ resolve_server_config/,/^# }}}/p' '${DIR}/scripts/start-llamacpp-server.sh')
         DIR='${DIR}'; SERVER_NAME='$1'; MODEL_OVERRIDE='$2'
-        resolve_server_config" | sed -n '5,$p' | tr '\n' ' ' | sed 's/ $//'
+        resolve_server_config" | sed -n "$3" | tr '\n' ' ' | sed 's/ $//'
 }
+resolve_flags() {  # resolve_flags <server> <model> (a model is required: no default)
+    resolve_line "$1" "$2" '6,$p'
+}
+check "a model with eyes names its vision projector" \
+    "$(resolve_line local embeddinggemma-2 5p)" "assets/models/mmproj-embeddinggemma-2-Q8_0.gguf"
+check "a text-only model names none" "$(resolve_line gpu-server nomic-embed-text-v1.5 5p)" "-"
 check "local server passes its GPU flags" "$(resolve_flags local embeddinggemma-2)" "--flash-attn off"
 check "remote server gets no local GPU flags" "$(resolve_flags gpu-server nomic-embed-text-v1.5)" ""
+# }}}
+
+# {{{ a mistyped --model is refused before any check or stage, naming the models that exist
+out=$(timeout 60 "${DIR}/run.sh" --stage 9 --model embeddinggemma-typo --threads 2 --pages 1 \
+    --poems-per-page 33 --chrono-per-page 1000 --seed 1 2>&1)
+check "a mistyped model stops the run" "$?" "1"
+check "the refusal names the mistyped model" \
+    "$(printf '%s' "$out" | grep -c "no embeddings for model 'embeddinggemma-typo'")" "1"
+check "the refusal lists a model that has embeddings" \
+    "$(printf '%s' "$out" | grep -c '^         embeddinggemma-2$')" "1"
+check "no folder is made for the mistyped model" \
+    "$([ -e "${DIR}/assets/embeddings/embeddinggemma-typo" ] && echo yes || echo no)" "no"
 # }}}
 
 # Leave the notepad clean (no override) so a later manual run is not surprised.

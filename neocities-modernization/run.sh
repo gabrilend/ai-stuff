@@ -2301,11 +2301,20 @@ run_validate_output() {
     log_stage "📏 Checking every page: line widths and links"
     if $DRY_RUN; then
         log_dry_run "$DIR/scripts/validate-output $DIR --output $OUTPUT_DIR --jobs $THREADS"
+        log_dry_run "$DIR/scripts/validate-poem-representation --output $OUTPUT_DIR --poems $ASSETS_DIR/poems.json --quiet"
         return 0
     fi
     if ! "$DIR/scripts/validate-output" "$DIR" --output "$OUTPUT_DIR" --jobs "$THREADS"; then
         echo -e "${RED}❌ The built site has over-wide lines or broken links (report above).${NC}" >&2
         echo "   The pages are all written; this run fails so nothing ships unnoticed." >&2
+        exit 1
+    fi
+    # Every poem has its pages: its first similar and different page, and a
+    # place on a chronological page. A page never written has no broken line
+    # and, if nothing links to it, no broken link, so the check above cannot
+    # see it (Issue 10-065a).
+    if ! "$DIR/scripts/validate-poem-representation" --output "$OUTPUT_DIR" --poems "$ASSETS_DIR/poems.json" --quiet; then
+        echo -e "${RED}❌ Some poems are missing their pages (report above).${NC}" >&2
         exit 1
     fi
 }
@@ -2845,6 +2854,16 @@ validate_supplied_values
 # past this line needs no one watching it.  All failures are listed together.
 # Checks live in scripts/preflight-gate; this passes only which stages run.
 # Dry runs are checked too: a plan that would fail is worth knowing about.
+# A run that reads an existing model's caches (stages 7-10 without stage 6)
+# needs that model's embeddings on disk. Checked first: a mistyped --model
+# otherwise reached the gate's rankings check, which only said a file was
+# missing under a folder named after the typo; this names the model and
+# lists the ones that do have embeddings. (Stage 6 makes the embeddings, so
+# a run that includes it has nothing to check yet.)
+if { $GENERATE_SIMILARITY || $GENERATE_DIVERSITY || $GENERATE_HTML || $GENERATE_WORDCLOUD; } \
+        && ! $GENERATE_EMBEDDINGS; then
+    require_embeddings_for_model "the stages selected (7-10 read the model's caches)"
+fi
 PREFLIGHT_ARGS=("$DIR")
 $GENERATE_HTML && PREFLIGHT_ARGS+=(--html-threads "$THREADS")
 $EXTRACT && PREFLIGHT_ARGS+=(--extract)
