@@ -25,6 +25,7 @@
 --   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 

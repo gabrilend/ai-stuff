@@ -1,7 +1,16 @@
 #!/usr/bin/env lua
 
--- Semantic color calculation system for neocities-modernization
--- Generates color embeddings and precomputes poem-to-color mappings
+-- semantic-color-calculator.lua: Stage 6's colours -- each poem's colour.
+--
+-- WHAT IT DOES (for a CEO): embeds a set of words for each of the site's
+-- colours (config.lua color_associations), averages them into one point
+-- per colour, and gives every poem the colour it sits nearest, writing
+-- poem_colors.json for the progress bars and word cloud. run.sh runs it
+-- in Stage 6.
+--
+-- Usage: luajit src/semantic-color-calculator.lua [DIR] [-I]
+--   DIR  project folder (default below); -I  ask before each step
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
@@ -410,8 +419,9 @@ function M.main(interactive_mode)
 end
 -- }}}
 
--- Command line execution
-if arg then
+-- Command line execution: only when this file is the program that was
+-- started (another program loading it also has an arg table)
+if arg and arg[0] and arg[0]:match("semantic%-color%-calculator%.lua$") then
     -- Check for interactive flag
     local interactive = false
     for _, arg_val in ipairs(arg) do

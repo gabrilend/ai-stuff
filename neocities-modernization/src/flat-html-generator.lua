@@ -1,7 +1,16 @@
 #!/usr/bin/env lua
 
--- Core flat HTML page generation system for neocities-modernization
--- Generates 13,680+ pages with similarity/diversity ranking in compiled.txt format
+-- flat-html-generator.lua: Stage 9 -- every page of the site.
+--
+-- WHAT IT DOES (for a CEO): draws the site from the poems and the caches the
+-- earlier stages made: each poem's similar and different pages, the
+-- chronological pages, the poems' plain-text exports and the word pages,
+-- all as jobs for a pool of worker threads (src/poem-entry.lua draws each
+-- poem), plus the explore pages. main.lua --html-only calls it in a build.
+--
+-- Usage: luajit src/flat-html-generator.lua [DIR] [-I]
+--   DIR  project folder (default below); -I  ask before each step
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 

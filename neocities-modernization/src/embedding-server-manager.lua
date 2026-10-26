@@ -20,6 +20,7 @@
 --                                          already; nothing to pull)
 --   - "ollama serve"   → delegate to scripts/start-llamacpp-server.sh
 -- }}}
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 

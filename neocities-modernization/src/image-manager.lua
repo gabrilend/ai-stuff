@@ -1,7 +1,16 @@
 #!/usr/bin/env lua
 
--- Image discovery and cataloging system
--- Scans configured directories for supported image formats and creates metadata catalog
+-- image-manager.lua: Stage 5 -- the catalog of every picture.
+--
+-- WHAT IT DOES (for a CEO): looks through the picture folders config.lua
+-- lists (sources.images) for the formats it allows, and writes
+-- assets/image-catalog.json: each picture's path, size, dimensions, date
+-- and a fingerprint of its contents. main.lua --catalog-only calls it in a
+-- build.
+--
+-- Usage: luajit src/image-manager.lua [DIR] [-v]
+--   DIR  project folder (default below); -v  more detail
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 

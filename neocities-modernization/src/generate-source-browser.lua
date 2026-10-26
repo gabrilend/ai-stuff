@@ -22,6 +22,7 @@
 --   output/source/index.html              -- the tree + welcome
 --   output/source/<path>.html             -- one page per published file
 -- }}}
+
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
@@ -354,13 +355,14 @@ local function page_shell(title, sidebar, content)
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>%s</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="%s_style.css">
 </head>
-<body>
+<body bgcolor="#000000">
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
@@ -557,8 +559,13 @@ end
 local function write_style_file(out_root)
     local css = [[
 /* Machine Codex -- source browser theme (Issue 10-052). */
+/* Every background is pure black, like the rest of the site (Issue 11-009):
+   on an OLED screen a black pixel is an unlit one, and a near-black panel
+   beside the pure-black poem pages reads as a second, lit "black". Boxes are
+   told apart by their border lines (--rule), not by a lighter fill. */
 :root{
-  --ink:#0b0c10; --ink-2:#13151f; --panel:#0e1018;
+  color-scheme: dark;
+  --ink:#000000; --ink-2:#000000; --panel:#000000;
   --paper:#e9e4d8; --paper-dim:#9b9484; --paper-faint:#6a6457;
   --gold:#d8b14a; --gold-soft:#c6b257; --blue:#74a0e6; --teal:#5f9c92; --coral:#e08363;
   --rule:#24262f; --rule-soft:#191b22;
@@ -569,15 +576,6 @@ body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:'JetBrains Mono',ui-monospace,'Hack',Consolas,monospace;
   font-size:13.5px; line-height:1.62; -webkit-font-smoothing:antialiased;
-  background-image:
-    radial-gradient(820px 460px at 8% -12%, rgba(216,177,74,.08), transparent 60%),
-    radial-gradient(680px 480px at 104% -6%, rgba(95,156,146,.06), transparent 55%);
-  background-attachment:fixed;
-}
-/* fine grain overlay for paper-like depth */
-body::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:9; opacity:.04;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 a{color:var(--blue); text-decoration:none; transition:color .14s ease;}
 a:hover{color:var(--gold);}
@@ -587,7 +585,7 @@ a:hover{color:var(--gold);}
 #side{
   width:308px; min-width:308px; height:100vh; position:sticky; top:0; overflow:auto;
   padding:1.6rem 1.25rem 3rem; border-right:1px solid var(--rule);
-  background:linear-gradient(176deg, var(--ink-2), var(--ink) 70%);
+  background:var(--ink);
   font-size:12.5px; animation:sideIn .55s cubic-bezier(.2,.8,.2,1) both;
 }
 #side .home{display:block; margin-bottom:1.1rem;}
@@ -882,6 +880,15 @@ end
 local function main()
     local all_files, skipped, linked_files = list_published_files()
     local out_root = DIR .. "/output/source"
+    -- Start from an empty folder: every page is written again below, and a
+    -- page left from a file since deleted or renamed would stay published --
+    -- retired code still readable on the site, styled by an older theme
+    -- (36 such pages were found on 2026-10-25). The folder holds only what
+    -- this program writes; the check keeps the removal to that folder.
+    if not out_root:match("/output/source$") then
+        error("source-browser: refusing to empty " .. out_root)
+    end
+    os.execute("rm -rf '" .. out_root:gsub("'", "'\\''") .. "'")
     ensure_dir(out_root)
     write_style_file(out_root)
 
