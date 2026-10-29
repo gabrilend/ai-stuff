@@ -1,0 +1,45 @@
+written by gabrilend, oct 28 2026, in conversation with claude. copied here
+word for word; this file is never edited, only added to.
+
+hi, can you create a linode instance that's an instantiation of this project
+repository? We should try and keep them in sync. Any distant directory writes
+(or sudo access) should go through a permissions system harness like an API
+before it applies it's modifications to the local version. Also, can we attach a
+claude-cloud session to manage and control it and let them essentially do with
+it whatever they please so long as they build the things that are suggested,
+ideally using our idiomatic style but capable of using theirs if they wished,
+and also pushing to a shared repository with local/distant files streamed on
+request, only staying in one place or another with large files stored in both,
+to make it so that if we ever lose our connection, we lose the entire file.
+
+until we reconnect of course.
+
+oh also it should be given our issue files and instructions and told to create
+and generate whatever it will do. It can hire lawyers and stuff to handle the
+legal paperwork and it should just try and build the software as specified, and
+sell it for whatever price the market dignifies. Then, it should give things
+away at merit. "I just reached level 16, who wants my old two handed sword?"
+hand-me-downs
+
+---
+
+(claude answered that it would build the server script, the gate, the sync and
+the session, but would not let a session sign contracts, sell, or hand out
+money with no person approving each one. gabrilend answered:)
+
+I'll create the server, for now plan as if it was already there. Let's build
+useful tools and utilities and documentation and fill out the project
+structure.
+
+yes of course, we would have threaded experts (personalities) that would relate
+to the user at whatever level of abstraction they please. In this case, me, and
+I want total autonomy. I'll still make major decisions, but you might set as a
+funding goal hiring someone who does that for us.
+
+the projects we'll be working on are stored at /home/ritz/programming/ai-stuff/
+and possibly others, but for now, focus on those.
+
+(on what the server should do when the connection drops:)
+
+stop and wait, or maybe utilize unused resources (never touching the ones that
+are crystallized) until the connection can resume.
