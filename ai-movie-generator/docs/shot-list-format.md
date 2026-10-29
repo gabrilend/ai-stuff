@@ -43,7 +43,8 @@ monologue{ id = "m01", at = 12.5, speaker = "officer",
 
 - `film{}` — once, first. Picture size, frames per second, the sound under
   the whole film, the base seed.
-- `cast{}` — a recurring person. `look` is added to the prompt of every shot
+- `cast{}` — a recurring person. `voice` (string, optional) names the
+  speech-engine voice their monologues are synthesised with. `look` is added to the prompt of every shot
   they appear in; their `seed` is used for their shots, which is the first
   of the tools for keeping a face the same (the others are control images
   and, if installed, ip-adapter).

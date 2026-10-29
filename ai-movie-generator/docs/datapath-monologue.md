@@ -8,8 +8,10 @@ something, then returns.
 
 A `monologue{}` entry: the speaker (a `cast{}` name), the speech as an audio
 file, the words as text, and cutaways (times within the speech and what to
-show). Where the audio comes from is an open question (open-questions.md):
-a recording the person supplies, or a text-to-speech voice.
+show). The audio is **synthesised from the text** (owner's answer,
+2026-10-28) by a local speech engine, one voice per cast member; which
+engine is open question 8 in open-questions.md. A `monologue{}` may still
+name an `audio` file, which is used instead of synthesis.
 
 ## Through
 

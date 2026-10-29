@@ -71,7 +71,7 @@ directly with a score file it writes.
 ## Command-line tools
 
 ffmpeg (decode, encode, camera moves, concatenation), sox (audio
-measurement), luajit, curl. A program called `piper` is installed at
-/usr/bin/piper, but it is not yet confirmed whether it is the piper
-text-to-speech engine or the gaming-mouse configuration tool of the same
-name — see open-questions.md.
+measurement), luajit, curl. **No speech engine is installed.**
+`/usr/bin/piper` is the GTK gaming-mouse configuration tool (Void package
+piper-0.8), not the Piper text-to-speech engine; only espeak-ng's runtime
+library is present. Which engine to install is open question 8.
