@@ -11,6 +11,8 @@ and issue files do not; they have their own indexes.
 - docs/table-of-contents.md - this file.
 - docs/architecture.md - the two computers, the one-way link, the gate,
   connected and waiting, placements, and the lines the design will not move.
+  - docs/purpose.md - what the whole system is for: wishes becoming
+    ventures, work as it is bidden, civic duty, and where this project fits.
   - docs/core-terms.md - the project's words for its own parts.
   - docs/roadmap.md - the nine phases and what each one's demo shows.
   - docs/open-questions.md - questions waiting for the owner.

@@ -110,3 +110,18 @@ ones. Is "one material, many tempers" the meaning? Prior work worth
 studying: RepRap (printers that print their own parts) and Open Source
 Ecology's Global Village Construction Set (fifty open machines meant to
 build one another).
+
+## 14. Where does the wish-to-venture agent live?
+
+The vision's aim (`docs/purpose.md`) is much larger than keeping two
+computers in step. Should the agent that turns a wish into a venture be:
+more phases of this project (10 onward), a new project that uses
+distant-computer as its workshop, or the first thing the steward builds for
+itself once phase 6 works?
+
+## 15. What does a venture look like as files?
+
+A software project here is a folder with a vision, docs and issues. A
+venture also has members, roles, money and agreements with other ventures.
+Should a venture be a project folder with more kinds of files (members/,
+roles/, agreements/, ledger), so that the same tools read it?
