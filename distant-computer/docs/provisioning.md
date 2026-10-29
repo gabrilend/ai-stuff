@@ -19,7 +19,7 @@ this list is the checklist for doing it by hand.
 | step | why |
 | --- | --- |
 | create user `steward`, with sudo on the distant computer | it is the steward's machine |
-| install `luajit`, `git`, `rsync`, `openssh`, `chrony`, Claude Code | the programs it runs; chrony keeps its clock in step with kuvalu's, which the heartbeat depends on |
+| install `luajit`, `git`, `rsync`, `openssh`, `chrony`, `jq`, Claude Code | the programs it runs; chrony keeps its clock in step with kuvalu's, which the heartbeat depends on; jq is needed by the house library that rebuilds the RAM scratch folders after a reboot |
 | generate a key on **kuvalu** and add its public half to `steward`'s `authorized_keys` | the link dials from near only. No key is ever made on the distant computer for kuvalu |
 | firewall: allow SSH in, nothing else | the link is the only way in |
 | clone the monorepo from kuvalu by pushing to a bare repository on the distant computer, then check it out | the clone comes from kuvalu, not from GitHub, so it holds exactly what kuvalu holds |

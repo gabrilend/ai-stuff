@@ -8,5 +8,7 @@ ledger whose entries are chained by checksum, so an edit to the past shows.
 Counts: `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/distant-computer -m`
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built and how
-it moves the phase toward its goals.)
+- **101 — settings and the receipt.** Every program can now read its
+  settings from `input/` with no hidden defaults, and leave a receipt and a
+  run log. The first of the phase's three goals is met; the ledger (102)
+  and the demo (103) remain. Tests: `tests/run-tests`.
