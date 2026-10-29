@@ -12,11 +12,16 @@ Nothing exists.
   by path. Hashing is split across one worker per CPU core; the list of
   files is made first and each worker takes a share of it.
 - **Sync** as a courier step: build or refresh the near manifest, fetch the
-  distant one, compare, then copy near → distant for what is newer or only
-  on near (no approval needed: the distant computer is the steward's). For
-  what is only on distant, write a request of a new kind, `twin` (body: path,
-  size, checksum), whose applier copies the file in over the link. For a
-  checksum mismatch where both changed, write a `decision`.
+  distant one, compare by **owning side** (401):
+  - near-owned and different or missing on distant: copy near → distant
+    (no approval needed: the distant computer is the steward's);
+  - distant-owned and different or missing on near: write a request of a
+    new kind, `twin` (body: path, size, checksum), whose applier copies the
+    file in over the link;
+  - a copy changed by the side that does not own it: an error naming the
+    file and both checksums. It is never merged or overwritten, because it
+    means some program broke the pledge (`docs/datapath-link.md`,
+    "Crystallized: the other side's parts").
 - A manifest is refreshed by size and modification time first; a file is
   only re-hashed if either changed.
 

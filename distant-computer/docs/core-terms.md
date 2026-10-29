@@ -27,7 +27,8 @@ and conversation uses these words and no others for these things.
 | **tracked** | in git, so on both computers. |
 | **twinned** | a large file outside git, kept whole on both computers and matched by checksum. |
 | **resident** | on one computer only. The other side holds a **stub** that names where it lives and its checksum, and fetches the file on request. |
-| **crystallized** | a place the steward must not touch while waiting: the monorepo clone and everything in `input/crystallized`. |
+| **owning side** | the computer a place belongs to. Every place has exactly one. |
+| **crystallized** | the parts owned by whichever side is absent. Neither side touches the other's parts while the link is down, until they return or are given up by a request ("forced cooperativity by tying together two ankles"). `docs/datapath-link.md` lists who owns what. |
 | **loose area** | a scratch folder on the distant computer that belongs to no project. The steward's place to work while waiting. |
 | **budget** | the API spending ceiling set by the owner. The steward stops before it, not after. |
 | **funding goal** | something the steward is working to afford, such as hiring a person for legal and business paperwork. A line in `goals/`, not a promise. |

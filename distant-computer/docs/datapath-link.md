@@ -57,11 +57,41 @@ When the state returns to `connected`, the steward writes one `note` request
 listing what it made in the loose area, so the owner can ask for any of it
 through the gate. Nothing moves out of the loose area on its own.
 
+## Crystallized: the other side's parts
+
+The owner's answer (notes/vision, third part): "if we pledge never to touch
+their parts until they return or are no longer wanted... Forced cooperativity
+by tying together two ankles."
+
+So every place has an **owning side**, and crystallized means *the parts
+that belong to whichever side is absent*. The pledge runs both ways:
+
+| place | owned by | while the link is down |
+| --- | --- | --- |
+| the clone's `main` and its working tree | near (only the courier's push moves it) | distant must not touch it |
+| `distant-work`, the outbox, `loose/`, the steward's ledger | distant | near must not touch them (it cannot reach them anyway) |
+| a twinned file | the side its placement rule names (`docs/datapath-placement.md`) | the other side must not change its copy |
+| a resident file | the side it lives on | the other side holds a stub and cannot fetch it |
+| anything in `input/crystallized` | near, by the owner's say | distant must not touch it |
+
+The pledge is kept by code, not just by the steward's prompt: the
+watchdog's may-touch check answers no, and the steward's per-turn Claude
+Code settings deny writes there (604). Kuvalu's side is kept the same way:
+while the courier cannot reach the distant computer, no near program
+changes a distant-owned twin.
+
+"No longer wanted" is the only way out of the pledge. A side lets go of its
+part by a `decision` request ("give up ownership of <place>?"), and that is
+approved like any other request. Absence alone never transfers anything.
+
+The vision also says to "harden a system by making it inoperable without
+networked components". Resident placement already does this: a resident
+file is unusable on the far side without the link, by design. Making more of
+a system depend on both computers is a choice made per file in
+`input/placement`, never a default.
+
 ## input/crystallized
 
-One place per line: a path on the distant computer, absolute or relative to
-the monorepo clone. `#` starts a comment. A folder covers everything below
-it. The monorepo clone itself is always crystallized while waiting, whether
-it is listed or not. That rule is written in the watchdog's code, with a
-comment saying why: while waiting, any write to the clone would be a change
-that the owner's `main` cannot see and the gate cannot carry.
+One place per line: a path, absolute or relative to the monorepo root. `#`
+starts a comment. A folder covers everything below it. These are places the
+owner wants held as near's, even when no other rule says so.

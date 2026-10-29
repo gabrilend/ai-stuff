@@ -17,9 +17,14 @@ watchdog's view"):
 - on each change of state it writes a ledger entry with the heartbeat's age;
 - a missing heartbeat file is an error, not "waiting": it means the distant
   computer was never set up, which is a different problem from a lost link;
-- it also provides a **may-touch** check for other programs: given a path,
-  is it crystallized right now? (Always no while connected; while waiting,
-  yes for the monorepo clone and every place in `input/crystallized`.)
+- it also provides a **may-touch** check for other programs: given a path
+  and the side asking, is it crystallized right now? Always no while
+  connected. While waiting, yes for every place the other side owns
+  (`docs/datapath-link.md`, "Crystallized: the other side's parts"): for
+  the distant side, the clone's `main` and working tree, near-owned twins
+  (from 401), and every place in `input/crystallized`. The same check runs
+  on kuvalu for distant-owned places. Ownership leaves a side only through
+  an approved `decision` request, never through absence.
 
 ## Suggested implementation steps
 
@@ -34,7 +39,7 @@ watchdog's view"):
 
 ## Blocked by
 
-101, 102.
+101, 102, 401.
 
 ## Blocks
 

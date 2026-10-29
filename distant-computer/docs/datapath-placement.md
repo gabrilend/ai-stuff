@@ -15,10 +15,16 @@ The current design. The issues that change it update this file.
 
 ## input/placement
 
-    twin-above = 52428800            # bytes; larger untracked files are twinned
-    twinned   roms/                  # a folder: everything below it
-    resident-near  notes/private/    # lives only on kuvalu
-    resident-distant  loose/         # lives only on the distant computer
+    twin-above = 52428800                 # bytes; larger untracked files are twinned, owned by near
+    twinned-near      roms/               # whole on both; near owns it
+    twinned-distant   renders/            # whole on both; distant owns it
+    resident-near     notes/private/      # lives only on kuvalu
+    resident-distant  loose/              # lives only on the distant computer
+
+Every rule names the **owning side**, because ownership decides what is
+crystallized while the link is down (`docs/datapath-link.md`, "Crystallized:
+the other side's parts"). The side that does not own a twin may read its
+copy, but must never change it.
 
 Rules are read top to bottom and the first match wins. That order is written
 in the file's own header comment, so whoever adds a line knows its position
@@ -29,14 +35,17 @@ matters.
     each side: manifest = list of (path, size, sha256), built with one worker
                per CPU core (hashing is parallel work)
     courier:   compare the two manifests
-               only near has it, or near's is newer → copy near → distant
-               only distant has it                   → a `write`-like request
-                                                       (kind `twin`, phase 4)
-                                                       through the gate
-               checksums differ on both              → a `decision` request
+               near-owned, differs or missing on distant → copy near → distant
+               distant-owned, differs or missing on near → a `twin` request
+                                                           (phase 4) through the gate
+               changed on the side that does not own it  → an error naming the
+                                                           file: the pledge was broken
 
 Copies from near to distant need no approval: the distant computer is the
 steward's machine. Copies from distant to near always go through the gate.
+A copy changed by the side that does not own it is never merged or
+overwritten quietly. It is reported, because it means a program broke the
+pledge, and that program is the bug to find.
 
 ## Resident files and stubs
 

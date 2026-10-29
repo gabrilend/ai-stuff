@@ -81,8 +81,11 @@ file. While the heartbeat is fresh, the distant computer is **connected**.
 When it is older than the limit in `input/link`, the distant computer is
 **waiting**. While waiting:
 
-- the steward stops writing to the monorepo clone and to every place listed
-  in `input/crystallized`;
+- the steward stops writing to every **crystallized** place, meaning
+  everything owned by the near computer: the clone's `main`, near-owned
+  twinned files, and every place listed in `input/crystallized`. The pledge
+  runs both ways, so kuvalu does not touch the distant computer's parts
+  either;
 - it may use resources nothing else is using (CPU, memory, and the
   **loose area**, a scratch folder that belongs to no project). It can run
   tests, read, draft, and think in writing there;

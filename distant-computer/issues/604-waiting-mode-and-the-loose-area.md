@@ -22,14 +22,11 @@ not only by the prompt.
 ## Suggested implementation steps
 
 1. The worktree set-up and tidy-up.
-2. Per-turn Claude Code settings built from `input/crystallized` (303's
-   reader).
+2. Per-turn Claude Code settings that deny writes to every near-owned
+   place, using 303's may-touch check (the clone, near-owned twins,
+   `input/crystallized`).
 3. The reconnect summary request.
 4. A test: a loose-area turn that tries to write the clone is refused.
-
-## Open questions
-
-- What crystallized means (`docs/open-questions.md`, 1).
 
 ## Related documents
 

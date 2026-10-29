@@ -10,9 +10,15 @@ Nothing exists.
 
 A module that decides each file's placement (`docs/datapath-placement.md`):
 tracked if git tracks it, else the first matching rule in
-`input/placement`, else twinned if larger than `twin-above`, else
-**unplaced**. An unplaced file is an error, listed in the placement report,
-never guessed.
+`input/placement`, else twinned (owned by near) if larger than
+`twin-above`, else **unplaced**. An unplaced file is an error, listed in the
+placement report, never guessed.
+
+Every placement except tracked comes with an **owning side** (`near` or
+`distant`): the rules are `twinned-near`, `twinned-distant`,
+`resident-near`, `resident-distant`. The module answers both "which
+placement" and "which side owns it", since the second decides what is
+crystallized while the link is down (303).
 
 `scripts/placement --report` walks the monorepo's untracked and ignored
 files and prints counts and bytes per placement, plus every unplaced path.
@@ -34,4 +40,4 @@ files and prints counts and bytes per placement, plus every unplaced path.
 
 ## Blocks
 
-402, 403.
+303, 402, 403.
