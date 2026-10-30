@@ -202,7 +202,9 @@ luajit src/039-shape-films.lua . NAME --out=FOLDER   # one shape scene
 ```
 
 Left and right step through the films, `g` shows them all as a grid, `esc`
-or `q` quits. Making and looking share no code: the viewer reads gifs with
+or `q` quits. `./demo`, phase 7, films one mixed score three ways (the
+shapes alone, the light alone, both) side by side, which is the quickest
+way to see how the two spaces compose. Making and looking share no code: the viewer reads gifs with
 the studio's reader and nothing else.
 
 ## Rating, and the pool

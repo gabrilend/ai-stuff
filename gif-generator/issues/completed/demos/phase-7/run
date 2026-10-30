@@ -1,0 +1,31 @@
+#!/bin/bash
+# run — performs the phase-7 demo: one canvas, two spaces.
+# What it does, generally: wakes the house, films one score that speaks
+# both vocabularies three ways (the shapes alone, the light alone, both)
+# and side by side, prints what each took and the pool's count by tier,
+# then opens the films in the viewer when a display is around. Rate one
+# with keys 1 to 5; when the viewer closes, the card shows the rating
+# landing.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+HERE="${DIR}/issues/completed/demos/phase-7"
+
+"${DIR}/bootstrap" "${DIR}"
+luajit "${HERE}/two-spaces.lua" "${DIR}" || exit 1
+
+echo ""
+if [ -n "$DISPLAY" ] && command -v love > /dev/null; then
+    echo "— the viewer: g for the grid, 1 to 5 rates the film on screen, q to close —"
+    love "${DIR}/viewer" "${HERE}"
+    echo ""
+    echo "— the card of meeting.gif, after the viewer —"
+    cat "${HERE}/meeting.gif.card"
+    echo ""
+    luajit "${DIR}/src/055-cards.lua" "${DIR}" --counts "${HERE}"
+else
+    echo "(no display or no LÖVE here — watch ${HERE}/meeting-side-by-side.gif"
+    echo " in a browser, and rate with ./view-gifs ${HERE} where there is one)"
+fi

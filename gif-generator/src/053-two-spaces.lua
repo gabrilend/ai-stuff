@@ -50,8 +50,13 @@ end
 
 -- {{{ function two_spaces.render()
 -- A compiled two-space score in; frames and measured facts out, as
--- main.render gives them.
-function two_spaces.render(compiled)
+-- main.render gives them. `show` films one half of the score, so the
+-- composition can be seen (the phase 7 demo):
+--   nil       both spaces, as every score films
+--   "world"   the shapes alone: no pane's light and no background glow
+--   "light"   the panes' light alone: the shapes still hide and show it,
+--             but their colour is left out
+function two_spaces.render(compiled, show)
     local studio = compiled.studio
     local size = compiled.canvas.size
     local fps = compiled.canvas.fps
@@ -69,7 +74,7 @@ function two_spaces.render(compiled)
     -- each pane with strokes: its own pool, stream, snapshot and light
     local painted = {}
     for _, pane in ipairs(studio.panes) do
-        if pane.strokes > 0 then
+        if pane.strokes > 0 and show ~= "world" then
             pane.pool = pool.new(pane.capacity)
             pane.rng = emit.rng(pane.seed)
             pane.colors = splat.colors_for(pane.hues)
@@ -83,7 +88,8 @@ function two_spaces.render(compiled)
     local front = ffi.new("float[?]", pixels * 3)
     local back = ffi.new("float[?]", pixels * 3)
     local gathered = rc and ffi.new("float[?]", rc.W * rc.W * 3)
-    local has_back, has_world_panes = studio.background ~= nil, false
+    local background = show ~= "world" and studio.background or nil
+    local has_back, has_world_panes = background ~= nil, false
     for _, pane in ipairs(painted) do
         if pane.place == "back" then has_back = true end
         if pane.place == "world" then has_world_panes = true end
@@ -113,7 +119,7 @@ function two_spaces.render(compiled)
 
         local t2 = os.clock()
         local live = 0
-        if studio.background then fill_constant(back, pixels, studio.background)
+        if background then fill_constant(back, pixels, background)
         elseif has_back then ffi.fill(back, pixels * 3 * 4) end
         ffi.fill(front, pixels * 3 * 4)
         if gathered then ffi.fill(gathered, rc.W * rc.W * 3 * 4) end
@@ -137,6 +143,7 @@ function two_spaces.render(compiled)
             rc = rc, gathered = has_world_panes and gathered or nil,
             back = has_back and back or nil, front = front,
             tm = tm, tonemap = canvas.tonemap, out = out, index_of = index_of,
+            light_only = show == "light",
         }
         for px = 0, pixels - 1 do seats[out[px]] = true end
         frames[#frames + 1] = out

@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (311 checks)
+    test-shape-films [DIR]                the proofs (315 checks)
 
 `DIR` is the gif-generator project; the parts are `src/034-meshes.lua`,
 `035-choreography.lua`, `036-raster.lua`, `037-fluid.lua` and `038-png.lua`,
