@@ -119,3 +119,58 @@ itself.
    behind one orchestrator door (`input/cluster`). Is that still the
    plan, or does another machine take the ear?
    Nothing here needs the answer until the live transport is wired.
+
+## What Happened
+
+Built 2026-10-30 on top of 701g. `src/033-porch-test.lua` is 35 of 35
+(18 before), and `./test-shape-films` still passes whole.
+
+- **The grammar (step 1).** `porch.grammar()` now also has `shape`,
+  `camera`, `world` and `pane` calls, generated when it is asked for
+  from `048-shape-words.lua`: one rule per context, each motion kind's
+  own words after its `"kind"`, and the runtime's hues, meshes, effects
+  and solids as choices. `world` takes the scene words a score doesn't
+  say elsewhere (`compile.SAID_ELSEWHERE`), and `pane` takes
+  `compile.PANE_WORDS`. A stroke may name its `pane`, a tip may name a
+  shape's tag, and the canvas takes `frames` and `background`. It is 147
+  rules. A word list naming a kind the porch can't say stops the grammar
+  with a sentence, rather than leaving the word unsayable.
+- **A reader for it.** No model runs here, so `src/058-gbnf.lua` reads
+  GBNF and matches text against it. The tests prove the grammar names no
+  rule it never defines, says every kind of shape motion, allows a
+  mixed reading, and refuses a misspelled hue or motion word. It found a
+  real fault on its first run: a choice like `glow | solid | wire`
+  written straight after its key let a bare `"solid"` through and kept
+  `"style":"solid"` out. Every choice is now held in parentheses.
+- **Collecting (step 2).** Shape and pane calls are kept in the order
+  spoken, camera and world once each, and each call's prose rides above
+  it in the written score. A second camera or world call is refused
+  with a sentence saying why, so it is neither dropped nor merged.
+- **The read-back (step 3).** `src/059-say-back.lua` says each thing in
+  a score as one plain line, written from the calls and not by the
+  model: "ball: a violet icosahedron, glowing, circles at radius 2, once
+  a loop", "0 to 1 s: a jade point following ball". Each shape and
+  camera motion kind has its own saying; a word no saying speaks of is
+  still named, as `(also: bob)`. The lines head the written score as
+  comments, and `porch.translate` returns them as a third value.
+- **The prompt (step 4).** It adds `docs/shape-format.md` and
+  `tests/two-spaces/mixed.lua`, and says what each new call is for.
+- **Tests (step 5).** A fake model first misspells `cycles` in a shape's
+  orbit. The 3D wall's line comes back word for word ("shape #1
+  (ball).motion: no word 'cycels' in an orbit motion -- nearest legal:
+  cycles"), and the second reading passes. The written score reads
+  back, passes the wall again and films a whole loop. The read-back of
+  `mixed.lua` is checked line by line.
+
+Not built here:
+
+- The person answering a wrong line in plain words and the porch trying
+  again with that answer. `translate` takes a correction only as wall
+  errors today; a person's words would go in the same slot, and belong
+  with 602's three readings, where the person is already choosing.
+- 602 and 603 in both spaces (step 6): they take whatever the porch
+  writes, but neither is built yet.
+- The live transport, which waits on open question 2.
+
+`033-porch-test.lua` stays outside `./test-shape-films`, as before,
+since it needs dkjson from the shared shelf.

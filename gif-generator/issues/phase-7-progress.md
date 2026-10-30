@@ -13,7 +13,7 @@ one skill describing how to use all of it.
 - [ ] 701e every film kept and rated — built 2026-10-30 (a `.card` beside every film, ratings appended by the viewer's keys 1 to 5, `./count-films` for the counts; 300 of 300, all 34 films byte-identical); waits on `./count-films --write` on her library and open question 1
 - [ ] 701f the studio skill — built 2026-10-30 (`skills/gif-studio/SKILL.md`, every example filmed by the tests; 311 of 311); two skills (her answer); canvas-and-paintbrush's three pointer changes wait on her machine
 - [ ] 701g two spaces demo (capstone) — built 2026-10-30 (`./demo`, phase 7: one mixed score filmed as its shapes, its light and both, side by side, with stats and the pool's count, then the viewer to rate; 315 of 315); waits on a run with a display on her machine
-- [ ] 704 the porch hears both spaces — filed 2026-10-30 from her words: plain speech into scores that speak both spaces, read back in plain lines; building on 601's porch
+- [ ] 704 the porch hears both spaces — filed and built 2026-10-30 from her words (the grammar, collecting and prompt cover both spaces; each reading said back in plain lines; 35 of 35 against fake models); waits on open questions 1 and 2
 - [ ] 702 a library of interacting shapes — moved in from delta-version 060; open questions inside
 - [ ] 703 a window for watching the gifs — moved in from delta-version 062; waits on her trying it
 

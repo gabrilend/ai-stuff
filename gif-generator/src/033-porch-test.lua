@@ -5,6 +5,11 @@
 -- orchestrator — no cluster required — that first answers with a
 -- misspelled hue the grammar could never actually emit, to prove
 -- the wall's teaching is quoted back and the second answer lands.
+-- Since 704 it also proves the porch in both spaces: the grammar is
+-- whole (058-gbnf.lua reads it), a mixed reading is sayable and a
+-- misspelled 3D word is not, the 3D wall's teaching flows back, the
+-- read-back lines (059-say-back.lua) say what was heard, and the
+-- written score films.
 -- Run: luajit src/033-porch-test.lua
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/gif-generator"
@@ -116,6 +121,140 @@ check("the errors surface to the person",
       errors ~= nil and errors:find("ebmer", 1, true) ~= nil)
 check("the best draft surfaces beside them",
       draft ~= nil and draft:find("stubborn", 1, true) ~= nil)
+
+-- {{{ issue 704: the porch hears both spaces
+local gbnf = dofile(DIR .. "/src/058-gbnf.lua")
+local sayback = dofile(DIR .. "/src/059-say-back.lua")
+local score = require("022-score")
+local compile = require("024-compile")
+local two_spaces = require("053-two-spaces")
+local shape_words = dofile(DIR .. "/src/048-shape-words.lua")
+
+-- the grammar is whole: every rule it names, it defines
+local grammar = gbnf.read(g1)
+check("the grammar defines every rule it names",
+      #gbnf.undefined(grammar) == 0)
+local every_kind = true
+for kind in pairs(shape_words.MOTIONS) do
+    if not g1:find('"\\"kind\\"" ws ":" ws "\\"' .. kind .. '\\""', 1, true) then
+        every_kind = false
+        print("  the grammar never says the motion kind " .. kind)
+    end
+end
+check("the grammar says every kind of shape motion", every_kind)
+
+-- {{{ local function both_spaces()
+-- One reading that speaks both spaces, as a model would say it: a sky,
+-- an eye, a ball curving round, a ring on a pane of glass, and a spark
+-- following the ball. `cycles` is the word the first reply may misspell.
+local function both_spaces(cycles)
+    return '{"tool":"canvas","size":64,"fps":25,"length":1.0,"seed":5,'
+        .. '"background":"sky"}\n'
+        .. '{"tool":"camera","distance":7,"fov":44,"tilt":0.3}\n'
+        .. '{"tool":"world","stars":{"count":20,"seed":3,"hues":["ice"]}}\n'
+        .. '{"tool":"shape","tag":"ball","mesh":"icosahedron","hue":"violet",'
+        .. '"scale":0.5,"style":"glow","motion":{"kind":"orbit","radius":2,"'
+        .. cycles .. '":1},"prose":"curve the ball around the circle"}\n'
+        .. '{"tool":"pane","name":"sign","at":[0,0,-0.6],"facing":[0,0,1],'
+        .. '"size":[3,3],"pixels":48}\n'
+        .. '{"tool":"pane","name":"far","place":"back"}\n'
+        .. '{"tool":"stroke","pane":"sign","at":0.0,"lasts":1.0,"color":"gold",'
+        .. '"fade":"in-out","shape":{"kind":"arc","center":[24,24],"radius":16,'
+        .. '"from":12,"to":11,"turn":"clockwise"},'
+        .. '"prose":"a gold ring on the glass"}\n'
+        .. '{"tool":"stroke","at":0.0,"lasts":1.0,"color":"jade",'
+        .. '"fade":"in-out","shape":{"kind":"point","at":{"tip":"ball"}}}'
+end
+-- }}}
+
+-- what a model may say, and what it may not
+check("a reading in both spaces is one the grammar allows",
+      gbnf.matches(grammar, both_spaces("cycles")))
+check("a misspelled 3D word is one the grammar refuses",
+      not gbnf.matches(grammar, both_spaces("cycels")))
+check("a misspelled shape hue is one the grammar refuses",
+      not gbnf.matches(grammar, (both_spaces("cycles"):gsub('"violet"', '"violt"'))))
+check("a choice of words belongs to its key",
+      not gbnf.matches(grammar, (both_spaces("cycles"):gsub('"style":"glow"', '"glow"'))))
+
+-- the prompt carries the world-space contract and a mixed score
+check("the prompt carries the world-space words",
+      prompt:find("Shape scene format", 1, true) ~= nil)
+check("the prompt carries a score that speaks both spaces",
+      prompt:find('tip("wanderer")', 1, true) ~= nil)
+
+-- the whole porch, both spaces, against a fake model that misspells a
+-- 3D word first: the 3D wall's teaching comes back, the second lands
+local taught, tries = nil, 0
+local both_text, both_compiled, heard = porch.translate(DIR, "curve the ball around the circle",
+    function(request)
+        tries = tries + 1
+        taught = request.errors or taught
+        return both_spaces(tries == 1 and "cycels" or "cycles")
+    end)
+check("the 3D misspelling is mended on the second reading",
+      both_text ~= nil and tries == 2)
+check("the 3D wall's words were quoted back",
+      taught ~= nil and taught:find("shape #1 (ball).motion: no word 'cycels'", 1, true) ~= nil
+      and taught:find("nearest legal: cycles", 1, true) ~= nil)
+check("the score carries each call's sentence above it",
+      both_text:find("-- curve the ball around the circle\nshape{", 1, true) ~= nil
+      and both_text:find("-- a gold ring on the glass\nstroke{", 1, true) ~= nil)
+check("what the porch heard is said back, plainly",
+      heard ~= nil
+      and heard[4] == "ball: a violet icosahedron, glowing, circles at radius 2, once a loop"
+      and heard[#heard] == "0 to 1 s: a jade point following ball")
+check("the same lines head the score",
+      both_text:sub(1, #"-- what the porch heard:\n") == "-- what the porch heard:\n"
+      and both_text:find("\n--   " .. heard[4] .. "\n", 1, true) ~= nil)
+
+-- the written score reads back, passes the wall again, and films
+local path = os.tmpname()
+local f = assert(io.open(path, "w"))
+f:write(both_text)
+f:close()
+local reread = compile.score(score.read(path))
+os.remove(path)
+local frames = two_spaces.render(reread)
+check("the written score reads back and films a whole loop",
+      #frames == 25 and #reread.studio.panes == 3)
+
+-- a second camera is refused with a sentence, not dropped
+local twice, twice_errors = porch.translate(DIR, "x", function()
+    return both_spaces("cycles") .. '\n{"tool":"camera","distance":9}'
+end)
+check("a second camera call is refused, saying why",
+      twice == nil and twice_errors:find("called the camera tool twice", 1, true) ~= nil)
+
+-- the read-back of a known score is the expected lines
+local mixed = sayback.lines(score.read(DIR .. "/tests/two-spaces/mixed.lua"))
+local expected = {
+    "the canvas: 256 pixels square, 4 s at 25 frames a second, under the stars",
+    "the eye stands 7.5 back, tipped down 0.25, seeing 44 degrees",
+    "the world: 60 stars in ice and violet",
+    "wanderer: a violet icosahedron, glowing, circles at radius 2.4, once a loop, spinning twice a loop",
+    "pane sign: glass 3 by 3 standing at (0, 0.2, -0.6), facing (0, 0, 1)",
+    "pane backdrop: glass behind every shape",
+    "circle, 0 to 4 s: a gold arc of radius 70 round (96, 96), clockwise from 12 o'clock to 11 o'clock, on pane sign",
+    "spark, 0 to 4 s: a jade point following wanderer",
+    "sweep, 0.5 to 3.5 s: an ice line from (20, 230) to (236, 200), on pane backdrop",
+}
+local same = #mixed == #expected
+for i = 1, #expected do
+    if mixed[i] ~= expected[i] then
+        same = false
+        print("  line " .. i .. ": " .. tostring(mixed[i]))
+    end
+end
+check("the read-back of mixed.lua is the expected lines", same)
+-- a word no saying knows is still named
+local odd = sayback.lines{ shapes = { { tag = "x", hue = "gold", mesh = "cube",
+    motion = { kind = "orbit", radius = 1, cycles = 1, bob = { amount = 0.2, cycles = 2 } },
+    trail = { count = 3 } } } }
+check("a word no saying knows is still named",
+      odd[1]:find("(also: bob)", 1, true) ~= nil
+      and odd[1]:find("(also: trail)", 1, true) ~= nil)
+-- }}}
 
 -- the cluster roster: doors parse purely; comments and blanks pass
 local doors = porch.cluster_doors(

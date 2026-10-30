@@ -24,6 +24,7 @@ the language's contract in prose.
   scenes write them, `045-scene-file.lua`, so numbers round-trip),
   then strokes sorted by insert, fields in fixed order so two writes are
   byte-identical, comments (the porch's prose sentences) above the
-  strokes they describe.
+  strokes they describe, and, from `raw.said` (issue 704), above the
+  camera, world, shapes and panes.
 - **fmt_shape(shape) → text** — one shape back into constructor
   syntax; used by write.

@@ -17,6 +17,9 @@ history), circular borrowings refused.
   timeline (tracks in play order, stable at ties — emission order
   is the random stream's order), and the pool capacity sized from
   the compiled demands.
+- **PANE_WORDS**, **SAID_ELSEWHERE** — the words a pane takes, and
+  the scene words a score says in its own calls rather than in
+  `world{}`; the porch (issue 704) reads them to generate its grammar.
 
 A score with a second space (issue 701d) — shapes, panes besides
 the front one, or a background — is judged by the 3D wall
