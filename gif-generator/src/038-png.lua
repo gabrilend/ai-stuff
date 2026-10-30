@@ -1,4 +1,4 @@
--- png.lua - writes a still picture as a PNG, with no compression library.
+-- 038-png.lua - writes a still picture as a PNG, with no compression library.
 --
 -- What this is, generally: a way to look at one frame of a candidate
 -- animation in any image viewer. PNG wraps its pixels in the "deflate"

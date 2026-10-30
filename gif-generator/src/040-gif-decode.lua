@@ -1,4 +1,4 @@
--- gif-decode.lua - Turns a gif file into its frames, as plain pictures.
+-- 040-gif-decode.lua - Turns a gif file into its frames, as plain pictures.
 --
 -- In general terms: a gif is a stack of small pictures, each squeezed with
 -- a compression scheme (LZW) and drawn on top of the one before. This reads
@@ -22,7 +22,7 @@
 --   * a frame's rows may be stored out of order (interlacing)
 --
 -- Usage:
---   local gif = dofile(".../gif-decode.lua")
+--   local gif = dofile(DIR .. "/src/040-gif-decode.lua")
 --   local info = gif.decode_file(path, {
 --       max_size   = 128,   -- optional: shrink so neither side exceeds this
 --       frame_step = 2,     -- optional: keep every 2nd frame, delays summed

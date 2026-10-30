@@ -1,6 +1,6 @@
 -- tiny: the smallest scene that still exercises every part of the tool --
 -- a morphing solid, an orbiter that reacts to it, a shatter, stars -- at a
--- size and length that film in a moment. Used by test-readme-gallery.sh.
+-- size and length that film in a moment. Used by test-shape-films.
 return {
     name = "tiny",
     size = 48, frames = 6, delay_cs = 5,

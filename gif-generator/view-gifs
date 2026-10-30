@@ -4,14 +4,14 @@
 # In general terms: shows the shape animations (or any folder of gifs) in a
 # black window. Left and right step through them, space goes to the next, g
 # shows them all at once in a grid, and esc or q closes the window. The
-# viewer itself is a small LÖVE program in this same folder.
+# viewer itself is a small LÖVE program in this project's viewer/ folder.
 #
 # Usage:
 #   view-gifs                      -- the shape gifs in /home/ritz/pictures/shape-gifs
 #   view-gifs /some/other/folder   -- any other folder of gifs
 #   view-gifs --selftest           -- load everything, report, and quit (tests)
 
-DIR="/mnt/mtwo/programming/ai-stuff/delta-version/scripts/gif-viewer"
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 FOLDER="/home/ritz/pictures/shape-gifs"
 
 # Two paths: a folder argument replaces the default; anything else (such as
@@ -26,4 +26,4 @@ if [ ! -d "$FOLDER" ]; then
     exit 1
 fi
 
-exec love "$DIR" "$FOLDER" "$@"
+exec love "$DIR/viewer" "$FOLDER" "$@"

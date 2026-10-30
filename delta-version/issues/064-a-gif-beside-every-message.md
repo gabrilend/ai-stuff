@@ -7,9 +7,9 @@ deleted.
 **Priority**: Low
 **Created**: 2026-10-01
 **Type**: New tool, run as a git hook; first used by `double-diaper-dungeon`
-**Related**: `060-readme-gallery-of-interacting-shapes.md` (makes the gifs,
-and is moving into `gif-generator` under its issue 701);
-`062-gif-viewer-window.md`; `double-diaper-dungeon` issue 10-003 (the
+**Related**: `gif-generator` issue 702 (makes the gifs; was this project's
+060, moved there by its issue 701a); `gif-generator` issue 703 (the viewer;
+was 062); `double-diaper-dungeon` issue 10-003 (the
 transcript renderer that will draw them); `neocities-modernization` (whose
 embedding pipeline is the model for the matching)
 
@@ -45,7 +45,7 @@ decided once, by what the message says, and never changes. In her words:
 ## Current Behavior
 
 Nothing assigns gifs. The gifs exist: 34 films, 320 by 320, made by
-`scripts/readme-gallery/render-all.sh --library` (issue 060) into
+`gif-generator/render-all-shapes --library` (gif-generator issue 702) into
 `/home/ritz/pictures/shape-gifs/`, about 36 MB in all, each with a still.
 Transcripts are exported as markdown by the Stop hook into each project's
 `llm-transcripts/`, one `### User Request` / assistant section per exchange.

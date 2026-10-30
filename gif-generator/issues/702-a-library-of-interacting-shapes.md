@@ -1,13 +1,27 @@
-# Issue 060: A Library of Interacting Shapes (first meant for the front page)
+# 702 — a library of interacting shapes (first meant for the front page)
 
 **Status**: In progress (all 34 films kept in the owner's library; README section dropped by the owner; four open questions below)
 **Priority**: Low
 **Created**: 2026-09-23
-**Type**: New tool (`scripts/readme-gallery/`)
+**Type**: New tool (now `src/034` to `039`, `input/shapes/`, `tests/shape-films/`)
 **Related**: neocities-modernization issue 10-042e (a gallery page of these
 films on the neocities site); `058-front-page-rewrites-its-own-figures.md`
-(the front page these were first meant for); `gif-generator` (whose GIF
-encoder and glow palette this reuses, as libraries, unmodified)
+(the front page these were first meant for); 701 and 701a (which brought
+this tool into gif-generator, whose encoder and palette it uses)
+
+**Moved (2026-10-30, issue 701a).** This was `delta-version` issue 060.
+The tool moved here with its history; the text below keeps the old names
+where it tells what happened. Read them through this table:
+
+| Old name (delta-version/scripts/readme-gallery/) | Now (gif-generator/) |
+| --- | --- |
+| `readme-gallery.lua` | `src/039-shape-films.lua` |
+| `meshes.lua`, `choreography.lua`, `raster.lua`, `fluid.lua`, `png.lua` | `src/034` to `038`, same names after the number |
+| `scenes/` | `input/shapes/` |
+| `tests/choreography-test.lua`, `tests/framing-test.lua` | `src/042-choreography-test.lua`, `src/043-framing-test.lua` |
+| `tests/` (scenes, fingerprints, gif-facts) | `tests/shape-films/` |
+| `render-all.sh`, `test-readme-gallery.sh` | `render-all-shapes`, `test-shape-films` |
+| `/dev/shm/delta-version/readme-gallery-candidates` | `/dev/shm/gif-generator/shape-film-candidates` |
 
 ---
 

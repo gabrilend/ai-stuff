@@ -1,4 +1,4 @@
--- framing-test.lua - checks that a scene keeps its promises about the picture.
+-- 043-framing-test.lua - checks that a scene keeps its promises about the picture.
 --
 -- What this is, generally: a moving camera can wander away from what it is
 -- filming. A scene may promise, in its `framing = { tag, at_least, margin }`,
@@ -18,14 +18,14 @@
 --     those tags are ever closer than d, centre to centre (balls on a hill
 --     never overlap)
 --
--- Usage: luajit framing-test.lua DIR [scene-name ...]
+-- Usage: luajit src/043-framing-test.lua DIR [scene-name ...]
 -- Prints one line per scene; exits 1 if any scene breaks its promise.
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/delta-version/scripts/readme-gallery"
-local meshes = dofile(DIR .. "/meshes.lua")
-local choreography = dofile(DIR .. "/choreography.lua")
-local fluid = dofile(DIR .. "/fluid.lua")
-local raster = dofile(DIR .. "/raster.lua")
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
+local meshes = dofile(DIR .. "/src/034-meshes.lua")
+local choreography = dofile(DIR .. "/src/035-choreography.lua")
+local fluid = dofile(DIR .. "/src/037-fluid.lua")
+local raster = dofile(DIR .. "/src/036-raster.lua")
 
 local HUES = {
     rose = { 1, 0.2, 0.45 }, ember = { 1, 0.42, 0.1 }, gold = { 1, 0.8, 0.15 },
@@ -37,12 +37,12 @@ local HUES = {
 local function scene_paths()
     local list = {}
     if #arg > 1 then
-        for i = 2, #arg do list[#list + 1] = DIR .. "/scenes/" .. arg[i] .. ".lua" end
+        for i = 2, #arg do list[#list + 1] = DIR .. "/input/shapes/" .. arg[i] .. ".lua" end
         return list
     end
-    local pipe = io.popen(string.format("ls %q", DIR .. "/scenes"))
+    local pipe = io.popen(string.format("ls %q", DIR .. "/input/shapes"))
     for line in pipe:lines() do
-        if line:match("%.lua$") then list[#list + 1] = DIR .. "/scenes/" .. line end
+        if line:match("%.lua$") then list[#list + 1] = DIR .. "/input/shapes/" .. line end
     end
     pipe:close()
     return list
