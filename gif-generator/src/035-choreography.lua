@@ -43,15 +43,16 @@
 
 local choreography = {}
 
+-- The wall every scene passes before anything here reads it: each word
+-- legal where it stands, every miss reported at once (049-shape-wall.lua).
+local HERE = debug.getinfo(1, "S").source:match("^@(.*/)") or "./"
+local wall = dofile(HERE .. "049-shape-wall.lua")
+
 local TAU = 2 * math.pi
 
 -- The shard rainbow, in wheel order. Shattered faces take these colours by
 -- face number, so a burst always reads as a rainbow whatever the shape's hue.
 local RAINBOW = { "rose", "ember", "gold", "jade", "teal", "ice", "violet" }
-
--- {{{ local function is_whole()
-local function is_whole(n) return type(n) == "number" and n == math.floor(n) end
--- }}}
 
 -- {{{ local function smooth()
 -- 0 at the edge of a reaction's reach, 1 at touching, eased so reactions
@@ -390,11 +391,6 @@ function choreography.track_frame(track, s)
 end
 -- }}}
 
--- Integer-cycle fields each motion kind must carry, checked on load.
-local MOTION_CYCLES = { fixed = {}, orbit = { "cycles" }, swing = { "cycles" }, lissajous = {},
-                        arc = { "cycles" }, conveyor = { "cycles" }, keyframes = { "cycles" },
-                        wave = { "cycles" }, bezier = { "cycles" }, spline = { "cycles" } }
-
 -- How the camera travels, when a scene gives it a motion. Each returns the
 -- eye's position and the point it looks at, at moment t. Every one of them
 -- is back where it started at t = 1, by the same whole-cycle rule as the
@@ -510,11 +506,6 @@ CAMERA_MOTIONS.ride = function(c, t)
 end
 -- }}}
 
--- Whole-number fields each camera motion must carry, checked on load.
-local CAMERA_CYCLES = { orbit = { "cycles" }, dolly = { "cycles" }, crane = { "cycles" },
-                        lobed = { "cycles", "lobes" }, ride = { "cycles" },
-                        spiral = { "cycles", "turns" }, fly = {} }
-
 -- Where a carried part is at moment t -- filled in further down, once the
 -- posing functions exist; declared here so a route can start at a wand.
 local find_part_position
@@ -613,15 +604,6 @@ local function refuse(scene_name, message)
 end
 -- }}}
 
--- {{{ local function legal_words()
-local function legal_words(tbl)
-    local list = {}
-    for k in pairs(tbl) do list[#list + 1] = k end
-    table.sort(list)
-    return table.concat(list, ", ")
-end
--- }}}
-
 -- The motions that run a route once per cycle and report how far along it
 -- they are -- the only ones a rolling or becoming shape can use.
 local ROUTES = { keyframes = true, wave = true, bezier = true, arc = true, conveyor = true, spline = true }
@@ -630,17 +612,6 @@ local ROUTES = { keyframes = true, wave = true, bezier = true, arc = true, conve
 -- can be reached by one straight line out from the middle in every
 -- direction (see meshes.radius_toward).
 local CONVEX = { cube = true, tetrahedron = true, octahedron = true, icosahedron = true }
-
--- {{{ local function has_tag()
--- Whether any shape, or any part carried at any depth, carries the tag.
-local function has_tag(list, tag)
-    for _, item in ipairs(list) do
-        if item.tag == tag then return true end
-        if item.parts and has_tag(item.parts, tag) then return true end
-    end
-    return false
-end
--- }}}
 
 -- {{{ local function shallow_copy()
 local function shallow_copy(t)
@@ -680,15 +651,12 @@ end
 -- {{{ local function expand_shorthand()
 -- Unfolds `becomes` and `trail` into plain shapes, in place of the one that
 -- carried them: the shape, then what it becomes, then each one's trail.
-local function expand_shorthand(instances, scene_name)
+local function expand_shorthand(instances)
     local out = {}
     for written, inst in ipairs(instances) do
         local family = { inst }
         if inst.becomes then
             local b = inst.becomes
-            if type(b.at) ~= "number" or b.at <= 0 or b.at >= 1 then
-                refuse(scene_name, "becomes needs an `at` between 0 and 1 (a point in the route's cycle)")
-            end
             local before = shallow_copy(inst)
             before.becomes = nil
             before._fade = { kind = "out", at = b.at, over = b.over or 0.05 }
@@ -711,9 +679,6 @@ local function expand_shorthand(instances, scene_name)
             member._family = written
             out[#out + 1] = member
             if member.trail then
-                if not is_whole(member.trail.count) or member.trail.count < 1 then
-                    refuse(scene_name, "a trail needs a whole count of at least one")
-                end
                 for _, copy in ipairs(trail_of(member, member.trail)) do out[#out + 1] = copy end
             end
         end
@@ -722,102 +687,41 @@ local function expand_shorthand(instances, scene_name)
 end
 -- }}}
 
--- {{{ local function check_blob()
--- A blob: `blob = { group, bands, soft }` on a shape with a hue and no mesh.
--- Blobs of one group melt into each other where they come within `soft` of
--- touching; `bands` is how many brightness levels its lighting is cut into
--- (at least 2, a whole number).
-local function check_blob(scene_name, label, inst, hues)
-    if not hues[inst.hue] then
-        refuse(scene_name, label .. " has hue '" .. tostring(inst.hue) .. "'; legal hues: " .. legal_words(hues))
-    end
-    if inst.mesh or inst.parts then
-        refuse(scene_name, label .. " is a blob, which is a soft round body with no mesh and no parts")
-    end
-    local b = inst.blob
-    if b.bands ~= nil and not (is_whole(b.bands) and b.bands >= 2) then
-        refuse(scene_name, label .. "'s blob bands must be a whole number, at least 2")
-    end
-    if b.soft ~= nil and not (type(b.soft) == "number" and b.soft >= 0) then
-        refuse(scene_name, label .. "'s blob softness must be a number, zero or more")
-    end
-end
--- }}}
-
--- {{{ local function check_turns()
--- The whole-number rules for the ways a shape turns and breathes in place.
-local function check_turns(scene_name, label, p)
-    if p.spin and not is_whole(p.spin.turns) then refuse(scene_name, label .. "'s spin turns must be whole") end
-    if p.pulse and not is_whole(p.pulse.cycles) then refuse(scene_name, label .. "'s pulse cycles must be whole") end
-    if p.rock and not is_whole(p.rock.cycles) then refuse(scene_name, label .. "'s rock cycles must be whole") end
-end
--- }}}
-
--- {{{ local function check_keyframes()
--- A keyframed route: at least two points, their moments in order within
--- [0,1), each a table {u, x, z [, y]}; sizes likewise. Points without a
--- height rest on the scene's ground, so a route using them needs a ground.
-local function check_keyframes(scene_name, label, m, scene, meshes)
-    if type(m.points) ~= "table" or #m.points < 2 then
-        refuse(scene_name, label .. "'s keyframes need at least two points")
-    end
-    local needs_ground = false
-    for k, p in ipairs(m.points) do
-        if type(p[1]) ~= "number" or p[1] < 0 or p[1] >= 1 or (k > 1 and p[1] <= m.points[k - 1][1]) then
-            refuse(scene_name, label .. "'s keyframe moments must rise from 0 up to (not reaching) 1")
-        end
-        if p[4] == nil then needs_ground = true end
-    end
-    for k, s in ipairs(m.sizes or {}) do
-        if type(s[1]) ~= "number" or s[1] < 0 or s[1] >= 1 or (k > 1 and s[1] <= m.sizes[k - 1][1]) then
-            refuse(scene_name, label .. "'s size moments must rise from 0 up to (not reaching) 1")
-        end
-    end
-    if needs_ground and not scene.ground then
-        refuse(scene_name, label .. " rests on the ground, but the scene has no `ground`")
-    end
+-- {{{ local function ground_keyframes()
+-- A keyframed route's points without a height rest on the scene's ground
+-- (plus `lift`); this gives the route that ground to stand on. (The wall,
+-- 049-shape-wall.lua, has already refused a route that needs a ground the
+-- scene lacks.)
+local function ground_keyframes(m, scene, meshes)
     local lift = m.lift or 0
+    if not scene.ground then return end
     -- {{{ function m._ground()
     function m._ground(x, z) return meshes.terrain_height(scene.ground, x, z) + lift end
     -- }}}
 end
 -- }}}
 
--- {{{ local function check_parts()
--- A carried part is checked like a shape (mesh, hue, turning rules) and its
--- mesh is built; parts may carry parts. Parts do not travel or react: they
--- ride their parent.
-local function check_parts(scene_name, label, parts, hues, meshes, scene)
-    for k, part in ipairs(parts) do
-        local part_label = label .. " part " .. k .. (part.tag and (" (" .. part.tag .. ")") or "")
-        if not hues[part.hue] then
-            refuse(scene_name, part_label .. " has hue '" .. tostring(part.hue) .. "'; legal hues: " .. legal_words(hues))
-        end
-        if part.motion or part.reacts then
-            refuse(scene_name, part_label .. " travels or reacts, but parts only ride their parent")
-        end
+-- {{{ local function build_parts()
+-- A carried part's mesh is built, and its parts' in turn; parts may carry
+-- parts. Parts do not travel or react: they ride their parent.
+local function build_parts(parts, meshes)
+    for _, part in ipairs(parts) do
         part.built_mesh = meshes.build(part.mesh, part.mesh_params)
-        check_turns(scene_name, part_label, part)
-        if part.parts then check_parts(scene_name, part_label, part.parts, hues, meshes, scene) end
+        if part.parts then build_parts(part.parts, meshes) end
     end
 end
 -- }}}
 
 -- {{{ function choreography.load()
--- Checks a scene table and returns it ready to pose. `hues` is the colour
+-- Checks a scene table against the wall (049-shape-wall.lua), which
+-- refuses every broken word and rule at once, and returns it ready to pose. `hues` is the colour
 -- vocabulary (name -> {r,g,b}) and `meshes` the shape cabinet; both are
 -- handed in so this file depends on neither the palette nor the renderer.
 -- `fluid` (the liquid simulator, 037-fluid.lua) is handed in the same way, and
 -- is needed only by a scene with a `fluid`.
 function choreography.load(scene, hues, meshes, fluid)
+    wall.require(scene, wall.vocabulary(hues, meshes, choreography))
     local name = scene.name or "(unnamed)"
-    if not is_whole(scene.frames) or scene.frames < 1 then refuse(name, "frames must be a whole number above 0") end
-    if not is_whole(scene.size) or scene.size < 8 then refuse(name, "size must be a whole number of pixels, at least 8") end
-    -- a scene needs something to film: shapes of its own, or a track whose
-    -- ties and trackside shapes are laid out below
-    if type(scene.instances) ~= "table" or (#scene.instances == 0 and not scene.track) then
-        refuse(name, "no instances")
-    end
 
     -- Words that are shorthand for several shapes are unfolded first, so
     -- everything after sees only plain shapes:
@@ -828,7 +732,7 @@ function choreography.load(scene, hues, meshes, fluid)
     --              behind in time (`spacing` of a cycle apart), each `shrink`
     --              times the size of the one before, optionally in other
     --              shapes and colours (`mesh`, `hues`)
-    scene.instances = expand_shorthand(scene.instances, name)
+    scene.instances = expand_shorthand(scene.instances)
 
     -- A track (scene.track) is a smooth closed curve with a corkscrew; its
     -- rails are drawn as strokes, a camera may ride it, and here its ties
@@ -836,17 +740,6 @@ function choreography.load(scene, hues, meshes, fluid)
     -- become plain shapes laid along it, each turned to the track there.
     local track = scene.track
     if track then
-        if type(track.points) ~= "table" or #track.points < 4 then
-            refuse(name, "a track needs at least four points to bend through")
-        end
-        if track.twist and not is_whole(track.twist.turns) then
-            refuse(name, "a track's corkscrew must turn a whole number of times, or the rails do not meet")
-        end
-        if track.rails then
-            for _, hue in ipairs(track.rails.hues or {}) do
-                if not hues[hue] then refuse(name, "the track's rails have hue '" .. tostring(hue) .. "'") end
-            end
-        end
         local ties = track.ties
         for k = 0, ties and ties.count - 1 or -1 do
             local c, along, side, up = choreography.track_frame(track, k / ties.count)
@@ -884,17 +777,11 @@ function choreography.load(scene, hues, meshes, fluid)
 
     scene.built = {}
     for index, inst in ipairs(scene.instances) do
-        local label = (inst.tag or "instance") .. " #" .. index
         -- Three paths: a blob (a soft round body with no mesh -- see below)
-        -- is checked for its own words; a shape with a mesh is checked and
-        -- built; a shape with only parts is a spine -- posed so its parts can
-        -- hang from it, but never drawn itself.
-        if inst.blob then
-            check_blob(name, label, inst, hues)
-        elseif inst.mesh or not inst.parts then
-            if not hues[inst.hue] then
-                refuse(name, label .. " has hue '" .. tostring(inst.hue) .. "'; legal hues: " .. legal_words(hues))
-            end
+        -- has nothing to build; a shape with a mesh is built; a shape with
+        -- only parts is a spine -- posed so its parts can hang from it, but
+        -- never drawn itself.
+        if not inst.blob and (inst.mesh or not inst.parts) then
             -- Shapes with default proportions are built once and shared; a
             -- shape given its own parameters gets its own copy, keyed by its
             -- position.
@@ -905,201 +792,42 @@ function choreography.load(scene, hues, meshes, fluid)
 
         local motion = inst.motion or { kind = "fixed" }
         inst.motion = motion
-        if not MOTIONS[motion.kind] then
-            refuse(name, label .. " moves by '" .. tostring(motion.kind) .. "'; legal motions: " .. legal_words(MOTIONS))
-        end
-        for _, field in ipairs(MOTION_CYCLES[motion.kind]) do
-            if not is_whole(motion[field]) then
-                refuse(name, label .. "'s " .. motion.kind .. " " .. field .. " must be a whole number, or the loop has a seam")
-            end
-        end
-        if motion.kind == "lissajous" then
-            for axis = 1, 3 do
-                if not is_whole(motion.freq[axis]) then
-                    refuse(name, label .. "'s lissajous frequencies must be whole numbers, or the loop has a seam")
-                end
-            end
-        end
+        -- Two ways to rest on the ground: a keyframed route's points without
+        -- a height, or any motion standing `on_ground`.
         if motion.kind == "keyframes" then
-            check_keyframes(name, label, motion, scene, meshes)
+            ground_keyframes(motion, scene, meshes)
         elseif motion.on_ground then
-            if not scene.ground then refuse(name, label .. " stands on the ground, but the scene has no `ground`") end
             -- {{{ function motion._ground()
             function motion._ground(x, z) return meshes.terrain_height(scene.ground, x, z) end
             -- }}}
         end
-        if motion.kind == "bezier" and (type(motion.points) ~= "table" or #motion.points ~= 4) then
-            refuse(name, label .. "'s bezier needs exactly four points: start, two pulls, end")
-        end
-        if motion.bob and not is_whole(motion.bob.cycles) then refuse(name, label .. "'s bob cycles must be whole") end
-        for _, wave in ipairs(motion.sway or {}) do
-            if not is_whole(wave.cycles) then refuse(name, label .. "'s sway cycles must be whole") end
-        end
         -- a route starting or ending at a carried part: remember the scene so
-        -- the part can be found, and check such a part exists
-        local anchors = {}
+        -- the part can be found
         for _, p in ipairs({ motion.from or false, motion.to or false, unpack(motion.points or {}) }) do
-            if type(p) == "table" and p.part then anchors[#anchors + 1] = p.part end
-        end
-        if #anchors > 0 then
-            if not ROUTES[motion.kind] then
-                refuse(name, label .. " starts from a part, which needs a route motion (" .. legal_words(ROUTES) .. ")")
-            end
-            for _, tag in ipairs(anchors) do
-                if not has_tag(scene.instances, tag) then
-                    refuse(name, label .. " starts from a part tagged '" .. tag .. "', but nothing carries one")
-                end
-            end
-            motion._anchored, motion._scene = true, scene
-        end
-        if inst.shatter_keys then
-            if not ROUTES[motion.kind] then refuse(name, label .. "'s shatter_keys need a route motion") end
-            for k, key in ipairs(inst.shatter_keys) do
-                if type(key[1]) ~= "number" or key[1] < 0 or key[1] >= 1
-                   or (k > 1 and key[1] <= inst.shatter_keys[k - 1][1]) then
-                    refuse(name, label .. "'s shatter moments must rise from 0 up to (not reaching) 1")
-                end
-            end
+            if type(p) == "table" and p.part then motion._anchored, motion._scene = true, scene end
         end
         if inst.morph_through then
             local mt = inst.morph_through
-            if not (inst.built_mesh and inst.built_mesh.superball) then
-                refuse(name, label .. " morphs through solids, but only a superball can")
-            end
-            if not is_whole(mt.cycles) then refuse(name, label .. "'s morph_through cycles must be whole") end
-            if type(mt.shapes) ~= "table" or #mt.shapes < 2 then
-                refuse(name, label .. " morphs through solids, so it needs at least two shapes")
-            end
             mt._meshes = {}
-            for k, shape in ipairs(mt.shapes) do
-                if not CONVEX[shape] then
-                    refuse(name, label .. " cannot morph through '" .. tostring(shape) .. "'; it can through "
-                           .. legal_words(CONVEX) .. " (solids with no dents)")
-                end
-                mt._meshes[k] = meshes.build(shape)
-            end
-            for _, hue in ipairs(mt.hues or {}) do
-                if not hues[hue] then refuse(name, label .. "'s morph_through hue '" .. tostring(hue) .. "' is not known") end
-            end
+            for k, shape in ipairs(mt.shapes) do mt._meshes[k] = meshes.build(shape) end
         end
-        check_turns(name, label, inst)
-        if inst.burst and not is_whole(inst.burst.cycles) then refuse(name, label .. "'s burst cycles must be whole") end
-        if inst.shards and inst.shards ~= "rainbow" and inst.shards ~= "own" then
-            refuse(name, label .. "'s shards must be \"rainbow\" or \"own\", not '" .. tostring(inst.shards) .. "'")
-        end
-        if inst.morph then
-            if not inst.built_mesh.superball then refuse(name, label .. " morphs, but only a superball can") end
-            if not is_whole(inst.morph.cycles) then refuse(name, label .. "'s morph cycles must be whole") end
-        end
-        -- rolling and becoming are timed by the route's own cycle, which only
-        -- the route motions report
-        if (inst.roll or inst._fade) and not ROUTES[motion.kind] then
-            refuse(name, label .. (inst.roll and " rolls" or " becomes something") .. ", which needs a route motion ("
-                   .. legal_words(ROUTES) .. "), not " .. motion.kind)
-        end
-        if inst.roll and not (type(inst.roll.radius) == "number" and inst.roll.radius > 0) then
-            refuse(name, label .. " rolls, so it needs a radius above zero")
-        end
-        if inst.dim and not (type(inst.dim) == "number" and inst.dim >= 0 and inst.dim <= 1) then
-            refuse(name, label .. "'s dim must be a number from 0 to 1")
-        end
-        if inst.parts then check_parts(name, label, inst.parts, hues, meshes, scene) end
-        for _, reaction in ipairs(inst.reacts or {}) do
-            if not EFFECTS[reaction.effect] then
-                refuse(name, label .. " reacts with '" .. tostring(reaction.effect) .. "'; legal effects: " .. legal_words(EFFECTS))
-            end
-        end
+        if inst.parts then build_parts(inst.parts, meshes) end
     end
 
-    for index, beam in ipairs(scene.beams or {}) do
-        if not is_whole(beam.writhe or 0) then
-            refuse(name, "beam #" .. index .. "'s writhe must be a whole number, or the loop has a seam")
-        end
-        for _, end_tag in ipairs({ beam.from, beam.to }) do
-            if not has_tag(scene.instances, end_tag) then
-                refuse(name, "beam #" .. index .. " joins '" .. tostring(end_tag) .. "', but nothing is tagged so")
-            end
-        end
-    end
-    for index, light in ipairs(scene.lights or {}) do
-        if not light.tag and not light.at then
-            refuse(name, "light #" .. index .. " needs a tag to ride or a fixed `at`")
-        end
-        if light.tag and not has_tag(scene.instances, light.tag) then
-            refuse(name, "light #" .. index .. " rides '" .. light.tag .. "', but nothing is tagged so")
-        end
-        if light.hue and not hues[light.hue] then
-            refuse(name, "light #" .. index .. " has hue '" .. tostring(light.hue) .. "'")
-        end
-    end
     -- A liquid in an invisible tilting box (see 037-fluid.lua): worked out once
     -- here, then its drops are posed as blobs each frame.
     if scene.fluid then
-        local spec = scene.fluid
         if not fluid then refuse(name, "this scene has a liquid, but no liquid simulator was handed in") end
-        if not (is_whole(spec.count) and spec.count >= 1) then refuse(name, "the liquid needs a whole count of drops") end
-        if not (spec.tilt and is_whole(spec.tilt.cycles)) then
-            refuse(name, "the liquid's box must tilt a whole number of times a loop, or the loop has a seam")
-        end
-        if type(spec.box) ~= "table" or #spec.box ~= 3 then refuse(name, "the liquid needs a box of three half-widths") end
-        for _, hue in ipairs(spec.hues or { "teal" }) do
-            if not hues[hue] then refuse(name, "the liquid has hue '" .. tostring(hue) .. "'") end
-        end
-        scene._fluid = fluid.simulate(spec, scene.frames)
+        scene._fluid = fluid.simulate(scene.fluid, scene.frames)
         scene._fluid_module = fluid
-    end
-    if scene.streaks and not is_whole(scene.streaks.cycles) then
-        refuse(name, "the streaks' cycles must be whole, or the loop has a seam")
-    end
-    if scene.streaks and not (scene.camera and scene.camera.motion) then
-        refuse(name, "streaks rush past a moving camera, but this scene's camera stands still")
-    end
-    for index, stroke in ipairs(scene.strokes or {}) do
-        if not is_whole(stroke.drift or 0) then
-            refuse(name, "wind stroke #" .. index .. "'s drift must be a whole number, or the loop has a seam")
-        end
-        if stroke.hue and not hues[stroke.hue] then
-            refuse(name, "wind stroke #" .. index .. " has hue '" .. tostring(stroke.hue) .. "'")
-        end
-    end
-    if scene.framing and not (type(scene.framing.tag) == "string" and is_whole(scene.framing.at_least)) then
-        refuse(name, "framing needs a tag and a whole at_least")
     end
 
     -- The camera. Two paths: no `motion` -> the original still camera,
     -- set back `distance` and tipped by `tilt`, drawn by the rasteriser's
     -- original arithmetic (the approved films depend on it byte for byte);
-    -- a `motion` -> a moving eye, checked here by the same loop rules.
+    -- a `motion` -> a moving eye. One riding a track is handed the track.
     local camera = scene.camera or {}
-    if camera.motion then
-        local cm = camera.motion
-        if not CAMERA_MOTIONS[cm.kind] then
-            refuse(name, "the camera moves by '" .. tostring(cm.kind) .. "'; legal camera motions: "
-                   .. legal_words(CAMERA_MOTIONS))
-        end
-        for _, field in ipairs(CAMERA_CYCLES[cm.kind]) do
-            if not is_whole(cm[field]) then
-                refuse(name, "the camera's " .. cm.kind .. " " .. field .. " must be a whole number, or the loop has a seam")
-            end
-        end
-        if cm.turns ~= nil and not is_whole(cm.turns) then refuse(name, "the camera's turns must be whole") end
-        if cm.kind == "fly" then
-            for axis = 1, 3 do
-                if not is_whole(cm.freq[axis]) then refuse(name, "the camera's fly frequencies must be whole") end
-            end
-        elseif cm.target == "ahead" and cm.kind ~= "lobed" then
-            refuse(name, "only a flying or lobed camera can look \"ahead\"")
-        end
-        if cm.kind == "ride" then
-            if not scene.track then refuse(name, "the camera rides a track, but the scene has no `track`") end
-            cm._track = scene.track
-        end
-        if cm.bob and not is_whole(cm.bob.cycles) then refuse(name, "the camera's bob cycles must be whole") end
-        local roll = camera.roll
-        if roll and not is_whole(roll.cycles or roll.turns) then
-            refuse(name, "the camera's roll must count whole cycles or whole turns")
-        end
-    end
+    if camera.motion and camera.motion.kind == "ride" then camera.motion._track = scene.track end
 
     scene.rainbow = {}
     for i, hue in ipairs(RAINBOW) do scene.rainbow[i] = hues[hue] end
@@ -1700,6 +1428,25 @@ function choreography.stars(scene, t)
                    brightness = star.base * (0.45 + 0.55 * wave) }
     end
     return now
+end
+-- }}}
+
+-- {{{ function choreography.vocabulary()
+-- The value words this file owns, as sorted lists: how a shape may
+-- travel, how the camera may, what a reaction may do, and which solids a
+-- superball may morph through. The wall (049-shape-wall.lua) checks
+-- scenes against these, so it keeps no copy of its own.
+function choreography.vocabulary()
+    -- {{{ local function sorted_keys()
+    local function sorted_keys(tbl)
+        local list = {}
+        for k in pairs(tbl) do list[#list + 1] = k end
+        table.sort(list)
+        return list
+    end
+    -- }}}
+    return { motions = sorted_keys(MOTIONS), camera_motions = sorted_keys(CAMERA_MOTIONS),
+             effects = sorted_keys(EFFECTS), solids = sorted_keys(CONVEX), routes = sorted_keys(ROUTES) }
 end
 -- }}}
 

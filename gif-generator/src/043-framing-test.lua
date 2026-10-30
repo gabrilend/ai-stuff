@@ -25,6 +25,7 @@ local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
 local meshes = dofile(DIR .. "/src/034-meshes.lua")
 local choreography = dofile(DIR .. "/src/035-choreography.lua")
 local fluid = dofile(DIR .. "/src/037-fluid.lua")
+local scene_file = dofile(DIR .. "/src/045-scene-file.lua")
 local raster = dofile(DIR .. "/src/036-raster.lua")
 
 local HUES = {
@@ -75,7 +76,7 @@ end
 
 local failed, checked = 0, 0
 for _, path in ipairs(scene_paths()) do
-    local scene = choreography.load(dofile(path), HUES, meshes, fluid)
+    local scene = choreography.load(scene_file.read(path), HUES, meshes, fluid)
     if scene.clearance then
         checked = checked + 1
         local worst, worst_tag, worst_margin = math.huge, "", 0

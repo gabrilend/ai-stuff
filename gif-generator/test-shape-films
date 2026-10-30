@@ -285,6 +285,55 @@ function test_round_trip() {
 }
 # }}}
 
+# -- {{{ test_scenes_are_data
+function test_scenes_are_data() {
+    # Scenes declare, they never compute (issue 701c): every generated
+    # scene matches what its generator gives today, and a scene that
+    # reaches for math is refused, with the way out named.
+    "$DIR/make-shapes" "$DIR" --check > /dev/null
+    check "every generated scene matches its generator" "$([ $? -eq 0 ] && echo yes || echo no)"
+
+    local computing="$SCRATCH/computing.lua"
+    sed 's/scale = 0.5,/scale = math.sqrt(0.25),/' "$DIR/tests/shape-films/tiny.lua" > "$computing"
+    local refusal
+    refusal=$(luajit "$TOOL" "$DIR" "$computing" --out="$SCRATCH/broken-out" 2>&1 > /dev/null)
+    check "a scene that computes is refused, and pointed to a generator" \
+        "$(echo "$refusal" | grep -q 'never compute.*generators' && echo yes || echo no)"
+    check "that refused scene films nothing" "$([ ! -e "$SCRATCH/broken-out/computing.gif" ] && echo yes || echo no)"
+}
+# }}}
+
+# -- {{{ test_the_wall
+function test_the_wall() {
+    # Every word closed (issue 701c): every scene passes the wall, a scene
+    # with a dozen misspellings hears about all of them at once, each with
+    # its nearest word, a scene with a dozen broken rules hears about all of
+    # those, and the vocabulary's documentation is the one the word lists
+    # print.
+    local report
+    report=$(luajit "$DIR/src/050-shape-wall-test.lua" "$DIR")
+    local code=$?
+    echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - wall: /; s/^  FAIL - /  FAIL - wall: /'
+    PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
+    FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
+    [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - wall test crashed"; FAIL=$((FAIL + 1)); }
+
+    luajit "$DIR/src/051-shape-docs.lua" "$DIR" --check > /dev/null
+    check "docs/shape-format.md is the one the word lists print" "$([ $? -eq 0 ] && echo yes || echo no)"
+
+    local refusal
+    refusal=$(luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/misspelled.lua" --out="$SCRATCH/broken-out" 2>&1 > /dev/null)
+    check "the film tool refuses the misspelled scene with all twelve mistakes" \
+        "$(echo "$refusal" | grep -q '12 problems, all at once' && echo yes || echo no)"
+    check "that refused scene films nothing" "$([ ! -e "$SCRATCH/broken-out/misspelled.gif" ] && echo yes || echo no)"
+
+    refusal=$(luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/broken-numbers.lua" --out="$SCRATCH/broken-out" 2>&1 > /dev/null)
+    check "the film tool refuses the broken-numbers scene with all twelve broken rules" \
+        "$(echo "$refusal" | grep -q '12 problems, all at once' && echo yes || echo no)"
+    check "that refused scene films nothing" "$([ ! -e "$SCRATCH/broken-out/broken-numbers.gif" ] && echo yes || echo no)"
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -300,6 +349,8 @@ test_framing
 test_approved_unchanged
 test_choreography
 test_round_trip
+test_scenes_are_data
+test_the_wall
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

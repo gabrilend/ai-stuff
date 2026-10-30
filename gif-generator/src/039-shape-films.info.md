@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (193 checks)
+    test-shape-films [DIR]                the proofs (240 checks)
 
 `DIR` is the gif-generator project; the parts are `src/034-meshes.lua`,
 `035-choreography.lua`, `036-raster.lua`, `037-fluid.lua` and `038-png.lua`,
@@ -170,6 +170,14 @@ because a fly-through passes right by things.
 
 ## Scene file
 
+Every legal word, by where it may stand, is listed in
+`docs/shape-format.md`, printed from the lists the wall checks scenes
+against (`048-shape-words.lua`, `049-shape-wall.lua`). A scene with a
+misspelled word, an unknown hue, shape or motion, a tag nothing
+carries, or a broken rule (half a turn, a bezier of three points) is
+refused with every such mistake at once, each misspelling with the
+nearest legal word. What follows is the same vocabulary with examples.
+
 ```lua
 return {
     name = "shatter-bloom", size = 320, frames = 96, delay_cs = 4,
@@ -298,8 +306,14 @@ return {
   bands, soft, blob_size, center }`: a liquid in an invisible tilting box.
   It is posed as blob drops tagged `drop`, and the box itself is never
   drawn.
-- Shared parts, such as the wizard, live in `input/shapes/parts/`. The runner does
-  not list that folder. A scene loads a parts file relative to its own path.
+- A scene is data. It is read in an empty sandbox (`045-scene-file.lua`):
+  no math, no loops' helpers, no files. A scene that needs to compute (a
+  ring of blobs placed with sines, one wizard shared by three scenes) is
+  written as a generator in `input/shapes/generators/`, and `./make-shapes`
+  writes the plain scene it describes into `input/shapes/`, under a line
+  naming its generator. Edit the generator, never the generated scene.
+  Shared parts, such as the wizard, live in `generators/parts/`; a
+  generator loads them relative to its own path.
 
 ## The camera
 
@@ -361,6 +375,14 @@ films every approved scene again and requires each to match its recorded
 fingerprint in `tests/shape-films/approved-films.lua` byte for byte. It also checks
 that a film split across workers matches one filmed alone, and that
 `tests/shape-films/tiny-fluid.lua` films to the same bytes twice.
+
+`src/050-shape-wall-test.lua` checks the wall: every scene passes it,
+`tests/shape-films/misspelled.lua` gets all twelve of its mistakes in one
+pass with their nearest words, `tests/shape-films/broken-numbers.lua`
+gets all twelve of its broken rules, and the word lists agree with the
+code.
+`test-shape-films` also checks that `docs/shape-format.md` is the one the
+lists print, and that the film tool refuses the misspelled scene.
 
 `tests/shape-films/tiny-third.lua` carries every fourth-round word and gets filmed,
 read back and refused when its ground is removed. `src/043-framing-test.lua`
