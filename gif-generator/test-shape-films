@@ -351,6 +351,21 @@ function test_two_spaces() {
 }
 # }}}
 
+# -- {{{ test_cards
+function test_cards() {
+    # Every film kept and rated (issue 701e): a card beside every film, the
+    # approved six at five, ratings appended and never edited, a film made
+    # again starting unrated, the viewer's own lines agreeing with the maker.
+    local report
+    report=$(luajit "$DIR/src/056-cards-test.lua" "$DIR")
+    local code=$?
+    echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - cards: /; s/^  FAIL - /  FAIL - cards: /'
+    PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
+    FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
+    [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - cards test crashed"; FAIL=$((FAIL + 1)); }
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -369,6 +384,7 @@ test_round_trip
 test_scenes_are_data
 test_the_wall
 test_two_spaces
+test_cards
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -42,6 +42,8 @@ docs/
 ├── shape-format.md ....... the 3D scenes' contract: every word a
 │                           shape scene may use, printed from the
 │                           wall's own word lists
+├── card-format.md ........ the card beside every film: what made
+│                           it, and its ratings on five tiers
 ├── datapath-scene-script.md
 │                           score file → compiled timeline (the
 │                           vocabulary, the clock-face convention,

@@ -22,6 +22,8 @@
 --                file; none means every scene in input/shapes/
 --     --out=     where the GIFs go (default: RAM, the candidates folder)
 --     --still    also save the first frame of each as a PNG (beside the GIF)
+--     (every film gets a card beside it, NAME.gif.card: what made it and its
+--     ratings; see 055-cards.lua and docs/card-format.md)
 --     --stills=  save those PNGs in this folder instead (implies --still)
 --     --frames=  override the frame count (tests use it to render quickly)
 --     --jobs=N   split each film's frames across N worker processes, at most 4 (a
@@ -60,6 +62,7 @@ local png = dofile(SRC .. "/038-png.lua")
 local fluid = dofile(SRC .. "/037-fluid.lua")
 local scene_file = dofile(SRC .. "/045-scene-file.lua")
 local frame_parts = dofile(SRC .. "/052-frame.lua")
+local cards = dofile(SRC .. "/055-cards.lua")
 local gif = dofile(SRC .. "/004-gif.lua")
 local palette = dofile(SRC .. "/002-palette.lua")
 local ffi = require("ffi")
@@ -245,6 +248,16 @@ local function film(name, options)
     local handle = assert(io.open(target, "wb"))
     handle:write(bytes)
     handle:close()
+    -- every film keeps a card beside it (issue 701e): what made it, and
+    -- its ratings; a film made again with new bytes is told so on its card
+    local card
+    if path == scene_path(scene.name) then
+        card = cards.what_made(DIR, scene.name .. ".gif")
+    else
+        card = { category = "shapes", score = path, seed = "none", about = cards.about(path) }
+    end
+    card.size, card.frames = scene.size, scene.frames
+    cards.film_made(target, card, options.approved)
     print(string.format("%-22s %4d frames  %4dx%-4d  %8d bytes  %s",
         scene.name, scene.frames, scene.size, scene.size, #bytes, target))
     return #bytes
@@ -254,6 +267,7 @@ end
 -- {{{ local function main()
 local function main()
     local options = parse_options(arguments)
+    options.approved = cards.approved(DIR)
     os.execute(string.format("mkdir -p %q", options.out))
     if options.stills then os.execute(string.format("mkdir -p %q", options.stills)) end
     local names = #options.scenes > 0 and options.scenes or all_scene_names()

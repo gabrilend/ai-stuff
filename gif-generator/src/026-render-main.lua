@@ -42,6 +42,7 @@ local tracks = require("018-tracks")
 local score = require("022-score")
 local compile = require("024-compile")
 local two_spaces = require("053-two-spaces")
+local cards = require("055-cards")
 
 local main = {}
 
@@ -210,6 +211,14 @@ function main.run(dir, wanted)
             local bytes, facts = main.render_to_gif(compiled)
             local final = land(dir, name, bytes)
             report(dir, name, facts)
+            -- every film keeps a card beside it (issue 701e)
+            cards.film_made(final, {
+                category = compiled.studio and "two spaces" or "strokes",
+                score = "input/" .. name .. ".lua",
+                seed = compiled.canvas.seed, size = compiled.canvas.size,
+                frames = facts.frames,
+                about = cards.about(dir .. "/input/" .. name .. ".lua"),
+            })
             log_line(dir, name .. ": " .. facts.bytes .. " bytes, "
                      .. facts.frames .. " frames, peak "
                      .. facts.peak .. " particles")
