@@ -5,8 +5,9 @@
 -- a score author fixes one render's worth of mistakes per attempt,
 -- not one mistake. Every error names its stroke and field, and when
 -- a name misses a vocabulary it carries the nearest legal word
--- (computed by edit distance against the same tables the runtime
--- trusts — nothing here keeps a second copy that could drift).
+-- (computed by edit distance, 047-nearest.lua, against the same tables
+-- the runtime trusts — nothing here keeps a second copy that could
+-- drift).
 -- Compilation then resolves every name to a number: clock words to
 -- angles, hue names to palette seats, easing and fade names to
 -- functions, tip borrowings to coordinates. The timeline that comes
@@ -29,40 +30,8 @@ local compile = {}
 local LEGAL_FPS = { [50]=true, [25]=true, [20]=true, [10]=true,
                     [5]=true, [4]=true, [2]=true, [1]=true }
 
--- {{{ local function edit_distance()
--- Levenshtein, the plain dynamic program — small words, small cost.
-local function edit_distance(a, b)
-    local la, lb = #a, #b
-    local row = {}
-    for j = 0, lb do row[j] = j end
-    for i = 1, la do
-        local prev = row[0]
-        row[0] = i
-        for j = 1, lb do
-            local cur = row[j]
-            local cost = (a:byte(i) == b:byte(j)) and 0 or 1
-            local best = math.min(row[j] + 1, row[j - 1] + 1,
-                                  prev + cost)
-            row[j] = best
-            prev = cur
-        end
-    end
-    return row[lb]
-end
--- }}}
-
--- {{{ local function nearest()
--- The closest legal word to a miss — the wall's teaching voice,
--- quoted back to humans and to the porch's models alike.
-local function nearest(word, candidates)
-    local best, best_d = nil, math.huge
-    for _, c in ipairs(candidates) do
-        local d = edit_distance(tostring(word), c)
-        if d < best_d then best, best_d = c, d end
-    end
-    return best
-end
--- }}}
+-- The nearest legal word to a miss, shared with the 3D wall.
+local nearest = require("047-nearest").word
 
 -- {{{ local function keys_of()
 local function keys_of(tbl)

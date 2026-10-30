@@ -43,6 +43,11 @@
 
 local choreography = {}
 
+-- The wall every scene passes before anything here reads it: each word
+-- legal where it stands, every miss reported at once (049-shape-wall.lua).
+local HERE = debug.getinfo(1, "S").source:match("^@(.*/)") or "./"
+local wall = dofile(HERE .. "049-shape-wall.lua")
+
 local TAU = 2 * math.pi
 
 -- The shard rainbow, in wheel order. Shattered faces take these colours by
@@ -810,6 +815,7 @@ end
 -- `fluid` (the liquid simulator, 037-fluid.lua) is handed in the same way, and
 -- is needed only by a scene with a `fluid`.
 function choreography.load(scene, hues, meshes, fluid)
+    wall.require(scene, wall.vocabulary(hues, meshes, choreography))
     local name = scene.name or "(unnamed)"
     if not is_whole(scene.frames) or scene.frames < 1 then refuse(name, "frames must be a whole number above 0") end
     if not is_whole(scene.size) or scene.size < 8 then refuse(name, "size must be a whole number of pixels, at least 8") end
@@ -1700,6 +1706,25 @@ function choreography.stars(scene, t)
                    brightness = star.base * (0.45 + 0.55 * wave) }
     end
     return now
+end
+-- }}}
+
+-- {{{ function choreography.vocabulary()
+-- The value words this file owns, as sorted lists: how a shape may
+-- travel, how the camera may, what a reaction may do, and which solids a
+-- superball may morph through. The wall (049-shape-wall.lua) checks
+-- scenes against these, so it keeps no copy of its own.
+function choreography.vocabulary()
+    -- {{{ local function sorted_keys()
+    local function sorted_keys(tbl)
+        local list = {}
+        for k in pairs(tbl) do list[#list + 1] = k end
+        table.sort(list)
+        return list
+    end
+    -- }}}
+    return { motions = sorted_keys(MOTIONS), camera_motions = sorted_keys(CAMERA_MOTIONS),
+             effects = sorted_keys(EFFECTS), solids = sorted_keys(CONVEX), routes = sorted_keys(ROUTES) }
 end
 -- }}}
 
