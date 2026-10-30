@@ -40,7 +40,17 @@ house-owned shared encoder as "your own", unlike a third party's.
 ## Open Questions
 
 1. **A new skill, or canvas-and-paintbrush rewritten into this studio's
-   manual?** She leans rewritten. What it would change:
+   manual? — ANSWERED 2026-10-30: two skills.** Her words:
+
+   > the canvas-and-paintbrush tool is slightly different than the gif
+   > generator, the canvas-and-paintbrush is for creating the tools of
+   > creation while the gif generator is one example of creating a tool
+   > that paints for us based on what we say.
+
+   So `gif-studio` stays its own skill, and canvas-and-paintbrush gains
+   only the pointer changes listed under What Happened. What she named as
+   missing (the ear: plain speech into the studio's words) is issue 704.
+   The weighing as it stood before her answer:
 
    **Gained by rewriting**
    - One skill instead of two, so an assistant asked to "make a gif" or

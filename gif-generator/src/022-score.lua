@@ -254,19 +254,33 @@ function score.write(raw)
 
     -- the second space, when there is one: the camera, the world,
     -- each shape in its order, then the panes the strokes are painted on
+    -- the person's sentence above the call it became, when the porch
+    -- carried one (raw.said; issue 704)
+    local said = raw.said or {}
+    -- {{{ local function comment()
+    local function comment(text)
+        if text then
+            for line in tostring(text):gmatch("[^\n]+") do put("-- " .. line) end
+        end
+    end
+    -- }}}
     if raw.camera then
+        comment(said.camera)
         put("camera" .. scene_file.value_text(raw.camera))
         put("")
     end
     if raw.world then
+        comment(said.world)
         put("world" .. scene_file.value_text(raw.world))
         put("")
     end
-    for _, sh in ipairs(raw.shapes or {}) do
+    for i, sh in ipairs(raw.shapes or {}) do
+        comment(said.shapes and said.shapes[i])
         put("shape" .. scene_file.value_text(sh))
         put("")
     end
-    for _, pn in ipairs(raw.panes or {}) do
+    for i, pn in ipairs(raw.panes or {}) do
+        comment(said.panes and said.panes[i])
         local parts = {}
         for _, field in ipairs(PANE_FIELDS) do
             if pn[field] ~= nil then
