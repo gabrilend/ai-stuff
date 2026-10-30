@@ -334,6 +334,23 @@ function test_the_wall() {
 }
 # }}}
 
+# -- {{{ test_two_spaces
+function test_two_spaces() {
+    # One canvas, two spaces (issue 701d): a score of strokes alone and a
+    # score of shapes alone (each approved film, said as a score) film the
+    # bytes they always did, a pane hides behind nearer shapes only, a
+    # score with a dozen mistakes across both spaces hears of all of them,
+    # and a mixed score films the same twice.
+    local report
+    report=$(luajit "$DIR/src/054-two-spaces-test.lua" "$DIR")
+    local code=$?
+    echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - two spaces: /; s/^  FAIL - /  FAIL - two spaces: /'
+    PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
+    FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
+    [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - two-spaces test crashed"; FAIL=$((FAIL + 1)); }
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -351,6 +368,7 @@ test_choreography
 test_round_trip
 test_scenes_are_data
 test_the_wall
+test_two_spaces
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

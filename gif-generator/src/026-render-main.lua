@@ -41,6 +41,7 @@ local splat = require("012-splat")
 local tracks = require("018-tracks")
 local score = require("022-score")
 local compile = require("024-compile")
+local two_spaces = require("053-two-spaces")
 
 local main = {}
 
@@ -48,6 +49,9 @@ local main = {}
 -- The pipeline spine: a compiled score in, frames and measured
 -- facts out. Everything downstream of the wall lives here, once.
 function main.render(compiled)
+    -- a score with a second space (shapes, more panes, a background)
+    -- is drawn by the two-space renderer; strokes alone, here, as ever
+    if compiled.studio then return two_spaces.render(compiled) end
     local size = compiled.canvas.size
     local fps = compiled.canvas.fps
     local dt = 1 / fps
