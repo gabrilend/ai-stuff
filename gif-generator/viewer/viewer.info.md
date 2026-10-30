@@ -18,6 +18,7 @@ one gif at a time or all at once in a grid, every gif animating.
 | up / down | — | move the highlight a row |
 | space | next gif | move the highlight on |
 | g | open the grid | back to the single view, on the highlighted gif |
+| 1 to 5 | rate the gif on screen | rate the highlighted gif |
 | enter, mouse click | — | open the highlighted / clicked gif |
 | mouse wheel | — | scroll |
 | esc, q | quit | quit |
@@ -30,6 +31,7 @@ one gif at a time or all at once in a grid, every gif animating.
 | `conf.lua` | window settings (resizable, 960×960 to start) |
 | `main.lua` | the window: keys (a dispatch table per view), playback, drawing, memory limits |
 | `decode-worker.lua` | a background decoder; one per CPU core but one |
+| `rate.lua` | the gif's card: reads the tier that counts, appends a rating (plain Lua, no LÖVE) |
 | `../src/040-gif-decode.lua` | the gif reader: plain LuaJIT, no LÖVE, usable on its own |
 | `../src/041-gif-decode-test.lua`, `../test-gif-viewer` | the tests |
 
@@ -81,3 +83,13 @@ foreign file is an error naming the byte.
 
 It then opens the real window in self-test mode, and both views must be
 drawn.
+
+## Ratings
+
+Keys 1 to 5 append one line to the card beside the gif on screen
+(`NAME.gif.card`, `docs/card-format.md`): `- 4 by person on 2026-11-02`.
+The footer shows the tier that counts, "not rated", or "no card" (a film
+with no card is not rated; `count-films --write` makes the missing cards).
+The viewer shares no code with the maker (`src/055-cards.lua`); the card's
+text is what they agree on, and `src/056-cards-test.lua` checks that they do.
+

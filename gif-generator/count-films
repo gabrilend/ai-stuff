@@ -1,0 +1,32 @@
+#!/bin/bash
+# count-films - says how many films sit at each tier, from their cards.
+#
+# In general terms: every film keeps a card beside it (NAME.gif.card) with
+# its ratings, 1 to 5, appended one per line (issue 701e). This reads the
+# cards, never the films, and says how many are at each tier, how many are
+# not rated, and which films have no card yet. A count asked for is true
+# when asked; a number typed into a document is true once.
+#
+# Usage:
+#   count-films                     -- the shape films in /home/ritz/pictures/shape-gifs
+#   count-films /some/folder        -- any folder of films
+#   count-films [folder] --write    -- first, a card beside every film that has
+#                                      none (the six approved films start at 5)
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+FOLDER="/home/ritz/pictures/shape-gifs"
+
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    FOLDER="$1"
+    shift
+fi
+
+if [ ! -d "$FOLDER" ]; then
+    echo "count-films: $FOLDER is not a folder" >&2
+    exit 1
+fi
+
+if [ "${1:-}" = "--write" ]; then
+    luajit "$DIR/src/055-cards.lua" "$DIR" --write "$FOLDER" || exit 1
+fi
+exec luajit "$DIR/src/055-cards.lua" "$DIR" --counts "$FOLDER"

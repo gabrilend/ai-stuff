@@ -11,6 +11,8 @@
 --   single view:  ←/→ previous/next   space next   g grid   esc/q quit
 --   grid view:    arrows move the highlight   space next   enter or click
 --                 opens it   g back to single view   esc/q quit
+--   both views:   1 to 5 rate the gif on screen (or highlighted): one line
+--                 appended to its card, NAME.gif.card (issue 701e)
 --
 -- Memory: full-size frames are kept for only a few gifs at once (the one on
 -- screen and its neighbours; the least recently seen is dropped). The grid
@@ -48,6 +50,13 @@ local state = {
 
 local channels = {}
 local fonts = {}
+local rate = require("rate")
+
+-- The five tiers, as the cards name them (docs/card-format.md).
+local TIER_WORDS = {
+    [5] = "reach for it first", [4] = "use freely", [3] = "fine among others",
+    [2] = "kept but not reached for", [1] = "the record of what missed",
+}
 
 -- {{{ Folder
 
@@ -235,6 +244,29 @@ end
 
 local function quit() love.event.quit() end
 
+-- {{{ local function rating_words()
+-- What the footer says about a gif's card.
+local function rating_words(entry)
+    if entry.tier == false then return "no card" end
+    if entry.tier == nil then return "not rated" end
+    return "tier " .. entry.tier .. ": " .. TIER_WORDS[entry.tier]
+end
+-- }}}
+
+-- {{{ local function rate_shown()
+-- Appends a rating to the card of the gif on screen (or highlighted).
+local function rate_shown(tier)
+    local entry = state.entries[state.mode == "grid" and state.selected or state.current]
+    local ok, why = rate.append(rate.card_path(entry.path), tier)
+    if ok then
+        entry.tier = tier
+        state.notice = { text = "rated " .. tier, until_clock = state.clock + 1.5 }
+    else
+        state.notice = { text = why, until_clock = state.clock + 3 }
+    end
+end
+-- }}}
+
 -- {{{ local function toggle_grid()
 local function toggle_grid()
     if state.mode == "single" then
@@ -257,12 +289,18 @@ end
 
 local keys = {
     single = {
+        ["1"] = function() rate_shown(1) end, ["2"] = function() rate_shown(2) end,
+        ["3"] = function() rate_shown(3) end, ["4"] = function() rate_shown(4) end,
+        ["5"] = function() rate_shown(5) end,
         left = function() look_at(state.current - 1) end,
         right = function() look_at(state.current + 1) end,
         space = function() look_at(state.current + 1) end,
         g = toggle_grid, escape = quit, q = quit,
     },
     grid = {
+        ["1"] = function() rate_shown(1) end, ["2"] = function() rate_shown(2) end,
+        ["3"] = function() rate_shown(3) end, ["4"] = function() rate_shown(4) end,
+        ["5"] = function() rate_shown(5) end,
         left = function() move_selection(-1) end,
         right = function() move_selection(1) end,
         space = function() move_selection(1) end,
@@ -291,7 +329,9 @@ function love.load(args)
     end
 
     for _, name in ipairs(list_gifs(state.folder)) do
-        state.entries[#state.entries + 1] = { name = name, path = state.folder .. "/" .. name }
+        local path = state.folder .. "/" .. name
+        state.entries[#state.entries + 1] = { name = name, path = path,
+                                              tier = rate.tier(rate.card_path(path)) }
     end
     if #state.entries == 0 then
         error("no .gif files in " .. state.folder, 0)
@@ -406,12 +446,13 @@ local function draw_single()
 
     love.graphics.setFont(fonts.name)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf(string.format("%d / %d   %s", state.current, #state.entries,
-        entry.name:gsub("%.gif$", "")), 0, height - FOOTER + 6, width, "center")
+    love.graphics.printf(string.format("%d / %d   %s    %s", state.current, #state.entries,
+        (entry.name:gsub("%.gif$", "")), rating_words(entry)), 0, height - FOOTER + 6, width, "center")
     love.graphics.setFont(fonts.hint)
     love.graphics.setColor(QUIET)
     -- words, not arrow symbols: LÖVE's built-in font has no arrow glyphs
-    love.graphics.printf("left / right  step    space  next    g  grid    q  quit",
+    love.graphics.printf(state.notice and state.clock < state.notice.until_clock and state.notice.text
+        or "left / right  step    space  next    1-5  rate    g  grid    q  quit",
         0, height - FOOTER + 32, width, "center")
 end
 -- }}}
@@ -450,11 +491,12 @@ local function draw_grid()
     local entry = state.entries[state.selected]
     love.graphics.setFont(fonts.name)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf(string.format("%d / %d   %s", state.selected, #state.entries,
-        entry.name:gsub("%.gif$", "")), 0, height - FOOTER + 6, width, "center")
+    love.graphics.printf(string.format("%d / %d   %s    %s", state.selected, #state.entries,
+        (entry.name:gsub("%.gif$", "")), rating_words(entry)), 0, height - FOOTER + 6, width, "center")
     love.graphics.setFont(fonts.hint)
     love.graphics.setColor(QUIET)
-    love.graphics.printf("arrows  move    enter  open    g  back    q  quit",
+    love.graphics.printf(state.notice and state.clock < state.notice.until_clock and state.notice.text
+        or "arrows  move    enter  open    1-5  rate    g  back    q  quit",
         0, height - FOOTER + 32, width, "center")
 end
 -- }}}

@@ -27,3 +27,5 @@ teaches Lua its own library path first; the root `run` script is its
 thin wrapper. Reports land as plain data lines beside each gif; the
 render log streams to the RAM tier (a missing tier means bootstrap
 has not run — said aloud, not worked around).
+
+Every gif it lands gets a card beside it, `NAME.gif.card` (`055-cards.lua`, issue 701e), in the same pool as the shape films: kind `strokes` or `two spaces`.
