@@ -5,8 +5,9 @@ the wall (`src/049-shape-wall.lua`) checks every scene against. Edit those, then
 `luajit src/051-shape-docs.lua .`; never edit this file by hand.
 
 A scene is data: a Lua file returning one table, read in an empty sandbox. A word not
-listed for the place it stands is refused, with every other mistake in the scene, each
-with the nearest legal word.
+listed for the place it stands, a value that breaks its word's rule, or a rule between
+words broken is refused, with every other mistake in the scene, each misspelling with
+the nearest legal word.
 
 ## World space
 
@@ -35,533 +36,546 @@ z toward the viewer of a still camera.
 - Route motions (the ones a rolling, becoming or anchored shape needs): `arc` `bezier` `conveyor` `keyframes` `spline` `wave`.
 - Tags made without being written: `drop` `tie` `trackside` `trail`.
 
+## Rules between words
+
+- A scene has something to film: instances, or a track.
+- A shape is a blob (a hue, and no mesh or parts), a shape (a mesh and a hue) or a spine (parts and no mesh).
+- A part needs a mesh and a hue.
+- Rolling, becoming and `shatter_keys` need a route motion, and so does a route that starts at a carried part.
+- Only a superball morphs, and a morphing superball becomes and trails only superballs.
+- Standing `on_ground`, or a keyframe point with no height, needs the scene's `ground`.
+- Streaks need a moving camera; a riding camera needs a `track`; only a flying or lobed camera looks `"ahead"`.
+- A camera's roll counts whole `cycles` or whole `turns`.
+- A light needs a `tag` to ride or a fixed `at`.
+- Every tag pointed at (by a reaction, a beam, a light, an anchor or a promise) is carried by something.
+
 ## Places
 
 ### `scene`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `name` | a value | the film's name, which its GIF is named after |
-| `size` | a value | the picture's width and height in pixels, whole, at least 8 |
-| `frames` | a value | frames in one loop, whole |
-| `delay_cs` | a value | how long each frame shows, in hundredths of a second |
-| `jobs` | a value | worker processes to split the frames across (at most 4) |
-| `camera` | a camera table | where the film is seen from |
-| `stars` | a stars table | a sky of fixed stars behind everything |
-| `instances` | a list of instance tables | the shapes in the scene |
-| `ground` | a ground table | the land that keyframes and on_ground rest on |
-| `strokes` | a list of stroke tables | thin lines of light bent into a travelling wave |
-| `beams` | a list of beam tables | lines of light always joining two tagged things |
-| `track` | a track table | a closed smooth ride with a corkscrew |
-| `streaks` | a streaks table | speed lines rushing past a moving camera |
-| `lights` | a list of light tables | point lights for blobs |
-| `fluid` | a fluid table | a liquid in an invisible tilting box |
-| `framing` | a framing table | a promise about how many tagged shapes stay in the picture |
-| `clearance` | a list of clearance tables | a promise that the lens keeps clear of tagged shapes |
-| `spacing` | a spacing table | a promise that tagged shapes keep apart |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `name` | a value |  | the film's name, which its GIF is named after |
+| `size` | a value | needed, whole, at least 8 | the picture's width and height in pixels, whole, at least 8 |
+| `frames` | a value | needed, whole, at least 1 | frames in one loop, whole |
+| `delay_cs` | a value | whole, at least 1 | how long each frame shows, in hundredths of a second |
+| `jobs` | a value | whole, at least 1 | worker processes to split the frames across (at most 4) |
+| `camera` | a camera table |  | where the film is seen from |
+| `stars` | a stars table |  | a sky of fixed stars behind everything |
+| `instances` | a list of instance tables | needed | the shapes in the scene |
+| `ground` | a ground table |  | the land that keyframes and on_ground rest on |
+| `strokes` | a list of stroke tables |  | thin lines of light bent into a travelling wave |
+| `beams` | a list of beam tables |  | lines of light always joining two tagged things |
+| `track` | a track table |  | a closed smooth ride with a corkscrew |
+| `streaks` | a streaks table |  | speed lines rushing past a moving camera |
+| `lights` | a list of light tables |  | point lights for blobs |
+| `fluid` | a fluid table |  | a liquid in an invisible tilting box |
+| `framing` | a framing table |  | a promise about how many tagged shapes stay in the picture |
+| `clearance` | a list of clearance tables |  | a promise that the lens keeps clear of tagged shapes |
+| `spacing` | a spacing table |  | a promise that tagged shapes keep apart |
 
 ### `camera`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `distance` | a value | a still camera's distance back from the origin |
-| `fov` | a value | the field of view, in degrees |
-| `tilt` | a value | a still camera's tip downward |
-| `motion` | a camera motion | a moving eye; its kind picks its words |
-| `roll` | a camera_roll table | the horizon rocking, or turning all the way round |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `distance` | a value |  | a still camera's distance back from the origin |
+| `fov` | a value |  | the field of view, in degrees |
+| `tilt` | a value |  | a still camera's tip downward |
+| `motion` | a camera motion |  | a moving eye; its kind picks its words |
+| `roll` | a camera_roll table |  | the horizon rocking, or turning all the way round |
 
 ### `camera_roll`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `amount` | a value | how far the horizon rocks either way |
-| `cycles` | a value | rocks per loop, whole |
-| `phase` | a value | where in its rock the loop starts |
-| `turns` | a value | whole turns of the horizon per loop, in place of rocking |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `amount` | a value |  | how far the horizon rocks either way |
+| `cycles` | a value | whole (no seam) | rocks per loop, whole |
+| `phase` | a value |  | where in its rock the loop starts |
+| `turns` | a value | whole (no seam) | whole turns of the horizon per loop, in place of rocking |
 
 ### `bob`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `amount` | a value | how far it lifts and lowers |
-| `cycles` | a value | bobs per loop, whole |
-| `phase` | a value | where in its bob the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `amount` | a value |  | how far it lifts and lowers |
+| `cycles` | a value | needed, whole (no seam) | bobs per loop, whole |
+| `phase` | a value |  | where in its bob the loop starts |
 
 ### `stars`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `count` | a value | how many stars |
-| `seed` | a value | the number the sky is scattered from; the same seed is the same sky |
-| `hues` | a list of hues | the stars' colours |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `count` | a value |  | how many stars |
+| `seed` | a value |  | the number the sky is scattered from; the same seed is the same sky |
+| `hues` | a list of hues |  | the stars' colours |
 
 ### `ground`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `base` | a value | the ground's height where no hill or wave lifts it |
-| `hills` | a value | { { x, z, height, radius }, ... }: smooth mounds |
-| `waves` | a value | { { height, x frequency, z frequency, phase }, ... }: rolling swells |
-| `size` | a value | how far the drawn land reaches |
-| `grid` | a value | how finely the drawn land is cut |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `base` | a value |  | the ground's height where no hill or wave lifts it |
+| `hills` | a value |  | { { x, z, height, radius }, ... }: smooth mounds |
+| `waves` | a value |  | { { height, x frequency, z frequency, phase }, ... }: rolling swells |
+| `size` | a value |  | how far the drawn land reaches |
+| `grid` | a value |  | how finely the drawn land is cut |
 
 ### `instance`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag | a name others point at: reactions, beams, lights, promises |
-| `mesh` | a shape | the shape, from the cabinet |
-| `mesh_params` | the shape's proportions | the shape's own proportions |
-| `hue` | a hue | its colour |
-| `scale` | a value | its size; a blob's radius |
-| `stretch` | a value | {x,y,z}: a different size along each axis |
-| `style` | a style | how it is drawn: glow (lit edges), solid or wire |
-| `dim` | a value | 0 to 1: how far its colour is darkened |
-| `motion` | a motion | how it travels; its kind picks its words |
-| `spin` | a spin table | a steady turn about an axis |
-| `pulse` | a pulse table | breathing in and out |
-| `rock` | a rock table | swinging back and forth about a centre |
-| `orient` | a orient table | a standing turn |
-| `pivot` | a value | {x,y,z}: moves the shape off its middle before turning, so it hinges at one end |
-| `face_motion` | a value | true: points nose-first along its path |
-| `roll` | a roll table | rolling contact: turns by the distance rolled (needs a route motion) |
-| `becomes` | a becomes table | shrinks away at a point of its route as a new shape grows in its place |
-| `trail` | a trail table | smaller copies following the same route a little behind |
-| `parts` | a list of part tables | shapes carried in this shape's frame; with no mesh, this shape is a hidden spine |
-| `blob` | a blob table | a soft round body with a hue and no mesh |
-| `reacts` | a list of reaction tables | what it does when a tagged shape comes near |
-| `shatter_keys` | a value | { { u, amount }, ... }: a shatter timed at points of its route |
-| `shards` | `own` or `rainbow` | the shards' colours: rainbow, or own (its own colour) |
-| `shard_distance` | a value | how far its shards fly |
-| `burst` | a burst table | a shatter on a timer rather than a reaction |
-| `morph` | a morph table | a superball breathing between cube and octahedron |
-| `morph_through` | a morph_through table | a superball becoming each solid in turn |
-| `flock` | a value | a label the tests count shapes by |
-| `role` | a value | a label the tests count shapes by |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag |  | a name others point at: reactions, beams, lights, promises |
+| `mesh` | a shape |  | the shape, from the cabinet |
+| `mesh_params` | the shape's proportions |  | the shape's own proportions |
+| `hue` | a hue |  | its colour |
+| `scale` | a value |  | its size; a blob's radius |
+| `stretch` | a value |  | {x,y,z}: a different size along each axis |
+| `style` | a style |  | how it is drawn: glow (lit edges), solid or wire |
+| `dim` | a value | 0 to 1 | 0 to 1: how far its colour is darkened |
+| `motion` | a motion |  | how it travels; its kind picks its words |
+| `spin` | a spin table |  | a steady turn about an axis |
+| `pulse` | a pulse table |  | breathing in and out |
+| `rock` | a rock table |  | swinging back and forth about a centre |
+| `orient` | a orient table |  | a standing turn |
+| `pivot` | a value |  | {x,y,z}: moves the shape off its middle before turning, so it hinges at one end |
+| `face_motion` | a value |  | true: points nose-first along its path |
+| `roll` | a roll table |  | rolling contact: turns by the distance rolled (needs a route motion) |
+| `becomes` | a becomes table |  | shrinks away at a point of its route as a new shape grows in its place |
+| `trail` | a trail table |  | smaller copies following the same route a little behind |
+| `parts` | a list of part tables |  | shapes carried in this shape's frame; with no mesh, this shape is a hidden spine |
+| `blob` | a blob table |  | a soft round body with a hue and no mesh |
+| `reacts` | a list of reaction tables |  | what it does when a tagged shape comes near |
+| `shatter_keys` | a value | moments rising from 0 to below 1 | { { u, amount }, ... }: a shatter timed at points of its route |
+| `shards` | `own` or `rainbow` |  | the shards' colours: rainbow, or own (its own colour) |
+| `shard_distance` | a value |  | how far its shards fly |
+| `burst` | a burst table |  | a shatter on a timer rather than a reaction |
+| `morph` | a morph table |  | a superball breathing between cube and octahedron |
+| `morph_through` | a morph_through table |  | a superball becoming each solid in turn |
+| `flock` | a value |  | a label the tests count shapes by |
+| `role` | a value |  | a label the tests count shapes by |
 
 ### `spin`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `axis` | a value | {x,y,z}: the line it turns about |
-| `turns` | a value | whole turns per loop |
-| `phase` | a value | where in its turn the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `axis` | a value |  | {x,y,z}: the line it turns about |
+| `turns` | a value | needed, whole (no seam) | whole turns per loop |
+| `phase` | a value |  | where in its turn the loop starts |
 
 ### `pulse`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `amount` | a value | how far it swells and shrinks |
-| `cycles` | a value | breaths per loop, whole |
-| `phase` | a value | where in its breath the loop starts |
-| `axes` | a value | {x,y,z}: breathe only along these axes |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `amount` | a value |  | how far it swells and shrinks |
+| `cycles` | a value | needed, whole (no seam) | breaths per loop, whole |
+| `phase` | a value |  | where in its breath the loop starts |
+| `axes` | a value |  | {x,y,z}: breathe only along these axes |
 
 ### `rock`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `axis` | a value | {x,y,z}: the line it swings about |
-| `center` | a value | {x,y,z}: the point it swings about |
-| `amount` | a value | how far it swings either way |
-| `cycles` | a value | swings per loop, whole |
-| `phase` | a value | where in its swing the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `axis` | a value |  | {x,y,z}: the line it swings about |
+| `center` | a value |  | {x,y,z}: the point it swings about |
+| `amount` | a value |  | how far it swings either way |
+| `cycles` | a value | needed, whole (no seam) | swings per loop, whole |
+| `phase` | a value |  | where in its swing the loop starts |
 
 ### `orient`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `axis` | a value | {x,y,z}: the line of the standing turn |
-| `angle` | a value | how far it is turned |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `axis` | a value |  | {x,y,z}: the line of the standing turn |
+| `angle` | a value |  | how far it is turned |
 
 ### `roll`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | the rolling radius, above zero |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value | needed, above 0 | the rolling radius, above zero |
 
 ### `blob`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `group` | a value | blobs of one group melt into each other |
-| `bands` | a value | brightness levels its lighting is cut into, whole, at least 2 |
-| `soft` | a value | how near two blobs come before they melt together, zero or more |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `group` | a value |  | blobs of one group melt into each other |
+| `bands` | a value | whole, at least 2 | brightness levels its lighting is cut into, whole, at least 2 |
+| `soft` | a value | 0 or more | how near two blobs come before they melt together, zero or more |
 
 ### `burst`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `amount` | a value | how hard it shatters |
-| `cycles` | a value | bursts per loop, whole |
-| `phase` | a value | where in its burst the loop starts |
-| `power` | a value | how sharply the burst rises and falls |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `amount` | a value |  | how hard it shatters |
+| `cycles` | a value | needed, whole (no seam) | bursts per loop, whole |
+| `phase` | a value |  | where in its burst the loop starts |
+| `power` | a value |  | how sharply the burst rises and falls |
 
 ### `morph`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `cycles` | a value | breaths between the solids per loop, whole |
-| `phase` | a value | where in the morph the loop starts |
-| `cube` | a value | how far toward the cube it goes |
-| `octa` | a value | how far toward the octahedron it goes |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `cycles` | a value | needed, whole (no seam) | breaths between the solids per loop, whole |
+| `phase` | a value |  | where in the morph the loop starts |
+| `cube` | a value |  | how far toward the cube it goes |
+| `octa` | a value |  | how far toward the octahedron it goes |
 
 ### `morph_through`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `shapes` | a list of solids | the solids it becomes, in turn, at least two |
-| `hues` | a list of hues | the colour it takes with each |
-| `cycles` | a value | times through them all per loop, whole |
-| `hold` | a value | how much of each solid's share it holds that solid true |
-| `phase` | a value | where in the round the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `shapes` | a list of solids | needed, at least 2 | the solids it becomes, in turn, at least two |
+| `hues` | a list of hues |  | the colour it takes with each |
+| `cycles` | a value | needed, whole (no seam) | times through them all per loop, whole |
+| `hold` | a value |  | how much of each solid's share it holds that solid true |
+| `phase` | a value |  | where in the round the loop starts |
 
 ### `reaction`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `to` | a tag carried elsewhere | the tag of the shapes it reacts to |
-| `within` | a value | how near the nearest of them comes before it reacts |
-| `effect` | an effect | what it does |
-| `amount` | a value | how strongly |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `to` | a tag carried elsewhere |  | the tag of the shapes it reacts to |
+| `within` | a value |  | how near the nearest of them comes before it reacts |
+| `effect` | an effect | needed | what it does |
+| `amount` | a value |  | how strongly |
 
 ### `becomes`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `at` | a value | the point of its route (between 0 and 1) where it changes |
-| `over` | a value | how much of the route the change takes |
-| `mesh` | a shape | the new shape |
-| `mesh_params` | the shape's proportions | the new shape's own proportions |
-| `hue` | a hue | the new colour |
-| `scale` | a value | the new size |
-| `stretch` | a value | the new stretch |
-| `style` | a style | the new style |
-| `dim` | a value | the new darkening |
-| `spin` | a spin table | the new spin |
-| `pulse` | a pulse table | the new breathing |
-| `rock` | a rock table | the new swing |
-| `orient` | a orient table | the new standing turn |
-| `face_motion` | a value | the new nose-first rule |
-| `roll` | a roll, or `false` | the new rolling; false: stop rolling |
-| `tag` | a tag | the new tag |
-| `trail` | a trail table | a trail behind the new shape |
-| `reacts` | a list of reaction tables | the new shape's reactions |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `at` | a value | needed, between 0 and 1 | the point of its route (between 0 and 1) where it changes |
+| `over` | a value |  | how much of the route the change takes |
+| `mesh` | a shape |  | the new shape |
+| `mesh_params` | the shape's proportions |  | the new shape's own proportions |
+| `hue` | a hue |  | the new colour |
+| `scale` | a value |  | the new size |
+| `stretch` | a value |  | the new stretch |
+| `style` | a style |  | the new style |
+| `dim` | a value | 0 to 1 | the new darkening |
+| `spin` | a spin table |  | the new spin |
+| `pulse` | a pulse table |  | the new breathing |
+| `rock` | a rock table |  | the new swing |
+| `orient` | a orient table |  | the new standing turn |
+| `face_motion` | a value |  | the new nose-first rule |
+| `roll` | a roll, or `false` |  | the new rolling; false: stop rolling |
+| `tag` | a tag |  | the new tag |
+| `trail` | a trail table |  | a trail behind the new shape |
+| `reacts` | a list of reaction tables |  | the new shape's reactions |
 
 ### `trail`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `count` | a value | how many copies, whole, at least one |
-| `spacing` | a value | how far apart in time, as a fraction of the loop |
-| `shrink` | a value | each copy's size against the one before |
-| `mesh` | a shape | the copies' shape, if not the leader's |
-| `hues` | a list of hues | the copies' colours, in turn |
-| `dim` | a value | the copies' darkening |
-| `full_speed` | a value | the speed (world units per loop) below which the copies fade |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `count` | a value | needed, whole, at least 1 | how many copies, whole, at least one |
+| `spacing` | a value |  | how far apart in time, as a fraction of the loop |
+| `shrink` | a value |  | each copy's size against the one before |
+| `mesh` | a shape |  | the copies' shape, if not the leader's |
+| `hues` | a list of hues |  | the copies' colours, in turn |
+| `dim` | a value | 0 to 1 | the copies' darkening |
+| `full_speed` | a value |  | the speed (world units per loop) below which the copies fade |
 
 ### `part`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag | a name others point at |
-| `mesh` | a shape | the part's shape |
-| `mesh_params` | the shape's proportions | the part's own proportions |
-| `hue` | a hue | its colour |
-| `offset` | a value | {x,y,z}: where it sits in its carrier's frame |
-| `scale` | a value | its size, against its carrier's |
-| `stretch` | a value | {x,y,z}: a different size along each axis |
-| `pivot` | a value | {x,y,z}: where it hinges |
-| `orient` | a orient table | a standing turn |
-| `spin` | a spin table | a steady turn |
-| `rock` | a rock table | a swing |
-| `pulse` | a pulse table | breathing |
-| `dim` | a value | 0 to 1: darkening |
-| `style` | a style | how it is drawn |
-| `parts` | a list of part tables | parts it carries in turn, to any depth |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag |  | a name others point at |
+| `mesh` | a shape |  | the part's shape |
+| `mesh_params` | the shape's proportions |  | the part's own proportions |
+| `hue` | a hue |  | its colour |
+| `offset` | a value |  | {x,y,z}: where it sits in its carrier's frame |
+| `scale` | a value |  | its size, against its carrier's |
+| `stretch` | a value |  | {x,y,z}: a different size along each axis |
+| `pivot` | a value |  | {x,y,z}: where it hinges |
+| `orient` | a orient table |  | a standing turn |
+| `spin` | a spin table |  | a steady turn |
+| `rock` | a rock table |  | a swing |
+| `pulse` | a pulse table |  | breathing |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
+| `style` | a style |  | how it is drawn |
+| `parts` | a list of part tables |  | parts it carries in turn, to any depth |
 
 ### `sway`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `vector` | a value | {x,y,z}: the direction and size of the wave |
-| `cycles` | a value | waves per loop, whole |
-| `phase` | a value | where in its wave the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `vector` | a value |  | {x,y,z}: the direction and size of the wave |
+| `cycles` | a value | needed, whole (no seam) | waves per loop, whole |
+| `phase` | a value |  | where in its wave the loop starts |
 
 ### `anchor`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `part` | a tag carried elsewhere | the tag of a carried part; the route starts where it stands |
-| `plus` | a value | {x,y,z}: added to where the part stands |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `part` | a tag carried elsewhere |  | the tag of a carried part; the route starts where it stands |
+| `plus` | a value |  | {x,y,z}: added to where the part stands |
 
 ### `stroke`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a value | {x,y,z}: one end |
-| `to` | a value | {x,y,z}: the other end |
-| `amplitude` | a value | how far the wave bends |
-| `waves` | a value | waves along its length |
-| `drift` | a value | whole travels of the wave per loop |
-| `phase` | a value | where in its travel the loop starts |
-| `hue` | a hue | its colour |
-| `dim` | a value | 0 to 1: darkening |
-| `up` | a value | {x,y,z}: the direction it bends in |
-| `segments` | a value | how finely it is drawn |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a value |  | {x,y,z}: one end |
+| `to` | a value |  | {x,y,z}: the other end |
+| `amplitude` | a value |  | how far the wave bends |
+| `waves` | a value |  | waves along its length |
+| `drift` | a value | whole (no seam) | whole travels of the wave per loop |
+| `phase` | a value |  | where in its travel the loop starts |
+| `hue` | a hue |  | its colour |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
+| `up` | a value |  | {x,y,z}: the direction it bends in |
+| `segments` | a value |  | how finely it is drawn |
 
 ### `beam`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a tag carried elsewhere | the tag at one end |
-| `to` | a tag carried elsewhere | the tag at the other end |
-| `amplitude` | a value | how far it bends |
-| `waves` | a value | waves along its length |
-| `writhe` | a value | whole writhes per loop |
-| `strands` | a value | how many strands |
-| `hues` | a list of hues | the strands' colours |
-| `dim` | a value | 0 to 1: darkening |
-| `segments` | a value | how finely it is drawn |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a tag carried elsewhere |  | the tag at one end |
+| `to` | a tag carried elsewhere |  | the tag at the other end |
+| `amplitude` | a value |  | how far it bends |
+| `waves` | a value |  | waves along its length |
+| `writhe` | a value | whole (no seam) | whole writhes per loop |
+| `strands` | a value |  | how many strands |
+| `hues` | a list of hues |  | the strands' colours |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
+| `segments` | a value |  | how finely it is drawn |
 
 ### `track`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `points` | a value | { {x,y,z}, ... }: at least four, the curve bends through them |
-| `gauge` | a value | the distance between the rails |
-| `twist` | a track_twist table | the corkscrew |
-| `rails` | a rails table | the rails, drawn as striped strokes |
-| `ties` | a ties table | small bars across the rails |
-| `along` | a list of along tables | shapes set beside the track |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `points` | a value | needed, at least 4 | { {x,y,z}, ... }: at least four, the curve bends through them |
+| `gauge` | a value |  | the distance between the rails |
+| `twist` | a track_twist table |  | the corkscrew |
+| `rails` | a rails table |  | the rails, drawn as striped strokes |
+| `ties` | a ties table |  | small bars across the rails |
+| `along` | a list of along tables |  | shapes set beside the track |
 
 ### `track_twist`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a value | where along the track the corkscrew starts (0 to 1) |
-| `to` | a value | where it ends |
-| `turns` | a value | whole turns of the corkscrew |
-| `radius` | a value | swing out round an axis this far to the side: a wide helix |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a value |  | where along the track the corkscrew starts (0 to 1) |
+| `to` | a value |  | where it ends |
+| `turns` | a value | needed, whole (no seam) | whole turns of the corkscrew |
+| `radius` | a value |  | swing out round an axis this far to the side: a wide helix |
 
 ### `rails`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `hues` | a list of hues | the stripes' colours |
-| `stripes` | a value | stripes along the rails |
-| `samples` | a value | how finely the rails are drawn |
-| `thickness` | a value | how far apart a rail's two lines are |
-| `dim` | a value | 0 to 1: darkening |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `hues` | a list of hues |  | the stripes' colours |
+| `stripes` | a value |  | stripes along the rails |
+| `samples` | a value |  | how finely the rails are drawn |
+| `thickness` | a value |  | how far apart a rail's two lines are |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
 
 ### `ties`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `count` | a value | how many, whole |
-| `hues` | a list of hues | their colours, in turn |
-| `dim` | a value | 0 to 1: darkening |
-| `width` | a value | how wide along the track |
-| `thickness` | a value | how thick |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `count` | a value | needed, whole, at least 1 | how many, whole |
+| `hues` | a list of hues | needed, at least 1 | their colours, in turn |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
+| `width` | a value |  | how wide along the track |
+| `thickness` | a value |  | how thick |
 
 ### `along`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag | a name others point at |
-| `count` | a value | how many, evenly round the track |
-| `mesh` | a shape | their shape |
-| `hues` | a list of hues | their colours, in turn |
-| `scale` | a value | their size |
-| `side` | a value | about how far left and right of the rails |
-| `up` | a value | about how far above |
-| `spin` | a spin table | their spin |
-| `style` | a style | how they are drawn |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag |  | a name others point at |
+| `count` | a value | needed, whole, at least 1 | how many, evenly round the track |
+| `mesh` | a shape | needed | their shape |
+| `hues` | a list of hues | needed, at least 1 | their colours, in turn |
+| `scale` | a value |  | their size |
+| `side` | a value | needed | about how far left and right of the rails |
+| `up` | a value | needed | about how far above |
+| `spin` | a spin table |  | their spin |
+| `style` | a style |  | how they are drawn |
 
 ### `streaks`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `count` | a value | how many |
-| `seed` | a value | the number they are scattered from |
-| `cycles` | a value | whole rushes past per loop |
-| `far` | a value | where they appear |
-| `near` | a value | where they pass |
-| `length` | a value | how long each is |
-| `inner` | a value | how near the line of travel they come |
-| `outer` | a value | how far from it they reach |
-| `hue` | a hue | their colour |
-| `dim` | a value | 0 to 1: darkening |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `count` | a value |  | how many |
+| `seed` | a value |  | the number they are scattered from |
+| `cycles` | a value | needed, whole (no seam) | whole rushes past per loop |
+| `far` | a value |  | where they appear |
+| `near` | a value |  | where they pass |
+| `length` | a value |  | how long each is |
+| `inner` | a value |  | how near the line of travel they come |
+| `outer` | a value |  | how far from it they reach |
+| `hue` | a hue |  | their colour |
+| `dim` | a value | 0 to 1 | 0 to 1: darkening |
 
 ### `light`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag carried elsewhere | the shape or part it shines from, moving with it |
-| `at` | a value | {x,y,z}: a fixed place to shine from, in place of a tag |
-| `hue` | a hue | its colour |
-| `strength` | a value | how bright |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag carried elsewhere |  | the shape or part it shines from, moving with it |
+| `at` | a value |  | {x,y,z}: a fixed place to shine from, in place of a tag |
+| `hue` | a hue |  | its colour |
+| `strength` | a value |  | how bright |
 
 ### `fluid`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `count` | a value | drops, whole, at least one |
-| `seed` | a value | the number the drops are scattered from |
-| `radius` | a value | how near two drops come before they push apart |
-| `box` | a value | {x,y,z}: the box's three half-widths |
-| `tilt` | a fluid_tilt table | how the box tips |
-| `gravity` | a value | how hard the drops fall |
-| `stiffness` | a value | how hard they push apart |
-| `drag` | a value | how quickly they slow |
-| `substeps` | a value | steps worked out per frame |
-| `time_scale` | a value | how fast the liquid's time runs |
-| `warmup` | a value | loops run before filming, so it starts settled |
-| `blend` | a value | how the loop's end is blended into its start |
-| `hues` | a list of hues | the drops' colours |
-| `bands` | a value | the drops' brightness levels |
-| `soft` | a value | how near drops melt together |
-| `blob_size` | a value | each drop's drawn radius |
-| `center` | a value | {x,y,z}: where the box stands |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `count` | a value | needed, whole, at least 1 | drops, whole, at least one |
+| `seed` | a value |  | the number the drops are scattered from |
+| `radius` | a value |  | how near two drops come before they push apart |
+| `box` | a value | needed, three numbers | {x,y,z}: the box's three half-widths |
+| `tilt` | a fluid_tilt table | needed | how the box tips |
+| `gravity` | a value |  | how hard the drops fall |
+| `stiffness` | a value |  | how hard they push apart |
+| `drag` | a value |  | how quickly they slow |
+| `substeps` | a value |  | steps worked out per frame |
+| `time_scale` | a value |  | how fast the liquid's time runs |
+| `warmup` | a value |  | loops run before filming, so it starts settled |
+| `blend` | a value |  | how the loop's end is blended into its start |
+| `hues` | a list of hues |  | the drops' colours |
+| `bands` | a value |  | the drops' brightness levels |
+| `soft` | a value |  | how near drops melt together |
+| `blob_size` | a value |  | each drop's drawn radius |
+| `center` | a value |  | {x,y,z}: where the box stands |
 
 ### `fluid_tilt`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `axis` | a value | {x,y,z}: the line the box tips about |
-| `amount` | a value | how far it tips |
-| `cycles` | a value | tips per loop, whole |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `axis` | a value |  | {x,y,z}: the line the box tips about |
+| `amount` | a value |  | how far it tips |
+| `cycles` | a value | needed, whole (no seam) | tips per loop, whole |
 
 ### `framing`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag carried elsewhere | the shapes counted |
-| `at_least` | a value | how many must have their centre in the picture in every frame, whole |
-| `margin` | a value | how far inside the picture's edge counts as in |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag carried elsewhere | needed | the shapes counted |
+| `at_least` | a value | needed, whole | how many must have their centre in the picture in every frame, whole |
+| `margin` | a value |  | how far inside the picture's edge counts as in |
 
 ### `clearance`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tag` | a tag carried elsewhere | the shapes the lens keeps clear of |
-| `radius` | a value | how near it may come |
-| `column` | a value | true: measure level to the shape's upright line, as for a trunk |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tag` | a tag carried elsewhere |  | the shapes the lens keeps clear of |
+| `radius` | a value |  | how near it may come |
+| `column` | a value |  | true: measure level to the shape's upright line, as for a trunk |
 
 ### `spacing`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `tags` | a list of tags carried elsewhere | the shapes that keep apart |
-| `at_least` | a value | how near two of them (from different families) may come |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `tags` | a list of tags carried elsewhere |  | the shapes that keep apart |
+| `at_least` | a value |  | how near two of them (from different families) may come |
 
 ## Shape motions
 
 Every motion takes `kind`, the words of its kind, and these:
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `lag` | a value | follow the same path this fraction of a loop behind |
-| `offset` | a value | {x,y,z}: added to every position |
-| `sway` | a list of sway tables | waves added on top |
-| `on_ground` | a value | true: height is measured from the ground there |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `lag` | a value |  | follow the same path this fraction of a loop behind |
+| `offset` | a value |  | {x,y,z}: added to every position |
+| `sway` | a list of sway tables |  | waves added on top |
+| `on_ground` | a value |  | true: height is measured from the ground there |
 
 ### `arc`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | the arch's radius |
-| `center` | a value | {x,y,z}: the arch's middle |
-| `cycles` | a value | crossings per loop, whole |
-| `phase` | a value | where on the arch the loop starts |
-| `from_angle` | a value | the angle it sets off at |
-| `to_angle` | a value | the angle it lands at |
-| `depth` | a value | the arch's lean toward or away from the lens |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value |  | the arch's radius |
+| `center` | a value |  | {x,y,z}: the arch's middle |
+| `cycles` | a value | needed, whole (no seam) | crossings per loop, whole |
+| `phase` | a value |  | where on the arch the loop starts |
+| `from_angle` | a value |  | the angle it sets off at |
+| `to_angle` | a value |  | the angle it lands at |
+| `depth` | a value |  | the arch's lean toward or away from the lens |
 
 ### `bezier`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `points` | a list of points or anchors | exactly four: start, two pulls, end |
-| `cycles` | a value | flights per loop, whole |
-| `phase` | a value | where in its flight the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `points` | a list of points or anchors | needed, exactly 4 | exactly four: start, two pulls, end |
+| `cycles` | a value | needed, whole (no seam) | flights per loop, whole |
+| `phase` | a value |  | where in its flight the loop starts |
 
 ### `conveyor`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a point or an anchor | where it grows out of nothing |
-| `to` | a point or an anchor | where it shrinks away |
-| `cycles` | a value | crossings per loop, whole |
-| `phase` | a value | where on the way the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a point or an anchor |  | where it grows out of nothing |
+| `to` | a point or an anchor |  | where it shrinks away |
+| `cycles` | a value | needed, whole (no seam) | crossings per loop, whole |
+| `phase` | a value |  | where on the way the loop starts |
 
 ### `fixed`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `at` | a value | {x,y,z}: where it stands |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `at` | a value |  | {x,y,z}: where it stands |
 
 ### `keyframes`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `points` | a value | { { u, x, z [, y] }, ... }: the route's moments; with no y, on the ground |
-| `sizes` | a value | { { u, size }, ... }: sizes at moments; 0 hides the jump back |
-| `cycles` | a value | times along the route per loop, whole |
-| `phase` | a value | where on the route the loop starts |
-| `lift` | a value | height above the ground for points with no y |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `points` | a value | needed, moments rising from 0 to below 1, at least 2 | { { u, x, z [, y] }, ... }: the route's moments; with no y, on the ground |
+| `sizes` | a value | moments rising from 0 to below 1 | { { u, size }, ... }: sizes at moments; 0 hides the jump back |
+| `cycles` | a value | needed, whole (no seam) | times along the route per loop, whole |
+| `phase` | a value |  | where on the route the loop starts |
+| `lift` | a value |  | height above the ground for points with no y |
 
 ### `lissajous`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `size` | a value | {x,y,z}: how far it reaches along each axis |
-| `freq` | a value | {x,y,z}: whole waves along each axis per loop |
-| `shift` | a value | {x,y,z}: each axis's wave shifted |
-| `phase` | a value | where on the knot the loop starts |
-| `center` | a value | {x,y,z}: the knot's middle |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `size` | a value |  | {x,y,z}: how far it reaches along each axis |
+| `freq` | a value | needed, three whole numbers (no seam) | {x,y,z}: whole waves along each axis per loop |
+| `shift` | a value |  | {x,y,z}: each axis's wave shifted |
+| `phase` | a value |  | where on the knot the loop starts |
+| `center` | a value |  | {x,y,z}: the knot's middle |
 
 ### `orbit`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | the circle's radius |
-| `cycles` | a value | times round per loop, whole |
-| `phase` | a value | where on the circle the loop starts |
-| `tilt` | a value | the circle tipped about x |
-| `yaw` | a value | then turned about y |
-| `center` | a value | {x,y,z}: the circle's middle |
-| `bob` | a bob table | rising and falling as it goes |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value |  | the circle's radius |
+| `cycles` | a value | needed, whole (no seam) | times round per loop, whole |
+| `phase` | a value |  | where on the circle the loop starts |
+| `tilt` | a value |  | the circle tipped about x |
+| `yaw` | a value |  | then turned about y |
+| `center` | a value |  | {x,y,z}: the circle's middle |
+| `bob` | a bob table |  | rising and falling as it goes |
 
 ### `spline`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `points` | a list of points or anchors | the closed curve passes through these |
-| `cycles` | a value | times round per loop, whole |
-| `phase` | a value | where on the curve the loop starts |
-| `sizes` | a value | { { u, size }, ... }: sizes at moments |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `points` | a list of points or anchors |  | the closed curve passes through these |
+| `cycles` | a value | needed, whole (no seam) | times round per loop, whole |
+| `phase` | a value |  | where on the curve the loop starts |
+| `sizes` | a value |  | { { u, size }, ... }: sizes at moments |
 
 ### `swing`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a point or an anchor | one end |
-| `to` | a point or an anchor | the other end |
-| `cycles` | a value | swings per loop, whole |
-| `phase` | a value | where in its swing the loop starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a point or an anchor |  | one end |
+| `to` | a point or an anchor |  | the other end |
+| `cycles` | a value | needed, whole (no seam) | swings per loop, whole |
+| `phase` | a value |  | where in its swing the loop starts |
 
 ### `wave`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a point or an anchor | where the line starts |
-| `to` | a point or an anchor | where it ends |
-| `amplitude` | a value | how far it ripples |
-| `waves` | a value | ripples along the line |
-| `cycles` | a value | crossings per loop, whole |
-| `phase` | a value | where on the line the loop starts |
-| `up` | a value | {x,y,z}: the direction it ripples in |
-| `wave_phase` | a value | where in its ripple the line starts |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a point or an anchor |  | where the line starts |
+| `to` | a point or an anchor |  | where it ends |
+| `amplitude` | a value |  | how far it ripples |
+| `waves` | a value |  | ripples along the line |
+| `cycles` | a value | needed, whole (no seam) | crossings per loop, whole |
+| `phase` | a value |  | where on the line the loop starts |
+| `up` | a value |  | {x,y,z}: the direction it ripples in |
+| `wave_phase` | a value |  | where in its ripple the line starts |
 
 ## Camera motions
 
@@ -569,88 +583,88 @@ Every camera motion takes `kind` and the words of its kind.
 
 ### `crane`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | how far out |
-| `low` | a value | its lowest height |
-| `high` | a value | its highest height |
-| `cycles` | a value | rises and sinks per loop, whole |
-| `phase` | a value | where in its rise the loop starts |
-| `turns` | a value | times round per loop, whole |
-| `turn_phase` | a value | where on the circle the loop starts |
-| `follow` | a value | how far the target rises with the eye |
-| `target` | a point or `"ahead"` | the point looked at |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value |  | how far out |
+| `low` | a value |  | its lowest height |
+| `high` | a value |  | its highest height |
+| `cycles` | a value | needed, whole (no seam) | rises and sinks per loop, whole |
+| `phase` | a value |  | where in its rise the loop starts |
+| `turns` | a value | whole (no seam) | times round per loop, whole |
+| `turn_phase` | a value |  | where on the circle the loop starts |
+| `follow` | a value |  | how far the target rises with the eye |
+| `target` | a point or `"ahead"` |  | the point looked at |
 
 ### `dolly`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `from` | a value | {x,y,z}: one end of its straight track |
-| `to` | a value | {x,y,z}: the other end |
-| `cycles` | a value | times there and back per loop, whole |
-| `phase` | a value | where on the track the loop starts |
-| `target` | a point or `"ahead"` | the point looked at |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `from` | a value |  | {x,y,z}: one end of its straight track |
+| `to` | a value |  | {x,y,z}: the other end |
+| `cycles` | a value | needed, whole (no seam) | times there and back per loop, whole |
+| `phase` | a value |  | where on the track the loop starts |
+| `target` | a point or `"ahead"` |  | the point looked at |
 
 ### `fly`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `size` | a value | {x,y,z}: how far it reaches along each axis |
-| `freq` | a value | {x,y,z}: whole waves along each axis per loop |
-| `shift` | a value | {x,y,z}: each axis's wave shifted |
-| `center` | a value | {x,y,z}: the path's middle |
-| `phase` | a value | where on the path the loop starts |
-| `target` | a point or `"ahead"` | the point looked at, or ahead along the path |
-| `lead` | a value | looking ahead: at where it will be this fraction of a loop later |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `size` | a value |  | {x,y,z}: how far it reaches along each axis |
+| `freq` | a value | needed, three whole numbers (no seam) | {x,y,z}: whole waves along each axis per loop |
+| `shift` | a value |  | {x,y,z}: each axis's wave shifted |
+| `center` | a value |  | {x,y,z}: the path's middle |
+| `phase` | a value |  | where on the path the loop starts |
+| `target` | a point or `"ahead"` |  | the point looked at, or ahead along the path |
+| `lead` | a value |  | looking ahead: at where it will be this fraction of a loop later |
 
 ### `lobed`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | how far out, on average |
-| `pinch` | a value | how far each lobe pinches in |
-| `lobes` | a value | pinches per round, whole |
-| `cycles` | a value | rounds per loop, whole |
-| `phase` | a value | where on the loop it starts |
-| `height` | a value | how high |
-| `bob` | a bob table | the eye lifting and lowering |
-| `center` | a value | {x,y,z}: the loop's middle |
-| `target` | a point or `"ahead"` | the point looked at, or ahead along the loop |
-| `lead` | a value | looking ahead: how far ahead, as a fraction of the loop |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value |  | how far out, on average |
+| `pinch` | a value |  | how far each lobe pinches in |
+| `lobes` | a value | needed, whole (no seam) | pinches per round, whole |
+| `cycles` | a value | needed, whole (no seam) | rounds per loop, whole |
+| `phase` | a value |  | where on the loop it starts |
+| `height` | a value |  | how high |
+| `bob` | a bob table |  | the eye lifting and lowering |
+| `center` | a value |  | {x,y,z}: the loop's middle |
+| `target` | a point or `"ahead"` |  | the point looked at, or ahead along the loop |
+| `lead` | a value |  | looking ahead: how far ahead, as a fraction of the loop |
 
 ### `orbit`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `radius` | a value | how far out |
-| `height` | a value | how high above the target |
-| `cycles` | a value | times round per loop, whole (negative: the other way) |
-| `phase` | a value | where on the circle the loop starts |
-| `target` | a point or `"ahead"` | the point looked at |
-| `bob` | a bob table | the eye lifting and lowering |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `radius` | a value |  | how far out |
+| `height` | a value |  | how high above the target |
+| `cycles` | a value | needed, whole (no seam) | times round per loop, whole (negative: the other way) |
+| `phase` | a value |  | where on the circle the loop starts |
+| `target` | a point or `"ahead"` |  | the point looked at |
+| `bob` | a bob table |  | the eye lifting and lowering |
 
 ### `ride`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `cycles` | a value | times round the track per loop, whole |
-| `phase` | a value | where on the track the loop starts |
-| `height` | a value | how high above the rails |
-| `lead` | a value | how far ahead it looks, as a fraction of the loop |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `cycles` | a value | needed, whole (no seam) | times round the track per loop, whole |
+| `phase` | a value |  | where on the track the loop starts |
+| `height` | a value |  | how high above the rails |
+| `lead` | a value |  | how far ahead it looks, as a fraction of the loop |
 
 ### `spiral`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `near` | a value | its nearest reach |
-| `far` | a value | its farthest reach |
-| `low` | a value | its height when near |
-| `high` | a value | its height when far |
-| `cycles` | a value | sweeps in and out per loop, whole |
-| `phase` | a value | where in its sweep the loop starts |
-| `turns` | a value | times round per loop, whole |
-| `turn_phase` | a value | where on the circle the loop starts |
-| `target` | a point or `"ahead"` | the point looked at |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `near` | a value |  | its nearest reach |
+| `far` | a value |  | its farthest reach |
+| `low` | a value |  | its height when near |
+| `high` | a value |  | its height when far |
+| `cycles` | a value | needed, whole (no seam) | sweeps in and out per loop, whole |
+| `phase` | a value |  | where in its sweep the loop starts |
+| `turns` | a value | needed, whole (no seam) | times round per loop, whole |
+| `turn_phase` | a value |  | where on the circle the loop starts |
+| `target` | a point or `"ahead"` |  | the point looked at |
 
 ## Shape proportions
 
@@ -658,11 +672,11 @@ A shape's `mesh_params`, by shape. A scene's `ground` takes the terrain's.
 
 ### `cone`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `segments` | a value | how finely round |
-| `radius` | a value | the base's radius |
-| `height` | a value | how tall |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `segments` | a value |  | how finely round |
+| `radius` | a value |  | the base's radius |
+| `height` | a value |  | how tall |
 
 ### `cube`
 
@@ -670,13 +684,13 @@ Takes no words.
 
 ### `horn`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `ridges` | a value | ridges round it |
-| `twist` | a value | turns of the ridges along it |
-| `length` | a value | how long |
-| `radius` | a value | the base's radius |
-| `rings` | a value | how finely along it |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `ridges` | a value |  | ridges round it |
+| `twist` | a value |  | turns of the ridges along it |
+| `length` | a value |  | how long |
+| `radius` | a value |  | the base's radius |
+| `rings` | a value |  | how finely along it |
 
 ### `icosahedron`
 
@@ -688,28 +702,28 @@ Takes no words.
 
 ### `star_prism`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `points` | a value | the star's points |
-| `outer` | a value | the points' reach |
-| `inner` | a value | the notches' reach |
-| `depth` | a value | how thick |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `points` | a value |  | the star's points |
+| `outer` | a value |  | the points' reach |
+| `inner` | a value |  | the notches' reach |
+| `depth` | a value |  | how thick |
 
 ### `superball`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `grid` | a value | how finely it is cut |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `grid` | a value |  | how finely it is cut |
 
 ### `terrain`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `base` | a value | the height where no hill or wave lifts it |
-| `hills` | a value | { { x, z, height, radius }, ... }: smooth mounds |
-| `waves` | a value | { { height, x frequency, z frequency, phase }, ... }: rolling swells |
-| `size` | a value | how far it reaches |
-| `grid` | a value | how finely it is cut |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `base` | a value |  | the height where no hill or wave lifts it |
+| `hills` | a value |  | { { x, z, height, radius }, ... }: smooth mounds |
+| `waves` | a value |  | { { height, x frequency, z frequency, phase }, ... }: rolling swells |
+| `size` | a value |  | how far it reaches |
+| `grid` | a value |  | how finely it is cut |
 
 ### `tetrahedron`
 
@@ -717,9 +731,9 @@ Takes no words.
 
 ### `torus`
 
-| Word | Takes | Meaning |
-|------|-------|---------|
-| `major` | a value | the ring's radius |
-| `minor` | a value | the tube's radius |
-| `rings` | a value | how finely round the ring |
-| `sides` | a value | how finely round the tube |
+| Word | Takes | Must be | Meaning |
+|------|-------|---------|---------|
+| `major` | a value |  | the ring's radius |
+| `minor` | a value |  | the tube's radius |
+| `rings` | a value |  | how finely round the ring |
+| `sides` | a value |  | how finely round the tube |

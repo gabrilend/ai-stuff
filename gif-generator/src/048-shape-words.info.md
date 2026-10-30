@@ -10,12 +10,17 @@ drift.
 
 ## Usable surface
 
-- **CONTEXTS** — place name → list of words. **ORDER** is the order the
+- **CONTEXTS** — place name → list of `{ word, kind, meaning, rules }`;
+  rules (optional) are space-separated: `!` needed, `cycles` whole with
+  no seam, `whole>=N`, `0..1`, `len=N`, `rising`, ... **ORDER** is the order the
   documentation lists them in.
 - **MOTIONS**, **MOTION_COMMON**, **CAMERA_MOTIONS** — the words of each
   kind of motion, and the ones every shape motion takes.
 - **MESH_PARAMS** — each cabinet shape's proportions; a scene's `ground`
   takes the terrain's.
+- **TIES** — the rules between words, in words, for the documentation
+  (the wall keeps them as code).
+- **WORLD_SPACE** — world space, stated once.
 - **STYLES**, **SHARDS**, **MADE_TAGS** — the short word lists the wall
   owns, and the tags the scene makes without anyone writing them.
 - **legal(list) → lookup, sorted**, **motion_words(kind)**,

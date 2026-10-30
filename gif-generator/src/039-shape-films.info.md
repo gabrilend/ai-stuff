@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (222 checks)
+    test-shape-films [DIR]                the proofs (240 checks)
 
 `DIR` is the gif-generator project; the parts are `src/034-meshes.lua`,
 `035-choreography.lua`, `036-raster.lua`, `037-fluid.lua` and `038-png.lua`,
@@ -173,8 +173,9 @@ because a fly-through passes right by things.
 Every legal word, by where it may stand, is listed in
 `docs/shape-format.md`, printed from the lists the wall checks scenes
 against (`048-shape-words.lua`, `049-shape-wall.lua`). A scene with a
-misspelled word, an unknown hue, shape or motion, or a tag nothing
-carries is refused with every such mistake at once, each with the
+misspelled word, an unknown hue, shape or motion, a tag nothing
+carries, or a broken rule (half a turn, a bezier of three points) is
+refused with every such mistake at once, each misspelling with the
 nearest legal word. What follows is the same vocabulary with examples.
 
 ```lua
@@ -377,7 +378,9 @@ that a film split across workers matches one filmed alone, and that
 
 `src/050-shape-wall-test.lua` checks the wall: every scene passes it,
 `tests/shape-films/misspelled.lua` gets all twelve of its mistakes in one
-pass with their nearest words, and the word lists agree with the code.
+pass with their nearest words, `tests/shape-films/broken-numbers.lua`
+gets all twelve of its broken rules, and the word lists agree with the
+code.
 `test-shape-films` also checks that `docs/shape-format.md` is the one the
 lists print, and that the film tool refuses the misspelled scene.
 
