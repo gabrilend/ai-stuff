@@ -109,8 +109,10 @@ fingerprints quietly.
 
 ## Open Questions
 
-1. **The skill: a new one, or canvas-and-paintbrush rewritten?** She leans
-   rewritten. What each costs is in 701f; still to be settled.
+1. **The skill: a new one, or canvas-and-paintbrush rewritten? — ANSWERED
+   2026-10-30: two skills.** canvas-and-paintbrush builds the tools of
+   creation; the gif generator is one such tool. Her words are in 701f;
+   the piece she named as missing became 704.
 2. **Do the films' and viewer's issues move? — ANSWERED. Yes; the gif
    beside every message does not.** Her words:
 
