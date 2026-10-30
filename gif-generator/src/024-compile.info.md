@@ -2,8 +2,8 @@
 
 Raw score in, ready timeline out — or every mistake at once, each
 naming its stroke and field, each miss teaching the nearest legal
-word by edit distance against the same vocabulary tables the runtime
-trusts. After the wall, every name becomes a number: clock words to
+word by edit distance (`047-nearest.lua`, shared with the 3D wall)
+against the same vocabulary tables the runtime trusts. After the wall, every name becomes a number: clock words to
 angles, hues to palette seats (in order of first use, in play
 order), easing and fade names to functions, tip borrowings to
 coordinates — forward borrowings legal (endpoints are geometry, not

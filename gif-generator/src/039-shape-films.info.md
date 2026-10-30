@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (193 checks)
+    test-shape-films [DIR]                the proofs (222 checks)
 
 `DIR` is the gif-generator project; the parts are `src/034-meshes.lua`,
 `035-choreography.lua`, `036-raster.lua`, `037-fluid.lua` and `038-png.lua`,
@@ -169,6 +169,13 @@ shape with any corner nearer the lens than 0.3 units is skipped whole,
 because a fly-through passes right by things.
 
 ## Scene file
+
+Every legal word, by where it may stand, is listed in
+`docs/shape-format.md`, printed from the lists the wall checks scenes
+against (`048-shape-words.lua`, `049-shape-wall.lua`). A scene with a
+misspelled word, an unknown hue, shape or motion, or a tag nothing
+carries is refused with every such mistake at once, each with the
+nearest legal word. What follows is the same vocabulary with examples.
 
 ```lua
 return {
@@ -367,6 +374,12 @@ films every approved scene again and requires each to match its recorded
 fingerprint in `tests/shape-films/approved-films.lua` byte for byte. It also checks
 that a film split across workers matches one filmed alone, and that
 `tests/shape-films/tiny-fluid.lua` films to the same bytes twice.
+
+`src/050-shape-wall-test.lua` checks the wall: every scene passes it,
+`tests/shape-films/misspelled.lua` gets all twelve of its mistakes in one
+pass with their nearest words, and the word lists agree with the code.
+`test-shape-films` also checks that `docs/shape-format.md` is the one the
+lists print, and that the film tool refuses the misspelled scene.
 
 `tests/shape-films/tiny-third.lua` carries every fourth-round word and gets filmed,
 read back and refused when its ground is removed. `src/043-framing-test.lua`

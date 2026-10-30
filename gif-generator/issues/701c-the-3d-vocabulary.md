@@ -74,5 +74,38 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
   scene that computes is refused with the generator named and films
   nothing.
 
-Still to come: the closed tables and the wall (steps 1, 2 and 4), then
-folding choreography's own first-error refusals into the wall.
+### Stage B, 2026-10-30: the closed tables and the wall
+
+- `src/048-shape-words.lua` lists every word legal in each of 36 places
+  (the scene, a shape, a spin, a track's ties, a fluid's tilt, ...), in
+  each kind of shape motion and camera motion, and in each cabinet
+  shape's proportions, with the kind of value it takes and one line of
+  meaning. World space is stated there once. The names the runtime owns
+  (hues, shapes, motion kinds, effects, solids) are not copied: the wall
+  takes them from the modules, through `choreography.vocabulary()`,
+  `meshes.names()` and the hue table, and refuses loudly if the motion
+  kinds or shapes in the lists and in the code ever differ.
+- `src/049-shape-wall.lua` walks a scene and reports every unknown word,
+  hue, shape, style, motion, effect, solid and tag at once, each with
+  where it is and the nearest legal word. `choreography.load` calls it
+  first, so every film and every test that loads a scene is behind it.
+- The nearest-word measure moved out of `024-compile.lua` into
+  `src/047-nearest.lua`, which both walls share (the 2D tests are
+  unchanged: score 12 of 12, compile 19 of 19).
+- `docs/shape-format.md` is printed from the lists by
+  `src/051-shape-docs.lua`; `--check` fails when it is stale.
+- Words found in scenes but not in the old documentation are now listed:
+  `jobs`, `flock` and `role` (labels the twin-reef test counts by),
+  `shard_distance`, and each shape's proportions.
+- One test scene changed: `tests/shape-films/tiny-third.lua` promised to
+  frame a tag, `anything`, that nothing carried. The wall refused it, so
+  it now names `ball` (still `at_least = 0`).
+- Proof: all 34 scenes and the 4 tiny test scenes pass the wall;
+  `tests/shape-films/misspelled.lua` gets all twelve of its mistakes in
+  one pass, each with its nearest word, and films nothing;
+  `./test-shape-films` is 222 of 222, the six approved fingerprints
+  unchanged.
+
+Still to come: folding choreography's own whole-number and range rules,
+which still stop at the first break, into the wall, so those come all at
+once too.
