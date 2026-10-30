@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# check-copy — does a project's copy of the gif studio's files match the
+# studio?
+#
+# Each consumer carries a copy made by `install-into`. Its test run calls
+# this, so a copy edited by hand, or left behind when the studio moved on,
+# fails the tests instead of drifting silently. Prints one line per file
+# that differs or is missing; exits non-zero if any does.
+#
+# Usage: check-copy <project libs folder> [gif-generator folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+TARGET="$1"
+if [ -n "$2" ]; then
+    DIR="$2"
+fi
+if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
+    echo "usage: check-copy <project libs folder> [gif-generator folder]" >&2
+    exit 1
+fi
+
+# The one map from studio file to copy name; install-into holds the same.
+PAIRS="004-gif.lua:gif-encoder.lua 002-palette.lua:gif-palette.lua 040-gif-decode.lua:gif-decoder.lua 038-png.lua:png-writer.lua"
+status=0
+for pair in $PAIRS; do
+    source_file="$DIR/src/${pair%%:*}"
+    copy="$TARGET/${pair##*:}"
+    # Three paths: missing (named), differs (named), same (nothing said).
+    if [ ! -f "$copy" ]; then
+        echo "gif studio copy: ${pair##*:} is missing from $TARGET (run install-into)"
+        status=1
+    elif ! cmp -s "$source_file" "$copy"; then
+        echo "gif studio copy: $copy differs from $source_file (run install-into)"
+        status=1
+    fi
+done
+if [ "$status" -eq 0 ]; then
+    echo "gif studio copy: identical to $DIR"
+fi
+exit "$status"

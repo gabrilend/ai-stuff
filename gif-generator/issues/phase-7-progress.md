@@ -7,7 +7,7 @@ canvas; one encoder, one decoder, one palette; every film kept and rated;
 one skill describing how to use all of it.
 
 - [ ] 701a bring the shape films home — built 2026-10-30 (186 of 186, six fingerprints unchanged); waits on the window check on her machine
-- [ ] 701b one reader, one writer — not started; needs 701a
+- [ ] 701b one reader, one writer — built 2026-10-30 (193 of 193; all 34 films round-trip byte-identical); waits on a run against her library
 - [ ] 701c the 3D vocabulary — not started; needs 701a
 - [ ] 701d one canvas, two spaces — not started; needs 701b and 701c
 - [ ] 701e every film kept and rated — not started; needs 701a and 701b
