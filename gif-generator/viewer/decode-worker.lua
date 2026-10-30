@@ -12,12 +12,13 @@
 -- for something it has since forgotten.
 --
 -- Started by main.lua with love.thread.newThread; receives the viewer's own
--- folder as its argument so it can load the decoder by absolute path.
+-- folder as its argument so it can load the decoder (../src/040-gif-decode.lua)
+-- by absolute path.
 
 local viewer_dir = ...
 require("love.image")
 local ffi = require("ffi")
-local gif = dofile(viewer_dir .. "/gif-decode.lua")
+local gif = dofile(viewer_dir .. "/../src/040-gif-decode.lua")
 
 local urgent = love.thread.getChannel("gif-viewer-urgent")
 local background = love.thread.getChannel("gif-viewer-background")

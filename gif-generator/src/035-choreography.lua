@@ -1,4 +1,4 @@
--- choreography.lua - where every shape is, and what it is doing, at a moment.
+-- 035-choreography.lua - where every shape is, and what it is doing, at a moment.
 --
 -- What this is, generally: the stage manager. A scene file lists the shapes,
 -- how each one travels, spins, breathes, and how it reacts when another shape
@@ -14,7 +14,7 @@
 -- Data formats worth knowing more than once:
 --   scene.instances[i] = {
 --     tag     = string            -- what reactions look for; several may share it
---     mesh    = string            -- a word from meshes.lua; mesh_params = table
+--     mesh    = string            -- a word from 034-meshes.lua; mesh_params = table
 --     hue     = string            -- a word from the palette's hue vocabulary
 --     scale   = number            -- overall size, default 1
 --     stretch = {x, y, z}         -- per-axis size, default {1,1,1}
@@ -807,7 +807,7 @@ end
 -- Checks a scene table and returns it ready to pose. `hues` is the colour
 -- vocabulary (name -> {r,g,b}) and `meshes` the shape cabinet; both are
 -- handed in so this file depends on neither the palette nor the renderer.
--- `fluid` (the liquid simulator, fluid.lua) is handed in the same way, and
+-- `fluid` (the liquid simulator, 037-fluid.lua) is handed in the same way, and
 -- is needed only by a scene with a `fluid`.
 function choreography.load(scene, hues, meshes, fluid)
     local name = scene.name or "(unnamed)"
@@ -1032,7 +1032,7 @@ function choreography.load(scene, hues, meshes, fluid)
             refuse(name, "light #" .. index .. " has hue '" .. tostring(light.hue) .. "'")
         end
     end
-    -- A liquid in an invisible tilting box (see fluid.lua): worked out once
+    -- A liquid in an invisible tilting box (see 037-fluid.lua): worked out once
     -- here, then its drops are posed as blobs each frame.
     if scene.fluid then
         local spec = scene.fluid

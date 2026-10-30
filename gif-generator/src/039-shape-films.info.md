@@ -1,24 +1,31 @@
-# readme-gallery
+# 039-shape-films
 
 Films short, seamlessly looping GIFs of 3D shapes interacting by rule, in the
 house look: a black ground and bright colour. Each film is one scene file of
 plain data. The films make up the owner's personal library of animations, in
 `/home/ritz/pictures/shape-gifs/`, and feed a gallery page on the neocities
 site (neocities-modernization issue 10-042e). They were first meant for the
-repository's README; the owner decided against that on 2026-09-26. The
-tool's name is a leftover of that first purpose.
+repository's README; the owner decided against that on 2026-09-26. It was
+called readme-gallery for that first purpose, and lived in
+`delta-version/scripts/readme-gallery/` until issue 701a brought it here
+(see issue 702, once delta-version 060, for its history).
 
 ## Commands
 
-    readme-gallery.lua [DIR] [scene ...] [--out=DIR] [--still] [--frames=N]
-    render-all.sh [DIR] [--still]         every scene, four at a time (at most 4 processes)
-    render-all.sh --library               every scene into the owner's library:
+    luajit src/039-shape-films.lua [DIR] [scene ...] [--out=DIR] [--still] [--frames=N]
+    render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
+    render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-readme-gallery.sh [DIR]          the proofs (186 checks)
+    test-shape-films [DIR]                the proofs (186 checks)
 
-- `scene` is a name from `scenes/`, or a path to any `.lua` scene file. With
+`DIR` is the gif-generator project; the parts are `src/034-meshes.lua`,
+`035-choreography.lua`, `036-raster.lua`, `037-fluid.lua` and `038-png.lua`,
+and the encoder and palette are this project's own `004-gif.lua` and
+`002-palette.lua`.
+
+- `scene` is a name from `input/shapes/`, or a path to any `.lua` scene file. With
   no scene named, every scene is filmed.
-- Films go to `/dev/shm/delta-version/readme-gallery-candidates/` by default.
+- Films go to `/dev/shm/gif-generator/shape-film-candidates/` by default.
   That folder is in RAM, not in the repository.
 - `--still` also saves frame one of each film as a PNG.
 - `--stills=DIR` saves those PNGs in their own folder, and implies
@@ -26,10 +33,10 @@ tool's name is a leftover of that first purpose.
 - **The library.** Every film, approved or candidate, lives in
   `/home/ritz/pictures/shape-gifs/`, with a still of each in `stills/`.
   The owner keeps them all there and picks the front page's films from
-  them. `render-all.sh --library` rebuilds the whole folder with the
+  them. `render-all-shapes --library` rebuilds the whole folder with the
   tool itself. The RAM candidates folder remains a scratch area.
   (The six approved films were once kept in the repository; now only
-  their fingerprints are, in `tests/approved-films.lua`.)
+  their fingerprints are, in `tests/shape-films/approved-films.lua`.)
 - `--frames=N` shortens a film. The tests use it.
 - `--jobs=N` splits a film's frames across N worker processes and
   gathers them in order. The result is byte-identical to one process,
@@ -45,12 +52,12 @@ tool's name is a leftover of that first purpose.
 
 | File | Role | Knows about |
 |------|------|-------------|
-| `meshes.lua` | the shape cabinet | triangles only |
-| `choreography.lua` | where each shape is at moment t, after reactions; where the camera is and what it looks at; the star field | scenes, not pixels |
-| `raster.lua` | draws one moment through the view it is handed: depth buffer, lighting, glowing edges, 2x2 smoothing | shapes and a view, not scenes |
-| `fluid.lua` | a liquid sloshing in an invisible tilting box, worked out ahead | drops, a box, gravity |
-| `png.lua` | stills with uncompressed deflate blocks | bytes |
-| `../../../gif-generator/src/004-gif.lua`, `002-palette.lua` | encoder and palette, borrowed unmodified | indices and colours |
+| `034-meshes.lua` | the shape cabinet | triangles only |
+| `035-choreography.lua` | where each shape is at moment t, after reactions; where the camera is and what it looks at; the star field | scenes, not pixels |
+| `036-raster.lua` | draws one moment through the view it is handed: depth buffer, lighting, glowing edges, 2x2 smoothing | shapes and a view, not scenes |
+| `037-fluid.lua` | a liquid sloshing in an invisible tilting box, worked out ahead | drops, a box, gravity |
+| `038-png.lua` | stills with uncompressed deflate blocks | bytes |
+| `004-gif.lua`, `002-palette.lua` | this project's own encoder and palette, unmodified | indices and colours |
 
 ### `meshes.build(name, params) → mesh`
 `mesh = { verts = {{x,y,z}...}, faces = {{a,b,c}...}, superball = bool }`.
@@ -264,7 +271,7 @@ return {
   ends. `drift` counts whole travels per loop.
 - `framing = { tag, at_least, margin }`: a promise that in every frame at
   least that many shapes carrying the tag have their centre in the picture.
-  `tests/framing-test.lua` checks it.
+  `src/043-framing-test.lua` checks it.
 - `beams = { { from = tag, to = tag, amplitude, waves, writhe, strands, hues, dim, segments }... }`:
   lines of light always joining two moving things, bending and writhing.
 - `track = { points, gauge, twist = { from, to, turns, radius }, rails = { hues, stripes,
@@ -291,7 +298,7 @@ return {
   bands, soft, blob_size, center }`: a liquid in an invisible tilting box.
   It is posed as blob drops tagged `drop`, and the box itself is never
   drawn.
-- Shared parts, such as the wizard, live in `scenes/parts/`. The runner does
+- Shared parts, such as the wizard, live in `input/shapes/parts/`. The runner does
   not list that folder. A scene loads a parts file relative to its own path.
 
 ## The camera
@@ -325,7 +332,7 @@ fewer cycles), so the camera's motion is the one the eye follows.
 
 ## Tests
 
-`test-readme-gallery.sh` films `tests/tiny.lua` into RAM. `tests/gif-facts.lua`,
+`test-shape-films` films `tests/shape-films/tiny.lua` into RAM. `tests/shape-films/gif-facts.lua`,
 a block-walker that shares no code with the encoder, confirms:
 - the GIF89a signature, the size, the loop-forever block, the frame count
   and the trailer;
@@ -333,11 +340,11 @@ a block-walker that shares no code with the encoder, confirms:
 - that `--frames=` works.
 
 The test then refilms the scene and checks that the bytes are identical, and
-checks that three broken scenes are refused and film nothing. `tests/tiny-new.lua`,
+checks that three broken scenes are refused and film nothing. `tests/shape-films/tiny-new.lua`,
 which carries every second-round word, gets the same treatment, including three
 refusals of its own: half a rock, half an arch, and an unknown shard colour.
 
-`tests/choreography-test.lua` asks the stage manager directly, with no pixels:
+`src/042-choreography-test.lua` asks the stage manager directly, with no pixels:
 - for every scene, whether the moment one full loop in matches the first
   moment (the seamless-loop promise);
 - whether each new word behaves as described (arc feet and crown, lag and
@@ -348,16 +355,16 @@ refusals of its own: half a rock, half an arch, and an unknown shard colour.
   the roll behave as described; and whether four broken cameras are
   refused.
 
-`test-readme-gallery.sh` also refuses two broken camera scenes. It then
+`test-shape-films` also refuses two broken camera scenes. It then
 films every approved scene again and requires each to match its recorded
-fingerprint in `tests/approved-films.lua` byte for byte. It also checks
+fingerprint in `tests/shape-films/approved-films.lua` byte for byte. It also checks
 that a film split across workers matches one filmed alone, and that
-`tests/tiny-fluid.lua` films to the same bytes twice.
+`tests/shape-films/tiny-fluid.lua` films to the same bytes twice.
 
-`tests/tiny-third.lua` carries every fourth-round word and gets filmed,
-read back and refused when its ground is removed. `tests/framing-test.lua`
+`tests/shape-films/tiny-third.lua` carries every fourth-round word and gets filmed,
+read back and refused when its ground is removed. `src/043-framing-test.lua`
 walks every frame of every scene with a `framing` promise.
-In the fifth round, `framing-test.lua` also checks `clearance` and `spacing`.
+In the fifth round, `043-framing-test.lua` also checks `clearance` and `spacing`.
 `choreography-test.lua` adds probes for each new word and checks the
 owner's requests directly:
 - rings and darts leave from the wand tip as it stood at every launch;

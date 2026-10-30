@@ -16,7 +16,8 @@ them all.
 
 A new collection now exists and has no page: animated gifs of 3D shapes
 interacting. They are drawn by the monorepo's gallery renderer,
-`delta-version/scripts/readme-gallery/` (delta-version issue 060), and kept
+`gif-generator/src/039-shape-films.lua` (gif-generator issue 702, once
+delta-version issue 060), and kept
 at `/home/ritz/pictures/shape-gifs/`, with PNG stills in a `stills/`
 subfolder. The owner wants them all showcased:
 
@@ -80,8 +81,8 @@ the gallery index beside the other sources, showing every gif in
 
 ## Related
 
-- delta-version issue 060 (the renderer that makes these gifs, and its scene
-  files)
+- gif-generator issue 702, once delta-version issue 060 (the renderer that
+  makes these gifs; its scene files are in `gif-generator/input/shapes/`)
 - 10-042a (gallery pages), 10-042b (chronological interleaving), 10-042c
   (filename embeddings), 10-042d (gallery chronological list)
 - 11-009 (pure black backgrounds): the gifs are drawn on black to match

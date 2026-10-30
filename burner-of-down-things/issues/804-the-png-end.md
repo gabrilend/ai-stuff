@@ -8,7 +8,7 @@ Pixels can be painted; nothing writes a file.
 
 ## Intended Behavior
 
-A PNG writer with uncompressed deflate blocks (CRC-32 and Adler-32 by hand), modelled on delta-version's readme-gallery `png.lua`. A command `paint <canvas.lua>` writes `<name>.png` and its card (809).
+A PNG writer with uncompressed deflate blocks (CRC-32 and Adler-32 by hand), modelled on gif-generator's `src/038-png.lua` (the shape films' still writer, once delta-version's readme-gallery `png.lua`). A command `paint <canvas.lua>` writes `<name>.png` and its card (809).
 
 ## Suggested Implementation Steps
 

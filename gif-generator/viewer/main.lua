@@ -18,7 +18,7 @@
 --
 -- Arguments (after the viewer folder): an optional gif folder, and
 -- --selftest, which loads everything, prints what it found, and quits --
--- used by test-gif-viewer.sh to prove the window runs.
+-- used by the project's test-gif-viewer to prove the window runs.
 
 local DEFAULT_FOLDER = "/home/ritz/pictures/shape-gifs"
 local THUMB_SIZE = 128        -- grid copies are shrunk to fit this square

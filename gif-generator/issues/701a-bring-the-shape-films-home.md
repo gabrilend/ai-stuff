@@ -59,4 +59,46 @@ gives byte-identical files, and every test that passed before passes after.
 ## Open Questions
 
 1. Do the scenes go under `input/` (beside the 2D scores, as things a person
-   writes) or `assets/` (as fixed material)?
+   writes) or `assets/` (as fixed material)? — **Taken as `input/shapes/`**
+   (2026-10-30), since a person writes them, as the scores are. The runner's
+   `input/` listing reads only `.lua` files at the top, so the folder does
+   not disturb it. Easy to move if she would rather have `assets/`.
+
+## What Happened (2026-10-30)
+
+Built on the branch `claude/701a-shape-films-home`, in one commit, every
+file moved with `git mv`:
+
+- `src/034-meshes.lua`, `035-choreography.lua`, `036-raster.lua`,
+  `037-fluid.lua`, `038-png.lua`, `039-shape-films.lua` (the tool, once
+  `readme-gallery.lua`); `040-gif-decode.lua` and `041-gif-decode-test.lua`
+  (the viewer's reader); `042-choreography-test.lua` and
+  `043-framing-test.lua`. Each has its `.info.md`; the counter reads 44.
+- `input/shapes/` holds the 34 scenes and `parts/`; `tests/shape-films/`
+  the test scenes, the six fingerprints and the independent walker.
+- `viewer/` keeps `main.lua`, `conf.lua` and `decode-worker.lua` under
+  those names, because LÖVE starts a folder by its `main.lua` and its
+  threads by file name; this is the one place the numbered order could not
+  reach. The decoder they load is `src/040`.
+- `render-all-shapes`, `test-shape-films`, `view-gifs` and
+  `test-gif-viewer` sit at the project root beside `run`.
+- Issues 060 and 062 came across as 702 and 703, both still open as their
+  state said. Every reference in the monorepo outside the transcripts now
+  names the new homes; `delta-version/scripts/readme-gallery-and-gif-viewer-moved.md`
+  says where they went.
+
+The bar, measured in a fresh clone before and after:
+
+| Check | Before (old homes) | After |
+| --- | --- | --- |
+| shape films (`test-shape-films`) | 186 passed, 0 failed | 186 passed, 0 failed, the same lines |
+| the six approved films | byte-identical to their fingerprints | byte-identical to their fingerprints |
+| every scene films (`render-all-shapes`, 2 frames each) | — | all 34 |
+| viewer reader, her library folder | 14 passed, 1 failed (no library on that machine) | the same |
+| viewer reader, the six approved films as the folder | — | 19 passed, 0 failed |
+| viewer window | no display on that machine | the same |
+
+**Still to see on her machine:** `./test-gif-viewer` with her library and a
+display (the window check and the library check), and `./view-gifs` opening
+as before. Until then this issue stays open.
+

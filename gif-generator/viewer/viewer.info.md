@@ -1,6 +1,7 @@
-# gif-viewer
+# viewer (the gif viewer)
 
-A LÖVE window for watching a folder of gifs (issue 062). Black background,
+A LÖVE window for watching a folder of gifs (issue 703, once delta-version
+062; moved here by 701a). Black background,
 one gif at a time or all at once in a grid, every gif animating.
 
 ## Running it
@@ -25,14 +26,14 @@ one gif at a time or all at once in a grid, every gif animating.
 
 | File | What it is |
 |------|------------|
-| `view-gifs` | the launcher; the gif folder is hard-coded and overridable |
+| `../view-gifs` | the launcher, at the project root; the gif folder is hard-coded and overridable |
 | `conf.lua` | window settings (resizable, 960×960 to start) |
 | `main.lua` | the window: keys (a dispatch table per view), playback, drawing, memory limits |
 | `decode-worker.lua` | a background decoder; one per CPU core but one |
-| `gif-decode.lua` | the gif reader: plain LuaJIT, no LÖVE, usable on its own |
-| `gif-decode-test.lua`, `test-gif-viewer.sh` | the tests |
+| `../src/040-gif-decode.lua` | the gif reader: plain LuaJIT, no LÖVE, usable on its own |
+| `../src/041-gif-decode-test.lua`, `../test-gif-viewer` | the tests |
 
-## gif-decode.lua
+## 040-gif-decode.lua
 
 ### decode(bytes, options) → info
 ### decode_file(path, options) → info
@@ -71,7 +72,7 @@ foreign file is an error naming the byte.
 
 ## Tests
 
-`test-gif-viewer.sh` passes 19 reader checks. They cover:
+`test-gif-viewer` passes 19 reader checks. They cover:
 - a round trip through the gif-generator's encoder, every pixel;
 - a gif built by hand with every feature;
 - every real gif's frame count against an independent block walker;

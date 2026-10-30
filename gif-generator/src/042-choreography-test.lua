@@ -1,4 +1,4 @@
--- choreography-test.lua - checks the stage manager keeps its promises.
+-- 042-choreography-test.lua - checks the stage manager keeps its promises.
 --
 -- What this is, generally: the gallery promises every film loops without a
 -- seam, and that each word of the scene vocabulary does what its comment
@@ -10,13 +10,13 @@
 -- becoming, trails, parts, waves, curves and wind -- and checks that
 -- broken scenes are refused.
 --
--- Usage: luajit choreography-test.lua DIR     (DIR = the tool's folder)
+-- Usage: luajit src/042-choreography-test.lua DIR   (DIR = the gif-generator project)
 -- Prints one line per check; exits 1 if any failed.
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/delta-version/scripts/readme-gallery"
-local meshes = dofile(DIR .. "/meshes.lua")
-local choreography = dofile(DIR .. "/choreography.lua")
-local fluid = dofile(DIR .. "/fluid.lua")
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
+local meshes = dofile(DIR .. "/src/034-meshes.lua")
+local choreography = dofile(DIR .. "/src/035-choreography.lua")
+local fluid = dofile(DIR .. "/src/037-fluid.lua")
 
 local HUES = {
     rose = { 1, 0.2, 0.45 }, ember = { 1, 0.42, 0.1 }, gold = { 1, 0.8, 0.15 },
@@ -60,15 +60,15 @@ end
 -- {{{ local function scene_files()
 local function scene_files()
     local list = {}
-    local pipe = io.popen(string.format("ls %q", DIR .. "/scenes"))
+    local pipe = io.popen(string.format("ls %q", DIR .. "/input/shapes"))
     for line in pipe:lines() do
-        if line:match("%.lua$") then list[#list + 1] = DIR .. "/scenes/" .. line end
+        if line:match("%.lua$") then list[#list + 1] = DIR .. "/input/shapes/" .. line end
     end
     pipe:close()
-    list[#list + 1] = DIR .. "/tests/tiny.lua"
-    list[#list + 1] = DIR .. "/tests/tiny-new.lua"
-    list[#list + 1] = DIR .. "/tests/tiny-third.lua"
-    list[#list + 1] = DIR .. "/tests/tiny-fluid.lua"
+    list[#list + 1] = DIR .. "/tests/shape-films/tiny.lua"
+    list[#list + 1] = DIR .. "/tests/shape-films/tiny-new.lua"
+    list[#list + 1] = DIR .. "/tests/shape-films/tiny-third.lua"
+    list[#list + 1] = DIR .. "/tests/shape-films/tiny-fluid.lua"
     table.sort(list)
     return list
 end
@@ -336,7 +336,7 @@ check("refusal: a bezier with three points", refused_scene({ instances = { { mes
 
 print("the fifth-round words, and the owner's requests, hold")
 -- {{{ local function scene_named()
-local function scene_named(name) return choreography.load(dofile(DIR .. "/scenes/" .. name .. ".lua"), HUES, meshes) end
+local function scene_named(name) return choreography.load(dofile(DIR .. "/input/shapes/" .. name .. ".lua"), HUES, meshes) end
 -- }}}
 -- {{{ local function near()
 local function near(a, b, tolerance)
@@ -528,7 +528,7 @@ check("refusal: streaks rushing half a time", refused_scene({ instances = { { me
     streaks = { count = 1, cycles = 1.5, far = 5, near = 1, length = 1, inner = 1, outer = 2 } }))
 
 print("the seventh-round words -- blobs, lights, bands, liquid -- hold")
-local raster = dofile(DIR .. "/raster.lua")
+local raster = dofile(DIR .. "/src/036-raster.lua")
 do
     local s = one({ tag = "wax", hue = "rose", scale = 0.4, blob = { group = "g", bands = 3, soft = 0.2 } })
     local item = choreography.pose(s, 0)[1]

@@ -1,4 +1,4 @@
--- fluid.lua - a small liquid sloshing in an invisible box, worked out ahead.
+-- 037-fluid.lua - a small liquid sloshing in an invisible box, worked out ahead.
 --
 -- What this is, generally: a handful of liquid drops (particles) poured into
 -- a box nobody sees. The box tilts back and forth; gravity pulls the drops

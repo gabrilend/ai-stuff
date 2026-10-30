@@ -1,12 +1,20 @@
-# Issue 062: A Window for Watching the Gifs
+# 703 — a window for watching the gifs
 
 **Status**: In progress (built and tested; waiting on the owner trying it and
 on the open question below)
 **Priority**: Medium
 **Created**: 2026-09-26
-**Type**: New tool (`scripts/gif-viewer/`, a LÖVE program)
-**Related**: `060-readme-gallery-of-interacting-shapes.md` (the renderer that
-makes the gifs)
+**Type**: New tool (now `viewer/`, a LÖVE program, with its decoder at `src/040-gif-decode.lua`)
+**Related**: `702-a-library-of-interacting-shapes.md` (the renderer that
+makes the gifs; was delta-version 060)
+
+**Moved (2026-10-30, issue 701a).** This was `delta-version` issue 062.
+The viewer moved here with its history; the text below keeps the old names
+where it tells what happened. `scripts/gif-viewer/` is now `viewer/`
+(`main.lua`, `conf.lua`, `decode-worker.lua`, which LÖVE needs by those
+names); `gif-decode.lua` is `src/040-gif-decode.lua`, its test
+`src/041-gif-decode-test.lua`; `view-gifs` and `test-gif-viewer` sit at the
+project root beside `run`.
 
 ---
 
