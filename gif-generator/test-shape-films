@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-readme-gallery.sh - proves the shape gallery makes honest, repeatable films.
+# test-shape-films - proves the shape films tool makes honest, repeatable films.
 #
 # In general terms: this films a tiny test scene and has an independent
 # reader walk the result the way a browser would, checking it is a real,
@@ -23,12 +23,12 @@
 # same bytes every time.
 # Everything is written to RAM. Exercises the success criteria of issue 060.
 
-DIR="/mnt/mtwo/programming/ai-stuff/delta-version/scripts/readme-gallery"
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 [ -n "${1:-}" ] && [ -d "$1" ] && DIR="$1"
 
-TOOL="$DIR/readme-gallery.lua"
-FACTS="$DIR/tests/gif-facts.lua"
-SCRATCH="/dev/shm/delta-version/readme-gallery-test"
+TOOL="$DIR/src/039-shape-films.lua"
+FACTS="$DIR/tests/shape-films/gif-facts.lua"
+SCRATCH="/dev/shm/gif-generator/shape-films-test"
 
 PASS=0
 FAIL=0
@@ -50,7 +50,7 @@ function check() {
 # -- {{{ test_valid_gif
 function test_valid_gif() {
     mkdir -p "$SCRATCH/first" "$SCRATCH/second"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/first" --still > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/first" --still > /dev/null
     check "the tiny scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
 
     local facts
@@ -66,7 +66,7 @@ function test_valid_gif() {
     check "the still is a PNG" "$([ "$png_head" = "89504e470d0a1a0a" ] && echo yes || echo no)"
 
     local frames_override
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/second" --frames=3 > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/second" --frames=3 > /dev/null
     frames_override=$(luajit "$FACTS" "$SCRATCH/second/tiny.gif")
     check "--frames= overrides the scene's length" "$(echo "$frames_override" | grep -q 'frames=3' && echo yes || echo no)"
 }
@@ -74,7 +74,7 @@ function test_valid_gif() {
 
 # -- {{{ test_deterministic
 function test_deterministic() {
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/second" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/second" > /dev/null
     local a b
     a=$(sha256sum < "$SCRATCH/first/tiny.gif")
     b=$(sha256sum < "$SCRATCH/second/tiny.gif")
@@ -95,7 +95,7 @@ function test_refusals() {
     for entry in "${cases[@]}"; do
         IFS='|' read -r label pattern replacement <<< "$entry"
         local broken="$SCRATCH/broken.lua"
-        sed "s/$pattern/$replacement/" "$DIR/tests/tiny.lua" > "$broken"
+        sed "s/$pattern/$replacement/" "$DIR/tests/shape-films/tiny.lua" > "$broken"
         rm -f "$SCRATCH/broken-out/tiny.gif"
         mkdir -p "$SCRATCH/broken-out"
         luajit "$TOOL" "$DIR" "$broken" --out="$SCRATCH/broken-out" > /dev/null 2>&1
@@ -112,7 +112,7 @@ function test_second_round_words() {
     # films; it must film into a valid GIF, and breaking any of the new
     # whole-number or closed-list rules must be refused.
     mkdir -p "$SCRATCH/new"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny-new.lua" --out="$SCRATCH/new" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-new.lua" --out="$SCRATCH/new" > /dev/null
     check "the second-round scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
     check "its GIF holds all 6 frames and loops" \
         "$(luajit "$FACTS" "$SCRATCH/new/tiny-new.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
@@ -129,7 +129,7 @@ function test_second_round_words() {
         # the patterns contain braces and quotes, so the swap is done in Lua,
         # which matches them as plain text
         luajit -e "
-            local f = io.open([[$DIR/tests/tiny-new.lua]]); local s = f:read('*a'); f:close()
+            local f = io.open([[$DIR/tests/shape-films/tiny-new.lua]]); local s = f:read('*a'); f:close()
             local a, b = s:find([[$pattern]], 1, true)
             assert(a, 'pattern not found in tiny-new.lua: ' .. [[$pattern]])
             s = s:sub(1, a - 1) .. [[$replacement]] .. s:sub(b + 1)
@@ -148,11 +148,11 @@ function test_approved_unchanged() {
     # The approved films were made by this tool. Whatever the tool has
     # learned since, filming those scenes again must reproduce every one of
     # them to the byte -- otherwise approval would silently drift away from
-    # what the owner saw. Their fingerprints are kept in tests/approved-films.lua
+    # what the owner saw. Their fingerprints are kept in tests/shape-films/approved-films.lua
     # (the films themselves live in the owner's library, not the repository).
     mkdir -p "$SCRATCH/approved"
     local listing name expected actual
-    listing=$(luajit -e "for name, hash in pairs(dofile([[$DIR/tests/approved-films.lua]])) do print(name .. ' ' .. hash) end" | sort)
+    listing=$(luajit -e "for name, hash in pairs(dofile([[$DIR/tests/shape-films/approved-films.lua]])) do print(name .. ' ' .. hash) end" | sort)
     while read -r name expected; do
         luajit "$TOOL" "$DIR" "$name" --out="$SCRATCH/approved" > /dev/null
         actual=$(sha256sum "$SCRATCH/approved/$name.gif" | cut -d' ' -f1)
@@ -191,13 +191,13 @@ function test_fourth_round_words() {
     # it must film into a valid GIF, and a scene resting on a ground it does
     # not have must be refused by the tool itself.
     mkdir -p "$SCRATCH/third"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny-third.lua" --out="$SCRATCH/third" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-third.lua" --out="$SCRATCH/third" > /dev/null
     check "the fourth-round scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
     check "its GIF holds all 6 frames and loops" \
         "$(luajit "$FACTS" "$SCRATCH/third/tiny-third.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
 
     local broken="$SCRATCH/broken-third.lua"
-    grep -v '^    ground = GROUND,$' "$DIR/tests/tiny-third.lua" > "$broken"
+    grep -v '^    ground = GROUND,$' "$DIR/tests/shape-films/tiny-third.lua" > "$broken"
     rm -f "$SCRATCH/broken-out/tiny-third.gif"
     luajit "$TOOL" "$DIR" "$broken" --out="$SCRATCH/broken-out" > /dev/null 2>&1
     local code=$?
@@ -212,12 +212,12 @@ function test_teamwork_and_liquid() {
     # one process gives; and the liquid, worked out from the same recipe and
     # seed, must film to the same bytes every time.
     mkdir -p "$SCRATCH/alone" "$SCRATCH/team" "$SCRATCH/liquid-a" "$SCRATCH/liquid-b"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/alone" > /dev/null
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/team" --jobs=3 > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/alone" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/team" --jobs=3 > /dev/null
     check "a film split across three workers is byte-identical to one filmed alone" \
         "$(cmp -s "$SCRATCH/alone/tiny.gif" "$SCRATCH/team/tiny.gif" && echo yes || echo no)"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny-fluid.lua" --out="$SCRATCH/liquid-a" > /dev/null
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny-fluid.lua" --out="$SCRATCH/liquid-b" --jobs=2 > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-fluid.lua" --out="$SCRATCH/liquid-a" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-fluid.lua" --out="$SCRATCH/liquid-b" --jobs=2 > /dev/null
     check "the liquid films to the same bytes twice (once split across workers)" \
         "$(cmp -s "$SCRATCH/liquid-a/tiny-fluid.gif" "$SCRATCH/liquid-b/tiny-fluid.gif" && echo yes || echo no)"
     check "the liquid's GIF holds all 6 frames and loops" \
@@ -230,7 +230,7 @@ function test_stills_folder() {
     # --stills= sends the stills to their own folder (the library keeps them
     # in stills/ beside the films), and none is left beside the GIF.
     mkdir -p "$SCRATCH/library"
-    luajit "$TOOL" "$DIR" "$DIR/tests/tiny.lua" --out="$SCRATCH/library" --stills="$SCRATCH/library/stills" > /dev/null
+    luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/library" --stills="$SCRATCH/library/stills" > /dev/null
     check "--stills= puts the still in its own folder" \
         "$([ -e "$SCRATCH/library/stills/tiny.png" ] && [ -e "$SCRATCH/library/tiny.gif" ] && echo yes || echo no)"
     check "--stills= leaves no still beside the film" "$([ ! -e "$SCRATCH/library/tiny.png" ] && echo yes || echo no)"
@@ -242,7 +242,7 @@ function test_framing() {
     # Scenes that promise to keep their subjects in the picture (`framing`)
     # are walked frame by frame through the painter's own projection.
     local report
-    report=$(luajit "$DIR/tests/framing-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/043-framing-test.lua" "$DIR")
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - framing: /; s/^  FAIL - /  FAIL - framing: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
     FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
@@ -254,7 +254,7 @@ function test_choreography() {
     # Every scene loops without a seam, and each word of the vocabulary does
     # what it says -- asked of the stage manager directly, no pixels.
     local report
-    report=$(luajit "$DIR/tests/choreography-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/042-choreography-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - stage: /; s/^  FAIL - /  FAIL - stage: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
@@ -265,7 +265,7 @@ function test_choreography() {
 
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
-echo "readme-gallery"
+echo "shape-films"
 test_valid_gif
 test_deterministic
 test_refusals

@@ -1,23 +1,24 @@
 #!/usr/bin/env luajit
--- readme-gallery.lua - renders the front page's animations of solid shapes.
+-- 039-shape-films.lua - renders the shape films: animations of solid shapes.
 --
--- What this is, generally: a small film studio for the repository's front
--- page. Each animation is a short scene written as plain data -- which
+-- What this is, generally: the 3D half of this studio, first made for the
+-- repository's front page. Each animation is a short scene written as plain data -- which
 -- shapes, how they move, what they do when they meet -- and this program
 -- films it as a looping GIF in the house look: black ground, bright colour.
 -- The finished films are candidates; a person approves each one before it is
 -- used anywhere.
 --
 -- How, generally: three separate workers pass the film along. The stage
--- manager (choreography.lua) says where every shape is at each moment. The
--- painter (raster.lua) draws that moment. The gif generator project's own
--- encoder and palette -- borrowed, unmodified -- pack the drawings into a GIF.
+-- manager (035-choreography.lua) says where every shape is at each moment.
+-- The painter (036-raster.lua) draws that moment. This project's own encoder
+-- and palette (004-gif.lua, 002-palette.lua) pack the drawings into a GIF.
 --
 -- Usage:
---   readme-gallery.lua [DIR] [scene ...] [--out=DIR] [--still] [--stills=DIR] [--frames=N]
---     DIR        this tool's own folder (default below); scenes/ lives in it
---     scene      a scene name from scenes/, or a path to a .lua scene file;
---                none means every scene in scenes/
+--   039-shape-films.lua [DIR] [scene ...] [--out=DIR] [--still] [--stills=DIR] [--frames=N]
+--     DIR        the gif-generator project (default below); scenes live in
+--                its input/shapes/
+--     scene      a scene name from input/shapes/, or a path to a .lua scene
+--                file; none means every scene in input/shapes/
 --     --out=     where the GIFs go (default: RAM, the candidates folder)
 --     --still    also save the first frame of each as a PNG (beside the GIF)
 --     --stills=  save those PNGs in this folder instead (implies --still)
@@ -31,13 +32,13 @@
 -- {{{ DIR Configuration
 -- Hard-coded so the tool runs from any directory; a first argument that is
 -- a directory replaces it. Everything else is found relative to DIR.
-local DIR = "/mnt/mtwo/programming/ai-stuff/delta-version/scripts/readme-gallery"
+local DIR = "/mnt/mtwo/programming/ai-stuff/gif-generator"
 local arguments = {}
 for _, a in ipairs(arg) do arguments[#arguments + 1] = a end
 do
     local first = arguments[1]
     if first and not first:match("^%-%-") and not first:match("%.lua$") then
-        local probe = io.open(first .. "/scenes", "r")
+        local probe = io.open(first .. "/input/shapes", "r")
         if probe then
             probe:close()
             DIR = first
@@ -45,19 +46,19 @@ do
         end
     end
 end
-local GIF_GENERATOR_SRC = DIR .. "/../../../gif-generator/src"
-local OUT_DEFAULT = "/dev/shm/delta-version/readme-gallery-candidates"
+local SRC = DIR .. "/src"
+local OUT_DEFAULT = "/dev/shm/gif-generator/shape-film-candidates"
 -- The most worker processes one film may use at once.
 local MAX_WORKERS = 4
 -- }}}
 
-local meshes = dofile(DIR .. "/meshes.lua")
-local choreography = dofile(DIR .. "/choreography.lua")
-local raster = dofile(DIR .. "/raster.lua")
-local png = dofile(DIR .. "/png.lua")
-local fluid = dofile(DIR .. "/fluid.lua")
-local gif = dofile(GIF_GENERATOR_SRC .. "/004-gif.lua")
-local palette = dofile(GIF_GENERATOR_SRC .. "/002-palette.lua")
+local meshes = dofile(SRC .. "/034-meshes.lua")
+local choreography = dofile(SRC .. "/035-choreography.lua")
+local raster = dofile(SRC .. "/036-raster.lua")
+local png = dofile(SRC .. "/038-png.lua")
+local fluid = dofile(SRC .. "/037-fluid.lua")
+local gif = dofile(SRC .. "/004-gif.lua")
+local palette = dofile(SRC .. "/002-palette.lua")
 local ffi = require("ffi")
 
 -- Every film declares the whole hue vocabulary, in one fixed order, so the
@@ -120,17 +121,17 @@ end
 -- }}}
 
 -- {{{ local function scene_path()
--- A bare name means scenes/<name>.lua; anything ending in .lua is a path.
+-- A bare name means input/shapes/<name>.lua; anything ending in .lua is a path.
 local function scene_path(name)
     if name:match("%.lua$") then return name end
-    return DIR .. "/scenes/" .. name .. ".lua"
+    return DIR .. "/input/shapes/" .. name .. ".lua"
 end
 -- }}}
 
 -- {{{ local function all_scene_names()
 local function all_scene_names()
     local names = {}
-    local pipe = io.popen(string.format("ls %q", DIR .. "/scenes"))
+    local pipe = io.popen(string.format("ls %q", DIR .. "/input/shapes"))
     for line in pipe:lines() do
         local name = line:match("^(.+)%.lua$")
         if name then names[#names + 1] = name end
@@ -230,11 +231,11 @@ local function film(name, options)
         end
         return 0
     elseif jobs > 1 then
-        local shard_dir = string.format("/dev/shm/delta-version/shards/%s-%d-%d", scene.name, os.time(), math.random(1e6))
+        local shard_dir = string.format("/dev/shm/gif-generator/shape-film-shards/%s-%d-%d", scene.name, os.time(), math.random(1e6))
         os.execute(string.format("mkdir -p %q", shard_dir))
         local commands = {}
         for k = 0, jobs - 1 do
-            local parts = { "luajit", string.format("%q", DIR .. "/readme-gallery.lua"), string.format("%q", DIR),
+            local parts = { "luajit", string.format("%q", SRC .. "/039-shape-films.lua"), string.format("%q", DIR),
                             string.format("%q", path), "--shard=" .. k .. "/" .. jobs,
                             string.format("--shard-dir=%q", shard_dir), string.format("--out=%q", options.out) }
             if options.frames then parts[#parts + 1] = "--frames=" .. options.frames end
@@ -285,6 +286,6 @@ local ok, failure = xpcall(main, function(message)
     return debug.traceback(message, 2)
 end)
 if not ok then
-    io.stderr:write("readme-gallery: " .. tostring(failure) .. "\n")
+    io.stderr:write("shape-films: " .. tostring(failure) .. "\n")
     os.exit(1)
 end

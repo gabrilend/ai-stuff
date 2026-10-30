@@ -1,4 +1,4 @@
--- raster.lua - turns placed shapes into a frame of palette colours.
+-- 036-raster.lua - turns placed shapes into a frame of palette colours.
 --
 -- What this is, generally: the painter. It takes the stage manager's list of
 -- placed shapes and draws them the way a camera would see them: nearer
@@ -244,7 +244,7 @@ end
 -- }}}
 
 -- {{{ function raster.draw_item()
--- One placed shape (see choreography.lua for the fields).
+-- One placed shape (see 035-choreography.lua for the fields).
 function raster.draw_item(canvas, item)
     local mesh = item.mesh
     local rot, pos, st, sc = item.rotation, item.position, item.stretch, item.scale

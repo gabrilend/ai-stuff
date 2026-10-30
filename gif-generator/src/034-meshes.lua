@@ -1,4 +1,4 @@
--- meshes.lua - the shapes the gallery can place in a scene.
+-- 034-meshes.lua - the shapes the gallery can place in a scene.
 --
 -- What this is, generally: a cabinet of solid shapes, each built from
 -- triangles, each triangle facing outward. A scene names a shape by word
