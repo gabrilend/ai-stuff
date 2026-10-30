@@ -659,4 +659,13 @@ function raster.finish(canvas, index_of)
 end
 -- }}}
 
+-- {{{ The painter's measures, for the composer
+-- The frame composer (052-frame.lua) lays panes of light into this canvas's
+-- depth, so it needs the lens as the painter sees it: how much bigger the
+-- working canvas is, the nearest a thing may come, and the eye's directions.
+raster.SUPERSAMPLE = SUPERSAMPLE
+raster.NEAR = NEAR
+raster.view_basis = view_basis
+-- }}}
+
 return raster

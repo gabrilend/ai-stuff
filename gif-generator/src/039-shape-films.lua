@@ -10,7 +10,8 @@
 --
 -- How, generally: three separate workers pass the film along. The stage
 -- manager (035-choreography.lua) says where every shape is at each moment.
--- The painter (036-raster.lua) draws that moment. This project's own encoder
+-- The painter (036-raster.lua) draws that moment, in the order the frame
+-- (052-frame.lua) keeps for every film and two-space score alike. This project's own encoder
 -- and palette (004-gif.lua, 002-palette.lua) pack the drawings into a GIF.
 --
 -- Usage:
@@ -58,6 +59,7 @@ local raster = dofile(SRC .. "/036-raster.lua")
 local png = dofile(SRC .. "/038-png.lua")
 local fluid = dofile(SRC .. "/037-fluid.lua")
 local scene_file = dofile(SRC .. "/045-scene-file.lua")
+local frame_parts = dofile(SRC .. "/052-frame.lua")
 local gif = dofile(SRC .. "/004-gif.lua")
 local palette = dofile(SRC .. "/002-palette.lua")
 local ffi = require("ffi")
@@ -182,28 +184,7 @@ local function film(name, options)
     -- One frame, drawn and compressed; frame 1 also leaves the still.
     local function draw_frame(frame)
         local t = (frame - 1) / scene.frames
-        raster.clear(canvas)
-        raster.set_view(canvas, choreography.camera(scene, t))
-        raster.draw_stars(canvas, choreography.stars(scene, t))
-        local placed = choreography.pose(scene, t)
-        -- Three kinds of shape: solids are drawn face by face; blobs are
-        -- gathered and drawn together (they melt into each other), lit by
-        -- the scene's point lights; a spine that only carries parts has
-        -- nothing of its own to draw.
-        local blobs = {}
-        for _, item in ipairs(placed) do
-            if item.blob then
-                blobs[#blobs + 1] = item
-            elseif not item.hidden then
-                raster.draw_item(canvas, item)
-            end
-        end
-        raster.draw_blobs(canvas, blobs, choreography.lights(scene, t, placed))
-        -- lines of light: wind and rails, beams joining moving things, and
-        -- speed streaks along the camera's heading
-        for _, stroke in ipairs(choreography.strokes(scene, t)) do raster.draw_stroke(canvas, stroke) end
-        for _, beam in ipairs(choreography.beams(scene, t, placed)) do raster.draw_stroke(canvas, beam) end
-        for _, streak in ipairs(choreography.streaks(scene, t)) do raster.draw_stroke(canvas, streak) end
+        frame_parts.draw_world(canvas, raster, choreography, scene, t)
         local indices = raster.finish(canvas, index_of)
         if frame == 1 and options.still then
             local still = png.encode(scene.size, scene.size, palette_rgb_string(pal, indices, pixel_count))

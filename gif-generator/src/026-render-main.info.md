@@ -8,7 +8,10 @@ demos, tests, and the porch's thumbnails share it.
 
 ## Usable surface
 
-- **render(compiled) → frames, facts** — the spine. Facts are all
+- **render(compiled) → frames, facts** — the spine. A compiled
+  score with a second space is handed to `053-two-spaces.lua`, which
+  gives the same frames and facts; strokes alone are drawn here as
+  ever. Facts are all
   measured: frames, peak particles, capacity, palette seats lit,
   per-stage CPU seconds (reports only — nothing rendered ever
   depends on a clock).

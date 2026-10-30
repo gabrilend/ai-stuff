@@ -155,6 +155,16 @@ local function value_text(v, indent, out)
 end
 -- }}}
 
+-- {{{ function scene_file.value_text()
+-- One value as canonical scene text (the shape{} and camera{} calls of a
+-- two-space score are written with it, so their numbers round-trip too).
+function scene_file.value_text(v, indent)
+    local out = {}
+    value_text(v, indent or "", out)
+    return table.concat(out)
+end
+-- }}}
+
 -- {{{ function scene_file.write()
 -- The canonical text of a scene table, `header` (comment lines, already
 -- prefixed with --) above it.
