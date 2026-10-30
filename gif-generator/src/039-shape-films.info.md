@@ -298,8 +298,14 @@ return {
   bands, soft, blob_size, center }`: a liquid in an invisible tilting box.
   It is posed as blob drops tagged `drop`, and the box itself is never
   drawn.
-- Shared parts, such as the wizard, live in `input/shapes/parts/`. The runner does
-  not list that folder. A scene loads a parts file relative to its own path.
+- A scene is data. It is read in an empty sandbox (`045-scene-file.lua`):
+  no math, no loops' helpers, no files. A scene that needs to compute (a
+  ring of blobs placed with sines, one wizard shared by three scenes) is
+  written as a generator in `input/shapes/generators/`, and `./make-shapes`
+  writes the plain scene it describes into `input/shapes/`, under a line
+  naming its generator. Edit the generator, never the generated scene.
+  Shared parts, such as the wizard, live in `generators/parts/`; a
+  generator loads them relative to its own path.
 
 ## The camera
 

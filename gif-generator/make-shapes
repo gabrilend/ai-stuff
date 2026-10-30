@@ -1,0 +1,20 @@
+#!/bin/bash
+# make-shapes - writes every generated shape scene from its generator.
+#
+# In general terms: most shape scenes are written by hand as plain data. A
+# few need to compute (a ring of blobs placed with sines, one wizard reused
+# by three scenes), and those are written as small programs in
+# input/shapes/generators/. This runs each program and writes the plain
+# scene it describes into input/shapes/, where the films read it. Run it
+# after changing a generator; `--check` writes nothing and fails if any
+# generated scene is stale (the tests call that).
+#
+# Usage: make-shapes [DIR] [--check]
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+luajit "$DIR/src/046-make-shapes.lua" "$DIR" "$@"

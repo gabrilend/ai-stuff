@@ -285,6 +285,24 @@ function test_round_trip() {
 }
 # }}}
 
+# -- {{{ test_scenes_are_data
+function test_scenes_are_data() {
+    # Scenes declare, they never compute (issue 701c): every generated
+    # scene matches what its generator gives today, and a scene that
+    # reaches for math is refused, with the way out named.
+    "$DIR/make-shapes" "$DIR" --check > /dev/null
+    check "every generated scene matches its generator" "$([ $? -eq 0 ] && echo yes || echo no)"
+
+    local computing="$SCRATCH/computing.lua"
+    sed 's/scale = 0.5,/scale = math.sqrt(0.25),/' "$DIR/tests/shape-films/tiny.lua" > "$computing"
+    local refusal
+    refusal=$(luajit "$TOOL" "$DIR" "$computing" --out="$SCRATCH/broken-out" 2>&1 > /dev/null)
+    check "a scene that computes is refused, and pointed to a generator" \
+        "$(echo "$refusal" | grep -q 'never compute.*generators' && echo yes || echo no)"
+    check "that refused scene films nothing" "$([ ! -e "$SCRATCH/broken-out/computing.gif" ] && echo yes || echo no)"
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -300,6 +318,7 @@ test_framing
 test_approved_unchanged
 test_choreography
 test_round_trip
+test_scenes_are_data
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
