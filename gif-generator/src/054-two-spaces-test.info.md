@@ -11,7 +11,10 @@
 - `tests/two-spaces/broken.lua`, a dozen mistakes across both spaces,
   gets all twelve in one refusal;
 - `tests/two-spaces/mixed.lua` films, films the same twice, and survives
-  the writer.
+  the writer;
+- the phase 7 demo's score (`issues/completed/demos/phase-7/meeting.lua`)
+  passes the wall; its shapes' half films the score with its strokes and
+  panes taken away, and both halves are the score as it always films.
 
 CLI: `luajit src/054-two-spaces-test.lua DIR`; `./test-shape-films`
 runs it.
