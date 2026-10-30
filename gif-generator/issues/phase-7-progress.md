@@ -9,7 +9,7 @@ one skill describing how to use all of it.
 - [ ] 701a bring the shape films home — built 2026-10-30 (186 of 186, six fingerprints unchanged); waits on the window check on her machine
 - [ ] 701b one reader, one writer — built 2026-10-30 (193 of 193; all 34 films round-trip byte-identical); waits on a run against her library
 - [ ] 701c the 3D vocabulary — built 2026-10-30 (scenes are data; closed word lists with their rules, the wall, docs/shape-format.md; 240 of 240, all 34 films byte-identical); waits on a look on her machine
-- [ ] 701d one canvas, two spaces — not started; needs 701b and 701c
+- [ ] 701d one canvas, two spaces — built 2026-10-30 (panes of glass in front, behind and in the world; one wall for both vocabularies; landmarks that follow shapes; 278 of 278, strokes-only scores, the approved films said as scores and all 34 films byte-identical); waits on a look on her machine and open question 3
 - [ ] 701e every film kept and rated — not started; needs 701a and 701b
 - [ ] 701f the studio skill — not started; needs 701d and 701e
 - [ ] 701g two spaces demo (capstone) — not started

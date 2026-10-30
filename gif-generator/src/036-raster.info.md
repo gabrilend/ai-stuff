@@ -15,3 +15,5 @@ encoder in `004-gif.lua`.
 - **finish(canvas, index_of) → uint8 indices**
 
 Details in `039-shape-films.info.md`, under "The parts".
+
+- **SUPERSAMPLE, NEAR, view_basis(canvas)** — the painter's measures, exposed for the frame composer (`052-frame.lua`), which lays panes of light into this canvas's depth.

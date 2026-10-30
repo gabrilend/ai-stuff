@@ -3,8 +3,8 @@
 --
 -- What this is, generally: scores are Lua files run inside a sandbox
 -- that offers exactly the vocabulary (canvas, stroke, arc, line,
--- point, fill, tip) and nothing else — they declare, they never
--- compute. Reading a score yields a plain table of raw declarations;
+-- point, fill, tip, and for the second space camera, shape, world and
+-- pane) and nothing else — they declare, they never compute. Reading a score yields a plain table of raw declarations;
 -- the compiler's wall (next module) does ALL deep checking, so that
 -- every mistake in a score is reported together, not one per run.
 -- Writing a score emits canonical text: strokes sorted by time via
@@ -16,6 +16,11 @@
 --     kind = "arc". Deep validation belongs to the wall alone.
 --   * tip("name") returns { ref = "tip", of = "name" } — a landmark
 --     borrowing, resolved to coordinates at compile time.
+--   * a score may speak both vocabularies (issue 701d): shape{} takes
+--     the words of one shape in a shape scene, camera{} the scene's
+--     camera words, world{} the rest of a scene's words (lights,
+--     ground, beams...), and pane{} names a pane of glass a stroke may
+--     be painted on. They are kept as written; the walls judge them.
 --   * the insertion keeps equal-time strokes in arrival order
 --     (stable), because emission order is the random stream's order
 --     and determinism is a promise.
@@ -38,10 +43,24 @@ local function tagger(kind)
 end
 -- }}}
 
+-- {{{ local function once()
+-- A call a score makes at most once (canvas, camera, world): the raw
+-- table's field, refused if already set.
+local function once(raw, field, why)
+    return function(t)
+        if raw[field] then
+            error("score: two " .. field .. " calls — " .. why, 2)
+        end
+        raw[field] = t
+    end
+end
+-- }}}
+
 -- {{{ function score.read()
--- Run a score file in the sandbox; return { canvas, strokes }.
--- Structural refusals live here (no canvas, two canvases, no
--- strokes, computing); everything field-level waits for the wall.
+-- Run a score file in the sandbox; return { canvas, strokes, shapes,
+-- panes, camera, world }. Structural refusals live here (no canvas,
+-- two canvases, nothing on stage, computing); everything field-level
+-- waits for the wall.
 function score.read(path)
     local chunk, load_err = loadfile(path)
     if not chunk then
@@ -49,7 +68,7 @@ function score.read(path)
               .. tostring(load_err))
     end
 
-    local raw = { canvas = nil, strokes = {} }
+    local raw = { canvas = nil, strokes = {}, shapes = {}, panes = {} }
     local env = {
         arc = tagger("arc"),
         line = tagger("line"),
@@ -75,6 +94,17 @@ function score.read(path)
             raw.strokes[#raw.strokes + 1] = t
         end,
         -- }}}
+        -- {{{ shape(), pane()
+        shape = function(t)
+            raw.shapes[#raw.shapes + 1] = t
+        end,
+        pane = function(t)
+            raw.panes[#raw.panes + 1] = t
+        end,
+        -- }}}
+        camera = once(raw, "camera", "a score is seen from one camera"),
+        world = once(raw, "world", "a score has one world; put all "
+                     .. "its words in the one call"),
     }
     setfenv(chunk, env)
     local ok, run_err = pcall(chunk)
@@ -87,9 +117,9 @@ function score.read(path)
         error("score: '" .. path .. "' never called canvas{...} — "
               .. "a score begins by naming its stage")
     end
-    if #raw.strokes == 0 then
-        error("score: '" .. path .. "' has no strokes — an empty "
-              .. "stage is not a picture")
+    if #raw.strokes == 0 and #raw.shapes == 0 then
+        error("score: '" .. path .. "' has no strokes and no shapes — "
+              .. "an empty stage is not a picture")
     end
     return raw
 end
@@ -191,8 +221,12 @@ end
 -- sorted by the walk-back insertion, each with its comment (the
 -- porch carries prose sentences here) above it. Returns the text;
 -- callers land it on disk.
-local STROKE_FIELDS = { "name", "at", "lasts", "color", "fade",
+local STROKE_FIELDS = { "name", "pane", "at", "lasts", "color", "fade",
                         "ease", "shape", "emit" }
+local PANE_FIELDS = { "name", "place", "at", "facing", "size", "pixels" }
+-- 3D values are written as the shape scenes write them, so every
+-- number reads back as the same double (045-scene-file.lua)
+local scene_file = require("045-scene-file")
 function score.write(raw)
     local lines = {}
     -- {{{ local function put()
@@ -202,13 +236,47 @@ function score.write(raw)
     local cv = raw.canvas
     local head = "canvas{ size = " .. fmt_number(cv.size)
                  .. ", fps = " .. fmt_number(cv.fps)
-                 .. ", length = " .. fmt_number(cv.length)
-                 .. ", seed = " .. fmt_number(cv.seed)
+    if cv.length ~= nil then
+        head = head .. ", length = " .. fmt_number(cv.length)
+    end
+    if cv.frames ~= nil then
+        head = head .. ", frames = " .. fmt_number(cv.frames)
+    end
+    head = head .. ", seed = " .. fmt_number(cv.seed)
     if cv.gravity then
         head = head .. ", gravity = " .. fmt_value(cv.gravity)
     end
+    if cv.background ~= nil then
+        head = head .. ", background = " .. fmt_value(cv.background)
+    end
     put(head .. " }")
     put("")
+
+    -- the second space, when there is one: the camera, the world,
+    -- each shape in its order, then the panes the strokes are painted on
+    if raw.camera then
+        put("camera" .. scene_file.value_text(raw.camera))
+        put("")
+    end
+    if raw.world then
+        put("world" .. scene_file.value_text(raw.world))
+        put("")
+    end
+    for _, sh in ipairs(raw.shapes or {}) do
+        put("shape" .. scene_file.value_text(sh))
+        put("")
+    end
+    for _, pn in ipairs(raw.panes or {}) do
+        local parts = {}
+        for _, field in ipairs(PANE_FIELDS) do
+            if pn[field] ~= nil then
+                parts[#parts + 1] = field .. " = "
+                                    .. scene_file.value_text(pn[field])
+            end
+        end
+        put("pane{ " .. table.concat(parts, ", ") .. " }")
+        put("")
+    end
 
     local sorted = {}
     for _, s in ipairs(raw.strokes) do

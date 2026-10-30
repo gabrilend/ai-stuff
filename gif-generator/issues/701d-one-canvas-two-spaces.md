@@ -94,3 +94,62 @@ That is a further step, which panes make easier rather than replace.
 2. **Whose background wins? — ANSWERED. The score's.** Her words above.
 3. Should a world pane be able to turn to face the camera every frame (a
    sign that always reads straight on) as well as hold a fixed facing?
+
+## What Happened
+
+Built 2026-10-30 on the branch `claude/701d-one-canvas-two-spaces`. All
+six steps are done; the issue stays open for a look on her machine and
+for open question 3.
+
+- **The frame and the pane (step 1).** A pane is its own light buffer
+  (a `000-canvas`) and a place: `front`, `back`, or `world` (at, facing,
+  size in world units, pixels across). There is always a front pane,
+  named `front`; a stroke that names no pane is painted there.
+  `src/052-frame.lua` holds the frame's three moves.
+- **Both painters, unchanged (step 2).** The 3D painter's frame body
+  moved, unchanged, into `frame.draw_world`, and the shape films draw
+  through it too. The 2D painter paints each pane exactly as it painted
+  a canvas; each pane has its own pool and random stream, and the front
+  pane keeps the canvas's seed.
+- **The composer (step 3).** `frame.gather_pane` lays a world pane into
+  the depth: each subpixel looks along its ray, and where it meets the
+  pane nearer than the surface drawn there (or where nothing is), it
+  gathers the pane's light. `frame.compose` sums the gathered light, the
+  back panes' light where nothing is drawn, and the front panes' light,
+  tone-maps the sum once, adds it to the 3D colour, and indexes once.
+  One choice to know: the 3D painter's colour is already display colour
+  (lit, edged, 0 to 1), not light energy, so "tone-mapped once" applies
+  to the panes' light, which is then added on top. With no light a pixel
+  is exactly the 3D painter's; with no world, exactly the 2D painter's.
+- **One score, both vocabularies (step 4).** The score reader takes
+  `camera{}`, `world{}`, `shape{}` and `pane{}` beside `stroke{}`, and
+  `canvas{}` takes `background` (`"black"`, a hue's dark glow, or
+  `"sky"`, the world's stars) and `frames` in place of `length` (a loop
+  of shapes counts frames). The 3D words are exactly the shape scenes'
+  words: `shape{}` is one entry of a scene's `instances`, `camera{}` its
+  camera, `world{}` the rest (lights, ground, beams...). The issue's
+  sketch (`camera{ eye, target }`, `motion = "drift"`) is said in those
+  words instead. The 2D wall and the 3D wall judge a score in one pass:
+  `tests/two-spaces/broken.lua` has twelve mistakes across both spaces
+  and hears of all twelve at once. The writer writes all of it, 3D
+  numbers exactly.
+- **Landmarks cross over (step 5).** `tip("tag")` naming a shape is
+  where that shape appears in the picture each frame; a point or a line
+  on a camera's pane follows it. A fill's corners stand still and a
+  world pane does not see the picture, so neither may follow a shape.
+- **The proofs (step 6).** `src/054-two-spaces-test.lua` (38 checks, in
+  `./test-shape-films`, now 278 of 278): the four stroke-only scores in
+  `input/` film the bytes they filmed before panes; each of the six
+  approved films, said as a score, films its approved bytes; a pane
+  hides behind a nearer shape and nowhere else. All 34 shape films still
+  film byte-identical. `tests/two-spaces/mixed.lua` is the first mixed
+  scene: a violet icosahedron circles a glass sign with a gold circle
+  painted on it, passing in front of and behind it; a jade spark on the
+  front pane follows the shape; an ice sweep glows on the back pane.
+- A score with a second space indexes through every house hue, as the
+  shape films do, so its shapes and strokes share one palette. A score of
+  strokes alone keeps its own palette and its bytes.
+
+Open question 3 (a pane that turns to face the camera every frame) is
+still hers to answer. Panes hold the facing the score gives them; a
+`facing = "camera"` would be a small addition to `frame.gather_pane`.
