@@ -17,6 +17,7 @@ local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
 local meshes = dofile(DIR .. "/src/034-meshes.lua")
 local choreography = dofile(DIR .. "/src/035-choreography.lua")
 local fluid = dofile(DIR .. "/src/037-fluid.lua")
+local scene_file = dofile(DIR .. "/src/045-scene-file.lua")
 
 local HUES = {
     rose = { 1, 0.2, 0.45 }, ember = { 1, 0.42, 0.1 }, gold = { 1, 0.8, 0.15 },
@@ -76,7 +77,7 @@ end
 
 print("every scene loops without a seam")
 for _, path in ipairs(scene_files()) do
-    local scene = choreography.load(dofile(path), HUES, meshes, fluid)
+    local scene = choreography.load(scene_file.read(path), HUES, meshes, fluid)
     local first, again = choreography.pose(scene, 0), choreography.pose(scene, 1)
     local all_same = #first == #again
     for i = 1, #first do all_same = all_same and same_pose(first[i], again[i]) end
@@ -336,7 +337,7 @@ check("refusal: a bezier with three points", refused_scene({ instances = { { mes
 
 print("the fifth-round words, and the owner's requests, hold")
 -- {{{ local function scene_named()
-local function scene_named(name) return choreography.load(dofile(DIR .. "/input/shapes/" .. name .. ".lua"), HUES, meshes) end
+local function scene_named(name) return choreography.load(scene_file.read(DIR .. "/input/shapes/" .. name .. ".lua"), HUES, meshes) end
 -- }}}
 -- {{{ local function near()
 local function near(a, b, tolerance)
