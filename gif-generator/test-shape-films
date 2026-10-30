@@ -366,6 +366,21 @@ function test_cards() {
 }
 # }}}
 
+# -- {{{ test_skill
+function test_skill() {
+    # The studio skill says only what the studio does (issue 701f): every
+    # score and scene it shows films, its refused score is refused word for
+    # word, and every file and tool it names exists.
+    local report
+    report=$(luajit "$DIR/src/057-skill-examples-test.lua" "$DIR")
+    local code=$?
+    echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - skill: /; s/^  FAIL - /  FAIL - skill: /'
+    PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
+    FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
+    [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - skill test crashed"; FAIL=$((FAIL + 1)); }
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -385,6 +400,7 @@ test_scenes_are_data
 test_the_wall
 test_two_spaces
 test_cards
+test_skill
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

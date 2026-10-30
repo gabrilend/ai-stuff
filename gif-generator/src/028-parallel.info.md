@@ -24,3 +24,8 @@ dispatches C functions; these stages are Lua).
 Callers must compile fresh per render: compiled scores carry live
 per-stroke emission carries, and a reused timeline would leak one
 render's fractions into the next.
+
+A score with a second space (issue 701d: shapes, panes or a background)
+is refused here with a pointer to `./run`: its world and panes are drawn
+by `053-two-spaces.lua`, which these workers don't run. Giving it many
+hands is future work.
