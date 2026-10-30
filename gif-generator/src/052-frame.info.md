@@ -17,7 +17,8 @@ The three moves every frame of a two-space score makes (issue 701d):
 - **compose{ rc, gathered, back, front, tm, tonemap, out, index_of }** —
   the light summed (world panes averaged down, back panes where nothing
   is drawn, front panes), tone-mapped once, added to the 3D colour,
-  indexed once.
+  indexed once. `light_only = true` leaves the 3D colour out while its
+  depth still hides and shows the light (the phase 7 demo's light half).
 
 The 3D painter's colour is already display colour, so it is not
 tone-mapped again; with no light a pixel is exactly the 3D painter's,

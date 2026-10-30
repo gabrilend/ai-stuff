@@ -13,6 +13,9 @@
 --     of them at once?
 --   * does a mixed score film the same bytes twice, and survive being
 --     written out and read back?
+--   * does the phase 7 demo's score pass the wall, and are its halves
+--     honest: the shapes' half the score without its strokes and panes,
+--     both halves the score as it always films?
 --
 -- Usage: luajit src/054-two-spaces-test.lua DIR   (DIR = the gif-generator project)
 -- Prints one line per check; exits 1 if any failed.
@@ -61,6 +64,9 @@ end
 -- A score file to GIF bytes, through the runner's own spine.
 local function film(path)
     return (main.render_to_gif(compile.score(score.read(path))))
+end
+local function film_compiled(compiled)
+    return (main.render_to_gif(compiled))
 end
 -- }}}
 
@@ -206,6 +212,34 @@ do
     handle:close()
     check("written out and read back, it writes the same text", score.write(score.read(copy)) == written)
     check("and films the same bytes", film(copy) == first)
+end
+
+-- The phase 7 demo's score, and its halves (issue 701g): the shapes' half
+-- is the score with its strokes and panes taken away, and both halves
+-- together are the score as any score films.
+do
+    local two_spaces = require("053-two-spaces")
+    local gif = require("004-gif")
+    local path = DIR .. "/issues/completed/demos/phase-7/meeting.lua"
+    local ok, compiled = pcall(compile.score, score.read(path))
+    check("the phase 7 demo's score passes the wall", ok)
+    if ok then
+        local function encode(c, frames)
+            return gif.encode{ width = c.canvas.size, height = c.canvas.size,
+                               palette_bytes = c.pal.bytes, frames = frames,
+                               delay_cs = math.floor(100 / c.canvas.fps) }
+        end
+        local shapes_half = encode(compiled, (two_spaces.render(compile.score(score.read(path)), "world")))
+        local raw = score.read(path)
+        raw.strokes, raw.panes = {}, {}
+        check("its shapes' half films the score with its strokes and panes taken away",
+              shapes_half == film_compiled(compile.score(raw)))
+        local light_half = encode(compiled, (two_spaces.render(compile.score(score.read(path)), "light")))
+        check("its light's half films, and differs from the whole",
+              light_half:sub(1, 6) == "GIF89a" and light_half ~= film_compiled(compile.score(score.read(path))))
+        check("both halves together are the score as it always films",
+              encode(compiled, (two_spaces.render(compiled))) == film(path))
+    end
 end
 
 os.execute(string.format("rm -r %q", SCRATCH))
