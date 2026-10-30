@@ -8,7 +8,7 @@ one skill describing how to use all of it.
 
 - [ ] 701a bring the shape films home — built 2026-10-30 (186 of 186, six fingerprints unchanged); waits on the window check on her machine
 - [ ] 701b one reader, one writer — built 2026-10-30 (193 of 193; all 34 films round-trip byte-identical); waits on a run against her library
-- [ ] 701c the 3D vocabulary — stages A and B built 2026-10-30 (scenes are data; closed word lists, the wall and docs/shape-format.md; 222 of 222); folding the number rules into the wall next
+- [ ] 701c the 3D vocabulary — built 2026-10-30 (scenes are data; closed word lists with their rules, the wall, docs/shape-format.md; 240 of 240, all 34 films byte-identical); waits on a look on her machine
 - [ ] 701d one canvas, two spaces — not started; needs 701b and 701c
 - [ ] 701e every film kept and rated — not started; needs 701a and 701b
 - [ ] 701f the studio skill — not started; needs 701d and 701e

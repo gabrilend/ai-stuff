@@ -1,9 +1,11 @@
 -- 050-shape-wall-test.lua - checks the 3D wall keeps its promises.
 --
 -- What this is, generally: the wall (049-shape-wall.lua) promises that
--- every scene in the gallery speaks only legal words, that a scene with a
--- dozen mistakes hears about all twelve in one pass, each with the nearest
--- legal word, and that the word lists and the code that runs them agree.
+-- every scene in the gallery speaks only legal words and keeps every rule,
+-- that a scene with a dozen misspellings hears about all twelve in one pass,
+-- each with the nearest legal word, that a scene with a dozen broken rules
+-- (half a turn, a curve with three points, a shape with no colour) hears
+-- about all twelve too, and that the word lists and the code agree.
 -- This asks it directly, no pixels.
 --
 -- Usage: luajit src/050-shape-wall-test.lua DIR   (DIR = the gif-generator project)
@@ -35,13 +37,14 @@ end
 -- }}}
 
 -- {{{ local function scene_files()
--- Every scene in the gallery, then every test scene but the misspelled one.
+-- Every scene in the gallery, then every test scene but the broken ones.
 local function scene_files()
     local list = {}
     for _, folder in ipairs({ "/input/shapes", "/tests/shape-films" }) do
         local pipe = io.popen(string.format("ls %q", DIR .. folder))
         for line in pipe:lines() do
-            if line:match("%.lua$") and line ~= "misspelled.lua" and line ~= "approved-films.lua" then
+            if line:match("%.lua$") and line ~= "misspelled.lua" and line ~= "broken-numbers.lua"
+               and line ~= "approved-films.lua" then
                 list[#list + 1] = DIR .. folder .. "/" .. line
             end
         end
@@ -105,20 +108,62 @@ check("loading the misspelled scene is refused", not loaded)
 check("the refusal counts all twelve, all at once",
       not loaded and tostring(refusal):match("12 problems, all at once") ~= nil)
 
+-- The broken-numbers scene: every word spelled right, twelve rules broken,
+-- all reported at once.
+local BROKEN = {
+    "scene.camera.motion.target: only a flying or lobed camera can look \"ahead\"",
+    "scene.instances[1] (bloom).dim: must be a number from 0 to 1",
+    "scene.instances[1] (bloom).spin.turns: must be a whole number, or the loop has a seam",
+    "scene.instances[1] (bloom): needs a hue",
+    "scene.instances[2] (ball).roll: needs a route motion (arc, bezier, conveyor, keyframes, spline, wave), not orbit",
+    "scene.instances[2] (ball).morph: only a superball can morph",
+    "scene.instances[3] (dart).motion.points: needs exactly 4",
+    "scene.instances[4] (seed).becomes.at: must be a number between 0 and 1",
+    "scene.instances[4] (seed).motion.cycles: must be a whole number, or the loop has a seam",
+    "scene.instances[5] (walker).motion.on_ground: stands on the ground, but the scene has no `ground`",
+    "scene.lights[1]: needs a tag to ride or a fixed `at`",
+    "scene.strokes[1].drift: must be a whole number, or the loop has a seam",
+}
+local broken = wall.check(scene_file.read(DIR .. "/tests/shape-films/broken-numbers.lua"), vocab)
+check(string.format("the broken-numbers scene gets all %d broken rules in one pass (got %d)", #BROKEN, #broken),
+      #broken == #BROKEN)
+local broken_said = {}
+for _, line in ipairs(broken) do broken_said[line] = true end
+for _, line in ipairs(BROKEN) do
+    check("the wall says: " .. line, broken_said[line] == true)
+end
+
 -- A few words that are legal in one place and not another.
-local function only(scene) return wall.check(scene, vocab) end
+-- {{{ local function only()
+-- The problems with a small scene, given the size and length every scene
+-- needs.
+local function only(scene)
+    scene.size, scene.frames = scene.size or 16, scene.frames or 4
+    return wall.check(scene, vocab)
+end
+-- }}}
 check("a part may not travel (parts ride their parent)",
       #only({ instances = { { parts = { { mesh = "cube", hue = "gold", motion = { kind = "fixed" } } } } } }) == 1)
 check("a cube takes no proportions", #only({ instances = { { mesh = "cube", hue = "gold", mesh_params = { grid = 4 } } } }) == 1)
 check("a becomes may stop rolling with false", #only({ instances = { { mesh = "cube", hue = "gold",
-      becomes = { at = 0.5, roll = false } } } }) == 0)
+      becomes = { at = 0.5, roll = false },
+      motion = { kind = "conveyor", from = { 0, 0, 0 }, to = { 1, 0, 0 }, cycles = 1 } } } }) == 0)
 check("a camera may look \"ahead\", but at nothing else",
-      #only({ camera = { motion = { kind = "fly", target = "ahead" } } }) == 0
-      and #only({ camera = { motion = { kind = "fly", target = "behind" } } }) == 1)
+      #only({ instances = { { mesh = "cube", hue = "gold" } },
+                camera = { motion = { kind = "fly", freq = { 1, 1, 1 }, target = "ahead" } } }) == 0
+      and #only({ instances = { { mesh = "cube", hue = "gold" } },
+                camera = { motion = { kind = "fly", freq = { 1, 1, 1 }, target = "behind" } } }) == 1)
 check("a route may start at a carried part, by its tag", #only({ instances = {
       { tag = "wand", mesh = "cone", hue = "gold" },
       { mesh = "cube", hue = "gold", motion = { kind = "conveyor", from = { part = "wand", plus = { 0, 1, 0 } },
         to = { 1, 1, 1 }, cycles = 1 } } } }) == 0)
+check("a needed word is asked for", #only({ instances = { { mesh = "cube", hue = "gold",
+      spin = { axis = { 0, 1, 0 } } } } }) == 1)
+check("a misspelled needed word is not asked for twice", #only({ instances = { { mesh = "cube", hue = "gold",
+      spin = { axis = { 0, 1, 0 }, trns = 1 } } } }) == 1)
+check("a morph carried into a star is refused", #only({ instances = { { mesh = "superball", hue = "gold",
+      morph = { cycles = 1 }, becomes = { at = 0.5, mesh = "star_prism" },
+      motion = { kind = "conveyor", from = { 0, 0, 0 }, to = { 1, 0, 0 }, cycles = 1 } } } }) == 1)
 check("a route's anchor is checked like any table", #only({ instances = {
       { tag = "wand", mesh = "cone", hue = "gold" },
       { mesh = "cube", hue = "gold", motion = { kind = "conveyor", from = { prat = "wand" },

@@ -2,9 +2,10 @@
 
 Where every shape of a shape-film scene is at moment t, after its reactions;
 where the camera is and what it looks at; the stars, strokes, beams, streaks
-and lights. Knows scenes, not pixels. Refuses a broken scene on load: first
-the wall (`049-shape-wall.lua`) refuses every unknown word and name at
-once, then the whole-number and range rules here refuse the first break.
+and lights. Knows scenes, not pixels. Refuses a broken scene on load, through
+the wall (`049-shape-wall.lua`), which reports every unknown word, broken
+rule and missing tag at once. The one refusal left here is a liquid with
+no simulator handed in.
 
 ## Usable surface
 

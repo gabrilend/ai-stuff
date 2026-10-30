@@ -44,6 +44,27 @@ local function kind_text(kind)
 end
 -- }}}
 
+-- {{{ local function rules_text()
+-- A word's rules, said for a reader.
+local function rules_text(rules)
+    local said = {}
+    for rule in (rules or ""):gmatch("%S+") do
+        local n = rule:match("%d+$")
+        local text = ({
+            ["!"] = "needed", cycles = "whole (no seam)", cycles3 = "three whole numbers (no seam)",
+            whole = "whole", ["0..1"] = "0 to 1", ["(0,1)"] = "between 0 and 1", [">0"] = "above 0",
+            [">=0"] = "0 or more", ["3numbers"] = "three numbers",
+            rising = "moments rising from 0 to below 1",
+        })[rule]
+        if not text and rule:match("^whole>=") then text = "whole, at least " .. n end
+        if not text and rule:match("^len>=") then text = "at least " .. n end
+        if not text and rule:match("^len=") then text = "exactly " .. n end
+        said[#said + 1] = text or rule
+    end
+    return table.concat(said, ", ")
+end
+-- }}}
+
 -- {{{ local function table_of()
 -- One context's words as a markdown table.
 local function table_of(list, out)
@@ -52,10 +73,11 @@ local function table_of(list, out)
         out[#out + 1] = ""
         return
     end
-    out[#out + 1] = "| Word | Takes | Meaning |"
-    out[#out + 1] = "|------|-------|---------|"
+    out[#out + 1] = "| Word | Takes | Must be | Meaning |"
+    out[#out + 1] = "|------|-------|---------|---------|"
     for _, entry in ipairs(list) do
-        out[#out + 1] = string.format("| `%s` | %s | %s |", entry[1], kind_text(entry[2]), entry[3])
+        out[#out + 1] = string.format("| `%s` | %s | %s | %s |", entry[1], kind_text(entry[2]),
+                                      rules_text(entry[4]), entry[3])
     end
     out[#out + 1] = ""
 end
@@ -81,8 +103,9 @@ local function document()
         "`luajit src/051-shape-docs.lua .`; never edit this file by hand.",
         "",
         "A scene is data: a Lua file returning one table, read in an empty sandbox. A word not",
-        "listed for the place it stands is refused, with every other mistake in the scene, each",
-        "with the nearest legal word.",
+        "listed for the place it stands, a value that breaks its word's rule, or a rule between",
+        "words broken is refused, with every other mistake in the scene, each misspelling with",
+        "the nearest legal word.",
         "",
         "## World space",
         "",
@@ -99,9 +122,13 @@ local function document()
             .. table.concat(owned.routes, "` `") .. "`.",
         "- Tags made without being written: `" .. table.concat(words.MADE_TAGS, "` `") .. "`.",
         "",
-        "## Places",
+        "## Rules between words",
         "",
     }
+    for _, line in ipairs(words.TIES) do out[#out + 1] = "- " .. line end
+    out[#out + 1] = ""
+    out[#out + 1] = "## Places"
+    out[#out + 1] = ""
     for _, name in ipairs(words.ORDER) do
         out[#out + 1] = "### `" .. name .. "`"
         out[#out + 1] = ""

@@ -106,6 +106,28 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
   `./test-shape-films` is 222 of 222, the six approved fingerprints
   unchanged.
 
-Still to come: folding choreography's own whole-number and range rules,
-which still stop at the first break, into the wall, so those come all at
-once too.
+### Stage C, 2026-10-30: every rule at the wall
+
+- Each word in the lists may carry its rules: needed, whole cycles (no
+  seam), whole and at least N, 0 to 1, between 0 and 1, above 0, three
+  numbers, at least or exactly N items, moments rising from 0 to below 1.
+- The rules that tie one word to another moved into the wall too (a
+  rolling, becoming or anchored shape needs a route motion; only a
+  superball morphs, and its becoming and trail must be superballs; the
+  ground, the track and a moving camera are there when something needs
+  them; a light has a tag or a place; a roll counts cycles or turns),
+  and are listed in words in `docs/shape-format.md`.
+- `choreography.load` now only builds: its 68 first-error refusals are
+  gone, along with the tables and helpers only they used. The one
+  refusal left is a liquid with no simulator handed in, which is about
+  the caller, not the scene.
+- A misspelled needed word is reported once, as the misspelling, not
+  again as a missing word.
+- Proof: `tests/shape-films/broken-numbers.lua` (twelve broken rules,
+  every word spelled right) gets all twelve in one pass and films
+  nothing; every refusal the stage test (`042`) and the runner made
+  before still refuses; all 34 scenes pass and re-film byte-identical;
+  `./test-shape-films` is 240 of 240.
+
+All five suggested steps are done. The issue stays open for a look on
+her machine: the films there, and whether the wall's wording reads well.
