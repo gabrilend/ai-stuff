@@ -31,8 +31,18 @@
 -- `pixels` is an ffi uint8_t array of width*height*4 bytes (R, G, B, A),
 -- valid only during the call -- copy it to keep it. Without on_frame, the
 -- frames are collected into info.frames as { pixels, delay_cs }.
--- Returns { width, height, frame_count }. A malformed file is an error that
--- names the byte where it went wrong.
+-- Returns { width, height, frame_count } and the file's facts: signature,
+-- loop (the loop-forever block is there), trailer_at_end (the file ends
+-- where a gif must), global_colours, global_palette (its raw bytes),
+-- source_width, source_height, source_frame_count. With structure = true it
+-- also returns `structure`, one record per frame as stored: its rectangle,
+-- local palette, interlacing, code size, raw delay, disposal, transparency,
+-- its raw colour indices, and whether its stream was whole (written, ended).
+-- facts(data) gives all of that without keeping the pictures. A malformed
+-- file is an error that names the byte where it went wrong.
+--
+-- This is the studio's one gif reader (issue 701b): the viewer plays with
+-- it, and every test that reads a gif reads it with this.
 
 local ffi = require("ffi")
 local bit = require("bit")
@@ -106,7 +116,9 @@ end
 -- Code width grows when the next free entry needs one more bit, up to 12
 -- bits; a "clear" code resets the dictionary; "end" stops. Output beyond the
 -- frame's pixel count is ignored, and a short stream leaves the remaining
--- pixels at index 0, as browsers do.
+-- pixels at index 0, as browsers do. Returns how many indices were written
+-- and whether the stream closed with its end code, so a strict reader (the
+-- tests) can refuse what a forgiving one (the window) plays.
 local prefix = ffi.new("uint16_t[4096]")
 local suffix = ffi.new("uint8_t[4096]")
 local stack = ffi.new("uint8_t[4097]")
@@ -132,7 +144,7 @@ local function lzw_decode(data, minimum_size, output, pixel_count)
     while true do
         -- read one code, least significant bits first
         while bit_count < code_size do
-            if byte_index >= byte_count then return written end
+            if byte_index >= byte_count then return written, false end
             bit_buffer = bor(bit_buffer, lshift(bytes[byte_index], bit_count))
             byte_index = byte_index + 1
             bit_count = bit_count + 8
@@ -146,7 +158,7 @@ local function lzw_decode(data, minimum_size, output, pixel_count)
             next_code = finish + 1
             previous = -1
         elseif code == finish then
-            return written
+            return written, true
         elseif previous == -1 then
             -- the first code after a clear is always a single colour index
             if code >= clear then error("gif frame starts with an impossible code " .. code, 0) end
@@ -231,9 +243,23 @@ function M.decode(data, options)
     input.byte()   -- background colour index: see-through is used instead, as browsers do
     input.byte()   -- pixel aspect ratio, ignored
     local global_palette = nil
+    local global_colours = 0
+    local global_start = input.pos
     if packed >= 128 then
-        global_palette = read_palette(input, 2 ^ (packed % 8 + 1))
+        global_colours = 2 ^ (packed % 8 + 1)
+        global_palette = read_palette(input, global_colours)
     end
+    -- What the file is made of, besides its pictures: the facts a test asks
+    -- about (signature, loop, trailer, colour table), and with
+    -- options.structure every frame's own record, raw indices included.
+    local facts = {
+        signature = signature,
+        global_colours = global_colours,
+        global_palette = data:sub(global_start, global_start + global_colours * 3 - 1),
+        loop = false,
+        trailer_at_end = false,
+        structure = options.structure and {} or nil,
+    }
 
     -- the output size, shrunk to fit max_size with the proportions kept
     local out_width, out_height = width, height
@@ -295,6 +321,7 @@ function M.decode(data, options)
     while true do
         local introducer = input.byte()
         if introducer == 0x3B then
+            facts.trailer_at_end = (input.pos == #data + 1)
             break                                                   -- trailer: the end
         elseif introducer == 0x21 then
             local label = input.byte()
@@ -306,8 +333,12 @@ function M.decode(data, options)
                 control.disposal = math.floor(flags / 4) % 8
                 control.delay_cs = block:byte(2) + 256 * block:byte(3)
                 control.transparent = (flags % 2 == 1) and block:byte(4) or -1
+            elseif label == 0xFF then
+                -- application block: the loop-forever one is named NETSCAPE2.0
+                local block = input.sub_blocks()
+                if block:sub(1, 11) == "NETSCAPE2.0" then facts.loop = true end
             else
-                input.sub_blocks()                                  -- comments, looping, etc.
+                input.sub_blocks()                                  -- comments and the like
             end
         elseif introducer == 0x2C then
             local left, top = input.u16(), input.u16()
@@ -328,7 +359,17 @@ function M.decode(data, options)
             local frame_indices = frame_pixels <= width * height and indices
                 or ffi.new("uint8_t[?]", frame_pixels)
             ffi.fill(frame_indices, frame_pixels, 0)
-            lzw_decode(input.sub_blocks(), minimum_size, frame_indices, frame_pixels)
+            local written, ended = lzw_decode(input.sub_blocks(), minimum_size, frame_indices, frame_pixels)
+            if facts.structure then
+                facts.structure[#facts.structure + 1] = {
+                    left = left, top = top, width = frame_width, height = frame_height,
+                    local_palette = frame_packed >= 128, interlaced = interlaced,
+                    minimum_size = minimum_size, written = written, ended = ended,
+                    delay_cs = control.delay_cs, disposal = control.disposal,
+                    transparent = control.transparent,
+                    indices = ffi.string(frame_indices, frame_pixels),
+                }
+            end
 
             if control.disposal == 3 then ffi.copy(saved, screen, width * height * 4) end
 
@@ -378,9 +419,31 @@ function M.decode(data, options)
 
     release()
     if kept == 0 then error("gif has no frames", 0) end
-    return { width = out_width, height = out_height, frame_count = kept,
-             frames = not options.on_frame and frames or nil,
-             source_width = width, source_height = height }
+    facts.width, facts.height, facts.frame_count = out_width, out_height, kept
+    facts.frames = not options.on_frame and frames or nil
+    facts.source_width, facts.source_height, facts.source_frame_count = width, height, seen
+    return facts
+end
+-- }}}
+
+-- {{{ function M.facts()
+-- The file's structure without keeping its pictures: what a test asks when
+-- it only wants to know what a gif is made of. Every frame is still fully
+-- decoded, so a broken stream is still found.
+function M.facts(data, options)
+    options = options or {}
+    return M.decode(data, { structure = options.structure, on_frame = function() end })
+end
+-- }}}
+
+-- {{{ function M.facts_line()
+-- The same facts as one line a shell test can grep:
+--   signature=GIF89a width=W height=H loop=yes|no frames=N trailer=yes|no
+function M.facts_line(info)
+    return string.format("signature=%s width=%d height=%d loop=%s frames=%d trailer=%s",
+        info.signature, info.source_width, info.source_height,
+        info.loop and "yes" or "no", info.source_frame_count,
+        info.trailer_at_end and "yes" or "no")
 end
 -- }}}
 
@@ -391,6 +454,28 @@ function M.decode_file(path, options)
     local data = handle:read("*a")
     handle:close()
     return M.decode(data, options)
+end
+-- }}}
+
+-- {{{ Command line
+-- Run directly, `luajit src/040-gif-decode.lua --facts file.gif` prints the
+-- facts line (the shell tests' reader). Loaded with dofile or by the viewer's
+-- threads, it only returns the module: `arg` then belongs to someone else,
+-- or is absent.
+if arg and arg[0] and arg[0]:match("040%-gif%-decode%.lua$") and arg[1] == "--facts" then
+    local ok, result = pcall(function()
+        local handle = io.open(arg[2] or "", "rb")
+        if not handle then error("cannot open " .. tostring(arg[2]), 0) end
+        local data = handle:read("*a")
+        handle:close()
+        return M.facts_line(M.facts(data))
+    end)
+    if not ok then
+        io.stderr:write("040-gif-decode: " .. tostring(result) .. "\n")
+        os.exit(1)
+    end
+    print(result)
+    os.exit(0)
 end
 -- }}}
 

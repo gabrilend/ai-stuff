@@ -1,14 +1,15 @@
 -- 005-gif-test.lua — proof for the gif encoder: an independent
 -- decoder round-trips every frame byte-for-byte.
 --
--- What this is, generally: contains a minimal, deliberately dumb
--- GIF/LZW *decoder* that lives only here (never in the pipeline),
--- plus a block-walker that rulers the file structure. The encoder is
--- proven by decoding what it encoded and comparing every byte.
--- Honesty note: if encoder and decoder shared a mirrored
--- off-by-one they could agree while browsers glitch — which is why
--- the phase demo (a human watching the loop in a real browser)
--- remains part of the proof.
+-- What this is, generally: the encoder is proven by decoding what it
+-- encoded and comparing every byte. The decoder is the studio's one
+-- reader (040-gif-decode.lua), which was written for the viewer and
+-- shares no code with the encoder; until 701b this file kept a small
+-- private decoder of its own. Honesty note: if encoder and decoder
+-- shared a mirrored off-by-one they could agree while browsers glitch —
+-- which is why the phase demo (a human watching the loop in a real
+-- browser) remains part of the proof, and why 041 checks the reader
+-- against ImageMagick.
 -- Run directly: luajit src/005-gif-test.lua
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/gif-generator"
@@ -17,6 +18,7 @@ package.path = DIR .. "/src/?.lua;" .. package.path
 
 local ffi = require("ffi")
 local gif = require("004-gif")
+local reader = dofile(DIR .. "/src/040-gif-decode.lua")
 
 local passed, failed = 0, 0
 
@@ -31,139 +33,27 @@ local function check(name, condition)
 end
 -- }}}
 
--- {{{ local function lzw_decode()
--- The dumb decoder: strings for entries, no cleverness, so its
--- correctness is legible at a glance. Mirrors a browser's timing:
--- width grows when the entry count reaches the width's ceiling.
-local function lzw_decode(data)
-    local entries
-    -- {{{ local function reset_entries()
-    local function reset_entries()
-        entries = {}
-        for i = 0, 255 do entries[i] = string.char(i) end
-    end
-    -- }}}
-    reset_entries()
-    local width, next_code, prev = 9, 258, nil
-    local acc, bits, pos = 0, 0, 1
-    local out = {}
-    while true do
-        while bits < width do
-            acc = acc + data:byte(pos) * (2 ^ bits)
-            bits = bits + 8
-            pos = pos + 1
-        end
-        local code = acc % (2 ^ width)
-        acc = math.floor(acc / (2 ^ width))
-        bits = bits - width
-
-        if code == 256 then
-            reset_entries()
-            width, next_code, prev = 9, 258, nil
-        elseif code == 257 then
-            break
-        else
-            local s
-            if entries[code] then
-                s = entries[code]
-            elseif code == next_code and prev then
-                -- the KwKwK case: the one code a decoder must infer
-                s = entries[prev] .. entries[prev]:sub(1, 1)
-            else
-                error("decoder: impossible code " .. code)
-            end
-            out[#out + 1] = s
-            if prev then
-                entries[next_code] = entries[prev] .. s:sub(1, 1)
-                next_code = next_code + 1
-                if next_code == 2 ^ width and width < 12 then
-                    width = width + 1
-                end
-            end
-            prev = code
-        end
-    end
-    return table.concat(out)
-end
--- }}}
-
 -- {{{ local function walk_gif()
--- The offset ruler: parses every block, refuses anything unknown,
--- returns dimensions, delays, decoded frames, and whether the
--- loop-forever extension was seen.
+-- The offset ruler, now asked of the studio's one reader
+-- (040-gif-decode.lua, written for the viewer and sharing no code with
+-- the encoder): every block parsed, every frame's raw indices handed
+-- back, and anything the encoder never writes refused, as the private
+-- walker that lived here used to (701b).
 local function walk_gif(bytes)
-    local pos = 1
-    -- {{{ local function take()
-    local function take(n)
-        local s = bytes:sub(pos, pos + n - 1)
-        pos = pos + n
-        return s
-    end
-    -- }}}
-    -- {{{ local function u16()
-    local function u16()
-        local lo, hi = bytes:byte(pos, pos + 1)
-        pos = pos + 2
-        return lo + hi * 256
-    end
-    -- }}}
-    -- {{{ local function subblocks()
-    local function subblocks()
-        local parts = {}
-        while true do
-            local n = bytes:byte(pos)
-            pos = pos + 1
-            if n == 0 then break end
-            parts[#parts + 1] = take(n)
-        end
-        return table.concat(parts)
-    end
-    -- }}}
-
-    local file = { frames = {}, delays = {}, saw_loop = false }
-    assert(take(6) == "GIF89a", "walker: bad header")
-    file.width = u16()
-    file.height = u16()
-    local packed = bytes:byte(pos)
-    pos = pos + 3
-    assert(packed == 0xF7, "walker: expected a 256-color global table")
-    take(768)
-
-    while true do
-        local marker = bytes:byte(pos)
-        pos = pos + 1
-        if marker == 0x3B then
-            file.saw_trailer = true
-            break
-        elseif marker == 0x21 then
-            local label = bytes:byte(pos)
-            pos = pos + 1
-            if label == 0xFF then
-                local body = subblocks()
-                if body:sub(1, 11) == "NETSCAPE2.0" then
-                    file.saw_loop = true
-                end
-            elseif label == 0xF9 then
-                assert(bytes:byte(pos) == 4, "walker: odd control size")
-                pos = pos + 2
-                file.delays[#file.delays + 1] = u16()
-                pos = pos + 2
-            else
-                subblocks()
-            end
-        elseif marker == 0x2C then
-            local left, top, w, h = u16(), u16(), u16(), u16()
-            assert(left == 0 and top == 0, "walker: offset frame")
-            assert(bytes:byte(pos) == 0, "walker: unexpected local table")
-            pos = pos + 1
-            assert(bytes:byte(pos) == 8, "walker: odd min code size")
-            pos = pos + 1
-            local decoded = lzw_decode(subblocks())
-            assert(#decoded == w * h, "walker: frame length wrong")
-            file.frames[#file.frames + 1] = decoded
-        else
-            error("walker: unknown block marker " .. tostring(marker))
-        end
+    local info = reader.facts(bytes, { structure = true })
+    assert(info.signature == "GIF89a", "walker: bad header")
+    assert(info.global_colours == 256, "walker: expected a 256-color global table")
+    local file = { frames = {}, delays = {}, saw_loop = info.loop,
+                   saw_trailer = info.trailer_at_end,
+                   width = info.source_width, height = info.source_height }
+    for _, frame in ipairs(info.structure) do
+        assert(frame.left == 0 and frame.top == 0, "walker: offset frame")
+        assert(not frame.local_palette, "walker: unexpected local table")
+        assert(frame.minimum_size == 8, "walker: odd min code size")
+        assert(frame.ended and frame.written == frame.width * frame.height,
+               "walker: frame length wrong")
+        file.delays[#file.delays + 1] = frame.delay_cs
+        file.frames[#file.frames + 1] = frame.indices
     end
     return file
 end

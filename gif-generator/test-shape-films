@@ -1,9 +1,10 @@
 #!/bin/bash
 # test-shape-films - proves the shape films tool makes honest, repeatable films.
 #
-# In general terms: this films a tiny test scene and has an independent
-# reader walk the result the way a browser would, checking it is a real,
-# looping GIF with the right number of frames. It films the scene twice and
+# In general terms: this films a tiny test scene and has the studio's own
+# reader (which shares no code with the encoder) walk the result the way a
+# browser would, checking it is a real, looping GIF with the right number of
+# frames. It films the scene twice and
 # checks the two files are identical to the byte, since the gallery promises
 # the same scene always gives the same film. Then it feeds the tool three
 # broken scenes -- half a turn of spin, a shape that does not exist, a colour
@@ -27,11 +28,18 @@ DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 [ -n "${1:-}" ] && [ -d "$1" ] && DIR="$1"
 
 TOOL="$DIR/src/039-shape-films.lua"
-FACTS="$DIR/tests/shape-films/gif-facts.lua"
 SCRATCH="/dev/shm/gif-generator/shape-films-test"
 
 PASS=0
 FAIL=0
+
+# -- {{{ gif_facts
+function gif_facts() {
+    # What a gif is made of, as one line, read by the studio's one reader
+    # (src/040-gif-decode.lua), which shares no code with the encoder.
+    luajit "$DIR/src/040-gif-decode.lua" --facts "$1"
+}
+# }}}
 
 # -- {{{ check
 function check() {
@@ -54,7 +62,7 @@ function test_valid_gif() {
     check "the tiny scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
 
     local facts
-    facts=$(luajit "$FACTS" "$SCRATCH/first/tiny.gif")
+    facts=$(gif_facts "$SCRATCH/first/tiny.gif")
     check "signature is GIF89a" "$(echo "$facts" | grep -q 'signature=GIF89a' && echo yes || echo no)"
     check "size is 48x48" "$(echo "$facts" | grep -q 'width=48 height=48' && echo yes || echo no)"
     check "it loops forever" "$(echo "$facts" | grep -q 'loop=yes' && echo yes || echo no)"
@@ -67,7 +75,7 @@ function test_valid_gif() {
 
     local frames_override
     luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny.lua" --out="$SCRATCH/second" --frames=3 > /dev/null
-    frames_override=$(luajit "$FACTS" "$SCRATCH/second/tiny.gif")
+    frames_override=$(gif_facts "$SCRATCH/second/tiny.gif")
     check "--frames= overrides the scene's length" "$(echo "$frames_override" | grep -q 'frames=3' && echo yes || echo no)"
 }
 # }}}
@@ -115,7 +123,7 @@ function test_second_round_words() {
     luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-new.lua" --out="$SCRATCH/new" > /dev/null
     check "the second-round scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
     check "its GIF holds all 6 frames and loops" \
-        "$(luajit "$FACTS" "$SCRATCH/new/tiny-new.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
+        "$(gif_facts "$SCRATCH/new/tiny-new.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
 
     local label pattern replacement entry
     local cases=(
@@ -194,7 +202,7 @@ function test_fourth_round_words() {
     luajit "$TOOL" "$DIR" "$DIR/tests/shape-films/tiny-third.lua" --out="$SCRATCH/third" > /dev/null
     check "the fourth-round scene films without error" "$([ $? -eq 0 ] && echo yes || echo no)"
     check "its GIF holds all 6 frames and loops" \
-        "$(luajit "$FACTS" "$SCRATCH/third/tiny-third.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
+        "$(gif_facts "$SCRATCH/third/tiny-third.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
 
     local broken="$SCRATCH/broken-third.lua"
     grep -v '^    ground = GROUND,$' "$DIR/tests/shape-films/tiny-third.lua" > "$broken"
@@ -221,7 +229,7 @@ function test_teamwork_and_liquid() {
     check "the liquid films to the same bytes twice (once split across workers)" \
         "$(cmp -s "$SCRATCH/liquid-a/tiny-fluid.gif" "$SCRATCH/liquid-b/tiny-fluid.gif" && echo yes || echo no)"
     check "the liquid's GIF holds all 6 frames and loops" \
-        "$(luajit "$FACTS" "$SCRATCH/liquid-a/tiny-fluid.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
+        "$(gif_facts "$SCRATCH/liquid-a/tiny-fluid.gif" | grep -q 'loop=yes frames=6 trailer=yes' && echo yes || echo no)"
 }
 # }}}
 
@@ -263,6 +271,20 @@ function test_choreography() {
 }
 # }}}
 
+# -- {{{ test_round_trip
+function test_round_trip() {
+    # The one reader and the one writer agree: each approved film, taken
+    # apart and put back together, comes out the same bytes (issue 701b).
+    local report
+    report=$(luajit "$DIR/src/044-round-trip-test.lua" "$DIR")
+    local code=$?
+    echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - round trip: /; s/^  FAIL - /  FAIL - round trip: /'
+    PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
+    FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
+    [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - round-trip test crashed"; FAIL=$((FAIL + 1)); }
+}
+# }}}
+
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
 echo "shape-films"
@@ -277,6 +299,7 @@ test_stills_folder
 test_framing
 test_approved_unchanged
 test_choreography
+test_round_trip
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

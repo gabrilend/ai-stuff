@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# install-into — copies the studio's reader and writers into another
+# project's libs/ folder, and records which version the copy is.
+#
+# In general terms: other projects that want to write a gif, read one back,
+# or write a PNG still take a checked copy of this studio's own files rather
+# than a path into this folder, the way my-libs/zip is taken (issue 701b).
+# A copy stays honest by `check-copy`, which the consumer's tests call: a
+# copy that differs from the studio fails them, and running this again
+# brings it back in line.
+#
+# What it writes into the target folder (studio file → name in the copy):
+#   src/004-gif.lua         → gif-encoder.lua   the GIF89a writer
+#   src/002-palette.lua     → gif-palette.lua   the glow palette
+#   src/040-gif-decode.lua  → gif-decoder.lua   the one reader
+#   src/038-png.lua         → png-writer.lua    stills, no compression library
+#   gif-studio.version      one line per file: "<sha256>  <file>", then the
+#                           studio's git commit ("commit <hash>", or
+#                           "commit uncommitted" when its sources have
+#                           changes not yet committed)
+# None of the four loads another, so a consumer takes them with dofile or
+# require from its own libs/.
+#
+# Usage: install-into <project libs folder> [gif-generator folder]
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+TARGET="$1"
+if [ -n "$2" ]; then
+    DIR="$2"
+fi
+if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
+    echo "usage: install-into <project libs folder> [gif-generator folder]" >&2
+    exit 1
+fi
+
+# The one map from studio file to copy name; check-copy holds the same.
+PAIRS="004-gif.lua:gif-encoder.lua 002-palette.lua:gif-palette.lua 040-gif-decode.lua:gif-decoder.lua 038-png.lua:png-writer.lua"
+NAMES=""
+for pair in $PAIRS; do
+    cp "$DIR/src/${pair%%:*}" "$TARGET/${pair##*:}"
+    NAMES="$NAMES ${pair##*:}"
+done
+
+COMMIT=$(git -C "$DIR" log -1 --format=%H -- src)
+CHANGED=$(git -C "$DIR" status --porcelain -- src)
+# Two paths: the studio's sources match a commit (named), or they do not
+# (said so).
+if [ -n "$CHANGED" ]; then
+    COMMIT="uncommitted"
+fi
+(
+    cd "$TARGET" || exit 1
+    sha256sum $NAMES
+    echo "commit $COMMIT"
+) > "$TARGET/gif-studio.version"
+echo "gif studio copied into $TARGET (commit $COMMIT)"

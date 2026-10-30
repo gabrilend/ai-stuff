@@ -7,9 +7,11 @@
 --      renderer never writes (a frame's own palette, a frame covering part of
 --      the screen, see-through pixels, clearing after display, rows stored out
 --      of order), with every expected pixel worked out in advance.
---   3. The real gifs in the folder: the frame count and size must match an
---      independent block walker, one frame must match ImageMagick pixel for
---      pixel, and shrinking and frame-skipping must keep each loop's length.
+--   3. The real gifs in the folder: the frame count and size must match
+--      ImageMagick's, one frame must match ImageMagick pixel for pixel, and
+--      shrinking and frame-skipping must keep each loop's length. (Until
+--      701b the counts were checked against a second walker; the studio now
+--      keeps one reader, and ImageMagick is its outside witness.)
 --
 -- Usage: luajit src/041-gif-decode-test.lua <gif-generator dir> <gif folder> <scratch dir>
 -- Prints one line per check and a summary; exits 1 if any check failed.
@@ -173,7 +175,6 @@ end
 
 -- {{{ Witness 3: the real gifs
 do
-    local walker = DIR .. "/tests/shape-films/gif-facts.lua"
     local listing = io.popen("ls -1 '" .. FOLDER .. "'")
     local names = {}
     for line in listing:lines() do
@@ -185,17 +186,21 @@ do
     local mismatched = {}
     for _, name in ipairs(names) do
         local path = FOLDER .. "/" .. name
-        local facts_pipe = io.popen("luajit '" .. walker .. "' '" .. path .. "'")
-        local facts = facts_pipe:read("*a")
-        facts_pipe:close()
-        local frames = tonumber(facts:match("frames=(%d+)"))
-        local width = tonumber(facts:match("width=(%d+)"))
+        -- ImageMagick prints one line per frame: the screen's width and height
+        local witness = io.popen("magick identify -format '%W %H\\n' '" .. path .. "' 2>/dev/null")
+        local frames, width, height = 0, nil, nil
+        for line in witness:lines() do
+            frames = frames + 1
+            width, height = line:match("^(%d+) (%d+)$")
+        end
+        witness:close()
         local info = gif.decode_file(path, { on_frame = function() end })
-        if info.frame_count ~= frames or info.width ~= width then
+        if frames == 0 or info.frame_count ~= frames
+            or info.width ~= tonumber(width) or info.height ~= tonumber(height) then
             mismatched[#mismatched + 1] = name
         end
     end
-    check("every gif's frame count and size match the independent walker"
+    check("every gif's frame count and size match ImageMagick's"
           .. (#mismatched > 0 and (" (not: " .. table.concat(mismatched, ", ") .. ")") or ""),
           #mismatched == 0)
 

@@ -18,6 +18,15 @@ Only stills.
 2. Parallel painting. **Test:** one worker and four give identical frames.
 3. Both encoders. **Test:** `ffprobe` reports the frame count and rate; the `.gif` round-trips through the house decoder.
 
+## Taking the house encoder
+
+(Noted 2026-10-30, gif-generator issue 701b.) Take a checked copy rather
+than a path into gif-generator: `gif-generator/install-into libs/` copies
+the encoder (`gif-encoder.lua`), its palette, the one reader
+(`gif-decoder.lua`, for step 3's round trip) and the PNG writer, with a
+version file; `gif-generator/check-copy libs/` in this project's tests
+fails when the copy drifts. The same pattern as `my-libs/zip`.
+
 ## Blocked by
 
 - 804
