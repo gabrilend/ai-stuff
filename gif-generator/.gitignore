@@ -1,3 +1,6 @@
 # Runtime artifacts regenerate via `run`; the record keeps blueprints.
 # Phase demos commit their own gifs — those are deliverables, not scratch.
 output/
+
+# The porch's doors name machines on her network.
+input/cluster

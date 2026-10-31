@@ -43,10 +43,9 @@ the wall's teaching quoted back verbatim (proven against a scripted
 fake orchestrator: a misspelled hue corrected in exactly two
 attempts), exhausted patience surfacing errors beside the best
 draft, and the cluster roster reader with its polite refusals
-(input/cluster.example ships). Deferred until the cluster lights:
-the HTTP adapter that turns a roster door into a live transport
-function — the translate loop takes any transport, so the adapter
-is a thin last mile.
+(input/cluster.example ships). Since 2026-10-31 the HTTP adapter is
+built too (see What Happened), proven against a fake llama.cpp server;
+what waits is a run against a real model on her machine.
 
 ## Intended Behavior
 
@@ -116,3 +115,68 @@ collecting stroke tool-calls from a model.
 ## Related Documents
 
 - docs/datapath-prose-translation.md (this issue's specification)
+
+## Trying it on her machine
+
+Nothing here has met a real model yet. To try it:
+
+1. Start llama.cpp's server on any machine the porch can reach, with a
+   context long enough for the prompt (the prompt is the whole language,
+   read verbatim: about 14 thousand tokens today; `./porch --check`
+   prints the current figure):
+
+   ```bash
+   llama-server -m MODEL.gguf --host 0.0.0.0 --port 8080 -c 18432
+   ```
+
+2. Name its door. `input/cluster` is one `name host port` line per
+   door, and stays out of git:
+
+   ```bash
+   cd /mnt/mtwo/programming/ai-stuff/gif-generator
+   echo "mind 127.0.0.1 8080" > input/cluster
+   ./porch --check
+   ```
+
+3. Say something, read what it heard, then film it:
+
+   ```bash
+   ./porch "curve the ball around the circle"
+   ./run heard
+   ```
+
+   The score lands in `input/heard.lua` (or `heard-2.lua` and on, never
+   over an existing one); `--name=NAME` picks another name.
+
+## What Happened
+
+2026-10-31, the last mile (branch `claude/601-the-porch-goes-live`, on
+top of 704):
+
+- **The door.** `porch.door_transport(door)` posts each request to
+  `http://host:port/completion`, the body llama.cpp's server takes
+  (`porch.llama_body`: the prompt, what the person said, the wall's
+  words on a retry, the grammar beside it, a seed). It sends with curl,
+  so the porch needs no HTTP library. A door that doesn't answer, or
+  answers with something that isn't a completion, is a sentence naming
+  the door. `porch.door_health(door)` asks `/health`.
+- **A reply that isn't tool-calls** (a model that chats instead of
+  calling) used to stop the porch with an error; now it fails that one
+  reading, and the next try is told why.
+- **The front door.** `./porch` (`src/060-porch-say.lua`): `--check`
+  asks every door and says how long a context the prompt needs; a
+  sentence is sent to the first door that answers (or `--door=NAME`),
+  the read-back lines are printed, and the score is written to
+  `input/`. Filming stays `./run NAME`, so the lines are read first.
+- **Proof.** `src/033-porch-test.lua` is 42 of 42: the request body, a
+  translation through a door with a fake shell that answers as
+  llama.cpp's server does (a misspelling mended on the second asking),
+  `/health`, a door that doesn't answer, a reply with no tool-calls,
+  and a host that could break the command line. By hand, here: `./porch
+  --check` and a sentence against a small fake llama.cpp server, one
+  door up and one down. The fake's first reply forgot the world's stars
+  and the wall said so; the second landed and its score was written.
+- `input/cluster` is in `.gitignore`, since it names machines on her
+  network.
+
+Still open: which model, and on which machine (704, question 2).
