@@ -1,0 +1,24 @@
+#!/bin/bash
+# porch - say what you see, and the real model writes the score.
+#
+# In general terms: this is the listening porch talking to a real model.
+# It reads the doors in input/cluster (one "name host port" line each, a
+# llama.cpp server behind each), sends your sentence with the studio's
+# language and a grammar that lets the model say only legal words, lets
+# the wall argue back for a few tries, and prints what it heard as plain
+# lines. The score lands in input/ (never over an existing one); filming
+# it is ./run NAME, so you read the lines before anything is drawn.
+#
+# Usage:
+#   porch --check                                  -- is each door answering?
+#   porch "curve the ball around the circle"       -- writes input/heard.lua
+#   porch "a gold cube spins slowly" --name=cube   -- writes input/cube.lua
+#   porch "..." --door=NAME --seed=N               -- one door, one seed
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+exec luajit "$DIR/src/060-porch-say.lua" "$DIR" "$@"
