@@ -35,8 +35,19 @@ lines (`059-say-back.lua`), which also head the written score.
   reading with a sentence saying so.
 - **translate(dir, prose, transport) → score_text, compiled, heard |
   nil, errors, draft** — `heard` is the read-back lines; `score_text`
-  starts with them as comments. Transport is a handed-in function
+  starts with them as comments. A reply that holds no tool-calls
+  fails that reading like any other, and the next try is told why.
+  Transport is a handed-in function
   (request → reply text); tests use fakes. The live HTTP adapter
   joins when the orchestrator lights (see input/cluster.example).
+- **llama_body(request, seed) → table** — one request as the JSON
+  body llama.cpp's server takes at `/completion`: the prompt, what the
+  person said, the wall's words on a retry, the grammar, a seed. Pure.
+- **door_transport(door, run, seed) → transport** — the live
+  transport: posts each request to `http://host:port/completion` with
+  curl and returns the model's text. `run(command) → output, ok` is
+  how a command line runs (a shell by default; tests hand in a fake).
+  A door that doesn't answer is an error naming the door.
+- **door_health(door, run) → true | false, why** — asks `/health`.
 - **cluster_doors(text) → doors** / **cluster(dir) → doors** — the
   roster, parsed purely / read with polite refusals.

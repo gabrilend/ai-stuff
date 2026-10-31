@@ -467,7 +467,7 @@ end
 -- The whole porch, one prose text through one transport. The
 -- transport is a function(request) → reply_text; request carries
 -- prompt, grammar, prose, and (on retries) the wall's errors
--- verbatim. Returns score_text, compiled on success; on exhausted
+-- verbatim. Returns score_text, compiled, heard on success; on exhausted
 -- patience returns nil, errors, best_draft — never a silent repair,
 -- never a silent drop.
 function porch.translate(dir, prose, transport)
@@ -480,9 +480,13 @@ function porch.translate(dir, prose, transport)
     local last_errors, last_draft
     for _ = 1, TRIES do
         local reply = transport(request)
-        local raw = porch.collect(porch.parse_calls(reply))
+        local parsed, calls = pcall(porch.parse_calls, reply)
+        local raw = parsed and porch.collect(calls) or {}
         local text = raw.canvas and (sayback.header(raw) .. score.write(raw)) or nil
-        if not raw.canvas then
+        if not parsed then
+            last_errors = calls
+            last_draft = reply
+        elseif not raw.canvas then
             last_errors = "the reply never called the canvas tool"
             last_draft = reply
         elseif raw.called_twice then
@@ -503,6 +507,89 @@ function porch.translate(dir, prose, transport)
         request.errors = last_errors
     end
     return nil, last_errors, last_draft
+end
+-- }}}
+
+-- {{{ function porch.llama_body()
+-- One request as the body llama.cpp's server takes at /completion: the
+-- prompt, then what the person said, then (on a retry) the wall's
+-- errors, then the place the tool-calls begin; the grammar rides
+-- beside it, so the model can say only legal calls. Pure.
+function porch.llama_body(request, seed)
+    local text = request.prompt
+        .. "\n\nTHE PERSON SAYS:\n\n" .. request.prose
+    if request.errors then
+        text = text .. "\n\nYOUR LAST READING FAILED THE WALL. Its words, "
+            .. "verbatim; mend every line:\n\n" .. request.errors
+    end
+    text = text .. "\n\nTHE TOOL-CALLS, ONE JSON OBJECT PER LINE:\n\n"
+    return {
+        prompt = text,
+        grammar = request.grammar,
+        n_predict = 2048,
+        temperature = 0.3,
+        seed = seed or 1,
+        cache_prompt = true,
+    }
+end
+-- }}}
+
+-- {{{ local function shell_run()
+-- Runs a command line, returning what it printed and whether it ended
+-- well.
+local function shell_run(command)
+    local pipe = assert(io.popen(command, "r"))
+    local out = pipe:read("*a")
+    local ok = pipe:close()
+    return out, ok == true or ok == 0
+end
+-- }}}
+
+-- {{{ function porch.door_transport()
+-- A live transport for one door of input/cluster: each request is
+-- posted to http://host:port/completion with curl, and the model's
+-- text comes back. `run` is how a command line is run (tests hand in a
+-- fake; by default, a shell). A door that doesn't answer, or answers
+-- with something other than a completion, is a sentence naming the
+-- door, never a silent empty reading.
+function porch.door_transport(door, run, seed)
+    run = run or shell_run
+    if not tostring(door.host):match("^[%w%.%-:%[%]]+$") then
+        error("porch: door '" .. door.name .. "' has a host the porch "
+              .. "won't put on a command line: " .. tostring(door.host))
+    end
+    local url = "http://" .. door.host .. ":" .. door.port .. "/completion"
+    return function(request)
+        local path = os.tmpname()
+        local f = assert(io.open(path, "w"))
+        f:write(json.encode(porch.llama_body(request, seed)))
+        f:close()
+        local out, ok = run("curl -sS --max-time 900 -H 'Content-Type: application/json'"
+            .. " --data-binary @'" .. path .. "' '" .. url .. "' 2>&1")
+        os.remove(path)
+        local answer = ok and json.decode(out) or nil
+        if type(answer) ~= "table" or type(answer.content) ~= "string" then
+            error("porch: door '" .. door.name .. "' (" .. url .. ") gave no "
+                  .. "completion: " .. tostring(out):sub(1, 300), 0)
+        end
+        return answer.content
+    end
+end
+-- }}}
+
+-- {{{ function porch.door_health()
+-- Whether a door's server is up: llama.cpp's server answers GET
+-- /health. Returns true, or false and what came back.
+function porch.door_health(door, run)
+    run = run or shell_run
+    if not tostring(door.host):match("^[%w%.%-:%[%]]+$") then
+        return false, "a host the porch won't put on a command line"
+    end
+    local out, ok = run("curl -sS --max-time 10 'http://" .. door.host .. ":"
+                        .. door.port .. "/health' 2>&1")
+    local answer = ok and json.decode(out) or nil
+    if type(answer) == "table" and answer.status == "ok" then return true end
+    return false, (out:gsub("%s+$", ""))
 end
 -- }}}
 
