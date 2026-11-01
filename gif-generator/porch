@@ -14,6 +14,9 @@
 #   porch "curve the ball around the circle"       -- writes input/heard.lua
 #   porch "a gold cube spins slowly" --name=cube   -- writes input/cube.lua
 #   porch "..." --door=NAME --seed=N               -- one door, one seed
+#   porch --three "a spark chases a gold cube"     -- three readings at once,
+#                                                     filmed small on one page
+#   porch --pick SLUG K [--name=NAME]              -- reading K becomes a score
 
 DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 if [ -n "${1:-}" ] && [ -d "$1" ]; then
@@ -21,4 +24,8 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
     shift
 fi
 
+case "${1:-}" in
+    --three) shift; exec luajit "$DIR/src/062-three-readings.lua" "$DIR" "$@" ;;
+    --pick)  exec luajit "$DIR/src/062-three-readings.lua" "$DIR" "$@" ;;
+esac
 exec luajit "$DIR/src/060-porch-say.lua" "$DIR" "$@"

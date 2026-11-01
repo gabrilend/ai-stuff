@@ -148,6 +148,14 @@ Nothing here has met a real model yet. To try it:
    The score lands in `input/heard.lua` (or `heard-2.lua` and on, never
    over an existing one); `--name=NAME` picks another name.
 
+4. Or ask for three readings and pick one (602):
+
+   ```bash
+   ./porch --three "curve the ball around the circle"
+   ```
+
+   then open the page it names, and `./porch --pick SLUG K`.
+
 ## What Happened
 
 2026-10-31, the last mile (branch `claude/601-the-porch-goes-live`, on
