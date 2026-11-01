@@ -35,6 +35,7 @@ local function escape(s)
     s = s:gsub(">", "&gt;")
     return s
 end
+gallery.escape = escape
 -- }}}
 
 -- {{{ local function slurp()
@@ -184,6 +185,8 @@ figcaption { font-size: 13px; color: #8f8674; margin-top: 8px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill,
         minmax(280px, 1fr)); gap: 26px; }
 ]]
+
+gallery.STYLE = STYLE
 
 -- {{{ local function nav_html()
 local function nav_html(pages)
