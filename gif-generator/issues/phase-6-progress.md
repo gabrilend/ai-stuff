@@ -10,8 +10,10 @@ picks, and a spoken vision renders beside the typed one.
       door to llama.cpp's server with `./porch` in front, all proven
       against fakes; waits on a run against a real model on her
       machine (steps in the issue).
-- [ ] 602 three readings — 601's live transport is built; waits on
-      a first run of it.
+- [~] 602 three readings — built 2026-11-01 (`./porch --three`: the
+      readings asked at once, filmed small on one pick page, the
+      picked score into input/; 22 of 22 against fakes); waits on a
+      run against real models
 - [ ] 603 spoken-vision demo (capstone) — blocked on the cluster.
 
 The porch stands and listens to fakes fluently; when gabrilend

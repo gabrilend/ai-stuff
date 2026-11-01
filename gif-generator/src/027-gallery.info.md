@@ -21,6 +21,8 @@ aesthetic is the project's own: black, ember headings, violet links.
 - **markdown(text, linkify_or_nil) → html** — the honest subset:
   headings, fenced code, lists, paragraphs, bold, emphasis, inline
   code, links. Nothing here parses the whole world.
+- **escape(text) → html**, **STYLE** — the look, shared with the
+  porch's pick page (`061-readings.lua`).
 
 docs/HTML/ ships with the repository (programs here do not execute
 directory commands); the generator says so if it is missing.
