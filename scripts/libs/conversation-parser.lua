@@ -1070,6 +1070,28 @@ local function parse_conversation(jsonl_file, output_file)
         end
     end
 
+    -- Pre-pass four: the name the person gave the session, if they renamed it
+    -- (issue 037). Claude Code keeps two kinds of title: an "ai-title" record
+    -- it writes itself from the first message, and a "custom-title" record
+    -- when the person renames the session. Only the person's own name is
+    -- shown: the machine's describes the opening, and these sessions change
+    -- purpose as they go (the reason it was declined as a filename, issue
+    -- 025). A rename made twice keeps the later name. A custom-title record
+    -- whose title is not text means the record's shape changed, which is
+    -- reported rather than guessed.
+    local person_title = nil
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "custom-title" then
+            if type(msg.customTitle) ~= "string" then
+                error("custom-title record has no customTitle text: " .. type(msg.customTitle))
+            end
+            local title = msg.customTitle:gsub("%s+", " "):match("^%s*(.-)%s*$")
+            if title ~= "" then
+                person_title = title
+            end
+        end
+    end
+
     -- Generate markdown output
     local out_file = io.open(output_file, "w")
     if not out_file then
@@ -1100,6 +1122,9 @@ local function parse_conversation(jsonl_file, output_file)
     out_file:write("Generated on: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
     if #models_order > 0 then
         out_file:write("Models: " .. table.concat(models_order, ", ") .. "\n")
+    end
+    if person_title then
+        out_file:write("Title: " .. person_title .. "\n")
     end
     out_file:write("\n")
 
