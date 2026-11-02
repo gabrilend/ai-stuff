@@ -3264,11 +3264,115 @@ end
 -- {{{ function ascii_bar_row()
 -- One labelled monospace bar: "<label padded> | ████····  <count>". Fits the
 -- site's no-JS, monospace aesthetic (same idiom as the poem progress bars).
-local function ascii_bar_row(label, count, max_count, bar_width, label_width)
+--
+-- show_any (optional): when true, a non-zero count always fills at least one
+-- cell, so a quiet bucket never looks the same as an empty one. The writing
+-- cadence histograms (Issue 11-008) use it, because there the empty months are
+-- the point; the older charts leave it off and keep their exact output.
+local function ascii_bar_row(label, count, max_count, bar_width, label_width, show_any)
     local filled = (max_count > 0) and math.floor((count / max_count) * bar_width + 0.5) or 0
     if filled > bar_width then filled = bar_width end
+    if show_any and count > 0 and filled == 0 then filled = 1 end
     local bar = string.rep("█", filled) .. string.rep("·", bar_width - filled)
     return string.format("%-" .. label_width .. "s | %s  %d", label, bar, count)
+end
+-- }}}
+
+-- {{{ function writing_cadence()
+-- Issue 11-008: how many poems were written in each calendar month and each
+-- quarter, across the whole span of the corpus.
+--
+-- The dates are the ones the chronological pages are ordered by: the same
+-- sort_poems_chronologically_by_dates, read back into a calendar month with
+-- os.date (the inverse of the os.time the sort used), so a poem is counted in
+-- the month it appears under when reading start to finish.
+--
+-- Counted: the author's own writing. Left out, and counted separately so the
+-- page can say so: image-only posts (a date and a picture, no words -- they
+-- would inflate the months heavy with photos) and fediverse boosts (someone
+-- else's words). Gallery images are never in poems.json at this point.
+--
+-- Every month and quarter between the first and the last counted poem is
+-- present, empty or not: a gap in the writing is part of what the figure shows,
+-- and skipping empty buckets would silently compress time.
+--
+-- Returns { counted, image_only, boosts, months = { {label, count}... },
+-- quarters = { {label, count}... }, first, last } -- or counted = 0 with empty
+-- lists when nothing is dated (the explore page then drops the section).
+local function writing_cadence(poems_data)
+    local cadence = { counted = 0, image_only = 0, boosts = 0, months = {}, quarters = {} }
+    if not (poems_data and poems_data.poems) then return cadence end
+
+    local month_count = {}           -- "YYYY-MM" -> count
+    local first_ym, last_ym          -- {year, month} of the first and last counted poem
+    for _, entry in ipairs(sort_poems_chronologically_by_dates(poems_data)) do
+        local p = entry.poem
+        if p.is_image_only or p.is_image then
+            cadence.image_only = cadence.image_only + 1
+        elseif p.category == "fediverse_boost" then
+            cadence.boosts = cadence.boosts + 1
+        else
+            local t = os.date("*t", entry.timestamp)
+            local key = string.format("%04d-%02d", t.year, t.month)
+            month_count[key] = (month_count[key] or 0) + 1
+            cadence.counted = cadence.counted + 1
+            -- The list is in time order, so the first counted poem sets the
+            -- start of the range and each later one moves its end.
+            first_ym = first_ym or { t.year, t.month }
+            last_ym = { t.year, t.month }
+        end
+    end
+    if cadence.counted == 0 then return cadence end
+
+    -- Walk every month from the first to the last, filling months and quarters.
+    local year, month = first_ym[1], first_ym[2]
+    local quarter_index = {}         -- "YYYY Qn" -> position in cadence.quarters
+    while year < last_ym[1] or (year == last_ym[1] and month <= last_ym[2]) do
+        local key = string.format("%04d-%02d", year, month)
+        local count = month_count[key] or 0
+        cadence.months[#cadence.months + 1] = { label = key, count = count }
+        local qlabel = string.format("%04d Q%d", year, math.floor((month - 1) / 3) + 1)
+        if not quarter_index[qlabel] then
+            cadence.quarters[#cadence.quarters + 1] = { label = qlabel, count = 0 }
+            quarter_index[qlabel] = #cadence.quarters
+        end
+        local q = cadence.quarters[quarter_index[qlabel]]
+        q.count = q.count + count
+        month = month + 1
+        if month > 12 then month, year = 1, year + 1 end
+    end
+    cadence.first = cadence.months[1].label
+    cadence.last = cadence.months[#cadence.months].label
+
+    -- The invariant the issue asks for: both histograms account for every
+    -- counted poem, no more and no fewer. A mismatch is a bug in the walk above,
+    -- and a figure that does not add up must not be published.
+    for _, list in ipairs({ cadence.months, cadence.quarters }) do
+        local sum = 0
+        for _, b in ipairs(list) do sum = sum + b.count end
+        if sum ~= cadence.counted then
+            error(string.format("writing_cadence: buckets sum to %d, but %d poems were counted",
+                sum, cadence.counted))
+        end
+    end
+    return cadence
+end
+M.writing_cadence = writing_cadence
+-- }}}
+
+-- {{{ function cadence_bars()
+-- One histogram as stacked monospace bars, one row per bucket, in the same
+-- visual language as the explore-math charts. Each bar is scaled to the
+-- largest bucket of its own histogram, and every non-empty bucket shows at
+-- least one cell (see ascii_bar_row's show_any).
+local function cadence_bars(buckets)
+    local max_count = 0
+    for _, b in ipairs(buckets) do if b.count > max_count then max_count = b.count end end
+    local rows = {}
+    for _, b in ipairs(buckets) do
+        rows[#rows + 1] = "    " .. ascii_bar_row(b.label, b.count, max_count, 40, 7, true)
+    end
+    return table.concat(rows, "\n")
 end
 -- }}}
 
@@ -3308,6 +3412,21 @@ function M.generate_explore_page(output_dir, poems_data)
         IMAGE_ONLY_COUNT = (s.image_only > 0) and s.image_only or page_template.OMIT,
         SOURCE_LIST  = table.concat(source_rows, "\n"),
     }
+
+    -- Issue 11-008: the writing-cadence histograms. Each histogram is a loop, so
+    -- it is handed over as a ready-made block; the scalars around it stay inline
+    -- markers the prose can move. With nothing dated to count, every cadence
+    -- value is OMIT and the figure's lines drop out of the page.
+    local c = writing_cadence(poems_data)
+    local has_cadence = c.counted > 0
+    values.CADENCE_COUNTED    = has_cadence and c.counted or page_template.OMIT
+    values.CADENCE_FIRST      = has_cadence and c.first or page_template.OMIT
+    values.CADENCE_LAST       = has_cadence and c.last or page_template.OMIT
+    values.CADENCE_IMAGE_ONLY = has_cadence and c.image_only or page_template.OMIT
+    values.CADENCE_BOOSTS     = has_cadence and c.boosts or page_template.OMIT
+    values.CADENCE_MONTH_COUNT = has_cadence and #c.months or page_template.OMIT
+    values.CADENCE_QUARTERS   = has_cadence and cadence_bars(c.quarters) or page_template.OMIT
+    values.CADENCE_MONTHS     = has_cadence and cadence_bars(c.months) or page_template.OMIT
 
     local template_path = DIR .. "/input/pages/explore.txt"
     local body, err = page_template.render_file(template_path, values)
