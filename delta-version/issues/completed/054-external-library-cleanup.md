@@ -104,7 +104,7 @@ After cleanup, only 105 C/C++ files remain tracked - all legitimate project code
 - [x] .gitignore updated with all external library patterns
 - [x] Installation scripts exist for major dependencies
 - [x] Only actual project code remains tracked
-- [ ] GitHub language statistics updated (requires push + time)
+- [x] GitHub language statistics updated (requires push + time) — confirmed 2026-11-02, below
 
 ---
 
@@ -121,3 +121,28 @@ This cleanup reduced tracked C/C++ files from ~10,000 to 105 - all of which are 
 - **Risk**: Low (files still exist on disk, just untracked)
 - **Blocks**: None
 - **Blocked By**: None
+
+---
+
+## What Happened (2026-11-02)
+
+The last box is confirmed. GitHub's language figures for gabrilend/ai-stuff
+(`GET /repos/gabrilend/ai-stuff/languages`, read 2026-11-02) now match the
+tracked files exactly where they can be compared byte for byte: HTML
+19,969,191 bytes on GitHub and 19,969,191 bytes in the `.html` files on
+`main`. So GitHub has reindexed since the cleanup, and none of the 23,605
+removed files is counted any more.
+
+What the figures say now, largest first: HTML 20.0 MB, Lua 17.7 MB, C 5.4 MB,
+Shell 3.5 MB, Rust 1.3 MB, then under 0.2 MB each. The C is project code
+(448 `.c`/`.h` files, the largest groups in my-own-custom-vtt, world-edit-to-
+execute, games/physics-sim and soren-ds), not a returned library.
+
+HTML leads, which the Intended Behavior did not foresee: 8.2 MB of it is the
+word-cloud pages kept under `neocities-modernization/archive/`, output of the
+poetry site's own generator rather than an external library, so it is outside
+this issue. If the owner wants GitHub to stop counting generated pages, a
+`linguist-generated` line in the repository's root `.gitattributes` would do
+it; that file is the whole repository's, not delta-version's, so it is left
+as a suggestion rather than made here.
+
