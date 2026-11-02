@@ -169,6 +169,7 @@ size_stats="du -sh . 2>/dev/null | cut -f1 || echo 'unknown'"
 - **Complexity**: Medium
 - **Estimated Time**: 1-1.5 hours
 - **Dependencies**: None
+- **Blocks**: Issue 017 (keyword processing engine)
 - **Impact**: Foundation for dynamic ticket system
 - **Status**: ✅ Complete (2026-01-04)
 

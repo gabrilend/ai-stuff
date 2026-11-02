@@ -265,6 +265,7 @@ function process_template_file() {
 - **Complexity**: High
 - **Estimated Time**: 2-2.5 hours
 - **Dependencies**: Issue 016 (markup language design)
+- **Blocks**: Issue 019 (ticket distribution engine)
 - **Impact**: Core functionality of dynamic ticket system
 
 ## Success Criteria
