@@ -512,7 +512,7 @@ Recorded in CRITICAL-PATH.md:
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 601 | Asset loader and resolution | Pending | Phase 1 (MPQ), Phase 5 (render) |
+| 601 | Asset loader and resolution | Completed 2026-11-02 | Phase 1 (MPQ), Phase 5 (render) |
 | 602 | Wire-frame fallback renderer | Pending | Phase 5, 601 |
 | 603 | Fetch maps and models from public sites | Pending | 604, 605 |
 | 604 | Asset deduplication system | Completed 2026-11-02 | 601 (its folder only) |

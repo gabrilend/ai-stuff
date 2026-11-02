@@ -14,7 +14,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 
 | ID | Title | Status | Depends on |
 |----|-------|--------|------------|
-| 601 | [Asset Loader and Resolution](./601-asset-loader-resolution.md) | open | — |
+| 601 | [Asset Loader and Resolution](./completed/601-asset-loader-resolution.md) | completed | — |
 | 602 | [Wire-frame Fallback Renderer](./602-wireframe-fallback-renderer.md) | open | 601 |
 | 603 | [Fetch Maps and Models From Public Sites](./603-fetch-maps-and-models-from-public-sites.md) | open | 604, 605, 116, 117 |
 | 604 | [Asset Deduplication System](./completed/604-asset-deduplication-system.md) | completed | 601 |
@@ -24,6 +24,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 608 | [Phase 6 Integration Test](./608-phase6-integration-test.md) | open | 601, 602, 603, 604, 605, 606, 2026, 09, 26 |
 | 609 | [Shared Map-and-Model List](./609-shared-map-and-model-list.md) | open | 604, 605 |
 
-Completed 1, open 7, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 2, open 6, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
