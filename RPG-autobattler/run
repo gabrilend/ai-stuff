@@ -336,6 +336,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_cooldowns_effects').run_all()
     " 2>/dev/null && print_success "Cooldowns and persistent effects tests passed" || print_error "Cooldowns and persistent effects tests failed"
+
+    # Test Mana bar drawing (records graphics calls; nothing is seen)
+    print_info "Testing Mana bar drawing..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_mana_bar_renderer').run_all()
+    " 2>/dev/null && print_success "Mana bar drawing tests passed" || print_error "Mana bar drawing tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
