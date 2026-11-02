@@ -5,15 +5,17 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 102, 201 |
 | Blocks | 204, 401, 506 |
-| Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
+| Reads | [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The field (issue 102) has a water line and the unit row (issue 201)
-has a domain column, and neither exists. The test program
-`tests/020-things-that-roll-fly-and-sail.lua` names this issue and looks for the
-stem `domains`.
+Built. `src/042-domains.lua` answers *may this unit stand here?* from the
+heights through a dispatch table with one row per domain (land at or above the
+water line, sea below it, air anywhere), names the domains and the reach bits,
+gives a plane's altitude as the ground beneath plus its flight height, and
+tells a shore cell. `spawn` refuses a unit where its domain may not stand, and
+the world's validator refuses a live unit found there, naming the row.
 
 ## Intended behavior
 
@@ -57,11 +59,31 @@ re-derive it.
    position satisfies `can_stand` for its domain. A land unit in the sea is a
    refusal at load and a bug at runtime, never a fallback.
 
+## What happened
+
+- **`can_stand` takes the domain as a name or an integer.** The test asks by
+  name ("sea"); the unit row holds the integer. Both go through one lookup and
+  an unknown one is refused by name.
+- **The constants live here and the units module re-exports them**, so the
+  catalogue's `domain`, the row's `domain` and `reaches` share one meaning.
+  Domains does not load the units module at load time (units loads domains),
+  only inside `altitude_at`, so the two never load each other in a circle.
+- **Over the water a plane flies above the water line**, not above the sea
+  floor, since what it crosses is the surface.
+- **`spawn` now refuses a unit where its domain may not stand**; issue 201 left
+  that to this one. Every place the phase 2 tests spawn is land on the pinned
+  seed and on five others tried.
+- **Shore means a land cell with sea in one of its four neighbours**; a
+  diagonal does not count, since a sea factory's output appears on a cell it
+  touches.
+- `ground_at` was added beside the issue's functions: the height under a
+  position, for movement and later for sight.
+
 ## Related documents and tools
 
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- [the dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md) — the water line
-- [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md) — shore placement
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- [the dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md) — the water line
+- [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md) — shore placement
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

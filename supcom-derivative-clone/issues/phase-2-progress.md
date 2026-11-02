@@ -13,8 +13,8 @@ one in a trough, and the ridge losing — because it was seen first.
 | --- | --- | --- |
 | 201 | A unit is one record | built |
 | 202 | The unit catalogue | built |
-| 203 | Three domains on one field | not started |
-| 204 | Movement follows a pattern | not started |
+| 203 | Three domains on one field | built |
+| 204 | Movement follows a pattern | built |
 | 205 | Nothing is out of range | not started |
 | 206 | Damage is buffered, then applied | not started |
 | 207 | Health comes back on a shared timer | not started |

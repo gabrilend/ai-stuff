@@ -65,13 +65,14 @@ end
 
 local world_module = the_world()
 local timers = world_module.load("timers")
+local domains = world_module.load("domains")
 
--- The domains, by integer and by name. The integer is what a row holds.
-M.DOMAINS = {land = 1, air = 2, sea = 3}
-M.DOMAIN_NAMES = {"land", "air", "sea"}
-
--- A weapon's reach is a bit set over the domains: bit 1 land, 2 air, 4 sea.
-M.REACH = {land = 1, air = 2, sea = 4}
+-- The domains, by integer and by name, and a weapon's reach as bits over them
+-- (1 land, 2 air, 4 sea): the domains module's, so the catalogue and the row
+-- share one meaning.
+M.DOMAINS = domains.DOMAINS
+M.DOMAIN_NAMES = domains.NAMES
+M.REACH = domains.REACH
 
 -- Every field a catalogue row carries, its type, and for a time in seconds the
 -- name of the field in ticks the loader adds beside it. A row with a field
@@ -81,7 +82,7 @@ M.FIELDS = {
   {"tier", "integer"}, {"health", "integer"}, {"damage", "integer"},
   {"falloff_full", "double"}, {"falloff_floor", "double"}, {"shell_speed", "double"},
   {"reload_seconds", "double", "reload_ticks"}, {"heal_period", "double", "heal_ticks"},
-  {"speed", "double"}, {"eye", "double"}, {"profile", "double"}, {"altitude", "double"},
+  {"speed", "double"}, {"climb", "double"}, {"eye", "double"}, {"profile", "double"}, {"altitude", "double"},
   {"claim_radius", "integer"}, {"shield", "integer"},
   {"shield_seconds", "double", "shield_ticks"}, {"cost_mass", "integer"},
   {"cost_energy", "integer"}, {"build_seconds", "double", "build_ticks"},
@@ -320,6 +321,14 @@ function M.spawn(world, kind, team, x, y)
   if type(x) ~= "number" or type(y) ~= "number" or x ~= x or y ~= y then
     error("units: cannot spawn a " .. kind .. " at (" .. tostring(x) .. ", " .. tostring(y) .. ")", 2)
   end
+  local stands, fine = pcall(domains.can_stand, world.field, row.domain, x, y)
+  if not stands then
+    error("units: cannot spawn a " .. kind .. ": " .. tostring(fine), 2)
+  end
+  if not fine then
+    error(string.format("units: cannot spawn a %s at (%g, %g): a %s unit may not stand there",
+                        kind, x, y, M.DOMAIN_NAMES[row.domain]), 2)
+  end
   local ok, id = pcall(world_module.claim, world, "unit")
   if not ok then
     error("units: cannot spawn a " .. kind .. ": " .. tostring(id), 2)
@@ -330,7 +339,7 @@ function M.spawn(world, kind, team, x, y)
   unit.x[id] = x
   unit.y[id] = y
   unit.domain[id] = row.domain
-  unit.altitude[id] = row.altitude
+  unit.altitude[id] = domains.altitude_at(world.field, row.index, x, y)
   unit.health[id] = row.health
   local heal = world.heal[row.name]
   timers.advance(heal, world.tick)
@@ -384,7 +393,21 @@ function M.validate(world)
     elseif unit.alive[id] ~= 0 and unit.alive[id] ~= 1 then
       error("units: row " .. id .. " has alive " .. unit.alive[id] .. ", not one or zero", 2)
     end
+    -- A pattern is named by its number and walked by its leg, the point the
+    -- unit is heading for; one past the last point means it holds.
+    local pattern = unit.pattern[id]
+    if unit.alive[id] == 1 and pattern ~= 0 then
+      local points = world.pattern.points[pattern]
+      if pattern < 0 or pattern > world.pattern.count or points == nil then
+        error("units: row " .. id .. " follows pattern " .. pattern .. ", which the world does not have", 2)
+      end
+      if unit.leg[id] < 1 or unit.leg[id] > #points + 1 then
+        error("units: row " .. id .. " is on leg " .. unit.leg[id] .. " of a pattern of "
+              .. #points .. " points", 2)
+      end
+    end
   end
+  domains.validate(world)
 end
 -- }}}
 

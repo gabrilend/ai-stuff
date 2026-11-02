@@ -36,17 +36,17 @@ counter table when it allocates, so the tick brings them up like any other.
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `spawn(world, kind, team, x, y)` | a world; a kind's name; a team from 1; a position in cells | the new row's id; refuses by name an unknown kind, a team the world does not have, a position that is not two numbers, and a full world |
+| `spawn(world, kind, team, x, y)` | a world; a kind's name; a team from 1; a position in cells | the new row's id; refuses by name an unknown kind, a team the world does not have, a position off the field or where the kind's domain may not stand, and a full world |
 | `alive(world)` | a world | how many units are alive: the pool's kept count |
 | `catalogue()` | | the loaded catalogue: `[name] = row` and `kinds[index] = row`, each row with `reload_ticks`, `heal_ticks`, `shield_ticks` and `build_ticks` beside the seconds |
 | `validate_catalogue(raw, rate)` | a raw catalogue table; ticks per second | the loaded form, or a refusal naming the row and field |
 | `kind(kind)` | a name or an index | that kind's loaded row; refuses an unknown one by name |
 | `index_of(name)`, `name_of(index)` | | the kind's index, or its name |
 | `counters()` | | the counter rows the world adds: `{path, ticks, extra}` |
-| `validate(world)` | a world | nothing; called by the world's validator. Refuses a live row whose kind is not in the catalogue, whose domain is not its kind's, or whose team is not a team of the world. A live row of kind zero is one claimed from the world and not yet filled, and is let through |
+| `validate(world)` | a world | nothing; called by the world's validator. Refuses a live row whose kind is not in the catalogue, whose domain is not its kind's, whose team is not a team of the world, whose pattern the world lacks or whose leg is past it, or which stands where its domain may not (`domains.validate`). A live row of kind zero is one claimed from the world and not yet filled, and is let through |
 | `dump(world, id)` | a world; a row | the row as one line of text, every field in layout order |
 | `report()` | | the catalogue as text, every row, then hits to kill in tank shells |
-| `DOMAINS`, `DOMAIN_NAMES`, `REACH`, `FIELDS` | | land 1, air 2, sea 3; the reach bits; every catalogue field with its type |
+| `DOMAINS`, `DOMAIN_NAMES`, `REACH`, `FIELDS` | | the domains module's land 1, air 2, sea 3 and reach bits; every catalogue field with its type |
 
 ## Data structures it owns
 
@@ -59,7 +59,7 @@ The row columns it fills at birth, in `world.unit` (laid out by `the-world`):
 | `team` | integer | the team |
 | `x`, `y` | double | the position |
 | `domain` | integer | the kind's domain |
-| `altitude` | double | the kind's flight height |
+| `altitude` | double | for a plane, the ground beneath plus its flight height (`domains.altitude_at`); zero otherwise |
 | `health`, `health_at` | integer | the cap, and the heal counter's increment of now |
 | `damage` | integer | the kind's damage |
 | `falloff` | integer | the kind's index: which falloff curve the shots use |
