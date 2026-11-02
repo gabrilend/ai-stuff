@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 040, first slice** (2026-11-02): `scripts/claudemd-revise.lua` records events, has the local model word repeated ones as proposed CLAUDE.md guidelines, and applies one only on `approve --target=FILE`. A backup is taken first, `rollback` refuses if the file has been edited since, and `audit.tsv` keeps the history. Tested against `scripts/libs/stand-in-model/`, a stand-in llama.cpp server (C) whose answers come from a fixed-rule brain. 040 itself stays open for the rest.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).

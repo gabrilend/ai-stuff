@@ -404,3 +404,9 @@ end
 - Checkpoints reduce reconstruction time for old states
 - Consider compression for old logs (gzip JSON-lines)
 - Backup rotation prevents unbounded storage growth
+
+---
+
+## Status (2026-11-02)
+
+Covered at its simplest by `scripts/claudemd-revise.lua`: an append-only `audit.tsv`, shown by `history`. Querying and diffs between versions are still open.

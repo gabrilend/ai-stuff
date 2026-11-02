@@ -250,3 +250,9 @@ Events stored in append-only log:
 - Start with simple regex-based signal detection; upgrade to semantic analysis later
 - Event IDs should be globally unique across all sessions
 - Consider privacy: some events may contain sensitive project data
+
+---
+
+## Status (2026-11-02)
+
+Partly covered by the first slice (`scripts/claudemd-revise.lua`): three event kinds, and grouping by matching wording. A fuller taxonomy, and detection from transcripts, are still open.
