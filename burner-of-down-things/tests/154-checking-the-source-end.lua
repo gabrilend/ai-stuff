@@ -74,7 +74,7 @@ local _, bad = source_end.read('canvas{ category = "still" }\nsource{ language =
 local texts = {}
 for i, f in ipairs(bad) do texts[i] = wall.text(f) end
 local all = table.concat(texts, "\n")
-kit.check(all:find("wants one of bash, c, javascript, lua, got 'lau'; did you mean 'lua'", 1, true) ~= nil, "an unknown language is a finding with the nearest")
+kit.check(all:find("wants one of bash, c, lua, got 'lau'; did you mean 'lua'", 1, true) ~= nil, "an unknown language is a finding with the nearest")
 kit.check(all:find("has no field 'prmpt'; did you mean 'prompt'", 1, true) ~= nil, "a misspelt field is a finding")
 kit.check(all:find("needs its field 'prompt'", 1, true) ~= nil, "the missing prompt is a finding")
 kit.check(all:find("category is 'source', not 'still'", 1, true) ~= nil, "a .src canvas's category must be source")

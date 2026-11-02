@@ -22,7 +22,6 @@ source_end.LANGUAGES = {
     lua = { extension = "lua", comment = "--", parser = "luajit -bl %s > /dev/null", program = "luajit" },
     c = { extension = "c", comment = "//", parser = "cc -fsyntax-only -x c %s", program = "cc" },
     bash = { extension = "sh", comment = "#", parser = "bash -n %s", program = "bash" },
-    javascript = { extension = "js", comment = "//", parser = "node --check %s", program = "node" },
 }
 
 -- {{{ function source_end.names
