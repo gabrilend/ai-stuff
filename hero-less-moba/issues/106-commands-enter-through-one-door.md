@@ -18,6 +18,11 @@ Every refusal is returned, named, and raised as an event the panel shows. An unk
 verb stops the program, because that is a programming error rather than a player one.
 The bot goes through the same door.
 
+**Tested in `tests/073-the-door-and-the-chest`.** Step 5's test is there as written: an
+offer and a placement that disagree depending on which is applied first, queued in both
+arrival orders, land the same way. Beside it, a refusal is checked to carry player, verb
+and reason, and an unknown verb to stop the program.
+
 ## Intended behavior
 
 **Nothing a player does touches the world directly.** Clicking a sign-post does

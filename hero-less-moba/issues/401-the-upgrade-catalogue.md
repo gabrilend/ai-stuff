@@ -18,6 +18,15 @@ bit set cannot count.
 One kind has an empty tower effect on purpose: stone does not walk, so Boots in a lane
 is a push and Boots in stone is a wasted slot.
 
+**The catalogue validator of step 2 is a test rather than a load-time check.** Decided
+while writing `tests/073-the-door-and-the-chest`: the table is read once and never
+changes during a match, so asking it on every load buys nothing a test run does not, and
+a test failure names the row just as well. The test asks the table the game actually
+loads that every row changes a number, names its reach, carries a tower entry, and that
+only Boots leaves the tower entry empty; and that a stamp adds before it multiplies,
+does not depend on the order stones were drawn in, skips a body its reach does not touch,
+and stacks duplicates.
+
 ## Intended behavior
 
 A **catalogue** of upgrade kinds, fixed at build time, living in a table under

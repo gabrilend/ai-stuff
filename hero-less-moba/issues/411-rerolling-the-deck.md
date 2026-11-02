@@ -14,6 +14,11 @@ A reroll trades a stone for the next card off the deck, priced in two colours. I
 does not add an upgrade, which is why it is the only thing personal resource can do to
 the chest and why resource can never buy one outright.
 
+**Tested in `tests/073-the-door-and-the-chest`:** an unaffordable reroll is refused and
+says what is missing, an affordable one costs exactly its price, the stone becomes the
+next card of its own team's deck and the other team's deck does not move, nothing is
+added, and a placed stone or somebody else's cannot be rerolled.
+
 ## Intended behavior
 
 **A player spends personal resource to send one of their team's upgrades to the

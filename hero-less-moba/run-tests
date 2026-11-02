@@ -12,7 +12,8 @@
 #
 # The running half: the properties the simulation refuses to break. Determinism,
 # the camera's anchor, the map's symmetry, and the premise itself -- that putting
-# upgrades in a lane moves a frontline.
+# upgrades in a lane moves a frontline. And, apart, the rules a player's own verbs
+# are held to, asked of a world that has never ticked.
 #
 # And the declared half: every test that is a table rather than a program. Each names
 # which mechanics it demonstrates, which ground it stands on and what it claims, and
@@ -78,6 +79,15 @@ if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
     # at the formation rather than at whatever else happened to be running.
     echo
     luajit "${DIR}/tests/060-the-formation-sandbox.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
+
+    # The verbs a player's hands are held to, against a world that has never ticked,
+    # because a refusal that went quiet should be named by its verb and not turn up
+    # as a wobble at the end of a whole match.
+    echo
+    luajit "${DIR}/tests/073-the-door-and-the-chest.lua"
     if [ "$?" -ne 0 ]; then
         FAILED=1
     fi

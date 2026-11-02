@@ -17,6 +17,10 @@ The per-slot counts everything else reads are a cache rebuilt from the instances
 **A stone belongs to whoever drew it, and there is no lock**, because there is nothing
 to lock it against.
 
+**Tested in `tests/073-the-door-and-the-chest`:** draws go round the team and stay on it,
+the per-slot cache matches a hand count of the instances, and a stone marked to move
+still counts where it is until it lands.
+
 ## Intended behavior
 
 Two records, and keeping them apart is the point of this issue. The **kind** is
