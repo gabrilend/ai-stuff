@@ -25,7 +25,31 @@ the server and choosing a model (docs/010 question 12). Checked by
 ## Suggested Implementation Steps
 
 1. With the stand-in. **Test:** an invented station is sent back naming the nearest real one; a good answer is recorded. Done.
-2. With ollama, by hand (903).
+2. With ollama, by hand (903). The owner's to run; what to run and what to
+   look for:
+
+   - Start the server and fetch a light model, e.g. `ollama serve` in one
+     terminal and `ollama pull llama3.2:1b` (or any small model) in
+     another; `ollama list` should show it.
+   - Name it once for the switchboard (docs/010 question 12 is answered
+     by this choice): put `router_model = "llama3.2:1b"` in
+     `switchboard-settings.lua` at the project's root (090), or pass the
+     name as the script's last argument instead.
+   - Make a parcel folder holding one file, e.g. a `t.lua` that returns a
+     table, and run
+     `luajit scripts/147-route-by-hand.lua <parcel folder> [model]`.
+   - Look for: the prompt names the parcel's files, their recognised
+     types and the station table; the answer is two lines, `shape:` and
+     `station:`, and nothing else; the outcome reads `routed: shape
+     table, station txt-table`. An answer that invents a station or a
+     shape should come back on the next attempt with the nearest names,
+     and the model should take the hint within three attempts. Each
+     attempt's turn folder (prompt.md, result.json, stderr.txt, exit) is
+     kept and its path printed; result.json holds only `{"answer": …}`.
+   - With the server stopped, the script must refuse by name before any
+     turn runs, and never use another harness.
+   - If it routes well, say which model, and mark this step done; if it
+     wanders, the prompt (141's `prompt`) is the thing to change.
 
 ## Decisions
 
@@ -46,7 +70,10 @@ the server and choosing a model (docs/010 question 12). Checked by
   parcel: its tag's number, else its folder's name.
 - An answerer that raises (a harness refused by name, 903b) is raised
   again: it is never counted as an attempt and never routed around.
-- The issue stays open for step 2, the real run by hand.
+- The issue stays open for step 2, the real run by hand, which is the
+  owner's: `scripts/147-route-by-hand.lua` runs it and prints every
+  prompt, answer and the outcome, writing no ledger and touching no case
+  (checked with a stand-in ollama by `tests/148-checking-route-by-hand.lua`).
 
 ## Blocked by
 
