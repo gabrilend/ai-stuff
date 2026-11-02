@@ -46,7 +46,8 @@ TemplateConstraints.abilities = {
 }
 
 TemplateConstraints.balance = {
-    -- More than this many abilities of one kind earns a warning.
+    -- More than this many abilities of one kind, not counting the
+    -- primary, earns a warning.
     max_same_kind = 2,
     -- Melee bodies with a damage ability reaching further than this, or
     -- ranged bodies with armor above this, earn a warning.

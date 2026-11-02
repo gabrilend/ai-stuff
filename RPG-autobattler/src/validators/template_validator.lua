@@ -267,17 +267,22 @@ end
 -- }}}
 
 -- {{{ TemplateValidator.check_ability_mix
--- Too many of one kind, or the same ability twice.
+-- Too many of one kind besides the primary, or the same ability twice.
+-- The primary is left out of the count, since it always attacks or
+-- heals: a primary attack and two damage secondaries is a damage
+-- dealer, not a crowd.
 function TemplateValidator.check_ability_mix(self, template, add)
     local limit = self.constraints.balance.max_same_kind
     local kinds, kind_order, seen = {}, {}, {}
     for index = 1, #template.abilities do
         local ability = self.built[index]
         if ability then
-            if not kinds[ability.type] then
-                table.insert(kind_order, ability.type)
+            if index > 1 then
+                if not kinds[ability.type] then
+                    table.insert(kind_order, ability.type)
+                end
+                kinds[ability.type] = (kinds[ability.type] or 0) + 1
             end
-            kinds[ability.type] = (kinds[ability.type] or 0) + 1
             if seen[ability.name] then
                 add(string.format("%s repeats ability %d; a second copy only shares its job",
                     ability_label(template, index, ability), seen[ability.name]))
@@ -288,7 +293,8 @@ function TemplateValidator.check_ability_mix(self, template, add)
     end
     for _, kind in ipairs(kind_order) do
         if kinds[kind] > limit then
-            add(string.format("%d %s abilities; more than %d of one kind may leave gaps", kinds[kind], kind, limit))
+            add(string.format("%d %s abilities besides the primary; more than %d of one kind may leave gaps",
+                kinds[kind], kind, limit))
         end
     end
 end

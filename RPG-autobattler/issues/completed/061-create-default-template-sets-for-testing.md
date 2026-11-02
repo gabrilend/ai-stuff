@@ -752,8 +752,65 @@ return TemplateDocumentationGenerator
 
 ### Acceptance Criteria
 - [ ] Comprehensive set of balanced default templates covering all major archetypes
-- [ ] Templates demonstrate different strategies and gameplay styles
-- [ ] All default templates pass validation without errors
-- [ ] Templates serve as good examples for new players
-- [ ] Default set enables immediate meaningful gameplay testing
-- [ ] Templates showcase the full range of the template system's capabilities
+- [x] Templates demonstrate different strategies and gameplay styles
+- [x] All default templates pass validation without errors
+- [x] Templates serve as good examples for new players
+- [x] Default set enables immediate meaningful gameplay testing
+- [x] Templates showcase the full range of the template system's capabilities
+
+## What Happened
+
+Built as:
+- **`src/data/default_templates.lua`:** 21 templates in five sets:
+  - **starter** (11): one per ability set. These are the defaults #128
+    made, moved here.
+  - **advanced** (3): Heavy Knight, Sniper, Battle Cleric.
+  - **specialist** (3): Assassin, Frost Mage, Spearman.
+  - **experimental** (3): Glass Cannon, Fortress, Scout.
+  - **showcase** (1): Versatile Fighter, with four abilities.
+
+  Each template has a description, an archetype and a line of strategy.
+  `DefaultTemplates.data(sets)` and `by_archetype(name)` read them.
+- **`src/utils/template_documentation.lua`** writes
+  **`docs/default-templates.md`**, the player's guide to the defaults,
+  from that data. `./run <dir> template-docs` rewrites it.
+- **`TemplateManager`** reads the defaults from the new file.
+  `create_default_templates(sets)` takes set names (all by default) and
+  marks each template's set and archetype.
+- **The balance harness** can field unit templates as well as ability
+  sets, so default templates fight in battles and round robins.
+- **`tests/test_default_templates.lua`** (6 tests), added to `./run <dir>
+  unit`.
+
+Headless only. Nothing was seen.
+
+### Decisions
+- **"Balanced" stays unticked.** Every default fits the 100-point budget
+  (36-96 points), but whether they are balanced against each other
+  waits until issue 067 puts ability sets into real matches. That
+  decision is recorded in 055 and 058.
+- **What the tests hold the defaults to:**
+  - Every template is valid.
+  - It draws no warnings except those named in its `expected_warnings`.
+  - Every experimental template must warn, since it pushes a stat past
+    the comfortable range on purpose.
+  - Together, the defaults cover every archetype the sketch named, all
+    five bodies, every ability template, and two, three and four
+    abilities.
+- **The Brute keeps its warning** (three debuffs besides its primary).
+  It is the debuff specialist by design, and the guide says so.
+- **The guide is generated, and a test fails if it drifts** from the
+  data. Hand-written docs would go stale as the data changes.
+- **The 059 mix rule now counts only secondary abilities.** A primary
+  attack plus two damage secondaries is a damage dealer, not a crowd.
+  This cleared a warning on the Skirmisher.
+- **Two starter templates got more points.** The Berserker gained
+  health, speed and armor (41 to 52 points), so it no longer reads as
+  underpowered, and the Spearman was given enough stats to clear the
+  same warning.
+- **Earlier tests use the starter set** where they count defaults, so
+  their exact checks still hold.
+- **Templates use the ability templates' own names** in their ability
+  lists. The sketch's renamed abilities ("Sword Strike", "Shield Bash")
+  would be a second name for the same thing.
+

@@ -378,6 +378,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_template_storage').run_all()
     " 2>/dev/null && print_success "Template storage tests passed" || print_error "Template storage tests failed"
+
+    # Test Default template sets (issue 061)
+    print_info "Testing Default template sets..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_default_templates').run_all()
+    " 2>/dev/null && print_success "Default template tests passed" || print_error "Default template tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
@@ -653,6 +660,20 @@ run_balance_report() {
 }
 # }}}
 
+# {{{ write_template_docs
+# Rewrites docs/default-templates.md from src/data/default_templates.lua.
+write_template_docs() {
+    print_info "Writing docs/default-templates.md..."
+    (cd "$DIR" && lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    local guide = require('src.utils.template_documentation').generate_guide()
+    local file = assert(io.open('docs/default-templates.md', 'w'))
+    file:write(guide)
+    file:close()
+    " 2>/dev/null) && print_success "Template guide written" || print_error "Template guide failed"
+}
+# }}}
+
 # {{{ Main execution
 main() {
     print_header
@@ -684,6 +705,7 @@ main() {
             "demo") demonstrate_systems ;;
             "perf") performance_analysis ;;
             "balance") run_balance_report ;;
+            "template-docs") write_template_docs ;;
             "all") 
                 check_lua_syntax
                 analyze_project_structure  
@@ -693,7 +715,7 @@ main() {
                 ;;
             *) 
                 print_error "Unknown command: $2"
-                print_info "Available commands: test, check, unit, features, demo, perf, balance, all"
+                print_info "Available commands: test, check, unit, features, demo, perf, balance, template-docs, all"
                 exit 1
                 ;;
         esac

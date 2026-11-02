@@ -160,12 +160,18 @@ end
 -- {{{ TestSuite.test_manager
 function TestSuite.test_manager()
     local manager = TemplateManager:new()
-    local defaults = manager:create_default_templates()
-    local count = 0
+    local defaults = manager:create_default_templates({"starter"})
+    local count, covered = 0, {}
     for _ in pairs(AbilityTemplates.sets) do
         count = count + 1
     end
-    assert(#manager:list() == count, "A default for every ability set")
+    for _, template in pairs(defaults) do
+        covered[template.name] = true
+    end
+    assert(#manager:list() == count, "The starter set has a default for every ability set")
+    for _, data in ipairs(TemplateManager.default_template_data({"starter"})) do
+        assert(AbilityTemplates.sets[data.ability_set] and covered[data.name], data.name .. " stands for its ability set")
+    end
     for name, template in pairs(defaults) do
         assert(template.is_valid, name .. " is valid")
         assert(template.points_used <= TemplateCosts.default_point_budget, name .. " fits the budget")
