@@ -4,13 +4,14 @@ The switchboard plans by shape, not by content: what a parcel is made of and wha
 
 ## Current Behavior
 
-902a, 902b and 902d are built (issues/completed/902a-scalar-types.md,
-902b-structured-types.md, 902d-station-table.md): the closed type list;
-recognisers for the three scalar types and the three structured ones
-(`image`, `clip`, `table`); and the station table with its shape matching.
-902c (the remaining five types and `unknown`) is not yet built, so a
-parcel that is none of those six still falls through to nil rather than
-`unknown`.
+All four pieces are built (issues/completed/902a-902d): the closed type
+list with a recogniser for every type, and `unknown` for anything else
+(step 1's test holds); and the station table with its shape matching. The
+station table holds only stations built today (807a's `txt-table`), so
+step 2's own example — `integer-array + text → image` finding the chart
+station — waits on the `.png` end (804) and its chart word (805) joining
+the table; a shape no station gives is already said plainly. Kept open
+for that.
 
 ## Intended Behavior
 

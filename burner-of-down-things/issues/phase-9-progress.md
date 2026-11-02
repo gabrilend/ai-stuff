@@ -34,6 +34,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   run for effect), tried before the scalar types; one real fixture file
   per type.
 
-903b and 903d, 901c-d, 902c and 905b-d remain: the needs check and
-confinement; number issuance and reuse refusal; the remaining types and
-`unknown`; shortest-chain search, joint checking and plan execution.
+- 902c the remaining types and `unknown` — `program`, `request`, `finding`,
+  `results` and `source` recognised from the forms the machine already
+  writes (a `#!` line or executable bit, a tag, the lesson section,
+  result.json, 027's language table); anything else is `unknown`. 902
+  stays open only for its chart-station example, which waits on 804/805.
+
+903b and 903d, 901c-d and 905b-d remain: the needs check and confinement;
+number issuance and reuse refusal; shortest-chain search, joint checking
+and plan execution.
