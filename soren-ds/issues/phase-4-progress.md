@@ -77,6 +77,9 @@ described and never rebuilt.
 12. `412-phase-4-demo.md` — write a file, reboot, read it back; write
     a box's source through a test harness, compile it, place it, move
     the arrows, watch the output change at the first run afterwards.
+13. `413-append-path.md` — a file larger than one 4096-byte value,
+    built from several appends, each whole or not at all. Filed when
+    the value's cap was kept rather than grown.
 
 ## Completed issues
 
@@ -104,14 +107,20 @@ against cards a laptop's tools would make. Counts:
 - **407** `list_directory` (in a pinned layout, the names that do not fit
   counted), `delete_path`, `path_exists`, `make_symlink`; and `text_path`
   and `path_join` to build a path from text.
+- **413** `append_path`: the value's bytes added to the end of a file,
+  filling the last cluster's spare room, then new clusters linked on, then
+  the size; interrupted, the file is its old self and the stray clusters
+  are let go by the next append. A file of any size is several appends.
 
 402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`,
-the boxes of 406 and 407 in `src/boxes/082-files.c`.
+the boxes of 406, 407 and 413 in `src/boxes/082-files.c`.
 Tests: `twin/tests/079` (118 checks, on one-sector and eight-sector
 clusters; `fsck.fat` checks every card it writes and a `mkfs.fat` card
 gets the writing checks, where the laptop has those tools) and `081` (56
 checks, four threads at once among them) and `083` (37 checks, every box
-placed in a map and fed through its doors), all on cards
+placed in a map and fed through its doors) and `092` (44 checks: appends
+on both cluster sizes, a full card, a card left mid-append, two threads on
+one file, a copy in 4096-byte slices), all on cards
 `twin/tests/080-card-image.h` lays out the way a laptop does, with phases
 2 and 3's still passing.
 

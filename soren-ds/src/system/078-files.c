@@ -364,6 +364,34 @@ int files_write(const char *path, const void *bytes, uint32_t length)
 }
 /* }}} */
 
+/* {{{ files_append */
+/* The new bytes go after the old (fat_chain_append), the table is written,
+ * and one block write then gives the entry its new size. A file that is
+ * missing or empty is a new chain, exactly as files_write makes one. */
+int files_append(const char *path, const void *bytes, uint32_t length)
+{
+    spin_lock(&lock);
+    struct place p;
+    int r = mounted ? locate(path, 1, 1, &p) : FAT_NO_CARD;
+    if (r == FAT_OK && p.found && (p.entry.attributes & FAT_ATTR_DIRECTORY)) r = FAT_IS_A_DIRECTORY;
+    if (r == FAT_OK && (!p.found || p.entry.size == 0)) {
+        r = put_new_file(&p, bytes, length);
+    } else if (r == FAT_OK && length) {
+        uint32_t first = p.entry.first_cluster, size = p.entry.size;
+        r = fat_chain_append(&volume, first, size, bytes, length);
+        if (r == FAT_OK) r = fat_dir_update(&volume, &p.entry, first, size + length);
+        if (r < 0) {
+            /* The size was never written: the file is its old self, and the
+             * clusters added after it are let go again. */
+            fat_chain_cut(&volume, first, size);
+            fat_flush(&volume);
+        }
+    }
+    spin_unlock(&lock);
+    return r;
+}
+/* }}} */
+
 /* {{{ files_list */
 /* `visit` runs with the card's lock held, so it must not call back into
  * this layer; it is for collecting names. */

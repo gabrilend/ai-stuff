@@ -1,10 +1,11 @@
 /*
- * 082-files.c — the six filesystem boxes, and the values they pass
- * (issues 406, 407).
+ * 082-files.c — the seven filesystem boxes, and the values they pass
+ * (issues 406, 407, 413).
  *
  * General description: everything an app ever does to the card goes
  * through one of these: read-path, write-path, list-directory,
- * delete-path, path-exists and make-symlink (docs/011-filesystem.md). Each
+ * delete-path, path-exists and make-symlink (docs/011-filesystem.md), and
+ * append-path, which builds a file larger than one value (413). Each
  * is a thin wrapper over the path layer (src/system/078-files.c), which
  * holds the card's one lock, follows the device's symlinks, and keeps a
  * write whole if it is interrupted.
@@ -183,6 +184,28 @@ int64_t write_path(struct path path, struct file_bytes value)
         return FAT_TOO_LONG;
     }
     int r = files_write(path.chars, value.bytes, value.length);
+    refused(r);
+    return r;
+}
+/* }}} */
+
+/* {{{ append_path */
+/* Add the value's bytes to the end of a file, making the file and any
+ * directories on its way (issue 413). This is how a file larger than one
+ * value is written: one append per FILE_CHUNK bytes. Each append is whole
+ * or not at all; the file between appends is the appends so far. A failed
+ * read is not appended and its status is passed on, as write_path does,
+ * so a copy loop whose source runs out stops growing the destination.
+ * Answers 0 or a negative code. */
+int64_t append_path(struct path path, struct file_bytes value)
+{
+    if (!ended(&path)) return FAT_TOO_LONG;
+    if (value.status < 0) return value.status;
+    if (value.length > FILE_CHUNK) {
+        engine_refuse((uint64_t)-FAT_TOO_LONG);
+        return FAT_TOO_LONG;
+    }
+    int r = files_append(path.chars, value.bytes, value.length);
     refused(r);
     return r;
 }

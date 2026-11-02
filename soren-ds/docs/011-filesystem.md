@@ -106,6 +106,13 @@ file-for-changes) is built as a new box at the runtime layer when
 a specific app demands it — not added to this surface
 speculatively.
 
+The first such box is **`append-path`** (issue 413): the same
+inputs as `write-path`, the bytes added to the end of the file
+instead of replacing it. One value holds at most 4096 bytes, so a
+file larger than that is written as several appends, each one
+whole or not at all; the painter's saved drawings are why it
+exists.
+
 ## Symlinks on FAT
 
 FAT proper has no symlink concept. We add one ourselves, as a

@@ -81,6 +81,16 @@ int64_t files_size(const char *path)
 int files_write(const char *path, const void *bytes, uint32_t length)
 ```
 
+### files_append
+
+```c
+int files_append(const char *path, const void *bytes, uint32_t length)
+```
+
+The new bytes go after the old (fat_chain_append), the table is written,
+and one block write then gives the entry its new size. A file that is
+missing or empty is a new chain, exactly as files_write makes one.
+
 ### files_list
 
 ```c
