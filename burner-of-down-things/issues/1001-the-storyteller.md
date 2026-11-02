@@ -4,7 +4,20 @@ A case's ledger told back as chapters in plain words, *narrative like a child*, 
 
 ## Current Behavior
 
-1001a is built (issues/completed/1001a-turn-kind.md): the `storyteller` turn kind, reading only the ledger and requests. 1001b (turning points), 1001c (no line told twice) and 1001d (whose it was) are not yet built, so nothing yet tells the ledger back as a story.
+All four pieces are built (issues/completed/1001a-1001d): the
+`storyteller` turn kind (034), and `src/103-the-story.lua`, which cuts a
+case's ledger into chapters at its turning points, names the ledger lines
+each chapter tells so no line is told twice, and names whose each thing
+was. `machine story <case>` appends the untold lines to
+`output/story/<case>.md`. Both of this issue's tests hold (every chapter's
+first line names its ledger lines, no line told twice; a request's chapter
+names the person as its author).
+
+What is left: the chapters are the machine's own plain telling. A
+`storyteller` turn run through the pool to retell them in a model's words
+(docs/069, "The chapters are drafted by a turn") is not yet wired; the
+chapters are its facts when it is. Kept open for that, which 1004a's demo
+is the natural place to show.
 
 ## Intended Behavior
 
