@@ -26,6 +26,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
   indented, no bullets — a deliberate contrast), joined into 807a's file.
 
+- 804 step 1, the PNG writer — RGBA or RGB pixels to a PNG of stored
+  deflate blocks, both checksums by hand, read back exactly by an
+  independent decoder and recognised by `file`; the `paint` command waits
+  on the wall (802) and the painter (803).
+
 801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
 and the night-only palette rule; box diagrams and prose templates;
 line-and-dot charts, diagrams by level and the machine drawing itself; and
