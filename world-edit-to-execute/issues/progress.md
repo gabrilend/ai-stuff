@@ -516,6 +516,7 @@ Recorded in CRITICAL-PATH.md:
 | 602 | Wire-frame fallback renderer | Pending | Phase 5, 601 |
 | 603 | Fetch maps and models from public sites | Pending | 604, 605 |
 | 604 | Asset deduplication system | Completed 2026-11-02 | 601 (its folder only) |
+| 604a | Read-only stored files, edited copy-on-write | Completed 2026-11-02 | 604, 605 |
 | 605 | Local storage manager (maps and asset packs) | Completed 2026-11-02 | 604 |
 | 606 | Hot-reload system | Pending | 601, Phase 5 |
 | 607 | File server application | Retired (superseded/) | — |

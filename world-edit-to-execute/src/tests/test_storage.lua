@@ -171,6 +171,81 @@ local empty = storage.open(SCRATCH .. "/empty")
 test("an empty folder renders, with no division by zero", cli.render(empty):find("(none)", 1, true) ~= nil)
 -- }}}
 
+-- {{{ Read-only stored files, edited copy-on-write
+print("\n=== Stored files are read-only; editing makes a private copy ===")
+local function mode(path) return run("stat -L -c %a " .. sh(path)):match("%d+") end
+local function slurp(path) local fh = io.open(path, "rb"); if not fh then return nil end
+    local t = fh:read("*a"); fh:close(); return t end
+local function islink(path) return run("test -L " .. sh(path) .. " && echo yes"):match("yes") ~= nil end
+local CD = SCRATCH .. "/cow"
+local W = storage.open(CD)
+local hg = W:put("map", "A", "grass.blp", GRASS)
+W:put("map", "B", "grass.blp", GRASS)
+W:put("pack", "art", "Textures/grass.blp", GRASS)
+W:put("pack", "art", "sword.mdx", SWORD)
+local blob = W.store:path(hg)
+test("a stored file is read-only (0444)", mode(blob) == "444", mode(blob))
+test("a pack's file is a link to it", islink(CD .. "/asset-packs/art/Textures/grass.blp"))
+-- An ordinary user's editor writing through the link is refused (root's
+-- isn't: the mode doesn't bind root, so this runs as nobody when it can).
+if run("id -u"):match("^0") and run("command -v setpriv"):match("setpriv") then
+    local _, wcode = run("setpriv --reuid=65534 --regid=65534 --clear-groups sh -c "
+        .. sh("echo painted > " .. sh(CD .. "/maps/A/grass.blp")))
+    local rout, rcode = run("setpriv --reuid=65534 --regid=65534 --clear-groups cat " .. sh(CD .. "/maps/A/grass.blp"))
+    test("an ordinary user can read through a link, but not write", rcode == 0 and rout == GRASS
+        and wcode ~= 0 and slurp(blob) == GRASS, rout)
+else
+    print("  [SKIP] writing as an ordinary user (needs root and setpriv to switch to one)")
+end
+local done = W:edit("pack", "art", "Textures/grass.blp")
+local mine = CD .. "/asset-packs/art/Textures/grass.blp"
+test("edit makes that one file a private copy", done and #done == 1 and done[1] == "Textures/grass.blp"
+    and not islink(mine) and mode(mine) == "644" and slurp(mine) == GRASS)
+local fh = assert(io.open(mine, "wb")); fh:write("painted over"); fh:close()
+test("writing the copy leaves the stored file and the other maps alone", slurp(blob) == GRASS
+    and slurp(CD .. "/maps/A/grass.blp") == GRASS and slurp(CD .. "/maps/B/grass.blp") == GRASS
+    and #W.store:verify() == 0)
+test("the stored file is still shared by A and B", W.store:refcount(hg) == 2, tostring(W.store:refcount(hg)))
+test("the copy counts as the pack's own", W:info("pack", "art").plain_bytes == #"painted over")
+local again = W:edit("pack", "art", "Textures/grass.blp")
+test("editing it again changes nothing", again and #again == 0)
+local all = W:edit("pack", "art")
+test("edit with no path: every remaining link in the pack", all and #all == 1 and all[1] == "sword.mdx"
+    and not islink(CD .. "/asset-packs/art/sword.mdx"))
+W:edit("map", "A")
+W:edit("map", "B")
+local removed = W:gc()
+test("once nothing links to a stored file, gc removes it", removed == 2 and not W.store:exists(hg), tostring(removed))
+test("edit names a map or pack that isn't there", W:edit("map", "Nowhere") == nil)
+test("edit refuses a path outside the folder", errors(W.edit, W, "map", "A", "../B/grass.blp"))
+local nothing, why = W.store:unshare(CD .. "/maps/A/no-such.blp")
+test("unshare of nothing says so", nothing == nil and why:find("nothing at", 1, true), why)
+os.execute("ln -s /etc/hostname " .. sh(CD .. "/maps/A/elsewhere"))
+local other, why2 = W.store:unshare(CD .. "/maps/A/elsewhere")
+test("unshare leaves a link that leads outside the store", other == nil and why2:find("not into this store", 1, true)
+    and islink(CD .. "/maps/A/elsewhere"), why2)
+
+-- a store from before: blobs writable, protect fixes them
+local old = W:put("map", "C", "x.blp", "an older blob")
+os.execute("chmod 644 " .. sh(W.store:path(old)))
+test("protect makes a writable stored file read-only, and counts it", W:protect() == 1 and mode(W.store:path(old)) == "444")
+test("protect again: nothing to do", W:protect() == 0)
+
+-- the tool
+local CTOOL = "luajit " .. sh(DIR .. "/src/cli/storage.lua") .. " --dir " .. sh(DIR) .. " --data " .. sh(CD)
+W:put("pack", "art", "shield.mdx", "a shield")
+local cout, ccode = run(CTOOL .. " edit pack art shield.mdx")
+test("the tool's edit names the copy to change", ccode == 0 and cout:find("Made 1 file in art its own", 1, true)
+    and cout:find(CD .. "/asset-packs/art/shield.mdx", 1, true), cout)
+cout, ccode = run(CTOOL .. " edit pack art shield.mdx")
+test("and says when there was nothing to do", ccode == 0 and cout:find("already its own copy", 1, true), cout)
+cout, ccode = run(CTOOL .. " edit pack")
+test("edit without a name is refused", ccode == 2, cout)
+os.execute("chmod 644 " .. sh(W.store:path(old)))
+cout = run(CTOOL .. " protect")
+test("the tool's protect says how many", cout:find("Made 1 stored file read-only", 1, true) ~= nil, cout)
+-- }}}
+
 -- {{{ The default folder
 print("\n=== The default folder ===")
 local ROOT = SCRATCH .. "/project"

@@ -28,6 +28,8 @@ of links into the store.
 | `S:delete(kind, name)` | one map or pack | the bytes freed (its unique bytes; its own blobs go at the next `gc()`) and its info; or nil and a message |
 | `S:gc()` | — | blobs removed, bytes freed |
 | `S:orphans()` | — | the hashes `gc()` would remove |
+| `S:edit(kind, name, path)` | one map or pack, and a file inside it (or none: every link in it) | the files made private copies to edit (copy-on-write; the stored file stays for everyone else); or nil and a message |
+| `S:protect()` | — | stored files still writable made read-only; how many |
 | `storage.size(n)` | bytes | `"512 B"`, `"1.5 KB"`, `"450 MB"` |
 
 A name is one folder (no `/`, not `.` or `..`); a path inside is relative

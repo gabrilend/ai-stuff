@@ -25,6 +25,14 @@ what nothing uses any more.
     S:delete("map", "Castle Fight")                   -- removes its folder; returns the bytes freed (blobs at gc)
     S:gc()                                            -- removes blobs nothing uses: count, bytes
     S:orphans()                                       -- the hashes gc() would remove
+    S:edit("pack", "medieval", "units/footman.mdx")   -- its link becomes a private copy to edit
+    S:edit("pack", "medieval")                        -- every link in the pack, the same
+    S:protect()                                       -- stored files still writable made read-only
+
+Stored files are read-only, since one may be shared by many maps and
+packs. edit() is copy-on-write: the file in that one map or pack becomes
+its own copy (and counts as its unique bytes from then on); every other
+map and pack keeps the stored file.
 
 "Unique" bytes are those of blobs no other map, pack or link uses (and
 that aren't pinned): deleting the source and collecting frees exactly
@@ -323,13 +331,48 @@ function Storage:delete(kind, name)
 end
 -- }}}
 
--- {{{ function Storage:gc / Storage:orphans
+-- {{{ function Storage:edit
+-- Makes files in KIND NAME's folder editable: each link into the store
+-- becomes a private copy (dedup's unshare). PATH names one file inside
+-- the folder; without it, every link in the folder. Returns the list of
+-- files made private (paths inside the folder); or nil and a message.
+function Storage:edit(kind, name, path)
+    local dir = self:dir(kind, name)
+    if not os.rename(dir, dir) then
+        return nil, "no " .. kind .. " named " .. name
+    end
+    local paths = {}
+    if path then
+        check_inner(path)
+        paths[1] = path
+    else
+        for _, f in ipairs(walk(self, dir)) do
+            if f.hex then paths[#paths + 1] = f.path end
+        end
+    end
+    local done = {}
+    for _, p in ipairs(paths) do
+        local abs, changed = self.store:unshare(dir .. "/" .. p)
+        if not abs then
+            return nil, changed
+        end
+        if changed then done[#done + 1] = p end
+    end
+    return done
+end
+-- }}}
+
+-- {{{ function Storage:gc / Storage:orphans / Storage:protect
 function Storage:gc()
     return self.store:gc()
 end
 
 function Storage:orphans()
     return self.store:orphans()
+end
+
+function Storage:protect()
+    return self.store:protect()
 end
 -- }}}
 
