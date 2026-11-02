@@ -99,6 +99,52 @@ kit.check("the boost follows 1/(1 + picks/10)", function()
         kit.near(weighted, raw / (1 + picks / 10), picks .. " picks")
     end
 end)
+
+-- Issue 034: a text that points away from every theme.  It sits at -10
+-- degrees, so a theme at angle t scores cos(t + 10), below zero here.
+local back = at(-10)
+local away = { sea = at(120), forest = at(170) }   -- cos 130 = -0.643, cos 180 = -1
+
+kit.check("all scores negative: a heavily picked theme does not win (issue 034)", function()
+    -- forest: cos 110 = -0.342, picked 100 times; sea: cos 120 = -0.5, fresh.
+    -- Multiplying by forest's boost (1/11) gave -0.031 and forest won.
+    local close = { sea = at(110), forest = at(100) }
+    local theme, raw = fuzz.find_most_similar_theme_weighted(back, close, { forest = 100 })
+    kit.same(theme, "sea", "theme")
+    kit.near(raw, math.cos(math.rad(120)), "raw similarity reported, not weighted")
+end)
+
+kit.check("the issue's example: -0.9 picked 100 times loses to -0.5 never picked", function()
+    -- A text at angle 0 scores cos t against a theme at angle t.
+    local themes_neg = { used = at(math.deg(math.acos(-0.9))), fresh = at(math.deg(math.acos(-0.5))) }
+    local theme, raw, weighted = fuzz.find_most_similar_theme_weighted(at(0), themes_neg, { used = 100 })
+    kit.same(theme, "fresh", "theme")
+    kit.near(raw, -0.5, "raw")
+    kit.near(weighted, -0.5, "weighted (no picks, unchanged)")
+end)
+
+kit.check("every pick makes a negative score worse, never better", function()
+    local last = math.huge
+    for _, picks in ipairs({ 0, 1, 10, 20, 100 }) do
+        local _, raw, weighted = fuzz.find_most_similar_theme_weighted(
+            back, { sea = away.sea }, { sea = picks })
+        kit.near(weighted, raw * (1 + picks / 10), picks .. " picks")
+        kit.truthy(weighted < last, picks .. " picks scores below fewer picks")
+        last = weighted
+    end
+end)
+
+kit.check("with no picks, negative scores keep their order", function()
+    local theme, raw = fuzz.find_most_similar_theme_weighted(back, away, {})
+    kit.same(theme, "sea", "theme")
+    kit.near(raw, math.cos(math.rad(130)), "raw")
+end)
+
+kit.check("a positive score still beats any negative one, however picked", function()
+    -- up: cos 10, picked 1000 times; down: cos 190 = -0.985, fresh.
+    local theme = fuzz.find_most_similar_theme_weighted(back, { up = at(0), down = at(180) }, { up = 1000 })
+    kit.same(theme, "up", "theme")
+end)
 -- }}}
 
 kit.finish()
