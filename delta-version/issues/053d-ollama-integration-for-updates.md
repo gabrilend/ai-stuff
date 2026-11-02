@@ -5,7 +5,7 @@
 **Priority**: High
 **Created**: 2026-02-23
 **Parent**: Issue 053 (TODONE - Cross-Project Roadmap Coordinator)
-**Dependencies**: Issue 052 (Ollama Connection Configuration)
+**Dependencies**: None now. The Ollama connection issue it named closed as superseded on 2026-11-02, and a model call goes through the llama.cpp client, `scripts/libs/llama-chat-client.lua`.
 
 ---
 

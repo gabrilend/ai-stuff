@@ -4,7 +4,7 @@
 **Status**: Open (056a done; recommendation for the rest below, waiting on the owner)
 **Priority**: High
 **Created**: 2026-07-06
-**Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — superseded endpoint), 040g (Transcript Analysis Memory)
+**Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — closed as superseded, see `completed/`), 040g (Transcript Analysis Memory)
 
 ---
 

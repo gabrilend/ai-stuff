@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 052**: Ollama connection configuration, closed 2026-11-02 as superseded by the llama.cpp client (056a). No configuration was changed; the Ollama mentions in other projects are left for each project to move on its own.
 - **Older open issues decided** (2026-11-02):
   - 058 (front page rewrites its own figures) is closed: no questions remained and the authorship slots are wired.
   - 056a (llama.cpp chat client) is closed after a check of every success criterion against the stand-in model. That check found the stand-in's `/tokenize` reply in the wrong shape, which was fixed on the 040 branch.
