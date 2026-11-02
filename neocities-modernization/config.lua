@@ -618,6 +618,19 @@ return {
     word_cloud = {
         enabled = true,
         output_file = "wordcloud.html",
+
+        -- Issue 11-006: the splash page -- a short, hand-written front door in
+        -- front of the word cloud. Its words live in page-templates/<template>
+        -- (copied into input/pages/ at build time, like the explore pages); the
+        -- build fills in the live numbers. It is written to the site's own
+        -- folder address (index.html), so whoever opens /similar-different/
+        -- lands here; the "Menu" links inside the site still go straight to the
+        -- word cloud. Set enabled = false to stop writing it.
+        splash = {
+            enabled = true,
+            output_file = "index.html",
+            template = "wordcloud-splash.txt",
+        },
         min_occurrences = 5,        -- Minimum times a word must appear
         max_words = 200,            -- Maximum words to display (0 = unlimited)
         min_word_length = 3,        -- Ignore words shorter than this

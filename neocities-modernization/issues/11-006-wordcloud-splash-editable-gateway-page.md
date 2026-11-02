@@ -4,7 +4,8 @@
 - **Phase**: 11 (Advanced Exploration)
 - **Priority**: Medium
 - **Type**: Enhancement
-- **Status**: Open
+- **Status**: IMPLEMENTED 2026-11-02 — built and tested; the wording is a
+  first draft for the owner to rewrite
 - **Builds on**: 11-004 (explore pages), 11-005 (editable page templates),
   10-059 (word cloud is its own stage)
 
@@ -86,3 +87,66 @@ the site's shell) stays in Lua; the prose lives in a committed, editable file.
   gateway? (Static site: "remember" would need a cookie/localStorage snippet.)
 - Output filename and whether `wordcloud.html` itself should be renamed so the
   splash can take the canonical "menu" URL.
+
+## What Happened (2026-11-02)
+
+- **The page.** `M.generate_splash_page(output_dir, poems_data, splash_cfg)` in
+  `src/flat-html-generator.lua`, modelled on `generate_explore_page`: it fills
+  the template's markers from `corpus_stats`, wraps the result in the explore
+  pages' shell (black background, shipped font, centred `<pre>`), and writes
+  it. It is called from `generate_simple_discovery_instructions`, the function
+  every caller (the pipeline's stage 9, `main.lua`'s menu, the generator's own
+  menu) uses to build the explore pages, so it regenerates whenever they do.
+- **The words.** `page-templates/wordcloud-splash.txt` holds a short first
+  draft: the poem count and years, two sentences on what the site does, an
+  "Enter the word cloud" link, and two quieter links (start reading from the
+  beginning; read how it works first). It is a placeholder for the owner's own
+  wording -- edit the file, rebuild. `scripts/sync-page-templates` already
+  copies every `page-templates/*.txt`, so it needed no change.
+- **Markers available:** `TOTAL_POEMS`, `SOURCE_COUNT`, `FIRST_YEAR`,
+  `LAST_YEAR` (dropped, with their line, when nothing is dated),
+  `EMBEDDING_MODEL`. Unknown markers and a missing template stop the build, as
+  on the explore pages.
+- **Config.** `config.lua`'s `word_cloud` section gained
+  `splash = { enabled, output_file, template }`, documented in
+  `docs/config-reference.md`. A missing section, an output or template that is
+  not a plain file name, or an output of `wordcloud.html` is an error.
+
+### Decisions on the open questions
+
+1. **Placement: only the front door.** The splash is written to `index.html`,
+   the site folder's own address, so a visitor opening `/similar-different/`
+   reads it first. Every "Menu" link inside the site still goes straight to
+   `wordcloud.html`: a reader who clicks "Menu" mid-read wants the menu, not the
+   introduction again. (One existing link, the chronological image page's
+   "Menu", already pointed at `../index.html`, which no build had written; it
+   now lands on the splash instead of a missing page.) To make the splash the
+   first thing people see, share the folder address rather than
+   `wordcloud.html`.
+2. **Not skippable or remembered.** Remembering a visit needs a cookie or
+   script, and the site has neither on purpose (3-006). Because in-site links
+   bypass it, a reader only meets it when arriving.
+3. **`wordcloud.html` keeps its name.** Renaming it would break every link and
+   bookmark to it already out in the world; the splash takes the folder
+   address instead, which nothing used.
+4. **No word counts or build date on it.** Word counts belong to the word-cloud
+   stage, which runs separately; the cloud page shows them. A build date would
+   make every build's page differ, against 10-058's byte-identical rebuilds.
+   Either can be added as a marker later.
+
+### Before deploying
+
+The deploy uploads `output/` to `similar-different/`, so the new `index.html`
+becomes `similar-different/index.html` on Neocities. If a hand-made page
+already lives at that address, it would be replaced; check first, or set
+`splash.output_file` to another name.
+
+### Tests
+
+`src/flat-html-generator.splash.test.lua` (new, 20 checks): the template is
+synced; the shipped config writes `index.html`; the page links on to the word
+cloud, fills its numbers and leaves no marker; it is built by the explore-pages
+call; it drops the numbers line when nothing is dated; and a path, an output of
+`wordcloud.html`, a missing template or a missing section are refused, while
+`enabled = false` writes nothing. The other `flat-html-generator` suites pass.
+

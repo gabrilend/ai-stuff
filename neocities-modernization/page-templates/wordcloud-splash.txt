@@ -1,0 +1,16 @@
+{TOTAL_POEMS} poems, written from {FIRST_YEAR} to {LAST_YEAR}.
+
+They are sorted two ways at once: by when they were written, and by what
+they mean. Every poem has a page of the poems most like it and a page of
+the poems most unlike it, so you can wander from one to the next without
+ever reading them in order.
+
+The next page is a cloud of the words that show up most. Click a word to
+read the poems closest to it in meaning.
+
+  <a href="wordcloud.html">Enter the word cloud</a>
+
+Or, if you would rather:
+
+  <a href="chronological/01.html">start reading from the beginning</a>
+  <a href="explore.html">read how it all works first</a>

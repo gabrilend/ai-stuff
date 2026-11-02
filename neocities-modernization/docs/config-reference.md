@@ -307,6 +307,12 @@ Word cloud page settings.
 | `font_size_min` | number | 1 | Minimum font tag size |
 | `font_size_max` | number | 7 | Maximum font tag size |
 | `stop_words` | array | [...] | Common words to exclude |
+| `splash.enabled` | boolean | true | Write the splash page in front of the word cloud (Issue 11-006) |
+| `splash.output_file` | string | "index.html" | Splash file name in the site root; a plain name, never `wordcloud.html` |
+| `splash.template` | string | "wordcloud-splash.txt" | Splash wording, in `page-templates/` |
+
+The `splash` fields are read by `src/flat-html-generator.lua` (`generate_splash_page`),
+which builds the splash with the explore pages in stage 9.
 
 ---
 

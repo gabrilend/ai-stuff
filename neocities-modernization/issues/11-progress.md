@@ -50,6 +50,12 @@ with an unresolved marker, and can drop a whole line for a fact that does not
 apply. Verified byte-identical to the previous hard-coded output across the full
 7,904-poem corpus.
 
+**11-006 -- Implemented 2026-11-02.** A splash page in front of the word cloud,
+written to the site folder's own address (`index.html`), with its words in
+`page-templates/wordcloud-splash.txt` (a first draft to rewrite) and the live
+numbers filled in at build time. The in-site "Menu" links still go straight to
+`wordcloud.html`.
+
 ### Issue Dependencies
 
 ```

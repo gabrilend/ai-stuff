@@ -3278,6 +3278,11 @@ end
 function M.generate_simple_discovery_instructions(output_dir, poems_data)
     M.generate_explore_page(output_dir, poems_data)
     M.generate_explore_math_page(output_dir, poems_data)
+    -- Issue 11-006: the splash page in front of the word cloud is a member of
+    -- the same family (hand-written words, live numbers), so it is built with
+    -- them -- by every caller of this function, the pipeline's HTML stage
+    -- included.
+    M.generate_splash_page(output_dir, poems_data)
     return output_dir .. "/explore.html"
 end
 -- }}}
@@ -3389,6 +3394,66 @@ function M.generate_explore_math_page(output_dir, poems_data)
     local html = explore_page_shell(
         "Poetry Collection - The Math", "How the Similarity Works", body)
     local output_file = output_dir .. "/explore-2.html"
+    return utils.write_file(output_file, html) and output_file or nil
+end
+-- }}}
+
+-- {{{ function M.generate_splash_page()
+-- Issue 11-006: the splash page -- a short, hand-written front door in front of
+-- the word cloud, at the site folder's own address (index.html by default), so
+-- a visitor opening /similar-different/ reads a few lines of framing before the
+-- cloud. The words live in page-templates/<template> (synced into input/pages/
+-- like the explore pages); this fills in the live numbers and wraps the result
+-- in the explore pages' shell. The site's "Menu" links still go straight to
+-- wordcloud.html: the splash greets a visitor once, it does not stand in the way
+-- of a reader moving around inside the site.
+--
+-- splash_cfg is config.word_cloud.splash (enabled, output_file, template); a
+-- test may pass its own. A missing section, or a file name that is not a plain
+-- name in the site root, is an error -- the same "no fallbacks" rule as the
+-- template's unknown markers. Returns the written path, or nil when disabled.
+function M.generate_splash_page(output_dir, poems_data, splash_cfg)
+    if splash_cfg == nil then
+        splash_cfg = unified_config.word_cloud and unified_config.word_cloud.splash
+    end
+    if type(splash_cfg) ~= "table" then
+        error("generate_splash_page: config.word_cloud.splash is missing (see config.lua, Issue 11-006)")
+    end
+    if splash_cfg.enabled == false then
+        utils.log_info("Splash page disabled (config.word_cloud.splash.enabled = false)")
+        return nil
+    end
+    -- Both names are single files in a known folder; a path or an odd name is
+    -- a configuration mistake, so it is refused rather than written somewhere
+    -- unexpected.
+    for _, field in ipairs({ "output_file", "template" }) do
+        local name = splash_cfg[field]
+        if type(name) ~= "string" or not name:match("^[%w%-_]+%.[%w]+$") then
+            error(string.format("generate_splash_page: config.word_cloud.splash.%s must be a plain "
+                .. "file name, got %s", field, tostring(name)))
+        end
+    end
+    if splash_cfg.output_file == "wordcloud.html" then
+        error("generate_splash_page: the splash cannot be written over wordcloud.html, the page it leads to")
+    end
+
+    local s = corpus_stats(poems_data)
+    local has_dates = s.min_date ~= nil and s.max_date ~= nil
+    local values = {
+        TOTAL_POEMS     = s.total,
+        SOURCE_COUNT    = #s.source_order,
+        FIRST_YEAR      = has_dates and s.min_date:sub(1, 4) or page_template.OMIT,
+        LAST_YEAR       = has_dates and s.max_date:sub(1, 4) or page_template.OMIT,
+        EMBEDDING_MODEL = inference_config.get_selected_model(),
+    }
+
+    local template_path = DIR .. "/input/pages/" .. splash_cfg.template
+    local body, err = page_template.render_file(template_path, values)
+    if not body then error("generate_splash_page: " .. tostring(err)) end
+    body = body:gsub("\n+$", "")
+
+    local html = explore_page_shell("Similar Different", "Similar Different", body)
+    local output_file = output_dir .. "/" .. splash_cfg.output_file
     return utils.write_file(output_file, html) and output_file or nil
 end
 -- }}}
