@@ -227,6 +227,8 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 048**: Issue phase detection utility — closed 2026-11-02 as answered: `scripts/libs/issue-names.lua` is the shared phase reader (dashboard and validator use it) and `progress-dashboard.lua -p/-v/-j` is its command line. Leftover: `generate-readme-toc.lua` still keeps a private phase rule.
+- **Issue 027**: Basic reporting framework — closed 2026-11-02 as answered: the census, progress dashboard, `validate-repository.sh`, `check-utilities.sh` and the history tools each report on their own data; a shared template layer had no second consumer.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).

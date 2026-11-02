@@ -1,7 +1,7 @@
 # Issue 048: Issue Phase Detection Utility
 
 **Phase**: 0 - Tooling
-**Status**: Open
+**Status**: Closed (2026-11-02) — answered by the shared issue-name reader; see What Happened
 **Priority**: Medium
 **Created**: 2026-02-10
 **Related**: Issue 047 (README Table of Contents Generator)
@@ -408,3 +408,40 @@ The simple `ID:PHASE` output format is designed to be easily grep-able and pipe-
 # Count issues per phase
 ./detect-issue-phase.lua issues/ | cut -d: -f2 | sort | uniq -c
 ```
+
+---
+
+## What Happened
+
+**2026-11-02 — closed because the reusable phase detection this issue asked for now exists, in a better form than the one sketched here.**
+
+`scripts/libs/issue-names.lua` (monorepo `scripts/`) is the one place that
+turns an issue file's name and location into a phase, a number and a
+status. The progress dashboard and the issue validator both read issues
+through it, so they cannot disagree. It goes beyond the rule written above
+(first digit = phase):
+
+- it reads all three name shapes found on disk: compact (`522`), dashed
+  (`9-007`) and lettered (`A04`);
+- it decides per project whether `1001` is phase 10 or phase 1, by weighing
+  evidence, and reports when the split is unconfirmed rather than guessing;
+- it honours `phase-N/` folders over names, and reports where they disagree.
+  delta-version's own `phase-1/023-...` is one such case.
+
+The command-line half of this issue is covered by
+`scripts/progress-dashboard.lua`:
+
+- `-p PHASE` filters by phase;
+- `-v` lists every issue under its phase;
+- `-t`, `-m` and `-j` give terminal, markdown and JSON output;
+- another script that wants per-issue records calls
+  `dofile(".../libs/issue-names.lua").scan(project)`.
+
+A separate `detect-issue-phase.lua` would be a third reader of the same
+names, which is the duplication this issue set out to remove.
+
+**Left over:** `delta-version/scripts/generate-readme-toc.lua` (issue 047)
+still has its own private `get_issue_phase()`. That copy uses only the
+two-digit rule and does not look inside `phase-N/` folders. Moving it onto
+`issue-names.lua` is a small follow-up to 047, not a reason to build this
+utility.

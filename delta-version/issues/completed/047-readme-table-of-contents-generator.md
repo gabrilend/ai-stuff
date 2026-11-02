@@ -389,6 +389,7 @@ EXAMPLES:
 - **Priority**: Medium
 - **Complexity**: Medium
 - **Dependencies**: None (standalone utility)
+- **Blocks**: Issue 048 (phase detection utility, later closed as answered by the shared issue-name reader)
 - **Related**: Issue 044 (directory trees), Issue 023 (project discovery)
 
 ## Notes
