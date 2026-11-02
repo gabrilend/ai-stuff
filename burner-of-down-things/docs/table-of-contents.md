@@ -40,6 +40,8 @@ name is where it lives.
     use and every field, generated from the wall's own table (802).
   - docs/paintbrush-src.md - the `.src` paintbrush: `source{ language,
     version, purpose, prompt }`, generated the same way (808).
+  - docs/paintbrush-mp4.md - the `.mp4` paintbrush: the `.png` words plus
+    `frames`, `rate` and `move`, generated the same way (806).
 - docs/068-datapath-the-switchboard.md - parcels of arbitrary inputs, routed
   by a light model, planned by shape; observations and adjustments.
 - docs/069-the-story.md - the ledger told back as a story; lessons;
