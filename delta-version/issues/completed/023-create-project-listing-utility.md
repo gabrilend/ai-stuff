@@ -367,3 +367,30 @@ function run_interactive_mode() {
 - Interactive mode provides user-friendly project management
 - Command line interface follows CLAUDE.md conventions
 - Utility ready for integration across repository management systems
+---
+
+## What Happened
+
+**2026-11-02 — the project rules moved to the shared library.**
+
+The rules for which folders are projects were written into this script:
+the skipped names, and points for `src/`, `issues/`, a Makefile and so on,
+50 to be a project. They were lifted into
+`scripts/libs/project-discovery.lua` (scripts issue 010), so that a Lua tool
+(delta-version's `discover-projects.lua`) and this script cannot disagree.
+`list-projects.sh` now sources that library's bash face and keeps
+everything else as it was: output formats, external directories, the
+interactive mode.
+
+Two things changed on purpose:
+
+- **The base folder is never listed.** The old `find` also visited the
+  base folder itself, so a base that scored 50 or more listed itself, and
+  `--inverse` usually listed it as a non-project. The library treats the
+  base as the shelf, not a book.
+- **Projects come out sorted by name**, instead of in `find`'s
+  directory order.
+
+On the monorepo both versions list the same 41 projects, and the same
+non-projects apart from the base. `scripts/test-list-projects.sh` checks
+the script against the library on a RAM fixture (18 checks).

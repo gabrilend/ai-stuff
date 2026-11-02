@@ -4,62 +4,21 @@
 
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff}"
 
-# -- {{{ define_non_project_directories
-function define_non_project_directories() {
-    excluded_patterns=(
-        "issues" "scripts" "docs" ".git" ".claude" "llm-transcripts"
-        "build" "target" "dist" "out" "bin"
-        "libs" "node_modules" "vendor" "external"
-        "tools" "utils" "backup" "backups" "old" "archive" "tmp" "temp"
-        "delta-version" ".operations" ".canaries"
-    )
-}
-# }}}
-
-# -- {{{ is_excluded_directory
-function is_excluded_directory() {
-    local dir_path="$1"
-    local dir_name
-    dir_name=$(basename "$dir_path")
-    
-    define_non_project_directories
-    
-    for pattern in "${excluded_patterns[@]}"; do
-        [[ "$dir_name" == $pattern ]] && return 0
-        [[ "$dir_name" == .storage_* ]] && return 0
-        [[ "$dir_name" == .*_operations* ]] && return 0
-    done
-    
-    return 1
-}
-# }}}
-
-# -- {{{ detect_project_characteristics
-function detect_project_characteristics() {
-    local dir_path="$1"
-    local score=0
-    
-    [[ -d "$dir_path/src" ]] && score=$((score + 50))
-    [[ -d "$dir_path/issues" ]] && score=$((score + 40))
-    [[ -f "$dir_path/Cargo.toml" ]] && score=$((score + 30))
-    [[ -f "$dir_path/package.json" ]] && score=$((score + 30))
-    [[ -f "$dir_path/Makefile" ]] && score=$((score + 25))
-    [[ -f "$dir_path/.gitignore" ]] && score=$((score + 20))
-    [[ -f "$dir_path/README.md" ]] && score=$((score + 15))
-    [[ -d "$dir_path/docs" ]] && score=$((score + 10))
-    
-    [[ $score -ge 50 ]] && return 0 || return 1
-}
-# }}}
-
-# -- {{{ is_project_directory
-function is_project_directory() {
-    local dir_path="$1"
-    
-    [[ ! -d "$dir_path" ]] && return 1
-    
-    detect_project_characteristics "$dir_path"
-}
+# -- {{{ Shared project rules
+# Which folders are projects is decided in one place for the whole monorepo:
+# scripts/libs/project-discovery.lua, with its bash face beside it. The rules
+# used to live here (skipped names, and points for src/, issues/, a Makefile
+# and so on, 50 to be a project); they were lifted into that library so a
+# Lua tool and this script cannot disagree. This script keeps everything
+# else: output formats, external directories, the interactive mode.
+LIST_PROJECTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DISCOVERY_SH="${PROJECT_DISCOVERY_SH:-$LIST_PROJECTS_DIR/../../scripts/libs/project-discovery.sh}"
+if [[ ! -f "$PROJECT_DISCOVERY_SH" ]]; then
+    echo "list-projects.sh: shared library not found at $PROJECT_DISCOVERY_SH" >&2
+    exit 2
+fi
+# shellcheck source=../../scripts/libs/project-discovery.sh
+source "$PROJECT_DISCOVERY_SH"
 # }}}
 
 # -- {{{ output_project_names
@@ -137,32 +96,34 @@ function format_project_output() {
 
 # -- {{{ get_project_list_for_integration
 function get_project_list_for_integration() {
+    # The projects directly inside base_dir, by the shared rules, sorted by
+    # name. The base folder itself is never listed.
     local format="${1:-names}"
     local base_dir="${2:-$DIR}"
-    
-    local discovered_projects=()
-    while IFS= read -r -d '' dir; do
-        if [[ -d "$dir" ]] && ! is_excluded_directory "$dir" && is_project_directory "$dir"; then
-            discovered_projects+=("$dir")
-        fi
-    done < <(find "$base_dir" -maxdepth 1 -type d -print0)
-    
-    format_project_output "$format" "${discovered_projects[@]}"
+
+    project_discovery_init "$base_dir"
+    project_discovery_scan || return 1
+    format_project_output "$format" "${DISCOVERED_PROJECTS[@]}"
 }
 # }}}
 
 # -- {{{ get_non_project_directories
 function get_non_project_directories() {
+    # Every folder directly inside base_dir that the shared rules do not call
+    # a project: skipped by name, or scoring under the threshold.
     local format="${1:-names}"
     local base_dir="${2:-$DIR}"
-    
-    local non_projects=()
-    while IFS= read -r -d '' dir; do
-        if [[ -d "$dir" ]] && (is_excluded_directory "$dir" || ! is_project_directory "$dir"); then
-            non_projects+=("$dir")
-        fi
-    done < <(find "$base_dir" -maxdepth 1 -type d -print0)
-    
+
+    local lua=luajit
+    command -v luajit > /dev/null || lua=lua5.4
+    local listing
+    listing="$("$lua" "$PROJECT_DISCOVERY_LIB" scan "$base_dir" --all)" || return 1
+
+    local non_projects=() path name score kind status
+    while IFS=$'\t' read -r path name score kind status; do
+        [[ -n "$path" && "$status" != "project" ]] && non_projects+=("$path")
+    done <<< "$listing"
+
     format_project_output "$format" "${non_projects[@]}"
 }
 # }}}
@@ -664,14 +625,15 @@ function run_external_management_mode() {
 # -- {{{ configure_exclusions_interactive
 function configure_exclusions_interactive() {
     echo "=== Exclusion Configuration ==="
-    echo "Current exclusion patterns:"
-    define_non_project_directories
-    for pattern in "${excluded_patterns[@]}"; do
-        echo "  - $pattern"
-    done
+    echo "Current exclusion patterns (from the shared project rules):"
+    local lua=luajit
+    command -v luajit > /dev/null || lua=lua5.4
+    PROJECT_DISCOVERY_LIB="$PROJECT_DISCOVERY_LIB" "$lua" -e '
+        local d = dofile(os.getenv("PROJECT_DISCOVERY_LIB"))
+        for _, g in ipairs(d.DEFAULT_EXCLUDED) do print("  - " .. g) end' < /dev/null
     echo
-    echo "To modify exclusions, edit the define_non_project_directories function"
-    echo "in $0"
+    echo "To change them, edit DEFAULT_EXCLUDED in"
+    echo "$PROJECT_DISCOVERY_LIB"
 }
 # }}}
 
