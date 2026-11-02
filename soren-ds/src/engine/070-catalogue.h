@@ -102,6 +102,11 @@ int catalogue_add(const char *address, const struct box *box);
  * address the image's own rows hold. Answers 0 or a negative engine error. */
 int catalogue_add_unit(const struct catalogue_unit *u, int unit);
 
+/* Stop a unit's rows answering (410): looked up by address they are not
+ * found, and by index they answer "" and NULL, so nothing new is placed
+ * from code that is about to be freed. Answers how many rows it stopped. */
+int catalogue_retire_unit(int unit);
+
 /* Every row, built-in first, for listings and "did you mean". */
 int         catalogue_count(void);
 const char *catalogue_address(int index);

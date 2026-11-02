@@ -129,6 +129,45 @@ rather than implied.
   is that its inputs may hold values belonging to the old box's types.
   Worth revisiting only with that specific hazard in hand.
 
+### Proposed answers (UNVERIFIED)
+
+1. *Warn when unplaced code accumulates?* **No warning yet.** Every unit
+   is a record (`compile_unit_facts`: its state, when, which station
+   keeps it) and `compile_units_freed` counts what has been given back,
+   so a metrics page can show the trend. A threshold would be a guess,
+   and the issue says so; the numbers are there for when someone has a
+   real afternoon's worth to tune it against.
+2. *Can a station be repointed at a rebuilt box?* **No**, the rule stands
+   as written. Nothing here needed it: 411 moves the arrows instead.
+3. *(new)* **Retiring is an explicit act** (`compile_retire(unit)`). The
+   engine cannot tell an old save somebody is done with from one they
+   are about to roll back to (411), so whoever compiled it says when.
+   Retiring stops the unit's rows answering at once, so nothing new is
+   placed from code about to be freed, and files it in the existing
+   scrapyard with every core's counter. Compiling a file again does not
+   retire the older unit by itself.
+4. *(new)* **"Nobody inside" is two facts, both checked by the sweep**:
+   every core has been seen outside whatever it was inside when the unit
+   was retired (the counters), and no station in the table places one of
+   its boxes. The second is a walk of the table, not a count. A station
+   keeps its box until the last task that could run it is over (207's
+   `release_station`), so a station that is gone means no core can be
+   running that code. A unit still placed is filed again for the next
+   sweep, its station recorded, and the developer's line says once which
+   station keeps it and which box it places.
+5. *(new)* **Step 1 was already done.** Phase 2 made each core's counter
+   odd for the whole task (run the box, deliver, free), not only the
+   delivery, with this issue named as the reason.
+6. *(new)* **Teardown** (`compile_teardown`) frees every retired, unplaced
+   unit at once, for an engine that is stopping. Teardown and the sweep
+   both go through one leaf lock. Under it they confirm the unit is
+   still retired and still unplaced, then mark it freed. The unloading
+   happens after the lock is let go, so each unit is freed exactly once.
+7. *(new)* **The source and the record outlive the code.** Freeing
+   unloads the code only; the kept source (409) and the unit's record
+   stay for the session, like a log, so `compile_source` still finds a
+   freed box's text and a reload can rebuild it.
+
 ## Blocked by
 
 207 (the mechanism this shares), 409.

@@ -91,10 +91,17 @@ described and never rebuilt.
   `src/engine/087-compile.c` on `086-shelves.c`; test `twin/tests/088`
   (34 checks: late boxes byte-identical to the image's, the width
   refusal, the same-width scramble, written back out and read in).
+- **410** compiled code is retired, swept and freed through the
+  scrapyard that reclaims old arrows. Retiring stops a unit's addresses
+  answering. The sweep frees it once every core has been seen outside it
+  and no station places one of its boxes; until then it says which
+  station keeps it. A teardown racing a sweep frees each unit once, and
+  the source outlives the code. Test `twin/tests/089` (23 checks, on a
+  device kept saturated by four looping programs).
 
 ## Open issues
 
-401 through 408, and 410 through 412.
+401 through 408, 411 and 412.
 
 ## Phase demo
 
