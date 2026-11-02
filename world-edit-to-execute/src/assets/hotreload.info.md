@@ -43,4 +43,5 @@ Edit a plain file in a pack. A pack filled by the storage manager holds
 links into the shared store (`blobs/`); an editor that writes through such
 a link changes the stored file for every map and pack that shares it, and
 inotify (watching the pack's folder, not the store) doesn't see it.
-Replace the link with a copy before editing it.
+Make it the pack's own copy first: `luajit src/cli/storage.lua edit pack
+NAME PATH` (604a, where stored files are read-only).

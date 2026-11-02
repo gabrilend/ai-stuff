@@ -19,9 +19,8 @@ reads it again through the loader (601) and hands the new value to its
   texture (`tex_create`) but not replace one.
 - There is no audio library yet.
 - There is no UI layout file reader yet.
-- Pack files the storage manager makes are links into the shared store;
-  an editor that writes through one changes the stored file for every map
-  and pack sharing it.
+- (Done in 604a, PR #121: stored files are read-only, and
+  `storage.lua edit` turns a pack's link into a private copy to edit.)
 
 ## Intended Behavior
 
@@ -38,8 +37,9 @@ Saving a texture in an editor changes it in the running game.
 4. Sounds: swap the sound in place once the audio library is in.
 5. UI: rebuild the UI tree from a changed layout once UI layouts are read.
 6. A corner message (console overlay) for each reload and error.
-7. Make stored files read-only (`chmod 0444` in `assets/dedup.lua`), and a
-   storage command that turns a pack's link into a copy for editing.
+7. ~~Make stored files read-only, and a storage command that turns a
+   pack's link into a copy for editing.~~ Done in 604a (PR #121), decided
+   by Ritz on 2026-11-02.
 8. A viewer or editor flag (`--hot-reload`) that makes a hot-reloader and
    polls it each frame.
 
@@ -48,7 +48,8 @@ Saving a texture in an editor changes it in the running game.
 - [ ] A texture saved in a pack changes on screen without a restart
 - [ ] A model saved in a pack is rebuilt (its animation may restart)
 - [ ] A sound saved in a pack plays the new sound next time
-- [ ] An editor can't write through a pack's link into the shared store
+- [x] An editor can't write through a pack's link into the shared store
+      (604a, PR #121)
 
 ## Related Documents
 

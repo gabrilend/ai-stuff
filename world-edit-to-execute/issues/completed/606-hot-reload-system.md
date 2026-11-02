@@ -221,7 +221,8 @@ The renderer, sound and UI swaps (steps 5 to 8) are issue
    (605) hold links into the shared store; writing through one changes
    the stored file for everything sharing it, and inotify (watching the
    pack's folder) doesn't see it. The poll watcher does (it follows
-   links). Making stored files read-only, and a command that turns a link
-   into a copy for editing, are in 606a.
+   links). Ritz decided on 2026-11-02 that stored files become read-only
+   and are edited copy-on-write; that is 604a (PR #121): `storage.lua edit
+   pack NAME PATH` makes the private copy, which hot-reload then watches.
 10. **Lua script reloading is left out.** The issue marks it dangerous;
     nothing in the loader reads scripts.
