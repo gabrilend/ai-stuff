@@ -6,7 +6,7 @@ Shared library infrastructure for reusable components across projects.
 
 | Library | Status | Issues |
 |---------|--------|--------|
-| threadpool | In Progress | 5/7 |
+| threadpool | In Progress | 6/8 |
 | zip | Complete | 1/1 |
 
 ---
@@ -28,6 +28,7 @@ adaptive task distribution.
 | 800d | Threadpool test suite | **Completed** | 800a, 800b, 800c, 800g |
 | 800f | Windows support planning | Pending | 800a |
 | 800g | Scheduler module (deferred tasks) | **Completed** | 800a |
+| 800h | Hardening: races, lifecycle, sanitizer-clean tests | **Completed** | 800a-800d, 800g |
 
 ### Dependency Graph
 
@@ -39,7 +40,7 @@ adaptive task distribution.
                        └──▶ 800f Windows Planning
                        └──▶ 800g Scheduler Module
          │
-         └──▶ 800d Test Suite
+         └──▶ 800d Test Suite ──▶ 800h Hardening
 ```
 
 **Note:** Issue 800e (Render Migration) was moved to WETE as issue 802 since it's
@@ -52,6 +53,7 @@ specific to the world-edit-to-execute project.
 - **Ring buffer task lists:** Efficient queuing with automatic relocation
 - **Deferred task scheduling:** Absolute time-based scheduler with wake-on-add
 - **POSIX-only initially:** Windows support planned as future work
+- **Sanitizer-clean:** `make sanitize` runs every test under ThreadSanitizer and AddressSanitizer
 
 ### Consumer Projects
 

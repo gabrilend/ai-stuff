@@ -10,6 +10,18 @@
  * 4. If last tick <= 50% of target: don't recreate (exit gracefully)
  *
  * This creates natural load-responsive scaling without explicit thread management.
+ *
+ * Ownership and shutdown:
+ * - The context from tp_updater_create() belongs to the caller. The library
+ *   never frees it; free it with tp_updater_destroy().
+ * - Helper contexts from tp_updater_spawn_helper() belong to the library and
+ *   free themselves when the helper exits.
+ * - To stop an updater while the pool keeps running, call tp_updater_stop();
+ *   it returns once the updater task and all its helpers are gone, and then
+ *   tp_updater_destroy() is safe.
+ * - Or destroy the pool first: once tp_pool_destroy() has joined the workers,
+ *   nothing runs the updater any more, and tp_updater_destroy() is safe. (A
+ *   helper still queued when the pool goes is dropped with its context.)
  */
 
 #ifndef THREADPOOL_UPDATER_H
@@ -52,14 +64,23 @@ typedef struct tp_updater_context {
     size_t partition_start;
     size_t partition_end;
 
-    /* Timing measurement */
-    uint64_t last_tick_duration_us;
+    /* Timing measurement (written on a worker, read from anywhere) */
+    _Atomic uint64_t last_tick_duration_us;
 
     /* Is this the primary updater (runs forever) or a helper (runs once)? */
     bool is_primary;
 
-    /* For helper cleanup: was this context dynamically allocated? */
+    /* Does the library free this context when its task ends? (helpers only) */
     bool is_allocated;
+
+    /* Lifecycle (primary): stop requested, task still queued or running, and
+     * helpers spawned from it that have not exited yet */
+    atomic_bool stop_requested;
+    atomic_bool task_live;
+    atomic_uint live_helpers;
+
+    /* Helpers point back at the primary they were spawned from */
+    struct tp_updater_context* parent;
 
     /* Configuration thresholds */
     TpUpdaterConfig config;
@@ -87,7 +108,9 @@ TpUpdaterContext* tp_updater_create(TpPool* pool,
                                      bool (*get_pending_tasks)(void*, TpTask**, size_t*),
                                      void* user_data);
 
-/* Destroy an updater context */
+/* Destroy an updater context
+ * Call only after tp_updater_stop() has returned, after tp_pool_destroy(),
+ * or if the updater was never started (see "Ownership and shutdown" above). */
 void tp_updater_destroy(TpUpdaterContext* ctx);
 
 /* }}} */
@@ -95,8 +118,14 @@ void tp_updater_destroy(TpUpdaterContext* ctx);
 /* {{{ Control */
 
 /* Start the primary updater as a worker task
- * Uses INT16_MAX for essentially infinite execution */
-void tp_updater_start(TpUpdaterContext* ctx);
+ * Uses INT16_MAX for essentially infinite execution
+ * Returns false if it was already running or no worker would take the task */
+bool tp_updater_start(TpUpdaterContext* ctx);
+
+/* Stop the primary updater and every helper spawned from it, and wait until
+ * they are gone. The pool must still be running. A stopped updater may be
+ * started again. */
+void tp_updater_stop(TpUpdaterContext* ctx);
 
 /* }}} */
 

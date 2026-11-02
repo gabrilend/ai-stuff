@@ -1,0 +1,5 @@
+# Build output from the Makefiles; binaries never go in git
+build/
+tests/build/
+tests/build-tsan/
+tests/build-asan/

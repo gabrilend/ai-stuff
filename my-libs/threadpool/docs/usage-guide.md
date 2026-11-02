@@ -63,12 +63,13 @@ gcc your_app.c \
 
 **Option B: Static library**
 ```bash
-# Build library
+# Build library (build/libthreadpool.a holds all four modules)
 cd /path/to/my-libs/threadpool
-make  # (if Makefile exists)
+make
 
-# Link your app
-gcc your_app.c -L/path/to/my-libs/threadpool -lthreadpool -pthread -o your_app
+# Link your app; only the modules you call are linked in
+gcc your_app.c -I/path/to/my-libs/threadpool/src \
+    -L/path/to/my-libs/threadpool/build -lthreadpool -pthread -o your_app
 ```
 
 ### 3. Basic Example
@@ -315,7 +316,9 @@ int main(void) {
 
     // Main loop: display front buffer
     while (running) {
-        // Display state.front (safe to read, sync handles pointer swap)
+        // Read state.front only once you have seen state.ready go back to
+        // false: the sync thread writes the pointer first, then clears the
+        // flag, so the cleared flag is what makes the new pointer safe to read
         display_frame(state.front);
 
         // Swap back buffer for next frame
@@ -522,10 +525,12 @@ int main(void) {
     // Now schedule tasks - updater will distribute them to workers
     // ... tp_scheduler_add() calls ...
 
-    // Cleanup
+    // Cleanup: stop the updater while the pool still runs, then free the
+    // updater (it belongs to you), the pool, and the scheduler
+    tp_updater_stop(updater);
+    tp_updater_destroy(updater);
     tp_pool_destroy(pool);
     tp_scheduler_destroy(sched);
-    // Note: updater context freed by pool
 
     return 0;
 }
@@ -552,7 +557,8 @@ unsigned int tp_pool_get_load(TpPool* pool);
 
 **Task Management**
 ```c
-bool tp_task_append(TpWorker* w, TpTask* task);
+bool tp_task_append(TpWorker* w, TpTask* task);   // any thread, copies the task
+size_t tp_worker_queued(TpWorker* w);             // tasks in the ring, running one included
 TpWorker* tp_find_least_busy(TpPool* pool);
 TpWorker* tp_find_least_busy_excluding(TpPool* pool, int exclude_id);
 ```
@@ -595,6 +601,11 @@ bool tp_sync_add_watch(TpSyncContext* ctx,
                        void* source_ptr);
 ```
 
+The sync thread writes `*target_ptr`, then clears `ready_flag`. Read
+`*target_ptr` after you see the flag go back to false; that order is what makes
+the new pointer safe to read. `tp_sync_create(NULL)` uses the defaults, and the
+module prints nothing unless you give it a `log_fn`.
+
 **Statistics**
 ```c
 uint64_t tp_sync_get_swaps(TpSyncContext* ctx);
@@ -612,8 +623,14 @@ TpUpdaterContext* tp_updater_create(
     void* user_data
 );
 void tp_updater_destroy(TpUpdaterContext* ctx);
-void tp_updater_start(TpUpdaterContext* ctx);
+bool tp_updater_start(TpUpdaterContext* ctx);  // false if already running
+void tp_updater_stop(TpUpdaterContext* ctx);   // waits for the updater and its helpers
 ```
+
+The context from `tp_updater_create()` is yours; the library never frees it.
+Free it with `tp_updater_destroy()` after `tp_updater_stop()` has returned, or
+after `tp_pool_destroy()`. Helpers from `tp_updater_spawn_helper()` free
+themselves.
 
 **Statistics**
 ```c
@@ -645,6 +662,12 @@ uint64_t tp_scheduler_earliest_ready_tick(TpScheduler* sched);
 void tp_scheduler_sleep_ticks(TpScheduler* sched, uint64_t ticks_to_sleep);
 ```
 
+One tick lasts `TpSchedulerConfig.tick_us` (default 16000, 62.5 Hz). A sleep
+returns at once if a task is ready, never runs past the earliest scheduled
+task, and ends early when a task is added. `tp_scheduler_get_ready()` returns a
+buffer that belongs to the scheduler and lasts until the next call on the same
+scheduler, so let one thread take tasks from a scheduler.
+
 **Global Requirement**
 ```c
 // Define this once in your application
@@ -664,7 +687,9 @@ Accurate weights improve load balancing:
 
 ### 2. Avoid Locks in Tasks
 
-Thread pool is designed for lock-free operation. If you need synchronization:
+Each worker's ring has a short lock for appends, but tasks run outside it, so a
+task may append to any worker, its own included. Inside your tasks, if you need
+synchronization:
 - Use atomic operations where possible
 - Keep critical sections minimal
 - Consider splitting tasks instead of locking
@@ -713,6 +738,10 @@ task.on_complete = cleanup;
 // Option 2: Keep alive until pool destroy
 // (then free manually)
 ```
+
+`tp_pool_destroy()` drops queued tasks without running them, and a repeating
+task cut short by it gets no `on_complete`, so Option 2 is the safe choice for
+anything still queued at shutdown.
 
 ---
 

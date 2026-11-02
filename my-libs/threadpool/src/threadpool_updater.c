@@ -7,6 +7,7 @@
 
 #include "threadpool_updater.h"
 #include "threadpool_config.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,9 @@
 #define DEFAULT_TARGET_TICK_US 10000            /* 10ms = 100Hz */
 #define DEFAULT_CONTINUATION_THRESHOLD_US 5000  /* 50% of target */
 #define DEFAULT_OVERLOAD_THRESHOLD_US 5000      /* Same as continuation */
+
+/* Conditional logging through the context's config */
+#define UPD_LOG(ctx, fmt, ...) TP_LOG(&(ctx)->config, fmt, ##__VA_ARGS__)
 
 /* Global active updater count - for dynamic scaling decisions */
 static atomic_uint g_active_updater_count = 0;
@@ -40,93 +44,135 @@ TpUpdaterConfig tp_updater_config_default(void) {
 }
 /* }}} */
 
+/* {{{ updater_init
+ * Fills a freshly calloc'd context. */
+static void updater_init(TpUpdaterContext* ctx, TpPool* pool, TpUpdaterConfig config,
+                         bool (*get_pending_tasks)(void*, TpTask**, size_t*),
+                         void* user_data) {
+    ctx->pool = pool;
+    ctx->get_pending_tasks = get_pending_tasks;
+    ctx->user_data = user_data;
+    ctx->partition_start = 0;
+    ctx->partition_end = 0;
+    ctx->config = config;
+    ctx->parent = NULL;
+    atomic_init(&ctx->last_tick_duration_us, 0);
+    atomic_init(&ctx->stop_requested, false);
+    atomic_init(&ctx->task_live, false);
+    atomic_init(&ctx->live_helpers, 0);
+}
+/* }}} */
+
 /* {{{ tp_updater_create
- * Creates a primary updater context.
- * Returns NULL on allocation failure. */
+ * Creates a primary updater context, owned by the caller.
+ * Returns NULL on bad arguments or allocation failure. */
 TpUpdaterContext* tp_updater_create(TpPool* pool,
                                      TpUpdaterConfig* config,
                                      bool (*get_pending_tasks)(void*, TpTask**, size_t*),
                                      void* user_data) {
+    TpUpdaterConfig cfg = config ? *config : tp_updater_config_default();
+
     if (!pool || !get_pending_tasks) {
-        fprintf(stderr, "[threadpool_updater] Invalid arguments\n");
+        if (cfg.log_fn) cfg.log_fn("[threadpool_updater] Invalid arguments\n");
         return NULL;
     }
 
     TpUpdaterContext* ctx = calloc(1, sizeof(TpUpdaterContext));
     if (!ctx) {
-        fprintf(stderr, "[threadpool_updater] Failed to allocate context\n");
+        if (cfg.log_fn) cfg.log_fn("[threadpool_updater] Failed to allocate context\n");
         return NULL;
     }
 
-    ctx->pool = pool;
-    ctx->get_pending_tasks = get_pending_tasks;
-    ctx->user_data = user_data;
-    ctx->partition_start = 0;
-    ctx->partition_end = 0;  /* Set by callback if needed */
-    ctx->last_tick_duration_us = 0;
+    updater_init(ctx, pool, cfg, get_pending_tasks, user_data);
     ctx->is_primary = true;
-    ctx->is_allocated = true;
+    ctx->is_allocated = false;  /* The caller frees it with tp_updater_destroy() */
 
-    /* Store configuration */
-    if (config) {
-        ctx->config = *config;
-    } else {
-        ctx->config = tp_updater_config_default();
-    }
-
-    if (ctx->config.log_fn) {
-        ctx->config.log_fn("[threadpool_updater] Created context (target: %lu us)\n",
-                           ctx->config.target_tick_us);
-    }
+    UPD_LOG(ctx, "[threadpool_updater] Created context (target: %" PRIu64 " us)\n",
+            ctx->config.target_tick_us);
 
     return ctx;
 }
 /* }}} */
 
 /* {{{ tp_updater_destroy
- * Destroys an updater context. */
+ * Frees a primary updater context. See the header for when this is safe. */
 void tp_updater_destroy(TpUpdaterContext* ctx) {
-    if (ctx && ctx->is_allocated) {
-        free(ctx);
+    if (!ctx || !ctx->is_primary) return;
+    free(ctx);
+}
+/* }}} */
+
+/* {{{ append_updater_task
+ * Queues an updater task on the least busy worker. Returns false if no worker
+ * would take it (no workers, or every candidate's ring is full). */
+static bool append_updater_task(TpUpdaterContext* ctx, int16_t repeat_count,
+                                TpWorker** out_worker) {
+    TpTask task = {
+        .execute = ctx->is_primary ? primary_updater_execute : helper_updater_execute,
+        .on_complete = ctx->is_primary ? primary_updater_on_complete : helper_updater_on_complete,
+        .context = ctx,
+        .weight = TP_WEIGHT_UPDATER,
+        .repeat_count = repeat_count
+    };
+
+    TpWorker* target = tp_find_least_busy(ctx->pool);
+    if (!target || !tp_task_append(target, &task)) {
+        UPD_LOG(ctx, "[threadpool_updater] Could not queue updater task\n");
+        return false;
     }
+    if (out_worker) *out_worker = target;
+    return true;
 }
 /* }}} */
 
 /* {{{ tp_updater_start
  * Starts the primary updater as a worker task.
  * Uses INT16_MAX for essentially infinite execution. */
-void tp_updater_start(TpUpdaterContext* ctx) {
-    if (!ctx || !ctx->pool) return;
+bool tp_updater_start(TpUpdaterContext* ctx) {
+    if (!ctx || !ctx->pool || !ctx->is_primary) return false;
+    if (atomic_load(&ctx->task_live)) return false;  /* Already running */
 
-    TpWorker* target = tp_find_least_busy(ctx->pool);
-    if (!target) return;
-
-    /* Increment active updater count */
+    atomic_store(&ctx->stop_requested, false);
+    atomic_store(&ctx->task_live, true);
     atomic_fetch_add(&g_active_updater_count, 1);
 
-    TpTask task = {
-        .execute = primary_updater_execute,
-        .on_complete = primary_updater_on_complete,
-        .context = ctx,
-        .weight = TP_WEIGHT_UPDATER,
-        .repeat_count = INT16_MAX  /* Run ~32K times then re-evaluate */
-    };
-
-    tp_task_append(target, &task);
-
-    if (ctx->config.log_fn) {
-        ctx->config.log_fn("[threadpool_updater] Primary started on worker %d (active: %u)\n",
-                           target->worker_id, atomic_load(&g_active_updater_count));
+    TpWorker* target = NULL;
+    if (!append_updater_task(ctx, INT16_MAX, &target)) {
+        atomic_fetch_sub(&g_active_updater_count, 1);
+        atomic_store(&ctx->task_live, false);
+        return false;
     }
+
+    UPD_LOG(ctx, "[threadpool_updater] Primary started on worker %d (active: %u)\n",
+            target->worker_id, atomic_load(&g_active_updater_count));
+    return true;
+}
+/* }}} */
+
+/* {{{ tp_updater_stop
+ * Asks the primary and its helpers to stop, and waits until they are gone.
+ * A stopped primary's remaining runs are no-ops, so this returns quickly
+ * unless the updater task is queued behind slow work. */
+void tp_updater_stop(TpUpdaterContext* ctx) {
+    if (!ctx || !ctx->is_primary) return;
+
+    atomic_store(&ctx->stop_requested, true);
+    while (atomic_load(&ctx->task_live) || atomic_load(&ctx->live_helpers) > 0) {
+        usleep(1000);  /* 1ms */
+    }
+
+    UPD_LOG(ctx, "[threadpool_updater] Stopped (active: %u)\n",
+            atomic_load(&g_active_updater_count));
 }
 /* }}} */
 
 /* {{{ primary_updater_execute
  * Main execution function for the primary updater.
- * Distributes tasks to workers and spawns helpers if overloaded. */
+ * Distributes tasks to workers and logs when overloaded. */
 static void primary_updater_execute(void* arg) {
     TpUpdaterContext* ctx = (TpUpdaterContext*)arg;
     if (!ctx || !ctx->get_pending_tasks) return;
+    if (atomic_load(&ctx->stop_requested)) return;  /* Drain quickly */
 
     uint64_t start = tp_get_timestamp_us();
 
@@ -136,27 +182,25 @@ static void primary_updater_execute(void* arg) {
     if (!ctx->get_pending_tasks(ctx->user_data, &pending, &count) || count == 0) {
         /* No tasks available - very brief yield to avoid busy-wait */
         usleep(100);  /* 0.1ms */
-        ctx->last_tick_duration_us = 0;
+        atomic_store(&ctx->last_tick_duration_us, 0);
         return;
     }
 
     /* Distribute all tasks to workers */
     for (size_t i = 0; i < count; i++) {
         TpWorker* target = tp_find_least_busy(ctx->pool);
-        if (target) {
-            tp_task_append(target, &pending[i]);
+        if (!target || !tp_task_append(target, &pending[i])) {
+            UPD_LOG(ctx, "[threadpool_updater] Dropped task %zu of %zu: no room\n", i, count);
         }
     }
 
     uint64_t elapsed = tp_get_timestamp_us() - start;
-    ctx->last_tick_duration_us = elapsed;
+    atomic_store(&ctx->last_tick_duration_us, elapsed);
 
     /* Check for overload - if we took longer than target tick time */
     if (elapsed > ctx->config.target_tick_us && count > 1) {
-        if (ctx->config.log_fn) {
-            ctx->config.log_fn("[threadpool_updater] Overload detected: %lu us (target: %lu us)\n",
-                               elapsed, ctx->config.target_tick_us);
-        }
+        UPD_LOG(ctx, "[threadpool_updater] Overload detected: %" PRIu64 " us (target: %" PRIu64 " us)\n",
+                elapsed, ctx->config.target_tick_us);
     }
 }
 /* }}} */
@@ -168,13 +212,18 @@ static void helper_updater_execute(void* arg) {
     TpUpdaterContext* ctx = (TpUpdaterContext*)arg;
     if (!ctx || !ctx->get_pending_tasks) return;
 
+    if (ctx->parent && atomic_load(&ctx->parent->stop_requested)) {
+        atomic_store(&ctx->last_tick_duration_us, 0);
+        return;
+    }
+
     uint64_t start = tp_get_timestamp_us();
 
     /* Get pending tasks */
     TpTask* pending = NULL;
     size_t count = 0;
     if (!ctx->get_pending_tasks(ctx->user_data, &pending, &count)) {
-        ctx->last_tick_duration_us = 0;
+        atomic_store(&ctx->last_tick_duration_us, 0);
         return;
     }
 
@@ -183,19 +232,32 @@ static void helper_updater_execute(void* arg) {
     size_t end_idx = ctx->partition_end;
     if (end_idx > count) end_idx = count;
     if (start_idx >= end_idx) {
-        ctx->last_tick_duration_us = 0;
+        atomic_store(&ctx->last_tick_duration_us, 0);
         return;
     }
 
     /* Distribute partition to workers */
     for (size_t i = start_idx; i < end_idx; i++) {
         TpWorker* target = tp_find_least_busy(ctx->pool);
-        if (target) {
-            tp_task_append(target, &pending[i]);
+        if (!target || !tp_task_append(target, &pending[i])) {
+            UPD_LOG(ctx, "[threadpool_updater] Helper dropped task %zu: no room\n", i);
         }
     }
 
-    ctx->last_tick_duration_us = tp_get_timestamp_us() - start;
+    atomic_store(&ctx->last_tick_duration_us, tp_get_timestamp_us() - start);
+}
+/* }}} */
+
+/* {{{ helper_exit
+ * A helper leaves: counts drop, the parent learns it is gone, the context is
+ * freed. The parent is not touched after its live_helpers count drops, since
+ * tp_updater_stop() may return and the parent be freed right then. */
+static void helper_exit(TpUpdaterContext* ctx) {
+    atomic_fetch_sub(&g_active_updater_count, 1);
+    if (ctx->parent) {
+        atomic_fetch_sub(&ctx->parent->live_helpers, 1);
+    }
+    free(ctx);
 }
 /* }}} */
 
@@ -206,38 +268,30 @@ static void helper_updater_on_complete(void* arg) {
     TpUpdaterContext* ctx = (TpUpdaterContext*)arg;
     if (!ctx) return;
 
-    if (ctx->last_tick_duration_us > ctx->config.continuation_threshold_us) {
+    uint64_t last = atomic_load(&ctx->last_tick_duration_us);
+    bool stopping = ctx->parent && atomic_load(&ctx->parent->stop_requested);
+
+    if (!stopping && last > ctx->config.continuation_threshold_us) {
         /* Still under load - recreate task on least-busy worker */
-        TpWorker* target = tp_find_least_busy(ctx->pool);
-        if (target) {
-            TpTask task = {
-                .execute = helper_updater_execute,
-                .on_complete = helper_updater_on_complete,
-                .context = ctx,
-                .weight = TP_WEIGHT_UPDATER,
-                .repeat_count = 1
-            };
-            tp_task_append(target, &task);
-
-            if (ctx->config.log_fn) {
-                ctx->config.log_fn("[threadpool_updater] Helper continuing (last: %lu us)\n",
-                                   ctx->last_tick_duration_us);
-            }
-        }
-    } else {
-        /* Load decreased - exit and free context */
-        if (ctx->config.log_fn) {
-            ctx->config.log_fn("[threadpool_updater] Helper exiting (last: %lu us <= %lu us threshold)\n",
-                               ctx->last_tick_duration_us, ctx->config.continuation_threshold_us);
-        }
-
-        /* Decrement active count */
-        atomic_fetch_sub(&g_active_updater_count, 1);
-
-        if (ctx->is_allocated) {
-            free(ctx);
+        if (append_updater_task(ctx, 1, NULL)) {
+            UPD_LOG(ctx, "[threadpool_updater] Helper continuing (last: %" PRIu64 " us)\n", last);
+            return;
         }
     }
+
+    /* Load decreased, stop requested, or no room to continue - exit */
+    UPD_LOG(ctx, "[threadpool_updater] Helper exiting (last: %" PRIu64 " us, threshold: %" PRIu64 " us)\n",
+            last, ctx->config.continuation_threshold_us);
+    helper_exit(ctx);
+}
+/* }}} */
+
+/* {{{ primary_end
+ * The primary's task is over: drop it from the active count and mark it gone.
+ * The context itself belongs to the caller and is not freed here. */
+static void primary_end(TpUpdaterContext* ctx) {
+    atomic_fetch_sub(&g_active_updater_count, 1);
+    atomic_store(&ctx->task_live, false);
 }
 /* }}} */
 
@@ -248,63 +302,32 @@ static void primary_updater_on_complete(void* arg) {
     TpUpdaterContext* ctx = (TpUpdaterContext*)arg;
     if (!ctx || !ctx->pool) return;
 
-    unsigned int active = atomic_load(&g_active_updater_count);
-
-    if (active <= 1) {
-        /* Last updater - must keep running, re-spawn with INT16_MAX */
-        TpWorker* target = tp_find_least_busy(ctx->pool);
-        if (target) {
-            TpTask task = {
-                .execute = primary_updater_execute,
-                .on_complete = primary_updater_on_complete,
-                .context = ctx,
-                .weight = TP_WEIGHT_UPDATER,
-                .repeat_count = INT16_MAX
-            };
-            tp_task_append(target, &task);
-
-            if (ctx->config.log_fn) {
-                ctx->config.log_fn("[threadpool_updater] Re-spawned (only %u active, last: %lu us)\n",
-                                   active, ctx->last_tick_duration_us);
-            }
-        }
-    } else if (ctx->last_tick_duration_us > ctx->config.overload_threshold_us) {
-        /* Multiple updaters and heavy load - spawn replacement, terminate this one */
-        TpWorker* target = tp_find_least_busy(ctx->pool);
-        if (target) {
-            TpTask task = {
-                .execute = primary_updater_execute,
-                .on_complete = primary_updater_on_complete,
-                .context = ctx,
-                .weight = TP_WEIGHT_UPDATER,
-                .repeat_count = INT16_MAX
-            };
-            tp_task_append(target, &task);
-
-            if (ctx->config.log_fn) {
-                ctx->config.log_fn("[threadpool_updater] Spawned replacement on worker %d (last: %lu us > %lu us)\n",
-                                   target->worker_id, ctx->last_tick_duration_us,
-                                   ctx->config.overload_threshold_us);
-            }
-        }
-
-        /* Decrement count - this updater is terminating */
-        atomic_fetch_sub(&g_active_updater_count, 1);
-    } else {
-        /* Multiple updaters and light load - terminate to shrink pool */
-        atomic_fetch_sub(&g_active_updater_count, 1);
-
-        if (ctx->config.log_fn) {
-            ctx->config.log_fn("[threadpool_updater] Terminating (active: %u, last: %lu us <= %lu us)\n",
-                               active - 1, ctx->last_tick_duration_us,
-                               ctx->config.overload_threshold_us);
-        }
-
-        /* Free context if dynamically allocated */
-        if (ctx->is_allocated) {
-            free(ctx);
-        }
+    if (atomic_load(&ctx->stop_requested)) {
+        primary_end(ctx);
+        return;
     }
+
+    unsigned int active = atomic_load(&g_active_updater_count);
+    uint64_t last = atomic_load(&ctx->last_tick_duration_us);
+
+    if (active <= 1 || last > ctx->config.overload_threshold_us) {
+        /* Last updater (must keep running), or still loaded: recreate on the
+         * least busy worker. The count is unchanged - this updater lives on. */
+        TpWorker* target = NULL;
+        if (append_updater_task(ctx, INT16_MAX, &target)) {
+            UPD_LOG(ctx, "[threadpool_updater] Re-spawned on worker %d (active: %u, last: %" PRIu64 " us)\n",
+                    target->worker_id, active, last);
+            return;
+        }
+        UPD_LOG(ctx, "[threadpool_updater] No room to re-spawn; primary ends\n");
+        primary_end(ctx);
+        return;
+    }
+
+    /* Multiple updaters and light load - terminate to shrink pool */
+    UPD_LOG(ctx, "[threadpool_updater] Terminating (active: %u, last: %" PRIu64 " us <= %" PRIu64 " us)\n",
+            active - 1, last, ctx->config.overload_threshold_us);
+    primary_end(ctx);
 }
 /* }}} */
 
@@ -313,51 +336,37 @@ static void primary_updater_on_complete(void* arg) {
 void tp_updater_spawn_helper(TpUpdaterContext* primary,
                               size_t partition_start,
                               size_t partition_end) {
-    if (!primary || !primary->pool) return;
+    if (!primary || !primary->pool || !primary->is_primary) return;
+    if (atomic_load(&primary->stop_requested)) return;
 
     /* Allocate helper context */
     TpUpdaterContext* helper = calloc(1, sizeof(TpUpdaterContext));
     if (!helper) {
-        fprintf(stderr, "[threadpool_updater] Failed to allocate helper context\n");
+        UPD_LOG(primary, "[threadpool_updater] Failed to allocate helper context\n");
         return;
     }
 
     /* Copy settings from primary */
-    helper->pool = primary->pool;
-    helper->get_pending_tasks = primary->get_pending_tasks;
-    helper->user_data = primary->user_data;
+    updater_init(helper, primary->pool, primary->config,
+                 primary->get_pending_tasks, primary->user_data);
     helper->partition_start = partition_start;
     helper->partition_end = partition_end;
-    helper->last_tick_duration_us = 0;
     helper->is_primary = false;
     helper->is_allocated = true;
-    helper->config = primary->config;
+    helper->parent = primary;
 
-    /* Increment active count */
+    /* Count it before it can run, so a quick exit never drops below zero */
     atomic_fetch_add(&g_active_updater_count, 1);
+    atomic_fetch_add(&primary->live_helpers, 1);
 
-    /* Submit as worker task */
-    TpWorker* target = tp_find_least_busy(primary->pool);
-    if (!target) {
-        atomic_fetch_sub(&g_active_updater_count, 1);
-        free(helper);
+    TpWorker* target = NULL;
+    if (!append_updater_task(helper, 1, &target)) {
+        helper_exit(helper);
         return;
     }
 
-    TpTask task = {
-        .execute = helper_updater_execute,
-        .on_complete = helper_updater_on_complete,
-        .context = helper,
-        .weight = TP_WEIGHT_UPDATER,
-        .repeat_count = 1
-    };
-
-    tp_task_append(target, &task);
-
-    if (primary->config.log_fn) {
-        primary->config.log_fn("[threadpool_updater] Helper spawned for partition [%zu, %zu) on worker %d\n",
-                               partition_start, partition_end, target->worker_id);
-    }
+    UPD_LOG(primary, "[threadpool_updater] Helper spawned for partition [%zu, %zu) on worker %d\n",
+            partition_start, partition_end, target->worker_id);
 }
 /* }}} */
 
@@ -371,6 +380,6 @@ unsigned int tp_updater_get_active_count(void) {
 /* {{{ tp_updater_get_last_tick_us
  * Returns the last tick duration for an updater. */
 uint64_t tp_updater_get_last_tick_us(TpUpdaterContext* ctx) {
-    return ctx ? ctx->last_tick_duration_us : 0;
+    return ctx ? atomic_load(&ctx->last_tick_duration_us) : 0;
 }
 /* }}} */

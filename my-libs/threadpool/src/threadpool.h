@@ -61,16 +61,27 @@ typedef struct tp_task {
 struct tp_pool;
 
 /* {{{ TpWorker
- * A worker thread with a ring buffer of tasks. */
+ * A worker thread with a ring buffer of tasks.
+ *
+ * Any thread may append to any worker (the main thread, an updater running on
+ * another worker, or an on_complete running on this same worker). The ring's
+ * positions are guarded by `lock`; the worker copies the task at start_ptr out
+ * under the lock and runs the copy without holding it, so a task may append to
+ * its own worker without deadlocking. The slot at start_ptr stays reserved
+ * until the task finishes, so a producer can never overwrite a running task.
+ * An idle worker sleeps on `wake` instead of polling. */
 typedef struct tp_worker {
     pthread_t thread;
     int worker_id;
 
-    /* Task ring buffer */
+    /* Task ring buffer (holds task_list_size - 1 tasks) */
     TpTask* task_list;
     size_t task_list_size;
-    size_t start_ptr;           /* Current execution position */
-    size_t end_ptr;             /* Next write position */
+    size_t start_ptr;           /* Current execution position (guarded by lock) */
+    size_t end_ptr;             /* Next write position (guarded by lock) */
+
+    pthread_mutex_t lock;       /* Guards task_list, start_ptr, end_ptr */
+    pthread_cond_t wake;        /* Signalled on append and on shutdown */
 
     /* Load balancing: weighted sum of pending task weights */
     atomic_uint num_tasks;
@@ -113,9 +124,13 @@ unsigned int tp_pool_get_load(TpPool* pool);
 
 /* {{{ Function Declarations - Task Management */
 
-/* Append a task to a worker's ring buffer
- * Returns false if buffer is full */
+/* Append a task to a worker's ring buffer (thread-safe, any thread)
+ * The task is copied, so the caller's TpTask may live on the stack.
+ * Returns false if the buffer is full or w/task is NULL. */
 bool tp_task_append(TpWorker* w, TpTask* task);
+
+/* Number of tasks in a worker's ring, counting the one running now */
+size_t tp_worker_queued(TpWorker* w);
 
 /* Find the worker with lowest num_tasks */
 TpWorker* tp_find_least_busy(TpPool* pool);
@@ -131,7 +146,10 @@ TpWorker* tp_find_least_busy_excluding(TpPool* pool, int exclude_id);
 /* Default task that sleeps for one tick */
 void tp_sleep_task(void* context);
 
-/* Task that compacts the ring buffer (internal use) */
+/* Compact a worker's ring buffer: drops queued tp_sleep_task placeholders that
+ * have not started and closes the gaps they leave. context is the TpWorker*.
+ * Safe to call directly from any thread or to queue as a task. The ring wraps
+ * on its own, so nothing needs to call this for the buffer to keep working. */
 void tp_relocate_task(void* context);
 
 /* }}} */
