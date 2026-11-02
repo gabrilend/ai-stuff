@@ -5,7 +5,7 @@ Copied from double-diaper-dungeon's `libs/` on 2026-09-26 (its commit
 
 | file | from | changed here? |
 | --- | --- | --- |
-| `markdown.lua` | `double-diaper-dungeon/libs/markdown.lua` | no |
+| `markdown.lua` | `double-diaper-dungeon/libs/markdown.lua` | yes: a fence closes only at a line with at least as many backticks (2026-11-02, issue 031) |
 | `page-head.lua` | `double-diaper-dungeon/libs/page-head.lua` | no |
 
 `markdown.lua` carries double-diaper-dungeon's `reflow` option, which

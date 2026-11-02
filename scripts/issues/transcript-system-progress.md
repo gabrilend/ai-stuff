@@ -189,6 +189,18 @@ could only gesture at besides: narration in a genuinely different visual
 register rather than borrowing the quote marker, model provenance as a gutter
 down the side, and search across the whole corpus at once.
 
+### Shell commands became commands (031)
+
+A command run from Claude Code's shell prompt arrived as literal
+`<bash-input>` and `<bash-stdout>` tags under the person's name, and on the
+published pages a reader could not tell the person had not typed them. It is
+now a line marked `*(shell)*` with each non-empty stream as a block beneath.
+
+The lesson was about **text that can hold the format's own markers.** Output
+is the one thing in a message that can contain the harness's tags (a log read
+with cat) or a markdown fence (a README read with cat). So shell blocks are
+lifted before every other rule, their closing tags are found from the end of
+the message, and their fences are made longer than any fence inside them.
 
 ### Verification
 

@@ -380,6 +380,137 @@ local function quote_block(text)
 end
 -- }}}
 
+-- {{{ trim_shell_text
+-- Take the blank lines off both ends of a command or of what it printed, and
+-- nothing else. The first printed line keeps its indentation, because output
+-- is shown as it came out and a leading space can be part of a column.
+local function trim_shell_text(s)
+    s = s:gsub("^%s*\n", "")
+    s = s:gsub("%s+$", "")
+    return s
+end
+-- }}}
+
+-- {{{ split_shell
+-- Lift a command the person ran from Claude Code's shell prompt (a line
+-- started with "!"), and what it printed, out of the user's seat (issue 031).
+--
+-- The log files these as two messages: one holding
+-- <bash-input>COMMAND</bash-input>, then one holding
+-- <bash-stdout>OUT</bash-stdout><bash-stderr>ERR</bash-stderr>. Each piece is
+-- appended to items in the order it appears:
+--
+--   shell         the command, as typed
+--   shell_output  one stream of what it printed; carries stream = "stdout"
+--                 or "stderr". A stream with nothing in it is not returned
+--                 at all, because "it printed nothing" needs no line.
+--   shell_end     the output message has been read, so the command is
+--                 finished with even when it printed nothing at all.
+--
+-- Two ways to match, tried in this order:
+--
+--   the message is exactly one of the two shapes (after the fixed caveat the
+--   harness may put in front), and each closing tag is found from the END of
+--   the message. This is what keeps output that contains the tag names as
+--   text - a session log printed with cat, a grep for these very tags -
+--   whole, where a shortest match would stop at the first "</bash-stdout>"
+--   inside the output;
+--
+--   anything else: each tag is taken by shortest match where it sits, for a
+--   message that holds a shell block among other things.
+--
+-- Returns the text with the shell blocks removed.
+local function split_shell(text, items)
+    -- {{{ add_output
+    local function add_output(body, stream)
+        body = trim_shell_text(body)
+        if body:find("%S") then
+            items[#items + 1] = { kind = "shell_output", text = body, stream = stream }
+        end
+    end
+    -- }}}
+
+    local body = text:gsub("^%s*<local%-command%-caveat>.-</local%-command%-caveat>", "")
+
+    local command = body:match("^%s*<bash%-input>(.*)</bash%-input>%s*$")
+    if command then
+        items[#items + 1] = { kind = "shell", text = trim_shell_text(command) }
+        return ""
+    end
+
+    local stdout, stderr = body:match(
+        "^%s*<bash%-stdout>(.*)</bash%-stdout>%s*<bash%-stderr>(.*)</bash%-stderr>%s*$")
+    if stdout then
+        add_output(stdout, "stdout")
+        add_output(stderr, "stderr")
+        items[#items + 1] = { kind = "shell_end" }
+        return ""
+    end
+
+    local rest = text:gsub("<bash%-input>(.-)</bash%-input>", function(c)
+        items[#items + 1] = { kind = "shell", text = trim_shell_text(c) }
+        return ""
+    end)
+    local streams = 0
+    rest, streams = rest:gsub("<bash%-stdout>(.-)</bash%-stdout>", function(o)
+        add_output(o, "stdout")
+        return ""
+    end)
+    local n
+    rest, n = rest:gsub("<bash%-stderr>(.-)</bash%-stderr>", function(e)
+        add_output(e, "stderr")
+        return ""
+    end)
+    if streams + n > 0 then
+        items[#items + 1] = { kind = "shell_end" }
+    end
+    return rest
+end
+-- }}}
+
+-- {{{ code_fence
+-- Put text in a fenced code block that nothing inside it can close.
+--
+-- A fence closes at the first line opening with at least as many backticks as
+-- it did, so the fence is made one longer than the longest run that opens any
+-- line of the text, and never shorter than the usual three. Output read from
+-- a markdown file is full of three-backtick lines; this is what keeps them
+-- inside the block as text instead of ending it.
+local function code_fence(info, text)
+    local longest = 2
+    for _, line in ipairs(split_lines(text)) do
+        local ticks = line:match("^%s*(`+)")
+        if ticks and #ticks > longest then longest = #ticks end
+    end
+    local fence = string.rep("`", longest + 1)
+    return fence .. (info or "") .. "\n" .. text .. "\n" .. fence
+end
+-- }}}
+
+-- {{{ shell_lines
+-- What one shell item is written as (issue 031), in the vocabulary the
+-- transcript already uses for machine text: a short marked line like a skill
+-- invocation's, and blocks for what was printed.
+--
+-- A command that fits on one line with no backtick in it is the line itself,
+-- `COMMAND` *(shell)*. Any other command - several lines, or a backtick that
+-- would end the inline code early - is the marker over a fenced block, since
+-- nothing in a block is re-read as markdown. Standard output is a bare block
+-- under the command; standard error has a line saying which stream it is.
+local function shell_lines(item)
+    if item.kind == "shell" then
+        if not item.text:find("[\n`]") and item.text ~= "" then
+            return "`" .. item.text .. "` *(shell)*"
+        end
+        return "*(shell)*\n\n" .. code_fence("sh", item.text)
+    end
+    if item.stream == "stderr" then
+        return "*standard error:*\n\n" .. code_fence("", item.text)
+    end
+    return code_fence("", item.text)
+end
+-- }}}
+
 -- {{{ split_envelope
 -- Separate what the USER wrote from what the HARNESS wrote, inside a single
 -- message that holds both.
@@ -407,6 +538,9 @@ end
 --            and is not prose anybody reads. Also carries the task's id
 --            (a string, or nil when the notification had none).
 --   recap    the machine-written summary that opens a continued session.
+--   shell, shell_output
+--            a command the person ran from the shell prompt and each stream
+--            it printed; see split_shell above (issue 031).
 --
 -- Two kinds are removed and NOT returned, because they carry nothing a reader
 -- of the transcript wants: the local-command caveat, which is fixed
@@ -419,7 +553,11 @@ end
 local function split_envelope(text)
     local items = {}
     if type(text) ~= "string" then return "", items end
-    local rest = text
+    -- Shell blocks are taken out before anything else is, because what a
+    -- command printed is the one place a message can hold the other tags as
+    -- plain text (a log read with cat), and stripping those first would eat
+    -- them out of the middle of the output.
+    local rest = split_shell(text, items)
 
     rest = rest:gsub("<local%-command%-caveat>.-</local%-command%-caveat>", "")
     rest = rest:gsub("<system%-reminder>.-</system%-reminder>", "")
@@ -1121,6 +1259,10 @@ local function parse_conversation(jsonl_file, output_file)
     -- The name of a skill just invoked, held until the message carrying that
     -- skill's text arrives in the user's seat behind it.
     local pending_skill = nil
+    -- A shell command the person ran, as the lines it will be written as,
+    -- held until the message carrying what it printed arrives so the two
+    -- are written as one unit (issue 031). nil when none is waiting.
+    local pending_shell = nil
     -- Everything the model has said so far this conversation, reduced to
     -- the form a reader saw, so a line the user pastes back can be found
     -- in it. Unlike assistant_blocks above, this is NEVER emptied at a
@@ -1150,6 +1292,30 @@ local function parse_conversation(jsonl_file, output_file)
             emit_marginal("`" .. pending_command .. "`")
             pending_command = nil
         end
+    end
+    -- }}}
+
+    -- {{{ flush_pending_shell()
+    -- Write a shell command and whatever of its output has arrived, as one
+    -- unit closed by a rule. Written as it stands rather than through
+    -- emit_marginal, because emit_marginal wraps, and wrapping would join a
+    -- command's words and reflow its output: both are shown as typed.
+    local function flush_pending_shell()
+        if pending_shell then
+            out:write(table.concat(pending_shell, "\n\n") .. "\n")
+            out:write("\n")
+            out:write(RULE .. "\n")
+            out:write("\n")
+            pending_shell = nil
+        end
+    end
+    -- }}}
+
+    -- {{{ flush_pending()
+    -- Write whichever command is still waiting for its output.
+    local function flush_pending()
+        flush_pending_command()
+        flush_pending_shell()
     end
     -- }}}
 
@@ -1255,9 +1421,10 @@ local function parse_conversation(jsonl_file, output_file)
 
                 for _, item in ipairs(envelope) do
                     if item.kind == "command" then
-                        flush_pending_command()
+                        flush_pending()
                         pending_command = item.text
                     elseif item.kind == "output" then
+                        flush_pending_shell()
                         -- The output of the command just seen belongs on the
                         -- same line as it: for /model this is the only place
                         -- the chosen model is ever named, and the verb tells a
@@ -1269,12 +1436,23 @@ local function parse_conversation(jsonl_file, output_file)
                         else
                             emit_marginal(item.text)
                         end
-                    elseif item.kind == "skill" then
+                    elseif item.kind == "shell" then
+                        flush_pending()
+                        pending_shell = { shell_lines(item) }
+                    elseif item.kind == "shell_output" then
+                        -- Output with no command before it is still shown,
+                        -- on its own, rather than lost.
                         flush_pending_command()
+                        pending_shell = pending_shell or {}
+                        pending_shell[#pending_shell + 1] = shell_lines(item)
+                    elseif item.kind == "shell_end" then
+                        flush_pending_shell()
+                    elseif item.kind == "skill" then
+                        flush_pending()
                         emit_marginal("`" .. item.text .. "` *(skill)*")
                         pending_skill = item.text
                     elseif item.kind == "note" then
-                        flush_pending_command()
+                        flush_pending()
                         -- Two paths: the task is a helper whose transcript
                         -- the exporter has already saved, so the line ends
                         -- with a link to that file; or it is anything else
@@ -1289,7 +1467,7 @@ local function parse_conversation(jsonl_file, output_file)
                             emit_marginal("*[background task] " .. item.text .. "*")
                         end
                     elseif item.kind == "recap" then
-                        flush_pending_command()
+                        flush_pending()
                         out:write("### Session Recap (written by the harness, not by either speaker)\n")
                         out:write("\n")
                         out:write(format_content(item.text, 80) .. "\n")
@@ -1313,7 +1491,7 @@ local function parse_conversation(jsonl_file, output_file)
                     -- that it happened, which is the part worth keeping.
                     pending_skill = nil
                 elseif prose ~= "" then
-                    flush_pending_command()
+                    flush_pending()
                     out:write("### User Request " .. user_count .. "\n")
                     out:write("\n")
                     local quoted = mark_quoted_lines(prose, prior_speech)
@@ -1418,7 +1596,7 @@ local function parse_conversation(jsonl_file, output_file)
         and (#assistant_blocks == 0)
 
     flush_assistant()
-    flush_pending_command()
+    flush_pending()
 
     -- Two paths: the log held recaps, and they are listed between the header
     -- and the body; or it held none, and no Contents heading is written,
