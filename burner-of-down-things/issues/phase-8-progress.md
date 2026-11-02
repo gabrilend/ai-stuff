@@ -26,7 +26,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
   indented, no bullets — a deliberate contrast), joined into 807a's file.
 
-801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
-and the night-only palette rule; box diagrams and prose templates;
-line-and-dot charts, diagrams by level and the machine drawing itself; and
-safe concurrent appends and floors.
+- 809b concurrent append — ratings appended one line at a time to a
+  `.ratings` file beside the card, safe under two writers at once; a
+  person's latest rating is the asset's tier (else a machine's), and the
+  count utility now counts per tier too.
+
+801c-d, 807c-d, 805b-d and 809d remain: the flair's colour math and the
+night-only palette rule; box diagrams and prose templates; line-and-dot
+charts, diagrams by level and the machine drawing itself; and floors.
