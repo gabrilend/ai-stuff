@@ -153,7 +153,7 @@ The person's call, when asked which rule should win: *"let's prefer the
 claude.md implementation. We need more rigid guard-rails about always committing
 just lines that were edited by us."* So the index was kept, and checked line
 by line against what the session is known to have written (issue 032,
-`issues/032-commit-only-your-own-lines.md`).
+`issues/completed/032-commit-only-your-own-lines.md`).
 
 That check still shared one staging list between sessions, and on 2026-09-22
 it failed in the way only sharing can. One session's gate found the list clean
@@ -163,7 +163,7 @@ same list, and the commit carried them under the wrong message. A gate runs
 before the command it approves, so no gate can vouch for a list anyone may
 write in between. Commits now never touch the shared list: `commit-own-changes`
 builds each one on a private list and moves the branch with a compare-and-swap
-(issue 032a, `issues/032a-commit-through-a-private-staging-area.md`).
+(issue 032a, `issues/completed/032a-commit-through-a-private-staging-area.md`).
 
 ## How the gates read a command
 

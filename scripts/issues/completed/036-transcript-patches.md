@@ -130,3 +130,13 @@ None open. Answered 2026-09-22:
 - The upstream-patch-system skill — the model: literal edits, already-applied
   checks, stale patches as errors.
 - The transcript-care skill — how to add a patch and see the original.
+
+## What Happened
+
+Built on 2026-09-22, as Current Behavior describes. Its three open questions
+were answered the same day. The issue stayed among the open ones only
+because nobody moved it. It moves to `issues/completed/` on 2026-11-02 with
+nothing changed in the tool.
+
+`tests/test-transcript-patches.sh --dir <monorepo>`: 35 passed, 0 failed
+(2026-11-02).

@@ -5,7 +5,7 @@ The exporter (`backup-conversations`) re-renders a transcript whenever its
 session is exported again; an edit made by hand would be overwritten. An edit
 is instead a **patch**: a small folder belonging to one conversation, which
 the exporter re-applies every time it renders that conversation. Design and
-open questions: `issues/036-transcript-patches.md`.
+open questions: `issues/completed/036-transcript-patches.md`.
 
 ## Where patches live
 

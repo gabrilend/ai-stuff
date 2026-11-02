@@ -139,7 +139,8 @@ not refuse them for being scripts it has not seen before.
 
 ## Open Questions
 
-1. A person's own uncommitted hand edits look left behind and get adopted.
+1. ~~A person's own uncommitted hand edits look left behind and get adopted.~~
+   Answered 2026-11-02: the named path scope is enough (see What Happened).
    Should adoption skip files that changed on disk in the last few minutes,
    treating them as "someone may be typing here", or is the named path scope
    enough?
@@ -149,3 +150,31 @@ not refuse them for being scripts it has not seen before.
 - `032-commit-only-your-own-lines.md` (parent): the ledger and the gate.
 - `032a-commit-through-a-private-staging-area.md`: the commit route that
   adopted lines are committed through.
+
+## What Happened
+
+Built: `adopt-left-behind-changes`, with its dry run, its record of what was
+adopted, and the gate's pointer to it. The one open question was settled on
+2026-11-02:
+
+**No time window. The named path scope and the dry run are the guard.**
+Adoption never runs unasked. It takes only paths named after `--`, and
+`--dry-run` lists every line it would take before anything is recorded. A
+rule that skips files changed in the last few minutes would fail in the
+commonest case this tool exists for: a session that has just finished.
+Its last edits are the newest on disk, so they would be skipped silently,
+and silence is the failure this toolchain keeps removing. A person still
+typing in a file is better protected by not naming that file. The known limit
+above, that hand edits look left behind, stays true and stays documented.
+
+Checked on 2026-11-02 on branch `claude/close-built-transcript-issues`,
+which sits on #53 (`claude/commit-own-changes-exit-status`):
+
+- `tests/test-commit-own-changes.sh`: 108 checks, 0 failures.
+- `tests/test-adopt-left-behind.sh`: 30 checks, 0 failures.
+- `tests/test-own-lines.sh`: 33 checks, 0 failures.
+- `test-refusal-gates`: 184 cases, 0 failures.
+
+On main without #53, the commit-route checks report a commit as failed even
+though it landed. That is the LuaJIT exit-status bug #53 fixes, so this close
+waits on #53.
