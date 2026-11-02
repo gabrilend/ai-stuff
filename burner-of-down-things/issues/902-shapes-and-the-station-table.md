@@ -4,11 +4,13 @@ The switchboard plans by shape, not by content: what a parcel is made of and wha
 
 ## Current Behavior
 
-902a is built (issues/completed/902a-scalar-types.md): the closed type
-list and recognisers for the three scalar types. 902b (structured types),
-902c (the remaining types and `unknown`) and 902d (the station table) are
-not yet built, so nothing yet knows what kind of thing a parcel is beyond
-those three.
+902a, 902b and 902d are built (issues/completed/902a-scalar-types.md,
+902b-structured-types.md, 902d-station-table.md): the closed type list;
+recognisers for the three scalar types and the three structured ones
+(`image`, `clip`, `table`); and the station table with its shape matching.
+902c (the remaining five types and `unknown`) is not yet built, so a
+parcel that is none of those six still falls through to nil rather than
+`unknown`.
 
 ## Intended Behavior
 

@@ -1,9 +1,11 @@
 -- 081-the-shape-types.lua
 --
--- What a parcel is made of, without a model (docs/068, issue 902a): the
--- closed list of shape types, and recognisers for the simplest three.
--- Structured types (902b) and the remaining five plus `unknown` (902c) are
--- later pieces that extend TYPES and this same recognise() dispatch.
+-- What a parcel is made of, without a model (docs/068): the closed list of
+-- shape types, recognisers for the three scalar types (issue 902a) and the
+-- three structured ones -- `image` and `clip` by their files' own
+-- signatures, `table` by loading it as data in a sandbox (902b). The
+-- remaining five plus `unknown` (902c) extend this same recognise()
+-- dispatch.
 
 local shape_types = {}
 
@@ -80,11 +82,83 @@ local function is_text(bytes)
 end
 -- }}}
 
+-- The PNG signature, eight bytes, then the first chunk's type at bytes
+-- 13-16, which the PNG format says is always IHDR.
+local PNG_SIGNATURE = "\137PNG\r\n\26\n"
+
+-- {{{ local function is_image
+-- A PNG: its eight-byte signature exactly, and IHDR where the first chunk's
+-- type must be. One wrong byte in the signature is not an image.
+local function is_image(bytes)
+    return #bytes >= 16 and bytes:sub(1, 8) == PNG_SIGNATURE and bytes:sub(13, 16) == "IHDR"
+end
+-- }}}
+
+-- {{{ local function is_clip
+-- An MP4 (an ISO media file: a box size, then `ftyp` at bytes 5-8, then a
+-- four-letter brand) or a GIF (`GIF87a` or `GIF89a`, then its screen
+-- descriptor).
+local function is_clip(bytes)
+    if #bytes >= 12 and bytes:sub(5, 8) == "ftyp" then
+        return true
+    end
+    local head = bytes:sub(1, 6)
+    return #bytes >= 13 and (head == "GIF87a" or head == "GIF89a")
+end
+-- }}}
+
+-- How many Lua instructions a table file may take to build its table. A
+-- data file of literals takes a handful per value; a loop that never ends
+-- takes them all and is refused.
+shape_types.TABLE_INSTRUCTION_LIMIT = 1000000
+
+-- {{{ local function is_table
+-- A Lua data file that loads and returns a table (the same form as 014's
+-- read_record), run as data and never for effect: an empty environment (no
+-- os, io, require, or anything else), text only (precompiled bytecode is
+-- refused unread, since loading it is not safe), JIT off and an
+-- instruction limit so a loop cannot hang the machine, and the string
+-- methods (`("x"):rep(...)`) out of reach while it runs.
+local function is_table(bytes)
+    if bytes:sub(1, 1) == "\27" or not bytes:match("%S") then
+        return false
+    end
+    local chunk = loadstring(bytes, "=parcel")
+    if not chunk then
+        return false
+    end
+    setfenv(chunk, {})
+    jit.off(chunk, true)
+    local string_meta = getmetatable("")
+    local string_index = string_meta.__index
+    string_meta.__index = nil
+    debug.sethook(function()
+        error("the table file ran past " .. shape_types.TABLE_INSTRUCTION_LIMIT .. " instructions", 0)
+    end, "", shape_types.TABLE_INSTRUCTION_LIMIT)
+    local ok, value = pcall(chunk)
+    debug.sethook()
+    string_meta.__index = string_index
+    return ok and type(value) == "table"
+end
+-- }}}
+
 -- {{{ function shape_types.recognise
--- The first of the scalar recognisers a text matches, tried in order:
--- integer-array, number-array, text. Falls through to nil — never a
--- guess — for 902b/902c's recognisers to try, and finally `unknown`.
+-- The first recogniser a file's bytes match, tried in order: image and
+-- clip (their signatures are exact and binary, or ASCII that would
+-- otherwise read as text), table (a Lua data file is also text), then the
+-- scalar types in 902a's order: integer-array, number-array, text. Falls
+-- through to nil -- never a guess -- for 902c's recognisers to try, and
+-- finally `unknown`.
 function shape_types.recognise(bytes)
+    if is_image(bytes) then
+        return "image"
+    end
+    if is_clip(bytes) then
+        return "clip"
+    end
+    if is_table(bytes) then
+        return "table"
+    end
     if is_integer_array(bytes) then
         return "integer-array"
     end

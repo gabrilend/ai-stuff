@@ -29,6 +29,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   right form) — a word-boundary check keeps "promptly" from misreading as
   a broken tag.
 
-903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
-confinement; number issuance and reuse refusal; structured and remaining
-types; shortest-chain search, joint checking and plan execution.
+- 902b structured types — `image` (a PNG signature), `clip` (an MP4 or GIF
+  signature) and `table` (a Lua data file, loaded in a sandbox and never
+  run for effect), tried before the scalar types; one real fixture file
+  per type.
+
+903b and 903d, 901c-d, 902c and 905b-d remain: the needs check and
+confinement; number issuance and reuse refusal; the remaining types and
+`unknown`; shortest-chain search, joint checking and plan execution.
