@@ -11,10 +11,19 @@ if [ -n "${1:-}" ]; then
 fi
 GATE="$DIR/scripts/preflight-gate"
 
-pass=0; fail=0
+pass=0; fail=0; skipped=0
 check() { # check <label> <actual> <expected>
     if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   - $1"
     else fail=$((fail+1)); echo "  FAIL - $1: got [$2] want [$3]"; fi
+}
+# The "real ..." cases run the gate against the owner's own build: the
+# compiled threading library, the real poem list, the real saved rankings.
+# Where those are not on this machine (a fresh checkout, another computer)
+# there is nothing real to pass, so the case says so and is not counted.
+# Where they are present the case runs exactly as before, and a broken one
+# still fails. (Issue 10-010: the suite runner reports these as skipped.)
+skip() { # skip <label> <reason>
+    skipped=$((skipped+1)); echo "  skip - $1: $2"
 }
 
 # {{{ a threading library that cannot be found stops the gate, and says so
@@ -27,8 +36,16 @@ check "missing library: says no stage was started" \
 # }}}
 
 # {{{ the real library passes
-"$GATE" "$DIR" --html-threads 4 >/dev/null 2>&1
-check "real library: gate passes" "$?" "0"
+EFFIL_SO="$(luajit -e "
+    package.path = '$DIR/libs/?.lua;' .. package.path
+    io.write((require('effil-loader').CPATH_ENTRY:gsub('%?', 'effil')))
+")"
+if [ -f "$EFFIL_SO" ]; then
+    "$GATE" "$DIR" --html-threads 4 >/dev/null 2>&1
+    check "real library: gate passes" "$?" "0"
+else
+    skip "real library: gate passes" "no threading library built at $EFFIL_SO"
+fi
 # }}}
 
 # {{{ one worker never needs the library, so a broken one is not checked
@@ -55,8 +72,12 @@ check "undated poem: names the date check" \
     "$(printf '%s' "$out" | grep -c 'every poem has a date')" "1"
 check "undated poem: names the poem" \
     "$(printf '%s' "$out" | grep -c 'poem 1 (notes')" "1"
-"$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" >/dev/null 2>&1
-check "real poem list: gate passes" "$?" "0"
+if [ -f "$DIR/assets/poems.json" ]; then
+    "$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" >/dev/null 2>&1
+    check "real poem list: gate passes" "$?" "0"
+else
+    skip "real poem list: gate passes" "no assets/poems.json on this machine"
+fi
 rm -rf "$SCRATCH"
 # }}}
 
@@ -77,10 +98,37 @@ check "stale rankings: names the poem with no ranking" \
     "$(printf '%s' "$out" | grep -c 'have no saved ranking (e.g. 3)')" "1"
 check "stale rankings: names the neighbour that no longer exists" \
     "$(printf '%s' "$out" | grep -c 'point at numbers the poem list does not have (e.g. 4)')" "1"
-"$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" \
-    --rankings-dir "$(luajit "$DIR/scripts/cache-dir" "$DIR" --model embeddinggemma-300m)" >/dev/null 2>&1
-check "real rankings: gate passes" "$?" "0"
+REAL_RANKINGS="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model embeddinggemma-300m)"
+if [ -f "$DIR/assets/poems.json" ] && [ -f "$REAL_RANKINGS/similarity_rankings_cache.json" ]; then
+    "$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" \
+        --rankings-dir "$REAL_RANKINGS" >/dev/null 2>&1
+    check "real rankings: gate passes" "$?" "0"
+else
+    skip "real rankings: gate passes" "no saved rankings or poem list on this machine"
+fi
 rm -rf "$SCRATCH"
+# }}}
+
+# {{{ --run-tests runs the suites; a failing suite stops the gate (10-010)
+# The gate is pointed at a stand-in project whose run-tests says what it is
+# told to, so this neither runs every real suite again (this file is one of
+# them) nor touches the real runner's log folder.
+STANDIN="$DIR/tmp/shared-memory/preflight-gate-test-standin"
+rm -rf "$STANDIN"; mkdir -p "$STANDIN/scripts"
+printf '#!/usr/bin/env bash\necho "  FAIL  src/broken.test.lua"\nexit 1\n' > "$STANDIN/scripts/run-tests"
+chmod +x "$STANDIN/scripts/run-tests"
+out=$("$GATE" "$STANDIN" --run-tests 2>&1)
+check "failing suites: gate fails" "$?" "1"
+check "failing suites: names the test check" \
+    "$(printf '%s' "$out" | grep -c 'every unit test suite passes')" "1"
+check "failing suites: shows the runner's report" \
+    "$(printf '%s' "$out" | grep -c 'src/broken.test.lua')" "1"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$STANDIN/scripts/run-tests"
+"$GATE" "$STANDIN" --run-tests >/dev/null 2>&1
+check "passing suites: gate passes" "$?" "0"
+out=$("$GATE" "$STANDIN" 2>&1)
+check "not asked for: the suites do not run" "$(printf '%s' "$out" | grep -c 'unit test')" "0"
+rm -rf "$STANDIN"
 # }}}
 
 # {{{ a malformed thread count is refused, not guessed at
@@ -88,5 +136,5 @@ rm -rf "$SCRATCH"
 check "non-numeric thread count refused" "$?" "1"
 # }}}
 
-echo "passed ${pass}, failed ${fail}"
+echo "passed ${pass}, failed ${fail}, skipped ${skipped}"
 [ "${fail}" -eq 0 ]
