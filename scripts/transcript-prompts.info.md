@@ -3,7 +3,7 @@
 Writes, beside each conversation transcript, a file holding only what the
 person asked: one request per line. A model picking a project back up reads
 every request in a few screens, then opens the transcript at the request it
-needs. Design and decisions: `issues/002-add-simple-input-for-LLMs.md`.
+needs. Design and decisions: `issues/completed/002-add-simple-input-for-LLMs.md`.
 
 ## Where the file lives
 
