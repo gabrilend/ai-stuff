@@ -177,6 +177,31 @@ harness.suite("the world is flat arrays with nothing absent", function()
   harness.check("a unit's target field holds the integer zero, not nil",
                 world.unit.target ~= nil and world.unit.target[1] == 0)
 end)
+
+harness.suite("the world refuses what is not in its layout, and never grows", function()
+  local the_world = harness.load("the-world", "104")
+  local world = the_world.allocate({field = FIELD, units = 4, teams = 2, seed = SEED})
+  local first = the_world.claim(world, "unit")
+  local second = the_world.claim(world, "unit")
+  harness.check("claimed rows are counted and alive", world.unit.count == 2
+                and world.unit.alive[first] == 1 and world.unit.alive[second] == 1)
+  world.unit.target[first] = second
+  the_world.release(world, "unit", first)
+  harness.check("a released row is zero in every field", world.unit.target[first] == 0
+                and world.unit.alive[first] == 0 and world.unit.count == 1)
+  harness.check("a released id is the next one claimed", the_world.claim(world, "unit") == first)
+  harness.check("a row released twice is refused", not pcall(the_world.release, world, "unit", 4))
+  the_world.claim(world, "unit")
+  the_world.claim(world, "unit")
+  local ok, problem = pcall(the_world.claim, world, "unit")
+  harness.check("a claim past the capacity is refused by the group's name",
+                not ok and tostring(problem):find("unit", 1, true) ~= nil, problem)
+  harness.check("the world still validates after all that", (pcall(the_world.validate, world)))
+  world.team.mass[1] = 0 / 0
+  ok, problem = pcall(the_world.validate, world)
+  harness.check("a slot that is not a number is refused, naming the group and field",
+                not ok and tostring(problem):find("team.mass", 1, true) ~= nil, problem)
+end)
 -- }}}
 
 -- {{{ the tick
@@ -218,6 +243,34 @@ harness.suite("advancing an empty world ten thousand ticks is cheap and quiet", 
   harness.check("the tick counter advanced", world.tick == 10000, "tick is " .. tostring(world.tick))
   harness.check("ten thousand empty ticks take under two seconds", elapsed < 2.0,
                 string.format("%.2fs", elapsed))
+end)
+
+harness.suite("the tick brings every counter up before its systems run", function()
+  local the_tick = harness.load("the-tick", "105")
+  local the_world = harness.load("the-world", "104")
+  local world = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  -- A counter fires when the tick reaches its next firing, the first at its
+  -- period; so the fifth firing is during tick 5 * period, the tick after the
+  -- first 5 * period have run.
+  local period = world.claim.period
+  for _ = 1, period * 5 + 1 do
+    the_tick.advance(world)
+  end
+  harness.check("the claim counter fired once a period", world.claim.increment == 5,
+                "increment " .. world.claim.increment .. " after " .. world.tick .. " ticks")
+  harness.check("a second converts to whole ticks at the match's rate",
+                the_tick.ticks_of(1) == world.rule.ticks_per_second)
+  harness.check("a duration under half a tick is refused, not rounded up",
+                not pcall(the_tick.ticks_of, 0.01))
+  local unnamed = {}
+  for _, row in ipairs(the_tick.SYSTEMS) do
+    if row.run_slice == nil or (row.waiting_for ~= nil
+                                and not tostring(row.waiting_for):match("^%d%d%d$")) then
+      unnamed[#unnamed + 1] = row.name
+    end
+  end
+  harness.check("every row runs a slice too, and one not yet built names its issue",
+                #unnamed == 0, table.concat(unnamed, ", "))
 end)
 -- }}}
 
@@ -268,6 +321,29 @@ harness.suite("randomness comes from named streams", function()
   harness.check("next_integer(stream, n) is an integer in [0, n)", below)
   local d = streams.next_double(b)
   harness.check("next_double is in [0, 1)", d >= 0 and d < 1)
+end)
+
+harness.suite("the world's streams are seeded by name and drawn in place", function()
+  local streams = harness.load("random-streams", "107")
+  local the_world = harness.load("the-world", "104")
+  local a = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  local b = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  local alone = streams.open(SEED, "cloud-round")
+  local agree, matches_alone = true, true
+  for _ = 1, 50 do
+    local x = streams.draw(a, "cloud-round", 100)
+    if x ~= streams.draw(b, "cloud-round", 100) then agree = false end
+    if x ~= streams.next_integer(alone, 100) then matches_alone = false end
+  end
+  harness.check("two worlds of one seed draw alike", agree)
+  harness.check("a world's stream is the stream of that name and seed", matches_alone)
+  local before = b.stream.state[streams.ROW["roster-hurt"]]
+  streams.draw(b, "cloud-round", 100)
+  harness.check("drawing from one stream leaves the others where they were",
+                b.stream.state[streams.ROW["roster-hurt"]] == before)
+  local ok, problem = pcall(streams.draw, a, "no-such-stream", 10)
+  harness.check("an unnamed stream is refused by name",
+                not ok and tostring(problem):find("no-such-stream", 1, true) ~= nil, problem)
 end)
 -- }}}
 
