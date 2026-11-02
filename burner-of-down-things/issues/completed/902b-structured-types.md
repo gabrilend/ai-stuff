@@ -11,8 +11,9 @@ first chunk's type must be), `clip` (`ftyp` at bytes 5-8 of an MP4, or
 that loads and returns a table, the form 014's `read_record` reads).
 Checked by `tests/123-checking-structured-types.lua` against one real file
 per type in `tests/fixtures/shape-types/` (a PNG, an MP4 and a GIF made by
-ffmpeg, and a station row as a Lua data file); a PNG with one wrong
-signature byte is not an image.
+ffmpeg — the MP4 named `.clip`, since the monorepo's .gitignore keeps
+every `*.mp4` out of git — and a station row as a Lua data file); a PNG
+with one wrong signature byte is not an image.
 
 Decisions: the structured types are tried first — a GIF's header and a Lua
 data file are both valid text, and would otherwise read as `text`. The

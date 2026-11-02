@@ -10,7 +10,9 @@ local shape_types = require("081-the-shape-types")
 
 local fixtures = kit.project.fixtures .. "/shape-types"
 local png = kit.fs.read(fixtures .. "/white-square.png")
-local mp4 = kit.fs.read(fixtures .. "/black-square.mp4")
+-- The MP4 is named .clip: the monorepo's .gitignore keeps every *.mp4 out
+-- of git, and the recogniser reads bytes, never a name.
+local mp4 = kit.fs.read(fixtures .. "/black-square-mp4.clip")
 local gif = kit.fs.read(fixtures .. "/gray-square.gif")
 local station = kit.fs.read(fixtures .. "/a-station.lua")
 
