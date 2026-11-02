@@ -188,6 +188,8 @@ function test_model_written_prompts() {
     # "Search the tree." 16 + "Found it." 9 + summary 70 + "Resuming." 9
     check "sub-agent prompts and compaction summaries are the machine's" \
         "$(same "$(field "$tree" machine_units)" $((16 + 9 + 70 + 9)))"
+    check "the compaction summary's share is reported on its own" \
+        "$(same "$(field "$tree" compaction_characters)" 70)"
 }
 # }}}
 
@@ -270,7 +272,8 @@ function test_heading_ends_a_turn() {
 function chars() {
     # The measure's character rule, for working out what a test expects:
     # each run of whitespace is one space, none at the ends.
-    printf '%s' "$1" | tr -s ' \n\t' '   ' | sed -e 's/^ //' -e 's/ $//' | tr -d '\n' | wc -m
+    # wc counts characters only under a UTF-8 locale; under C it counts bytes.
+    printf '%s' "$1" | tr -s ' \n\t' '   ' | sed -e 's/^ //' -e 's/ $//' | tr -d '\n' | LC_ALL=C.UTF-8 wc -m
 }
 # }}}
 
@@ -322,6 +325,9 @@ function build_repository_fixture() {
     # notes (the person's), including notes kept as a project's input
     put "$tree" "notes/idea.txt" "my note"
     put "$tree" "project/input/notes/poem" "a poem"
+    # notes the owner did not type: a CLAUDE.md and a saved history of one
+    put "$tree" "notes/CLAUDE.md" "rules for the model"
+    put "$tree" "project/notes/CLAUDE-history-2026.md" "an old copy of the rules"
     # source: an extension, a #! script, a project's own libs/, the owner's notice
     put "$tree" "project/src/a.lua" "print(1)"
     put "$tree" "project/src/copy.lua" "print(1)"
@@ -372,7 +378,7 @@ function test_repository_piles() {
     # every text file under a vendored folder counts there, its licence too
     vendored=$(( $(chars "$(printf 'MIT License\n\nCopyright (c) 2020 Someone Else\n\nPermission is hereby granted')") + $(chars "int v;") + $(chars "x") + $(chars "$(printf -- '-- Copyright (C) 2010 David Kolf\nreturn 4')") + $(chars "r") + $(chars "<html>saved</html>") + $(chars "var p;") ))
     human_total=$(( $(chars "Hello.") + notes ))
-    check "notes are counted, including notes kept under input/" "$(same "$(field "$tree" notes_characters)" "$notes")"
+    check "notes are counted, including notes kept under input/, but not a CLAUDE.md or its history" "$(same "$(field "$tree" notes_characters)" "$notes")"
     check "source: extensions, #! scripts, own libs/, the owner's notice; one copy of a duplicate" \
         "$(same "$(field "$tree" source_characters)" "$source")"
     check "docs: markdown, .txt under docs/, .info.md, README; not generated HTML, .bak or conversations" \
@@ -383,6 +389,57 @@ function test_repository_piles() {
     check "machine-written total is the model's transcript text" \
         "$(same "$(field "$tree" machine_written_total)" "$(chars "Hi.")")"
     check "the duplicate was seen and counted once" "$(same "$(field "$tree" repo_duplicate_files)" 1)"
+}
+# }}}
+
+# -- {{{ test_file_bodies_stripped
+function test_file_bodies_stripped() {
+    # The fullest export pastes a touched file's whole contents into the
+    # answer. They are cut out, label and fence and all, so that rendering
+    # counts the same as an ordinary one. The pasted file here holds a fenced
+    # block of its own, which must not end the cut early.
+    local tree body answer
+    tree=$(fresh_tree file-bodies)
+    body=$(printf '**\360\237\223\204 Full content of docs/guide.md:**\n\n```markdown\n# Guide\n\nRun this:\n```bash\nmake all\n```\nThen read on.\n\n```\n\nThe guide is written.')
+    answer=$(printf 'I wrote the guide.\n\n%s' "$body")
+    conversation "$tree/project/llm-transcripts/v4-complete.md" "s-body" "U:Write the guide." "A:$answer"
+    conversation "$tree/project/llm-transcripts/day.md" "s-body" "U:Write the guide." "A:I wrote the guide. The guide is written."
+    check "a pasted file body is not counted as the model's answer" \
+        "$(same "$(field "$tree" machine_units)" "$(chars "I wrote the guide. The guide is written.")")"
+    # A label with no fence after it is only a sentence, and stays.
+    tree=$(fresh_tree file-label-only)
+    answer=$(printf '**\360\237\223\204 Full content of a.md:**\n\nnothing followed')
+    conversation "$tree/project/llm-transcripts/a.md" "s-label" "U:Go." "A:$answer"
+    check "a label with no fenced body after it is counted" \
+        "$(same "$(field "$tree" machine_units)" "$(chars "$answer")")"
+}
+# }}}
+
+# -- {{{ test_lines_from_history
+function test_lines_from_history() {
+    # Lines added in commits, and those in commits with the model's
+    # co-author trailer, counted only for paths the piles keep.
+    local tree
+    tree=$(fresh_tree history)
+    conversation "$tree/project/llm-transcripts/t.md" "s-history" "U:Hello." "A:Hi."
+    local g=(git -C "$tree" -c user.name=Owner -c user.email=owner@example.com)
+    put "$tree" "project/src/a.lua" "$(printf 'a = 1\nb = 2\nc = 3\n')"
+    "${g[@]}" add -A
+    "${g[@]}" commit -q -m "The owner's own commit"
+    put "$tree" "project/docs/b.md" "$(printf 'one\ntwo\n')"
+    put "$tree" "libs/vendored.lua" "$(printf '1\n2\n3\n4\n5\n')"
+    put "$tree" "notes/CLAUDE.md" "$(printf 'rule\n')"
+    put "$tree" "project/data" "$(printf 'x\ny\n')"
+    "${g[@]}" add -A
+    "${g[@]}" commit -q -m "$(printf 'A commit the model helped write\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>')"
+    check "lines added counts only the piles' paths" "$(same "$(field "$tree" lines_added_all)" 5)"
+    check "lines added in machine-co-authored commits are counted apart" \
+        "$(same "$(field "$tree" lines_added_machine_coauthored)" 2)"
+    check "the git figure is not folded into machine-written text" \
+        "$(same "$(field "$tree" machine_written_total)" "$(chars "Hi.")")"
+    tree=$(fresh_tree no-commits)
+    conversation "$tree/project/llm-transcripts/t.md" "s-none" "U:Hello." "A:Hi."
+    check "a repository with no commits counts zero lines" "$(same "$(field "$tree" lines_added_all)" 0)"
 }
 # }}}
 
@@ -418,6 +475,8 @@ test_heading_ends_a_turn
 test_pasted_program_output_set_aside
 test_sentences_with_output_words_stay_human
 test_repository_piles
+test_file_bodies_stripped
+test_lines_from_history
 test_workers_agree
 [ "${KEEP_FIXTURES:-}" ] || rm -rf "${FIXTURES:?}"
 echo ""

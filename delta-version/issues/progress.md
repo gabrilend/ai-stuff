@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 059**: Measure human and machine authorship, closed 2026-11-02. The decided counting changes are built: pasted file bodies in full exports are cut out, git lines added in machine-co-authored commits form a separate figure, `notes/CLAUDE*.md` is left out, and the compaction share is reported. Tests: 37/37.
 - **Older open issues decided** (2026-11-02):
   - 058 (front page rewrites its own figures) is closed: no questions remained and the authorship slots are wired.
   - 056a (llama.cpp chat client) is closed after a check of every success criterion against the stand-in model. That check found the stand-in's `/tokenize` reply in the wrong shape, which was fixed on the 040 branch.
