@@ -43,7 +43,7 @@ reading a number here:
 | 053, 053a–f | Cross-project roadmap coordinator | Same observation; 053b and 053f have a few boxes ticked. |
 | 049, 049a–d | Transcript viewer at several levels of detail | Overlaps the transcript tooling in double-diaper-dungeon (transcript-to-HTML). |
 | 040, 040a–i | Self-revising CLAUDE.md | Overlaps Claude Code's own memory and CLAUDE.md handling. |
-| 044 | Project directory tree generator | Ready; low urgency. |
+| ~~044~~ | Project directory tree generator | Done 2026-11-02 (`scripts/generate-directory-trees.lua`); not yet run across the monorepo. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
 | 038 | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
