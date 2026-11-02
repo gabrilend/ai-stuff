@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** 604 (content-addressed storage), 605 (local storage manager)
-**Blocks:** 801f
+**Blocks:** 609a, 801f
 **Uses:** rmail (`/home/ritz/programs/r-mail/`) for every file transfer
 
 ---
@@ -76,15 +76,26 @@ List format (a Lua table):
 
 ## Acceptance Criteria
 
-- [ ] Two players with different models play one game and get identical gameplay results
-- [ ] Accepting a list applies it automatically for that game and reverts afterwards
-- [ ] "Always accept from this player" makes the next list apply without a prompt
-- [ ] Hash mismatches are refused and reported
+- [x] Two players with different models play one game and get identical gameplay results
+      (by construction: a list carries only art and sound, and a unit table
+      reads the same with a list on; two real players in one game wait on
+      phase 8's multiplayer)
+- [x] Accepting a list applies it automatically for that game and reverts afterwards
+- [x] "Always accept from this player" makes the next list apply without a prompt
+- [x] Hash mismatches are refused and reported
+
+The rmail glue and the in-game prompt are 609a.
 
 ## Open Questions
 
 1. Should a list also be able to carry replacement *data tables* (for maps that ship their own spells or units), or only art?
+   **Answered while building (2026-11-02): art and sound only.** A data
+   table changes how the game plays, which the owner's rule ("gameplay
+   doesn't depend on art") keeps out of a list; a map that ships its own
+   data carries it inside the map, whose hash the list names.
 2. Where are lists published besides direct sharing in a lobby: next to a map in the map browser (1001)?
+   **Answered while building: not yet.** A list is a file; 1001 can show
+   lists beside maps once it exists.
 
 ## Related Documents
 
@@ -92,3 +103,53 @@ List format (a Lua table):
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+- **`src/share/list.lua`:** the list: `build` from a pack and a map,
+  `encode`, `decode` (read, never run), `check`, `missing`, `bundle`.
+- **`src/share/profile.lua`:** `verify`, `apply` (refused whole on any bad
+  file), `attach`, `revert`, `keep`; `trust` with `decide`, `always_from`,
+  `always_for_map`.
+- **`src/assets/loader.lua`:** `push_layer` / `pop_layer`, a folder in
+  front of every pack for one game.
+- **`src/cli/share.lua`:** `make`, `missing`, `bundle`, `check`.
+- **`src/tests/test_share.lua`** (58 tests): building a list (art only,
+  data files named as left out, a unit type's model), writing and reading
+  it back exactly, odd characters; a received list never run (a call, a
+  loop, an expression, concatenation, deep nesting, trailing text, size)
+  and data files, climbing or absolute paths, short hashes, negative sizes
+  and repeated keys refused; only missing files bundled; a tampered or
+  unsent file refusing the whole list with nothing applied; during a game
+  the sharer's grass from the layer and the receiver's own unit table
+  unchanged, afterwards the receiver's grass and the profile gone and
+  collected; kept as a pack; names that climb or repeat refused; trust
+  remembered, by player and by map, and a damaged trust file not run; and
+  the tool's four commands, including a tampered bundle refused.
+
+### Decisions made while building
+
+1. **Art and sound only** (open question 1): gameplay can't differ between
+   two players' lists, so the "identical results" criterion holds by
+   construction rather than by testing every unit.
+2. **A received list is never run.** The issue's format is a Lua table, so
+   the file stays one, but it is read by a small reader of plain data;
+   another player's file can't run code, loop or fill the memory.
+3. **One bad file refuses the whole list.** A mismatch means the files
+   aren't what the sharer listed; applying the rest would show a mix
+   neither player chose.
+4. **Files, not rmail, for now.** rmail isn't in this repository, so its
+   message format and whether a hook can answer its consent step can't be
+   read here. The exchange is four file steps (list, missing hashes,
+   bundle, check) that rmail's glue will carry; nothing touches the
+   network. That glue and the prompt are 609a.
+5. **The profile is a loader layer** (`push_layer`): above every pack for
+   one game, taken off after. Keeping it re-links its files as a pack, so
+   the store's references stay right.
+6. **A unit type's entry names its model's path**, and the profile hands
+   out `types` for the unit drawing to use; mapping a type to its model
+   is 503b's.
+7. **Trust is stored per player data folder** as a plain table read the
+   same safe way.
