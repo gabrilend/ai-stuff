@@ -250,9 +250,42 @@ return ManaRenderSystem
 - Add mana rendering to the main render loop
 
 ### Acceptance Criteria
-- [ ] Each unit displays individual mana bars for all abilities
-- [ ] Primary abilities generate mana continuously
-- [ ] Secondary abilities generate mana based on unit type conditions
-- [ ] Mana bars visually represent current mana levels
-- [ ] Different ability types have distinct colors
-- [ ] Mana generation respects unit state (stationary/in-range)
+- [ ] Each unit displays individual mana bars for all abilities -- one bar per ability exists; drawing is issue 045
+- [x] Primary abilities generate mana continuously
+- [x] Secondary abilities generate mana based on unit type conditions
+- [ ] Mana bars visually represent current mana levels -- get_fraction() is ready for issue 045 to draw
+- [x] Different ability types have distinct colors (as data; not yet drawn)
+- [x] Mana generation respects unit state (stationary/in-range)
+## What Happened
+
+Built as `src/components/mana.lua` (a component factory in the same style
+as the other components: one bar per ability, one to four abilities, the
+first being the primary) and `src/systems/mana_system.lua` (fills the bars
+each frame and offers `is_full`, `get_fraction`, `spend` and
+`get_bar_color` for the ability and drawing issues). The component is
+listed in `src/components/init.lua`. Tested headlessly by
+`tests/test_mana.lua` (eight tests, including 60 units over 60 frames).
+Nothing was looked at on screen.
+
+The issue's heading says "#027"; the file number 041 is what the roadmap
+and folder order use, so that is what this was filed under.
+
+### Decisions
+- **Which units follow which rule.** The vision names only melee and ranged.
+  Support units keep their distance and heal, so they follow the ranged
+  rule (charge while standing still); tanks and special units close in, so
+  they follow the melee rule (charge while an enemy is within reach).
+- **"Within reach"** uses each type's engagement range from
+  `combat_detection_system.lua` (melee 12, tank 15, special 20 pixels), and
+  only living enemies count. Moving does not matter for melee units.
+- **"Standing still"** means speed below 0.1 pixels per second, read from
+  the moveable component's velocity, since the `moving`/`is_moving` flags
+  are not kept consistently across systems.
+- **Full bars hold.** Mana never passes the top, and a full bar waits until
+  an ability spends it (issue 048). `spend` removes only what is asked, so
+  proportional use (issue 044) can build on it.
+- **Defaults:** 100 mana per bar, 10 mana per second, both per ability.
+- **Not done here:** giving units a mana component when they spawn (that
+  needs their abilities, which come from templates and issue 046), and
+  drawing the bars (issue 045). Issue 042 refines the generation rules
+  (bonus rates); this issue lays down the base rule the vision states.
