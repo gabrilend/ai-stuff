@@ -19,10 +19,13 @@
 --                            does not mention, so nobody would find it.
 --   6. Lonely sources     -- a numbered Lua file with no .info.md beside it, or a
 --                            companion whose file is gone.
---   7. Coverage claims    -- a test naming an issue that has no file. Also counted,
---                            not failed: how many issues have a test naming them,
---                            because the tests are the specification here and an
---                            issue no test names is an issue nobody has specified.
+--   7. Coverage claims    -- a test naming an issue that has no file, and source
+--                            with no test: a stem from the tests document's contract
+--                            table whose file exists while no test names the issue
+--                            that owns it. Also counted: how many issues have a test
+--                            naming them, because the tests are the specification
+--                            here and an issue no test names is an issue nobody has
+--                            specified.
 --
 -- The fourth is the one that catches real design rot. Answering a question means
 -- editing the document it changes, and it is easy to leave a dozen issue files
@@ -394,8 +397,8 @@ end
 --
 -- Every test file carries a line "-- covers: 101, 102, ..." naming the issues it
 -- can be shown to specify. A test claiming an issue that has no file is a claim
--- about nothing. The census below is a count, not a failure, because at this
--- stage the tests *are* the specification and the number is the interesting part.
+-- about nothing. The census is a count until there is source, because until then
+-- the tests *are* the specification and the number is the interesting part.
 local covered = {}
 for _, name in ipairs(list(DIR .. "/tests", "^%d%d%d%-.*%.lua$")) do
   local text = read_file(DIR .. "/tests/" .. name)
@@ -413,6 +416,43 @@ for _, name in ipairs(list(DIR .. "/tests", "^%d%d%d%-.*%.lua$")) do
         covered[reference] = true
       end
     end
+  end
+end
+
+-- The census turns into a rule the moment there is source. The contract table in
+-- the tests document is the one list of stems and the issues behind them; for
+-- every stem with a file under src/ or assets/, the issue that owns it -- the
+-- first one its row names, the one that creates the file -- must be named by some
+-- test's covers line. A mechanic with source behind it and no test naming it is a
+-- bug, at the same severity as a wrong answer. A stem with no file yet is only
+-- counted, as before. The table is read, never copied here, so it is kept in one
+-- place.
+local TESTS_DOCUMENT = DIR .. "/docs/014-the-tests-come-first.md"
+local contract = read_file(TESTS_DOCUMENT)
+if contract == nil then
+  fail("no tests document: " .. TESTS_DOCUMENT .. " holds the stems the census checks")
+else
+  local stems = 0
+  for _, line in ipairs(lines_of(contract)) do
+    local stem, issues = line:match("^| `([%w%-]+)` | ([^|]+) |")
+    local owner = issues and issues:match("%d%d%d%l?")
+    if stem ~= nil and owner ~= nil then
+      stems = stems + 1
+      local file_pattern = "^%d%d%d%-" .. stem:gsub("%-", "%%-") .. "%.lua$"
+      local built = {}
+      for _, place in ipairs({"src", "assets"}) do
+        for _, name in ipairs(list(DIR .. "/" .. place, file_pattern)) do
+          built[#built + 1] = place .. "/" .. name
+        end
+      end
+      if #built > 0 and not covered[owner] then
+        fail("untested source: " .. table.concat(built, " and ") .. " has the stem '" .. stem
+             .. "', and no test's covers line names " .. owner .. ", the issue that owns it")
+      end
+    end
+  end
+  if stems == 0 then
+    fail("no stems: the contract table in " .. TESTS_DOCUMENT .. " was not found")
   end
 end
 

@@ -50,6 +50,11 @@
 --     harness.check("heights agree", a == b, "first differs at " .. i)
 --   end)
 --   harness.finish()
+--
+-- A test that needs a world asks for one through the tick's assemble:
+--
+--   local world, cast = harness.fresh_world({field = FIELD, units = 64, teams = 2,
+--                                            seed = SEED}, {"territory"})
 
 local M = {}
 
@@ -164,6 +169,20 @@ function M.load_asset(stem, issue)
     error("asset file " .. path .. " does not load: " .. tostring(problem), 0)
   end
   return chunk()
+end
+-- }}}
+
+-- {{{ function M.fresh_world()
+-- A world for a test that needs one, put together the only way a match's world
+-- is: through the tick module's `assemble`. `parameters` is what the world's
+-- allocate takes (`field`, `units`, `teams`, `seed`); `modules` is an optional
+-- list of stems to load beside it. Returns the world and those modules keyed by
+-- stem. An absent tick module is a named absence, like any other load; a test
+-- never builds a world by hand when this will do, so every test's world is
+-- validated the same way.
+function M.fresh_world(parameters, modules)
+  local the_tick = M.load("the-tick", "105")
+  return the_tick.assemble(modules or {}, parameters)
 end
 -- }}}
 

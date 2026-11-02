@@ -35,7 +35,18 @@ The harness is `tests/018-the-harness.lua`, the first numbered file there. It
 holds the loader, the assertion helper, the seed, the report format, and the
 rule that a test program exits non-zero if any claim in it did not hold. A
 `suite` groups the claims that share a subject, so that one absent module fails
-once by name and the other suites still run.
+once by name and the other suites still run. A test that needs a world asks the
+harness's `fresh_world(parameters, modules)`, which puts it together through the
+tick's `assemble` like a match does; the report is `finish()`, the last line of
+every program.
+
+**Source with no test is a failure.** For every stem in the table below whose
+file exists under `src/` or `assets/`, the issue that owns it -- the first its
+row names -- must be named by some test's covers line, or
+`./validate-documentation` fails naming the stem and the issue. A stem with no
+file yet is only counted. And every bug fixed gets a test that fails without
+the fix, in its phase's program, under a folded function whose comment says
+what went wrong.
 
 ## What every test file carries
 

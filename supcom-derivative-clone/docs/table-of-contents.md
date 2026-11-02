@@ -144,6 +144,9 @@ supcom-derivative-clone/
 │   ├── phase-N-progress.md                     for building the software, not work
 │   └── completed/                              logs. Each phase's demo lives here.
 │       └── demos/
+│           └── phase-1-demo .................. Checks phase 1, plays one seed twice
+│                                               to the same hash, replays the log,
+│                                               and draws the dunes.
 │
 ├── input/ .................................... Read first, at startup. The seed,
 │                                               and the dependency manifest.

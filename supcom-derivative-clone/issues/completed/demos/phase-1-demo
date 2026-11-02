@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+#
+# phase-1-demo -- the world that does nothing, shown doing it the same way twice.
+#
+# Phase 1 built the foundations: a field of dunes raised by a tool, a heartbeat
+# that is a table of systems, one door for commands, a fingerprint of the whole
+# world, and a terminal viewer so the field can be seen. Nothing moves yet. What
+# this demo shows is the promise every later phase leans on: one seed, the same
+# world, tick for tick.
+#
+# It does four things, in order:
+#
+#   1. Runs the written checks and phase 1's test program. If any check fails,
+#      the demo stops there -- a demo is never shown on a build whose own checks
+#      do not hold. A suite whose subject belongs to a later phase (the claim
+#      suite that stands a tank on the ground needs phase 2's units) is a named
+#      absence; it is shown, and it does not stop a phase 1 demo.
+#   2. Plays ten thousand ticks on one seed, twice, and prints both fingerprints.
+#   3. Replays the first run's log and checks every fingerprint it recorded.
+#   4. Draws the field the match was played on, with the water line, as text.
+#
+# Usage:
+#   ./run-phase-demo 1                         -- from the project root
+#   issues/completed/demos/phase-1-demo        -- directly, against the root below
+#   issues/completed/demos/phase-1-demo /path/to/project [seed]
+
+# The project root. Hard-coded so the demo runs from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+# The seed: given, or a fresh one, so the demo is not one set of dunes forever.
+# The environment's SDC_SEED still beats it, as it does everywhere.
+SEED="${1:-}"
+if [ -z "${SEED}" ]; then
+    SEED="$(od -An -N2 -tu2 /dev/urandom | tr -d ' ')"
+fi
+TICKS=10000
+
+# -- {{{ heading
+heading() {
+    printf '\n== %s ==\n\n' "$1"
+}
+# }}}
+
+# -- {{{ field_of
+# One field of a report, by its name: "hash: 1a2b3c4d" gives 1a2b3c4d.
+field_of() {
+    printf '%s\n' "$1" | sed -n "s/^$2: //p" | head -1
+}
+# }}}
+
+# -- {{{ check_phase_one
+# The written half, then phase 1's program. Stops the demo on any check that
+# did not hold, or on an absence whose issue belongs to phase 1.
+check_phase_one() {
+    if ! "${DIR}/run-tests" "${DIR}" docs > /dev/null; then
+        "${DIR}/validate-documentation" "${DIR}" | grep -v '^[0-9a-z ]*:' | head -20
+        echo "The written checks do not hold, so there is no demo to show."
+        return 1
+    fi
+    local output
+    output="$("${DIR}/run-tests" "${DIR}" code the-dunes-and-the-clock 2>&1)"
+    local held failed
+    held="$(printf '%s\n' "${output}" | grep -c '^  ok ')"
+    failed="$(printf '%s\n' "${output}" | grep -E '^  FAIL ' )"
+    local own_absent
+    own_absent="$(printf '%s\n' "${output}" | grep '^  ABSENT ' | grep -E 'built by issue 1[0-9][0-9][^0-9]')"
+    local later_absent
+    later_absent="$(printf '%s\n' "${output}" | grep '^  ABSENT ' | grep -vE 'built by issue 1[0-9][0-9][^0-9]')"
+    echo "The written checks hold. Phase 1's program: ${held} claims held."
+    if [ -n "${later_absent}" ]; then
+        echo "Waiting on later phases, by name:"
+        printf '%s\n' "${later_absent}" | sed 's/^  ABSENT  /    /'
+    fi
+    if [ -n "${failed}" ] || [ -n "${own_absent}" ]; then
+        echo "These did not hold, so there is no demo to show:"
+        printf '%s\n%s\n' "${failed}" "${own_absent}" | sed '/^$/d'
+        return 1
+    fi
+    return 0
+}
+# }}}
+
+heading "1. the checks"
+if ! check_phase_one; then
+    exit 1
+fi
+# run-tests writes its goodbye; this demo writes its own at the end.
+
+heading "2. one seed, played twice"
+FIRST="$("${DIR}/run-headless" "${DIR}" --ticks "${TICKS}" --seed "${SEED}")" || exit 1
+SECOND="$("${DIR}/run-headless" "${DIR}" --ticks "${TICKS}" --seed "${SEED}")" || exit 1
+SEED_USED="$(field_of "${FIRST}" seed)"
+HASH_ONE="$(field_of "${FIRST}" hash)"
+HASH_TWO="$(field_of "${SECOND}" hash)"
+LOG="$(field_of "${FIRST}" replay)"
+echo "seed ${SEED_USED}, ${TICKS} ticks of an empty world"
+echo "    first run:  ${HASH_ONE}  in $(field_of "${FIRST}" wall_seconds) s"
+echo "    second run: ${HASH_TWO}  in $(field_of "${SECOND}" wall_seconds) s"
+if [ -z "${HASH_ONE}" ] || [ "${HASH_ONE}" != "${HASH_TWO}" ]; then
+    echo "The two runs disagree. Determinism is broken; nothing after this can be trusted."
+    exit 1
+fi
+echo "The same seed made the same world, tick for tick."
+
+heading "3. the log, replayed"
+REPLAYED="$("${DIR}/run-headless" "${DIR}" --replay "${LOG}")"
+if [ "$?" -ne 0 ]; then
+    printf '%s\n' "${REPLAYED}"
+    echo "The replay disagrees with its own log."
+    exit 1
+fi
+echo "${LOG}"
+echo "    $(field_of "${REPLAYED}" replay_checked) fingerprints checked, none differed."
+
+heading "4. the field"
+COLOUR=""
+if [ -t 1 ]; then
+    COLOUR="--colour"
+fi
+"${DIR}/run-headless" "${DIR}" --ticks 1 --seed "${SEED_USED}" --draw ${COLOUR} \
+    | sed '/^seed: /,$d'
+echo
+echo "Water is ~; land is graded . : - = + * # @ by its height above the water line."
+
+mkdir -p "${DIR}/output"
+printf 'phase-1-demo: seed %s, hash %s twice\n%s\ngoodbye\n' \
+    "${SEED_USED}" "${HASH_ONE}" "$(date -Iseconds)" > "${DIR}/output/goodbye"
