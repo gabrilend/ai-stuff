@@ -213,6 +213,8 @@ issue, this one, took the next free number. A pointer is left at
 
 ## Recommendation (2026-11-02)
 
+**Decided (2026-11-02):** option A is taken: the panels belong in `scripts/libs/tui.lua`, which the scripts project is changing now, so the work is routed there. Nothing is built from delta-version. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
 Not built, because the code this issue changes is not delta-version's. The
 panel layer belongs in `scripts/libs/tui.lua`, which is the shared
 `scripts/` project's library. Its users are `scripts/libs/menu.lua` (the

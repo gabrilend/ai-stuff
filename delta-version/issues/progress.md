@@ -231,7 +231,7 @@ These issues provide foundational utilities and can be implemented independently
   - 058 (front page rewrites its own figures) is closed: no questions remained and the authorship slots are wired.
   - 056a (llama.cpp chat client) is closed after a check of every success criterion against the stand-in model. That check found the stand-in's `/tokenize` reply in the wrong shape, which was fixed on the 040 branch.
   - 059, 060, 061 and 062 have their engineering questions decided in their files. 060's three look-and-feel questions wait on the owner. 061 and 062 wait on a real flash drive and on the owner trying the viewer.
-  - 039, 052, 056 and 067 carry written recommendations with options (see PRIORITY.md).
+  - 039, 052, 056 and 067 carry written recommendations with options, each now taken as the decision (see PRIORITY.md).
 - **Duplicate issue numbers** (2026-11-02): 001, 037 and 038 each named two different issues. The one the record does not use was renumbered to the next free id, leaving a `moved-` pointer: the 001 master issue is now 065, TUI dirty tracking (was 037) is 066, and TUI panel abstraction (was 038) is 067. References updated; `validate-issues` no longer reports a shared id.
 - **Issue 005**: Configure branch isolation — closed 2026-11-02 as superseded: the per-project branches it configured were retired (031 grafted their histories onto main; 046 settled main-only work), so the optional sparse-checkout step has nothing to apply to.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.

@@ -273,6 +273,8 @@ not pleasantries.
 
 ## Recommendation (2026-11-02)
 
+**Decided (2026-11-02):** option C is taken: 056b first, against the stand-in model, then 056c with renames off by default, turned on by a config setting. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
 **Where it stands.** 056a, the chat client, is done and closed (checked
 against the stand-in model; see its file under `completed/`). 056b, 056c
 and 056d are not built.

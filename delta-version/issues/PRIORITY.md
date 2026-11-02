@@ -33,12 +33,14 @@ reading a number here:
 | **048** | Issue phase detection utility | The progress dashboard and `git-history.sh` both now read phases from issue filenames and `phase-N/` folders. Is a separate utility still needed, or is 048 answered by those two? |
 | **027** | Basic reporting framework | The project census (`scripts/census-projects.lua`) produces the monorepo tables; check what 027 adds beyond it. |
 
-## Recommendations waiting on the owner (2026-11-02)
+## Decided 2026-11-02, being built
 
-Each issue below holds a recommendation with its options. Nothing was built
-or changed for them. These rows supersede the Tier 3 notes for 052 and 067.
+Each issue below held a recommendation with its options. Ritz asked that
+open questions be answered without waiting on him, so each recommendation
+is now the decision; see the issue files. These rows supersede the Tier 3
+notes for 052 and 067.
 
-| Issue | What | Recommended |
+| Issue | What | Decided |
 |-------|------|-------------|
 | **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
 | **052** | Ollama connection configuration | Close as superseded. The stack moved to llama.cpp. A read-only search found 47 files in 11 projects that still mention Ollama, and each project should move on its own. |

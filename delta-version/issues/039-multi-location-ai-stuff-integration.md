@@ -82,6 +82,8 @@ Medium - Quality of life improvement for multi-drive setups
 
 ## Recommendation (2026-11-02)
 
+**Decided (2026-11-02):** option B is taken: listed roots, opt-in pushing, no symlinks. Pushing previews by default and writes only when a config setting turns it on, the same opt-in shape as issue 022. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
 Not built. This would reshape what delta-version reaches for and what it may
 push, so here are the options for the owner.
 

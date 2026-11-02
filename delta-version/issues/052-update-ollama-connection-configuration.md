@@ -138,6 +138,8 @@ This issue implements a "verbose confirmation" workflow:
 
 ## Recommendation (2026-11-02)
 
+**Decided (2026-11-02):** option A is taken: close as superseded by llama.cpp. The Ollama mentions in other projects are left alone; each project moves on its own. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
 **Nothing was changed.** This issue needs the owner's confirmation before any
 configuration is touched, and none was given.
 
