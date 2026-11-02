@@ -5,21 +5,24 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 102, 104, 106 |
 | Blocks | 211, 301, 303, 309, 310, 404, 602 |
-| Reads | [territory mass and energy](../docs/005-territory-mass-and-energy.md) |
+| Reads | [territory mass and energy](../../docs/005-territory-mass-and-energy.md) |
 | Open questions | B6, C4 |
 
 ## Current behavior
 
-Nothing. Territory is described in the economy document as the thing the whole
-economy reads, and no cell has an owner. The phase 1 test program looks for a
-source file whose stem is `territory` and asserts that a claim completes after
-enough increments of the claim counter and not before.
+Built. `src/039-territory.lua` paints ownership by presence: `claim` marks every
+land cell within a radius with its team's bit, `claim_pass` (the tick's sixth
+row) marks around every live unit and resolves the marks -- one team alone
+claims or keeps claiming, several teams contest and pause the claim -- and
+sweeps away claims nobody has stood near for a whole claim length. `owner` and
+`percent` read the result. The phase 1 program's direct-claim suites hold; the
+original suite still waits for units (issue 201) to stand on the ground.
 
 ## Intended behavior
 
 Every land cell has an **owner**: zero, or a team. Water is never owned and the
 pass never touches it. Ownership is painted by presence, and a claim in
-progress is the [pair of integers](../docs/003-the-tick-and-the-timers.md) on
+progress is the [pair of integers](../../docs/003-the-tick-and-the-timers.md) on
 the claim counter: each cell holds which team is claiming it and the increment
 the claim began at, and the claim completes when enough increments have passed.
 
@@ -77,11 +80,45 @@ direction.
    catalogue.
 8. Fill the companion with the cell's fields.
 
+## What happened
+
+- **The claimant field is `claim_by`, not `claiming`.** Issue 104 laid the cell
+  group down with `claim_by` and the tests contract (docs/014) names it, so the
+  name stayed; the meaning is the one in the table above.
+- **Two more cell fields and a queue.** `claim_seen` (the increment the
+  claimant was last near) makes the pause and the clearing possible, and
+  `mark` is the per-tick scratch, one bit per team (so at most 30 teams).
+  `world.marked`, a queue of cell indices, holds the cells marked this tick in
+  the order first marked, so resolution walks only them. Both are empty
+  between passes, so a fingerprint never sees half a pass.
+- **C4, pause, built as a real pause.** The working ruling said the start
+  increment is kept while contested; kept unmoved, the contest's time would
+  count and the claim would finish the moment the contest ended. So the start
+  moves on by the increments the contest lasted. The ruling's text in
+  docs/016 now says this; the question itself stays for Ritz.
+- **Walking away pauses too, and a whole length away clears.** Whole
+  increments spent away do not count toward the claim; with nobody near for a
+  whole claim length, the claim is cleared (the third open point, as the
+  working ruling had it).
+- **An owner standing alone on its own cell ends another team's claim** on it,
+  rather than starting a claim on ground it already holds.
+- **The sweep runs on the tick the claim counter fires**, once a claim
+  increment, because it walks every cell; resolution runs every tick.
+- **Within the radius means centre to centre**, `dx*dx + dy*dy <= r*r`, from
+  the cell the unit's position stands in.
+- **B6: every unit claims with `claim_radius` from the rules for now.** A
+  kind's own radius (the enforcer's four, a plane's none) belongs in the unit
+  catalogue, issue 202, and the enforcer's with issue 211.
+- **`percent` is from 0 to 100**, as a double, counted on each call (a
+  field's land count is counted once and cached). `percent(world, 0)` is the
+  land nobody holds.
+- No counter was added: the claim counter came with issue 106.
+
 ## Related documents and tools
 
-- [Territory, mass, and energy](../docs/005-territory-mass-and-energy.md)
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [Territory, mass, and energy](../../docs/005-territory-mass-and-energy.md)
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

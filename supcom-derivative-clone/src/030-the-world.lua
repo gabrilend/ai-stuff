@@ -126,8 +126,13 @@ M.LAYOUT = {
   {group = "cell", kind = "fixed", capacity = "cells", fields = {
     {"owner", "integer"},       -- zero, or the team that holds it
     {"claim_by", "integer"},    -- zero, or the team whose claim is in progress
-    {"claim_began", "integer"}, -- the claim counter's increment when that claim began
+    {"claim_began", "integer"}, -- the claim counter's increment the claim counts from
+    {"claim_seen", "integer"},  -- the increment its claimant was last near it
     {"improvement", "integer"}, -- what has been spent raising what it pays (issue 311)
+    {"mark", "integer"},        -- this tick's presence, one bit per team; zero between passes
+  }},
+  {group = "marked", kind = "queue", capacity = "cells", fields = {
+    {"cell", "integer"},        -- a cell some unit marked this tick, in the order first marked
   }},
   {group = "team", kind = "fixed", capacity = "teams", fields = {
     {"mass", "double"},

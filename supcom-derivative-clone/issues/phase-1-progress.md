@@ -24,7 +24,7 @@ blind.
 | 109 | Snapshots, hashes, and replays | built |
 | 110 | The headless runner | built |
 | 111 | A terminal viewer, so we are not blind | built |
-| 112 | Territory is painted on cells | not started |
+| 112 | Territory is painted on cells | built |
 | 113 | Every mechanic has a test | not started |
 
 **Blocking:** nothing outside the phase. B4 (ticks per second) and B5 (field size

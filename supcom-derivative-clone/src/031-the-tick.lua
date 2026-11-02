@@ -112,7 +112,7 @@ M.SYSTEMS = {
   row("construction", false, "305"),
   row("emit", false, "307"),
   row("move", true, "204"),
-  row("claim", false, "112"),
+  row("claim", false, {"territory", "claim_pass"}),
   row("sight-and-aim", true, "205"),
   row("fire", true, "206"),
   row("land", false, "206"),

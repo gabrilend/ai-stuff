@@ -15,7 +15,9 @@ progress is a cell storing the increment it began at — the
 
 A cell already owned by the other team takes the same time to flip. A cell with
 units of both teams near it does not flip at all; it is contested, and stays as
-it was until one side leaves. Enforcers claim with a larger radius, which is the
+it was until one side leaves. A claim in progress pauses while it is contested
+and while its claimant is away, and resumes where it was; one nobody has stood
+near for a whole claim length is forgotten. Enforcers claim with a larger radius, which is the
 vision's "they can claim territory with ease."
 
 A team's **territory** is its cell count over the field's land cell count, as a

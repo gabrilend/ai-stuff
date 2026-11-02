@@ -642,6 +642,180 @@ harness.suite("a claim completes after enough increments and not before", functi
   end
   harness.check("a contested cell does not change hands", territory.owner(world, cell) == before)
 end)
+
+-- The suites below call `claim` directly, as the issue says the tests do, so they
+-- ask their questions before there are units to stand on the ground. Each tick
+-- is set by hand, the marks of that tick are made, and the pass resolves them.
+-- {{{ local function claiming()
+-- A world, a land cell and a water cell to claim, and a stepper that plays the
+-- ticks from..to with the given claims made on each, as {team, x, y} at radius
+-- zero, through `at(tick)` -- a function returning that tick's claims.
+local function claiming()
+  local territory = harness.load("territory", "112")
+  local the_world = harness.load("the-world", "104")
+  local world = the_world.allocate({field = FIELD, units = 8, teams = 2, seed = SEED})
+  local field = world.field
+  local land, water
+  for index = 1, FIELD.size * FIELD.size do
+    if field.height[index] >= field.water_line then
+      land = land or index
+    else
+      water = water or index
+    end
+  end
+  local function place(index)
+    return (index - 1) % FIELD.size, math.floor((index - 1) / FIELD.size)
+  end
+  local function play(from, to, at)
+    for tick = from, to do
+      world.tick = tick
+      for _, claim in ipairs(at(tick)) do
+        territory.claim(world, claim[1], claim[2], claim[3], 0)
+      end
+      territory.claim_pass(world)
+    end
+  end
+  return territory, world, land, water, place, play
+end
+-- }}}
+
+harness.suite("a claim completes at its length exactly, and water is never marked", function()
+  local territory, world, land, water, place, play = claiming()
+  local x, y = place(land)
+  local wx, wy = place(water)
+  local length = world.claim.period * world.claim.increments_to_claim
+  local both = function() return {{1, x, y}, {1, wx, wy}} end
+  play(0, length - 1, both)
+  harness.check("one tick short of the claim's length, the cell is not yet owned",
+                territory.owner(world, land) == 0 and world.cell.claim_by[land] == 1)
+  play(length, length, both)
+  harness.check("on the tick the length is reached, the cell is owned",
+                territory.owner(world, land) == 1 and world.cell.claim_by[land] == 0)
+  harness.check("a water cell stood on just as long is never claimed or owned",
+                territory.owner(world, water) == 0 and world.cell.claim_by[water] == 0)
+  harness.check("percent is owned land over all land, out of a hundred",
+                math.abs(territory.percent(world, 1) - 100 / territory.land(world)) < 1e-9,
+                territory.percent(world, 1) .. " with " .. territory.land(world) .. " land cells")
+  harness.check("percent of nobody is the rest of the land",
+                math.abs(territory.percent(world, 0) + territory.percent(world, 1) - 100) < 1e-9)
+  harness.check("nothing of a pass is left between passes",
+                world.marked.count == 0 and world.cell.mark[land] == 0)
+end)
+
+harness.suite("a contested claim pauses: it neither runs on nor starts over", function()
+  local territory, world, land, _, place, play = claiming()
+  local x, y = place(land)
+  local period = world.claim.period
+  local length = period * world.claim.increments_to_claim
+  local changed_hands = false
+  local function watch(claims)
+    return function()
+      if territory.owner(world, land) == 2 then changed_hands = true end
+      return claims
+    end
+  end
+  play(0, 2 * period - 1, watch({{1, x, y}}))
+  play(2 * period, 7 * period - 1, watch({{1, x, y}, {2, x, y}}))
+  harness.check("while contested, the cell changes hands to nobody",
+                territory.owner(world, land) == 0 and not changed_hands)
+  harness.check("while contested, the claim in progress is kept", world.cell.claim_by[land] == 1)
+  play(7 * period, 7 * period, watch({{1, x, y}}))
+  harness.check("the contest's increments did not count: no finish the moment it ends",
+                territory.owner(world, land) == 0)
+  play(7 * period + 1, 7 * period + length - 1, watch({{1, x, y}}))
+  harness.check("the claim resumed where it was: done sooner than a fresh claim would be",
+                territory.owner(world, land) == 1 and not changed_hands)
+end)
+
+harness.suite("a claim walked away from is paused, then cleared after a whole length", function()
+  local territory, world, land, _, place, play = claiming()
+  local x, y = place(land)
+  local period = world.claim.period
+  local length = period * world.claim.increments_to_claim
+  local here = function() return {{1, x, y}} end
+  local away = function() return {} end
+  -- A short absence: the claim waits, and the time away does not count.
+  play(0, 2 * period - 1, here)
+  play(2 * period, 3 * period - 1, away)
+  harness.check("a short absence keeps the claim", world.cell.claim_by[land] == 1)
+  play(3 * period, 3 * period, here)
+  harness.check("the time away did not count toward the claim", territory.owner(world, land) == 0)
+  play(3 * period + 1, 4 * period, here)
+  harness.check("back on the cell, the claim finishes", territory.owner(world, land) == 1)
+
+  -- A long absence: a second world, claimed partway and left for a whole length.
+  territory, world, land, _, place, play = claiming()
+  local half = math.floor(period / 2)
+  play(0, 2 * period - 1, here)
+  play(2 * period, 3 * period + half, away)
+  harness.check("short of a whole length away, the claim is still there",
+                world.cell.claim_by[land] == 1)
+  play(3 * period + half + 1, 4 * period + half, away)
+  harness.check("a whole claim length with nobody near clears the claim",
+                world.cell.claim_by[land] == 0 and territory.owner(world, land) == 0)
+  local back = 4 * period + half + 1
+  play(back, back + length - period, here)
+  harness.check("coming back starts a fresh claim, which needs the whole length again",
+                territory.owner(world, land) == 0 and world.cell.claim_by[land] == 1)
+end)
+
+harness.suite("an owner standing alone on its cell ends another team's claim on it", function()
+  local territory, world, land, _, place, play = claiming()
+  local x, y = place(land)
+  local period = world.claim.period
+  local length = period * world.claim.increments_to_claim
+  play(0, length, function() return {{1, x, y}} end)
+  play(length + 1, length + period, function() return {{2, x, y}} end)
+  harness.check("the other team's claim is in progress", world.cell.claim_by[land] == 2
+                and territory.owner(world, land) == 1)
+  play(length + period + 1, length + period + 1, function() return {{1, x, y}} end)
+  harness.check("the owner's return ends it", world.cell.claim_by[land] == 0
+                and territory.owner(world, land) == 1)
+end)
+
+harness.suite("the claim reads marks, not the order they were made in", function()
+  local snapshot = harness.load("snapshot", "109")
+  local period
+  local hashes = {}
+  for round, order in ipairs({{1, 2}, {2, 1}}) do
+    local territory, world, land, _, place = claiming()
+    period = world.claim.period
+    local x, y = place(land)
+    for tick = 0, 6 * period do
+      world.tick = tick
+      -- Team 1 covers a wide circle; team 2 a small one inside it at the end.
+      for _, team in ipairs(order) do
+        if team == 1 then
+          territory.claim(world, 1, x + 2, y + 2, 3)
+        elseif tick > 3 * period then
+          territory.claim(world, 2, x + 3, y + 2, 1)
+        end
+      end
+      territory.claim_pass(world)
+    end
+    hashes[round] = snapshot.hash(world)
+    harness.check("round " .. round .. ": the radius painted more than one cell",
+                  territory.percent(world, 1) > 100 / territory.land(world))
+  end
+  harness.check("the same marks in either order give the same world", hashes[1] == hashes[2],
+                string.format("%08x against %08x", hashes[1], hashes[2]))
+end)
+
+harness.suite("the claim is the tick's sixth row, and refuses what is not a team or a cell", function()
+  local the_tick = harness.load("the-tick", "105")
+  local territory, world = claiming()
+  local row = the_tick.SYSTEMS[6]
+  harness.check("the claim row runs, rather than waiting for an issue",
+                row.name == "claim" and row.waiting_for == nil)
+  local ok, problem = pcall(territory.claim, world, 3, 1, 1, 1)
+  harness.check("a team the world does not have is refused by number",
+                not ok and tostring(problem):find("team 3", 1, true) ~= nil, problem)
+  ok, problem = pcall(territory.claim, world, 1, 1, 1, -1)
+  harness.check("a negative radius is refused", not ok, problem)
+  ok, problem = pcall(territory.owner, world, 0)
+  harness.check("a cell off the field is refused by index",
+                not ok and tostring(problem):find("cell 0", 1, true) ~= nil, problem)
+end)
 -- }}}
 
 harness.finish()
