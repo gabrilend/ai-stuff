@@ -530,11 +530,63 @@ return AbilityQueueSystem
 ```
 
 ### Acceptance Criteria
-- [ ] Abilities automatically activate when mana reaches 100%
-- [ ] Valid targets are found and validated before activation
-- [ ] Ability priority system ensures primary abilities fire first
-- [ ] Efficiency calculations prevent wasteful ability usage
-- [ ] Multiple abilities don't fire simultaneously (unless configured)
-- [ ] Failed activations are tracked with reasons for debugging
-- [ ] System integrates with existing mana and targeting systems
-- [ ] Performance scales with many units using abilities simultaneously
+- [x] Abilities automatically activate when mana reaches 100%
+- [x] Valid targets are found and validated before activation
+- [x] Ability priority system ensures primary abilities fire first
+- [x] Efficiency calculations prevent wasteful ability usage
+- [x] Multiple abilities don't fire simultaneously (unless configured)
+- [x] Failed activations are tracked with reasons for debugging
+- [x] System integrates with existing mana and targeting systems
+- [x] Performance scales with many units using abilities simultaneously
+## What Happened
+
+Built as `src/systems/ability_activation_system.lua`:
+- `AbilityActivationSystem:new(entity_manager, options)`, where options can
+  set `targeting`, `on_activate` or `effect_system`, `global_cooldown`,
+  `abilities_per_update` and `check_interval`.
+- `update(dt)`, which counts cooldowns down and then tries every unit's
+  ready abilities in priority order. Each ability:
+  - finds targets (TargetingSystem);
+  - prices the cast (ManaEfficiency);
+  - spends the planned mana;
+  - starts its cooldown and the unit's global cooldown;
+  - sends an activation event.
+- `can_act`, `attempt`, `pop_events` and `get_debug_info`.
+- It has `name` and `is_enabled`, so a `SystemManager` can run it.
+
+Tested headlessly by `tests/test_ability_activation.lua` (eight tests,
+including 200 units over 60 frames together with ManaSystem). Nothing was
+seen on screen. Nothing applies the effects yet: issue 049 does.
+
+### Decisions
+- **The event is `{caster, ability, index, targets, center, plan,
+  mana_spent, time}`.** `plan.effect_power` is the share of full strength
+  the effect system should apply. It goes to `on_activate(event)`, or else
+  to `effect_system:process_ability_activation(event)`, and is also kept
+  for `pop_events()`.
+- **Mana is spent by ManaEfficiency's plan**, never more than the bar
+  holds. The sketch had its own efficiency formulas; issue 044 already
+  settled them.
+- **One ability per unit per update, then a 0.25 s global cooldown.** The
+  sketch used 0.1 s. A quarter second keeps two full bars from reading as
+  one burst on screen. Both values can be changed per system.
+- **No separate queue system.** A full bar that has to wait (for the global
+  cooldown, a target or a condition) simply stays full and is tried again
+  next update. The sketch's `AbilityQueueSystem` would duplicate that.
+- **Failures are counted once per change of reason, per ability.** A full
+  bar waiting three seconds for a target counts one `no_targets`, not 180.
+  Waiting for mana or a cooldown isn't a failure. A failed activation
+  condition is.
+- **Disabled units:** a unit doesn't act when it is:
+  - stunned or silenced, by a `unit_data` flag (`is_stunned`,
+    `is_silenced`, `is_disabled`) or by an active effect with `stun` or
+    `silence`;
+  - retreating or fleeing;
+  - dead.
+  Its abilities component's `blocked_reason` says which.
+- **Cooldowns count down every update, even between checks**, so
+  `check_interval` only thins out the target searches.
+- **The game loop isn't wired up yet.** The match wiring is on a separate
+  stack (#73), not yet merged. Adding ManaSystem and this system to the
+  match update is a few lines once both are in. A test shows it running
+  under a `SystemManager`.
