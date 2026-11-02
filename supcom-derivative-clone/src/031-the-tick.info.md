@@ -24,6 +24,7 @@ tick, so the increment of now is settled before any system reads it.
 | --- | --- | --- |
 | `SYSTEMS` | | the ordered rows, below |
 | `advance(world)` | a world | `true`, the match continuing (nothing ends a match until the command truck) |
+| `advance_timed(world, seconds)` | a world; a table | the same tick, with each row's processor seconds added into `seconds` under its name |
 | `assemble(modules, parameters)` | a list of stems the caller needs; the world's allocation parameters | a validated world, and the named modules keyed by stem; raises naming any absent stem |
 | `ticks_of(seconds)` | seconds | whole ticks at the match's rate (`ticks_per_second` in the rules); refuses less than half a tick |
 | `load(stem)`, `load_asset(stem)` | a stem | the world's loader, passed through |

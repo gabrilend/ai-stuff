@@ -46,6 +46,10 @@ return {
   commands = 256,
   refusals = 16,
 
+  -- The most units a match the headless runner plays may hold at once. A test
+  -- that allocates its own world names its own; this is the runner's.
+  units = 1024,
+
   -- How often the world is fingerprinted, in ticks; the replay log writes every
   -- fingerprint. A fingerprint folds every cell, so taking one every tick cost
   -- a tenth of a millisecond on a small field and grows with the field's area;

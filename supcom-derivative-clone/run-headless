@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+#
+# run-headless -- plays one match with no window and says what happened.
+#
+# For a general: this is the simulation run end to end, from the seed to the
+# last tick, with nothing drawn. It reads the match's opening decisions out of
+# input/ -- the seed, the field's shape, the players -- raises the field,
+# advances the world, and prints a report: the seed, how many ticks ran, the
+# world's final fingerprint, what ended it, how long it took, and where the
+# replay log was written. Two runs on one seed print the same fingerprint; that
+# is the promise every other machine in a match leans on.
+#
+# Given a replay log, it plays the log's commands into a fresh world made the
+# same way and checks the world's fingerprint at every tick the log recorded
+# one; the first that differs is named, and the script exits non-zero.
+#
+# The work is done by the headless runner in src/; this only hands it the
+# project root and the options, prints the report, and draws the final world
+# through the terminal viewer when asked.
+#
+# Usage:
+#   ./run-headless                       -- ten thousand ticks from input/
+#   ./run-headless --ticks 500           -- a shorter match
+#   ./run-headless --seed 42             -- a seed that beats input/seed
+#   ./run-headless --draw                -- and draw the last tick as text
+#   ./run-headless --colour --draw       -- with each team's ground tinted
+#   ./run-headless --replay <log>        -- replay a log and check its hashes
+#   ./run-headless /path/to/project ...  -- against a checkout elsewhere
+#
+# The environment's SDC_SEED beats --seed, which beats input/seed.
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ] && [ -f "$1/.file-index-counter" ]; then
+    DIR="$1"
+    shift
+fi
+
+# Ten thousand is the phase 1 demo's number, written here so the script says out
+# loud what it does when not told; the runner itself refuses to guess.
+TICKS="10000"
+SEED=""
+DRAW="false"
+COLOUR="false"
+REPLAY=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --ticks)  TICKS="$2"  ; shift 2 ;;
+        --seed)   SEED="$2"   ; shift 2 ;;
+        --replay) REPLAY="$2" ; TICKS="" ; shift 2 ;;
+        --draw)   DRAW="true" ; shift ;;
+        --colour) COLOUR="true" ; shift ;;
+        *)
+            echo "run-headless: unknown option '$1'"
+            echo "Options are --ticks <n>, --seed <n>, --replay <log>, --draw, --colour."
+            exit 1
+            ;;
+    esac
+done
+
+# {{{ only_one
+# The one source file with a given stem, or a refusal naming it -- the rule the
+# tests and the loader use, so the script and the program never disagree.
+only_one() {
+    local found
+    found=( "${DIR}"/src/[0-9][0-9][0-9]-"$1".lua )
+    if [ "${#found[@]}" -ne 1 ] || [ ! -f "${found[0]}" ]; then
+        echo "run-headless: wants exactly one src/NNN-$1.lua under ${DIR}" >&2
+        exit 1
+    fi
+    printf '%s' "${found[0]}"
+}
+# }}}
+
+RUNNER="$(only_one headless-runner)"
+VIEWER="$(only_one terminal-viewer)"
+SNAPSHOT="$(only_one snapshot)"
+
+# The options travel as plain words in the environment rather than being spliced
+# into Lua source, so nothing typed on the command line is ever run as code.
+export SDC_RUN_TICKS="${TICKS}" SDC_RUN_SEED="${SEED}" SDC_RUN_REPLAY="${REPLAY}"
+export SDC_RUN_DRAW="${DRAW}" SDC_RUN_COLOUR="${COLOUR}"
+
+exec luajit - "${DIR}" "${RUNNER}" "${VIEWER}" "${SNAPSHOT}" <<'LUA'
+local root, runner_path, viewer_path, snapshot_path = ...
+local runner = dofile(runner_path)
+
+-- {{{ local function number_or_nothing()
+local function number_or_nothing(name)
+  local text = os.getenv(name)
+  if text == nil or text == "" then
+    return nil
+  end
+  local value = tonumber(text)
+  if value == nil then
+    io.stderr:write("run-headless: '", text, "' is not a number\n")
+    os.exit(1)
+  end
+  return value
+end
+-- }}}
+
+local options = {ticks = number_or_nothing("SDC_RUN_TICKS"), seed = number_or_nothing("SDC_RUN_SEED")}
+if os.getenv("SDC_RUN_REPLAY") ~= "" then
+  options.replay = os.getenv("SDC_RUN_REPLAY")
+end
+local ok, report = pcall(runner.run, root, options)
+if not ok then
+  io.stderr:write("run-headless: ", tostring(report), "\n")
+  os.exit(1)
+end
+if os.getenv("SDC_RUN_DRAW") == "true" then
+  local viewer = dofile(viewer_path)
+  local snapshot = dofile(snapshot_path)
+  io.write(viewer.draw(snapshot.copy(report.world), {colour = os.getenv("SDC_RUN_COLOUR") == "true"}))
+end
+for _, line in ipairs(runner.lines(report)) do
+  print(line)
+end
+os.exit(report.mismatch_tick == 0 and 0 or 1)
+LUA
