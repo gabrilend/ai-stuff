@@ -429,3 +429,70 @@ return BalanceValidator
 - [ ] Validation system identifies overpowered/underpowered templates
 - [ ] Cost calculations encourage diverse build strategies
 - [ ] System provides actionable feedback for template improvements
+
+## What Happened (so far)
+
+Only the machinery is built; the prices in `src/data/template_costs.lua`
+are unchanged and stay first guesses. The issue stays open. No one has
+seen any of this on a screen; it runs headless.
+
+- `src/testing/repricing.lua` suggests prices from how templates do in
+  the balance harness (`src/testing/ability_balance.lua`):
+  1. measure: a seeded round robin of the templates (teams of copies)
+     gives each an overall win rate with a 95% interval;
+  2. calibrate: one reference template, given 0, 5, 10 and 20 extra
+     points of health, fights the same field; a straight line through
+     (points, log-odds of winning) says how many points one unit of
+     log-odds is worth (about 9 with the defaults today);
+  3. fair cost: points used plus log-odds of the win rate times points
+     per log-odds;
+  4. fit: each part of a price (a body, a stat's price per unit, an
+     ability) gets a factor, the weighted average of fair cost over
+     points used across the templates that pay for it, damped by half,
+     held between 0.5 and 2, and left at 1 where too few templates pay
+     for it.
+- Everything it returns carries `provisional = true`, and every line it
+  prints starts with `[provisional]` and says nothing was applied.
+- The same templates, options and seed give the same proposal, in
+  luajit and lua5.4 alike.
+- `./run <dir> reprice` runs it over all 21 default templates (about a
+  minute); `tests/test_repricing.lua` (7 tests) runs with the unit
+  tests.
+
+What a first provisional run shows (not acted on): the ranged starters
+(Skirmisher, Archer, Crossbowman) and Fortress win far more than their
+points suggest, and Glass Cannon loses every battle. Glass Cannon's
+power strike charges only with an enemy in melee reach, which a ranged
+body rarely has; that is a design question for when templates are
+tuned, not something for prices to fix.
+
+### Decisions
+
+- Balance is not tuned against the harness. Its walking is a stand-in
+  for lane following, so its win rates compare templates with each other
+  but don't predict real matches. Tuning waits until issue 067 puts
+  ability sets into real matches; then this machinery can be pointed at
+  those results. (Coordinator's decision, Round 4; also recorded in
+  issue 055.)
+- Win rates become points through log-odds, measured against the same
+  field rather than in a mirror match: between two equal units any edge
+  decides most battles, which made a mirror calibration far too
+  sensitive (one point looked like 80% of wins).
+- Calibration steps that leave a template winning or losing every
+  battle are kept in the line fit but smoothed (half a win added to each
+  side), so they can't make the slope infinite. If extra health shows no
+  measurable effect, a fallback of 20 points per log-odds is used and
+  the output says so.
+- Factors are per part, not per template, so a fix to one ability moves
+  every template that uses it; a template's surplus is shared out by
+  each part's share of its cost. Bodies and stats get suggested prices;
+  abilities, priced by a formula, get a factor.
+- The fit is one damped step rather than a full solve: with so little
+  evidence per part (many abilities appear on one or two templates), a
+  full solve would chase noise.
+- The sketch's `BalanceCalculator` (effectiveness from formulas) isn't
+  built: the harness measures effectiveness directly, and a second,
+  formula-based score would disagree with it.
+
+None of the acceptance criteria are ticked: each is about the prices
+being right, which waits on issue 067.
