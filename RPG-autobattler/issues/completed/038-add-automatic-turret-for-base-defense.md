@@ -506,8 +506,39 @@ end
 - Check visual effects and feedback
 
 ### Acceptance Criteria
-- [ ] Turrets automatically target and fire at enemy units
-- [ ] Rotation system realistically aims at targets
-- [ ] Different targeting modes provide tactical options
-- [ ] Visual effects clearly show turret activity
-- [ ] Turrets provide meaningful base defense capability
+- [x] Turrets automatically target and fire at enemy units
+- [x] Rotation system realistically aims at targets
+- [x] Different targeting modes provide tactical options
+- [ ] Visual effects clearly show turret activity -- muzzle flash timer, turret angle, projectiles and fire events exist for drawing; nothing is drawn yet
+- [x] Turrets provide meaningful base defense capability
+## What Happened
+
+Built as `src/systems/base_turret_system.lua`. Each standing base gets one
+turret the first time the system sees it (kept on the base component as
+`base.turret`). Each frame the turret keeps its current target while that
+target stays valid, otherwise picks a new one by its mode, turns toward it
+at pi radians per second, and fires when within 0.1 radians and reloaded.
+Shots are homing projectiles; the accuracy roll is made when the shot is
+fired, and a miss reaches the target and does nothing. Damage goes through
+`Unit.damage_unit`. Tested headlessly by `tests/test_base_turret.lua` (eight
+tests) with a stand-in random function so hits and misses are certain.
+Nothing was looked at on screen.
+
+### Decisions
+- **Range is measured from the base's centre and reaches 60 past the
+  shield ring (100 in all).** Taken literally, 60 from the centre is only
+  20 past the shields, and ranged units (45 at most) could shoot the front
+  shield from where the turret cannot reach them. "Longer than most units"
+  is kept by measuring the 60 from the shields.
+- **Threat order for "highest_threat":** special 4, ranged 3, melee and
+  tank 2, support 1, ties broken by distance. "Weakest" ranks by current
+  health; "closest" by distance.
+- **Integrity matters:** reload time is divided by the base's structural
+  integrity (issue 036), so a failing base (40%) fires every 2.5 seconds
+  instead of every second.
+- **No line-of-sight check.** The map has no walls between a base and the
+  lane in front of it yet; the line-of-sight system works on units, and can
+  be added to `is_valid_target` when it is needed.
+- The project's projectile system is unit-to-unit and was not reused; the
+  turret keeps its own small list of shots, readable with
+  `get_projectiles()` for drawing.
