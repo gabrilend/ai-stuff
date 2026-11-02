@@ -15,7 +15,7 @@
 # Usage:
 #   publish-projects.sh                  preview every extra root's projects
 #   publish-projects.sh --dir DIR        the monorepo whose delta-version/config
-#                                        is read (default below)
+#                                        is read (default: /mnt/mtwo/...)
 #   publish-projects.sh --config-dir D   read D/external-projects.conf instead
 #   publish-projects.sh --help
 #
@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # -- {{{ show_help
 function show_help() {
-    sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 # }}}
 

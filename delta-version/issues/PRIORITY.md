@@ -43,7 +43,6 @@ notes for 067. (052 has since closed as superseded.)
 | Issue | What | Decided |
 |-------|------|-------------|
 | **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
-| **039** | Multi-location ai-stuff integration | Do not scan the whole filesystem. List each extra root in a config file. A project outside the main root is pushed only when it is listed as publishable. No symlinks. |
 | **067** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 
 ## TIER 3: Large specifications, nothing built
