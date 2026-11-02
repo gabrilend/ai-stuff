@@ -7,7 +7,8 @@ and the nearest legal word; compilation resolves names to numbers into
 flat parallel arrays; the paintbrush's document is generated from the
 same table (`docs/paintbrush-png.md`, checked to match).
 
-A **paintbrush**: `{name, words = {[word] = {doc, once, required, order,
+A **paintbrush**: `{name, source (the file holding its table, for the
+document; default this one), words = {[word] = {doc, once, required, order,
 fields = {[field] = {type, required, default, doc}}}}}`. `PNG` is the
 `.png` end's: `canvas`, `line`, `surface`, `arrow`, `label`, `grid`,
 `chart`, `diagram`. A **finding**: `{line, word, message, suggestion}`.
@@ -16,7 +17,7 @@ fields = {[field] = {type, required, default, doc}}}}}`. `PNG` is the
 |---|---|---|
 | `read(text, brush, where)` | a canvas's text; a paintbrush (default `PNG`); its name for messages | the compiled canvas, or nil and every finding of both passes in line order |
 | `read_file(path, brush)` | a canvas file | as `read` |
-| `load(text, brush, where)` | as `read` | the words in canvas order, `{word, line, fields}` with defaults filled from the table, and the loading findings: unknown word, unknown field, wrong type, missing required field, a once-only word twice, a global set, a parse or run error, a runaway loop (`MOST_INSTRUCTIONS`), bytecode, no `canvas{}` |
+| `load(text, brush, where)` | as `read` | the words in canvas order, `{word, line, fields}` with defaults filled from the table, and the loading findings: unknown word, unknown field, wrong type, missing required field, a once-only word twice, a required word missing (`canvas{}`, or `.src`'s `source{}`), a global set, a parse or run error, a runaway loop (`MOST_INSTRUCTIONS`), bytecode |
 | `compile(words)` | `load`'s words | `{canvas, look, names, order, xs, ys, lines, surfaces, arrows, labels, grids, charts, diagrams}` (each kind `{n, field = {…}}` in parallel), and its findings: a name given twice, a reference to no surface, a diagram arrow to no box, labels that do not match a chart's data, a look the category refuses (070's `for_canvas`, 801d) |
 | `document(brush)` | a paintbrush | its Markdown document: every word in name order, every field with its type, default and meaning |
 | `text(finding, where)` | a finding; a name | `"<where>:<line>: <word>: <message>; did you mean '<suggestion>'?"` |

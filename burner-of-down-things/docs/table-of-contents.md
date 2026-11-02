@@ -38,6 +38,8 @@ name is where it lives.
   .txt, source files, in the owner's look; the pool and its cards.
   - docs/paintbrush-png.md - the `.png` paintbrush: every word a canvas may
     use and every field, generated from the wall's own table (802).
+  - docs/paintbrush-src.md - the `.src` paintbrush: `source{ language,
+    version, purpose, prompt }`, generated the same way (808).
 - docs/068-datapath-the-switchboard.md - parcels of arbitrary inputs, routed
   by a light model, planned by shape; observations and adjustments.
 - docs/069-the-story.md - the ledger told back as a story; lessons;
