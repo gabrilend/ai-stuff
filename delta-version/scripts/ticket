@@ -1,0 +1,70 @@
+#!/bin/bash
+# ticket - one name for the ticket distribution tools (issue 022).
+#
+# Each command hands over to the tool that does the work; this script holds
+# no rules of its own.
+#
+#   ticket file TEMPLATE --phase=N|current TARGETS [--write] ...
+#                              distribute-ticket.lua (dry run unless --write)
+#   ticket menu [...]          ticket-menu.sh, the menu
+#   ticket check TEMPLATE      process-template.lua --check: are its keywords usable?
+#   ticket keywords            process-template.lua --list
+#   ticket history             one line per distribution in the ledger
+#   ticket undo D-... [--write]  distribute-ticket.lua --undo
+#   ticket hook install|uninstall|status   install-ticket-hook.sh (you run it)
+#   ticket hook preview [--commit REV]     ticket-hook.sh by hand
+#   ticket hook check          ticket-hook.sh --check: is the configuration sound?
+#   ticket test                test-ticket-chain.sh
+#
+# DIR (default /mnt/mtwo/programming/ai-stuff) names the monorepo for the
+# commands that need it; --dir= on `ticket file` and `ticket undo` overrides.
+
+# {{{ DIR Configuration
+DIR="${DIR:-/mnt/mtwo/programming/ai-stuff}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DELTA="$SCRIPT_DIR/.."
+# }}}
+
+# -- {{{ usage
+function usage() {
+    sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+# -- {{{ main
+function main() {
+    local command="${1:-}"
+    [ $# -gt 0 ] && shift
+    case "$command" in
+        file)     exec luajit "$SCRIPT_DIR/distribute-ticket.lua" --dir="$DIR" "$@" ;;
+        undo)
+            [ -n "${1:-}" ] || { echo "ticket: undo needs a distribution id (see ticket history)" >&2; exit 2; }
+            local id="$1"; shift
+            exec luajit "$SCRIPT_DIR/distribute-ticket.lua" --undo="$id" --dir="$DIR" "$@" ;;
+        menu)     exec bash "$SCRIPT_DIR/ticket-menu.sh" --dir "$DIR" "$@" ;;
+        check)    exec luajit "$SCRIPT_DIR/process-template.lua" --dir="$DELTA" --check "$@" ;;
+        keywords) exec luajit "$SCRIPT_DIR/process-template.lua" --dir="$DELTA" --list ;;
+        history)
+            # shellcheck source=ticket-menu.sh
+            source "$SCRIPT_DIR/ticket-menu.sh"
+            [ "${1:-}" = "--ledger" ] && LEDGER="$2"
+            ticket_menu_history ;;
+        hook)
+            local what="${1:-}"
+            [ $# -gt 0 ] && shift
+            case "$what" in
+                install)   exec bash "$SCRIPT_DIR/install-ticket-hook.sh" --repo "$DIR" "$@" ;;
+                uninstall) exec bash "$SCRIPT_DIR/install-ticket-hook.sh" --repo "$DIR" --uninstall "$@" ;;
+                status)    exec bash "$SCRIPT_DIR/install-ticket-hook.sh" --repo "$DIR" --status "$@" ;;
+                preview)   exec bash "$SCRIPT_DIR/ticket-hook.sh" --dir "$DIR" "$@" ;;
+                check)     exec bash "$SCRIPT_DIR/ticket-hook.sh" --check "$@" ;;
+                *) echo "ticket: hook takes install, uninstall, status, preview or check" >&2; exit 2 ;;
+            esac ;;
+        test)     exec bash "$SCRIPT_DIR/test-ticket-chain.sh" --dir "$DIR" "$@" ;;
+        ""|-h|--help|help) usage ;;
+        *) echo "ticket: unknown command $command (see ticket --help)" >&2; exit 2 ;;
+    esac
+}
+# }}}
+
+main "$@"

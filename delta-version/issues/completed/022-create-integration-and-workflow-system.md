@@ -416,15 +416,47 @@ function handle_configuration_migration() {
 
 ---
 
-## Status (2026-11-02)
+## What Happened
 
-016–021 are built: `scripts/distribute-ticket.lua` (dry run, ledger, undo),
-its menu `scripts/ticket-menu.sh`, and the suite `scripts/test-ticket-chain.sh`.
-This issue was left unbuilt on purpose, waiting on one decision from the
-owner. Its centre is the "automatic triggers during repository operations":
-git hooks that file tickets when commits or merges happen. That changes what
-a commit does for every project in the monorepo, so it is not something to
-add without being asked. Without the triggers, the master script would only
-put the two existing tools behind one name. If the triggers are not wanted,
-this issue can be closed as covered by 019 and 020.
+**2026-11-02 — built as an opt-in hook that previews by default, plus one
+`ticket` command.**
+
+The open question (should git hooks file tickets?) was put to the owner, who
+answered: build it opt-in. That means an install script the owner runs
+himself, and a hook that previews (a dry run) and prints the command that
+would file the ticket. The hook writes only when a configuration setting
+turns writing on, and that setting is off as shipped. The change installs
+nothing into any repository.
+
+Built:
+
+- **Master script:** `scripts/ticket`. It hands each command to the tool
+  that does the work: `file`, `menu`, `check`, `keywords`, `history`, `undo`,
+  `hook install|uninstall|status|preview|check`, and `test`.
+- **Git integration:** `scripts/install-ticket-hook.sh`. It writes a
+  `post-commit` hook into the repository named, or removes it again. It
+  never replaces a hook it did not write; it prints the line to add instead.
+- **The hook:** `scripts/ticket-hook.sh`. When a commit adds or changes a
+  template in `templates/tickets/`, it previews filing that template to the
+  targets in `config/ticket-hooks.conf` and prints the `--write` command. It
+  files the tickets itself only with `write = on`. A configuration line can
+  choose projects, phase and slug; it cannot set `--write`, `--dir`,
+  `--ledger`, `--again` or `--undo`, and it cannot pass shell characters.
+  The hook never stops a commit.
+- **Configuration management:** `config/ticket-hooks.conf`, checked by
+  `ticket hook check`. Everything else stays in the existing plain-text files.
+- **Documentation:** `scripts/ticket-hook.info.md`, alongside the info files
+  for the tools it wraps.
+
+Not built, deliberately:
+
+- **The sketched `--init-repository`, `--branch-setup` and `--maintenance`
+  hooks.** They belong to the per-project branch layout that issue 046
+  retired.
+- **The phase-completion trigger.** It would file tickets in "related
+  projects" chosen by a guess about shared dependencies. That can be done by
+  hand with `ticket file … --uses=…` when wanted.
+
+Tested by `scripts/test-ticket-hook.sh` (47 checks, with real commits in a
+scratch repository). `test-ticket-chain.sh` now runs it as one of its parts.
 
