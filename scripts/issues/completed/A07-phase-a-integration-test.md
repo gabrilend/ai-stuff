@@ -3,7 +3,7 @@
 **Phase:** A - Infrastructure Tools
 **Type:** Test
 **Priority:** Low
-**Dependencies:** A01, A02, A03, A04, A05 (A06 moved to world-edit-to-execute)
+**Dependencies:** A01, A02, A03, A04, A05 (the old sixth phase-A issue moved to world-edit-to-execute)
 
 ---
 
