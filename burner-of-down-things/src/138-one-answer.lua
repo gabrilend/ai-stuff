@@ -13,7 +13,8 @@
 -- Usage (from 037's ollama row):
 --   luajit 138-one-answer.lua <program> <arguments...> < prompt.md
 
-local SRC = (arg[0]:match("^(.*)/[^/]*$")) or "."
+-- This file's own folder, whether run as a script or loaded with dofile.
+local SRC = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) or "."
 package.path = SRC .. "/?.lua;" .. package.path
 
 local fs = require("017-the-filesystem")
@@ -26,6 +27,57 @@ local one_answer = {}
 -- trimming, as one JSON object and a newline.
 function one_answer.json(printed)
     return '{"answer":' .. harnesses.json_string(printed) .. "}\n"
+end
+-- }}}
+
+-- {{{ local function utf8_char
+local function utf8_char(code)
+    if code < 0x80 then
+        return string.char(code)
+    elseif code < 0x800 then
+        return string.char(0xC0 + math.floor(code / 0x40), 0x80 + code % 0x40)
+    end
+    return string.char(0xE0 + math.floor(code / 0x1000), 0x80 + math.floor(code / 0x40) % 0x40, 0x80 + code % 0x40)
+end
+-- }}}
+
+-- {{{ function one_answer.decode
+-- The answer back out of a result.json this wrapper wrote: the text, or
+-- nil when the file is not one `{"answer": "..."}` object. Undoes JSON's
+-- string escapes; a \u escape of a surrogate half is refused rather than
+-- written as a broken character.
+function one_answer.decode(text)
+    local body = type(text) == "string" and text:match('^%s*{%s*"answer"%s*:%s*"(.*)"%s*}%s*$')
+    if not body then
+        return nil
+    end
+    local simple = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
+    local out, i = {}, 1
+    while i <= #body do
+        local c = body:sub(i, i)
+        if c == "\\" then
+            local e = body:sub(i + 1, i + 1)
+            if e == "u" then
+                local code = tonumber(body:sub(i + 2, i + 5), 16)
+                if not code or #body:sub(i + 2, i + 5) ~= 4 or (code >= 0xD800 and code <= 0xDFFF) then
+                    return nil
+                end
+                out[#out + 1] = utf8_char(code)
+                i = i + 6
+            elseif simple[e] then
+                out[#out + 1] = simple[e]
+                i = i + 2
+            else
+                return nil
+            end
+        elseif c == '"' or c:byte() < 32 then
+            return nil
+        else
+            out[#out + 1] = c
+            i = i + 1
+        end
+    end
+    return table.concat(out)
 end
 -- }}}
 
