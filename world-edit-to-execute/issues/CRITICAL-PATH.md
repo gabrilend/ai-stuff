@@ -778,7 +778,7 @@ Places where a document disagrees with the code or with another document.
 |-------|------|---------|
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
 | 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped; the editor saves `.w3x` (decided 2026-09-26); the design text is rewritten when Phase 9 starts |
-| 601, `docs/wc3-engine-architecture.md`, `docs/roadmap.md` | player data in `~/.world-edit-engine/` or `~/.wc3-engine/` | player data lives in the project directory, movable by a config file (decided 2026-09-26); the paths wait on the folder's name inside the project |
+| 601, `docs/wc3-engine-architecture.md`, `docs/roadmap.md` | player data in `~/.world-edit-engine/` or `~/.wc3-engine/` | player data lives in the project directory, movable by a config file (decided 2026-09-26); the folder is `player-data/` and the config file `config/player-data.lua` (chosen 2026-11-02 in 604); the docs' paths are still to be rewritten |
 
 ---
 

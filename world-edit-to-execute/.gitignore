@@ -97,3 +97,8 @@ deps/*
 # Maps saved by the editor beside the map they were opened from (issue 901)
 *-edited.w3x
 maps-demo-*.w3x
+
+# The player's own data (issue 601/604): in the project by default, or where
+# config/player-data.lua (a path on the player's own machine) moves it.
+player-data/
+config/player-data.lua

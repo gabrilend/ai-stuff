@@ -141,3 +141,7 @@ loader.clear()
    `docs/roadmap.md` are to be rewritten to that when this issue is built.
    Still to choose: the folder's name inside the project, and where the
    config file itself lives.
+   **Chosen 2026-11-02 while building 604:** `<project>/player-data/`, moved
+   by `<project>/config/player-data.lua` returning `{ folder = "PATH" }`
+   (both git-ignored); `src/assets/player_data.lua` reads it. The docs'
+   paths are still to be rewritten with this issue.
