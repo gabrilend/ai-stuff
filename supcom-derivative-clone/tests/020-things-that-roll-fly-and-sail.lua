@@ -102,6 +102,172 @@ harness.suite("the catalogue's relations hold", function()
 end)
 -- }}}
 
+-- {{{ the row and the catalogue, closer
+-- {{{ local function raw_catalogue()
+-- A deep copy of the catalogue as the asset gives it, for a suite to break.
+local function raw_catalogue()
+  local copy = {}
+  for name, row in pairs(harness.load_asset("unit-catalogue", "202")) do
+    copy[name] = {}
+    for key, value in pairs(row) do copy[name][key] = value end
+  end
+  return copy
+end
+-- }}}
+
+harness.suite("a unit carries copies of its kind's numbers from birth", function()
+  local units = harness.load("units", "201")
+  local catalogue = harness.load_asset("unit-catalogue", "202")
+  local timers = harness.load("timers", "106")
+  local world = fresh()
+  for _ = 1, 25 do
+    world.tick = world.tick + 1
+  end
+  local id = units.spawn(world, "enforcer", 2, 7.5, 3)
+  local row = catalogue.enforcer
+  harness.check("the row holds its kind's index", world.unit.kind[id] == row.index)
+  harness.check("domain, eye, profile and damage are copied",
+                world.unit.domain[id] == row.domain and world.unit.eye[id] == row.eye
+                and world.unit.profile[id] == row.profile and world.unit.damage[id] == row.damage)
+  harness.check("the claim radius is the kind's", world.unit.claim_radius[id] == row.claim_radius)
+  harness.check("health is the cap, written at the increment of now on the kind's counter",
+                world.unit.health[id] == row.health
+                and world.unit.health_at[id] == world.heal.enforcer.increment
+                and world.heal.enforcer.increment > 0)
+  harness.check("the shield is full, on its own recharge counter",
+                timers.read(world.unit.shield[id], world.unit.shield_at[id], world.recharge.enforcer,
+                            row.shield) == row.shield)
+  local plane = units.spawn(world, "helicopter", 1, 1, 1)
+  harness.check("a plane flies at its altitude and claims nothing",
+                world.unit.altitude[plane] == catalogue.helicopter.altitude
+                and world.unit.altitude[plane] > 0 and world.unit.claim_radius[plane] == 0)
+  local ok, problem = pcall(units.spawn, world, "tank", 3, 1, 1)
+  harness.check("a team the world does not have is refused",
+                not ok and tostring(problem):find("team 3", 1, true) ~= nil, problem)
+  local small = harness.load("the-world", "104").allocate({field = FIELD, units = 1, teams = 2, seed = SEED})
+  units.spawn(small, "tank", 1, 1, 1)
+  ok, problem = pcall(units.spawn, small, "tank", 1, 2, 2)
+  harness.check("a full world is refused, naming the kind and the group",
+                not ok and tostring(problem):find("tank", 1, true) ~= nil
+                and tostring(problem):find("unit group is full", 1, true) ~= nil, problem)
+  harness.check("a row dumps as one line naming its kind",
+                units.dump(world, id):find("(enforcer)", 1, true) ~= nil
+                and units.dump(world, id):find("team=2", 1, true) ~= nil, units.dump(world, id))
+end)
+
+harness.suite("the catalogue refuses a bad row by its name and field", function()
+  local units = harness.load("units", "201")
+  local rate = harness.load_asset("the-rules", "105").ticks_per_second
+  local ok, problem = pcall(units.validate_catalogue, raw_catalogue(), rate)
+  harness.check("the catalogue as it stands loads", ok, problem)
+  local function refused(what, change, expect)
+    local raw = raw_catalogue()
+    change(raw)
+    local fine, message = pcall(units.validate_catalogue, raw, rate)
+    harness.check(what, not fine and tostring(message):find(expect, 1, true) ~= nil, message)
+  end
+  refused("a missing field", function(raw) raw.tank.speed = nil end, "tank.speed")
+  refused("a field the catalogue does not know", function(raw) raw.frigate.colour = 3 end,
+          "frigate.colour")
+  refused("a name where a number goes", function(raw) raw.tank.health = "lots" end, "tank.health")
+  refused("a domain past sea", function(raw) raw.frigate.domain = 4 end, "frigate.domain")
+  refused("a floor above one", function(raw) raw.tank.falloff_floor = 1.5 end, "tank.falloff_floor")
+  refused("a weapon with nowhere to reach", function(raw) raw.tank.reaches = 0 end, "tank.reaches")
+  refused("a period shorter than a tick", function(raw) raw.tank.heal_period = 0.01 end,
+          "tank.heal_period")
+  refused("two kinds with one index", function(raw) raw.frigate.index = 1 end, "index")
+  refused("a gap in the indices", function(raw) raw.enforcer.index = 9 end, "index")
+  refused("a shield with no recharge", function(raw) raw.tank.shield = 10 end, "tank.shield_seconds")
+  refused("a ship that flies", function(raw) raw.frigate.altitude = 3 end, "frigate.altitude")
+  local catalogue = units.catalogue()
+  harness.check("seconds become ticks at the rules' rate",
+                catalogue.tank.heal_ticks == math.floor(catalogue.tank.heal_period * rate + 0.5)
+                and catalogue.tank.reload_ticks >= 1)
+  harness.check("kinds are found by name and by index",
+                units.index_of("frigate") == catalogue.frigate.index
+                and units.name_of(catalogue.frigate.index) == "frigate"
+                and units.kind(catalogue.frigate.index) == catalogue.frigate)
+  harness.check("the report gives hits to kill in tank shells",
+                units.report():find("command%-truck%s+1\n") ~= nil
+                and units.report():find("enforcer%s+6, and 4 more for its shield") ~= nil)
+end)
+
+harness.suite("every kind heals on a counter of its own, in the world", function()
+  local units = harness.load("units", "201")
+  local snapshot = harness.load("snapshot", "109")
+  local world = fresh()
+  local catalogue = units.catalogue()
+  local all = true
+  for index, row in ipairs(catalogue.kinds) do
+    local counter = world.heal[row.name]
+    if counter == nil or counter.period ~= row.heal_ticks then all = false end
+  end
+  harness.check("one heal counter per kind, at the kind's period", all)
+  harness.check("the enforcer's shield has a recharge counter, and nothing else does",
+                world.recharge.enforcer ~= nil and world.recharge.tank == nil)
+  local before = snapshot.hash(world)
+  world.heal.frigate.increment = world.heal.frigate.increment + 1
+  harness.check("the counters are part of the fingerprint", snapshot.hash(world) ~= before)
+  world.heal.frigate.increment = world.heal.frigate.increment - 1
+  local copy = snapshot.copy(world)
+  harness.check("and of a snapshot", copy.heal.frigate.period == world.heal.frigate.period
+                and copy.heal.frigate ~= world.heal.frigate)
+end)
+
+harness.suite("the world's validator holds a unit to its kind", function()
+  local units = harness.load("units", "201")
+  local the_world = harness.load("the-world", "104")
+  local world = fresh()
+  local id = units.spawn(world, "frigate", 1, 3, 3)
+  harness.check("a spawned world validates", (pcall(the_world.validate, world)))
+  world.unit.domain[id] = units.DOMAINS.land
+  local ok, problem = pcall(the_world.validate, world)
+  harness.check("a frigate on land by its row is refused, naming the row",
+                not ok and tostring(problem):find("row " .. id, 1, true) ~= nil, problem)
+  world.unit.domain[id] = units.DOMAINS.sea
+  world.unit.kind[id] = 99
+  ok, problem = pcall(the_world.validate, world)
+  harness.check("a kind the catalogue does not have is refused",
+                not ok and tostring(problem):find("kind 99", 1, true) ~= nil, problem)
+end)
+
+harness.suite("a kind claims territory with its own radius", function()
+  local units = harness.load("units", "201")
+  local territory = harness.load("territory", "112")
+  local world = fresh()
+  for index = 1, #world.field.height do world.field.height[index] = 10 end
+  units.spawn(world, "enforcer", 1, 10, 10)
+  units.spawn(world, "tank", 2, 40, 10)
+  units.spawn(world, "helicopter", 2, 40, 40)
+  local length = world.claim.period * world.claim.increments_to_claim
+  for _ = 0, length do
+    territory.claim_pass(world)
+    world.tick = world.tick + 1
+  end
+  local size = FIELD.size
+  local function cell(x, y) return y * size + x + 1 end
+  harness.check("the enforcer holds ground four cells out", territory.owner(world, cell(14, 10)) == 1)
+  harness.check("a tank holds two cells out and not three",
+                territory.owner(world, cell(42, 10)) == 2 and territory.owner(world, cell(43, 10)) == 0)
+  harness.check("a plane holds nothing beneath it", territory.owner(world, cell(40, 40)) == 0)
+end)
+
+harness.suite("the viewer has a letter for every kind", function()
+  local units = harness.load("units", "201")
+  local viewer = harness.load("terminal-viewer", "111")
+  local seen, every = {}, true
+  for index, row in ipairs(units.catalogue().kinds) do
+    local letter = viewer.LETTERS[index]
+    if letter == nil or seen[letter] or letter == viewer.UNKNOWN then every = false end
+    seen[letter or ""] = true
+  end
+  harness.check("one letter per kind, none shared, none the unknown mark", every)
+  harness.check("the tank is T and the enforcer E",
+                viewer.LETTERS[units.index_of("tank")] == "T"
+                and viewer.LETTERS[units.index_of("enforcer")] == "E")
+end)
+-- }}}
+
 -- {{{ three domains
 harness.suite("three domains on one field", function()
   local domains = harness.load("domains", "203")

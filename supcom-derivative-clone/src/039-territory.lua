@@ -267,17 +267,18 @@ end
 
 -- {{{ function M.claim_pass()
 -- The tick's claim row. Brings the claim counter up to this tick (asking twice
--- changes nothing), marks around every live unit in array order with the rules'
--- claim radius, resolves the marks, and on the tick the counter fires sweeps
--- the abandoned claims. A kind's own radius arrives with the unit catalogue.
+-- changes nothing), marks around every live unit in array order with the claim
+-- radius it was born with, resolves the marks, and on the tick the counter
+-- fires sweeps the abandoned claims. A unit whose radius is zero -- a plane --
+-- claims nothing.
 function M.claim_pass(world)
   local counter = world.claim
   timers.advance(counter, world.tick)
   local unit = world.unit
-  local radius = world.rule.claim_radius
+  local alive, radius = unit.alive, unit.claim_radius
   for id = 1, unit.top do
-    if unit.alive[id] == 1 then
-      M.claim(world, unit.team[id], unit.x[id], unit.y[id], radius)
+    if alive[id] == 1 and radius[id] > 0 then
+      M.claim(world, unit.team[id], unit.x[id], unit.y[id], radius[id])
     end
   end
   resolve(world)

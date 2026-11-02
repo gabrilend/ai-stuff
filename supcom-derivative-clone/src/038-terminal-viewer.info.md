@@ -61,6 +61,7 @@ The legend:
   cells, counted from the snapshot;
 - `U units alive, C commands waiting, R refusals kept`.
 
-`LETTERS` is empty until the unit catalogue (issue 202) numbers the kinds and
-adds a row per kind; until then a unit draws as `?`, loudly rather than as
-ground.
+`LETTERS` follows the unit catalogue's `index` column: `T` tank, `A` anti-air
+gun, `H` helicopter, `F` frigate, `C` command truck, `E` enforcer. A unit of a
+kind with no letter draws as `?`, loudly rather than as ground; phase 2's tests
+check that every catalogue kind has its own letter.

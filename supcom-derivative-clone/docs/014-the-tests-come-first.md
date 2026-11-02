@@ -77,13 +77,13 @@ the test.
 | `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`, with `waiting_for` naming the issue on a row not yet built; `advance(world)`; `assemble(modules, parameters)`; `ticks_of(seconds)` |
 | `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair; `ticks_of(seconds, rate)` |
 | `random-streams` | 107 | `open(seed, name)`; `next_integer(stream, below)` in `[0, below)`; `next_double(stream)` in `[0, 1)`; `STREAMS`, the names; `draw(world, name, below)` and `draw_double(world, name)` for the world's own streams |
-| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds`, `claim_increments` and `claim_radius`, the sizes of the command queue and the refusal ring, and `fingerprint_every`; copied into the world as `world.rule` |
+| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds` and `claim_increments`, the sizes of the command queue and the refusal ring, and `fingerprint_every`; copied into the world as `world.rule` |
 | `commands` | 108 | `VERBS`, a dispatch table, and `ARGUMENTS`, each verb's argument names; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied; `refusals(world)` returns the ring's refusals, oldest first; `unpack(world, row)` |
 | `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path, commands)`; `replay(path)`; `stamp(world)`; `snapshot_pass(world)`, the tick's last row; `note_command(world, command)`, the door's hook |
 | `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots`, and `units` and `replay` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern`, and `ended`, `replay`, `replay_checked`, `mismatch_tick`, `world`; `lines(report)` |
 | `terminal-viewer` | 111 | `draw(snapshot, options)` returns a string with a row per field row, tinted when `options.colour` is set; `GRADES`, `WATER`, `LETTERS`, `UNKNOWN`, `COLOURS` |
 | `territory` | 112 | `claim(world, team, x, y, radius)`; `claim_pass(world)`; `owner(world, cell)`; `percent(world, team)` |
-| `units` | 201 | `spawn(world, kind, team, x, y)` returns an id, refusing an unknown kind by name; `alive(world)` returns a count |
+| `units` | 201, 202 | `spawn(world, kind, team, x, y)` returns an id, refusing an unknown kind by name; `alive(world)` returns a count; `catalogue()`, the unit catalogue loaded, validated and converted to ticks; `validate_catalogue(raw, rate)`; `kind(name or index)`, `index_of(name)`, `name_of(index)`; `counters()`, the heal and recharge counters the catalogue asks for; `validate(world)`; `dump(world, id)`; `report()` |
 | `unit-catalogue` | 202 | a table in `assets/`, one row per kind, every field an integer, a double, or a name: `health`, `damage`, `shell_speed`, `heal_period`, `eye`, `profile`, `shield`, and the rest the issue lists |
 | `domains` | 203 | `can_stand(field, domain, x, y)` |
 | `movement` | 204 | `move_pass(world)` |
@@ -127,8 +127,9 @@ builds the system that writes it:
 
 - `world.tick`
 - `world.field.{size, height, water_line}`
-- `world.unit.{count, alive, team, x, y, target, pattern, leg, health, health_at,
-  shield, shield_at, eaten, eat_share, mission, strength, in_round, goal_x, goal_y}`
+- `world.unit.{count, alive, kind, team, x, y, target, pattern, leg, health, health_at,
+  shield, shield_at, eaten, eat_share, mission, strength, in_round, goal_x, goal_y,
+  claim_radius}`
 - `world.pattern.{count, points}`
 - `world.shot.{count, arrives}`
 - `world.bone.{count, x, y, mass}`

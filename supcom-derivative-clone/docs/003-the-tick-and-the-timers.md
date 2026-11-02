@@ -122,7 +122,9 @@ every unit's position and health, every cell's owner, the economy's totals, the
 streams and the counters — so that two machines can compare a single number and
 know whether they agree. Not every tick: a fingerprint folds every cell, so its
 cost grows with the field's area, and how often it is taken is a rule in the
-catalogue. And if a viewer
+catalogue -- every ten ticks by default -- that a match may set as low as one,
+so that a desync between two machines can be narrowed to the exact tick it
+happened in (`./run-headless --fingerprint-every 1`). And if a viewer
 is attached, the world is **copied** out to it, whole. The viewer never reads the
 live world; see [the views](010-the-views.md).
 

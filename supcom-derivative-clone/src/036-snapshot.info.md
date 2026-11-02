@@ -25,7 +25,8 @@ field, the rules, the parameters and the layout are never written during a match
 and are shared. A copy records nothing.
 
 **The replay** is a text log. The snapshot row fingerprints the world every
-`fingerprint_every` ticks (a rule), keeping it as `world.fingerprint` and
+`fingerprint_every` ticks (a rule, ten by default, which the world's
+parameters may set to anything from one), keeping it as `world.fingerprint` and
 `world.fingerprint_tick`; while a log is being written each fingerprint goes into
 it. A runner that queues a log's commands into a fresh world made the same way
 and compares fingerprints at the logged ticks has replayed the match, and the

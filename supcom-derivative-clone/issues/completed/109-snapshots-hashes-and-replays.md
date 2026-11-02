@@ -65,6 +65,10 @@ silently played wrong. The log is text so that two of them can be diffed.
   the test's small field (ten thousand ticks in 1.1 seconds, against the test's
   limit of two) and grows with the field's area. The rule is ten ticks, one a
   second, and the log writes every fingerprint; the tick document says so now.
+  Ritz kept ten as the default and asked for the interval to be a setting that
+  can be one, to narrow a desync to its exact tick: issue 201's change added
+  `fingerprint_every` to the world's parameters and `--fingerprint-every` to
+  `./run-headless`, and a replay always uses the interval it was recorded at.
 - **Arrays are folded as the words of their memory.** An integer is one word
   and a double the two words of its bit pattern, read through a cast rather
   than a union per value; the same thing, faster. Both target machines are

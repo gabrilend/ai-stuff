@@ -49,11 +49,13 @@ M.WATER = "~"
 -- }}}
 
 -- {{{ the unit letters
--- One letter per kind of unit, indexed by the kind's number in the unit
--- catalogue. The catalogue (issue 202) gives kinds their numbers, and adds a row
--- here for each; until then a unit of a kind with no row is drawn as UNKNOWN, so
--- it shows up loudly rather than as ground.
-M.LETTERS = {}
+-- One letter per kind of unit, indexed by the kind's `index` in the unit
+-- catalogue (issue 202): tank, anti-air gun, helicopter, frigate, command truck,
+-- enforcer. The viewer loads no simulation module, so the order is written here
+-- and phase 2's tests hold it to the catalogue's. A unit of a kind with no letter
+-- -- a row nobody filled, a kind added without one -- is drawn as UNKNOWN, so it
+-- shows up loudly rather than as ground.
+M.LETTERS = {"T", "A", "H", "F", "C", "E"}
 M.UNKNOWN = "?"
 -- }}}
 

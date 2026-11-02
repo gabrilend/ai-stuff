@@ -10,7 +10,7 @@ gap.
 The questions are meant to be gone through one at a time, with a person.
 Answering one usually kills two or three others — and occasionally creates one.
 
-**Answered so far: none.** Two are marked as directions set rather than
+**Answered so far: one** (C4). Two are marked as directions set rather than
 questions, and three are awaiting evidence that only running the thing can
 supply. Entries are kept when answered rather than deleted, rewritten to record
 the answer, what it settles, and what was rejected.
@@ -229,17 +229,24 @@ whatever claimed the cell that flipped.
 
 **Changes:** [005](005-territory-mass-and-energy.md), issue 310.
 
-## C4. Does a contested claim reset or pause?
+## C4. Does a contested claim reset or pause? — **ANSWERED**
 
-**Working ruling:** pause. While both sides are present nothing changes hands
-and the claim's progress stops: its start increment moves on by the increments
-the contest lasts, so the claim resumes where it was when one side leaves.
-(Keeping the start increment unmoved would let the contest's time count, so the
-claim would finish the moment the contest ended -- a run-on, not a pause. Issue
-112 builds the pause, and treats a claimant walking away the same way until a
-whole claim length passes, when the claim is cleared.)
+**Answer (Ritz, after issue 112 was built):** pause. While both sides are
+present nothing changes hands and the claim's progress stops: its start
+increment moves on by the increments the contest lasts, so the claim resumes
+where it was when one side leaves. A claimant who walks away pauses the claim
+the same way, and a claim nobody has stood near for a whole claim length is
+cleared.
 
-**Changes:** issue 112.
+**Settles:** what a contest costs. Neither side can run a claim on through a
+fight, and neither loses the progress it had before the fight.
+
+**Rejected:** reset, which would make every skirmish on a half-claimed cell
+start the claim over; and keeping the start increment unmoved, which would let
+the contest's time count, so the claim would finish the moment the contest
+ended.
+
+**Changed:** [005](005-territory-mass-and-energy.md), issue 112.
 
 ---
 

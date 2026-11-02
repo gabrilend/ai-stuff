@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# report-catalogue -- prints the unit catalogue and what a tank shell is worth
+# against each kind.
+#
+# For a general: every number that describes a kind of unit lives in one table,
+# assets/NNN-unit-catalogue.lua, and in no document. When a document needs one,
+# it points here instead of quoting it, so a number that moves never leaves a
+# stale copy behind. This loads the catalogue the way a match does -- validated,
+# with every time in seconds turned into ticks -- and prints every row, then how
+# many tank shells each kind takes. A catalogue that does not validate is
+# refused by its row and field, which makes this the quickest check after an
+# edit to the table.
+#
+# Usage:
+#   ./report-catalogue                  -- the hard-coded project root
+#   ./report-catalogue /path/to/project -- a checkout elsewhere
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ] && [ -f "$1/.file-index-counter" ]; then
+    DIR="$1"
+    shift
+fi
+
+# {{{ only_one
+# The one source file with a given stem, or a refusal naming it.
+only_one() {
+    local found
+    found=( "${DIR}"/src/[0-9][0-9][0-9]-"$1".lua )
+    if [ "${#found[@]}" -ne 1 ] || [ ! -f "${found[0]}" ]; then
+        echo "report-catalogue: wants exactly one src/NNN-$1.lua under ${DIR}" >&2
+        exit 1
+    fi
+    printf '%s' "${found[0]}"
+}
+# }}}
+
+UNITS="$(only_one units)"
+
+exec luajit - "${UNITS}" <<'LUA'
+local units_path = ...
+local ok, report = pcall(function() return dofile(units_path).report() end)
+if not ok then
+  io.stderr:write("report-catalogue: ", tostring(report), "\n")
+  os.exit(1)
+end
+io.write(report)
+LUA

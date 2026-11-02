@@ -424,6 +424,31 @@ harness.suite("the same seed and commands produce the same hash", function()
   harness.check("one more tick changes the hash", snapshot.hash(world_b) ~= second)
 end)
 
+harness.suite("the fingerprint interval is a setting that can be one", function()
+  local the_tick = harness.load("the-tick", "105")
+  local the_world = harness.load("the-world", "104")
+  local commands = harness.load("commands", "108")
+  local snapshot = harness.load("snapshot", "109")
+  local default = the_world.allocate({field = FIELD, units = 4, teams = 2, seed = SEED})
+  harness.check("by default the rules' interval stands",
+                default.rule.fingerprint_every == default.parameters.fingerprint_every
+                and default.rule.fingerprint_every > 1, default.rule.fingerprint_every)
+  local ok = pcall(the_world.allocate, {field = FIELD, units = 4, teams = 2, fingerprint_every = 0})
+  harness.check("an interval of zero is refused", not ok)
+  os.execute("mkdir -p /tmp/supcom-derivative-clone")
+  local path = "/tmp/supcom-derivative-clone/019-every-tick.log"
+  local world = the_world.allocate({field = FIELD, units = 4, teams = 2, seed = SEED,
+                                    fingerprint_every = 1})
+  snapshot.record(world, path, commands)
+  for _ = 1, 7 do the_tick.advance(world) end
+  local log = snapshot.replay(path)
+  harness.check("at one, every tick is fingerprinted and logged",
+                log.every == 1 and #log.hashes == 7 and log.hashes[7].tick == 6, #log.hashes)
+  harness.check("the interval is part of what the replay is stamped with",
+                snapshot.stamp(world) ~= snapshot.stamp(default) and log.stamp == snapshot.stamp(world))
+  os.remove(path)
+end)
+
 harness.suite("a copy stands alone, and the hash sees the last bit", function()
   local the_world = harness.load("the-world", "104")
   local snapshot = harness.load("snapshot", "109")
@@ -865,7 +890,7 @@ harness.suite("source with no test naming its issue fails the validator", functi
   local text, status = validate()
   harness.check("the project as it stands has no untested source",
                 text:find("untested source", 1, true) == nil and status == 0, text)
-  local taken = uncover("020-things-that-roll-fly-and-sail.lua", "201")
+  local taken = uncover("027-an-opponent.lua", "901")
   text, status = validate()
   harness.check("an issue with no source behind it yet is only counted, never failed",
                 taken and status == 0 and text:find("untested source", 1, true) == nil, text)
