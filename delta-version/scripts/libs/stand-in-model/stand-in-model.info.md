@@ -19,3 +19,8 @@ Tasks the brain knows:
 - `classify-section` (049)
 - `vision` (051)
 - `components` (053), which writes each phrase as the text spells it, so matching tiers can be tested
+- `summarize-slice`, `merge-summaries`, `title` and `blurb` (056b). Their answers are short and fixed, so slicing and merging can be counted. `title` adds a second sentence for the tool to drop.
+
+A user message holding `STAND-IN-FAIL` gets an error reply. One holding `STAND-IN-THINK` gets its answer after a `<think>` block, as Qwen3 writes one.
+
+`/tokenize` answers one token per word, in llama.cpp's `{"tokens":[...]}` shape, so a small context size forces many slices on a short text.

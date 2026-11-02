@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 056b**: Recursive map-reduce summarizer (2026-11-02). `scripts/summarize-transcript.lua` slices a transcript by whole exchanges using exact `/tokenize` counts, summarises each slice, and merges level by level to one summary, then writes a title, a slug and a blurb. It changes no file. Tested against the stand-in model, 40/40.
 - **Issue 039**: Multi-location ai-stuff integration, closed 2026-11-02 as decided. Extra roots come from the existing `external-projects.conf`; a new `[publishable]` section lists the only projects that may be pushed; `scripts/publish-projects.sh` previews by default and pushes only with `[publishing] push=on`; `reconstruct-history.sh --scan` gains a Public column. No whole-disk search, no symlinks. Tests: 29/29.
 - **Issue 052**: Ollama connection configuration, closed 2026-11-02 as superseded by the llama.cpp client (056a). No configuration was changed; the Ollama mentions in other projects are left for each project to move on its own.
 - **Older open issues decided** (2026-11-02):

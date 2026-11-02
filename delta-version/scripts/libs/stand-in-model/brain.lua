@@ -20,7 +20,18 @@
 --                       that the user text holds, written as the text
 --                       writes it (so "Thread-Pool" stays "Thread-Pool"),
 --                       one per line; "none" when there are none
+--   summarize-slice     "Slice of N request(s), opening with: " and the first
+--                       six words of the slice's first user request
+--   merge-summaries     "Merged N parts, first: " and the first eight words
+--                       of the first part (parts are split at blank lines)
+--   title               "Worked on " and what follows "opening with: " (or
+--                       the first five words), then a second sentence, so a
+--                       tool's one-sentence cut can be checked
+--   blurb               "This session: " and the first twenty words
 --   (anything else)     "stand-in reply: " and the first 60 characters
+--
+-- A user message holding STAND-IN-THINK gets its answer after a
+-- <think>...</think> block, as Qwen3 writes one.
 
 local root = os.getenv("AISTUFF_ROOT") or "/home/ritz/programming/ai-stuff"
 package.path = root .. "/libs/lua/?.lua;" .. package.path
@@ -36,6 +47,29 @@ end
 local function first_line(text)
     for line in text:gmatch("[^\n]+") do
         if line:match("%S") then return (line:gsub("^%s+", ""):gsub("%s+$", "")) end
+    end
+    return ""
+end
+-- }}}
+
+-- {{{ local function first_words()
+local function first_words(text, count)
+    local words = {}
+    for word in text:gmatch("%S+") do
+        words[#words + 1] = word
+        if #words == count then break end
+    end
+    return table.concat(words, " ")
+end
+-- }}}
+
+-- {{{ local function opening_request()
+-- The first line of text after the first "### User Request" heading.
+local function opening_request(text)
+    local after = text:match("### User Request[^\n]*\n(.*)$")
+    if not after then return text end
+    for line in after:gmatch("[^\n]+") do
+        if line:match("%S") and not line:match("^%-%-%-") and not line:match("^###") then return line end
     end
     return ""
 end
@@ -62,6 +96,11 @@ end
 
 local task = system:match("^Task: ([%w%-]+)%.") or ""
 
+if user:find("STAND-IN-THINK", 1, true) then
+    local plain_reply = reply
+    reply = function(text) plain_reply("<think>\nworking it out\n</think>\n\n" .. text) end
+end
+
 if task == "propose-guideline" then
     local line = first_line(user):gsub("^%- ", ""):gsub("^%d+ x ", ""):gsub("%s*%([%a ]+%)$", "")
     reply("- " .. line)
@@ -87,6 +126,21 @@ elseif task == "components" then
         if from then found[#found + 1] = user:sub(from, to) end
     end
     reply(#found > 0 and table.concat(found, "\n") or "none")
+elseif task == "summarize-slice" then
+    local _, requests = user:gsub("### User Request", "")
+    reply(string.format("Slice of %d request(s), opening with: %s.", requests,
+        first_words(opening_request(user), 6)))
+elseif task == "merge-summaries" then
+    local parts = 0
+    for block in (user .. "\n\n"):gmatch("(.-)\n%s*\n") do
+        if block:match("%S") then parts = parts + 1 end
+    end
+    reply(string.format("Merged %d parts, first: %s", parts, first_words(user, 8)))
+elseif task == "title" then
+    local topic = user:match("opening with: ([^%.]+)") or first_words(user, 5)
+    reply("Worked on " .. topic .. ". It went well.")
+elseif task == "blurb" then
+    reply("This session: " .. first_words(user, 20) .. ".")
 else
     reply("stand-in reply: " .. user:sub(1, 60))
 end
