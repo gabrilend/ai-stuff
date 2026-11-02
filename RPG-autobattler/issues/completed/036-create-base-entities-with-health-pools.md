@@ -476,7 +476,7 @@ end
 - Check victory condition triggering
 
 ### Acceptance Criteria
-- [ ] Bases have substantial health pools (~20 average units) -- core holds 5; the shields of issue 037 bring it to 20
+- [x] Bases have substantial health pools (~20 average units) -- core holds 5; the shields of issue 037 bring it to 20
 - [x] Visual damage progression shows base condition (data and color only; not seen on screen)
 - [x] Structural integrity affects base performance
 - [x] Base destruction triggers victory conditions
