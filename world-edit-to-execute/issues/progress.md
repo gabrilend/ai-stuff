@@ -517,7 +517,8 @@ Recorded in CRITICAL-PATH.md:
 | 603 | Fetch maps and models from public sites | Pending | 604, 605 |
 | 604 | Asset deduplication system | Completed 2026-11-02 | 601 (its folder only) |
 | 605 | Local storage manager | Pending | 604 |
-| 606 | Hot-reload system | Pending | 601, Phase 5 |
+| 606 | Hot-reload system | Completed 2026-11-02 | 601, Phase 5 |
+| 606a | Hot-reload swaps in the renderer, sound and UI | Pending | 606, Phase 5 |
 | 607 | File server application | Retired (superseded/) | — |
 | 608 | Phase 6 integration test | Pending | 601-606 |
 | 609 | Shared map-and-model list | Pending | 604, 605 |
@@ -552,7 +553,7 @@ Phase 6 enables community content distribution:
 
                    └──▶ 605 Storage Manager
 
-                   └──▶ 606 Hot-Reload
+                   └──▶ 606 Hot-Reload ──▶ 606a Swaps in renderer, sound, UI
 
 All ─────────────────────────────────────────▶ 608 Integration Test
 ```
