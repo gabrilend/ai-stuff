@@ -1,4 +1,4 @@
-# 008: Custom Signal Protocol for File Server
+# 040 (was 008): Custom Signal Protocol for File Server
 
 ## Status
 - **Priority**: EXPLORATORY
@@ -117,3 +117,15 @@ and this is how we build the veins.
 ---
 
 *Quest bounty: Available for anyone who wants to explore.*
+
+## What Happened
+
+**2026-11-02 — renumbered from 008 to 040.** Two different issues used the
+number 008: this one and `completed/008-fix-execute-mode-analysis-parsing.md`.
+They share the same first commit in the monorepo's grafted history, so the
+issues' own text settles it. The execute-mode fix was finished on 2025-12-21.
+This issue's Dependencies line calls issue 007 completed, and 007's first pass
+was completed on 2025-12-21 too, so this issue was written no earlier than the
+day the other 008 was closed. The newer issue, this one, took the next free
+number. A pointer is left at `moved-008-custom-signal-protocol-for-file-server.md`.
+Nothing else in the project named this issue by number.
