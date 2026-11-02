@@ -100,8 +100,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
 | 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
 | 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
+| 10-064 | `--reverse`: newest chronological pages first, similar/different by date | Completed | 2026-11-02 |
 
 ## Issue Details
+
+**10-064: `--reverse` Reading Order** - COMPLETED (2026-11-02)
+- `./run.sh --reverse` (TUI "Newest First"): chronological page 1 holds the newest poems, each page still oldest-to-newest; similar/different pages show the same poems laid out by date (similar newest first, different oldest first); explore.html says so
+- `src/reading-order.lua` holds both rules; the flag is forwarded to main.lua, wordcloud-generator.lua and generate-word-pages.lua beside `--chrono-per-page`, so every chronological link agrees
 
 **10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:

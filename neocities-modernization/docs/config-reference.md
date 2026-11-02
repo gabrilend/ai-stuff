@@ -243,6 +243,14 @@ Controls how poems are split across HTML pages.
 
 **CLI overrides:** `--poems-per-page`, `--chrono-per-page`, `--pages`
 
+**Reading order (no config field):** `./run.sh --reverse` (TUI: "Newest First")
+numbers the chronological pages newest-first -- page 1 holds the latest
+`--chrono-per-page` poems, each page still reading oldest to newest -- and lays
+out the shown part of every similar/different list by date (similar newest
+first, different oldest first). It is a per-build mode, recorded as `reverse`
+in `generation-metadata.json`, and is forwarded to stages 9 and 10 together so
+every chronological link agrees (Issue 10-064).
+
 ---
 
 ### storage

@@ -12,6 +12,7 @@ The different pages however show the poems that are most different to each poem
 that comes before it - meaning, the second poem is the most different to the
 first, but the third poem is different from both the first and second, triangle
 style. The fourth poem takes into account the first, second, and third poem.
+{ORDERING_NOTE}
 
 There's also a wordcloud, which looks at each occurence of every word in all the
 poems and then finds the poems that are most similar to that word. Also there's

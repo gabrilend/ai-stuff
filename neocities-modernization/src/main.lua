@@ -552,7 +552,9 @@ end
 -- Issue 8-022: Added poems_per_page parameter for CLI override
 -- Issue 9-002: Added num_threads parameter for parallel HTML generation
 -- Issue 9-003: Added chrono_per_page parameter for chronological pagination
-function M.generate_website_html(force, pages_spec, poems_per_page, num_threads, chrono_per_page)
+-- Issue 10-064: reverse (--reverse) -- newest chronological pages first, and
+-- similar/different lists laid out by date. Passed to every generator below.
+function M.generate_website_html(force, pages_spec, poems_per_page, num_threads, chrono_per_page, reverse)
     -- Skip if HTML is fresh (unless forced)
     if not force and M.is_html_fresh() then
         utils.log_info("Website HTML is up to date, skipping generation")
@@ -608,7 +610,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Generate chronological index (main entry point)
     -- Issue 9-003: Pass chrono_per_page for CLI override of chronological pagination
-    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
+    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, reverse)
     if not success then
         utils.log_error("Failed to generate chronological index")
         return false
@@ -616,7 +618,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Generate explore.html (the map) + explore-2.html (the deeper math).
     -- Pass poems_data so both pages render live corpus stats instead of prose.
-    flat_html_generator.generate_simple_discovery_instructions(output_dir, poems_data)
+    flat_html_generator.generate_simple_discovery_instructions(output_dir, poems_data, reverse)
 
     -- Generate all similarity and diversity pages
     -- Note: This is the long operation - generates ~12,000+ files
@@ -625,7 +627,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     -- Issue 9-002: Pass num_threads for parallel processing
     -- Issue 9-003: Pass chrono_per_page for chronological mapping in parallel workers
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
-        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page
+        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, reverse
     )
 
     if gen_success then
@@ -961,7 +963,7 @@ function M.main(options)
         -- non-zero exit so run.sh's `|| exit 1` fires -- otherwise the run carries
         -- on and builds a site whose nav pages were never made (Issue 10-054
         -- fallout). A missing prerequisite is an error, never a warning to ignore.
-        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page) then
+        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page, options.reverse) then
             os.exit(1)
         end
     else
@@ -974,7 +976,7 @@ function M.main(options)
         M.show_project_status()
         M.generate_complete_dataset()
         -- Same as above: a false return is a hard failure that must stop the run.
-        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page) then
+        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page, options.reverse) then
             os.exit(1)
         end
     end

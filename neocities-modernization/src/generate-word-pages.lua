@@ -38,6 +38,9 @@ local function parse_args(args)
     local max_words = nil  -- nil means use config default
     local poems_per_page = nil  -- Issue 8-050d: nil means use config default
     local chrono_per_page = nil  -- nil means fall back to config (never a literal)
+    -- Issue 10-064: the build's --reverse, so "chronological" links number the
+    -- pages the way that build did
+    local reverse = false
     -- Which embedding space to read. nil means "whatever run.sh's notepad or
     -- config.lua says"; a value here overrides both (see the --model branch).
     local model = nil
@@ -77,6 +80,9 @@ local function parse_args(args)
         -- word-page "chronological" links paginate identically to the actual
         -- chronological pages (this is a separate process from the one that
         -- built them). nil means fall back to config, never to a literal.
+        elseif a == "--reverse" then
+            reverse = true
+            i = i + 1
         elseif a == "--chrono-per-page" then
             chrono_per_page = tonumber(args[i + 1])
             i = i + 2
@@ -124,12 +130,12 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, reverse
 end
 -- }}}
 
 local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
-      CLI_MODEL, CLI_SERVER = parse_args(arg)
+      CLI_MODEL, CLI_SERVER, CLI_REVERSE = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -1199,7 +1205,9 @@ function M.generate_word_html(options)
         -- pages were built with; a wrong size is exactly what broke these links,
         -- so an absent value hard-errors rather than guessing (Issue 10-036).
         local per_page = resolve_chrono_per_page()
-        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        -- Issue 10-064: and the build's --reverse (the same three arguments the
+        -- chronological pages were numbered with).
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page, CLI_REVERSE)
         local total_poems = 0
         for poem_index, info in pairs(mapping) do
             chrono_map[poem_index] = {

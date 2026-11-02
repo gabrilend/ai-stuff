@@ -30,6 +30,9 @@ local function parse_args(args)
     local max_words = nil  -- nil means use config default
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
+    -- Issue 10-064: the build's --reverse, so the poem-ID jump links number the
+    -- chronological pages the way that build did
+    local reverse = false
     -- Which embedding space to read the word colours from. nil defers to run.sh's
     -- notepad, then config.lua; a value here overrides both.
     local model = nil
@@ -55,6 +58,9 @@ local function parse_args(args)
         elseif a:match("^--words=") then
             local v = a:match("^--words=(.+)$")
             if v == "all" then all_words = true else max_words = tonumber(v) end
+            i = i + 1
+        elseif a == "--reverse" then
+            reverse = true
             i = i + 1
         elseif a == "--chrono-per-page" then
             -- The chronological page size the SAME build used, threaded from
@@ -98,12 +104,12 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page, seed, model, server
+    return dir, all_words, max_words, chrono_per_page, seed, model, server, reverse
 end
 -- }}}
 
 local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
-      CLI_MODEL, CLI_SERVER = parse_args(arg)
+      CLI_MODEL, CLI_SERVER, CLI_REVERSE = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
@@ -370,7 +376,9 @@ local function generate_poem_index(poems_data)
     local chrono_page_map = {}
     do
         local per_page = resolve_chrono_per_page()
-        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        -- Issue 10-064: and the build's --reverse, or a reversed build's links
+        -- would land on the mirror-image page.
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page, CLI_REVERSE)
         for poem_index, info in pairs(mapping) do
             chrono_page_map[poem_index] = string.format("%02d", info.page_number)
         end
