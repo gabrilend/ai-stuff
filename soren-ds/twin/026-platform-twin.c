@@ -426,6 +426,11 @@ uint64_t twin_screen_presents(int which)
 /* The card: one disk-image file (twin_card_open). */
 static int card_fd = -1;
 static uint64_t card_blocks;
+/* A pull armed by twin_card_pull_after: blocks still allowed (-1 when no
+ * pull is armed), and whether the card has gone. */
+static _Atomic int64_t card_budget = -1;
+static _Atomic int card_gone;
+static _Atomic uint64_t card_written;
 
 /* {{{ twin_card_open */
 void twin_card_open(const char *path)
@@ -440,6 +445,22 @@ void twin_card_open(const char *path)
     }
     off_t size = lseek(card_fd, 0, SEEK_END);
     card_blocks = (uint64_t)size / PLATFORM_BLOCK_BYTES;
+    twin_card_pull_after(-1);
+}
+/* }}} */
+
+/* {{{ twin_card_pull_after */
+void twin_card_pull_after(int64_t blocks)
+{
+    atomic_store(&card_gone, 0);
+    atomic_store(&card_budget, blocks < 0 ? -1 : blocks);
+}
+/* }}} */
+
+/* {{{ twin_card_blocks_written */
+uint64_t twin_card_blocks_written(void)
+{
+    return atomic_load(&card_written);
 }
 /* }}} */
 
@@ -454,7 +475,7 @@ uint64_t platform_card_blocks(void)
 int platform_card_read(uint64_t block, uint32_t count, void *buffer)
 {
     size_t n = (size_t)count * PLATFORM_BLOCK_BYTES;
-    if (card_fd < 0 || block + count > card_blocks) {
+    if (card_fd < 0 || block + count > card_blocks || atomic_load(&card_gone)) {
         return 1;
     }
     return pread(card_fd, buffer, n, (off_t)(block * PLATFORM_BLOCK_BYTES)) != (ssize_t)n;
@@ -465,10 +486,25 @@ int platform_card_read(uint64_t block, uint32_t count, void *buffer)
 int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
 {
     size_t n = (size_t)count * PLATFORM_BLOCK_BYTES;
-    if (card_fd < 0 || block + count > card_blocks) {
+    if (card_fd < 0 || block + count > card_blocks || atomic_load(&card_gone)) {
         return 1;
     }
-    return pwrite(card_fd, buffer, n, (off_t)(block * PLATFORM_BLOCK_BYTES)) != (ssize_t)n;
+    int64_t budget = atomic_load(&card_budget);
+    if (budget >= 0 && (uint64_t)budget < count) {
+        /* The card goes part-way through: the blocks that fit land, one
+         * at a time, as a card writes them; the rest never do. */
+        size_t fit = (size_t)budget * PLATFORM_BLOCK_BYTES;
+        if (fit && pwrite(card_fd, buffer, fit, (off_t)(block * PLATFORM_BLOCK_BYTES)) == (ssize_t)fit) {
+            atomic_fetch_add(&card_written, (uint64_t)budget);
+        }
+        atomic_store(&card_budget, 0);
+        atomic_store(&card_gone, 1);
+        return 1;
+    }
+    if (budget >= 0) atomic_fetch_sub(&card_budget, (int64_t)count);
+    if (pwrite(card_fd, buffer, n, (off_t)(block * PLATFORM_BLOCK_BYTES)) != (ssize_t)n) return 1;
+    atomic_fetch_add(&card_written, count);
+    return 0;
 }
 /* }}} */
 
