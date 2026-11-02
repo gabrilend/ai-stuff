@@ -30,9 +30,20 @@ reading a number here:
 
 | Issue | What | Decision needed |
 |-------|------|-----------------|
-| **056** (056b–d) | Recursive transcript summarisation | 056a (llama.cpp client) exists. Is the local-model summariser still wanted, now that Claude can summarise transcripts inside a skill? |
 | **048** | Issue phase detection utility | The progress dashboard and `git-history.sh` both now read phases from issue filenames and `phase-N/` folders. Is a separate utility still needed, or is 048 answered by those two? |
 | **027** | Basic reporting framework | The project census (`scripts/census-projects.lua`) produces the monorepo tables; check what 027 adds beyond it. |
+
+## Recommendations waiting on the owner (2026-11-02)
+
+Each issue below holds a recommendation with its options. Nothing was built
+or changed for them. These rows supersede the Tier 3 notes for 052 and 067.
+
+| Issue | What | Recommended |
+|-------|------|-------------|
+| **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
+| **052** | Ollama connection configuration | Close as superseded. The stack moved to llama.cpp. A read-only search found 47 files in 11 projects that still mention Ollama, and each project should move on its own. |
+| **039** | Multi-location ai-stuff integration | Do not scan the whole filesystem. List each extra root in a config file. A project outside the main root is pushed only when it is listed as publishable. No symlinks. |
+| **067** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 
 ## TIER 3: Large specifications, nothing built
 
@@ -46,7 +57,6 @@ reading a number here:
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
 | 067 (was 038) | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
-| 039 | Multi-location ai-stuff integration | Unstarted. |
 
 ## TIER 4: Aspirational
 

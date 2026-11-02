@@ -210,3 +210,26 @@ the TOC as 038, and it was finished before the TUI work began. The TUI
 work followed the commit history viewer (036) in January 2026. The newer
 issue, this one, took the next free number. A pointer is left at
 `moved-038-tui-panel-abstraction-layer.md`.
+
+## Recommendation (2026-11-02)
+
+Not built, because the code this issue changes is not delta-version's. The
+panel layer belongs in `scripts/libs/tui.lua`, which is the shared
+`scripts/` project's library. Its users are `scripts/libs/menu.lua` (the
+shared Lua menu), `input-dialog.lua`, `verdict-viewer.lua`,
+neocities-modernization's `src/main.lua`, and delta-version's
+`history-viewer.lua`. A change there reaches every one of them.
+
+**Options:**
+
+| Option | What it means |
+|---|---|
+| **A. Hand it to the scripts project** | Build panels in `tui.lua` there, with that project's tests. delta-version then moves `history-viewer.lua` onto panels (step 9) as its own small issue. |
+| **B. Panels local to history-viewer** | A small panel table inside `history-viewer.lua`. Nothing shared changes, but the menu and the verdict viewer keep doing their own sums. |
+| **C. Defer** | Wait until a second screen needs a scrolling sub-region. |
+
+**Recommended: A.** The menu is the most-used program on `tui.lua` and
+already lays out a header, a list and a footer by hand, so it gains as much as
+the history viewer. Building the layer once in the shared library avoids two
+copies. Until the scripts project takes it, this issue stays open here as
+the record of the design.

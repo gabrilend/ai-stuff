@@ -1,7 +1,7 @@
 # Issue 062: A Window for Watching the Gifs
 
-**Status**: In progress (built and tested; waiting on the owner trying it and
-on the open question below)
+**Status**: In progress (built and tested; open question decided
+2026-11-02; waiting on the owner trying it)
 **Priority**: Medium
 **Created**: 2026-09-26
 **Type**: New tool (`scripts/gif-viewer/`, a LÖVE program)
@@ -103,3 +103,12 @@ gigabyte. So:
 
 - Should the grid show every gif in the folder, or also the PNG stills in
   `stills/`? (Default: gifs only.)
+
+## Decision on the open question (2026-11-02)
+
+**Gifs only.** The window is for watching the films move, and the stills
+in `stills/` are single frames of the same scenes. Showing them would put
+every scene in the grid twice. If stills are wanted later, a `--stills`
+flag is the place for them. This is the current behaviour; nothing changes.
+
+The issue stays open until the owner has tried the window.

@@ -1,7 +1,7 @@
 # Issue 061: The Compository — Every Repository, Carried on a Flash Drive
 
-**Status**: In progress (built and tested against a pretend drive; not yet
-run on a real flash drive; open questions below)
+**Status**: In progress (built and tested against a pretend drive; open
+questions decided 2026-11-02; waiting on a run with a real flash drive)
 **Priority**: Medium
 **Created**: 2026-09-23
 **Type**: New tool (`scripts/compository.lua`) and its list
@@ -153,3 +153,19 @@ connected.
   the drive copy leave out large generated history? (Leaving it out would
   mean the drive copy is not a full clone, and could not become the
   upstream for another computer.)
+
+## Decisions on the open questions (2026-11-02)
+
+- **No `llm-transcripts` from outside the repositories, and no Claude
+  session store.** Transcripts inside a repository already travel with
+  it. The session store holds raw logs, including whatever was pasted into
+  a session, and a flash drive is easy to lose. Anything worth carrying
+  from it should be exported into a repository first, where it is
+  reviewed and committed. This is the current behaviour; nothing changes.
+- **ai-stuff is carried whole.** A drive copy that leaves out history is
+  not a full clone, so it could not become the upstream for another
+  computer, which is the reason the drive exists. 8.1 GB fits on any
+  current flash drive. This is the current behaviour; nothing changes.
+
+The issue stays open for one thing: a run against a real flash drive,
+which needs the owner to plug one in.

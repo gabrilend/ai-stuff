@@ -1,6 +1,6 @@
 # Issue 058: The Front Page Rewrites Its Own Figures
 
-**Status**: In progress (built and tested; open questions below unanswered)
+**Status**: Completed (2026-11-02)
 **Priority**: Medium
 **Created**: 2026-09-23
 **Type**: Extension of the project census (`scripts/census-projects.lua`)
@@ -46,7 +46,8 @@ answers the owner gave to the first round of open questions.
   README. Exact figures would be stale before the
   commit gate read them.
 
-The issue stays open until its last open question is answered.
+The issue stayed open until its last open question was answered. All are
+answered now; see Closed below.
 
 **Before this issue** — the census counted projects and issues and printed
 them, and a person copied the printed figures into the root `README.md` by
@@ -183,3 +184,12 @@ untouched. A value that is merely missing never becomes a blank.
 ## Open questions
 
 None remain.
+
+## Closed (2026-11-02)
+
+Every open question is answered, the build and its tests were already in,
+and the authorship slots that waited on issue 059 are wired: `census-projects.lua`
+reads `human_written`, `machine_written`, `source_generated` and
+`docs_generated` from `measure-authorship.lua`. Issue 059's remaining
+questions change how those numbers are counted, not whether the front page
+shows them, so they stay with 059 and do not hold this issue open.

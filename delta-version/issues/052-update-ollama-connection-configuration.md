@@ -1,7 +1,7 @@
 # Issue 052: Update Ollama Connection Configuration
 
 **Phase**: 0 - Tooling
-**Status**: Open (REQUIRES VERBOSE CONFIRMATION)
+**Status**: Open (REQUIRES VERBOSE CONFIRMATION; recommendation 2026-11-02 below, nothing changed)
 **Priority**: Standard
 **Created**: 2026-02-17
 **Type**: Cross-Project Configuration Update
@@ -133,3 +133,40 @@ This issue implements a "verbose confirmation" workflow:
 
 - Issue 049d: Ollama Processing Pipeline (uses these connection settings)
 - neocities-modernization: Primary user of Ollama for embeddings
+
+---
+
+## Recommendation (2026-11-02)
+
+**Nothing was changed.** This issue needs the owner's confirmation before any
+configuration is touched, and none was given.
+
+**Why it needs a decision.** Since this issue was written, the working
+inference stack moved from Ollama to a project-local llama.cpp server
+(issue 056, `words-pdf/scripts/start-llamacpp-server.sh`). delta-version's
+own model tools (056a, and the slices of 040, 049, 051 and 053) all talk to
+llama.cpp through `scripts/libs/llama-chat-client.lua`. Updating Ollama
+settings may no longer be the right goal.
+
+**Phase 1 discovery, read-only.** A search of code and config files
+(`.lua`, `.sh`, `.py`, `.conf`, `.json`, `.toml`, `.c`; transcripts left out)
+for `ollama`, `11434` or `192.168.0.61` finds 47 files in 11 projects:
+words-pdf 13, neocities-modernization 11, handheld-office 6,
+continual-co-operation 5, delta-version 4, burner-of-down-things 3, and one
+each in scripts, raleigh3, progress-reports, libs and ai-playground. Some are
+historical mentions rather than live settings. neocities-modernization already
+has both `start-ollama-cuda.sh` and `start-llamacpp-server.sh`.
+
+**Options:**
+
+| Option | What it means |
+|---|---|
+| **A. Close as superseded** | Ollama is no longer the stack. Each project moves to llama.cpp under its own issues, when it next needs a model. |
+| **B. Re-scope to a migration** | Rename this issue to "move the remaining Ollama callers to llama.cpp". Run the confirmation protocol above over the list of 47 files, project by project. |
+| **C. Keep as written** | Update the Ollama host, port and model names in place. Both servers stay in use. |
+
+**Recommended: A.** The 47 files belong to ten other projects, each of which
+can decide its own move. A cross-project sweep from delta-version is the kind
+of change this issue's protocol was written to stop. If any Ollama user still
+runs daily (neocities-modernization's embeddings are the likeliest), B for that
+one project is the next step.

@@ -1,10 +1,10 @@
 # Issue 059: Measure Human and Machine Authorship
 
-**Status**: In progress (built and tested; not yet a README slot; open questions below)
+**Status**: In progress (built, tested and on the front page; open questions decided 2026-11-02, the counting changes not yet built)
 **Priority**: Medium
 **Created**: 2026-09-23
 **Type**: New measuring instrument (`scripts/measure-authorship.lua`)
-**Related**: `058-front-page-rewrites-its-own-figures.md`, which wires this
+**Related**: `completed/058-front-page-rewrites-its-own-figures.md`, which wires this
 into a README slot. It replaces the front page's hand-kept claim that
 `hero-less-moba` "has had more work in the last three months than anything
 else here".
@@ -66,8 +66,8 @@ draft below:
   ends the open turn. Without this, one answer swallowed the next
   conversation, 24,026 characters instead of 1,933.
 
-Not yet done: the census slot that puts the figure on the front page. That
-belongs to issue 058.
+The census slot that puts the figure on the front page was built under
+issue 058, which is closed.
 
 **Before this issue** — nothing measured how the repository's writing
 divided between the person and the machine. Every conversation that built the repository is saved as a
@@ -293,3 +293,47 @@ A sentence that merely mentions an error is prose and stays human.
 - Should an estimated token figure be reported beside characters? One
   token is roughly four characters of English. It is left out because it is
   an estimate, not a count.
+
+## Decisions on the open questions (2026-11-02)
+
+Decided by the delta-version agent, as an engineer would, because each is a
+question of measuring consistently rather than of what the front page should
+claim. None is built yet; each is a step below. The owner can overrule any of
+them in a word.
+
+1. **File contents in the few full renderings: strip them.** Every
+   conversation should be measured the same way, and re-exporting every
+   transcript with file contents would change hundreds of files to fix
+   three. The machine's file writing is counted by decision 6 instead.
+2. **Splitting tracked source and docs by the co-author line: no.** The
+   co-author line marks a commit, not who typed each line in it, so a
+   split would claim a precision it does not have. "Source code
+   generated" and "docs generated" keep counting everything tracked.
+3. **`notes/` exclusions by name: only for files the owner did not type.**
+   Leave out a `notes/` file whose first line is an exported conversation
+   heading (already done) and any file named like a CLAUDE.md history
+   (`CLAUDE*.md`). Keep every other note on the person's side.
+4. **Skill injections: keep the list for now.** Having the exporter mark
+   them is better, but the exporter is the shared `scripts/` project's
+   `backup-conversations`, outside delta-version. Recommended to that
+   project; until it lands, an unrecognised skill is added to the list.
+5. **Compaction summaries: keep counting them as machine writing.** They
+   are model-written text, and setting them aside would need a second
+   category the front page has no slot for. The text report names their
+   share so the owner can see it.
+6. **Lines the machine added through its editing tools: count them, as a
+   separate figure.** Lines added by commits that carry the model's
+   co-author line are reported on their own line ("lines added in
+   machine-co-authored commits"), not folded into `machine_written`, because
+   lines and characters are different units and the commit marker is
+   coarse.
+7. **Tokens: no.** The report stays in counted characters. An estimate
+   beside a count reads as a count.
+
+### Steps left
+
+1. Strip written-file bodies from full renderings before counting.
+2. Add the machine-co-authored lines figure to `--json` and the text report.
+3. Leave `notes/CLAUDE*.md` out of the notes pile.
+4. Print the compaction-summary share in the text report.
+5. Extend `test-measure-authorship.sh` for each.
