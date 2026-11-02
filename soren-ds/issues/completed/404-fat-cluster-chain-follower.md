@@ -54,6 +54,44 @@ flush to disk.
 5. `fat_cache_flush()` — write modified FAT regions back to
    disk.
 
+## Open questions
+
+- *Is a file ever written in place, at an offset, or extended?*
+- *In what order do the writes go, so a power loss leaves the old file
+  or the new one and never half of each?*
+- *What does the follower do with a chain that names a cluster outside
+  the volume, or loops back on itself?*
+
+### Proposed answers (UNVERIFIED)
+
+1. *Written in place?* No. `write-path`'s contract (011) is to replace
+   the whole file, so a write is always a **new chain**
+   (`fat_chain_new`), written in full while the old chain is untouched;
+   the directory entry is then pointed at it in one block write
+   (`fat_dir_update`, 403) and the old chain freed (`fat_chain_free`).
+   `chain_write` at an offset and `chain_allocate` have no caller and
+   were not built. That is the temp-and-rename the issue asks for, done
+   with one fewer directory entry.
+2. *The order?* New data blocks, then the table flushed (the new chain
+   marked used, the old one still used), then the entry switched, then
+   the old chain freed and the table flushed again. A power loss before
+   the switch leaves the old file and some clusters marked used that
+   nothing names, which a laptop's checker reclaims; after it, the new
+   file. Holding to that order is the job of the layer that calls this
+   one (the path functions of 405 and the boxes of 406).
+3. *A damaged chain?* Every walk now asks whether a cluster is one of
+   this volume's data clusters before following it, and treats anything
+   else as the end of the chain. Before this, a chain naming a cluster
+   past the end of the volume was followed into memory the table does
+   not own. Lengths and frees stop at the volume's cluster count, so a
+   loop ends too; reading into a broken chain answers `FAT_IO`.
+4. *The cache?* The whole table lives in memory in 4 KB pieces (a
+   32 GB card with 32 KB clusters is about 4 MB of table); a changed
+   piece is marked, and `fat_flush` writes the marked pieces to every
+   copy of the table and keeps the FSInfo block's free count and
+   next-free hint current. The test checks both copies are identical
+   on the card afterwards.
+
 ## Related documents
 
 - `docs/011-filesystem.md`.

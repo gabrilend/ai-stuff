@@ -80,11 +80,31 @@ described and never rebuilt.
 
 ## Completed issues
 
-None yet.
+Built as portable C in `src/system/` and proven on the laptop twin
+against cards a laptop's tools would make. Counts:
+`progress-dashboard.lua <project> -m`.
+
+- **402** the partition table and the FAT32 boot block, at block zero or
+  with no partition table at all; FAT16, exFAT and boot blocks whose
+  numbers do not add up refused with a line saying why.
+- **403** directories walked with long names assembled; entries added,
+  updated in place, removed; directories made. Every entry gets its own
+  short name however crowded the directory.
+- **404** the whole table in memory, chains followed and freed, a write
+  always a new chain; flushed to every copy with FSInfo kept current. A
+  damaged chain is an end, never a step outside the table.
+
+All three live in `src/system/077-fat.c`. Tests: `twin/tests/079` (118
+checks, on one-sector and eight-sector clusters; `fsck.fat` checks every
+card it writes and a `mkfs.fat` card gets the writing checks, where the
+laptop has those tools), with phases 2 and 3's still passing.
 
 ## Open issues
 
-All of 401 through 412.
+- **401** — the card's block calls exist on both sides of the platform
+  seam (the twin's disk image, the device's phase-1 driver from 110f);
+  the device side is unverified.
+- **405** through **412**.
 
 ## Phase demo
 
