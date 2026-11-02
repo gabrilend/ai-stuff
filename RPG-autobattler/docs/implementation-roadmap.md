@@ -60,7 +60,7 @@
 - [x] Implement defense shield system (3 shields) (Issue #037)
 - [x] Add automatic turret for base defense (Issue #038)
 - [x] Create shield destruction mechanics (Issue #039)
-- [ ] Implement unit reset when shields are destroyed
+- [x] Implement unit reset when shields are destroyed (Issue #040)
 
 ## Phase 4: Ability System
 
