@@ -49,8 +49,11 @@
 -- {{{ local DIR
 -- The project checked when none is given; override with the first argument.
 local DIR = "/home/ritz/programming/ai-stuff/scripts"
--- Where this tool and its shared library live, independent of DIR.
-local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and its shared library live, independent of DIR: beside
+-- this file, so a checkout tests its own copy; the house path when this file
+-- was reached some other way.
+local SCRIPTS_DIR = (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$"))
+    or "/home/ritz/programming/ai-stuff/scripts"
 -- }}}
 
 local issue_names = dofile(SCRIPTS_DIR .. "/libs/issue-names.lua")

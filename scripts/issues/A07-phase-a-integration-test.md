@@ -3,13 +3,15 @@
 **Phase:** A - Infrastructure Tools
 **Type:** Test
 **Priority:** Low
-**Dependencies:** A01-A06 (all Phase A issues)
+**Dependencies:** A01, A02, A03, A04, A05 (A06 moved to world-edit-to-execute)
 
 ---
 
 ## Current Behavior
 
-No integration test exists for Phase A infrastructure tools.
+Built: `tests/test-phase-a-integration.sh` and
+`issues/completed/demos/phase-a-demo.sh`. See *What Happened* at the end.
+Before them, no integration test existed for the Phase A tools.
 
 Two of the tools this test would exercise have moved since it was
 written: the parser coverage report (A06) went back to
@@ -262,16 +264,16 @@ A comprehensive integration test that:
 
 ## Acceptance Criteria
 
-- [ ] All Phase A tools exist and are accessible
-- [ ] Symlinks point to valid targets
-- [ ] Lua tools are requireable as libraries
-- [ ] Progress dashboard scans and renders
-- [ ] Issue validator validates correctly
-- [ ] Parser coverage produces results
-- [ ] Git history runs without error
-- [ ] Documentation index generates
-- [ ] Visual demo runs successfully
-- [ ] All tests complete in under 10 seconds
+- [x] All Phase A tools exist and are accessible
+- [x] Symlinks point to valid targets (no symlinks: the tools live in scripts/ itself; checked that each loads its libraries from beside itself instead)
+- [x] Lua tools are requireable as libraries
+- [x] Progress dashboard scans and renders
+- [x] Issue validator validates correctly
+- [ ] Parser coverage produces results (out of scope: A06 moved to world-edit-to-execute)
+- [x] Git history runs without error
+- [x] Documentation index generates
+- [x] Visual demo runs successfully
+- [x] All tests complete in under 10 seconds
 
 ---
 
@@ -304,3 +306,68 @@ capabilities.
 
 Consider adding this demo to the phase selector in run-demo.sh as
 Phase A/Auxiliary.
+
+---
+
+## What Happened
+
+Built on branch `claude/phase-a-integration-test`, stacked on
+`claude/update-toc` (A05), since update-toc is one of the tools tested.
+
+**`tests/test-phase-a-integration.sh`** (53 checks, about one second) builds
+a throwaway project in a git repository (issues in phases 1 and A with
+progress files, a docs/ folder with its table of contents, one test) and
+checks the five tools together, the way a piece of work moves through them:
+
+- each tool is in the checkout, executable, and answers `--help`;
+- the libraries offer what the tools call: `issue-names.lua`,
+  `table-of-contents.lua`, `progress-dashboard.lua` loaded with `dofile` from
+  a script elsewhere, and `git-history.sh` sourced without running;
+- each tool loads its libraries from the checkout it lives in (a copy of the
+  tools beside marked copies of the libraries must load the marked ones);
+- on the fresh project all five agree nothing is wrong, the dashboard and the
+  validator count the same issues, and the next free id follows them;
+- one issue completed the house way (moved to `completed/`, a document
+  written, a plain-English commit) shows in every tool: the dashboard counts
+  it done, git-history files the commit under phase 1 and not A, update-toc
+  names the unlisted document and `--write` lists it, and the validator still
+  counts the completed id as used;
+- a broken issue link is the validator's finding alone, and a failing test
+  turns only the runner's status;
+- the demo runs every tool and changes nothing in the project;
+- the whole run takes under ten seconds.
+
+The test runner's RAM tiers are pointed into the scratch folder
+(`EXEC_TIER_ROOT`, `ARTIFACT_TIER_ROOT`), so nothing outside it is written.
+
+**`issues/completed/demos/phase-a-demo.sh [PROJECT]`** shows each tool on a
+project, read-only: the dashboard, the validator, the documentation index
+check, the commit history by phase (written to a temporary folder, shown,
+removed) and the test runner's `--list`. `-I` picks which tools to show.
+
+**Found and fixed on the way.** Three tools loaded their library from the
+house path whatever checkout they were in, so a test of a second checkout
+tested the first one's library:
+
+- `progress-dashboard.lua` now reads `libs/issue-names.lua` from beside its
+  own file. It goes by its own path (`debug.getinfo`), not `arg[0]`, which
+  names the caller when it is loaded with `dofile`.
+- `validate-issues` reads it from beside itself, with the same lines as the
+  open issue-manager branch, so the two merge cleanly.
+- `test-runner.sh` takes `RUNNER_HOME` from its own location (following a
+  symlink) rather than the house path.
+
+### Decisions
+
+- **A shell test, not `src/tests/phase_a_test.lua`.** Two of the five tools
+  are bash, and the scripts folder keeps its cross-tool tests as
+  `tests/test-*.sh`, which the test runner finds.
+- **A06 is left out.** The parser coverage report lives with the maps it
+  reads, in world-edit-to-execute.
+- **"Symlinks point to valid targets"** became "each tool loads its libraries
+  from beside itself". The tools are not reached through symlinks here; the
+  failure that criterion guarded against is a tool running someone else's
+  library, which is what the new check catches.
+- **The demo lists tests instead of running them**, so it is read-only and
+  quick on any project; running them is the test runner's own job.
+
