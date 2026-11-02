@@ -134,12 +134,32 @@ the site's shell) stays in Lua; the prose lives in a committed, editable file.
    make every build's page differ, against 10-058's byte-identical rebuilds.
    Either can be added as a marker later.
 
+### A hand-made index.html is never overwritten (follow-up, 2026-11-02)
+
+Decided on review: the splash must not replace a page made by hand. Every
+splash the generator writes now carries a marker comment on the line after the
+doctype (`M.SPLASH_MARKER`, "generated-by: neocities-modernization splash
+page ..."). Before writing, `generate_splash_page` looks at the file already at
+`splash.output_file`:
+
+- absent, or carrying the marker: written (rebuilt) in place, as before;
+- present WITHOUT the marker: someone made it by hand, so it is left exactly as
+  it is, the splash is written to `splash.fallback_file` (`splash.html`), and a
+  `[WARN]` line names both files;
+- if `fallback_file` is hand-made too, the build stops with an error rather
+  than pick a third name (no fallbacks beyond the one configured).
+
+`fallback_file` is a new required config field; like `output_file` it must be a
+plain name, and it may not be `output_file` itself or `wordcloud.html`.
+
 ### Before deploying
 
-The deploy uploads `output/` to `similar-different/`, so the new `index.html`
-becomes `similar-different/index.html` on Neocities. If a hand-made page
-already lives at that address, it would be replaced; check first, or set
-`splash.output_file` to another name.
+The check above looks at the build folder (`output/`). The deploy
+(`scripts/deploy-to-neocities`) compares only hashes with the live site, so a
+hand-made `similar-different/index.html` that exists ONLY on Neocities, and not
+in `output/`, would still be replaced by the generated one on upload. Put a copy
+of any hand-made page into `output/` before building (it will then be spared and
+uploaded unchanged), or set `splash.output_file` to another name.
 
 ### Tests
 
@@ -149,4 +169,12 @@ cloud, fills its numbers and leaves no marker; it is built by the explore-pages
 call; it drops the numbers line when nothing is dated; and a path, an output of
 `wordcloud.html`, a missing template or a missing section are refused, while
 `enabled = false` writes nothing. The other `flat-html-generator` suites pass.
+
+Follow-up: 13 more checks (33 in all) for the hand-made-page guard: every
+splash carries the marker after the doctype; a splash it wrote before is
+rebuilt in place; a hand-made `index.html` is left byte-for-byte and the splash
+goes to `splash.html`, again on a second build; the warning is printed and
+names both files; when both names are hand-made the build stops and touches
+neither; and a fallback equal to the output, to `wordcloud.html` or to a path is
+refused.
 

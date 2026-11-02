@@ -309,6 +309,7 @@ Word cloud page settings.
 | `stop_words` | array | [...] | Common words to exclude |
 | `splash.enabled` | boolean | true | Write the splash page in front of the word cloud (Issue 11-006) |
 | `splash.output_file` | string | "index.html" | Splash file name in the site root; a plain name, never `wordcloud.html` |
+| `splash.fallback_file` | string | "splash.html" | Where the splash goes instead when `output_file` is a hand-made page (no splash marker); a plain name, never `output_file` or `wordcloud.html` |
 | `splash.template` | string | "wordcloud-splash.txt" | Splash wording, in `page-templates/` |
 
 The `splash` fields are read by `src/flat-html-generator.lua` (`generate_splash_page`),

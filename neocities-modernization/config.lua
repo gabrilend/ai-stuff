@@ -625,10 +625,14 @@ return {
         -- build fills in the live numbers. It is written to the site's own
         -- folder address (index.html), so whoever opens /similar-different/
         -- lands here; the "Menu" links inside the site still go straight to the
-        -- word cloud. Set enabled = false to stop writing it.
+        -- word cloud. Set enabled = false to stop writing it. A hand-made page
+        -- already at output_file (one without the splash's marker comment) is
+        -- never overwritten: the splash goes to fallback_file instead, with a
+        -- warning.
         splash = {
             enabled = true,
             output_file = "index.html",
+            fallback_file = "splash.html",
             template = "wordcloud-splash.txt",
         },
         min_occurrences = 5,        -- Minimum times a word must appear
