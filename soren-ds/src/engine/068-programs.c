@@ -21,6 +21,7 @@
 #include "070-catalogue.h"
 #include "067-values.h"
 #include "068-programs.h"
+#include "090-replace.h"
 
 #define MAX_DEPTH 8
 
@@ -1018,6 +1019,7 @@ int program_remove(int program)
     for (int i = 0; i < r->n_children; i++) {
         program_remove(r->children[i]);
     }
+    replacements_end_program(program);
     for (int i = 0; i < r->n_stations; i++) {
         engine_remove(r->stations[i]);
     }

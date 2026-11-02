@@ -28,6 +28,7 @@ enum transcript_kind {
     TRANSCRIPT_PLACED,           /* a station came into existence */
     TRANSCRIPT_WIRED,            /* an exit was given destinations: station, exit, count */
     TRANSCRIPT_OUT_OF_SERVICE,   /* a station took itself out: station, error kind */
+    TRANSCRIPT_REPLACED,         /* the arrows moved (411): onto station, from station, 0 forward 1 back, program */
     TRANSCRIPT_KIND_COUNT
 };
 

@@ -90,7 +90,7 @@ int transcript_format(const struct transcript_event *e, char *out, int size)
     static const char *const words[TRANSCRIPT_KIND_COUNT] = {
         [TRANSCRIPT_QUEUED] = "queued", [TRANSCRIPT_STARTED] = "started", [TRANSCRIPT_FINISHED] = "finished",
         [TRANSCRIPT_DELIVERED] = "delivered", [TRANSCRIPT_PLACED] = "placed", [TRANSCRIPT_WIRED] = "wired",
-        [TRANSCRIPT_OUT_OF_SERVICE] = "out of service",
+        [TRANSCRIPT_OUT_OF_SERVICE] = "out of service", [TRANSCRIPT_REPLACED] = "replaced",
     };
     const char *word = e->kind < TRANSCRIPT_KIND_COUNT && words[e->kind] ? words[e->kind] : "?";
     return text_format(out, (size_t)size, "#%llu %llu.%06llu core %d %-14s station %d  %d %d %lld %s",

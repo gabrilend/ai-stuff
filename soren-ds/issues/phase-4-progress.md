@@ -98,10 +98,20 @@ described and never rebuilt.
   station keeps it. A teardown racing a sweep frees each unit once, and
   the source outlives the code. Test `twin/tests/089` (23 checks, on a
   device kept saturated by four looping programs).
+- **411** `replace_station` puts a new station on a new box. It moves
+  the arrows onto it (out before in, a whole exit at a time) and leaves
+  the old station placed and unwired. The program's name, doors and
+  written-out text follow the arrows. `replacement_swap` rolls back and
+  forward as often as wanted, and `replacement_finish` removes the spare.
+  A box of another width is refused, naming both. Test `twin/tests/091`
+  (31 checks): values streaming through during a replacement come out
+  whole and none after it is the old box's, waiting values stay put for
+  a rollback, and the full loop of save, swap in and free the old code
+  is run.
 
 ## Open issues
 
-401 through 408, 411 and 412.
+401 through 408, and 412.
 
 ## Phase demo
 

@@ -151,6 +151,47 @@ region — and that is where an automatic version belongs.
   answer and it makes the written-out program read like a history of
   the session rather than a description of a program.
 
+### Proposed answers (UNVERIFIED)
+
+1. *Does the old station get cleaned up eventually?* **Yes**, now that
+   stations are removable (207). `replacement_finish` is step 4: it
+   removes the unwired station and ends the replacement. A program
+   removed with a replacement unfinished takes the spare with it. Once
+   no station places an old unit's boxes, 410's sweep can free its code.
+2. *Carry the old station's buffered values across?* **No.** They stay
+   exactly where they were, and a rollback puts the arrows back so they
+   can still meet their partners in the box they were meant for (the
+   test does this). Moving them by width would be consistent with 303
+   and just as able to hand a value to something that reads it wrong.
+   Values already held at the old station's result door stay there too.
+3. *Who names the new station?* **The name follows the arrows.** There is
+   no suffix. Whichever of the two stations is wired answers the
+   program's name for it, receives the program's doors, and is what
+   `program_write` writes (under the old name, with the new box's
+   address). The other is reachable only through the replacement. The
+   written-out program reads like a description, not a history.
+4. *(new)* **Arrows out are moved before arrows in**, the reverse of the
+   table's order. Otherwise the new station could run on a value before
+   it had anywhere to send the result, and that result would be
+   discarded. Each exit's whole list moves at once (207).
+5. *(new)* **The new box must match the old one's widths**, port by port
+   and in its return; otherwise nothing changes and the report names
+   both types and both widths. Every arrow that moves was already legal
+   against the old box, so comparing the two boxes is 303's check for
+   all of those arrows at once.
+6. *(new)* **The call works on a program and a station name**
+   (`replace_station(program, name, address)`), not on a bare station.
+   The program's names, doors and written-out text all have to follow
+   the arrows, and they live in the program record.
+7. *(new)* **Rollback is a swap** (`replacement_swap`): it moves the
+   arrows to whichever of the two stations is unwired, so calling it
+   again goes forward again, as often as wanted. The developer's line
+   and a new `replaced` transcript event say each move, naming both
+   stations.
+8. *(new)* A value that still lands in the old station after the move
+   (one in flight) runs it, and what it makes goes nowhere, because the
+   old station's own arrows are cut.
+
 ## Blocked by
 
 409, 410, and phase 2's construction operations.
