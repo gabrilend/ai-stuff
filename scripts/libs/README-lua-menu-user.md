@@ -90,6 +90,14 @@ For example, if `f` is defined for "Flush Cache":
 - First `f` press: cursor moves to "Flush Cache" item
 - Second `f` press: toggles the checkbox on/off
 
+## Dropdowns
+
+An item shown as `Label: [choice ▼]` is a dropdown. SPACE or ENTER opens it.
+Inside, j/k move, SPACE or ENTER chooses, ESC or q closes it unchanged, and a
+letter jumps to the next option starting with it. Dimmed options cannot be
+chosen; the line below says why. With the dropdown closed, h/l (LEFT/RIGHT)
+step through the options without opening it.
+
 ## Number Entry Fields
 
 Some menus have numeric input fields (shown as `Label: [  5]`).

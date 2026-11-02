@@ -74,7 +74,7 @@ The 7th parameter `shortcut` is optional and defines a custom keyboard shortcut 
 | section_id | Yes | ID of the section to add item to |
 | item_id | Yes | Unique identifier for the item |
 | Label | Yes | Display text |
-| type | Yes | checkbox, flag, multistate, or action |
+| type | Yes | checkbox, flag, multistate, select, select_dynamic, or action |
 | value | Yes | Initial value |
 | description | Yes | Help text shown when item is highlighted |
 | shortcut | No | Single character keyboard shortcut (e.g., "r") |
@@ -123,6 +123,49 @@ menu_add_item "log" "level" "Level" "multistate" "info" "debug,info,warn,error"
 - **config**: Comma-separated list of options (passed as 5th argument)
 - **Keyboard**: SPACE/RIGHT cycle forward, LEFT cycles backward
 - **No index shortcut**: Multistate items don't receive index numbers
+
+#### select
+
+Choose one value from a list in a dropdown (issue 017). Closed it reads
+`Server: [GPU Server ▼]`; SPACE/ENTER opens a box of the options over the rows
+below (above, when there is no room below).
+
+```bash
+menu_add_item "settings" "server" "Server" "select" "" "Which server" "" "--server"
+menu_set_item_options "server" \
+    "gpu|GPU Server|192.168.0.115:10265" \
+    "local|Local|localhost:11434" \
+    "off|Offline||switched off for the night"
+```
+
+- **Options**: one argument each, `value|label|description|disabled_reason`.
+  Only the value is needed. An option with a disabled reason shows dim and
+  cannot be chosen; the reason is shown when the cursor is on it.
+- **value**: the chosen option's value. Left empty, the item starts on its
+  first option that can be chosen. An item with no options shows
+  `(no options available)` and does not open.
+- **Closed**: LEFT/RIGHT cycle through the options, passing over disabled ones.
+- **Open**: j/k (arrows) move, SPACE/ENTER choose and close, ESC/q close and
+  keep the old value, HOME/END go to the ends, any other letter or digit
+  jumps to the next option whose label starts with it (so `g` reaches
+  "GPU Server"). Every key goes to the dropdown while it is open. A list
+  longer than ten shows ten at a time with a scrollbar in the box's border.
+- **Command preview**: adds `flag value`, as multistate does.
+
+#### select_dynamic
+
+A select item whose options are fetched each time it opens.
+
+```bash
+menu_add_item "settings" "server" "Server" "select_dynamic" "" "Which server" "" "--server"
+menu_set_item_options_command "server" "./list-servers --menu-lines"
+```
+
+The command prints one `value|label|description|disabled_reason` line per
+option. "loading..." shows while it runs; the list is kept until the next
+opening, so drawing and LEFT/RIGHT never run it. From Lua, `options` may be a
+function returning a list of `{value=, label=, description=, disabled=,
+disabled_reason=}` tables (or plain strings) instead.
 
 #### action
 

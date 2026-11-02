@@ -20,6 +20,8 @@ declare -A MENU_ITEM_SHORTCUTS=()
 declare -A MENU_ITEM_FLAGS=()
 declare -A MENU_ITEM_FILEPATHS=()  # Optional file path for preview
 declare -A MENU_SECTION_MAX_VISIBLE=()  # Max visible items per section (for viewport scrolling)
+declare -A MENU_ITEM_OPTIONS=()          # select items: options, one "value|label|description|reason" per line
+declare -A MENU_ITEM_OPTIONS_COMMAND=()  # select_dynamic items: command printing those lines
 declare -a MENU_DEPENDENCIES=()    # Dependencies: "item_id|depends_on|required_values|invert|multi"
 declare -a MENU_PREREQUISITES=()   # Prerequisites: "item_id|prerequisite_id" - auto-enable prereq when item selected
 declare -a MENU_SUGGESTED_DEPS=()  # Suggested deps: "item_id|depends_on|required_values|reason" - yellow highlight
@@ -57,6 +59,8 @@ menu_init() {
     MENU_ITEM_SHORTCUTS=()
     MENU_ITEM_FLAGS=()
     MENU_ITEM_FILEPATHS=()
+    MENU_ITEM_OPTIONS=()
+    MENU_ITEM_OPTIONS_COMMAND=()
     MENU_DEPENDENCIES=()
     MENU_PREREQUISITES=()
     MENU_SUGGESTED_DEPS=()
@@ -241,6 +245,39 @@ menu_set_item_filepath() {
 }
 # }}}
 
+# {{{ menu_set_item_options
+# Give a "select" item its options (issue 017), one argument per option:
+#   value|label|description|disabled_reason
+# Only the value is needed; the label defaults to it. An option with a
+# disabled reason shows dimmed and cannot be chosen. A select item given no
+# value in menu_add_item starts on its first option that can be chosen.
+#
+# Example:
+#   menu_add_item "settings" "server" "Server" "select" "" "Which server" "" "--server"
+#   menu_set_item_options "server" "gpu|GPU Server|192.168.0.115" "local|Local|localhost"
+menu_set_item_options() {
+    local item_id="$1"; shift
+    local entries="" option
+    for option in "$@"; do
+        entries+="${option}"$'\n'
+    done
+    MENU_ITEM_OPTIONS["$item_id"]="$entries"
+}
+# }}}
+
+# {{{ menu_set_item_options_command
+# Give a "select_dynamic" item the shell command that lists its options, run
+# each time its dropdown opens; it prints one value|label|description|reason
+# line per option.
+#
+# Example:
+#   menu_add_item "settings" "server" "Server" "select_dynamic" "" "Which server" "" "--server"
+#   menu_set_item_options_command "server" "./list-servers --menu-lines"
+menu_set_item_options_command() {
+    MENU_ITEM_OPTIONS_COMMAND["$1"]="$2"
+}
+# }}}
+
 # {{{ menu_set_section_max_visible
 # Set maximum visible items for a section (enables viewport scrolling with scrollbar)
 # When a section has more items than max_visible, it will show a scrollbar and
@@ -405,6 +442,28 @@ _menu_escape_json() {
 }
 # }}}
 
+# {{{ _menu_options_json
+# A select item's option lines (value|label|description|reason) as a JSON
+# array of option objects.
+_menu_options_json() {
+    local entries="$1" json="[" first=1 entry value label desc reason
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        IFS='|' read -r value label desc reason <<< "$entry"
+        [[ $first -eq 0 ]] && json+=','
+        first=0
+        json+='{"value":"'"$(_menu_escape_json "$value")"'"'
+        json+=',"label":"'"$(_menu_escape_json "$label")"'"'
+        json+=',"description":"'"$(_menu_escape_json "$desc")"'"'
+        if [[ -n "$reason" ]]; then
+            json+=',"disabled_reason":"'"$(_menu_escape_json "$reason")"'"'
+        fi
+        json+='}'
+    done <<< "$entries"
+    printf '%s\n' "${json}]"
+}
+# }}}
+
 # {{{ _menu_build_json
 # Build JSON config from current state
 _menu_build_json() {
@@ -479,6 +538,13 @@ _menu_build_json() {
             fi
             if [[ -n "$filepath" ]]; then
                 json+=',"filepath":"'"$(_menu_escape_json "$filepath")"'"'
+            fi
+            if [[ "$type" == "select" ]]; then
+                json+=',"options":'"$(_menu_options_json "${MENU_ITEM_OPTIONS[$item_id]:-}")"
+            fi
+            local options_command="${MENU_ITEM_OPTIONS_COMMAND[$item_id]:-}"
+            if [[ -n "$options_command" ]]; then
+                json+=',"options_command":"'"$(_menu_escape_json "$options_command")"'"'
             fi
             json+='}'
         done
