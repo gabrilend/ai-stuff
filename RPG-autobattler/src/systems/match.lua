@@ -6,10 +6,12 @@
 --
 -- Each frame runs, in order:
 --   1. the turrets (aim, fire, move shots, hit units);
---   2. the bases (repair, shield timing; collects "shield_destroyed",
+--   2. the units' assault on the enemy base (walk up, hit the front
+--      shield, then the core; issue 040b);
+--   3. the bases (repair, shield timing; collects "shield_destroyed",
 --      "shield_vulnerable", "base_destroyed" and "victory" events);
---   3. the reset, which starts on each "shield_destroyed" event;
--- and every event from all three is kept for drawing and the UI.
+--   4. the reset, which starts on each "shield_destroyed" event;
+-- and every event from all four is kept for drawing and the UI.
 -- Once a base has fallen the match is over and stops updating.
 local Match = {}
 
@@ -18,6 +20,7 @@ local Base = require("src.entities.base")
 local Unit = require("src.entities.unit")
 local BaseHealthSystem = require("src.systems.base_health_system")
 local BaseTurretSystem = require("src.systems.base_turret_system")
+local BaseAssaultSystem = require("src.systems.base_assault_system")
 local UnitResetSystem = require("src.systems.unit_reset_system")
 local debug = require("src.utils.debug")
 
@@ -30,6 +33,8 @@ Match.BASE_INSET = 80
 --   base_type        type for both bases (default "standard")
 --   random           replaces math.random for turret accuracy (tests)
 --   entity_manager   use this one instead of making a new one
+--   march            false keeps units where they are put instead of
+--                    walking them toward the enemy base (default true)
 function Match:new(options)
     options = options or {}
     local width = options.width or 1024
@@ -53,6 +58,7 @@ function Match:new(options)
     match.base_health_system = BaseHealthSystem:new(entity_manager)
     match.turret_system = BaseTurretSystem:new(entity_manager, {random = options.random})
     match.reset_system = UnitResetSystem:new(entity_manager)
+    match.assault_system = BaseAssaultSystem:new(entity_manager, {march = options.march})
 
     debug.info("Match created on a " .. width .. "x" .. height .. " field", "MATCH")
     return match
@@ -77,6 +83,9 @@ function Match:update(dt)
 
     self.turret_system:update(dt)
     keep_events(self, self.turret_system:pop_events())
+
+    self.assault_system:update(dt)
+    keep_events(self, self.assault_system:pop_events())
 
     self.base_health_system:update(dt)
     local base_events = self.base_health_system:pop_events()
@@ -151,6 +160,7 @@ function Match:get_debug_info()
         resetting = self:is_resetting(),
         bases = self.base_health_system:get_debug_info().bases,
         turret = self.turret_system:get_debug_info(),
+        assault = self.assault_system:get_debug_info(),
         reset = self.reset_system:get_debug_info()
     }
 end

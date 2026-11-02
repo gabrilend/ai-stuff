@@ -4,9 +4,8 @@
 -- through a shield falling, the reset clearing the attackers, and finally a
 -- base falling and the match ending.
 --
--- Units cannot attack bases yet, so the tests stand in for that: each
--- living attacker near a base deals a steady amount of damage per second
--- to it through Base.apply_damage, as a unit's attack would.
+-- The units do the attacking themselves (issue 040b): they walk up to
+-- the enemy base and hit its front shield, then its core.
 -- Run from the project folder:
 --   luajit -e "package.path='./?.lua;'..package.path; require('tests.test_match').run_all()"
 local TestSuite = {}
@@ -17,26 +16,6 @@ local DefenseShield = require("src.entities.defense_shield")
 local Match = require("src.systems.match")
 
 local FRAME = 1 / 60
-
--- {{{ local function attack_base
--- The stand-in for unit attacks: every living unit of attacker_team within
--- `reach` of the target base hits it for dps * dt.
-local function attack_base(match, attacker_team, dps, dt, reach)
-    local em = match.entity_manager
-    local target = match:get_base(attacker_team == 1 and 2 or 1)
-    local base_pos = em:get_component(target, "position")
-    reach = reach or 150
-    for _, unit in ipairs(match:get_units(attacker_team)) do
-        if Unit.is_alive(em, unit) then
-            local pos = em:get_component(unit, "position")
-            local dx, dy = pos.x - base_pos.x, pos.y - base_pos.y
-            if dx * dx + dy * dy <= reach * reach then
-                Base.apply_damage(em, target, dps * dt, attacker_team, unit.id)
-            end
-        end
-    end
-end
--- }}}
 
 -- {{{ local function count_events
 local function count_events(events, event_type)
@@ -92,7 +71,6 @@ function TestSuite.test_shield_fall_and_reset()
     local seen = {}
     local elapsed = 0
     while shields[1].active and elapsed < 120 do
-        attack_base(match, 1, 30, FRAME)
         match:update(FRAME)
         elapsed = elapsed + FRAME
         for _, event in ipairs(match:pop_events()) do
@@ -147,7 +125,6 @@ function TestSuite.test_match_to_victory()
         spawn_attackers(match)
         local elapsed = 0
         while shields[wave].active and elapsed < 200 do
-            attack_base(match, 1, 40, FRAME)
             match:update(FRAME)
             elapsed = elapsed + FRAME
         end
@@ -164,7 +141,6 @@ function TestSuite.test_match_to_victory()
     spawn_attackers(match)
     local elapsed = 0
     while not match:is_over() and elapsed < 120 do
-        attack_base(match, 1, 40, FRAME)
         match:update(FRAME)
         elapsed = elapsed + FRAME
     end
@@ -224,7 +200,6 @@ function TestSuite.test_game_state_runs_the_match()
         spawn_attackers(match)
         local elapsed = 0
         while shields[1].active and elapsed < 120 do
-            attack_base(match, 1, 30, FRAME)
             GameState:update(FRAME)
             elapsed = elapsed + FRAME
         end
