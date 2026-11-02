@@ -60,8 +60,8 @@ the test.
 
 | Stem | Issue | What the tests call |
 | --- | --- | --- |
-| `the-dunes` | 102 | `raise(parameters, seed)` returns a field with `size`, `height`, `water_line`; `validate(field)` raises naming the cell; `dump(field)` returns text |
-| `sightlines` | 103 | `can_see(field, x1, y1, eye, x2, y2, profile)` returns a boolean; `questions_asked()` returns a count |
+| `the-dunes` | 102 | `raise(parameters, seed)` returns a field with `size`, `height`, `water_line`; `validate(field)` raises naming the cell; `dump(field)` returns text; also `index(field, x, y)`, the one place a cell's index is computed, and `cell_of(field, x, y)` |
+| `sightlines` | 103 | `can_see(field, x1, y1, eye, x2, y2, profile)` returns a boolean; `questions_asked()` returns a count; `reset_questions()` clears it |
 | `the-world` | 104 | `allocate(parameters)` returns flat arrays with the integer zero everywhere; `validate(world)` |
 | `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`; `advance(world)`; `assemble(modules, parameters)` |
 | `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair |
