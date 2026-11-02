@@ -77,6 +77,7 @@ function Ability.base(config)
         max_targets = config.max_targets or (kind == "area" and 5 or 1),
         line_of_sight = pick(config.line_of_sight, config.line_of_sight_required, true),
         target_priority = config.target_priority,     -- read by the targeting system
+        exclude_self = config.exclude_self or false,  -- ally targeting leaves the caster out
 
         -- Effect
         power = pick(config.power, config.base_power, 50),
