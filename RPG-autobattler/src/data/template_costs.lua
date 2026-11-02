@@ -21,14 +21,14 @@ TemplateCosts.bodies = {
     special = {health = 100, speed = 70, armor = 0, magic_resist = 0, detection_range = 70, cost = 10}
 }
 
--- Points per unit of a stat above the body's value, and the stat's
--- allowed range.
+-- Points per unit of a stat above the body's value. The stats' allowed
+-- ranges are in src/data/template_constraints.lua.
 TemplateCosts.stats = {
-    health = {per_unit = 0.1, min = 50, max = 500},           -- 1 point per 10 health
-    speed = {per_unit = 0.2, min = 10, max = 150},            -- 1 point per 5 speed
-    armor = {per_unit = 1.5, min = 0, max = 40},              -- 3 points per 2 armor
-    magic_resist = {per_unit = 1.5, min = 0, max = 40},
-    detection_range = {per_unit = 0.05, min = 30, max = 200}  -- 1 point per 20 range
+    health = {per_unit = 0.1},          -- 1 point per 10 health
+    speed = {per_unit = 0.2},           -- 1 point per 5 speed
+    armor = {per_unit = 1.5},           -- 3 points per 2 armor
+    magic_resist = {per_unit = 1.5},
+    detection_range = {per_unit = 0.05} -- 1 point per 20 range
 }
 
 -- Abilities. An ability's cost is its base (the first ability, the
@@ -37,8 +37,6 @@ TemplateCosts.stats = {
 TemplateCosts.abilities = {
     primary_base = 10,
     secondary_base = 20,
-    min_abilities = 1,
-    max_abilities = 4,
     -- Effect per second at a steady charge that counts as strength 1:
     -- the sword's 25 power every 10 seconds.
     reference_throughput = 2.5,
