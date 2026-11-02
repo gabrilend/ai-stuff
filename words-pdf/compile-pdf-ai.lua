@@ -450,6 +450,46 @@ end -- }}}
 
 -- }}}
 
+-- {{{ box_span(widest_line, start_x, max_width)
+-- Where draw_boxed_poem puts a box across the page, for a poem whose
+-- longest line has `widest_line` characters. Returns the box's left edge
+-- in points, its width in points, and its width in characters.
+--
+-- The box is `widest_line + 4` characters wide (two borders, two spaces).
+-- Centering subtracts that character count from the column width in
+-- points, so the box lands right of the column's true center; build_pdf's
+-- 15% page shift was tuned against exactly this, and together they put a
+-- full-width box 15 pt from the left edge and 25.5 pt from the right on
+-- A4. Issue 035 keeps that look (no poem moves) and makes every art
+-- region use this one formula, so the regions follow the boxes as drawn.
+function box_span(widest_line, start_x, max_width)
+    local box_chars = math.min(widest_line + 4, max_width - 2)
+    local x = start_x + (max_width - box_chars) / 2
+    return x, box_chars * FONT_SIZE * 0.6, box_chars
+end
+-- }}}
+
+-- {{{ poem_box_rect(poem, start_x, start_y, max_width, line_height)
+-- The visible box of a poem drawn by draw_boxed_poem with its top border
+-- at start_y: the rectangle its Tier 3 background fills, as
+-- { x, y, width, height } with (x, y) the bottom-left corner (libharu Y
+-- grows upward). draw_boxed_poem fills exactly this, and the art layout
+-- (compute_poem_layout) places Tier 2 art around exactly this.
+function poem_box_rect(poem, start_x, start_y, max_width, line_height)
+    local widest = 0
+    for _, line in ipairs(poem) do
+        if #line > widest then widest = #line end
+    end
+    local x, width = box_span(widest, start_x, max_width)
+    -- Top border + top padding + lines + bottom padding + bottom border.
+    local height = (#poem + 4) * line_height
+    -- The half line lifts the box to cover the glyphs above each baseline;
+    -- the nudge evens out the gap below the bottom border (balance log).
+    local y = start_y - height + line_height * 0.5 + TIER3_BOX_VERTICAL_NUDGE
+    return { x = x, y = y, width = width, height = height }
+end
+-- }}}
+
 -- function draw_boxed_poem ---- {{{
 
 -- Removed complex font size function
@@ -457,14 +497,13 @@ end -- }}}
 function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line_height, min_y, alignment)
     if #poem == 0 then return start_y end
 
-    -- Calculate poem dimensions with extra padding
+    -- Box width in characters (widest line + 2 borders + 2 spaces) and its
+    -- centered position; box_span holds the formula the art layout shares.
     local poem_width = 0
     for _, line in ipairs(poem) do
         if #line > poem_width then poem_width = #line end
     end
-    poem_width = poem_width + 4 -- Add padding: 2 for box borders + 2 for internal spacing
-
-    local box_width = math.min(poem_width, max_width - 2)
+    local centered_x, _, box_width = box_span(poem_width, start_x, max_width)
 
     -- Calculate actual x position based on alignment
     local actual_x = start_x
@@ -472,8 +511,7 @@ function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line
         -- For right alignment, start_x is the right edge, so we subtract the box width
         actual_x = start_x - box_width
     elseif alignment == "center" then
-        -- For center alignment, center the box within the available width
-        actual_x = start_x + (max_width - box_width) / 2
+        actual_x = centered_x
     end
 
     -- Draw the Tier 3 background fill behind the text, so the per-poem color
@@ -483,15 +521,11 @@ function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line
     -- the same page and used the same poem embedding.
     local theme = analyze_individual_poem_theme(poem)
     local fill_color = palette.tier3_backgrounds[theme] or palette.tier3_backgrounds.neutral
-    -- Box covers: top border + top padding + #poem content + bottom padding + bottom border = #poem + 4 lines
-    local total_box_lines = #poem + 4
-    local box_height_pts = total_box_lines * line_height
-    -- Courier monospace at FONT_SIZE: each char ~ 0.6 * FONT_SIZE wide
-    local box_width_pts = box_width * FONT_SIZE * 0.6
+    -- The fill is the poem's visible box (poem_box_rect): #poem + 4 lines
+    -- tall, as wide as the box's characters in Courier (0.6 * FONT_SIZE).
+    local rect = poem_box_rect(poem, start_x, start_y, max_width, line_height)
     hpdf.Page_SetRGBFill(pdf_page, table.unpack(fill_color))
-    hpdf.Page_Rectangle(pdf_page, actual_x,
-        start_y - box_height_pts + line_height * 0.5 + TIER3_BOX_VERTICAL_NUDGE,
-        box_width_pts, box_height_pts)
+    hpdf.Page_Rectangle(pdf_page, actual_x, rect.y, rect.width, rect.height)
     hpdf.Page_Fill(pdf_page)
 
     -- Restore text color (black) after the fill, so subsequent text draws correctly
@@ -1401,12 +1435,19 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
         bottom_space = {}    -- Large empty areas at bottom
     }
     
-    -- Calculate column positions (matching the main drawing logic)
-    local left_column_start = margins.left - page_shift
-    local left_column_end = left_column_start + column_width
+    -- Column positions: where a full-width box (MAX_CHAR_PER_LINE
+    -- characters per line) is drawn in each column. Issue 035: these used
+    -- to be the column slots before draw_boxed_poem centers the box in
+    -- them, about 94 pt left of the boxes as drawn, so art meant for the
+    -- empty space below a column landed partly off the page and the
+    -- "right margin" ran 69 pt under the right column's boxes.
+    local left_column_start, column_span_width = box_span(MAX_CHAR_PER_LINE,
+        margins.left - page_shift, column_width)
+    local left_column_end = left_column_start + column_span_width
     local divider_x = margins.left + column_width + (column_gap / 2)
-    local right_column_start = margins.left + column_width + column_gap - page_shift
-    local right_column_end = right_column_start + column_width
+    local right_column_start = box_span(MAX_CHAR_PER_LINE,
+        margins.left + column_width + column_gap - page_shift, column_width)
+    local right_column_end = right_column_start + column_span_width
     
     -- Far left margin (outside left column)
     table.insert(spaces.left_outer, {
@@ -1470,7 +1511,7 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
         table.insert(spaces.bottom_space, {
             x = left_column_start,
             y = margins.bottom,
-            width = column_width,
+            width = column_span_width,
             height = left_bottom_y - margins.bottom - 10,
             column = "left"
         })
@@ -1480,7 +1521,7 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
         table.insert(spaces.bottom_space, {
             x = right_column_start,
             y = margins.bottom,
-            width = column_width,
+            width = column_span_width,
             height = right_bottom_y - margins.bottom - 10,
             column = "right"
         })
@@ -1520,32 +1561,27 @@ end -- }}}
 -- {{{ compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
 -- Single source of truth for poem-box positions on a page.
 -- Returns { left = { {x,y,width,height,poem}, ... }, right = { ... } }
--- where (x, y) is the bottom-left corner (libharu Y convention) and the
--- height includes the top/bottom borders and padding lines drawn by
--- draw_boxed_poem.
+-- where each rectangle is the poem's visible box exactly as
+-- draw_boxed_poem fills it (poem_box_rect): (x, y) is the bottom-left
+-- corner (libharu Y convention), the width is the box's own width, and
+-- the height includes the top/bottom borders and padding lines.
 --
 -- Both generate_individual_poem_art (per-poem Tier 2 art positioning) and
 -- calculate_poem_box_positions (for Tier 1 art space calculation) consume
--- this so the layout math has one place to maintain. If draw_boxed_poem's
--- height arithmetic ever changes, only update this helper.
+-- this. The column walk matches build_pdf's: each poem's top border sits
+-- one blank line below the previous poem's bottom border.
 function compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
     local layout = { left = {}, right = {} }
 
     local function lay_out_column(poems, x_origin, dest_table)
         local y_cursor = page_height - margins.top
         for _, poem in ipairs(poems or {}) do
-            -- calculate_poem_height returns content lines + 5 (borders, padding, inter-poem gap).
-            -- The visible box itself is +4 lines; the +1 is the gap after, not part of the box.
-            local box_lines = calculate_poem_height(poem) - 1
-            local box_height = box_lines * line_height
-            table.insert(dest_table, {
-                x = x_origin,
-                y = y_cursor - box_height,
-                width = column_width,
-                height = box_height,
-                poem = poem,
-            })
-            y_cursor = y_cursor - box_height - line_height
+            local box = poem_box_rect(poem, x_origin, y_cursor, column_width, line_height)
+            box.poem = poem
+            table.insert(dest_table, box)
+            -- calculate_poem_height is the box's #poem + 4 lines plus the
+            -- blank line after it, which is what build_pdf advances by.
+            y_cursor = y_cursor - calculate_poem_height(poem) * line_height
         end
     end
 
@@ -1591,12 +1627,11 @@ end
 -- the two columns are seen as a spread.
 --
 -- "outer_w" is the width of the page-margin area between the box and
--- the nearest page edge on the side opposite the gutter. In the
--- current 15%-shift layout it's ~99pt for right-column boxes and 0pt
--- for left-column boxes (box.x is negative, clamping outer_w to 0).
--- When outer doesn't exist, BOTTOM's outer-extension and the OUTER
--- strip itself are both omitted — the bottom-outer and top-outer
--- corners stay uncovered for left-column poems in that layout.
+-- the nearest page edge on the side opposite the gutter. Boxes are
+-- placed as drawn (issue 035), so on A4 it runs from 15 pt (a
+-- full-width left box) or 25.5 pt (a full-width right box) up to over
+-- 100 pt for a short poem. When it is under 5 pt, BOTTOM's
+-- outer-extension and the OUTER strip itself are both omitted.
 --
 -- Motifs may overflow these bounds; whatever crosses into a poem box
 -- ends up under the Tier 3 fill and isn't visible from above.

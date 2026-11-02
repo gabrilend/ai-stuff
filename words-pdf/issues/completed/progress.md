@@ -274,3 +274,15 @@ Phase 1 has established a **solid foundation** for advanced chat functionality w
 - ✅ Log lines name the column bottoms
 - ✅ `tests/test-layout.lua` checks the new gate on made-up and A4 geometry
 - ✅ `docs/balance-updates.md` records the change and its effect on how often Tier 1 art appears
+
+---
+
+### Issue 035: Art Regions Follow The Boxes As Drawn
+**Status:** ✅ Completed
+**Implementation Date:** 2026-11-02
+
+**Completed Steps:**
+- ✅ `box_span` and `poem_box_rect` hold the box geometry `draw_boxed_poem` draws with
+- ✅ `compute_poem_layout` returns each poem's visible box, so Tier 2 strips wrap the real box
+- ✅ `calculate_art_spaces` places the columns where full-width boxes are drawn, so Tier 1 regions stay on the page and off the boxes
+- ✅ `tests/test-render.lua` checks the art layout against a recorded drawing (6 of its 8 checks fail on the old geometry)

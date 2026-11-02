@@ -85,3 +85,18 @@ synthetic book of 1–20-line poems, 1 page in 96). If that reads too
 sparse, try 0.05.
 
 Changed by Issue 033.
+
+---
+
+## 2026-11-02 — Art regions measured where the boxes are drawn (values unchanged)
+
+**File:** `compile-pdf-ai.lua`
+**Variable:** `TIER1_MIN_REGION_AREA_FRACTION` = `0.08` (unchanged)
+
+The Tier 1 column-bottom regions are now 252 pt wide (the width of a
+full-width box), not 272.5 pt (the column slot). So the same 8% needs
+about 38 empty lines instead of 36. The right margin region shrank from
+94.25 pt (69 pt of it under the boxes) to 20.5 pt, below the threshold,
+so a passing page no longer draws Tier 1 art in the margin.
+
+Changed by Issue 035.
