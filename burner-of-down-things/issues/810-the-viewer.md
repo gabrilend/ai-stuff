@@ -26,7 +26,8 @@ A gallery in the owner's look: black or gray ground, each asset with its categor
 2. Rating from the viewer. **Test:** a keypress appends one line to the right card. Done,
    headless: the key arrives by name, as the window will hand it in.
 3. The raylib window: open it, hand raylib's keys in by name, draw each
-   frame's draw list. Waits on raylib in `libs/`.
+   frame's draw list. Waits on raylib in `libs/`, which the owner decides
+   (vendoring is not done until then).
 
 ## Decisions
 
@@ -47,6 +48,13 @@ A gallery in the owner's look: black or gray ground, each asset with its categor
   never an asset's bytes (a still's picture is the window's to load).
 - An asset's kind comes from its ending: `.png` a still; `.gif` and
   `.mp4` clips; `.txt` and `.md` text; anything else with a card source.
+- **Decided 2026-11-02 (the coordinator, for the owner):** the raylib
+  front will be LuaJIT FFI over a shared `libraylib`, not a C program,
+  because the frames are already Lua draw lists and the ratings and floors
+  are already Lua (076); a C front would have to re-implement both. So
+  when raylib is vendored, its build must also produce the shared library
+  (`libraylib.so`) beside any static one, and the front stays a thin loop:
+  poll raylib's keys into `viewer.key`, draw `viewer.frame`'s commands.
 - Grounds and ink as colours (black 0,0,0; gray 40,40,40; white; night
   ink bright on dark, day ink dark on white) live in the viewer for now;
   the flair's colours are 801c's.
