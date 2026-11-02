@@ -6,13 +6,14 @@ Worktrees exist to eliminate branch switching confusion. Each directory should b
 
 ## Current Behavior (THE PROBLEM)
 
-> **Deprecated (2026-09-22).** Worktrees are retired, so the two-layer
-> worktree design below is no longer the goal. What survives of this issue
-> is its core: the main repo stays on `master` (the post-checkout hook still
-> enforces it). The remaining steps shrink to migrating any existing
-> worktree's results into master and removing the worktree; session
-> separation is now the line ledger's job
-> (`scripts/issues/032-commit-only-your-own-lines.md`).
+> **Decided (2026-11-02): keep `manage-worktree.sh`, rewritten for
+> main-only work.** Worktrees are not retired after all. Every worktree now
+> starts from a freshly fetched `origin/main`, either detached or on a
+> `claude/` or `feature/` branch the caller names, and goes back to `main`
+> through a pull request. The script never creates a `/dev` branch, and
+> nothing depends on the post-checkout hook, which lived only in one
+> machine's `.git/hooks` and was never versioned. See "What Happened" at the
+> end. The 2026-09-22 note that retired worktrees is replaced by this one.
 
 ### Symptom: Agents Commit to Wrong Branches
 
@@ -380,17 +381,17 @@ git branch --show-current  # Shows: master
 
 ## Acceptance Criteria
 
-- [ ] All `/dev` branches merged to master
-- [ ] All `/dev` branches deleted
-- [ ] Main repo locked to master via post-checkout hook
-- [ ] `manage-worktree.sh` creates branches from master
-- [ ] `manage-worktree.sh` merges to master (not /dev)
-- [ ] Hook prevents switching away from master in main repo
-- [ ] Documentation updated (no references to /dev)
-- [ ] Migration script tested and run
-- [ ] Test: Can't accidentally work in main repo on wrong branch
-- [ ] Test: Worktrees branch from current master
-- [ ] Test: Merge path goes directly to master
+- [x] All `/dev` branches merged to master (2026-01 migration; none left)
+- [x] All `/dev` branches deleted (checked 2026-11-02: the remote has no `*/dev` branch)
+- [ ] ~~Main repo locked to master via post-checkout hook~~ — dropped by the 2026-11-02 decision: the hook was never versioned, and the main tree is now an ordinary place to work
+- [x] `manage-worktree.sh` creates branches from master (from freshly fetched `origin/main`)
+- [x] `manage-worktree.sh` merges to master (not /dev) (work goes to `main` by pull request; no `/dev` branch is ever made)
+- [ ] ~~Hook prevents switching away from master in main repo~~ — dropped, as above
+- [x] Documentation updated (no references to /dev)
+- [x] Migration script tested and run (2026-01)
+- [ ] ~~Test: Can't accidentally work in main repo on wrong branch~~ — dropped, as above; sessions in the main tree are kept apart by the line ledger instead
+- [x] Test: Worktrees branch from current master (`scripts/test-manage-worktree.sh`)
+- [x] Test: Merge path goes directly to master (same test: no `*/dev` branch after every kind of create)
 
 ## Migration Steps
 
@@ -436,7 +437,7 @@ git -C /mnt/mtwo/programming/ai-stuff branch --show-current  # Should show: mast
 - **Priority**: CRITICAL
 - **Complexity**: Medium
 - **Phase**: 1 (Foundation Infrastructure)
-- **Dependencies**: Issue 045 resolution (or can replace it)
+- **Dependencies**: None; this issue superseded the synchronization issue listed below rather than waiting on it
 - **Blocks**: All development (agents keep committing to wrong branches)
 - **Related Issues**:
   - Issue 041: Git Worktree Architecture (needs updating)
@@ -647,3 +648,40 @@ This implementation validates the user's insight: **"The point of worktrees is t
 The `/dev` branches were well-intentioned (providing staging areas) but contradicted the worktree philosophy. Worktrees exist to eliminate branch switching through physical directory separation. By maintaining `/dev` branches, we reintroduced the very problem worktrees were designed to solve.
 
 The simpler architecture is more maintainable, easier to understand, and prevents an entire class of user errors.
+
+---
+
+## What Happened
+
+**2026-11-02 — decided and built: keep the script, work from main only.**
+
+The January notes above record a migration that did happen (no `/dev`
+branch exists any more), but two of their claims had stopped being true:
+the post-checkout hook was written into one machine's `.git/hooks`, which
+git does not version, so no other checkout has it; and on 2026-09-22 the
+script was marked deprecated while `initialize-issue.sh` still called it.
+The owner decided to keep `manage-worktree.sh` and rewrite it for main-only
+work rather than retire it.
+
+`scripts/manage-worktree.sh` now:
+
+- fetches `origin main` and starts every worktree from `origin/main`, not
+  from a local `main` that may be behind; a failed fetch stops it, and
+  `--no-fetch` is the explicit offline choice;
+- checks the worktree out detached by default, or on `--branch NAME`, which
+  must be `claude/<name>` or `feature/<name>`; a new branch is made from
+  `origin/main` with no upstream, an existing one is reused where it stands;
+- refuses any branch whose last part is `dev`, and never makes one;
+- accepts any top-level directory of the repository as a project, which
+  replaces the hard-coded list that refused `authorship-tool`;
+- refuses `remove` when the worktree has uncommitted changes, or is
+  detached with commits no branch holds, unless `--force`; it never deletes
+  a branch;
+- keeps its `create|remove|list|status|path <issue> <project>` arguments, so
+  `initialize-issue.sh` works unchanged; that script's "When complete" text
+  now says to put the work on a `claude/` branch and open a pull request.
+
+`scripts/test-manage-worktree.sh` builds a scratch remote and clone in RAM
+and checks all of the above (59 checks). Both worktree documents were
+rewritten to match and lost their deprecation banners. The three acceptance
+boxes about the hook are struck through as dropped by decision, not done.
