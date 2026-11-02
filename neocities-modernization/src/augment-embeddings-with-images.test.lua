@@ -52,12 +52,21 @@ check("class3 (standalone) appended", report.class3 == 1)
 check("no skips", report.skipped == 0)
 check("output has 5 entries (4 poems + 1 image)", #out == 5)
 
--- p4 (image-only @ Jan-4) sits between p2 (Jan-3) and p3 (Jan-5): avg -> (0,R2,R2).
+-- The pseudo-embedding is the CROOKED cross-cut of the two neighbours, not their
+-- midpoint (image-pseudo-embeddings.lua, crooked_embedding: the midpoint pulled
+-- images toward the corpus centre and made them hubs).  With these 3-dim toy
+-- vectors the seam is floor(3 * 0.5) = 1: dimension 1 from the poem BEFORE,
+-- dimensions 2-3 from the poem AFTER, then normalised -- the same arithmetic
+-- image-pseudo-embeddings.test.lua pins on the module itself.
+--
+-- p4 (image-only @ Jan-4) sits between p2 (Jan-3) = (0,1,0) and p3 (Jan-5) =
+-- (0,0,1): (0 | 0,1) -> (0,0,1).  It is no longer its junk 🖼 vector (0.9,0.1,0).
 local p4 = out[4]
-check("class-2 embedding replaced with neighbor average", vapprox(p4.embedding, {0, R2, R2}))
--- catalog image @ Jan-2 sits between p1 (Jan-1) and p2 (Jan-3): avg -> (R2,R2,0).
+check("class-2 embedding replaced with the neighbours' cross-cut", vapprox(p4.embedding, {0, 0, 1}))
+-- catalog image @ Jan-2 sits between p1 (Jan-1) = (1,0,0) and p2 (Jan-3) =
+-- (0,1,0): (1 | 1,0) -> (R2,R2,0).
 local appended = out[5]
-check("class-3 appended embedding is the midpoint", vapprox(appended.embedding, {R2, R2, 0}))
+check("class-3 appended embedding is the neighbours' cross-cut", vapprox(appended.embedding, {R2, R2, 0}))
 check("appended entry flagged is_image", appended.is_image == true)
 check("appended entry id prefixed", appended.id == "img-abc123")
 check("appended entry got a fresh poem_index", appended.poem_index == 5)
@@ -71,7 +80,7 @@ local emb2 = { embeddings = out, metadata = {} }
 local out2, _, report2 = A.augment(emb2, poems, catalog)
 check("idempotent: same entry count on re-run", #out2 == #out)
 check("idempotent: same class counts", report2.class2 == 1 and report2.class3 == 1)
-check("idempotent: class-2 embedding stable", vapprox(out2[4].embedding, {0, R2, R2}))
+check("idempotent: class-2 embedding stable", vapprox(out2[4].embedding, {0, 0, 1}))
 -- }}}
 
 -- {{{ Part 2: real-data sanity (read-only)

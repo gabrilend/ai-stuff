@@ -270,6 +270,9 @@ Output Control:
   --dry-run             Show what would run, without running it
   --debug               Write logs to output/debug-logs/ and keep them
   --low-priority        Run heavy stages at nice -n 10
+  --run-tests           Run every unit test suite (scripts/run-tests) in the
+                        pre-flight checks; any failure stops the run before a
+                        stage starts. About a minute.
 
 Other:
   -I, --interactive     Launch the TUI (with command preview)
@@ -347,6 +350,8 @@ DRY_RUN=false
 DEBUG=false
 # Issue 10-028: Lower process priority for UI responsiveness
 LOW_PRIORITY=false
+# Issue 10-010: --run-tests adds the unit test suites to the pre-flight gate.
+RUN_TESTS=false
 # The embedding model. Issue 10-065 made --model required, which collapsed what
 # used to be two variables into one: there was a CLI_MODEL ("what the operator
 # typed, if anything") and a MODEL_NAME ("what we resolved, possibly from
@@ -563,6 +568,11 @@ while [[ $# -gt 0 ]]; do
         # Issue 10-028: Lower process priority for UI responsiveness
         --low-priority)
             LOW_PRIORITY=true
+            shift
+            ;;
+        # Issue 10-010: run every unit test suite before any stage starts.
+        --run-tests)
+            RUN_TESTS=true
             shift
             ;;
         --model)
@@ -2456,6 +2466,9 @@ interactive_mode_tui() {
         "Show what would be executed without running" "" "--dry-run"
     menu_add_item "config" "verbose" "Verbose Output" "checkbox" "0" \
         "Show detailed progress information" "" "--verbose"
+    # Issue 10-010: the unit test suites as one more pre-flight check.
+    menu_add_item "config" "run_tests" "Run Test Suites First" "checkbox" "0" \
+        "Run every unit test suite before any stage; a failure stops the run" "" "--run-tests"
     # Issue 10-065: a checkbox always holds a definite state, so this one always
     # answers --boosts -- unchecked means "no", not "unanswered".
     menu_add_item "config" "include_boosts" "Include Boosts" "checkbox" "0" \
@@ -2585,6 +2598,7 @@ interactive_mode_tui() {
             local force_wordcloud_val=$(menu_get_value "force_generate_wordcloud")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
+            local run_tests_val=$(menu_get_value "run_tests")
             # Issue 8-011: Get boost inclusion value from TUI
             local include_boosts_val=$(menu_get_value "include_boosts")
             # Issue 8-043: Get wordcloud values from TUI
@@ -2630,6 +2644,7 @@ interactive_mode_tui() {
             [[ "$force_wordcloud_val" == "1" ]] && FORCE_STAGE_10=true || FORCE_STAGE_10=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
+            [[ "$run_tests_val" == "1" ]] && RUN_TESTS=true || RUN_TESTS=false
             # Issue 8-011/10-065: the boost checkbox now answers --boosts with a
             # definite yes or no. A checkbox cannot be "unanswered", which is why
             # this is the one required value the menu can always supply.
@@ -2758,6 +2773,7 @@ validate_supplied_values
 PREFLIGHT_ARGS=("$DIR")
 $GENERATE_HTML && PREFLIGHT_ARGS+=(--html-threads "$THREADS")
 $EXTRACT && PREFLIGHT_ARGS+=(--extract)
+$RUN_TESTS && PREFLIGHT_ARGS+=(--run-tests)
 # The poem list is checked only when this run reads the existing one: if stage
 # 3 is in the run it rebuilds the list first, and the old file proves nothing.
 if { $GENERATE_HTML || $GENERATE_WORDCLOUD; } && ! $PARSE; then

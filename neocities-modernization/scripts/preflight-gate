@@ -15,6 +15,7 @@
 # Usage:
 #   scripts/preflight-gate [DIR] [--html-threads N] [--extract]
 #                          [--poems-file PATH] [--effil-cpath PATTERN]
+#                          [--run-tests]
 #
 #   DIR             project directory (default below)
 #   --html-threads  stage 9 will run with N page workers
@@ -24,6 +25,8 @@
 #   --rankings-dir  stage 9 will read the saved similarity rankings in this
 #                   model cache folder as they are (not rebuilt by stage 7);
 #                   needs --poems-file too
+#   --run-tests     also run every unit test suite (scripts/run-tests); asked
+#                   for with run.sh --run-tests, never on by default
 #   --effil-cpath   look for the threading library here instead of its real
 #                   home -- for the gate's own test, to prove a library that
 #                   cannot load is reported
@@ -37,6 +40,7 @@ EXTRACT=false
 POEMS_FILE=""
 RANKINGS_DIR=""
 EFFIL_CPATH=""
+RUN_TESTS=false
 
 # {{{ parse arguments
 while [ $# -gt 0 ]; do
@@ -46,6 +50,7 @@ while [ $# -gt 0 ]; do
         --poems-file)   POEMS_FILE="$2"; shift 2 ;;
         --rankings-dir) RANKINGS_DIR="$2"; shift 2 ;;
         --effil-cpath)  EFFIL_CPATH="$2"; shift 2 ;;
+        --run-tests)    RUN_TESTS=true; shift ;;
         --*)            echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
         *)              DIR="$1"; shift ;;
     esac
@@ -107,12 +112,21 @@ check_rankings() {
 }
 # }}}
 
+# {{{ needs_tests / check_tests
+# Issue 10-010: the unit suites, when the operator asks for them.  They take
+# about a minute, so they are opt-in rather than part of every run.  On a
+# failure the gate prints the runner's report, which names each failing suite
+# and shows the end of its output.
+needs_tests() { $RUN_TESTS; }
+check_tests() { "$DIR/scripts/run-tests" "$DIR"; }
+# }}}
 # label ; needs-function ; check-function
 CHECKS=(
     "threading library loads (stage 9, more than one thread);needs_threads;check_threads"
     "every excluded path resolves (stage 2);needs_exclusions;check_exclusions"
     "every poem has a date (stages 9-10);needs_dates;check_dates"
     "saved rankings match the poem list (stage 9);needs_rankings;check_rankings"
+    "every unit test suite passes (--run-tests);needs_tests;check_tests"
 )
 # }}}
 

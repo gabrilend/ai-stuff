@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# run-tests -- runs every test suite in the project and says which failed.
+#
+# WHAT IT DOES (for a CEO): the project's modules each carry a small test file
+# that proves they still do what they promise.  Until now each one had to be
+# remembered and run by hand.  This finds them all, runs each one, prints one
+# line per suite (ok, FAIL or skip), shows the end of every failing suite's
+# output, and exits 1 if anything failed -- so "did I break something?" is one
+# command.  It changes nothing in the project.  (Issue 10-010.)
+#
+# WHICH FILES COUNT AS SUITES: the project's naming conventions, directly
+# inside src/, libs/ and scripts/:
+#     *.test.lua   *-test.lua   (run with luajit)
+#     *.test.sh                 (run with bash)
+# Each is run from the project folder with the project folder as its first
+# argument.  Older checks named test-*.lua / test-* read the real corpus or the
+# GPU and are not unit suites, so they are left out; run them by hand.
+#
+# A suite reports "skip" instead of "ok" when it exits 0 after printing a line
+# that starts with "SKIP" -- the way a suite says it cannot run here (no
+# server, no rsync) rather than claiming it passed.
+#
+# Usage:
+#   scripts/run-tests [DIR] [--list] [--timeout SECONDS] [--logs PATH] [--only TEXT]...
+#
+#   DIR        project directory (default below)
+#   --list     print the suites that would run, and exit
+#   --timeout  seconds one suite may take before it counts as failed
+#              (default 300)
+#   --logs     where each suite's full output is kept (default
+#              DIR/tmp/shared-memory/run-tests; emptied at the start of a run)
+#   --only     run only suites whose path contains TEXT; repeat it to name
+#              several (e.g. --only flat-html --only page-head)
+#
+# Every suite's full output is kept, one log per suite (see --logs).
+#
+# Exit status: 0 when no suite failed, 1 otherwise.
+
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+LIST_ONLY=false
+TIMEOUT=300
+FILTERS=()
+LOGS=""
+
+# {{{ parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --list)    LIST_ONLY=true; shift ;;
+        --timeout) TIMEOUT="$2"; shift 2 ;;
+        --logs)    LOGS="$2"; shift 2 ;;
+        --only)    FILTERS+=("$2"); shift 2 ;;
+        --*)       echo "run-tests: unknown option $1" >&2; exit 1 ;;
+        *)         DIR="${1%/}"; shift ;;
+    esac
+done
+if ! [[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "run-tests: --timeout needs a whole number of seconds, got '$TIMEOUT'" >&2
+    exit 1
+fi
+if [ ! -d "$DIR/src" ]; then
+    echo "run-tests: no project at $DIR (no src/ folder)" >&2
+    exit 1
+fi
+# }}}
+
+# {{{ find_suites
+# Prints one suite path per line, relative to DIR, sorted, filtered.
+find_suites() {
+    local dir rel keep f
+    for dir in src libs scripts; do
+        [ -d "$DIR/$dir" ] || continue
+        find "$DIR/$dir" -maxdepth 1 -type f \
+            \( -name '*.test.lua' -o -name '*-test.lua' -o -name '*.test.sh' \) -print
+    done | sort | while IFS= read -r f; do
+        rel="${f#"$DIR"/}"
+        if [ ${#FILTERS[@]} -gt 0 ]; then
+            keep=false
+            for filter in "${FILTERS[@]}"; do
+                [[ "$rel" == *"$filter"* ]] && keep=true
+            done
+            $keep || continue
+        fi
+        printf '%s\n' "$rel"
+    done
+}
+# }}}
+
+# {{{ interpreter_for
+interpreter_for() {
+    case "$1" in
+        *.sh)  echo bash ;;
+        *)     echo luajit ;;
+    esac
+}
+# }}}
+
+mapfile -t SUITES < <(find_suites)
+
+if $LIST_ONLY; then
+    printf '%s\n' "${SUITES[@]}"
+    exit 0
+fi
+if [ ${#SUITES[@]} -eq 0 ]; then
+    echo "run-tests: no suites matched" >&2
+    exit 1
+fi
+
+# {{{ where the logs go
+# In RAM by default (tmp/shared-memory, per the project's scratch convention).
+# A run given its own --logs folder leaves the project's tmp/ alone -- the
+# runner's own test uses that, so it never empties the folder of the run that
+# is running it.
+if [ -z "$LOGS" ]; then
+    "$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null || exit 1
+    LOGS="$DIR/tmp/shared-memory/run-tests"
+fi
+rm -rf "$LOGS"
+mkdir -p "$LOGS" || exit 1
+# }}}
+
+# Suites that build pages load the page generator, which refuses to start
+# without an assets folder.  Say so once, up front, rather than leaving the
+# reader to work it out from several identical failures.
+if [ ! -d "$DIR/assets" ]; then
+    echo "note: $DIR/assets does not exist; the page-generator suites need it" \
+         "(an empty folder is enough)." >&2
+fi
+
+# {{{ run every suite
+PASSED=0; FAILED=0; SKIPPED=0
+FAILED_NAMES=()
+echo "Running ${#SUITES[@]} test suite(s) in $DIR"
+for rel in "${SUITES[@]}"; do
+    log="$LOGS/$(printf '%s' "$rel" | tr '/' '_').log"
+    start=$(date +%s.%N)
+    ( cd "$DIR" && timeout "$TIMEOUT" "$(interpreter_for "$rel")" "$DIR/$rel" "$DIR" ) >"$log" 2>&1
+    status=$?
+    took=$(awk -v s="$start" -v e="$(date +%s.%N)" 'BEGIN { printf "%.1f", e - s }')
+    if [ "$status" -eq 0 ] && grep -q '^SKIP' "$log"; then
+        SKIPPED=$((SKIPPED + 1))
+        printf '  skip  %-58s %s\n' "$rel" "$(grep -m1 '^SKIP' "$log" | cut -c1-70)"
+    elif [ "$status" -eq 0 ]; then
+        PASSED=$((PASSED + 1))
+        printf '  ok    %-58s %6ss\n' "$rel" "$took"
+    else
+        FAILED=$((FAILED + 1))
+        FAILED_NAMES+=("$rel")
+        if [ "$status" -eq 124 ]; then
+            printf '  FAIL  %-58s timed out after %ss\n' "$rel" "$TIMEOUT"
+        else
+            printf '  FAIL  %-58s exit %d\n' "$rel" "$status"
+        fi
+    fi
+done
+# }}}
+
+# {{{ report
+# The end of each failing suite's output, where its own summary and the
+# failing checks usually are; the whole output is in the log.
+for rel in "${FAILED_NAMES[@]}"; do
+    log="$LOGS/$(printf '%s' "$rel" | tr '/' '_').log"
+    echo ""
+    echo "--- $rel (last 15 lines; full output: $log)"
+    tail -n 15 "$log" | sed 's/^/    /'
+done
+echo ""
+echo "Suites: ${#SUITES[@]}  passed: $PASSED  failed: $FAILED  skipped: $SKIPPED"
+[ "$FAILED" -eq 0 ]
+# }}}

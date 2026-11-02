@@ -29,7 +29,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
 | 10-008 | Implement multiline command wrapping | Completed | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
-| 10-010 | Integrate test suites into development pipeline | Open | Medium |
+| 10-010 | Integrate test suites into development pipeline | Completed | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-018 | Animated command option transitions | Completed | Low |
 | 10-019 | Document config structure and field usage | Completed | Low |
@@ -100,8 +100,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
 | 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
 | 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
+| 10-010 | Integrate test suites into development pipeline (`scripts/run-tests`, `run.sh --run-tests`) | Completed | 2026-11-02 |
 
 ## Issue Details
+
+**10-010: Integrate Test Suites into Development Pipeline** - COMPLETED (2026-11-02)
+- `scripts/run-tests` finds every `*.test.lua`, `*-test.lua` and `*.test.sh` in src/, libs/ and scripts/, runs each, and reports ok / FAIL / skip with the end of each failure's output
+- `./run.sh --run-tests` (TUI: "Run Test Suites First") adds the suites to the pre-flight gate, so a failing suite stops the run before any stage starts
+- Suites that need the owner's data or libraries skip those checks where they are absent instead of failing; one stale expectation in the augment-embeddings suite was corrected
+- See `docs/testing-guide.md`
 
 **10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:
