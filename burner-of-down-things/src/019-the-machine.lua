@@ -116,6 +116,7 @@ local LATER_COMMAND_MODULES = {
     "051-the-design-commands",
     "056-the-update-commands",
     "061-the-center-commands",
+    "118-the-switchboard-commands",
 }
 
 -- {{{ local function load_later_commands

@@ -18,6 +18,7 @@ first and writes `output/goodbye` last ([003](003-datapath-the-case-and-the-ledg
 | `machine center <case>` | computes and prints the center | 7 |
 | `machine run <case>` | whatever the case is waiting for, in order: survey, describe, build, update | 7 |
 | `machine view <case>` | writes the case's HTML page | 7 |
+| `machine number` | prints the next free tag number, for `language model prompt <number>: <what is wanted>`; records nothing | 9 |
 
 The commands are one dispatch table in the source: a row per command, with
 the function that runs it and whether it needs the case lock (every command

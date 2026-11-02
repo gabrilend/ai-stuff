@@ -75,6 +75,7 @@ writes the file.
 | `held` | a graded request waits for the person's `--go` | the request file |
 | `request-failed` | a request's locate, amend or rebuild gave up | the request file |
 | `request-done` | a request's rebuild has passed | the request file |
+| `numbered` | a parcel's tag uses a number for the first time (docs/068) | the number; text the tag's wish |
 | `goodbye` | the run ends | `-` |
 
 ### What the chain is for

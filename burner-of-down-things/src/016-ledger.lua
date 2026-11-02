@@ -39,6 +39,9 @@ local KINDS = {
     ["audited"] = true, ["inspected"] = true,
     ["graded"] = true, ["held"] = true, ["request-done"] = true,
     ["request-failed"] = true, ["goodbye"] = true,
+    -- The switchboard (docs/068, issue 901d): a tag's number, recorded at
+    -- its first use.
+    ["numbered"] = true,
 }
 ledger.KINDS = KINDS
 
