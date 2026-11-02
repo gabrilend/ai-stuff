@@ -75,7 +75,7 @@
 - [x] Create ability base class/component system (Issue #046)
 - [x] Implement targeting system for abilities (Issue #047)
 - [x] Add ability activation when mana is full (Issue #048)
-- [ ] Create different ability types (damage, heal, buff, etc.)
+- [x] Create different ability types (damage, heal, buff, etc.) (Issue #049)
 - [ ] Implement ability cooldowns and effects
 
 ### 4.3 Basic Abilities

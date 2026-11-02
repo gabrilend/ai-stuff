@@ -687,13 +687,83 @@ return AbilityFactory
 ```
 
 ### Acceptance Criteria
-- [ ] Damage abilities correctly calculate and apply damage with armor/resistance
-- [ ] Healing abilities efficiently heal targets and prevent overheal waste
-- [ ] Buff abilities stack and expire correctly with stat modifications
-- [ ] Debuff abilities apply negative effects with proper duration tracking  
-- [ ] Area effect abilities find optimal centers and affect multiple targets
-- [ ] Projectile abilities travel and hit targets along their path
-- [ ] All ability types integrate with mana efficiency system
-- [ ] Visual and audio effects play correctly for each ability type
-- [ ] Ability templates allow easy creation of new abilities
-- [ ] Performance remains stable with many simultaneous ability effects
+- [x] Damage abilities correctly calculate and apply damage with armor/resistance
+- [x] Healing abilities efficiently heal targets and prevent overheal waste
+- [x] Buff abilities stack and expire correctly with stat modifications
+- [x] Debuff abilities apply negative effects with proper duration tracking  
+- [x] Area effect abilities find optimal centers and affect multiple targets
+- [x] Projectile abilities travel and hit targets along their path
+- [x] All ability types integrate with mana efficiency system
+- [ ] Visual and audio effects play correctly for each ability type (the
+      system emits cues naming each ability's visual and sound, but nothing
+      draws or plays them yet, and nothing has been seen or heard)
+- [x] Ability templates allow easy creation of new abilities
+- [x] Performance remains stable with many simultaneous ability effects
+## What Happened
+
+Built as:
+- `src/systems/ability_effect_system.lua`:
+  - `process_ability_activation(event)`, which the activation system (048)
+    calls; it carries out damage, healing, buffs, debuffs, area effects
+    and projectiles;
+  - `update(dt)`, which moves projectiles and expires effects;
+  - `get_stat`, `stats_of`, `cleanse` and `pop_cues`.
+- `src/data/ability_templates.lua`: 13 templates and 5 sets, translated
+  from the sketch into the field names of 046.
+- `src/factories/ability_factory.lua`: `create_config`, `create`,
+  `create_set`, `attach_set` and `template_names`.
+- New ability settings:
+  - `delivery` ("instant" or "projectile"), `projectile_speed` and
+    `pierce`;
+  - `visual_effect` and `sound_effect`;
+  - for buffs and debuffs, `flat_modifiers`, `stun` and `silence`.
+
+Tested headlessly by `tests/test_ability_effects.lua` (nine tests). These
+include a 30-second skirmish of two teams of four built from template sets,
+with ManaSystem, activation and effects all running. Nothing was seen or
+heard.
+
+### Decisions
+- **Projectiles are a delivery, not a type.** `type = "damage", delivery =
+  "projectile"` keeps ManaEfficiency's pricing (it knows damage, heal,
+  buff, debuff and area), where the sketch had `type = "projectile"`.
+  - A projectile flies straight at where its target stood, up to the
+    ability's range.
+  - It hits the first `pierce` enemies within 6 pixels of its path, and
+    flies past allies.
+  - A target that steps aside is missed, and the mana is spent anyway.
+- **Effects live in an "effects" component**, `{active = {name ->
+  effect}}`, on the target, not in a `unit.active_buffs` table. The
+  activation system (048) reads it for stuns and silences, and targeting
+  (047) reads it to put already-affected targets last.
+- **Stats:**
+  - An optional "stats" component holds base values. The defaults are
+    armor 0, magic resist 0, and attack and healing power 1.
+  - `get_stat` is (base + flat changes) x (1 + fractional changes), with
+    stacks multiplying, never below zero.
+  - The sketch mixed points (armor +10) and fractions (attack +0.25) in
+    one table. They're now `flat_modifiers` and `modifiers`.
+- **Speed modifiers change the unit's moveable speed directly**, and it
+  goes back when they expire, so a slow is visible without the movement
+  systems knowing about effects. Other stats are read by the damage and
+  healing formulas only.
+- **Recasting** refreshes the duration. With `stacking = "stack"`, it also
+  adds a stack, up to `max_stacks`.
+- **Effects end when their unit dies.**
+- **Cleanse** (`cleanse = true` on a heal) removes the target's debuffs and
+  keeps its buffs.
+- **Effects are worked out on the target's health at the moment they land**,
+  not when it was chosen, so two hits in one frame don't both count the
+  same missing health.
+- **No visual-effect or sound system.** The system keeps cues (`damage`,
+  `heal`, `effect_applied`, `effect_expired`, `projectile_launched`,
+  `projectile_hit`, `area` and `death`) with position, amount and the
+  ability's `visual_effect` and `sound_effect` names, for a renderer to
+  pick up with `pop_cues()`. Drawing them belongs with the other drawing
+  work, which Ritz will look at with LÖVE.
+- **Over-time healing (the sketch's "regeneration") is left to issue 050**,
+  which adds persistent effects.
+- **Template numbers fit this game's scale.** Ranges are in pixels (melee
+  reach is 12, shooting range 30) and health percentages are 0-100. The
+  sketch's ranges of 35-100 would let a melee unit strike from across a
+  lane.
