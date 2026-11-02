@@ -121,7 +121,7 @@ The parts:
 ## Related Documents
 
 - `issues/1001-catalogue-of-freely-posted-maps-and-models.md` (the viewer)
-- `issues/completed/609-shared-map-and-model-list.md` (files between people, over rmail)
+- `issues/609-shared-map-and-model-list.md` (files between people, over rmail)
 - `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/superseded/607-file-server-application.md` (retired)
 - `docs/licensing-and-boundaries.md` (content rights)
