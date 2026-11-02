@@ -99,7 +99,7 @@
 ### 5.2 Template Editor
 - [ ] Design template editor UI
 - [ ] Implement stat allocation interface
-- [ ] Create ability selection system
+- [x] Create ability selection system (Issue #064: library, search, tuning and slot logic; the screen comes with the editor UI)
 - [ ] Add point budget display and validation
 - [ ] Implement template preview functionality
 
