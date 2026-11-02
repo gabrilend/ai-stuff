@@ -27,6 +27,10 @@
 --   {kind, x, y, amount, target, caster, visual, sound, time}
 -- where kind is "damage", "heal", "effect_applied", "effect_expired",
 -- "projectile_launched", "projectile_hit", "area" or "death".
+--
+-- A PersistentEffectsSystem made with this system attaches itself as
+-- self.persistent and receives each activation after its instant part,
+-- for damage and healing over time.
 local AbilityEffectSystem = {}
 AbilityEffectSystem.__index = AbilityEffectSystem
 
@@ -408,6 +412,10 @@ function AbilityEffectSystem:update_projectile(projectile, dt)
             })
         self:deal_damage(projectile.caster, entry.entity, effect.amount, ability)
         self.stats.projectile_hits = self.stats.projectile_hits + 1
+        if self.persistent then
+            self.persistent:process_ability_activation({caster = projectile.caster, ability = ability,
+                targets = {{entity = entry.entity}}, plan = {effect_power = projectile.share}})
+        end
         local pos = em:get_component(entry.entity, "position")
         self:cue("projectile_hit", {x = pos.x, y = pos.y, target = entry.entity, caster = projectile.caster,
             visual = ability.visual_effect})
@@ -445,6 +453,11 @@ function AbilityEffectSystem:process_ability_activation(event)
     else
         amount = 0
     end
+    -- Over-time effects follow the instant part; a projectile's follow
+    -- its hits instead.
+    if self.persistent and ability.delivery ~= "projectile" then
+        self.persistent:process_ability_activation(event)
+    end
     self:count(ability, amount)
     return amount
 end
@@ -452,13 +465,17 @@ end
 
 -- {{{ AbilityEffectSystem:cleanse
 -- Removes every active effect of a kind ("buff" or "debuff") from an
--- entity. Returns how many were removed.
+-- entity. Cleansing debuffs also ends damage over time, when a
+-- PersistentEffectsSystem is attached. Returns how many were removed.
 function AbilityEffectSystem:cleanse(entity, kind)
+    local removed = 0
+    if self.persistent and kind == "debuff" then
+        removed = removed + self.persistent:cleanse(entity, "damage")
+    end
     local effects = self.entity_manager:get_component(entity, "effects")
     if not effects then
-        return 0
+        return removed
     end
-    local removed = 0
     for name, effect in pairs(effects.active) do
         if effect.kind == kind then
             effects.active[name] = nil

@@ -84,6 +84,8 @@ function Ability.base(config)
         scaling = config.scaling or config.scaling_factor or 1.0,
         duration = pick(config.duration, config.effect_duration, 0),     -- 0 = instant
         cooldown = pick(config.cooldown, config.cooldown_duration, 0),
+        shared_cooldown = config.shared_cooldown,     -- a name abilities share a cooldown under
+        cooldown_reduction_bonus = config.cooldown_reduction_bonus or 0,
         priority = config.priority,                   -- lower goes first; default its slot
         area_effect = config.area_effect,
 
@@ -96,6 +98,16 @@ function Ability.base(config)
         delivery = config.delivery or "instant",
         projectile_speed = config.projectile_speed or 150,
         pierce = config.pierce or 1,
+
+        -- Over time (src/systems/persistent_effects_system.lua): damage
+        -- or healing per tick at a full bar, every over_time_interval
+        -- seconds for over_time_duration seconds.
+        damage_over_time = config.damage_over_time or 0,
+        heal_over_time = config.heal_over_time or 0,
+        over_time_duration = config.over_time_duration or config.damage_over_time_duration
+            or config.heal_over_time_duration,
+        over_time_interval = config.over_time_interval or config.damage_over_time_interval
+            or config.heal_over_time_interval,
 
         -- Names of the picture and sound the renderer and audio should
         -- play; the effect system passes them on in its cues.

@@ -10,7 +10,8 @@
 --      primary first unless an ability says otherwise);
 --   3. an ability looks for targets (TargetingSystem) and prices the cast
 --      (ManaEfficiency). If both succeed, the planned mana is spent, its
---      cooldown and the unit's global cooldown start, and an activation
+--      cooldowns and the unit's global cooldown start (CooldownSystem,
+--      with any cooldown reduction), and an activation
 --      event goes to the effect handler. If not, the reason is recorded
 --      and the bar stays full, so it tries again next update.
 -- A unit fires at most abilities_per_update abilities in one update
@@ -30,6 +31,7 @@ local UnitAbilities = require("src.components.unit_abilities")
 local ManaSystem = require("src.systems.mana_system")
 local ManaEfficiency = require("src.systems.mana_efficiency")
 local TargetingSystem = require("src.systems.targeting_system")
+local CooldownSystem = require("src.systems.cooldown_system")
 
 AbilityActivationSystem.GLOBAL_COOLDOWN = 0.25
 AbilityActivationSystem.ABILITIES_PER_UPDATE = 1
@@ -40,6 +42,8 @@ AbilityActivationSystem.BLOCKING_STATES = {retreating = true, fleeing = true}
 -- {{{ AbilityActivationSystem:new
 -- options:
 --   targeting             a TargetingSystem (one is made if not given)
+--   cooldowns             a CooldownSystem (one is made if not given,
+--                         reading cooldown reduction from effect_system)
 --   on_activate(event)    called for each activation
 --   effect_system         or an object with process_ability_activation
 --   global_cooldown       seconds between a unit's abilities (default 0.25)
@@ -53,6 +57,7 @@ function AbilityActivationSystem:new(entity_manager, options)
         enabled = true,
         entity_manager = entity_manager,
         targeting = options.targeting or TargetingSystem:new(entity_manager),
+        cooldowns = options.cooldowns or CooldownSystem:new(entity_manager, {stats = options.effect_system}),
         on_activate = options.on_activate,
         effect_system = options.effect_system,
         global_cooldown = options.global_cooldown or AbilityActivationSystem.GLOBAL_COOLDOWN,
@@ -142,8 +147,7 @@ function AbilityActivationSystem:attempt(entity, container, mana, index, ability
 
     ManaSystem.spend(mana, index, plan.mana_to_use)
     ManaEfficiency.record(self.mana_stats, ability, plan)
-    container.cooldowns[index] = ability.cooldown or 0
-    container.global_cooldown = self.global_cooldown
+    self.cooldowns:start(entity, container, index, self.global_cooldown)
     container.last_used = index
     container.last_target = (info.center and ability.targeting ~= "self") and info.center or targets[1].entity
     if container.last_failure then
@@ -222,7 +226,7 @@ function AbilityActivationSystem:update(dt)
 
     local units = em:get_entities_with_components({"abilities", "mana"})
     for _, entity in ipairs(units) do
-        UnitAbilities.update_cooldowns(em:get_component(entity, "abilities"), dt)
+        self.cooldowns:tick(em:get_component(entity, "abilities"), dt)
     end
 
     self.since_check = self.since_check + dt

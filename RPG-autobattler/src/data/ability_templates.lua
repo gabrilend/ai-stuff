@@ -47,6 +47,13 @@ AbilityTemplates.abilities = {
         generation_conditions = {{type = "allies_in_range", operator = ">", value = 0}},
         visual_effect = "healing_light", sound_effect = "heal_cast"
     },
+    regeneration = {
+        type = "heal", range = 25, power = 10, max_mana = 100, mana_rate = 5,
+        heal_over_time = 6, over_time_duration = 8, over_time_interval = 1,
+        cooldown = 4,
+        generation_conditions = {{type = "allies_in_range", operator = ">", value = 0}},
+        visual_effect = "regeneration_aura", sound_effect = "regen_cast"
+    },
     purifying_touch = {
         type = "heal", range = 20, power = 15, max_mana = 100, mana_rate = 5,
         cleanse = true,
@@ -69,9 +76,20 @@ AbilityTemplates.abilities = {
         generation_conditions = {{type = "allies_in_range", operator = ">=", value = 2}},
         visual_effect = "protective_shield", sound_effect = "ward_cast"
     },
+    focus = {
+        type = "buff", targeting = "self", max_mana = 100, mana_rate = 3, duration = 10,
+        effect_name = "focus", modifiers = {}, flat_modifiers = {cooldown_reduction = 0.3},
+        visual_effect = "focus_glow", sound_effect = "hum"
+    },
     -- }}}
 
     -- {{{ Debuffs
+    poison_dart = {
+        type = "damage", delivery = "projectile", projectile_speed = 180,
+        range = 30, power = 8, max_mana = 100, mana_rate = 7,
+        damage_type = "true", damage_over_time = 4, over_time_duration = 5, over_time_interval = 1,
+        visual_effect = "poison_dart", sound_effect = "blowpipe"
+    },
     crippling_blow = {
         type = "debuff", range = 15, max_mana = 100, mana_rate = 5, duration = 4,
         effect_name = "crippled", modifiers = {speed = -0.4},
@@ -93,6 +111,7 @@ AbilityTemplates.abilities = {
     meteor_strike = {
         type = "area", area_effect = "damage", range = 45, area_radius = 35,
         power = 40, max_mana = 100, mana_rate = 3, max_targets = 3,
+        cooldown = 6, shared_cooldown = "spell",
         damage_type = "magical",
         generation_conditions = {{type = "enemies_in_range", operator = ">=", value = 2}},
         visual_effect = "meteor_impact", sound_effect = "explosion"
@@ -100,6 +119,7 @@ AbilityTemplates.abilities = {
     healing_circle = {
         type = "area", area_effect = "heal", range = 25, area_radius = 40,
         power = 25, max_mana = 100, mana_rate = 4, max_targets = 4,
+        cooldown = 6, shared_cooldown = "spell",
         generation_conditions = {{type = "allies_in_range", operator = ">=", value = 2}},
         visual_effect = "healing_wave", sound_effect = "group_heal"
     }
@@ -112,7 +132,9 @@ AbilityTemplates.sets = {
     basic_archer = {"primary_ranged_attack", "piercing_shot"},
     support_cleric = {"primary_melee_attack", "minor_heal", "protective_ward"},
     battle_mage = {"primary_ranged_attack", "meteor_strike", "battle_fury"},
-    brute = {"primary_melee_attack", "stunning_bash", "crippling_blow", "sunder_armor"}
+    brute = {"primary_melee_attack", "stunning_bash", "crippling_blow", "sunder_armor"},
+    druid = {"primary_ranged_attack", "regeneration", "healing_circle", "focus"},
+    skirmisher = {"primary_ranged_attack", "poison_dart", "piercing_shot"}
 }
 
 return AbilityTemplates
