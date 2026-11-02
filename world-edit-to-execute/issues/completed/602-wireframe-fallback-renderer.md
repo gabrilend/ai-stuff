@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Phase 5 (render interface), Issue 601 (asset loader)
-**Blocks:** 608, W03
+**Blocks:** 602a, 608, W03
 
 ---
 
@@ -114,14 +114,19 @@ fallback.force_wireframe(true)    -- Useful for debugging
 
 ## Acceptance Criteria
 
-- [ ] Missing textures show colored placeholder instead of crash/invisible
-- [ ] Missing models show wire-frame box with type indicator
-- [ ] Terrain without textures shows grid with height visualization
-- [ ] Regions display as labeled dashed rectangles
-- [ ] Color scheme distinguishes object types at a glance
-- [ ] Debug overlay shows object IDs and coordinates when enabled
-- [ ] Force-wireframe mode works even when assets are available
-- [ ] Blank/new maps display a usable grid
+- [x] Missing textures show colored placeholder instead of crash/invisible
+      (`F:texture`; the model renderer already draws grey for a missing texture)
+- [x] Missing models show wire-frame box with type indicator
+- [x] Terrain without textures shows grid with height visualization
+- [x] Regions display as labeled dashed rectangles (no fill: see decision 4)
+- [x] Color scheme distinguishes object types at a glance
+- [x] Debug overlay shows object IDs and coordinates when enabled
+- [x] Force-wireframe mode works even when assets are available
+- [x] Blank/new maps display a usable grid
+
+Checked by `src/tests/test_fallback.lua` as shapes, colours and calls;
+**not yet seen on a screen** (raylib isn't built where this was made).
+Using it in the map viewer and the editor is 602a.
 
 ## Related Documents
 
@@ -135,3 +140,51 @@ fallback.force_wireframe(true)    -- Useful for debugging
 - Consider adding "bounding sphere" visualization for collision debugging
 - Labels should use a built-in bitmap font (no asset dependency)
 - This mode doubles as a useful map editor visualization
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+- **`src/assets/fallback.lua`:** `fallback.new{loader, overlay, force,
+  has_model}`, `F:build(scene)`, `F:texture`, `F:model`, `F:is_active`,
+  `F:register`, `F:set_debug_overlay`, `F:force_wireframe`; `kind_of`,
+  `color_for`, `texture` (a checkerboard placeholder), `blank`, `emit`,
+  `draw_labels`.
+- **`src/demo/fallback/main.lua`:** every shape on a blank map with a hill,
+  for the scene viewer (O toggles the overlay). Unseen.
+- **`src/tests/test_fallback.lua`** (43 tests): each kind's shape, line
+  count, colour and letter; a flyer at fly height with its line down; the
+  grid's line and dot counts, heights and widths, and `every`; a unit
+  standing on a hill; selection and the overlay; `has_model` and forcing;
+  a registered painter; placeholder textures and models through a real
+  loader (found, missing, the loader's own misses, forced); painting
+  through a recording `render`; labels centred and those behind the
+  camera skipped; and the demo scene built and its interface drawn with a
+  stand-in renderer.
+
+### Decisions made while building
+
+1. **Shapes are data, painted by what exists.** The renderer already
+   paints flat-shaded boxes and quads from Lua (geometry painting, 544a),
+   with backface culling off; a line is one thin quad, so no new C (which
+   couldn't be built or seen here). The kit's primitive format is reused,
+   so `geometry/kit.lua` places them.
+2. **One quad per line:** flat for lines along the ground (seen from the
+   RTS camera above), upright facing south for vertical edges. A box is 12
+   quads; a 128 by 128 map's grid is about 33,000, inside the static
+   layer's 400,000. `every` thins a large map.
+3. **"Height shown via line thickness":** lines also sit at the ground's
+   height, and are up to twice as wide where the ground is 512 high.
+4. **Regions have no fill:** geometry painting takes no alpha, and an
+   opaque fill would hide the units inside. The dashed outline and the
+   name show the region.
+5. **Labels use raylib's built-in font** through `render.ui_text`, at
+   points `viewer.to_screen` gives: no font asset.
+6. **A hero is a type id starting with a capital letter**, WC3's own
+   convention (Hpal, Obla); buildings, flyers and trees are flagged by the
+   caller from object data.
+7. **One fallback per caller (`fallback.new`)**, not module-wide state, as
+   with the loader and hot-reload.
+8. **The map viewer and editor aren't switched over here** (602a): their
+   scenes draw units through the model renderer with 503's placeholder
+   shapes; replacing those is a visual change to check on a screen.
