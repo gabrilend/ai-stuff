@@ -99,12 +99,19 @@ against cards a laptop's tools would make. Counts:
   whole-file operation the boxes of 406 and 407 will call: read a slice,
   replace atomically (making directories on the way), list, delete, ask,
   link, make a directory.
+- **406** `read_path`, `read_slice` and `write_path`, passing `struct
+  path` and `struct file_bytes`; a read wired into a write is a copy.
+- **407** `list_directory` (in a pinned layout, the names that do not fit
+  counted), `delete_path`, `path_exists`, `make_symlink`; and `text_path`
+  and `path_join` to build a path from text.
 
-402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`.
+402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`,
+the boxes of 406 and 407 in `src/boxes/082-files.c`.
 Tests: `twin/tests/079` (118 checks, on one-sector and eight-sector
 clusters; `fsck.fat` checks every card it writes and a `mkfs.fat` card
 gets the writing checks, where the laptop has those tools) and `081` (56
-checks, four threads at once among them), both on cards
+checks, four threads at once among them) and `083` (37 checks, every box
+placed in a map and fed through its doors), all on cards
 `twin/tests/080-card-image.h` lays out the way a laptop does, with phases
 2 and 3's still passing.
 
@@ -113,7 +120,7 @@ checks, four threads at once among them), both on cards
 - **401** — the card's block calls exist on both sides of the platform
   seam (the twin's disk image, the device's phase-1 driver from 110f);
   the device side is unverified.
-- **406** through **412**.
+- **408** through **412**.
 
 ## Phase demo
 

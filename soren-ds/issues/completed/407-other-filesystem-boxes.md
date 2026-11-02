@@ -55,6 +55,32 @@ refusal.
    pinned now so consumers can parse it (length-prefix per name,
    null terminator per name, count prefix).
 
+## Open questions
+
+- *The list's layout — the issue's own third step.*
+- *What happens to names that do not fit one value?*
+- *Is `path-exists` ever an error?*
+
+### Proposed answers (UNVERIFIED)
+
+1. *Layout?* `struct name_list`: a status, a `count`, a `left_out`, the
+   number of bytes `used`, then `count` names packed one after another,
+   each as one byte giving its length, its characters, and a zero — the
+   count prefix, length prefix and terminator the issue lists, in 4096
+   bytes.
+2. *Names that do not fit?* Listed up to the space, and counted in
+   `left_out`, never dropped silently. A paged listing (an offset input,
+   like `read_slice`) is the obvious next box when a directory first
+   outgrows one value.
+3. *path-exists an error?* Only a refusal for a path that cannot be a
+   path. A link to nothing, links that loop, a file used as a directory
+   on the way, and no card in the slot all answer 0.
+4. *delete-path* removes a symlink itself, never its target; a directory
+   with anything in it answers `FAT_NOT_EMPTY` as a status; asking to
+   delete the root is refused.
+5. *make-symlink* takes two paths; a relative target is relative to the
+   link's directory. A link over an existing name answers `FAT_EXISTS`.
+
 ## Related documents
 
 - `docs/011-filesystem.md`.
