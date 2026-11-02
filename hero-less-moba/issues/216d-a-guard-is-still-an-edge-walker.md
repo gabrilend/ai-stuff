@@ -6,9 +6,12 @@
 | Blocked by | 216a, 216b |
 | Blocks | — |
 | Reads | [guards are leashed](304-guards-are-leashed.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | M6, M7 |
+| Open questions | M6, M7 — settled below |
 
 ## Current behavior
+
+*Built — see [what is built](#what-is-built) below. This section is the state it was
+written against.*
 
 **Everything on a road places a goal and takes a step. A tower guard still walks the
 graph, and it is the last thing in the game that moves a different way.**
@@ -71,19 +74,71 @@ whose position *is* a point has nothing to correct against.
 5. A scene per guard pattern in [the proving ground](111-the-proving-ground.md) — patrol,
    leash and chase are three mechanics with no test naming them today.
 
-## Open questions
+## What is built
 
-**M6. Does a guard need the graph at all?**
-It patrols within a leash radius of its tower, and the ground inside that radius is a
-corridor with nothing to walk round. If a guard could aim at any point inside its leash
-rather than at a node, the graph stops being part of how a guard moves and the four-row
-dispatch loses three of its rows. What that costs is unknown — the graph is also what keeps
-a guard from wandering through stone.
+**All five steps, and the step layer is universal.** A guard's position is its x and y. Its
+three rows are in the pattern table, ahead of everything else, and the brain chooses them the
+way it chooses any other row. `node_from` is the last node it reached and `node_to` the one
+it is aiming at; the offset, the edge fraction, the edge walk and the four-row next-node
+dispatch are gone.
 
-**M7. What is the offset for, once positions are points?**
-It is described as "how far this body stands from the line its graph position puts it on",
-and a guard that has a position of its own does not stand off any line. Whether anything
-else has come to depend on it is not checked.
+| Row | Places its goal at | Pace |
+| --- | --- | --- |
+| `patrol` | the next node of its wander, re-asked of the graph on reaching each one | relax |
+| `leash` | its leash node, straight | hurry |
+| `chase` | its target's skin, pulled back to the end of its rope | hurry |
+
+**And it found that no guard had ever moved.** A guard was put out with both ends of its
+edge on the tower's node — an edge of length nought, which the walk stepped over rather
+than divide by. It never crossed a node, so it never asked where to go next: no guard in
+any match ever patrolled, and none ever closed on anything. "No guard ever enters the
+leashing state", which [a scenario](../scenarios/a-tower-commits-and-a-guard-comes-home.lua)
+recorded as a finding about ordinary play, was this. Guards now walk their ground — a lane
+guard to the edge of its hundred and twenty-eight paces, a base guard across the interior.
+
+Three things fell out of guards actually walking:
+
+- **Home was unreachable for a base guard.** A leashing guard was home within eighteen paces
+  of its leash node, and a base guard is leashed to a library twenty-one paces in radius:
+  the rule about standing in masonry held it twenty-five out. There is now one definition of
+  reaching a node — a body's room from the face of any live building on it — used by the
+  patrol and the leash alike.
+- **A guard walked into its own tower and stood there.** Having reached its tower's node on
+  the road and picked the neighbour on the far side, it was dead in line with the tower and
+  its goal, and the step layer's correction — out along the line from the building's centre
+  — has no sideways in it head-on. One guard stood at a wall for three thousand ticks.
+  `patrol` and `chase` now aim at a building's side first when the straight line runs
+  through it. Only stone, which never moves; bodies stay the step layer's question.
+- **Bodies against stone read as inside it.** The reading that counts bodies in masonry
+  measured strictly, while the push out of stone leaves the same hair of slack the
+  separation pass does. A body the rule had just put against a wall counted as inside it.
+  The reading now allows the same hair, as the overlaps reading already did.
+
+Tested in [the invariants](../tests/051-the-invariants.info.md): a guard walks node to node
+inside its leash on the `patrol` row; a push written into its position stays; `chase` aims at
+the skin of a target inside its ground and at the end of its rope for one beyond it; a lane
+guard and a base guard dragged past their ropes turn, refuse every target and get home; and
+a guard dead in line with its tower and the node beyond walks round it.
+
+## Settled
+
+**M6. Does a guard need the graph at all? — For its patrol, yes; for the other two, no.**
+`patrol` keeps the graph. Wandering node to node keeps a guard on the roads the map was
+built with rather than at random points in a circle, and it keeps the wander stream drawn
+once per node reached, which is the same rhythm it was designed with. `leash` and `chase`
+aim straight at where they are going, because both destinations are inside the guard's own
+ground by definition and the ground in there has nothing to walk round but the tower —
+which `round_the_stone` handles. The greedy "whichever neighbour is nearer" rows were a
+jagged route to the same place. So the dispatch lost three rows, as the question guessed,
+and the one left is a function rather than a table.
+
+**M7. What is the offset for, once positions are points? — Nothing; it is deleted.** Its
+two writers were the edge walk's correction and `nudge`, and its one reader was the edge
+walk's position. Nothing else read it — not the replay log, which records the graph nodes
+and the position, nor the snapshot, nor the renderer. The record no longer has the field.
+`wander_node` on the record is also read by nothing and was not, as far as can be found,
+ever written; it is left for whoever next touches the record, because removing it is not
+this issue.
 
 ## Related documents and tools
 

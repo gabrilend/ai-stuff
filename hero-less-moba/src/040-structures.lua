@@ -224,12 +224,28 @@ local function put_guard_on_the_ground(world, structure)
 end
 -- }}}
 
+-- {{{ function M.leash_radius()
+-- How far this guard may be from its leash node before it is walked home.
+--
+-- A base guard has the run of the whole interior; a lane guard has its tower. Asked
+-- in three places -- the pass below that trips the leash, the patrol that picks where
+-- to wander, and the chase that stops at the end of the rope -- and they have to agree
+-- to the pace, or a guard is sent somewhere it is then walked back from.
+function M.leash_radius(world, id)
+  local tower_row = world.parameters.structure.tower
+  local tower = world.structure[world.soldier.guard_of[id]]
+  if tower ~= nil and tower.kind == 2 then
+    return tower_row.base_leash_radius
+  end
+  return tower_row.leash_radius
+end
+-- }}}
+
 -- {{{ function M.guard_pass()
 -- Two jobs: towers replace fallen guards when their ground is clear, and guards
 -- that have drifted too far turn round and go home.
 function M.guard_pass(world)
   local soldier = world.soldier
-  local tower_row = world.parameters.structure.tower
 
   for _, structure in ipairs(world.structure) do
     if structure.alive == 1 and structure.kind ~= 3 then
@@ -264,10 +280,7 @@ function M.guard_pass(world)
     if soldier.alive[id] == 1 and soldier.flavour[id] == 3
        and soldier.state[id] ~= 4 and soldier.leash_node[id] ~= 0 then
       local leash = world.map.node[soldier.leash_node[id]]
-      -- A base guard has the run of the whole interior; a lane guard has its tower.
-      local tower = world.structure[soldier.guard_of[id]]
-      local radius = (tower ~= nil and tower.kind == 2)
-        and tower_row.base_leash_radius or tower_row.leash_radius
+      local radius = M.leash_radius(world, id)
       local dx = soldier.x[id] - leash.x
       local dy = soldier.y[id] - leash.y
       if dx * dx + dy * dy > radius * radius then

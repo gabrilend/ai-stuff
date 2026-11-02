@@ -15,6 +15,7 @@ so the slotting decision is visible from across the map.
 | --- | --- | --- |
 | `begin(world)` | | — Sets every tower's timer running and gives each its first patrol. |
 | `guard_pass(world)` | | — Replacement and leashing. Part of the tick's spawn system. |
+| `leash_radius(world, id)` | a guard | How far it may stray from its leash node: the tower's radius, or the much wider one a base guard has. The one answer the leash, the patrol and the chase all ask. |
 | `tower_pass(world)` | | — Towers pick a target and keep it, then shoot. |
 | `guard_died(world, id)` | | — One guard gone; its tower forgets it. |
 | `tower_fell(world, structure)` | | — Kills its guards, pays three upgrades. |

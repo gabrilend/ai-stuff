@@ -31,15 +31,33 @@ the chooser walks down the order, and `true` once a goal is placed.
 
 | Pattern | Places its goal at | Pace |
 | --- | --- | --- |
+| `leash` | a guard past its rope: the node it is leashed to | hurry |
+| `chase` | a guard's target's **skin**, pulled back to the end of its rope | hurry |
+| `patrol` | a guard's next node, chosen from the neighbours inside its leash | relax |
 | `withdraw` | the far end of its lane, off the map | hurry |
 | `charge` | its target's **skin**, or its target structure's | hurry |
 | `march` | its place in its wave's formation | relax or normal |
 | `lane_walk` | a few paces down its own lane | normal |
 | `hold` | its own feet | normal |
 
-Three more belong here and are not written yet, because a tower guard's position is an
-edge and a fraction rather than a point: patrolling, walking home, and closing inside a
-leash. See [216d](../issues/216d-a-guard-is-still-an-edge-walker.md).
+The three guard rows come first in the order, and nothing else ever matches them: each asks
+for a leash node, which only a guard has — an integer test rather than a flavour test, as
+[304](../issues/304-guards-are-leashed.md) asks, so a monster or a hero that should one day
+be leashed needs a leash node and nothing more.
+
+**`patrol` is the one row that asks the graph**, and the one row that writes anything but a
+goal: on reaching the node it was aiming at, it picks the next. That is a choice of where to
+want to be rather than a move, which is this table's question. `leash` and `chase` aim
+straight at where they are going, because both destinations are inside the guard's own
+ground. See [the walking module](034-walking.info.md) for what "reaching" a node means, and
+for why `patrol` and `chase` aim at the side of a building rather than through it.
+
+**`chase` stops at the rope.** A guard's strike point further from its leash node than its
+leash allows, less a body's room, is pulled back onto that circle. A guard walks to the edge
+of its ground and waits there, rather than stepping over the line, being walked home,
+re-acquiring and stepping over it again — which is what makes the edge of a tower's ground a
+hard line rather than a gradient. The leash still trips a guard that ends up outside by being
+shoved; it no longer walks there on purpose.
 
 ## Three things the table changed
 

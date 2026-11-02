@@ -204,6 +204,144 @@ M.pattern.charge = {
 }
 -- }}}
 
+-- {{{ M.pattern.patrol
+-- A guard with nothing to do, wandering the ground around its tower.
+--
+-- **The one row that asks the graph.** Its goal is a node: the neighbour it chose to
+-- wander to, out of those still inside its leash. On reaching it -- near enough, which
+-- for a node with a building on it means against the building's face -- it asks the
+-- graph again from there. That is the same shape as a lane body aiming a few paces down
+-- its own road rather than at the enemy library: the goal is the next place, not the
+-- destination, and the body re-asks when it gets there.
+--
+-- Choosing the next node is the only thing any row writes besides a goal, and it is a
+-- choice of *where to want to be* -- which is this table's question -- rather than a
+-- move. The body is still placed by the layer underneath and nowhere else.
+--
+-- Relaxed. A guard on patrol is not going anywhere it needs to be.
+M.pattern.patrol = {
+  name = "patrol",
+  place = function(world, id)
+    local soldier = world.soldier
+    if soldier.leash_node[id] == 0 then
+      return false
+    end
+    if world.walking.arrived_at_node(world, id, soldier.node_to[id]) then
+      soldier.node_from[id] = soldier.node_to[id]
+      soldier.node_to[id] = world.walking.next_patrol_node(world, id)
+    end
+    -- Round its own tower rather than into it: the node it just reached is very often
+    -- the tower's, and the next one is often on the far side of it.
+    local node = world.map.node[soldier.node_to[id]]
+    local x, y = world.walking.round_the_stone(world, id, node.x, node.y)
+    world.walking.aim(world, id, x, y, RELAX)
+    return true
+  end,
+}
+-- }}}
+
+-- {{{ M.pattern.leash
+-- A guard that strayed past the end of its rope, walking back to the tower.
+--
+-- **Straight at the leash node, and in a hurry.** Not node by node: a guard is never
+-- more than its leash radius from home, the ground inside that radius is a corridor
+-- with nothing to walk round, and the stone it might brush against is the step layer's
+-- business. The old greedy step to "whichever neighbour is nearer the tower" arrived
+-- at the same place by a more jagged line.
+--
+-- Whether it has got home is the brain's question, not this row's -- arriving ends a
+-- state, and a pattern may only say where.
+M.pattern.leash = {
+  name = "leash",
+  place = function(world, id)
+    local soldier = world.soldier
+    if soldier.leash_node[id] == 0 or soldier.state[id] ~= 4 then
+      return false
+    end
+    local node = world.map.node[soldier.leash_node[id]]
+    world.walking.aim(world, id, node.x, node.y, HURRY)
+    return true
+  end,
+}
+-- }}}
+
+-- {{{ M.pattern.chase
+-- A guard closing on something inside its ground.
+--
+-- **At its target's skin, as `charge` aims -- but never past the rope.** If the place it
+-- would stand to strike is further from the leash node than the leash allows, the goal
+-- is pulled back along the line from the leash node until it is a body's room inside
+-- the edge. The guard walks to the end of its ground and waits there, facing what it
+-- wants, rather than stepping over the line, being tripped into leashing by the pass
+-- that measures it, walking home, re-acquiring, and stepping over the line again.
+--
+-- That is what "a guard will not follow it out" in issue 304 asks for, and it is what
+-- makes the edge of a tower's ground a hard line rather than a gradient. The leash pass
+-- is still there and still trips a guard that ends up outside -- shoved, or dragged by
+-- something bigger -- but a guard no longer walks there on purpose.
+--
+-- Hurried, as every charge is.
+M.pattern.chase = {
+  name = "chase",
+  place = function(world, id)
+    local soldier = world.soldier
+    if soldier.leash_node[id] == 0 then
+      return false
+    end
+
+    local goal_x, goal_y
+    local target = soldier.target[id]
+    if target ~= 0 and soldier.alive[target] == 1 then
+      local dx = soldier.x[target] - soldier.x[id]
+      local dy = soldier.y[target] - soldier.y[id]
+      local distance = math.sqrt(dx * dx + dy * dy)
+      local stop_at = world.targeting.reach_to(world, id, target)
+      if distance <= stop_at or distance < 0.000001 then
+        goal_x, goal_y = soldier.x[id], soldier.y[id]
+      else
+        goal_x = soldier.x[target] - dx / distance * stop_at
+        goal_y = soldier.y[target] - dy / distance * stop_at
+      end
+    elseif soldier.target_structure[id] ~= 0 then
+      -- A guard does not walk to the enemy's stone; there is none inside its ground. Kept
+      -- so the row answers every body the brain would have given it, rather than one that
+      -- falls through to patrolling with a target in hand.
+      local structure = world.structure[soldier.target_structure[id]]
+      local node = world.map.node[structure.node]
+      local dx = node.x - soldier.x[id]
+      local dy = node.y - soldier.y[id]
+      local distance = math.sqrt(dx * dx + dy * dy)
+      local stop_at = soldier.range[id]
+      if distance <= stop_at or distance < 0.000001 then
+        goal_x, goal_y = soldier.x[id], soldier.y[id]
+      else
+        goal_x = node.x - dx / distance * stop_at
+        goal_y = node.y - dy / distance * stop_at
+      end
+    else
+      return false
+    end
+
+    -- The rope. Measured from the leash node, and short of the full length by a body's
+    -- room, so a guard standing at the end of its ground and jostled a little is not
+    -- pushed over the line the leash pass measures.
+    local leash = world.map.node[soldier.leash_node[id]]
+    local rope = world.structures.leash_radius(world, id) -
+                 world.parameters.shape.personal_space
+    local lx, ly = goal_x - leash.x, goal_y - leash.y
+    local out = math.sqrt(lx * lx + ly * ly)
+    if out > rope then
+      goal_x = leash.x + lx / out * rope
+      goal_y = leash.y + ly / out * rope
+    end
+
+    goal_x, goal_y = world.walking.round_the_stone(world, id, goal_x, goal_y)
+    world.walking.aim(world, id, goal_x, goal_y, HURRY)
+    return true
+  end,
+}
+-- }}}
+
 -- {{{ M.pattern.withdraw
 -- Back down the lane and off the map.
 --
@@ -237,7 +375,13 @@ M.pattern.withdraw = {
 -- the brain writes down; it is not answered, and keeping the same order as the run of
 -- early returns it replaces is what makes this change provably behaviour-preserving before
 -- anything is redesigned.
-M.order = {"withdraw", "charge", "march", "lane_walk", "hold"}
+--
+-- **The three guard rows come first**, and nothing else ever matches them: each asks for a
+-- leash node, which only a guard has. Ahead of `charge` because a guard with a target is
+-- chasing inside its ground rather than charging, and the difference is the rope. Among
+-- themselves, `leash` first, because a guard walking home refuses everything -- it has no
+-- target by then, but the order says so rather than relying on it.
+M.order = {"leash", "chase", "patrol", "withdraw", "charge", "march", "lane_walk", "hold"}
 -- }}}
 
 -- {{{ function M.choose()

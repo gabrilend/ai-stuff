@@ -66,12 +66,15 @@ local function walking(world, id)
   local soldier = world.soldier
 
   -- A guard never marches. It is standing on a piece of ground it has been told
-  -- not to leave, so it walks the graph directly and belongs to no formation.
+  -- not to leave and belongs to no formation, so none of the lane's business below
+  -- applies to it -- but it moves the way everything else does: its row in the
+  -- pattern table says where (`patrol`, here), and the step layer gets it there.
   if soldier.flavour[id] == 3 then
     if soldier.target[id] ~= 0 or soldier.target_structure[id] ~= 0 then
       return 2
     end
-    world.walking.step(world, id)
+    world.patterns.choose(world, id)
+    world.walking.take_step(world, id)
     return 1
   end
 
@@ -197,9 +200,12 @@ local function closing(world, id)
     return 1
   end
 
-  -- Guards close across the graph, because they are not on a lane at all.
+  -- A guard closes by its own row, `chase`, which is a charge that stops at the end
+  -- of its rope. Chosen rather than called by name, so the pattern written on the body
+  -- says what it is doing.
   if soldier.flavour[id] == 3 then
-    world.walking.step(world, id)
+    world.patterns.choose(world, id)
+    world.walking.take_step(world, id)
     return 2
   end
 
@@ -282,17 +288,22 @@ local function leashing(world, id)
   soldier.target_generation[id] = 0
   soldier.target_structure[id] = 0
 
-  local node = world.map.node
-  local here_x, here_y = soldier.x[id], soldier.y[id]
-  local leash = node[soldier.leash_node[id]]
-  local dx, dy = leash.x - here_x, leash.y - here_y
-
-  -- Home. Go back to wandering; the tower's ground is covered again.
-  if dx * dx + dy * dy <= world.parameters.shape.personal_space ^ 2 then
+  -- Home. Go back to wandering; the tower's ground is covered again, and the patrol
+  -- starts over from the tower's own node rather than from wherever the chase left it.
+  --
+  -- **Home is reached against the building's face**, by the same test a patrol uses for
+  -- any node. It was a fixed eighteen paces from the leash node, and a base guard is
+  -- leashed to a library twenty-one paces in radius: the rule about standing in masonry
+  -- held it twenty-five out, and it walked at the wall forever. Nothing noticed because
+  -- nothing had ever been pulled far enough to leash.
+  if world.walking.arrived_at_node(world, id, soldier.leash_node[id]) then
+    soldier.node_from[id] = soldier.leash_node[id]
+    soldier.node_to[id] = soldier.leash_node[id]
     return 1
   end
 
-  world.walking.step(world, id)
+  world.patterns.choose(world, id)
+  world.walking.take_step(world, id)
   return 4
 end
 -- }}}
