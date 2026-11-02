@@ -46,8 +46,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 115b | [Patch Notes for the Versions We Don't Read](./completed/115b-notes-for-versions-we-dont-read.md) | completed | 115a |
 | 116 | [Read WC3 Models (.mdx)](./116-read-wc3-models.md) | open | — |
 | 117 | [Read WC3 Textures (BLP1)](./117-read-wc3-textures.md) | open | W01 |
-| 119 | [Readers for the Pathing Map, Shadow Map and Minimap Icons](./completed/119-pathing-shadow-and-minimap-readers.md) | completed | — |
 
-Completed 24, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 23, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
