@@ -4,8 +4,8 @@
 -- text, each column padded to its widest cell, measured in characters, not
 -- bytes, so a multi-byte glyph still counts as one column's width. `list`
 -- and `tree` (issue 807b) join it here, and `box-diagram` (807c): boxes in
--- ASCII lines, arrows between them with a label at either end. `prose`
--- (807d) is a later piece of the same end.
+-- ASCII lines, arrows between them with a label at either end, and `prose`
+-- (807d): a template with {{slot}} marks filled from the canvas's data.
 
 local txt_canvas = {}
 
@@ -327,6 +327,56 @@ function txt_canvas.box_diagram(diagram)
         lines[#lines + 1] = (table.concat(out):gsub("%s+$", ""))
     end
     return table.concat(lines, "\n")
+end
+-- }}}
+
+-- The slot mark, the same as 034's turn templates: {{name}}, a name of
+-- letters, digits and underscores.
+local SLOT = "{{([%w_]+)}}"
+
+-- {{{ function txt_canvas.prose
+-- Fills a template's {{slot}} marks from `data` (807d), the shape of 034's
+-- `fill(template, values)`. A slot with no value is a finding, never a
+-- blank: so is a slot whose value is the empty string (it would render
+-- blank all the same), a value that is neither a string nor a number, and
+-- a "{{" that opens no slot mark (a typo such as "{{ name}}" would
+-- otherwise print as itself). Returns the filled text, or nil and every
+-- finding, in the order they occur, so one look shows all the holes.
+function txt_canvas.prose(template, data)
+    if type(template) ~= "string" then
+        error("txt_canvas.prose: a template is a string, got " .. type(template))
+    end
+    data = data or {}
+    local findings = {}
+    local seen = {}
+    local filled = template:gsub(SLOT, function(slot)
+        local value = data[slot]
+        local problem
+        if value == nil then
+            problem = "the slot '" .. slot .. "' has no value"
+        elseif type(value) ~= "string" and type(value) ~= "number" then
+            problem = "the slot '" .. slot .. "' holds a " .. type(value) .. ", not text or a number"
+        elseif value == "" then
+            problem = "the slot '" .. slot .. "' is empty and would render blank"
+        end
+        if problem then
+            if not seen[problem] then
+                seen[problem] = true
+                findings[#findings + 1] = problem
+            end
+            return nil
+        end
+        return tostring(value)
+    end)
+    local stray = template:gsub(SLOT, "")
+    local at = stray:find("{{", 1, true)
+    if at then
+        findings[#findings + 1] = "a '{{' opens no slot mark: '" .. stray:sub(at, at + 15) .. "'"
+    end
+    if #findings > 0 then
+        return nil, findings
+    end
+    return filled
 end
 -- }}}
 

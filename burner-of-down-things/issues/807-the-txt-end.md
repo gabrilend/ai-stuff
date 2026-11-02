@@ -4,10 +4,12 @@ Text assets: `table`, `list`, `tree`, `box-diagram` (boxes of line characters, a
 
 ## Current Behavior
 
-807a, 807b and 807c are built (issues/completed/807a-tables.md,
-807b-lists-and-trees.md, 807c-box-diagrams.md): `table`, `list`, `tree`
-and `box-diagram`, all sharing one file and its character-width
-discipline. 807d (prose templates) is not yet built.
+807a-d are built (issues/completed/807a-tables.md,
+807b-lists-and-trees.md, 807c-box-diagrams.md,
+807d-prose-templates.md): `table`, `list`, `tree`, `box-diagram` and
+`prose`, all sharing one file and its character-width discipline. What
+remains is the wall (802): compiling a canvas into one of these words and
+writing the file with its card (809).
 
 ## Intended Behavior
 
@@ -17,7 +19,7 @@ The same wall and compilation as the other ends; widths measured in characters, 
 
 1. Tables and lists. **Test:** every column lines up in characters.
 2. Box diagrams with arrows. **Test:** a two-box diagram with one arrow matches a stored expected file byte for byte.
-3. Prose templates. **Test:** a missing slot is a finding, never a blank.
+3. Prose templates. **Test:** a missing slot is a finding, never a blank. Done (807d).
 
 ## Sub-issues
 
