@@ -371,3 +371,6 @@ tested the first one's library:
 - **The demo lists tests instead of running them**, so it is read-only and
   quick on any project; running them is the test runner's own job.
 
+- **The links run both ways.** A01 through A05 each list A07 under Blocks,
+  and A07's Dependencies line names the five without spelling out the
+  retired A06, so `validate-issues` reports nothing for phase A.

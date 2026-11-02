@@ -4,6 +4,7 @@
 **Type:** Tool
 **Priority:** Medium
 **Dependencies:** A02 (shared issue-name reader)
+**Blocks:** A07 (the phase-A integration test)
 
 ---
 

@@ -4,7 +4,7 @@
 **Type:** Tool
 **Priority:** High
 **Dependencies:** None
-**Blocks:** A04 (shares the issue-name reader)
+**Blocks:** A04 (shares the issue-name reader), A07 (the phase-A integration test)
 
 ---
 
