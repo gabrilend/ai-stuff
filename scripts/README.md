@@ -208,6 +208,8 @@ end)
 
 ### 4. Create issue-manager library
 
+*Built (issue 012):* `libs/issue-manager.lua` and its bash face `libs/issue-manager.sh`, on top of `libs/issue-names.lua`; see `libs/issue-manager.info.md`. The sketch below is the original proposal.
+
 Extract core issue management functions from `delta-version/scripts/manage-issues.sh` into `libs/issue-manager.sh`:
 
 ```bash

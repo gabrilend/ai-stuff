@@ -355,4 +355,65 @@ end
 issue_names.format_id = format_id
 -- }}}
 
+-- {{{ local function next_free_ids
+-- For each phase: one past the highest issue number used, written in the
+-- phase's own shape (the shape most of its issues use). Sub-issue letters are
+-- ignored: 104c does not use up 105. Numbering follows what names say, not
+-- phase-N/ folders: a folder does not change the sequence the names count in.
+-- Moved here from validate-issues so the issue manager numbers new issues
+-- by the same rule the validator reports (issue 012).
+local function next_free_ids(issues, width)
+    local by_phase = {}
+    for _, issue in ipairs(issues) do
+        local phase = issue.name_phase
+        if phase and issue.number then
+            local entry = by_phase[phase] or { highest = 0, shapes = {} }
+            entry.highest = math.max(entry.highest, tonumber(issue.number))
+            entry.shapes[issue.shape] = (entry.shapes[issue.shape] or 0) + 1
+            by_phase[phase] = entry
+        end
+    end
+    local result = {}
+    for phase, entry in pairs(by_phase) do
+        local shape, most = nil, -1
+        for candidate, count in pairs(entry.shapes) do
+            -- ties go alphabetically, so the answer does not hang on table order
+            if count > most or (count == most and candidate < shape) then
+                shape, most = candidate, count
+            end
+        end
+        result[phase] = format_id(shape, phase, entry.highest + 1, width)
+    end
+    return result
+end
+issue_names.next_free_ids = next_free_ids
+-- }}}
+
+-- {{{ local function dominant_shape
+-- The shape most of the project's issues use; a new phase starts in it.
+local function dominant_shape(issues)
+    local counts, best, most = {}, "compact", -1
+    for _, issue in ipairs(issues) do
+        counts[issue.shape] = (counts[issue.shape] or 0) + 1
+    end
+    for shape, count in pairs(counts) do
+        if count > most or (count == most and shape < best) then
+            best, most = shape, count
+        end
+    end
+    return best
+end
+issue_names.dominant_shape = dominant_shape
+-- }}}
+
+-- {{{ local function next_id
+-- The id a new issue in `phase` should take: the next free one, or the first
+-- in the project's usual shape for a phase with no issues yet.
+local function next_id(issues, report, phase)
+    return next_free_ids(issues, report.width)[phase]
+        or format_id(dominant_shape(issues), phase, 1, report.width)
+end
+issue_names.next_id = next_id
+-- }}}
+
 return issue_names

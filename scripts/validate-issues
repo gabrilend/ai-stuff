@@ -49,8 +49,11 @@
 -- {{{ local DIR
 -- The project checked when none is given; override with the first argument.
 local DIR = "/home/ritz/programming/ai-stuff/scripts"
--- Where this tool and its shared library live, independent of DIR.
-local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and its shared library live, independent of DIR: beside
+-- this file, so a checkout tests its own copy; the house path when this file
+-- was reached some other way.
+local SCRIPTS_DIR = (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$"))
+    or "/home/ritz/programming/ai-stuff/scripts"
 -- }}}
 
 local issue_names = dofile(SCRIPTS_DIR .. "/libs/issue-names.lua")
@@ -195,7 +198,8 @@ end
 -- {{{ local function check_sections
 local function check_sections(issue, content, add)
     local headings = {}
-    for heading in content:gmatch("\n#+%s*([^\n]*)") do
+    -- a newline in front, so a heading on the very first line is seen too
+    for heading in ("\n" .. content):gmatch("\n#+%s*([^\n]*)") do
         headings[#headings + 1] = heading:lower()
     end
     for _, section in ipairs(required_sections) do
@@ -210,52 +214,6 @@ local function check_sections(issue, content, add)
             add(issue.rel, "missing section: " .. section.label)
         end
     end
-end
--- }}}
-
--- {{{ local function next_free_ids
--- For each phase: one past the highest issue number used, written in the
--- phase's own shape (the shape most of its issues use). Sub-issue letters are
--- ignored: 104c does not use up 105. Numbering follows what names say, not
--- phase-N/ folders: a folder does not change the sequence the names count in.
-local function next_free_ids(issues, width)
-    local by_phase = {}
-    for _, issue in ipairs(issues) do
-        local phase = issue.name_phase
-        if phase and issue.number then
-            local entry = by_phase[phase] or { highest = 0, shapes = {} }
-            entry.highest = math.max(entry.highest, tonumber(issue.number))
-            entry.shapes[issue.shape] = (entry.shapes[issue.shape] or 0) + 1
-            by_phase[phase] = entry
-        end
-    end
-    local result = {}
-    for phase, entry in pairs(by_phase) do
-        local shape, most = nil, -1
-        for candidate, count in pairs(entry.shapes) do
-            if count > most then
-                shape, most = candidate, count
-            end
-        end
-        result[phase] = issue_names.format_id(shape, phase, entry.highest + 1, width)
-    end
-    return result
-end
--- }}}
-
--- {{{ local function dominant_shape
--- The shape most of the project's issues use; a new phase starts in it.
-local function dominant_shape(issues)
-    local counts, best, most = {}, "compact", -1
-    for _, issue in ipairs(issues) do
-        counts[issue.shape] = (counts[issue.shape] or 0) + 1
-    end
-    for shape, count in pairs(counts) do
-        if count > most then
-            best, most = shape, count
-        end
-    end
-    return best
 end
 -- }}}
 
@@ -311,13 +269,12 @@ local function main()
         os.exit(2)
     end
 
-    local next_ids = next_free_ids(issues, report.width)
+    local next_ids = issue_names.next_free_ids(issues, report.width)
 
     -- --next: print one id and stop. A phase with no issues yet starts at 1 in
     -- the project's usual shape.
     if options.next_phase then
-        print(next_ids[options.next_phase]
-            or issue_names.format_id(dominant_shape(issues), options.next_phase, 1, report.width))
+        print(issue_names.next_id(issues, report, options.next_phase))
         os.exit(0)
     end
 
