@@ -8,6 +8,7 @@
 --   manager:remove_template(name)
 --   manager:list()                       names, sorted
 --   manager:create_default_templates()   one per ability set
+--   manager:save_to_storage(storage) / load_from_storage(storage)
 local TemplateManager = {}
 TemplateManager.__index = TemplateManager
 
@@ -131,6 +132,58 @@ function TemplateManager:create_default_templates()
         self.default_names[template.name] = true
     end
     return made
+end
+-- }}}
+
+-- {{{ TemplateManager:save_to_storage
+-- Saves every template to a TemplateStorage (src/storage/
+-- template_storage.lua): defaults to "default", the rest to "user".
+-- Returns how many were saved and a list of problems.
+function TemplateManager:save_to_storage(storage)
+    local saved, problems = 0, {}
+    for _, name in ipairs(self:list()) do
+        local category = self:is_default(name) and "default" or "user"
+        local ok, message = storage:save_template(self.templates[name], category)
+        if ok then
+            saved = saved + 1
+        else
+            table.insert(problems, name .. ": " .. tostring(message))
+        end
+    end
+    return saved, problems
+end
+-- }}}
+
+-- {{{ TemplateManager:load_from_storage
+-- Registers every valid template a TemplateStorage holds, in the given
+-- category or all of them. Later categories ("imported" after "user"
+-- after "default") win when names repeat. Returns how many were loaded
+-- and a list of problems.
+function TemplateManager:load_from_storage(storage, category)
+    local loaded, problems = 0, {}
+    local order = {default = 1, user = 2, imported = 3}
+    local entries = storage:list_templates(category)
+    table.sort(entries, function(a, b)
+        if order[a.category] ~= order[b.category] then
+            return order[a.category] < order[b.category]
+        end
+        return a.name < b.name
+    end)
+    for _, entry in ipairs(entries) do
+        local template, info = storage:load_template(entry.name, entry.category)
+        if not template then
+            table.insert(problems, entry.name .. ": " .. tostring(info))
+        else
+            local ok, errors = self:register_template(template)
+            if ok then
+                loaded = loaded + 1
+                self.default_names[template.name] = entry.category == "default" or nil
+            else
+                table.insert(problems, entry.name .. ": " .. table.concat(errors, "; "))
+            end
+        end
+    end
+    return loaded, problems
 end
 -- }}}
 

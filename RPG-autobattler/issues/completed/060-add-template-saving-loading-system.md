@@ -655,10 +655,70 @@ return TemplateLibrary
 ```
 
 ### Acceptance Criteria
-- [ ] Templates can be saved and loaded reliably
-- [ ] Template organization by categories (user/default/imported)
-- [ ] Import/export functionality works correctly
-- [ ] Search and filtering system finds relevant templates
-- [ ] Favorites and recent templates tracked
-- [ ] Automatic backups prevent data loss
-- [ ] File format is forward/backward compatible
+- [x] Templates can be saved and loaded reliably
+- [x] Template organization by categories (user/default/imported)
+- [x] Import/export functionality works correctly
+- [x] Search and filtering system finds relevant templates
+- [x] Favorites and recent templates tracked
+- [x] Automatic backups prevent data loss
+- [x] File format is forward/backward compatible
+
+## What Happened
+
+Built as:
+- **`src/storage/template_storage.lua`:**
+  - save, load, list and delete templates in the user, default and
+    imported categories;
+  - list and restore backups;
+  - export to text, and import from it;
+  - rebuild the index.
+  - Each template is one JSON file (`<category>/<slug>.template`)
+    inside an envelope that records the format version, game version,
+    time and metadata (author, description, tags).
+- **`src/storage/template_library.lua`:**
+  - word search with relevance ranking, over names, ability names, tags,
+    body and description;
+  - filters by category, body, ability, favourites and points;
+  - favourites, a recent list (10) and use counts, all kept in
+    `library_preferences.json`.
+- **`src/storage/file_backends.lua`:** the same storage code runs on
+  three backends:
+  - LÖVE's save folder (`love.filesystem`), in the game;
+  - plain files, for headless tools;
+  - memory, for tests.
+- **`TemplateManager`** gains `save_to_storage` and `load_from_storage`.
+- **`tests/test_template_storage.lua`** (9 tests), added to `./run <dir>
+  unit`. It runs on memory and on real files.
+
+Headless only. Nothing was seen, and the LÖVE backend wasn't run
+(there is no LÖVE here).
+
+### Decisions
+- **JSON is written with the dkjson library already vendored in
+  `libs/dkjson/`,** not a new one.
+- **An index file lists what's where,** because plain Lua can't list
+  folders. A damaged index is rebuilt from the files where the backend
+  can list them (LÖVE and memory can; plain files can't), with a
+  warning.
+- **Backups:**
+  - every overwrite, delete and restore backs up the current file first;
+  - the newest five are kept per template;
+  - a deleted template can be restored.
+- **Format compatibility:**
+  - older files are moved forward by numbered migrations, and format 0
+    covers both a bare `to_save_data()` table and the sketch's
+    `{template_version, template_data}` shape;
+  - newer files load with a warning, their unknown fields ignored;
+  - templates that no longer pass the rules still load, with "No longer
+    valid" warnings, so a player can fix them rather than lose them.
+- **Imports never overwrite.** A taken name gets " 2", " 3" and so on,
+  since names don't allow brackets.
+- **Loading doesn't write.** The sketch rewrote the file on every load
+  to count uses. Use counts live in the library's preferences instead,
+  counted by `library:use`.
+- **The library lives in `src/storage/` beside the storage,** not in
+  `src/systems/`, which holds the game's ECS systems.
+- **The disk backend makes folders with `mkdir -p`.** Only the storage's
+  own fixed folder names reach it, never a template's name. Templates'
+  file names are slugs of letters, digits and hyphens.
+
