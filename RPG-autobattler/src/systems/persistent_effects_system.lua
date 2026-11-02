@@ -15,6 +15,14 @@
 -- keeps the stronger tick. Different effects stack. Effects end early
 -- when their target dies.
 --
+-- Zones: an area ability with zone_duration leaves its circle on the
+-- ground. Every zone_interval seconds the zone pulses: each unit of the
+-- side it affects (enemies for damage, allies for healing) standing
+-- inside takes zone_power damage or healing, and the zone's effect (a
+-- slow, say) is put on it or renewed. Zones last their full time even if
+-- the caster dies. The first pulse comes one interval after the cast,
+-- the instant part of the cast having just landed.
+--
 -- Made with an AbilityEffectSystem, it attaches itself so that the effect
 -- system hands it each activation and a heal's cleanse also clears
 -- damage over time; and it reports its ticks through that system, so
@@ -36,9 +44,11 @@ function PersistentEffectsSystem:new(entity_manager, effect_system)
         entity_manager = entity_manager,
         effect_system = effect_system,
         effects = {},            -- list of active over-time effects
+        zones = {},              -- list of active zones
         next_id = 1,
         stats = {added = 0, refreshed = 0, ticks = 0, expired = 0, cleansed = 0,
-                 damage_dealt = 0, healing_done = 0}
+                 damage_dealt = 0, healing_done = 0,
+                 zones_added = 0, zone_pulses = 0, zone_hits = 0, zones_expired = 0}
     }
     setmetatable(system, self)
     if effect_system then
@@ -120,12 +130,141 @@ function PersistentEffectsSystem:add_heal_over_time(caster, target, per_tick, du
 end
 -- }}}
 
+-- {{{ PersistentEffectsSystem:add_zone
+-- spec: {x, y, radius, duration, interval, effect ("damage" or "heal"),
+-- power, damage_type, team (the caster's), status (an effect spec for
+-- AbilityEffectSystem:add_effect, or nil), visual, name}. Returns the zone.
+function PersistentEffectsSystem:add_zone(caster, spec)
+    local zone = {
+        id = self.next_id,
+        name = spec.name or "zone",
+        caster = caster,
+        team = spec.team or 0,
+        x = spec.x, y = spec.y,
+        radius = spec.radius,
+        effect = spec.effect or "damage",
+        power = spec.power or 0,
+        damage_type = spec.damage_type or "magical",
+        status = spec.status,
+        interval = spec.interval or PersistentEffectsSystem.DEFAULT_INTERVAL,
+        duration = spec.duration,
+        remaining = spec.duration,
+        until_pulse = spec.interval or PersistentEffectsSystem.DEFAULT_INTERVAL,
+        visual = spec.visual
+    }
+    self.next_id = self.next_id + 1
+    table.insert(self.zones, zone)
+    self.stats.zones_added = self.stats.zones_added + 1
+    return zone
+end
+-- }}}
+
+-- {{{ PersistentEffectsSystem:units_in_zone
+-- Living units of the side the zone affects, standing inside it, in a
+-- steady order.
+function PersistentEffectsSystem:units_in_zone(zone)
+    local em = self.entity_manager
+    local inside = {}
+    local radius_sq = zone.radius * zone.radius
+    for _, entity in ipairs(em:get_entities_with_components({"position", "health", "team"})) do
+        if Unit.is_alive(em, entity) then
+            local is_enemy = em:get_component(entity, "team").player_id ~= zone.team
+            if is_enemy == (zone.effect ~= "heal") then
+                local pos = em:get_component(entity, "position")
+                local dx, dy = pos.x - zone.x, pos.y - zone.y
+                if dx * dx + dy * dy <= radius_sq then
+                    table.insert(inside, entity)
+                end
+            end
+        end
+    end
+    table.sort(inside, function(a, b) return a.id < b.id end)
+    return inside
+end
+-- }}}
+
+-- {{{ PersistentEffectsSystem:pulse_zone
+function PersistentEffectsSystem:pulse_zone(zone)
+    self.stats.zone_pulses = self.stats.zone_pulses + 1
+    local cue_source = {visual_effect = zone.visual}
+    for _, entity in ipairs(self:units_in_zone(zone)) do
+        self.stats.zone_hits = self.stats.zone_hits + 1
+        if zone.power > 0 then
+            self:apply_tick({kind = zone.effect, caster = zone.caster, target = entity, per_tick = zone.power,
+                damage_type = zone.damage_type, visual = zone.visual})
+        end
+        if zone.status and self.effect_system then
+            self.effect_system:add_effect(zone.caster, entity, zone.status,
+                zone.effect == "heal" and "buff" or "debuff", cue_source)
+        end
+    end
+end
+-- }}}
+
+-- {{{ PersistentEffectsSystem:update_zones
+function PersistentEffectsSystem:update_zones(dt)
+    local still = {}
+    for _, zone in ipairs(self.zones) do
+        local time = math.min(dt, zone.remaining)
+        zone.remaining = zone.remaining - time
+        zone.until_pulse = zone.until_pulse - time
+        while zone.until_pulse <= 1e-9 do
+            self:pulse_zone(zone)
+            zone.until_pulse = zone.until_pulse + zone.interval
+        end
+        if zone.remaining > 1e-9 then
+            table.insert(still, zone)
+        else
+            self.stats.zones_expired = self.stats.zones_expired + 1
+        end
+    end
+    self.zones = still
+end
+-- }}}
+
+-- {{{ PersistentEffectsSystem:get_zones
+-- The zones on the ground, for drawing: {x, y, radius, effect, fraction}.
+function PersistentEffectsSystem:get_zones()
+    local found = {}
+    for _, zone in ipairs(self.zones) do
+        table.insert(found, {x = zone.x, y = zone.y, radius = zone.radius, effect = zone.effect, name = zone.name,
+            fraction = zone.duration > 0 and zone.remaining / zone.duration or 0})
+    end
+    return found
+end
+-- }}}
+
 -- {{{ PersistentEffectsSystem:process_ability_activation
 -- Adds the ability's over-time effects to each target, at the strength
--- the cast was planned at.
+-- the cast was planned at, and its zone when it leaves one.
 function PersistentEffectsSystem:process_ability_activation(event)
     local ability = event.ability
     local share = (event.plan and event.plan.effect_power) or 1
+    if (ability.zone_duration or 0) > 0 and event.center then
+        local team = self.entity_manager:get_component(event.caster, "team")
+        local status
+        if ability.zone_modifiers or ability.zone_flat_modifiers then
+            status = {
+                name = ability.zone_effect_name,
+                modifiers = ability.zone_modifiers or {},
+                flat_modifiers = ability.zone_flat_modifiers or {},
+                duration = ability.zone_effect_duration
+            }
+        end
+        self:add_zone(event.caster, {
+            name = ability.name,
+            x = event.center.x, y = event.center.y,
+            radius = ability.area_radius,
+            duration = ability.zone_duration,
+            interval = ability.zone_interval,
+            effect = ability.area_effect,
+            power = ability.zone_power * share,
+            damage_type = ability.damage_type,
+            team = team and team.player_id or 0,
+            status = status,
+            visual = ability.visual_effect
+        })
+    end
     for _, target in ipairs(event.targets) do
         if (ability.damage_over_time or 0) > 0 then
             self:add(event.caster, target.entity, "damage", {
@@ -184,6 +323,7 @@ end
 -- {{{ PersistentEffectsSystem:update
 function PersistentEffectsSystem:update(dt)
     local em = self.entity_manager
+    self:update_zones(dt)
     local still = {}
     for _, effect in ipairs(self.effects) do
         local alive = Unit.is_alive(em, effect.target)

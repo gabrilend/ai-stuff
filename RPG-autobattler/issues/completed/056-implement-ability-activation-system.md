@@ -278,9 +278,38 @@ return AbilityActivationSystem
 - Add hooks for visual and audio effects
 
 ### Acceptance Criteria
-- [ ] Abilities activate automatically when mana reaches maximum
-- [ ] Mana consumption is proportional to effectiveness
-- [ ] No mana wasted on overkill damage or overhealing
-- [ ] Abilities respect range and targeting rules
-- [ ] Multiple abilities can be queued and executed in same frame
-- [ ] System performs well with 50+ units using abilities simultaneously
+- [x] Abilities activate automatically when mana reaches maximum
+- [x] Mana consumption is proportional to effectiveness
+- [x] No mana wasted on overkill damage or overhealing
+- [x] Abilities respect range and targeting rules
+- [x] Multiple abilities can be queued and executed in same frame
+- [x] System performs well with 50+ units using abilities simultaneously
+
+## What Happened
+
+Closed as already done. This issue repeats issue 048 (ability activation
+when mana is full), which PR #96 built as
+`src/systems/ability_activation_system.lua`. Nothing new was written for
+it.
+
+Where each criterion is met:
+- **Fires at a full bar:** #96. Every check, each unit's full bars are
+  tried in priority order.
+- **Mana in proportion to the effect, with no waste on overkill or
+  overheal:** #82, issue 044 (`ManaEfficiency.plan`), which the
+  activation system calls before each cast.
+- **Range and targeting rules:** #94, issue 047. Each activation asks the
+  targeting system and fires only when it finds targets.
+- **Several abilities in one frame:**
+  - `abilities_per_update` lets a unit fire more than one ability per
+    check. `tests/test_ability_activation.lua` runs it with 2.
+  - Full bars wait their turn, which serves as the queue.
+- **50+ units:** #96's test runs 200 units with three abilities each for
+  a second of play. This PR's balance test runs 100 units for ten
+  seconds.
+
+### Decisions
+- **No `ability_activator` component.** The sketch's per-unit queue is
+  covered by the bars themselves and the `abilities_per_update` and
+  global cooldown settings.
+

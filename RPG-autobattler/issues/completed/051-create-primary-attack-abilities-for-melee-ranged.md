@@ -563,13 +563,77 @@ return PrimaryAbilityBalance
 ```
 
 ### Acceptance Criteria
-- [ ] Melee primary abilities target closest enemies with appropriate range
-- [ ] Ranged primary abilities prioritize optimal targets with line-of-sight
-- [ ] Weapon types provide distinct tactical differences
-- [ ] Cleave mechanics work for multi-target melee weapons
-- [ ] Projectile mechanics handle accuracy and damage drop-off
-- [ ] Always-generating mana ensures primary abilities are reliable
+- [x] Melee primary abilities target closest enemies with appropriate range
+- [x] Ranged primary abilities prioritize optimal targets with line-of-sight
+- [x] Weapon types provide distinct tactical differences
+- [x] Cleave mechanics work for multi-target melee weapons
+- [x] Projectile mechanics handle accuracy and damage drop-off
+- [x] Always-generating mana ensures primary abilities are reliable
 - [ ] Visual and audio effects differentiate weapon types
-- [ ] Performance scales with many units using primary abilities
+- [x] Performance scales with many units using primary abilities
 - [ ] Balance between melee and ranged damage/range is appropriate
-- [ ] Integration with existing ability and targeting systems works seamlessly
+- [x] Integration with existing ability and targeting systems works seamlessly
+
+## What Happened
+
+Reconciled against the ability stack (Round 3). Most of this was already
+built there; this PR built the rest that needs no screen.
+
+Already done by earlier PRs:
+- **Primary templates:** `primary_melee_attack` and `primary_ranged_attack`
+  in `src/data/ability_templates.lua` (#101).
+- **Targeting:** damage abilities target the closest enemy in range, and
+  check line of sight by default (#94, issue 047).
+- **Always-charging primary bars** (#80, issues 041-043).
+- **Projectiles** that travel and pierce (#101, issue 049).
+
+Built here:
+- **Weapon variants**, as templates:
+  - melee: sword (the default), `axe_attack`, `dagger_attack` and
+    `spear_attack`;
+  - ranged: bow (the default), `crossbow_attack`, `sling_attack` and
+    `javelin_attack`.
+  - Each trades reach, speed (mana rate) and power. A test checks that
+    no melee weapon beats the sword at all three.
+- **Cleave** on damage abilities: `cleave_targets`, `cleave_ratio`
+  (default 0.7) and `attack_arc` (degrees, default 90). Each blow also
+  strikes the nearest enemies inside the arc and in reach. The axe
+  cleaves wide (120 degrees); the spear runs through to the enemy behind
+  (20 degrees, half damage).
+- **Accuracy and drop-off** on projectiles:
+  - `accuracy` is a chance per enemy reached. A miss flies on and can
+    still hit the next enemy.
+  - `drop_off_distance` and `drop_off_min` (default 0.7): damage falls
+    evenly from full at the drop-off distance to 70% at the ability's
+    range.
+- **Ranged primaries pick the weakest enemy in sight**
+  (`target_priority = "weakest"`), to finish kills; melee keeps the
+  closest.
+- New cue `projectile_miss`, and stats `cleave_hits` and
+  `projectile_misses` on the effect system.
+
+Tested headlessly by `tests/test_ability_variants.lua` and, in whole
+battles, by `tests/test_ability_balance.lua`. Nothing was seen or heard.
+
+### Decisions
+- **Weapons are templates, not classes.** The sketch's
+  `PrimaryMeleeAttack`, `PrimaryRangedAttack` and per-weapon modifier
+  tables become fields on the damage kind, plus a template per weapon.
+  The modifiers are baked into each template's numbers, so there is one
+  place to tune them. `weapon_type` is kept as a name for drawing and
+  sound.
+- **Ranges are scaled to this game** (melee about 15, ranged about 30,
+  matching `base_assault_system.lua`), not the sketch's 35 and 80.
+- **No close-range critical bonus for projectiles.** Damage abilities
+  already have `critical_chance`, and a second crit rule for distance
+  would be hard to tune.
+- **Unit creation integration moved to issue 067.** That issue gives
+  match units ability sets by unit type.
+
+### Left open, tracked elsewhere
+- **Visual and audio differences between weapons** need a screen. They
+  move to issue 068, which draws the effect system's cues.
+- **Melee against ranged balance** needs a person's judgement. It moves
+  to issue 055. That issue's harness currently finds the ranged sets
+  ahead.
+

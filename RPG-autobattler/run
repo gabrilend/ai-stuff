@@ -343,6 +343,20 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_mana_bar_renderer').run_all()
     " 2>/dev/null && print_success "Mana bar drawing tests passed" || print_error "Mana bar drawing tests failed"
+
+    # Test Ability variants: weapons, cleave, misses, zones (issues 051-054)
+    print_info "Testing Ability variants..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_ability_variants').run_all()
+    " 2>/dev/null && print_success "Ability variant tests passed" || print_error "Ability variant tests failed"
+
+    # Test Ability balance harness (issue 055)
+    print_info "Testing Ability balance harness..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_ability_balance').run_all()
+    " 2>/dev/null && print_success "Ability balance tests passed" || print_error "Ability balance tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
@@ -600,6 +614,24 @@ main_menu() {
 }
 # }}}
 
+# {{{ run_balance_report
+# Every ability set against every other in headless battles, with win
+# rates and advice (src/testing/ability_balance.lua). Takes a minute or so.
+run_balance_report() {
+    print_info "Running ability set round robin..."
+    (cd "$DIR" && lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    local AbilityBalance = require('src.testing.ability_balance')
+    local AbilityTemplates = require('src.data.ability_templates')
+    local sets = {}
+    for name in pairs(AbilityTemplates.sets) do sets[#sets + 1] = name end
+    table.sort(sets)
+    local round = AbilityBalance.round_robin(sets, {battles = 10})
+    for _, line in ipairs(AbilityBalance.report(round).lines) do print(line) end
+    " 2>/dev/null | grep -v 'INFO') && print_success "Balance report done" || print_error "Balance report failed"
+}
+# }}}
+
 # {{{ Main execution
 main() {
     print_header
@@ -630,6 +662,7 @@ main() {
             "features") show_implemented_features ;;
             "demo") demonstrate_systems ;;
             "perf") performance_analysis ;;
+            "balance") run_balance_report ;;
             "all") 
                 check_lua_syntax
                 analyze_project_structure  
@@ -639,7 +672,7 @@ main() {
                 ;;
             *) 
                 print_error "Unknown command: $2"
-                print_info "Available commands: test, check, unit, features, demo, perf, all"
+                print_info "Available commands: test, check, unit, features, demo, perf, balance, all"
                 exit 1
                 ;;
         esac

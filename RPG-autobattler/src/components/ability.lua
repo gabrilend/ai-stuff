@@ -229,14 +229,17 @@ end
 -- One condition against a unit's state. The state is what
 -- UnitAbilities.unit_state builds:
 --   unit_type, health_fraction, moving, still_time, combat_state,
---   active_effects (name -> effect), and enemies_within(range) and
---   allies_within(range), which count living units in range.
+--   active_effects (name -> effect), enemies_within(range) and
+--   allies_within(range), which count living units in range, and
+--   lowest_ally_health(range), the weakest ally's health (0-1) or nil.
 -- Condition types:
 --   unit_type          value is a unit type
 --   health_percentage  value is 0-100, compared with operator
 --   enemies_in_range   count within condition.range (default the
 --                      ability's range), compared with operator
 --   allies_in_range    the same for allies (not counting the unit)
+--   ally_health_below  some ally within condition.range (default the
+--                      ability's range) is below value percent health
 --   is_stationary      value true or false
 --   combat_state       value is a combat state
 --   has_effect         value is an effect name the unit carries
@@ -253,6 +256,9 @@ function Ability:check_condition(condition, state)
         local counter = kind == "enemies_in_range" and state.enemies_within or state.allies_within
         local count = counter and counter(range) or 0
         return Ability.compare(count, condition.operator or ">=", condition.value or 1)
+    elseif kind == "ally_health_below" then
+        local lowest = state.lowest_ally_health and state.lowest_ally_health(condition.range or self.range)
+        return lowest ~= nil and lowest * 100 < condition.value
     elseif kind == "is_stationary" then
         return (not state.moving) == (condition.value ~= false)
     elseif kind == "combat_state" then

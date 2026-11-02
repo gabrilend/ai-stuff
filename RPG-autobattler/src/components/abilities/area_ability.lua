@@ -6,6 +6,16 @@
 --   falloff       0-1: how much weaker the effect is at the edge than at
 --                 the centre (default 0.5, half strength at the edge)
 --   damage_type   as for damage abilities, when area_effect is "damage"
+-- A lasting zone (needs a PersistentEffectsSystem):
+--   zone_duration         seconds the circle stays after the cast
+--                         (default 0, no zone)
+--   zone_interval         seconds between the zone's pulses (default 1)
+--   zone_power            damage or healing per pulse to each unit inside
+--   zone_modifiers,       an effect each pulse puts on the units inside,
+--   zone_flat_modifiers   as for buffs and debuffs (a slow, say); it lasts
+--                         zone_effect_duration (default a pulse and a half)
+--                         so it fades soon after a unit walks out
+--   zone_effect_name      the effect's name (default the ability's + "_zone")
 -- `power` is the effect on each target at a full bar.
 local Ability = require("src.components.ability")
 local DamageAbility = require("src.components.abilities.damage_ability")
@@ -18,6 +28,13 @@ local AreaAbility = Ability.extend("area", function(ability, config)
     ability.falloff = config.falloff or 0.5
     ability.damage_type = config.damage_type or "magical"
     ability.armor_penetration = config.armor_penetration or 0
+    ability.zone_duration = config.zone_duration or 0
+    ability.zone_interval = config.zone_interval or 1
+    ability.zone_power = config.zone_power or 0
+    ability.zone_modifiers = config.zone_modifiers
+    ability.zone_flat_modifiers = config.zone_flat_modifiers
+    ability.zone_effect_duration = config.zone_effect_duration or ability.zone_interval * 1.5
+    ability.zone_effect_name = config.zone_effect_name or (ability.name .. "_zone")
 end)
 
 -- {{{ AreaAbility:distance_factor
