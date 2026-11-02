@@ -268,6 +268,13 @@ run_unit_tests() {
     print('✓ Unit entity tests passed')
     " 2>/dev/null && print_success "Unit entity tests passed" || print_error "Unit entity tests failed"
     
+    # Test Unit teams and combat detection's enemy check
+    print_info "Testing Unit teams..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_unit_teams').run_all()
+    " 2>/dev/null && print_success "Unit teams tests passed" || print_error "Unit teams tests failed"
+    
     # Test Colors constants
     print_info "Testing Colors constants..."
     lua -e "
