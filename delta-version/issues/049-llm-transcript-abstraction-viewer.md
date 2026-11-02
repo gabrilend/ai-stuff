@@ -320,3 +320,32 @@ The unified chapter structure enables future enhancements like:
 - PDF book generation with page numbers
 - Hyperlinked HTML documentation
 - Search/index functionality across all abstraction levels
+
+---
+
+## Status (2026-11-02): first slice built (049a), the rest open
+
+**Built:** `scripts/transcript-detail.lua` does detail-level filtering
+(049a) end to end. It is tested against a stand-in model
+(`scripts/libs/stand-in-model/`); no model was downloaded or run.
+
+- The local model classes each exchange of a transcript as ESSENTIAL,
+  IMPORTANT, USEFUL, VERBOSE or NOISE.
+- Levels 1–4 keep sections at or above their threshold, word for word, and
+  mark the gaps. Level 5 is the original.
+- A section that cannot be classed is kept, never hidden.
+- `--classes` saves the classes, so four levels cost one pass of the model.
+- It talks to the llama.cpp server through `libs/llama-chat-client.lua`
+  (056a), not Ollama. 049d's design pointed at Ollama's `/api/generate`,
+  which is no longer used here.
+
+**Still open:**
+
+- **049b, abstraction levels:** rewriting at high, medium or low abstraction.
+  This changes the text rather than filtering it, so it needs its own care
+  about faithfulness.
+- **049c:** chapter segmentation and interleaving.
+- **049d:** the batch pipeline over every transcript, with output files
+  laid out per level.
+- **The viewer itself:** navigating levels side by side.
+
