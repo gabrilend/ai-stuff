@@ -89,6 +89,6 @@ List format (a Lua table):
 ## Related Documents
 
 - `/home/ritz/programs/r-mail/docs/attachments.md` (consent flow), `docs/protocol.md`, `docs/.templates/scripting-tutorial.md` (hooks)
-- `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
+- `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/completed/604-asset-deduplication-system.md`, `issues/completed/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`

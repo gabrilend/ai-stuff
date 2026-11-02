@@ -149,6 +149,8 @@ print("\n=== Garbage collection ===")
 local pinned = R:store("keep me")
 R:pin(pinned)
 local lonely = R:store("nobody links to me")
+local before = R:orphans()
+test("orphans: what gc would remove (not the pinned one)", #before == 2 and R:refcounts()[ABC:sub(8)] == 7)
 local removed, freed = R:gc()
 test("gc removes what nothing links to and nothing pins", removed == 2 and freed == #big + #"nobody links to me",
     removed .. " removed, " .. freed .. " bytes")

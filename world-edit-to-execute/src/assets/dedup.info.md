@@ -29,6 +29,8 @@ loaded on first use. Linux and other POSIX systems only (links through the FFI).
 | `store:release(dest)` | a link made by `link` | true when it was a reference; the link is removed |
 | `store:references(hash)` / `refcount(hash)` | a hash | the links that lead to it now (sorted) / how many |
 | `store:list()` | — | every stored hash, oldest first, from the index |
+| `store:refcounts()` | — | `{hex -> live links}` for every linked blob, in one pass |
+| `store:orphans()` | — | the hashes `gc()` would remove now (no links, not pinned) |
 | `store:stats()` | — | `{unique_blobs, total_references, storage_bytes, naive_bytes, savings_percent, pinned}` |
 | `store:pin(hash)` / `unpin` / `pinned` | a hash | keep it from `gc()` / let it go / is it kept |
 | `store:gc()` | — | blobs removed, bytes freed; forgets references whose links are gone and rewrites `index` and `references` |

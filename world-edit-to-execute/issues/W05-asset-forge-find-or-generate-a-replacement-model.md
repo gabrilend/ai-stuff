@@ -110,4 +110,4 @@ Order: W05a and W05b in parallel; both before the fit, keep and install steps be
 ## Related Documents
 
 - `docs/datapath-asset-forge.md`, `docs/wow-client-bridge.md`
-- `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
+- `issues/completed/604-asset-deduplication-system.md`, `issues/completed/605-local-storage-manager.md`
