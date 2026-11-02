@@ -18,4 +18,4 @@ Tasks the brain knows:
 - `propose-guideline` (040)
 - `classify-section` (049)
 - `vision` (051)
-- `components` (053)
+- `components` (053), which writes each phrase as the text spells it, so matching tiers can be tested

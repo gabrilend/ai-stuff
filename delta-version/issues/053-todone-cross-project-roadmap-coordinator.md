@@ -495,3 +495,32 @@ TODONE embodies the principle of **"build once, use everywhere"**. By analyzing 
 The two-tier LLM architecture exemplifies efficient resource usage: pay for expensive reasoning once to establish structure, then use cheap local models for maintenance. This mirrors how a senior architect might sketch the big picture while junior developers handle routine updates.
 
 The Ollama-compatible output format is key to maintainability. By standardizing on a single response format, downstream processing doesn't need to know whether analysis came from a local model or a cloud API - enabling seamless scaling between accuracy and cost.
+
+---
+
+## Status (2026-11-02): first slice built (053a, and 053b's first two tiers), the rest open
+
+**Built:** `scripts/todone.lua`. It is tested against a stand-in model
+(`scripts/libs/stand-in-model/`); no model was downloaded or run.
+
+- **Scanning (053a):** each project's open issue titles and roadmap
+  headings. Completed, archived and moved issues are left out.
+- **Components (053b):** the local model, through
+  `libs/llama-chat-client.lua`, names the reusable components each project
+  plans. The names are matched by spelling (tier 1) and by
+  `config/component-synonyms.conf` (tier 2).
+- **The report:** every component two or more projects plan, with those
+  projects, as text or `--json`.
+
+**Still open:**
+
+- **053b tiers 3–4:** fuzzy matching, and asking the model about uncertain
+  pairs. There are no confidence scores yet.
+- **053c:** the shared-library roadmap.
+- **053d:** updates.
+- **053e:** the Anthropic API path.
+- **053f:** the TODO document format.
+- Choosing projects through the shared project-discovery library, once it
+  is merged (#57). Until then: named folders, or `--all` (folders with
+  `issues/`).
+
