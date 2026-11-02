@@ -39,8 +39,16 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   with it, `lesson.read`, the `lessons.md` reader 1002d deferred, so the
   counter now counts the file itself.
 
-1003b-d and all of 1004 remain: the draft form, its folder and the
-person's own promotion gate; and the phase 10 demo, which cannot be built
-until the story and lessons it shows exist end to end. 1001 and 1002
-themselves stay open for the turns that retell chapters in a model's words
-and name the mechanism behind each turning point.
+- 1003b the draft form — the house strategem form, its examples filled
+  from the recurring lessons and its prose sections left for the person
+  (`src/111-the-strategem-drafts.lua`); `machine strategems` runs it.
+- 1003c the drafts folder — one file per mechanism in strategems/drafts/;
+  a further recurrence rewrites only its examples.
+- 1003d the promotion gate — scripts/116-promote-strategem.lua, the
+  person's own step; drafting never writes in strategems/ itself.
+
+All of 1004 remains: the phase 10 demo, which also waits on the studio's
+viewer (810). 1001, 1002 and 1003 themselves stay open for the turns that
+would write in a model's words what the machine leaves to them: retelling
+chapters, naming the mechanism behind each turning point, and drafting a
+strategem's prose — and for handing kept strategems to turns as crafts.

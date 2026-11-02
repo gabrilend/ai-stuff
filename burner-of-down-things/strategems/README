@@ -1,2 +1,6 @@
 Strategems: data-flow patterns that turned out to match
 results in many different places, and so are proven useful.
+
+drafts/ holds strategems the machine drafted from lessons whose mechanism
+recurred (`machine strategems`, docs/069). A draft becomes a strategem
+here only when the person runs scripts/116-promote-strategem.lua on it.

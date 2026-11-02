@@ -117,6 +117,7 @@ local LATER_COMMAND_MODULES = {
     "056-the-update-commands",
     "061-the-center-commands",
     "107-the-story-commands",
+    "115-the-strategem-commands",
 }
 
 -- {{{ local function load_later_commands

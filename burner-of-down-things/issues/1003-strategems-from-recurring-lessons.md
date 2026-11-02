@@ -4,7 +4,21 @@
 
 ## Current Behavior
 
-`strategems/` holds the two the machine's own building taught (a referee never sees the answer; dynamic re-abstraction), written by hand. 1003a is built (issues/completed/1003a-recurrence-trigger.md): the recurrence check itself, taking any counts table shaped like 1002d's output. 1003b (the draft form), 1003c (the drafts folder) and 1003d (the promotion gate) are not yet built, so nothing is drafted automatically yet.
+All four pieces are built (issues/completed/1003a-1003d).
+`machine strategems` reads `output/story/lessons.md`, and for every
+mechanism met in two or more lessons writes a draft in the house form into
+`strategems/drafts/` (one file per mechanism; a further recurrence
+rewrites only its examples). Only the person's
+`scripts/116-promote-strategem.lua` moves a draft into `strategems/`. Both
+of this issue's tests hold (one lesson drafts nothing, a second drafts
+one; a draft never appears in `strategems/` without the person's move).
+`strategems/` still holds the four the machine's own building taught,
+written by hand.
+
+What is left: the draft's prose sections (what it means, the shape, when
+not to use it) say "not yet written" — a turn drafting them from the
+examples is not wired; and kept strategems are not yet handed to future
+turns as crafts. Kept open for those.
 
 ## Intended Behavior
 
