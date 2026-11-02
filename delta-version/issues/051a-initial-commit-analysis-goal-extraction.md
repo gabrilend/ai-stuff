@@ -545,3 +545,9 @@ EOF
 - **Complexity**: Medium
 - **Dependencies**: None
 - **Blocks**: 051b, 051c, 051d, 051e, 051f, 051g
+
+---
+
+## Status (2026-11-02)
+
+Built as `scripts/history-kernel.lua`. Its `--json` output is the structured data this issue calls kernel.json: name, first commits, README as first committed, build files, commit count, latest commit. The model's draft vision is the "optional LLM summarisation". It stays open only because it feeds 051b, which is not built.

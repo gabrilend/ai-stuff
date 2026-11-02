@@ -543,3 +543,9 @@ Each should have specific retry strategies.
 - Issue 049c: Uses this client for chapter boundary detection
 - Issue 035f: Established triple-check pattern
 - neocities-modernization: Source of Ollama config patterns
+
+---
+
+## Status (2026-11-02)
+
+The model is now reached through `scripts/libs/llama-chat-client.lua` (a llama.cpp server, issue 056a); `scripts/transcript-detail.lua` is the first tool that uses it this way. The batch pipeline itself is still open.
