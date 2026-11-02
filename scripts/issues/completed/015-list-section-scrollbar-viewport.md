@@ -87,3 +87,26 @@ The TUI menu in `menu.lua` renders all items in a section sequentially. When a "
 
 3. `issue-splitter.sh`:
    - Added `menu_set_section_max_visible "files" 10` after files section creation
+
+---
+
+## What Happened
+
+Implemented before this project moved into the monorepo, as the notes above
+describe; the work entered this repository's history whole in commit
+`c80aed9` ("The engine runs: a laptop twin proves phase 2's whole ceramic
+core"), the commit that brought the scripts folder in. No earlier commit in
+this repository touches `libs/menu.lua`, so the commit that first wrote the
+viewport is not in this history.
+
+Checked against the code at the time of closing:
+
+- `libs/menu.lua` has `state.section_scroll_offset`,
+  `state.section_max_visible`, `ensure_item_visible()` (called from every
+  navigation path) and `menu.set_section_max_visible()`.
+- `libs/lua-menu.sh` has `menu_set_section_max_visible` and sends
+  `max_visible` with each section.
+- `issue-splitter.sh` calls `menu_set_section_max_visible "files" 10`.
+
+The issue was left in `issues/` with every acceptance box ticked; this moves
+it to `completed/`.
