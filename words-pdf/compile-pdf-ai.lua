@@ -171,7 +171,7 @@ BACKGROUND_COLOR = palette.mask_color
 function load_file(book)
     local poem = {}
     local file = io.open(FILE, "r")
-    if not file then print("FILE cannot be found") end
+    if not file then error("input file cannot be opened: " .. tostring(FILE)) end
     
     for line in file:lines() do
         if line ~= string.rep("-", 80) then
@@ -179,10 +179,19 @@ function load_file(book)
         else 
             -- Process the poem to fix spacing issues
             local processed_poem = normalize_poem_spacing(poem)
-            table.insert(book.poems, processed_poem)
+            -- A block with nothing left after normalizing (image-only and
+            -- file-only posts once issue 032 strips them, or blank-only
+            -- blocks) would draw nothing yet still take 5 lines of column
+            -- height in build_book, so it is left out of the book.
+            if #processed_poem > 0 then
+                table.insert(book.poems, processed_poem)
+            end
             poem = {}
         end
     end
+    -- A last block with no delimiter after it is not loaded; the cleaned
+    -- corpus always ends with one (themes-v2/load-poem-embeddings.lua's
+    -- split_poems mirrors this).
     file:close()
 
     return book
@@ -1731,6 +1740,29 @@ end
 -- outside the poem boxes, and Issue 020 fills each box with its Tier 3
 -- color, so explicit masking after the fact is no longer needed.
 
+-- Issue 028's gate as a pure function, so tests can check it without a
+-- PDF: flattens the outside regions (bottom strip, outer margins, center
+-- gap) and keeps those whose area is at least TIER1_MIN_REGION_AREA_FRACTION
+-- of the page. Returns qualifying regions, all outside regions, and the
+-- largest outside region's area (for the "skipped" log line).
+function select_tier1_regions(spaces, page_width, page_height) -- {{{
+    local outside_regions = {}
+    for _, region in ipairs(spaces.bottom_space) do table.insert(outside_regions, region) end
+    for _, region in ipairs(spaces.left_outer)   do table.insert(outside_regions, region) end
+    for _, region in ipairs(spaces.right_outer)  do table.insert(outside_regions, region) end
+    for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
+
+    local min_area = page_width * page_height * TIER1_MIN_REGION_AREA_FRACTION
+    local qualifying_regions = {}
+    local largest_area = 0
+    for _, region in ipairs(outside_regions) do
+        local area = region.width * region.height
+        if area > largest_area then largest_area = area end
+        if area >= min_area then table.insert(qualifying_regions, region) end
+    end
+    return qualifying_regions, outside_regions, largest_area
+end -- }}}
+
 function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height, page_num) -- {{{
     local page_theme = analyze_page_themes(page_poems.left or {}, page_poems.right or {})
     progress_ui.log("🎨 Page background theme: " .. page_theme)
@@ -1746,21 +1778,9 @@ function generate_page_art(pdf_page, page_poems, page_width, page_height, margin
         -- a 30%-full page whose empty space is scattered into useless
         -- slivers gets no noisy scraps.
         local spaces = calculate_art_spaces(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift)
-        local outside_regions = {}
-        for _, region in ipairs(spaces.bottom_space) do table.insert(outside_regions, region) end
-        for _, region in ipairs(spaces.left_outer)   do table.insert(outside_regions, region) end
-        for _, region in ipairs(spaces.right_outer)  do table.insert(outside_regions, region) end
-        for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
-
+        local qualifying_regions, outside_regions, largest_area =
+            select_tier1_regions(spaces, page_width, page_height)
         local page_area = page_width * page_height
-        local min_area = page_area * TIER1_MIN_REGION_AREA_FRACTION
-        local qualifying_regions = {}
-        local largest_area = 0
-        for _, region in ipairs(outside_regions) do
-            local area = region.width * region.height
-            if area > largest_area then largest_area = area end
-            if area >= min_area then table.insert(qualifying_regions, region) end
-        end
 
         local threshold_pct = math.floor(TIER1_MIN_REGION_AREA_FRACTION * 100)
         if #qualifying_regions > 0 then
@@ -1941,5 +1961,8 @@ function main(    )
 
 end
 
-main()
-
+-- The tests (tests/run-tests) load this file for its functions and set
+-- WORDS_PDF_NO_MAIN first, so loading it there generates nothing.
+if not WORDS_PDF_NO_MAIN then
+    main()
+end

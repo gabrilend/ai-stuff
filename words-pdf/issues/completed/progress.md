@@ -244,3 +244,20 @@ Phase 1 has established a **solid foundation** for advanced chat functionality w
 **Issues Completed:** 7/7 (100%)  
 **Ready for Phase 2:** Yes  
 **Project Integration:** Seamless with Enhanced Capabilities
+---
+
+### Issue 015 (slice A): Offline Unit Tests
+**Status:** 🔶 Partly done (issue stays open in `issues/`)
+**Implementation Date:** 2026-11-02
+
+**Completed Steps:**
+- ✅ `tests/run-tests` runs every test under lua5.2, luajit and lua5.4 (missing interpreters skipped and named)
+- ✅ `tests/kit.lua` loads `compile-pdf-ai.lua` for its functions, with no PDF, server or corpus needed
+- ✅ Corpus tests: poem types, spacing normalization, `load_file`, and agreement with the embedding loader's normalizer
+- ✅ Layout tests: `build_book` invariants on seeded synthetic books, issue 028's gate, art regions on A4
+- ✅ Similarity tests: cosine similarity and both theme choosers
+- ✅ `load_file` fails clearly on a missing input file and leaves out empty blocks
+
+**Still open:** HTML-generation and navigation tests, sampling and performance checks.
+
+**Found and filed:** issue 033 (Tier 1 gate always passes because of the right margin) and issue 034 (weighted theme choice favors overused themes when every score is negative).
