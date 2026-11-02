@@ -1,0 +1,212 @@
+#!/usr/bin/env luajit
+-- update-toc
+--
+-- Checks that every document a project keeps under docs/ is listed in its
+-- docs/table-of-contents.md, and lists the ones that are not. The house rule
+-- says each new document is added to that file when it is written; this is
+-- what notices when one was not.
+--
+-- How it works, in general terms: it lists the markdown files under docs/,
+-- collects every link the table of contents makes, and compares the two
+-- (libs/table-of-contents.lua does the reading). Two things are reported: a
+-- document no link reaches, and a link that reaches no file. With --write,
+-- the unreached documents are listed in a block of their own at the end of
+-- the table, between two marker comments; nothing outside that block is
+-- touched, so the hand-written groupings and descriptions survive. A project
+-- with no table of contents at all gets one written: every document, as a
+-- nested list following the folders.
+--
+-- Dead links are reported and never removed. Whether a link is dead because
+-- the document moved, was renamed, or was meant to be written later is the
+-- owner's call, and the line around it is theirs.
+--
+-- Usage:
+--   update-toc [DIR]                      report; exit 1 if anything is unlisted
+--                                         or dead (the check, for a build)
+--   update-toc [DIR] --write              list the unlisted documents in the
+--                                         table's unfiled block, or write a whole
+--                                         table when there is none
+--   update-toc [DIR] --write --dry-run    print what --write would leave in the
+--                                         file, and change nothing
+--   update-toc [DIR] --tree               print a whole table built from the
+--                                         folders, whether or not one exists
+--   update-toc [DIR] --ignore PATTERN     leave out documents whose path from the
+--                                         project matches the Lua pattern
+--                                         (may be given more than once)
+--   update-toc -h | --help
+--
+-- Exit status: 0 nothing to report, or --write / --tree did its work (dead
+-- links, which --write does not fix, are still printed); 1 findings printed;
+-- 2 bad arguments or no docs/ folder.
+
+-- {{{ local DIR
+-- The project checked when none is given; override with the first argument.
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where the shared library lives: beside this file, so a checkout tests its
+-- own copy; the house path when this file was reached some other way.
+local SCRIPTS_DIR = (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$"))
+    or "/home/ritz/programming/ai-stuff/scripts"
+-- }}}
+
+local toc = dofile(SCRIPTS_DIR .. "/libs/table-of-contents.lua")
+
+-- {{{ local function usage
+local function usage()
+    print("usage: update-toc [DIR] [--write [--dry-run] | --tree] [--ignore PATTERN]...")
+    print("")
+    print("  (no option)   report documents the table of contents does not link to,")
+    print("                and links that reach no file; exit 1 if there are any")
+    print("  --write       list unlisted documents in the table's unfiled block,")
+    print("                or write a whole table when the project has none")
+    print("  --dry-run     with --write: print the result instead of writing it")
+    print("  --tree        print a whole table built from docs/'s folders")
+    print("  --ignore P    leave out documents whose path matches Lua pattern P")
+    print("")
+    print("DIR defaults to " .. DIR .. "; the table is DIR/" .. toc.toc_rel .. ".")
+end
+-- }}}
+
+-- {{{ local function parse_args
+local function parse_args(args)
+    local options = { project_dir = DIR, ignore = {} }
+    local i = 1
+    while i <= #args do
+        local a = args[i]
+        if a == "-h" or a == "--help" then
+            usage()
+            os.exit(0)
+        elseif a == "--write" or a == "-w" then
+            options.write = true
+        elseif a == "--dry-run" or a == "-n" then
+            options.dry_run = true
+        elseif a == "--tree" or a == "-t" then
+            options.tree = true
+        elseif a == "--ignore" then
+            if not args[i + 1] then
+                io.stderr:write("missing pattern after --ignore\n")
+                os.exit(2)
+            end
+            options.ignore[#options.ignore + 1] = args[i + 1]
+            i = i + 1
+        elseif not a:match("^%-") then
+            options.project_dir = a:gsub("/+$", "")
+        else
+            io.stderr:write("unknown option: " .. a .. "\n")
+            usage()
+            os.exit(2)
+        end
+        i = i + 1
+    end
+    if options.dry_run and not options.write then
+        io.stderr:write("--dry-run only means something with --write\n")
+        os.exit(2)
+    end
+    if options.tree and options.write then
+        io.stderr:write("--tree prints and --write writes; give one of them\n")
+        os.exit(2)
+    end
+    return options
+end
+-- }}}
+
+-- {{{ local function project_name
+-- What a written table is headed with: the project folder's own name.
+local function project_name(project_dir)
+    local abs = io.popen("cd '" .. project_dir:gsub("'", "'\\''") .. "' && pwd"):read("*l")
+    return (abs or project_dir):match("([^/]+)$") or "Project"
+end
+-- }}}
+
+-- {{{ local function write_file
+local function write_file(path, content)
+    local tmp = path .. ".update-toc-tmp"
+    local f = assert(io.open(tmp, "w"))
+    f:write(content)
+    f:close()
+    assert(os.rename(tmp, path))
+end
+-- }}}
+
+-- {{{ local function report
+-- One line per finding, paths as they appear from the project folder.
+local function report(result)
+    local lines = {}
+    if not result.toc_exists then
+        lines[#lines + 1] = toc.toc_rel .. ": does not exist"
+    end
+    for _, doc in ipairs(result.unlisted) do
+        lines[#lines + 1] = doc.rel .. ": not linked from " .. toc.toc_rel
+    end
+    for _, link in ipairs(result.dead) do
+        lines[#lines + 1] = toc.toc_rel .. ":" .. link.line .. ": link reaches no file: " .. link.target
+    end
+    for _, line in ipairs(lines) do print(line) end
+    return #lines
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    local options = parse_args(arg)
+    local project = options.project_dir
+    local docs_ok = os.execute("test -d '" .. project:gsub("'", "'\\''") .. "/docs'")
+    if docs_ok ~= 0 and docs_ok ~= true then
+        io.stderr:write("no docs/ folder in " .. project .. "\n")
+        os.exit(2)
+    end
+
+    local result = toc.check(project, options.ignore)
+
+    if options.tree then
+        io.write(toc.tree(project_name(project), result.docs))
+        os.exit(0)
+    end
+
+    if not options.write then
+        local count = report(result)
+        if count == 0 then
+            print(#result.docs .. " documents, all listed")
+        end
+        os.exit(count > 0 and 1 or 0)
+    end
+
+    -- --write: a whole table for a project without one; otherwise only the
+    -- unfiled block changes
+    local path = project .. "/" .. toc.toc_rel
+    local new_content
+    if not result.toc_exists then
+        new_content = toc.tree(project_name(project), result.docs)
+    else
+        local f = assert(io.open(path, "r"))
+        local old = f:read("*a")
+        f:close()
+        -- the block is rebuilt from the documents nothing OUTSIDE it links
+        -- to, so an entry filed above leaves it, and one still unfiled stays
+        local outside = toc.with_unfiled_block(old, "")
+        local unfiled = toc.check_text(project, outside, options.ignore).unlisted
+        new_content = toc.with_unfiled_block(old, toc.unfiled_block(unfiled))
+        if new_content == old then
+            if options.dry_run then
+                io.write(old)
+            else
+                print("unchanged: " .. path)
+            end
+            os.exit(0)
+        end
+    end
+
+    if options.dry_run then
+        io.write(new_content)
+        os.exit(0)
+    end
+    write_file(path, new_content)
+    print((result.toc_exists and "updated: " or "written: ") .. path)
+    -- dead links are not --write's to fix; say so rather than end silently
+    for _, link in ipairs(result.dead) do
+        print(toc.toc_rel .. ":" .. link.line .. ": link reaches no file: " .. link.target)
+    end
+    os.exit(0)
+end
+-- }}}
+
+main()

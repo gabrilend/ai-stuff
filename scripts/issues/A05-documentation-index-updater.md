@@ -9,8 +9,12 @@
 
 ## Current Behavior
 
-The `docs/table-of-contents.md` file must be manually updated when new
-documentation is added. CLAUDE.md requires: "every time a new document
+Built (2026-11-02). `update-toc` checks any project's `docs/` against its
+`docs/table-of-contents.md` and lists what the table does not link to; see
+*What Happened* at the end for how it departs from the plan below.
+
+Before that, the `docs/table-of-contents.md` file had to be manually updated
+when new documentation was added. CLAUDE.md requires: "every time a new document
 is created, it should be added to the tree-hierarchy structure present
 in /docs/table-of-contents.md"
 
@@ -310,16 +314,16 @@ docs/
 
 ## Acceptance Criteria
 
-- [ ] Script lives in shared scripts directory
-- [ ] Symlink created in project src/cli/
-- [ ] Scans docs directory recursively
-- [ ] Extracts document titles from H1 headings
-- [ ] Generates tree-style hierarchy
-- [ ] Updates existing TOC file
-- [ ] Preserves manual annotations
-- [ ] Check mode for CI integration
-- [ ] Works as both CLI and library
-- [ ] Project-abstract configuration
+- [x] Script lives in shared scripts directory
+- [ ] Symlink created in project src/cli/ (not done: other projects' folders)
+- [x] Scans docs directory recursively
+- [x] Extracts document titles from H1 headings
+- [x] Generates tree-style hierarchy (as a nested list)
+- [x] Updates existing TOC file (its unfiled block only)
+- [x] Preserves manual annotations
+- [x] Check mode for CI integration
+- [x] Works as both CLI and library
+- [x] Project-abstract configuration
 
 ---
 
@@ -332,3 +336,57 @@ Consider running as a git pre-commit hook to keep TOC always current.
 
 The preservation of manual sections (via HTML comments) allows for
 custom descriptions or notes that shouldn't be auto-generated.
+
+---
+
+## What Happened
+
+Built on 2026-11-02 as two files, following the house split between a
+shared reader and the tool over it (`libs/issue-names.lua` and
+`validate-issues`):
+
+- `libs/table-of-contents.lua` -- lists the documents under `docs/`, reads
+  their titles, collects every link the table makes, and compares them.
+- `update-toc` -- the command: a report by default (exit 1 on findings),
+  `--write`, `--write --dry-run`, `--tree`, `--ignore PATTERN`, `--help`.
+- `tests/test_update-toc.lua` -- 32 checks against throwaway projects.
+
+**Decisions made while building it:**
+
+- *It does not regenerate a table that exists.* All 28 tables in the
+  monorepo are written by hand, grouped under headings that mean something
+  to their project, most entries with a sentence of description, some with
+  status marks. Regenerating from the file tree would destroy that, and an
+  HTML-comment "manual section" (step 7) would only save text the owner
+  remembered to fence off. So the tool finds the gaps instead: documents the
+  table does not link to, and links that reach no file. `--write` owns one
+  marked block at the end of the table, "Not Yet Filed", rebuilt each run
+  from the documents nothing outside it links to; filing an entry by hand
+  moves it out, and an empty block disappears. This is what "preserves
+  manual annotations" needed to mean on the tables that actually exist.
+- *A whole table only where there is none*, and as a nested markdown list,
+  not the box-drawn tree in a code block sketched in step 6: a link inside a
+  code block does not render as a link, so that output would have listed
+  every document and linked none.
+- *No "Last updated" line.* A stamp of when a tool ran is not a fact about
+  the documents, and makes an unchanged table differ every run -- the
+  transcript exporter's "Generated on" line caused 80% of one project's
+  transcript churn before it was stepped over (issue 020).
+- *Dead links are reported, never removed*, by `--write` too: whether a link
+  is dead because the document moved or because it is planned is the
+  owner's call.
+- *Named `update-toc`, no `.lua` suffix*, like `validate-issues`, the more
+  recent house tool; the library is loaded with `dofile`, not `require`.
+- *Finds its library beside itself* (falling back to the house path), so a
+  checkout or worktree tests its own copy.
+- *No `-I` mode.* There is nothing to choose: the report is the whole
+  interaction.
+- *Not done:* symlinking it into each project's `src/cli/` (step 1). That
+  touches every project's folder, and the tool already takes the project as
+  its first argument.
+
+**Tried on the monorepo, read-only:** delta-version reports 2 unlisted
+documents and 15 dead links (issues that have since moved into
+`completed/`); dark-volcano reports its symlinked `delta-guide.md` as
+unlisted. Nothing was written to either.
+
