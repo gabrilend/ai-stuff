@@ -475,3 +475,30 @@ When a source file contains `-- ===== phase 0 issue files =====`:
 - Create narrative documentation that interleaves source explanations with related issues
 - Future: PDF generation with page number cross-references
 - Enable "this section is referenced in issue 1234" style documentation
+
+---
+
+## What Happened
+
+**2026-11-02 — phases now come from the shared issue-name reader.**
+
+The `get_issue_phase()` described above (first digit is the phase; a dashed
+`P-NNN` name gives its own phase) was this script's private copy of the
+rule. It is replaced by `scripts/libs/issue-names.lua`, the reader the
+progress dashboard and the issue validator use. That was the leftover
+named when issue 048 was closed. The phase lists after a divider now:
+
+- include issues filed in `phase-N/` folders, and in folders nested under
+  `completed/`. The old search looked only in `issues/` and
+  `issues/completed/`.
+- file a `phase-N/` issue under that folder's phase, even when its name
+  says otherwise;
+- read a dashed name like `10-004-x` as phase 10. The old file-name
+  pattern took the `10` as the whole id, which put the issue in phase 0;
+- settle an ambiguous compact name like `1001` the way the rest of the
+  tools do;
+- leave out retired issues (superseded, declined, archive), as before,
+  where they were never searched;
+- sort by issue number within the phase, then by sub-issue letter.
+
+Tested by `scripts/test-generate-readme-toc.sh` (12 checks).
