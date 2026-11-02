@@ -40,15 +40,13 @@ footprint.STANDIN = { tower = 4, small = 6, medium = 8, altar = 8, special = 8, 
 local ALL = 0x02 + 0x04 + 0x08
 
 -- {{{ the map's pathing map (war3map.wpm)
+-- Read by the pathing map reader (parsers/wpm.lua, issue 119); nil for a
+-- file it refuses, as before.
 function footprint.parse_wpm(data)
-    if not data or #data < 16 or data:sub(1, 4) ~= "MP3W" then return nil end
-    local function i32(p)
-        local a, b, c, d = data:byte(p, p + 3)
-        return a + b * 256 + c * 65536 + d * 16777216
-    end
-    local w, h = i32(9), i32(13)
-    if #data < 16 + w * h then return nil end
-    return { w = w, h = h, bytes = data:sub(17, 16 + w * h) }
+    if type(data) ~= "string" then return nil end
+    local ok, pm = pcall(require("parsers.wpm").parse, data)
+    if not ok then return nil end
+    return { w = pm.width, h = pm.height, bytes = pm.cells }
 end
 
 -- the flags of the cell at a world point, or nil without a map

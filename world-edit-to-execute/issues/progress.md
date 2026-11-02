@@ -145,6 +145,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 117 | Read WC3 textures (BLP1) | Pending | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
+| 119 | Readers for the pathing map, shadow map and minimap icons (found by A06) | **Completed** 2026-11-02 | — |
 
 Phase 1 was reopened on 2026-09-24 for the stock-table work that converting
 custom maps needs (112) and the reader work it uncovered (113). Comparing the
