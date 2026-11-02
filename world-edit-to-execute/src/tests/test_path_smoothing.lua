@@ -167,6 +167,22 @@ test("L-shape is not collinear", not smooth.are_collinear(p1, p2, p3))
 -- Non-collinear (diagonal turn)
 p1, p2, p3 = {x=0, y=0}, {x=1, y=1}, {x=2, y=1}
 test("diagonal turn is not collinear", not smooth.are_collinear(p1, p2, p3))
+
+-- Fractional coordinates: rounding leaves the cross product a hair off
+-- zero, and the points still count as in line (issue 410, debt D-2)
+p1, p2, p3 = {x=0.1, y=0.3}, {x=0.4, y=1.2}, {x=0.7, y=2.1}
+local raw = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
+test("fractional points in line: their raw cross product isn't zero", raw ~= 0, tostring(raw))
+test("fractional points in line are collinear", smooth.are_collinear(p1, p2, p3))
+
+-- The tolerance doesn't depend on scale: a small turn far out, a tiny
+-- path near the origin
+p1, p2, p3 = {x=0, y=0}, {x=1000, y=0}, {x=2000, y=0.01}
+test("a slight bend on a long path is not collinear", not smooth.are_collinear(p1, p2, p3))
+p1, p2, p3 = {x=0, y=0}, {x=0.001, y=0}, {x=0.002, y=0.0001}
+test("a turn on a tiny path is not collinear", not smooth.are_collinear(p1, p2, p3))
+p1, p2, p3 = {x=0, y=0}, {x=0, y=0}, {x=5, y=3}
+test("a repeated point is in line with anything", smooth.are_collinear(p1, p2, p3))
 -- }}}
 
 -- {{{ Remove Collinear Tests
@@ -189,6 +205,22 @@ path = {{x=0, y=0}, {x=1, y=0}, {x=2, y=0}, {x=2, y=1}, {x=2, y=2}}
 smoothed = smooth.remove_collinear(path)
 test("L-shape keeps corner", #smoothed == 3)
 test("L-shape corner at (2,0)", smoothed[2].x == 2 and smoothed[2].y == 0)
+
+-- A straight line of fractional points (world coordinates)
+path = {}
+for i = 0, 9 do path[#path + 1] = {x=0.1 + 0.3 * i, y=0.3 + 0.9 * i} end
+smoothed = smooth.remove_collinear(path)
+test("a fractional straight line reduces to 2 points", #smoothed == 2, #smoothed .. " points")
+
+-- A path that doubles back along its own line keeps the turn
+path = {{x=0, y=0}, {x=3, y=0}, {x=1, y=0}}
+smoothed = smooth.remove_collinear(path)
+test("doubling back keeps the turning point", #smoothed == 3 and smoothed[2].x == 3)
+
+-- A repeated point is dropped
+path = {{x=0, y=0}, {x=1, y=0}, {x=1, y=0}, {x=2, y=0}}
+smoothed = smooth.remove_collinear(path)
+test("a repeated point on a straight line is dropped", #smoothed == 2)
 
 -- Already minimal path
 path = {{x=0, y=0}, {x=5, y=0}}

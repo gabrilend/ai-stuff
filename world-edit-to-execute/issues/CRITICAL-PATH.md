@@ -718,8 +718,9 @@ retire 802 now?
 `B01-the-phantom-priority.md`
 
 The roster lists two bounties as unclaimed that are completed. The quest log's
-paths still resolve. The bounty's bug is real (debt D-1). Keep them as the
-way newcomers find work, or archive them and make D-1 an ordinary bugfix?
+paths still resolve. The bounty's bug was real (debt D-1) and was fixed by
+bounty B01 on 2026-09-29 (noted 2026-11-02). Keep the guild files as the
+way newcomers find work, or archive them?
 
 ### Q-8: Phase 7 leftovers from before the pivot
 **Affects:** ghost and spirit rules
@@ -734,39 +735,28 @@ answered if death rules come back.
 
 ## 4. Known Debt
 
-Bugs knowingly left in the code. Each names the line as of 2026-09-26.
+Bugs knowingly left in the code. Each names the line as of when it was
+written down.
 
-### D-1: A better path does not move a queued point forward
-**Where:** `src/runtime/pathfinding/astar.lua`, around lines 355-358
-**Tracking:** bounty B01
-
-When the pathfinder finds a shorter route to a point already waiting in its
-queue, it records the shorter distance but leaves the point at its old place
-in the queue. The point is then taken out later than it should be, and the
-search does extra work. The two standard remedies: move the point up in the
-heap (a heap that can find and re-sort one entry), or push it a second time
-and skip stale copies when they come out (costs memory).
-
-### D-2: Straight-line test compares to exactly zero
-**Where:** `src/runtime/pathfinding/smooth.lua`, line 80
-
-Path smoothing drops a middle point when three points are in line, by
-testing the cross product for exactly zero. With fractional coordinates,
-rounding makes that rare, so some straight runs keep points they could drop.
-Remedy: compare against a small threshold.
-
-### D-3: Reading four bytes without checking there are four
-**Where:** `src/compat.lua`, the LuaJIT branch of the 32-bit readers (around
-line 168)
-
-On LuaJIT the readers take four bytes without checking the data is long
-enough. A truncated file fails on arithmetic with a missing value, which
-names the wrong cause. Remedy: check the length and raise an error that says
-the file is truncated and where.
+None open as of 2026-11-02.
 
 Fixed since the January version: the timer that was never removed (bounty B02)
 and the component defaults shared by every entity (bounty B03; each entity
 now gets its own deep copy).
+
+Fixed since 2026-09-26:
+- **D-1, a better path did not move a queued point forward**
+  (`src/runtime/pathfinding/astar.lua`): bounty B01, 2026-09-29, by lazy
+  deletion. It also stopped A* returning a path longer than the shortest
+  (`issues/completed/B01-the-phantom-priority.md`).
+- **D-2, the straight-line test compared to exactly zero**
+  (`src/runtime/pathfinding/smooth.lua`): issue 410, 2026-11-02. It now
+  compares the sine of the angle to a tolerance, and a path that doubles
+  back keeps its turn.
+- **D-3, the binary readers read four bytes without checking there were
+  four** (`src/compat.lua`): issue 118, 2026-11-02. A short read now
+  raises "truncated data", naming the byte and the parser's line, on
+  LuaJIT and on Lua 5.3+.
 
 ---
 
