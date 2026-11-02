@@ -117,6 +117,9 @@ end
 -- }}}
 
 package.path = SCRIPTS_DIR .. "/libs/?.lua;" .. package.path
+-- The interpreter running this file, so the locked re-run below runs under
+-- the same one: arg[-1] is it, however the file was started.
+local INTERPRETER = (arg and arg[-1]) or "luajit"
 local ledger = require("own-lines-ledger")
 local patch = require("own-changes-patch")
 
@@ -189,7 +192,7 @@ local function with_lock(session_id)
         fail("a commit message is required: -F <file>, -F - (standard input) or -m <message>")
     end
     local argv = { "flock", "-w", LOCK_WAIT_SECONDS, common .. "/commit-own-changes.lock",
-        "env", "COMMIT_OWN_CHANGES_LOCKED=1", "luajit", arg[0], DIR, "-F", msg_path,
+        "env", "COMMIT_OWN_CHANGES_LOCKED=1", INTERPRETER, arg[0], DIR, "-F", msg_path,
         "--scripts-dir", SCRIPTS_DIR }
     if leave_mixed then argv[#argv + 1] = "--leave-mixed" end
     if no_verify then argv[#argv + 1] = "--no-verify" end
@@ -204,9 +207,11 @@ local function with_lock(session_id)
     end
     local line = {}
     for i, w in ipairs(argv) do line[i] = shell_quote(w) end
-    local ok, _, code = os.execute(table.concat(line, " "))
+    -- os.execute answers in a different shape under LuaJIT than under Lua
+    -- 5.2+; exit_status reads both, so a commit that worked exits 0
+    local code = patch.exit_status(os.execute(table.concat(line, " ")))
     os.remove(msg_path)
-    os.exit((ok == true or code == 0) and 0 or (code or 1))
+    os.exit(code)
 end
 -- }}}
 

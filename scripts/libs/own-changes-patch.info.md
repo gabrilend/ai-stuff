@@ -71,6 +71,7 @@ anyone's to tangle with.
 | `transcript_projects(top, session_dir, files)` | repository root, the session's folder (any spelling; resolved with `realpath`), committed files | set of repository-relative project folders, or nil and a reason |
 | `changed_transcripts(top, tip, ids, projects)` | repository root, commit id to compare against, that id set, that project set | sorted list of **transcript entry**, one per transcript that differs from `tip` or is untracked and belongs to a project in the set or to this session; or nil and a reason (read-only) |
 | `transcript_report_line(t)` | a **transcript entry** | one report line: path and whose it is, or that it is gone |
-| `run(argv, env)` | argument list, optional environment table | output (stderr folded in), success |
+| `exit_status(...)` | whatever `os.execute` returned | the exit code, read the same under LuaJIT (a bare wait status) and Lua 5.2+ (`true`/`nil`, `"exit"`, code); 128 + signal when killed |
+| `run(argv, env)` | argument list, optional environment table | output (stderr folded in), success — the exit code is printed by the shell after the command and cut off, because LuaJIT's pipe close says `true` whatever happened |
 | `run_quiet(argv, env)` | argument list, optional environment table | stdout, success, stderr — for output that is data |
 | `command_line(argv, env)` | argument list, optional environment table | one quoted shell command line |

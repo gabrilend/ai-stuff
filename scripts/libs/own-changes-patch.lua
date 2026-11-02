@@ -82,14 +82,53 @@ function M.command_line(argv, env)
 end
 -- }}}
 
+-- {{{ function M.exit_status()
+-- The exit code of a finished command, from whatever os.execute returned.
+--
+-- The two interpreters answer in different shapes, and reading one as the
+-- other is silent: LuaJIT returns the bare wait status, a number (0 when the
+-- command succeeded, 256 for exit 1, 768 for exit 3), where Lua 5.2 and later
+-- return true or nil, then "exit" or "signal", then the code. Code that looks
+-- for `true` sees every LuaJIT success as a failure, and code that looks for
+-- a truthy first value sees every LuaJIT failure as a success, since 0 and
+-- 768 are both true in Lua. A command killed by a signal answers 128 plus the
+-- signal, as a shell would.
+function M.exit_status(first, kind, code)
+    if type(first) == "number" then
+        if first % 256 == 0 then return math.floor(first / 256) end
+        return 128 + first % 128
+    end
+    if kind == "exit" and type(code) == "number" then return code end
+    if kind == "signal" and type(code) == "number" then return 128 + code end
+    return first and 0 or 1
+end
+-- }}}
+
+-- {{{ local function popen_with_status()
+-- Runs a shell command line through io.popen and returns everything it wrote
+-- to standard output, and its exit code.
+--
+-- The code is not taken from closing the pipe, because LuaJIT's close says
+-- true whatever the command did -- which is how a refusing commit hook used
+-- to read as passed. Instead the shell itself prints the code after the
+-- command finishes, behind a NUL byte that ordinary output does not contain,
+-- and it is cut off the end here.
+local function popen_with_status(line)
+    local handle = io.popen("{ " .. line .. "\n}; printf '\\000%d' \"$?\"", "r")
+    local out = handle:read("*a")
+    handle:close()
+    local body, code = out:match("^(.*)%z(%d+)$")
+    if not body then return out, 1 end
+    return body, tonumber(code)
+end
+-- }}}
+
 -- {{{ function M.run()
 -- Runs a command; returns its output (standard error folded in, so a failure
 -- explains itself) and whether it exited 0.
 function M.run(argv, env)
-    local handle = io.popen(M.command_line(argv, env) .. " 2>&1", "r")
-    local out = handle:read("*a")
-    local ok, _, code = handle:close()
-    return out, (ok == true or code == 0)
+    local out, code = popen_with_status(M.command_line(argv, env) .. " 2>&1")
+    return out, code == 0
 end
 -- }}}
 
@@ -99,14 +138,12 @@ end
 -- Returns stdout, whether it exited 0, and stderr.
 function M.run_quiet(argv, env)
     local err_path = os.tmpname()
-    local handle = io.popen(M.command_line(argv, env) .. " 2> " .. shell_quote(err_path), "r")
-    local out = handle:read("*a")
-    local ok, _, code = handle:close()
+    local out, code = popen_with_status(M.command_line(argv, env) .. " 2> " .. shell_quote(err_path))
     local ef = io.open(err_path, "r")
     local err = ef and ef:read("*a") or ""
     if ef then ef:close() end
     os.remove(err_path)
-    return out, (ok == true or code == 0), err
+    return out, code == 0, err
 end
 -- }}}
 

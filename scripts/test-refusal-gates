@@ -15,8 +15,10 @@
 # reference gate, and the commit gate (which turns every recording git commit
 # away toward commit-own-changes). The ledger and the commit route need
 # scratch repositories and live in tests/test-own-lines.sh,
-# tests/test-commit-own-changes.sh and tests/test-adopt-left-behind.sh (taking
-# over work a finished session left), which this script runs at the end. The
+# tests/test-commit-own-changes.sh, tests/test-adopt-left-behind.sh (taking
+# over work a finished session left) and tests/test-commit-exit-status.sh
+# (the same answers under LuaJIT and Lua 5.4), which this script runs at the
+# end. The
 # shell-word reader all of them share is tested by
 # tests/test_shell-command-scan.lua, also run at the end.
 #
@@ -400,6 +402,12 @@ if bash "${DIR}/tests/test-adopt-left-behind.sh" "${DIR}" > "${SCRATCH}/adopt.lo
 else
     cat "${SCRATCH}/adopt.log"
     check "tests/test-adopt-left-behind.sh passes" no
+fi
+if bash "${DIR}/tests/test-commit-exit-status.sh" "${DIR}" > "${SCRATCH}/exit-status.log" 2>&1; then
+    check "tests/test-commit-exit-status.sh passes ($(tail -1 "${SCRATCH}/exit-status.log"))" yes
+else
+    cat "${SCRATCH}/exit-status.log"
+    check "tests/test-commit-exit-status.sh passes" no
 fi
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"
