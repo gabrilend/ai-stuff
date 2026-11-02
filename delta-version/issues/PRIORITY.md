@@ -45,7 +45,7 @@ reading a number here:
 | 040, 040a–i | Self-revising CLAUDE.md | Overlaps Claude Code's own memory and CLAUDE.md handling. |
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
-| 022 | Ticket distribution: master script and git triggers | 016–021 are done: `scripts/distribute-ticket.lua` (dry run, ledger, undo), its menu `scripts/ticket-menu.sh`, and the suite `scripts/test-ticket-chain.sh`. 022 remains. |
+| 022 | Ticket distribution: master script and git triggers | 016–021 are done: `scripts/distribute-ticket.lua` (dry run, ledger, undo), its menu `scripts/ticket-menu.sh`, and the suite `scripts/test-ticket-chain.sh`. Decision needed: 022's core is filing tickets automatically from git hooks, which changes what a commit does across the monorepo. Should that happen at all? A master script alone would only wrap the two tools. |
 | 038 | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
 | 039 | Multi-location ai-stuff integration | Unstarted. |
 
