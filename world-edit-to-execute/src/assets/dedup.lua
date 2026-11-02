@@ -597,6 +597,18 @@ function Store:verify()
 end
 -- }}}
 
+-- {{{ function dedup.hash / dedup.hash_file
+-- The hash a store would file BYTES (or the file at PATH) under, without
+-- storing it: for checking a download against a published hash first.
+function dedup.hash(bytes)
+    return dedup.PREFIX .. sha().of_string(bytes)
+end
+
+function dedup.hash_file(path)
+    return dedup.PREFIX .. sha().of_file(path)
+end
+-- }}}
+
 -- {{{ the module-level store
 -- dedup.init(folder) opens one store that dedup.store(...), dedup.exists(...)
 -- and the rest then use, as issue 604 sketches the API. With no folder it

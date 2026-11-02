@@ -87,13 +87,13 @@ The parts:
 
 ## Acceptance Criteria
 
-- [ ] The source list is a reviewable data file with each site's quoted terms
-- [ ] At least one source is read within its terms, producing catalogue entries for maps
-- [ ] At least one source produces catalogue entries for models
-- [ ] A chosen map downloads, is stored by hash, and parses
-- [ ] A chosen model downloads, is stored by hash, reads through the model reader (116), and its textures decode (117)
-- [ ] A "visit by hand" source is never fetched, and a test proves it
-- [ ] Requests carry the tool's name and nothing about the person
+- [ ] The source list is a reviewable data file with each site's quoted terms (the file is `src/fetch/sources.lua`; the terms wait on the owner's review)
+- [ ] At least one source is read within its terms, producing catalogue entries for maps (a folder on disk does; no public site yet)
+- [ ] At least one source produces catalogue entries for models (a folder on disk does; no public site yet)
+- [x] A chosen map downloads, is stored by hash, and parses (from a source on disk; decision 1)
+- [x] A chosen model downloads, is stored by hash, reads through the model reader (116), and its textures decode (117) (from a source on disk; decision 1)
+- [x] A "visit by hand" source is never fetched, and a test proves it
+- [x] Requests carry the tool's name and nothing about the person
 
 ## Open Questions
 
@@ -126,6 +126,71 @@ The parts:
 - `issues/superseded/607-file-server-application.md` (retired)
 - `docs/licensing-and-boundaries.md` (content rights)
 - `issues/CRITICAL-PATH.md` (question Q-2, answered 2026-09-26)
+
+## Implementation Notes
+
+**Date:** 2026-11-02. **Built:** steps 2, 4 and 5, the frame of steps 1
+and 3. **Waits on the owner:** the review of the source list (step 1),
+before any site adapter (step 3) is written or any site is fetched.
+
+- **`src/fetch/sources.lua`:** the six candidate sites from open question
+  1, each `"unreviewed"`, with `terms` and `robots` empty until the review.
+- **`src/fetch/catalogue.lua`:** the entry format above, with a writer and
+  a reader (the reader is what 1001 uses). A catalogue is read as plain
+  data, with no access to anything.
+- **`src/fetch/init.lua`:** the folder source (a folder of maps and models
+  on disk becomes a catalogue), the network rule, the checks and the
+  downloader, storing through 605's storage (and so 604's store).
+- **`src/fetch/zip.lua`:** reads a downloaded `.zip` (stored and deflated
+  entries, CRC-checked), on the monorepo's own inflate.
+- **`src/cli/fetch.lua`:** `sources`, `scan`, `list`, `download`.
+- **`src/assets/dedup.lua`:** `dedup.hash` and `dedup.hash_file`, to check a
+  download against a published hash before storing it.
+- **`src/tests/test_fetch.lua`** (38 tests): every site starts unreviewed
+  and isn't fetched even with `--network`; a "visit by hand" site isn't
+  either; nothing goes over the network without `--network`; an address
+  off the reviewed site and plain HTTP are refused; the one request made
+  (through a stand-in runner, so no network is touched) names the tool and
+  carries no headers, cookies or referrer; a folder becomes a catalogue
+  that reads back, and a catalogue that tries to run code doesn't load; a
+  test map downloads, is stored by hash and opens from storage; a text
+  file named `.w3x` is refused, naming the file and the reason, and stores
+  nothing; a hash mismatch is refused; a model in a `.zip` (one entry
+  deflated, textures in folders and flattened) reads and its textures
+  decode; a damaged texture is refused; stock textures are read from an
+  install when there is one and listed as unverified when there isn't.
+
+### Decisions made while building
+
+1. **Local files only, unless asked.** No site's terms have been read yet
+   (step 1 is the owner's review), so every site in the source list is
+   `"unreviewed"` and is never fetched. A network fetch needs both a site
+   marked `"allowed"` at the review and `--network` from the player. Until
+   then, the source that works is a folder on disk: maps and models the
+   player already has (downloaded by hand, say) are catalogued, checked and
+   stored the same way a fetched one will be.
+2. **No site adapter is written before the review.** An adapter written
+   against a site's pages without reading its terms first would be the
+   thing step 1 exists to prevent; the finder's interface is the
+   catalogue (`{source, entries}`), which the folder source already
+   produces.
+3. **The fetch is `curl`**, over HTTPS only (redirects too), with the
+   tool's name as the user agent and nothing else: a well-known program
+   the system has, not a new library.
+4. **The checks run before storing**, so a refused download leaves nothing
+   behind. A published hash, when a source gives one, is a new optional
+   field, `published_hash`.
+5. **Stock textures without an install are listed, not refused.** A model
+   naming `Textures\Footman.blp` expects the player's own game to supply
+   it; with an install here it is read and must decode, and without one
+   the entry records it under `checked.stock_unverified`. Textures that
+   come in the download must always decode.
+6. **Where downloads go:** a map in `maps/<title>/`, a model in an asset
+   pack per source, `asset-packs/fetched-<source>/<title>/`, so the
+   storage manager (605) shows each source's downloads together and
+   deleting them is one command.
+7. **Catalogues are written to `<player data>/catalogue/`**, the user's
+   data folder the issue names.
 
 ---
 
