@@ -376,9 +376,17 @@ return UnitStateComponent
 - Early exit when mana is already at maximum
 
 ### Acceptance Criteria
-- [ ] Ranged units only generate secondary mana when stationary for ≥0.25 seconds
-- [ ] Melee units only generate secondary mana when enemies within 55 units
-- [ ] Bonus generation rates apply correctly for tactical positioning
-- [ ] State transitions (moving→stationary, in range→out of range) work smoothly
-- [ ] System handles edge cases (no enemies, no allies, unit death)
-- [ ] Performance scales well with 100+ units
+- [x] Ranged units only generate secondary mana when stationary for ≥0.25 seconds
+- [ ] Melee units only generate secondary mana when enemies within 55 units -- kept at each type's engagement range (12-20) instead; see Decisions
+- [x] Bonus generation rates apply correctly for tactical positioning (two bonuses; see Decisions)
+- [x] State transitions (moving→stationary, in range→out of range) work smoothly
+- [x] System handles edge cases (no enemies, no allies, unit death)
+- [x] Performance scales well with 100+ units
+## What Happened
+
+Built together with issue 042; see its What Happened for the details and
+decisions. Summary: ranged units wait 0.25 s after stopping; the melee
+reach stays at each type's engagement range rather than 55; two bonuses
+(ranged in combat +20%, melee outnumbered +15%); state changes take effect
+the same frame; a dead unit's mana empties. Tested by
+`tests/test_mana_conditions.lua`.

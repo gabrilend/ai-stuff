@@ -8,6 +8,9 @@
 --                           or not.
 -- A full bar stays full until an ability spends it (issue 048), so no mana
 -- is generated past the top and none is lost while waiting for a target.
+-- Issues 042 and 043 add: ranged units must have stood still for a quarter
+-- of a second; secondary bars charge faster in combat (see BONUS); and a
+-- dead unit's bars empty. docs/mana-generation-rules.md sets the rules out.
 local ManaSystem = {}
 
 local Unit = require("src.entities.unit")
@@ -34,8 +37,24 @@ ManaSystem.REACH = {
     special = 20
 }
 
--- Below this speed (pixels per second) a unit counts as standing still.
+-- How far a ranged-style unit can shoot: an enemy this close while it
+-- stands still means it is in combat. Matches combat_detection_system.lua.
+ManaSystem.ATTACK_RANGE = {
+    ranged = 30,
+    support = 25
+}
+
+-- Below this speed (pixels per second) a unit counts as standing still,
+-- and it must stay still this many seconds before ranged charging starts.
 ManaSystem.STILL_SPEED = 0.1
+ManaSystem.STILL_TIME = 0.25
+
+-- Extra charging speed for the secondary bars (issues 042 and 043).
+ManaSystem.BONUS = {
+    ranged_in_combat = 0.2,     -- still, with an enemy in shooting range
+    melee_outnumbered = 0.15    -- two or more enemies within reach
+}
+ManaSystem.OUTNUMBERED_COUNT = 2
 -- }}}
 
 -- {{{ Bar colors by ability type
@@ -69,79 +88,179 @@ function ManaSystem.get_style(unit_type)
 end
 -- }}}
 
--- {{{ ManaSystem:is_standing_still
-function ManaSystem:is_standing_still(entity)
+-- {{{ ManaSystem:get_speed
+function ManaSystem:get_speed(entity)
     local moveable = self.entity_manager:get_component(entity, "moveable")
     if not moveable then
-        return true
+        return 0
     end
     local vx, vy = moveable.velocity_x or 0, moveable.velocity_y or 0
-    return vx * vx + vy * vy < ManaSystem.STILL_SPEED * ManaSystem.STILL_SPEED
+    return math.sqrt(vx * vx + vy * vy)
+end
+-- }}}
+
+-- {{{ ManaSystem:is_standing_still
+-- True when the unit is not moving this frame (it may not yet have been
+-- still long enough to charge; see STILL_TIME).
+function ManaSystem:is_standing_still(entity)
+    return self:get_speed(entity) < ManaSystem.STILL_SPEED
+end
+-- }}}
+
+-- {{{ ManaSystem:snapshot_units
+-- Every living unit's team and position, read once per update so each
+-- unit's range checks do not query the entity manager again.
+function ManaSystem:snapshot_units()
+    local em = self.entity_manager
+    local snapshot = {}
+    for _, other in ipairs(em:get_entities_with_components({"position", "health", "team"})) do
+        if Unit.is_alive(em, other) then
+            local pos = em:get_component(other, "position")
+            table.insert(snapshot, {entity = other, team = Unit.get_team_id(em, other), x = pos.x, y = pos.y})
+        end
+    end
+    return snapshot
+end
+-- }}}
+
+-- {{{ ManaSystem:count_enemies_within
+function ManaSystem:count_enemies_within(entity, range, snapshot)
+    local em = self.entity_manager
+    local position = em:get_component(entity, "position")
+    if not position then
+        return 0
+    end
+    snapshot = snapshot or self:snapshot_units()
+    local team_id = Unit.get_team_id(em, entity)
+    local range_sq = range * range
+    local count = 0
+    for _, other in ipairs(snapshot) do
+        if other.entity ~= entity and other.team ~= team_id then
+            local dx, dy = other.x - position.x, other.y - position.y
+            if dx * dx + dy * dy <= range_sq then
+                count = count + 1
+            end
+        end
+    end
+    return count
 end
 -- }}}
 
 -- {{{ ManaSystem:has_enemy_in_reach
-function ManaSystem:has_enemy_in_reach(entity, reach)
-    local em = self.entity_manager
-    local position = em:get_component(entity, "position")
-    if not position then
-        return false
-    end
-    local team_id = Unit.get_team_id(em, entity)
-    local reach_sq = reach * reach
-    for _, other in ipairs(em:get_entities_with_components({"position", "health", "team"})) do
-        if other ~= entity and Unit.get_team_id(em, other) ~= team_id and Unit.is_alive(em, other) then
-            local other_pos = em:get_component(other, "position")
-            local dx, dy = other_pos.x - position.x, other_pos.y - position.y
-            if dx * dx + dy * dy <= reach_sq then
-                return true
-            end
+function ManaSystem:has_enemy_in_reach(entity, reach, snapshot)
+    return self:count_enemies_within(entity, reach, snapshot) > 0
+end
+-- }}}
+
+-- {{{ ManaSystem:secondary_state
+-- How this unit's secondary bars charge right now. Returns the rate
+-- multiplier (0 when the condition is not met) and a short reason, used
+-- for debugging and the bars' drawing:
+--   ranged-style  still for STILL_TIME          x1.0  "still"
+--                 ...with an enemy in range     x1.2  "still, in combat"
+--   melee-style   one enemy within reach        x1.0  "enemy in reach"
+--                 two or more                   x1.15 "outnumbered"
+function ManaSystem:secondary_state(entity, mana, snapshot)
+    local unit_type = Unit.get_unit_type(self.entity_manager, entity)
+    if ManaSystem.get_style(unit_type) == "ranged" then
+        if (mana.still_time or 0) < ManaSystem.STILL_TIME then
+            return 0, "moving"
         end
+        local range = ManaSystem.ATTACK_RANGE[unit_type] or ManaSystem.ATTACK_RANGE.ranged
+        if self:count_enemies_within(entity, range, snapshot) > 0 then
+            return 1 + ManaSystem.BONUS.ranged_in_combat, "still, in combat"
+        end
+        return 1, "still"
     end
-    return false
+
+    local reach = ManaSystem.REACH[unit_type] or ManaSystem.REACH.melee
+    local enemies = self:count_enemies_within(entity, reach, snapshot)
+    if enemies >= ManaSystem.OUTNUMBERED_COUNT then
+        return 1 + ManaSystem.BONUS.melee_outnumbered, "outnumbered"
+    elseif enemies > 0 then
+        return 1, "enemy in reach"
+    end
+    return 0, "no enemy in reach"
 end
 -- }}}
 
 -- {{{ ManaSystem:secondary_condition_met
 -- Whether this unit's secondary bars charge right now.
-function ManaSystem:secondary_condition_met(entity)
-    local unit_type = Unit.get_unit_type(self.entity_manager, entity)
-    if ManaSystem.get_style(unit_type) == "ranged" then
-        return self:is_standing_still(entity)
-    end
-    return self:has_enemy_in_reach(entity, ManaSystem.REACH[unit_type] or ManaSystem.REACH.melee)
+function ManaSystem:secondary_condition_met(entity, snapshot)
+    local mana = self.entity_manager:get_component(entity, "mana") or {still_time = math.huge}
+    return (self:secondary_state(entity, mana, snapshot)) > 0
 end
 -- }}}
 
 -- {{{ ManaSystem:update
 function ManaSystem:update(dt)
     local em = self.entity_manager
+    local snapshot = nil
     for _, entity in ipairs(em:get_entities_with_component("mana")) do
         if Unit.is_alive(em, entity) then
-            self:update_unit(entity, dt)
+            snapshot = snapshot or self:snapshot_units()
+            self:update_unit(entity, dt, snapshot)
+        else
+            ManaSystem.empty_bars(em:get_component(entity, "mana"))
         end
     end
 end
 -- }}}
 
 -- {{{ ManaSystem:update_unit
-function ManaSystem:update_unit(entity, dt)
+function ManaSystem:update_unit(entity, dt, snapshot)
     local mana = self.entity_manager:get_component(entity, "mana")
-    -- Only work out the condition when some secondary bar could use it.
-    local condition = nil
+
+    -- Time spent standing still. Only the part of this frame after the
+    -- unit has been still for STILL_TIME counts toward ranged charging, so
+    -- a unit that pauses for a moment while walking gains nothing.
+    local still_before = mana.still_time or 0
+    if self:is_standing_still(entity) then
+        mana.still_time = still_before + dt
+    else
+        mana.still_time = 0
+    end
+
+    local multiplier, reason = nil, nil
     for _, bar in ipairs(mana.bars) do
-        local gains = bar.is_primary
-        if not gains and bar.current < bar.max then
-            if condition == nil then
-                condition = self:secondary_condition_met(entity)
+        local gain_time, rate = 0, bar.rate
+        if bar.is_primary then
+            gain_time = dt
+        elseif bar.current < bar.max then
+            if multiplier == nil then
+                multiplier, reason = self:secondary_state(entity, mana, snapshot)
+                mana.secondary_reason = reason
+                mana.secondary_multiplier = multiplier
             end
-            gains = condition
+            if multiplier > 0 then
+                rate = bar.rate * multiplier
+                local style = ManaSystem.get_style(Unit.get_unit_type(self.entity_manager, entity))
+                if style == "ranged" then
+                    gain_time = math.min(dt, mana.still_time - ManaSystem.STILL_TIME)
+                else
+                    gain_time = dt
+                end
+            end
         end
-        bar.charging = gains and bar.current < bar.max
+        bar.charging = gain_time > 0 and bar.current < bar.max
         if bar.charging then
-            bar.current = math.min(bar.max, bar.current + bar.rate * dt)
+            bar.current = math.min(bar.max, bar.current + rate * gain_time)
         end
     end
+end
+-- }}}
+
+-- {{{ ManaSystem.empty_bars
+-- A dead unit loses all its mana, so a revived unit starts from nothing.
+function ManaSystem.empty_bars(mana)
+    if not mana then
+        return
+    end
+    for _, bar in ipairs(mana.bars) do
+        bar.current = 0
+        bar.charging = false
+    end
+    mana.still_time = 0
 end
 -- }}}
 

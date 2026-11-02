@@ -31,7 +31,10 @@ return function(abilities)
     end
 
     return {
-        bars = bars
+        bars = bars,
+        still_time = 0,              -- seconds the unit has stood still
+        secondary_multiplier = 0,    -- how fast secondary bars last charged
+        secondary_reason = nil       -- why, in words
     }
 end
 -- }}}
