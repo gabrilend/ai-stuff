@@ -1,0 +1,4 @@
+# The tmp link to the RAM scratch tiers (libs/ensure-ram-tiers). The
+# repository-wide rule "tmp/" matches folders only, and this is a link, so
+# git would otherwise show it as untracked (issue 034).
+/tmp

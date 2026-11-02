@@ -125,7 +125,7 @@ None open. Answered 2026-09-22:
 
 - delta-version `issues/completed/031-import-project-histories.md` — the graft
   whose id translation `translate-ids` carries forward.
-- `issues/034-export-only-the-session-that-stopped.md`,
+- `issues/completed/034-export-only-the-session-that-stopped.md`,
   `issues/025-capture-subagent-session-logs.md` — the exporter this hooks into.
 - The upstream-patch-system skill — the model: literal edits, already-applied
   checks, stale patches as errors.

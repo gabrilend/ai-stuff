@@ -32,6 +32,42 @@ declare -A PROJECT_OUTPUT_PATHS
 # progress-ii|/home/ritz/programming/ai-stuff/progress-ii-progress.md
 # STORED_PROJECT_PATHS_END
 
+# {{{ run_transcript_backup
+# Exports a project's conversations into its llm-transcripts/ folder, using
+# the first backup tool found: the project's own scripts/backup-conversations,
+# an older project's backup-conversations.sh, or the one beside this exporter.
+# The tool is run as a program, not sourced, and its messages are left on the
+# screen: a failed export says why, and this function adds which project and
+# which exit status, then returns that status (issue 034). Hiding them made a
+# broken export look the same as a project with no conversations. All of it
+# goes to stderr, so "exporter <project> all > backup.md" keeps only the
+# conversations in its file.
+run_transcript_backup() {
+    local project_dir="$1"
+    local tool="" status=0
+    if [ -f "$project_dir/scripts/backup-conversations" ]; then
+        tool="$project_dir/scripts/backup-conversations"
+        echo "Running the project's backup-conversations..." >&2
+        (cd "$project_dir" && bash "$tool" --all "$project_dir") >&2 || status=$?
+    elif [ -f "$project_dir/backup-conversations.sh" ]; then
+        tool="$project_dir/backup-conversations.sh"
+        echo "Running the project's backup-conversations.sh..." >&2
+        (cd "$project_dir" && bash "$tool") >&2 || status=$?
+    elif [ -f "$EXPORTER_SCRIPT_DIR/backup-conversations" ]; then
+        tool="$EXPORTER_SCRIPT_DIR/backup-conversations"
+        echo "Running the shared backup-conversations..." >&2
+        (cd "$project_dir" && bash "$tool" --all "$project_dir") >&2 || status=$?
+    else
+        echo "claude-conversation-exporter: no backup-conversations found for $project_dir" >&2
+        return 1
+    fi
+    if [ "$status" -ne 0 ]; then
+        echo "claude-conversation-exporter: exporting $project_dir failed (exit $status from $tool); its messages are above" >&2
+    fi
+    return "$status"
+}
+# }}}
+
 # {{{ load_project_paths
 load_project_paths() {
     local script_path="$0"
@@ -629,16 +665,7 @@ interactive_select_project() {
                         
                         # Try to run backup script to generate conversations
                         local backup_generated=false
-                        if [ -f "$selected_path/scripts/backup-conversations" ]; then
-                            echo "🔄 Running project backup script..."
-                            (cd "$selected_path" && source scripts/backup-conversations && backup-conversations "$selected_path" 2>/dev/null) && backup_generated=true
-                        elif [ -f "$selected_path/backup-conversations.sh" ]; then
-                            echo "🔄 Running project backup script..."
-                            (cd "$selected_path" && ./backup-conversations.sh 2>/dev/null) && backup_generated=true
-                        elif [ -f "$PROJECTS_BASE_DIR/scripts/backup-conversations" ]; then
-                            echo "🔄 Using global backup script..."
-                            (source "$PROJECTS_BASE_DIR/scripts/backup-conversations" && backup-conversations "$selected_path" 2>/dev/null) && backup_generated=true
-                        fi
+                        run_transcript_backup "$selected_path" && backup_generated=true
                         
                         # Check if conversations were generated
                         local new_conv_count=$(count_conversations "$selected_path")
@@ -890,17 +917,9 @@ interactive_select_conversation() {
         echo "Creating directory and attempting to backup conversations..."
         mkdir -p "$transcript_dir"
         
-        # Try to run backup script if it exists
-        if [ -f "$project_dir/scripts/backup-conversations" ]; then
-            echo "Running backup script from scripts/..."
-            (cd "$project_dir" && source scripts/backup-conversations && backup-conversations "$project_dir" 2>/dev/null) || true
-        elif [ -f "$project_dir/backup-conversations.sh" ]; then
-            echo "Running backup script from project root..."
-            (cd "$project_dir" && ./backup-conversations.sh 2>/dev/null) || true
-        elif [ -f "/home/ritz/programming/ai-stuff/scripts/backup-conversations" ]; then
-            echo "Using global backup script from /home/ritz/programming/ai-stuff/scripts/..."
-            (source "/home/ritz/programming/ai-stuff/scripts/backup-conversations" && backup-conversations "$project_dir" 2>/dev/null) || true
-        fi
+        # Try to export the project's conversations. A failure has already
+        # been reported in full; the check below then says nothing was found.
+        run_transcript_backup "$project_dir" || true
         
         # Check if we now have conversations
         if [ ! -n "$(ls -A "$transcript_dir/"*.md 2>/dev/null)" ]; then
@@ -1562,17 +1581,9 @@ print_all_conversations() {
         echo "Creating directory and attempting to backup conversations..."
         mkdir -p "$transcript_dir"
         
-        # Try to run backup script if it exists
-        if [ -f "$project_dir/scripts/backup-conversations" ]; then
-            echo "Running backup script from scripts/..."
-            (cd "$project_dir" && source scripts/backup-conversations && backup-conversations "$project_dir" 2>/dev/null) || true
-        elif [ -f "$project_dir/backup-conversations.sh" ]; then
-            echo "Running backup script from project root..."
-            (cd "$project_dir" && ./backup-conversations.sh 2>/dev/null) || true
-        elif [ -f "/home/ritz/programming/ai-stuff/scripts/backup-conversations" ]; then
-            echo "Using global backup script from /home/ritz/programming/ai-stuff/scripts/..."
-            (source "/home/ritz/programming/ai-stuff/scripts/backup-conversations" && backup-conversations "$project_dir" 2>/dev/null) || true
-        fi
+        # Try to export the project's conversations. A failure has already
+        # been reported in full; the check below then says nothing was found.
+        run_transcript_backup "$project_dir" || true
         
         # Check if we now have conversations
         if [ ! -n "$(ls -A "$transcript_dir/"*.md 2>/dev/null)" ]; then
@@ -1660,17 +1671,9 @@ print_conversation() {
         echo "Creating directory and attempting to backup conversations..."
         mkdir -p "$transcript_dir"
         
-        # Try to run backup script if it exists
-        if [ -f "$project_dir/scripts/backup-conversations" ]; then
-            echo "Running backup script from scripts/..."
-            (cd "$project_dir" && source scripts/backup-conversations && backup-conversations "$project_dir" 2>/dev/null) || true
-        elif [ -f "$project_dir/backup-conversations.sh" ]; then
-            echo "Running backup script from project root..."
-            (cd "$project_dir" && ./backup-conversations.sh 2>/dev/null) || true
-        elif [ -f "/home/ritz/programming/ai-stuff/scripts/backup-conversations" ]; then
-            echo "Using global backup script from /home/ritz/programming/ai-stuff/scripts/..."
-            (source "/home/ritz/programming/ai-stuff/scripts/backup-conversations" && backup-conversations "$project_dir" 2>/dev/null) || true
-        fi
+        # Try to export the project's conversations. A failure has already
+        # been reported in full; the check below then says nothing was found.
+        run_transcript_backup "$project_dir" || true
         
         # Check if we now have conversations
         if [ ! -n "$(ls -A "$transcript_dir/"*.md 2>/dev/null)" ]; then
