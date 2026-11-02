@@ -33,7 +33,7 @@ const char *fat_error_text(int error)
         "ok", "no card", "a card transfer failed", "not a FAT32 filesystem (FAT16 and exFAT are refused)",
         "not found", "not a directory", "is a directory", "the directory is not empty", "the card is full",
         "that name cannot be written on a FAT card", "that name already exists", "a symlink chain too long, or a loop",
-        "out of memory",
+        "out of memory", "a path too long, or too many directories deep",
     };
     int i = -error;
     return i >= 0 && i < (int)(sizeof text / sizeof text[0]) ? text[i] : "an unknown filesystem error";

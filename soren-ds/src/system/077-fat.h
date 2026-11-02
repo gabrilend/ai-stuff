@@ -39,6 +39,7 @@ enum fat_error {
     FAT_EXISTS         = -10,
     FAT_LOOP           = -11,           /* a symlink chain longer than the hop limit */
     FAT_NO_MEMORY      = -12,
+    FAT_TOO_LONG       = -13,           /* a path longer or deeper than 078-files.h allows */
 };
 const char *fat_error_text(int error);
 

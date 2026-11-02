@@ -93,18 +93,27 @@ against cards a laptop's tools would make. Counts:
 - **404** the whole table in memory, chains followed and freed, a write
   always a new chain; flushed to every copy with FSInfo kept current. A
   damaged chain is an end, never a step outside the table.
+- **405** paths from the root, `.` and `..`, any case; the device's
+  symlinks followed at every component, relative or absolute, with loops
+  ending in an error. The one mounted card and its lock, and every
+  whole-file operation the boxes of 406 and 407 will call: read a slice,
+  replace atomically (making directories on the way), list, delete, ask,
+  link, make a directory.
 
-All three live in `src/system/077-fat.c`. Tests: `twin/tests/079` (118
-checks, on one-sector and eight-sector clusters; `fsck.fat` checks every
-card it writes and a `mkfs.fat` card gets the writing checks, where the
-laptop has those tools), with phases 2 and 3's still passing.
+402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`.
+Tests: `twin/tests/079` (118 checks, on one-sector and eight-sector
+clusters; `fsck.fat` checks every card it writes and a `mkfs.fat` card
+gets the writing checks, where the laptop has those tools) and `081` (56
+checks, four threads at once among them), both on cards
+`twin/tests/080-card-image.h` lays out the way a laptop does, with phases
+2 and 3's still passing.
 
 ## Open issues
 
 - **401** — the card's block calls exist on both sides of the platform
   seam (the twin's disk image, the device's phase-1 driver from 110f);
   the device side is unverified.
-- **405** through **412**.
+- **406** through **412**.
 
 ## Phase demo
 
