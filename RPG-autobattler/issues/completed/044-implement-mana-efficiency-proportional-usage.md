@@ -400,10 +400,43 @@ end
 ```
 
 ### Acceptance Criteria
-- [ ] Damage abilities use only mana proportional to target's remaining health
-- [ ] Healing abilities use only mana needed to heal target to full
-- [ ] Buff abilities check for existing buffs to avoid redundant mana usage
-- [ ] Area abilities scale mana usage based on number and value of targets
-- [ ] Minimum mana threshold prevents abilities from being completely free
-- [ ] System tracks efficiency statistics for balancing purposes
-- [ ] Performance impact is minimal during combat with many abilities firing
+- [x] Damage abilities use only mana proportional to target's remaining health
+- [x] Healing abilities use only mana needed to heal target to full
+- [x] Buff abilities check for existing buffs to avoid redundant mana usage
+- [x] Area abilities scale mana usage based on number and value of targets
+- [x] Minimum mana threshold prevents abilities from being completely free
+- [x] System tracks efficiency statistics for balancing purposes
+- [x] Performance impact is minimal during combat with many abilities firing
+## What Happened
+
+Built as `src/systems/mana_efficiency.lua`, a module of plain functions:
+- `plan(ability, targets, available_mana)` works out what a cast would
+  spend and do, without spending anything;
+- `cast(mana, index, ability, targets, stats)` spends that from the bar
+  and records it;
+- `new_stats()` and `record()` keep casts, mana spent and saved, and
+  refusals by reason and by type.
+
+The rules are added to `docs/mana-generation-rules.md`. Tested headlessly by
+`tests/test_mana_efficiency.lua` (seven tests, including 10,000 casts).
+Nothing was seen on screen. The ability framework (issues 046-050) will
+call `cast` when a bar is full.
+
+### Decisions
+- **An ability is described by `type`, `power` (its effect at a full bar)
+  and `max_mana`.** The issue's sketch used `max_effect` and
+  `max_mana_cost`. `power` is shorter, and the cost is the bar itself, as
+  the vision says ("when the bar reaches the max, the unit will use the
+  ability").
+- **The minimum share is 10% of the bar**, as the issue's sketch has it.
+- **Area abilities:** each target counts for the share of the per-target
+  power it can use (its health for damage, missing health for healing).
+  The sum, divided by `max_targets` (default 5), is the share of the bar
+  spent. Targets past `max_targets` add nothing.
+- **Buffs and debuffs** cost the whole bar or nothing: they're refused on a
+  target that already has the effect, and otherwise have no partial use to
+  scale by.
+- **Unknown types** spend the whole bar, as before this existed.
+- **A cast that the bar can't pay for is refused** ("not_enough_mana"),
+  not shrunk. With full-bar casting this only happens when something else
+  spends the bar first.
