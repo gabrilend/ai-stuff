@@ -284,6 +284,9 @@ function TestSuite.test_edge_cases()
     local v = Vector2:new(1, 1)
     local result = v:divide(0)
     assert(result.x == 0 and result.y == 0, "Division by zero should return zero vector")
+    local in_place = Vector2:new(2, 3)
+    in_place:divide_in_place(0)
+    assert(in_place.x == 0 and in_place.y == 0, "Division by zero in place should give the zero vector")
     
     -- Very small numbers
     local tiny = Vector2:new(1e-15, 1e-15)

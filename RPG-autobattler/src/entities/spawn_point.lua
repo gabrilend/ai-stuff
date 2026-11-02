@@ -131,23 +131,24 @@ function SpawnPoint:update(dt)
         return
     end
     
-    -- Process deployment queues
+    -- Process deployment queues. Units leave each sub-path slot one at a
+    -- time: only the unit at the front counts down, and when it is
+    -- released the rest move up and the next one starts its own timer
+    -- (issue 013a).
     for _, deployment_area in ipairs(self.deployment_areas) do
         for _, slot in ipairs(deployment_area.sub_path_slots) do
-            for i = #slot.queue, 1, -1 do
-                local unit = slot.queue[i]
-                if unit.spawn_timer then
-                    unit.spawn_timer = unit.spawn_timer - dt
-                    
-                    if unit.spawn_timer <= 0 then
-                        -- Release unit to its target lane
-                        self:release_unit_to_lane(unit, deployment_area)
-                        table.remove(slot.queue, i)
-                        deployment_area.current_units = deployment_area.current_units - 1
-                        
-                        -- Move remaining units forward in queue
-                        self:adjust_queue_positions(slot)
-                    end
+            local unit = slot.queue[1]
+            if unit and unit.spawn_timer then
+                unit.spawn_timer = unit.spawn_timer - dt
+
+                if unit.spawn_timer <= 0 then
+                    -- Release unit to its target lane
+                    self:release_unit_to_lane(unit, deployment_area)
+                    table.remove(slot.queue, 1)
+                    deployment_area.current_units = deployment_area.current_units - 1
+
+                    -- Move remaining units forward in queue
+                    self:adjust_queue_positions(slot)
                 end
             end
         end

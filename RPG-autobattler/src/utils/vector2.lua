@@ -122,9 +122,10 @@ end
 -- }}}
 
 -- {{{ Vector2:divide
+-- Dividing by zero gives the zero vector, as normalize does for a zero
+-- length, so two units on the same spot can't crash a frame (issue 008a).
 function Vector2:divide(scalar)
     if scalar == 0 then
-        error("Division by zero in Vector2:divide")
         return Vector2:new(0, 0)
     end
     return Vector2:new(self.x / scalar, self.y / scalar)
@@ -132,9 +133,9 @@ end
 -- }}}
 
 -- {{{ Vector2:divide_in_place
+-- Dividing by zero sets the zero vector, as divide does.
 function Vector2:divide_in_place(scalar)
     if scalar == 0 then
-        error("Division by zero in Vector2:divide_in_place")
         self.x = 0
         self.y = 0
     else
