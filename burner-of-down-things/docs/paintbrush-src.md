@@ -20,7 +20,7 @@ The one file to write. Every canvas has exactly one.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `language` | one of bash, c, javascript, lua | required | the file's language, a row of the language table |
+| `language` | one of bash, c, lua | required | the file's language, a row of the language table |
 | `version` | a string | required | the language's version, named on the file's first line |
 | `purpose` | a string | required | what the file is for, in a sentence |
 | `prompt` | a string | required | what the turn writing it is asked |

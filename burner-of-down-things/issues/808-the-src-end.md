@@ -17,7 +17,7 @@ source file to order.
 
 - A canvas `source{ language = "lua", version = "LuaJIT 2.1", purpose = "…", prompt = "…" }`.
 - A new turn kind, `source`, writing one file, confined to it; told the house coding rules and the look of comments.
-- The first line is checked to name the language and version, in that language's comment form; the file is checked by the language's own parser (`luajit -bl`, `cc -fsyntax-only`, `bash -n`, `node --check` where node starts).
+- The first line is checked to name the language and version, in that language's comment form; the file is checked by the language's own parser (`luajit -bl`, `cc -fsyntax-only`, `bash -n`).
 - A table of languages: comment form, file extension, parser command. Adding a language is adding a row.
 
 ## Suggested Implementation Steps
@@ -30,7 +30,10 @@ source file to order.
 - The language table is its own (153), not rows added to 027: 027 decides
   what a file already is from its name and first bytes; this one says
   how a file to be written is marked and checked. Rows: lua, c, bash,
-  javascript, each with a parser that is already on the owner's machine.
+  each with a parser that is already on the owner's machine.
+- 2026-11-02, decided by Ritz: no javascript row. The project writes no
+  JavaScript (the owner's rule), so the row, its `node --check` parser and
+  its test cases were removed; a language is still added by adding a row.
 - The first line is `<comment> <language> <version text>`, the language
   named by its row's own name; with a canvas, the line must also contain
   the canvas's `version` (so `-- lua 5.1 (LuaJIT 2.1)` meets

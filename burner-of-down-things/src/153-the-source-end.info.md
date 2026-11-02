@@ -8,7 +8,7 @@ model through the hands (808 step 2, not built yet).
 A **language row**: `extension`, `comment` (a line comment's opening),
 `parser` (its syntax check, `%s` the path), `program` (what the parser
 needs on the PATH). Rows: `lua` (`luajit -bl`), `c` (`cc -fsyntax-only`),
-`bash` (`bash -n`), `javascript` (`node --check`). Adding a language is
+`bash` (`bash -n`). Adding a language is
 adding a row. A file's first line is `<comment> <language> <version>`,
 e.g. `-- lua 5.1 (LuaJIT 2.1)`.
 
