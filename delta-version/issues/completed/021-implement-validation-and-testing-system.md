@@ -375,3 +375,63 @@ EOF
 - Automated test runner enables continuous validation
 - Test reports provide clear quality metrics
 - System ready for production use with confidence
+
+---
+
+## What Happened
+
+**2026-11-02 — closed by one suite over the chain's existing tests, plus the
+three checks no single part could make.**
+
+By the time this issue came up, each part of the chain already had its own
+test, written alongside it:
+
+| Part | Test | Checks |
+|------|------|--------|
+| keyword engine (017) | `test-process-template.sh` | 39 |
+| project discovery (018) | `test-discover-projects.sh` | 44 |
+| distribution (019) | `test-distribute-ticket.sh` | 53 |
+| menu (020) | `test-ticket-menu.sh` | 32 |
+
+`scripts/test-ticket-chain.sh` runs all four and adds what was still
+missing:
+
+- **Every shipped keyword works.** A template with each keyword in
+  `config/ticket-keywords.conf` (56 of them, with sample parameters for the
+  eight that take some) is filled in a fixture project in `fail` mode. For
+  the parameter keywords, the test checks the values the fixture predicts. A
+  keyword added to the configuration without sample parameters in the test
+  fails it, so the test keeps up with the configuration.
+- **Every shipped template is sound.** Each file in `templates/tickets/`
+  passes `process-template.lua --check` and fills without a failure.
+- **Scale.** A dry run across 60 generated projects must find all of them
+  ready, within 2 seconds a project. 60 projects took 6s; a one-off run with
+  `--projects 200` took 22s.
+
+Against the success criteria:
+
+- **Template syntax validation:** `process-template.lua --check` (017). It
+  names each unusable placeholder, and the suite runs it on every shipped
+  template.
+- **Distribution simulation:** the dry run in 019, which is the default
+  there.
+- **Error recovery and rollback:** `--undo` in 019, tested there and through
+  the menu.
+- **Test reports:** one line per check and a pass/fail count, the house
+  style; the suite prints each part's own summary line, and each failing
+  check under it.
+
+Not built:
+
+- **Memory and concurrency tests:** distribution is one sequential pass with
+  nothing running at once, and its memory is one template and one ticket at
+  a time.
+- **A separate keyword-testing framework:** the engine's own test covers
+  parameters, escapes, time limits and every error mode.
+
+A gap found on the way, outside this project's folder: the shared
+`scripts/test-runner.sh` looks for tests in a project's root, `tests/` and
+`src/tests/`. delta-version keeps all its tests in `scripts/`, so the runner
+finds none here ("no tests found"). This was left for the owner of the
+shared runner rather than moving delta-version's tests.
+
