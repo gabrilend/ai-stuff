@@ -29,6 +29,14 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   right form) — a word-boundary check keeps "promptly" from misreading as
   a broken tag.
 
-903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
-confinement; number issuance and reuse refusal; structured and remaining
-types; shortest-chain search, joint checking and plan execution.
+- 905b shortest-chain search — breadth-first over the shape graph, the
+  same table always giving the same plan; an impossible shape names the
+  type that cannot be reached (`src/127-plans.lua`).
+- 905c joint checking — every joint checked before anything runs, the
+  mismatched one named.
+- 905d plan execution — each station's result kept as a new parcel folder
+  and handed on; a failing station stops the plan, naming it. 905 stays
+  open for the router (904) to call it.
+
+903b and 903d, 901c-d and 902b-c remain: the needs check and confinement;
+number issuance and reuse refusal; structured and remaining types.
