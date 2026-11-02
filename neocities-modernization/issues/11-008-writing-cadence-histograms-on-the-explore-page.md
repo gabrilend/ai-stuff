@@ -147,10 +147,14 @@ page uses, every bucket labelled with its count.
    the existing `ascii_bar_row`, no second idiom.
 2. **Width vs. range** -- the bars run horizontally, one row per bucket, so a
    long span makes the figure taller, never wider: a row is at most about 60
-   characters whatever the range. The real span could not be measured here (no
-   poems.json on this machine). At ten years the monthly figure is about 120
-   rows; if that reads as too long on the real build, a one-line-per-year
-   sparkline of the twelve months is the compact alternative.
+   characters whatever the range. **Length, decided on review:** the per-month
+   chart shows only the last 36 months, the per-quarter chart covers the whole
+   history. The 36 is `config.explore_page.cadence_recent_months`. The window
+   is counted back from the newest counted poem's month, not from today, so a
+   rebuild of the same corpus is the same page (10-058); a corpus shorter than
+   the window shows all its months. The month bars are scaled to the busiest
+   month in the window, so a quiet recent stretch is not flattened by a burst
+   years earlier. The counts and their sum check still run over every month.
 3. **Image-only posts are not counted** as writing, and neither are gallery
    images; the page states how many were left out.
 4. **Boosts are not counted** (someone else's words); the page states how many.
@@ -168,3 +172,12 @@ headings, the empty month drawn as dots and a zero, the busiest month full, a
 quiet month still visible, and no marker left unfilled. The seven other
 `flat-html-generator` suites and `page-template.test.lua` still pass.
 
+Follow-up (the 36-month window): `recent_months()` (exported as
+`M.recent_months`) cuts the month list; `generate_explore_page` takes an
+optional `explore_cfg` (default `config.explore_page`) and the template's month
+heading now names the window and its span (`CADENCE_MONTHS_FROM` to
+`CADENCE_LAST`). A missing section, or a count that is not a whole number of at
+least 1, stops the build. 21 more checks (49 in all): the window's length, end
+and start on a 53-month fixture, a window wider than the corpus, a one-month
+window, each refused setting, the shipped value, and a built page drawing 12
+month rows beside all 18 quarters with the bars scaled to the window.

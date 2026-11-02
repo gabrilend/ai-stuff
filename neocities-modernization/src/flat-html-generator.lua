@@ -3376,6 +3376,33 @@ local function cadence_bars(buckets)
 end
 -- }}}
 
+-- {{{ function recent_months()
+-- Issue 11-008 follow-up: the per-month chart shows only the most recent
+-- `count` months (config.explore_page.cadence_recent_months); the per-quarter
+-- chart keeps the whole history, so the long trend is still there in a quarter
+-- of the lines. "Most recent" is counted back from the month of the last
+-- counted poem, not from today, so a rebuild of the same corpus is the same page
+-- (10-058). A corpus shorter than the window shows every month it has.
+--
+-- explore_cfg is config.explore_page. A missing section or a count that is not a
+-- whole number of at least 1 is an error (no fallbacks).
+local function recent_months(months, explore_cfg)
+    if type(explore_cfg) ~= "table" then
+        error("explore page: config.explore_page is missing (see config.lua, Issue 11-008)")
+    end
+    local count = explore_cfg.cadence_recent_months
+    if type(count) ~= "number" or count < 1 or count ~= math.floor(count) then
+        error(string.format("explore page: config.explore_page.cadence_recent_months must be a whole "
+            .. "number of months, at least 1; got %s", tostring(count)))
+    end
+    local first = math.max(1, #months - count + 1)
+    local recent = {}
+    for i = first, #months do recent[#recent + 1] = months[i] end
+    return recent
+end
+M.recent_months = recent_months
+-- }}}
+
 -- {{{ function M.generate_simple_discovery_instructions
 -- Back-compat shim: callers that pass only output_dir still work (boosts/golden
 -- counts simply won't appear without the corpus). Prefer passing poems_data.
@@ -3390,7 +3417,10 @@ end
 -- explore.html -- the welcome / map: orientation + live corpus stats + every
 -- navigation mode + links to the deeper-math page and (placeholder) the source
 -- browser (Issue 10-052). Data/view split: corpus_stats() computes, this renders.
-function M.generate_explore_page(output_dir, poems_data)
+--
+-- explore_cfg is config.explore_page; a test may pass its own.
+function M.generate_explore_page(output_dir, poems_data, explore_cfg)
+    if explore_cfg == nil then explore_cfg = unified_config.explore_page end
     local s = corpus_stats(poems_data)
 
     -- The per-source list is a LOOP over the corpus, so it stays rendered here
@@ -3419,14 +3449,18 @@ function M.generate_explore_page(output_dir, poems_data)
     -- value is OMIT and the figure's lines drop out of the page.
     local c = writing_cadence(poems_data)
     local has_cadence = c.counted > 0
+    -- The month chart is the recent window; the config is checked even when
+    -- there is nothing to chart, so a bad setting fails on every build.
+    local shown_months = recent_months(c.months, explore_cfg)
     values.CADENCE_COUNTED    = has_cadence and c.counted or page_template.OMIT
     values.CADENCE_FIRST      = has_cadence and c.first or page_template.OMIT
     values.CADENCE_LAST       = has_cadence and c.last or page_template.OMIT
     values.CADENCE_IMAGE_ONLY = has_cadence and c.image_only or page_template.OMIT
     values.CADENCE_BOOSTS     = has_cadence and c.boosts or page_template.OMIT
-    values.CADENCE_MONTH_COUNT = has_cadence and #c.months or page_template.OMIT
+    values.CADENCE_MONTH_COUNT = has_cadence and #shown_months or page_template.OMIT
+    values.CADENCE_MONTHS_FROM = has_cadence and shown_months[1].label or page_template.OMIT
     values.CADENCE_QUARTERS   = has_cadence and cadence_bars(c.quarters) or page_template.OMIT
-    values.CADENCE_MONTHS     = has_cadence and cadence_bars(c.months) or page_template.OMIT
+    values.CADENCE_MONTHS     = has_cadence and cadence_bars(shown_months) or page_template.OMIT
 
     local template_path = DIR .. "/input/pages/explore.txt"
     local body, err = page_template.render_file(template_path, values)

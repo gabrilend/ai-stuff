@@ -610,6 +610,18 @@ return {
     },
     -- }}}
 
+    -- {{{ explore_page
+    -- The explore page (explore.html). Issue 11-008: its "when they were
+    -- written" figure has a per-quarter chart over the whole history and a
+    -- per-month chart over only the most recent months, counted back from the
+    -- newest poem -- the whole history by month runs to well over a hundred
+    -- lines.
+    -- Read by: src/flat-html-generator.lua (generate_explore_page)
+    explore_page = {
+        cadence_recent_months = 36,     -- months in the per-month chart (whole number, >= 1)
+    },
+    -- }}}
+
     -- {{{ word_cloud
     -- Word cloud page settings. Extracts vocabulary from all poems, filters
     -- stop words (common words like "the", "and"), and displays the remaining

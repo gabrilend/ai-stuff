@@ -291,6 +291,18 @@ Mood-based exploration anchors. Each centroid defines a "semantic target" using 
 
 ---
 
+### explore_page
+**Read by:** `src/flat-html-generator.lua` (`generate_explore_page`)
+**Priority:** Low
+
+Settings for `explore.html`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cadence_recent_months` | number | 36 | Months shown in the per-month "when they were written" chart, counted back from the newest poem (Issue 11-008). The per-quarter chart always covers the whole history. A whole number of at least 1. |
+
+---
+
 ### word_cloud
 **Read by:** `src/wordcloud-generator.lua`
 **Priority:** Low

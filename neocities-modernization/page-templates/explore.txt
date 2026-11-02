@@ -70,7 +70,8 @@ WHEN THEY WERE WRITTEN ({CADENCE_COUNTED} poems, counted at build time)
   per quarter, which shows the trend ({CADENCE_FIRST} to {CADENCE_LAST}):
 {CADENCE_QUARTERS}
 
-  per month, which shows the bursts and quiet stretches ({CADENCE_MONTH_COUNT} months):
+  per month, the last {CADENCE_MONTH_COUNT} months, which shows the bursts and quiet stretches
+  ({CADENCE_MONTHS_FROM} to {CADENCE_LAST}):
 {CADENCE_MONTHS}
 
 LINKS
