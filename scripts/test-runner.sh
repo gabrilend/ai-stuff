@@ -14,9 +14,17 @@
 #   tests/test_*.lua,     tests/test-*.lua       run with luajit
 #   test-* / test_* in the project root, tests/ or src/tests/
 #     that is executable, or ends in .sh         run as a program
+#   scripts/test-*.sh, scripts/test_*.sh         run as a program
 #   check-* in the project root that is executable
 #                                                a read-only check that
 #                                                exits 1 on a fault
+#
+# Why scripts/ is stricter: some projects (delta-version) keep their tests
+# beside their tools in <project>/scripts/, but that folder also holds tools
+# whose names merely start with "test-" -- generators and one-off probes with
+# no extension, such as neocities-modernization's test-html-generation. So in
+# scripts/ only a name ending in .sh counts; an extensionless test runner kept
+# there is not found, and moving it to tests/ (or adding .sh) is the fix.
 #
 # Anything ending in -done is skipped: that suffix is the house marker for a
 # retired file kept for one commit. This runner never runs itself.
@@ -131,6 +139,13 @@ discover_tests() {
             fi
         done
     done
+    if [[ -d "$DIR/scripts" ]]; then
+        for path in "$DIR/scripts"/test-*.sh "$DIR/scripts"/test_*.sh; do
+            [[ -f "$path" ]] || continue
+            [[ "$(readlink -f "$path")" == "$self" ]] && continue
+            printf 'program\t%s\n' "$path"
+        done
+    fi
     for path in "$DIR"/check-*; do
         [[ -f "$path" && -x "$path" ]] || continue
         name="${path##*/}"
