@@ -730,6 +730,18 @@ reviving, can corpses share a tile). They were never answered and are parked
 with the archived issues. Kept here only so they are not mistaken for
 answered if death rules come back.
 
+### Q-9: Is the BLP1 reader the shared one, or this project's own?
+**Reshapes:** 117, W01
+**Asked:** 2026-11-02
+
+On 2026-09-26 the owner said WC3 textures are read by the same shared
+reader as WoW's (the custom client's library, bound by W01). On
+2026-09-29 issue 522 built a BLP1 reader in Lua inside this project
+(`src/parsers/blp.lua`), which the renderer, editor and asset tools now
+use; W01's binding isn't built. Keep two readers (Lua for BLP1, the shared
+library for BLP2), move BLP1 into the shared library when W01 binds it, or
+add BLP2 to the Lua reader? 117 is otherwise built and stays open on this.
+
 ---
 
 ## 4. Known Debt

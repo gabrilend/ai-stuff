@@ -142,7 +142,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
 | 116 | Read WC3 models (.mdx) | Pending | — |
-| 117 | Read WC3 textures (BLP1) | Pending | — |
+| 117 | Read WC3 textures (BLP1) | Built in this project (522, 2026-11-02); open on the shared-reader question (Q-9) | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
 

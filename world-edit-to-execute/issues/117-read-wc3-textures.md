@@ -65,16 +65,28 @@ All in the shared reader, in the custom client's project, unless noted:
 
 ## Acceptance Criteria
 
-- [ ] Palette BLP1 files decode, at every alpha depth, for every mip level
-- [ ] JPEG BLP1 files decode, with the channels in the right order
-- [ ] Truncated files fail with errors that name the mip level and offset
-- [ ] One library reads BLP1 and BLP2; no second BLP reader exists in this project
-- [ ] Tests pass without any downloaded or proprietary file present
+- [x] Palette BLP1 files decode, at every alpha depth, for every mip level
+- [x] JPEG BLP1 files decode, with the channels in the right order
+- [x] Truncated files fail with errors that name the mip level and offset
+- [ ] One library reads BLP1 and BLP2; no second BLP reader exists in this project (open question 2)
+- [x] Tests pass without any downloaded or proprietary file present
 
 ## Open Questions
 
 1. ~~A separate reader, or the shared one?~~ Answered 2026-09-26: the shared
    one ("same reader").
+2. **Does the shared-reader answer still stand, now that this project has
+   its own BLP1 reader?** (Asked 2026-11-02; also `issues/CRITICAL-PATH.md`
+   Q-9.) Three days after the answer above, issue 522 built a BLP1 reader
+   in Lua inside this project (`src/parsers/blp.lua`), and the renderer,
+   editor and asset tools use it. The shared library is in the custom
+   client's project, outside this repository, and W01's binding to it
+   isn't built. The options: (a) keep the Lua reader for BLP1 and let the
+   shared library read BLP2 for Phase W, two readers for two versions;
+   (b) move BLP1 into the shared library when W01 binds it, and retire the
+   Lua reader then; (c) the reverse: BLP2 added to the Lua reader. Until
+   it is answered, the fourth acceptance box stays open and this issue
+   stays open.
 
 ## Related Documents
 
@@ -82,3 +94,78 @@ All in the shared reader, in the custom client's project, unless noted:
 - `issues/516-draw-wc3-models-in-engine.md`
 - `issues/W01-read-the-wow-client-archives.md`
 - `issues/601-asset-loader-resolution.md`
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+### What was already there
+
+Issue 522 (2026-09-29) built a BLP1 reader in this project,
+`src/parsers/blp.lua`, on its own JPEG reader (`src/parsers/jpeg.lua`):
+both kinds, every alpha depth, any mipmap. Every BLP in the 16 test maps
+decodes (285 distinct, 258 JPEG and 27 paletted, 2,046 mipmaps). This file
+wasn't updated then. What the reader lacked against this issue's criteria:
+errors naming the level and offset, the every-level output shape, and a
+test needing no downloaded file. This pass adds those. It doesn't touch the
+shared-reader question (open question 2).
+
+### Changes
+
+- **`src/parsers/blp.lua`**
+  - Every part is checked to lie inside the file before it is read: the
+    header, the JPEG header, the palette, and each mipmap's bytes (for the
+    palette kind, its indices and packed alpha). A failed check names the
+    part, the byte it starts at, the bytes it needs and where the file
+    ends. Before, a cut-short paletted texture failed on arithmetic with a
+    missing value ("attempt to perform arithmetic on a nil value"), and a
+    cut-short JPEG one was handed to the JPEG reader as it was.
+  - The JPEG reader's errors come back prefixed with the mipmap and its
+    offset.
+  - An alpha depth other than 0, 1, 4 or 8 is refused by number; before,
+    it was read as no alpha.
+  - A side longer than 16,384 (`blp.MAX_SIDE`) is refused as a damaged
+    header, so a wrong size can't ask for gigabytes of pixels.
+  - `blp.decode_all(bytes)` gives the shape this issue asked for:
+    `{width, height, source_format, levels = {{width, height, rgba}, ...}}`.
+    `blp.decode(bytes, level)` is unchanged for its callers.
+- **`src/parsers/jpeg.lua`:** its byte reads are bounded too. A segment
+  length that ran past the data made the marker loop read raw memory
+  beyond the buffer, and a scan cut short read past the end until it
+  happened on a marker. Now a segment that runs past the data is an
+  error naming it and its byte, and a scan that ends early reads zeros
+  from there, as libjpeg does.
+- **`src/parsers/blp.info.md`** describes inputs, outputs and errors.
+
+Every one of the 2,046 mipmaps in the test maps decodes to the same
+bytes as before.
+
+### Tests (`src/tests/test_blp.lua`, 21 tests, under a second)
+
+The test writes its own textures:
+- a 4 x 2 paletted texture with three mipmaps at each alpha depth (0, 1,
+  4, 8), every pixel's colour and alpha checked;
+- a 16 x 8 JPEG texture with two mipmaps, made by a small JPEG writer in
+  the test (four components, solid 8 x 8 blocks, so each block decodes
+  exactly). Two differently coloured blocks show the B, G, R, A channels
+  come out as R, G, B, A.
+
+Then, for both kinds, a cut at every byte gives an error naming a byte.
+The errors name the mipmap and the palette by name, a damaged JPEG
+segment is named with the JPEG reader's reason, and every 4-byte window of
+a paletted texture overwritten gives only the reader's own errors.
+`test_assets`, `test_ground`, `test_imports` and `test_effects` still pass.
+
+### Decisions made while building
+
+1. **Checked against the file, not the header's mipmap size, for the
+   paletted kind.** All 27 paletted textures in the test maps declare
+   sizes that cover their pixels, but what has to be safe is reading the
+   file; a texture whose declared size is a little short but whose bytes
+   are there still decodes.
+2. **A scan cut short inside a mipmap reads zeros, not an error.** It is
+   what libjpeg does, and a mipmap's declared bytes are already checked to
+   be in the file, so this case is a damaged JPEG, not a cut file.
+3. **The output shape 117 asked for is added beside the old one** rather
+   than replacing it: the renderer, editor and asset tools call
+   `decode(bytes, level)`.
