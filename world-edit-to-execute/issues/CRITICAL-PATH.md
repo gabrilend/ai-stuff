@@ -635,6 +635,7 @@ in full there.
 
 | Date | Decision | Recorded in |
 |------|----------|-------------|
+| 2026-11-02 | **WC3 textures (BLP1) stay in this project's own Lua reader** (Q-9), not the shared library W01 binds. The build session decided it on the owner's standing word to answer open questions: merging would tie this project to the custom client's for a reader that already works, a separate change best made once both readers are stable. Filed unbuilt as the idea issue W09. This sets aside the owner's 2026-09-26 "same reader" for now. | issues 117 (open question 2), W09, W01 |
 | 2026-10-01 | **The custom client is a third project**, separate from this one and Everland Ghostsong, playing both; the two do most of the work on it. Its work starts this week and is not on this path. **One generation pipeline for both projects**, and generation plus the similarity score is the route meant to prove legality; the clean-room loop is optional. The score gains a 26-view camera ring, in-engine scenic photoshoots at server startup, region overlays and optional colour. | `docs/wow-client-bridge.md` (Decisions made), issue W05a |
 | 2026-09-26 | **The January rendering plan is re-cut** (owner: "sure"). Eight issues describing a Lua renderer with swappable backends, or work the vertical slice already did, are retired to `issues/superseded/`. The other 32 are rewritten for the page split, each keeping its January design below as the record: the page's format and a headless renderer (501), the camera model (501d), terrain built once as chunk meshes (502), what is drawn for a unit besides its model (503), the override file's format (504), camera controls and debug overlays (505c, 505f), the interface as page items (506) and the minimap (507). Three that were mostly built stay open for their small gaps. | issues 501-507 |
 | 2026-09-26 | **The editor saves `.w3x`, for now** ("We are already building compatibility for that system so we might as well"). **Player data lives in the project directory** by default, movable by a config file. **Model overrides are made through the game's UI**, not yet planned. | issues 911, 601, 516 |
@@ -730,9 +731,11 @@ reviving, can corpses share a tile). They were never answered and are parked
 with the archived issues. Kept here only so they are not mistaken for
 answered if death rules come back.
 
-### Q-9: Is the BLP1 reader the shared one, or this project's own?
+### ~~Q-9: Is the BLP1 reader the shared one, or this project's own?~~
 **Reshapes:** 117, W01
 **Asked:** 2026-11-02
+**Answered:** 2026-11-02: this project's own (see section 2). Kept here
+until the next tidy of this section.
 
 On 2026-09-26 the owner said WC3 textures are read by the same shared
 reader as WoW's (the custom client's library, bound by W01). On

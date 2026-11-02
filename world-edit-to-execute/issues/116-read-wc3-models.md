@@ -129,7 +129,7 @@ own small models.
 
 ## Related Documents
 
-- `issues/117-read-wc3-textures.md` (the textures a model names)
+- `issues/completed/117-read-wc3-textures.md` (the textures a model names)
 - `issues/516-draw-wc3-models-in-engine.md` (the renderer)
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (where models come from)
 - `docs/versions-we-leave-alone.md` (Reforged formats)

@@ -3,7 +3,8 @@
 **Phase:** 1 - File Format Parsing
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** W01 (the binding to the shared reader)
+**Dependencies:** None (W01 was the shared reader's binding; see open question 2)
+**Status:** Completed 2026-11-02
 **Blocks:** 516 (drawing models in the engine), 603 (the fetcher's model check)
 **Related:** 116 (models name these textures), W01 (reads WoW's BLP2)
 
@@ -19,6 +20,10 @@ not BLP1. The asset loader issue (601) lists BLP loading as a stub and notes
 "we may need a decoder or require PNG conversion".
 
 ## Intended Behavior
+
+> **2026-11-02:** superseded by open question 2's answer: BLP1 stays in
+> this project's own Lua reader; the shared reader taking it over is the
+> idea issue W09. The paragraph below is kept as the record.
 
 **In the shared reader** (owner, 2026-09-26: "same reader"). BLP1 decoding
 is added to the custom client's BLP reader, the library W01 binds
@@ -68,14 +73,14 @@ All in the shared reader, in the custom client's project, unless noted:
 - [x] Palette BLP1 files decode, at every alpha depth, for every mip level
 - [x] JPEG BLP1 files decode, with the channels in the right order
 - [x] Truncated files fail with errors that name the mip level and offset
-- [ ] One library reads BLP1 and BLP2; no second BLP reader exists in this project (open question 2)
+- [x] ~~One library reads BLP1 and BLP2; no second BLP reader exists in this project~~ Decided 2026-11-02 (open question 2): BLP1 stays in this project's own reader, `src/parsers/blp.lua`; one library for both is the idea issue W09
 - [x] Tests pass without any downloaded or proprietary file present
 
 ## Open Questions
 
 1. ~~A separate reader, or the shared one?~~ Answered 2026-09-26: the shared
    one ("same reader").
-2. **Does the shared-reader answer still stand, now that this project has
+2. ~~**Does the shared-reader answer still stand, now that this project has
    its own BLP1 reader?** (Asked 2026-11-02; also `issues/CRITICAL-PATH.md`
    Q-9.) Three days after the answer above, issue 522 built a BLP1 reader
    in Lua inside this project (`src/parsers/blp.lua`), and the renderer,
@@ -86,13 +91,21 @@ All in the shared reader, in the custom client's project, unless noted:
    (b) move BLP1 into the shared library when W01 binds it, and retire the
    Lua reader then; (c) the reverse: BLP2 added to the Lua reader. Until
    it is answered, the fourth acceptance box stays open and this issue
-   stays open.
+   stays open.~~ **Answered 2026-11-02 (option a):** the BLP1 reader stays
+   this project's own Lua reader. The build session made the call, on the
+   owner's standing word to answer open questions: merging BLP1 into the
+   shared library would tie this project to the custom client's for a
+   reader that already works, and that is a separate change, best made once
+   both readers are stable. It is filed, unbuilt, as the idea issue
+   `issues/W09-shared-reader-takes-over-blp1.md`. Phase W reads BLP2
+   through the shared library as planned.
 
 ## Related Documents
 
 - `issues/116-read-wc3-models.md`
 - `issues/516-draw-wc3-models-in-engine.md`
 - `issues/W01-read-the-wow-client-archives.md`
+- `issues/W09-shared-reader-takes-over-blp1.md` (the idea of one reader for both, unbuilt)
 - `issues/601-asset-loader-resolution.md`
 
 ## Implementation Notes
@@ -108,7 +121,7 @@ decodes (285 distinct, 258 JPEG and 27 paletted, 2,046 mipmaps). This file
 wasn't updated then. What the reader lacked against this issue's criteria:
 errors naming the level and offset, the every-level output shape, and a
 test needing no downloaded file. This pass adds those. It doesn't touch the
-shared-reader question (open question 2).
+shared-reader question (open question 2), answered separately below.
 
 ### Changes
 
@@ -169,3 +182,6 @@ a paletted texture overwritten gives only the reader's own errors.
 3. **The output shape 117 asked for is added beside the old one** rather
    than replacing it: the renderer, editor and asset tools call
    `decode(bytes, level)`.
+4. **The reader stays here (open question 2, Q-9).** See the answer under
+   Open Questions; the shared reader taking over is W09, an idea not to be
+   built until both readers are stable.
