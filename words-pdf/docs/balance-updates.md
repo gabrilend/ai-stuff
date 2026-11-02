@@ -66,3 +66,22 @@ and below the dashed-border characters look roughly equal.
 Worth trying 1, 2, and 3 pt on the same page to see which reads most
 balanced. Bump if the bottom still feels heavier; reduce if the top
 starts to peek above the dashed border.
+
+---
+
+## 2026-11-02 — Tier 1 gate measures only the column bottoms (value unchanged)
+
+**File:** `compile-pdf-ai.lua`
+**Variable:** `TIER1_MIN_REGION_AREA_FRACTION`
+**Value:** `0.08` (unchanged)
+
+The 15% page shift makes the right outer margin about 16% of the page on
+every page, so under issue 028's rule every themed page passed the gate.
+The gate now measures only the empty column bottoms against the
+threshold; the outer margins and center strip are drawn on a passing
+page when they are themselves at least the threshold, and never open the
+gate. Tier 1 art is now much rarer on books of short poems (on a
+synthetic book of 1–20-line poems, 1 page in 96). If that reads too
+sparse, try 0.05.
+
+Changed by Issue 033.

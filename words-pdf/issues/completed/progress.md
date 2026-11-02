@@ -261,3 +261,16 @@ Phase 1 has established a **solid foundation** for advanced chat functionality w
 **Still open:** HTML-generation and navigation tests, sampling and performance checks.
 
 **Found and filed:** issue 033 (Tier 1 gate always passes because of the right margin) and issue 034 (weighted theme choice favors overused themes when every score is negative).
+
+---
+
+### Issue 033: Tier 1 Gate Measures Only The Column Bottoms
+**Status:** ✅ Completed
+**Implementation Date:** 2026-11-02
+
+**Completed Steps:**
+- ✅ Decided: the gate measures free space inside the text block only (option B)
+- ✅ `select_tier1_regions` gates on the empty column bottoms; margins and center join a passing page only when they reach the threshold themselves
+- ✅ Log lines name the column bottoms
+- ✅ `tests/test-layout.lua` checks the new gate on made-up and A4 geometry
+- ✅ `docs/balance-updates.md` records the change and its effect on how often Tier 1 art appears

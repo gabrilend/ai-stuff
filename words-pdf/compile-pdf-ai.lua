@@ -113,6 +113,8 @@ MAX_CHAR_PER_LINE  = 80  -- Characters per line (content width)
 -- replaced the old global fill-ratio gate with this per-region filter, so
 -- a page with one big empty zone gets art there even when the page is
 -- otherwise full, and a page full of tiny slivers gets no noisy scraps.
+-- Issue 033: only the empty column bottoms open the gate; the outer
+-- margins are the same on every page, so they cannot.
 -- 0.08 = a region must be at least 8% of the page (~ a third of a column
 -- at full height). See docs/balance-updates.md for tuning history.
 TIER1_MIN_REGION_AREA_FRACTION = 0.08
@@ -1741,26 +1743,48 @@ end
 -- color, so explicit masking after the fact is no longer needed.
 
 -- Issue 028's gate as a pure function, so tests can check it without a
--- PDF: flattens the outside regions (bottom strip, outer margins, center
--- gap) and keeps those whose area is at least TIER1_MIN_REGION_AREA_FRACTION
--- of the page. Returns qualifying regions, all outside regions, and the
--- largest outside region's area (for the "skipped" log line).
+-- PDF. Issue 033 narrowed what the gate measures: only the regions inside
+-- the text block (the empty bottoms of the two columns). The outer margins
+-- and the center gap are the same size on every page — the 15% page shift
+-- alone makes the right margin about 16% of the page, twice the threshold
+-- — so measuring them let every themed page pass and the gate never told a
+-- roomy page from a full one.
+--
+-- A page passes when at least one column bottom is at least
+-- TIER1_MIN_REGION_AREA_FRACTION of the page. A passing page gets art in
+-- those column bottoms and in any outer margin or center strip that is
+-- itself that big (028's rule that slivers are never drawn still holds).
+-- A page that does not pass gets no Tier 1 art at all.
+--
+-- Returns the regions to draw, the in-block regions the gate measured,
+-- and the largest of those (for the "skipped" log line).
 function select_tier1_regions(spaces, page_width, page_height) -- {{{
-    local outside_regions = {}
-    for _, region in ipairs(spaces.bottom_space) do table.insert(outside_regions, region) end
-    for _, region in ipairs(spaces.left_outer)   do table.insert(outside_regions, region) end
-    for _, region in ipairs(spaces.right_outer)  do table.insert(outside_regions, region) end
-    for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
-
     local min_area = page_width * page_height * TIER1_MIN_REGION_AREA_FRACTION
+    local measured_regions = {}
     local qualifying_regions = {}
     local largest_area = 0
-    for _, region in ipairs(outside_regions) do
+    for _, region in ipairs(spaces.bottom_space) do
+        table.insert(measured_regions, region)
         local area = region.width * region.height
         if area > largest_area then largest_area = area end
         if area >= min_area then table.insert(qualifying_regions, region) end
     end
-    return qualifying_regions, outside_regions, largest_area
+
+    -- Path: no column bottom is big enough — the page is full; no art.
+    if #qualifying_regions == 0 then
+        return qualifying_regions, measured_regions, largest_area
+    end
+
+    -- Path: the page has room — the fixed strips join it when they are
+    -- big enough to read as a canvas on their own.
+    for _, list in ipairs({ spaces.left_outer, spaces.right_outer, spaces.center }) do
+        for _, region in ipairs(list) do
+            if region.width * region.height >= min_area then
+                table.insert(qualifying_regions, region)
+            end
+        end
+    end
+    return qualifying_regions, measured_regions, largest_area
 end -- }}}
 
 function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height, page_num) -- {{{
@@ -1771,27 +1795,26 @@ function generate_page_art(pdf_page, page_poems, page_width, page_height, margin
         progress_ui.log("🔍 Neutral page theme — no background art generated")
     else
         -- Issue 028: gate Tier 1 art on per-region area rather than global
-        -- page fullness. Compute the outside regions first (the same set
-        -- the renderer would draw into anyway) and keep only those whose
-        -- area is at least TIER1_MIN_REGION_AREA_FRACTION of the page.
-        -- A 70%-full page with one big empty strip still gets art there;
-        -- a 30%-full page whose empty space is scattered into useless
-        -- slivers gets no noisy scraps.
+        -- page fullness. Issue 033: the gate measures only the empty
+        -- column bottoms, since the outer margins are the same on every
+        -- page; see select_tier1_regions. A page with a big empty column
+        -- bottom gets art there (and in the wide right margin); a page
+        -- whose columns are full gets none.
         local spaces = calculate_art_spaces(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift)
-        local qualifying_regions, outside_regions, largest_area =
+        local qualifying_regions, measured_regions, largest_area =
             select_tier1_regions(spaces, page_width, page_height)
         local page_area = page_width * page_height
 
         local threshold_pct = math.floor(TIER1_MIN_REGION_AREA_FRACTION * 100)
         if #qualifying_regions > 0 then
             progress_ui.log(string.format(
-                "✨ Tier 1 art enabled: %d/%d outside region(s) ≥ %d%% of page area",
-                #qualifying_regions, #outside_regions, threshold_pct))
+                "✨ Tier 1 art enabled: an empty column bottom ≥ %d%% of page area; drawing %d region(s)",
+                threshold_pct, #qualifying_regions))
             draw_tier1_page_art(pdf_page, qualifying_regions, page_theme, page_num)
         else
             progress_ui.log(string.format(
-                "🔍 Tier 1 art skipped: no outside region ≥ %d%% of page area (largest: %d%%, total regions: %d)",
-                threshold_pct, math.floor((largest_area / page_area) * 100), #outside_regions))
+                "🔍 Tier 1 art skipped: no empty column bottom ≥ %d%% of page area (largest: %d%%, column bottoms: %d)",
+                threshold_pct, math.floor((largest_area / page_area) * 100), #measured_regions))
         end
     end
 
