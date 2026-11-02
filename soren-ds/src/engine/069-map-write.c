@@ -42,9 +42,16 @@ static void w(struct writer *wr, const char *fmt, ...)
 /* }}} */
 
 /* {{{ relative_to */
-/* "src/boxes/063-text.c:say" seen from "src/maps" is "../boxes/063-text.c:say". */
+/* "src/boxes/063-text.c:say" seen from "src/maps" is "../boxes/063-text.c:say".
+ * An address from the card ("/boxes/greet.c:greet", a box compiled on the
+ * device, issue 409) seen from a home that is not on the card stays as it
+ * is: no number of ".." climbs from a project path to the card's root. */
 static void relative_to(const char *home, const char *address, char *out, size_t size)
 {
+    if ((address[0] == '/') != (home[0] == '/')) {
+        text_format(out, size, "%s", address);
+        return;
+    }
     size_t common = 0, i = 0;
     /* the longest shared run of whole directories */
     while (home[i] && address[i] && home[i] == address[i]) {

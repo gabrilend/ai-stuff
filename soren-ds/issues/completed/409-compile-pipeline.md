@@ -141,6 +141,73 @@ discover it is missing.
   which 410 handles. Somebody editing all afternoon produces a lot of
   these.
 
+### Proposed answers (UNVERIFIED)
+
+1. *Which compiler?* **Not chosen, and still Ritz's to choose** — it is a
+   month of work either way and decides what the device carries. What is
+   built is the seam that makes the choice local: the pipeline hands
+   generated C to `platform_compile` and takes back an entry function, so
+   the embedded compiler (or a box-semantics C subset) slots in behind
+   one call in `src/device/042-platform-device.c` without touching the
+   engine. The twin answers it with the laptop's gcc and `dlopen`; the
+   device answers "this device has no C compiler yet", in those words,
+   and the pipeline passes them back as the refusal.
+2. *Does the on-device generator share the build's describe mode?* It
+   shares the generator itself — the same `gen_read` over the same
+   source, and its problems come back verbatim as the refusal, every one,
+   each naming the card path and line. What the touchscreen shows of them
+   is phase 6's to decide; `gen_describe` is callable from here when it
+   does.
+3. *A box compiled and never placed?* It keeps its row, its code and its
+   source until 410 reclaims it. Each unit is recorded (path, boxes,
+   when, the kept source, the platform's handle) so 410 has something to
+   retire.
+4. *(new)* **Compiling a file again makes a newer unit beside the old**,
+   rather than being refused because the address is taken. Somebody
+   saving a box fifteen times produces fifteen units with the same
+   addresses (410's own example), and 411 needs the old and the new to
+   coexist so the arrows can move and move back. Looking an address up
+   answers the newest; a station already placed on an older one keeps
+   running it, because its ports were sized to it. An address the image's
+   own rows hold cannot be compiled over: the image's files are not the
+   card's.
+5. *(new)* **The late source is written into the generated unit**, under
+   `#line` marks naming the card path, instead of being `#include`d: on
+   the device there is no file a compiler could include, and the marks
+   make the compiler's own words name the file and line a person saved.
+6. *(new)* **The catalogue's growing tables share one piece**,
+   `src/engine/086-shelves.c`: rows, types, and the compile units. The
+   station table keeps its own copy of the shape inside the engine's
+   record, where index-to-shelf is a shift on the hottest path; moving it
+   onto the shared piece is a refactor of phase 2's core with no
+   behaviour to gain, so it was left.
+7. *(new)* **A unit's value types are copied into the catalogue**, name
+   and fields, so a map can write a fixed value of a type only a late box
+   defines, and so the copy outlives the unit's code when 410 frees it.
+   A type name the catalogue already knows keeps its first row — types
+   are compared by width, never by layout (303) — and the copy carries no
+   ordering, which nothing reads from a type row.
+8. *(new)* **The source is kept in the engine's own memory**, which is
+   RAM and empties at a reboot — the lifetime the issue gives the
+   RAM-backed tier — because the device's tmp/ tier is not a filesystem
+   yet. It is found again from the file's path or any of its boxes'
+   addresses (`compile_source`).
+9. *(new)* **The engine is not held while the compiler runs.** The
+   generator runs holding it (its memory comes from the per-owner
+   allocator), the compiler runs with nothing held, and the rows are
+   added holding it again, all at once.
+10. *(new, found while building)* Two faults, fixed:
+    - **A program placing a late box was written back out wrongly**: the
+      map writer climbed out of the map's directory with `..` towards a
+      card path, writing `../..//boxes/text.c:join`, which reads back as
+      a project path. An address on the card is now written as it is.
+    - **`number_text` (063-text.c) returned stack bytes past the text's
+      end**, so the same number made two different values. It now
+      zeroes the value first.
+    And on the twin, a unit's names are hidden but its entry: without
+    that, a late box called `add` called the image's `add` instead of
+    its own.
+
 ## Blocked by
 
 203 (pages to compile into), 302 and 304 (the generator, and its being
