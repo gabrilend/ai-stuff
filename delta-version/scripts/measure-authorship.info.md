@@ -194,9 +194,13 @@ is counted once.
 
 ## The repository's files
 
-Only files git tracks are read (`git ls-files -z`), so scratch space,
-ignored files and anything untracked are out. Each path goes to the pile of
-the first rule that matches:
+Only files git tracks are read (`git ls-files -z -s`), so scratch space,
+ignored files and anything untracked are out. A tracked symbolic link is left
+out too. Its text is its target's, which is counted where the target is
+tracked, and opening a link can block for ever: a tracked Wine prefix links
+`com1` to `/dev/ttyS0`.
+
+Each remaining path goes to the pile of the first rule that matches:
 
 | Rule | Pile |
 |------|------|

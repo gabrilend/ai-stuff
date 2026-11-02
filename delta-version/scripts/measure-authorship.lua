@@ -739,13 +739,19 @@ end
 -- {{{ local function tracked_files()
 -- Every path git tracks, relative to DIR. Read NUL-separated so that names
 -- git would otherwise quote (spaces, accents) arrive exactly as they are.
+-- Symbolic links (mode 120000) are left out: a link's text is its target's,
+-- counted where the target is tracked, and opening one can block for ever.
+-- A tracked Wine prefix links com1 to /dev/ttyS0, and reading that waits on
+-- a serial port.
 local function tracked_files()
-    local pipe = io.popen(string.format("git -C %q ls-files -z", DIR))
+    local pipe = io.popen(string.format("git -C %q ls-files -z -s", DIR))
     if not pipe then error("could not list tracked files in " .. DIR, 0) end
     local listing = pipe:read("*a")
     pipe:close()
     local files = {}
-    for path in listing:gmatch("([^%z]+)%z") do files[#files + 1] = path end
+    for mode, path in listing:gmatch("(%d+) %x+ %d+\t([^%z]+)%z") do
+        if mode ~= "120000" then files[#files + 1] = path end
+    end
     return files
 end
 -- }}}

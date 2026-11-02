@@ -371,6 +371,14 @@ questions without waiting on him.
   under the C locale, where it counts bytes, so the emoji sentence check
   failed on this machine. It now runs under `C.UTF-8`.
 
+- **A hang found on the real tree.** Run over the whole monorepo, the
+  measure never finished. One count worker sat reading `/dev/ttyS0`: a
+  tracked Wine prefix (`links-awakening/dosdevices/`) links `com1` to that
+  serial port, and the measure opened every tracked path, links included.
+  Tracked symbolic links are now left out: a link's text is its target's,
+  counted where the target is tracked. A fixture link to a FIFO keeps it
+  fixed.
+
 Tests: `test-measure-authorship.sh` passes 37/37 (was 30). The new checks
 cover the file-body cut (with a nested fence and an ordinary copy beside it),
 the label with no body, the compaction share, the CLAUDE files under

@@ -3,3 +3,8 @@
 # regeneration churn across every commit; the tracked library/README.md
 # explains how to rebuild it. (Issue 057.)
 library/storyline/
+
+# tmp is this machine's link to its RAM scratch folder, made by
+# scripts/libs/ensure-ram-tiers when a test runs. It points outside the
+# repository and means nothing on another machine.
+/tmp

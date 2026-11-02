@@ -359,7 +359,12 @@ function build_repository_fixture() {
     put "$tree" "project/luarocks/r.lua" "r"
     put "$tree" "project/docs/Page.html" "<html>saved</html>"
     put "$tree" "project/docs/Page_files/p.js" "var p;"
-    git -C "$tree" add -A
+    # a tracked symbolic link to a FIFO, which blocks a reader for ever
+    # (like a Wine prefix's com1 -> /dev/ttyS0): left out, never opened
+    mkfifo "$tree/project/blocking-fifo"
+    ln -s "$tree/project/blocking-fifo" "$tree/project/src/com1.lua"
+    git -C "$tree" add project/src/com1.lua
+    git -C "$tree" add -A ':!project/blocking-fifo'
     # untracked: must not count
     put "$tree" "project/src/untracked.lua" "untracked()"
     echo "$tree"
