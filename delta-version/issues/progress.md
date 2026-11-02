@@ -228,6 +228,7 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Recently Completed
 - **Issue 018**: Project discovery — completed 2026-11-02 by building only the gap: `scripts/discover-projects.lua` takes the project list and kinds from the shared `scripts/libs/project-discovery.lua`, states from the census, counts each project's languages from git-tracked files, and picks a ticket's projects by kind, language used, state, path, activity or name, with named profiles in `config/project-discovery.conf`. Tested by `scripts/test-discover-projects.sh`.
+- **Issue 017**: Keyword processing engine (2026-11-02) — `scripts/libs/kml.lua` and `scripts/process-template.lua` fill `][keyword[]` placeholders from `config/ticket-keywords.conf`: parameters held to a safe character set, escapes, each command run once in the project's folder under a time limit, four error modes, `--check` and `--list`; the project's keyword file layers over delta-version's. Test: `scripts/test-process-template.sh`.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).
@@ -474,7 +475,7 @@ These issues provide foundational utilities and can be implemented independently
   older copies under `issues/phase-2/`, kept as that phase's record).
 
 ### Phase 3+ (Future)
-- **Issue 017–022**: Ticket Distribution System (016, the markup language, is completed)
+- **Issue 018–022**: Ticket Distribution System (016, the markup language, and 017, its engine, are completed)
 - **Issue 027**: Basic Reporting Framework
 - (024 and 026, listed here until September 2026, are completed.)
 
