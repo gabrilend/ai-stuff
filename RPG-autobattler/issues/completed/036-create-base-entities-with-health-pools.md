@@ -476,8 +476,45 @@ end
 - Check victory condition triggering
 
 ### Acceptance Criteria
-- [ ] Bases have substantial health pools (~20 average units)
-- [ ] Visual damage progression shows base condition
-- [ ] Structural integrity affects base performance
-- [ ] Base destruction triggers victory conditions
-- [ ] Different base types have distinct characteristics
+- [ ] Bases have substantial health pools (~20 average units) -- core holds 5; the shields of issue 037 bring it to 20
+- [x] Visual damage progression shows base condition (data and color only; not seen on screen)
+- [x] Structural integrity affects base performance
+- [x] Base destruction triggers victory conditions
+- [x] Different base types have distinct characteristics
+## What Happened
+
+Built as `src/entities/base.lua` (creation and the rules for one base) and
+`src/systems/base_health_system.lua` (updates every base each frame and
+reports the first base to fall as a victory). Tested headlessly by
+`tests/test_base.lua`, which `./run <dir> unit` now runs. LÖVE was not
+installed where this was built, so nothing was looked at on screen.
+
+The pseudocode above was taken as a sketch, not a contract. The base is a
+plain entity with the existing `position`, `health`, `team` and
+`renderable` components plus a new `base` component; it uses the same
+health fields as units (`current_hp`, `max_hp`, `alive`), so
+`Unit.is_alive` and `Unit.get_team_id` work on bases too.
+
+### Decisions
+- **How big is "substantial"?** The vision says the core holds about five
+  average units and the three shields bring the total to about twenty. The
+  core is therefore `5 x Base.AVERAGE_UNIT_HEALTH`, and the average is
+  worked out from `Unit.get_unit_base_health` at load (112 today), so it
+  follows unit balance changes. The acceptance line "~20 average units" is
+  met once issue 037 adds the shields.
+- **Base types** keep the four names from the issue. They differ by health
+  multiplier, damage reduction and repair rate: fortified and fortress
+  trade repair speed for armour, the command center has the largest pool
+  and the fastest repair.
+- **Damage sections** are five steps (pristine, damaged, battered, critical,
+  failing). Each step sets `structural_integrity`, which issue 038's turret
+  will use to scale its fire.
+- **Regeneration** starts 8 seconds after the last hit and counts only the
+  time past that delay, so a long frame does not over-repair. A destroyed
+  base never repairs.
+- **Victory** is an event (`base_destroyed`, then `victory`) read with
+  `pop_events()`, plus `is_game_over()` and `get_winner()`. Wiring it into a
+  victory screen belongs to phase 7.1 and is left for that issue.
+- Visual damage is shown by dimming the team color with integrity
+  (`Base.get_render_color`); drawing the base is left to the renderer work,
+  since it cannot be checked without a screen.

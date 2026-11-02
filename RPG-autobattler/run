@@ -395,6 +395,13 @@ run_unit_tests() {
     
     print('✓ Enhanced lane following tests passed')
     " 2>/dev/null && print_success "Enhanced Lane Following System tests passed" || print_error "Enhanced Lane Following System tests failed"
+
+    # Test Base entities (issue 036)
+    print_info "Testing Base entities..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_base').run_all()
+    " 2>/dev/null && print_success "Base entity tests passed" || print_error "Base entity tests failed"
 }
 # }}}
 
