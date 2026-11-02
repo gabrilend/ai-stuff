@@ -284,7 +284,8 @@ EOF
 - **Priority**: High
 - **Complexity**: Medium-High
 - **Estimated Time**: 1.5-2 hours
-- **Dependencies**: Issue 017 (keyword processing engine)
+- **Dependencies**: None (it was written as needing the keyword processing engine, but choosing projects turned out not to need templates)
+- **Blocks**: Issue 019 (ticket distribution engine)
 - **Impact**: Automation and intelligence of ticket distribution
 
 ## Success Criteria
@@ -296,3 +297,72 @@ EOF
 - Discovery report provides clear project overview
 - System handles edge cases (empty dirs, symlinks, etc.)
 - Performance acceptable for large directory structures
+---
+
+## What Happened
+
+**2026-11-02 — scoped against what exists, and only the gap built.**
+
+By the time this issue was picked up, most of what it asked for already
+existed in two other tools, so neither was duplicated:
+
+- **Automatic detection, and main projects vs libraries:**
+  `census-projects.lua` decides what is a project. It opens shelves like
+  `games/` and `symbeline-realms/subprojects/`, skips furniture like `libs/`
+  and `llm-transcripts/`, and leaves out backups and copies. It also gives
+  each project a state (tracked, building, vision, empty).
+- **External directories:** `list-projects.sh` keeps the projects outside
+  the repository in `config/external-projects.conf`.
+- **Discovery report:** the census's terminal summary.
+
+What neither did was classify a project by language, or pick the projects
+a ticket is for. `scripts/discover-projects.lua` adds exactly that. It asks
+the census for the project list, counts each project's languages from the
+files git tracks, and filters the list. The filters are:
+
+- by dominant language, or by any language used;
+- by census state;
+- by a path the project holds;
+- by recent activity;
+- by name.
+
+Filters can be given alone or as a named profile in
+`config/project-discovery.conf`. Profiles shipped: `code-style-lua`,
+`code-style-c`, `shell-scripts`, `build-system`, `organization`, `active`.
+Output is names, paths, a table or JSON. Exit status: 1 when nothing
+matched, 2 for a mistake.
+
+Decisions:
+
+- **Filters, not a relevance score.** The scoring sketched above adds
+  arbitrary weights (50 for being a project, 15 for more than ten files),
+  and a threshold on their sum hides why a project was picked. Every filter
+  is a yes-or-no fact that `--table` shows.
+- **Languages come from git-tracked files only.** That way `.gitignore`d
+  builds, untracked scratch and RAM-tier `tmp/` never count.
+- **Some tracked files are left out of the language count:**
+  - symbolic links, because they are second names, and one points at a
+    serial device that would hang a reader;
+  - vendored `libs/`, `vendor/` and `node_modules/` inside a project;
+  - the census's materials (`input/`, `output/`, `docs/HTML/`).
+- **Files are counted, not lines.** That is cheap enough to run on every
+  ticket: 1.6 s for 86 projects and 10,500 files.
+- **External projects are not classified.** They are outside git, so
+  `list-projects.sh` remains the tool for them.
+- **No dependency on the keyword engine.** Choosing projects needs no template processing,
+  so the dependency once listed in the metadata turned out not to be one.
+
+Success criteria:
+
+- **Main projects vs library dependencies:** met, by the census plus
+  vendored-folder exclusion.
+- **Multiple languages:** met. Classification covers 20 languages, and
+  extensionless scripts are recognised by their `#!` line.
+- **Relevance scoring:** replaced by explicit filters (decision above).
+- **Filtering scenarios, configuration, report:** met.
+- **Edge cases:** met. Empty and vision-only projects come out as `none`,
+  and symbolic links are skipped. Unknown names are refused rather than
+  silently matching nothing.
+- **Performance:** met.
+
+Tested by `scripts/test-discover-projects.sh` (38 checks on a RAM fixture).
