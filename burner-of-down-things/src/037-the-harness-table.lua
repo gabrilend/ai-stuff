@@ -11,6 +11,9 @@
 --   limit    number    seconds a turn may run before it is stopped
 --   command  function(project, turn) -> the program line that runs one turn,
 --            to be run from the turn's working folder
+--   serving  function() -> true, or nil and why (optional): a check beyond
+--            the PATH that the harness can answer now, such as a server
+--            that must be running (ollama's, issue 903b)
 --
 -- Every turn is run by the same shell line around the row's command: go to
 -- the working folder, run under `timeout`, send standard output to
@@ -20,6 +23,13 @@
 local fs = require("017-the-filesystem")
 
 local harnesses = {}
+
+-- This file's own folder, where 138's single-answer wrapper sits beside it.
+-- Made absolute, since a turn's shell line runs from its working folder.
+local HERE = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) or "."
+if HERE:sub(1, 1) ~= "/" then
+    HERE = (os.getenv("PWD") or ".") .. "/" .. HERE
+end
 
 -- {{{ local function folder_of
 -- A write prefix names a folder ("design/"), a file ("…/outline.tsv") or a
@@ -41,7 +51,9 @@ end
 -- }}}
 
 -- {{{ local function json_string
--- A string as a JSON string literal (for the settings rules).
+-- A string as a JSON string literal (for the settings rules, and an ollama
+-- turn's answer, 903d). Control characters, quotes and backslashes are
+-- escaped; every other byte is written as it came.
 local function json_string(s)
     return '"' .. s:gsub('[%c"\\]', function(c)
         if c == '"' then return '\\"' end
@@ -148,23 +160,51 @@ harnesses.TABLE = {
     -- it (903c resolves that) and refuses rather than guess.
     ollama = {
         name = "ollama",
-        needs = { "ollama" },
+        needs = { "ollama", "luajit", "timeout" },
         cost = "local",
         pool = 2,
         limit = 120,
+        -- 903b: the program on the PATH is not enough; its server must be
+        -- answering. Asking it for its models (`ollama list`) is the check.
+        serving = function()
+            return harnesses.ollama_serving()
+        end,
+        -- 903d: the model has no file tools, so confinement is the
+        -- machine's own. It answers one question: 138's wrapper runs the
+        -- model, keeps only what it prints on standard output, and prints
+        -- that as {"answer": ...}, which the shell line writes to
+        -- result.json. Nothing else is written.
         command = function(project, turn)
             if not turn.model then
                 error("harnesses: an ollama turn must name turn.model (903c resolves this)")
             end
             -- The prompt arrives on standard input, like every other row.
-            return "ollama run " .. fs.quote(turn.model)
+            return "luajit " .. fs.quote(HERE .. "/138-one-answer.lua")
+                .. " ollama run " .. fs.quote(turn.model)
                 .. " < " .. fs.quote(turn.folder .. "/prompt.md")
         end,
     },
 }
 
+-- {{{ function harnesses.ollama_serving
+-- Whether ollama's server is answering: true when `ollama list` (which asks
+-- the server for its models) succeeds; otherwise nil and what it said, so a
+-- refusal can quote it.
+function harnesses.ollama_serving()
+    local out, ok, code = fs.capture("ollama list 2>&1")
+    if ok then
+        return true
+    end
+    local said = (out or ""):match("[^\n]*%S[^\n]*") or ("exit status " .. tostring(code))
+    return nil, "`ollama list` failed: " .. said
+end
+-- }}}
+
 -- {{{ function harnesses.row
--- The named row, after checking every program it needs is installed.
+-- The named row, after checking every program it needs is installed and,
+-- where the row has one, that its `serving` check passes (903b). A row
+-- that fails either is refused by name: never a quiet switch to another
+-- harness (docs/068).
 function harnesses.row(name)
     local row = harnesses.TABLE[name]
     if not row then
@@ -178,6 +218,13 @@ function harnesses.row(name)
     end
     if #missing > 0 then
         error("harnesses: '" .. name .. "' needs " .. table.concat(missing, ", ") .. ", not installed")
+    end
+    if row.serving then
+        local ok, why = row.serving()
+        if not ok then
+            error("harnesses: '" .. name .. "' is installed but not serving (" .. tostring(why)
+                .. "); start its server (for ollama, `ollama serve`). No other harness is used in its place")
+        end
     end
     return row
 end
@@ -195,5 +242,7 @@ function harnesses.shell_line(project, row, turn, limit)
         .. "; echo $? > " .. fs.quote(folder .. "/exit")
 end
 -- }}}
+
+harnesses.json_string = json_string
 
 return harnesses

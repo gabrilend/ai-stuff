@@ -29,6 +29,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   right form) — a word-boundary check keeps "promptly" from misreading as
   a broken tag.
 
-903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
-confinement; number issuance and reuse refusal; structured and remaining
-types; shortest-chain search, joint checking and plan execution.
+- 903b and 903d the needs check and confinement — the ollama row is refused by
+  name when its server does not answer `ollama list`, never handed to
+  another harness; its model answers one question, and only what it
+  prints on standard output reaches the turn's `result.json`, written by
+  the machine.
+
+901c-d, 902b-c and 905b-d remain: number issuance and reuse refusal;
+structured and remaining types; shortest-chain search, joint checking and
+plan execution.
