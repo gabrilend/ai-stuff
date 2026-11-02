@@ -220,13 +220,13 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: First version completed 2024-12-15; reopened and completed again 2026-09-22
 
 ## In Progress
-- **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
 - **Issue 055**: Commit gated by issue completion — rewritten 2026-09-22 so the design can work (a gate only sees the command text) and narrowed to sit beside the shared line-ledger commit gate rather than duplicate it. Nothing built yet.
 - **Issue 056**: Recursive transcript summarisation — 056a (llama.cpp client) exists; 056b–d unbuilt.
 
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 042a**: The integration audits (2026-11-02) — `check-utilities.sh --issue-standards` runs the shared `validate-issues` on each project; `--transcripts` names projects whose conversations are on record but not exported, and exports filed under the wrong project (through the shared filing check); `--tui-audit` removed, unknown options refused. `--all-projects` now scans the checker's own monorepo. Test: `scripts/test-check-utilities.sh`.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).

@@ -22,7 +22,7 @@ reading a number here:
 | Issue | What | Why now |
 |-------|------|---------|
 | **055** | Commit gated by issue completion | Rewritten so the gate can work (it sees only the command text) and so it narrows to what the shared line-ledger commit gate does not cover. Small once that gate lands. |
-| **042a** | The three unbuilt `check-utilities.sh` audits | The flags are advertised in `--help` and print "not yet implemented"; either build them or remove them. `--issue-standards` should call the shared issue validator rather than hold a second copy of the rules. |
+| ~~042a~~ | The three unbuilt `check-utilities.sh` audits | Done 2026-11-02: `--issue-standards` calls the shared validator, `--transcripts` built on the shared filing check, `--tui-audit` removed. |
 | **046** | Simplify branch architecture | Marked COMPLETED, but three acceptance boxes are unchecked (dev branches merged and deleted; main repo held on master by the post-checkout hook). Check them against the repository and move it to `completed/`, or reopen what is not true. |
 | **054** | External library cleanup | Complete except "GitHub language statistics updated", which only a push and time can satisfy. Confirm on GitHub and move it. |
 
@@ -64,7 +64,7 @@ reading a number here:
 ```
 shared issue validator (scripts A04)
         │
-        ├──▶ 042a --issue-standards
+        ├──▶ 042a --issue-standards ✅
         └──▶ issue-lifecycle skill
 
 shared line-ledger commit gate (scripts 032)
