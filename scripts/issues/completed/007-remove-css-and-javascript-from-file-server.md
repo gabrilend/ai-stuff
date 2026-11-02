@@ -153,3 +153,52 @@ This issue blocks usage of the file server. To unblock:
 3. Begin implementation
 
 ---
+
+## What Happened
+
+The conversion itself was done on 2025-12-21, as the Resolution Notes say: the
+page has had no `<style>`, `<script>` or `onclick` since then. A check on
+2026-11-02 found the issue still among the open ones and five gaps between
+"no CSS and no JavaScript" and what the tool actually guaranteed. All five
+are closed on branch `claude/007-file-server-pure-html`:
+
+1. **A name could put a script into the page.** Names were written into the
+   page raw, so a file called `<script>alert(1)<.md` added a `<script>`
+   element. Names are now HTML-escaped, and links are escaped too.
+2. **A name could run a command.** Paths went to `find`, `du` and `stat` in
+   double quotes, so a folder called `$(touch x)` ran `touch x` while the tree
+   was scanned. That was seen happening with the old library. Paths are now
+   single-quoted. `find -path "<dir>"` became `find -mindepth 1`, because
+   `-path` read the folder's name as a pattern.
+3. **Links broke on spaces, `#`, `&` and quotes.** `file://` links are now
+   percent-encoded.
+4. **The runner only worked on the monorepo itself.** It loaded the library
+   from under the folder being scanned, so scanning any other folder failed.
+   It also ran the library with `lua` rather than LuaJIT, and read `-o` as the
+   folder when `-o` came first. The runner now loads the library from beside
+   itself and runs it with `luajit`. It reads the folder and output as the
+   first and second plain words, works out the default output after all
+   arguments are read, and refuses an unknown option or a missing folder.
+5. **Step 20 (the README) was never done.** `libs/README-project-file-server.md`
+   still described a sidebar, live search and a responsive layout, and a dkjson
+   dependency the library never loads. It now describes the page as it is.
+
+### Decisions
+
+- **Escape and quote rather than skip odd names.** A tree can hold any name,
+  and leaving names out would hide real files. Every name is listed, as text.
+- **The test is a shell test in `tests/`**, like the other scripts tests. It
+  builds hostile names in a scratch folder and runs the real runner. The
+  "nothing ran" check runs the scan from inside a canary folder that a hidden
+  `touch` would write into.
+- **The quick links stay hard-coded.** They are Ritz's own folders, and making
+  them configurable is a different issue.
+- **The interactive menu's `python3 -m http.server` options stay.** They serve
+  the finished page and add nothing to it.
+
+### Tests
+
+`tests/test-project-file-server.sh` has 27 checks and all pass. Against the
+old runner and library, 15 of the 27 fail. Run directly on a hostile tree, the
+old library also ran a folder's `$(touch ...)` and wrote raw `<script>`
+elements.

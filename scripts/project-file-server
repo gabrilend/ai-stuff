@@ -9,15 +9,17 @@
 # }}}
 
 DIR="/home/ritz/programming/ai-stuff"
-if [ -n "$1" ] && [ "$1" != "-I" ]; then
-    DIR="$1"
-fi
 
-OUTPUT="$DIR/project-file-server.html"
-if [ -n "$2" ]; then
-    OUTPUT="$2"
-fi
+# The library is found beside this runner (following a symlink to it), not
+# under the folder being scanned, so any folder can be scanned.
+SCRIPTS_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+LIBRARY="$SCRIPTS_HOME/libs/project-file-server.lua"
 
+# The first word that is not an option is the folder to scan, the second the
+# output file; -o also names the output. With no output named, the page goes
+# into the scanned folder, worked out once every argument has been read.
+OUTPUT=""
+POSITIONAL=0
 INTERACTIVE=false
 
 # {{{ parse_args
@@ -32,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: project-file-server [DIRECTORY] [OPTIONS]"
+            echo "Usage: project-file-server [DIRECTORY] [OUTPUT] [OPTIONS]"
             echo ""
             echo "Generates a pure HTML file browser with collapsible directories."
             echo "No CSS. No JavaScript. Just HTML with <details>/<summary>."
@@ -55,14 +57,28 @@ while [[ $# -gt 0 ]]; do
             echo "  python3 -m http.server 8080"
             exit 0
             ;;
+        -*)
+            echo "project-file-server: unknown option $1 (see --help)" >&2
+            exit 1
+            ;;
         *)
-            if [ -d "$1" ]; then
+            POSITIONAL=$((POSITIONAL + 1))
+            if [ "$POSITIONAL" -eq 1 ]; then
                 DIR="$1"
+            elif [ "$POSITIONAL" -eq 2 ]; then
+                OUTPUT="$1"
             fi
             shift
             ;;
     esac
 done
+if [ -z "$OUTPUT" ]; then
+    OUTPUT="$DIR/project-file-server.html"
+fi
+if [ "$INTERACTIVE" != true ] && [ ! -d "$DIR" ]; then
+    echo "project-file-server: no such folder: $DIR" >&2
+    exit 1
+fi
 # }}}
 
 # {{{ interactive_mode
@@ -88,7 +104,7 @@ interactive_mode() {
     case $choice in
         1)
             echo "Generating file server HTML..."
-            lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
+            luajit "$LIBRARY" "$DIR" "$OUTPUT"
             ;;
         2)
             if [ -f "$OUTPUT" ]; then
@@ -153,6 +169,6 @@ if [ "$INTERACTIVE" = true ]; then
 else
     # Default: generate file server
     echo "Generating Project File Server..."
-    lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
+    luajit "$LIBRARY" "$DIR" "$OUTPUT"
 fi
 # }}}

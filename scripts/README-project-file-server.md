@@ -53,7 +53,8 @@ python3 -m http.server 8080
 
 | Option | Description |
 |--------|-------------|
-| `[directory]` | Directory to scan (default: `/home/ritz/programming/ai-stuff`) |
+| `[directory]` | Directory to scan (default: `/home/ritz/programming/ai-stuff`); one that does not exist is refused |
+| `[output]` | Output HTML file, as a second word (same as `-o`) |
 | `-I, --interactive` | Run in interactive mode |
 | `-o, --output <file>` | Specify output HTML file |
 | `-h, --help` | Show help message |
@@ -77,6 +78,9 @@ When run with `-I`:
 - **File Links**: Uses `file://` protocol for direct access
 - **Cross-Browser**: Works in Firefox, Chrome, and other modern browsers
 - **Offline Use**: No external dependencies after generation
+- **Names Are Data**: names are quoted for the shell, escaped in the page and
+  percent-encoded in links, so a file called `<script>.md` or a folder called
+  `$(...)` is listed as text and nothing in it runs
 
 ## Output Format
 
