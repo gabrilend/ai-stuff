@@ -22,21 +22,25 @@ MENU_LIB_DIR="${MENU_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # Menu Structure
 # ============================================================================
 
+# These tables are made with declare -g so they stay global even when this
+# file is sourced from inside a function: a plain declare there would make
+# them local to that function, and they would vanish when it returns.
+
 # Section definitions
-declare -a MENU_SECTIONS              # Ordered section IDs
-declare -A MENU_SECTION_TYPES         # section_id -> type (single|multi|list|value)
-declare -A MENU_SECTION_TITLES        # section_id -> display title
-declare -A MENU_SECTION_ITEMS         # section_id -> comma-separated item IDs
+declare -ga MENU_SECTIONS              # Ordered section IDs
+declare -gA MENU_SECTION_TYPES         # section_id -> type (single|multi|list|value)
+declare -gA MENU_SECTION_TITLES        # section_id -> display title
+declare -gA MENU_SECTION_ITEMS         # section_id -> comma-separated item IDs
 
 # Item definitions
-declare -A MENU_ITEM_LABELS           # item_id -> display label
-declare -A MENU_ITEM_DESCRIPTIONS     # item_id -> description
-declare -A MENU_ITEM_TYPES            # item_id -> type (checkbox|multistate|number|text|action)
-declare -A MENU_ITEM_CONFIG           # item_id -> type-specific config
+declare -gA MENU_ITEM_LABELS           # item_id -> display label
+declare -gA MENU_ITEM_DESCRIPTIONS     # item_id -> description
+declare -gA MENU_ITEM_TYPES            # item_id -> type (checkbox|multistate|number|text|action)
+declare -gA MENU_ITEM_CONFIG           # item_id -> type-specific config
 
 # State
-declare -A MENU_VALUES                # item_id -> current value
-declare -A MENU_ITEM_DISABLED         # item_id -> 1 if disabled
+declare -gA MENU_VALUES                # item_id -> current value
+declare -gA MENU_ITEM_DISABLED         # item_id -> 1 if disabled
 
 # Navigation
 MENU_CURRENT_SECTION=0
@@ -60,9 +64,9 @@ MENU_RENDER_GLOBAL_INDEX=0
 MENU_ITEMS_END_ROW=0                  # Row after last item (for description area)
 
 # Item position cache for incremental updates
-declare -A MENU_ITEM_ROWS              # "section:item_idx" -> screen row
-declare -A MENU_ITEM_GLOBAL_IDX        # "section:item_idx" -> global index (1-based)
-declare -A MENU_ITEM_IDS               # "section:item_idx" -> item_id
+declare -gA MENU_ITEM_ROWS              # "section:item_idx" -> screen row
+declare -gA MENU_ITEM_GLOBAL_IDX        # "section:item_idx" -> global index (1-based)
+declare -gA MENU_ITEM_IDS               # "section:item_idx" -> item_id
 MENU_NEEDS_FULL_REDRAW=1               # 1 = need full redraw, 0 = can do incremental
 
 # Previous cursor position (for incremental updates)

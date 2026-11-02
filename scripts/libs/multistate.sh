@@ -21,17 +21,21 @@ fi
 # Multi-State Configuration
 # ============================================================================
 
+# These tables are made with declare -g so they stay global even when this
+# file is sourced from inside a function: a plain declare there would make
+# them local to that function, and they would vanish when it returns.
+
 # Option definitions: name -> "state1,state2,state3,..."
-declare -A MULTISTATE_OPTIONS
+declare -gA MULTISTATE_OPTIONS
 
 # Current values: name -> current_state
-declare -A MULTISTATE_VALUES
+declare -gA MULTISTATE_VALUES
 
 # Display labels: name -> "Display Label"
-declare -A MULTISTATE_LABELS
+declare -gA MULTISTATE_LABELS
 
 # Descriptions for states: name:state -> "description"
-declare -A MULTISTATE_STATE_DESCRIPTIONS
+declare -gA MULTISTATE_STATE_DESCRIPTIONS
 
 # ============================================================================
 # Initialization
