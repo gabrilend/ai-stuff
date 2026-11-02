@@ -50,6 +50,42 @@ consumers and the filesystem.
 4. In `kernel_main`, call `settings_load()` between FAT bring-up
    and the compositor's first frame.
 
+## Open questions
+
+- *Do the settings go through the boxes, as step 1 says, or straight to
+  the path layer?*
+- *What does a setting file that a person edited on a laptop look like
+  to the device?*
+- *"Schedules a write" — scheduled on what?*
+- *Does a save that cannot reach the card change anything?*
+- *Where is `settings_load` called from?*
+
+### Proposed answers (UNVERIFIED)
+
+1. *Boxes or path layer?* The path layer (`files_read`, `files_write`
+   from 405). The settings module is kernel code that runs before any
+   program does, and the boxes are thin wrappers over those same calls,
+   so the files are read and written exactly as the boxes would.
+2. *Edited on a laptop?* Whitespace around a value is ignored, so `r`
+   followed by an editor's newline reads as `r`. A file holding
+   anything else, or more than 63 bytes, is put back to its default, on
+   the card too, and the developer's line says which. App names are 1 to
+   31 letters, digits or `-`, which keeps a path out of a name; they are
+   not checked against a list of apps, since no app exists yet.
+3. *Scheduled on what?* Nothing: the default is written at once, during
+   the load, because the load runs at boot before anything else wants the
+   card.
+4. *A save that cannot reach the card?* It still changes the value in
+   memory, so the device behaves as the person chose for the rest of the
+   session, and answers the card's error so the caller knows it was not
+   kept. Saves are put in a line, so the file and the memory agree even
+   when two saves of one setting race; reads never wait behind a card
+   write.
+5. *Called from where?* Not yet. The module is built and proven on the
+   twin (`src/system/084-settings.c`, `twin/tests/085`), but the device's
+   boot does not yet reach the engine or mount the card, so step 4 waits
+   on phase 2's 201/202 and on 401. That is why this issue stays open.
+
 ## Related documents
 
 - `docs/011-filesystem.md` — persistence rules section.

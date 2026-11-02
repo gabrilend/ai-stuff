@@ -120,7 +120,11 @@ placed in a map and fed through its doors), all on cards
 - **401** — the card's block calls exist on both sides of the platform
   seam (the twin's disk image, the device's phase-1 driver from 110f);
   the device side is unverified.
-- **408** through **412**.
+- **408** — the settings module is built and proven on the twin
+  (`src/system/084-settings.c`, `twin/tests/085`, 22 checks): four
+  settings, defaults written at first boot, laptop edits tolerated or put
+  back. Calling it from the device's boot waits on 201/202 and 401.
+- **409** through **412**.
 
 ## Phase demo
 
