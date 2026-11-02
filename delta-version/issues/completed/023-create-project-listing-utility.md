@@ -356,6 +356,7 @@ function run_interactive_mode() {
 - **Complexity**: Medium
 - **Estimated Time**: 1.5-2 hours
 - **Dependencies**: None (foundational utility)
+- **Blocks**: 024, 032, 040, 044, 053, 053a (each names this listing utility as a dependency)
 - **Impact**: Standardization, integration support, consistency
 
 ## Success Criteria

@@ -34,7 +34,7 @@
 ### Phase 1: Foundation Infrastructure
 - [Phase 1 Progress](../issues/phase-1/progress.md) - Foundation infrastructure development status
 - [Issue 001: Prepare Repository Structure](../issues/phase-1/001-prepare-repository-structure.md) ✅
-- [Issue 023: Create Project Listing Utility](../issues/phase-1/023-create-project-listing-utility.md) ✅
+- [Issue 023: Create Project Listing Utility](../issues/completed/023-create-project-listing-utility.md) ✅
 - [Issue 025: Repository Structure Validation](../issues/phase-1/025-repository-structure-validation.md) 🔄
 - [Issue 026: Project Metadata System](../issues/phase-1/026-project-metadata-system.md) 🔄
 - [Issue 027: Basic Reporting Framework](../issues/phase-1/027-basic-reporting-framework.md) 📋
