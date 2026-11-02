@@ -25,11 +25,19 @@ mkdir -p "${SCRATCH}"
 FAKE_PROJECT="${SCRATCH}/project"
 FAKE_NOTES="${SCRATCH}/notes"
 
-pass=0; fail=0
+pass=0; fail=0; skipped=0
 check() { # check <label> <actual> <expected>
     if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   - $1"
     else fail=$((fail+1)); echo "  FAIL - $1: got [$2] want [$3]"; fi
 }
+# The sync copies with rsync. On a machine without it the copy cannot happen,
+# so the checks that need a copied note say so and are not counted; the
+# refusals and the extractor's own checks still run. (Issue 10-010.)
+skip() { # skip <label> <reason>
+    skipped=$((skipped+1)); echo "  skip - $1: $2"
+}
+HAVE_RSYNC=false
+command -v rsync >/dev/null 2>&1 && HAVE_RSYNC=true
 
 # {{{ write_fake_project
 # write_fake_project <excluded-name>
@@ -86,8 +94,14 @@ write_fake_project "rmail"
 mkdir -p "${FAKE_PROJECT}/input/notes/rmail"
 printf 'left by an older sync\n' > "${FAKE_PROJECT}/input/notes/rmail/contacts"
 run_sync >/dev/null
-check "sync succeeds" "$?" "0"
-check "real note synced" "$(test -f "${FAKE_PROJECT}/input/notes/a-real-note" && echo yes)" "yes"
+sync_status=$?
+if $HAVE_RSYNC; then
+    check "sync succeeds" "$sync_status" "0"
+    check "real note synced" "$(test -f "${FAKE_PROJECT}/input/notes/a-real-note" && echo yes)" "yes"
+else
+    skip "sync succeeds" "rsync is not installed"
+    skip "real note synced" "rsync is not installed"
+fi
 check "mailbox not in input/" "$(test -e "${FAKE_PROJECT}/input/notes/rmail" && echo present || echo absent)" "absent"
 check "source mailbox untouched" "$(test -f "${FAKE_NOTES}/rmail/contacts" && echo yes)" "yes"
 # }}}
@@ -98,7 +112,11 @@ printf 'should never be a poem\n' > "${FAKE_PROJECT}/input/notes/rmail/inbox/wai
 extract_output="$(lua "${DIR}/scripts/extract-notes.lua" "${FAKE_PROJECT}" 2>&1)"
 check "extractor succeeds" "$?" "0"
 poems_json="${FAKE_PROJECT}/input/notes/files/poems.json"
-check "one note extracted" "$(grep -c '"category":"notes"' "${poems_json}")" "1"
+if $HAVE_RSYNC; then
+    check "one note extracted" "$(grep -c '"category":"notes"' "${poems_json}")" "1"
+else
+    skip "one note extracted" "rsync is not installed, so no note was synced"
+fi
 check "no mailbox file extracted" "$(grep -c 'should never be a poem' "${poems_json}")" "0"
 check "extractor names the skipped folder" "$(printf '%s' "${extract_output}" | grep -c 'skipped: rmail')" "1"
 # }}}
@@ -117,5 +135,5 @@ check "path-like exclusion refused" "$?" "1"
 # }}}
 
 rm -rf "${SCRATCH}"
-echo "passed ${pass}, failed ${fail}"
+echo "passed ${pass}, failed ${fail}, skipped ${skipped}"
 [ "${fail}" -eq 0 ]

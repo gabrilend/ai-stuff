@@ -2,7 +2,7 @@
 
 **Phase**: 10 (Developer Tooling)
 **Priority**: Low
-**Status**: Open
+**Status**: Completed (2026-11-02)
 **Created**: 2026-01-12
 
 ## Current Behavior
@@ -231,12 +231,12 @@ fi
 
 ## Success Criteria
 
-- [ ] `scripts/run-tests` discovers and runs all test suites
-- [ ] Standard test format documented and followed
-- [ ] At least 3 modules have comprehensive test suites
-- [ ] Optional pre-flight validation integrated into run.sh
-- [ ] Testing guide documentation created
-- [ ] Zero test failures in clean environment
+- [x] `scripts/run-tests` discovers and runs all test suites
+- [x] Standard test format documented and followed
+- [x] At least 3 modules have comprehensive test suites
+- [x] Optional pre-flight validation integrated into run.sh
+- [x] Testing guide documentation created
+- [x] Zero test failures in clean environment
 
 ## Related Issues
 
@@ -262,3 +262,75 @@ However, it provides significant value for:
 
 *"validate the data, test the edge,*
 *catch the bugs before they hedge."*
+
+## What Happened (2026-11-02)
+
+The plan above dates from January, when there was one suite. By November
+there were thirty, in three spellings (`*.test.lua`, the older `*-test.lua`,
+and `*.test.sh`), and run.sh had grown a pre-flight gate (10-069). The build
+follows those, not the January sketch.
+
+- **`scripts/run-tests`** finds every suite by the naming conventions,
+  directly inside `src/`, `libs/` and `scripts/`, runs each from the project
+  folder with the folder as its first argument, and prints one line per suite
+  (`ok`, `FAIL`, `skip`), the last 15 lines of each failing suite, and a count;
+  exit 1 on any failure. Per-suite timeout (`--timeout`, default 300 s),
+  `--only TEXT` filters, `--list`, and every suite's full output kept in
+  `tmp/shared-memory/run-tests/` (or `--logs PATH`).
+- **Skips are honest.** A suite that prints `SKIP:` and exits 0 is reported
+  as skipped, not passed (the fuzzy-computing suite already did this when its
+  server is down).
+- **Pre-flight, opt-in.** `./run.sh --run-tests` (and a "Run Test Suites
+  First" checkbox in the menu) adds one row to `scripts/preflight-gate`:
+  "every unit test suite passes". A failure stops the run before any stage,
+  with the runner's report. Not on by default: the suites take about a
+  minute, most of it one suite waiting on processes it kills on purpose.
+- **`docs/testing-guide.md`** -- how to run, what counts as a suite, how to
+  write and skip one; linked from the table of contents.
+
+### Making the suites green on a machine that is not the owner's
+
+Run on a fresh machine, three suites failed. None was a broken module:
+
+- `src/augment-embeddings-with-images.test.lua` still expected an image's
+  pseudo-embedding to be the **midpoint** of its neighbours. The module
+  switched to the **crooked cross-cut** (first half of the dimensions from the
+  poem before, rest from the poem after) to stop images becoming hubs, and
+  `image-pseudo-embeddings.test.lua` was updated then; this one was missed.
+  Its expectations now follow the cross-cut, with the arithmetic written out.
+- `scripts/preflight-gate.test.sh` has three "real ..." cases that run the
+  gate against the owner's compiled threading library, real poem list and
+  real saved rankings. Each now runs when that thing exists and prints
+  `skip - ...: reason` when it does not. On the owner's machine they run
+  exactly as before, and a broken library still fails.
+- `scripts/notes-tooling-exclusion.test.sh` drives the notes sync, which
+  copies with rsync. Without rsync the three checks that need a copied note
+  are skipped with that reason; the refusal and extractor checks still run.
+
+### Decisions
+
+- **Which files are suites:** the naming conventions only, at the top of the
+  three folders. The older `src/test-*.lua` and `scripts/test-*` read the real
+  corpus, caches or GPU (two fail without them), and `libs/vulkan-compute/`
+  needs a GPU build; they stay manual.
+- **A flag, not an environment variable.** The sketch had `RUN_TESTS=1`;
+  run.sh now takes every choice as a flag that shows in the command preview,
+  so `--run-tests` it is, carried into the gate like `--extract`.
+- **Filters are `--only TEXT`, not bare words**, so a mistyped project folder
+  is an error instead of silently becoming a filter that matches nothing.
+- **Step 5 (data-format suites) not built as suites.** Checking the real
+  poems.json, matrix and embeddings needs the real data, which is what the
+  pre-flight checks (`check-poem-dates`, `check-rankings-match-poems`) and
+  `scripts/validate-pipeline-data` already do against the live files.
+
+### Tests
+
+`scripts/run-tests.test.sh` (new, 18 checks) builds a throwaway project of
+tiny suites with known outcomes and checks discovery (and what is not
+discovered), ok / FAIL / skip, the failing suite's output in the report, the
+counts, the logs, `--only`, a timeout, and refused arguments.
+`scripts/preflight-gate.test.sh` gained five checks for the `--run-tests`
+row, using a stand-in runner so it never re-runs the real suites. Whole run
+on this machine: 32 suites, 31 ok, 1 skipped (no inference server), 0 failed;
+`./run.sh --stage 4 --run-tests --dry-run` passes the new pre-flight row.
+

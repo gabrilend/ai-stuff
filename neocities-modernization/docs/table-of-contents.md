@@ -24,6 +24,7 @@ of what the code does is only visible from outside it.
 
 ### 🔧 Technical Guides
 - `/docs/config-reference.md` - Complete reference for config.lua structure and field usage (Issue 10-019)
+- `/docs/testing-guide.md` - How the test suites are found, run (`scripts/run-tests`, `run.sh --run-tests`) and written (Issue 10-010)
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/words-pdf-integration.md` - Integration guide for words-pdf PDF generation system
 - `/docs/centroids-for-hope-cards.md` - Using centroid system for semantic hope card selection
