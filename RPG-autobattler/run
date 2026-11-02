@@ -333,6 +333,13 @@ run_unit_tests() {
     print('✓ Pathfinding tests passed')
     " 2>/dev/null && print_success "Pathfinding System tests passed" || print_error "Pathfinding System tests failed"
     
+    # Test Lane system (hung before Vector2.lerp was fixed)
+    print_info "Testing Lane system..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    dofile('tests/test_lane_system.lua').run_all()
+    " 2>/dev/null && print_success "Lane system tests passed" || print_error "Lane system tests failed"
+    
     # Test Enhanced Unit Rendering System
     print_info "Testing Enhanced Unit Rendering System..."
     lua -e "

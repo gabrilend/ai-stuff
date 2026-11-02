@@ -20,6 +20,21 @@ local function assert_vector_approximately_equal(v1, v2, epsilon)
     assert_approximately_equal(v1.y, v2.y, epsilon)
 end
 
+-- Runs fn, but raises an error instead of hanging if it takes more than
+-- `limit` Lua instructions. LuaJIT only counts instructions in interpreted
+-- code, so the JIT is switched off for the duration.
+local function with_step_limit(fn, limit)
+    if jit then jit.off() end
+    debug.sethook(function() error("did not finish: probable infinite loop", 2) end, "", limit or 1000000)
+    local ok, result = pcall(fn)
+    debug.sethook()
+    if jit then jit.on() end
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
 -- {{{ Vector2 Tests
 function TestSuite.test_vector2_creation()
     local v1 = Vector2:new()
@@ -145,6 +160,23 @@ function TestSuite.test_math_utils_clamp()
     assert(MathUtils.clamp(15, 0, 10) == 10, "Value above range should be clamped to max")
     
     print("✓ MathUtils clamp tests passed")
+end
+
+function TestSuite.test_vector2_lerp()
+    local a = Vector2:new(0, 10)
+    local b = Vector2:new(10, 30)
+
+    local mid = with_step_limit(function() return a:lerp(b, 0.5) end)
+    assert_vector_approximately_equal(mid, Vector2:new(5, 20))
+
+    local quarter = with_step_limit(function() return Vector2.lerp(a, b, 0.25) end)
+    assert_vector_approximately_equal(quarter, Vector2:new(2.5, 15))
+
+    assert_vector_approximately_equal(a:lerp(b, 0), a)
+    assert_vector_approximately_equal(a:lerp(b, 1), b)
+    assert(a.x == 0 and a.y == 10, "lerp leaves its inputs alone")
+
+    print("✓ Vector2 lerp tests passed")
 end
 
 function TestSuite.test_math_utils_lerp()
@@ -324,6 +356,7 @@ function TestSuite.run_all()
     
     -- MathUtils tests
     TestSuite.test_math_utils_clamp()
+    TestSuite.test_vector2_lerp()
     TestSuite.test_math_utils_lerp()
     TestSuite.test_math_utils_distance()
     TestSuite.test_math_utils_angles()
