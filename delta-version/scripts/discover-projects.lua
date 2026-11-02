@@ -2,20 +2,20 @@
 -- discover-projects.lua - Choose which projects a ticket should go to.
 --
 -- Issue 018 asked for a project discovery system for ticket distribution.
--- Most of it already exists: census-projects.lua decides what is a project
--- (shelves like games/ opened up, furniture like libs/ skipped, backups and
--- copies left out) and what state each one is in, and list-projects.sh keeps
--- the external directories outside the repository. This script does not
--- repeat any of that. It asks the census for the project list and adds the
--- two things neither tool has:
+-- The rules for which folders are projects, and what kind each one is, live
+-- in one shared place: scripts/libs/project-discovery.lua (the rules
+-- list-projects.sh has always used, lifted into a library). This script
+-- does not hold a second copy of them. It loads that library for the
+-- project list and each project's kind, asks census-projects.lua for each
+-- project's state and issue counts, and adds the two things neither has:
 --
---   classification -- each project's languages, counted from the files git
---                     tracks in it (vendored and generated folders left out),
---                     and the dominant one;
---   selection      -- filters that pick the projects a ticket is for, by
---                     language, state, a path the project holds, recent
---                     activity, or by name, alone or from a named profile in
---                     config/project-discovery.conf.
+--   language census -- every language a project uses, counted from the files
+--                      git tracks in it (vendored and generated folders left
+--                      out), in the library's own vocabulary of kinds;
+--   selection       -- filters that pick the projects a ticket is for, by
+--                      kind, a language used, state, a path the project
+--                      holds, recent activity, or by name, alone or from a
+--                      named profile in config/project-discovery.conf.
 --
 -- Filters are explicit rather than a relevance score: a project is chosen
 -- because it matched every filter given, and --table shows why.
@@ -24,19 +24,19 @@
 --   discover-projects.lua [filters] [output]
 --
 -- Filters (all must match; lists are comma-separated, any one matches):
---   --language=lua,c       dominant language is one of these
---   --uses=bash            the project tracks at least one file in one of these
+--   --language=lua,c       the project's kind (from the library) is one of these
+--   --uses=shell           the project tracks at least one file of one of these
 --   --state=tracked,building   census state (tracked, building, vision, empty)
 --   --has=PATH             the project holds PATH (file or folder); repeatable
 --   --active-days=N        a tracked file in it changed in the last N days
---   --only=a,games/b       only these projects (names as the census gives them)
+--   --only=a,b             only these projects
 --   --exclude=a,b          never these projects
 --   --profile=NAME         start from a profile's filters; options add to it
 --
 -- Output (one of):
 --   --names (default)  one project name per line
 --   --paths            one absolute path per line
---   --table            name, state, dominant language, files, issues
+--   --table            name, state, kind, files, issues
 --   --json             everything, for other scripts
 --   --list-profiles    the profiles the configuration defines
 --
@@ -50,26 +50,19 @@
 -- {{{ DIR Configuration
 local DIR = "/mnt/mtwo/programming/ai-stuff"
 local SCRIPT_DIR = (arg[0]:match("(.*)/[^/]*$") or ".")
+-- The tools this one stands on are found beside it, not under --dir, so a
+-- test can point --dir at a scratch monorepo.
 local CENSUS = SCRIPT_DIR .. "/census-projects.lua"
+local LIBRARY = SCRIPT_DIR .. "/../../scripts/libs/project-discovery.lua"
 local CONFIG_PATH = SCRIPT_DIR .. "/../config/project-discovery.conf"
 -- }}}
 
 -- {{{ Configuration
 local config = {
-    -- File extensions and the language they are written in.
-    extensions = {
-        lua = "lua", c = "c", h = "c",
-        cc = "c++", cpp = "c++", cxx = "c++", hpp = "c++", hh = "c++",
-        rs = "rust", sh = "bash", bash = "bash", py = "python",
-        js = "javascript", mjs = "javascript", cjs = "javascript",
-        ts = "typescript", go = "go", java = "java", zig = "zig", nim = "nim",
-        rb = "ruby", pl = "perl", fnl = "fennel", moon = "moonscript",
-        html = "html", htm = "html", css = "css",
-        glsl = "glsl", vert = "glsl", frag = "glsl", asm = "assembly", s = "assembly",
-    },
-    -- Interpreters named on a #! line, for scripts with no extension.
-    shebangs = { luajit = "lua", lua = "lua", bash = "bash", sh = "bash",
-                 python = "python", python3 = "python", perl = "perl", node = "javascript" },
+    -- Interpreters named on a #! line, for scripts with no extension, given
+    -- in the library's vocabulary of kinds.
+    shebangs = { luajit = "lua", lua = "lua", bash = "shell", sh = "shell",
+                 python = "python", python3 = "python", node = "node" },
     -- Folders inside a project that hold someone else's code or the
     -- project's own generated output; their files say nothing about what the
     -- project is written in. The census leaves the same materials out of its
@@ -77,7 +70,7 @@ local config = {
     not_its_own = { libs = true, vendor = true, node_modules = true,
                     external = true, third_party = true, ["third-party"] = true },
     materials = { "^input/", "^output/", "^docs/HTML/", "^llm%-transcripts/" },
-    states = { tracked = true, building = true, vision = true, empty = true },
+    states = { tracked = true, building = true, vision = true, empty = true, unknown = true },
     -- Keys a profile may set, and whether each takes a list.
     profile_keys = { language = true, uses = true, state = true, has = true,
                      ["active-days"] = false, only = true, exclude = true,
@@ -241,47 +234,68 @@ end
 -- }}}
 
 -- {{{ Discovery
--- {{{ local function census_projects()
--- The census's JSON list, one project per line; read with patterns rather
--- than a JSON library because the census writes a fixed shape.
-local function census_projects()
+-- {{{ local function load_library()
+local function load_library()
+    local ok, library = pcall(dofile, LIBRARY)
+    if not ok or type(library) ~= "table" then
+        fail("cannot load the shared project-discovery library at " .. LIBRARY)
+    end
+    return library
+end
+-- }}}
+
+-- {{{ local function census_states()
+-- The census's state and issue counts for each project it lists, by name.
+-- Its JSON list has one project per line in a fixed shape, so it is read
+-- with patterns rather than a JSON library. A census that cannot run
+-- leaves every state "unknown" rather than stopping discovery.
+local function census_states()
     local command = string.format("luajit %s --json --dir=%s 2>/dev/null",
         shell_quote(CENSUS), shell_quote(DIR .. "/delta-version"))
-    local projects, by_name = {}, {}
+    local states = {}
     for _, line in ipairs(read_lines(command)) do
         local name, state = line:match('"name": "(.-)", "state": "(.-)"')
         if name then
-            local record = {
-                name = name, state = state, path = DIR .. "/" .. name,
+            states[name] = {
+                state = state,
                 open = tonumber(line:match('"open": (%d+)')) or 0,
                 completed = tonumber(line:match('"completed": (%d+)')) or 0,
                 total = tonumber(line:match('"total": (%d+)')) or 0,
-                languages = {}, files = 0, language = "none",
             }
-            projects[#projects + 1] = record
-            by_name[name] = record
         end
     end
-    if #projects == 0 then
-        fail("the census listed no projects (is " .. DIR .. " the monorepo?)")
+    return states
+end
+-- }}}
+
+-- {{{ local function gather()
+-- The library's projects, each joined with what the census knows of it.
+local function gather(library)
+    library.init(DIR)
+    local states = census_states()
+    local projects, by_name = {}, {}
+    for _, entry in ipairs(library.scan()) do
+        local known = states[entry.name] or {}
+        local record = {
+            name = entry.name, path = DIR .. "/" .. entry.name,
+            kind = entry.type or "unknown", score = entry.score,
+            state = known.state or "unknown",
+            open = known.open or 0, completed = known.completed or 0, total = known.total or 0,
+            languages = {}, files = 0,
+        }
+        projects[#projects + 1] = record
+        by_name[record.name] = record
     end
     return projects, by_name
 end
 -- }}}
 
 -- {{{ local function owner_of()
--- The project a repository path belongs to: the longest project name it
--- starts with, so a subproject's files are not also its parent's. Returns
--- the project and the part of the path inside it.
+-- The project a repository path belongs to, and the part of the path inside
+-- it. Projects are the library's, which sit directly under DIR.
 local function owner_of(path, by_name)
-    local segments = {}
-    for segment in path:gmatch("[^/]+") do segments[#segments + 1] = segment end
-    for depth = math.min(4, #segments - 1), 1, -1 do
-        local prefix = table.concat(segments, "/", 1, depth)
-        if by_name[prefix] then
-            return by_name[prefix], path:sub(#prefix + 2)
-        end
-    end
+    local top, inside = path:match("^([^/]+)/(.+)$")
+    if top and by_name[top] then return by_name[top], inside end
     return nil
 end
 -- }}}
@@ -299,12 +313,12 @@ end
 -- }}}
 
 -- {{{ local function language_of()
-local function language_of(path)
+local function language_of(path, extensions)
     local base = path:match("([^/]+)$")
     local extension = base:match("%.([^.]+)$")
-    if extension then return config.extensions[extension:lower()] end
+    if extension then return extensions[extension:lower()] end
     -- No extension: a script says what runs it on its first line. Only the
-    -- first bytes are read, and only of a regular file (see classify).
+    -- first bytes are read, and only of a regular file (see count_languages).
     local file = io.open(DIR .. "/" .. path, "r")
     if not file then return nil end
     local first = (file:read(128) or ""):match("^[^\n]*")
@@ -314,13 +328,12 @@ local function language_of(path)
 end
 -- }}}
 
--- {{{ local function classify()
--- Counts every tracked file of a known language into its project, then
--- names each project's dominant language (most files; ties by name).
--- Only regular files count. A tracked symbolic link is skipped: it is a
--- second name for a file counted elsewhere, and reading through one can
--- reach anything (one in this repository points at a serial device).
-local function classify(by_name)
+-- {{{ local function count_languages()
+-- Counts every tracked file of a known kind into its project. Only regular
+-- files count. A tracked symbolic link is skipped: it is a second name for a
+-- file counted elsewhere, and reading through one can reach anything (Wine's
+-- dosdevices links in this repository point at serial ports and disks).
+local function count_languages(by_name, extensions)
     local command = string.format("git -C %s -c core.quotepath=off ls-files --stage", shell_quote(DIR))
     for _, line in ipairs(read_lines(command)) do
         local mode, path = line:match("^(%d+) %x+ %d+\t(.+)$")
@@ -329,21 +342,12 @@ local function classify(by_name)
             project, inside = owner_of(path, by_name)
         end
         if project and not is_material(inside) then
-            local language = language_of(path)
+            local language = language_of(path, extensions)
             if language then
                 project.languages[language] = (project.languages[language] or 0) + 1
                 project.files = project.files + 1
             end
         end
-    end
-    for _, project in pairs(by_name) do
-        local best, best_count = "none", 0
-        for language, count in pairs(project.languages) do
-            if count > best_count or (count == best_count and language < best) then
-                best, best_count = language, count
-            end
-        end
-        project.language = best
     end
 end
 -- }}}
@@ -366,22 +370,35 @@ end
 -- }}}
 
 -- {{{ Selection
+-- {{{ local function known_kinds()
+-- Every kind the library can name: its source-file kinds, its build-file
+-- kinds, and "unknown".
+local function known_kinds(library)
+    local kinds = { unknown = true }
+    for _, kind in pairs(library.EXTENSIONS) do kinds[kind] = true end
+    for _, build in ipairs(library.BUILD_FILES) do kinds[build.type] = true end
+    return kinds
+end
+-- }}}
+
 -- {{{ local function check_filters()
 -- Refuses names that cannot match anything, so a typo is an error rather
 -- than an empty result that looks like an answer.
-local function check_filters(filters, by_name)
-    local known_languages = {}
-    for _, language in pairs(config.extensions) do known_languages[language] = true end
+local function check_filters(filters, by_name, kinds)
     for _, key in ipairs({ "language", "uses" }) do
-        for _, language in ipairs(filters[key] or {}) do
-            if not known_languages[language] then
-                fail("unknown language '" .. language .. "' in --" .. key)
+        for _, kind in ipairs(filters[key] or {}) do
+            if not kinds[kind] then
+                local names = {}
+                for name in pairs(kinds) do names[#names + 1] = name end
+                table.sort(names)
+                fail("unknown kind '" .. kind .. "' in --" .. key
+                    .. " (kinds: " .. table.concat(names, ", ") .. ")")
             end
         end
     end
     for _, state in ipairs(filters.state or {}) do
         if not config.states[state] then
-            fail("unknown state '" .. state .. "' (tracked, building, vision, empty)")
+            fail("unknown state '" .. state .. "' (tracked, building, vision, empty, unknown)")
         end
     end
     for _, key in ipairs({ "only", "exclude" }) do
@@ -406,11 +423,11 @@ local function matches(project, filters)
     if filters.only and not set_of(filters.only)[project.name] then return false end
     if filters.exclude and set_of(filters.exclude)[project.name] then return false end
     if filters.state and not set_of(filters.state)[project.state] then return false end
-    if filters.language and not set_of(filters.language)[project.language] then return false end
+    if filters.language and not set_of(filters.language)[project.kind] then return false end
     if filters.uses then
         local any = false
-        for _, language in ipairs(filters.uses) do
-            if project.languages[language] then any = true end
+        for _, kind in ipairs(filters.uses) do
+            if project.languages[kind] then any = true end
         end
         if not any then return false end
     end
@@ -426,12 +443,12 @@ end
 -- {{{ Rendering
 -- {{{ local function render_table()
 local function render_table(chosen)
-    print(string.format("%-40s %-9s %-11s %6s  %s", "PROJECT", "STATE", "LANGUAGE", "FILES", "ISSUES"))
+    print(string.format("%-40s %-9s %-8s %6s  %s", "PROJECT", "STATE", "KIND", "FILES", "ISSUES"))
     for _, project in ipairs(chosen) do
         local issues = project.total > 0
             and string.format("%d/%d done", project.completed, project.total) or "-"
-        print(string.format("%-40s %-9s %-11s %6d  %s", project.name, project.state,
-            project.language, project.files, issues))
+        print(string.format("%-40s %-9s %-8s %6d  %s", project.name, project.state,
+            project.kind, project.files, issues))
     end
     print(string.format("\n%d project(s)", #chosen))
 end
@@ -451,9 +468,9 @@ local function render_json(chosen, filters)
             parts[#parts + 1] = string.format("%s: %d", json_string(language), project.languages[language])
         end
         print(string.format(
-            '    { "name": %s, "path": %s, "state": %s, "language": %s, "files": %d, "languages": { %s }, "open": %d, "completed": %d, "total": %d%s }%s',
-            json_string(project.name), json_string(project.path), json_string(project.state),
-            json_string(project.language), project.files, table.concat(parts, ", "),
+            '    { "name": %s, "path": %s, "kind": %s, "score": %d, "state": %s, "files": %d, "languages": { %s }, "open": %d, "completed": %d, "total": %d%s }%s',
+            json_string(project.name), json_string(project.path), json_string(project.kind),
+            project.score, json_string(project.state), project.files, table.concat(parts, ", "),
             project.open, project.completed, project.total,
             filters["active-days"] and ', "active": true' or "",
             index < #chosen and "," or ""))
@@ -505,9 +522,10 @@ local function main()
     if not exists(DIR .. "/.git") then
         fail(DIR .. " is not the top of a git repository (see --dir)")
     end
-    local projects, by_name = census_projects()
-    check_filters(filters, by_name)
-    classify(by_name)
+    local library = load_library()
+    local projects, by_name = gather(library)
+    check_filters(filters, by_name, known_kinds(library))
+    count_languages(by_name, library.EXTENSIONS)
     if filters["active-days"] then mark_active(by_name, filters["active-days"]) end
 
     local chosen = {}

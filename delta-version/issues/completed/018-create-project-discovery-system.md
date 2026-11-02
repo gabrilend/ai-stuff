@@ -304,23 +304,27 @@ EOF
 **2026-11-02 — scoped against what exists, and only the gap built.**
 
 By the time this issue was picked up, most of what it asked for already
-existed in two other tools, so neither was duplicated:
+existed, so none of it was rebuilt here:
 
-- **Automatic detection, and main projects vs libraries:**
-  `census-projects.lua` decides what is a project. It opens shelves like
-  `games/` and `symbeline-realms/subprojects/`, skips furniture like `libs/`
-  and `llm-transcripts/`, and leaves out backups and copies. It also gives
-  each project a state (tracked, building, vision, empty).
-- **External directories:** `list-projects.sh` keeps the projects outside
-  the repository in `config/external-projects.conf`.
-- **Discovery report:** the census's terminal summary.
+- **Detection, main projects vs libraries, and a kind for each project:**
+  the shared library `scripts/libs/project-discovery.lua` (scripts issue
+  010, built in parallel). It lifts `list-projects.sh`'s rules into the one
+  place both bash and Lua read them from. Those are the indicator patterns
+  this issue sketched: `src/`, `issues/`, a Makefile and the like, scored,
+  with library and tool folders skipped by name. On the monorepo it lists
+  41 projects.
+- **Each project's state and issue counts:** `census-projects.lua`.
+- **External directories:** `list-projects.sh`, through
+  `config/external-projects.conf`.
 
-What neither did was classify a project by language, or pick the projects
-a ticket is for. `scripts/discover-projects.lua` adds exactly that. It asks
-the census for the project list, counts each project's languages from the
-files git tracks, and filters the list. The filters are:
+What none of them did was count every language a project uses, or pick the
+projects a ticket is for. `scripts/discover-projects.lua` adds exactly that.
+It loads the library for the project list and each project's kind, asks the
+census for states, and counts each project's languages from the files git
+tracks. It then filters the list:
 
-- by dominant language, or by any language used;
+- by kind;
+- by any language used;
 - by census state;
 - by a path the project holds;
 - by recent activity;
@@ -334,35 +338,45 @@ matched, 2 for a mistake.
 
 Decisions:
 
+- **One copy of the rules, in the shared library.** This script began by
+  taking its project list from the census, and a separate classifier of its
+  own. When the shared library appeared, that would have left three
+  definitions of "project" and two of "kind". It now loads the library
+  instead, and uses the library's vocabulary of kinds for languages too, so
+  the two cannot disagree.
+- **The census stays the source of states and issue counts, not of the
+  project list.** Its wider list (86, including shelf projects under
+  `games/` and vision-only folders) is for counting the repository, not for
+  sending tickets. A library project the census does not list gets state
+  `unknown`.
 - **Filters, not a relevance score.** The scoring sketched above adds
-  arbitrary weights (50 for being a project, 15 for more than ten files),
-  and a threshold on their sum hides why a project was picked. Every filter
-  is a yes-or-no fact that `--table` shows.
-- **Languages come from git-tracked files only.** That way `.gitignore`d
-  builds, untracked scratch and RAM-tier `tmp/` never count.
-- **Some tracked files are left out of the language count:**
-  - symbolic links, because they are second names, and one points at a
-    serial device that would hang a reader;
+  arbitrary weights, and a threshold on their sum hides why a project was
+  picked. Every filter is a yes-or-no fact that `--table` shows.
+- **Languages come from git-tracked files only.** Some tracked files are
+  still left out:
+  - symbolic links, because they are second names, and Wine's `dosdevices`
+    links point at serial ports, which hung the first run;
   - vendored `libs/`, `vendor/` and `node_modules/` inside a project;
   - the census's materials (`input/`, `output/`, `docs/HTML/`).
-- **Files are counted, not lines.** That is cheap enough to run on every
-  ticket: 1.6 s for 86 projects and 10,500 files.
-- **External projects are not classified.** They are outside git, so
-  `list-projects.sh` remains the tool for them.
-- **No dependency on the keyword engine.** Choosing projects needs no template processing,
-  so the dependency once listed in the metadata turned out not to be one.
+- **Files are counted, not lines.** A run takes about 4 s for 41 projects.
+- **External projects are not classified.** They are outside git.
+- **Switching `list-projects.sh` to the library is left as follow-up
+  work.** It is not part of this issue.
+- **No dependency on the keyword engine.** Choosing projects needs no
+  template processing, so the dependency once listed in the metadata turned
+  out not to be one.
 
 Success criteria:
 
-- **Main projects vs library dependencies:** met, by the census plus
-  vendored-folder exclusion.
-- **Multiple languages:** met. Classification covers 20 languages, and
-  extensionless scripts are recognised by their `#!` line.
+- **Main projects vs library dependencies:** met, by the shared library
+  plus vendored-folder exclusion.
+- **Multiple languages:** met. Nine kinds are recognised, and extensionless
+  scripts are recognised by their `#!` line.
 - **Relevance scoring:** replaced by explicit filters (decision above).
 - **Filtering scenarios, configuration, report:** met.
-- **Edge cases:** met. Empty and vision-only projects come out as `none`,
-  and symbolic links are skipped. Unknown names are refused rather than
+- **Edge cases:** met. Projects with no code come out as `unknown`, and
+  symbolic links are skipped. Unknown names are refused rather than
   silently matching nothing.
 - **Performance:** met.
 
-Tested by `scripts/test-discover-projects.sh` (38 checks on a RAM fixture).
+Tested by `scripts/test-discover-projects.sh` (44 checks on a RAM fixture).

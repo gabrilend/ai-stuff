@@ -2,8 +2,9 @@
 # test-discover-projects.sh - proves discover-projects.lua picks the right
 # projects for a ticket.
 #
-# In general terms: the script asks the census which directories are
-# projects, works out what each is written in from the files git tracks, and
+# In general terms: the script asks the shared project-discovery library
+# which folders are projects and what kind each is, asks the census for each
+# one's state, counts the languages each uses from the files git tracks, and
 # filters them. This test builds a small monorepo in a RAM scratch folder,
 # with a vendored library, generated output, a symbolic link to a pipe and a
 # history with one recent commit, and checks every filter, profile and error
@@ -53,6 +54,12 @@ function lacks_line() {
 }
 # }}}
 
+# -- {{{ yes_or_no
+function yes_or_no() {
+    if "$@" > /dev/null 2>&1; then echo yes; else echo no; fi
+}
+# }}}
+
 # -- {{{ status_is
 function status_is() {
     # Runs the tool and answers yes when it exits with the given status.
@@ -85,10 +92,9 @@ function build_fixture() {
     FIXTURE="$SCRATCH/monorepo"
     CONF="$SCRATCH/discovery.conf"
 
-    local f="$FIXTURE"
-    mkdir -p "$f/delta-version" "$f/alpha/src" "$f/alpha/issues" \
-             "$f/beta/src" "$f/beta/libs/vendored" "$f/gamma" \
-             "$f/games/g1/output" "$f/libs"
+    local f="$FIXTURE" n
+    mkdir -p "$f/alpha/src" "$f/alpha/issues" "$f/beta/src" "$f/beta/libs/vendored" \
+             "$f/docsy/issues" "$f/docsy/output" "$f/gamma" "$f/games/g1/src" "$f/libs/src"
 
     # alpha: Lua with one C file, issue-tracked, a Makefile, a symbolic link
     # to one of its own files (must not count twice) and one to a pipe
@@ -102,39 +108,39 @@ function build_fixture() {
     mkfifo "$SCRATCH/pipe"
     ln -s "$SCRATCH/pipe" "$f/alpha/pipe"
 
-    # beta: C, with an extensionless bash script and a vendored Lua library
+    # beta: C, with an extensionless shell script and a vendored Lua library
     # that is someone else's code.
     echo "int y;" > "$f/beta/src/x.c"
     echo "int z;" > "$f/beta/src/z.c"
     echo "#define Y" > "$f/beta/src/y.h"
     printf '#!/usr/bin/env bash\necho run\n' > "$f/beta/run"
-    local n
     for n in 1 2 3 4; do echo "return $n" > "$f/beta/libs/vendored/v$n.lua"; done
 
-    # gamma: only a vision document.
+    # docsy: issues and a README, no code of its own; only generated C.
+    echo "# Issue 001" > "$f/docsy/issues/001-plan.md"
+    echo "# docsy" > "$f/docsy/README.md"
+    for n in 1 2 3 4 5; do echo "int g$n;" > "$f/docsy/output/gen$n.c"; done
+
+    # Not projects: a vision with no marks, a shelf whose project sits one
+    # level down, and top-level libs/, which is skipped by name.
     echo "an idea" > "$f/gamma/vision"
-
-    # games/g1: one Lua file of its own, and generated C under output/.
-    echo "print(1)" > "$f/games/g1/main.lua"
-    for n in 1 2 3 4 5; do echo "int g$n;" > "$f/games/g1/output/gen$n.c"; done
-
-    # libs/ at the top is furniture, not a project.
-    echo "int lib;" > "$f/libs/thing.c"
+    echo "print(1)" > "$f/games/g1/src/main.lua"
+    echo "int lib;" > "$f/libs/src/thing.c"
 
     git -C "$f" init -q
     git -C "$f" add -A
     GIT_AUTHOR_DATE="2020-01-01T00:00:00" GIT_COMMITTER_DATE="2020-01-01T00:00:00" \
         git -C "$f" -c user.name=t -c user.email=t@example.invalid commit -q -m "old"
-    # Recent work: beta's own source, and only generated output in games/g1.
+    # Recent work: beta's own source, and only generated output in docsy.
     echo "int y2;" >> "$f/beta/src/x.c"
-    echo "int g9;" >> "$f/games/g1/output/gen1.c"
+    echo "int g9;" >> "$f/docsy/output/gen1.c"
     git -C "$f" -c user.name=t -c user.email=t@example.invalid commit -q -am "new"
 
     cat > "$CONF" <<'CONF'
 # test profiles
-[lua-building]
-description = Lua projects still being built
-language = lua
+[c-building]
+description = C projects still being built
+language = c
 state = building
 
 [with-make]
@@ -147,11 +153,13 @@ CONF
 function test_discovery() {
     local all
     all=$(names)
-    check "every project is listed, shelf projects by full path" \
-        "$(same "$all" "alpha beta delta-version games/g1 gamma")"
-    check "top-level libs/ is furniture, not a project" "$(lacks_line "$all" "libs")"
+    check "the library's projects are listed" "$(same "$all" "alpha beta docsy")"
+    check "the library's list is the one used (same as its own scan)" \
+        "$(same "$all" "$(luajit "$DIR/scripts/libs/project-discovery.lua" scan "$FIXTURE" | cut -f2 | tr '\n' ' ' | sed 's/ $//')")"
+    check "a folder with no project marks is not a project" "$(lacks_line "$all" "gamma")"
+    check "top-level libs/ is skipped by name" "$(lacks_line "$all" "libs")"
     check "--paths prints absolute paths" \
-        "$(has_line "$(discover --paths)" "$FIXTURE/games/g1")"
+        "$(has_line "$(discover --paths)" "$FIXTURE/beta")"
 }
 # }}}
 
@@ -159,42 +167,39 @@ function test_discovery() {
 function test_classification() {
     local table json
     table=$(discover --table)
-    check "the table names alpha's dominant language as lua" \
+    check "the table gives alpha's kind, state, files and issues" \
         "$(yes_or_no grep -Eq '^alpha +tracked +lua +3 +0/1 done' <<< "$table")"
-    check "the table names beta's dominant language as c" \
+    check "the table gives beta's kind as c" \
         "$(yes_or_no grep -Eq '^beta +building +c +4 ' <<< "$table")"
-    check "a vision-only project has no language" \
-        "$(yes_or_no grep -Eq '^gamma +vision +none +0 ' <<< "$table")"
+    check "a project with no code of its own has kind unknown and no files" \
+        "$(yes_or_no grep -Eq '^docsy +tracked +unknown +0 ' <<< "$table")"
 
     json=$(discover --json)
     check "the symbolic link to a file is not counted twice (alpha: lua 2)" \
         "$(has_line "$json" '"languages": { "c": 1, "lua": 2 }')"
-    check "an extensionless script is read by its #! line (beta: bash 1)" \
-        "$(has_line "$json" '"languages": { "bash": 1, "c": 3 }')"
+    check "an extensionless script is read by its #! line (beta: shell 1)" \
+        "$(has_line "$json" '"languages": { "c": 3, "shell": 1 }')"
     check "vendored libs/ inside a project are not its own code" \
         "$(lacks_line "$(grep '"name": "beta"' <<< "$json")" '"lua"')"
-    check "generated output/ is not counted (games/g1: lua 1 only)" \
-        "$(has_line "$json" '"languages": { "lua": 1 }')"
-    check "the JSON gives the count" "$(has_line "$json" '"count": 5,')"
-}
-# }}}
-
-# -- {{{ yes_or_no
-function yes_or_no() {
-    if "$@" > /dev/null 2>&1; then echo yes; else echo no; fi
+    check "generated output/ is not counted (docsy: none)" \
+        "$(has_line "$(grep '"name": "docsy"' <<< "$json")" '"languages": {  }')"
+    check "the JSON carries the library's score" \
+        "$(has_line "$(grep '"name": "alpha"' <<< "$json")" '"score": 115')"
+    check "the JSON gives the count" "$(has_line "$json" '"count": 3,')"
 }
 # }}}
 
 # -- {{{ test_filters
 function test_filters() {
-    check "--language=c picks beta" "$(same "$(names --language=c)" "beta")"
-    check "--language=lua,c picks alpha, beta and games/g1" \
-        "$(same "$(names --language=lua,c)" "alpha beta games/g1")"
-    check "--uses=bash picks the project with a script" "$(same "$(names --uses=bash)" "beta")"
-    check "--uses=c includes a project where C is not dominant" \
+    check "--language=c picks the C project" "$(same "$(names --language=c)" "beta")"
+    check "--language=lua,c picks both" "$(same "$(names --language=lua,c)" "alpha beta")"
+    check "--language=unknown picks the project with no code" \
+        "$(same "$(names --language=unknown)" "docsy")"
+    check "--uses=shell picks the project with a script" "$(same "$(names --uses=shell)" "beta")"
+    check "--uses=c includes a project whose kind is not c" \
         "$(same "$(names --uses=c)" "alpha beta")"
-    check "--state=tracked picks the issue-tracked project" \
-        "$(same "$(names --state=tracked)" "alpha")"
+    check "--state=tracked picks the issue-tracked projects" \
+        "$(same "$(names --state=tracked)" "alpha docsy")"
     check "--has=Makefile picks the project holding one" \
         "$(same "$(names --has=Makefile)" "alpha")"
     check "two --has must both hold" \
@@ -202,11 +207,11 @@ function test_filters() {
     check "--active-days=30 picks the project changed recently" \
         "$(same "$(names --active-days=30)" "beta")"
     check "changing only generated output does not make a project active" \
-        "$(lacks_line "$(names --active-days=30)" "games/g1")"
+        "$(lacks_line "$(names --active-days=30)" "docsy")"
     check "--only and --exclude combine" \
-        "$(same "$(names --only=alpha,gamma --exclude=gamma)" "alpha")"
+        "$(same "$(names --only=alpha,docsy --exclude=docsy)" "alpha")"
     check "filters combine (all must match)" \
-        "$(same "$(names --uses=lua --state=building)" "games/g1")"
+        "$(same "$(names --uses=lua --state=tracked)" "alpha")"
     check "no match exits 1" "$(status_is 1 --language=rust)"
     check "a match exits 0" "$(status_is 0 --language=c)"
 }
@@ -215,23 +220,27 @@ function test_filters() {
 # -- {{{ test_profiles
 function test_profiles() {
     check "--list-profiles lists each profile with its description" \
-        "$(has_line "$(discover --list-profiles)" "Lua projects still being built")"
+        "$(has_line "$(discover --list-profiles)" "C projects still being built")"
     check "a profile applies its filters" \
-        "$(same "$(names --profile=lua-building)" "games/g1")"
+        "$(same "$(names --profile=c-building)" "beta")"
     check "a command-line list replaces the profile's" \
-        "$(same "$(names --profile=lua-building --state=tracked,building)" "alpha games/g1")"
+        "$(same "$(names --profile=c-building --language=lua,c --state=tracked,building)" "alpha beta")"
     check "a command-line --has adds to the profile's" \
         "$(same "$(names --profile=with-make --has=issues)" "alpha")"
     check "an unknown profile is an error (2)" "$(status_is 2 --profile=nope)"
     check "the shipped configuration's profiles all load" \
         "$(yes_or_no luajit "$TOOL" --dir="$FIXTURE" --list-profiles)"
+    check "the shipped profiles use only kinds the library knows" \
+        "$(yes_or_no luajit "$TOOL" --dir="$FIXTURE" --profile=shell-scripts)"
 }
 # }}}
 
 # -- {{{ test_errors
 function test_errors() {
     check "an unknown option is an error (2)" "$(status_is 2 --sideways)"
-    check "an unknown language is an error (2)" "$(status_is 2 --language=lau)"
+    check "a kind the library does not name is an error (2)" "$(status_is 2 --language=lau)"
+    check "an old language name outside the library's vocabulary is an error (2)" \
+        "$(status_is 2 --uses=bash)"
     check "an unknown state is an error (2)" "$(status_is 2 --state=done)"
     check "--only naming no project is an error (2)" "$(status_is 2 --only=alpah)"
     check "--active-days must be a number (2)" "$(status_is 2 --active-days=soon)"
@@ -240,7 +249,7 @@ function test_errors() {
     luajit "$TOOL" --dir="$FIXTURE" --config="$SCRATCH/bad.conf" --profile=bad > /dev/null 2>&1
     check "a configuration with an unknown key is an error (2)" "$(same "$?" 2)"
     luajit "$TOOL" --dir="$SCRATCH" --config="$CONF" > /dev/null 2>&1
-    check "a folder that is not a monorepo is an error (2)" "$(same "$?" 2)"
+    check "a folder that is not a repository is an error (2)" "$(same "$?" 2)"
 }
 # }}}
 
@@ -248,6 +257,10 @@ function test_errors() {
 function main() {
     if [ ! -f "$TOOL" ]; then
         echo "discover-projects.lua not found at $TOOL" >&2
+        exit 2
+    fi
+    if [ ! -f "$DIR/scripts/libs/project-discovery.lua" ]; then
+        echo "the shared library scripts/libs/project-discovery.lua is missing" >&2
         exit 2
     fi
     build_fixture
