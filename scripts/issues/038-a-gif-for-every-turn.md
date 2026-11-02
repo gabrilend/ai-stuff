@@ -75,22 +75,47 @@ once the measurements say it is needed.
 
 ## Open Questions
 
-1. **Pages or transcripts?** The gifs go on the web pages. Should the
-   markdown transcripts carry them too (an image line under each heading),
-   or stay text?
-2. **How do the gifs reach the pages?** Copied into each project's `HTML/`
-   like the font (23 MB × 41 projects ≈ 1 GB), or one shared copy the pages
-   link to (a symbolic link `HTML/gifs` → one folder; followed into real
-   files when the pages are uploaded anywhere).
-3. **The embedding server at push time.** Rebuilding pages before a push
-   needs embeddings for any new turns. Should the push hook start the
-   server when it is not running, or stop the push and say so?
-4. **How strongly should the closest gif win?** From "always the closest"
-   to "nearly uniform". A starting point is a softmax with a temperature
-   chosen so the closest gif is drawn about a third of the time.
-5. **Which model?** nomic-embed-text-v1.5 (768 numbers per text) is what
-   neocities-modernization uses for poems; embeddinggemma-300m is also
-   configured there.
+All five answered 2026-11-02, so the issue can be built as soon as the gifs
+and the embedding server can be reached. They exist only on the owner's
+machine, which is why it is not built yet.
+
+1. ~~**Pages or transcripts?**~~ **Pages only.** The transcripts are the
+   archive: they are read in terminals, diffed by git, and compared byte for
+   byte by the exporter's unchanged check. An image line under every heading
+   would put a link to a file outside the project into every transcript. It
+   would also rewrite every transcript whenever the choice changed: a new
+   gif, a new model, a new temperature. The pages are rebuildable output
+   (035), so they can change freely.
+2. ~~**How do the gifs reach the pages?**~~ **One shared copy, linked.** The
+   builder makes `HTML/gifs` a symbolic link to one gif folder, named by a
+   setting whose default is `/home/ritz/pictures/shape-gifs`. Copying would
+   cost about 1 GB across 41 projects for output nobody commits. The font
+   was copied because it is 5.3 MB and the pages need it to read at all; the
+   gifs are 23 MB and decoration. Whatever uploads the pages follows the
+   link into real files (`rsync -L`, or the like). That belongs with 035's
+   still-open upload questions, not here.
+3. ~~**The embedding server at push time.**~~ **Stop the push and say so; never
+   start the server from the hook.** The pre-push hook already rebuilds the
+   pages. When turns lack embeddings and the server is down, the build names
+   them and fails, as step 5 asks, and the push stops with the command that
+   starts the server (`neocities-modernization/scripts/start-llamacpp-server.sh`).
+   Starting a model server as a side effect of `git push` would be a large,
+   surprising action. Pushing pages with turns silently missing their gifs
+   would break the rule this toolchain keeps: a failure is said, not hidden.
+   The cache makes this rare. Only turns written since the last build need
+   the server.
+4. ~~**How strongly should the closest gif win?**~~ **A softmax with one fixed
+   temperature, set from the archive.** The distribution report (step 4)
+   picks the temperature at which, across the archive, the median turn
+   draws its closest gif about a third of the time. The temperature is
+   stored as a setting beside the cache, so every rebuild draws the same
+   gifs until someone changes it on purpose. A temperature worked out per
+   turn would make the same turn draw differently as the archive grows.
+5. ~~**Which model?**~~ **nomic-embed-text-v1.5.** neocities-modernization
+   already runs it, already caches embeddings with it, and its 768 numbers
+   are well tested there. embeddinggemma-300m is the one to try if the
+   report shows the names losing on their words rather than their meaning,
+   which is the case the second algorithm exists for.
 
 ## Related Documents and Tools
 
@@ -103,5 +128,6 @@ once the measurements say it is needed.
 
 ## Metadata
 
-- **Status**: open — open questions to settle before building.
+- **Status**: open — questions answered 2026-11-02; waits on the gif
+  folder and the embedding server, which only the owner's machine has.
 - **Dependencies**: issue 035.

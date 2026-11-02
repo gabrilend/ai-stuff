@@ -4,7 +4,7 @@
 | --- | --- |
 | Cluster | transcript system (018–031; see `transcript-system-progress.md`) |
 | Blocked by | nothing |
-| Blocks | per-project HTML documentation that links into conversations |
+| Blocks | 038 (a gif for every turn); per-project HTML documentation that links into conversations |
 | Status | in progress (built and tested; open questions below) |
 
 Turns saved conversations into readable web pages for any project, not just
