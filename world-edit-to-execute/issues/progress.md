@@ -142,7 +142,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
 | 116 | Read WC3 models (.mdx) | Pending | — |
-| 117 | Read WC3 textures (BLP1) | Built in this project (522, 2026-11-02); open on the shared-reader question (Q-9) | — |
+| 117 | Read WC3 textures (BLP1) | Pending | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
 
@@ -155,6 +155,10 @@ files. Route A (112c) now merges every object of every test map with no
 problems, after two findings: some maps ship their own object tables (the
 map's archive now tops the chain), and three-letter field codes are stored
 padded with a zero byte.
+
+Issue 117 (WC3 textures) is built in this project (by 522, finished
+2026-11-02) and stays open only on the shared-reader question, Q-9 in
+`issues/CRITICAL-PATH.md`.
 
 ### Dependency Graph
 
