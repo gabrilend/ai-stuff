@@ -35,6 +35,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   question 15), so none is marked yet. 801 (the look, as data) is whole
   and closed.
 
+- 802 the paintbrush and its wall — a canvas loaded as plain data with
+  only the paintbrush's words in reach; every mistake reported at once
+  with its line and the nearest legal word; names compiled to numbers in
+  flat arrays; the `.png` paintbrush's document generated from its table
+  and checked to match. 802 is whole and closed.
+
 807c-d, 805b-d, and 809b and 809d remain: box diagrams and prose
 templates; line-and-dot charts, diagrams by level and the machine drawing
 itself; and safe concurrent appends and floors.
