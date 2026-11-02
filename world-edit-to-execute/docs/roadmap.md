@@ -169,8 +169,8 @@ src/runtime/currency/
 ## Phase 1: Foundation - File Format Parsing (In Progress)
 
 The map file formats are read. Still open: the stock object tables and
-their game-version layers (112, 112b, 112d, 112e), and the readers for WC3
-models and textures (116, 117). Phase numbers group functionality rather
+their game-version layers (112, 112b, 112d, 112e), and the texture reader
+(117). Phase numbers group functionality rather
 than mark time, so a foundation phase gaining new readers late is expected.
 
 ### Module Structure
@@ -224,6 +224,7 @@ src/
 | 113 | Remaining MPQ compressions | - |
 | 114 | Read maps through StormLib; the own MPQ reader retired | - |
 | 115 | Balance history explorer | 115a-b |
+| 116 | Read WC3 models (.mdx): errors that say where, classic version only, a summary | - |
 
 ### Open Issues
 
@@ -233,7 +234,6 @@ src/
 | 112b | Game-version layers, chosen per map |
 | 112d | Older patch program shapes (1.01 to 1.20e) |
 | 112e | Route B: published values as a cross-check |
-| 116 | Read WC3 models (.mdx) |
 | 117 | Read WC3 textures (BLP1, in the shared texture reader) |
 
 ---

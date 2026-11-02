@@ -115,12 +115,12 @@ own small models.
 
 ## Acceptance Criteria
 
-- [ ] A version-800 model reads into the table above
-- [ ] Geosets, materials, textures and sequences are decoded
-- [ ] Bones, helpers, pivots and their animation tracks are decoded
-- [ ] Unknown chunks are kept and reported, never silently dropped
-- [ ] Truncated and HD files fail with errors that name what and where
-- [ ] Tests pass without any downloaded or proprietary file present
+- [x] A version-800 model reads into the table above (under issue 522's field names; see Implementation Notes)
+- [x] Geosets, materials, textures and sequences are decoded
+- [x] Bones, helpers, pivots and their animation tracks are decoded
+- [x] Unknown chunks are kept and reported, never silently dropped
+- [x] Truncated and HD files fail with errors that name what and where
+- [x] Tests pass without any downloaded or proprietary file present
 
 ## Open Questions
 
@@ -133,3 +133,86 @@ own small models.
 - `issues/516-draw-wc3-models-in-engine.md` (the renderer)
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (where models come from)
 - `docs/versions-we-leave-alone.md` (Reforged formats)
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+### What was already there
+
+Issue 522 (2026-09-29) built the reader this issue asked for, as
+`src/parsers/mdx.lua`, without updating this file: every chunk listed
+above, tracks and their sampler, and the renderer and the model gallery
+on top of it. Every one of the 265 distinct models in the 16 test maps
+parses (`src/tests/test_assets.lua`). What it lacked, against this issue's
+criteria: errors that say where, refusing the versions the project leaves
+alone, the summary for the fetcher and catalogue, the `.info.md`, and a
+test that needs no downloaded file. This pass adds those.
+
+### Changes (`src/parsers/mdx.lua`)
+
+- **Every read is bounded by the chunk being decoded.** The buffer is raw
+  FFI memory: before, the 16-bit and 8-bit reads (triangle indices, vertex
+  groups) didn't check the length at all, so a damaged model read
+  whatever memory lay past its buffer instead of failing. Now each read
+  checks, and an error names the chunk, where it starts and the byte the
+  reader stopped at, e.g. `MDX: chunk GEOS (starting at byte 1312), at
+  byte 1596: truncated (needs 4 bytes, 1 left)`.
+- **Record sizes are checked before use.** Materials, layers, geosets,
+  geoset animations, nodes, cameras and texture animations carry their
+  own size; a size of zero (or less than the size field) used to set the
+  position back to the record's start and loop forever. Now
+  `R:record()` refuses it, naming the size and what was left.
+- **A chunk header cut short is reported** (`N stray bytes, too few for a
+  chunk header`), where before up to seven trailing bytes were dropped
+  without a word.
+- **Only version 800 is read.** Version 900 and later (Reforged's HD
+  models) is refused with an error naming the version and pointing at
+  `docs/versions-we-leave-alone.md`; so is a version below 800. The few
+  branches 522 had added for Reforged's extra material and geoset fields
+  (`version > 800`) are taken out, since they can no longer run.
+- **Unknown chunks are reported,** in `m.unread` as `{tag, offset, bytes}`
+  in file order. `m.other` (by tag) stays for anything that used it; a
+  second chunk of the same unknown tag no longer overwrites the first.
+- **`mdx.summary(m)`**: version, name, geoset, vertex, triangle and node
+  counts, sequence names, texture paths, replaceable ids, unread tags.
+- **`src/parsers/mdx.info.md`** describes inputs, outputs and errors.
+
+### Tests (`src/tests/test_mdx.lua`, 35 tests, 0.2 s)
+
+The test writes a small model itself with `parsers/binwrite.lua` (VERS,
+MODL, SEQS, GLBS, TEXS, MTLS with an animated layer, GEOS with one
+triangle, BONE with a hermite track, HELP, PIVT and an unknown chunk) and
+checks it reads back field by field. Then:
+- cut at every byte: either a shorter valid model (cut on a chunk
+  boundary) or an error naming the byte;
+- every 4-byte window overwritten with all ones and all zeros (about 3,000
+  damaged files): only the reader's own `MDX:` errors, never a Lua error;
+- a vertex count too large, a material size of zero, an unknown track tag
+  and stray trailing bytes each give the expected error;
+- versions 900, 1100 and 700 are refused by number;
+- with the owner's install present, every stock unit model in
+  `UnitUI.slk` is read; without it (as in the cloud container) that test
+  prints `SKIPPED` and says why.
+
+The old reader fails the new test (it has no `unread`), and the new
+reader reads all 265 models in the 16 test maps to exactly the same
+tables as the old one did (checked by comparing the two readers' output
+field by field).
+
+### Decisions made while building
+
+1. **522's field names are the interface, not this issue's.** The
+   renderer, the editor and the asset tools already use them; renaming
+   would break them for no gain. `mdx.info.md` maps each name this issue
+   used onto the one the reader has.
+2. **Reforged versions are refused, not half read.** 522 read two of
+   Reforged's extra fields; this issue, written before it, said to refuse
+   900 and later, and the project's policy
+   (`docs/versions-we-leave-alone.md`) is to leave Reforged's formats
+   alone. All 265 test-map models are version 800, so nothing that
+   worked stops working; a refused model gets a stand-in like any
+   unreadable one.
+3. **Strict sizes over lenient ones.** A record that runs past its chunk
+   is an error, not something to read around: the reader is run once per
+   model at load time, and a clear error there beats wrong geometry later.

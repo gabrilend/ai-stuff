@@ -32,7 +32,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | Phase | Name | Status |
 |-------|------|--------|
 | 0 | Tooling/Infrastructure | In Progress |
-| 1 | Foundation - File Format Parsing | In Progress (112, 116, 117 open) |
+| 1 | Foundation - File Format Parsing | In Progress (112, 117 open) |
 | 2 | Data Model - Game Objects | **Completed** |
 | 3 | Logic Layer - Triggers and JASS | **Completed** |
 | 4 | Runtime - Basic Engine Loop | **Completed** |
@@ -141,7 +141,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 113 | The remaining MPQ compression methods (Huffman, ADPCM, bzip2; zlib off Python) | **Completed** 2026-09-24 | 102d, 109 |
 | 114 | Read maps through StormLib; the own MPQ reader retired | **Completed** 2026-09-24 | 112a, 113 |
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
-| 116 | Read WC3 models (.mdx) | Pending | — |
+| 116 | Read WC3 models (.mdx) | **Completed** 2026-11-02 (reader built in 522) | — |
 | 117 | Read WC3 textures (BLP1) | Pending | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
