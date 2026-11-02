@@ -363,6 +363,7 @@ static int build_and_push(struct core_ctx *c, struct station *s, int32_t index, 
     engine_wake_sleepers();
     c->stats.tasks_built++;
     transcript_record(TRANSCRIPT_QUEUED, index, in_bytes, 0, 0, s->name);
+    (void)in_bytes;                            /* lean builds record no transcript */
     return 1;
 }
 /* }}} */
