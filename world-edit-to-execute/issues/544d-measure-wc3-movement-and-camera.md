@@ -1,9 +1,11 @@
-# Issue 516d: Measure WC3 Movement and Camera Numbers on a Real Install
+# Issue 544d: Measure WC3 Movement and Camera Numbers on a Real Install
+
+> **Renumbered on 2026-11-02** from 516d to 544d: its parent, the geometry and fort issue, is now 544 (516 was already drawing WC3 models). The old path keeps a pointer here.
 
 **Phase:** 5
 **Type:** Implementation
 **Priority:** Medium
-**Dependencies:** 516 (locomotion and fort demo)
+**Dependencies:** 544 (locomotion and fort demo)
 
 ---
 
@@ -24,7 +26,7 @@ chosen to look right, not measured:
 | Camera pan speed; zoom limits; whether FOV 70 is vertical | 1400 units/s; 700-4200; vertical | `fort_demo.c` |
 
 The data the 16 test maps carry agrees with the ranges in use (turn rates
-0.1-1.0, speeds 200-350; see the 516 session notes) but only a running
+0.1-1.0, speeds 200-350; see the 544 (then 516) session notes) but only a running
 game gives the rules.
 
 Two readings of the stored data are also open: 21 map units store

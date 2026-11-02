@@ -1451,7 +1451,7 @@ int main(void) {
                 /* 508c: Render Lua-created entities */
                 render_lua_entities();
 
-                /* 516a: Geometry painted from Lua */
+                /* 544a: Geometry painted from Lua */
                 geometry_draw();
 
                 /* 508e: Selection circles under selected entities */

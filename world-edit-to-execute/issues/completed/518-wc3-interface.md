@@ -3,7 +3,7 @@
 **Phase:** 5
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** 517 (maps drawn with designs), 516c (locomotion)
+**Dependencies:** 517 (maps drawn with designs), 544 (locomotion, built as its part c)
 
 ---
 
@@ -35,7 +35,7 @@ filled from the map's own data where it has it:
 - **Orders:** Move (M), Stop (S), Hold Position (H), Attack (A), Patrol
   (P) by button or hotkey then a click on the ground or minimap; right
   click moves, or attacks an enemy; Esc cancels; units walk by WC3's
-  movement rules (516c) in formation
+  movement rules (544c) in formation
 
 ## Acceptance Criteria
 

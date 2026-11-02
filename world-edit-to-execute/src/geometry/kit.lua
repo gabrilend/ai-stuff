@@ -1,5 +1,5 @@
 --[[
-Geometry Kit (Issue 516b)
+Geometry Kit (Issue 544b)
 
 Builds structures out of flat-shaded boxes, wedges and quads, in WC3 world
 units: x east, y north, z up, 128 units to a terrain tile. A structure is

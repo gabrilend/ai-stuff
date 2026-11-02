@@ -1,9 +1,12 @@
-# Issue 516: Geometry Painting and WC3-Style Behaviours (the Fort)
+# Issue 544: Geometry Painting and WC3-Style Behaviours (the Fort)
+
+> **Renumbered on 2026-11-02** from 516 to 544: 516 was already drawing WC3 models in the engine (`issues/516-draw-wc3-models-in-engine.md`), filed four days earlier; its parts 516a to 516e are now 544a to 544e. The old path keeps a pointer here.
 
 **Phase:** 5
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** 508c (Lua bridge), 508d (terrain), 404 (movement)
+**Blocks:** 517 (maps drawn with geometry designs), 518 (the interface uses its locomotion), 544d (measuring the stand-ins)
 
 ---
 
@@ -27,11 +30,11 @@ The work is in five parts, labelled in the code:
 
 | Part | What | Where |
 |------|------|-------|
-| 516a | Geometry painting in C: boxes, wedges, quads; static and per-frame layers; Lua `render.geo_*` | `src/render/geometry.{c,h}`, `bridge.c` |
-| 516b | Geometry kit (walls with battlements, towers, belltower, gatehouse, ramps, stairs, standing surfaces) and figures (bowman, dummy, arrow, range ring) | `src/geometry/kit.lua`, `figures.lua` |
-| 516c | WC3 locomotion (constant speed, turn rate, propulsion window, surfaces underfoot) and behaviours (walk graph, garrison with the attack cycle, patrol, arrows) | `src/runtime/locomotion.lua`, `behaviors.lua` |
-| 516d | Measuring the stand-in numbers on a real install | `issues/516d-measure-wc3-movement-and-camera.md` (open) |
-| 516e | The fort scene and its demo program | `src/demo/fort/`, `src/render/fort_demo.c`, `run-fort` |
+| 544a | Geometry painting in C: boxes, wedges, quads; static and per-frame layers; Lua `render.geo_*` | `src/render/geometry.{c,h}`, `bridge.c` |
+| 544b | Geometry kit (walls with battlements, towers, belltower, gatehouse, ramps, stairs, standing surfaces) and figures (bowman, dummy, arrow, range ring) | `src/geometry/kit.lua`, `figures.lua` |
+| 544c | WC3 locomotion (constant speed, turn rate, propulsion window, surfaces underfoot) and behaviours (walk graph, garrison with the attack cycle, patrol, arrows) | `src/runtime/locomotion.lua`, `behaviors.lua` |
+| 544d | Measuring the stand-in numbers on a real install | `issues/544d-measure-wc3-movement-and-camera.md` (open) |
+| 544e | The fort scene and its demo program | `src/demo/fort/`, `src/render/fort_demo.c`, `run-fort` |
 
 ## Acceptance Criteria
 
@@ -49,7 +52,7 @@ The work is in five parts, labelled in the code:
 
 **Date:** 2026-09-29
 
-### 516a: geometry painting
+### 544a: geometry painting
 
 `render.geo_box(x, y, z, sx, sy, sz, yaw, r, g, b [, dynamic])`,
 `geo_wedge` (same arguments; rises along its length) and `geo_quad` (four
@@ -68,7 +71,7 @@ dropped (walls looked hollow, the plinth's top vanished).
 the fort demo draws the map's ground at 42-60 FPS under software GL
 (the whole 481x481 map as cubes is 231,000 draws a frame).
 
-### 516b: kit and figures
+### 544b: kit and figures
 
 Everything is in WC3 units (128 to a tile). A `kit.new()` world collects
 primitives and surfaces; `height_at(x, y, z_now)` gives the highest surface
@@ -82,7 +85,7 @@ axes, which reflects the world. The kit places north at render -z
 option to lay the terrain the same way; the threaded demo keeps the old,
 mirrored layout until someone decides to change it.
 
-### 516c: locomotion and behaviours
+### 544c: locomotion and behaviours
 
 - Speed is constant (no acceleration); the tests check each tick moves
   exactly speed * dt.
@@ -99,9 +102,9 @@ mirrored layout until someone decides to change it.
 
 The movement system from 404 (`runtime/systems/movement.lua`) still has
 the radians-per-second turn rate and moves regardless of facing; it
-could adopt `runtime/locomotion.lua` once 516d settles the numbers.
+could adopt `runtime/locomotion.lua` once 544d settles the numbers.
 
-### 516e: the fort
+### 544e: the fort
 
 `src/render/run-fort` builds and runs it from any checkout (raylib from
 `RAYLIB_PATH`). Arrows/WASD pan, wheel zooms, 1 sets WC3's default

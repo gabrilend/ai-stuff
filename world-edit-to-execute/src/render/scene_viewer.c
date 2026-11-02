@@ -1,8 +1,8 @@
 /*
- * Scene Viewer (Issues 516e, 517e)
+ * Scene Viewer (Issues 544e, 517e)
  *
  * A window, a WC3-style camera and a fixed 50 Hz tick; everything else is a
- * Lua scene script: the fort (src/demo/fort/main.lua, 516) or a WC3 map
+ * Lua scene script: the fort (src/demo/fort/main.lua, 544) or a WC3 map
  * (src/demo/wc3map/main.lua, 517). Started as the fort demo.
  *
  * Usage: scene_viewer [PROJECT_ROOT [SCENE_SCRIPT [SCENE_ARG]]]

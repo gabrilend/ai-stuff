@@ -1,5 +1,5 @@
 /*
- * Geometry Painting Implementation (Issue 516a)
+ * Geometry Painting Implementation (Issue 544a)
  *
  * See geometry.h. Primitives are stored as data and turned into triangles
  * when drawn; faces are drawn from both sides, so corner order never hides

@@ -1,5 +1,5 @@
 --[[
-Figures (Issue 516b)
+Figures (Issue 544b)
 
 Little people and props made of boxes, posed each frame: a bowman, a straw
 training dummy, an arrow, and a ring on the ground (for showing ranges).

@@ -17,7 +17,7 @@ What the WC3 interface (ui/wc3/hud.lua) needs from a loaded map scene
              script sets them with a literal; food from the map's food
              fields where it defines them
   clock      the day starts at 8:00 and lasts 480 seconds (from memory of
-             the game; see 516d)
+             the game; see 544d)
   players, forces, quests (CreateQuestBJ titles from the script), minimap
   stats      opts.stock (gamedata/unit_stock.lua) gives the stock tables'
              values under the map's changes (Issue 525); without it only
@@ -69,7 +69,7 @@ local game_constants = require("gamedata.game_constants")
 
 local game_mod = {}
 
-game_mod.DAY_SECONDS = 480    -- one game day (from memory; 516d)
+game_mod.DAY_SECONDS = 480    -- one game day (from memory; 544d)
 game_mod.DAY_START = 8        -- hour the game starts at
 game_mod.FOOD_MAX = 100
 

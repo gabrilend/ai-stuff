@@ -355,7 +355,7 @@ static const luaL_Reg render_funcs[] = {
     {"ui_set_game_time", l_ui_set_game_time},
     {"ui_clear_selection", l_ui_clear_selection},
     {"ui_show", l_ui_show},
-    /* Geometry painting (516a) */
+    /* Geometry painting (544a) */
     {"geo_box", l_geo_box},
     {"geo_wedge", l_geo_wedge},
     {"geo_quad", l_geo_quad},

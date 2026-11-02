@@ -1,5 +1,5 @@
 /*
- * Geometry Painting (Issue 516a)
+ * Geometry Painting (Issue 544a)
  *
  * Flat-shaded solids that Lua paints into the world: boxes, wedges (ramps)
  * and free quads. Each face is shaded by how squarely it meets a fixed light,

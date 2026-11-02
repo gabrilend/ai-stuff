@@ -1,4 +1,6 @@
-# Issue 515: Threaded Demo Crashes on Its First Frame
+# Issue 543: Threaded Demo Crashes on Its First Frame
+
+> **Renumbered on 2026-11-02** from 515 to 543: 515 was already the render graph on the ceramic engine (`issues/515-render-graph-on-the-ceramic-engine.md`), filed four days earlier. The old path keeps a pointer here.
 
 **Phase:** 5
 **Type:** Implementation

@@ -72,7 +72,7 @@ bool terrain_get_tile(TerrainGrid* t, int x, int y,
  * Must be called within BeginMode3D/EndMode3D block. */
 void terrain_draw(TerrainGrid* t);
 
-/* Draw only tiles within radius (world units) of (cx, cz) (516a) */
+/* Draw only tiles within radius (world units) of (cx, cz) (544a) */
 void terrain_draw_region(TerrainGrid* t, float cx, float cz, float radius);
 
 /* terrain_draw_grid_lines

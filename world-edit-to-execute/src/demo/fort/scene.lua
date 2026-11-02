@@ -1,5 +1,5 @@
 --[[
-Fort Scene (Issue 516e)
+Fort Scene (Issue 544e)
 
 A slate-blue fort on a blue plinth. Orange bowmen file in through the
 gatehouse, climb the ramp inside the east wall, spread along the walkways
