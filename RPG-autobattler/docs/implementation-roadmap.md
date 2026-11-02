@@ -59,7 +59,7 @@
 - [x] Create base entities with health pools (Issue #036)
 - [x] Implement defense shield system (3 shields) (Issue #037)
 - [x] Add automatic turret for base defense (Issue #038)
-- [ ] Create shield destruction mechanics
+- [x] Create shield destruction mechanics (Issue #039)
 - [ ] Implement unit reset when shields are destroyed
 
 ## Phase 4: Ability System
