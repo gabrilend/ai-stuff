@@ -70,6 +70,7 @@ git config user.email || echo "Need to set user.email"
 - **Complexity**: Low
 - **Estimated Time**: 15-30 minutes
 - **Dependencies**: None
+- **Blocks**: Issues 003, 004, 006 (each builds on the repository structure)
 - **Impact**: Foundation for all subsequent git operations
 
 ## Success Criteria

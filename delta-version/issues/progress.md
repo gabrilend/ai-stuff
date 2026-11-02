@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Duplicate issue numbers** (2026-11-02): 001, 037 and 038 each named two different issues. The one the record does not use was renumbered to the next free id, leaving a `moved-` pointer: the 001 master issue is now 065, TUI dirty tracking (was 037) is 066, and TUI panel abstraction (was 038) is 067. References updated; `validate-issues` no longer reports a shared id.
 - **Issue 005**: Configure branch isolation — closed 2026-11-02 as superseded: the per-project branches it configured were retired (031 grafted their histories onto main; 046 settled main-only work), so the optional sparse-checkout step has nothing to apply to.
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
