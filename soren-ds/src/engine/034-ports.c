@@ -350,6 +350,10 @@ static int build_and_push(struct core_ctx *c, struct station *s, int32_t index, 
         return 0;
     }
     release_claimed(s, cells, CELL_EMPTY);
+    /* Read what the transcript wants before the push: once the task is on
+     * the ring another core may pop it, run it and free it before this
+     * core takes its next step. */
+    int32_t in_bytes = (int32_t)t->in_bytes;
     if (!ring_push(&engine.ring, c->number, t)) {
         error_record(s, index, ERROR_NO_MEMORY, 0);
         atomic_sub(&s->in_flight, 1);
@@ -358,7 +362,7 @@ static int build_and_push(struct core_ctx *c, struct station *s, int32_t index, 
     }
     engine_wake_sleepers();
     c->stats.tasks_built++;
-    transcript_record(TRANSCRIPT_QUEUED, index, (int32_t)t->in_bytes, 0, 0, s->name);
+    transcript_record(TRANSCRIPT_QUEUED, index, in_bytes, 0, 0, s->name);
     return 1;
 }
 /* }}} */
