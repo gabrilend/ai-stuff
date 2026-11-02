@@ -240,6 +240,7 @@ Controls how poems are split across HTML pages.
 | `generate_txt_exports` | boolean | true | Generate .txt versions |
 | `chronological_paginated` | boolean | false | Split chronological.html |
 | `chronological_poems_per_page` | number | 1000 | Poems per chrono page |
+| `gallery_chronological_pages` | number | 10 | Pages per direction of the chronological image gallery (`gallery/chronological-NN.html`, `chronological-reverse-NN.html`); page size is ceil(images / this). Read by `src/gallery-pages.lua` via `generate-gallery-pages.lua` and `flat-html-generator.lua` (Issue 10-062) |
 
 **CLI overrides:** `--poems-per-page`, `--chrono-per-page`, `--pages`
 

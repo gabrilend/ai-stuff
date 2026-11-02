@@ -64,6 +64,9 @@ local dkjson = require("dkjson")
 local utils = require("utils")
 -- Issue 10-042d / 9-013: shared "source: sub: name.png" title helper
 local image_titles = require("image-pseudo-embeddings")
+-- Issue 10-062: which chronological page each picture is on (shared with the
+-- poem-page renderer, so its links land on the same page)
+local gallery_pages = require("gallery-pages")
 utils.init_assets_root(arg)
 
 -- Issue 10-003: Load unified config from config.lua
@@ -74,14 +77,10 @@ local config = config_loader.load()
 local M = {}
 
 -- {{{ Configuration
--- Sources to include in gallery (exclude fediverse-media which is inline with poems)
-local STANDALONE_SOURCES = {
-    "my-art",
-    "things-I-almost-posted",
-    "poem-pictures",
-    "dnd-pictures-from-the-internet",
-    "fediverse-stars"
-}
+-- Sources to include in gallery (exclude fediverse-media which is inline with poems).
+-- Issue 10-062: the list lives in gallery-pages.lua, because the poem-page
+-- renderer must count exactly the same pictures to know which page one is on.
+local STANDALONE_SOURCES = gallery_pages.STANDALONE_SOURCES
 
 -- Map source names to URL-friendly slugs
 local SOURCE_SLUGS = {
@@ -134,19 +133,7 @@ end
 -- {{{ filter_standalone_images
 -- Filter to only standalone images (exclude fediverse-media)
 local function filter_standalone_images(catalog)
-    local standalone = {}
-    local standalone_set = {}
-    for _, source in ipairs(STANDALONE_SOURCES) do
-        standalone_set[source] = true
-    end
-
-    for _, img in ipairs(catalog.images or {}) do
-        if standalone_set[img.source_name] then
-            table.insert(standalone, img)
-        end
-    end
-
-    return standalone
+    return gallery_pages.standalone_images(catalog)
 end
 -- }}}
 
@@ -345,7 +332,7 @@ local function generate_gallery_index(grouped_images)
     table.insert(html, '<p>')
     table.insert(html, '<a href="../wordcloud.html">Menu</a> | ')
     table.insert(html, '<a href="../explore.html">Explore</a> | ')
-    table.insert(html, '<a href="chronological.html">Chronological</a>')
+    table.insert(html, '<a href="' .. gallery_pages.page_file(1, "forward") .. '">Chronological</a>')
     table.insert(html, '</p>\n')
 
     -- Title
@@ -413,54 +400,149 @@ local function image_qualified_title(img)
 end
 -- }}}
 
--- {{{ image_anchor
--- Stable per-image anchor so poem pages can deep-link to one image here.
-local function image_anchor(img, fallback_index)
-    return "img-" .. (img.hash and img.hash:sub(1, 12) or tostring(fallback_index))
+-- {{{ jump_bar
+-- Issue 10-062: the page numbers, three spaces apart, each a link to that page
+-- of the same view; the page being read is bold and not a link. In a <pre> so
+-- the three spaces survive.
+local function jump_bar(current, pages, direction)
+    local cells = {}
+    for p = 1, pages do
+        if p == current then
+            cells[#cells + 1] = "<b>" .. p .. "</b>"
+        else
+            cells[#cells + 1] = string.format('<a href="%s">%d</a>', gallery_pages.page_file(p, direction), p)
+        end
+    end
+    return '<pre style="text-align:center">' .. table.concat(cells, "   ") .. '</pre>'
 end
 -- }}}
 
--- {{{ generate_gallery_chronological
+-- {{{ direction_toggle
+-- Issue 10-062: the two orders, the one being read in bold, the other a link to
+-- page 1 of that view (oldest first, or newest first).
+local function direction_toggle(direction)
+    local forward, reverse = "oldest first", "newest first"
+    if direction == "forward" then
+        reverse = string.format('<a href="%s">%s</a>', gallery_pages.page_file(1, "reverse"), reverse)
+        forward = "<b>" .. forward .. "</b>"
+    else
+        forward = string.format('<a href="%s">%s</a>', gallery_pages.page_file(1, "forward"), forward)
+        reverse = "<b>" .. reverse .. "</b>"
+    end
+    return '<p>' .. forward .. ' &#9474; ' .. reverse .. '</p>'
+end
+-- }}}
+
+-- {{{ generate_gallery_chronological_page
 -- Issue 10-042d: all standalone images, every source, in time order, as a
 -- vertical scroll. Between each pair of images is a caption block naming the
 -- image ABOVE and the image BELOW, so every title shows twice (once on each
 -- side of its picture). Each image is anchored for deep-linking from poems.
-local function generate_gallery_chronological(images)
-    table.sort(images, function(a, b)
-        return (tonumber(a.modification_time) or 0) < (tonumber(b.modification_time) or 0)
-    end)
-
+--
+-- Issue 10-062: one PAGE of that scroll, in one direction. `view` is the whole
+-- ordered list for the direction (oldest first, or the same list reversed);
+-- this page draws view[first..last]. A caption names the image below only
+-- when it is on this page: the last picture of a page closes like the last
+-- picture of the gallery, and the jump bar under it leads on.
+local function generate_gallery_chronological_page(view, page, index, direction)
     local SEP = string.rep("─", 78)
     local function esc(s) return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")) end
+    local first = (page - 1) * index.page_size + 1
+    local last = math.min(page * index.page_size, #view)
+    local heading = direction == "forward" and "Images &mdash; Chronological" or "Images &mdash; Newest First"
+    local title = (direction == "forward" and "Images — Chronological" or "Images — Newest First")
+        .. string.format(" (page %d of %d)", page, index.pages)
 
     local html = {}
-    table.insert(html, generate_html_header("Images — Chronological"))
+    table.insert(html, generate_html_header(title))
     table.insert(html, '<center>')
-    table.insert(html, '<h1>Images &mdash; Chronological</h1>')
+    table.insert(html, '<h1>' .. heading .. '</h1>')
     table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../index.html">Menu</a></p>')
+    table.insert(html, direction_toggle(direction))
+    table.insert(html, jump_bar(page, index.pages, direction))
     table.insert(html, '<hr>')
-    table.insert(html, '<p>' .. #images .. ' images from all collections, in time order</p>')
+    if #view == 0 then
+        table.insert(html, '<p>0 images from all collections</p>')
+    else
+        table.insert(html, string.format('<p>%d images from all collections, %s; this page: %d to %d</p>',
+            #view, direction == "forward" and "in time order" or "newest first", first, last))
+    end
     table.insert(html, '</center>')
 
-    for i, img in ipairs(images) do
+    for i = first, last do
+        local img = view[i]
         local rel = get_relative_image_path(img.relative_path)
-        local title = image_qualified_title(img)
+        local img_title = image_qualified_title(img)
+        -- The anchor is the picture's own (hash-based), the same in both views.
+        local forward_position = direction == "forward" and i or (#view - i + 1)
         table.insert(html, string.format(
             '<a name="%s"></a><img src="%s" alt="%s" loading="lazy" style="max-width:min(100%%,800px); height:auto; display:block; margin:1em auto;">',
-            image_anchor(img, i), rel, esc(title)))
+            gallery_pages.anchor(img, forward_position), rel, esc(img_title)))
         -- Caption block: sep, blank, title-of-image-above (this), blank,
-        -- title-of-image-below (next), blank, sep. The last image has no below.
-        local block = { SEP, "", esc(title), "" }
-        if images[i + 1] then
-            table.insert(block, esc(image_qualified_title(images[i + 1])))
+        -- title-of-image-below (next, when on this page), blank, sep.
+        local block = { SEP, "", esc(img_title), "" }
+        if i < last then
+            table.insert(block, esc(image_qualified_title(view[i + 1])))
         end
         table.insert(block, "")
         table.insert(block, SEP)
         table.insert(html, '<pre style="text-align:center">' .. table.concat(block, "\n") .. '</pre>')
     end
 
+    table.insert(html, '<center>')
+    table.insert(html, jump_bar(page, index.pages, direction))
+    table.insert(html, '</center>')
     table.insert(html, generate_html_footer())
     return table.concat(html, "\n")
+end
+-- }}}
+
+-- {{{ M.chronological_pages
+-- Issue 10-062: every page of the chronological gallery, both directions, as
+-- { {file = name, html = text}, ... }, plus the index they were laid out from.
+-- The reverse view is the same sorted list read backwards -- no second pass
+-- over the catalog. page_count is config.pagination.gallery_chronological_pages.
+function M.chronological_pages(catalog, page_count)
+    local index = gallery_pages.build_index(catalog, page_count)
+    local reversed = {}
+    for i = index.total, 1, -1 do reversed[#reversed + 1] = index.sorted[i] end
+    local pages = {}
+    for _, view in ipairs({ { "forward", index.sorted }, { "reverse", reversed } }) do
+        for page = 1, index.pages do
+            pages[#pages + 1] = {
+                file = gallery_pages.page_file(page, view[1]),
+                html = generate_gallery_chronological_page(view[2], page, index, view[1]),
+            }
+        end
+    end
+    return pages, index
+end
+-- }}}
+
+-- {{{ M.write_chronological_pages
+-- Write every chronological page into output_dir, plus chronological.html as a
+-- copy of the first forward page: the gallery used to be that one file, so
+-- bookmarks and links already out in the world still open the gallery (at its
+-- start; a #picture fragment for a later page lands on page 1's top). Numbered
+-- pages left over from a build with more pages are removed, so a smaller page
+-- count never leaves stale pages behind. Returns the written file names.
+function M.write_chronological_pages(output_dir, catalog, page_count)
+    local pages, index = M.chronological_pages(catalog, page_count)
+    local written = {}
+    local function write(name, text)
+        local handle = io.open(output_dir .. "/" .. name, "w")
+        if not handle then error("gallery: could not write " .. output_dir .. "/" .. name) end
+        handle:write(text)
+        handle:close()
+        written[#written + 1] = name
+    end
+    for _, page in ipairs(pages) do write(page.file, page.html) end
+    write("chronological.html", pages[1].html)
+    for page = index.pages + 1, 99 do
+        os.remove(output_dir .. "/" .. gallery_pages.page_file(page, "forward"))
+        os.remove(output_dir .. "/" .. gallery_pages.page_file(page, "reverse"))
+    end
+    return written, index
 end
 -- }}}
 
@@ -493,15 +575,13 @@ function M.generate()
         print("  Created: output/gallery/index.html")
     end
 
-    -- Issue 10-042d: chronological images page (all sources, by time)
-    print("Generating chronological images page...")
-    local chrono_html = generate_gallery_chronological(standalone)
-    local chrono_file = io.open(output_dir .. "/chronological.html", "w")
-    if chrono_file then
-        chrono_file:write(chrono_html)
-        chrono_file:close()
-        print("  Created: output/gallery/chronological.html")
-    end
+    -- Issue 10-042d: chronological images pages (all sources, by time).
+    -- Issue 10-062: split into pages, oldest first and newest first.
+    print("Generating chronological images pages...")
+    local page_count = config.pagination and config.pagination.gallery_chronological_pages
+    local written, index = M.write_chronological_pages(output_dir, catalog, page_count)
+    print(string.format("  Created: %d chronological pages (%d per direction, %d images each) "
+        .. "and output/gallery/chronological.html", #written - 1, index.pages, index.page_size))
 
     -- Generate per-source gallery pages
     for _, source_name in ipairs(STANDALONE_SOURCES) do

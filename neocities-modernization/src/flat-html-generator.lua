@@ -3685,6 +3685,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             output_dir = output_dir,
             -- Issue 9-013: where the worker finds the image pseudo-poem manifest
             image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
+            -- Issue 10-062: the catalog the gallery pages are laid out from, and
+            -- their page count, so image titles link to the right gallery page
+            image_catalog_path = DIR .. "/assets/image-catalog.json",
+            gallery_page_count = unified_config.pagination
+                and unified_config.pagination.gallery_chronological_pages,
             pages_is_all = pages_config.is_all,
             pages_list = pages_config.pages,
             poems_per_page = PAGINATION_CONFIG.poems_per_page,
@@ -3740,6 +3745,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
                 t_image_render.inject_pseudo_poems(poems_data,
                     t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
+                t_image_render.load_gallery_index(config.image_catalog_path, t_utils.read_json_file,
+                    config.gallery_page_count)
 
                 -- Build poem lookup by poem_index
                 local poem_lookup = {}

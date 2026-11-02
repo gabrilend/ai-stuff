@@ -13,6 +13,7 @@
 local M = {}
 
 local manifest_cache = nil  -- per-process memoize (worker states each load once)
+local gallery_index = nil   -- Issue 10-062: which gallery page each picture is on
 
 -- {{{ function M.load_manifest()
 -- Read image-manifest.json from `path`. Returns the { "poem_index" = record }
@@ -24,6 +25,23 @@ function M.load_manifest(path, read_json_fn)
     local data = read_json_fn(path)
     manifest_cache = (data and data.images) or {}
     return manifest_cache
+end
+-- }}}
+
+-- {{{ function M.load_gallery_index()
+-- Issue 10-062: the chronological gallery is split into pages, so a link to a
+-- picture must name its page. This reads image-catalog.json at `path` and lays
+-- it out with gallery-pages.lua -- the very function the gallery generator
+-- uses -- so the link and the page agree without any earlier stage recording
+-- anything. page_count is config.pagination.gallery_chronological_pages.
+--
+-- No catalog means no gallery and no standalone pictures to link, so it loads
+-- an empty index. Memoized per process, like the manifest.
+function M.load_gallery_index(path, read_json_fn, page_count)
+    if gallery_index ~= nil then return gallery_index end
+    local gallery_pages = require("gallery-pages")
+    gallery_index = gallery_pages.build_index(read_json_fn(path) or { images = {} }, page_count)
+    return gallery_index
 end
 -- }}}
 
@@ -134,7 +152,9 @@ end
 -- the page; today every caller is depth 1.) flatten_media_files puts each image
 -- at output/media/<source>/<subpath>, which "../media/" + media_href() reaches.
 local MEDIA_BASE = "../media/"
-local GALLERY_BASE = "../gallery/chronological.html#"
+-- The chronological gallery folder; the page and anchor come from gallery-pages
+-- (Issue 10-062).
+local GALLERY_BASE = "../gallery/"
 
 -- {{{ function M.text_image_link()
 -- For a TEXT+IMAGE post (a normal poem that also carries an image attachment),
@@ -180,9 +200,23 @@ function M.format_image_entry(poem)
     -- For a standalone catalog image, link the title to its spot on the
     -- chronological gallery page (Issue 9-013 gallery links). Image-only posts
     -- carry no gallery_anchor, so their title stays plain text.
+    --
+    -- Issue 10-062: the gallery is paginated, so the link names the picture's
+    -- page, from the index load_gallery_index built. A picture the gallery does
+    -- not show (a source it leaves out) gets no link rather than a link to a
+    -- spot that does not exist. Drawing a gallery picture before the index is
+    -- loaded is a wiring mistake in the caller, and stops the build.
     local title_html = esc
     if poem.gallery_anchor then
-        title_html = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, poem.gallery_anchor, esc)
+        if gallery_index == nil then
+            error("image-render: format_image_entry needs load_gallery_index() first "
+                .. "(an image entry links into the paginated gallery, Issue 10-062)")
+        end
+        local gallery_pages = require("gallery-pages")
+        local link = gallery_pages.link_for(gallery_index, poem.gallery_anchor)
+        if link then
+            title_html = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, link, esc)
+        end
     end
     return table.concat({
         "<hr>",
@@ -198,6 +232,7 @@ end
 -- Test hook: drop the memoized manifest so fixtures don't bleed between cases.
 function M.reset_cache()
     manifest_cache = nil
+    gallery_index = nil
 end
 -- }}}
 

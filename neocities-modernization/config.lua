@@ -594,8 +594,14 @@ return {
         generate_txt_exports = true,        -- Generate .txt versions of poems
         generate_html_archives = false,     -- Disabled: redundant with paginated pages
         chronological_paginated = false,    -- Split chronological.html into pages
-        chronological_poems_per_page = 1000 -- Poems per chronological page (if paginated)
+        chronological_poems_per_page = 1000, -- Poems per chronological page (if paginated)
                                             -- CLI: --chrono-per-page N
+        -- Issue 10-062: the chronological IMAGE gallery (gallery/chronological-NN.html,
+        -- and chronological-reverse-NN.html newest first) is split into this many
+        -- pages per direction; page size = ceil(images / this). Read by
+        -- src/gallery-pages.lua through generate-gallery-pages.lua (the pages) and
+        -- flat-html-generator.lua (the poem pages' links into them).
+        gallery_chronological_pages = 10
     },
     -- }}}
 

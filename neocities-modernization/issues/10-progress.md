@@ -100,8 +100,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
 | 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
 | 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
+| 10-062 | Chronological image gallery: newest-first view and 10-page pagination | Completed | 2026-11-02 |
 
 ## Issue Details
+
+**10-062: Chronological Image Gallery Pagination** - COMPLETED (2026-11-02)
+- `gallery/chronological-NN.html` (oldest first) and `chronological-reverse-NN.html` (newest first), 10 pages each (`config.pagination.gallery_chronological_pages`), with a page-number jump bar and a direction toggle; `chronological.html` stays as a copy of page 01
+- `src/gallery-pages.lua` decides a picture's page from its position in the catalog's time order; the gallery and the poem pages' picture links both call it, so no earlier stage records anything
 
 **10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:

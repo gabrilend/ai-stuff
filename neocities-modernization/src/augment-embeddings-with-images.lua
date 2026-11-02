@@ -207,8 +207,11 @@ function M.augment(embeddings_data, poems_data, catalog_data)
                 source_directory = r.image._img.source_directory,
                 width = r.image._img.width, height = r.image._img.height,
                 creation_date = r.image._img.modification_date,
-                -- Deep-link target on the chronological gallery page. MUST match
-                -- generate-gallery-pages.lua's image_anchor() = "img-" .. hash:sub(1,12).
+                -- Deep-link target on the chronological gallery. MUST match
+                -- gallery-pages.lua's anchor() = "img-" .. hash:sub(1,12). Which
+                -- gallery PAGE it is on is not recorded here: the renderer works it
+                -- out from the catalog with the same function the gallery uses
+                -- (Issue 10-062).
                 gallery_anchor = "img-" .. tostring(r.image.id):sub(1, 12),
             }
         end
