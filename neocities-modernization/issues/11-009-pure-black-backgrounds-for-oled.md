@@ -4,7 +4,9 @@
 - **Phase**: 11 (Advanced Exploration / Presentation)
 - **Priority**: Medium
 - **Type**: Bug / consistency audit
-- **Status**: OPEN — audited, not fixed
+- **Status**: IMPLEMENTED 2026-11-02 — the source browser renders on pure
+  black and every page generator takes its body colours from one place; the
+  look on a phone after the next full build (step 6) is still to do
 - **Created**: 2026-08-08
 - **Sorted from**: `new-issue-please-sort`; extended 2026-09-22 from
   `next-issue-please-sort` (item 5)
@@ -116,15 +118,15 @@ new page type correct by default rather than correct by remembering.
 
 ## Suggested Implementation Steps
 
-1. Give the source browser the same body attributes the poem pages use. One
+1. **Done 2026-11-02.** Give the source browser the same body attributes the poem pages use. One
    generator, one change; verify with the `grep -L` command above returning 0.
-2. Decide whether the palette lives in one place (see Open Questions) and, if so,
+2. **Done 2026-11-02.** Decide whether the palette lives in one place (see Open Questions) and, if so,
    route the generators through it rather than each spelling out its own colours.
 3. Re-run the audit across every page family after the next build; the command
    above is the whole test.
-4. Check the diagnostic outputs separately, once their intent is settled.
+4. **Settled 2026-11-02: left as they are** (see Open Question 2). Check the diagnostic outputs separately, once their intent is settled.
 5. **Done 2026-09-22** (tested by `src/page-head.test.lua`; the source
-   browser still waits on step 1). Declare the pages dark in the shared page head (`src/page-head.lua`): a
+   browser got it with step 1 on 2026-11-02). Declare the pages dark in the shared page head (`src/page-head.lua`): a
    `color-scheme` meta tag saying "dark", and the matching `color-scheme`
    property in its base style. That tells phone browsers the page is already
    dark, so their automatic dark mode leaves it alone. Every page that uses the
@@ -177,3 +179,79 @@ new page type correct by default rather than correct by remembering.
 - **3-006** — no JavaScript; the reason theming is inline attributes and small
   `<style>` blocks rather than a stylesheet with a media query
 - **12-002** — dual-axis similarity theme and style; adjacent presentation work
+
+## What Happened (2026-11-02)
+
+Steps 1, 2 and 5 are built; step 4 is settled by leaving the diagnostic pages
+alone; steps 3 and 6 need a full build and a phone, which this machine has
+neither of.
+
+**One place for the colours.** `config.lua` already had an `html_theme`
+section (background, text, link, vlink) that only the gallery read. It is now
+the one source: `src/page-head.lua` gained `body_tag(theme)`, which builds
+`<body bgcolor=… text=… link=… vlink=…>` from it. It refuses a missing theme, a
+missing colour, or anything that is not `#RRGGBB` -- an error at build time
+rather than a page in the browser's default colours, and a guarantee that the
+tag holds no `%`, so it can be spliced into the `string.format` templates as
+it stands. Every page generator on the published site now calls it:
+
+- `src/flat-html-generator.lua` -- all seven poem, chronological, redirect and
+  explore templates (a `BODY_TAG` built once at load, beside `PAGE_HEAD_BLOCK`)
+- `src/wordcloud-generator.lua` -- the menu page
+- `src/generate-word-pages.lua` -- the word pages
+- `src/generate-gallery-pages.lua` -- its own hand-rolled copy of the theme
+  (with silent `or "#000000"` fallbacks) is gone; it also now carries the
+  shared viewport and `color-scheme` tags, which it lacked
+- `src/generate-source-browser.lua` -- the defect itself
+
+The poem pages' HTML is byte-for-byte what it was: the shipped theme is the
+same four colours that were hard-coded.
+
+**The source browser.** Its `<body>` now carries the theme, its head carries
+the shared viewport + `color-scheme: dark` tags, and its stylesheet's three
+near-black panel colours (`--ink #0b0c10`, `--ink-2 #13151f`,
+`--panel #0e1018`) are all the theme background, written into `_style.css`
+when it is generated. The warm glow (two radial gradients over the body), the
+grain overlay (an SVG noise layer at 4% over everything) and the sidebar's
+gradient are gone -- each lit pixels over the black. Panels and code blocks
+are told apart by their rule lines, which were already drawn. The text,
+gold, blue and teal colours are untouched.
+
+**Not touched:** `src/centroid-html-generator.lua` (not called by the
+pipeline; it hard-codes the same black body and is already right), and the
+two diagnostic reports (Open Question 2).
+
+### Decisions on the open questions
+
+1. **Centralise the palette: yes**, in `config.html_theme`, which already
+   existed for exactly this and was documented as such. The wider change was
+   mechanical (one literal replaced by one call per template) and keeps the
+   next new page type correct by default -- the reason the issue gave.
+2. **Diagnostic pages: left as they are.** They are tools, not linked from
+   the site, and a light table is easier to read in daylight. Routing them
+   through `body_tag` later is a one-line change each if wanted.
+3. **`text="#FFFFFF"`: unchanged.** A taste call for the owner; it is now one
+   value in `config.lua` (`html_theme.text`) to soften site-wide.
+4. **Link colours: unchanged**, for the same reason (`html_theme.link`,
+   `html_theme.vlink`).
+5. The validator reporting every page's background colours belongs to 9-006
+   and is not built here.
+
+### Tests
+
+- `src/page-head.test.lua` -- seven new checks: the tag's exact form, refusal
+  of a missing theme / missing colour / non-hex colour / a `%`, and that the
+  shipped `config.lua` theme builds a pure-black tag. 13 passed.
+- `src/generate-source-browser.background.test.lua` (new) -- builds the source
+  browser the way run.sh does and runs the issue's own audit: every one of the
+  551 pages sets `bgcolor="#000000"` (was: none), every generated page declares
+  itself dark, and the stylesheet's panels are `#000000` with no glow, grain or
+  old near-black left. 15 passed; 11 of them fail against the old generator.
+- The seven `src/flat-html-generator.*.test.lua` suites still pass, and the
+  gallery builds from a small fixture catalog with all its pages on black.
+
+### Still to do
+
+- Step 3: after the next full build, run the audit across every page family.
+- Step 6: look at a poem page and a source-browser page on a phone.
+

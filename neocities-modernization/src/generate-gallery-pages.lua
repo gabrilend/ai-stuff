@@ -64,6 +64,8 @@ local dkjson = require("dkjson")
 local utils = require("utils")
 -- Issue 10-042d / 9-013: shared "source: sub: name.png" title helper
 local image_titles = require("image-pseudo-embeddings")
+-- Issue 11-009: the shared page head decides the body colours and dark declaration.
+local page_head = require("page-head")
 utils.init_assets_root(arg)
 
 -- Issue 10-003: Load unified config from config.lua
@@ -227,23 +229,21 @@ end
 -- }}}
 
 -- {{{ generate_html_header
+-- Issue 11-009: the body colours come from config.html_theme through the shared
+-- page_head.body_tag (which refuses a missing colour instead of guessing one),
+-- and the head carries the shared colour-scheme declaration so a phone's forced
+-- dark mode leaves the black background alone.
 local function generate_html_header(title)
-    local theme = config.html_theme or {}
-    local bg = theme.background or "#000000"
-    local text = theme.text or "#FFFFFF"
-    local link = theme.link or "#6699FF"
-    local vlink = theme.vlink or "#9966FF"
-
     return string.format([[<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+%s
     <title>%s</title>
 </head>
-<body bgcolor="%s" text="%s" link="%s" vlink="%s">
+%s
 <center>
-]], title, bg, text, link, vlink)
+]], page_head.viewport_meta(), title, page_head.body_tag(config.html_theme))
 end
 -- }}}
 

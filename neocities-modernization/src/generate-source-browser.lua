@@ -45,6 +45,15 @@ local utils = require("utils")
 -- Issue 10-055: render Markdown (.md, .info.md, and extensionless prose like the
 -- vision doc) as formatted HTML instead of flat text.
 local markdown = require("markdown")
+-- Issue 11-009: the page background comes from the site's one theme
+-- (config.html_theme), through the same page head every other generator uses,
+-- so the source browser can no longer drift to its own near-black or, as it
+-- once did, to the browser's default white.
+local page_head = require("page-head")
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local SITE_THEME = config_loader.load().html_theme
+local BODY_TAG = page_head.body_tag(SITE_THEME)
 
 -- {{{ Configuration
 -- ALLOWLIST: only files under these top-level directories are published. This
@@ -333,14 +342,14 @@ local function page_shell(title, sidebar, content)
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+%s
 <title>%s</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="%s_style.css">
 </head>
-<body>
+%s
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
@@ -352,7 +361,8 @@ local function page_shell(title, sidebar, content)
 <main id="main">%s</main>
 </div>
 </body>
-</html>]], escape_html(title), "%LINKPREFIX%", "%LINKPREFIX%", sidebar, content)
+</html>]], page_head.viewport_meta(), escape_html(title), "%LINKPREFIX%", BODY_TAG,
+        "%LINKPREFIX%", sidebar, content)
 end
 -- }}}
 
@@ -468,17 +478,25 @@ end
 
 -- {{{ write_style_file()
 -- The "Machine Codex" theme: the source browser as an illuminated manuscript of
--- a machine. Deep ink, a warm upper-left glow + grain for atmosphere, a
--- characterful serif (Fraunces) for the human-facing chrome and crisp mono
--- (JetBrains Mono) for the machine's own text. Syntax colors are DERIVED from
--- the project's identity palette: gold = literal text (poems are gold on the
--- main site), blue = structure, teal = the "why" of comments. Written once and
--- linked by every page (small pages, one cohesive source of truth for the look).
-local function write_style_file(out_root)
+-- a machine. Pure black ink, a characterful serif (Fraunces) for the
+-- human-facing chrome and crisp mono (JetBrains Mono) for the machine's own
+-- text. Syntax colors are DERIVED from the project's identity palette: gold =
+-- literal text (poems are gold on the main site), blue = structure, teal = the
+-- "why" of comments. Written once and linked by every page (small pages, one
+-- cohesive source of truth for the look).
+--
+-- Issue 11-009: the site is read on OLED screens, where only #000000 leaves a
+-- pixel unlit. The theme used to paint near-black panels (#0b0c10, #13151f,
+-- #0e1018) under a warm glow and a grain overlay -- every one of them a lit
+-- pixel, and a second "black" next to the poem pages. Now every panel colour is
+-- the site's one background (config.html_theme.background, passed in as bg);
+-- panels are told apart by their rule lines, not by being lighter.
+local function write_style_file(out_root, bg)
     local css = [[
 /* Machine Codex -- source browser theme (Issue 10-052). */
+/* Issue 11-009: every panel is the site background, pure black for OLED. */
 :root{
-  --ink:#0b0c10; --ink-2:#13151f; --panel:#0e1018;
+  --ink:__PAGE_BG__; --ink-2:__PAGE_BG__; --panel:__PAGE_BG__;
   --paper:#e9e4d8; --paper-dim:#9b9484; --paper-faint:#6a6457;
   --gold:#d8b14a; --gold-soft:#c6b257; --blue:#74a0e6; --teal:#5f9c92; --coral:#e08363;
   --rule:#24262f; --rule-soft:#191b22;
@@ -489,15 +507,7 @@ body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:'JetBrains Mono',ui-monospace,'Hack',Consolas,monospace;
   font-size:13.5px; line-height:1.62; -webkit-font-smoothing:antialiased;
-  background-image:
-    radial-gradient(820px 460px at 8% -12%, rgba(216,177,74,.08), transparent 60%),
-    radial-gradient(680px 480px at 104% -6%, rgba(95,156,146,.06), transparent 55%);
-  background-attachment:fixed;
-}
-/* fine grain overlay for paper-like depth */
-body::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:9; opacity:.04;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color-scheme:dark;
 }
 a{color:var(--blue); text-decoration:none; transition:color .14s ease;}
 a:hover{color:var(--gold);}
@@ -507,7 +517,7 @@ a:hover{color:var(--gold);}
 #side{
   width:308px; min-width:308px; height:100vh; position:sticky; top:0; overflow:auto;
   padding:1.6rem 1.25rem 3rem; border-right:1px solid var(--rule);
-  background:linear-gradient(176deg, var(--ink-2), var(--ink) 70%);
+  background:var(--ink);
   font-size:12.5px; animation:sideIn .55s cubic-bezier(.2,.8,.2,1) both;
 }
 #side .home{display:block; margin-bottom:1.1rem;}
@@ -647,6 +657,9 @@ img{max-width:100%; height:auto; border:1px solid var(--rule); border-radius:2px
   .welcome h1{font-size:2rem;}
 }
 ]]
+    assert(type(bg) == "string" and bg:match("^#%x%x%x%x%x%x$"),
+        "write_style_file: bg must be a #RRGGBB colour (config.html_theme.background)")
+    css = css:gsub("__PAGE_BG__", bg)
     return utils.write_file(out_root .. "/_style.css", css)
 end
 -- }}}
@@ -793,7 +806,7 @@ local function main()
     local all_files, skipped = list_published_files()
     local out_root = DIR .. "/output/source"
     ensure_dir(out_root)
-    write_style_file(out_root)
+    write_style_file(out_root, SITE_THEME.background)
 
     -- Pass 1 -- classify. Build the renderable list (and therefore the tree) from
     -- ONLY files that will actually get a page, so the table of contents can never

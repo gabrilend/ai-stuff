@@ -957,7 +957,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
     table.insert(html_parts, string.format([[<!DOCTYPE html>
 <html>
 %s
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+%s
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>
@@ -967,7 +967,10 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], head, header_color, word, #top_poems, base_path, chrono_link))
+]], head,
+        -- Issue 11-009: the body colours come from config.html_theme, like every page.
+        page_head.body_tag(unified_config.html_theme),
+        header_color, word, #top_poems, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
     -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links

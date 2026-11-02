@@ -191,6 +191,12 @@ local PAGE_HEAD_BLOCK = page_head.viewport_meta() .. "\n"
 -- a format ARGUMENT (a %s value) the plain PAGE_HEAD_BLOCK is right: arguments
 -- are not parsed for placeholders.
 local PAGE_HEAD_BLOCK_IN_TEMPLATE = PAGE_HEAD_BLOCK:gsub("%%", "%%%%")
+
+-- Issue 11-009: the opening <body> tag, built once from config.html_theme so
+-- every page this file writes shares the one pure-black background the rest of
+-- the site uses.  page_head guarantees it holds no "%", so it is safe to splice
+-- into the string.format templates below as it stands.
+local BODY_TAG = page_head.body_tag(unified_config.html_theme)
 -- }}}
 
 -- Pagination configuration defaults
@@ -2533,8 +2539,7 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
+]] .. BODY_TAG .. "\n" .. [[<center>
 <h1>Poetry Collection</h1>
 <p>All poems sorted by %s to: %s</p>
 </center>
@@ -2688,8 +2693,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
+]] .. BODY_TAG .. "\n" .. [[<center>
 <h1>Poetry Collection</h1>
 <p>Poems sorted by %s to: %s</p>
 <p>%s</p>
@@ -2947,8 +2951,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order (Page %d of %d)</title>
 %s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
+]] .. BODY_TAG .. "\n" .. [[<center>
 <h1>Poetry Collection</h1>
 <p>Poems in true chronological order by post date</p>
 %s
@@ -2969,8 +2972,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
+]] .. BODY_TAG .. "\n" .. [[<center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
 <p><a href="../wordcloud.html">Menu</a></p>
@@ -3170,8 +3172,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta http-equiv="refresh" content="0;url=01.html">
 <title>Redirecting...</title>
 </head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<p>Redirecting to <a href="01.html">01.html</a>...</p>
+]] .. BODY_TAG .. "\n" .. [[<p>Redirecting to <a href="01.html">01.html</a>...</p>
 </body>
 </html>]]
         utils.write_file(chrono_dir .. "/index.html", redirect_html)
@@ -3193,8 +3194,7 @@ local function explore_page_shell(title, heading, body)
 <meta charset="UTF-8">
 <title>%s</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
+]] .. BODY_TAG .. "\n" .. [[<center>
 <h1>%s</h1>
 </center>
 <table align="center"><tr><td>
@@ -4351,7 +4351,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                         '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
                         PAGE_HEAD_BLOCK,
-                        '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
+                        '</head>' .. BODY_TAG .. '<table align="center"><tr><td><pre>'
                     }
 
                     -- Add anchor poem with full formatting

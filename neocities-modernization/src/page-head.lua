@@ -119,6 +119,46 @@ function M.viewport_meta()
 end
 -- }}}
 
+-- {{{ local THEME_FIELDS
+-- The four colours a page's <body> carries, in the order the tag writes them,
+-- paired with the body attribute each one fills.
+local THEME_FIELDS = {
+    { field = "background", attr = "bgcolor" },
+    { field = "text",       attr = "text" },
+    { field = "link",       attr = "link" },
+    { field = "vlink",      attr = "vlink" },
+}
+-- }}}
+
+-- {{{ function M.body_tag
+-- The opening <body> tag every generated page uses, built from the theme in
+-- config.lua (config.html_theme).
+--
+-- Issue 11-009: the background used to be spelled out separately by each
+-- generator, which is how one page family (the source browser) shipped with no
+-- background at all and rendered white.  Routing every generator through this
+-- one function makes a new page type correct by default.
+--
+-- The theme is a required argument rather than a defaulted one, and each colour
+-- must be a six-digit hex value.  A missing or misspelled field is an error
+-- here, at build time, not a page that quietly renders in the browser's default
+-- colours.  The hex check also guarantees the tag holds no "%", so it is safe to
+-- splice into a string.format template.
+function M.body_tag(theme)
+    assert(type(theme) == "table",
+        "page-head.body_tag: theme is required (config.html_theme)")
+    local attrs = {}
+    for _, f in ipairs(THEME_FIELDS) do
+        local value = theme[f.field]
+        assert(type(value) == "string" and value:match("^#%x%x%x%x%x%x$"),
+            string.format("page-head.body_tag: html_theme.%s must be a #RRGGBB colour, got %s",
+                f.field, tostring(value)))
+        attrs[#attrs + 1] = string.format('%s="%s"', f.attr, value)
+    end
+    return "<body " .. table.concat(attrs, " ") .. ">"
+end
+-- }}}
+
 -- {{{ function M.style_block
 -- The <style> element for a page, given how deep that page sits.
 --

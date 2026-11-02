@@ -54,6 +54,17 @@ alone. This module is the single owner.
 - **opts.extra_meta**: optional string of additional `<meta>`/`<link>` markup.
 - **returns**: the whole `<head>` element, charset and viewport included.
 
+### `M.body_tag(theme)`
+- **theme**: table, required — pass `config.html_theme` (`background`, `text`,
+  `link`, `vlink`, each a `#RRGGBB` string).
+- **returns**: the opening tag, e.g.
+  `<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">`.
+- Every page generator builds its `<body>` here, so the site's one pure-black
+  background (issue 11-009, for OLED screens) is decided in one place and a new
+  page type cannot drift. A missing theme, a missing colour or a value that is
+  not six-digit hex is an error, never a fallback; the hex rule also means the
+  tag carries no `%` and is safe inside a `string.format` template.
+
 ### `M.FONT_DIR_NAME`
 Read-only string, `"fonts"`. The directory under the site root where the font
 files land.

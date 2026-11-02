@@ -81,6 +81,16 @@ and never goes stale; a saved page lacking those tags can be mapped explicitly v
 the `MIRROR_URL_OVERRIDES` table, and one with neither is held back and reported
 (never dumped as source).
 
+## Background: pure black, from the site theme (Issue 11-009)
+
+Every page's `<body>` comes from `page_head.body_tag(config.html_theme)` and its
+head carries the shared viewport and `color-scheme: dark` tags, like every other
+page on the site. The stylesheet's panel colours (`--ink`, `--ink-2`, `--panel`)
+are all `html_theme.background`, written into `_style.css` at generation time;
+there is no glow, grain or gradient painted over the background, because each
+would light pixels on an OLED screen. Panels are told apart by rule lines.
+Guarded by `src/generate-source-browser.background.test.lua`.
+
 ## Known limitations / deferred (see Issues 10-052, 10-055)
 
 - The dash-aligned, description-bearing table of contents (linking each entry to

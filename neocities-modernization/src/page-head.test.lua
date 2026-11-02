@@ -49,5 +49,26 @@ check("full head carries the viewport tag",
 local ok = pcall(page_head.head, { title = "t" })
 check("head refuses a missing base_path", not ok)
 
+-- Issue 11-009: every page's <body> is built from the one site theme.
+local theme = { background = "#000000", text = "#FFFFFF", link = "#6699FF", vlink = "#9966FF" }
+check("body tag carries the theme in bgcolor/text/link/vlink order (11-009)",
+    page_head.body_tag(theme) == '<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">')
+check("body tag refuses a missing theme", not pcall(page_head.body_tag, nil))
+check("body tag refuses a theme with no background",
+    not pcall(page_head.body_tag, { text = "#FFFFFF", link = "#6699FF", vlink = "#9966FF" }))
+check("body tag refuses a colour that is not #RRGGBB",
+    not pcall(page_head.body_tag, { background = "black", text = "#FFFFFF", link = "#6699FF", vlink = "#9966FF" }))
+check("body tag refuses a colour carrying a %",
+    not pcall(page_head.body_tag, { background = "#00%000", text = "#FFFFFF", link = "#6699FF", vlink = "#9966FF" }))
+
+-- The shipped config is the theme every generator passes in: it must be
+-- accepted, and its background must be the OLED-unlit pure black.
+local project_dir = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../"
+local config = dofile(project_dir .. "config.lua")
+local shipped_ok, shipped_tag = pcall(page_head.body_tag, config.html_theme)
+check("config.lua's html_theme builds a body tag", shipped_ok)
+check("config.lua's background is pure black (11-009)",
+    shipped_ok and shipped_tag:find('bgcolor="#000000"', 1, true) ~= nil)
+
 print(string.format("passed %d, failed %d", passed, failed))
 os.exit(failed == 0 and 0 or 1)
