@@ -66,6 +66,7 @@ A background service that holds key-value state in RAM using FIFO pipes for IPC.
 
 ### backup-conversations
 Extracts Claude conversation transcripts from `~/.claude/projects/` and writes summaries to project-specific `llm-transcripts/` directories. Filters intermediate problem-solving dialogue for clarity.
+Beside each transcript it writes `llm-transcripts/prompts/<name>.txt`, the person's requests alone, one per line (`transcript-prompts`).
 
 **Usage:**
 ```bash

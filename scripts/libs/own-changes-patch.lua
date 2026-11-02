@@ -52,6 +52,9 @@
 -- llm-transcripts/.patches/). A transcript gone from disk was renamed or
 -- retired by the exporter; its deletion rides along beside its new name.
 -- Accidental deletions ride along too; git's history keeps the text.
+-- A transcript's prompts file (llm-transcripts/prompts/<name>.txt, issue
+-- 002) is written by the same exporter from the transcript and rides along
+-- by the same rules, counted as its transcript's.
 --
 -- LuaJIT compatible; no Lua 5.4 syntax.
 
@@ -452,6 +455,17 @@ local function untracked_whole(claims, top, rel, report)
 end
 -- }}}
 
+-- {{{ function M.is_transcript_file()
+-- True for a repository-relative path the exporter writes: a transcript
+-- (llm-transcripts/<name>.md) or its prompts file
+-- (llm-transcripts/prompts/<name>.txt). Both are taken whole by the
+-- conversation rule, never judged line by line.
+function M.is_transcript_file(rel)
+    return rel:match("llm%-transcripts/[^/]+%.md$") ~= nil
+        or rel:match("llm%-transcripts/prompts/[^/]+%.txt$") ~= nil
+end
+-- }}}
+
 -- {{{ function M.ledger_files()
 -- The repository-relative paths this session's ledger names under `top`,
 -- sorted -- except transcripts. A transcript (any llm-transcripts/*.md) is
@@ -467,7 +481,7 @@ function M.ledger_files(claims, top)
             local rel = path:sub(#top + 2)
             -- a transcript: left to the conversation rule
             -- anything else: judged by its claimed lines
-            if not rel:match("llm%-transcripts/[^/]+%.md$") then rels[#rels + 1] = rel end
+            if not M.is_transcript_file(rel) then rels[#rels + 1] = rel end
         end
     end
     table.sort(rels)
@@ -536,7 +550,9 @@ end
 -- folder, repository-relative ("" for the repository's top).
 local function transcript_project(rel)
     if rel:match("^llm%-transcripts/[^/]+%.md$") then return "" end
+    if rel:match("^llm%-transcripts/prompts/[^/]+%.txt$") then return "" end
     return rel:match("^(.*)/llm%-transcripts/[^/]+%.md$")
+        or rel:match("^(.*)/llm%-transcripts/prompts/[^/]+%.txt$")
 end
 -- }}}
 
@@ -585,7 +601,8 @@ end
 -- }}}
 
 -- {{{ function M.changed_transcripts()
--- Every transcript file (any llm-transcripts/*.md in the repository) that
+-- Every transcript file (any llm-transcripts/*.md in the repository, and any
+-- prompts file in llm-transcripts/prompts/) that
 -- differs from the commit `tip` (new, changed, or deleted) and belongs to one
 -- of `projects` (a set from transcript_projects) or is this session's by its
 -- header. Read-only: nothing here takes the shared staging list's lock or
@@ -595,11 +612,12 @@ end
 -- reason.
 function M.changed_transcripts(top, tip, ids, projects)
     local glob = ":(glob)**/llm-transcripts/*.md"
+    local prompts_glob = ":(glob)**/llm-transcripts/prompts/*.txt"
     -- tracked at the tip and different on disk (changed or deleted); compared
     -- with the tip itself, not the shared staging list, so nothing anyone has
     -- staged by hand changes the answer
     local diff, ok, err = M.run_quiet({ "git", "-C", top, "--no-optional-locks", "diff",
-        "--name-status", "-z", "--no-renames", tip, "--", glob })
+        "--name-status", "-z", "--no-renames", tip, "--", glob, prompts_glob })
     if not ok then return nil, "git diff failed: " .. err end
     local found = {}
     local status = nil
@@ -610,7 +628,7 @@ function M.changed_transcripts(top, tip, ids, projects)
     -- never tracked, and not ignored
     local others
     others, ok, err = M.run_quiet({ "git", "-C", top, "ls-files", "--others",
-        "--exclude-standard", "-z", "--", glob })
+        "--exclude-standard", "-z", "--", glob, prompts_glob })
     if not ok then return nil, "git ls-files failed: " .. err end
     for rel in others:gmatch("([^%z]+)") do found[rel] = false end
 
@@ -620,8 +638,10 @@ function M.changed_transcripts(top, tip, ids, projects)
         -- a deleted transcript has no header left to read, so it counts as
         -- not ours and rides along by its project alone; a present one is
         -- read for its header
+        -- a prompts file has no header of its own: its transcript's is read
+        local header_of = rel:gsub("/prompts/([^/]+)%.txt$", "/%1.md")
         if not gone then
-            local f = io.open(top .. "/" .. rel, "r")
+            local f = io.open(top .. "/" .. header_of, "r")
             if f then
                 local id = (f:read("*l") or ""):match("^# Conversation Summary: (%S+)")
                 f:close()

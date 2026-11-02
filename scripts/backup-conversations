@@ -331,6 +331,7 @@ function export_one_log() {
       rm -f "$temp_file"
       if husk_claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id"); then
          rm -f "$husk_claim" || return 1
+         rm -f "$(prompts_file_of "$husk_claim")" || return 1
          echo "  retired husk transcript: $(basename "$husk_claim")"
       fi
       return 0
@@ -363,6 +364,7 @@ function export_one_log() {
       rm -f "$temp_file"
       stamp_mtime "$dest" "$final_timestamp" || return 1
       echo "Unchanged: $dest"
+      write_prompts "$dest" || return 1
       return 0
    fi
 
@@ -371,9 +373,41 @@ function export_one_log() {
    mv -f "$temp_file" "$dest" || return 1
    if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
       rm -f "$claim" || return 1
+      rm -f "$(prompts_file_of "$claim")" || return 1
    fi
    stamp_mtime "$dest" "$final_timestamp" || return 1
    echo "Created: $dest"
+   write_prompts "$dest" || return 1
+}
+# }}}
+
+# -- {{{ prompts_file_of
+# Where a transcript's prompts file lives (issue 002): prompts/ beside it,
+# under the same name with .txt. transcript-prompts owns the format; this is
+# only so a renamed or retired transcript's old prompts file goes with it.
+function prompts_file_of() {
+   local transcript="$1"
+   printf '%s/prompts/%s.txt\n' "$(dirname "$transcript")" "$(basename "$transcript" .md)"
+}
+# }}}
+
+# -- {{{ write_prompts
+# Write a transcript's prompts file: only what the person asked, one request
+# per line (issue 002). It is read from the transcript as just placed, AFTER
+# its patches were applied, so a redaction applies to the prompts file too.
+# The transcript is already safely in place when this runs; a failure here
+# is still reported and fails the run, because a quiet gap would look like a
+# conversation with no requests.
+function write_prompts() {
+   local transcript="$1" report
+   if ! report=$(luajit "$PROMPTS_TOOL" "$transcript" 2>&1); then
+      echo "  ERROR: could not write the prompts file for $transcript:" >&2
+      printf '%s\n' "$report" | sed 's/^/    /' >&2
+      return 1
+   fi
+   if [ -n "$report" ]; then
+      printf '  %s\n' "$report"
+   fi
 }
 # }}}
 
@@ -574,6 +608,7 @@ function main() {
    source "$SCRIPTS_DIR/libs/transcript-discovery.sh"
    PARSER="$SCRIPTS_DIR/libs/conversation-parser.lua"
    PATCHER="$SCRIPTS_DIR/transcript-patches"
+   PROMPTS_TOOL="$SCRIPTS_DIR/transcript-prompts"
 
    # With no project named, the project is Claude Code's project folder when
    # running under Claude Code (it sets CLAUDE_PROJECT_DIR for hooks), and the

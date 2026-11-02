@@ -202,6 +202,17 @@ somebody had deliberately typed one in backticks.
 Re-derive the corpus-wide counts with `rederive-transcripts`, which reports and
 writes nothing unless told to.
 
+### Every transcript got a page of just the requests (002)
+
+Each transcript now has a prompts file beside it,
+`llm-transcripts/prompts/<name>.txt`: one line per request, line N being
+request N, line breaks escaped so the text comes back byte for byte. It is
+built from the patched transcript, not the session log, so a redaction made
+by a patch holds there too. The exporter writes it on every export and
+removes it on a rename or retirement; `transcript-prompts --dir` fills in the
+transcripts whose logs have expired. It lives one folder down so that no
+scanner of `llm-transcripts/*.md` ever sees it.
+
 ## What is still open
 
 - **Subagent transcripts are not being captured at all (025).** Claude Code
