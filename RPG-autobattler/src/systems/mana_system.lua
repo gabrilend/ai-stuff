@@ -14,6 +14,7 @@
 local ManaSystem = {}
 
 local Unit = require("src.entities.unit")
+local UnitAbilities = require("src.components.unit_abilities")
 local Colors = require("src.constants.colors")
 local debug = require("src.utils.debug")
 
@@ -222,7 +223,9 @@ function ManaSystem:update_unit(entity, dt, snapshot)
     end
 
     local multiplier, reason = nil, nil
-    for _, bar in ipairs(mana.bars) do
+    local abilities = self.entity_manager:get_component(entity, "abilities")
+    local unit_state = nil
+    for index, bar in ipairs(mana.bars) do
         local gain_time, rate = 0, bar.rate
         if bar.is_primary then
             gain_time = dt
@@ -240,6 +243,15 @@ function ManaSystem:update_unit(entity, dt, snapshot)
                 else
                     gain_time = dt
                 end
+            end
+        end
+        -- An ability may add its own generation conditions on top of
+        -- these rules (src/components/ability.lua).
+        if gain_time > 0 and abilities and abilities.abilities[index]
+            and #abilities.abilities[index].generation_conditions > 0 then
+            unit_state = unit_state or UnitAbilities.unit_state(self.entity_manager, entity, snapshot)
+            if not abilities.abilities[index]:can_generate_mana(unit_state) then
+                gain_time = 0
             end
         end
         bar.charging = gain_time > 0 and bar.current < bar.max

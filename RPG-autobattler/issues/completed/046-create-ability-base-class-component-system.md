@@ -468,10 +468,79 @@ return UnitAbilitiesComponent
 - Interface with effect system for ability results
 
 ### Acceptance Criteria
-- [ ] Flexible ability component system supports all ability types
-- [ ] Proper inheritance structure for specialized abilities
-- [ ] Condition system works for both generation and activation
-- [ ] Mana efficiency calculations integrate correctly
-- [ ] Component composition allows complex ability behaviors
-- [ ] Performance is optimized for many abilities per unit
-- [ ] Debug information is available for ability state inspection
+- [x] Flexible ability component system supports all ability types
+- [x] Proper inheritance structure for specialized abilities
+- [x] Condition system works for both generation and activation
+- [x] Mana efficiency calculations integrate correctly
+- [x] Component composition allows complex ability behaviors
+- [x] Performance is optimized for many abilities per unit
+- [x] Debug information is available for ability state inspection
+## What Happened
+
+Built as:
+- `src/components/ability.lua`: the base ability. It holds:
+  - settings, conditions and stats;
+  - `check_condition`, `conditions_met`, `can_generate_mana`, `can_activate`,
+    `calculate_effect`, `record` and `get_debug_info`;
+  - `Ability.new(config)`, which picks the kind for `config.type`;
+  - `Ability.extend(type, fields)`, which makes a new kind.
+- `src/components/abilities/`: five kinds that inherit the base through
+  metatables. Each adds its own settings and its own `calculate_effect`:
+  - `damage_ability.lua`: armor, magic resist, penetration and critical hits;
+  - `heal_ability.lua`: a low-health bonus, overheal reported and not
+    wasted, a self-heal share and cleanse;
+  - `buff_ability.lua` and `debuff_ability.lua`: named modifiers with a
+    duration and stacking;
+  - `area_ability.lua`: radius and falloff, for damage or healing.
+- `src/components/unit_abilities.lua`: the "abilities" component, holding a
+  unit's one to four abilities, their cooldowns and a global cooldown. Its
+  functions:
+  - `attach` adds it together with a matching mana component;
+  - `unit_state` describes the unit for conditions;
+  - `get_ready` lists the abilities that may fire, in priority order, with
+    a reason for each that may not;
+  - `update_cooldowns`;
+  - `get_debug_info`.
+- `ManaSystem` now also asks an ability's generation conditions before its
+  bar charges.
+
+Tested headlessly by `tests/test_abilities.lua` (eight tests, including 200
+units with four abilities each). The mana suites still pass. Nothing was
+seen on screen.
+
+### Decisions
+- **Mana stays in the mana bars, not in the ability.** The sketch gave each
+  ability `current_mana` and `update_mana`, but issues 041-044 already
+  keep mana in the "mana" component, charged by `ManaSystem` and priced by
+  `ManaEfficiency`. Ability i spends bar i. `attach()` builds both, so they
+  can't fall out of step.
+- **Field names follow ManaEfficiency.** An ability has `power`,
+  `max_mana`, `mana_rate`, `targeting`, `area_radius`, `duration` and
+  `cooldown`, so `ManaEfficiency.plan(ability, ...)` takes an ability as it
+  is. The sketch's names (`base_power`, `max_mana_cost`,
+  `mana_generation_rate`, `targeting_type`, `area_of_effect`,
+  `effect_duration`, `cooldown_duration`) are still accepted in a config.
+- **Ids count up from 1.** The sketch used `love.math.random`, which needs
+  LÖVE and can repeat.
+- **`line_of_sight` defaults to true but can be set false.** The sketch's
+  `config.x or true` could never be false.
+- **Unknown condition types fail.** A typo should never let an ability fire.
+  Kinds can override `check_custom_condition`, and a `custom` condition
+  takes a `check` function.
+- **Range conditions count units from a snapshot**, the same list
+  `ManaSystem` already builds each frame. Counts are worked out only when
+  a condition asks, and are remembered per range. The sketch's
+  `enemies_in_range` was a list nobody filled.
+- **Priority:** lower fires first. An ability's own `priority` wins;
+  otherwise its slot, so the primary comes first.
+- **Passive abilities never fire on their own.** They're there for later
+  systems (auras) to read.
+- **Kinds are loaded on demand** by `Ability.new`, so `ability.lua` and its
+  kinds don't require each other in a circle.
+- **Damage reduction** is defence / (defence + 100), as in the sketch.
+  Critical hits default to x2, as in the sketch. They take a `random`
+  function from the caller, so tests and replays can fix the roll.
+- **Armor is applied after ManaEfficiency prices the cast.** A strike
+  priced to exactly finish an armored target may leave it a sliver of
+  health. The activation system (048) charges the plan's mana either way;
+  making the price account for armor can follow if play shows it matters.

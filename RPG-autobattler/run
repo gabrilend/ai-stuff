@@ -301,6 +301,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_mana_efficiency').run_all()
     " 2>/dev/null && print_success "Mana efficiency tests passed" || print_error "Mana efficiency tests failed"
+
+    # Test Ability components
+    print_info "Testing Ability components..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_abilities').run_all()
+    " 2>/dev/null && print_success "Ability component tests passed" || print_error "Ability component tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."

@@ -72,7 +72,7 @@
 - [ ] Add mana bar UI rendering
 
 ### 4.2 Ability Framework
-- [ ] Create ability base class/component system
+- [x] Create ability base class/component system (Issue #046)
 - [ ] Implement targeting system for abilities
 - [ ] Add ability activation when mana is full
 - [ ] Create different ability types (damage, heal, buff, etc.)
