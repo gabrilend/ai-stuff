@@ -20,8 +20,8 @@ blind.
 | 105 | The tick is a dispatch table | built |
 | 106 | A periodic effect is a pair of integers | built |
 | 107 | Randomness comes from named streams | built |
-| 108 | Commands enter through one door | not started |
-| 109 | Snapshots, hashes, and replays | not started |
+| 108 | Commands enter through one door | built |
+| 109 | Snapshots, hashes, and replays | built |
 | 110 | The headless runner | not started |
 | 111 | A terminal viewer, so we are not blind | not started |
 | 112 | Territory is painted on cells | not started |

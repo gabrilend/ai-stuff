@@ -35,7 +35,7 @@ the world; `run_slice` takes the world and a first and last unit id.
 
 | # | Row | Sliceable | Built by |
 | --- | --- | --- | --- |
-| 1 | `commands` | no | waiting for 108 |
+| 1 | `commands` | no | `commands.apply_due` (108) |
 | 2 | `income` | no | waiting for 301 |
 | 3 | `construction` | no | waiting for 305 |
 | 4 | `emit` | no | waiting for 307 |
@@ -47,7 +47,7 @@ the world; `run_slice` takes the world and a first and last unit id.
 | 10 | `die` | no | waiting for 208 |
 | 11 | `the-cloud` | no | waiting for 401 |
 | 12 | `consequences` | no | waiting for 309 |
-| 13 | `snapshot` | no | waiting for 109 |
+| 13 | `snapshot` | no | `snapshot.snapshot_pass` (109) |
 
 A sliceable row's module exports `<function>_slice` beside its whole-world
 function.

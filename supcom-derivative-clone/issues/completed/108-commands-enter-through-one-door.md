@@ -5,16 +5,16 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 105 |
 | Blocks | 210, 302, 307, 701 |
-| Reads | [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md) |
+| Reads | [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md) |
 | Open questions | A6 |
 
 ## Current behavior
 
-Nothing. The vision's invariant — everything can be queued — is stated in the
-factories document and enforced by nothing. The phase 1 test program looks for
-a source file whose stem is `commands` and asserts that a command for a past
-tick is refused and a command for a future tick applies at that tick and not
-before.
+Built. `src/035-commands.lua` is the door: `queue` takes a command or refuses it
+by name into the world's refusal ring, and `apply_due`, wired as the tick's
+first row, applies every command stamped for the tick in the order queued. The
+queue and the ring are groups in the world's layout. The phase 1 program's door
+suite holds, and a new one covers every refusal, the ring and a full queue.
 
 ## Intended behavior
 
@@ -58,11 +58,38 @@ that builds it.
 5. Write `apply_due(world)` and add it as the first row of the tick's table.
 6. Fill the companion with the record's fields and the list of refusals.
 
+## What happened
+
+- **`queue` returns nothing when it takes a command**, not a ticket. The tests
+  and the contract table both say "nothing or a refusal string"; a ticket would
+  be a second thing for the caller to hold that nothing reads.
+- **`VERBS` is keyed by name**, as the test asks (`VERBS["set-energy-level"]`),
+  and each verb's number in the world's arrays is its place in the sorted list
+  of names. Logs and refusals carry names, so a new verb renumbering the others
+  breaks nothing recorded.
+- **`set-energy-level` is a row now, not only `noop`.** The phase 1 test queues
+  it and the hash test applies it. It holds only the rule that the menu has
+  four buttons -- a fifth is refused at apply time, into the ring -- and writes
+  the team's `energy_level`; what each button does is issue 302's.
+- **Arguments are named per verb** (`ARGUMENTS`) and stored in four double
+  slots in the record's order, so a verb's apply receives the command back as a
+  table with its arguments under their names (`unpack`).
+- **Applied commands leave the queue at once.** The issue says they stay until
+  the replay recorder has written them; issue 109 has the recorder write each
+  command as the door accepts it, so by the time a command is due it is
+  already in the log and nothing needs it kept.
+- **A queued command for a tick already past is an error, not a skip.** It can
+  only happen when the tick count was moved without the door running, and a
+  command that silently never happens is the worst desync there is.
+- **Refusal reasons are text.** The ring needs sentences a viewer can show, so
+  the world's layout gained a `text` type: a Lua array of strings, empty where
+  there is nothing, folded into the hash by its bytes.
+
 ## Related documents and tools
 
-- [Factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md)
-- [Other players](../docs/011-other-players.md), which adds one rule at this door
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [Factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md)
+- [Other players](../../docs/011-other-players.md), which adds one rule at this door
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

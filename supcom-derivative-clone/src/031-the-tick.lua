@@ -107,7 +107,7 @@ end
 -- the world and write only their own unit's row, so they slice by unit range;
 -- everything else writes shared state and runs on one worker in this order.
 M.SYSTEMS = {
-  row("commands", false, "108"),
+  row("commands", false, {"commands", "apply_due"}),
   row("income", false, "301"),
   row("construction", false, "305"),
   row("emit", false, "307"),
@@ -119,7 +119,7 @@ M.SYSTEMS = {
   row("die", false, "208"),
   row("the-cloud", false, "401"),
   row("consequences", false, "309"),
-  row("snapshot", false, "109"),
+  row("snapshot", false, {"snapshot", "snapshot_pass"}),
 }
 -- }}}
 
