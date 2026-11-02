@@ -2,9 +2,10 @@
 --
 -- One lesson: a turning point's own record (docs/069, issue 1002a). Every
 -- field is required, and a mechanism must read as a short, single-sentence
--- form (`a builder grading its own work passes itself`) — this is the
--- shape check alone; 1002c's mood-vs-mechanism judgement tightens it
--- further once it is built.
+-- form (`a builder grading its own work passes itself`) that names an actor
+-- and what followed, not a mood (`the build was bad`) -- issue 1002c. The
+-- mood check is mechanical, from closed word lists below: counted, not
+-- judged, like everything else the story does with mechanisms.
 
 local fs = require("017-the-filesystem")
 
@@ -29,10 +30,84 @@ local function is_short_sentence(text)
 end
 -- }}}
 
+-- The mood check (1002c). A mood says how something was ("the build was
+-- bad"); a mechanism says what someone does and what follows from it ("a
+-- builder grading its own work passes itself"). Closed lists, so the check
+-- is the same every time and a refusal can say exactly why.
+lesson.MIN_MECHANISM_WORDS = 3
+
+-- Words that pass a verdict instead of naming what happened.
+lesson.JUDGEMENT_WORDS = {}
+for word in ([[bad good poor terrible awful horrible wrong broken messy
+    sloppy flaky ugly great fine ok okay nice fragile buggy unstable careless
+    lazy weird confusing hard difficult slow failed fails failing broke
+    worked works sad unlucky luck]]):gmatch("%S+") do
+    lesson.JUDGEMENT_WORDS[word] = true
+end
+
+-- Words that link a subject to a verdict ("was bad", "felt off").
+local COPULAS = {}
+for word in ("is was were are be been being went got gets felt feels seemed seems looked looks"):gmatch("%S+") do
+    COPULAS[word] = true
+end
+
+-- Words that carry no actor and no consequence on their own.
+local FILLER = {}
+for word in ([[a an the this that these those it its everything something
+    nothing things stuff all very really so too quite pretty just not never
+    always and or but]]):gmatch("%S+") do
+    FILLER[word] = true
+end
+
+-- {{{ local function words_of
+local function words_of(text)
+    local words = {}
+    for word in text:lower():gmatch("[%a']+") do
+        words[#words + 1] = word
+    end
+    return words
+end
+-- }}}
+
+-- {{{ function lesson.mood_of
+-- Why `text` reads as a mood rather than a mechanism, or nil when it names
+-- an actor and what followed. Three shapes are refused: too few words to
+-- name both; a verdict after a linking word ("the build was bad", "the
+-- tests were not good"); and a sentence that ends on a verdict or holds
+-- nothing but verdicts and filler ("everything broke", "bad").
+function lesson.mood_of(text)
+    local words = words_of(text)
+    if #words < lesson.MIN_MECHANISM_WORDS then
+        return "too few words to name an actor and what followed"
+    end
+    for i, word in ipairs(words) do
+        if COPULAS[word] then
+            local j = i + 1
+            while words[j] and FILLER[words[j]] do
+                j = j + 1
+            end
+            if words[j] and lesson.JUDGEMENT_WORDS[words[j]] then
+                return "a verdict ('" .. word .. " " .. words[j] .. "'), not what happened"
+            end
+        end
+    end
+    if lesson.JUDGEMENT_WORDS[words[#words]] then
+        return "it ends on a verdict ('" .. words[#words] .. "'), not on what followed"
+    end
+    for _, word in ipairs(words) do
+        if not (FILLER[word] or COPULAS[word] or lesson.JUDGEMENT_WORDS[word]) then
+            return nil
+        end
+    end
+    return "nothing but verdicts, with no actor in it"
+end
+-- }}}
+
 -- {{{ function lesson.build
 -- fields: case (string), ledger_lines (array of numbers), what_happened
--- (string), mechanism (string). Refuses a missing field by name, and a
--- mechanism that does not read as a short sentence.
+-- (string), mechanism (string). Refuses a missing field by name, a
+-- mechanism that does not read as a short sentence, and one that reads as a
+-- mood rather than a mechanism (`mood_of`) -- the lesson is sent back.
 function lesson.build(fields)
     for _, name in ipairs(lesson.FIELDS) do
         if fields[name] == nil then
@@ -42,6 +117,12 @@ function lesson.build(fields)
     if not is_short_sentence(fields.mechanism) then
         error("lesson.build: mechanism must be a short sentence (at most "
             .. MAX_MECHANISM_WORDS .. " words, one line), got: " .. tostring(fields.mechanism))
+    end
+    local mood = lesson.mood_of(fields.mechanism)
+    if mood then
+        error("lesson.build: the mechanism reads as a mood, not a mechanism (" .. mood
+            .. "); name who does what and what follows, as in 'a builder grading its own"
+            .. " work passes itself', got: " .. fields.mechanism)
     end
     return {
         case = fields.case,
@@ -86,6 +167,49 @@ function lesson.append(path, one)
     file:write(block)
     file:close()
     return one
+end
+-- }}}
+
+-- {{{ function lesson.read
+-- Every lesson in a file `append` wrote, back as lesson records (`build`'s
+-- shape), in the order they were appended; a file not yet written holds
+-- none. Each one is rebuilt through `build`, so a lesson edited by hand into
+-- a mood is refused here too, naming its place. The reader 1002d's counter
+-- was waiting for: `mechanism_counts.from_lessons(lesson.read(path))`.
+function lesson.read(path)
+    local file = io.open(path, "rb")
+    if not file then
+        return {}
+    end
+    local text = file:read("*a")
+    file:close()
+    local lessons = {}
+    -- Each section runs from its "## " heading to the next one.
+    local start = text:find("## ", 1, true)
+    while start do
+        local after = text:find("\n## ", start, true)
+        local section = text:sub(start + 3, after or #text)
+        local case_name, lines_text = section:match("^(.-) %(ledger lines ([%d, ]*)%)\n")
+        local mechanism = section:match("\nMechanism: ([^\n]*)%s*$")
+        if not case_name or not mechanism then
+            error("lesson.read: lesson " .. (#lessons + 1) .. " of " .. path .. " is not in append's form")
+        end
+        local body = section:match("^[^\n]*\n\n(.-)\n\nMechanism: [^\n]*%s*$") or ""
+        local ledger_lines = {}
+        for n in lines_text:gmatch("%d+") do
+            ledger_lines[#ledger_lines + 1] = tonumber(n)
+        end
+        local ok, built = pcall(lesson.build, {
+            case = case_name, ledger_lines = ledger_lines,
+            what_happened = body, mechanism = mechanism,
+        })
+        if not ok then
+            error("lesson.read: lesson " .. (#lessons + 1) .. " of " .. path .. ": " .. tostring(built))
+        end
+        lessons[#lessons + 1] = built
+        start = after and after + 1
+    end
+    return lessons
 end
 -- }}}
 
