@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 /* Default configuration values */
 #define DEFAULT_SCHEDULER_CAPACITY 1024
@@ -72,12 +71,8 @@ TpScheduler* tp_scheduler_create(TpSchedulerConfig* config) {
 
     /* Initialize synchronization primitives. The condition variable measures
      * its timeouts on the monotonic clock, the same clock sleep_ticks reads. */
-    pthread_mutex_init(&sched->lock, NULL);
-    pthread_condattr_t attr;
-    pthread_condattr_init(&attr);
-    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-    pthread_cond_init(&sched->wake_signal, &attr);
-    pthread_condattr_destroy(&attr);
+    tp_mutex_init(&sched->lock);
+    tp_cond_init(&sched->wake_signal);
 
     SCHED_LOG(sched, "[threadpool_scheduler] Created (capacity: %zu)\n", cfg.capacity);
 
@@ -92,8 +87,8 @@ void tp_scheduler_destroy(TpScheduler* sched) {
 
     atomic_store(&sched->running, false);
 
-    pthread_mutex_destroy(&sched->lock);
-    pthread_cond_destroy(&sched->wake_signal);
+    tp_mutex_destroy(&sched->lock);
+    tp_cond_destroy(&sched->wake_signal);
 
     free(sched->ready_buffer);
     free(sched->tasks);
@@ -107,11 +102,11 @@ void tp_scheduler_destroy(TpScheduler* sched) {
 bool tp_scheduler_add(TpScheduler* sched, TpTask* task, uint32_t ticks_delay) {
     if (!sched || !task) return false;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
 
     /* Check if scheduler is full */
     if (sched->count >= sched->capacity) {
-        pthread_mutex_unlock(&sched->lock);
+        tp_mutex_unlock(&sched->lock);
         SCHED_LOG(sched, "[threadpool_scheduler] Scheduler full\n");
         return false;
     }
@@ -127,9 +122,9 @@ bool tp_scheduler_add(TpScheduler* sched, TpTask* task, uint32_t ticks_delay) {
     sched->add_generation++;
 
     /* Wake any sleeping updater */
-    pthread_cond_broadcast(&sched->wake_signal);
+    tp_cond_broadcast(&sched->wake_signal);
 
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
     return true;
 }
 /* }}} */
@@ -141,7 +136,7 @@ void tp_scheduler_remove_if(TpScheduler* sched,
                              void* user_data) {
     if (!sched || !predicate) return;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
 
     size_t write_idx = 0;
     for (size_t read_idx = 0; read_idx < sched->count; read_idx++) {
@@ -159,7 +154,7 @@ void tp_scheduler_remove_if(TpScheduler* sched,
 
     sched->count = write_idx;
 
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
 }
 /* }}} */
 
@@ -168,9 +163,9 @@ void tp_scheduler_remove_if(TpScheduler* sched,
 size_t tp_scheduler_count(TpScheduler* sched) {
     if (!sched) return 0;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
     size_t count = sched->count;
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
 
     return count;
 }
@@ -183,7 +178,7 @@ bool tp_scheduler_get_ready(void* context, TpTask** out, size_t* count) {
     TpScheduler* sched = (TpScheduler*)context;
     if (!sched || !out || !count) return false;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
 
     uint64_t current = atomic_load(&g_current_tick);
 
@@ -197,7 +192,7 @@ bool tp_scheduler_get_ready(void* context, TpTask** out, size_t* count) {
 
     /* If no tasks ready, return false */
     if (ready_count == 0) {
-        pthread_mutex_unlock(&sched->lock);
+        tp_mutex_unlock(&sched->lock);
         *out = NULL;
         *count = 0;
         return false;
@@ -226,7 +221,7 @@ bool tp_scheduler_get_ready(void* context, TpTask** out, size_t* count) {
 
     sched->count = write_idx;
 
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
 
     *out = ready_buffer;
     *count = ready_count;
@@ -239,10 +234,10 @@ bool tp_scheduler_get_ready(void* context, TpTask** out, size_t* count) {
 uint64_t tp_scheduler_earliest_ready_tick(TpScheduler* sched) {
     if (!sched) return UINT64_MAX;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
 
     if (sched->count == 0) {
-        pthread_mutex_unlock(&sched->lock);
+        tp_mutex_unlock(&sched->lock);
         return UINT64_MAX;
     }
 
@@ -254,19 +249,19 @@ uint64_t tp_scheduler_earliest_ready_tick(TpScheduler* sched) {
         }
     }
 
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
     return earliest;
 }
 /* }}} */
 
 /* {{{ tp_scheduler_sleep_ticks
  * Sleeps until earliest task or new task arrival.
- * Uses pthread_cond_timedwait on the monotonic clock for interruptible sleep.
+ * Uses a timed condition-variable wait for interruptible sleep.
  * Loops over spurious wakeups; any add since the call began ends the sleep. */
 void tp_scheduler_sleep_ticks(TpScheduler* sched, uint64_t ticks_to_sleep) {
     if (!sched || ticks_to_sleep == 0) return;
 
-    pthread_mutex_lock(&sched->lock);
+    tp_mutex_lock(&sched->lock);
 
     /* Never sleep past the earliest scheduled task, even one added after the
      * caller computed ticks_to_sleep; return at once if one is ready now */
@@ -274,7 +269,7 @@ void tp_scheduler_sleep_ticks(TpScheduler* sched, uint64_t ticks_to_sleep) {
     for (size_t i = 0; i < sched->count; i++) {
         uint64_t ready_at = sched->tasks[i].ready_at_tick;
         if (ready_at <= current) {
-            pthread_mutex_unlock(&sched->lock);
+            tp_mutex_unlock(&sched->lock);
             return;
         }
         if (ready_at - current < ticks_to_sleep) {
@@ -288,21 +283,17 @@ void tp_scheduler_sleep_ticks(TpScheduler* sched, uint64_t ticks_to_sleep) {
         sleep_us = ticks_to_sleep * sched->tick_us;
     }
 
-    /* Calculate absolute timeout */
-    struct timespec timeout;
-    clock_gettime(CLOCK_MONOTONIC, &timeout);
-    uint64_t total_ns = (uint64_t)timeout.tv_nsec + (sleep_us % 1000000ULL) * 1000ULL;
-    timeout.tv_sec += (time_t)(sleep_us / 1000000ULL + total_ns / 1000000000ULL);
-    timeout.tv_nsec = (long)(total_ns % 1000000000ULL);
-
-    /* Wait until an add, the timeout, or shutdown */
+    /* Wait until an add, the deadline, or shutdown */
+    uint64_t deadline = tp_time_us() + sleep_us;
     uint64_t generation = sched->add_generation;
     while (sched->add_generation == generation && atomic_load(&sched->running)) {
-        if (pthread_cond_timedwait(&sched->wake_signal, &sched->lock, &timeout) != 0) {
-            break;  /* Timed out (or failed): either way, stop sleeping */
+        uint64_t now = tp_time_us();
+        if (now >= deadline) break;
+        if (!tp_cond_timedwait_us(&sched->wake_signal, &sched->lock, deadline - now)) {
+            break;  /* Timed out */
         }
     }
 
-    pthread_mutex_unlock(&sched->lock);
+    tp_mutex_unlock(&sched->lock);
 }
 /* }}} */

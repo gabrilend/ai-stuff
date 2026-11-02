@@ -70,7 +70,7 @@ static int test_sync_pointer_swap(void) {
     tp_sync_add_watch(ctx, &ready, &target, source);
 
     /* Spawn sync thread */
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Set ready flag */
     atomic_store(&ready, true);
@@ -82,7 +82,7 @@ static int test_sync_pointer_swap(void) {
 
     /* Stop and join */
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
 
     tp_sync_destroy(ctx);
     TEST_PASS("test_sync_pointer_swap");
@@ -111,12 +111,12 @@ static int test_sync_multiple_watches(void) {
     }
 
     /* Spawn sync thread */
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Set ready flags in sequence */
     for (int i = 0; i < NUM_WATCHES; i++) {
         atomic_store(&ready[i], true);
-        usleep(1000);  /* 1ms */
+        tp_sleep_us(1000);  /* 1ms */
     }
 
     /* Wait for all swaps, then verify each flag cleared and target swapped */
@@ -132,7 +132,7 @@ static int test_sync_multiple_watches(void) {
 
     /* Stop and join */
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
 
     tp_sync_destroy(ctx);
     TEST_PASS("test_sync_multiple_watches");
@@ -177,7 +177,7 @@ static int test_sync_statistics(void) {
     TEST_ASSERT(tp_sync_get_swaps(ctx) == 0, "initial swaps should be 0");
     TEST_ASSERT(tp_sync_get_idle_cycles(ctx) == 0, "initial idle_cycles should be 0");
 
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Let it idle for a bit */
     WAIT_UNTIL(tp_sync_get_idle_cycles(ctx) > 0, 5000);
@@ -187,7 +187,7 @@ static int test_sync_statistics(void) {
     TEST_ASSERT(idle > 0, "idle_cycles should be non-zero");
 
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
     tp_sync_destroy(ctx);
 
     TEST_PASS("test_sync_statistics");
@@ -209,9 +209,9 @@ static int test_sync_null_config_and_logging(void) {
     cfg.log_fn = test_logger;
     ctx = tp_sync_create(&cfg);
     TEST_ASSERT(ctx != NULL, "sync context should not be NULL");
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
     tp_sync_destroy(ctx);
     TEST_ASSERT(atomic_load(&g_log_calls) >= 3, "create, spawn and exit should log");
 
@@ -241,7 +241,7 @@ static int test_sync_repeated_handoff(void) {
     atomic_init(&h.ready, false);
     h.front = NULL;
 
-    pthread_t thread = tp_sync_spawn(h.ctx);
+    tp_thread_t thread = tp_sync_spawn(h.ctx);
     for (int i = 0; i < HANDOFF_ROUNDS; i++) {
         h.frames[i] = i;
         TEST_ASSERT(tp_sync_add_watch(h.ctx, &h.ready, &h.front, &h.frames[i]),
@@ -254,7 +254,7 @@ static int test_sync_repeated_handoff(void) {
     TEST_ASSERT(tp_sync_get_swaps(h.ctx) == HANDOFF_ROUNDS, "every round should swap once");
 
     tp_sync_stop(h.ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
     tp_sync_destroy(h.ctx);
     TEST_PASS("test_sync_repeated_handoff");
     return 0;

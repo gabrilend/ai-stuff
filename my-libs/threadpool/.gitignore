@@ -3,3 +3,4 @@ build/
 tests/build/
 tests/build-tsan/
 tests/build-asan/
+tests/build-realtime/

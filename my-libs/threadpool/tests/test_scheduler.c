@@ -11,7 +11,6 @@
 #include "../src/threadpool_updater.h"
 #include "test_common.h"
 #include <stdlib.h>
-#include <pthread.h>
 
 /* {{{ Global tick counter
  * Required by scheduler module - must be defined by user application */
@@ -336,15 +335,15 @@ static int test_scheduler_sleep_wakes_on_add(void) {
     Sleeper s = { .sched = sched, .ticks = 10000 };  /* 10 seconds */
     atomic_init(&s.took_ms, 0);
     atomic_init(&s.done, false);
-    pthread_t thread;
-    pthread_create(&thread, NULL, sleeper_thread, &s);
+    tp_thread_t thread;
+    tp_thread_create(&thread, sleeper_thread, &s);
 
-    usleep(30000);
+    tp_sleep_us(30000);
     TEST_ASSERT(!atomic_load(&s.done), "sleeper should still be asleep");
     TpTask task = { .execute = mock_task_execute, .weight = TP_WEIGHT_LIGHT, .repeat_count = 1 };
     tp_scheduler_add(sched, &task, 500);
 
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
     TEST_ASSERT(atomic_load(&s.took_ms) < 5000, "an add should wake the sleeper early");
 
     tp_scheduler_destroy(sched);
@@ -432,7 +431,7 @@ static int test_scheduler_with_updater(void) {
 
     WAIT_UNTIL(atomic_load(&g_tasks_executed) == 3, 5000);
     TEST_ASSERT(atomic_load(&g_tasks_executed) == 3, "the three ready tasks should run");
-    usleep(20000);
+    tp_sleep_us(20000);
     TEST_ASSERT(atomic_load(&g_tasks_executed) == 3, "delayed tasks must wait for their tick");
 
     atomic_store(&g_current_tick, 10);

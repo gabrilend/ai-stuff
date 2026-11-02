@@ -5,7 +5,7 @@ A modular, high-performance threading library for general-purpose computation an
 **Version:** 1.0
 **Location:** `/path/to/my-libs/threadpool/`
 **Language:** C (C11 standard)
-**Platform:** POSIX (Linux, macOS)
+**Platform:** POSIX (Linux, the BSDs, macOS) through `threadpool_platform.h`; Win32 planned
 
 ---
 
@@ -301,7 +301,7 @@ int main(void) {
     tp_sync_add_watch(sync, &state.ready, (void**)&state.front, state.back);
 
     // Spawn sync thread
-    pthread_t sync_thread = tp_sync_spawn(sync);
+    tp_thread_t sync_thread = tp_sync_spawn(sync);
 
     // Submit render task
     TpTask task = {
@@ -327,7 +327,7 @@ int main(void) {
 
     // Cleanup
     tp_sync_stop(sync);
-    pthread_join(sync_thread, NULL);
+    tp_thread_join(sync_thread);
     tp_sync_destroy(sync);
     tp_pool_destroy(pool);
 
@@ -589,7 +589,7 @@ TP_WEIGHT_UPDATER // 10 - Task distributor
 ```c
 TpSyncContext* tp_sync_create(TpSyncConfig* config);
 void tp_sync_destroy(TpSyncContext* ctx);
-pthread_t tp_sync_spawn(TpSyncContext* ctx);
+tp_thread_t tp_sync_spawn(TpSyncContext* ctx);   // join with tp_thread_join()
 void tp_sync_stop(TpSyncContext* ctx);
 ```
 
@@ -884,7 +884,7 @@ int main(void) {
 
     void* front_buffer = render.pixels;
     tp_sync_add_watch(sync, &render.ready, &front_buffer, render.pixels);
-    pthread_t sync_thread = tp_sync_spawn(sync);
+    tp_thread_t sync_thread = tp_sync_spawn(sync);
 
     // Submit physics task (runs forever)
     TpTask physics_task = {
@@ -911,7 +911,7 @@ int main(void) {
     }
 
     tp_sync_stop(sync);
-    pthread_join(sync_thread, NULL);
+    tp_thread_join(sync_thread);
     tp_sync_destroy(sync);
     tp_pool_destroy(pool);
 

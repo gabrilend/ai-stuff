@@ -124,3 +124,62 @@ painful refactoring later. Use typedef wrappers from the start.
 
 Priority is low because primary development environment is Linux and the
 game engine targets POSIX-compatible systems initially.
+
+---
+
+## What Happened
+
+**Date:** 2026-11-02
+
+The plan's first half is built: Option B, the platform abstraction layer, with
+its POSIX implementation, and every module and test moved onto it. The Win32
+implementation is split out as issue 800i, because it cannot be compiled or
+tested on this machine (no MinGW or MSVC) and an untested backend would only
+look finished.
+
+- `src/threadpool_platform.h` holds every OS call: `tp_thread_t`,
+  `tp_thread_create/join`, `tp_mutex_*`, `tp_cond_*` (including
+  `tp_cond_timedwait_us`), `tp_spinlock_t` and `tp_spin_*`, `tp_time_us`,
+  `tp_sleep_us`, `tp_cpu_count`.
+- The core, sync, updater and scheduler modules and all four test files use
+  only these names. `make check-portable` greps for POSIX calls and headers
+  outside the layer and fails on any; it passes.
+- `tp_sync_spawn` now returns `tp_thread_t` (still `pthread_t` on POSIX, so
+  existing `pthread_join` callers compile unchanged).
+
+### Decisions
+
+- **Header-only (static inline) instead of `platform/threadpool_posix.c`.**
+  The library is used by copying or compiling its .c files (README options 1
+  and 2); a separate platform .c would change every consumer's build line.
+  A header keeps them as they were, and the calls inline to the same code.
+- **Header lives in `src/`, not a `platform/` subdirectory**, so the one
+  `-I.../src` include path still finds everything.
+- **Relative timeouts.** `tp_cond_timedwait_us` takes microseconds to wait,
+  not a deadline, because Win32's `SleepConditionVariableCS` takes a relative
+  timeout; the scheduler keeps its own monotonic deadline and loops.
+- **Spinlock from C11 `atomic_flag`** (yielding while it spins) instead of
+  `pthread_spinlock_t`, which macOS lacks. This also fixes the sync module on
+  macOS, which never compiled there before.
+- **macOS condition variables** have no `pthread_condattr_setclock`, so on
+  `__APPLE__` timed waits fall back to the wall clock (`TP_COND_REALTIME`).
+  `make realtime` runs the whole suite through that path on Linux.
+- **A Windows build stops at `#error`** naming issue 800i rather than failing
+  on a missing `pthread.h`.
+- **Build system:** the issue suggested CMake; the monorepo uses Make, so the
+  Win32 backend will get a Makefile target (MinGW) and an MSVC note in 800i.
+
+### Acceptance Criteria (status)
+
+- [x] Platform abstraction layer defined
+- [x] POSIX implementation using new abstraction
+- [ ] Windows implementation passes same tests as POSIX (issue 800i)
+- [x] No POSIX-specific code outside platform layer (`make check-portable`)
+- [ ] Build system supports both platforms (issue 800i)
+
+### Test Results
+
+`make check` (portability grep, the 43 tests, and the 43 again with
+`TP_COND_REALTIME`) passes with gcc and clang; `make sanitize` (TSan, then
+ASan + UBSan) is clean. The sources also build with
+`-std=c11 -D_POSIX_C_SOURCE=200809L` (no GNU extensions to libc).

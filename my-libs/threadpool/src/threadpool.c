@@ -14,16 +14,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <time.h>
 #include <limits.h>
 
 /* {{{ tp_get_timestamp_us
  * Returns current time in microseconds (monotonic clock). */
 uint64_t tp_get_timestamp_us(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+    return tp_time_us();
 }
 /* }}} */
 
@@ -32,7 +28,7 @@ uint64_t tp_get_timestamp_us(void) {
  * Used as a placeholder or for testing. */
 void tp_sleep_task(void* context) {
     (void)context;  /* Unused */
-    usleep(1000);   /* 1ms yield */
+    tp_sleep_us(1000);  /* 1ms yield */
 }
 /* }}} */
 
@@ -45,7 +41,7 @@ void tp_relocate_task(void* context) {
     TpWorker* w = (TpWorker*)context;
     if (!w) return;
 
-    pthread_mutex_lock(&w->lock);
+    tp_mutex_lock(&w->lock);
 
     size_t dropped = 0;
     if (w->start_ptr != w->end_ptr) {
@@ -73,7 +69,7 @@ void tp_relocate_task(void* context) {
         w->end_ptr = write_ptr;
     }
 
-    pthread_mutex_unlock(&w->lock);
+    tp_mutex_unlock(&w->lock);
 
     if (dropped > 0) {
         TP_LOG(&w->pool->config, "[worker %d] Compacted ring, dropped %zu sleep placeholders\n",
@@ -89,12 +85,12 @@ void tp_relocate_task(void* context) {
 bool tp_task_append(TpWorker* w, TpTask* task) {
     if (!w || !task) return false;
 
-    pthread_mutex_lock(&w->lock);
+    tp_mutex_lock(&w->lock);
 
     /* Calculate next position; one slot stays empty to tell full from empty */
     size_t next = (w->end_ptr + 1) % w->task_list_size;
     if (next == w->start_ptr) {
-        pthread_mutex_unlock(&w->lock);
+        tp_mutex_unlock(&w->lock);
         TP_LOG(&w->pool->config, "[worker %d] task_append: buffer full\n", w->worker_id);
         return false;
     }
@@ -104,8 +100,8 @@ bool tp_task_append(TpWorker* w, TpTask* task) {
     w->end_ptr = next;
     atomic_fetch_add(&w->num_tasks, task->weight);
 
-    pthread_cond_signal(&w->wake);
-    pthread_mutex_unlock(&w->lock);
+    tp_cond_signal(&w->wake);
+    tp_mutex_unlock(&w->lock);
 
     return true;
 }
@@ -116,9 +112,9 @@ bool tp_task_append(TpWorker* w, TpTask* task) {
 size_t tp_worker_queued(TpWorker* w) {
     if (!w) return 0;
 
-    pthread_mutex_lock(&w->lock);
+    tp_mutex_lock(&w->lock);
     size_t queued = (w->end_ptr + w->task_list_size - w->start_ptr) % w->task_list_size;
-    pthread_mutex_unlock(&w->lock);
+    tp_mutex_unlock(&w->lock);
 
     return queued;
 }
@@ -188,17 +184,17 @@ void* tp_worker_loop(void* arg) {
 
     TP_LOG(&w->pool->config, "[worker %d] Starting\n", w->worker_id);
 
-    pthread_mutex_lock(&w->lock);
+    tp_mutex_lock(&w->lock);
     while (atomic_load(&w->running)) {
         /* Sleep until a task arrives or shutdown is signalled */
         if (w->start_ptr == w->end_ptr) {
-            pthread_cond_wait(&w->wake, &w->lock);
+            tp_cond_wait(&w->wake, &w->lock);
             continue;
         }
 
         /* Copy the task out; its slot stays reserved until we advance */
         TpTask task = w->task_list[w->start_ptr];
-        pthread_mutex_unlock(&w->lock);
+        tp_mutex_unlock(&w->lock);
 
         bool finished = false;
         if (task.execute == NULL || task.repeat_count <= 0) {
@@ -220,13 +216,13 @@ void* tp_worker_loop(void* arg) {
             }
         }
 
-        pthread_mutex_lock(&w->lock);
+        tp_mutex_lock(&w->lock);
         if (finished) {
             memset(&w->task_list[w->start_ptr], 0, sizeof(TpTask));
             w->start_ptr = (w->start_ptr + 1) % w->task_list_size;
         }
     }
-    pthread_mutex_unlock(&w->lock);
+    tp_mutex_unlock(&w->lock);
 
     TP_LOG(&w->pool->config, "[worker %d] Exiting\n", w->worker_id);
     return NULL;
@@ -238,8 +234,8 @@ void* tp_worker_loop(void* arg) {
  * initialized: how many workers had their lock, cond and ring set up. */
 static void pool_free(TpPool* pool, int initialized) {
     for (int i = 0; i < initialized; i++) {
-        pthread_mutex_destroy(&pool->workers[i].lock);
-        pthread_cond_destroy(&pool->workers[i].wake);
+        tp_mutex_destroy(&pool->workers[i].lock);
+        tp_cond_destroy(&pool->workers[i].wake);
         free(pool->workers[i].task_list);
     }
     free(pool->workers);
@@ -253,14 +249,14 @@ static void pool_stop_and_join(TpPool* pool, int started) {
     atomic_store(&pool->running, false);
     for (int i = 0; i < started; i++) {
         TpWorker* w = &pool->workers[i];
-        pthread_mutex_lock(&w->lock);
+        tp_mutex_lock(&w->lock);
         atomic_store(&w->running, false);
-        pthread_cond_broadcast(&w->wake);
-        pthread_mutex_unlock(&w->lock);
+        tp_cond_broadcast(&w->wake);
+        tp_mutex_unlock(&w->lock);
     }
 
     for (int i = 0; i < started; i++) {
-        pthread_join(pool->workers[i].thread, NULL);
+        tp_thread_join(pool->workers[i].thread);
         TP_LOG(&pool->config, "[threadpool] Worker %d joined\n", i);
     }
 }
@@ -285,7 +281,7 @@ TpPool* tp_pool_create(TpConfig* config, int worker_count) {
 
     /* Auto-detect CPU cores if not specified */
     if (worker_count <= 0) {
-        worker_count = (int)sysconf(_SC_NPROCESSORS_ONLN);
+        worker_count = tp_cpu_count();
         if (worker_count <= 0) worker_count = 4;  /* Fallback */
     }
 
@@ -329,14 +325,14 @@ TpPool* tp_pool_create(TpConfig* config, int worker_count) {
             return NULL;
         }
 
-        pthread_mutex_init(&w->lock, NULL);
-        pthread_cond_init(&w->wake, NULL);
+        tp_mutex_init(&w->lock);
+        tp_cond_init(&w->wake);
     }
 
     /* Spawn worker threads */
     for (int i = 0; i < worker_count; i++) {
-        int result = pthread_create(&pool->workers[i].thread, NULL,
-                                    tp_worker_loop, &pool->workers[i]);
+        int result = tp_thread_create(&pool->workers[i].thread,
+                                      tp_worker_loop, &pool->workers[i]);
         if (result != 0) {
             TP_LOG(&pool->config, "[threadpool] Failed to create worker %d\n", i);
             pool_stop_and_join(pool, i);

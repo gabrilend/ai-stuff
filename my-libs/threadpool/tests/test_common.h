@@ -10,11 +10,10 @@
 #ifndef THREADPOOL_TEST_COMMON_H
 #define THREADPOOL_TEST_COMMON_H
 
+#include "../src/threadpool_platform.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <time.h>
-#include <unistd.h>
 
 /* {{{ Test Macros */
 #define TEST_ASSERT(cond, msg) do { \
@@ -30,9 +29,7 @@
 /* {{{ test_now_ms
  * Milliseconds on the monotonic clock. */
 static inline uint64_t test_now_ms(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
+    return tp_time_us() / 1000ULL;
 }
 /* }}} */
 
@@ -43,7 +40,7 @@ static inline uint64_t test_now_ms(void) {
 #define WAIT_UNTIL(cond, timeout_ms) \
     for (uint64_t wait_deadline_ = test_now_ms() + (timeout_ms); \
          !(cond) && test_now_ms() < wait_deadline_; ) \
-        usleep(1000)
+        tp_sleep_us(1000)
 /* }}} */
 
 #endif /* THREADPOOL_TEST_COMMON_H */

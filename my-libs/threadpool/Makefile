@@ -9,6 +9,8 @@
 #   make            - Build build/libthreadpool.a (core, sync, updater, scheduler)
 #   make test       - Build and run tests
 #   make sanitize   - Run tests under ThreadSanitizer and AddressSanitizer
+#   make check      - Tests, both condition-variable clocks, and the check
+#                     that every OS call stays in src/threadpool_platform.h
 #   make debug      - Build the archive with debug symbols
 #   make clean      - Remove build artifacts
 
@@ -53,6 +55,10 @@ test:
 .PHONY: sanitize
 sanitize:
 	$(MAKE) -C $(TEST_DIR) sanitize CC=$(CC)
+
+.PHONY: check
+check:
+	$(MAKE) -C $(TEST_DIR) check CC=$(CC)
 # }}}
 
 # {{{ Debug build
@@ -77,6 +83,7 @@ help:
 	@echo "  all      - Build build/libthreadpool.a (default)"
 	@echo "  test     - Build and run tests"
 	@echo "  sanitize - Run tests under ThreadSanitizer and AddressSanitizer"
+	@echo "  check    - Tests, both cond clocks, and the portability check"
 	@echo "  debug    - Build with debug symbols"
 	@echo "  clean    - Remove build artifacts"
 	@echo "  help     - Show this help"

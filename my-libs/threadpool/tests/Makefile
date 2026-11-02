@@ -8,12 +8,18 @@
 #   make tsan      - Run all tests under ThreadSanitizer (data races)
 #   make asan      - Run all tests under AddressSanitizer + UBSan (memory, leaks)
 #   make sanitize  - Both of the above
+#   make realtime  - Run all tests with the wall-clock condition variable
+#                    fallback that macOS uses (TP_COND_REALTIME)
+#   make check-portable - Fail if any OS call appears outside
+#                    src/threadpool_platform.h
+#   make check     - check-portable, test and realtime together
 #   make CC=clang test  - Any of these with clang instead of gcc
 #   make clean     - Remove build artifacts
 
 CC = gcc
 SAN_FLAGS ?=
-CFLAGS = -Wall -Wextra -Werror -std=c11 -D_GNU_SOURCE -pthread -I../src -g -O1 $(SAN_FLAGS)
+EXTRA_CFLAGS ?=
+CFLAGS = -Wall -Wextra -Werror -std=c11 -D_GNU_SOURCE -pthread -I../src -g -O1 $(SAN_FLAGS) $(EXTRA_CFLAGS)
 LDFLAGS = -pthread $(SAN_FLAGS)
 
 SRC_DIR = ../src
@@ -29,7 +35,7 @@ SCHEDULER_SRCS = $(SRC_DIR)/threadpool_scheduler.c
 TESTS = test_pool test_sync test_updater test_scheduler
 TEST_BINS = $(addprefix $(BUILD_DIR)/,$(TESTS))
 
-.PHONY: all run test tsan asan sanitize clean help
+.PHONY: all run test tsan asan sanitize realtime check-portable check clean help
 
 # {{{ Default target
 all: $(TEST_BINS)
@@ -61,7 +67,7 @@ $(BUILD_DIR)/test_scheduler: test_scheduler.c $(CORE_SRCS) $(UPDATER_SRCS) $(SCH
 # {{{ Run all tests
 run: all
 	@echo "==================================================="
-	@echo "Running Threadpool Test Suite $(if $(SAN_FLAGS),($(SAN_FLAGS)),)"
+	@echo "Running Threadpool Test Suite $(SAN_FLAGS) $(EXTRA_CFLAGS)"
 	@echo "==================================================="
 	@echo ""
 	@for t in $(TEST_BINS); do ./$$t || exit 1; echo ""; done
@@ -87,9 +93,26 @@ asan:
 sanitize: tsan asan
 # }}}
 
+# {{{ Portability checks
+# The macOS condition-variable path, exercised on any POSIX system
+realtime:
+	$(MAKE) run BUILD_DIR=build-realtime EXTRA_CFLAGS="-DTP_COND_REALTIME"
+
+# Every OS call belongs in the platform layer; a match anywhere else fails
+PORTABLE_PATTERN = pthread_|usleep|nanosleep|sysconf|clock_gettime|gettimeofday|sched_yield|<pthread\.h>|<unistd\.h>|<time\.h>|<sys/
+check-portable:
+	@if grep -nE '$(PORTABLE_PATTERN)' $(filter-out $(SRC_DIR)/threadpool_platform.h,$(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*.h)) *.c *.h; then \
+		echo "FAIL: OS calls outside src/threadpool_platform.h (listed above)"; exit 1; \
+	else \
+		echo "PASS: no OS calls outside src/threadpool_platform.h"; \
+	fi
+
+check: check-portable test realtime
+# }}}
+
 # {{{ Clean
 clean:
-	rm -rf build build-tsan build-asan
+	rm -rf build build-tsan build-asan build-realtime
 	@echo "Cleaned test build artifacts"
 # }}}
 
@@ -103,6 +126,9 @@ help:
 	@echo "  tsan       - Run all tests under ThreadSanitizer"
 	@echo "  asan       - Run all tests under AddressSanitizer + UBSan"
 	@echo "  sanitize   - Run both sanitizer passes"
+	@echo "  realtime   - Run all tests with the wall-clock cond fallback"
+	@echo "  check-portable - Fail on OS calls outside the platform layer"
+	@echo "  check      - check-portable, test and realtime"
 	@echo "  clean      - Remove build artifacts"
 	@echo "  help       - Show this help message"
 	@echo ""

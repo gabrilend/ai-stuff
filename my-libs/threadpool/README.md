@@ -3,7 +3,7 @@
 A modular, high-performance threading library for general-purpose computation and real-time rendering.
 
 **Version:** 1.0
-**Platform:** POSIX (Linux, macOS)
+**Platform:** POSIX (Linux, the BSDs, macOS); Win32 planned
 **License:** MIT (or your license)
 
 ---
@@ -135,6 +135,7 @@ Covers:
 ```bash
 make test        # or: cd tests && make test
 make sanitize    # the same tests under ThreadSanitizer, then AddressSanitizer + UBSan
+make check       # tests, both cond-variable clocks, and the platform-layer check
 ```
 
 All 43 tests should pass:
@@ -221,11 +222,22 @@ Benchmarks on 4-core system:
 ## Requirements
 
 - **C Standard:** C11 (for `<stdatomic.h>`)
-- **Platform:** POSIX (Linux, macOS)
+- **Platform:** POSIX (Linux, the BSDs, macOS)
 - **Compiler:** GCC 4.9+, Clang 3.6+
-- **Threading:** pthreads
+- **Threading:** pthreads, reached only through `src/threadpool_platform.h`
 
-**Windows support:** Planned (see `issues/800f-windows-support-planning.md`)
+### Platform Layer
+
+Every OS call (threads, mutexes, condition variables, the clock, sleeping,
+counting CPUs) lives in `src/threadpool_platform.h`, a header-only layer, so
+build lines are unchanged. The modules and tests use only its `tp_*` names,
+and `make check` fails if an OS call appears anywhere else. The sync
+module's spinlock is a C11 `atomic_flag`, since macOS has no
+`pthread_spinlock_t`; on macOS timed waits use the wall clock, a path `make
+check` also runs on Linux (`TP_COND_REALTIME`).
+
+**Windows support:** Planned. A Win32 build stops at a clear `#error`; the
+backend is specified in `issues/800i-win32-backend.md`.
 
 ---
 
@@ -237,6 +249,7 @@ threadpool/
 │   ├── threadpool.h            # Core module
 │   ├── threadpool.c
 │   ├── threadpool_config.h     # Configuration constants
+│   ├── threadpool_platform.h   # Every OS call (header-only)
 │   ├── threadpool_sync.h       # Sync module
 │   ├── threadpool_sync.c
 │   ├── threadpool_updater.h    # Updater module

@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <pthread.h>
 
 /* {{{ Test State */
 static atomic_int g_task_counter = 0;
@@ -41,7 +40,7 @@ static void test_task_on_complete(void* context) {
 static void gate_task(void* context) {
     (void)context;
     while (!atomic_load(&g_gate_open)) {
-        usleep(200);
+        tp_sleep_us(200);
     }
 }
 /* }}} */
@@ -58,7 +57,7 @@ static void test_logger(const char* fmt, ...) {
 static bool append_retry(TpWorker* w, TpTask* task) {
     for (int tries = 0; tries < 100000; tries++) {
         if (tp_task_append(w, task)) return true;
-        usleep(100);
+        tp_sleep_us(100);
     }
     return false;
 }
@@ -355,13 +354,13 @@ static int test_many_producers(void) {
     TpPool* pool = tp_pool_create(&cfg, 2);
     TEST_ASSERT(pool != NULL, "pool should not be NULL");
 
-    pthread_t threads[PRODUCERS];
+    tp_thread_t threads[PRODUCERS];
     ProducerArg arg = { .pool = pool, .failures = &failures };
     for (int i = 0; i < PRODUCERS; i++) {
-        pthread_create(&threads[i], NULL, producer_thread, &arg);
+        tp_thread_create(&threads[i], producer_thread, &arg);
     }
     for (int i = 0; i < PRODUCERS; i++) {
-        pthread_join(threads[i], NULL);
+        tp_thread_join(threads[i]);
     }
     TEST_ASSERT(atomic_load(&failures) == 0, "no append should time out");
 
@@ -472,7 +471,7 @@ static int test_destroy_is_prompt(void) {
     /* Test: idle workers sleep, and wake at once when the pool is destroyed */
     TpPool* pool = tp_pool_create(NULL, 4);
     TEST_ASSERT(pool != NULL, "pool should not be NULL");
-    usleep(20000);  /* Let every worker go idle */
+    tp_sleep_us(20000);  /* Let every worker go idle */
 
     uint64_t start = test_now_ms();
     tp_pool_destroy(pool);

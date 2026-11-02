@@ -17,7 +17,7 @@
 #ifndef THREADPOOL_SYNC_H
 #define THREADPOOL_SYNC_H
 
-#include <pthread.h>
+#include "threadpool_platform.h"
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <stdint.h>
@@ -42,7 +42,7 @@ typedef struct tp_sync_context {
     atomic_bool running;
 
     /* Lock for adding entries */
-    pthread_spinlock_t watch_lock;
+    tp_spinlock_t watch_lock;
 
     /* Stats (written by the sync thread, read from anywhere) */
     _Atomic uint64_t swaps_performed;
@@ -93,10 +93,10 @@ bool tp_sync_add_watch(TpSyncContext* ctx,
 /* {{{ Thread Control */
 
 /* Spawn the sync thread
- * Returns thread handle (pthread_t); join it with pthread_join() after
+ * Returns thread handle; join it with tp_thread_join() after
  * tp_sync_stop(). If the thread cannot be started, logs and returns a
  * zeroed handle, and the context stays usable for another try. */
-pthread_t tp_sync_spawn(TpSyncContext* ctx);
+tp_thread_t tp_sync_spawn(TpSyncContext* ctx);
 
 /* Stop the sync thread (sets running flag to false)
  * Thread will exit on next iteration */

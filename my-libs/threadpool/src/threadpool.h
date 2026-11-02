@@ -25,7 +25,7 @@
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
-#include <pthread.h>
+#include "threadpool_platform.h"
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <stdint.h>
@@ -71,7 +71,7 @@ struct tp_pool;
  * until the task finishes, so a producer can never overwrite a running task.
  * An idle worker sleeps on `wake` instead of polling. */
 typedef struct tp_worker {
-    pthread_t thread;
+    tp_thread_t thread;
     int worker_id;
 
     /* Task ring buffer (holds task_list_size - 1 tasks) */
@@ -80,8 +80,8 @@ typedef struct tp_worker {
     size_t start_ptr;           /* Current execution position (guarded by lock) */
     size_t end_ptr;             /* Next write position (guarded by lock) */
 
-    pthread_mutex_t lock;       /* Guards task_list, start_ptr, end_ptr */
-    pthread_cond_t wake;        /* Signalled on append and on shutdown */
+    tp_mutex_t lock;            /* Guards task_list, start_ptr, end_ptr */
+    tp_cond_t wake;             /* Signalled on append and on shutdown */
 
     /* Load balancing: weighted sum of pending task weights */
     atomic_uint num_tasks;
@@ -156,7 +156,7 @@ void tp_relocate_task(void* context);
 
 /* {{{ Function Declarations - Utilities */
 
-/* Get current timestamp in microseconds */
+/* Get current timestamp in microseconds (monotonic; same as tp_time_us) */
 uint64_t tp_get_timestamp_us(void);
 
 /* Worker thread entry point (internal, exposed for advanced use) */

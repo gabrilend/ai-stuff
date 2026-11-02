@@ -239,7 +239,7 @@ static int test_updater_stop_and_restart(void) {
     tp_updater_stop(ctx);
     TEST_ASSERT(tp_updater_get_active_count() == before, "active count should return");
     int after_stop = atomic_load(&g_callback_count);
-    usleep(20000);
+    tp_sleep_us(20000);
     TEST_ASSERT(atomic_load(&g_callback_count) == after_stop, "no callbacks after stop");
     WAIT_UNTIL(tp_pool_get_load(pool) == 0, 5000);
     TEST_ASSERT(tp_pool_get_load(pool) == 0, "the updater's load should be released");
@@ -292,7 +292,7 @@ static int test_updater_helper_exits(void) {
  * A task source slow enough that helpers always want to continue. */
 static bool slow_source(void* user_data, TpTask** out, size_t* count) {
     (void)user_data;
-    usleep(2000);  /* 2ms, over the 1ms continuation threshold below */
+    tp_sleep_us(2000);  /* 2ms, over the 1ms continuation threshold below */
     *out = g_mock_tasks;
     *count = 1;
     return true;
@@ -315,7 +315,7 @@ static int test_updater_stop_waits_for_helpers(void) {
 
     tp_updater_spawn_helper(ctx, 0, 1);
     tp_updater_spawn_helper(ctx, 0, 1);
-    usleep(20000);
+    tp_sleep_us(20000);
     TEST_ASSERT(atomic_load(&ctx->live_helpers) == 2, "both helpers should keep going");
 
     tp_updater_stop(ctx);

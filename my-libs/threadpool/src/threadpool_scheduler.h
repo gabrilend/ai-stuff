@@ -40,7 +40,6 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include <pthread.h>
 
 /* {{{ Global tick counter
  * Incremented by game loop or timer thread (independent of scheduler/updater).
@@ -71,8 +70,8 @@ typedef struct tp_scheduler {
     size_t capacity;               /* Max tasks */
     size_t count;                  /* Current task count */
 
-    pthread_mutex_t lock;          /* Protects task array */
-    pthread_cond_t wake_signal;    /* Signal for new task arrivals (monotonic clock) */
+    tp_mutex_t lock;               /* Protects task array */
+    tp_cond_t wake_signal;         /* Signal for new task arrivals (monotonic clock) */
     uint64_t add_generation;       /* Bumped on every add; lets a sleeper tell a
                                       real wake from a spurious one */
 

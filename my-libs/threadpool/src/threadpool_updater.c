@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <limits.h>
 
 /* Default configuration values */
@@ -158,7 +157,7 @@ void tp_updater_stop(TpUpdaterContext* ctx) {
 
     atomic_store(&ctx->stop_requested, true);
     while (atomic_load(&ctx->task_live) || atomic_load(&ctx->live_helpers) > 0) {
-        usleep(1000);  /* 1ms */
+        tp_sleep_us(1000);  /* 1ms */
     }
 
     UPD_LOG(ctx, "[threadpool_updater] Stopped (active: %u)\n",
@@ -181,7 +180,7 @@ static void primary_updater_execute(void* arg) {
     size_t count = 0;
     if (!ctx->get_pending_tasks(ctx->user_data, &pending, &count) || count == 0) {
         /* No tasks available - very brief yield to avoid busy-wait */
-        usleep(100);  /* 0.1ms */
+        tp_sleep_us(100);  /* 0.1ms */
         atomic_store(&ctx->last_tick_duration_us, 0);
         return;
     }

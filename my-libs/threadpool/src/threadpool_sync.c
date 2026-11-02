@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /* Conditional logging through the context's callback */
 #define SYNC_LOG(ctx, fmt, ...) \
@@ -62,7 +61,7 @@ TpSyncContext* tp_sync_create(TpSyncConfig* config) {
     ctx->watch_capacity = cfg.watch_list_size;
     atomic_store(&ctx->watch_count, 0);
     atomic_store(&ctx->running, true);
-    pthread_spin_init(&ctx->watch_lock, PTHREAD_PROCESS_PRIVATE);
+    tp_spin_init(&ctx->watch_lock);
     atomic_store(&ctx->swaps_performed, 0);
     atomic_store(&ctx->idle_cycles, 0);
 
@@ -78,7 +77,7 @@ TpSyncContext* tp_sync_create(TpSyncConfig* config) {
 void tp_sync_destroy(TpSyncContext* ctx) {
     if (!ctx) return;
 
-    pthread_spin_destroy(&ctx->watch_lock);
+    tp_spin_destroy(&ctx->watch_lock);
     free(ctx->watch_list);
     free(ctx);
 }
@@ -93,11 +92,11 @@ bool tp_sync_add_watch(TpSyncContext* ctx,
                        void* source_ptr) {
     if (!ctx) return false;
 
-    pthread_spin_lock(&ctx->watch_lock);
+    tp_spin_lock(&ctx->watch_lock);
 
     size_t count = atomic_load(&ctx->watch_count);
     if (count >= ctx->watch_capacity) {
-        pthread_spin_unlock(&ctx->watch_lock);
+        tp_spin_unlock(&ctx->watch_lock);
         SYNC_LOG(ctx, "[threadpool_sync] Watch list full\n");
         return false;
     }
@@ -107,7 +106,7 @@ bool tp_sync_add_watch(TpSyncContext* ctx,
     ctx->watch_list[count].source_ptr = source_ptr;
     atomic_fetch_add(&ctx->watch_count, 1);
 
-    pthread_spin_unlock(&ctx->watch_lock);
+    tp_spin_unlock(&ctx->watch_lock);
     return true;
 }
 /* }}} */
@@ -134,14 +133,14 @@ static void* sync_loop(void* arg) {
                 atomic_store(entry->ready_flag, false);
 
                 /* Remove from list: swap with last, decrement count */
-                pthread_spin_lock(&ctx->watch_lock);
+                tp_spin_lock(&ctx->watch_lock);
                 count = atomic_load(&ctx->watch_count);
                 if (count > 0 && i < count) {
                     ctx->watch_list[i] = ctx->watch_list[count - 1];
                     atomic_store(&ctx->watch_count, count - 1);
                     count--;
                 }
-                pthread_spin_unlock(&ctx->watch_lock);
+                tp_spin_unlock(&ctx->watch_lock);
 
                 atomic_fetch_add(&ctx->swaps_performed, 1);
                 /* Don't increment i - check swapped-in entry */
@@ -153,7 +152,7 @@ static void* sync_loop(void* arg) {
         /* Brief yield when list is empty */
         if (count == 0) {
             atomic_fetch_add(&ctx->idle_cycles, 1);
-            usleep(100);  /* 0.1ms */
+            tp_sleep_us(100);  /* 0.1ms */
         }
     }
 
@@ -165,14 +164,14 @@ static void* sync_loop(void* arg) {
 
 /* {{{ tp_sync_spawn
  * Creates and starts the sync thread.
- * Returns thread handle (pthread_t). */
-pthread_t tp_sync_spawn(TpSyncContext* ctx) {
-    pthread_t thread;
+ * Returns thread handle (zeroed if the thread could not start). */
+tp_thread_t tp_sync_spawn(TpSyncContext* ctx) {
+    tp_thread_t thread;
     memset(&thread, 0, sizeof(thread));
     if (!ctx) return thread;
 
     atomic_store(&ctx->running, true);
-    int result = pthread_create(&thread, NULL, sync_loop, ctx);
+    int result = tp_thread_create(&thread, sync_loop, ctx);
     if (result != 0) {
         SYNC_LOG(ctx, "[threadpool_sync] Failed to create sync thread\n");
         memset(&thread, 0, sizeof(thread));
