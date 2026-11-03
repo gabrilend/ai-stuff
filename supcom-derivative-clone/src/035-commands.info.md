@@ -49,7 +49,7 @@ The verbs:
 | Verb | Arguments | Does |
 | --- | --- | --- |
 | `noop` | none | nothing; a lockstep batch may be empty |
-| `set-energy-level` | `level` | presses one of the energy menu's four buttons for the team; refuses any other button by number. What a button means is issue 302's. |
+| `set-energy-level` | `level` | presses one of the energy menu's four buttons for the team through `energy-menu.set_level` (issue 302); refuses any other button by number, with the menu's reason |
 | `move` | `truck`, `x`, `y` | points the team's command truck at a land cell (`command-truck.move`, issue 210); refuses a row that is not the team's truck, and a cell that is not land |
 | `launch` | `truck`, `heading` | launches the team's truck's plane on a compass heading in degrees from north (`command-truck.launch`, issue 210); refuses a row that is not the team's truck, and a plane still reloading, naming the tick the next launch is allowed |
 
