@@ -5,8 +5,7 @@ The conversation that carries a shared map-and-model list (share/list.lua)
 from one player to another, and the one consent step before anything is
 applied. It speaks through a transport (anything with send(to, message)),
 so the mail system that carries it is glue: share/rmail_hook.lua is that
-glue for rmail, written against an assumed hook contract (the issue has
-it), and a test passes messages by hand.
+glue for rmail (issue 609b), and a test passes messages by hand.
 
     sharer                               receiver
     X:offer("ben", l)  -- list -->       on_message: read (never run), checked
@@ -26,6 +25,7 @@ it), and a test passes messages by hand.
     X:on_message(msg)                    -- every message the transport delivers
     X:pending()                          -- questions waiting for the player
     X:answer(id, "yes" | "no")           -- the player's answer to one
+    X:wants(id, from, hex)               -- waiting for that file from that sender? (glue)
     exchange.prompt(q)                   -- the prompt's words, with each entry's provenance
 
 Messages are plain tables:
@@ -200,6 +200,17 @@ end
 -- }}}
 
 -- {{{ The receiver: the files arrive
+-- Whether this side is waiting for files on ID from FROM, and (given HEX,
+-- a file's name) whether that file is one it asked for. For glue that has
+-- to answer a mail program's consent step before the files message is
+-- whole (share/rmail_hook.lua); it changes nothing.
+function X:wants(id, from, hex)
+    local r = self.received[id]
+    if not r or r.state ~= "waiting" or r.from ~= from then return false end
+    if hex == nil then return true end
+    return good_hex(hex) and r.wanted[hex:lower()] == true
+end
+
 function X:files(msg)
     local r = self.received[msg.id]
     if not r or r.state ~= "waiting" or r.from ~= msg.from then

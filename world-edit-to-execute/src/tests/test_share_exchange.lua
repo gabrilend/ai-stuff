@@ -72,10 +72,10 @@ local ben = exchange.new({ data = B, me = "ben", transport = hook.transport(rmai
                            on_problem = function(id, what) problems[#problems + 1] = "ben: " .. what end })
 local ana_hook, ben_hook = hook.on_receive(ana), hook.on_receive(ben)
 
--- {{{ The stub and the mail format
+-- {{{ connect and the mail format
 print("\n=== The rmail glue ===")
-local ok_c, why = hook.connect()
-test("connecting to the real rmail is a stub that says why", ok_c == nil and why:match("isn't attached"))
+local ok_c, why = hook.connect({ config = SCR .. "/no-such-mailbox/config", data = B })
+test("connecting where there's no rmail mailbox says why", ok_c == nil and why:match("no rmail config"))
 local m = hook.decode(hook.encode({ kind = "want", id = "x-1", hashes = { l.entries[1].hash } }))
 test("a want survives the mail format", m and m.kind == "want" and m.hashes[1] == l.entries[1].hash)
 test("a mail that isn't ours is left to rmail", ben_hook({ subject = "lunch?", body = "", from = "ana" }) == nil)
@@ -88,7 +88,7 @@ test("a want with something other than hashes is declined",
 print("\n=== A list from someone not trusted waits for the player ===")
 local id = ana:offer("ben", l)
 test("the offer goes out as one mail with the list as its body", #boxes.ben == 1
-    and boxes.ben[1].subject == "wete-share list " .. id and #boxes.ben[1].attachments == 0)
+    and boxes.ben[1].subject == "wete-share-list-" .. id and #boxes.ben[1].attachments == 0)
 local got = deliver("ben", ben_hook)
 test("rmail is told to take it (a list carries no files)", got[1] == "accept")
 local waiting = ben:pending()

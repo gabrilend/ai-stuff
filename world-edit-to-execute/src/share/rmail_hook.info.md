@@ -1,16 +1,40 @@
 # rmail_hook.lua
 
-The glue between `exchange.lua` and rmail (issue 609a). rmail lives in its
-own repository, not attached here, so this is written against an
-**assumed** hook contract (written out in the 609a issue). `hook.connect()`
-is a stub that says so. When rmail is read, only this file should change.
+The glue between `exchange.lua` and rmail (issues 609a, 609b). 609a wrote
+it against an assumed contract. 609b read rmail and replaced the stub.
+Which assumptions held is in `issues/completed/609b-rmail-glue.md`.
+
+rmail's hooks are programs that it runs in the background, and they can't
+answer it. So two small hook scripts note each share mail and each
+arriving file in `<data>/share-mail/`, and the game calls `C:poll(X)`.
 
 | Function | Takes | Gives |
 |----------|-------|-------|
-| `hook.connect()` | | nil and why (the stub) |
-| `hook.transport(rmail)` | rmail's `send` | a transport for `exchange.new` |
-| `hook.on_receive(X)` | an exchange | rmail's `on_receive(mail)`: `"accept"`, `"decline"`, or nil for mail that isn't ours |
+| `hook.connect{ config, data }` | rmail's config file, the player's data folder | a connection `C`, or nil and why |
+| `C:install([chain])` | hooks to chain (default: those the config names) | the two config lines for the person to add; writes the scripts |
+| `C:hooked()` | | true, or false and the hooks missing from rmail's config |
+| `C:transport()` | | a transport for `exchange.new` that writes outbox files |
+| `C:poll(X)` | an exchange | what happened: `{ event, from, id, result, err }` each |
+| `hook.transport(rmail)` | an in-process `send` | a transport (the tests' fake) |
+| `hook.on_receive(X)` | an exchange | an in-process `on_receive(mail)`: `"accept"`, `"decline"`, or nil |
 | `hook.encode(msg)` / `hook.decode(mail)` | | a share message as a mail, and back (nil for anything malformed) |
+| `hook.read_form(text)` | a consent form's text | `{ from, attached, file }`, or nil when it isn't pending |
 
-A share mail's subject is `wete-share <kind> <id>`. A list travels as the
-body, a want as one hash a line, files as attachments named by hash.
+A share mail's subject is `wete-share-<kind>-<id>` (rmail turns spaces
+into dashes). A list travels as the body, and a want as one hash per
+line. A files message names its files in the body, and the files are
+its attachments.
+
+What `C:poll` does:
+
+- It hands lists and wants to the exchange.
+- It holds a files message until every named file has come, then hands
+  it over.
+- It accepts a consent form only for a file the exchange asked that
+  sender for, and denies the rest. Forms on other mail are left alone.
+- It deletes share mail once handled, which tells the sender's rmail.
+- It frees the sharer's bundle once rmail drops the outbox file.
+- It refuses mail from listen-only contacts.
+
+The config is never edited here. A body over 128 KiB is refused, rather
+than letting rmail turn it into an attachment.

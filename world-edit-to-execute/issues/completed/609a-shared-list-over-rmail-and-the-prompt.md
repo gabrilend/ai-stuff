@@ -71,6 +71,8 @@ the real rmail and the prompt on screen (609b).
 ### The rmail hook contract (an assumption, not yet checked against rmail)
 
 When rmail is read, check these; only `rmail_hook.lua` should change.
+(Checked in 609b: items 2 and 3 held, and 1, 4 and 5 did not. See
+`issues/completed/609b-rmail-glue.md`. The prompt on screen moved to 609c.)
 
 1. **rmail calls `on_receive(message, rmail)`** for every message that
    arrives. The message is `{ from, subject, body, attachments = { { name,

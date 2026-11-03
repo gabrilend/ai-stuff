@@ -1,6 +1,6 @@
 # exchange.lua
 
-Carries a shared list (issue 609a) between two players over a transport,
+Carries a shared list (issues 609a, 609b) between two players over a transport,
 with the one consent step before anything is stored or applied. The
 transport is anything with `send(to, message)`; `rmail_hook.lua` is the
 one for rmail.
@@ -13,6 +13,7 @@ one for rmail.
 | `X:pending()` | | the questions waiting for the player |
 | `X:answer(id, "yes" or "no")` | | yes: asks for the missing files only (or applies at once); no: sends nothing |
 | `X:sent(id)` | | removes the bundle written for that answer |
+| `X:wants(id, from[, hex])` | | whether this side waits for files on that id from that sender (and asked for that file); changes nothing |
 | `exchange.prompt(q)` | a question | the prompt's lines: the question, the map, each entry's provenance |
 
 A question `q` is `{id, sender, map, entries, missing, trusted}`.
