@@ -430,6 +430,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_unit_reset').run_all()
     " 2>/dev/null && print_success "Unit reset tests passed" || print_error "Unit reset tests failed"
+    
+    # Test a whole match through the game state (bases, shields, turrets, reset)
+    print_info "Testing Match..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_match').run_all()
+    " 2>/dev/null && print_success "Match tests passed" || print_error "Match tests failed"
 }
 # }}}
 

@@ -3,6 +3,7 @@ local BaseState = require("src.systems.base_state")
 local debug = require("src.utils.debug")
 local TutorialSystem = require("src.systems.tutorial_system")
 local Vector2 = require("src.utils.vector2")
+local Match = require("src.systems.match")
 
 local GameState = BaseState:new("game")
 
@@ -80,12 +81,40 @@ function GameState:enter()
     
     self.tutorial_system = TutorialSystem:new(simple_renderer)
     self:setup_tutorial()
+
+    self:start_match()
+end
+-- }}}
+
+-- {{{ GameState:start_match
+-- A fresh match on a field the size of the window: both bases with their
+-- shields and turrets, and the unit reset. It runs while the game is not
+-- paused by the tutorial.
+function GameState:start_match()
+    self.match = Match:new({
+        width = love.graphics.getWidth(),
+        height = love.graphics.getHeight()
+    })
+    debug.info("Match started", "GAME")
+end
+-- }}}
+
+-- {{{ GameState:get_match
+function GameState:get_match()
+    return self.match
+end
+-- }}}
+
+-- {{{ GameState:is_paused
+function GameState:is_paused()
+    return gameState.gamePaused
 end
 -- }}}
 
 -- {{{ GameState:exit
 function GameState:exit()
     BaseState.exit(self)
+    self.match = nil
     debug.info("Game state exited", "GAME")
 end
 -- }}}
@@ -105,6 +134,14 @@ function GameState:update(dt)
     -- Only update game logic if not paused by tutorial
     if not gameState.gamePaused then
         gameState.frameCount = gameState.frameCount + 1
+
+        if self.match then
+            local was_over = self.match:is_over()
+            self.match:update(dt)
+            if self.match:is_over() and not was_over then
+                debug.info("Match over: team " .. tostring(self.match:get_winner()) .. " wins", "GAME")
+            end
+        end
         
         if gameState.frameCount % 60 == 0 then
             debug.debug("Game update - Frame: " .. gameState.frameCount, "GAME")
@@ -272,6 +309,7 @@ function GameState:keypressed(key)
         love.graphics.setBackgroundColor(0, 0, 0)
         inputState.clickHistory = {}
         inputState.inputHistory = {}
+        self:start_match()
         self:addToInputHistory("Reset state")
         debug.info("Game state reset", "GAME")
         return true
