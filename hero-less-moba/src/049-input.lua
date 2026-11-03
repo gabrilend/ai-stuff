@@ -80,6 +80,9 @@ function M.create()
     panning = false,
     paused = false,
     speed = 1,
+    -- Whether bodies are drawn with weight (074) rather than at the honest blend.
+    -- Off until the numbers on the weight have been looked at; see issue 709.
+    weighted = false,
     mouse_x = 0,
     mouse_y = 0,
   }
@@ -253,6 +256,7 @@ M.key = {
   space  = function(state, context) context.camera_module.home(context.camera) end,
   tab    = function(state) state.watching = (state.watching == 1) and 2 or 1 end,
   p      = function(state) state.paused = not state.paused end,
+  i      = function(state) state.weighted = not state.weighted end,
   ["1"]  = function(state) state.speed = 1 end,
   ["2"]  = function(state) state.speed = 4 end,
   ["3"]  = function(state) state.speed = 16 end,

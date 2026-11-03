@@ -480,8 +480,8 @@ local function draw_structures(world, camera, frame, detail)
 end
 -- }}}
 
--- {{{ local function interpolated_position()
--- Where a body is drawn, between the two most recent frames.
+-- {{{ function M.interpolated_position()
+-- Where a body is drawn, between the two most recent frames: the honest picture.
 --
 -- **Allowed to be behind, never allowed to be ahead.** The blend is clamped to
 -- [0, 1] rather than being trusted to arrive there: a viewer that extrapolates
@@ -490,7 +490,7 @@ end
 --
 -- A body absent from the previous frame was just born, and is drawn where it is
 -- rather than sliding in from wherever the slot's last occupant died.
-local function interpolated_position(previous, newest, id, blend)
+function M.interpolated_position(previous, newest, id, blend)
   if previous.alive[id] ~= 1 then
     return newest.x[id], newest.y[id]
   end
@@ -499,9 +499,24 @@ local function interpolated_position(previous, newest, id, blend)
 end
 -- }}}
 
+-- {{{ function M.place_honestly()
+-- Writes the honest position of every live body into `where`.
+--
+-- **The renderer draws bodies wherever `where` says, and decides nothing about it.**
+-- The viewer hands it either these honest positions or the weighted ones from
+-- `074-the-drawn-body`, which chase them; keeping the choice out of here is what lets
+-- the two be swapped with one key and compared.
+function M.place_honestly(previous, newest, blend, where)
+  for index = 1, newest.live_count do
+    local id = newest.live[index]
+    where.x[id], where.y[id] = M.interpolated_position(previous, newest, id, blend)
+  end
+end
+-- }}}
+
 -- {{{ local function draw_bodies()
 -- Every living body, batched by team.
-local function draw_bodies(world, camera, previous, newest, blend, detail)
+local function draw_bodies(world, camera, newest, where, detail)
   for team = 1, 3 do
     M.batch[team]:clear()
     M.wedge_batch[team]:clear()
@@ -521,7 +536,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
 
   for index = 1, newest.live_count do
     local id = newest.live[index]
-    local x, y = interpolated_position(previous, newest, id, blend)
+    local x, y = where.x[id], where.y[id]
 
     -- Skipped if it is not on screen. At the rest framing this rejects nothing
     -- and costs four comparisons per body; at close zoom it rejects almost
@@ -618,7 +633,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
   for index = 1, newest.live_count do
     local id = newest.live[index]
     if newest.flavour[id] == 4 then
-      local x, y = interpolated_position(previous, newest, id, blend)
+      local x, y = where.x[id], where.y[id]
       local radius = newest.radius[id]
 
       love.graphics.setColor(0, 0, 0, 0.5)
@@ -670,13 +685,13 @@ end
 -- looking at what walks at you. Leaning in has to answer that question, or the
 -- fog stops being made of walking and starts being made of the interface not
 -- telling you.
-local function draw_body_detail(world, camera, previous, newest, blend, detail)
+local function draw_body_detail(world, camera, newest, where, detail)
   local kinds = world.parameters.upgrade.kind
   local left, top, right, bottom = M.camera_module.visible_rectangle(camera)
 
   for index = 1, newest.live_count do
     local id = newest.live[index]
-    local x, y = interpolated_position(previous, newest, id, blend)
+    local x, y = where.x[id], where.y[id]
 
     if x >= left and x <= right and y >= top and y <= bottom then
       local radius = newest.radius[id]
@@ -925,8 +940,9 @@ end
 -- }}}
 
 -- {{{ function M.draw()
--- One frame of the world, under the camera's transform.
-function M.draw(world, camera, previous, newest, blend, held_kind, watching, held_hero)
+-- One frame of the world, under the camera's transform. `where` holds the position
+-- every live body is drawn at; see `place_honestly`.
+function M.draw(world, camera, newest, where, held_kind, watching, held_hero)
   -- How far in the camera is, 0 at the whole map and 1 at the ceiling. Every
   -- decision about how much detail to draw reads this one number, so that the
   -- thresholds are comparable and a reader can see they are in order.
@@ -952,9 +968,9 @@ function M.draw(world, camera, previous, newest, blend, held_kind, watching, hel
   end
   draw_structures(world, camera, newest, detail)
   draw_libraries(world, camera, newest)
-  draw_bodies(world, camera, previous, newest, blend, detail)
+  draw_bodies(world, camera, newest, where, detail)
   if detail >= DETAIL_HEALTH then
-    draw_body_detail(world, camera, previous, newest, blend, detail)
+    draw_body_detail(world, camera, newest, where, detail)
   end
   draw_signposts(world, camera, newest, watching)
   draw_events(world, camera, newest)

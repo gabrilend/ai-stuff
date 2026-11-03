@@ -48,6 +48,19 @@ At high speed a single displayed frame spans many ticks, and interpolating acros
 shows positions between two states that were never adjacent. Above 1× the newest state
 is drawn as it is — honest and slightly steppy, rather than smooth and invented.
 
+## Two pictures of where a body is
+
+Every frame the viewer works out two positions for every live body: the **honest** one,
+the blend above, and the **weighted** one from [074](074-the-drawn-body.info.md), which
+chases the honest one with a little momentum. The renderer is handed one of them and
+draws bodies wherever it says. The `i` key swaps them; honest is the default.
+
+**The weighted picture breaks "never ahead" on purpose, and only by a bounded amount.**
+Running a little past a stop is what makes a body look heavy, which is the point of
+issue 709; it is never more than half a personal space from the honest position, and
+above walking pace it is the honest picture exactly. Both are kept up every frame, so
+the swap changes the picture and not its history.
+
 ## The camera gets the map's half of the window
 
 Framing "the whole map" against the whole window would centre the map behind the panel,

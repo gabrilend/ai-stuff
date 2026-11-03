@@ -68,6 +68,12 @@ extrapolates is a viewer that shows things that did not happen, and in a game
 where a player is judging a frontline by eye, showing a frontline that is not
 really there is a lie that changes decisions.
 
+There is one exception, and it is on a key and off by default: a **weighted** picture
+([709](../issues/709-the-drawn-body-lags-the-real-one.md)) in which each drawn body chases
+the honest position with a little momentum, so it leans into a turn and runs slightly
+past a stop. It is never more than half a personal space from the honest position, never
+weighted above walking pace, and nothing but the screen reads it.
+
 ## What the screen has to show
 
 Roughly in order of how much a player looks at it:
