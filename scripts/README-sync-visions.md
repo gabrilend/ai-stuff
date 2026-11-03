@@ -58,7 +58,7 @@ See detailed progress information.
 | `-q, --quiet` | Suppress output except errors |
 | `-v, --verbose` | Show detailed progress |
 | `--no-clear` | Don't clear existing symlinks before syncing |
-| `-I, --interactive` | Interactive mode (future TUI support) |
+| `-I, --interactive` | Sync, then open `vision-viewer -I` on the links |
 | `-h, --help` | Show help message |
 
 ## Capabilities
@@ -118,3 +118,14 @@ Projects with vision documentation:
 
 - `project-file-server` - Browse projects in HTML interface
 - `filesystem_scanner.sh` - Scan filesystem hierarchy
+
+## Reading the documents: vision-viewer
+
+`vision-viewer` reads the links in `visions/` (issue 005a):
+
+    vision-viewer                      # list them
+    vision-viewer --view delta-version # print one (the start of a name will do)
+    vision-viewer --search rivers      # the ones that mention a word
+    vision-viewer -I                   # a menu with a preview; v opens one in $PAGER
+
+`sync-visions.sh -I` syncs first and then opens the same menu.
