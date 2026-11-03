@@ -19,7 +19,7 @@ one in a trough, and the ridge losing — because it was seen first.
 | 206 | Damage is buffered, then applied | built |
 | 207 | Health comes back on a shared timer | built |
 | 208 | Death leaves bones | built |
-| 209 | The thread pool slices the tick | not started |
+| 209 | The thread pool slices the tick | built |
 | 210 | The command truck moves and dies in one hit | built |
 | 211 | The enforcer walks forward and eats | built |
 

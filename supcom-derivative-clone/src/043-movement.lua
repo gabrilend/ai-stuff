@@ -233,6 +233,14 @@ function M.move_pass_slice(world, first, last)
 end
 -- }}}
 
+-- {{{ function M.move_pass_before()
+-- What the thread pool runs, unsliced, before the move pass's slices: the
+-- occupancy they read.
+M.move_pass_before = function(world)
+  M.occupancy_pass(world)
+end
+-- }}}
+
 -- {{{ function M.move_pass()
 -- The tick's move row over the whole world: the occupancy first, then every unit.
 function M.move_pass(world)

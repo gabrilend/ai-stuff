@@ -31,8 +31,11 @@ tick, so the increment of now is settled before any system reads it.
 
 ## Data structures it owns
 
-`SYSTEMS`, each row `{name, run, sliceable, run_slice, waiting_for}`. `run` takes
-the world; `run_slice` takes the world and a first and last unit id.
+`SYSTEMS`, each row `{name, run, sliceable, run_slice, before, waiting_for}`.
+`run` takes the world; `run_slice` takes the world and a first and last unit id;
+`before`, when a sliceable row has one, is an unsliced step its slices read, run
+once first. `advance` runs a sliceable row through the thread pool's
+`run_sliced` (issue 209) and every other row's `run` directly.
 
 | # | Row | Sliceable | Built by |
 | --- | --- | --- | --- |
@@ -51,4 +54,5 @@ the world; `run_slice` takes the world and a first and last unit id.
 | 13 | `snapshot` | no | `snapshot.snapshot_pass` (109) |
 
 A sliceable row's module exports `<function>_slice` beside its whole-world
-function.
+function, and `<function>_before` when the slices need an unsliced step first
+(the move pass's occupancy).

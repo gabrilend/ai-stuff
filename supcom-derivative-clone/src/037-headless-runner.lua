@@ -72,6 +72,7 @@ local snapshot = world_module.load("snapshot")
 local commands = world_module.load("commands")
 local sightlines = world_module.load("sightlines")
 local dunes = world_module.load("the-dunes")
+local pool = world_module.load("thread-pool")
 
 -- {{{ local function wall_clock()
 -- Seconds on the system's monotonic clock, for the report's wall time. Lua's own
@@ -93,7 +94,7 @@ end
 -- The report's fields in the order `lines` writes them.
 M.REPORT = {"seed", "ticks", "hash", "ended", "wall_seconds", "sightline_questions",
             "sightline_seconds", "replay", "replay_checked", "mismatch_tick", "factories",
-            "shortest_pattern"}
+            "shortest_pattern", "workers"}
 
 -- {{{ local function read_lines()
 -- A file's lines, each with its number, comments and blank lines left out. A
@@ -290,6 +291,9 @@ end
 --              interval its log was recorded at.
 --   replay  -- a replay log's path: play its commands and compare its hashes,
 --              instead of recording a new one
+--   workers -- how many ranges the thread pool slices a sliceable row into,
+--              beating input/workers (a number, or `cores`); the answer is the
+--              same at any count, which the reproducibility test holds it to
 --   bots    -- reserved for the bot (issue 901); nothing reads it yet
 function M.run(root, options)
   options = options or {}
@@ -328,13 +332,15 @@ function M.run(root, options)
     end
     every = log.every
   end
+  local workers = options.workers or pool.read_workers(root)
+  pool.configure(workers)
   local world = the_tick.assemble({}, {field = field, units = options.units or rules.units,
                                        teams = teams, seed = seed, fingerprint_every = every})
 
   sightlines.reset_questions()
   local report = {seed = seed, ended = "", replay = "", replay_checked = 0, mismatch_tick = 0,
                   -- Counted once factories and patterns exist (issues 307, 308).
-                  factories = 0, shortest_pattern = 0}
+                  factories = 0, shortest_pattern = 0, workers = workers}
   local ended, seconds
   if log == nil then
     report.replay = ram_tier(root, "replays") .. "/seed-" .. seed .. ".log"

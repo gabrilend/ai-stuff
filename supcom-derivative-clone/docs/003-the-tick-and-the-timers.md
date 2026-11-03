@@ -115,6 +115,13 @@ its own slice.** A system that needs to write elsewhere buffers what it wants to
 write and a later, unsliced system applies the buffer. Damage is the model — a
 shot is buffered at fire time and applied at land time, in order.
 
+How the ranges are run is a backend behind the pool's interface. Today it is
+`serial`: the ranges run one after another, lowest first. A threaded backend
+waits on a threading library being vendored. Because a sliced system writes
+only its own range, the answer cannot depend on the backend or the worker
+count, and a test plays one seed at one worker and at many and compares the
+fingerprints.
+
 ## The snapshot
 
 At the end of every so many ticks the world is **fingerprinted** — a hash of
