@@ -28,3 +28,16 @@ kind's `claim_radius`: two for the tank, the anti-air gun, the frigate and the
 command truck, four for the enforcer (B6's working ruling), and zero for the
 helicopter, because a plane claims no ground. No value a match used changed;
 the enforcer's four and the plane's zero are new.
+
+**The artillery** (issue 502). It is the first experimental row in the
+catalogue:
+- health 400 and damage 80, with a flat falloff;
+- shell speed 0.5 cells a tick, the slowest in the catalogue;
+- a reload of 8 seconds and a heal period of 3 seconds;
+- speed 0.05;
+- a cost of 10,000 mass and 1,000 energy, which is a hundred times a tank's
+  leaning resource, as test 023 asks;
+- build time 120 seconds.
+
+Every number is a guess to be measured. Issue 501 owns pricing the
+experimentals through the cost table.

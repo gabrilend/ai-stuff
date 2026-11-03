@@ -63,6 +63,7 @@ The legend:
 - `U units alive, C commands waiting, R refusals kept`.
 
 `LETTERS` follows the unit catalogue's `index` column: `T` tank, `A` anti-air
-gun, `H` helicopter, `F` frigate, `C` command truck, `E` enforcer. A unit of a
+gun, `H` helicopter, `F` frigate, `C` command truck, `E` enforcer, `R`
+artillery. A unit of a
 kind with no letter draws as `?`, loudly rather than as ground; phase 2's tests
 check that every catalogue kind has its own letter.

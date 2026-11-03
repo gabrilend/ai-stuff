@@ -8,7 +8,9 @@ function is misbehaving; this is for everything else.
 ## What it is for
 
 One table, keyed by kind name, one row per kind of the demo: `tank`,
-`anti-air`, `helicopter`, `frigate`, `command-truck`, `enforcer`. Every field is
+`anti-air`, `helicopter`, `frigate`, `command-truck`, `enforcer`, and the first
+experimental, `artillery` (issue 502; issue 501 owns the experimentals as a
+whole). Every field is
 a number or a name and nothing else, so the file is data. The units module
 (`src/041-units.lua`) loads it once through `units.catalogue()`, refuses a bad
 row by its name and field, and turns every time given in seconds into ticks at
@@ -28,6 +30,8 @@ values, and every change to one goes in [the balance ledger](../docs/balance-upd
 - Every kind heals on its own counter, so no two kinds share a heal period.
 - Planes fly (an altitude above zero) and nothing else does; a plane claims no
   ground.
+- The artillery's shell loses nothing to distance (`falloff = "flat"`), is the
+  slowest in the catalogue, and it fires by its team's eyes (`team_sight`).
 
 `./report-catalogue` (through `units.report()`) prints every row and these
 relations in tank shells, so a
@@ -60,6 +64,8 @@ The file returns one table: `{[name] = row}`.
 | `shield` | integer | the enforcer's sphere; zero elsewhere |
 | `shield_seconds` | double | the sphere's recharge period; zero where there is no shield; becomes `shield_ticks`, the period of `world.recharge.<name>` |
 | `cost_mass`, `cost_energy` | integer | the construction stream's totals |
+| `falloff` | name | its falloff curve's shape, a row of targeting's `FALLOFF`: `linear-to-floor` or `flat` (issue 502); a name no row has is refused when targeting loads |
+| `team_sight` | integer | 1 when it fires at what any unit of its team sees rather than at what it sees itself (the artillery, issue 502); 0 otherwise |
 | `build_seconds` | double | how long the stream runs at unit build power; becomes `build_ticks` |
 
 ## Data structures it owns

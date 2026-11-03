@@ -11,7 +11,7 @@ only when hit.
 | Issue | | Status |
 | --- | --- | --- |
 | 501 | Everyone has the same experimentals | not started |
-| 502 | Experimental artillery | not started |
+| 502 | Experimental artillery | built |
 | 503 | The gunship | not started |
 | 504 | The carrier builds while it moves | not started |
 | 505 | The experimental air factory unleashes bombers | not started |
