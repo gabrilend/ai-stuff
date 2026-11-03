@@ -70,6 +70,13 @@ int program_unfinished(int program, struct map_report *report);
  * marked with that number (1 taken, 0 none waiting, negative an error). */
 int program_argument(int program, int door, const void *value, size_t size);
 int program_result(int program, int door, void *out, size_t size);
+/* An argument delivered by the clock: `value` into argument `door` at
+ * `first_ns`, then every `period_ns` after, each moment measured from the
+ * one before (an engine timer, issue 206). Answers the timer's number, for
+ * engine_timer_cancel, or a negative error. The input frame of phase 5 is
+ * one of these (issue 501). */
+int program_argument_every(int program, int door, const void *value, size_t size,
+                           uint64_t first_ns, uint64_t period_ns);
 int program_argument_count(int program);
 int program_result_count(int program);
 

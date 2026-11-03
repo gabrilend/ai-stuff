@@ -1,0 +1,55 @@
+# input-poll.map — the frame every input surface hangs off (issue 501)
+#
+# The 60 Hz tick is not a box. src/system/096-input.c arms an engine timer
+# that writes a fixed value into this program's argument 0 once every
+# frame, measured from the previous deadline rather than from whenever the
+# boxes finished; when every core has run out of work, the idle path
+# sleeps until that deadline (issue 206). Nothing here arms itself and
+# nothing here ever finishes: every core asleep with the timer armed is
+# this device's ordinary idle state, not a program that ran out of work.
+#
+# A box cannot remember, so the frame number rides a wire that points
+# backwards: `first_frame` puts 0 on it once, and from then on each tick
+# meets the previous frame and sends the next one round again. Only one
+# frame number is ever on that wire, so frames are made one at a time and
+# in order. Each frame fans out to the three surfaces; the read boxes are
+# stubs answering an empty state (502, 503 and 504 make them read), and
+# the event boxes after them are where button, stick and touch events
+# will come from. The settings of 507 will stand between those and any
+# consumer.
+
+boxes = ../boxes/
+
+station first_frame (boxes/062-arithmetic.c:constant)
+  in 0 = 0
+  out 0 - frame.1
+
+station frame (boxes/095-input.c:frame_next)
+  in 0 - 0$
+  in 1 - first_frame.0
+  in 1 - frame.0
+  out 0 - frame.1
+  out 0 - read_buttons.0
+  out 0 - read_sticks.0
+  out 0 - read_touch.0
+
+station read_buttons (boxes/095-input.c:read_buttons)
+  in 0 - frame.0
+  out 0 - button_events.0
+
+station read_sticks (boxes/095-input.c:read_sticks)
+  in 0 - frame.0
+  out 0 - stick_events.0
+
+station read_touch (boxes/095-input.c:read_touch)
+  in 0 - frame.0
+  out 0 - touch_events.0
+
+station button_events (boxes/095-input.c:button_events)
+  in 0 - read_buttons.0
+
+station stick_events (boxes/095-input.c:stick_events)
+  in 0 - read_sticks.0
+
+station touch_events (boxes/095-input.c:touch_events)
+  in 0 - read_touch.0
