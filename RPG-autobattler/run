@@ -437,6 +437,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_match').run_all()
     " 2>/dev/null && print_success "Match tests passed" || print_error "Match tests failed"
+    
+    # Test the match drawing calls (shapes requested, not how they look)
+    print_info "Testing Match drawing..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_match_renderer').run_all()
+    " 2>/dev/null && print_success "Match drawing tests passed" || print_error "Match drawing tests failed"
 }
 # }}}
 

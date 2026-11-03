@@ -4,6 +4,7 @@ local debug = require("src.utils.debug")
 local TutorialSystem = require("src.systems.tutorial_system")
 local Vector2 = require("src.utils.vector2")
 local Match = require("src.systems.match")
+local MatchRenderer = require("src.systems.match_renderer")
 
 local GameState = BaseState:new("game")
 
@@ -157,8 +158,13 @@ end
 function GameState:draw()
     BaseState.draw(self)
     
-    -- Draw test pattern (from main.lua)
-    self:drawTestPattern()
+    -- While the tutorial runs it explains the test pattern, so show that;
+    -- once play starts, show the match instead.
+    if gameState.gamePaused or not self.match then
+        self:drawTestPattern()
+    else
+        MatchRenderer.draw(love.graphics, self.match)
+    end
     
     -- Draw UI text
     love.graphics.setColor(1, 1, 1)
