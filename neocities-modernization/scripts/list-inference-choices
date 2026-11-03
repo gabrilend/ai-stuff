@@ -17,9 +17,9 @@
 -- from the same place rather than each growing its own copy of the parsing.
 --
 -- Usage:
---   scripts/list-inference-choices [DIR] --servers   -> one server name per line
---   scripts/list-inference-choices [DIR] --models    -> one model name per line
--- DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
+--   scripts/list-inference-choices [--dir PATH] --servers   -> one server name per line
+--   scripts/list-inference-choices [--dir PATH] --models    -> one model name per line
+-- --dir PATH defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
 --
 -- Exits non-zero with a message on stderr when the config has no servers, rather
 -- than printing nothing: an empty list and a broken config look identical to a
@@ -37,7 +37,7 @@ end
 -- }}}
 
 -- {{{ parse_args(args)
--- First bare (non "--") argument is DIR; --servers / --models choose the list.
+-- --servers / --models choose the list.
 local function parse_args(args)
     local dir, what = nil, nil
     for _, a in ipairs(args or {}) do
@@ -45,19 +45,21 @@ local function parse_args(args)
             what = "servers"
         elseif a == "--models" then
             what = "models"
-        elseif a:sub(1, 1) ~= "-" then
-            if not dir then dir = a end
         end
     end
     return dir, what
 end
 -- }}}
 
-local provided_dir, what = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). It used to be the first
+-- bare word. parse_args reads this program's own flags from what is left.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil))
+local _, what = parse_args(OWN_ARGS)
 
 if not what then
-    io.stderr:write("Usage: list-inference-choices [DIR] --servers|--models\n")
+    io.stderr:write("Usage: list-inference-choices [--dir PATH] --servers|--models\n")
     os.exit(2)
 end
 

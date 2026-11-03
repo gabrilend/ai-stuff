@@ -50,10 +50,11 @@
 #   scripts/quarantine-stale-output --plan
 #   scripts/quarantine-stale-output --move
 #   scripts/quarantine-stale-output --restore --group media-flat-layout-orphans
-#   scripts/quarantine-stale-output --plan /path/to/other/project/root
+#   scripts/quarantine-stale-output --plan --dir /path/to/other/project/root
 #
-# DIR defaults to the hard-coded project root below; pass it as a bare argument
-# to point the tool at a different checkout.
+# The project folder defaults to the hard-coded project root below; pass
+# --dir PATH to point the tool at a different checkout. A bare word stops the
+# tool (Issue 10-076).
 
 set -eu
 
@@ -63,6 +64,12 @@ MODE="plan"
 QUIET=false
 ONLY_GROUPS=""
 
+# The project folder: --dir PATH, or the path above; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). What is left is this script's
+# own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$DIR" "--group" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --plan)    MODE="plan";    shift ;;
@@ -84,13 +91,9 @@ while [ $# -gt 0 ]; do
             sed -n '2,58p' "$0"
             exit 0
             ;;
-        -*)
+        *)
             echo "Error: unknown option: $1" >&2
             exit 1
-            ;;
-        *)
-            DIR="$1"
-            shift
             ;;
     esac
 done
@@ -134,7 +137,7 @@ ensure_holding_area() {
         echo "       It builds the tmp/ -> RAM symlinks this tool writes into." >&2
         exit 1
     fi
-    "$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null
+    "$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" >/dev/null
     mkdir -p "$HOLD"
 }
 # }}}

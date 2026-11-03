@@ -7,7 +7,7 @@ Design: Issue 10-072.
 ## Usage
 
 ```
-scripts/ensure-site-in-ram [DIR] [--migrate]
+scripts/ensure-site-in-ram [--dir PATH] [--migrate]
 ```
 
 | argument | type | meaning |

@@ -13,15 +13,15 @@
 # that never reads the section is reported, and "file.lua:function" is
 # understood as a file.
 #
-# Run: bash scripts/audit-config-keys.test.sh [project-dir]
+# Run: bash scripts/audit-config-keys.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/audit-config-keys-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}/src"
@@ -76,7 +76,7 @@ git -C "${SCRATCH}" init -q
 git -C "${SCRATCH}" add config.lua src/reader.lua src/never.lua
 # }}}
 
-"${DIR}/scripts/audit-config-keys" "${SCRATCH}" > "${SCRATCH}/report.txt"
+"${DIR}/scripts/audit-config-keys" --dir "${SCRATCH}" > "${SCRATCH}/report.txt"
 status=$?
 
 if [ "${status}" -eq 1 ]; then pass=$((pass+1)); echo "  ok   - exits 1 when something is unread"

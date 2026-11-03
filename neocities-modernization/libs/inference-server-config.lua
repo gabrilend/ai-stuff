@@ -63,22 +63,31 @@ local function load_config()
     end
 
     if not project_root then
-        -- Try to detect from package.path
-        local path = package.path:match("([^;]+)/libs/%?%.lua")
-        if path then
-            project_root = path
-        else
-            -- Fallback default
-            project_root = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+        -- This file sits in the project's libs/, so the folder above it is
+        -- the project it belongs to. (Issue 10-076, owner 2026-11-03: "should
+        -- remove fallback defaults". It used to take the first libs/ entry on
+        -- package.path -- whichever project that was -- and then a
+        -- written-in folder.)
+        local own = debug.getinfo(1, "S").source:sub(2)
+        project_root = own:match("(.+)/libs/[^/]+$")
+        if not project_root and own:match("^%.?/?libs/") then
+            local p = io.popen("pwd")
+            project_root = p:read("*l")
+            p:close()
+        end
+        if not project_root then
+            error("inference-server-config: cannot tell which project to read config.lua from "
+                .. "(it was loaded from " .. own .. "); call set_project_root(DIR) first", 0)
         end
     end
 
     local config_path = project_root .. "/config.lua"
     local ok, result = pcall(dofile, config_path)
     if not ok then
-        -- Config not available, use empty
-        config = {}
-        return config
+        -- A config.lua that cannot be read is an error. It used to be taken
+        -- as an empty one, so every server and model then looked "not
+        -- configured", an error pointing away from the real cause.
+        error("inference-server-config: could not read " .. config_path .. ": " .. tostring(result), 0)
     end
 
     config = result

@@ -22,13 +22,16 @@
 # error here, not a skipped check -- a test that silently passes on no data is worse
 # than no test.
 #
-# Usage: scripts/seed-reproducibility.test.sh [DIR]
-#   DIR defaults to the hard-coded project path; pass a path to run from anywhere.
+# Usage: scripts/seed-reproducibility.test.sh [--dir PATH]
+#   --dir PATH defaults to the hard-coded project path; pass a path to run from anywhere.
 
 set -u
 
 # {{{ paths + preconditions
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 GENERATOR="$DIR/src/wordcloud-generator.lua"
 # a trial run (--out): the page goes into RAM, not the site, and no record is
 # added to archive/wordclouds/
@@ -53,7 +56,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 # dangling. Ensure its target exists before writing (project convention), via the
 # canonical helper if present, else by creating the resolved target directly.
 if [ -x "$DIR/scripts/ensure-tmp-symlink" ]; then
-    "$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null 2>&1 || true
+    "$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" >/dev/null 2>&1 || true
 fi
 TMP_TARGET="$(readlink -f "$DIR/tmp" 2>/dev/null || echo "$DIR/tmp")"
 mkdir -p "$TMP_TARGET" || fail "could not create tmp target $TMP_TARGET"
@@ -96,7 +99,7 @@ run_with_seed() {
     # --yes: take config.lua's word count and page size without asking (Issue
     # 10-065a); this test is about the seed, and runs with no one at the keyboard
     rm -f "$WORDCLOUD_HTML"
-    luajit "$GENERATOR" "$DIR" --seed "$seed" --yes --model "$MODEL" --out "$TRIAL_DIR" --dir "$TEST_ASSETS" >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
+    luajit "$GENERATOR" --dir "$DIR" --seed "$seed" --yes --model "$MODEL" --out "$TRIAL_DIR" --assets "$TEST_ASSETS" >/dev/null 2>&1 || fail "generator exited non-zero for seed $seed"
     [ -f "$WORDCLOUD_HTML" ] || fail "generator produced no wordcloud.html for seed $seed"
     cp "$WORDCLOUD_HTML" "$SNAP_DIR/$snapshot" || fail "could not snapshot seed $seed"
 }

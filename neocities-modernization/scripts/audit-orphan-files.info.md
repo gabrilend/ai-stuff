@@ -12,8 +12,8 @@ dead, because its only caller was Lua written inside a shell script.
 
 ## Usage
 
-    scripts/audit-orphan-files [DIR]          list orphans
-    scripts/audit-orphan-files [DIR] --why    also show which files name each one
+    scripts/audit-orphan-files [--dir PATH]          list orphans
+    scripts/audit-orphan-files [--dir PATH] --why    also show which files name each one
 
 Exit status: 0 no orphans, 1 some found.
 

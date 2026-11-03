@@ -12,8 +12,8 @@ onto the command line), or a feature is replaced and its switch is left behind.
 
 ## Usage
 
-    scripts/audit-config-keys [DIR]          report the unread settings
-    scripts/audit-config-keys [DIR] --all    also list what IS read, and by which files
+    scripts/audit-config-keys [--dir PATH]          report the unread settings
+    scripts/audit-config-keys [--dir PATH] --all    also list what IS read, and by which files
 
 Exit status: 0 nothing unread and no stale comments, 1 something found,
 2 `config.lua` could not be loaded.

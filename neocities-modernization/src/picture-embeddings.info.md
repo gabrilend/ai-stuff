@@ -11,7 +11,7 @@ cache; it does not talk to the server.
 Run by `run.sh` (`run_generate_picture_embeddings`, inside Stage 6 while the
 server is up), or by hand:
 
-    luajit src/picture-embeddings.lua [DIR] --model NAME --server NAME
+    luajit src/picture-embeddings.lua [--dir PATH] --model NAME --server NAME
 
 ## The cache: `<model's embeddings folder>/picture_embeddings.json`
 

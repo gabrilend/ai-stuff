@@ -3,13 +3,23 @@
 -- emphasis styled with its marks kept, a line exactly 80 wide kept whole, a
 -- content warning boxed wherever it falls, golden walls around an indented
 -- line, pictures before the navigation boxes, screen-reader labels on bars.
--- Run: luajit src/poem-entry.test.lua [project-dir]
+-- Run: luajit src/poem-entry.test.lua [--dir PATH]
 
 -- {{{ local function setup_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_path()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local project_dir = arg[1] or src_dir:gsub("src/$", "")
+    local project_dir = PROJECT_DIR_ARG and (PROJECT_DIR_ARG .. "/") or src_dir:gsub("src/$", "")
     package.path = project_dir .. "/src/?.lua;" .. project_dir .. "/libs/?.lua;" .. package.path
 end
 -- }}}

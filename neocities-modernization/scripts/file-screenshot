@@ -17,28 +17,38 @@
 -- picture's. config.lua's own text is kept in the fingerprint file too, so
 -- the changed settings lines can be shown.
 --
--- Usage: scripts/file-screenshot [DIR] PICTURE NAME [--made-by TEXT]
---   DIR        project folder (default below)
---   PICTURE    the image to file (it is copied; the original is left)
---   NAME       a short dash-separated name: phone-390-similar-page
---   --made-by  how the picture was made (a command, the settings), quoted
+-- Usage: scripts/file-screenshot [--dir PATH] --picture FILE --name NAME [--made-by TEXT]
+--   --dir PATH      project folder (default below)
+--   --picture FILE  the image to file (it is copied; the original is left)
+--   --name NAME     a short dash-separated name: phone-390-similar-page
+--   --made-by TEXT  how the picture was made (a command, the settings), quoted
+--   A word with no flag in front of it stops the script (Issue 10-076). The
+--   picture and name were bare words, and a third one in front was the folder.
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-local positional, made_by = {}, nil
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076).
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization",
+        { ["--picture"] = true, ["--name"] = true, ["--made-by"] = true })
+local PICTURE, NAME, made_by = nil, nil, nil
 do
     local i = 1
-    while arg[i] do
-        if arg[i] == "--made-by" then made_by = arg[i + 1]; i = i + 2
-        else positional[#positional + 1] = arg[i]; i = i + 1 end
+    while OWN_ARGS[i] do
+        local a = OWN_ARGS[i]
+        if a == "--made-by" then made_by = OWN_ARGS[i + 1]; i = i + 2
+        elseif a == "--picture" then PICTURE = OWN_ARGS[i + 1]; i = i + 2
+        elseif a == "--name" then NAME = OWN_ARGS[i + 1]; i = i + 2
+        else
+            io.stderr:write("file-screenshot: unknown option " .. a .. "\n")
+            os.exit(1)
+        end
     end
 end
-if #positional == 3 then DIR = table.remove(positional, 1) end
-local PICTURE, NAME = positional[1], positional[2]
 if not PICTURE or not NAME then
-    io.stderr:write("usage: scripts/file-screenshot [DIR] PICTURE NAME [--made-by TEXT]\n")
+    io.stderr:write("usage: scripts/file-screenshot [--dir PATH] --picture FILE --name NAME [--made-by TEXT]\n")
     os.exit(1)
 end
 if not NAME:match("^[%w%-]+$") then

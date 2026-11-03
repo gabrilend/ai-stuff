@@ -13,9 +13,9 @@
 # "please write a character counting script and count every line".)
 #
 # Usage:
-#   scripts/validate-output [DIR] --jobs N [--output PATH] [--max-width N] [--report PATH]
+#   scripts/validate-output [--dir PATH] --jobs N [--output PATH] [--max-width N] [--report PATH]
 #
-#   DIR          project directory (default below)
+#   --dir PATH   project directory (default below)
 #   --jobs       how many pages-checking processes run at once (required; run.sh
 #                passes its --threads value, so one number governs the whole run)
 #   --output     the built site to check (default DIR/output)
@@ -39,14 +39,19 @@ REPORT=""
 JOBS=""
 
 # {{{ parse arguments
+# The project folder: --dir PATH, or the path above; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). What is left is this script's
+# own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$DIR" "--jobs --output --max-width --report" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --jobs)      JOBS="$2"; shift 2 ;;
         --output)    OUTPUT="$2"; shift 2 ;;
         --max-width) MAX_WIDTH="$2"; shift 2 ;;
         --report)    REPORT="$2"; shift 2 ;;
-        --*)         echo "validate-output: unknown option $1" >&2; exit 1 ;;
-        *)           DIR="$1"; shift ;;
+        *)           echo "validate-output: unknown option $1" >&2; exit 1 ;;
     esac
 done
 [ -n "$OUTPUT" ] || OUTPUT="$DIR/output"
@@ -75,7 +80,7 @@ if [ ! -d "$OUTPUT" ]; then
 fi
 # }}}
 
-"$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null || exit 1
+"$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" >/dev/null || exit 1
 # Each run works in its own folder, named by its process id: two checks at
 # once (the test runner runs several tests side by side, two of which run
 # this) used to share one folder, and each wiped the other's findings. A

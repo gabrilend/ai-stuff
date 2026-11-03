@@ -38,8 +38,13 @@ C_RESET="\033[0m"
 #   --server=NAME : override the default_inference_server from config
 #   --model=NAME  : required; the model to serve, one of that server's
 #                   available_models (loads its GGUF). There is no default.
-#   /path/to/dir  : override the project DIR (positional)
+#   --dir PATH    : override the project DIR; a stray word stops the script
+#                   (libs/project-dir.sh, Issue 10-076; it used to be any
+#                   bare word)
 parse_arguments() {
+    source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+    project_dir_read "$DIR" "" "$@"
+    set -- "${PROJECT_ARGS[@]}"
     for arg in "$@"; do
         case "$arg" in
             --server=*)
@@ -55,13 +60,10 @@ parse_arguments() {
                 sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
                 exit 0
                 ;;
-            -*)
+            *)
                 echo -e "${C_RED}Unknown option: $arg${C_RESET}" >&2
                 echo "Run with --help for usage." >&2
                 exit 1
-                ;;
-            *)
-                DIR="$arg"
                 ;;
         esac
     done
@@ -269,7 +271,7 @@ launch_server() {
     # debug, the plain file redirect keeps things fast.
     if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
         "$server_bin" "${launch_flags[@]}" \
-            > >("${DIR}/scripts/fsync-logger" --quiet "$LOG_FILE") 2>&1 &
+            > >("${DIR}/scripts/fsync-logger" --quiet --log "$LOG_FILE") 2>&1 &
     else
         "$server_bin" "${launch_flags[@]}" > "$LOG_FILE" 2>&1 &
     fi
@@ -315,7 +317,7 @@ wait_for_ready() {
 # {{{ main
 main() {
     parse_arguments "$@"
-    "${DIR}/scripts/ensure-tmp-symlink" "${DIR}" 2>/dev/null
+    "${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" 2>/dev/null
     # run.sh's --debug exports NEOCITIES_LOG_DIR pointing at durable disk
     # (output/debug-logs) so the server log survives the reboot a hard GPU
     # lock forces. Default stays in the RAM-backed tmp/. The PID file stays in

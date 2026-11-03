@@ -127,6 +127,12 @@ parse_arguments() {
     SKIP_CUDA=0
     FORCE_CUDA=0
 
+    # The project folder: --dir PATH, or the path above; a stray word stops
+    # the script (libs/project-dir.sh, Issue 10-076). What is left is this
+    # script's own flags.
+    source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+    project_dir_read "$DIR" "" "$@"
+    set -- "${PROJECT_ARGS[@]}"
     for arg in "$@"; do
         case "$arg" in
             --clean)
@@ -149,14 +155,10 @@ parse_arguments() {
                 sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
                 exit 0
                 ;;
-            -*)
+            *)
                 echo -e "${C_RED}Unknown option: $arg${C_RESET}" >&2
                 echo "Run with --help for usage." >&2
                 exit 1
-                ;;
-            *)
-                # First positional argument is the project directory.
-                DIR="$arg"
                 ;;
         esac
     done
@@ -292,7 +294,7 @@ check_requirements() {
 ensure_directories() {
     mkdir -p "${DIR}/libs"
     mkdir -p "${DIR}/assets/models"
-    "${DIR}/scripts/ensure-tmp-symlink" "${DIR}" 2>/dev/null || mkdir -p "${DIR}/tmp"
+    "${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" 2>/dev/null || mkdir -p "${DIR}/tmp"
     mkdir -p "$DOWNLOAD_DIR"
 }
 # }}}

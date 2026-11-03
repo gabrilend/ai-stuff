@@ -56,14 +56,10 @@ local function parse_args(args)
         elseif a == "--no-boosts" then
             include_boosts = false
             i = i + 1
-        elseif not a:match("^%-") then
-            -- Positional arguments: first is DIR, second is source override
-            if not dir then
-                dir = a
-            else
-                source_override = a
-            end
-            i = i + 1
+        elseif a == "--source" then
+            -- the source to read instead of the usual one (a temporary extraction)
+            source_override = args[i + 1]
+            i = i + 2
         else
             i = i + 1
         end
@@ -73,9 +69,12 @@ local function parse_args(args)
 end
 -- }}}
 
--- Get project directory and options from command line
-local parsed_dir, OVERRIDE_SOURCE, CLI_INCLUDE_BOOSTS = parse_args(arg)
-local DIR = setup_dir_path(parsed_dir)
+-- The project folder: --dir PATH, or the path above; the source override:
+-- --source PATH; a stray word stops the script (libs/project-dir.lua, Issue
+-- 10-076). Both used to be bare words, told apart by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), { ["--source"] = true })
+local _, OVERRIDE_SOURCE, CLI_INCLUDE_BOOSTS = parse_args(OWN_ARGS)
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path

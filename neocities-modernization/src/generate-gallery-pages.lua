@@ -5,7 +5,7 @@
 -- Creates gallery index and per-source gallery pages from image-catalog.json
 --
 -- Usage:
---   luajit src/generate-gallery-pages.lua [DIR]
+--   luajit src/generate-gallery-pages.lua [--dir PATH]
 --
 -- Output:
 --   output/gallery/index.html - Gallery index listing all sources
@@ -21,46 +21,15 @@
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- {{{ parse_args
-local function parse_args(args)
-    local dir = nil
-    local i = 1
-    while i <= #(args or {}) do
-        local a = args[i]
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
-        -- it must still swallow it: the branch below claims any token that does
-        -- not start with "-" as the positional project directory, so an
-        -- unconsumed PATH would silently REPLACE the project root -- and since
-        -- package.path is built from that root, the program would then fail to
-        -- find its own libraries. Skipping a flag is not the same as skipping a
-        -- flag and its argument.
-        if a == "--dir" then
-            i = i + 2
-        elseif not a:match("^%-") then
-            dir = a
-            i = i + 1
-        else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
-            i = i + 1
-        end
-    end
-    return dir
-end
--- }}}
-
-local provided_dir = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). It used to be any bare
+-- word, which is why its old parser had to swallow --assets' value by hand
+-- (Issue 10-065): an unswallowed folder became the project root. --assets is
+-- declared as taking a value, so the reader does that now. The assets folder
+-- itself is read by utils.init_assets_root.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2),
+        "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--assets"] = true })
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")

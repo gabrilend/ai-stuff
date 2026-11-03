@@ -8,7 +8,7 @@ server), then the pages (fast, from those caches). Design: Issues 8-043,
 
 ## Command line
 
-`luajit src/generate-word-pages.lua [DIR] (--embeddings-only | --html-only) --words N|--all --poems-per-page N --chrono-per-page N --threads N --model NAME --server NAME [--yes]`
+`luajit src/generate-word-pages.lua [--dir PATH] (--embeddings-only | --html-only) --words N|--all --poems-per-page N --chrono-per-page N --threads N --model NAME --server NAME [--yes]`
 
 `--threads` is how many page workers draw the pages (`run.sh` passes the
 build's one thread count).

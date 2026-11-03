@@ -29,7 +29,11 @@
 # --generate-diversity, etc.) or by stage number (--stage 8,
 # --stage=5). Use --full to run all 10 stages.
 #
-# Usage: ./run.sh [FLAGS] [PROJECT_DIR]
+# Usage: ./run.sh [FLAGS]   (the project folder is --dir PATH; no bare words)
+#
+# project-dir: own -- its flag loop reads --dir and stops on a stray word
+# itself, because it also checks the value of each of its ~20 value flags
+# (take_flag_value); the shared reader (libs/project-dir.sh) would list them twice.
 #
 # ── The no-defaults contract (Issue 10-065) ─────────────────────────────────
 # Every value this script hands to a stage must arrive on the command line.
@@ -49,7 +53,7 @@
 # used to mean "go ask config.privacy.include_boosts" -- that is a fallback, so
 # it became a required yes/no.
 #
-# Two flags keep a DERIVED default, and the difference is worth naming: --dir and
+# Two flags keep a DERIVED default, and the difference is worth naming: --assets and
 # --output are computed once, from the project root, into a single variable that
 # every path below is then built from. A default computed in one visible place is
 # a different thing from a fallback consulted at ten scattered call sites.
@@ -73,7 +77,7 @@
 # the opening and the closing one and nothing else.
 
 # {{{ setup_dir_path
-# The project-root convention: a hard-coded path that any argument overrides, so
+# The project-root convention: a hard-coded path that --dir PATH overrides, so
 # the script runs correctly from any working directory. This is NOT one of the
 # value fallbacks Issue 10-065 removed -- it is the location of the project
 # itself, which must be known before the script can read anything at all
@@ -224,7 +228,7 @@ fi
 # at its implementation, not in front of someone who just wants the spelling.
 show_help() {
     cat << 'EOF'
-Usage: ./run.sh [FLAGS] [PROJECT_DIR]
+Usage: ./run.sh [FLAGS]
 
 Runs the poem processing pipeline. Pick stages by name or number; they always
 run in pipeline order. Values are required per-stage -- run with just your
@@ -261,8 +265,12 @@ Optional:
                         if omitted.
   --force               Force regeneration even if files are fresh
   --force-stage N       Force regenerate one stage only (1-10)
-  --dir PATH            Assets directory      (default: <project>/assets)
+  --dir PATH            Project directory     (default: this script's own)
+  --assets PATH         Assets directory      (default: <project>/assets)
   --output PATH         Site output directory (default: <project>/output)
+
+  Every word on the command line is a flag or a flag's value; a stray word
+  stops the run.
 
 Output Control:
   --quiet               Suppress progress messages
@@ -443,12 +451,23 @@ while [[ $# -gt 0 ]]; do
             INTERACTIVE=true
             shift
             ;;
+        # Issue 10-076: the two folders are named by flags. --dir is the
+        # project folder (it used to be the assets folder, a name that read as
+        # this script's own DIR); --assets is the assets folder.
         --dir)
-            take_flag_value "--dir" "$2"; ASSETS_DIR="$FLAG_VALUE"
+            take_flag_value "--dir" "$2"; DIR="$FLAG_VALUE"
             shift 2
             ;;
         --dir=*)
-            take_flag_value "--dir" "${1#*=}"; ASSETS_DIR="$FLAG_VALUE"
+            take_flag_value "--dir" "${1#*=}"; DIR="$FLAG_VALUE"
+            shift
+            ;;
+        --assets)
+            take_flag_value "--assets" "$2"; ASSETS_DIR="$FLAG_VALUE"
+            shift 2
+            ;;
+        --assets=*)
+            take_flag_value "--assets" "${1#*=}"; ASSETS_DIR="$FLAG_VALUE"
             shift
             ;;
         --output)
@@ -761,8 +780,16 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            DIR="$1"
-            shift
+            # Issue 10-076: no bare words. The project folder is --dir PATH,
+            # so a word with no flag in front of it is a mistake -- usually a
+            # flag that lost its dashes, whose value would come next. It used
+            # to become the project folder, each such word replacing the last,
+            # and the run then stopped on a missing library under a folder
+            # named after the stray word ("64/scripts/stage-timing.sh").
+            echo "Error: unexpected word on the command line: $1" >&2
+            echo "  Every value follows its flag (--wordcloud-poems 64)." >&2
+            echo "  The project folder is --dir PATH. Use --help for the flag list." >&2
+            exit 1
             ;;
     esac
 done
@@ -1001,7 +1028,8 @@ fi
 # difference from a fallback is that the derivation happens exactly once, here,
 # and every path below is built from the result.
 #
-# What it replaced: --dir used to be forwarded to main.lua as "--dir PATH" and
+# What it replaced (when the assets flag was still called --dir; Issue 10-076
+# renamed it --assets): --dir used to be forwarded to main.lua as "--dir PATH" and
 # nowhere else, while this script separately hardcoded "$DIR/assets/poems.json"
 # for its own freshness checks -- so passing --dir pointed the child at one
 # corpus and left the parent checking another. --output was worse: it reached
@@ -1014,10 +1042,12 @@ if [ -z "$OUTPUT_DIR" ]; then
     OUTPUT_DIR="$DIR/output"
 fi
 
-# The child programs take the assets root as "--dir PATH". Passed unconditionally
-# now, because ASSETS_DIR is always resolved -- there is no "omit the flag and
-# let the child decide" case left.
-ASSETS_ARG="--dir $ASSETS_DIR"
+# The child programs take the assets root as "--assets PATH" (Issue 10-076; it
+# was "--dir PATH", and a child given --dir now stops, so no old spelling can
+# reach one and be read as its project folder). Passed unconditionally, because
+# ASSETS_DIR is always resolved -- there is no "omit the flag and let the child
+# decide" case left.
+ASSETS_ARG="--assets $ASSETS_DIR"
 # }}}
 
 # Ensure we're in the right directory
@@ -1081,7 +1111,7 @@ if $DEBUG; then
     # and a hard lock right after a banner must not lose it to a dirty-page
     # buffer. Slow, but --debug is for catching a freeze, not for speed.
     if ! $INTERACTIVE; then
-        exec > >("$DIR/scripts/fsync-logger" "$LOG_DIR/run.log") 2>&1
+        exec > >("$DIR/scripts/fsync-logger" --log "$LOG_DIR/run.log") 2>&1
     fi
     echo "[DEBUG] Logging to $LOG_DIR (per-line fsync to disk; persists across reboots; logs kept on exit)"
 fi
@@ -1094,7 +1124,7 @@ if $LIST_EXTERNAL; then
 fi
 
 if [ -n "$SYNC_ONLY" ]; then
-    "$DIR/scripts/sync-external-files" "$SYNC_ONLY"
+    "$DIR/scripts/sync-external-files" --source "$SYNC_ONLY"
     exit $?
 fi
 # }}}
@@ -1116,7 +1146,7 @@ fi
 # nothing. ensure-tmp-symlink is the project's idempotent, fail-loud helper for
 # exactly this -- it creates the /tmp target the symlink points at. Done early
 # because the per-run notepad and every stage log live underneath it.
-"$DIR/scripts/ensure-tmp-symlink" "$DIR" || {
+"$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" || {
     echo "Error: could not materialize the tmp/ RAM directory (scripts/ensure-tmp-symlink)" >&2
     exit 1
 }
@@ -1129,7 +1159,7 @@ fi
 # recreates an empty one -- the build then fills it as usual. It stops the run
 # if output/ is still a real folder (the one-time --migrate has not been run),
 # rather than building into the disk folder as before.
-"$DIR/scripts/ensure-site-in-ram" "$DIR" || {
+"$DIR/scripts/ensure-site-in-ram" --dir "$DIR" || {
     echo "Error: the site folder is not set up in RAM (scripts/ensure-site-in-ram)" >&2
     exit 1
 }
@@ -1370,11 +1400,11 @@ run_extract() {
     fi
 
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/update $DIR $boost_flag"
+        log_dry_run "$DIR/scripts/update --dir $DIR $boost_flag"
         return 0
     fi
 
-    "$DIR/scripts/update" "$DIR" $boost_flag || {
+    "$DIR/scripts/update" --dir "$DIR" $boost_flag || {
         echo "Error: Content extraction failed" >&2
         exit 1
     }
@@ -1392,10 +1422,10 @@ run_extract() {
 run_strip_excluded() {
     log_stage "✂ Stripping excluded content from input/"
     if $DRY_RUN; then
-        log_dry_run "lua $DIR/scripts/strip-excluded $DIR"
+        log_dry_run "lua $DIR/scripts/strip-excluded --dir $DIR"
         return 0
     fi
-    if ! lua "$DIR/scripts/strip-excluded" "$DIR"; then
+    if ! lua "$DIR/scripts/strip-excluded" --dir "$DIR"; then
         echo "ERROR: strip-excluded failed -- a broken exclusion path in config.lua." >&2
         echo "       Fix excluded_images and re-run; nothing was stripped or shipped." >&2
         exit 1
@@ -1424,11 +1454,11 @@ run_parse() {
     fi
 
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --parse-only $force_arg $boosts_arg $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua --dir $DIR --parse-only $force_arg $boosts_arg $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --parse-only $force_arg $boosts_arg $ASSETS_ARG || {
+    luajit src/main.lua --dir "$DIR" --parse-only $force_arg $boosts_arg $ASSETS_ARG || {
         echo "Error: Poem parsing failed" >&2
         exit 1
     }
@@ -1440,11 +1470,11 @@ run_validate() {
     log_stage "$(symbol_success "✓") Stage 4/10: Validating poem data"
 
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --validate-only $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua --dir $DIR --validate-only $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --validate-only $ASSETS_ARG || {
+    luajit src/main.lua --dir "$DIR" --validate-only $ASSETS_ARG || {
         echo "Error: Poem validation failed" >&2
         exit 1
     }
@@ -1461,11 +1491,11 @@ run_catalog_images() {
     $VERBOSE && VERBOSE_ARG="--verbose"
 
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG"
+        log_dry_run "luajit src/main.lua --dir $DIR --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG || {
+    luajit src/main.lua --dir "$DIR" --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG || {
         echo "Error: Image cataloging failed" >&2
         exit 1
     }
@@ -1480,7 +1510,7 @@ run_catalog_images() {
 # blank result is a hard error rather than a silently-wrong (empty) path.
 emb_cache_dir() {
     local d
-    d="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" "$@")"
+    d="$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --model "$MODEL_NAME" "$@")"
     if [ -z "$d" ]; then
         echo "Error: could not resolve cache dir (scripts/cache-dir)" >&2
         exit 1
@@ -1554,7 +1584,7 @@ run_generate_embeddings() {
     local model_dir_name="${MODEL_NAME//:/_}"
     local embeddings_file="$(emb_cache_dir)/embeddings.json"
     # Issue 10-065: built from the resolved assets directory, not a hardcoded
-    # "$DIR/assets". When --dir pointed the child programs at another corpus,
+    # "$DIR/assets". When the assets flag (then --dir, now --assets) pointed the child programs at another corpus,
     # this freshness check went on reading the original one -- so the count it
     # compared against was from a different set of poems entirely.
     local poems_file="$ASSETS_DIR/poems.json"
@@ -1620,8 +1650,8 @@ run_generate_embeddings() {
     local server_arg="--server=$INFERENCE_SERVER"
 
     if $DRY_RUN; then
-        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $server_arg $DIR"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --embeddings-only $ASSETS_ARG"
+        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $server_arg --dir $DIR --assets=$ASSETS_DIR"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua --dir $DIR --embeddings-only $ASSETS_ARG"
         return 0
     fi
 
@@ -1631,7 +1661,7 @@ run_generate_embeddings() {
     log_info "   Mode: $(if $FORCE; then echo 'full regeneration'; else echo 'incremental (skip existing)'; fi)"
 
     # Issue 10-028: Apply low priority to expensive embedding generation
-    $NICE_PREFIX "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $server_arg "$DIR" || {
+    $NICE_PREFIX "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $server_arg --dir "$DIR" --assets="$ASSETS_DIR" || {
         echo "Error: Embedding generation failed" >&2
         echo "Make sure the inference server is running with the $MODEL_NAME model" >&2
         exit 1
@@ -1663,7 +1693,7 @@ run_generate_word_embeddings() {
     # files, while this one opened a network connection to the inference server
     # and began embedding -- so `--dry-run` did real work on another machine.
     if $DRY_RUN; then
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --embeddings-only $wordcloud_args $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua --dir $DIR --embeddings-only $wordcloud_args $ASSETS_ARG"
         return 0
     fi
 
@@ -1672,7 +1702,7 @@ run_generate_word_embeddings() {
     # later build its pages from whatever stale embeddings were lying around --
     # and produce a complete-looking word cloud whose rankings answer a question
     # nobody asked on this run.
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only $wordcloud_args $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" --dir "$DIR" --embeddings-only $wordcloud_args $ASSETS_ARG || {
         echo "Error: word embedding generation failed" >&2
         echo "       The per-word similarity pages rank against these embeddings;" >&2
         echo "       continuing would build stage 10 from stale ones." >&2
@@ -1688,10 +1718,10 @@ run_generate_word_embeddings() {
 run_generate_picture_embeddings() {
     log_info "   Embedding pictures by what they show..."
     if $DRY_RUN; then
-        log_dry_run "luajit $DIR/src/picture-embeddings.lua $DIR --model $MODEL_NAME --server $INFERENCE_SERVER"
+        log_dry_run "luajit $DIR/src/picture-embeddings.lua --dir $DIR --model $MODEL_NAME --server $INFERENCE_SERVER"
         return 0
     fi
-    $NICE_PREFIX luajit "$DIR/src/picture-embeddings.lua" "$DIR" --model "$MODEL_NAME" --server "$INFERENCE_SERVER" || {
+    $NICE_PREFIX luajit "$DIR/src/picture-embeddings.lua" --dir "$DIR" --model "$MODEL_NAME" --server "$INFERENCE_SERVER" || {
         echo "Error: picture embedding failed" >&2
         echo "       Pictures are placed among the poems by these vectors;" >&2
         echo "       Stage 6.7 cannot place a picture that has none." >&2
@@ -1801,15 +1831,15 @@ run_generate_semantic_colors() {
                 package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
                 local calc = require('semantic-color-calculator')
                 local utils = require('utils')
-                -- Issue 10-065: '--dir', PATH -- not a bare positional. This read
-                -- init_assets_root({'\$DIR'}), and utils.parse_assets_dir only
-                -- recognizes '--dir PATH' or '--dir=PATH', so a lone positional
+                -- Issue 10-065: the assets flag and PATH -- not a bare positional.
+                -- This read init_assets_root({'\$DIR'}), and utils.parse_assets_dir
+                -- only recognizes the flag form, so a lone positional
                 -- was DISCARDED and the block fell through to the project's own
                 -- assets directory. It happened to be the same path, which is why
-                -- it went unnoticed -- until --dir pointed somewhere else, and
+                -- it went unnoticed -- until the flag pointed somewhere else, and
                 -- then this block silently read a different corpus than the
-                -- stage that launched it.
-                utils.init_assets_root({'--dir', '$ASSETS_DIR'})
+                -- stage that launched it. Issue 10-076 renamed the flag --assets.
+                utils.init_assets_root({'--assets', '$ASSETS_DIR'})
 
                 -- Issue 10-065: the server is set unconditionally now. It used to
                 -- be guarded by a non-empty test on INFERENCE_SERVER, and an
@@ -1891,7 +1921,7 @@ run_generate_semantic_colors() {
         package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
         local calc = require('semantic-color-calculator')
         local utils = require('utils')
-        utils.init_assets_root({'--dir', '$ASSETS_DIR'})
+        utils.init_assets_root({'--assets', '$ASSETS_DIR'})
 
         local poems_data = utils.read_json_file(utils.asset_path('poems.json'))
         local embeddings_data = utils.read_json_file('$embeddings_file')
@@ -1927,10 +1957,10 @@ run_augment_images() {
         exit 1
     fi
     if $DRY_RUN; then
-        log_dry_run "luajit $DIR/src/augment-embeddings-with-images.lua $DIR"
+        log_dry_run "luajit $DIR/src/augment-embeddings-with-images.lua --dir $DIR"
         return 0
     fi
-    $NICE_PREFIX luajit "$DIR/src/augment-embeddings-with-images.lua" "$DIR" || {
+    $NICE_PREFIX luajit "$DIR/src/augment-embeddings-with-images.lua" --dir "$DIR" || {
         echo "Error: image augmentation failed" >&2
         exit 1
     }
@@ -2135,7 +2165,7 @@ run_generate_diversity() {
         log_info "   Mode: GPU-accelerated (Vulkan)"
 
         if $DRY_RUN; then
-            log_dry_run "$DIR/scripts/precompute-diversity-sequences-gpu $DIR"
+            log_dry_run "$DIR/scripts/precompute-diversity-sequences-gpu --dir $DIR"
             return 0
         fi
 
@@ -2148,7 +2178,7 @@ run_generate_diversity() {
         # longer describes anything that can happen.
         # Issue 10-057: pass the run's page settings so the wrapper caps each diversity
         # sequence to the SAME K the similarity cache and the HTML stage use.
-        PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+        PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" --dir "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
             exit 1
         }
@@ -2192,10 +2222,10 @@ run_generate_html() {
         if $stage_force; then
             log_dry_run "rm $OUTPUT_DIR/{similar,different,chronological}/*.html (clear stale pages, --force)"
         fi
-        log_dry_run "$DIR/scripts/sync-page-templates $DIR (restore explore-page copy into input/pages/)"
-        log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
+        log_dry_run "$DIR/scripts/sync-page-templates --dir $DIR (restore explore-page copy into input/pages/)"
+        log_dry_run "luajit src/main.lua --dir $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-gallery-pages.lua --dir $DIR $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-source-browser.lua --dir $DIR"
         return 0
     fi
 
@@ -2217,13 +2247,13 @@ run_generate_html() {
     # page-templates/*.txt; input/ is wiped + re-synced from external sources each
     # run and does NOT carry this prose, so it is copied back in here. (Edit the
     # files in page-templates/ -- input/pages/ is overwritten from them.)
-    "$DIR/scripts/sync-page-templates" "$DIR" || {
+    "$DIR/scripts/sync-page-templates" --dir "$DIR" || {
         echo "Error: failed to restore page templates into input/pages/" >&2
         exit 1
     }
 
     # Issue 10-028: Apply low priority to HTML generation (parallel processing)
-    $NICE_PREFIX luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
+    $NICE_PREFIX luajit src/main.lua --dir "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
     }
@@ -2240,7 +2270,7 @@ run_generate_html() {
     # of broken links -- and the pipeline's final line still reads "completed
     # successfully", which is the part that makes it hard to catch.
     log_info "   Generating image gallery..."
-    $NICE_PREFIX luajit "$DIR/src/generate-gallery-pages.lua" "$DIR" $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/generate-gallery-pages.lua" --dir "$DIR" $ASSETS_ARG || {
         echo "Error: image gallery generation failed" >&2
         echo "       The site links to the gallery either way, so continuing" >&2
         echo "       would publish those links pointing at nothing." >&2
@@ -2257,7 +2287,7 @@ run_generate_html() {
     # half-finished pass is the wrong thing to be relaxed about when the
     # question it answers is "which files leave this machine".
     log_info "   Generating source browser..."
-    $NICE_PREFIX luajit "$DIR/src/generate-source-browser.lua" "$DIR" || {
+    $NICE_PREFIX luajit "$DIR/src/generate-source-browser.lua" --dir "$DIR" || {
         echo "Error: source browser generation failed" >&2
         echo "       This stage decides which source files are published, so a" >&2
         echo "       partial run is not something to continue past." >&2
@@ -2276,14 +2306,15 @@ run_generate_html() {
 # page links to it, so every check of a build without it failed, and a run is
 # only made when the site has changed anyway (owner, 2026-10-07: "we gotta build
 # the 3.2gb zip every time if it changed"). Assembled in RAM
-# (tmp/shared-memory/), then moved into output/ to be served.
+# (tmp/shared-memory/), then published as 90 MB pieces with a page listing
+# them in output/download/ -- Neocities takes no file over 100 MB (Issue 10-077).
 run_build_download_zip() {
     log_stage "📦 Building the download-everything zip"
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/build-download-zip $DIR"
+        log_dry_run "$DIR/scripts/build-download-zip --dir $DIR"
         return 0
     fi
-    if ! $NICE_PREFIX "$DIR/scripts/build-download-zip" "$DIR"; then
+    if ! $NICE_PREFIX "$DIR/scripts/build-download-zip" --dir "$DIR"; then
         echo -e "${RED}❌ The download zip could not be built.${NC}" >&2
         echo "   Every source-browser page links to it, so the site is not complete without it." >&2
         exit 1
@@ -2300,11 +2331,11 @@ run_build_download_zip() {
 run_validate_output() {
     log_stage "📏 Checking every page: line widths and links"
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/validate-output $DIR --output $OUTPUT_DIR --jobs $THREADS"
+        log_dry_run "$DIR/scripts/validate-output --dir $DIR --output $OUTPUT_DIR --jobs $THREADS"
         log_dry_run "$DIR/scripts/validate-poem-representation --output $OUTPUT_DIR --poems $ASSETS_DIR/poems.json --quiet"
         return 0
     fi
-    if ! "$DIR/scripts/validate-output" "$DIR" --output "$OUTPUT_DIR" --jobs "$THREADS"; then
+    if ! "$DIR/scripts/validate-output" --dir "$DIR" --output "$OUTPUT_DIR" --jobs "$THREADS"; then
         echo -e "${RED}❌ The built site has over-wide lines or broken links (report above).${NC}" >&2
         echo "   The pages are all written; this run fails so nothing ships unnoticed." >&2
         exit 1
@@ -2364,8 +2395,8 @@ run_generate_wordcloud() {
     # nothing. Any destructive step in a stage function belongs below this check.
     if $DRY_RUN; then
         log_dry_run "rm $OUTPUT_DIR/wordcloud/*.html (clear stale per-word pages)"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua --dir $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua --dir $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG"
         return 0
     fi
 
@@ -2389,7 +2420,7 @@ run_generate_wordcloud() {
     # characters this entire layout is built from, and the frames shear apart.
     # A silent visual regression is exactly what the build should refuse to ship.
     log_info "   Installing site fonts..."
-    "$DIR/scripts/install-fonts" "$DIR" || {
+    "$DIR/scripts/install-fonts" --dir "$DIR" || {
         echo "Error: font installation failed" >&2
         exit 1
     }
@@ -2397,13 +2428,13 @@ run_generate_wordcloud() {
     # The word cloud IS the site's menu (and carries the live poem index), so a
     # failure here is fatal, not a warning -- there is no usable entry page without it.
     log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" --dir "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG || {
         echo "Error: Word cloud menu generation failed" >&2
         exit 1
     }
 
     log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" --dir "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG || {
         echo "Error: Word similarity page generation failed" >&2
         exit 1
     }
@@ -2583,11 +2614,11 @@ interactive_mode_tui() {
     # makes it appear here with no edit to this file. That is the point: a
     # hand-maintained copy of the list in run.sh would be a second source of
     # truth, and second sources of truth are what this whole issue is about.
-    _choice_servers="$("$DIR/scripts/list-inference-choices" "$DIR" --servers)" || {
+    _choice_servers="$("$DIR/scripts/list-inference-choices" --dir "$DIR" --servers)" || {
         echo "ERROR: could not read the inference server list from config.lua" >&2
         return 1
     }
-    _choice_models="$("$DIR/scripts/list-inference-choices" "$DIR" --models)" || {
+    _choice_models="$("$DIR/scripts/list-inference-choices" --dir "$DIR" --models)" || {
         echo "ERROR: could not read the embedding model list from config.lua" >&2
         return 1
     }
@@ -2864,7 +2895,7 @@ if { $GENERATE_SIMILARITY || $GENERATE_DIVERSITY || $GENERATE_HTML || $GENERATE_
         && ! $GENERATE_EMBEDDINGS; then
     require_embeddings_for_model "the stages selected (7-10 read the model's caches)"
 fi
-PREFLIGHT_ARGS=("$DIR")
+PREFLIGHT_ARGS=(--dir "$DIR")
 $GENERATE_HTML && PREFLIGHT_ARGS+=(--html-threads "$THREADS")
 $EXTRACT && PREFLIGHT_ARGS+=(--extract)
 # The poem list is checked only when this run reads the existing one: if stage
@@ -2891,10 +2922,10 @@ fi
 # needing the inference server, when it is down) is listed, not failed.
 # A dry run only says it would run them: it changes nothing.
 if $DRY_RUN; then
-    log_dry_run "$DIR/scripts/run-tests $DIR --jobs $(nproc)"
+    log_dry_run "$DIR/scripts/run-tests --dir $DIR --jobs $(nproc)"
 else
     log_info "🧪 Running every test ($(nproc) at a time)..."
-    if ! "$DIR/scripts/run-tests" "$DIR" --jobs "$(nproc)"; then
+    if ! "$DIR/scripts/run-tests" --dir "$DIR" --jobs "$(nproc)"; then
         echo "Error: a test failed; nothing was built. Logs: tmp/shared-memory/tests/" >&2
         exit 1
     fi
@@ -2955,7 +2986,7 @@ if [ -n "$MODEL_NAME" ] && ! $GENERATE_EMBEDDINGS; then
     fi
 fi
 
-"$DIR/scripts/write-run-overrides" "$DIR" \
+"$DIR/scripts/write-run-overrides" --dir "$DIR" \
     --model "$MODEL_NAME" \
     --server "$INFERENCE_SERVER" || {
     echo "Error: failed to record run overrides (scripts/write-run-overrides)" >&2
@@ -2978,8 +3009,8 @@ fi
 # above where any similarity file belongs. Found by noticing that exact directory
 # on this machine and matching its timestamp to a --validate --dry-run.
 if [ -n "$MODEL_NAME" ]; then
-    _ram_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")"
-    _disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" --disk)"
+    _ram_dir="$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --model "$MODEL_NAME")"
+    _disk_dir="$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --model "$MODEL_NAME" --disk)"
     if [ -z "$_ram_dir" ] || [ -z "$_disk_dir" ]; then
         echo "Error: could not resolve cache directories for model $MODEL_NAME" >&2
         exit 1
@@ -3201,7 +3232,7 @@ if $GENERATE_EMBEDDINGS && ! $DRY_RUN; then
         # --model directory, so "--model embeddinggemma-2" silently produced
         # nomic vectors labelled as EmbeddingGemma 2. --model is required for
         # this stage, so it is always set by here.
-        START_ARGS=("$DIR" "--server=$INFERENCE_SERVER" "--model=$MODEL_NAME")
+        START_ARGS=(--dir "$DIR" "--server=$INFERENCE_SERVER" "--model=$MODEL_NAME")
         if "$DIR/scripts/start-llamacpp-server.sh" "${START_ARGS[@]}"; then
             WE_STARTED_INFERENCE_SERVER=true
 

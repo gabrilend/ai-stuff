@@ -31,8 +31,12 @@ script_help "$0" "$@"
 set -euo pipefail
 
 # {{{ Configuration
-# Hard-coded project directory (as per CLAUDE.md guidelines)
-DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). It used to read a DIR variable
+# from the environment first -- an input nobody could see on the command line.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
 
 # Default paths (relative to $DIR)
 POEMS_JSON="${POEMS_JSON:-$DIR/assets/poems.json}"
@@ -421,7 +425,7 @@ list_missing_entries() {
 
     # Use temporary files for efficient set operations.
     # Issue 8-059: route through the project's tmpfs-backed tmp/ symlink.
-    "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+    "${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
     local all_poems_file="${DIR}/tmp/shared-memory/all_poems_$$"
     local existing_files_file="${DIR}/tmp/shared-memory/existing_files_$$"
     local missing_file="${DIR}/tmp/shared-memory/missing_$$"

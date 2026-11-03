@@ -6,13 +6,23 @@
 -- error; a program that stops with an error leaves the error in the log.
 -- Each case runs in its own luajit, as a program would.
 --
--- Run directly:  luajit libs/output.test.lua [project-dir]
+-- Run directly:  luajit libs/output.test.lua [--dir PATH]
 
 -- {{{ local function setup()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup()
     local this = debug.getinfo(1, "S").source:sub(2)
     local libs_dir = this:match("(.*/)") or "./"
-    return (arg[1] or libs_dir:gsub("libs/$", "")):gsub("/$", "")
+    return (PROJECT_DIR_ARG or libs_dir:gsub("libs/$", "")):gsub("/$", "")
 end
 -- }}}
 

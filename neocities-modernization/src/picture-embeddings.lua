@@ -19,8 +19,8 @@
 -- server takes one picture at a time (it is started with one slot,
 -- scripts/start-llamacpp-server.sh).
 --
--- Usage: luajit src/picture-embeddings.lua [DIR] --model NAME --server NAME
---   DIR            project folder (default below)
+-- Usage: luajit src/picture-embeddings.lua [--dir PATH] --model NAME --server NAME
+--   --dir PATH     project folder (default below)
 --   --model NAME   the embedding model (one with a vision_projector in
 --                  config.lua); required, as run.sh's --model is
 --   --server NAME  the inference server, by name from config.lua; required
@@ -31,10 +31,11 @@ if not _G.PICTURE_EMBEDDINGS_NO_MAIN then
 end
 
 -- {{{ local function parse_args()
--- DIR (positional) and the two required names. A missing name is an error:
--- the stage must say which model sees the pictures (Issue 10-065).
+-- The two required names. A missing name is an error: the stage must say
+-- which model sees the pictures (Issue 10-065). The project folder, --dir,
+-- is read before this, by libs/project-dir.lua (Issue 10-076).
 local function parse_args(args)
-    local dir, model, server = "/mnt/mtwo/programming/ai-stuff/neocities-modernization", nil, nil
+    local model, server = nil, nil
     local i = 1
     while args[i] do
         local a = args[i]
@@ -42,16 +43,21 @@ local function parse_args(args)
         elseif a:match("^%-%-model=") then model = a:match("=(.*)"); i = i + 1
         elseif a == "--server" then server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then server = a:match("=(.*)"); i = i + 1
-        elseif a:match("^%-") then error("picture-embeddings: unknown option " .. a)
-        else dir = a; i = i + 1 end
+        else error("picture-embeddings: unknown option " .. a) end
     end
-    return dir, model, server
+    return model, server
 end
 -- }}}
 
 local DIR, MODEL, SERVER = "/mnt/mtwo/programming/ai-stuff/neocities-modernization", nil, nil
 if not _G.PICTURE_EMBEDDINGS_NO_MAIN then
-    DIR, MODEL, SERVER = parse_args(arg or {})
+    -- The project folder: --dir PATH, or the path above; a stray word stops
+    -- the stage, named (libs/project-dir.lua, Issue 10-076). It used to be
+    -- any bare word.
+    local own_args
+    DIR, own_args = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+        .read(arg or {}, DIR, { ["--model"] = true, ["--server"] = true })
+    MODEL, SERVER = parse_args(own_args)
 end
 
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path

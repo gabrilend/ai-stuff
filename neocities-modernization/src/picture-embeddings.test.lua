@@ -8,13 +8,23 @@
 -- places is sent once, a picture no longer on the site leaves the cache, and
 -- a new size remakes everything.
 --
--- Run directly:  luajit src/picture-embeddings.test.lua [project-dir]
+-- Run directly:  luajit src/picture-embeddings.test.lua [--dir PATH]
 
 -- {{{ local function setup()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local dir = (arg[1] or src_dir:gsub("src/$", "")):gsub("/$", "")
+    local dir = (PROJECT_DIR_ARG or src_dir:gsub("src/$", "")):gsub("/$", "")
     package.path = dir .. "/libs/?.lua;" .. dir .. "/src/?.lua;" .. package.path
     return dir
 end

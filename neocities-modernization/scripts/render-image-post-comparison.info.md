@@ -8,7 +8,7 @@ choosing one way for every page (Issue 9-013).
 
 ## Usage
 
-`scripts/render-image-post-comparison [DIR] --out FOLDER --model NAME`
+`scripts/render-image-post-comparison [--dir PATH] --out FOLDER --model NAME`
 
 | option | meaning |
 | --- | --- |

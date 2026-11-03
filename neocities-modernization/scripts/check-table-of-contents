@@ -15,7 +15,7 @@
 -- several documents in docs/ and notes/ were not listed at all.
 --
 -- Usage:
---   scripts/check-table-of-contents [DIR]
+--   scripts/check-table-of-contents [--dir PATH]
 --
 -- Exit status: 0 everything listed exists and every doc is listed, 1 not.
 
@@ -25,7 +25,11 @@ dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/
 package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, or the path below; a stray word on the
+-- command line stops the program (libs/project-dir.lua, Issue 10-076).
+-- ARGS is every other word, for the option loop in main.
+local DIR, ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 -- }}}
 
 -- {{{ local listed_folders
@@ -60,10 +64,8 @@ end
 
 -- {{{ local function main
 local function main()
-    for _, a in ipairs(arg) do
-        if not a:match("^%-") then
-            DIR = a
-        else
+    for _, a in ipairs(ARGS) do
+        do
             io.stderr:write("unknown option: " .. a .. "\n")
             os.exit(2)
         end

@@ -16,9 +16,9 @@
 -- a build has filled the site's picture folder. The site is not touched.
 --
 -- Usage:
---   scripts/render-image-post-comparison [DIR] --out FOLDER --model NAME
+--   scripts/render-image-post-comparison [--dir PATH] --out FOLDER --model NAME
 --
---   DIR      project directory (default below)
+--   --dir PATH project directory (default below)
 --   --out    where the page goes; made fresh, must not exist yet (put it in
 --            tmp/shared-memory/); open FOLDER/pages/compare.html
 --   --model  the embedding model whose picture list marks the image-only
@@ -28,16 +28,18 @@
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ arguments
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be any bare word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--out"] = true, ["--model"] = true })
 local OUT, MODEL
 do
     local i = 1
-    while i <= #arg do
-        local a = arg[i]
-        if a == "--out" then OUT = arg[i + 1]; i = i + 1
-        elseif a == "--model" then MODEL = arg[i + 1]; i = i + 1
-        elseif a:sub(1, 2) == "--" then error("render-image-post-comparison: unknown option " .. a)
-        else DIR = a end
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
+        if a == "--out" then OUT = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--model" then MODEL = OWN_ARGS[i + 1]; i = i + 1
+        else error("render-image-post-comparison: unknown option " .. a) end
         i = i + 1
     end
 end

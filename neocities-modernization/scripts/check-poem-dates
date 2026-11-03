@@ -8,17 +8,25 @@
 -- ordering the page build uses, in seconds, before the build starts, and
 -- lists the first undated poem.  It changes nothing.  (Issues 8-045, 10-069.)
 --
--- Usage:  luajit scripts/check-poem-dates [DIR] [POEMS_JSON]
---   DIR         project directory (default below)
---   POEMS_JSON  the poem list to check (default DIR/assets/poems.json)
+-- Usage:  luajit scripts/check-poem-dates [--dir PATH] [--poems FILE]
+--   --dir PATH    project directory (default below)
+--   --poems FILE  the poem list to check (default DIR/assets/poems.json)
+--   A word with no flag in front of it stops the script (Issue 10-076).
 -- Exit status: 0 when every poem has a date, 1 otherwise.
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if arg[1] and arg[1] ~= "" then DIR = arg[1] end
-local POEMS_JSON = arg[2] or (DIR .. "/assets/poems.json")
+-- The project folder: --dir PATH, or the path below; the poem list: --poems
+-- FILE; a stray word stops the script (libs/project-dir.lua, Issue 10-076).
+-- Both used to be bare words, told apart only by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--poems"] = true })
+local POEMS_JSON = DIR .. "/assets/poems.json"
+for i = 1, #OWN_ARGS, 2 do
+    if OWN_ARGS[i] == "--poems" then POEMS_JSON = OWN_ARGS[i + 1]
+    else io.stderr:write("check-poem-dates: unknown option " .. OWN_ARGS[i] .. "\n"); os.exit(1) end
+end
 
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
 

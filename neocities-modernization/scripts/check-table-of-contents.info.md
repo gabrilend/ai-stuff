@@ -11,7 +11,7 @@ Nothing had noticed, because nothing checked.
 
 ## Usage
 
-    scripts/check-table-of-contents [DIR]
+    scripts/check-table-of-contents [--dir PATH]
 
 Exit status: 0 no findings, 1 findings printed, 2 no table of contents.
 

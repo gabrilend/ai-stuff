@@ -10,7 +10,7 @@ frames). Design: Issue 8-058, step 7.
 
 ## Usage
 
-`scripts/render-page-sample [DIR] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N|all [--anchor N]... [--copy-pictures] [--words N --poems-per-word-page M]`
+`scripts/render-page-sample [--dir PATH] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N|all [--anchor N]... [--copy-pictures] [--words N --poems-per-word-page M]`
 
 | option | meaning |
 | --- | --- |

@@ -10,14 +10,16 @@
 -- Tests are found by name, so a new test runs without being listed anywhere:
 --   src/*.test.lua  src/*-test.lua  libs/*.test.lua  libs/*-test.lua
 --   scripts/*.test.sh
--- A Lua test is run as `luajit FILE DIR`, a shell test as `bash FILE`; each
--- passes by exiting 0. A test whose last line starts with "SKIP" could not
--- run here; it is reported, not counted as passed.
+-- A Lua test is run as `luajit FILE --dir DIR`, a shell test as
+-- `bash FILE --dir DIR` (Issue 10-076: every program names its project
+-- folder with --dir); each passes by exiting 0. A test whose last line
+-- starts with "SKIP" could not run here; it is reported, not counted as
+-- passed.
 --
 -- Usage:
---   scripts/run-tests [DIR] --jobs N [--match TEXT]
+--   scripts/run-tests [--dir PATH] --jobs N [--match TEXT]
 --
---   DIR      project directory (default below)
+--   --dir    project directory (default below); any other bare word stops it
 --   --jobs   how many tests run at once (required; run.sh passes --threads)
 --   --match  only tests whose file name contains TEXT
 --
@@ -30,16 +32,18 @@ dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/
 package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ arguments
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder from --dir (libs/project-dir.lua, which also stops on a
+-- stray word); the rest are this program's own flags.
+local DIR, rest = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--jobs"] = true, ["--match"] = true })
 local JOBS, MATCH
 do
     local i = 1
-    while i <= #arg do
-        local a = arg[i]
-        if a == "--jobs" then JOBS = tonumber(arg[i + 1]); i = i + 1
-        elseif a == "--match" then MATCH = arg[i + 1]; i = i + 1
-        elseif a:sub(1, 2) == "--" then error("run-tests: unknown option " .. a)
-        else DIR = a end
+    while i <= #rest do
+        local a = rest[i]
+        if a == "--jobs" then JOBS = tonumber(rest[i + 1]); i = i + 1
+        elseif a == "--match" then MATCH = rest[i + 1]; i = i + 1
+        else error("run-tests: unknown option " .. a) end
         i = i + 1
     end
 end
@@ -106,8 +110,8 @@ do
 path="$1"; dir="$2"; log_dir="$3"
 name="$(basename "$path")"
 case "$path" in
-    *.sh) bash "$path" > "$log_dir/$name.log" 2>&1 ;;
-    *)    luajit "$path" "$dir" > "$log_dir/$name.log" 2>&1 ;;
+    *.sh) bash "$path" --dir "$dir" > "$log_dir/$name.log" 2>&1 ;;
+    *)    luajit "$path" --dir "$dir" > "$log_dir/$name.log" 2>&1 ;;
 esac
 echo $? > "$log_dir/$name.status"
 ]==])

@@ -20,10 +20,20 @@
 -- chronological pages ran (Issue 8-058).
 
 -- {{{ local function setup_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_path()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local project_dir = src_dir:gsub("src/$", "")
+    local project_dir = PROJECT_DIR_ARG and (PROJECT_DIR_ARG .. "/") or src_dir:gsub("src/$", "")
     package.path = src_dir .. "?.lua;" .. project_dir .. "libs/?.lua;" .. package.path
     return project_dir
 end

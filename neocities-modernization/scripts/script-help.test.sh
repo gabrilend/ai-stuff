@@ -12,9 +12,12 @@
 # cannot start its work here by accident (asking deploy-to-neocities for
 # help once started hashing the site and listing the live one).
 #
-# Usage:  scripts/script-help.test.sh [DIR]
+# Usage:  scripts/script-help.test.sh [--dir PATH]
 
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 passed=0
 failed=0
 

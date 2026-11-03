@@ -8,7 +8,7 @@ decisions that replace quoted decisions in comments (Issue 10-048).
 
 ## Usage
 
-`scripts/find-in-transcripts [DIR] "PHRASE" [--context N]`
+`scripts/find-in-transcripts [--dir PATH] "PHRASE" [--context N]`
 
 | option | meaning |
 | --- | --- |

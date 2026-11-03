@@ -33,7 +33,12 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path in
+-- setup_dir_path (libs/project-dir.lua, Issue 10-076). It used to be the
+-- first word, even when another program loaded this one.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil))
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local inference_config = require("inference-server-config")
 
@@ -58,7 +63,7 @@ end
 -- need to wait again here.
 local function start_llamacpp_service()
     require("output").print("Starting llama.cpp embedding server via scripts/start-llamacpp-server.sh...")
-    local cmd = string.format('"%s/scripts/start-llamacpp-server.sh" "%s"', DIR, DIR)
+    local cmd = string.format('"%s/scripts/start-llamacpp-server.sh" --dir "%s"', DIR, DIR)
     local result = os.execute(cmd)
     return result == 0 or result == true
 end
@@ -102,7 +107,7 @@ end
 function M.test_embedding(endpoint, model)
     require("output").print("Testing embedding generation...")
 
-    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" --dir "%s"', DIR, DIR))
     local result_path = DIR .. "/tmp/shared-memory/embedding_test.json"
 
     local test_cmd = string.format(

@@ -17,9 +17,12 @@ source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
 script_help "$0" "$@"
 
 set -u
-DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# The project folder: --dir PATH, or the folder this test sits in; a stray
+# word stops it (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null || {
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null || {
     echo "FATAL: could not materialize tmp/ -- cannot test"; exit 2
 }
 
@@ -52,7 +55,7 @@ resolve_dir() {  # the no-argument embeddings_dir() that stages 9/10 actually ca
 # {{{ no model named: there is no default (owner, 2026-10-21)
 # With no --model and nothing on the notepad, the resolver refuses and names
 # the server's models. It used to return the server entry's own model (nomic).
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model "" >/dev/null
+"${DIR}/scripts/write-run-overrides" --dir "${DIR}" --model "" >/dev/null
 NO_MODEL_ERR="$(resolve 2>&1)"
 check "no model named -> refused" "$(printf '%s' "$NO_MODEL_ERR" | grep -c 'no embedding model named')" "1"
 check "the refusal lists the server's models" "$(printf '%s' "$NO_MODEL_ERR" | grep -c 'embeddinggemma-2')" "1"
@@ -65,7 +68,7 @@ check "no server entry names a model of its own" "$(luajit -e "
 # }}}
 
 # {{{ an explicit --model propagates to the no-argument resolution, fresh process
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model "propagation-probe:1b"
+"${DIR}/scripts/write-run-overrides" --dir "${DIR}" --model "propagation-probe:1b"
 check "get_selected_model honors override" "$(resolve)" "propagation-probe:1b"
 # The caches live on disk under assets/embeddings/, not in the RAM tier: /dev/shm
 # is emptied at logout on this host, so a RAM cache cost a ~20-minute rebuild
@@ -77,8 +80,8 @@ check "embeddings_dir(nil) keys off override" \
 
 
 # {{{ notepad is rewritten, not appended: a prior run's choice cannot leak in
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model "first-run:9b"
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model "second-run:9b"
+"${DIR}/scripts/write-run-overrides" --dir "${DIR}" --model "first-run:9b"
+"${DIR}/scripts/write-run-overrides" --dir "${DIR}" --model "second-run:9b"
 check "second write overwrites first" "$(resolve)" "second-run:9b"
 occurrences="$(grep -c "first-run" "${DIR}/tmp/shared-memory/run-overrides.lua" || true)"
 check "no stale value from prior run remains" "$occurrences" "0"
@@ -142,7 +145,7 @@ check "no folder is made for the mistyped model" \
 # }}}
 
 # Leave the notepad clean (no override) so a later manual run is not surprised.
-"${DIR}/scripts/write-run-overrides" "${DIR}" --model "" >/dev/null
+"${DIR}/scripts/write-run-overrides" --dir "${DIR}" --model "" >/dev/null
 
 echo ""
 echo "Result: ${pass} passed, ${fail} failed"

@@ -7,7 +7,7 @@ shuffled from one seed (Issue 10-058), each linking to its word page. Run by
 
 ## Command line
 
-`luajit src/wordcloud-generator.lua [DIR] [--all | --words N] [--chrono-per-page N] [--seed N] [--model NAME] [--server NAME] [--out FOLDER] [--yes]`
+`luajit src/wordcloud-generator.lua [--dir PATH] [--all | --words N] [--chrono-per-page N] [--seed N] [--model NAME] [--server NAME] [--out FOLDER] [--yes]`
 
 | option | meaning |
 | --- | --- |

@@ -12,15 +12,15 @@
 # module whose name is a prefix of another's ("util" vs "util-extra") is not
 # confused with it.
 #
-# Run: bash scripts/audit-orphan-files.test.sh [project-dir]
+# Run: bash scripts/audit-orphan-files.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/audit-orphan-files-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}/src" "${SCRATCH}/libs" "${SCRATCH}/scripts" "${SCRATCH}/demos"
@@ -70,7 +70,7 @@ git -C "${SCRATCH}" init -q
 git -C "${SCRATCH}" add -A
 # }}}
 
-"${DIR}/scripts/audit-orphan-files" "${SCRATCH}" > "${SCRATCH}/report.txt"
+"${DIR}/scripts/audit-orphan-files" --dir "${SCRATCH}" > "${SCRATCH}/report.txt"
 status=$?
 if [ "${status}" -eq 1 ]; then pass=$((pass+1)); echo "  ok   - exits 1 when orphans exist"
 else fail=$((fail+1)); echo "  FAIL - exit status ${status}, want 1"; fi

@@ -4,13 +4,23 @@
 -- copies of one post tie on similarity, and the sorts kept whichever came
 -- first. These check the order rules the page builder now uses, by feeding
 -- each one the same items in many different orders.
--- Run: luajit src/generate-word-pages.order.test.lua [project-dir]
+-- Run: luajit src/generate-word-pages.order.test.lua [--dir PATH]
 
 -- {{{ local function setup_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_path()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local project_dir = arg[1] or src_dir:gsub("src/$", "")
+    local project_dir = PROJECT_DIR_ARG and (PROJECT_DIR_ARG .. "/") or src_dir:gsub("src/$", "")
     package.path = project_dir .. "/src/?.lua;" .. project_dir .. "/libs/?.lua;" .. package.path
     return project_dir
 end
@@ -21,7 +31,10 @@ local project_dir = setup_path()
 -- these tests use none of them, but the model must be named (no default)
 -- config.lua testing names the model and server the checks use
 local testing = require("config-loader").load().testing
-arg = { project_dir, "--html-only", "--model", testing.model, "--server", testing.server }
+-- arg[0] names the page builder itself, so it reads this command line as its
+-- own (a module loaded by another program reads only that program's --dir)
+arg = { [0] = project_dir .. "/src/generate-word-pages.lua",
+    "--dir", project_dir, "--html-only", "--model", testing.model, "--server", testing.server }
 local W = require("generate-word-pages")
 
 local passed, failed = 0, 0

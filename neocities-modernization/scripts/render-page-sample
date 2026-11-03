@@ -12,9 +12,9 @@
 -- (Issue 8-058, step 7.)
 --
 -- Usage:
---   scripts/render-page-sample [DIR] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N
+--   scripts/render-page-sample [--dir PATH] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N
 --
---   DIR       project directory (default below)
+--   --dir PATH project directory (default below)
 --   --out     where the pages go; made fresh, must not exist yet
 --   --model   embedding model whose caches the pages are built from
 --   --server  inference server entry naming that model (config.lua)
@@ -44,30 +44,36 @@
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ arguments
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be any bare word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", {
+        ["--out"] = true, ["--model"] = true, ["--server"] = true, ["--threads"] = true,
+        ["--poems-per-page"] = true, ["--pages"] = true, ["--words"] = true,
+        ["--poems-per-word-page"] = true, ["--anchor"] = true,
+    })
 local OUT, MODEL, SERVER, THREADS, PER_PAGE, PAGES
 local ANCHORS = {}
 local WORDS, PER_WORD_PAGE
 local COPY_PICTURES = false
 do
     local i = 1
-    while i <= #arg do
-        local a = arg[i]
-        if a == "--out" then OUT = arg[i + 1]; i = i + 1
-        elseif a == "--model" then MODEL = arg[i + 1]; i = i + 1
-        elseif a == "--server" then SERVER = arg[i + 1]; i = i + 1
-        elseif a == "--threads" then THREADS = tonumber(arg[i + 1]); i = i + 1
-        elseif a == "--poems-per-page" then PER_PAGE = tonumber(arg[i + 1]); i = i + 1
-        elseif a == "--pages" then PAGES = arg[i + 1]; i = i + 1
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
+        if a == "--out" then OUT = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--model" then MODEL = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--server" then SERVER = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--threads" then THREADS = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--poems-per-page" then PER_PAGE = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--pages" then PAGES = OWN_ARGS[i + 1]; i = i + 1
         elseif a == "--copy-pictures" then COPY_PICTURES = true
-        elseif a == "--words" then WORDS = tonumber(arg[i + 1]); i = i + 1
-        elseif a == "--poems-per-word-page" then PER_WORD_PAGE = tonumber(arg[i + 1]); i = i + 1
+        elseif a == "--words" then WORDS = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--poems-per-word-page" then PER_WORD_PAGE = tonumber(OWN_ARGS[i + 1]); i = i + 1
         elseif a == "--anchor" then
-            ANCHORS[#ANCHORS + 1] = tonumber(arg[i + 1])
-                or error("render-page-sample: --anchor takes a poem number, not " .. tostring(arg[i + 1]))
+            ANCHORS[#ANCHORS + 1] = tonumber(OWN_ARGS[i + 1])
+                or error("render-page-sample: --anchor takes a poem number, not " .. tostring(OWN_ARGS[i + 1]))
             i = i + 1
-        elseif a:sub(1, 2) == "--" then error("render-page-sample: unknown option " .. a)
-        else DIR = a end
+        else error("render-page-sample: unknown option " .. a) end
         i = i + 1
     end
 end

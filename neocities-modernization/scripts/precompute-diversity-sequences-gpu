@@ -7,8 +7,8 @@
 # show (pages x poems per page). Run by run.sh stage 8.
 #
 # Usage:
-#   scripts/precompute-diversity-sequences-gpu [DIR] [--model NAME] [--output PATH] [--save-binary]
-#     DIR            project folder (default below)
+#   scripts/precompute-diversity-sequences-gpu [--dir PATH] [--model NAME] [--output PATH] [--save-binary]
+#     --dir PATH     project folder (default below)
 #     --model NAME   the embedding model, when run on its own (a build names
 #                    it on the run notepad)
 #     --output PATH  write the cache to PATH instead of the model folder, to try
@@ -22,7 +22,12 @@ source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
 script_help "$0" "$@"
 
 # {{{ Setup directory path
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). It used to be the first word.
+# What is left is this script's own options, read below.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "--output --model" "$@"
+set -- "${PROJECT_ARGS[@]}"
 
 # Issue 10-057: the GPU shader paths (vk_diversity.c) and library path (vk_compute.lua)
 # are now project-root-relative / DIR-based, matching similarity -- so we run from the
@@ -35,7 +40,7 @@ cd "$DIR" || {
 # Export DIR so Lua can access it
 export DIR
 
-# Options after DIR. The Lua program below runs inline (luajit -e), which
+# The options. The Lua program below runs inline (luajit -e), which
 # passes it no command-line arguments, so the options travel as environment
 # variables instead (until 2026-10-22 --save-binary was read from arguments
 # that never arrived):
@@ -44,7 +49,6 @@ export DIR
 #   --save-binary   also save the raw GPU sequences (debugging)
 #   --model NAME    the embedding model, when run on its own (a build names
 #                   it on the run notepad, which this reads otherwise)
-[ $# -gt 0 ] && shift   # past DIR
 _model_args=()
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -62,7 +66,7 @@ done
 # place that maps a model name to its directory). run.sh already creates this at
 # model-load; this keeps the wrapper safe when invoked on its own. Without it a
 # brand-new model would compute for an hour and only then fail at the final write.
-_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --disk "${_model_args[@]}")"
+_disk_dir="$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --disk "${_model_args[@]}")"
 [ -n "$_disk_dir" ] && mkdir -p "$_disk_dir"
 
 # Run the Lua script

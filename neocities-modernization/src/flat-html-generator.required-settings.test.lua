@@ -11,9 +11,19 @@
 -- whose config.lua is the real one with two settings removed. The builder is
 -- loaded in a separate luajit with the scratch folder as its project folder.
 --
--- Run: luajit src/flat-html-generator.required-settings.test.lua [project-dir]
+-- Run: luajit src/flat-html-generator.required-settings.test.lua [--dir PATH]
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
+local DIR = PROJECT_DIR_ARG or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 local passed, failed = 0, 0
 -- {{{ local function check
@@ -41,7 +51,7 @@ end
 -- }}}
 
 -- {{{ the scratch project
-os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s" >/dev/null', DIR, DIR))
+os.execute(string.format('"%s/scripts/ensure-tmp-symlink" --dir "%s" >/dev/null', DIR, DIR))
 local SCRATCH = DIR .. "/tmp/shared-memory/required-settings-test"
 os.execute(string.format('rm -rf "%s" && mkdir -p "%s"', SCRATCH, SCRATCH))
 for _, name in ipairs({ "libs", "src", "assets", "input", "page-templates" }) do
@@ -63,8 +73,12 @@ f:close()
 -- folder from the first command-line argument.
 local DRIVER = SCRATCH .. "-driver.lua"
 f = assert(io.open(DRIVER, "w"))
+-- The driver is run as `luajit DRIVER --dir PROJECT`. The builder it loads
+-- takes the same --dir from the driver's command line (a loaded module reads
+-- its parent's --dir, libs/project-dir.lua find_dir), so this also checks
+-- that a module loaded by another program lands in the parent's folder.
 f:write([[
-local dir = arg[1]
+local dir = arg[2]
 package.path = dir .. "/libs/?.lua;" .. dir .. "/src/?.lua;" .. package.path
 local g = require("flat-html-generator")
 print("PER_PAGE=" .. g.get_pagination_config().poems_per_page
@@ -72,7 +86,7 @@ print("PER_PAGE=" .. g.get_pagination_config().poems_per_page
 ]])
 f:close()
 local function load_with(project)
-    return run_capture(string.format('luajit "%s" "%s"', DRIVER, project))
+    return run_capture(string.format('luajit "%s" --dir "%s"', DRIVER, project))
 end
 
 -- {{{ a config.lua missing settings stops the builder, naming each

@@ -1,9 +1,19 @@
 -- Tests for augment-embeddings-with-images.lua (Issue 9-013): pictures placed
 -- among the poems by their own vectors.
--- Run: luajit src/augment-embeddings-with-images.test.lua [DIR]
+-- Run: luajit src/augment-embeddings-with-images.test.lua [--dir PATH]
 -- Part 1: pure logic on fixtures. Part 2: a read-only sanity pass over the real
 -- data (counts + idempotency) WITHOUT writing anything.
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
+local DIR = PROJECT_DIR_ARG or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
 _G.AUGMENT_NO_MAIN = true  -- suppress the script's main() on require
 local A = require("augment-embeddings-with-images")

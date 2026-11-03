@@ -8,31 +8,19 @@
 -- poem_colors.json for the progress bars and word cloud. run.sh runs it
 -- in Stage 6.
 --
--- Usage: luajit src/semantic-color-calculator.lua [DIR] [-I]
---   DIR  project folder (default below); -I  ask before each step
+-- Usage: luajit src/semantic-color-calculator.lua [--dir PATH] [-I]
+--   --dir PATH  project folder (default below); -I  ask before each step
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- Script configuration - handle args properly to avoid -I interfering with DIR
-local DIR = setup_dir_path()
-if arg then
-    for _, arg_val in ipairs(arg) do
-        if arg_val ~= "-I" and not arg_val:match("^%-") then
-            DIR = arg_val
-            break
-        end
-    end
-end
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076). It used to take the first bare word
+-- of the global arg even when loaded, so a parent's stray word could become
+-- this module's project folder.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -63,7 +51,7 @@ local fuzzy = require("fuzzy-computing")
 local text_chunking = require("text-chunking")
 inference_config.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 local M = {}

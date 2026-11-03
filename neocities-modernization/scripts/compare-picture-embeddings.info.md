@@ -6,7 +6,7 @@ particular a picture of words. Issue 9-013.
 ## Usage
 
 ```
-scripts/compare-picture-embeddings [DIR] --port N
+scripts/compare-picture-embeddings [--dir PATH] --port N
 ```
 
 | argument | type | meaning |

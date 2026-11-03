@@ -22,8 +22,8 @@
 -- Pictures (image-only posts) are skipped: having no text is what they are.
 --
 -- Usage:
---   scripts/list-near-empty-poems [DIR] --max-letters N [--model NAME]
---     DIR            project directory (default: the hard-coded one below)
+--   scripts/list-near-empty-poems [--dir PATH] --max-letters N [--model NAME]
+--     --dir PATH     project directory (default: the hard-coded one below)
 --     --max-letters  include posts with at most this many letters/digits
 --     --model        embeddings directory name, for the "lists" column
 --
@@ -51,9 +51,6 @@ local function parse_arguments(argv)
         elseif a == "--help" or a == "-h" then
             opts.help = true
             i = i + 1
-        elseif a:sub(1, 1) ~= "-" then
-            opts.dir = a
-            i = i + 1
         else
             error("unknown option: " .. a)
         end
@@ -62,7 +59,12 @@ local function parse_arguments(argv)
 end
 -- }}}
 
-local opts = parse_arguments(arg)
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be any bare word.
+local OWN_ARGS
+DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, DIR, { ["--max-letters"] = true, ["--model"] = true })
+local opts = parse_arguments(OWN_ARGS)
 if opts.help then
     for line in io.lines(arg[0]) do
         if line:match("^%-%- }}}") then break end
@@ -70,7 +72,6 @@ if opts.help then
     end
     os.exit(0)
 end
-DIR = opts.dir or DIR
 if not opts.max_letters then
     -- Asked for, not assumed: what counts as "near-empty" is the owner's call.
     io.stderr:write("--max-letters N is required (try 8 for a first look)\n")

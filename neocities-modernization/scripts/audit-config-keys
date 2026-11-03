@@ -24,8 +24,8 @@
 -- direction -- a setting reported unread is named by nothing at all.
 --
 -- Usage:
---   scripts/audit-config-keys [DIR]          report on DIR/config.lua
---   scripts/audit-config-keys [DIR] --all    also list the sections and
+--   scripts/audit-config-keys [--dir PATH]          report on DIR/config.lua
+--   scripts/audit-config-keys [--dir PATH] --all    also list the sections and
 --                                            settings that ARE read, with
 --                                            which files read them
 --
@@ -37,7 +37,11 @@ dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/
 package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, or the path below; a stray word on the
+-- command line stops the program (libs/project-dir.lua, Issue 10-076).
+-- ARGS is every other word, for the option loop in main.
+local DIR, ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 -- }}}
 
 -- {{{ local excluded_paths
@@ -237,12 +241,10 @@ end
 -- {{{ local function main
 local function main()
     local show_all = false
-    for _, a in ipairs(arg) do
-        -- --all widens the report; a bare word is the project directory
+    for _, a in ipairs(ARGS) do
+        -- --all widens the report; the project folder is --dir (read above)
         if a == "--all" then
             show_all = true
-        elseif not a:match("^%-") then
-            DIR = a
         else
             io.stderr:write("unknown option: " .. a .. "\n")
             os.exit(2)

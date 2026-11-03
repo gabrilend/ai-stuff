@@ -30,13 +30,18 @@
 --                            of looking the index up in poems.json (where the
 --                            class-3 pseudo-poems do not exist).
 --
--- Run from any directory: luajit src/augment-embeddings-with-images.lua [DIR]
+-- Run from any directory: luajit src/augment-embeddings-with-images.lua [--dir PATH]
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ Setup directory + module path
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076). It used to be the first word, even
+-- when another program loaded this one.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")

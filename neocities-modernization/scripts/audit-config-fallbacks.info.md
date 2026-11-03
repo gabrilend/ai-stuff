@@ -6,9 +6,9 @@ fallback beside it (`config.pagination.size or 5`). The owner's rule, Issue
 `scripts/audit-config-keys` finds the other side, settings in config.lua that
 no program reads.
 
-    scripts/audit-config-fallbacks [DIR]             report, grouped by file
-    scripts/audit-config-fallbacks [DIR] --count     totals only
-    scripts/audit-config-fallbacks [DIR] --declared  also list the declared ones
+    scripts/audit-config-fallbacks [--dir PATH]             report, grouped by file
+    scripts/audit-config-fallbacks [--dir PATH] --count     totals only
+    scripts/audit-config-fallbacks [--dir PATH] --declared  also list the declared ones
 
 Exit status: 0 when nothing undeclared is found, 1 otherwise. It runs in the
 test suite through `scripts/audit-config-fallbacks.test.sh`, which also

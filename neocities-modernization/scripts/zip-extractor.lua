@@ -3,9 +3,10 @@
 -- chat export) among the input zips and unpacks the JSON the extractors read.
 -- Called by scripts/update during the build's update stage.
 --
--- Usage:  lua scripts/zip-extractor.lua DIR TEMP_DIR
---   DIR       project folder
---   TEMP_DIR  where to unpack (required)
+-- Usage:  lua scripts/zip-extractor.lua [--dir PATH] --temp PATH
+--   --dir PATH   project folder (default below)
+--   --temp PATH  where to unpack (required)
+--   A word with no flag in front of it stops the script (Issue 10-076).
 
 -- --help: print the header above and exit, before any work (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
@@ -20,8 +21,17 @@ end
 -- }}}
 
 -- Get project directory from command line or use default
-local DIR = setup_dir_path(arg and arg[1])
-local TEMP_DIR = arg and arg[2] or error("Temporary directory required as second argument")
+-- The project folder: --dir PATH; the unpacking folder: --temp PATH; a stray
+-- word stops the script (libs/project-dir.lua, Issue 10-076). Both used to be
+-- bare words, told apart by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), { ["--temp"] = true })
+local TEMP_DIR
+for i = 1, #OWN_ARGS, 2 do
+    if OWN_ARGS[i] == "--temp" then TEMP_DIR = OWN_ARGS[i + 1]
+    else error("zip-extractor: unknown option " .. OWN_ARGS[i]) end
+end
+if not TEMP_DIR then error("zip-extractor: --temp PATH is required (where to unpack)") end
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path

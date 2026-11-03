@@ -8,10 +8,20 @@
 -- two guards: that a mixed-dimension file is refused rather than averaged past,
 -- and that an unmarked cache directory reads as stale rather than as fine.
 --
--- Usage: luajit libs/embedding-space.test.lua [DIR]
+-- Usage: luajit libs/embedding-space.test.lua [--dir PATH]
 -- }}}
 
-local DIR = arg and arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
+local DIR = PROJECT_DIR_ARG or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/libs/?.lua;" .. package.path
 
 local es = require("embedding-space")

@@ -7,6 +7,16 @@
 -- The frame is ASYMMETRIC: left edge always double, right edge a FILL FRONTIER
 -- (single ┐│┤┴ until the bar fills the far-right column, then double ╗║╣╩).
 -- Run: luajit src/boost-bars.test.lua
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = "./src/?.lua;./libs/?.lua;" .. package.path
 local B = require("boost-bars")
 B.configure({ arrow = "#dc3c3c", outer_frame = "#74C0FC", inner_box = "#38D9A9" })

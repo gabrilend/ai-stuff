@@ -8,9 +8,19 @@
 -- a full build wrote nothing but NNNN-03.html for every poem while every link
 -- on the site pointed at NNNN-01.html -- 1,341,208 broken links in one run.
 --
--- Run directly:  luajit src/flat-html-generator.pages-count.test.lua [project-dir]
+-- Run directly:  luajit src/flat-html-generator.pages-count.test.lua [--dir PATH]
 
-local DIR = arg and arg[1] or nil
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
+local DIR = PROJECT_DIR_ARG or nil
 
 -- {{{ local function setup_path()
 local function setup_path()

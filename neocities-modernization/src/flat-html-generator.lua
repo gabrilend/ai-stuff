@@ -8,31 +8,18 @@
 -- all as jobs for a pool of worker threads (src/poem-entry.lua draws each
 -- poem), plus the explore pages. main.lua --html-only calls it in a build.
 --
--- Usage: luajit src/flat-html-generator.lua [DIR] [-I]
---   DIR  project folder (default below); -I  ask before each step
+-- Usage: luajit src/flat-html-generator.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  ask before each step
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- Script configuration - handle args properly to avoid -I interfering with DIR
-local DIR = setup_dir_path()
-if arg then
-    for _, arg_val in ipairs(arg) do
-        if arg_val ~= "-I" and not arg_val:match("^%-") then
-            DIR = arg_val
-            break
-        end
-    end
-end
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded (src/main.lua loads it);
+-- else the path below (libs/project-dir.lua, Issue 10-076). It used to take
+-- the first bare word of the global arg either way.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -59,7 +46,7 @@ local unified_config = config_loader.load()
 local inference_config = require("inference-server-config")
 inference_config.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 -- Load effil, the threading library the page workers run on.  Where it lives

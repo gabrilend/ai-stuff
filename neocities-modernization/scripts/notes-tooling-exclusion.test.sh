@@ -10,15 +10,15 @@
 # extractor never emits a note from inside the mailbox, even when a copy is
 # sitting in input/.
 #
-# Run: bash scripts/notes-tooling-exclusion.test.sh [project-dir]
+# Run: bash scripts/notes-tooling-exclusion.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/notes-tooling-exclusion-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}"
@@ -95,7 +95,7 @@ check "source mailbox untouched" "$(test -f "${FAKE_NOTES}/rmail/contacts" && ec
 # {{{ the extractor never reads inside the mailbox, even when a copy exists
 mkdir -p "${FAKE_PROJECT}/input/notes/rmail/inbox"
 printf 'should never be a poem\n' > "${FAKE_PROJECT}/input/notes/rmail/inbox/waiting"
-extract_output="$(lua "${DIR}/scripts/extract-notes.lua" "${FAKE_PROJECT}" 2>&1)"
+extract_output="$(lua "${DIR}/scripts/extract-notes.lua" --dir "${FAKE_PROJECT}" 2>&1)"
 check "extractor succeeds" "$?" "0"
 poems_json="${FAKE_PROJECT}/input/notes/files/poems.json"
 check "one note extracted" "$(grep -c '"category":"notes"' "${poems_json}")" "1"
@@ -115,7 +115,7 @@ touch -d '2021-01-01 00:00:00' "${FAKE_PROJECT}/input/notes/oldest"
 touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-a"
 touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-b"
 touch -d '2026-09-01 00:00:00' "${FAKE_PROJECT}/input/notes/newest"
-lua "${DIR}/scripts/extract-notes.lua" "${FAKE_PROJECT}" >/dev/null 2>&1
+lua "${DIR}/scripts/extract-notes.lua" --dir "${FAKE_PROJECT}" >/dev/null 2>&1
 check "date-order extraction succeeds" "$?" "0"
 order="$(luajit -e "
     package.path = '${DIR}/libs/?.lua;' .. package.path
