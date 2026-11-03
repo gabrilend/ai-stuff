@@ -521,8 +521,9 @@ Recorded in CRITICAL-PATH.md:
 | 606a | Hot-reload swaps in the renderer, sound and UI | Pending | 606, Phase 5 |
 | 607 | File server application | Retired (superseded/) | — |
 | 608 | Phase 6 integration test | Pending | 601-606 |
-| 609 | Shared map-and-model list | Completed 2026-11-02 (as files; rmail glue in 609a) | 604, 605 |
-| 609a | Shared lists over rmail, and the one prompt | Pending | 609 |
+| 609 | Shared map-and-model list | Completed 2026-11-02 (as files; the exchange in 609a) | 604, 605 |
+| 609a | Shared lists over rmail, and the one prompt | Completed 2026-11-03 (behind an assumed rmail contract; glue in 609b) | 609 |
+| 609b | rmail glue and the lobby prompt | Pending | 609a |
 
 ### Overview
 
