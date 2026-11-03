@@ -610,6 +610,9 @@ harness.suite("a shot lands at the tick its distance says, and not before", func
   local shooter = units.spawn(world, "tank", 1, 0, 0)
   local target = units.spawn(world, "tank", 2, 30, 0)
   targeting.aim_pass(world)
+  -- Two enemy tanks in plain sight of each other both fire; the target holds
+  -- its fire here so that the one shot in the queue is the shooter's.
+  world.unit.target[target] = 0
   combat.fire_pass(world)
   harness.check("firing appends a shot", world.shot.count == 1)
   local arrival = world.shot.arrives[1]
@@ -661,6 +664,153 @@ harness.suite("health comes back on a shared timer", function()
   combat.hurt(world, a, 1)
   combat.hurt(world, a, 1)
   harness.check("two hurts on one increment both apply", health(a) == cap - 2)
+end)
+-- }}}
+
+-- {{{ buffered damage, closer
+harness.suite("firing writes the shooter's row and the queue, and nothing else", function()
+  local units = harness.load("units", "201")
+  local combat = harness.load("combat", "206")
+  local targeting = harness.load("targeting", "205")
+  local world = level()
+  local shooter = units.spawn(world, "tank", 1, 10, 10)
+  local enemy = units.spawn(world, "tank", 2, 40, 10)
+  local cap = units.kind("tank").health
+  targeting.aim_pass(world)
+  combat.fire_pass(world)
+  local shot = world.shot
+  harness.check("both tanks fire, in row order", shot.count == 2
+                and shot.shooter[1] == shooter and shot.target[1] == enemy
+                and shot.shooter[2] == enemy and shot.target[2] == shooter, combat.describe(world, 1))
+  harness.check("the damage is the falloff at the distance, rounded down",
+                shot.damage[1] == math.floor(25 * targeting.falloff("tank", 30))
+                and shot.damage[1] == combat.damage_at(world, shooter, 30), shot.damage[1])
+  harness.check("firing rewrites reload_at to the next reload increment",
+                world.unit.reload_at[shooter] == world.reload.tank.increment + 1
+                and not targeting.ready(world, shooter))
+  harness.check("firing hurts nobody", combat.health(world, shooter) == cap
+                and combat.health(world, enemy) == cap)
+  combat.fire_pass(world)
+  harness.check("a weapon reloading does not fire twice", shot.count == 2)
+  harness.check("a shot describes itself for a failing test",
+                combat.describe(world, 1):find("arrives at tick " .. shot.arrives[1], 1, true) ~= nil
+                and combat.describe(world, 3):find("no shot 3", 1, true) ~= nil)
+end)
+
+harness.suite("shots land in queue order, and a shot at the dead is dropped", function()
+  local units = harness.load("units", "201")
+  local combat = harness.load("combat", "206")
+  local the_world = harness.load("the-world", "104")
+  local world = flat()
+  local shooter = units.spawn(world, "tank", 1, 10, 10)
+  local target = units.spawn(world, "frigate", 2, 30, 2)
+  local other = units.spawn(world, "tank", 2, 40, 40)
+  local function queue(arrives, at, damage)
+    local index = the_world.push(world, "shot")
+    world.shot.shooter[index], world.shot.target[index] = shooter, at
+    world.shot.damage[index], world.shot.arrives[index] = damage, arrives
+  end
+  queue(3, target, 10)
+  queue(9, target, 1)
+  queue(3, target, 7)
+  queue(7, other, 1)
+  world.tick = 3
+  combat.land_pass(world)
+  local shot = world.shot
+  harness.check("the shots due landed, the rest kept their order",
+                shot.count == 2 and shot.arrives[1] == 9 and shot.arrives[2] == 7,
+                combat.describe(world, 1) .. "; " .. combat.describe(world, 2))
+  harness.check("the slots left over are zeroed", shot.arrives[3] == 0 and shot.target[4] == 0)
+  harness.check("both landed shots were taken off", combat.health(world, target)
+                == units.kind("frigate").health - 17, combat.health(world, target))
+  the_world.release(world, "unit", other)
+  world.tick = 9
+  combat.land_pass(world)
+  harness.check("a shot at a released row is dropped, not applied", shot.count == 0)
+end)
+
+harness.suite("the die pass takes out the dead and the shells flying at them", function()
+  local units = harness.load("units", "201")
+  local combat = harness.load("combat", "206")
+  local the_world = harness.load("the-world", "104")
+  local world = level()
+  local a = units.spawn(world, "tank", 1, 10, 10)
+  local b = units.spawn(world, "tank", 2, 20, 10)
+  local c = units.spawn(world, "tank", 2, 30, 10)
+  local raw = the_world.claim(world, "unit")
+  local live = world.unit.count
+  for _, at in ipairs({b, c, b}) do
+    local index = the_world.push(world, "shot")
+    world.shot.shooter[index], world.shot.target[index], world.shot.arrives[index] = a, at, 50
+  end
+  combat.hurt(world, b, units.kind("tank").health)
+  harness.check("a unit at zero is still a row until the die pass", world.unit.alive[b] == 1)
+  harness.check("one died", combat.die_pass(world) == 1)
+  harness.check("its row is released and the live count lowered",
+                world.unit.alive[b] == 0 and world.unit.count == live - 1)
+  harness.check("the shells flying at it are dropped, the others kept",
+                world.shot.count == 1 and world.shot.target[1] == c)
+  harness.check("a raw row of no kind is not killed", world.unit.alive[raw] == 1)
+  harness.check("nothing more dies on the next pass", combat.die_pass(world) == 0)
+  harness.check("a released row has no health to read", not pcall(combat.health, world, b))
+  local tank = units.kind("tank")
+  harness.check("the report gives each kind's heal rhythm in ticks and seconds",
+                units.report():find(string.format("tank%s every %d ticks (%g s)",
+                                                  string.rep(" ", 10), tank.heal_ticks, tank.heal_period),
+                                    1, true) ~= nil)
+  harness.check("a hurt is a whole number from zero",
+                not pcall(combat.hurt, world, a, -1) and not pcall(combat.hurt, world, a, 0.5))
+end)
+
+harness.suite("a full shot queue is refused by name, and the tick lands and buries", function()
+  local units = harness.load("units", "201")
+  local combat = harness.load("combat", "206")
+  local targeting = harness.load("targeting", "205")
+  local the_world = harness.load("the-world", "104")
+  local the_tick = harness.load("the-tick", "105")
+  local snapshot = harness.load("snapshot", "109")
+  local small = the_world.allocate({field = FIELD, units = 2, teams = 2, seed = SEED})
+  for index = 1, #small.field.height do small.field.height[index] = 10 end
+  units.spawn(small, "tank", 1, 10, 10)
+  units.spawn(small, "tank", 2, 20, 10)
+  targeting.aim_pass(small)
+  while small.shot.count < small.shot.capacity do the_world.push(small, "shot") end
+  local ok, problem = pcall(combat.fire_pass, small)
+  harness.check("a full queue refuses, naming the shot queue",
+                not ok and tostring(problem):find("shot queue is full", 1, true) ~= nil, problem)
+  local names = {}
+  for index = 8, 10 do
+    local row = the_tick.SYSTEMS[index]
+    names[#names + 1] = row.name .. (row.waiting_for == nil and "" or "?") .. (row.sliceable and "*" or "")
+  end
+  harness.check("the tick's eighth to tenth rows are fire, land and die, and fire slices",
+                table.concat(names, " ") == "fire* land die", table.concat(names, " "))
+  local function duel()
+    local world = flat()
+    units.spawn(world, "tank", 1, 10, 10)
+    units.spawn(world, "tank", 2, 20, 10)
+    units.spawn(world, "frigate", 2, 30, 2)
+    targeting.aim_pass(world)
+    return world
+  end
+  local whole, sliced = duel(), duel()
+  combat.fire_pass(whole)
+  combat.fire_pass_slice(sliced, 1, 1)
+  combat.fire_pass_slice(sliced, 2, sliced.unit.top)
+  harness.check("slices in ascending order fire exactly what the whole pass does",
+                snapshot.hash(whole) == snapshot.hash(sliced) and whole.shot.count >= 2,
+                whole.shot.count .. " shots")
+  local before = snapshot.hash(whole)
+  whole.shot.damage[1] = whole.shot.damage[1] + 1
+  harness.check("the shots in flight are part of the fingerprint", snapshot.hash(whole) ~= before)
+  local world = level()
+  units.spawn(world, "tank", 1, 10, 10)
+  units.spawn(world, "tank", 2, 20, 10)
+  while world.unit.count == 2 and world.tick < 2000 do the_tick.advance(world) end
+  harness.check("two tanks in sight of each other fight until one dies", world.unit.count < 2,
+                "tick " .. world.tick)
+  harness.check("and nothing is left flying at the dead", world.shot.count == 0,
+                combat.describe(world, 1))
 end)
 -- }}}
 

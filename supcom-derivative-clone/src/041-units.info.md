@@ -46,7 +46,7 @@ counter table when it allocates, so the tick brings them up like any other.
 | `counters()` | | the counter rows the world adds: `{path, ticks, extra}` |
 | `validate(world)` | a world | nothing; called by the world's validator. Refuses a live row whose kind is not in the catalogue, whose domain is not its kind's, whose team is not a team of the world, whose pattern the world lacks or whose leg is past it, or which stands where its domain may not (`domains.validate`). A live row of kind zero is one claimed from the world and not yet filled, and is let through |
 | `dump(world, id)` | a world; a row | the row as one line of text, every field in layout order |
-| `report()` | | the catalogue as text, every row, then hits to kill in tank shells |
+| `report()` | | the catalogue as text, every row, then hits to kill in tank shells, then each kind's heal rhythm in ticks and seconds (issue 207) |
 | `DOMAINS`, `DOMAIN_NAMES`, `REACH`, `FIELDS` | | the domains module's land 1, air 2, sea 3 and reach bits; every catalogue field with its type |
 
 ## Data structures it owns

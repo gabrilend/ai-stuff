@@ -442,7 +442,8 @@ end
 
 -- {{{ function M.report()
 -- The catalogue as text: every kind's row in index order, then the relations
--- the vision states, in tank shells. The tool a document points at instead of
+-- the vision states, in tank shells, then each kind's heal rhythm in ticks and
+-- seconds (issue 207). The tool a document points at instead of
 -- quoting a number.
 function M.report()
   local kinds = M.catalogue().kinds
@@ -468,6 +469,14 @@ function M.report()
       text = text .. string.format(", and %d more for its shield", math.ceil(row.shield / shell))
     end
     lines[#lines + 1] = text
+  end
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "heal rhythm, one point back per period of the kind's own counter:"
+  for index = 1, #kinds do
+    local row = kinds[index]
+    lines[#lines + 1] = string.format("  %-14s every %d ticks (%g s), %d ticks from nothing to %d",
+                                      row.name, row.heal_ticks, row.heal_period,
+                                      row.heal_ticks * row.health, row.health)
   end
   return table.concat(lines, "\n") .. "\n"
 end

@@ -5,14 +5,17 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 106, 205 |
 | Blocks | 208, 310 |
-| Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
+| Reads | [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) |
 | Open questions | A3 |
 
 ## Current behavior
 
-Nothing. The test program `tests/020-things-that-roll-fly-and-sail.lua` names
-this issue and looks for the stem `combat`; it asserts that a shot lands at the
-tick its distance says and not before.
+Built. `src/045-combat.lua` runs the tick's fire, land and die rows. A ready
+unit with a live target appends a shot (shooter, target, damage at the
+distance, arrival tick) to the world's shot queue and rewrites its own
+`reload_at`; the land pass applies every shot whose tick has come, in queue
+order, through `hurt`; the die pass releases every unit at or below zero health
+and drops the shells still flying at it. The fire pass slices.
 
 ## Intended behavior
 
@@ -74,11 +77,39 @@ change.
 7. Write the failure text a test prints when a shot lands early or late: the
    shot's row, its arrival tick, and the tick it was checked at.
 
+## What happened
+
+- **The shot buffer is a queue group in the world's layout**, `world.shot`, with
+  `shooter`, `target`, `damage`, `arrives` and `count`, so the hash, the copy
+  and the validator walk it with everything else. Its capacity is the world's
+  `units` times a new rule, `shots_per_unit = 4`; a full queue refuses with
+  "the shot queue is full", never drops a shot.
+- **The land pass compacts stably**, not by moving the last row into the freed
+  slot as step 4 suggests: that move reorders the shots still flying, and the
+  issue's own lockstep rule is that the queue's order is the order of landing.
+- **A shot lands when its arrival tick is now or past**, so a shot can never be
+  stranded; within a normal tick that is the same as "now".
+- **The die pass also drops the shells flying at the dead**, so "a shot whose
+  target is dead is dropped" holds even when the row is handed out again before
+  the shell lands. Shells the dead unit fired still land.
+- **Damage is rounded down and never less than one**; `damage_at` is exported.
+- **`reload_at` is the reload counter's next increment**, so a gun fires once a
+  reload period on its kind's shared counter.
+- **The die row is the combat module's**, though the tick once named 208 for
+  it, because this issue writes the die pass; 208 adds `leave` to it. A raw row
+  with no kind is never killed.
+- **The test's shot case needed the target to hold its fire.** Two enemy tanks
+  in plain sight both fire under this issue's own rule, so the queue held two
+  shots, not one. The suite now clears the target's target after aiming; every
+  assertion is unchanged.
+- `describe(world, index)` is step 7's failure text.
+- A3 stays open with the working ruling (a shot follows its target).
+
 ## Related documents and tools
 
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- [the tick and the timers](../docs/003-the-tick-and-the-timers.md) — the heal pair and the pool's rule
-- [other players](../docs/011-other-players.md) — why order is everything
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) — the heal pair and the pool's rule
+- [other players](../../docs/011-other-players.md) — why order is everything
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

@@ -91,7 +91,8 @@ M.TYPES = {
 --
 -- Capacity comes from the allocation parameters (`units`, `teams`), from the
 -- field (`cells`), from a module's own list (`streams`), or from the rules
--- (`commands`, `refusals`). An issue that builds
+-- (`commands`, `refusals`; `shots` is the units times the rules'
+-- `shots_per_unit`). An issue that builds
 -- a system adds its group or its fields here; a field nobody has built yet still
 -- holds zero, which is what "nothing" means.
 M.LAYOUT = {
@@ -155,6 +156,12 @@ M.LAYOUT = {
     {"argument2", "double"},
     {"argument3", "double"},
     {"argument4", "double"},
+  }},
+  {group = "shot", kind = "queue", capacity = "shots", fields = {
+    {"shooter", "integer"},     -- the unit that fired it
+    {"target", "integer"},      -- the unit it will land on (it follows its target)
+    {"damage", "integer"},      -- what it does, the falloff at the distance it was fired over
+    {"arrives", "integer"},     -- the tick it lands in; appended in unit-row order within a tick
   }},
   {group = "refusal", kind = "ring", capacity = "refusals", fields = {
     {"tick", "integer"},        -- the tick that was running when it was refused
@@ -268,6 +275,7 @@ local function capacities(parameters, field, streams, rules)
     streams = #streams.STREAMS,
     commands = whole(rules, "commands"),
     refusals = whole(rules, "refusals"),
+    shots = whole(parameters, "units") * whole(rules, "shots_per_unit"),
   }
 end
 -- }}}

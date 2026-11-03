@@ -45,6 +45,12 @@ return {
   commands = 256,
   refusals = 16,
 
+  -- How many shots may be in flight at once, per unit the world holds. A shell
+  -- crosses a field in fewer ticks than most kinds take to reload twice, so a
+  -- unit rarely has more than two in the air; a full queue is a refusal by
+  -- name, never a dropped shot.
+  shots_per_unit = 4,
+
   -- The most units a match the headless runner plays may hold at once. A test
   -- that allocates its own world names its own; this is the runner's.
   units = 1024,
