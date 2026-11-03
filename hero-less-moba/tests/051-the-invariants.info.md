@@ -91,7 +91,7 @@ cheap standing versions, kept here so a whole-match run notices.
 | The stacked lane actually holds the upgrades, **and its frontline is further forward than the lanes beside it** | …breaks the premise, however well everything else runs. If stacking a lane does not move a frontline, none of the rest matters. |
 | A surge deals the whole holding to bodies in every lane, and takes nothing out of the slots to do it | …makes a surge spend the board instead of copying it. |
 | A match left alone reaches an ending, through three surges and three challenges; the first two monsters die and the third does not | …removes the deadline. Without it two even teams grind for as long as anybody will watch, which is not a stalemate the design wants — it is the absence of an ending. |
-| A match somebody plays is won rather than drawn, and the chest was actually used to do it | …makes playing indistinguishable from not playing. |
+| A match somebody plays is won rather than drawn, and most of the stones drawn left a chest | …makes playing indistinguishable from not playing. |
 
 ### The way in
 

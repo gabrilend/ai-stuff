@@ -149,10 +149,12 @@ local function test_a_played_match_is_decisive()
     end
   end
 
-  local placed = 0
+  -- Every stone the two teams ever drew, and how many of them left a chest.
+  local placed, drawn = 0, 0
   for team = 1, 2 do
     local _, in_lanes, in_stone = world.chest.total_held(world, team)
     placed = placed + in_lanes + in_stone
+    drawn = drawn + #world.stone[team]
   end
 
   -- **A library fell.** That is the contrast this test exists to draw, against the
@@ -169,9 +171,16 @@ local function test_a_played_match_is_decisive()
         world.winner == 1 or world.winner == 2 or world.winner == 3,
         string.format("still running at tick %d", world.tick))
 
+  -- **Used, as a share of what there was to use.** This was `placed > 60`, a count
+  -- that only described one match of one length: when guards began to move, the same
+  -- seed's match ended at tick 7246 instead of 14484 with the bots placing at the same
+  -- rate, and the count failed on a match in which four stones in five left a chest.
+  -- What the check means is that the bots spend what they are dealt, so it asks for
+  -- most of it -- and asks that there was something to spend, since a share of
+  -- nothing is not a finding. A bot that hoards fails it however long the match runs.
   check("and the chest was actually used to do it",
-        placed > 60,
-        string.format("only %d upgrades ever left a chest", placed))
+        drawn >= 20 and placed * 2 > drawn,
+        string.format("%d of the %d stones drawn ever left a chest", placed, drawn))
 end
 -- }}}
 
