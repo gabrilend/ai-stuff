@@ -1,0 +1,27 @@
+# net.map — every link looked at, a hundred times a second (issue 703)
+#
+# src/system/118-net.c arms an engine timer that writes into this
+# program's argument 0 every 10 ms. Each tick, `poll` reads whatever
+# frames have arrived on each link, answers address questions, hands
+# datagrams to whoever listens on their port, and sends any probe or
+# announcement that has come due.
+#
+# The poll number rides a loop, as the input frame's does: only one
+# number is ever on the wire, so only one poll is ever running, and the
+# links are read in order.
+#
+# On the twin the links are a stand-in (twin/117-link-twin.c). On the
+# device they say "no link" until the radio (701, 702) and the cable
+# (706) are up, and every poll finds nothing.
+
+boxes = ../boxes/
+
+station first_poll (boxes/062-arithmetic.c:constant)
+  in 0 = 0
+  out 0 - poll.1
+
+station poll (boxes/119-net.c:net_frame)
+  in 0 - 0$
+  in 1 - first_poll.0
+  in 1 - poll.0
+  out 0 - poll.1
