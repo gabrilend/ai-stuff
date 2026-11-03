@@ -9,7 +9,10 @@
 # per conversation per level.  -I picks the projects and levels from a menu;
 # --since limits the run to conversations that changed since a date;
 # --commit commits each project's llm-transcripts folder and nothing else.
-# (Issue 009.)
+# (Issue 009.)  --output-dir puts the level exports elsewhere, --combined
+# joins the run's baseline transcripts into one file, --metadata lists each
+# conversation's exports, and --parallel runs a conversation's levels at the
+# same time.  (Issue 042.)
 
 # -- {{{ Script Directory and Path Setup
 DIR="${DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -35,6 +38,12 @@ AUTO_COMMIT=false
 VERBOSITY_RANGE=""
 SINCE_DATE=""
 SELECTED_PROJECTS=()
+OUTPUT_DIR=""
+COMBINED=false
+METADATA=false
+PARALLEL=1
+# Baseline transcripts this run covered, "name|file", for --combined.
+COMBINED_PARTS=()
 # The verbosity levels to export, worked out once from the options (or the
 # menu).  Empty: baseline transcripts only.
 EXPORT_LEVELS=()
@@ -87,6 +96,15 @@ OPTIONS:
     --since DATE            Only conversations changed since DATE
                             (any date 'date -d' reads, e.g. 2026-10-01)
     --commit                Commit each project's llm-transcripts folder afterwards
+                            (and the --output-dir folder and --combined file)
+    --output-dir DIR        Write level exports to DIR/<project>/ instead of
+                            <project>/llm-transcripts/ (baselines stay there)
+    --combined              Also join this run's baseline transcripts into one
+                            file, combined-<YYYY-MM-DD>.md, in --output-dir or
+                            the monorepo's llm-transcripts/
+    --metadata              Beside each conversation's level exports, write
+                            <id>.exports.txt: file, bytes, when exported
+    --parallel N            Export up to N levels of a conversation at once
     -h, --help              Show this help message
 
 Without -v, --all-verbosity-levels or --verbosity-range only the baseline
@@ -175,6 +193,24 @@ parse_arguments() {
                 SINCE_DATE="$2"
                 shift 2
                 ;;
+            --output-dir)
+                need_value "$@"
+                OUTPUT_DIR="$2"
+                shift 2
+                ;;
+            --combined)
+                COMBINED=true
+                shift
+                ;;
+            --metadata)
+                METADATA=true
+                shift
+                ;;
+            --parallel)
+                need_value "$@"
+                PARALLEL="$2"
+                shift 2
+                ;;
             -*)
                 error "Unknown option: $1"
                 show_help
@@ -207,6 +243,17 @@ validate_options() {
         error "Invalid --since date: $SINCE_DATE"
         exit 1
     fi
+    if ! [[ "$PARALLEL" =~ ^[1-9][0-9]*$ ]]; then
+        error "Invalid --parallel count: $PARALLEL (want a whole number, 1 or more)"
+        exit 1
+    fi
+    if [[ -n "$OUTPUT_DIR" ]]; then
+        if ! mkdir -p "$OUTPUT_DIR" 2>/dev/null; then
+            error "Cannot make --output-dir $OUTPUT_DIR"
+            exit 1
+        fi
+        OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
+    fi
 
     EXPORT_LEVELS=()
     local v
@@ -232,6 +279,32 @@ level_name() {
         4) echo "complete" ;;
         5) echo "raw" ;;
     esac
+}
+# }}}
+
+# -- {{{ is_level_file
+# True for a level export's name: <id>-v<N>-<level name>.md.
+is_level_file() {
+    [[ "$(basename "$1")" =~ -v[0-5]-(minimal|compact|standard|verbose|complete|raw)\.md$ ]]
+}
+# }}}
+
+# -- {{{ export_dir_for
+# Where a project's level exports go: <output-dir>/<project> with
+# --output-dir, else beside the baselines in <project>/llm-transcripts.
+export_dir_for() {
+    local project_dir="$1" name="$2"
+    if [[ -n "$OUTPUT_DIR" ]]; then
+        echo "$OUTPUT_DIR/$name"
+    else
+        echo "$project_dir/llm-transcripts"
+    fi
+}
+# }}}
+
+# -- {{{ combined_file_path
+combined_file_path() {
+    echo "${OUTPUT_DIR:-$MONOREPO_ROOT/llm-transcripts}/combined-$(date +%F).md"
 }
 # }}}
 
@@ -287,8 +360,9 @@ count_conversations() {
 # Backs up one project.  Sets LAST_FILES_WRITTEN to the conversations with a
 # transcript plus the level files written (the count used to travel back in
 # the exit status, which wraps at 256) and returns 1 if a step failed.
+# Adds the baseline transcripts it covered to COMBINED_PARTS.
 backup_project() {
-    local project_dir="$1"
+    local project_dir="$1" name="$2"
     LAST_FILES_WRITTEN=0
 
     # Create llm-transcripts directory if it doesn't exist
@@ -325,11 +399,14 @@ backup_project() {
 
     # One entry per conversation: an exported level file starts with the
     # same header line as the baseline, so it is listed as a transcript too.
-    local -A seen=()
+    local -A seen=() baseline_of=()
     local -a all_ids=()
     local summary_file conv_id
     while IFS= read -r summary_file; do
         conv_id=$(transcript_conv_id "$summary_file") || continue
+        if ! is_level_file "$summary_file"; then
+            baseline_of["$conv_id"]="$summary_file"
+        fi
         [[ -n "${seen[$conv_id]:-}" ]] && continue
         seen["$conv_id"]=1
         all_ids+=("$conv_id")
@@ -337,17 +414,6 @@ backup_project() {
 
     success "  ${#all_ids[@]} conversations have a transcript"
     LAST_FILES_WRITTEN=${#all_ids[@]}
-
-    # Step 2: export at each level asked for
-    if [[ ${#EXPORT_LEVELS[@]} -eq 0 ]]; then
-        return 0
-    fi
-    if [[ ! -x "$exporter" ]]; then
-        warn "  Verbosity exports skipped: claude-conversation-exporter.sh not found"
-        return 0
-    fi
-
-    echo "  Step 2/2: Exporting at levels ${EXPORT_LEVELS[*]}..."
 
     # With --since, only conversations whose log changed since the date.
     local -a conv_ids=("${all_ids[@]}")
@@ -362,29 +428,75 @@ backup_project() {
             [[ -n "${wanted[$conv_id]:-}" ]] && conv_ids+=("$conv_id")
         done
     fi
+    for conv_id in "${conv_ids[@]}"; do
+        [[ -n "${baseline_of[$conv_id]:-}" ]] && COMBINED_PARTS+=("${name}|${baseline_of[$conv_id]}")
+    done
 
-    local conv_num=0 level output_file failed=0 written=0
+    # Step 2: export at each level asked for
+    if [[ ${#EXPORT_LEVELS[@]} -eq 0 ]]; then
+        return 0
+    fi
+    if [[ ! -x "$exporter" ]]; then
+        warn "  Verbosity exports skipped: claude-conversation-exporter.sh not found"
+        return 0
+    fi
+
+    local export_dir
+    export_dir="$(export_dir_for "$project_dir" "$name")"
+    mkdir -p "$export_dir"
+    echo "  Step 2/2: Exporting at levels ${EXPORT_LEVELS[*]} into $export_dir..."
+
+    # Each level's output, messages and exit status go to files of their own,
+    # so levels can run side by side (--parallel) and a failure still says
+    # which level it was.  Results are read back in level order.
+    local work
+    work="$(mktemp -d "${TMPDIR:-/tmp}/batch-backup.XXXXXX")" || return 1
+
+    local conv_num=0 level output_file failed=0 written=0 rc
     for conv_id in "${conv_ids[@]}"; do
         conv_num=$((conv_num + 1))
         echo "    Processing $conv_num/${#conv_ids[@]}: $conv_id"
         for level in "${EXPORT_LEVELS[@]}"; do
-            output_file="${transcripts_dir}/${conv_id}-v${level}-$(level_name "$level").md"
-            # The exporter's own messages go to the terminal: a failed export
-            # says why instead of vanishing.
-            if ! "$exporter" -v"$level" "$project_dir" "$conv_id" > "$output_file"; then
-                rm -f "$output_file"
-                error "      level $level export of $conv_id failed (its messages are above)"
+            while (( $(jobs -rp | wc -l) >= PARALLEL )); do
+                wait -n
+            done
+            (
+                "$exporter" -v"$level" "$project_dir" "$conv_id" \
+                    > "$work/$level.out" 2> "$work/$level.err"
+                echo $? > "$work/$level.rc"
+            ) &
+        done
+        wait
+
+        local -a meta_lines=()
+        for level in "${EXPORT_LEVELS[@]}"; do
+            output_file="${export_dir}/${conv_id}-v${level}-$(level_name "$level").md"
+            rc="$(cat "$work/$level.rc" 2>/dev/null || echo 1)"
+            if [[ -s "$work/$level.err" ]]; then
+                sed "s/^/      level $level: /" "$work/$level.err" >&2
+            fi
+            if [[ "$rc" != 0 ]]; then
+                error "      level $level export of $conv_id failed (exit $rc; its messages are above)"
                 failed=1
-            elif [[ ! -s "$output_file" ]]; then
+            elif [[ ! -s "$work/$level.out" ]]; then
                 # Issue 009 recorded that some levels can come out empty;
                 # that is the exporter's choice, not a failure of this run.
-                rm -f "$output_file"
                 warn "      level $level export of $conv_id was empty; no file kept"
             else
+                mv -f "$work/$level.out" "$output_file"
                 written=$((written + 1))
+                meta_lines+=("$(basename "$output_file")	$(stat -c %s "$output_file")	$(date -Iseconds)")
             fi
+            rm -f -- "${work:?}/${level:?}.out" "${work:?}/${level:?}.err" "${work:?}/${level:?}.rc"
         done
+
+        # --metadata: written after the exports, listing only those that
+        # were written, so a failed export is never listed.
+        if $METADATA && [[ ${#meta_lines[@]} -gt 0 ]]; then
+            printf '%s\n' "${meta_lines[@]}" > "${export_dir}/${conv_id}.exports.txt"
+        fi
     done
+    rmdir -- "$work" 2>/dev/null
 
     LAST_FILES_WRITTEN=$(( ${#all_ids[@]} + written ))
     success "  Level exports written: $written"
@@ -392,30 +504,71 @@ backup_project() {
 }
 # }}}
 
-# -- {{{ commit_transcripts
-# Commits one project's llm-transcripts folder, and only it, so nothing else
-# that happens to be staged is swept into the commit.
-commit_transcripts() {
-    local project_dir="$1" name="$2"
-    local folder="llm-transcripts"
-    if ! git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        warn "  --commit: $project_dir is not in a git repository; not committed"
+# -- {{{ commit_paths
+# Commits the named paths in the repository that holds <where>, and only
+# them, so nothing else that happens to be staged is swept into the commit.
+# commit_paths <where> <label> <message> <path...>  (paths relative to <where>)
+commit_paths() {
+    local where="$1" label="$2" message="$3"
+    shift 3
+    if ! git -C "$where" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        warn "  --commit: $where is not in a git repository; $label not committed"
         return 1
     fi
-    if ! git -C "$project_dir" add -A -- "$folder"; then
-        warn "  --commit: could not stage $project_dir/$folder; not committed"
+    if ! git -C "$where" add -A -- "$@"; then
+        warn "  --commit: could not stage $label; not committed"
         return 1
     fi
-    if git -C "$project_dir" diff --cached --quiet -- "$folder"; then
-        echo "  Nothing new to commit in $name"
+    if git -C "$where" diff --cached --quiet -- "$@"; then
+        echo "  Nothing new to commit in $label"
         return 0
     fi
-    if git -C "$project_dir" commit -q -m "Back up ${name}'s LLM transcripts" -- "$folder"; then
-        success "  Committed $name/$folder"
+    if git -C "$where" commit -q -m "$message" -- "$@"; then
+        success "  Committed $label"
     else
-        warn "  --commit: the commit for $name failed"
+        warn "  --commit: the commit for $label failed"
         return 1
     fi
+}
+# }}}
+
+# -- {{{ commit_transcripts
+# Commits one project's llm-transcripts folder, and its --output-dir folder
+# when there is one.
+commit_transcripts() {
+    local project_dir="$1" name="$2"
+    local status=0
+    commit_paths "$project_dir" "$name" "Back up ${name}'s LLM transcripts" llm-transcripts || status=1
+    if [[ -n "$OUTPUT_DIR" && -d "$OUTPUT_DIR/$name" ]]; then
+        commit_paths "$OUTPUT_DIR/$name" "$OUTPUT_DIR/$name" "Export ${name}'s LLM transcripts" . || status=1
+    fi
+    return $status
+}
+# }}}
+
+# -- {{{ write_combined
+# Joins the run's baseline transcripts into one file, project by project.
+write_combined() {
+    local dest="$1" part name file last=""
+    mkdir -p "$(dirname "$dest")" || return 1
+    {
+        echo "# Combined LLM transcripts, $(date +%F)"
+        echo ""
+        echo "Projects: $(printf '%s\n' "${COMBINED_PARTS[@]}" | cut -d'|' -f1 | uniq | paste -sd' ')"
+        for part in "${COMBINED_PARTS[@]}"; do
+            name="${part%%|*}"
+            file="${part#*|}"
+            if [[ "$name" != "$last" ]]; then
+                echo ""
+                echo "## $name"
+                last="$name"
+            fi
+            echo ""
+            echo "### $(basename "$file")"
+            echo ""
+            cat "$file"
+        done
+    } > "$dest"
 }
 # }}}
 
@@ -507,6 +660,8 @@ run_interactive_menu() {
         "Show what would be done without doing it"
     menu_add_item "options" "commit" "Commit afterwards" "checkbox" "$($AUTO_COMMIT && echo 1 || echo 0)" \
         "Commit each project's llm-transcripts folder, and nothing else"
+    menu_add_item "options" "combined" "Combined file too" "checkbox" "$($COMBINED && echo 1 || echo 0)" \
+        "Also join the run's baseline transcripts into one combined-<date>.md"
 
     menu_add_section "actions" "single" "Actions"
     menu_add_item "actions" "run" "Run Backup" "action" "" "Back up the chosen projects" "r"
@@ -536,6 +691,7 @@ run_interactive_menu() {
     esac
     [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true || DRY_RUN=false
     [[ "$(menu_get_value "commit")" == "1" ]] && AUTO_COMMIT=true || AUTO_COMMIT=false
+    [[ "$(menu_get_value "combined")" == "1" ]] && COMBINED=true || COMBINED=false
     return 0
 }
 # }}}
@@ -643,13 +799,16 @@ main() {
             if [[ $num_levels -gt 0 ]]; then
                 echo "  Would export $(( count * num_levels )) files ($num_levels levels per conversation)"
             fi
+            if [[ -n "$OUTPUT_DIR" && $num_levels -gt 0 ]]; then
+                echo "  Level exports would go to: $(export_dir_for "$path" "$name")/"
+            fi
             if $AUTO_COMMIT; then
                 echo "  Would commit ${path}/llm-transcripts/"
             fi
             continue
         fi
 
-        if ! backup_project "$path"; then
+        if ! backup_project "$path" "$name"; then
             FAILED_PROJECTS+=("$name")
         fi
         total_files=$((total_files + LAST_FILES_WRITTEN))
@@ -659,6 +818,27 @@ main() {
         fi
         echo ""
     done
+
+    # --combined: one file joining this run's baseline transcripts.
+    if $COMBINED; then
+        local combined
+        combined="$(combined_file_path)"
+        if $DRY_RUN; then
+            echo "Would join the baseline transcripts into: $combined"
+        elif [[ ${#COMBINED_PARTS[@]} -eq 0 ]]; then
+            warn "No baseline transcripts to combine; no combined file written"
+        elif write_combined "$combined"; then
+            success "Combined ${#COMBINED_PARTS[@]} transcripts into $combined"
+            if $AUTO_COMMIT; then
+                commit_paths "$(dirname "$combined")" "$(basename "$combined")" \
+                    "Combined LLM transcripts, $(date +%F)" "$(basename "$combined")" \
+                    || FAILED_PROJECTS+=("combined(commit)")
+            fi
+        else
+            error "Could not write $combined"
+            FAILED_PROJECTS+=("combined")
+        fi
+    fi
 
     # Show summary
     echo ""

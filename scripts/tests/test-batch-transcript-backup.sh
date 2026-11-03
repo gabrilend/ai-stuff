@@ -80,6 +80,9 @@ EOF
 #!/usr/bin/env bash
 level="\${1#-v}"
 echo "\$(basename "\$2") \$3 v\$level" >> "$T/exporter.log"
+# SLOW: mark the start and end of each call, a second apart, so a test can
+# see two levels running at once.
+if [ -n "\${SLOW:-}" ]; then echo "start \$level" >> "$T/timeline.log"; sleep 1; echo "end \$level" >> "$T/timeline.log"; fi
 if [ "\${FAIL_LEVEL:-}" = "\$level" ]; then echo "exporter: level \$level broke on \$3" >&2; exit 3; fi
 if [ "\${EMPTY_LEVEL:-}" = "\$level" ]; then exit 0; fi
 printf '# Conversation Summary: %s\nlevel %s\n' "\$3" "\$level"
@@ -94,7 +97,7 @@ EOF
     echo '{}' > "$alpha_logs/a1.jsonl"
     echo '{}' > "$alpha_logs/a2.jsonl"
     echo '{}' > "$beta_logs/b1.jsonl"
-    rm -f "$T/exporter.log"
+    rm -f "$T/exporter.log" "$T/timeline.log"
 }
 
 # run <name> <args...>: runs the tool, output in $T/<name>.out, status in $T/<name>.rc
@@ -191,6 +194,71 @@ check "what was staged elsewhere is still staged, not committed" \
 run commit2 --all --commit
 has "a second run has nothing new" "$T/commit2.out" "Nothing new to commit in alpha"
 check "and makes no commit" "$(git -C "$T/mono" rev-list --count HEAD)" "2"
+
+echo "--output-dir, --metadata (issue 042)"
+build
+run outdir --output-dir "$T/out" --metadata -v 2 alpha
+check "--output-dir exits 0" "$(rc outdir)" "0"
+check "level files go to <output-dir>/<project>" "$(ls "$T/out/alpha" | tr '\n' ' ')" \
+    "a1-v2-standard.md a1.exports.txt a2-v2-standard.md a2.exports.txt "
+check "baselines stay in the project" "$(ls "$T/mono/alpha/llm-transcripts" | tr '\n' ' ')" "a1.md a2.md "
+check "the metadata line names the file and its size" "$(cut -f1,2 "$T/out/alpha/a1.exports.txt")" \
+    "a1-v2-standard.md	$(stat -c %s "$T/out/alpha/a1-v2-standard.md")"
+check "and when it was exported" "$(cut -f3 "$T/out/alpha/a1.exports.txt" | grep -c '^20[0-9][0-9]-')" "1"
+build
+FAIL_LEVEL=3 run metafail --output-dir "$T/out2" --metadata --verbosity-range 2-3 alpha
+check "a failed level is not in the metadata" "$(cut -f1 "$T/out2/alpha/a1.exports.txt" | tr '\n' ' ')" "a1-v2-standard.md "
+run nometa --output-dir "$T/out3" -v 1 alpha
+check "no metadata file without --metadata" "$(ls "$T/out3/alpha" | grep -c exports)" "0"
+
+echo "--combined (issue 042)"
+build
+mkdir -p "$T/mono/llm-transcripts"
+run combined --combined -v 1 --all
+check "--combined exits 0" "$(rc combined)" "0"
+C="$T/mono/llm-transcripts/combined-$(date +%F).md"
+check "the combined file goes to the monorepo's llm-transcripts" "$([ -f "$C" ] && echo yes)" "yes"
+check "it has a part per project" "$(grep -c '^## ' "$C")" "2"
+check "and every baseline transcript" "$(grep -c '^baseline$' "$C")" "3"
+check "and no level export" "$(grep -c '^level ' "$C")" "0"
+build
+touch -d 2020-01-01 "$T/home/.claude/projects/$(encode "$T/mono/alpha")/a1.jsonl"
+run combsince --combined --output-dir "$T/cout" --since 2025-01-01 --all
+check "with --output-dir it goes there, and --since keeps only the changed ones" \
+    "$(grep '^### ' "$T/cout/combined-$(date +%F).md" | tr '\n' ' ')" "### a2.md ### b1.md "
+run combdry --combined --dry-run --all
+has "a dry run says where it would go" "$T/combdry.out" "Would join the baseline transcripts into:"
+
+echo "--parallel (issue 042)"
+build
+SLOW=1 run par --parallel 3 --verbosity-range 0-2 beta
+check "--parallel exits 0" "$(rc par)" "0"
+check "all levels are written" "$(ls "$T/mono/beta/llm-transcripts" | wc -l | tr -d ' ')" "4"
+check "levels ran at the same time (two starts before any end)" "$(head -2 "$T/timeline.log" | grep -c '^start')" "2"
+build
+SLOW=1 run seq --verbosity-range 0-1 beta
+check "without --parallel, one at a time" "$(head -2 "$T/timeline.log" | tr '\n' ' ')" "start 0 end 0 "
+build
+FAIL_LEVEL=1 run parfail --parallel 4 --verbosity-range 0-3 beta
+check "a failed level in parallel ends in exit 1" "$(rc parfail)" "1"
+has "its messages are shown, with the level" "$T/parfail.out" "level 1: exporter: level 1 broke on b1"
+check "the other levels are kept" "$(ls "$T/mono/beta/llm-transcripts" | tr '\n' ' ')" \
+    "b1-v0-minimal.md b1-v2-standard.md b1-v3-verbose.md b1.md "
+run badpar --parallel 0 --all
+check "--parallel 0 is an error" "$(rc badpar)" "1"
+
+echo "--commit with --output-dir and --combined (issue 042)"
+build
+git -C "$T/mono" init -q
+git -C "$T/mono" config user.email test@example.invalid
+git -C "$T/mono" config user.name test
+run commitout --commit --output-dir "$T/mono/exports" --combined -v 0 alpha
+check "commit run exits 0" "$(rc commitout)" "0"
+check "baselines, exports and the combined file are all committed" \
+    "$(git -C "$T/mono" log --name-only --format= | grep -v '^$' | sed 's|/[^/]*$||' | sort -u | tr '\n' ' ')" \
+    "alpha/llm-transcripts exports exports/alpha "
+check "nothing it wrote is left uncommitted" \
+    "$(git -C "$T/mono" status --porcelain -uall -- exports alpha/llm-transcripts | wc -l | tr -d ' ')" "0"
 
 echo "a count past 255"
 build
