@@ -46,3 +46,14 @@ a tuning.
 **How often a truck launches its plane** (issue 210). A new rule,
 `launch_seconds = 15`: the launch counter fires every fifteen seconds, and a
 truck that launched waits for its next increment. A guess to be measured.
+
+**The enforcer's sphere, appetite and upgrades** (issue 211). New catalogue
+fields, zero for every kind but the enforcer:
+- `sphere_radius = 3` (cells);
+- `eat_radius = 2` (cells);
+- `eat_share = 0.5`, half of what it eats to the treasury until a factory's
+  dial says otherwise;
+- three upgrade steps of 200 eaten mass each (A9's working ruling). Each step
+  adds 25 to the health cap, 10 to the damage and 1 to the sphere.
+
+These are guesses, to be measured.

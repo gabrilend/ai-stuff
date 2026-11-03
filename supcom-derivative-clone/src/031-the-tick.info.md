@@ -45,7 +45,7 @@ the world; `run_slice` takes the world and a first and last unit id.
 | 7 | `sight-and-aim` | yes | `targeting.aim_pass` (205) |
 | 8 | `fire` | yes | `combat.fire_pass` (206) |
 | 9 | `land` | no | `combat.land_pass` (206) |
-| 10 | `die` | no | `combat.die_pass` (206) |
+| 10 | `die` | no | `combat.die_row` (206, 211): the die pass, then the enforcers' eat pass |
 | 11 | `the-cloud` | no | waiting for 401 |
 | 12 | `consequences` | no | waiting for 309 |
 | 13 | `snapshot` | no | `snapshot.snapshot_pass` (109) |

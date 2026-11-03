@@ -1054,4 +1054,117 @@ harness.suite("the enforcer eats bones and its sphere absorbs", function()
 end)
 -- }}}
 
+-- {{{ the enforcer, closer
+harness.suite("the enforcer is tall, claims wide, and eats what lies in reach", function()
+  local units = harness.load("units", "201")
+  local enforcer = harness.load("enforcer", "211")
+  local bones = harness.load("bones", "208")
+  local combat = harness.load("combat", "206")
+  local rate = harness.load_asset("the-rules", "105").ticks_per_second
+  local catalogue = units.catalogue()
+  local big = catalogue.enforcer
+  local tallest = true
+  for _, row in ipairs(catalogue.kinds) do
+    if row.name ~= "enforcer" and row.domain == units.DOMAINS.land
+       and (row.eye >= big.eye or row.profile >= big.profile) then
+      tallest = false
+    end
+  end
+  harness.check("it looks from higher and stands taller than any other land kind", tallest)
+  harness.check("it is seen before it sees", big.profile > big.eye)
+  harness.check("it claims wider than a tank", big.claim_radius > catalogue.tank.claim_radius)
+  local raw = raw_catalogue()
+  raw.tank.sphere_radius = 2
+  local fine, message = pcall(units.validate_catalogue, raw, rate)
+  harness.check("a sphere with no shield is refused",
+                not fine and tostring(message):find("tank.sphere_radius", 1, true) ~= nil, message)
+  local world = level()
+  local id = units.spawn(world, "enforcer", 1, 10, 10)
+  harness.check("it is born with its kind's share for the treasury", world.unit.eat_share[id] == big.eat_share)
+  bones.leave_at(world, 10, 12, 40)
+  bones.leave_at(world, 30, 30, 7)
+  bones.leave_at(world, 11, 11, 20)
+  world.unit.eat_share[id] = 0.25
+  enforcer.eat_pass(world)
+  harness.check("the bones in reach were eaten and the far ones kept",
+                world.bone.count == 1 and world.bone.mass[1] == 7)
+  harness.check("no mass was lost in the split",
+                world.team.mass[1] + world.unit.eaten[id] == 60 and world.unit.eaten[id] == 45,
+                world.team.mass[1] .. " + " .. world.unit.eaten[id])
+  local tank = units.spawn(world, "tank", 2, 12, 10)
+  combat.hurt(world, tank, catalogue.tank.health)
+  combat.die_row(world)
+  harness.check("the die row eats the bones a tick leaves, the tick they fall",
+                world.unit.alive[tank] == 0 and world.bone.count == 1
+                and world.unit.eaten[id] == 45 + math.floor(bones.mass_of("tank") * 0.75))
+end)
+
+harness.suite("what it eats upgrades it, a step at a time, to the last step", function()
+  local units = harness.load("units", "201")
+  local enforcer = harness.load("enforcer", "211")
+  local bones = harness.load("bones", "208")
+  local combat = harness.load("combat", "206")
+  local big = units.kind("enforcer")
+  local world = level()
+  local id = units.spawn(world, "enforcer", 1, 10, 10)
+  local tank = units.spawn(world, "tank", 1, 20, 20)
+  harness.check("unfed, it is at step nought with its kind's cap, damage and sphere",
+                enforcer.step(world, id) == 0 and enforcer.cap(world, id) == big.health
+                and world.unit.damage[id] == big.damage and enforcer.sphere(world, id) == big.sphere_radius)
+  world.unit.eat_share[id] = 0
+  bones.leave_at(world, 10, 10, big.upgrade_mass)
+  enforcer.eat_pass(world)
+  harness.check("eating a step's mass raises cap, damage and sphere together",
+                enforcer.step(world, id) == 1 and enforcer.cap(world, id) == big.health + big.upgrade_health
+                and world.unit.damage[id] == big.damage + big.upgrade_damage
+                and enforcer.sphere(world, id) == big.sphere_radius + big.upgrade_sphere)
+  harness.check("an upgrade raises the cap, not the health",
+                combat.health(world, id) == big.health and units.DOMAINS.land ~= nil)
+  bones.leave_at(world, 10, 10, big.upgrade_mass * (big.upgrade_steps + 5))
+  enforcer.eat_pass(world)
+  harness.check("nothing goes past the catalogue's last step",
+                enforcer.step(world, id) == big.upgrade_steps
+                and world.unit.damage[id] == big.damage + big.upgrade_steps * big.upgrade_damage)
+  harness.check("a kind that does not upgrade is refused", not pcall(enforcer.upgrade, world, tank)
+                and enforcer.cap(world, tank) == units.kind("tank").health)
+end)
+
+harness.suite("the sphere takes hits on its own team, until it is down", function()
+  local units = harness.load("units", "201")
+  local enforcer = harness.load("enforcer", "211")
+  local combat = harness.load("combat", "206")
+  local timers = harness.load("timers", "106")
+  local big = units.kind("enforcer")
+  local world = level()
+  local id = units.spawn(world, "enforcer", 1, 10, 10)
+  local inside = units.spawn(world, "tank", 1, 12, 10)
+  local enemy = units.spawn(world, "tank", 2, 10, 12)
+  local outside = units.spawn(world, "tank", 1, 20, 10)
+  local plane = units.spawn(world, "helicopter", 1, 10, 11)
+  local tank_cap = units.kind("tank").health
+  combat.hurt(world, enemy, 10)
+  harness.check("an enemy inside the sphere is not covered",
+                combat.health(world, enemy) == tank_cap - 10 and enforcer.shield(world, id) == big.shield)
+  combat.hurt(world, outside, 10)
+  harness.check("a friend outside it is not covered", combat.health(world, outside) == tank_cap - 10)
+  combat.hurt(world, plane, 10)
+  harness.check("a plane above the sphere is outside it",
+                combat.health(world, plane) == units.kind("helicopter").health - 10)
+  combat.hurt(world, id, 30)
+  harness.check("the enforcer is inside its own sphere",
+                combat.health(world, id) == big.health and enforcer.shield(world, id) == big.shield - 30)
+  combat.hurt(world, inside, big.shield)
+  harness.check("a hit bigger than the shield passes the rest through",
+                enforcer.shield(world, id) == 0 and combat.health(world, inside) == tank_cap - 30)
+  combat.hurt(world, inside, 5)
+  harness.check("a sphere that is down takes nothing", combat.health(world, inside) == tank_cap - 35)
+  local counter = world.recharge.enforcer
+  for _ = 1, counter.period * 2 do
+    world.tick = world.tick + 1
+    timers.advance(counter, world.tick)
+  end
+  harness.check("the shield comes back on its counter, without a walk", enforcer.shield(world, id) == 2)
+end)
+-- }}}
+
 harness.finish()

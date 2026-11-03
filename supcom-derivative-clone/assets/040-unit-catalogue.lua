@@ -59,6 +59,14 @@
 --   cost_mass, cost_energy -- the construction stream's totals
 --   build_seconds   -- how long the stream runs at unit build power
 --   bone_share      -- the fraction of cost_mass its bones carry when it dies
+--   sphere_radius   -- cells around it its shield covers; zero where there is none
+--   eat_radius      -- cells around it from which it eats bones; zero eats nothing
+--   eat_share       -- the share of what it eats that goes to the treasury, until
+--                      a factory's dial sets another at birth; the rest is `eaten`
+--   upgrade_mass    -- `eaten` per upgrade step
+--   upgrade_steps   -- how many steps there are; zero never upgrades
+--   upgrade_health, upgrade_damage, upgrade_sphere -- what each step adds to the
+--                      health cap, the damage, and the sphere's radius (A9)
 
 return {
   tank = {
@@ -67,6 +75,8 @@ return {
     shell_speed = 2, reload_seconds = 3, heal_period = 1,
     speed = 0.2, climb = 0.5, eye = 1.5, profile = 2, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 100, cost_energy = 10, build_seconds = 6, bone_share = 0.5,
+    sphere_radius = 0, eat_radius = 0, eat_share = 0,
+    upgrade_mass = 0, upgrade_steps = 0, upgrade_health = 0, upgrade_damage = 0, upgrade_sphere = 0,
   },
   ["anti-air"] = {
     index = 2, name = "anti-air", domain = 1, reaches = 2, tier = 1,
@@ -74,6 +84,8 @@ return {
     shell_speed = 4, reload_seconds = 1.5, heal_period = 1.2,
     speed = 0.15, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 40, cost_energy = 40, build_seconds = 6, bone_share = 0.5,
+    sphere_radius = 0, eat_radius = 0, eat_share = 0,
+    upgrade_mass = 0, upgrade_steps = 0, upgrade_health = 0, upgrade_damage = 0, upgrade_sphere = 0,
   },
   helicopter = {
     index = 3, name = "helicopter", domain = 2, reaches = 5, tier = 1,
@@ -81,6 +93,8 @@ return {
     shell_speed = 3, reload_seconds = 2, heal_period = 0.8,
     speed = 0.6, climb = 0, eye = 1, profile = 1, altitude = 8, claim_radius = 0,
     shield = 0, shield_seconds = 0, cost_mass = 5, cost_energy = 50, build_seconds = 5, bone_share = 0.5,
+    sphere_radius = 0, eat_radius = 0, eat_share = 0,
+    upgrade_mass = 0, upgrade_steps = 0, upgrade_health = 0, upgrade_damage = 0, upgrade_sphere = 0,
   },
   frigate = {
     index = 4, name = "frigate", domain = 3, reaches = 5, tier = 1,
@@ -88,6 +102,8 @@ return {
     shell_speed = 2, reload_seconds = 4, heal_period = 1.5,
     speed = 0.15, climb = 0, eye = 3, profile = 3, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 80, cost_energy = 80, build_seconds = 12, bone_share = 0.5,
+    sphere_radius = 0, eat_radius = 0, eat_share = 0,
+    upgrade_mass = 0, upgrade_steps = 0, upgrade_health = 0, upgrade_damage = 0, upgrade_sphere = 0,
   },
   ["command-truck"] = {
     index = 5, name = "command-truck", domain = 1, reaches = 0, tier = 1,
@@ -95,6 +111,8 @@ return {
     shell_speed = 0, reload_seconds = 0, heal_period = 2,
     speed = 0.25, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 0, cost_energy = 0, build_seconds = 0, bone_share = 0.5,
+    sphere_radius = 0, eat_radius = 0, eat_share = 0,
+    upgrade_mass = 0, upgrade_steps = 0, upgrade_health = 0, upgrade_damage = 0, upgrade_sphere = 0,
   },
   enforcer = {
     index = 6, name = "enforcer", domain = 1, reaches = 5, tier = 2,
@@ -102,5 +120,7 @@ return {
     shell_speed = 2, reload_seconds = 4, heal_period = 0.5,
     speed = 0.1, climb = 0.3, eye = 5, profile = 6, altitude = 0, claim_radius = 4,
     shield = 100, shield_seconds = 0.5, cost_mass = 500, cost_energy = 50, build_seconds = 30, bone_share = 0.5,
+    sphere_radius = 3, eat_radius = 2, eat_share = 0.5,
+    upgrade_mass = 200, upgrade_steps = 3, upgrade_health = 25, upgrade_damage = 10, upgrade_sphere = 1,
   },
 }

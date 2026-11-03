@@ -5,16 +5,17 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 112, 207, 208 |
 | Blocks | — |
-| Reads | [enforcers and experimentals](../docs/009-enforcers-and-experimentals.md) |
+| Reads | [enforcers and experimentals](../../docs/009-enforcers-and-experimentals.md) |
 | Open questions | A9 |
 
 ## Current behavior
 
-Nothing. Territory (issue 112), the heal pair on units (issue 207), and bones
-(issue 208) are the three things the enforcer reads, and none exists. The test
-program `tests/020-things-that-roll-fly-and-sail.lua` names this issue, looks
-for the stem `enforcer`, and asserts that the sphere absorbs a shot aimed at a
-unit inside it.
+Built. `src/048-enforcer.lua` eats the bones in reach after the die pass and
+splits their mass between the treasury and the enforcer's `eaten`. It upgrades
+cap, damage and sphere together on what it has eaten, and its shield sphere
+takes the damage `combat.hurt` would do to any unit of its team inside it. The
+catalogue holds the enforcer's height, claim, sphere, appetite and upgrade
+steps.
 
 ## Intended behavior
 
@@ -76,11 +77,39 @@ enforcers are few and the check is a range walk over their rows.
    bones a tick leaves are eaten the same tick they fall if an enforcer stands
    there.
 
+## What happened
+
+- **The sphere is asked from `combat.hurt`**, not only the land pass, so every
+  hit is covered, including the test's direct `hurt`. That replaces the
+  `shield_pass` the tests document first named: a shield on a pair needs no
+  pass. The contract row now names `absorb`.
+- **The split uses the row's existing `eat_share`** (a double, the treasury's
+  share), which the test sets, rather than a new integer `proportion` column.
+  It is copied at birth from a new catalogue field (0.5 for the enforcer) until
+  issue 307's dial exists. Adding the dial to the placement command is left to
+  307. The treasury gets the share and `eaten` the rest, rounded down, so no
+  mass is lost.
+- **The upgrade step is derived from `eaten`** and is not stored: one step per
+  `upgrade_mass`, capped at `upgrade_steps`. Cap and sphere are worked out from
+  it, and `upgrade` rewrites the damage in place. The unit row gained no column.
+  `combat.health` reads the cap through `enforcer.cap`.
+- **New catalogue fields** on every row: `sphere_radius`, `eat_radius`,
+  `eat_share`, and `upgrade_mass`, `_steps`, `_health`, `_damage`, `_sphere`.
+  A shield and a sphere must come together. Values are logged in the balance
+  updates.
+- **The eat pass runs inside the tick's die row** (`combat.die_row`, the die
+  pass and then the eat pass), because the phase 1 test fixes the tick at
+  thirteen rows. Bones are still eaten the tick they fall.
+- **The sphere is a sphere**, so height counts: a plane above the radius is
+  outside it. The enforcer covers itself. The first sphere in row order with a
+  shield up takes the hit, and only one does, as the issue says.
+- A9 stays open on its working ruling.
+
 ## Related documents and tools
 
-- [enforcers and experimentals](../docs/009-enforcers-and-experimentals.md)
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- [territory, mass, and energy](../docs/005-territory-mass-and-energy.md) — the treasury and the claim
+- [enforcers and experimentals](../../docs/009-enforcers-and-experimentals.md)
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- [territory, mass, and energy](../../docs/005-territory-mass-and-energy.md) — the treasury and the claim
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

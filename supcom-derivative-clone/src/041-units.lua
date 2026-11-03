@@ -88,6 +88,9 @@ M.FIELDS = {
   {"shield_seconds", "double", "shield_ticks"}, {"cost_mass", "integer"},
   {"cost_energy", "integer"}, {"build_seconds", "double", "build_ticks"},
   {"bone_share", "double"},
+  {"sphere_radius", "double"}, {"eat_radius", "double"}, {"eat_share", "double"},
+  {"upgrade_mass", "integer"}, {"upgrade_steps", "integer"}, {"upgrade_health", "integer"},
+  {"upgrade_damage", "integer"}, {"upgrade_sphere", "double"},
 }
 
 -- {{{ local function refuse()
@@ -186,12 +189,22 @@ local function check_row(name, row, rate)
     refuse(name, "bone_share", "is " .. row.bone_share .. ", not a fraction from zero to one;"
            .. " a death never puts back more than the unit cost")
   end
+  if row.eat_share > 1 then
+    refuse(name, "eat_share", "is " .. row.eat_share .. ", not a fraction from zero to one")
+  end
+  if row.upgrade_steps > 0 and row.upgrade_mass < 1 then
+    refuse(name, "upgrade_mass", "is zero, but the kind has " .. row.upgrade_steps .. " upgrade steps")
+  end
   if row.heal_period <= 0 then
     refuse(name, "heal_period", "is zero; every kind heals on its own counter")
   end
   if (row.shield > 0) ~= (row.shield_seconds > 0) then
     refuse(name, "shield_seconds", "is " .. row.shield_seconds .. " with a shield of " .. row.shield
            .. "; a shield and its recharge come together")
+  end
+  if (row.shield > 0) ~= (row.sphere_radius > 0) then
+    refuse(name, "sphere_radius", "is " .. row.sphere_radius .. " with a shield of " .. row.shield
+           .. "; a shield and the sphere it covers come together")
   end
   if (row.domain == M.DOMAINS.air) ~= (row.altitude > 0) then
     refuse(name, "altitude", "is " .. row.altitude .. "; a plane flies above the ground and"
@@ -366,6 +379,7 @@ function M.spawn(world, kind, team, x, y)
   unit.eye[id] = row.eye
   unit.profile[id] = row.profile
   unit.claim_radius[id] = row.claim_radius
+  unit.eat_share[id] = row.eat_share
   if row.shield > 0 then
     local recharge = world.recharge[row.name]
     timers.advance(recharge, world.tick)

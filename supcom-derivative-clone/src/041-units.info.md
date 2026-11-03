@@ -18,8 +18,8 @@ per-kind record. This module does two things:
   weapon is all of a piece: damage, a reach, a shell speed and a reload, or none
   of them.
 - **The row.** `spawn` copies what a unit reads constantly out of its kind's row
-  into its own: domain, altitude, damage, falloff, eye, profile and claim
-  radius. Its health is the cap, written at the increment of now on its kind's
+  into its own: domain, altitude, damage, falloff, eye, profile, claim
+  radius and eat share. Its health is the cap, written at the increment of now on its kind's
   heal counter, and an enforcer's shield is the same on its recharge counter.
   Nothing a unit does later reaches back to the catalogue, its factory or its
   team.
