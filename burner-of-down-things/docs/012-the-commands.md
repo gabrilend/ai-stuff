@@ -19,6 +19,7 @@ first and writes `output/goodbye` last ([003](003-datapath-the-case-and-the-ledg
 | `machine run <case>` | whatever the case is waiting for, in order: survey, describe, build, update | 7 |
 | `machine view <case>` | writes the case's HTML page | 7 |
 | `machine story <case>` | tells the ledger lines not yet told as new chapters of `output/story/<case>.md` | 10 |
+| `machine strategems` | drafts a strategem into `strategems/drafts/` for every mechanism met in two or more lessons of `output/story/lessons.md`; refreshes an existing draft's examples. Never promotes: `scripts/116-promote-strategem.lua <draft>` is the person's own step | 10 |
 
 The commands are one dispatch table in the source: a row per command, with
 the function that runs it and whether it needs the case lock (every command
