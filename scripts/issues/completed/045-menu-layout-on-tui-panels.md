@@ -5,7 +5,7 @@
 - **Type**: Refactor (with one visible fix)
 - **Status**: Completed
 - **Created**: 2026-11-03
-- **Follows**: issue 039 (panels in tui.lua), its step 9
+- **Follows**: issue 048 (panels in tui.lua), its step 9
 - **Follow-up**: issue 046 (sections and items draw through the body panel)
 
 ## Current Behavior
@@ -52,7 +52,7 @@ width on screen.
 ## What Happened
 
 **2026-11-03.** Built in `libs/menu.lua` on branch `claude/menu-on-panels`,
-which is stacked on `claude/tui-panels` (PR #151, issue 039), because it
+which is stacked on `claude/tui-panels` (PR #151, issue 048), because it
 needs `tui.create_panel`.
 
 - `menu.layout` returns `header`, `body` and `footer` panels.
@@ -84,8 +84,8 @@ Decisions:
   footer came from the hard-coded 3, not from a wish for a gap; the footer's
   own separator line already divides the two.
 - **The header stays 4 rows when there is no subtitle.** Shrinking it would
-  move every item up a row in every menu; that is a look change for its own
-  issue, if wanted.
+  move every item up a row in every menu; that is a look change, filed as
+  issue 047.
 - **On a screen too short for all three, the panels overlap** and the body
   keeps one row; the tui drops whatever lands off the screen. The menu was
   never usable that small, and refusing to draw would be worse.

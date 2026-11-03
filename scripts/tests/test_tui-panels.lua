@@ -1,6 +1,6 @@
 #!/usr/bin/env luajit
 -- test_tui-panels.lua
--- Checks the panel layer in libs/tui.lua (issue 039, from delta-version
+-- Checks the panel layer in libs/tui.lua (issue 048, from delta-version
 -- issue 067): a panel is a rectangle of the screen with its own row 1,
 -- column 1, and nothing written through it lands outside it.
 --

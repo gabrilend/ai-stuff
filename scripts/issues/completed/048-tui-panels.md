@@ -1,4 +1,4 @@
-# Issue 039: Panels in tui.lua
+# Issue 048: Panels in tui.lua
 
 ## Status
 - **Priority**: Medium
@@ -6,6 +6,8 @@
 - **Status**: Completed
 - **Created**: 2026-11-02
 - **Routed from**: delta-version issue 067 (TUI Panel Abstraction Layer)
+- **Renumbered**: filed as 039 at first; PR #114 had already taken 039 for
+  the test runner, so this is 048
 
 ## Current Behavior
 
