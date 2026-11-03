@@ -291,16 +291,16 @@ Legend: ✓ = success, ✗ = fail, ○ = file not in map, — = no parser
 
 ## Acceptance Criteria
 
-- [ ] Scans all test map archives
-- [ ] Lists files present in each map
-- [ ] Tests parsers against map files
-- [ ] Generates coverage matrix
-- [ ] Shows success/fail per parser per map
-- [ ] Identifies files without parsers
-- [ ] Terminal and markdown output
-- [ ] JSON output option
-- [ ] Verbose mode shows error details
-- [ ] Summary statistics
+- [x] Scans all test map archives
+- [x] Lists files present in each map
+- [x] Tests parsers against map files
+- [x] Generates coverage matrix
+- [x] Shows success/fail per parser per map
+- [x] Identifies files without parsers
+- [x] Terminal and markdown output
+- [x] JSON output option
+- [x] Verbose mode shows error details
+- [x] Summary statistics
 
 ---
 
@@ -316,3 +316,65 @@ which file types are optional vs. universal.
 
 Consider extending to show file sizes and parsing times for performance
 analysis.
+
+---
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+Built as `src/cli/parser-coverage.lua`, with `src/cli/parser-coverage.info.md`
+and `src/tests/test_parser_coverage.lua` (26 tests, about a second, on two
+of the test maps).
+
+### What it found (all 16 test maps, 30 seconds)
+
+- 33 kinds of file, 27 with a reader and 6 without; 2,759 files, of which
+  2,665 read with no failure and 94 have no reader.
+- **Read in every map that has them:** map info, strings, terrain,
+  doodads, placed units (5 maps have them), the seven object data files,
+  the script (`scripts\war3map.j`), `war3mapMisc.txt` and
+  `war3mapSkin.txt`, 1,222 BLP textures, 1,185 MDX models, 7 TGA images,
+  11 imported SLK tables and 15 imported profile text files.
+- **No reader yet:** the shadow map (`war3map.shd`), the pathing map
+  (`war3map.wpm`) and the minimap icons (`war3map.mmp`), all present in
+  every map; one MP3; and 45 unnamed files StormLib couldn't guess a type
+  for.
+- **In none of the 16 maps:** regions, cameras, sounds, the World
+  Editor's trigger files (`.wtg`, `.wct`), a root-level `war3map.j` and
+  `war3map.imp`. The DAoW maps are protected, and protecting a map strips
+  the files the game doesn't need. Those readers are tested by their own
+  test files instead.
+- Most of the read time is the BLP textures (about 15 of 22 seconds of
+  reading), then terrain and models (about 3 seconds each).
+
+### Changes from the design above
+
+- **Kinds, not only named files.** The design listed map files by name;
+  but most files in the test maps are imports (textures, models), so every
+  other file is counted by extension and unnamed ones by their first
+  bytes. The readers for images, models, SLK and profile text are in the
+  table beside the map files.
+- **The design's `parsers = { ["war3map.doo"] = nil ... }` was out of
+  date:** every map data file it marked as having no reader has one now.
+- **`war3map.shd`, `.wpm`, `.mmp` and `.imp` are listed with no reader.**
+  The editor and the building-footprint code write or read `.wpm` for
+  their own needs, and the archive code reads the import list from `.imp`,
+  but there is no reader module for them under `src/parsers/` to point the
+  tool at.
+- **`--dir DIR` comes first,** as in the other tools in `src/cli/`
+  (`mpq-extract.lua`, `patch-notes-build.lua`).
+
+### Decisions made while building
+
+1. **A failure is an error or a reader that returns nothing.** Some
+   readers raise errors (most), and the object data reader returns nil and
+   a message; both count.
+2. **A map's status for a kind is a failure if any file of that kind
+   failed** (a map holds hundreds of textures), and the per-kind file
+   counts show how many.
+3. **Only the first three failures of a kind are printed without `-v`,**
+   so a reader broken on every texture doesn't bury the rest of the report.
+4. **Exit status 1 only when a map won't open,** not when a file fails to
+   read: the report is how failures are seen, and a script running the
+   tool shouldn't stop on what it is there to show.
