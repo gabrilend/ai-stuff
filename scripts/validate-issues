@@ -20,7 +20,8 @@
 --              issues only by default: completed issues are immutable history,
 --              so a finding there could never be fixed; --completed adds them.
 --   duplicates two open or completed files claiming the same issue id (a
---              superseded or declined file keeping an old id is history)
+--              superseded or declined file keeping an old id is history,
+--              and so is a pointer file, below)
 --   orphans    a sub-issue (104a) whose parent (104) has no file
 --   links      every issue id named under "Blocked by", "Blocks",
 --              "Dependencies" or "Depends on" must have a file; and when the
@@ -28,6 +29,14 @@
 --              matched by B naming A among its blockers, and the reverse.
 --              Links written in retired (superseded, declined) files are
 --              ignored: that plan was abandoned.
+--
+-- Pointer files. An issue renumbered to a free id leaves a short file at its
+-- old path so that old links still lead somewhere: its title says it moved
+-- ("# Moved: Issue 515 is now Issue 543", "# Issue 023 has moved: ..."), it
+-- links to the issue's new file, and it has none of an issue's sections.
+-- Such a file still holds its old id (links to it aren't dangling, and the
+-- id isn't handed out again), but it claims nothing: it is skipped in the
+-- duplicate and section checks, and its links assert nothing.
 --
 -- The link fields are read in the four shapes found on disk:
 --   | Blocked by | 101, 102 |          header table row
@@ -82,6 +91,30 @@ local function read_file(path)
     local content = f:read("*a")
     f:close()
     return content
+end
+-- }}}
+
+-- {{{ local function is_pointer
+-- True for a pointer file (see the header): a "moved" title, a link to
+-- another .md file, at most POINTER_MAX_LINES lines, and no issue sections.
+local POINTER_MAX_LINES = 24
+local function is_pointer(content)
+    local title = content:match("^%s*#%s+([^\n]*)")
+    if not title then return false end
+    title = title:lower()
+    if not (title:match("^moved%f[^%w]") or title:find("has moved", 1, true)) then
+        return false
+    end
+    local _, lines = content:gsub("\n", "\n")
+    if lines > POINTER_MAX_LINES then return false end
+    if not content:find("%]%([^)]-%.md%)") then return false end
+    for heading in content:gmatch("\n#+%s*([^\n]*)") do
+        heading = heading:lower()
+        for _, section in ipairs(required_sections) do
+            if heading:find(section.fragment, 1, true) then return false end
+        end
+    end
+    return true
 end
 -- }}}
 
@@ -344,13 +377,14 @@ local function main()
         by_id[issue.id] = by_id[issue.id] or {}
         table.insert(by_id[issue.id], issue)
         contents[issue] = read_file(issue.path)
+        issue.pointer = is_pointer(contents[issue])
     end
 
     for _, issue in ipairs(issues) do
         if in_scope(issue) then
             check_name(issue, add)
             -- completed issues are history; checked only when asked
-            if issue.status == "open" or options.completed then
+            if (issue.status == "open" or options.completed) and not issue.pointer then
                 check_sections(issue, contents[issue], add)
             end
             -- a sub-issue's parent id is its id without the letter
@@ -365,10 +399,11 @@ local function main()
 
     for id, files in pairs(by_id) do
         -- a retired issue keeping an id that a live one reused is history, not
-        -- a collision: only count claims by open or completed files
+        -- a collision, and a pointer only says where the issue went: only
+        -- count claims by open or completed files that aren't pointers
         local live = 0
         for _, issue in ipairs(files) do
-            live = live + ((issue.status ~= "retired") and 1 or 0)
+            live = live + ((issue.status ~= "retired" and not issue.pointer) and 1 or 0)
         end
         if live > 1 then
             local names = {}
@@ -394,7 +429,8 @@ local function main()
     for _, issue in ipairs(issues) do
         says_after[issue.id], says_before[issue.id] = says_after[issue.id] or {}, says_before[issue.id] or {}
         -- a retired issue's plan was abandoned, so its links assert nothing
-        local fields = issue.status == "retired" and {} or extract_links(contents[issue])
+        -- (and a pointer's, since it only says where the issue went)
+        local fields = (issue.status == "retired" or issue.pointer) and {} or extract_links(contents[issue])
         for _, field in ipairs(fields) do
             local direction = link_labels[field.label]
             uses[direction] = true

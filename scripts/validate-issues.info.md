@@ -42,10 +42,18 @@ Exit status: 0 no findings, 1 findings printed, 2 bad arguments or no issues/.
 |---|---|
 | name | no `.md` extension; description not lower-case words joined by dashes |
 | sections | an open issue lacks a heading containing "Current Behavior", "Intended Behavior" or "Implementation Steps" |
-| duplicates | two open or completed files with the same id (a superseded file keeping an old id is not counted) |
+| duplicates | two open or completed files with the same id (a superseded file keeping an old id is not counted, nor is a pointer file) |
 | orphans | a sub-issue (104a) with no parent (104) |
 | dangling links | a link field names an id with no file |
 | one-sided links | A says it blocks B but B does not name A as a blocker, or the reverse; checked only when the project writes links in both directions |
+
+A **pointer file** is what an issue renumbered to a free id leaves at its
+old path, so that old links still lead somewhere: a top-level title that
+says it moved ("# Moved: Issue 515 is now Issue 543", or "... has moved"),
+a link to another `.md` file, at most 24 lines, and none of an issue's
+sections. It keeps its id (links to it aren't dangling, and `--next` won't
+hand the id out again), but it isn't counted as a duplicate, its sections
+aren't checked, and its links assert nothing.
 
 Link fields are read under the labels "Blocked by", "Blocks", "Dependencies"
 and "Depends on", in four shapes: a header-table row, a bold label, a bold
