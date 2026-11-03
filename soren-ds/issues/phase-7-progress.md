@@ -63,6 +63,15 @@ radio, a cable or a simulation of either.
 
 `src/system/118-net.c`. Test: `twin/tests/120` (37 checks).
 
+- **704** "I am here, my name is X" every five seconds on each link with
+  an address (`notes/networking/000-discovery-format.md`), and
+- **705** the peer table that hearing it fills: one entry per name, each
+  link aging on its own (alive 20 s, stale to 5 minutes, then gone), and
+  events to subscribed stations when a peer is found or a link changes.
+
+`src/system/121-peers.c`, ticked once a second by `src/maps/peers.map`.
+Test: `twin/tests/123` (28 checks).
+
 ## Open issues
 
 All of 701 through 711.

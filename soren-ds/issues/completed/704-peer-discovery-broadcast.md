@@ -54,6 +54,57 @@ the "two devices in a room" use case.
 3. `discovery_receive_box()` — handles incoming datagrams.
 4. `peer-discovered` event box.
 
+## Open questions
+
+- *Blocked by 703?* It is in #233, on the stand-in link.
+- *Which port, and what exactly is in the datagram?*
+- *Where does the name come from?* `/settings/name` (408) is in #48,
+  unmerged.
+- *Keyed by MAC or by name?* This issue looks peers up by hardware
+  address, while 705 keys the table by name. A peer on two links has two
+  hardware addresses.
+- *What is dropped as malformed?*
+- *What does the sequence number do?*
+- *What drives the five-second cadence?*
+
+### Proposed answers (UNVERIFIED)
+
+Each one is Claude's call, open for Ritz.
+
+1. *Built on 703, over the STAND-IN LINK* (`src/system/115-link.h`); on
+   the device nothing is heard until 701/702.
+2. *Port 47100, 56 bytes*, laid out in
+   `notes/networking/000-discovery-format.md`: magic, version, kind
+   (here or leaving), sequence, hardware address, IP, and a name of up
+   to 31 bytes.
+3. *`peers_set_name` for now.* Until it is called, the name is `soren-`
+   and four hex digits of the radio's hardware address. 408 will call
+   it from `/settings/name`.
+4. *By name.* A name heard on two links is one peer reached two ways.
+   Two devices with one name are not told apart; the table follows the
+   last one heard and counts it (`name_moved`).
+5. *Anything that does not match the format exactly is dropped:*
+   - shorter than 56 bytes;
+   - an unknown magic, version or kind;
+   - an empty name, or one with no zero inside its 32 bytes;
+   - an announcement naming a hardware address or IP other than the one
+     it came from.
+
+   The device's own announcements, heard back, are ignored.
+6. *It counts missed announcements; it never drops anything.* A device
+   that reboots starts again from 1 and must still be heard.
+7. *The peers map's once-a-second tick* announces when five seconds have
+   passed since an announcement reached any link. A link that has only
+   just taken its address is announced on at the next tick. Hearing
+   comes through the net poll (703) by a C listener, not through boxes.
+
+`peer-discovered` is a `struct peer_event` delivered to every subscribed
+station (705), and `say_peer` is a box that says each one.
+
+## What happened
+
+Built with 705; see there.
+
 ## Related documents
 
 - `docs/006-transport-and-networking.md`.
