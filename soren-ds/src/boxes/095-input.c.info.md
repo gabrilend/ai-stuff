@@ -12,20 +12,29 @@ src/system/096-input.c). What a box cannot do is count, because a box
 cannot remember — so the frame number rides a wire that points back to
 the station that makes it, exactly as counting.map's count does:
 
-  tick ──→ frame_next ──┬──→ read_buttons ──→ button_events
-             ▲          ├──→ read_sticks  ──→ stick_events
+  tick ──→ frame_next ──┬──→ read_buttons ──→ button_track ──┬──→ button_down
+             ▲          │                       ▲           ├──→ button_up
+             │          │                       └───────────┤──→ button_held
+             │          │      (the buttons' history, going round)
+             │          ├──→ read_sticks  ──→ stick_events
              │          ├──→ read_touch   ──→ touch_events
              └──────────┘  (the previous frame, going round)
 
-The read boxes are stubs for now (issue 501): each answers an empty
-state stamped with its frame, and each event box only tallies the frame
-it was handed, so a test can see that every frame reached every
-surface exactly once. Issues 502, 503 and 504 replace them.
+The buttons are real (issue 502). The sticks and the touch panels are
+still stubs (issue 501): each answers an empty state stamped with its
+frame, and its event box only tallies the frame it was handed. Issues
+503 and 504 replace them.
 
 The value types are declared here, once, because later box files are
 included after this one in the catalogue and may use them by name.
 
 ## What it offers
+
+### button_event__compare
+
+```c
+int button_event__compare(struct button_event a, struct button_event b)
+```
 
 ### frame_next
 
@@ -43,7 +52,64 @@ nothing; its arrival is the frame. Frame 1 is the first tick.
 struct button_snapshot read_buttons(int64_t frame)
 ```
 
-Stub (issue 501): nothing is pressed. Issue 502 makes it read.
+Every button, in one read, at the moment this frame is handled.
+
+### buttons_at_rest
+
+```c
+struct button_state buttons_at_rest(int64_t start)
+```
+
+The history before the first frame: nothing pressed, nothing seen. Put
+on the loop once, by a fixed value.
+
+### button_track
+
+```c
+struct button_state button_track(struct button_snapshot now, struct button_state before)
+```
+
+This frame's snapshot against the history: what went down, what went
+up and for how long it had been held. Two cores may read neighbouring
+frames' buttons at once and finish in either order; a snapshot no newer
+than the history is stale, and changes nothing (fresh = 0) rather than
+undoing a newer frame.
+
+### button_down
+
+```c
+struct button_event button_down(struct button_state s, uint32_t listen)
+```
+
+The buttons among `listen` that went down this frame.
+
+### button_up
+
+```c
+struct button_event button_up(struct button_state s, uint32_t listen)
+```
+
+The buttons among `listen` that went up this frame, each with how long
+it was held, in milliseconds counted from frames.
+
+### button_held
+
+```c
+struct button_event button_held(struct button_state s, uint32_t listen)
+```
+
+The buttons among `listen` held down this frame, once per frame — the
+frame a button goes down included, the frame it goes up not.
+
+### say_buttons
+
+```c
+void say_buttons(struct button_event e)
+```
+
+One event on the developer line: the station's name, the frame, and
+each button by name, with how long it was held when that is known.
+Where events go until phase 6 gives them somewhere to go.
 
 ### read_sticks
 
@@ -61,20 +127,14 @@ struct touch_snapshot read_touch(int64_t frame)
 
 Stub (issue 501): neither panel touched. Issue 504 makes it read.
 
-### button_events
-
-```c
-void button_events(struct button_snapshot s)
-```
-
-Stub (issue 501): records which frame arrived — the tally is the
-outside world this box writes to, like a screen or a serial line.
-
 ### stick_events
 
 ```c
 void stick_events(struct stick_snapshot s)
 ```
+
+Stub (issue 501): records which frame arrived — the tally is the
+outside world this box writes to, like a screen or a serial line.
 
 ### touch_events
 

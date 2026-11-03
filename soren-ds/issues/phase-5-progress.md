@@ -52,13 +52,24 @@ Built as portable C and maps and proven on the laptop twin. Counts:
   it, and fans out to three read stubs and three event stubs. Started
   and stopped by `input_poll_start` / `input_poll_stop`; nothing calls
   them on the device yet (that waits for 202).
+- **502** the buttons: one snapshot of all eighteen a frame, in the
+  order of `notes/diagnostics/001-button-bit-order.md`; their history on
+  a loop; `button-down`, `button-up` (with how long, in milliseconds
+  counted from frames) and `button-held`, each one event a frame naming
+  every button it is about, each with a listen mask, each a comparator so
+  only frames where something happened go on. The device's read answers
+  "nothing pressed" until 101 names the pins.
 
 The boxes are in `src/boxes/095-input.c`, the map is
 `src/maps/input-poll.map`, the starting and stopping in
-`src/system/096-input.c`. Test: `twin/tests/097` (33 checks: every frame
-reaches every surface exactly once; frames plus skipped periods match the
-time that passed at 60 Hz; nothing after the stop; two copies do not see
-each other's ticks).
+`src/system/096-input.c`, the buttons' two reads in
+`src/device/098-input-device.c` and `twin/099-input-twin.c`. Tests:
+`twin/tests/097` (33 checks: every frame reaches every surface exactly
+once; frames plus skipped periods match the time that passed at 60 Hz;
+nothing after the stop; two copies do not see each other's ticks) and
+`100` (26 checks: downs, ups and their durations frame by frame, five
+buttons in one event, a held filter, a stale snapshot ignored, half a
+second on the real timer).
 
 ## Open issues
 
@@ -69,14 +80,13 @@ work, against main as it stood then).
 state into events needs no hardware: the raw reads sit behind a small
 seam the twin can set, and the device's side of that seam waits for 101.
 
-- **502** — `button-down`, `button-up`, `button-held`, history on a loop,
-  the bit order; the device's GPIO snapshot waits for 101's pin mapping.
 - **503** — deadband, eight-way direction without floats, direction
   changed; the ADC reads wait for 101's channel mapping, and calibration
   (`notes/diagnostics/002-stick-calibration.md`) is measured on the device.
 - **504** — `touch-down`, `touch-move`, `touch-up`, per-screen history;
   the I2C controller and its register map wait for 101.
-- **505** — `chord-of`, once 502's events exist (it needs nothing else).
+- **505** — `chord-of`, on 502's one-event-a-frame button stream (it
+  needs nothing else).
 
 **Blocked on an unmerged stack.**
 
@@ -90,8 +100,9 @@ seam the twin can set, and the device's side of that seam waits for 101.
 
 - **508** — the demo is pressing real buttons and touching real screens.
 - The device halves of the issues above: starting `input-poll` at boot
-  once the cores run the engine (202), the GPIO, ADC and I2C reads (101),
-  and stick calibration.
+  once the cores run the engine (202), the GPIO, ADC and I2C reads (101;
+  for 502, `src/device/098-input-device.c` is where the pins go), and
+  stick calibration.
 
 ## Phase demo
 

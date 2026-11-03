@@ -34,6 +34,15 @@ once per polling frame. Apps that want a held-button effect — a
 repeating cursor move, a draw-while-pressed paint stroke — wire to
 the held box. Apps that don't care just leave that wire dangling.
 
+Each of the three gives at most one event per frame, naming every
+button it is about at once: five buttons pressed in the same frame are
+one *button-down* event, which is what the chord detector wants. A frame
+where nothing went down gives no *button-down* event at all. Each box
+also takes the set of buttons to listen for, so an app that only cares
+about the triggers wires to a box that only ever speaks of them. The
+order of the buttons in that set is
+`notes/diagnostics/001-button-bit-order.md`.
+
 ## The two touch screens
 
 Both screens report stylus or finger position when touched. A
