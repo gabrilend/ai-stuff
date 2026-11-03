@@ -631,6 +631,7 @@ local function show_default(field)
     if d == "look" then return "from the look" end
     if d == "ink" then return "the palette's ink" end
     if d == "canvas" then return "the canvas's size" end
+    if d == "last" then return "the last frame" end
     if type(d) == "table" then
         local parts = {}
         for _, v in ipairs(d) do parts[#parts + 1] = tostring(v) end

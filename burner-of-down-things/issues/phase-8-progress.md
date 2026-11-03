@@ -46,6 +46,10 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   the language's own parser over the file, and the `.src` paintbrush
   through the wall. The turn kind that writes the file is still to come.
 
+- 806 step 1, frames and moves — the `.mp4` paintbrush (the `.png` words
+  plus `frames`, `rate`, `move`) through the wall, and each frame worked
+  out from its number alone; painting and encoding wait on the painter.
+
 807c-d, 805b-d, and 809b and 809d remain: box diagrams and prose
 templates; line-and-dot charts, diagrams by level and the machine drawing
 itself; and safe concurrent appends and floors.
