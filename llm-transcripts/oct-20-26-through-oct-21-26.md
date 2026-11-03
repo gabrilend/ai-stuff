@@ -795,7 +795,7 @@ I dunno, probably fix them?
 
 > Replacing lines 47–114 of the move issue with the skill version:
 
-*[commit] 497307e4f in ai-stuff - Plan: moving a project keeps its conversations; the lock's answers*
+*[commit] 5b188e5b3 in ai-stuff - Plan: moving a project keeps its conversations; the lock's answers*
 
 I built the move skill, set the one-hour cache, and committed the planning work.
 The third cache read gave the answer we wanted, and your "after 30 minutes" idea
@@ -1113,7 +1113,7 @@ and the sessions that worked on them have long since lapsed.
 
 *[commit] b41baf337 in .claude - Every skill and the settings are tracked*
 
-*[commit] 700666bf9 in ai-stuff - Plan: the move skill is in git after all*
+*[commit] f4f64e118 in ai-stuff - Plan: the move skill is in git after all*
 
 The skill and settings commit is done, and your prompt history does reach back
 to before the wipe. I haven't built the public repository yet; I need two
@@ -1261,7 +1261,7 @@ let that issue handle it, it's still in progress I think.
 > I read all 27 files, and none needs holding back. Writing the script's
 > companion description, then committing:
 
-*[commit] 40b16dfdc in ai-stuff - A tool keeps a public copy of the skills current*
+*[commit] 4500c7b69 in ai-stuff - A tool keeps a public copy of the skills current*
 
 The publishing tool is built, tested and committed. The public repository
 doesn't exist yet: creating it is the one step you should take yourself.

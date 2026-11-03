@@ -1568,7 +1568,7 @@ issues close, because the README depends on both.
 
 ### User Request 9
 
-The slip: e686be4e1 also carried three lines another session wrote. They are
+The slip: 9b83aaf51 also carried three lines another session wrote. They are
 cross-links from
   W01, W03 and W04 to the wow-chat-2026 project's issue 159. Earlier I had
   claimed those issue
@@ -1651,7 +1651,7 @@ the commit tool, not a one-off.
 - **The flaw:** the claim never expires. After the file is committed, any line
   another session adds later still counts as the claimer's, so the next commit
   sweeps it in. That's how three cross-links belonging to another session went
-  out in e686be4e1.
+  out in 9b83aaf51.
 
 The fix belongs in the commit tool's issue tree in `scripts/`. A whole-file
 claim could expire at the commit that takes it, or it could cover only the

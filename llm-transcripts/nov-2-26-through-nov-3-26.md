@@ -160,30 +160,30 @@ please continue
 > Writing the purpose sentence for centered-ui-design, then regenerating the
 > README figures again.
 
-*[commit] e2ada134c in ai-stuff - README: the front page opens in the owner's own voice, and its figures rewrite themselves*
+*[commit] 01b2d1c06 in ai-stuff - README: the front page opens in the owner's own voice, and its figures rewrite themselves*
 
 > The transcript-rename test passes (12 of 12). Committing the shared scripts
 > work next.
 
-*[commit] 3a75f6ee3 in ai-stuff - scripts: a transcript renamed for a new day shows in git as a rename at once*
+*[commit] 9b2a6bea7 in ai-stuff - scripts: a transcript renamed for a new day shows in git as a rename at once*
 
-*[commit] dfbe83960 in ai-stuff - scripts: three plans are filed — redaction, a login of Claude's own, and music from pictures*
+*[commit] 017216bb2 in ai-stuff - scripts: three plans are filed — redaction, a login of Claude's own, and music from pictures*
 
-*[commit] 632fc1d3f in ai-stuff - soren-ds: the handheld system is declared not for sale, and every front document says why*
+*[commit] a83f0fd88 in ai-stuff - soren-ds: the handheld system is declared not for sale, and every front document says why*
 
 > Running the kanji generator's tests before committing its changes.
 
 > No failures. Committing the kanji work.
 
-*[commit] 5d35fcb1a in ai-stuff - kanji-learning-image-generator: each world builds a character's strokes from one material, found nowhere else in the picture*
+*[commit] 687e7c6ac in ai-stuff - kanji-learning-image-generator: each world builds a character's strokes from one material, found nowhere else in the picture*
 
-*[commit] 749bf7ba0 in ai-stuff - guide-feature: the owner answers the open questions — a soft change budget, encrypted viewing, one canvas per screen*
+*[commit] 156d5e796 in ai-stuff - guide-feature: the owner answers the open questions — a soft change budget, encrypted viewing, one canvas per screen*
 
-*[commit] deea4d98f in ai-stuff - world-edit-to-execute: the critical path loses its stale January tail; the map-export questions and a planet generator are written down*
+*[commit] 9d6b90ab9 in ai-stuff - world-edit-to-execute: the critical path loses its stale January tail; the map-export questions and a planet generator are written down*
 
-*[commit] 38d362090 in ai-stuff - run records: the threaded render demo's last run, and two goodbye receipts*
+*[commit] 21d0b1bc9 in ai-stuff - run records: the threaded render demo's last run, and two goodbye receipts*
 
-*[commit] c900b8991 in ai-stuff - transcripts: the latest turns of three projects' conversations are saved*
+*[commit] 90feed9c0 in ai-stuff - transcripts: the latest turns of three projects' conversations are saved*
 
 > Nine commits are made in this repo. Next I'm checking what's left, then
 > scanning the filesystem for other repositories with uncommitted work.
@@ -196,15 +196,15 @@ them.
 
 | Commit | What it holds |
 |---|---|
-| e2ada134c | Root README: your opening writing, plus all the figures regenerated |
-| 3a75f6ee3 | Shared scripts: a transcript renamed for a new day now shows in git as a rename straight away. Its test passes, 12 of 12 |
-| dfbe83960 | Shared scripts: three new plans (redaction, a separate login for Claude, music made from pictures) |
-| 632fc1d3f | soren-ds: the "not for sale" decision, with a notice on each of its front documents |
-| 5d35fcb1a | kanji generator: each world builds a character's strokes from one material. Its tests pass |
-| 749bf7ba0 | guide-feature: your answers on the change budget, encrypted viewing and one canvas per screen |
-| deea4d98f | world-edit-to-execute: the old January text cut from the bottom of the critical-path page, the map-export questions, and the planet-map generator plan |
-| 38d362090 | The latest run logs and two goodbye receipts |
-| c900b8991 | Transcript updates for three projects |
+| 01b2d1c06 | Root README: your opening writing, plus all the figures regenerated |
+| 9b2a6bea7 | Shared scripts: a transcript renamed for a new day now shows in git as a rename straight away. Its test passes, 12 of 12 |
+| 017216bb2 | Shared scripts: three new plans (redaction, a separate login for Claude, music made from pictures) |
+| a83f0fd88 | soren-ds: the "not for sale" decision, with a notice on each of its front documents |
+| 687e7c6ac | kanji generator: each world builds a character's strokes from one material. Its tests pass |
+| 156d5e796 | guide-feature: your answers on the change budget, encrypted viewing and one canvas per screen |
+| 9d6b90ab9 | world-edit-to-execute: the old January text cut from the bottom of the critical-path page, the map-export questions, and the planet-map generator plan |
+| 21d0b1bc9 | The latest run logs and two goodbye receipts |
+| 90feed9c0 | Transcript updates for three projects |
 
 Things I did along the way:
 - **One file had an unfinished staged change.** Someone had staged the
@@ -312,64 +312,64 @@ parts of the transcript. Also, I got a bunch of these kinds of errors
 
 <pasted_content id="48d6">
 fatal: path 'world-edit-to-execute/issues/011-tui-history-insert-on-run.md' does
-not exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
+not exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/301-parse-war3map-wtg.md' does not
-exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
+exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/302-parse-war3map-wct.md' does not
-exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
+exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/309-phase-3-integration-test.md' does
-not exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
+not exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/309f-test-event-dispatch.md' does not
-exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
+exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/309g-phase-demo.md' does not exist in
-'7b068ea50028b25c38e62a8f7d4598a2e8386819'
+'6f58e09e39a550109a0280385ce063dc4ee745c0'
 fatal: path 'world-edit-to-execute/issues/404-create-unit-movement-system.md'
-does not exist in '7b068ea50028b25c38e62a8f7d4598a2e8386819'
-fatal: bad object 3b96088cd8aaa3a492f5a7f89b237fb31dcd941a:screen-record-stream
+does not exist in '6f58e09e39a550109a0280385ce063dc4ee745c0'
+fatal: bad object f12d85693838a3ddf3b0e6bcfce89fe018e96f42:screen-record-stream
 fatal: path
 'soren-ds/llm-transcripts/cf88abe5-fad8-4525-b1b4-5f080e603f21_summary.md' does
-not exist in '3b96088cd8aaa3a492f5a7f89b237fb31dcd941a'
+not exist in 'f12d85693838a3ddf3b0e6bcfce89fe018e96f42'
 fatal: path
 'words-pdf/llm-transcripts/7db63998-8d93-4df8-8658-6aa761811cc1_summary.md' does
-not exist in '3b96088cd8aaa3a492f5a7f89b237fb31dcd941a'
+not exist in 'f12d85693838a3ddf3b0e6bcfce89fe018e96f42'
 fatal: path 'delta-version/llm-transcripts/dec-17-25.md' does not exist in
-'af27794e4864f3979d4ac01c9ef787aa15750093'
+'403f1c4186fc6255b59066cdc5448a008a4424e6'
 fatal: path
 'games/first-person-spellcraft/llm-transcripts/jul-21-26-through-jul-23-26.md'
-does not exist in 'af27794e4864f3979d4ac01c9ef787aa15750093'
+does not exist in '403f1c4186fc6255b59066cdc5448a008a4424e6'
 fatal: path 'soren-ds/llm-transcripts/jun-17-26.md' does not exist in
-'af27794e4864f3979d4ac01c9ef787aa15750093'
+'403f1c4186fc6255b59066cdc5448a008a4424e6'
 fatal: path 'words-pdf/llm-transcripts/jun-21-26.md' does not exist in
-'af27794e4864f3979d4ac01c9ef787aa15750093'
+'403f1c4186fc6255b59066cdc5448a008a4424e6'
 fatal: path
 '3d-generation-multiplayer-server/llm-transcripts/.timezone-repaired' does not
-exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'RPG-autobattler/llm-transcripts/.timezone-repaired' does not exist
-in '13ce1de117d708305a50e306ef1bc304dfef0013'
+in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'apple-IIds/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'console-demakes/llm-transcripts/.timezone-repaired' does not exist
-in '13ce1de117d708305a50e306ef1bc304dfef0013'
+in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'delta-version/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'dominions-interpreter/llm-transcripts/.timezone-repaired' does not
-exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'every-software-image-able/llm-transcripts/.timezone-repaired' does
-not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'filesystem-tapestry/llm-transcripts/.timezone-repaired' does not
-exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'games/3d-rts/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'games/enheim-tome/llm-transcripts/.timezone-repaired' does not
-exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'games/first-person-spellcraft/llm-transcripts/.timezone-repaired'
-does not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+does not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'gif-generator/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'graphene-factory/llm-transcripts/.timezone-repaired' does not exist
-in '13ce1de117d708305a50e306ef1bc304dfef0013'
+in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'handheld-office/llm-transcripts/.timezone-repaired' does not exist
-in '13ce1de117d708305a50e306ef1bc304dfef0013'
+in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 </pasted_content id="48d6">
 
 
@@ -381,7 +381,7 @@ and this:
 $ git push
 transcript pages: rebuilding /mnt/mtwo/programming/ai-stuff/guide-feature
 transcript pages: rebuilding /mnt/mtwo/programming/ai-stuff/soren-ds
-fatal: bad object 3b96088cd8aaa3a492f5a7f89b237fb31dcd941a:screen-record-stream
+fatal: bad object f12d85693838a3ddf3b0e6bcfce89fe018e96f42:screen-record-stream
 </pasted_content id="48d6">
 
 
@@ -399,22 +399,22 @@ currently pushing ai-stuff. It's push failed though:
 
 <pasted_content id="48d6">
 fatal: path 'six-sided-dice-layer-cake/llm-transcripts/.timezone-repaired' does
-not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'soren-ds/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'ssh-view-only-viewer-script/llm-transcripts/.timezone-repaired'
-does not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+does not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'supcom-derivative-clone/llm-transcripts/.timezone-repaired' does
-not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path
 'translation-layer-wow-chat-city-of-chat/llm-transcripts/.timezone-repaired'
-does not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+does not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'usb-c-universal-encoder/llm-transcripts/.timezone-repaired' does
-not exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+not exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'ut2k4-symbeline-rumble/llm-transcripts/.timezone-repaired' does not
-exist in '13ce1de117d708305a50e306ef1bc304dfef0013'
+exist in '005e8e85a34d43f25cbecea94f666ab80ca29c83'
 fatal: path 'words-pdf/llm-transcripts/.timezone-repaired' does not exist in
-'13ce1de117d708305a50e306ef1bc304dfef0013'
+'005e8e85a34d43f25cbecea94f666ab80ca29c83'
 transcript pages: rebuilding /mnt/mtwo/programming/ai-stuff/ai-movie-generator
 transcript pages: 11 rebuilt, 29 already current, 4 failed
 error: failed to push some refs to 'https://github.com/gabrilend/ai-stuff.git'
@@ -492,9 +492,9 @@ custom-client, stable-diffusion
 
 > Adding the new rules to the issue's design and to the builder's notes.
 
-*[commit] 613a55a16 in ai-stuff - transcript-site: a by-hand page reads only its own project's files that have text*
+*[commit] ab7537ae8 in ai-stuff - transcript-site: a by-hand page reads only its own project's files that have text*
 
-*[commit] 3ef9263b8 in ai-stuff - centered-ui-design: the conversation's three screenshots point at their kept copies*
+*[commit] d24288a9b in ai-stuff - centered-ui-design: the conversation's three screenshots point at their kept copies*
 
 > Those local settings files are already ignored. Now checking whether any live
 > session holds lines in the folders I plan to commit.
@@ -504,9 +504,9 @@ custom-client, stable-diffusion
 
 > The timeline test passes (21 of 21). Committing in groups now.
 
-*[commit] 89fcf70c9 in ai-stuff - RGPL: a draft licence of our own, its copyright notice, and a folder for growing it*
+*[commit] cd1495d98 in ai-stuff - RGPL: a draft licence of our own, its copyright notice, and a folder for growing it*
 
-*[commit] 663696b02 in ai-stuff - delta-version: a timeline of every project's life, and a plan to take the author's private words out of history*
+*[commit] fff23e586 in ai-stuff - delta-version: a timeline of every project's life, and a plan to take the author's private words out of history*
 
 > The commit tool left out the scratch link even though my message says it's
 > tracked. Trying to commit it on its own.
@@ -515,24 +515,24 @@ custom-client, stable-diffusion
 > link itself. I'm leaving it untracked and will mention the inaccurate line in
 > the report. Moving on to the new projects.
 
-*[commit] b210eccdd in ai-stuff - git-status-viewer: a new project, laid out, with the ways a day's work could be scored*
+*[commit] 13c409cd9 in ai-stuff - git-status-viewer: a new project, laid out, with the ways a day's work could be scored*
 
-*[commit] 2a75ee7f8 in ai-stuff - quantity-reception-optimizer: a new project, from vision to five phases of issues*
+*[commit] 9736e5310 in ai-stuff - quantity-reception-optimizer: a new project, from vision to five phases of issues*
 
 > Two new projects are committed. Next are the Malazan transcript, the
 > world-edit maps and crowd files, and your loose notes.
 
-*[commit] 2168c9345 in ai-stuff - transcripts: the first Malazan conversation is saved; ruby-forge's transcript folder is explained*
+*[commit] f644a86d9 in ai-stuff - transcripts: the first Malazan conversation is saved; ruby-forge's transcript folder is explained*
 
-*[commit] 46cdb9376 in ai-stuff - ruby-forge: its transcript folder is explained, as every project's is*
+*[commit] e82a5361e in ai-stuff - ruby-forge: its transcript folder is explained, as every project's is*
 
-*[commit] 98ae53c65 in ai-stuff - world-edit-to-execute: the crowd benchmark's runner, films and report*
+*[commit] 90ff1c38b in ai-stuff - world-edit-to-execute: the crowd benchmark's runner, films and report*
 
-*[commit] 642e9062b in ai-stuff - world-edit-to-execute: three more Warcraft III maps to read*
+*[commit] 6d42f4fad in ai-stuff - world-edit-to-execute: three more Warcraft III maps to read*
 
-*[commit] 596d9a8b7 in ai-stuff - notes: three of the owner's notes, kept as written and waiting to be sorted*
+*[commit] 3ded3501f in ai-stuff - notes: three of the owner's notes, kept as written and waiting to be sorted*
 
-*[commit] cf0d0395a in ai-stuff - git-status-viewer, quantity-reception-optimizer: their transcript folders are explained*
+*[commit] f10c11d38 in ai-stuff - git-status-viewer, quantity-reception-optimizer: their transcript folders are explained*
 
 Measuring where the time goes before changing anything.
 
@@ -584,7 +584,7 @@ different problems:
 **Left uncommitted:**
 - **neocities-modernization:** another session is working there right now.
 - **delta-version's scratch link:** the commit tool can't commit symlinks, so it
-  stays untracked. One commit message (663696b02) wrongly says it's tracked.
+  stays untracked. One commit message (fff23e586) wrongly says it's tracked.
 
 **Still running:** a timing script in the background (time-all-builds.sh, in the
 scratchpad), building every project's pages one by one. It has gone over 10
@@ -712,7 +712,7 @@ please continue
 > Tests pass. Running the real pre-push check across the whole repository,
 > twice.
 
-*[commit] aedfd2e86 in ai-stuff - transcript-site: a push draws only the pages that changed, several projects at once*
+*[commit] 6f574f3be in ai-stuff - transcript-site: a push draws only the pages that changed, several projects at once*
 
 > The two clones have split: each has different, unpushed commits on `original`.
 > Gathering the facts on the folders you're considering turning into repos.
@@ -749,7 +749,7 @@ How it works:
   That build went from 765 seconds to about 60.
 
 The site tests pass, including new checks for each of these cases. The fixes are
-committed: a75…-series commits ending at `aedfd2e86`.
+committed: a75…-series commits ending at `6f574f3be`.
 
 **Split builds within one project: not done.** You asked about splitting one
 transcript's work across threads. I didn't build that, because skipping
@@ -1577,7 +1577,7 @@ The dry run is clean. All 238 branches, `main` plus the 237 `claude/*` ones,
 would be replaced by their cleaned versions. None would be refused, and none is
 already identical.
 
-`main` on GitHub would go from `aedfd2e8` to `f24bf609`. That includes, in
+`main` on GitHub would go from `6f574f3b` to `f24bf609`. That includes, in
 cleaned form, the three commits made here today that haven't been pushed yet.
 
 **Where things stand**
@@ -1891,8 +1891,8 @@ choosing "Remove sensitive data from a repository":
 > 3. Run garbage collection on the repository.
 >
 > The first changed commits in the old history were
-> `1526850559c86fa24be8c927d13992b1b792669d` and
-> `930edf0d635b5a93f54be20e75439c41f1270ff5`. The removed paths were
+> `472e9b9deb8df52a2046f166219651574eb61997` and
+> `472e9b9deb8df52a2046f166219651574eb61997`. The removed paths were
 > `neocities-modernization/input/`, `neocities-modernization/assets/`,
 > `neocities-modernization/output/`, `neocities-modernization/compiled.txt`,
 > `neocities-modernization/excluded-poems.txt`,
@@ -1942,7 +1942,7 @@ A few important limits from the documentation:
 Your request already includes the key details the docs say Support needs:
 
     Repository: gabrilend/ai-stuff
-    First changed commits: 1526850559c86fa24be8c927d13992b1b792669d and 930edf0d635b5a93f54be20e75439c41f1270ff5
+    First changed commits: 472e9b9deb8df52a2046f166219651574eb61997 and 472e9b9deb8df52a2046f166219651574eb61997
     Affected PR information: #1 explicitly, plus your note about open PRs #2–#237
     Confirmation that the repository has no forks
     Confirmation that you already rewrote history and force-pushed
@@ -1993,8 +1993,8 @@ Here's the request reframed, ready to paste into the ticket:
 > 3. Remove cached views, and run garbage collection to expunge the old objects.
 >
 > First changed commits in the old history:
-> `1526850559c86fa24be8c927d13992b1b792669d` and
-> `930edf0d635b5a93f54be20e75439c41f1270ff5`.
+> `472e9b9deb8df52a2046f166219651574eb61997` and
+> `472e9b9deb8df52a2046f166219651574eb61997`.
 >
 > Removed paths: `neocities-modernization/input/`,
 > `neocities-modernization/assets/`, `neocities-modernization/output/`,

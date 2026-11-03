@@ -58,7 +58,15 @@ grows the text.
 
 - **Map:** `delta-version/archive/history-graft/commits.map` (override with
   `TRANSCRIPT_PATCHES_MAP`). Each generated `ids` file holds only the ids that
-  conversation quotes.
+  conversation quotes. After the second rewrite (delta-version issue 063) the
+  map to use is `delta-version/archive/disentangle/chained.map`, which takes
+  an id from either era straight to today's; a rerun with it refreshes each
+  conversation's patch in place.
+- **Old commits:** an id is recognised only if it names a commit the
+  repository knows. After a rewrite the old commits are on no ref, so
+  `TRANSCRIPT_PATCHES_UNIVERSE` names a file of their full ids, one per line,
+  which join the repository's own. That way no ref to the old history (which
+  held the removed material) has to be kept.
 - **Exclusions:** `transcript-patches.exclude` beside the tool (one conversation
   id per line, `#` comments; override with `TRANSCRIPT_PATCHES_EXCLUDE`), plus
   `--exclude <id>`. An excluded conversation never gets an id patch.

@@ -3295,7 +3295,7 @@ to map to original image.]
 
 > Gallery is published; now committing the gallery tool and its 25 examples.
 
-*[commit] 00492b539 in ai-stuff - scripts: see-in-3d gets a gallery -- twenty-five pictures beside what they were read to be*
+*[commit] 4bf1088b4 in ai-stuff - scripts: see-in-3d gets a gallery -- twenty-five pictures beside what they were read to be*
 
 The gallery is published: **https://claude.ai/artifact/BN8a2ZmTqd4N8b5hG1mTvJ**.
 It's private, so only you can open it until you share it. All 25 sheets are
@@ -4517,7 +4517,7 @@ picture is ambiguous.
 > whether the skills folder is tracked by git, then committing the imagine work
 > along with it.
 
-*[commit] c60fa2a5a in ai-stuff - scripts: see-in-3d can imagine a view as a picture, on any Stable Diffusion server*
+*[commit] 8fbf4525e in ai-stuff - scripts: see-in-3d can imagine a view as a picture, on any Stable Diffusion server*
 
 The see-in-3d tool is now a skill, and it's already live: it appears in my list
 of available skills, so I'll reach for it on my own.

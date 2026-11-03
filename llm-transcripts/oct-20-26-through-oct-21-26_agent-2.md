@@ -1340,10 +1340,10 @@ to map to original image.]
 > the stylesheets, the pictures and their notes, the build script, the moved
 > issue, and the goodbye note.
 
-*[commit] fa0244c21 in ai-stuff - physics-sim: a lodge at the front door, and the game's first pictures*
+*[commit] 76483586d in ai-stuff - physics-sim: a lodge at the front door, and the game's first pictures*
 
 physics-sim now has a lodge: six connected rooms that act as its README. It's
-committed as `fa0244c21` in ai-stuff, and that commit holds only this session's
+committed as `76483586d` in ai-stuff, and that commit holds only this session's
 files. Run `games/physics-sim/lodge/build`, then open
 `docs/HTML/lodge/index.html`.
 
@@ -1673,9 +1673,9 @@ to map to original image.]
 > The issue checker now reports 79 findings, up from 8. Checking whether my
 > changes caused that.
 
-*[commit] 22e88ff7a - physics-sim: the game films its own moments, and the lodge becomes a fan site*
+*[commit] 2f40fdb23 - physics-sim: the game films its own moments, and the lodge becomes a fan site*
 
-Both are done, with commits `fa0244c21` (the first lodge) and `22e88ff7a` (this
+Both are done, with commits `76483586d` (the first lodge) and `2f40fdb23` (this
 round).
 
 ## The physics-sim lodge, remade
@@ -1983,9 +1983,9 @@ open up to display the gif too)
 
 > Issues check clean. Claiming the files my scripts wrote, then committing.
 
-*[commit] b4fda71db - gif-generator: say what you want to see, and unknown words teach themselves*
+*[commit] 72267806d - gif-generator: say what you want to see, and unknown words teach themselves*
 
-I've built `./say` in gif-generator and committed it as `b4fda71db`. Every part
+I've built `./say` in gif-generator and committed it as `72267806d`. Every part
 passes its tests, but they use stand-ins for Claude and the viewer. **It has not
 yet run with real Claude sessions or a real window.** That first run should be
 yours to type, since it starts real sessions.
