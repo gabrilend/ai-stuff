@@ -1,6 +1,6 @@
 # Conversation Summary: 151ddaeb-59f4-466e-abd5-8862afcb9075
 
-Generated on: 2026-10-10 23:57:55
+Generated on: 2026-10-11 00:12:21
 Models: claude-opus-5-5
 
 ## Contents
@@ -3086,6 +3086,113 @@ the number in `input/game-settings.lua` and run again to compare.
 
 Which strength looks right? If none quite does, tell me what's off: should the
 turn start sooner as they leave the middle, or only near the feet?
+
+--------------------------------------------------------------------------------
+
+### User Request 29
+
+okay so as they're walking toward the center of the screen, from the left to the
+middle (facing right) they should turn to their right. From the right, toward
+the middle, they should turn left. Now if they're moving toward the edge of the
+screen, they should turn toward the player slightly, moving left they turn left,
+moving right they turn right. Is that the behavior that's currently implemented?
+Also, I noticed that the colored spheres "snap" to a new color everytime the sun
+rotates. that's not ideal. instead, we should just reverse the rotation
+direction when the sun passes directly behind us.
+
+also can we make it so that if we hold d and scroll, then it increases the "Y"
+distance between each of the circle spheres? Remember, they're circle textures,
+not spheres.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 29
+
+> Two fixes and a new dial. One part of your description I can't pin down yet.
+>
+> **Facing, as built now:** walking toward the middle, a villager turns its back
+> to the camera; walking toward the edges, it turns its front to the camera.
+> - The edge half matches what you just wrote: moving right it turns right
+>   (toward you), moving left it turns left.
+> - The middle half may be the reverse of what you mean. A villager on the left
+>   walking right toward the middle currently turns to its own left, away from
+>   you. You said "to their right", which, counted from the villager's own body,
+>   would turn it toward you.
+>
+> I'll ask about that at the end, with a picture. First the colour snapping and
+> the D dial. Recording all three in the issue:
+
+> Pictures: mid-spin without the stretch, D spreading the rings, and the sun
+> just past behind the camera (no snap):
+
+> The edit script cut out the ring-length helpers along with the old warp.
+> Checking what's left and putting them back:
+
+> The 014 side is half-applied and 015 is untouched. Restoring the helpers and
+> finishing both:
+
+> The buttons now keep their round shape all the way along the curve (100).
+> Committing this batch before starting on the limbs:
+
+*[commit] 5c34442db in ai-stuff - centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size*
+
+> Now the limbs. Reading how the body plan bends them today:
+
+> All 91 tests pass. The knee always points forward and the elbow always folds
+> forward, checked across a whole stride. Pictures close up:
+
+> They all stand in a line along the viewing direction, so the side view stacks
+> them on top of each other. Re-laying them so walking runs left to right in the
+> front view, each moment set apart:
+
+> The side view reads as a walk: each knee points forward with the shin folding
+> back behind it, and the elbows bend with the forearm forward. Committing:
+
+*[commit] fa3527f8d in ai-stuff - centered-ui-design: villagers walk on jointed limbs*
+
+Everything you asked for this round is built and committed. All 91 tests pass,
+plus the two live checks (the game starts cleanly; S, A and D answer the wheel).
+
+**Colour snap:** when the sun passed behind you, every circle flipped to its
+other side at once. The circles' turn now reverses smoothly as the sun crosses
+behind (098–099), and a test checks there's no jump.
+
+**D + scroll:** spreads the land's rings farther apart up the screen, or closer,
+while circles, villagers and cuboids keep their size. A new **D: SPACING** dial
+on the console shows the value (097). The live dial check covers it.
+
+**Stretched buttons while spinning:** fixed on the second try.
+- **First try (096):** moving things by equal distances along each ring kept
+  buttons their width, but squashed them into thin slivers near the feet. The
+  rings were scaled copies of the arch, crowded together at the feet and about
+  four times as far apart at the top.
+- **Fix (100):** every point of the console is now measured by how far in from
+  the arch's edge it sits and how far along the edge. The spin slides it along
+  the edge and keeps its depth, so buttons keep their round shape all the way
+  round.
+
+**Jointed limbs:** each limb bends in two rigid halves. Arms bend at the elbow,
+more as they swing forward, and hold their forearms up when carrying. Legs bend
+at the hip and the knee, and the knee only ever points forward, with the shin
+folding back. A test walks a whole stride and checks this. My live pictures
+(101–102) were zoomed in too close to catch a villager. Instead, a see-in-3d
+model drawn from the walk's own formula shows six moments of one stride from the
+side, and it reads as a normal walk.
+
+**Facing, still to settle:** what's built now:
+- **Toward the middle:** villagers turn their backs to you. A villager walking
+  right toward the middle turns to its own left.
+- **Toward the edges:** they turn to face you. Walking right, they turn right;
+  walking left, they turn left. This half matches what you wrote.
+
+You wrote that walking toward the middle from the left, they should "turn to
+their right". If "their right" means the villager's own right hand, that turns
+them toward you, which is the opposite of what's built.
+
+Could you describe it twice? Once as what you'd see of a villager walking from
+the left edge to the middle: its face, its back, or its side? And once as which
+way it would turn if it stood still and you told it "turn right": toward you, or
+away?
 
 --------------------------------------------------------------------------------
 

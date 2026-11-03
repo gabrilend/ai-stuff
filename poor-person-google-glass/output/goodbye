@@ -1,10 +1,13 @@
 goodbye from the CAD viewer (src/010-the-viewer.lua)
+written      2026-10-11 00:26:18
 seed         none (the viewer uses no randomness)
 file         /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf
 format       gltf
 triangles    169500
 parts        19
+read         1.060 seconds
 frames       46
+seconds      2.24
 ignored      0 real input events (a scripted run listens to its script only)
 seen         contributing facets  at  4 stations, largest  93.3% of the picture at into-the-concentrator
 seen         recycling facets     at 11 stations, largest  94.6% of the picture at the-hall-from-the-back

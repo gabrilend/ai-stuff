@@ -1,6 +1,6 @@
 # Conversation Summary: 7f8a12be-6564-4760-a645-c88c063fed48
 
-Generated on: 2026-10-11 00:09:57
+Generated on: 2026-10-11 00:27:06
 Models: claude-opus-5-5
 
 ## Contents
@@ -2062,6 +2062,106 @@ start: an air gap, a mirror coating, or a thinner pipe?
 
 Tell me first which feels closest to the device you picture. Then tell me again,
 as what you'd be willing to give up: light, liquid, or room.
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+can you do some picture renders for the various display things we're working on
+here? Some gifs too maybe? And music, when that gets built?
+
+no air gap, sure mirror coating, and the pipe should be about as wide as a thick
+pair of glasses arms. It's a fiber-optic side-view cable remember? We might not
+even need fluid tbh, though the internal reflection is pretty important. How
+does light pass through fiber-optic cables like that?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+> Decisions recorded first: your words go into the vision, and the pipe takes
+> its new size.
+
+> Now a calculation for the bend, in the tolerance format, at the new width:
+
+> Now the viewer's recording: a full turn on the plinth, or a glide through the
+> stations, written as half-size raw frames for the GIF maker:
+
+> ImageMagick reads it: 48 frames at 640×400, made in a quarter of a second
+> across 12 workers. Checking that the frames look right:
+
+> All 4 pass, ImageMagick included. To be sure the table-full-and-start-over
+> path is exercised (not just likely), the first test's frames get large enough
+> to force it:
+
+> Passes (the stray first command failed harmlessly and changed nothing). Before
+> recording a long walk-through, checking how much memory the RAM folder has,
+> since raw frames are 1 MB each:
+
+> Plenty of room (15 GB free). Now the gallery script. It renders every model's
+> stills and moving pictures into `output/gallery/`, builds an index page, and
+> clears the raw frames afterwards:
+
+> All tests pass. Filling the notes for the newest pictures (141–180), then
+> committing:
+
+*[commit] f78500001 in ai-stuff - poor-person-google-glass: moving pictures of every model, and a light pipe as wide as a glasses arm*
+
+## How light passes through a fibre-optic cable
+
+A fibre is a clear core inside a thin cladding whose refractive index is
+slightly lower. Light that enters the end within a cone hits the boundary at a
+glancing angle and is turned back in completely. That reflection loses nothing,
+so the light zig-zags along for kilometres. For plastic fibre, the cone is about
+31° either side of straight on.
+
+A bend makes some light hit the boundary too squarely, and that light escapes. A
+side-glow cable leaks on purpose: tiny scattering particles, or a roughened
+surface, knock a little light out at every point. That makes it glow softly
+along its length, dimming the further it gets from the lit end.
+
+For your crown: reflection does the carrying, and the mirror coating catches
+whatever escapes on the bend. You're right that the fluid isn't needed for the
+pipe itself. It's only needed where the tabs cut through the core. A tab moving
+in a slot leaves glass-to-air surfaces, and each one reflects about 4% of the
+light and bends the rest, unless the slot is filled with liquid matched to the
+core.
+
+## The pipe, at your size
+
+The pipe is now 5 mm across: a side-emitting fibre with a mirror-coated cladding
+and no air gap.
+
+A new calculation checks whether the bend of the band keeps its light in. In the
+middle case, reflection alone holds it. On a small head with the slimmest
+margin, the mirror catches up to about 12%.
+
+At 5 mm the hall is 80 times as long as its radius. So the viewpoints and the
+spiral of the vortex are now set in pipe widths; set as shares of the length,
+every view looked too far down the pipe.
+
+## Pictures and GIFs
+
+Open `output/gallery/index.html`, made by `scripts/render-gallery` in about 40
+seconds:
+- 26 still pictures;
+- 6 GIFs: a turn on the plinth for the crown sketch, drum, lamp, glasses and
+  described crown, and a 42-second walk through all 15 places in the light pipe.
+
+The GIFs come from the project's own encoder. A decoder written separately, and
+ImageMagick too, read back every colour exactly.
+
+The gallery isn't kept in git, because the walk alone is 17 MB. Rerunning the
+script remakes it.
+
+Music is noted in `notes/ideas` for when something can play it.
+
+Everything is committed, and all tests pass.
+
+**A question about the music.** What do you hear when you picture it? Tell me
+first as a feeling. Then tell me again as where it comes from: sounds made from
+the device's own parts, like the hum of the beams or the click of the tabs, or a
+soundtrack for the pictures?
 
 --------------------------------------------------------------------------------
 
