@@ -1,0 +1,26 @@
+# How the workshop's making box makes a chair: the map inside the box. From in
+# here, the box's ports are the outside world -- spec comes in, raw goes out --
+# and there is no other way out.
+
+org making
+  says "a chair, from a spec to a raw frame"
+
+person jon
+  says "cuts and joins"
+
+outside spec
+  says "the making box's in port: the spec from orders"
+
+outside raw
+  says "the making box's out port: the raw frame, to finishing"
+
+role cutting
+  held-by jon
+  in spec $spec
+  out parts - joining.parts
+
+role joining
+  held-by jon
+  in parts - cutting.parts
+  in glue = "hide glue, warmed"
+  out raw $raw

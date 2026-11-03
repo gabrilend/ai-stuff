@@ -23,6 +23,7 @@ role making
   held-by jon
   in spec - orders.spec
   out raw - finishing.raw
+  inside making
 
 person kai
   says "finishes the chairs"

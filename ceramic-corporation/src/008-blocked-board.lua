@@ -139,7 +139,9 @@ end
 -- {{{ function M.render()
 -- A plain-text table. For an outside source the holders column is its
 -- speakers. With `with_says`, each row is followed by the source's says line,
--- indented, so a board of numbered things says what each one is.
+-- indented, so a board of numbered things says what each one is. A row that
+-- carries `inside` (from 017's descend) is followed by what its inside waits
+-- on first, one line per level.
 function M.render(rows, with_says)
   local out = {}
   local width = #"source"
@@ -152,6 +154,14 @@ function M.render(rows, with_says)
     local holders = #r.holders > 0 and table.concat(r.holders, " ") or "-"
     out[#out + 1] = string.format(fmt, r.source, r.state, r.owes, r.frees, r.reach, holders)
     if with_says and r.says then out[#out + 1] = "    " .. r.says end
+    local inside = r.inside
+    while inside do
+      local top = inside.top
+      out[#out + 1] = top
+        and string.format("    inside %s, first: %s (%s, reach %d)", inside.path, top.source, top.state, top.reach)
+        or string.format("    inside %s, nothing is waiting", inside.path)
+      inside = top and top.inside
+    end
   end
   return table.concat(out, "\n") .. "\n"
 end
@@ -180,6 +190,14 @@ function M.main(args)
     return 1
   end
   local rows = M.board(org)
+  -- A source whose box has a map inside it shows what that inside waits on
+  -- first, all the way down. Loaded only when needed: 017 reads through this.
+  for _, name in ipairs(org.map.box_order) do
+    if org.map.boxes[name].inside then
+      dofile(ROOT .. "/src/017-inside.lua").descend(org, rows)
+      break
+    end
+  end
   if ready_only then
     local kept = {}
     for _, r in ipairs(rows) do
@@ -196,7 +214,11 @@ function M.main(args)
 end
 -- }}}
 
-if arg and arg[0] and arg[0]:match("008%-blocked%-board%.lua$") then
+-- Run as a program only when this file is the program, and only once: a
+-- module loaded by another one while it runs is a library, even when the
+-- two share a name in arg[0].
+if arg and arg[0] and arg[0]:match("008%-blocked%-board%.lua$") and not rawget(_G, "CERAMIC_MAIN") then
+  rawset(_G, "CERAMIC_MAIN", true)
   os.exit(M.main(arg))
 end
 

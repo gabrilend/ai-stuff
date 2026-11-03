@@ -69,6 +69,11 @@ has its own rules. How the outer map's rules bind the inner ones is open; until
 it is answered, **a proposal edits exactly one map**, and a change that spans
 two is two proposals.
 
+What is settled (issue 201) is the wall between them: an inner map reaches the
+world only through its box's ports (N5), so a change inside cannot open a door
+the outer map's rules never see. Changing what the box exchanges is a change to
+the outer map, under the outer rules; how the box does it is the inner map's.
+
 ## Q7 — Anonymous objections
 
 **Working ruling:** none. An objection names its author and its reason, so it
@@ -90,3 +95,29 @@ person; anybody may route around anybody by moving their own wires. What an
 organisation does about somebody everyone has routed around — stops paying
 them, asks them to leave — happens outside the map, and the map shows it
 happened.
+
+## Q10 — State across a box's wall
+
+The outer `org.state` says whether the box's `in spec` is fed; the inner one
+says whether `cutting.spec`, the door that port leads to, is fed. Nothing yet
+makes the two agree.
+
+**Answered (2026-11-03): state crosses the wall in both directions, and is
+derived, never stored twice.** Built as [issue 204](../issues/204-state-crosses-the-wall.md).
+
+- **Down:** a box's `in` port being fed — by a `fed` line in the outer state,
+  or by being a fixed value — makes every inner door in from the outside of
+  that name fed. Nobody inside writes it again.
+- **Up:** the inner map being finished makes the box done. Nobody outside
+  writes it again.
+- **Both are worked out when the maps are read.** Each map still keeps only
+  its own `org.state`, written by the people of that map; no state line in one
+  directory is copied into another.
+- **A box that holds a map cannot be marked done by hand while its inner map
+  is unfinished.** That would let the outer map say something the inner one
+  contradicts, so it becomes a new rule code (a state rule, next to S1-S4).
+
+**What was rejected:** the working ruling this replaces — each map's state its
+own, with nothing linking them. It needed nobody to agree on what "finished"
+means inside a box, but it let the two state files disagree about the same
+port, with the board trusting whichever directory it happened to be reading.

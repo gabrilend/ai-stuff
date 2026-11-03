@@ -37,6 +37,7 @@ requests, naming which merge frees the most waiting work.
 | 201 | A map inside a box: an inner map's doors line up with its box's ports |
 | 202 | The org's history, replayed: applied proposals in order rebuild the map |
 | 203 | The trainstation picture: the vision's boxes-and-wires view, once the prototype is available |
+| 204 | State crosses the wall: a fed port is fed inside, a finished inside makes its box done |
 
 ## Deliberately absent
 

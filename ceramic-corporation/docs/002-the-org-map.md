@@ -108,7 +108,7 @@ is not compared between the two ends of a wire.
 | M11 | A wire names a declared `role` or `work` box. A box may wire to itself: a loop is not an error. |
 | M12 | **Both ends.** For every `out P - B.Q` on box A, box B has exactly `in Q - A.P`; for every `in Q - A.P` on B, box A has `out P - B.Q`. Reading one box tells the whole truth about it, and a change to a wire is always two changed lines, one on each party's box. |
 | M13 | A door names a declared `outside`. |
-| M14 | `inside PATH` is a relative path, resolved from the directory holding the map, to a directory holding an `org.map`. At most one per box. |
+| M14 | `inside PATH` is a relative path, resolved from the directory holding the map, to a directory holding an `org.map`. At most one per box. How the inner map must line up with the box is [N1–N6](#maps-inside-boxes). |
 | M15 | A rule's lines are well-formed: N is a whole number, `P/Q` has `0 < P ≤ Q`, at most one `approve` line per subject (`affected`, `everyone`, `others`), at most one `waits`. `approve others` takes a number only. |
 
 These are **warnings**, which the validator prints and does not refuse:
@@ -167,6 +167,47 @@ act — which is exactly why [the board](004-what-blocked-means.md) shows both.
 **The source of a waiting port.** Every `in` port that is not fed has exactly
 one source (M9): the box at the other end of its wire, or the outside party
 behind its door. There are no holes: a port with no source cannot be written.
+
+## Maps inside boxes
+
+**A map is a box**, as in soramech: a box may say `inside PATH`, and the org at
+PATH is how the box does its work. From inside, the box's ports *are* the
+outside world. So the inner map declares one `outside` per port of its box,
+named after the port, and has doors to nothing else.
+
+```
+role making                         org making           (making/org.map)
+  held-by jon                       outside spec         ← making's in port
+  in spec - orders.spec             outside raw          ← making's out port
+  out raw - finishing.raw           role cutting
+  inside making                       in spec $spec
+                                      out parts - joining.parts
+                                    role joining
+                                      in parts - cutting.parts
+                                      out raw $raw
+```
+
+| Code | Rule |
+| --- | --- |
+| N1 | The org inside a box is valid, by every rule on this page, its own insides included. |
+| N2 | A box with an inside does not have an `in` port and an `out` port of one name: from inside they would be one outside. |
+| N3 | For every `in` port P of the box, the inner map has `outside P`, at least one door in from `$P`, and no door out to it. |
+| N4 | For every `out` port Q of the box, the inner map has `outside Q`, at least one door out to `$Q`, and no door in from it. |
+| N5 | **Every outside of the inner map is a port of its box.** An inner map reaches the world only through its box, so a door to the river cannot be hidden one level down, where the parent's doors rule never sees it. |
+| N6 | No map is inside itself, directly or through other maps (compared by real path). |
+
+These are checked by the validator once the org itself reads, all the way
+down. **The board looks inside a source**: a row whose source is a box with an
+inside is followed by the top row of the inner board — what the inside waits
+on first — and so on down. It looks inside sources, not blocked boxes, because
+a blocked box is blocked by its inputs, which the board already ranks; a source
+that owes something is the box whose inside explains the delay.
+
+**State is kept per map.** The inner `org.state` says what the inner ports
+hold; the outer one says what the box's ports hold. How the two meet is
+decided in [open question Q10](005-open-questions.md#q10--state-across-a-boxs-wall)
+— a fed port is fed inside, a finished inside makes the box done, both derived
+— and not yet built ([issue 204](../issues/204-state-crosses-the-wall.md)).
 
 ## The bakery, read
 
