@@ -126,10 +126,10 @@ DefaultTemplates.sets = {
     experimental = {
         {name = "Glass Cannon", unit_type = "ranged", archetype = "glass_cannon",
             stats = {health = 50},
-            abilities = {"javelin_attack", "power_strike"},
+            abilities = {"javelin_attack", "piercing_shot"},
             expected_warnings = {"health 50 is very low"},
-            description = "Huge blows, almost no health.",
-            strategy = "Hits hardest of all for its points, and dies to anything that reaches it."},
+            description = "Heavy javelins and piercing shots, almost no health.",
+            strategy = "Hits hard from range while standing still, and dies to anything that reaches it."},
         {name = "Fortress", unit_type = "tank", archetype = "tank",
             stats = {health = 380, armor = 24},
             abilities = {"primary_melee_attack", "protective_ward"},

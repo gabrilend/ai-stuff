@@ -462,9 +462,11 @@ seen any of this on a screen; it runs headless.
 What a first provisional run shows (not acted on): the ranged starters
 (Skirmisher, Archer, Crossbowman) and Fortress win far more than their
 points suggest, and Glass Cannon loses every battle. Glass Cannon's
-power strike charges only with an enemy in melee reach, which a ranged
-body rarely has; that is a design question for when templates are
-tuned, not something for prices to fix.
+power strike charged only with an enemy in melee reach, which a ranged
+body backs away from. That was a correctness bug rather than balance,
+and was fixed separately (see the follow-up in issue 059): Glass Cannon
+now carries piercing shot, and battle fury, which never fired at all,
+now charges while an enemy is near.
 
 ### Decisions
 

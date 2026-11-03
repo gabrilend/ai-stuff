@@ -814,3 +814,9 @@ Headless only. Nothing was seen.
   lists. The sketch's renamed abilities ("Sword Strike", "Shield Bash")
   would be a second name for the same thing.
 
+## Follow-up (Round 5)
+
+Glass Cannon's second ability is now piercing shot instead of power
+strike, which a ranged body could rarely use, and battle fury (on the
+Berserker, Battle Mage and Versatile Fighter) now fires at all. See the
+follow-up in issue 059 for the validator rule that catches both.

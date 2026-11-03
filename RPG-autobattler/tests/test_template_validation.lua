@@ -192,6 +192,47 @@ function TestSuite.test_performance()
 end
 -- }}}
 
+-- {{{ TestSuite.test_reachable_triggers
+-- An ability whose trigger its body can never meet earns a warning that
+-- names the trigger, and no default template has one.
+function TestSuite.test_reachable_triggers()
+    local factory = require("src.factories.ability_factory")
+    local cannon = template({unit_type = "ranged", abilities = {"javelin_attack", "power_strike"}})
+    assert(cannon.is_valid, "An unreachable trigger is a warning, not an error")
+    assert(find(cannon.validation_warnings, "ranged body backs away from enemies nearer than 20"),
+        "A melee-reach trigger on a ranged body warns")
+    assert(find(cannon.validation_warnings, "rarely if ever fire"), "And says it may still fire when cornered")
+    assert(not find(template({unit_type = "melee", abilities = {"primary_melee_attack", "power_strike"}})
+        .validation_warnings, "never fire"), "The same ability on a melee body is fine")
+    assert(not find(template({unit_type = "ranged", abilities = {"javelin_attack", "piercing_shot"}})
+        .validation_warnings, "fire. Pick"), "A ranged trigger on a ranged body is fine")
+
+    local function with_condition(unit_type, condition)
+        local config = factory.create_config("focus", {generation_conditions = {condition}})
+        return template({unit_type = unit_type, abilities = {"primary_melee_attack", config}})
+    end
+    assert(find(with_condition("melee", {type = "combat_state", value = "combat"}).validation_warnings,
+        "combat state \"combat\", which no system sets for a melee body; it will never fire"),
+        "A combat state nothing sets warns")
+    assert(find(with_condition("melee", {type = "combat_state", value = "firing"}).validation_warnings,
+        "never fire"), "A ranged-only combat state warns on a melee body")
+    assert(not find(with_condition("ranged", {type = "combat_state", value = "firing"}).validation_warnings,
+        "never fire"), "But not on a ranged body")
+    assert(find(with_condition("tank", {type = "unit_type", value = "support"}).validation_warnings,
+        "needs a support body, but this is a tank body"), "A trigger for another body warns")
+    assert(find(with_condition("melee", {type = "enemies_nearby"}).validation_warnings,
+        "unknown condition \"enemies_nearby\""), "A misspelt trigger warns")
+    assert(not find(with_condition("ranged", {type = "enemies_in_range", operator = ">", value = 0, range = 40})
+        .validation_warnings, "fire. Pick"), "An enemy trigger past the keep-away distance is fine")
+
+    local manager = TemplateManager:new()
+    for name, t in pairs(manager:create_default_templates()) do
+        assert(not find(t.validation_warnings, "fire. Pick"), name .. " has no ability that can't fire")
+    end
+    print("✓ Reachable triggers test passed")
+end
+-- }}}
+
 -- {{{ TestSuite.run_all
 function TestSuite.run_all()
     print("Running template validation tests...")
@@ -203,6 +244,7 @@ function TestSuite.run_all()
     TestSuite.test_warnings()
     TestSuite.test_configurable()
     TestSuite.test_defaults_valid()
+    TestSuite.test_reachable_triggers()
     TestSuite.test_performance()
     print("✅ All template validation tests passed!")
     return true

@@ -151,6 +151,11 @@ function TestSuite.test_defaults_fight()
     local round = AbilityBalance.round_robin({get("Warrior"), get("Archer"), get("Fortress")}, {battles = 2, seed = 2,
         max_time = 30})
     assert(round.overall["Warrior"] and round.overall["Fortress"].battles == 4, "Templates can enter a round robin")
+    -- Abilities that once could never fire for their body now do.
+    local fury = AbilityBalance.run_battle({team_a = get("Berserker"), team_b = get("Warrior"), seed = 3})
+    assert((fury.casts.battle_fury or 0) > 0, "Battle fury fires")
+    local cannon = AbilityBalance.run_battle({team_a = get("Glass Cannon"), team_b = get("Warrior"), seed = 3})
+    assert((cannon.casts.piercing_shot or 0) > 0, "Glass Cannon's second ability fires")
     print("✓ Defaults fight test passed")
 end
 -- }}}

@@ -58,5 +58,27 @@ TemplateConstraints.balance = {
     min_budget_share = 0.5
 }
 
+-- What a body's unit can ever be or see, for the warning on ability
+-- triggers (generation and activation conditions) it can never meet.
+TemplateConstraints.triggers = {
+    -- The combat states the game's systems set (src/systems/), by body.
+    -- "any" is every body; a body's own list adds to it. "dead" is left
+    -- out: a dead unit charges nothing.
+    combat_states = {
+        any = {"idle", "moving", "arrived", "correcting", "engaging", "attacking"},
+        -- ranged_behavior_system.lua and backing_up_behavior_system.lua
+        ranged = {"firing", "repositioning", "emergency_retreat", "backing_up"}
+    },
+    -- A ranged body backs away from enemies nearer than this
+    -- (minimum_safe_distance in src/systems/ranged_behavior_system.lua),
+    -- so a trigger waiting for an enemy that close waits on the one thing
+    -- the body avoids.
+    ranged_keep_away = 20,
+    -- Condition types src/components/ability.lua understands; any other
+    -- fails every check.
+    known_types = {"unit_type", "health_percentage", "enemies_in_range", "allies_in_range", "ally_health_below",
+        "is_stationary", "combat_state", "has_effect", "has_buff", "missing_effect", "missing_buff", "custom"}
+}
+
 return TemplateConstraints
 -- }}}

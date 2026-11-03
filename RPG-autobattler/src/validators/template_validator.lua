@@ -55,6 +55,7 @@ function TemplateValidator:new(constraints)
     validator:add_rule("ability_mix", false, TemplateValidator.check_ability_mix)
     validator:add_rule("type_coherence", false, TemplateValidator.check_type_coherence)
     validator:add_rule("budget_use", false, TemplateValidator.check_budget_use)
+    validator:add_rule("reachable_triggers", false, TemplateValidator.check_reachable_triggers)
     return validator
 end
 -- }}}
@@ -295,6 +296,73 @@ function TemplateValidator.check_ability_mix(self, template, add)
         if kinds[kind] > limit then
             add(string.format("%d %s abilities besides the primary; more than %d of one kind may leave gaps",
                 kinds[kind], kind, limit))
+        end
+    end
+end
+-- }}}
+
+-- {{{ local function trigger_problem
+-- Why a condition can't hold for a unit of this body, or nil; the second
+-- result is true when it can never hold, false when it all but never
+-- does (a ranged body's keep-away can fail when it is cornered).
+local function trigger_problem(rules, unit_type, ability, condition)
+    local kind = condition.type
+    local known = false
+    for _, name in ipairs(rules.known_types) do
+        if name == kind then
+            known = true
+        end
+    end
+    if not known then
+        return string.format("waits on an unknown condition \"%s\", which never holds", tostring(kind)), true
+    end
+    if kind == "unit_type" and condition.value ~= unit_type then
+        return string.format("needs a %s body, but this is a %s body", tostring(condition.value), unit_type), true
+    end
+    if kind == "combat_state" then
+        local states = {}
+        for _, state in ipairs(rules.combat_states.any) do
+            states[state] = true
+        end
+        for _, state in ipairs(rules.combat_states[unit_type] or {}) do
+            states[state] = true
+        end
+        if not states[condition.value] then
+            return string.format("waits for combat state \"%s\", which no system sets for a %s body",
+                tostring(condition.value), unit_type), true
+        end
+    end
+    if kind == "enemies_in_range" and unit_type == "ranged" then
+        local range = condition.range or ability.range
+        local value = condition.value or 1
+        local operator = condition.operator or ">="
+        local needs_one = (operator == ">" and value >= 0) or ((operator == ">=" or operator == "==") and value >= 1)
+        if needs_one and range < rules.ranged_keep_away then
+            return string.format("charges only with an enemy within %g, but a ranged body backs away from enemies "
+                .. "nearer than %g", range, rules.ranged_keep_away), false
+        end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ TemplateValidator.check_reachable_triggers
+-- An ability whose trigger the body can never meet sits there unused:
+-- warn, naming the trigger and why, and suggest a fix.
+function TemplateValidator.check_reachable_triggers(self, template, add)
+    local rules = self.constraints.triggers
+    for index = 1, #template.abilities do
+        local ability = self.built[index]
+        if ability then
+            for _, list in ipairs({ability.generation_conditions or {}, ability.activation_conditions or {}}) do
+                for _, condition in ipairs(list) do
+                    local problem, certain = trigger_problem(rules, template.unit_type, ability, condition)
+                    if problem then
+                        add(string.format("%s %s; it will %s fire. Pick another ability or another body",
+                            ability_label(template, index, ability), problem, certain and "never" or "rarely if ever"))
+                    end
+                end
+            end
         end
     end
 end
