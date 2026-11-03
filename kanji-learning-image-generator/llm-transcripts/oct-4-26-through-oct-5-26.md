@@ -556,15 +556,15 @@ yes please
 
 > Commit 1: the plans and docs.
 
-*[commit] 6e626eab1 in ai-stuff - kanji: a museum phase is planned, and two new ways to draw a character*
+*[commit] 96ae770ab in ai-stuff - kanji: a museum phase is planned, and two new ways to draw a character*
 
 > Now moving the finished issue to completed, then commit 2: the code.
 
-*[commit] d218ffee0 in ai-stuff - Issue 415 is complete: pictures can be cooked in another house*
+*[commit] a14390803 in ai-stuff - Issue 415 is complete: pictures can be cooked in another house*
 
 > Commit 3: the stethoscope script and its test, in the scripts project.
 
-*[commit] 958d28c76 in ai-stuff - scripts: a stethoscope, so one session can ask another a question*
+*[commit] 4c8816692 in ai-stuff - scripts: a stethoscope, so one session can ask another a question*
 
 The connection to the .88 machine is built and finished. Both new ways of
 drawing now run there, about 35 seconds per character. Outside works; inside
