@@ -498,8 +498,37 @@ end
 - Check visual effects and notifications
 
 ### Acceptance Criteria
-- [ ] Three shields protect each base with substantial health
-- [ ] Shields absorb percentage of incoming base damage
-- [ ] Shield destruction triggers enemy unit reset
-- [ ] Shields regenerate health when not under attack
-- [ ] Visual effects clearly communicate shield status
+- [x] Three shields protect each base with substantial health
+- [x] Shields absorb incoming base damage (all of it, see Decisions)
+- [ ] Shield destruction triggers enemy unit reset -- the event is reported here; the reset itself is issue 040
+- [x] Shields regenerate health when not under attack
+- [ ] Visual effects clearly communicate shield status -- status rows for drawing exist; nothing is drawn yet
+## What Happened
+
+Built as `src/entities/defense_shield.lua` (the shields' own rules) and
+wired into `src/entities/base.lua`: every base now gets three shields when
+created, `Base.apply_damage` sends hits to the front shield while one
+stands, `Base.update` repairs them, and a fallen shield records a
+`shield_destroyed` event that `BaseHealthSystem` passes on. Tested
+headlessly by `tests/test_defense_shield.lua`; `tests/test_base.lua` now
+builds its bases with `{shield_count = 0}` so it still checks the core on
+its own. Nothing was looked at on screen.
+
+### Decisions
+- **Absorption is 100%, not 30% per shield.** With a 30%-per-shield split
+  the core loses health while shields stand, and the arithmetic shows the
+  core dying before the third shield falls, so one of the three resets the
+  vision asks for would never happen. While any shield stands, the front
+  shield takes the whole hit and the core takes none. Core plus three
+  shields is exactly twenty average units, as the vision says.
+- **One hit breaks at most one shield.** Damage beyond the front shield's
+  remaining health is lost, not passed on, so each shield's fall triggers
+  its own reset.
+- **Shields are tables on the base, not separate entities.** They have
+  positions on a ring 40 pixels out, the front one facing the enemy (team 1
+  faces right, others left, or `options.facing`), so units can still aim at
+  a particular shield through `Base.damage_shield`.
+- **Repair:** 2 health per second after 5 seconds without damage, counting
+  only time past the delay. A destroyed shield stays down for the match.
+- The reset itself and any destruction pacing are left to issues 039 and
+  040, which this event feeds.

@@ -9,6 +9,10 @@ local EntityManager = require("src.systems.entity_manager")
 local Base = require("src.entities.base")
 local BaseHealthSystem = require("src.systems.base_health_system")
 
+-- These tests look at the core alone, so their bases are built without
+-- shields; tests/test_defense_shield.lua covers the shields (issue 037).
+local CORE_ONLY = {shield_count = 0}
+
 -- {{{ local function assert_near
 local function assert_near(a, b, message, epsilon)
     epsilon = epsilon or 1e-6
@@ -21,8 +25,8 @@ end
 -- {{{ local function new_world
 local function new_world()
     local entity_manager = EntityManager:new()
-    local base_a = Base.create_base(entity_manager, 1, {x = 50, y = 300}, "standard")
-    local base_b = Base.create_base(entity_manager, 2, {x = 950, y = 300}, "standard")
+    local base_a = Base.create_base(entity_manager, 1, {x = 50, y = 300}, "standard", CORE_ONLY)
+    local base_b = Base.create_base(entity_manager, 2, {x = 950, y = 300}, "standard", CORE_ONLY)
     return entity_manager, base_a, base_b
 end
 -- }}}
@@ -65,8 +69,8 @@ end
 -- {{{ TestSuite.test_damage_reduction
 function TestSuite.test_damage_reduction()
     local entity_manager = EntityManager:new()
-    local standard = Base.create_base(entity_manager, 1, {x = 0, y = 0}, "standard")
-    local fortress = Base.create_base(entity_manager, 2, {x = 0, y = 0}, "fortress")
+    local standard = Base.create_base(entity_manager, 1, {x = 0, y = 0}, "standard", CORE_ONLY)
+    local fortress = Base.create_base(entity_manager, 2, {x = 0, y = 0}, "fortress", CORE_ONLY)
 
     assert_near(Base.apply_damage(entity_manager, standard, 100, 2), 100, "Standard takes full damage")
     assert_near(Base.apply_damage(entity_manager, fortress, 100, 1), 75, "Fortress shrugs off a quarter")

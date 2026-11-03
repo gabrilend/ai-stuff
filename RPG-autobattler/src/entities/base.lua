@@ -12,6 +12,7 @@ local Base = {}
 local Colors = require("src.constants.colors")
 local Unit = require("src.entities.unit")
 local debug = require("src.utils.debug")
+local DefenseShield = require("src.entities.defense_shield")
 
 local PositionComponent = require("src.components.position")
 local HealthComponent = require("src.components.health")
@@ -102,9 +103,13 @@ end
 
 -- {{{ Base.create_base
 -- Creates a base for team_id at position ({x, y} or a Vector2). Returns the
--- entity table, as EntityManager:create_entity does.
-function Base.create_base(entity_manager, team_id, position, base_type)
+-- entity table, as EntityManager:create_entity does. options may hold:
+--   shield_count  how many defence shields (default 3; 0 for none)
+--   facing        direction toward the enemy in radians; the front shield
+--                 sits on that side (default: team 1 faces right, others left)
+function Base.create_base(entity_manager, team_id, position, base_type, options)
     base_type = base_type or "standard"
+    options = options or {}
     local type_data = Base.TYPES[base_type]
     if not type_data then
         error("Unknown base type: " .. tostring(base_type))
@@ -128,8 +133,14 @@ function Base.create_base(entity_manager, team_id, position, base_type)
     team.alliance = team_id == 1 and "player" or "enemy"
     entity_manager:add_component(entity, "team", team)
 
+    local shield_count = options.shield_count or DefenseShield.COUNT
+    local facing = options.facing or (team_id == 1 and 0 or math.pi)
+    local shield_hp = Base.AVERAGE_UNIT_HEALTH * DefenseShield.HEALTH_IN_UNITS
+
     entity_manager:add_component(entity, "base", {
         base_type = base_type,
+        shields = DefenseShield.create_shields(position.x, position.y, shield_hp, shield_count, facing),
+        events = {},
         damage_reduction = type_data.damage_reduction,
         regen_rate = type_data.regen_rate,
         damage_section = Base.DAMAGE_SECTIONS[1].name,
@@ -236,11 +247,81 @@ function Base.damage_core(entity_manager, entity, amount, attacker_team)
 end
 -- }}}
 
+-- {{{ Base.damage_shield
+-- Damages one shield of a base directly (a unit attacking that shield).
+-- Records a "shield_destroyed" event in the base's queue when it falls.
+-- Returns the health removed.
+function Base.damage_shield(entity_manager, entity, shield, amount, attacker_team)
+    local base = entity_manager:get_component(entity, "base")
+    if not base or base.destroyed then
+        return 0
+    end
+
+    local dealt, destroyed = DefenseShield.damage_shield(shield, amount, attacker_team)
+    if destroyed then
+        local remaining = DefenseShield.count_active(base.shields)
+        table.insert(base.events, {
+            type = "shield_destroyed",
+            team = Unit.get_team_id(entity_manager, entity),
+            destroyed_by = attacker_team,
+            shield_index = shield.index,
+            shields_remaining = remaining
+        })
+        debug.info("Shield " .. shield.index .. " of team " .. Unit.get_team_id(entity_manager, entity) ..
+            " destroyed by team " .. tostring(attacker_team) .. " (" .. remaining .. " left)", "BASE")
+    end
+    return dealt
+end
+-- }}}
+
 -- {{{ Base.apply_damage
--- The entry point for anything that attacks a base. Later layers (shields)
--- wrap this; for now every hit goes to the core.
+-- The entry point for anything that attacks a base. While a shield stands,
+-- the front shield takes the whole hit and the core is untouched; once all
+-- shields are down, hits reach the core.
 function Base.apply_damage(entity_manager, entity, amount, attacker_team)
+    local base = entity_manager:get_component(entity, "base")
+    if not base or base.destroyed or amount <= 0 then
+        return 0
+    end
+
+    local front = DefenseShield.get_front_shield(base.shields)
+    if front then
+        return Base.damage_shield(entity_manager, entity, front, amount, attacker_team)
+    end
     return Base.damage_core(entity_manager, entity, amount, attacker_team)
+end
+-- }}}
+
+-- {{{ Base.get_shields
+function Base.get_shields(entity_manager, entity)
+    local base = entity_manager:get_component(entity, "base")
+    return base and base.shields or {}
+end
+-- }}}
+
+-- {{{ Base.get_total_health
+-- Core health plus every standing shield's health, and the same for maximums.
+function Base.get_total_health(entity_manager, entity)
+    local health = entity_manager:get_component(entity, "health")
+    local current, maximum = health.current_hp, health.max_hp
+    for _, shield in ipairs(Base.get_shields(entity_manager, entity)) do
+        current = current + shield.current_hp
+        maximum = maximum + shield.max_hp
+    end
+    return current, maximum
+end
+-- }}}
+
+-- {{{ Base.pop_events
+-- Returns the base's recorded events (shield losses) and clears them.
+function Base.pop_events(entity_manager, entity)
+    local base = entity_manager:get_component(entity, "base")
+    if not base then
+        return {}
+    end
+    local events = base.events
+    base.events = {}
+    return events
 end
 -- }}}
 
@@ -253,6 +334,8 @@ function Base.update(entity_manager, entity, dt)
     if not base or not health or base.destroyed then
         return
     end
+
+    DefenseShield.update(base.shields, dt)
 
     -- Only the part of dt that falls after the delay counts as repair time,
     -- so a long frame that crosses the delay does not over-repair.

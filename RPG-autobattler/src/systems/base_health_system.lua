@@ -1,11 +1,13 @@
 -- {{{ BaseHealthSystem
--- Keeps every base up to date each frame (self-repair, damage condition) and
--- watches for a destroyed base. The first base to fall ends the match: the
+-- Keeps every base up to date each frame (self-repair, damage condition),
+-- passes on "shield_destroyed" events from each base, and watches for a
+-- destroyed base. The first base to fall ends the match: the
 -- system records a "base_destroyed" event and names the winning team, which
 -- the game state reads to show victory or defeat.
 local BaseHealthSystem = {}
 
 local Base = require("src.entities.base")
+local DefenseShield = require("src.entities.defense_shield")
 local Unit = require("src.entities.unit")
 local debug = require("src.utils.debug")
 
@@ -47,6 +49,10 @@ end
 function BaseHealthSystem:update(dt)
     for _, entity in ipairs(self:get_bases()) do
         Base.update(self.entity_manager, entity, dt)
+        -- Pass on shield losses so the unit reset (issue 040) can react.
+        for _, event in ipairs(Base.pop_events(self.entity_manager, entity)) do
+            table.insert(self.events, event)
+        end
         self:check_destruction(entity)
     end
 end
@@ -122,6 +128,7 @@ function BaseHealthSystem:get_debug_info()
             health = health.current_hp,
             max_health = health.max_hp,
             section = base.damage_section,
+            shields_active = DefenseShield.count_active(base.shields),
             integrity = base.structural_integrity
         })
     end
