@@ -123,23 +123,53 @@ end
 -- paths   : array of absolute paths
 -- scratch : a RAM folder for the list handed to the workers
 -- returns : { [path] = md5 hex string }; a file that cannot be read is an error
+--
+-- Each batch of 64 writes its answers to a file of its own, and the files are
+-- read once every batch is done. They must not share one pipe: each md5sum
+-- copy sends its answers out in 4 KB pieces, a piece can end mid-answer, and
+-- another copy's piece then lands in the gap -- a few answers per run came
+-- back unreadable, a different few each time (2026-11-02; the "many pictures
+-- at once" case in picture-embeddings.test.lua is the check).
 function M.fingerprints(paths, scratch)
     if #paths == 0 then return {} end
-    os.execute("mkdir -p " .. shell_quote(scratch))
+    local answers = scratch .. "/fingerprint-answers"
+    -- emptied first, so no batch file from an earlier call is read as an answer
+    os.execute("rm -rf " .. shell_quote(answers))
+    os.execute("mkdir -p " .. shell_quote(answers))
     local list_path = scratch .. "/fingerprint-list"
     local f = assert(io.open(list_path, "wb"))
     for _, path in ipairs(paths) do f:write(path, "\0") end
     f:close()
     -- -z: each answer ends in a NUL and names are not escaped, so any file
-    -- name comes back as it went in
-    local p = assert(io.popen(string.format("xargs -0 -P %d -n 64 md5sum -z < %s",
-        processors(), shell_quote(list_path))))
+    -- name comes back as it went in. mktemp gives each batch a file name
+    -- nothing else is using, whichever processor it runs on.
+    local status = os.execute(string.format("xargs -0 -P %d -n 64 sh -c %s %s < %s",
+        processors(),
+        shell_quote('out=$(mktemp "$0/batch.XXXXXX") && md5sum -z "$@" > "$out"'),
+        shell_quote(answers), shell_quote(list_path)))
+    -- LuaJIT gives 0 here, or true when built with the Lua 5.2 extensions
+    local every_batch_finished = (status == 0 or status == true)
+    -- at least one batch ran (there is at least one path), so the pattern
+    -- always names a file
+    local p = assert(io.popen("cat " .. shell_quote(answers) .. "/batch.*"))
     local out = p:read("*a")
     p:close()
     local result = {}
     for hash, path in out:gmatch("(%x+)  (%Z+)%z") do result[path] = hash end
+    local missing = {}
     for _, path in ipairs(paths) do
-        if not result[path] then error("picture-embeddings: could not fingerprint " .. path) end
+        if not result[path] then missing[#missing + 1] = path end
+    end
+    -- Two ways to come up short, and both stop the stage: a picture with no
+    -- answer (named, so it can be looked at; md5sum has already said why on
+    -- the terminal), or a batch that failed although every picture has an
+    -- answer (an md5sum or mktemp that broke after writing).
+    if #missing > 0 then
+        error(string.format("picture-embeddings: could not fingerprint %d of %d pictures; the first is %s",
+            #missing, #paths, missing[1]))
+    end
+    if not every_batch_finished then
+        error("picture-embeddings: a fingerprint batch failed (status " .. tostring(status) .. ")")
     end
     return result
 end

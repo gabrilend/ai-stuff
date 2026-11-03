@@ -104,6 +104,48 @@ do
 end
 -- }}}
 
+-- {{{ Case: many pictures at once, every answer comes back, every time
+-- The fingerprints are worked out by many md5sum copies at once. When they
+-- all wrote into one shared pipe, each copy's 4 KB buffer could break off
+-- mid-answer and another copy's buffer land in the gap, so a handful of
+-- answers per run came back unreadable -- a different handful each time
+-- (2026-11-02: 8 to 11 of 701 pictures, five runs, five different counts).
+-- Long names make each batch of answers bigger than one buffer, which is
+-- what made the old way break; five rounds make a lucky pass unlikely.
+do
+    local many_dir = SCRATCH .. "/many"
+    os.execute(string.format("mkdir -p %q", many_dir))
+    local many = {}
+    for i = 1, 600 do
+        local path = string.format("%s/a-long-picture-name-so-each-batch-of-answers-outgrows-one-buffer-%04d.png",
+            many_dir, i)
+        local f = assert(io.open(path, "wb"))
+        f:write("picture ", i)
+        f:close()
+        many[i] = path
+    end
+    local all_rounds_whole = true
+    local detail = nil
+    for round = 1, 5 do
+        local ok, hashes = pcall(pictures.fingerprints, many, SCRATCH)
+        if not ok then
+            all_rounds_whole = false
+            detail = "round " .. round .. ": " .. tostring(hashes)
+            break
+        end
+        local p = assert(io.popen(string.format("md5sum %q", many[600])))
+        local expected = p:read("*a"):match("^(%x+)")
+        p:close()
+        if hashes[many[600]] ~= expected then
+            all_rounds_whole = false
+            detail = "round " .. round .. ": the last picture's fingerprint is " .. tostring(hashes[many[600]])
+            break
+        end
+    end
+    check("600 pictures fingerprinted five times over: none lost, none garbled", all_rounds_whole, detail)
+end
+-- }}}
+
 -- {{{ Case: shrinking
 do
     local jobs = {
