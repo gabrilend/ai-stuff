@@ -13,9 +13,9 @@
 # meets the previous frame and sends the next one round again. Only one
 # frame number is ever on that wire, so frames are made one at a time and
 # in order. Each frame fans out to the three surfaces. The buttons are
-# read and turned into down, up and held events (502); the sticks and the
-# touch panels are still stubs answering an empty state (503 and 504 make
-# them read). The settings of 507 will stand between the events and any
+# read and turned into down, up and held events (502), the sticks into
+# changes of direction (503), the touch panels into down, move and up
+# (504). The settings of 507 will stand between the events and any
 # consumer.
 
 boxes = ../boxes/
@@ -83,16 +83,85 @@ station say_down (boxes/095-input.c:say_buttons)
 station say_up (boxes/095-input.c:say_buttons)
   in 0 - button_up.2
 
+# The sticks (503): a resting circle, then one of eight directions by
+# angle, then their history round a loop so a change of direction is an
+# event. The tuning is { left resting radius, right resting radius, left
+# edge, right edge }: 200 of about 2048 is a placeholder until the device
+# is measured (notes/diagnostics/002-stick-calibration.md), and 414214
+# (the tangent of 22.5 degrees, in millionths) makes the eight sectors
+# equal. Per-frame directions are stick_direction's own exit, for anyone
+# who wants them; changes are said on the developer line.
 station read_sticks (boxes/095-input.c:read_sticks)
   in 0 - frame.0
-  out 0 - stick_events.0
+  out 0 - stick_deadband.0
 
+station stick_deadband (boxes/095-input.c:stick_deadband)
+  in 0 - read_sticks.0
+  in 1 = { 200, 200, 414214, 414214 }
+  out 0 - stick_direction.0
+
+station stick_direction (boxes/095-input.c:stick_direction)
+  in 0 - stick_deadband.0
+  in 1 = { 200, 200, 414214, 414214 }
+  out 0 - sticks.0
+
+station sticks_at_rest (boxes/095-input.c:sticks_at_rest)
+  in 0 = 0
+  out 0 - sticks.1
+
+station sticks (boxes/095-input.c:stick_track)
+  in 0 - stick_direction.0
+  in 1 - sticks_at_rest.0
+  in 1 - sticks.0
+  out 0 - sticks.1
+  out 0 - stick_direction_changed.0
+
+comparator stick_direction_changed (boxes/095-input.c:stick_direction_changed)
+  in 0 - sticks.0
+  in 1 = { 0, 0, 0, 0, 0 }
+  out 2 - say_sticks.0
+
+station say_sticks (boxes/095-input.c:say_sticks)
+  in 0 - stick_direction_changed.2
+
+# The touch panels (504): their history round a loop, and down, move and
+# up hung off it, each one event a frame for both screens at once. Where a
+# panel was last touched stays in the history, so touch-up can say it.
+# Downs and ups are said; moves come every frame a finger slides, so
+# nothing listens to them yet.
 station read_touch (boxes/095-input.c:read_touch)
   in 0 - frame.0
-  out 0 - touch_events.0
+  out 0 - touch.0
 
-station stick_events (boxes/095-input.c:stick_events)
-  in 0 - read_sticks.0
+station touch_at_rest (boxes/095-input.c:touch_at_rest)
+  in 0 = 0
+  out 0 - touch.1
 
-station touch_events (boxes/095-input.c:touch_events)
+station touch (boxes/095-input.c:touch_track)
   in 0 - read_touch.0
+  in 1 - touch_at_rest.0
+  in 1 - touch.0
+  out 0 - touch.1
+  out 0 - touch_down.0
+  out 0 - touch_move.0
+  out 0 - touch_up.0
+
+comparator touch_down (boxes/095-input.c:touch_down)
+  in 0 - touch.0
+  in 1 = { 0, 0, 0, 0, 0, 0, 0 }
+  out 2 - say_touch_down.0
+
+comparator touch_move (boxes/095-input.c:touch_move)
+  in 0 - touch.0
+  in 1 = { 0, 0, 0, 0, 0, 0, 0 }
+
+comparator touch_up (boxes/095-input.c:touch_up)
+  in 0 - touch.0
+  in 1 = { 0, 0, 0, 0, 0, 0, 0 }
+  out 2 - say_touch_up.0
+
+station say_touch_down (boxes/095-input.c:say_touch)
+  in 0 - touch_down.2
+
+station say_touch_up (boxes/095-input.c:say_touch)
+  in 0 - touch_up.2

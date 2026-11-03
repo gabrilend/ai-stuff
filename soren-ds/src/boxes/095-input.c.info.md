@@ -16,15 +16,17 @@ the station that makes it, exactly as counting.map's count does:
              ▲          │                       ▲           ├──→ button_up
              │          │                       └───────────┤──→ button_held
              │          │      (the buttons' history, going round)
-             │          ├──→ read_sticks  ──→ stick_events
-             │          ├──→ read_touch   ──→ touch_events
-             └──────────┘  (the previous frame, going round)
+             │          ├──→ read_sticks ──→ stick_deadband ──→ stick_direction ──→ stick_track ──→ changed
+             │          ├──→ read_touch  ──→ touch_track ──┬──→ touch_down / touch_move / touch_up
+             └──────────┘  (the previous frame, going round; each *_track has its own history loop too)
 
-The buttons are real (issue 502), and chord_of (505) hangs off their
-history where a map wants a chord. The sticks and the touch panels are
-still stubs (issue 501): each answers an empty state stamped with its
-frame, and its event box only tallies the frame it was handed. Issues
-503 and 504 replace them.
+The buttons (issue 502), the sticks (503) and the touch panels (504)
+each keep their history on a loop of their own and hang their events
+off it as comparators, so only a frame where something happened goes
+on; chord_of (505) hangs off the buttons' history where a map wants a
+chord. What reads each surface is src/system/096-input.h's seam: the
+twin answers what a test set, and the device answers "nothing" until
+issue 101 names the pins, channels and controllers.
 
 The value types are declared here, once, because later box files are
 included after this one in the catalogue and may use them by name.
@@ -41,6 +43,18 @@ int button_event__compare(struct button_event a, struct button_event b)
 
 ```c
 int chord_event__compare(struct chord_event a, struct chord_event b)
+```
+
+### stick_change__compare
+
+```c
+int stick_change__compare(struct stick_change a, struct stick_change b)
+```
+
+### touch_event__compare
+
+```c
+int touch_event__compare(struct touch_event a, struct touch_event b)
 ```
 
 ### frame_next
@@ -154,7 +168,60 @@ Where events go until phase 6 gives them somewhere to go.
 struct stick_snapshot read_sticks(int64_t frame)
 ```
 
-Stub (issue 501): both sticks centred. Issue 503 makes it read.
+Both sticks, in one read, at the moment this frame is handled.
+
+### stick_deadband
+
+```c
+struct stick_snapshot stick_deadband(struct stick_snapshot s, struct stick_tuning t)
+```
+
+Each stick that rests inside its circle reads as centred; one outside
+it reads as it is.
+
+### stick_direction
+
+```c
+struct stick_directions stick_direction(struct stick_snapshot s, struct stick_tuning t)
+```
+
+Both sticks as directions, every frame.
+
+### sticks_at_rest
+
+```c
+struct stick_history sticks_at_rest(int64_t start)
+```
+
+The sticks' history before the first frame: both centred.
+
+### stick_track
+
+```c
+struct stick_history stick_track(struct stick_directions now, struct stick_history before)
+```
+
+This frame's directions against the last: which stick changed. A frame
+no newer than the history is stale and changes nothing, as for the
+buttons.
+
+### stick_direction_changed
+
+```c
+struct stick_change stick_direction_changed(struct stick_history h)
+```
+
+A frame where a stick's direction changed, and both directions as they
+now stand.
+
+### say_sticks
+
+```c
+void say_sticks(struct stick_change c)
+```
+
+A change on the developer line: each stick that changed, and its new
+direction.
 
 ### read_touch
 
@@ -162,20 +229,56 @@ Stub (issue 501): both sticks centred. Issue 503 makes it read.
 struct touch_snapshot read_touch(int64_t frame)
 ```
 
-Stub (issue 501): neither panel touched. Issue 504 makes it read.
+Both panels, read one after the other in the same frame.
 
-### stick_events
-
-```c
-void stick_events(struct stick_snapshot s)
-```
-
-Stub (issue 501): records which frame arrived — the tally is the
-outside world this box writes to, like a screen or a serial line.
-
-### touch_events
+### touch_at_rest
 
 ```c
-void touch_events(struct touch_snapshot s)
+struct touch_history touch_at_rest(int64_t start)
 ```
+
+The panels' history before the first frame: neither touched.
+
+### touch_track
+
+```c
+struct touch_history touch_track(struct touch_snapshot now, struct touch_history before)
+```
+
+This frame's panels against the last. Stale frames change nothing.
+
+### touch_down
+
+```c
+struct touch_event touch_down(struct touch_history h)
+```
+
+The screens first touched this frame, and where.
+
+### touch_move
+
+```c
+struct touch_event touch_move(struct touch_history h)
+```
+
+The screens still touched this frame whose point moved by at least a
+pixel, and where to. Positions are whole pixels, so this is also the
+issue's touch-move-changed: there is no smaller move to leave out.
+
+### touch_up
+
+```c
+struct touch_event touch_up(struct touch_history h)
+```
+
+The screens let go this frame, and where each was last touched.
+
+### say_touch
+
+```c
+void say_touch(struct touch_event e)
+```
+
+A touch event on the developer line: each screen it is about, and
+where.
 

@@ -18,6 +18,12 @@ events agree on them; how the buttons are read is each side's own
 const char *button_name(int button)
 ```
 
+### direction_name
+
+```c
+const char *direction_name(int direction)
+```
+
 ### input_poll_start
 
 ```c

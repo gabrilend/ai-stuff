@@ -49,7 +49,7 @@ Built as portable C and maps and proven on the laptop twin. Counts:
 - **501** the input-poll map: an engine timer writes a tick into its
   argument door every 1/60 s, each deadline the one before plus a
   period; the frame number rides a loop back to the station that makes
-  it, and fans out to three read stubs and three event stubs. Started
+  it, and fans out to the three surfaces (stubs, until 502–504). Started
   and stopped by `input_poll_start` / `input_poll_stop`; nothing calls
   them on the device yet (that waits for 202).
 - **502** the buttons: one snapshot of all eighteen a frame, in the
@@ -61,6 +61,13 @@ Built as portable C and maps and proven on the laptop twin. Counts:
   "nothing pressed" until 101 names the pins.
 - **505** `chord_of`: two buttons by name and a window of frames, read
   off the button history, one event on the frame the second goes down.
+- **503** the sticks: a circular resting zone, eight directions by angle
+  in integers (the edge tunable per stick), and an event only when a
+  direction changes. The device reads zeros until 101; calibration is
+  measured on the device.
+- **504** the touch panels: down, move (a whole pixel) and up, both
+  screens in one event a frame, up at the place last touched. The
+  device reads "not touched" until 101 names the controllers.
 
 The boxes are in `src/boxes/095-input.c`, the map is
 `src/maps/input-poll.map`, the starting and stopping in
@@ -72,26 +79,22 @@ nothing after the stop; two copies do not see each other's ticks) and
 `100` (26 checks: downs, ups and their durations frame by frame, five
 buttons in one event, a held filter, a stale snapshot ignored, half a
 second on the real timer) and `102` (12 checks: chords in either order,
-inside and outside their window, and a misspelled button).
+inside and outside their window, and a misspelled button) and `103`
+(21 checks: directions and their edges, the resting circle, moves and
+ups, both screens at once, called directly and through the input-poll
+map).
 
 ## Open issues
 
 Sorted by what each one waits on (scoped at the start of the phase's
 work, against main as it stood then).
 
-**Buildable on the twin now.** The logic that turns one frame's raw
-state into events needs no hardware: the raw reads sit behind a small
-seam the twin can set, and the device's side of that seam waits for 101.
-
-- **503** — deadband, eight-way direction without floats, direction
-  changed; the ADC reads wait for 101's channel mapping, and calibration
-  (`notes/diagnostics/002-stick-calibration.md`) is measured on the device.
-- **504** — `touch-down`, `touch-move`, `touch-up`, per-screen history;
-  the I2C controller and its register map wait for 101.
+**Buildable on the twin now.** Nothing left: the twin halves of 501
+through 505 are built.
 
 **Blocked on an unmerged stack.**
 
-- **506** — needs 502, 503 and 505, and its lookup table lives on the
+- **506** — its parts (502, 503, 505) are built; its lookup table lives on the
   card at `/system-maps/` and `/settings/`, so it reads through
   `read-path` (406, PR #35).
 - **507** — reads handedness and drawer-swap from `/settings/` (408, PR
@@ -102,8 +105,9 @@ seam the twin can set, and the device's side of that seam waits for 101.
 - **508** — the demo is pressing real buttons and touching real screens.
 - The device halves of the issues above: starting `input-poll` at boot
   once the cores run the engine (202), the GPIO, ADC and I2C reads (101;
-  for 502, `src/device/098-input-device.c` is where the pins go), and
-  stick calibration.
+  `src/device/098-input-device.c` is where all three go), the touch
+  controllers' missed-read warning, and stick calibration
+  (`notes/diagnostics/002-stick-calibration.md`).
 
 ## Phase demo
 
