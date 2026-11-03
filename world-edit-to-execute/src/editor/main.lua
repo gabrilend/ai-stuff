@@ -410,10 +410,7 @@ function scene_paint()
     end
 end
 
-function scene_ui()
-    if #wire_labels > 0 then fallback.draw_labels(wire_labels, render, viewer.to_screen, 13) end
-    ui:draw(render)
-end
+function scene_ui() ui:draw(render) end
 function scene_status() return "editor" end
 function scene_key(_) end
 function scene_ground(x, y)
@@ -423,5 +420,13 @@ function scene_ground(x, y)
     local z = w3e.ground_z(tp)
     if tp.has_water then z = math.max(z, w3e.water_z(tp)) end
     return z
+end
+-- }}}
+
+-- {{{ the fallback's labels (issue 602a), under the editor's interface
+local draw_editor_ui = scene_ui
+function scene_ui()
+    if #wire_labels > 0 then fallback.draw_labels(wire_labels, render, viewer.to_screen, 13) end
+    draw_editor_ui()
 end
 -- }}}
