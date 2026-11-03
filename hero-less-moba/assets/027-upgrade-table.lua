@@ -157,4 +157,22 @@ M.deck = {
 }
 -- }}}
 
+-- {{{ M.ping
+-- *Look at this place.* The one verb not about the stones, and **the rate limit is the
+-- whole design of it** (issue 704): unlimited pings are noise, and noise is worse than
+-- silence.
+--
+-- Three in any five seconds. Three, because a ping is often followed by a correction
+-- and then by "here, no, *here*" -- a burst a person makes while still meaning it. Five
+-- seconds, because past that a fourth one is not pointing at anything, it is shouting.
+-- And a ping lasts four seconds on screen, decaying rather than being dismissed, so
+-- nobody has to clean up after a teammate and the most a player can have showing at
+-- once is the three they are entitled to.
+M.ping = {
+  limit          = 3,
+  window_seconds = 5,
+  lasts_seconds  = 4,
+}
+-- }}}
+
 return M

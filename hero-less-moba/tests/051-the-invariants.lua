@@ -567,6 +567,63 @@ local function test_giving_is_easier_than_asking()
 end
 -- }}}
 
+-- {{{ local function test_a_ping_is_rate_limited()
+-- 704. *Look at this place* is the one verb not about the stones, and its rate limit is
+-- the whole design of it. Three pings go, the fourth is refused **in words that say
+-- when**, and once the window has passed a ping is free again. And a ping is seen by
+-- the pinger's own team only, for as long as it lasts and no longer.
+local function test_a_ping_is_rate_limited()
+  local world, modules, parameters = fresh_world(tick_module)
+  world.bot = {}
+  world.event = {}
+  local rule = parameters.upgrade.ping
+  local per_second = parameters.unit.ticks_per_second
+  local function ping(player, x)
+    modules.commands.queue(world, {verb = "ping", player = player, x = x, y = 0})
+    modules.commands.apply_all(world)
+  end
+  local function refusals()
+    local found = {}
+    for _, event in ipairs(world.event) do
+      if event.name == "refused" and event.verb == "ping" then found[#found + 1] = event end
+    end
+    return found
+  end
+
+  for index = 1, rule.limit do ping(1, index * 10) end
+  check("a player may ping as often as the limit allows",
+        #refusals() == 0 and world.ping[1].x == rule.limit * 10)
+
+  world.tick = per_second
+  ping(1, 999)
+  local refused = refusals()[1]
+  local want = string.format("free in %d seconds", rule.window_seconds - 1)
+  check("and one more inside the window is refused, saying when the next is free",
+        refused ~= nil and refused.reason:find(want, 1, true) ~= nil
+          and world.ping[1].x == rule.limit * 10,
+        refused and refused.reason or "nothing was refused")
+
+  world.event = {}
+  world.tick = rule.window_seconds * per_second
+  ping(1, 500)
+  check("and once the window has passed, a ping is free again",
+        #refusals() == 0 and world.ping[1].x == 500)
+
+  -- Seen by its own team, and gone when it has lasted.
+  local enemy = parameters.team_size + 1
+  ping(enemy, 700)
+  world.viewing_team = 1
+  modules.snapshot.stamp(world)
+  local frame = modules.snapshot.newest(world)
+  check("a ping is shown to its own team and is absent for the other",
+        frame.ping[1].shown == 1 and frame.ping[enemy].shown == 0)
+  world.tick = world.tick + rule.lasts_seconds * per_second
+  modules.snapshot.stamp(world)
+  frame = modules.snapshot.newest(world)
+  check("and it is gone once it has lasted", frame.ping[1].shown == 0)
+end
+-- }}}
+
 -- {{{ local function test_reproducibility()
 -- The same seed and the same (empty) command list must produce the same match,
 -- tick for tick. Compared on a fingerprint of every body's position rather than
@@ -1766,6 +1823,7 @@ test_a_move_takes_a_wave()
 test_a_move_can_be_called_back()
 test_the_floor_closes()
 test_giving_is_easier_than_asking()
+test_a_ping_is_rate_limited()
 test_reproducibility()
 test_placement_moves_a_frontline()
 test_the_surge_deals_everything()

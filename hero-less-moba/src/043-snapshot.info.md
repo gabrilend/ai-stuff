@@ -63,6 +63,8 @@ half a fact.
 **Per team**: `chest`, `lane_slot`, `tower_slot`, `library_slot`, `push_depth`,
 `waves_lost`, `draws_taken`.
 
+**Per player**: `cursor` (where everybody is pointing, with their team) and `ping` (`x`, `y`, `tick`, `team`, `shown`). A ping is `shown` only to the team being watched and only while it lasts — the enemy's are absent, not hidden.
+
 **Plus**: `tick`, `phase`, `winner`, and the events raised this tick.
 
 Health is a **fraction** rather than a figure, because the viewer draws a bar and never

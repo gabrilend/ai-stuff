@@ -6,7 +6,7 @@
 | Blocked by | 412, 413, 703 |
 | Blocks | 805 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
-| Open questions | the ping rate limit |
+| Open questions | none — the ping rate limit is settled below |
 
 ## Current behavior
 
@@ -16,6 +16,18 @@ waves out. A sign-post changed recently gets a halo in the world.
 
 Locks and objections are not built and will not be: they were replaced by ownership,
 contributing and dismissing.
+
+**The map ping is built, and rate-limited.** `ping` (the verb this issue calls
+`ping_map`) takes a point and does nothing else. A player may ping **three times in any
+five seconds**; a fourth is refused in words that say when the next one is free. A ping
+lasts **four seconds**, drawn as a ring in the team's colour that tightens and fades
+rather than waiting to be dismissed. It is in the watching team's snapshot and absent
+from the other's — not hidden, absent, like the enemy's sign-posts. `g` pings where the
+mouse is. **Not seen on screen**: the drawing has only been driven with LÖVE stubbed
+out.
+
+Still owed: refusals drawn **near where the action was attempted** rather than at the
+bottom of the panel (step 4), and step 9's playtest with three people.
 
 ## Intended behavior
 
@@ -100,6 +112,12 @@ the only explanation they will ever get.
   verbs, locking, and the two-key rule
 - [Players, teams, and commands](../docs/016-players-teams-and-commands.md)
 
-## Still open
+## Settled
 
-The ping rate limit is a number, and it is the only one here.
+**The ping rate limit: three in any five seconds, each lasting four.** Three, because a
+ping is often followed by a correction and then by "here, no, *here*" — a burst a person
+makes while still meaning it. Five seconds, because past that a fourth one is not
+pointing at anything, it is shouting. Four seconds of life, decaying, so the most a
+player can have on screen at once is the three they are entitled to and nobody cleans
+up after anybody. The numbers live in the upgrade table beside the other verbs' prices,
+and are a first guess for step 9 to correct.

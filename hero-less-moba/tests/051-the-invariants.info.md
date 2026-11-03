@@ -73,6 +73,7 @@ cheap standing versions, kept here so a whole-match run notices.
 | A request changes nothing by itself; nobody can take a stone that is not theirs; the owner can give it, and then it is theirs to place | …turns asking into taking. Giving is easier than asking, deliberately, and that asymmetry is the whole social design. |
 | A boon nobody chose is still on offer long after the calm ends, and no team was granted one it did not choose | …makes something decide for a player. This is the only place in the project where that was ever tempting. |
 | A hero obeys the sign at its junction and crosses to the next lane, with its one turn spent | …breaks sign-post routing, or lets one body turn twice. |
+| Three pings go, a fourth inside five seconds is refused saying when the next is free, and after the window one goes again; a ping is shown to its own team only and only while it lasts | …removes the rate limit, which is the whole design of the ping (704), or leaks a ping to the enemy. |
 
 ### The premise, and the ending
 

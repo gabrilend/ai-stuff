@@ -82,10 +82,20 @@ function M.begin(world)
   world.cursor = {}
   world.request = {}
   world.ping = {}
+  -- When each player last pinged, as many times back as the limit allows -- a ring,
+  -- oldest overwritten. Started a whole window in the past, so that the opening few
+  -- seconds of a match are not mistaken for three pings at tick nought.
+  world.ping_recent = {}
+  local rule = world.parameters.upgrade.ping
+  local long_ago = -rule.window_seconds * world.parameters.unit.ticks_per_second
   for number = 1, world.parameters.team_size * 2 do
     world.cursor[number] = {x = 0, y = 0, tick = 0}
     world.request[number] = 0
-    world.ping[number] = {x = 0, y = 0, tick = 0}
+    world.ping[number] = {x = 0, y = 0, tick = 0, live = 0}
+    world.ping_recent[number] = {}
+    for slot = 1, rule.limit do
+      world.ping_recent[number][slot] = long_ago
+    end
   end
 end
 -- }}}
@@ -462,8 +472,33 @@ end
 
 -- {{{ function M.ping()
 -- *Look at this place.* The only one of the verbs that is not about the stones.
+--
+-- **Rate-limited, and refused in words when it is not allowed** (704). A player may
+-- ping `limit` times in any `window_seconds`; the refusal says how long until the
+-- next one is free, because "no" without "when" teaches nothing.
 function M.ping(world, player_number, x, y)
-  world.ping[player_number] = {x = x, y = y, tick = world.tick}
+  local rule = world.parameters.upgrade.ping
+  local ticks_per_second = world.parameters.unit.ticks_per_second
+  local window = rule.window_seconds * ticks_per_second
+  local recent = world.ping_recent[player_number]
+
+  -- The oldest of the last `limit` pings. If even that one is inside the window, all
+  -- of them are.
+  local oldest_slot = 1
+  for slot = 2, rule.limit do
+    if recent[slot] < recent[oldest_slot] then oldest_slot = slot end
+  end
+  local free_at = recent[oldest_slot] + window
+  if world.tick < free_at then
+    local seconds = math.ceil((free_at - world.tick) / ticks_per_second)
+    return {accepted = false, reason = string.format(
+      "you have pinged %d times in %d seconds -- the next one is free in %d %s",
+      rule.limit, rule.window_seconds, seconds, (seconds == 1) and "second" or "seconds")}
+  end
+  recent[oldest_slot] = world.tick
+
+  local ping = world.ping[player_number]
+  ping.x, ping.y, ping.tick, ping.live = x, y, world.tick, 1
   world.raise(world, "pinged", {
     team = world.player[player_number].team, player = player_number, x = x, y = y,
   })

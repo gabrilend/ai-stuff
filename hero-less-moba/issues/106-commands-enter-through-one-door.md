@@ -67,10 +67,21 @@ the simulation's business.
 
 - [Players, teams, and commands](../docs/016-players-teams-and-commands.md)
 
-## Still open
+## Settled
 
-How many players per team? Everything here is written against a team-size
-constant rather than the literal number three, and the lock rule is phrased as
-"everyone but the locker has objected" rather than "two people have objected" — so
-that changing team size is changing a number. But the number still has to be
-chosen, and whether 1v1 and 2v2 are supported at all is undecided.
+**How many players per team? Three for the prototype, and a variable everywhere.**
+This was already answered elsewhere and the question here had not caught up:
+[A3 and F10](../docs/020-open-questions.md) settle three a side as what the prototype
+is balanced against, and [players, teams and commands](../docs/016-players-teams-and-commands.md)
+derives the map from the number — lanes equal players per team, towers equal lanes
+times three — so a team size is a parameter (`team_size`) and nothing here assumes 3.
+
+**Are 1v1 and 2v2 supported?** Decided: **by construction, yes; by balance, no.** The
+map builder emits a two-lane map for two a side, and every verb here addresses players
+by number up to twice the team size, so a smaller match is a different number rather
+than different code. It is not balanced or tested: 016 says plainly that 3v3 is the
+shape the prototype is balanced against, and nothing else is promised. The lock rule
+this paragraph worried about is gone — ownership, contributing and dismissing replaced
+it — and the verbs that replaced it work at any size ("everybody has dismissed it").
+
+Nothing is left open here.

@@ -924,6 +924,27 @@ local function draw_events(world, camera, frame)
 end
 -- }}}
 
+-- {{{ local function draw_pings()
+-- *Look at this place*, from a teammate. A ring that tightens on the point and fades
+-- over the ping's life rather than waiting to be dismissed -- nobody should have to
+-- clean up after a teammate (704). Drawn in the team's own colour, at a size read in
+-- screen pixels so it is as findable at the whole-map framing as close in.
+local function draw_pings(world, camera, frame)
+  local lasts = world.parameters.upgrade.ping.lasts_seconds
+                * world.parameters.unit.ticks_per_second
+  for _, ping in ipairs(frame.ping) do
+    if ping.shown == 1 then
+      local age = (frame.tick - ping.tick) / lasts
+      local pixels = 1 / camera.drawn_scale
+      set_colour(COLOUR.team[ping.team], 0.9 * (1 - age))
+      love.graphics.setLineWidth(3 * pixels)
+      love.graphics.circle("line", ping.x, ping.y, (14 + 26 * (1 - age)) * pixels, 32)
+      love.graphics.circle("fill", ping.x, ping.y, 4 * pixels, 12)
+    end
+  end
+end
+-- }}}
+
 -- {{{ function M.draw()
 -- One frame of the world, under the camera's transform.
 function M.draw(world, camera, previous, newest, blend, held_kind, watching, held_hero)
@@ -958,6 +979,7 @@ function M.draw(world, camera, previous, newest, blend, held_kind, watching, hel
   end
   draw_signposts(world, camera, newest, watching)
   draw_events(world, camera, newest)
+  draw_pings(world, camera, newest)
 
   love.graphics.pop()
 end

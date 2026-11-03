@@ -53,6 +53,9 @@ they are not really.
    this is not an animation invented here. See issue 210.
 8. **Bodies**, batched.
 9. **Body detail**, only above a zoom threshold.
+10. **Pings**, last, from the watching team only: a ring in the team's colour that
+    tightens on the point and fades over the ping's four seconds, sized in screen pixels
+    so it is as findable at the whole-map framing as close in (704).
 
 ## Detail arrives with zoom, and never an event
 

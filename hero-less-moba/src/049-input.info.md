@@ -49,6 +49,7 @@ the screen.
 | `=`, `-` | Zoom about the centre of the viewport. |
 | `tab` | Switch which team's board is shown. Prototype only. |
 | `p` | Pause. |
+| `g` | Ping where the mouse is, for your team. Rate-limited; refused in words when it is not allowed. |
 | `1`, `2`, `3` | Speed. |
 | `escape` | Quit. |
 
