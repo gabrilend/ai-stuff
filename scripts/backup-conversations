@@ -339,9 +339,18 @@ function export_one_log() {
    # Name idempotency: a conversation that already owns a file keeps it, and
    # is re-placed only when its span of dates (hence its name) grew. "No claim
    # yet" is a normal answer, hence "|| true".
-   local claim dest claim_base
+   #
+   # Words in front of the claim's date are kept, and only the date part is
+   # re-derived. They are a helper's task words, or a slug that delta-version's
+   # apply-summary.sh (issue 056c) gave the file on purpose; re-deriving the
+   # whole name would rename "<slug>-<date>.md" straight back to "<date>.md".
+   local claim dest claim_base claim_words
    claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id" || true)
    if [ -n "$claim" ]; then
+      claim_words=$(transcript_name_words "$claim")
+      if [ -n "$claim_words" ]; then
+         base="${claim_words}-$(transcript_span_basename "$start_date" "$final_date")" || return 1
+      fi
       claim_base=$(transcript_strip_suffix "$claim")
       if [ "$claim_base" = "$base" ]; then
          dest="$claim"                              # same span: overwrite in place
