@@ -22,7 +22,13 @@
 --   claudemd-revise.lua reject ID [--reason=WHY]
 --   claudemd-revise.lua rollback ID --target=FILE  undo an approval, if FILE is
 --                                             unchanged since
---   claudemd-revise.lua history               the audit trail
+--   claudemd-revise.lua history [--id=ID] [--action=A] [--since=DATE]
+--                                             the audit trail, or part of it
+--   claudemd-revise.lua show ID               how a guideline came to be:
+--                                             its events, proposal and timeline
+--   claudemd-revise.lua diff ID               what its approval changed
+--   claudemd-revise.lua report [--since=DATE] counts of events, proposals, actions
+--   claudemd-revise.lua verify                check the audit trail and backups
 --
 -- Options: --state=DIR  where events, proposals, backups and the audit trail
 --          live (default ~/.local/share/claudemd-revisions, outside any
@@ -392,14 +398,194 @@ function commands.rollback(words, options)
 end
 -- }}}
 
+-- {{{ local function check_date()
+local function check_date(text, name)
+    if text and not text:match("^%d%d%d%d%-%d%d%-%d%d$") then fail("--" .. name .. " takes a date, YYYY-MM-DD") end
+    return text
+end
+-- }}}
+
 -- {{{ commands.history
-function commands.history()
-    local rows = read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)
-    if #rows == 0 then print("No history yet.") return 0 end
-    for _, row in ipairs(rows) do
-        print(string.format("%s  %-11s %s  %s  %s", row.date, row.action, row.id, row.target, row.detail))
+-- The audit trail, optionally only one proposal's rows, one action's, or
+-- those on or after a date.
+function commands.history(_, options)
+    local since = check_date(options.since, "since")
+    local shown = 0
+    for _, row in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        if (not options.id or row.id == options.id) and (not options.action or row.action == options.action)
+            and (not since or row.date:sub(1, 10) >= since) then
+            shown = shown + 1
+            print(string.format("%s  %-11s %s  %s  %s", row.date, row.action, row.id, row.target, row.detail))
+        end
+    end
+    if shown == 0 then print("No history" .. ((options.id or options.action or since) and " matches." or " yet.")) end
+    return 0
+end
+-- }}}
+
+-- {{{ local function events_behind()
+-- The recorded events a proposal was worded from (none for a direct one).
+local function events_behind(row)
+    local found = {}
+    for _, event in ipairs(read_rows(state_path("events.tsv"), EVENT_COLUMNS)) do
+        if event.kind .. ":" .. normalise(event.text) == row.source then found[#found + 1] = event end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ commands.show
+-- How one guideline came to be: the events behind it, the proposal, and
+-- every audit row about it, in order.
+function commands.show(words)
+    local row = find_proposal(proposals(), words[1])
+    print(string.format("%s  %s\n  - %s\n  why: %s", row.id, row.status, row.guideline, row.reason))
+    local events = events_behind(row)
+    if row.source:match("^direct:") then
+        print("\nfiled directly (propose), not from events")
+    else
+        print(string.format("\nevents behind it (%d):", #events))
+        for _, event in ipairs(events) do print(string.format("  %s  %-11s %s", event.date, event.kind, event.text)) end
+    end
+    print("\ntimeline:")
+    for _, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        if entry.id == row.id then
+            print(string.format("  %s  %-11s %s  %s", entry.date, entry.action, entry.target, entry.detail))
+        end
     end
     return 0
+end
+-- }}}
+
+-- {{{ local function last_approval()
+local function last_approval(id)
+    local approval
+    for _, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        if entry.action == "approved" and entry.id == id then approval = entry end
+    end
+    return approval
+end
+-- }}}
+
+-- {{{ commands.diff
+-- What an approval changed: the file before it (the backup) against the
+-- file it wrote, rebuilt from the backup and checked against the checksum
+-- recorded at the time.
+function commands.diff(words)
+    local row = find_proposal(proposals(), words[1])
+    local approval = last_approval(row.id) or fail(row.id .. " was never approved", 1)
+    local backup, after = approval.detail:match("^backup (.-) after (%x+)$")
+    if not backup then fail("the audit trail has no backup for " .. row.id, 1) end
+    local before = read_file(backup) or fail("the backup " .. backup .. " is missing", 1)
+    local rebuilt = state_path("backups/.diff-" .. row.id .. ".md")
+    write_file(rebuilt, with_guideline(before, row.guideline))
+    local matches = checksum(rebuilt) == after
+    local handle = io.popen("diff -u --label " .. shell_quote(approval.target .. " before " .. row.id)
+        .. " --label " .. shell_quote(approval.target .. " after " .. row.id) .. " "
+        .. shell_quote(backup) .. " " .. shell_quote(rebuilt))
+    io.write(handle:read("*a"))
+    handle:close()
+    os.remove(rebuilt)
+    if not matches then
+        print("note: this rebuilds the change from the backup, and it does not match the checksum "
+            .. "recorded at approval; the approval may have been made by another version of this tool")
+        return 1
+    end
+    return 0
+end
+-- }}}
+
+-- {{{ commands.report
+-- Counts of events, proposals and audit actions, on or after a date.
+function commands.report(_, options)
+    local since = check_date(options.since, "since")
+    local function counted(rows, field, date_field)
+        local counts, order, total = {}, {}, 0
+        for _, row in ipairs(rows) do
+            if not since or row[date_field]:sub(1, 10) >= since then
+                if not counts[row[field]] then order[#order + 1] = row[field] end
+                counts[row[field]] = (counts[row[field]] or 0) + 1
+                total = total + 1
+            end
+        end
+        table.sort(order)
+        local parts = {}
+        for _, name in ipairs(order) do parts[#parts + 1] = name .. " " .. counts[name] end
+        return total, #parts > 0 and (" (" .. table.concat(parts, ", ") .. ")") or ""
+    end
+    print("Activity" .. (since and (" since " .. since) or ", all time") .. ":")
+    print(string.format("  events     %d%s", counted(read_rows(state_path("events.tsv"), EVENT_COLUMNS), "kind", "date")))
+    print(string.format("  proposals  %d%s, by status now",
+        counted(proposals(), "status", "date")))
+    print(string.format("  actions    %d%s", counted(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS), "action", "date")))
+    return 0
+end
+-- }}}
+
+-- {{{ commands.verify
+-- The integrity checks: every audit row is whole and in date order, names
+-- a proposal and agrees with it; every approval's backup is there. Changes
+-- made to a target since its last approval are reported, not counted as
+-- problems.
+function commands.verify()
+    local problems, notes = {}, {}
+    local by_id = {}
+    for _, row in ipairs(proposals()) do by_id[row.id] = { row = row, actions = {} } end
+    local previous = ""
+    for number, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        local where = "audit.tsv line " .. number
+        if not entry.date:match("^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$") or entry.detail == nil
+            or entry.target == "" then
+            problems[#problems + 1] = where .. ": not a whole row"
+        else
+            if entry.date < previous then problems[#problems + 1] = where .. ": dated before the line above it" end
+            previous = entry.date
+            local known = by_id[entry.id]
+            if not known then
+                problems[#problems + 1] = where .. ": names " .. entry.id .. ", which is not a proposal"
+            else
+                known.actions[#known.actions + 1] = entry
+                if entry.action == "approved" then
+                    local backup = entry.detail:match("^backup (.-) after %x+$")
+                    if not backup then
+                        problems[#problems + 1] = where .. ": an approval with no backup recorded"
+                    elseif not read_file(backup) then
+                        problems[#problems + 1] = where .. ": the backup " .. backup .. " is missing"
+                    end
+                end
+            end
+        end
+    end
+    local status_after = { proposed = "pending", approved = "approved", rejected = "rejected",
+                           ["rolled-back"] = "rolled-back" }
+    local ids = {}
+    for id in pairs(by_id) do ids[#ids + 1] = id end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        local known = by_id[id]
+        local first, last = known.actions[1], known.actions[#known.actions]
+        if not first or first.action ~= "proposed" then
+            problems[#problems + 1] = id .. ": the audit trail does not start with its proposal"
+        end
+        if last and status_after[last.action] and status_after[last.action] ~= known.row.status then
+            problems[#problems + 1] = string.format("%s: its status is %s, but its last action was %s",
+                id, known.row.status, last.action)
+        end
+        if known.row.status == "approved" and last and last.action == "approved" then
+            local after = last.detail:match(" after (%x+)$")
+            local now = checksum(last.target)
+            if not now then
+                notes[#notes + 1] = string.format("%s: %s is gone", id, last.target)
+            elseif now ~= after then
+                notes[#notes + 1] = string.format("%s: %s has been edited since it was approved", id, last.target)
+            end
+        end
+    end
+    for _, line in ipairs(problems) do print("problem: " .. line) end
+    for _, line in ipairs(notes) do print("note: " .. line) end
+    print(string.format("%d problem%s, %d note%s", #problems, #problems == 1 and "" or "s",
+        #notes, #notes == 1 and "" or "s"))
+    return #problems > 0 and 1 or 0
 end
 -- }}}
 -- }}}
@@ -429,10 +615,12 @@ local function main(argv)
     if options.state then STATE = options.state end
     local name = table.remove(words, 1)
     if not name or not commands[name] then
-        fail("say what to do: event, events, suggest, propose, list, approve, reject, rollback or history")
+        fail("say what to do: event, events, suggest, propose, list, approve, reject, rollback, "
+            .. "history, show, diff, report or verify")
     end
     for key in pairs(options) do
-        if not ({ state = true, min = true, reason = true, target = true, all = true })[key] then
+        if not ({ state = true, min = true, reason = true, target = true, all = true, id = true,
+                  action = true, since = true })[key] then
             fail("unknown option --" .. key)
         end
     end

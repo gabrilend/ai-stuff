@@ -715,3 +715,41 @@ use case rather than the general principle.
 - "Tough questions" capability depends on transcript completeness
 - Consider: Should analysis trigger automatically, or only on query?
 - Privacy: Some transcripts may contain sensitive content - add filtering option
+
+---
+
+## Status (2026-11-03): first slice built, open for the rest
+
+**Built:** `scripts/claudemd-why.lua`, with `scripts/claudemd-why.info.md`
+and `scripts/test-claudemd-why.sh` (22 checks, against the stand-in model in
+`scripts/libs/stand-in-model/`; no model was downloaded or run).
+
+- **Read-only sources:** every `*/llm-transcripts/` folder, or the ones
+  named. Transcripts are never written, and the test checks their
+  checksums.
+- **Finding the reasoning:** the exchanges holding most of a guideline's key
+  words, quoted around the line that talks about it and cited by file and
+  line. The context pack copied into each transcript is skipped.
+- **Decision record:** drafted by the local model from those excerpts, with
+  the sections Decision moment, Context, Alternatives considered and
+  Reasoning, citing [n]. `--no-model` gives the evidence alone.
+- **Write-only analysis:** `--write` saves a new file under the
+  `analysis/` folder of claudemd-revise's state, outside every repository,
+  and never replaces one.
+- **Proposal ids:** a proposal id (`P001`) is looked up in that state, so
+  `claudemd-revise.lua show P001` and `claudemd-why.lua P001` answer "how"
+  and "why" for the same guideline.
+
+**Decided while building (my own calls):**
+
+- **Analysis runs only on query.** That answers the issue's open question,
+  and nothing scans transcripts in the background.
+- **Excerpts are kept with the record,** so the record can be checked
+  against them.
+
+**Still open:**
+
+- Reasoning chains across sessions.
+- The signpost protocol for contradicted guidelines.
+- `what-if`.
+- A privacy filter for transcripts.

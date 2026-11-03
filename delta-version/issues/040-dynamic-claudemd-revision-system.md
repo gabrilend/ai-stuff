@@ -221,6 +221,12 @@ no model was downloaded or run.
 - **040e:** checking a new guideline against the existing ones for
   conflicts, beyond the exact-duplicate check.
 - **040f:** an interactive review screen.
-- **040g, 040h, 040i:** transcript memory, the worldbuilding oracle and the
-  cooperation bridge. None started.
+- **040d:** more of the audit trail. Queries, provenance (`show`),
+  `diff`, `report` and `verify` were built on 2026-11-03; backup rotation
+  and checkpoints are still open (see 040d).
+- **040g:** transcript memory. First slice built on 2026-11-03:
+  `scripts/claudemd-why.lua` finds the conversations behind a guideline and
+  drafts a decision record (see 040g).
+- **040h, 040i:** the worldbuilding oracle and the cooperation bridge. Not
+  started.
 

@@ -42,7 +42,7 @@ reading a number here:
 | 051, 051a–g | Documentation generated from git history | Detailed; most of the reasoning steps could be done by Claude in a skill instead of an Ollama pipeline. |
 | 053, 053a–f | Cross-project roadmap coordinator | Same observation; 053b and 053f have a few boxes ticked. |
 | 049, 049a–d | Transcript viewer at several levels of detail | Overlaps the transcript tooling in double-diaper-dungeon (transcript-to-HTML). |
-| 040, 040a–i | Self-revising CLAUDE.md | First slice built: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback, audit). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |
+| 040, 040a–i | Self-revising CLAUDE.md | Built so far: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback; and, from 040d, audit queries, provenance, diffs and integrity checks) and `scripts/claudemd-why.lua` (040g: the conversations behind a guideline, and a drafted decision record). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
