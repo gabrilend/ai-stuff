@@ -654,9 +654,56 @@ return StatAllocator
 
 ### Acceptance Criteria
 - [ ] Precise stat control with sliders, input fields, and increment buttons
-- [ ] Real-time cost calculation and point budget tracking
+- [x] Real-time cost calculation and point budget tracking
 - [ ] Visual feedback for stat costs and efficiency
-- [ ] Preset allocation templates for common builds
-- [ ] Smart suggestions for stat optimization
+- [x] Preset allocation templates for common builds
+- [x] Smart suggestions for stat optimization
 - [ ] Responsive interaction with drag and drop support
 - [ ] Clear visual representation of stat categories and relationships
+
+## What Happened
+
+Built the logic of stat allocation, with nothing drawn: the sliders,
+fields and buttons belong to the template editor's screen (issue 062),
+and no one has seen this on a screen.
+
+- `src/editor/stat_allocator.lua` works on its own copy of a template.
+  `rows()` gives one row per stat, grouped as survival (health, armor,
+  magic resist), mobility (speed) and awareness (sight): the value, the
+  body's own value, the hard and comfortable limits, the step size, the
+  points paid, the exact price before rounding up, what one more step
+  costs and one fewer saves, units per point, the most the points left
+  can buy, and the slider position.
+- `set`, `step`, `set_fraction` (a slider, snapped to the step) and
+  `reset` change a stat; each keeps it inside the hard limits and,
+  when raising it, inside the budget, and says when it moved a value.
+- Six presets (balanced, tank, bruiser, skirmisher, scout, spellguard)
+  spend the points left by shares, a step at a time, so they suit every
+  body and every set of abilities and never go over budget.
+- `suggestions()`: over budget (error); a stat below the body's value
+  (it saves nothing); a step already paid for by rounding; more than a
+  tenth of the budget unspent; one stat holding over 70% of the stat
+  points.
+- `tests/test_stat_allocation.lua` (6 tests), run by `./run <dir> unit`.
+
+Left unticked, because they need a screen: the slider, field and
+button widgets themselves; colours and other visual feedback for cost
+and efficiency; drag and drop; drawing the categories. The rows carry
+everything those need.
+
+### Decisions
+
+- Presets are shares of the points left, not the sketch's fixed stat
+  values: fixed values ignore the body (a tank's 200 health is free, a
+  support's isn't) and the abilities already bought, so they would often
+  land over budget.
+- Raising a stat is held to what the budget can buy, rather than letting
+  the template go over and showing an error; lowering is always allowed,
+  so an over-budget template can always be brought back.
+- Values are whole numbers; buttons and sliders move by a step (10
+  health, 5 speed or sight, 1 armor or magic resist), but typed values
+  may be any whole number.
+- The sketch's "expensive stat" advice is replaced by advice the price
+  model can back: points lost to rounding, and stats below the body's
+  value.
+
