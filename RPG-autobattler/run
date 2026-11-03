@@ -420,6 +420,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_template_preview').run_all()
     " 2>/dev/null && print_success "Template preview tests passed" || print_error "Template preview tests failed"
+
+    # Test Template editor logic (issue 062)
+    print_info "Testing Template editor..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_template_editor').run_all()
+    " 2>/dev/null && print_success "Template editor tests passed" || print_error "Template editor tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
