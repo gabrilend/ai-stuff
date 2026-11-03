@@ -1,11 +1,39 @@
 # Issue 049b: Abstraction Level Transformation
 
 **Phase**: 0 - Tooling
-**Status**: Open
+**Status**: In progress (first slice in a draft PR; see Status below)
 **Priority**: High
 **Created**: 2026-02-11
 **Parent**: Issue 049 (LLM Transcript Abstraction Viewer)
 **Dependencies**: Issue 049a (Detail Level Filtering), Issue 049d (Ollama Processing Pipeline)
+
+---
+
+## Status
+
+**2026-11-03, first slice.** `scripts/abstraction-transform.lua` (with
+`.info.md` and `test-abstraction-transform.sh`, 46 checks against the stand-in
+model) does steps 1-5: prompts per level (kept in
+`config/abstraction-prompts.lua`), section-by-section rewriting through
+`libs/llama-chat-client.lua` (llama.cpp, not Ollama), progress on stderr, the
+assembled document with contents and numbered sections, and `--validate` with
+up to three retries and a fall-back to the original text under a marker.
+Also `--cache`, `--compare-levels`, chunking at about 800 words, and
+`--out`/`--write` that never replace a file.
+
+Decisions taken in this slice:
+
+- The script is `scripts/abstraction-transform.lua`, as the CLI section has
+  it, not `scripts/libs/` as File Locations has it.
+- A section is one exchange (a request and its response), since a request on
+  its own is usually too short to rewrite.
+- The tool reads 049a's output format (its "left out" markers carry the
+  detail level) but not its code, so it works on any transcript.
+- Key-term preservation is not checked: telling a lost concept from a
+  renamed one needs a person or a second model pass.
+
+Still open: semantic accuracy and the feel of each level can only be judged
+on output from the real model; the key-term check; 049c takes the output.
 
 ---
 
@@ -354,12 +382,12 @@ end
 - [ ] High abstraction produces architecture-focused documentation
 - [ ] Medium abstraction produces feature-focused documentation
 - [ ] Low abstraction produces implementation-focused documentation
-- [ ] Code blocks appear only in low abstraction (and only at high detail levels)
-- [ ] Dataflow terminology appears in high abstraction output
+- [x] Code blocks appear only in low abstraction (and only at high detail levels)
+- [x] Dataflow terminology appears in high abstraction output (code and dataflow rules are enforced with `--validate`)
 - [ ] Transformed content maintains semantic accuracy
-- [ ] Quality validation catches inappropriate transformations
-- [ ] Processing provides progress feedback for large transcripts
-- [ ] Output includes table of contents and section numbering
+- [x] Quality validation catches inappropriate transformations
+- [x] Processing provides progress feedback for large transcripts
+- [x] Output includes table of contents and section numbering
 
 ---
 
