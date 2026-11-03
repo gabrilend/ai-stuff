@@ -5,7 +5,7 @@
 | Phase | 1 — The model, and the tools that read it |
 | Blocked by | 101 |
 | Blocks | 103, 104, 105, 106 |
-| Reads | [the org map](../docs/002-the-org-map.md) |
+| Reads | [the org map](../../docs/002-the-org-map.md) |
 
 ## Current behavior
 
@@ -36,3 +36,24 @@ is valid.
    override.
 7. Tests: the bakery is valid; one broken file per rule code, each refused
    with that code.
+
+## What Happened
+
+Built as `src/007-org-reader.lua`, with `./validate-org` as its front door and
+`tests/009-the-map-and-the-board.lua` refusing one smallest broken file per
+rule code. Decisions made while building:
+
+- **The reader and the validator are one module.** Every check is something a
+  reader must refuse anyway; a separate validator would be a second reading of
+  the same file, able to disagree with the first.
+- **A stray `#` after a line's fields is refused as L9**, not as whatever rule
+  the line's shape happens to break, so the code points at the actual mistake.
+- **A refusal points at the offending line**, not the block's head: an unknown
+  holder is reported on its `held-by` line.
+- **Lines are kept with their text and number**, blank and comment lines
+  included, because the proposal tool (104) edits the text and has to put
+  every line back where it was.
+- **`parse_body` is shared**, so a proposal's `+`/`-` lines are checked by the
+  same code that reads a map.
+- **Both LuaJIT and Lua 5.4.** `./run-tests` runs every test under each, since
+  the point is that two readers agree.

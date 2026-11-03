@@ -10,8 +10,8 @@ requests, naming which merge frees the most waiting work.
 | Issue | | Status |
 | --- | --- | --- |
 | 101 | The model is written down | built |
-| 102 | The map is read, and refused by name | not started |
-| 103 | The blocked board | not started |
+| 102 | The map is read, and refused by name | built |
+| 103 | The blocked board | built |
 | 104 | A proposal is applied as a diff | not started |
 | 105 | The monorepo, mapped | not started |
 | 106 | A page anybody can open | not started |

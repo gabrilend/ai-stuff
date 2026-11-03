@@ -48,8 +48,19 @@ either.
 | [What blocked means](docs/004-what-blocked-means.md) | The board. |
 | [The bakery](examples/bakery/org.map) | A worked example. |
 
+## Using it
+
+```
+./validate-org examples/bakery        # every problem, by rule code
+./blocked-board examples/bakery       # what to deliver first
+./run-tests                           # everything this project checks
+```
+
+LuaJIT, or Lua 5.4 with `LUA=lua5.4`. Nothing else.
+
 ## Status
 
-Phase 1 is under way: the model is written down; the tools that read it are
+Phase 1: the model is written down, and the validator and the blocked board
+read it. Proposals applied as diffs, and the monorepo mapped onto itself, are
 next. See [the roadmap](docs/006-roadmap.md) and
 [phase 1's progress](issues/phase-1-progress.md).
