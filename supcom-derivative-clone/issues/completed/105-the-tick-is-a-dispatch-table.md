@@ -5,14 +5,16 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 104 |
 | Blocks | 106, 108, 109, 110, 209 |
-| Reads | [the tick and the timers](../docs/003-the-tick-and-the-timers.md) |
+| Reads | [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) |
 | Open questions | B4 |
 
 ## Current behavior
 
-Nothing. The order of the simulation is a numbered list in the tick document,
-and nothing runs it. The phase 1 test program looks for a source file whose
-stem is `the-tick` and asserts that its systems are in the documented order.
+Built. `src/031-the-tick.lua` holds `SYSTEMS`, all thirteen rows in the
+documented order; `advance` brings every counter up to the tick, runs the rows,
+and counts the tick. Rows whose systems are not built yet name the issue that
+builds them. `assemble` and `ticks_of` exist. Ten thousand empty ticks take a few
+hundredths of a second.
 
 ## Intended behavior
 
@@ -55,11 +57,32 @@ reads a clock.
 6. Write `ticks_of(seconds)`.
 7. Fill the companion, listing the rows and their positions.
 
+## What happened
+
+- **All thirteen rows exist now, and the ten unbuilt ones say so.** The phase 1
+  test asserts the full documented order, not only this phase's rows. A row not
+  yet built carries `waiting_for` with its issue number and runs nothing; the
+  issue that builds a system replaces that with the module's stem and export,
+  and from then on a missing module is refused when the tick is loaded, by
+  name. So nothing is ever skipped silently, and the order is whole from the
+  first tick.
+- **Counters are brought up before the rows run**, in `COUNTERS` order, so the
+  increment of now is settled before any system reads it.
+- **`assemble(modules, parameters)`** takes a list of stems the caller needs and
+  returns the validated world and those modules keyed by stem, refusing an
+  absent one by name. The world's own allocate raises the field and seeds the
+  streams, because the tests allocate worlds directly.
+- **`ticks_of` lives in the timers** and the tick passes the match's rate in;
+  the world needs it while making counters, before there is a tick. The rate
+  is `ticks_per_second` in a new catalogue table, `assets/034-the-rules.lua`,
+  added to the contract table with its stem.
+- The tick also passes the world's loader through as `load` and `load_asset`.
+
 ## Related documents and tools
 
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md)
-- [The shape of the code](../docs/013-the-shape-of-the-code.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md)
+- [The shape of the code](../../docs/013-the-shape-of-the-code.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

@@ -5,15 +5,15 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 101 |
 | Blocks | 109, 403 |
-| Reads | [the tick and the timers](../docs/003-the-tick-and-the-timers.md) |
+| Reads | [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The tick document names the rule — every random draw names its stream
-— and nothing draws. The phase 1 test program looks for a source file whose
-stem is `random-streams` and asserts that two streams with different names
-are independent and that the same name gives the same sequence.
+Built. `src/033-random-streams.lua` seeds a stream from the seed and its name,
+draws whole numbers and doubles by xorshift, and keeps the world's named streams
+as rows of one array (`roster-hurt`, `cloud-round`, `report-order`), drawn in
+place by `draw` and `draw_double`.
 
 ## Intended behavior
 
@@ -53,11 +53,27 @@ purpose, so the field never depends on draw order.
 5. Fill the companion, and put the generator's exact steps in it so the
    handheld's box can be checked against the same words.
 
+## What happened
+
+- **The generator is Marsaglia's xorshift (13, 17, 5)** on thirty-two bits,
+  seeded by folding the seed and each byte of the name with an exclusive-or and
+  a seven-bit rotation and four stirring steps. The exact steps are in the
+  companion, for the handheld's box.
+- **A draw is always exactly one step.** `next_integer` scales the thirty-two
+  bits by `below` and floors, with no rejection loop; the slight bias at the top
+  of a large range is the same on every machine, and `below` is capped at 2^21
+  so the product is exact in a double. A larger `below` is refused by name.
+- **Stream names are appended, never inserted**, because a row's place is part
+  of the world's hash.
+- The world's streams are drawn through `draw(world, name, below)`, an unknown
+  name refused by name; `open` and the stream-table draws are for anything
+  outside a match.
+
 ## Related documents and tools
 
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md)
-- [Other players](../docs/011-other-players.md), which needs every machine to draw alike
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md)
+- [Other players](../../docs/011-other-players.md), which needs every machine to draw alike
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

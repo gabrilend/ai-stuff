@@ -62,10 +62,11 @@ the test.
 | --- | --- | --- |
 | `the-dunes` | 102 | `raise(parameters, seed)` returns a field with `size`, `height`, `water_line`; `validate(field)` raises naming the cell; `dump(field)` returns text; also `index(field, x, y)`, the one place a cell's index is computed, and `cell_of(field, x, y)` |
 | `sightlines` | 103 | `can_see(field, x1, y1, eye, x2, y2, profile)` returns a boolean; `questions_asked()` returns a count; `reset_questions()` clears it |
-| `the-world` | 104 | `allocate(parameters)` returns flat arrays with the integer zero everywhere; `validate(world)` |
-| `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`; `advance(world)`; `assemble(modules, parameters)` |
-| `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair |
-| `random-streams` | 107 | `open(seed, name)`; `next_integer(stream, below)` in `[0, below)`; `next_double(stream)` in `[0, 1)` |
+| `the-world` | 104 | `allocate(parameters)` returns flat arrays with the integer zero everywhere; `validate(world)`; `claim(world, group)` and `release(world, group, id)` for a pool's rows; `load(stem)` and `load_asset(stem)`, the loader every module uses; `LAYOUT` and `COUNTERS` |
+| `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`, with `waiting_for` naming the issue on a row not yet built; `advance(world)`; `assemble(modules, parameters)`; `ticks_of(seconds)` |
+| `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair; `ticks_of(seconds, rate)` |
+| `random-streams` | 107 | `open(seed, name)`; `next_integer(stream, below)` in `[0, below)`; `next_double(stream)` in `[0, 1)`; `STREAMS`, the names; `draw(world, name, below)` and `draw_double(world, name)` for the world's own streams |
+| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds`, `claim_increments` and `claim_radius`, and the sizes of the command queue and the refusal ring; copied into the world as `world.rule` |
 | `commands` | 108 | `VERBS`, a dispatch table; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied |
 | `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path)`; `replay(path)` |
 | `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern` |
@@ -106,7 +107,10 @@ one adds a row here first.
 
 The tests reach into the world record directly where a claim is about the data
 rather than about a function. Those fields are part of the contract too, and
-issue 104's layout must carry them under these names:
+the world's layout must carry them under these names. Issue 104 laid down the
+unit, cell, team and stream groups and the claim counter; every other group and
+field below is added to the layout, under the name given here, by the issue that
+builds the system that writes it:
 
 - `world.tick`
 - `world.field.{size, height, water_line}`
@@ -118,7 +122,7 @@ issue 104's layout must carry them under these names:
 - `world.heal.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
 - `world.team.{mass, energy, thorns, energy_level}`
-- `world.cell.{owner, hydrocarbon, improvement, claim_by}`
+- `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began}`
 - `world.building.alive`
 - `world.factory.{line, running, pattern}`
 - `world.flip.{count, cell, from, to, by}`

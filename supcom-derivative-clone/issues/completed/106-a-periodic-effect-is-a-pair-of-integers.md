@@ -5,16 +5,15 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 105 |
 | Blocks | 112, 206, 207, 304, 403 |
-| Reads | [the tick and the timers](../docs/003-the-tick-and-the-timers.md) |
+| Reads | [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The vision describes how tanks heal — one countdown for every tank,
-each tank remembering the count it was born at — and says the whole game works
-that way. The tick document states the mechanism. Nothing computes it. The
-phase 1 test program looks for a source file whose stem is `timers` and asserts
-that the pair derives the right value after any number of increments.
+Built. `src/032-timers.lua` makes counters, advances them, and reads and writes
+the pair. The world holds its counters as named tables listed in the layout's
+`COUNTERS` -- the claim counter is the first -- and the tick brings every one up
+before its systems run.
 
 ## Intended behavior
 
@@ -62,11 +61,27 @@ nothing more.
 6. Fill the companion with the four-operation derivation written out, because
    it is the one thing every later issue will want to read again.
 
+## What happened
+
+- **A write holds the value under the cap but not above zero.** A health that
+  goes below zero is the die pass's question, and clamping it here would hide an
+  overkill the bones may want to know about.
+- **Advancing twice to one tick is harmless**, so a system run alone by a test
+  (the claim pass) can bring its own counter up without disturbing the tick.
+- **`ticks_of(seconds, rate)` is here** and refuses a duration under half a
+  tick instead of lifting it to one: an effect every zero ticks is a catalogue
+  mistake.
+- **Counters are tables reached by name**, `world.claim` and later
+  `world.heal.tank`, because that is how the tests read them; the layout's
+  `COUNTERS` is the one list of them, in the order the tick and the hash walk.
+- A counter's first firing is at its period, so during tick `5 * period` it
+  fires the fifth time. The companion writes this out.
+
 ## Related documents and tools
 
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md)
-- [The handheld](../docs/012-the-handheld.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md)
+- [The handheld](../../docs/012-the-handheld.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 - `strategems/patterns-that-keep-working`, which records this shape as a pattern
 
 ## Still open

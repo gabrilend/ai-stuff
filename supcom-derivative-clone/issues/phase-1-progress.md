@@ -16,10 +16,10 @@ blind.
 | 101 | The project is built by its tools | built |
 | 102 | The dunes are raised by a tool | built |
 | 103 | Sightlines are read off the dunes | built |
-| 104 | The world is flat arrays | not started |
-| 105 | The tick is a dispatch table | not started |
-| 106 | A periodic effect is a pair of integers | not started |
-| 107 | Randomness comes from named streams | not started |
+| 104 | The world is flat arrays | built |
+| 105 | The tick is a dispatch table | built |
+| 106 | A periodic effect is a pair of integers | built |
+| 107 | Randomness comes from named streams | built |
 | 108 | Commands enter through one door | not started |
 | 109 | Snapshots, hashes, and replays | not started |
 | 110 | The headless runner | not started |
