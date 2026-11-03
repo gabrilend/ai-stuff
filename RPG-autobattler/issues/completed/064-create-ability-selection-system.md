@@ -1010,3 +1010,6 @@ this on a screen.
 - "Visual ability preview" is left unticked: it needs a screen. The
   preview's numbers (cost, limits, config) are there for it.
 
+### Follow-up: drawn by the editor screen
+
+The template editor's screen (issue 062, `src/editor/template_editor_screen.lua`) now draws this: the slots, the library with live search and the tuning sliders for a library ability are drawn on the Abilities tab. Still unticked: nobody has seen it.

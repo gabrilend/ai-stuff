@@ -152,6 +152,24 @@ function love.mousemoved(x, y, dx, dy)
 end
 -- }}}
 
+-- {{{ love.textinput
+function love.textinput(text)
+    StateManager:textinput(text)
+end
+-- }}}
+
+-- {{{ love.wheelmoved
+function love.wheelmoved(x, y)
+    StateManager:wheelmoved(x, y)
+end
+-- }}}
+
+-- {{{ love.resize
+function love.resize(width, height)
+    StateManager:resize(width, height)
+end
+-- }}}
+
 -- {{{ love.quit
 function love.quit()
     -- Cleanup before exit

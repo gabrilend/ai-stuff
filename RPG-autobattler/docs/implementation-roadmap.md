@@ -97,7 +97,7 @@
 - [x] Create default template sets for testing (Issue #061: 21 templates in five sets, guide in docs/default-templates.md)
 
 ### 5.2 Template Editor
-- [ ] Design template editor UI (Issue #062: the editor's logic and panel layout are in; drawing it, and the screens of #063-#066, need a screen)
+- [ ] Design template editor UI (Issue #062: logic, layout and a drawn screen for #062-#066 are in, smoke-tested against a stand-in for LÖVE; open until someone has looked at it)
 - [x] Implement stat allocation interface (Issue #063: rows, limits, steps, presets and suggestions as logic; the screen comes with the editor UI)
 - [x] Create ability selection system (Issue #064: library, search, tuning and slot logic; the screen comes with the editor UI)
 - [x] Add point budget display and validation (Issue #065: segments, tooltips, status, change detection and over-budget suggestions as logic; the bar comes with the editor UI)

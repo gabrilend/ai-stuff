@@ -1,7 +1,7 @@
 -- {{{ Template Editor Test Suite
 -- Checks the logic of issue 062 without a window: tabs, every kind of
 -- edit (name, body, colours, size, stats, abilities, budget fixes),
--- undo and redo, unsaved-change tracking, saving and loading through
+-- undo and redo (with changes grouped into one step), unsaved-change tracking, saving and loading through
 -- template storage, the feedback list, the preview hookup, and a panel
 -- layout that fits windows of many sizes.
 -- Run from the project folder:
@@ -98,6 +98,34 @@ function TestSuite.test_undo_redo()
     editor:set_stat("speed", 80)
     assert(editor.last_change.delta == 4 and editor.last_change.groups.stats == 4, "With its points")
     print("✓ Undo and redo test passed")
+end
+-- }}}
+
+-- {{{ TestSuite.test_grouped_changes
+-- A slider drag makes many changes; with a group they undo as one step,
+-- and the stat helpers behave like the allocator's.
+function TestSuite.test_grouped_changes()
+    local editor = fresh()
+    assert(editor:step_stat("health", 1) == 130 and editor:step_stat("health", -1) == 120, "Stepping a stat")
+    assert(#editor.undo_stack == 2, "Each step is a step")
+    editor:begin_group("drag health")
+    for _, fraction in ipairs({0.1, 0.2, 0.3, 0.25}) do
+        assert(editor:set_stat_fraction("health", fraction), "A slider position")
+    end
+    local dragged = editor.template.stats.health
+    assert(editor:end_group() == true, "The group changed something")
+    assert(#editor.undo_stack == 3, "The whole drag is one undo step")
+    assert(editor:undo() == "drag health" and editor.template.stats.health == 120, "Undone in one go")
+    assert(editor:redo() == "drag health" and editor.template.stats.health == dragged, "Redone in one go")
+    editor:begin_group("still")
+    assert(editor:end_group() == false and #editor.undo_stack == 3, "A group that changes nothing adds nothing")
+    editor:begin_group("left open")
+    editor:set_stat("speed", 70)
+    editor:undo()
+    editor:set_stat("speed", 75)
+    assert(#editor.undo_stack == 4 and editor:undo() == "set speed", "Undo closes an open group: the next change is its own step")
+    assert(editor:step_stat("nothing", 1) == nil, "An unknown stat is refused")
+    print("✓ Grouped changes test passed")
 end
 -- }}}
 
@@ -210,6 +238,7 @@ function TestSuite.run_all()
     TestSuite.test_tabs()
     TestSuite.test_edits()
     TestSuite.test_undo_redo()
+    TestSuite.test_grouped_changes()
     TestSuite.test_save_and_load()
     TestSuite.test_feedback_and_fixes()
     TestSuite.test_preview_hookup()
