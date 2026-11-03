@@ -534,6 +534,50 @@ check("... and says it was written by hand", hand:find("written by hand", 1, tru
 check("a missing evidence_from folder stops the build",
   (pcall(site.build, settings_reader.resolve(own, { evidence_from = { SCRATCH .. "/nowhere" } }))), false)
 
+-- The same, with the project one folder down in a monorepo, and a commit by
+-- hand that deletes a file, adds a submodule, and touches a sibling project
+-- and the project's own transcripts. Git names those paths from the
+-- repository's top; the page once read all of them, and every deleted file
+-- or submodule printed a "fatal:" line (2026-11-02).
+local mono = SCRATCH .. "/mono"
+local proj = mono .. "/proj"
+os.execute("mkdir -p '" .. proj .. "/llm-transcripts' '" .. proj .. "/docs' '" .. mono .. "/sibling'")
+local function mogit(args) return os.execute("git -C '" .. mono .. "' " .. args .. " > /dev/null") end
+local function mohead()
+  local p = io.popen("git -C '" .. mono .. "' rev-parse HEAD"); local h = p:read("*l"); p:close(); return h
+end
+mogit("init -q"); mogit("config user.email t@t"); mogit("config user.name t")
+write(proj .. "/docs/a.md", "# A\n\nAn assistant wrote this.\n")
+write(proj .. "/docs/gone.md", "# Gone\n\nsoon deleted\n")
+write(mono .. "/sibling/b.md", "# B\n")
+write(proj .. "/llm-transcripts/oct-1-26.md", transcript({ models = "m" },
+  { { "User Request 1", "start" }, { "Assistant Response 1", "started" } }))
+mogit("add -A")
+mogit("commit -q -m 'The start' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'")
+write(proj .. "/docs/a.md", "# A\n\nAn assistant wrote this.\n\n-> her answer in the project.\n")
+os.execute("rm -f '" .. proj .. "/docs/gone.md'")
+write(mono .. "/sibling/b.md", "# B\n\nwords from the sibling project\n")
+-- Not a transcript (no header): a commit saving a real one is linked to that
+-- conversation and gets no page of her own.
+write(proj .. "/llm-transcripts/rode-along.md", "not her words either\n")
+-- A binary file with no final newline: once read whole, and its last line
+-- swallowed the marker that said whether git succeeded.
+write(proj .. "/disk.img", "\0\1\2binary bytes\0with no final newline")
+mogit("add -A")
+mogit("update-index --add --cacheinfo 160000,1111111111111111111111111111111111111111,proj/vendored")
+mogit("commit -q -m 'her sweep'")
+local swept = mohead()
+local mono_ok, mono_err = pcall(site.build, settings_reader.resolve(proj, {}))
+check("a by-hand commit that deletes a file and adds a submodule builds", mono_ok, true)
+if not mono_ok then print("              " .. tostring(mono_err)) end
+local swept_page = io.open(proj .. "/llm-transcripts/HTML/by-hand-" .. swept:sub(1, 7) .. ".html")
+local swept_text = swept_page and swept_page:read("*a") or ""
+check("... her page holds her lines in the project", swept_text:find("her answer in the project.", 1, true) ~= nil, true)
+check("... named from the project's own folder", swept_text:find("docs/a.md", 1, true) ~= nil
+  and swept_text:find("proj/docs/a.md", 1, true) == nil, true)
+check("... not the sibling project's lines", swept_text:find("words from the sibling project", 1, true) == nil, true)
+check("... nor its own transcripts' lines", swept_text:find("not her words either", 1, true) == nil, true)
+
 print("== a pulled copy (issue 035e) ==")
 
 -- Pulled as last committed, into a throwaway project, leaving the fonts out.

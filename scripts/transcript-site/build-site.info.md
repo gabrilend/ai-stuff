@@ -32,10 +32,12 @@ where the project's settings say.
   transcript's key. A hash recorded in two transcripts belongs to the first.
 - `hand_made_conversation(commit, repository, transcripts_name) -> conversation`
   — a commit made by hand as a page where she is the only speaker (issue
-  040): for each file it touched outside the transcripts folder, a quiet
-  `context` turn naming the file and the heading above, then a turn of only
-  the lines the commit added. With no repository to read, or none of its
-  files there, the commit message alone.
+  040): for each file it touched inside the project's folder and outside
+  its transcripts folder, a quiet `context` turn naming the file and the
+  heading above, then a turn of only the lines the commit added. Deleted
+  files, submodules and binary files are skipped; a git read that fails
+  anyway raises. With no repository to read, or none of its files there,
+  the commit message alone.
 - `print_report(report)` — says what the build saw. The report also has
   `hidden_elsewhere` (commits only an `evidence_from` folder records, left
   off the page) and `hand_made` (commits given a page of her own words).

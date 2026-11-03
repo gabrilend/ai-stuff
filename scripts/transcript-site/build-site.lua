@@ -367,6 +367,75 @@ local function nearest_heading(file_lines, line_number)
 end
 -- }}}
 
+-- {{{ local function git_lines()
+-- Runs a read-only git command in a folder and returns its output lines,
+-- raising with git's own complaint when it fails. LuaJIT's pipe close does
+-- not report an exit status, so the status is printed as a last line and
+-- taken back off. It is printed after a newline of its own, because output
+-- that does not end in one (a file with no final newline) would otherwise
+-- swallow it into its last line; the empty line that newline makes when the
+-- output did end in one is taken off too. The hand-made pages once read
+-- through the forgiving lines_of(), and every read of a file a commit had
+-- deleted printed a "fatal: path ... does not exist" line and carried on
+-- (2026-11-02).
+local function git_lines(folder, args)
+  -- core.quotePath off: a path with non-ASCII letters in it is printed as
+  -- itself, not as a quoted octal escape that no later git call would find.
+  local out = lines_of("git -c core.quotePath=false -C " .. shell_quote(folder) .. " " .. args
+    .. " 2>&1; printf '\\nexit:%s\\n' \"$?\"")
+  local status = table.remove(out)
+  if out[#out] == "" then table.remove(out) end
+  -- Two paths: git succeeded (its lines are the answer), or it failed (its
+  -- lines are the reason, and the build stops on them).
+  if status ~= "exit:0" then
+    error("git " .. args .. " failed in " .. folder .. ": " .. table.concat(out, " / "))
+  end
+  return out
+end
+-- }}}
+
+-- {{{ local function files_with_text()
+-- The files a commit left with text in them, inside `folder` only, as paths
+-- relative to it. Four kinds of entry are left out, because none has text
+-- at that commit to read: a deleted file (`--diff-filter=d`), a submodule
+-- (git records it as mode 160000, a pointer to another repository's commit,
+-- and asking for its text gives "bad object"), a binary file (soren-ds
+-- committed a compressed disk image by hand, and the whole image was read
+-- to look for headings in it), and anything outside the folder
+-- (`--relative`). The last matters in a monorepo: git names paths from the
+-- repository's top, so without it a page for one project read every other
+-- project a sweeping commit touched, transcripts included.
+--
+-- Renames are turned off, so a renamed file is listed as its new path, added.
+-- Both listings come from one git call: raw lines first, then numstat lines.
+-- A raw line is ":<old mode> <new mode> <old id> <new id> <status>\t<path>",
+-- with one more mode and id per parent on a merge (more leading colons); the
+-- new mode is the last mode. A numstat line is "<added>\t<removed>\t<path>",
+-- with "-" for both counts when git judges the file binary.
+local function files_with_text(folder, commit)
+  local listed, binary = {}, {}
+  for _, line in ipairs(git_lines(folder, "show --format= --raw --numstat --no-abbrev "
+      .. "--no-renames --relative --diff-filter=d " .. shell_quote(commit) .. " -- .")) do
+    local colons, head, path = line:match("^(:+)([^\t]*)\t(.+)$")
+    -- Three paths: a raw entry line (kept unless it is a submodule), a numstat
+    -- line (which marks binary files), or a blank separator line.
+    if colons then
+      local fields = {}
+      for field in head:gmatch("%S+") do fields[#fields + 1] = field end
+      if fields[#colons + 1] ~= "160000" then listed[#listed + 1] = path end
+    else
+      local binary_path = line:match("^%-\t%-\t(.+)$")
+      if binary_path then binary[binary_path] = true end
+    end
+  end
+  local files = {}
+  for _, path in ipairs(listed) do
+    if not binary[path] then files[#files + 1] = path end
+  end
+  return files
+end
+-- }}}
+
 -- {{{ function M.hand_made_conversation()
 -- A commit she made by hand, as a conversation in which she is the only
 -- speaker (issue 040): for each file the commit touched, outside the
@@ -384,13 +453,11 @@ function M.hand_made_conversation(commit, repository, transcripts_name)
   local function where(text) exchanges[#exchanges + 1] = { kind = "context", body = text, continued = false } end
 
   if repository then
-    local files = lines_of("git -C " .. shell_quote(repository) .. " show --format= --name-only "
-      .. shell_quote(commit.source))
-    for _, path in ipairs(files) do
-      if path ~= "" and path:sub(1, #transcripts_name + 1) ~= transcripts_name .. "/" then
-        local file_lines = lines_of("git -C " .. shell_quote(repository) .. " show "
-          .. shell_quote(commit.source .. ":" .. path))
-        local diff = lines_of("git -C " .. shell_quote(repository) .. " show --format= --unified=0 "
+    for _, path in ipairs(files_with_text(repository, commit.source)) do
+      if path:sub(1, #transcripts_name + 1) ~= transcripts_name .. "/" then
+        local file_lines = git_lines(repository, "show "
+          .. shell_quote(commit.source .. ":./" .. path))
+        local diff = git_lines(repository, "show --format= --unified=0 "
           .. shell_quote(commit.source) .. " -- " .. shell_quote(path))
         -- Walk the diff's hunks. Each "@@ ... +start ..." says where the
         -- added lines that follow begin in the file at this commit; a run of

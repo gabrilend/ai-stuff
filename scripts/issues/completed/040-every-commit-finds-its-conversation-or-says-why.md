@@ -230,6 +230,18 @@ In the transcript-site library. Her decision, 2026-10-04:
    - **Files under the transcripts folder are left out**: they are the
      conversation export that rode along, not her writing. So are files
      whose added lines are empty or whitespace only.
+   - **Only the project's own folder is read.** In a monorepo git names
+     paths from the repository's top, so the commit's files are listed
+     relative to the project (`--relative`); a sweep touching forty
+     projects puts only this project's lines on this project's page, and
+     the transcripts-folder rule above sees the project's own folder name.
+   - **Only files with text at that commit are read**: a deleted file, a
+     submodule (a pointer to another repository's commit) and a binary file
+     have none, and are left off. Renames are not followed; the new path is
+     an added file. A git read that still fails stops the build with git's
+     words, rather than printing "fatal:" and carrying on (2026-11-02: every
+     push printed dozens of such lines, and soren-ds's committed disk image
+     was read whole to look for headings).
    - The page's title is the commit's subject; its facts line reads
      "written by hand · <date>" in place of the models.
 4. **Where the files come from.** The lines are read with
