@@ -143,6 +143,46 @@ function UnitTemplate.round_up(points)
 end
 -- }}}
 
+-- {{{ UnitTemplate.ability_throughput
+-- What one built ability does at a steady charge: {casts_per_second (a
+-- cooldown longer than the bar's fill time slows it), per_cast (damage
+-- or healing a cast, counting effects over time, zones, critical hits
+-- and accuracy; nil for buffs and debuffs), targets (how many it reaches
+-- in effect: area, cleave and pierce), uptime (seconds of effect per
+-- second, for buffs and debuffs)}. Prices (ability_cost) and the
+-- template preview both read it, so they agree.
+function UnitTemplate.ability_throughput(ability)
+    local costs = TemplateCosts.abilities
+    local casts_per_second = ability.mana_rate / ability.max_mana
+    if ability.cooldown > 0 then
+        casts_per_second = math.min(casts_per_second, 1 / ability.cooldown)
+    end
+    local result = {casts_per_second = casts_per_second, targets = 1}
+    if ability.type == "buff" or ability.type == "debuff" then
+        result.uptime = ability.duration * casts_per_second
+        return result
+    end
+    local per_cast = ability.power
+    local over_time = ability.damage_over_time > 0 and ability.damage_over_time or ability.heal_over_time
+    if over_time > 0 and ability.over_time_duration then
+        per_cast = per_cast + over_time * ability.over_time_duration / (ability.over_time_interval or 1)
+    end
+    if (ability.zone_duration or 0) > 0 then
+        per_cast = per_cast + ability.zone_power * ability.zone_duration / ability.zone_interval * costs.zone_share
+    end
+    per_cast = per_cast * (1 + (ability.critical_chance or 0) * ((ability.critical_multiplier or 2) - 1))
+    per_cast = per_cast * (ability.accuracy or 1)
+    result.per_cast = per_cast
+    if ability.type == "area" then
+        result.targets = 1 + (math.min(ability.max_targets, 6) - 1) * 0.5
+    else
+        result.targets = 1 + (ability.cleave_targets or 0) * (ability.cleave_ratio or 0)
+            + (ability.pierce - 1) * costs.pierce_share
+    end
+    return result
+end
+-- }}}
+
 -- {{{ UnitTemplate.ability_cost
 -- Points for one built ability. Its strength is how much it does per
 -- second at a steady charge next to a reference ability (see
@@ -153,39 +193,17 @@ end
 function UnitTemplate.ability_cost(ability, is_primary)
     local costs = TemplateCosts.abilities
     local base = is_primary and costs.primary_base or costs.secondary_base
-    local casts_per_second = ability.mana_rate / ability.max_mana
-    if ability.cooldown > 0 then
-        casts_per_second = math.min(casts_per_second, 1 / ability.cooldown)
-    end
+    local throughput = UnitTemplate.ability_throughput(ability)
 
     local strength
-    if ability.type == "buff" or ability.type == "debuff" then
-        local uptime = ability.duration * casts_per_second
-        strength = uptime / costs.reference_uptime
+    if throughput.uptime then
+        strength = throughput.uptime / costs.reference_uptime
         if ability.stun then
             strength = strength * 1.5
         end
         strength = strength * (1 + ((ability.max_targets or 1) - 1) * 0.5)
     else
-        local per_cast = ability.power
-        local over_time = ability.damage_over_time > 0 and ability.damage_over_time or ability.heal_over_time
-        if over_time > 0 and ability.over_time_duration then
-            per_cast = per_cast + over_time * ability.over_time_duration / (ability.over_time_interval or 1)
-        end
-        if (ability.zone_duration or 0) > 0 then
-            per_cast = per_cast + ability.zone_power * ability.zone_duration / ability.zone_interval * costs.zone_share
-        end
-        per_cast = per_cast * (1 + (ability.critical_chance or 0) * ((ability.critical_multiplier or 2) - 1))
-        per_cast = per_cast * (ability.accuracy or 1)
-
-        local targets = 1
-        if ability.type == "area" then
-            targets = 1 + (math.min(ability.max_targets, 6) - 1) * 0.5
-        else
-            targets = 1 + (ability.cleave_targets or 0) * (ability.cleave_ratio or 0)
-                + (ability.pierce - 1) * costs.pierce_share
-        end
-        strength = per_cast * casts_per_second * targets / costs.reference_throughput
+        strength = throughput.per_cast * throughput.casts_per_second * throughput.targets / costs.reference_throughput
     end
 
     local extras = math.max(0, ability.range - costs.reach_base) * costs.per_reach

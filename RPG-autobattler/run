@@ -413,6 +413,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_point_budget').run_all()
     " 2>/dev/null && print_success "Point budget tests passed" || print_error "Point budget tests failed"
+
+    # Test Template preview logic (issue 066)
+    print_info "Testing Template preview..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_template_preview').run_all()
+    " 2>/dev/null && print_success "Template preview tests passed" || print_error "Template preview tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
