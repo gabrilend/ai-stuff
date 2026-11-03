@@ -5,20 +5,16 @@
 | Phase | 3 — Inflows and Outflows |
 | Blocked by | 112 |
 | Blocks | 305, 311 |
-| Reads | [territory mass and energy](../docs/005-territory-mass-and-energy.md) |
+| Reads | [territory mass and energy](../../docs/005-territory-mass-and-energy.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The world has no resource totals and no income pass. Territory is
-painted on cells by issue 112, which gives every cell an owner and every team a
-percentage of the field, but holding a cell pays nothing.
-
-What exists that bears on this: the test program `tests/021-inflows-and-outflows.lua`
-names this issue and asserts that a team's mass income for a tick equals its held
-cell count times the pay per cell, and that a cell which changes hands moves its
-pay from one team's total to the other's on the very next tick. The economy
-document describes the loop this issue is the first link of.
+Built. `src/050-economy.lua` has the tick's income pass, its second row. Every
+tick it counts each team's owned land cells and adds that count times the
+rules' `mass_per_cell` to the team's `mass`, keeping the tick's income in
+`mass_income_last_tick`. A flipped cell moves its pay on the next pass, and
+water never pays.
 
 ## Intended behavior
 
@@ -67,10 +63,32 @@ same integer — the determinism the network model (issue 701) leans on.
    already there: income equals cells times pay, and a flipped cell moves its pay
    between teams within one tick.
 
+## What happened
+
+- **The pay per cell is in the rules** (`assets/034-the-rules.lua`, which the
+  world copies as `world.rule`, where the test reads it), not the unit
+  catalogue. The world's allocation refuses rules without it, by name.
+  `mass_per_cell = 1` is logged in the balance updates.
+- **`mass` stays the layout's double**, holding whole numbers, because phase 1
+  laid it down and the snapshot folds it. The income is integer arithmetic
+  throughout. `mass_income_last_tick` is a new integer team field.
+- **The pass is not sliced.** The pool (issue 209) slices unit rows. Slicing
+  cells needs a pool that slices another count, plus partial sums joined in
+  fixed order. The design is recorded in the companion; the work waits for a
+  profile.
+- **`held_cells` and `cell_pays` are exported** for tests and for issue 311,
+  which will make a cell's pay depend on its improvement.
+- **The flip claim is now in test 021**, as step 6 asks.
+- Now that the `economy` stem exists, the 303 and 311 suites in 021 raise
+  instead of reporting an absence. Both take `#world.cell.owner` of an FFI
+  array, which has no length; that is setup for those issues to fix when they
+  are built.
+- Pay by height, raised here, is not built.
+
 ## Related documents and tools
 
-- [territory, mass, and energy](../docs/005-territory-mass-and-energy.md) — the loop this is the first link of
-- [the tick and the timers](../docs/003-the-tick-and-the-timers.md) — where the income pass sits in the order
+- [territory, mass, and energy](../../docs/005-territory-mass-and-energy.md) — the loop this is the first link of
+- [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) — where the income pass sits in the order
 - `tests/021-inflows-and-outflows.lua` — the claims this issue must satisfy
 - issue 112 — territory painted on cells, which this reads
 - issue 305 — construction, which spends what this earns

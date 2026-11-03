@@ -40,7 +40,7 @@ once first. `advance` runs a sliceable row through the thread pool's
 | # | Row | Sliceable | Built by |
 | --- | --- | --- | --- |
 | 1 | `commands` | no | `commands.apply_due` (108) |
-| 2 | `income` | no | waiting for 301 |
+| 2 | `income` | no | `economy.income_pass` (301) |
 | 3 | `construction` | no | waiting for 305 |
 | 4 | `emit` | no | waiting for 307 |
 | 5 | `move` | yes | `movement.move_pass` (204) |

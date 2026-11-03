@@ -82,7 +82,7 @@ The groups:
 | `unit` | pool | `units` | `alive`, `kind`, `team` (integer); `x`, `y` (double); `domain` (integer); `altitude` (double); `health`, `health_at`, `reload_at`, `pattern`, `leg`, `mission`, `target`, `damage`, `falloff` (integer); `eye`, `profile` (double); `claim_radius`, `waited` (integer); `shield`, `shield_at`, `eaten` (integer); `eat_share`, `strength` (double); `in_round` (integer); `goal_x`, `goal_y` (double) |
 | `cell` | fixed | the field's cells | `owner`, `claim_by`, `claim_began`, `claim_seen`, `improvement`, `mark`, `occupant` (integer) |
 | `marked` | queue | the field's cells | `cell` (integer): the cells some unit marked this tick, emptied by the claim pass (issue 112) |
-| `team` | fixed | `teams` | `mass`, `energy`, `thorns` (double); `energy_level`, `launch_at` (integer) |
+| `team` | fixed | `teams` | `mass` (double, holding whole numbers); `mass_income_last_tick` (integer, issue 301); `energy`, `thorns` (double); `energy_level`, `launch_at` (integer) |
 | `stream` | fixed | the names in `random-streams`' `STREAMS` | `state` (integer, never zero) |
 | `command` | queue | `commands` in the rules | `tick`, `verb`, `team`, `player` (integer); `argument1` to `argument4` (double) |
 | `shot` | queue | `units` times `shots_per_unit` in the rules | `shooter`, `target`, `damage`, `arrives` (integer): the shells in flight, appended in unit-row order within a tick and landed in queue order (issue 206) |

@@ -74,6 +74,53 @@ harness.suite("territory implies mass", function()
 end)
 -- }}}
 
+-- {{{ territory implies mass, closer
+harness.suite("a flipped cell moves its pay on the next tick, and water never pays", function()
+  local economy = harness.load("economy", "301")
+  local the_world = harness.load("the-world", "104")
+  local world, the_tick = fresh()
+  local held = own_cells(world, 1, 30)
+  local pay = world.rule.mass_per_cell
+  economy.income_pass(world)
+  harness.check("the tick's income is kept beside the total",
+                world.team.mass_income_last_tick[1] == held * pay and world.team.mass_income_last_tick[2] == 0)
+  local cell
+  for index = 1, world.field.size * world.field.size do
+    if world.cell.owner[index] == 1 then cell = index break end
+  end
+  world.cell.owner[cell] = 2
+  economy.income_pass(world)
+  harness.check("a flipped cell pays its new owner on the next pass, and not its old one",
+                world.team.mass_income_last_tick[1] == (held - 1) * pay
+                and world.team.mass_income_last_tick[2] == pay and world.team.mass[2] == pay)
+  harness.check("held cells and a cell's pay agree with the pass",
+                economy.held_cells(world, 1) == held - 1 and economy.cell_pays(world, cell) == pay)
+  local water
+  for index = 1, world.field.size * world.field.size do
+    if world.field.height[index] < world.field.water_line then water = index break end
+  end
+  harness.check("the field has water to test", water ~= nil)
+  if water ~= nil then
+    world.cell.owner[water] = 2
+    economy.income_pass(world)
+    harness.check("an owned water cell pays nothing", world.team.mass_income_last_tick[2] == pay
+                  and economy.cell_pays(world, water) == 0)
+  end
+  local before = world.team.mass[1]
+  the_tick.advance(world)
+  harness.check("the tick's second row pays the ground",
+                the_tick.SYSTEMS[2].name == "income" and the_tick.SYSTEMS[2].waiting_for == nil
+                and world.team.mass[1] == before + (held - 1) * pay)
+  local rules = the_world.load_asset("the-rules")
+  local kept = rules.mass_per_cell
+  rules.mass_per_cell = nil
+  local ok, problem = pcall(the_world.allocate, {field = FIELD, units = 4, teams = 2, seed = SEED})
+  rules.mass_per_cell = kept
+  harness.check("rules with no pay per cell are refused by name, not defaulted to nothing",
+                not ok and tostring(problem):find("mass_per_cell", 1, true) ~= nil, problem)
+end)
+-- }}}
+
 -- {{{ the four levels
 harness.suite("the energy menu is four levels and never a fifth", function()
   local menu = harness.load("energy-menu", "302")

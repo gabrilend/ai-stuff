@@ -139,7 +139,8 @@ M.LAYOUT = {
     {"cell", "integer"},        -- a cell some unit marked this tick, in the order first marked
   }},
   {group = "team", kind = "fixed", capacity = "teams", fields = {
-    {"mass", "double"},
+    {"mass", "double"},         -- mass held, a whole number never below zero
+    {"mass_income_last_tick", "integer"}, -- what its ground paid last income pass (issue 301)
     {"energy", "double"},
     {"thorns", "double"},
     {"energy_level", "integer"}, -- which of the four buttons is pressed; zero for none yet
@@ -395,6 +396,9 @@ function M.allocate(parameters)
     world.rule.fingerprint_every = whole(parameters, "fingerprint_every")
   end
   world.parameters.fingerprint_every = world.rule.fingerprint_every
+  -- A ground that pays nothing is a dead economy, not a default: the pay per
+  -- cell is refused by name when it is absent or not a whole number from one.
+  whole(rules, "mass_per_cell")
   for _, row in ipairs(M.LAYOUT) do
     world[row.group] = allocate_group(row, sizes[row.capacity])
   end
