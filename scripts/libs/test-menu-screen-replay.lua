@@ -3,11 +3,15 @@
 -- prints the final screen as plain text, so a test can read what was drawn.
 -- A character cut in two by a colour code shows up here as a broken byte.
 -- Used by test-menu-screen.sh.  (neocities-modernization issue 10-070.)
--- Usage: luajit test-menu-screen-replay.lua SESSION_LOG [ROWS] [COLS]
+-- Usage: luajit test-menu-screen-replay.lua SESSION_LOG [ROWS] [COLS] [all]
+-- Blank rows are left out, unless the fourth argument is "all": then every
+-- row is printed, so line N of the output is screen row N (issue 045's
+-- layout test needs that).
 
 local log = assert(io.open(arg[1], "rb"), "cannot open " .. tostring(arg[1])):read("*a")
 local MAX_ROWS = tonumber(arg[2]) or 60
 local MAX_COLS = tonumber(arg[3]) or 140
+local ALL_ROWS = arg[4] == "all"
 
 local grid, row, col = {}, 1, 1
 local i, n = 1, #log
@@ -45,5 +49,5 @@ for r = 1, MAX_ROWS do
     local cells = {}
     for cc = 1, MAX_COLS do cells[cc] = (grid[r] or {})[cc] or " " end
     local line = table.concat(cells):gsub("%s+$", "")
-    if line ~= "" then print(line) end
+    if line ~= "" or ALL_ROWS then print(line) end
 end

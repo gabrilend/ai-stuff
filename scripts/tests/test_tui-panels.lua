@@ -225,5 +225,40 @@ do
     check("panel reset_style resets", cell.fg .. "," .. cell.bg .. "," .. cell.attrs, "0,0,0")
 end
 
+-- fill keeps the current style; clear does not (issue 045, for #189)
+do
+    fresh()
+    local p = tui.create_panel(2, 3, 4, 2)
+    p:set_bg(tui.BG_BLUE)
+    p:fill()
+    local cell = tui.get_cell(3, 6)
+    check("fill reaches the panel's far corner", cell.char .. "," .. cell.bg, " ," .. tui.BG_BLUE)
+    check("fill stops at the panel's edge", tui.get_cell(3, 7).bg, tui.BG_DEFAULT)
+    check("fill leaves the row above alone", tui.get_cell(1, 3).bg, tui.BG_DEFAULT)
+    p:fill(".")
+    check("fill takes a character", tui.get_cell(2, 3).char, ".")
+    p:clear()
+    cell = tui.get_cell(2, 3)
+    check("clear after fill leaves plain blanks", cell.char .. "," .. cell.bg, " ," .. tui.BG_DEFAULT)
+    tui.reset_style()
+
+    local off = tui.create_panel(5, 18, 6, 4)
+    off:fill("#")
+    check("fill clips to the screen", tui.get_cell(6, 20).char, "#")
+    check("fill draws nothing left of the panel", tui.get_cell(6, 17).char, " ")
+    present()
+end
+
+-- display_width counts screen columns, not bytes
+do
+    check("ascii", tui.display_width("menu"), 4)
+    check("box characters are one column each", tui.display_width("└─ x"), 4)
+    check("CJK is two columns each", tui.display_width("日本"), 4)
+    check("a combining accent adds nothing", tui.display_width("e\204\129"), 1)
+    check("an emoji is two columns", tui.display_width("\240\159\152\128"), 2)
+    check("empty string", tui.display_width(""), 0)
+    check("char_width of a wide character", tui.char_width("日"), 2)
+end
+
 print(failures == 0 and "all passed" or (failures .. " failed"))
 os.exit(failures == 0 and 0 or 1)

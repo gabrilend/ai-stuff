@@ -47,7 +47,8 @@ screen, is dropped.
 7. [x] Tests that need no terminal.
 8. [ ] Move delta-version's `history-viewer.lua` onto panels: left for a
        later PR, as 067 asks (its step 9).
-9. [ ] Move `menu.lua` onto panels: not asked for yet; worth its own issue.
+9. [ ] Move `menu.lua` onto panels: filed as issue 045 (layout) and 046
+       (sections and items).
 
 ## What Happened
 

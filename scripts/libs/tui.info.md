@@ -11,8 +11,22 @@ cells), and `present()` sends only the marked cells.
 row 1, column 1. Its `write_str`, `set_cell`, `clear`, `clear_row`,
 `invalidate` and `invalidate_row` take panel coordinates and drop anything
 outside the panel or the screen. Style calls are the global ones.
-`to_screen` and `from_screen` convert positions. See
+`to_screen` and `from_screen` convert positions. `fill(char)` puts a
+character (a space by default) in every cell in the current style, so a
+panel can be a coloured block; `clear` always leaves plain blanks. See
 `issues/completed/039-tui-panels.md` for the decisions.
+
+The Lua menu lays its screen out this way (issue 045): `menu.layout(rows,
+cols, opts)` returns header, body and footer panels.
+
+## Text width
+
+`tui.display_width(str)` is how many terminal columns a UTF-8 string takes:
+0 for control characters, combining marks and zero-width characters, 2 for
+wide ones (CJK, Hangul, full-width forms, most emoji), 1 otherwise.
+`tui.char_width(ch)` does the same for one character. Use these, not `#str`,
+to centre or pad text. The grid still holds one character per cell, so a
+wide character drawn with `set_cell` pushes the rest of its row right.
 
 ## Without a terminal
 

@@ -1964,33 +1964,70 @@ end
 
 -- {{{ Rendering functions
 local function render_header()
-    local cols = state.cols
+    local panel = state.layout.header
+    local top, left = panel:to_screen(1, 1)
+    local width = panel.width
 
     -- Box top
     tui.reset_style()
-    tui.draw_box_top(1, 1, cols, "double")
+    tui.draw_box_top(top, left, width, "double")
 
     -- Title line
-    tui.draw_box_line(2, 1, cols, "double")
+    tui.draw_box_line(top + 1, left, width, "double")
     tui.set_attrs(tui.ATTR_BOLD)
-    local title_start = math.floor((cols - #state.title) / 2)
-    tui.write_str(2, title_start, state.title)
+    panel:write_str(2, math.floor((width - tui.display_width(state.title)) / 2), state.title)
 
     -- Subtitle line (if present)
     if state.subtitle ~= "" then
         tui.reset_style()
-        tui.draw_box_line(3, 1, cols, "double")
+        tui.draw_box_line(top + 2, left, width, "double")
         tui.set_attrs(tui.ATTR_DIM)
-        local sub_start = math.floor((cols - #state.subtitle) / 2)
-        tui.write_str(3, sub_start, state.subtitle)
+        panel:write_str(3, math.floor((width - tui.display_width(state.subtitle)) / 2), state.subtitle)
     end
 
     -- Separator
     tui.reset_style()
-    tui.draw_box_separator(4, 1, cols, "double")
+    tui.draw_box_separator(top + 3, left, width, "double")
 
-    return 5  -- Next row (1-indexed)
+    return state.layout.body.row  -- Next row: the body's first
 end
+
+-- {{{ menu.layout
+-- Splits a rows x cols screen into the menu's three parts, as tui panels
+-- (issue 045): the header box at the top, the footer box at the bottom, and
+-- the body between them, where the sections, the description and the
+-- preview go.  The header is always 4 rows (top, title, subtitle,
+-- separator).  The footer is 2 rows (separator, help line), or 3 when
+-- opts.has_shortcuts adds the line of custom shortcut keys.
+--
+-- On a screen too short for all three, the body keeps at least one row and
+-- the parts overlap; panels drop whatever falls off the screen, so nothing
+-- is drawn outside it.  Pure arithmetic, so it can be tested without a
+-- terminal.
+function menu.layout(rows, cols, opts)
+    opts = opts or {}
+    local width = math.max(1, cols)
+    local header_height = 4
+    local footer_height = opts.has_shortcuts and 3 or 2
+    local footer_row = rows - footer_height + 1
+    local body_row = header_height + 1
+    local body_height = math.max(1, footer_row - body_row)
+    return {
+        header = tui.create_panel(1, 1, width, header_height),
+        body = tui.create_panel(body_row, 1, width, body_height),
+        footer = tui.create_panel(footer_row, 1, width, footer_height),
+    }
+end
+-- }}}
+
+-- {{{ local function body_last_row
+-- The screen row of the body's last line: the description and preview stop
+-- here, right above the footer.
+local function body_last_row()
+    local body = state.layout.body
+    return body.row + body.height - 1
+end
+-- }}}
 
 local function render_item(row, item_id, highlight, item_num, section_type)
     local data = state.item_data[item_id]
@@ -2708,7 +2745,7 @@ local function render_content_source(row, source, available_lines)
     -- Render content lines
     local content_row_start = row
     for i = 1, lines_to_show do
-        if row > state.rows - 3 then break end  -- Leave room for footer
+        if row > body_last_row() then break end  -- The footer starts below
         tui.clear_row(row)
         local line_idx = i + scroll_offset
         local line = content_lines[line_idx] or ""
@@ -2740,9 +2777,9 @@ local function render_description(start_row)
     tui.draw_hline(row, 1, state.cols)
     row = row + 1
 
-    -- Calculate available space (leave 3 rows for footer)
-    local footer_rows = 3
-    local available_rows = state.rows - row - footer_rows
+    -- Available space: from here down to the body's last row
+    local last_row = body_last_row()
+    local available_rows = last_row - row + 1
 
     -- Show status message if set (e.g., error messages), otherwise show item description
     tui.clear_row(row)
@@ -2844,7 +2881,7 @@ local function render_description(start_row)
     end
 
     -- Clear any remaining rows until footer
-    while row < state.rows - footer_rows do
+    while row <= last_row do
         tui.clear_row(row)
         row = row + 1
     end
@@ -2852,7 +2889,10 @@ local function render_description(start_row)
     return row
 end
 
-local function render_footer()
+-- {{{ local function footer_text
+-- The footer's help line, its shortcuts line, and whether the shortcuts
+-- line is shown (which makes the footer 3 rows instead of 2).
+local function footer_text()
     -- Build custom shortcuts string
     local shortcuts_parts = {}
     for key, item_id in pairs(state.shortcuts) do
@@ -2883,33 +2923,33 @@ local function render_footer()
         base_help = "j/k:nav  space:toggle  ~:copy  `:action  q/esc:quit"
     end
     local has_shortcuts = #shortcuts_parts > 0 and not on_cmd
+    return base_help, shortcuts_str, has_shortcuts
+end
+-- }}}
 
-    local row
-    if has_shortcuts then
-        row = state.rows - 2
-    else
-        row = state.rows - 1
-    end
+local function render_footer()
+    local base_help, shortcuts_str, has_shortcuts = footer_text()
+    local panel = state.layout.footer
+    local top, left = panel:to_screen(1, 1)
+    local width = panel.width
 
     -- Separator
     tui.reset_style()
-    tui.draw_box_separator(row, 1, state.cols, "double")
+    tui.draw_box_separator(top, left, width, "double")
 
     -- Help text
-    tui.clear_row(row + 1)
-    tui.draw_box_line(row + 1, 1, state.cols, "double")
+    panel:clear_row(2)
+    tui.draw_box_line(top + 1, left, width, "double")
     tui.set_attrs(tui.ATTR_DIM)
-    local help_start = math.floor((state.cols - #base_help) / 2)
-    tui.write_str(row + 1, help_start, base_help)
+    panel:write_str(2, math.floor((width - tui.display_width(base_help)) / 2), base_help)
 
     -- Shortcuts line (if any)
     if has_shortcuts then
-        tui.clear_row(row + 2)
-        tui.draw_box_line(row + 2, 1, state.cols, "double")
+        panel:clear_row(3)
+        tui.draw_box_line(top + 2, left, width, "double")
         tui.set_fg(tui.FG_CYAN)
         tui.set_attrs(tui.ATTR_DIM)
-        local sc_start = math.floor((state.cols - #shortcuts_str) / 2)
-        tui.write_str(row + 2, sc_start, shortcuts_str)
+        panel:write_str(3, math.floor((width - tui.display_width(shortcuts_str)) / 2), shortcuts_str)
     end
 
     tui.reset_style()
@@ -2929,6 +2969,11 @@ function menu.render()
     update_command_preview()
 
     tui.clear_back_buffer()
+
+    -- Issue 045: lay the screen out as panels; the footer's height depends
+    -- on whether there is a shortcuts line to show this time.
+    local _, _, has_shortcuts = footer_text()
+    state.layout = menu.layout(state.rows, state.cols, { has_shortcuts = has_shortcuts })
 
     local row = render_header()
     local checkbox_idx = 0
