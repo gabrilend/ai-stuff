@@ -78,6 +78,15 @@ against one compositor thread among them).
 `src/boxes/108-compositor.c`, `src/maps/compositor.map`. Test:
 `twin/tests/109` (24 checks).
 
+- **604** one foreground app per screen: an app is a top-level program;
+  only the foreground's surfaces and the system's are copied, and each
+  app has the screen to itself, so a background app keeps its surfaces
+  where the foreground has its own. A change paints the screen whole.
+  Apps hear of changes through the `foreground_changed` event box.
+
+`src/system/110-foreground.c`, `src/boxes/111-foreground.c`,
+`program_app_of` in 068. Test: `twin/tests/112` (26 checks).
+
 ## Open issues
 
 Sorted by what each one waits on (scoped once phase 5's twin halves
@@ -87,7 +96,6 @@ pull request a blocker is waiting in.
 **Buildable on the twin now.** The compositor is portable: the twin's
 screens are memory a test can read back or save as a picture.
 
-- **604** — one foreground per screen, filtering 603's copy.
 - **606** — the drawer surface and its slide, once 601–603 are in.
 
 **Blocked on an unmerged pull request.**

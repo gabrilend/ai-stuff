@@ -13,6 +13,12 @@ the copy a resize makes.
 
 ## What it offers
 
+### surface_app_of
+
+```c
+int32_t surface_app_of(int32_t owner)
+```
+
 ### surface_request_for
 
 ```c

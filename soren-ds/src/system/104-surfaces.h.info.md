@@ -9,8 +9,11 @@ two screens that exactly one owner may draw into. The owner is a
 station — the box's instance — or the system (SURFACE_SYSTEM) for what
 no app owns. Asking for one either grants it, with a handle and a
 buffer of pixels the owner writes and the compositor (603) reads, or
-refuses it because another owner already holds some of that rectangle
-on that screen. Moving and resizing are asked for the same way and
+refuses it because another owner of the same app already holds some of
+that rectangle on that screen. Each app has each screen to itself
+(604): only the foreground app's surfaces are shown, so two apps may
+hold the same rectangle, and the one in the background keeps its
+surfaces, and keeps drawing into them, until it comes back. Moving and resizing are asked for the same way and
 checked the same way. Surfaces on a screen stack back to front in the
 order they were granted.
 
@@ -48,6 +51,16 @@ int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, 
 ```
 
 The same, for a named owner: a station, or SURFACE_SYSTEM.
+
+### surface_app_of
+
+```c
+int32_t surface_app_of(int32_t owner)
+```
+
+The app an owner belongs to: SURFACE_APP_SYSTEM for SURFACE_SYSTEM, the
+top-level program of a placed station, or SURFACE_APP_NONE. Fixed at
+the grant, as a station's program never changes.
 
 ### surface_release
 

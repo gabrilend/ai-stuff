@@ -13,6 +13,7 @@
 #include "../engine/025-platform.h"
 #include "../engine/027-primitives.h"
 #include "../engine/031-engine.h"
+#include "../engine/068-programs.h"
 #include "104-surfaces.h"
 
 #define GENERATION_MASK 0xFFFFFFu   /* keeps every handle positive */
@@ -24,6 +25,7 @@ struct slot {
     int       screen;
     int       x, y, width, height;
     int32_t   owner;
+    int32_t   app;                  /* the owner's app (604) */
     uint32_t  z;
     uint32_t *pixels;
     uint8_t   damage;               /* written and read only through the atomics */
@@ -78,14 +80,17 @@ static int on_screen(int screen, int x, int y, int width, int height)
 /* }}} */
 
 /* {{{ taken_by_another */
-/* Does any surface on `screen` owned by someone other than `owner`
- * overlap the rectangle? `self` is left out (a surface never conflicts
+/* Does any surface on `screen` owned by someone other than `owner`, in
+ * the same app, overlap the rectangle? Each app has the screen to itself
+ * (604): only the foreground's surfaces show, so another app's surfaces
+ * are never in the way. `self` is left out (a surface never conflicts
  * with itself). Called holding the lock. */
-static int taken_by_another(int screen, int x, int y, int width, int height, int32_t owner, const struct slot *self)
+static int taken_by_another(int screen, int x, int y, int width, int height, int32_t owner, int32_t app,
+                            const struct slot *self)
 {
     for (int i = 0; i < SURFACE_MAX; i++) {
         const struct slot *o = &slots[i];
-        if (!o->in_use || o == self || o->screen != screen || o->owner == owner) {
+        if (!o->in_use || o == self || o->screen != screen || o->owner == owner || o->app != app) {
             continue;
         }
         if (x < o->x + o->width && o->x < x + width && y < o->y + o->height && o->y < y + height) {
@@ -136,19 +141,31 @@ static int may_change(const struct slot *s)
 }
 /* }}} */
 
+/* {{{ surface_app_of */
+int32_t surface_app_of(int32_t owner)
+{
+    if (owner == SURFACE_SYSTEM) {
+        return SURFACE_APP_SYSTEM;
+    }
+    int app = program_app_of(owner);
+    return app >= 0 ? app : SURFACE_APP_NONE;
+}
+/* }}} */
+
 /* {{{ surface_request_for */
 int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, int height)
 {
     if (!on_screen(screen, x, y, width, height)) {
         return SURFACE_OFF_SCREEN;
     }
+    int32_t app = surface_app_of(owner);
     uint32_t *pixels = engine_memory_take((size_t)width * (size_t)height * sizeof *pixels);
     if (!pixels) {
         return SURFACE_NO_MEMORY;
     }
     int32_t answer = SURFACE_FULL;
     spin_lock(&lock);
-    if (taken_by_another(screen, x, y, width, height, owner, NULL)) {
+    if (taken_by_another(screen, x, y, width, height, owner, app, NULL)) {
         answer = SURFACE_TAKEN;
     } else {
         for (int i = 0; i < SURFACE_MAX; i++) {
@@ -167,6 +184,7 @@ int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, 
             s->width = width;
             s->height = height;
             s->owner = owner;
+            s->app = app;
             s->z = next_z++;
             s->pixels = pixels;
             atomic_store_release(&s->damage, 1);    /* its first frame shows it */
@@ -246,7 +264,7 @@ int surface_resize(int32_t handle, int width, int height)
         answer = SURFACE_NOT_OWNER;
     } else if (!on_screen(s->screen, s->x, s->y, width, height)) {
         answer = SURFACE_OFF_SCREEN;
-    } else if (taken_by_another(s->screen, s->x, s->y, width, height, s->owner, s)) {
+    } else if (taken_by_another(s->screen, s->x, s->y, width, height, s->owner, s->app, s)) {
         answer = SURFACE_TAKEN;
     } else {
         int rows = height < s->height ? height : s->height;
@@ -281,7 +299,7 @@ int surface_set_position(int32_t handle, int x, int y)
         answer = SURFACE_NOT_OWNER;
     } else if (!on_screen(s->screen, x, y, s->width, s->height)) {
         answer = SURFACE_OFF_SCREEN;
-    } else if (taken_by_another(s->screen, x, y, s->width, s->height, s->owner, s)) {
+    } else if (taken_by_another(s->screen, x, y, s->width, s->height, s->owner, s->app, s)) {
         answer = SURFACE_TAKEN;
     } else {
         expose_locked(s->screen, s->x, s->y, s->width, s->height);
@@ -325,6 +343,7 @@ int surface_facts(int32_t handle, struct surface_facts *out)
         out->width = s->width;
         out->height = s->height;
         out->owner = s->owner;
+        out->app = s->app;
         out->z = s->z;
         answer = SURFACE_OK;
     }
@@ -452,6 +471,7 @@ int surface_gather(int screen, struct surface_view *out, int max, struct surface
         out[at].width = s->width;
         out[at].height = s->height;
         out[at].owner = s->owner;
+        out[at].app = s->app;
         out[at].z = s->z;
         out[at].pixels = s->pixels;
         out[at].dirty = atomic_swap(&s->damage, (uint8_t)0) != 0;

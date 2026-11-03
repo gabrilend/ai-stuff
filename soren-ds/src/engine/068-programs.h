@@ -80,6 +80,11 @@ int32_t program_station_at(int program, int i);
 const char *program_path(int program);
 const char *program_name(int program);
 
+/* The top-level program a station belongs to, through every program
+ * placed inside another: an app, to the compositor (604). -1 for a
+ * station no program placed, or one whose program has been removed. */
+int program_app_of(int32_t station);
+
 /* Programs placed inside this one. */
 int program_child_count(int program);
 int program_child(int program, int i);

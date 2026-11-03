@@ -133,6 +133,16 @@ const char *program_path(int program)
 const char *program_name(int program)
 ```
 
+### program_app_of
+
+```c
+int program_app_of(int32_t station)
+```
+
+The top-level program a station belongs to, through every program
+placed inside another: an app, to the compositor (604). -1 for a
+station no program placed, or one whose program has been removed.
+
 ### program_child_count
 
 ```c
