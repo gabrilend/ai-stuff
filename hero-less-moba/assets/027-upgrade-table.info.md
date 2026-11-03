@@ -25,6 +25,7 @@ because duplicates stack and a bit set cannot count.
 | `add` | table | Additive terms, applied first. Keys are body fields. |
 | `mul` | table | Multiplicative factors, applied second. |
 | `tower` | table | What it does when slotted into stone. May be empty. |
+| `lane` | table | What it does to the deck of a lane it is slotted into (issue 213): `ticket = row` (one more ticket for that entry), `resource = n` (n more tickets turned a wave), or `trade = {from = row, to = row}` (unlocks an entry at the cost of another). Read once a wave. Which kind does which is chosen by Claude, open for Ritz. |
 
 ## The two fields that are easy to confuse
 

@@ -22,11 +22,10 @@
 --
 -- The lane's deck asked directly, wave after wave, without a match around it.
 --
--- **Claims 213 for the half of it that is built** -- the four kinds, their kit, the
--- deck, the purse and the meters -- and for the three tests 213 itself asks for: a
--- mixture over a long run, a lane measurably poorer after heavy infantry, and never
--- three of a kind. What upgrades do to a deck, and placing each kind at its own
--- bearing, are not built and nothing here pretends to test them.
+-- Claims 213 whole: the kinds, their kit, the deck, the purse and the meters (213a),
+-- what the upgrades do to a deck and where each kind stands (213b), and the three
+-- tests 213 itself asks for -- a mixture over a long run, a lane measurably poorer
+-- after heavy infantry, and never three of a kind.
 --
 -- Most checks call the deck the way the spawner does, a few hundred waves at a time,
 -- on a world that never ticks. That is a few milliseconds where a match would be
@@ -141,14 +140,17 @@ local function test_a_mixture_over_a_long_run()
     end
   end)
 
+  -- Over the entries a lane starts with. One that starts locked -- the shieldbearers
+  -- -- walks out only once an upgrade unlocks it, and that is asked further down.
   local missing, most, most_name = nil, 0, ""
   for _, entry in ipairs(entries) do
     local count = total[entry.archetype]
+    if entry.start == 0 then count = nil end
     local name = parameters.unit.archetype[entry.archetype].name
     if count == 0 then missing = missing or name end
-    if count / bodies > most then most, most_name = count / bodies, name end
+    if count ~= nil and count / bodies > most then most, most_name = count / bodies, name end
   end
-  check("over three hundred waves a lane fields every kind", missing == nil,
+  check("over three hundred waves a lane fields every kind it starts with", missing == nil,
         tostring(missing) .. " never walked out")
   check("and no kind is more than half of everything it fielded", most <= 0.5,
         string.format("%s was %.0f%%", most_name, most * 100))
@@ -156,7 +158,8 @@ local function test_a_mixture_over_a_long_run()
   local heavy = total[entries[1].archetype] / bodies
   check("heavy infantry is the rarest kind", (function()
           for index = 2, #entries do
-            if total[entries[index].archetype] / bodies <= heavy then return false end
+            if entries[index].start > 0
+               and total[entries[index].archetype] / bodies <= heavy then return false end
           end
           return true
         end)(), string.format("heavy was %.0f%% of what walked out", heavy * 100))
@@ -402,6 +405,203 @@ local function test_in_a_match()
 end
 -- }}}
 
+-- {{{ local function kind_named()
+local function kind_named(parameters, name)
+  for index, row in ipairs(parameters.upgrade.kind) do
+    if row.name == name then return index end
+  end
+  error("no upgrade called " .. name)
+end
+-- }}}
+
+-- {{{ local function entry_for()
+local function entry_for(parameters, name)
+  for index, entry in ipairs(parameters.unit.deck.entry) do
+    if parameters.unit.archetype[entry.archetype].name == name then return index end
+  end
+  error("no deck entry raises " .. name)
+end
+-- }}}
+
+-- {{{ local function test_what_upgrades_do_to_a_deck()
+-- 213b. Each of the three thumbs, asked of one lane with one stone slotted into it,
+-- and the arithmetic of the trade done here by hand from the equipment table.
+local function test_what_upgrades_do_to_a_deck()
+  local world, modules, parameters = fresh_world()
+  local deck = modules.lane_deck
+  local settings = parameters.unit.deck
+  local slot = world.team[1].lane_slot
+  local heavy, light = entry_for(parameters, "heavy infantry"), entry_for(parameters, "light infantry")
+  local shield = entry_for(parameters, "shieldbearer")
+
+  local bare_tickets, bare_income = deck.what_the_lane_holds(world, 1, 1)
+  check("an empty lane holds its starting tickets and its base income",
+        bare_tickets[heavy] == settings.entry[heavy].start and bare_income == settings.income_per_wave)
+
+  local plate = kind_named(parameters, "Plate")
+  slot[1][plate] = 1
+  local tickets = deck.what_the_lane_holds(world, 1, 1)
+  local elsewhere = deck.what_the_lane_holds(world, 1, 2)
+  check("a Plate in a lane is one more heavy infantry ticket there, and nowhere else",
+        tickets[heavy] == bare_tickets[heavy] + 1 and elsewhere[heavy] == bare_tickets[heavy])
+  slot[1][plate] = 50
+  tickets = deck.what_the_lane_holds(world, 1, 1)
+  check("and no pile of them takes an entry past its most tickets",
+        tickets[heavy] == settings.entry[heavy].max, tostring(tickets[heavy]))
+  slot[1][plate] = 0
+
+  local rations = kind_named(parameters, "Rations")
+  slot[1][rations] = 2
+  local _, income = deck.what_the_lane_holds(world, 1, 1)
+  check("two Rations in a lane are two more tickets turned a wave",
+        income == settings.income_per_wave + 2, tostring(income))
+  slot[1][rations] = 0
+
+  -- The trade, by the design's own arithmetic: as many tickets as light infantry costs
+  -- bare, and as many points as the shieldbearer's extra pieces cost.
+  local equipment = parameters.unit.equipment
+  local archetype = parameters.unit.archetype
+  local moved = deck.cost_of(world, archetype[settings.entry[light].archetype], 0)
+  local extra_weight = equipment["shield"].weight + equipment["metal cap"].weight
+  local gained = math.ceil(extra_weight / settings.weight_per_point)
+  local bulwark = kind_named(parameters, "Bulwark")
+  slot[1][bulwark] = 1
+  tickets, income = deck.what_the_lane_holds(world, 1, 1)
+  check("a Bulwark unlocks shieldbearers at the cost of light infantry tickets",
+        tickets[shield] == moved and tickets[light] == bare_tickets[light] - moved,
+        string.format("%d shieldbearer, %d light", tickets[shield], tickets[light]))
+  check("and adds what the shieldbearer's extra equipment costs to the lane's income",
+        income == settings.income_per_wave + gained,
+        string.format("%d, expected %d", income, settings.income_per_wave + gained))
+
+  -- The deck itself follows the lane: refitted at the next wave, and back again once
+  -- the stone is gone.
+  local commander = parameters.commander.commander[1]
+  local function cards_of(index)
+    local state = world.team[1].lane_deck[1]
+    local count = 0
+    for _, card in ipairs(state.draw) do if card == index then count = count + 1 end end
+    return count
+  end
+  deck.draw_wave(world, 1, 1, commander)
+  check("the next wave's deck holds the traded tickets",
+        cards_of(shield) == moved and cards_of(light) == bare_tickets[light] - moved,
+        string.format("%d shieldbearer cards, %d light", cards_of(shield), cards_of(light)))
+  slot[1][bulwark] = 0
+  deck.draw_wave(world, 1, 1, commander)
+  check("and once the Bulwark is gone, the deck is the old one again",
+        cards_of(shield) == 0 and cards_of(light) == bare_tickets[light])
+end
+-- }}}
+
+-- {{{ local function test_upgrades_change_what_walks_out()
+-- The same, over a long run: what a lane holds changes what it raises.
+local function test_upgrades_change_what_walks_out()
+  local _, _, parameters = fresh_world()
+  local function run(slots, waves)
+    local world, modules = fresh_world()
+    for kind, count in pairs(slots) do
+      world.team[1].lane_slot[1][kind] = count
+    end
+    local fielded, spent = {}, 0
+    many_waves(world, modules, 1, 1, waves, function(drawn, state)
+      for _, body in ipairs(drawn) do
+        fielded[body.archetype] = (fielded[body.archetype] or 0) + 1
+      end
+      spent = spent + state.last.spent
+    end)
+    return fielded, spent / waves
+  end
+
+  local archer = parameters.unit.deck.entry[entry_for(parameters, "archer")].archetype
+  local shieldbearer = parameters.unit.deck.entry[entry_for(parameters, "shieldbearer")].archetype
+  local bare, bare_spent = run({}, 300)
+  local bows = run({[kind_named(parameters, "Longbow")] = 4}, 300)
+  check("a lane given Longbows fields more archers",
+        (bows[archer] or 0) > (bare[archer] or 0),
+        string.format("%d against %d", bows[archer] or 0, bare[archer] or 0))
+
+  local _, fed_spent = run({[kind_named(parameters, "Rations")] = 3}, 300)
+  check("a lane given Rations turns more of its deck a wave",
+        fed_spent > bare_spent, string.format("%.1f against %.1f", fed_spent, bare_spent))
+
+  local walls = run({[kind_named(parameters, "Bulwark")] = 4}, 300)
+  check("a lane given Bulwarks fields shieldbearers, and one without never does",
+        (walls[shieldbearer] or 0) > 0 and (bare[shieldbearer] or 0) == 0,
+        string.format("%d with, %d without", walls[shieldbearer] or 0, bare[shieldbearer] or 0))
+end
+-- }}}
+
+-- {{{ local function test_where_each_kind_stands()
+-- 213b's bearings. In the waves a match actually raises: skirmishers at the ends of
+-- the rank behind the line, archers behind everybody in the line, and within a rank
+-- of the line the heavier kit nearer the centre.
+local function test_where_each_kind_stands()
+  local world, modules, parameters = fresh_world()
+  local soldier = world.soldier
+  local archetype = parameters.unit.archetype
+
+  -- Give every lane of team 1 a Bulwark, so shieldbearers stand in the lines too.
+  local bulwark = kind_named(parameters, "Bulwark")
+  for lane = 1, parameters.lane_count do
+    world.team[1].lane_slot[lane][bulwark] = 3
+  end
+  for _ = 1, parameters.unit.wave.interval * 3 + parameters.unit.wave.first_at + 2 do
+    tick_module.advance(world)
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.team[id] == 2 then world.release(world, id) end
+    end
+  end
+
+  local by_wave = {}
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 and soldier.wave[id] ~= 0 then
+      local row = archetype[soldier.archetype[id]]
+      if row.stands ~= nil then
+        local list = by_wave[soldier.wave[id]] or {}
+        by_wave[soldier.wave[id]] = list
+        list[#list + 1] = {id = id, stands = row.stands,
+                           cost = modules.lane_deck.cost_of(world, row, soldier.kit[id]),
+                           along = soldier.slot_along[id], across = math.abs(soldier.slot_across[id])}
+      end
+    end
+  end
+
+  local waves, wrong_shoulder, wrong_behind, wrong_line = 0, nil, nil, nil
+  for wave_id, list in pairs(by_wave) do
+    waves = waves + 1
+    local line_back, line_widest = 0, 0
+    for _, body in ipairs(list) do
+      if body.stands == "line" then
+        line_back = math.min(line_back, body.along)
+        line_widest = math.max(line_widest, body.across)
+      end
+    end
+    for _, body in ipairs(list) do
+      if body.stands == "shoulder" and (body.along > line_back or body.across < line_widest) then
+        wrong_shoulder = wrong_shoulder or ("wave " .. wave_id)
+      end
+      if body.stands == "behind" and body.along >= line_back then
+        wrong_behind = wrong_behind or ("wave " .. wave_id)
+      end
+      for _, other in ipairs(list) do
+        if body.stands == "line" and other.stands == "line" and body.along == other.along
+           and body.cost > other.cost and body.across > other.across then
+          wrong_line = wrong_line or string.format("wave %d: cost %d at %.0f, cost %d at %.0f",
+            wave_id, body.cost, body.across, other.cost, other.across)
+        end
+      end
+    end
+  end
+  check("waves were raised to look at", waves >= 6, waves .. " waves")
+  check("skirmishers stand at the shoulders: behind the line and at least as wide as it",
+        wrong_shoulder == nil, wrong_shoulder)
+  check("archers stand behind everybody in the line", wrong_behind == nil, wrong_behind)
+  check("within a rank of the line, heavier kit stands nearer the centre",
+        wrong_line == nil, wrong_line)
+end
+-- }}}
+
 print("the lane deck")
 test_the_shuffle()
 test_a_mixture_over_a_long_run()
@@ -409,6 +609,9 @@ test_never_three_of_a_kind()
 test_heavy_infantry_makes_a_lane_poorer()
 test_the_books()
 test_in_a_match()
+test_what_upgrades_do_to_a_deck()
+test_upgrades_change_what_walks_out()
+test_where_each_kind_stands()
 
 print(string.format("%d passed, %d failed", passed, failed))
 if failed > 0 then

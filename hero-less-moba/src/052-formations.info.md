@@ -18,7 +18,7 @@ which is a stream rather than a wave and has no formation at all.
 | --- | --- | --- |
 | `begin(world)` | | — Allocates the scratch list. Once, at assembly. |
 | `plan(world)` | | — Advances every wave's anchor and shares out the cohesion budget. Once per tick, before the brain. |
-| `assign_wave_slots(world, id, lane, role_index, role, melee_total)` | | — Gives a body its place, once, at birth. |
+| `assign_wave_slots(world, id, lane, role_index, role, melee_total)` | | — Gives a body its place, once, at birth. `role` is `captain`, `front`, `shoulder` or `back`. |
 | `target_of(world, id)` | | Where that place currently is, in lane coordinates. |
 | `files_for(lane)` | | How many bodies stand abreast marching down this lane. |
 | `file_offset(files, file)` | | Where the nth body in a rank stands across the lane. |
@@ -161,6 +161,15 @@ half true now: *"an arrow arcs, so a bow behind its own line is doing the thing 
 are for"* is the reasoning that moved them back here, and it holds only while an
 ordinary arrow is exempt from needing a clear line, which is a switch in the unit
 catalogue rather than a fact.
+
+**Since 213, the lane's own soldiers stand in bands read from their row's `stands`.**
+`line` bodies fill the front ranks from the centre outward, ordered heaviest kit first,
+so heavy infantry stand at small bearings and light infantry toward the flanks.
+`shoulder` bodies — the skirmishers — take the two ends of the gap rank just behind the
+line, left and right in turn, shooting round it. `behind` bodies — the archers — stand
+in the ranks at the back, as above. Only the skirmishers moved: where the *archers*
+march is still H14's question, and this does not answer it. The shoulders will be
+cavalry's when there is cavalry, and moving the skirmishers then is moving one band.
 
 A **captain stands in the middle of its own rank**, and which rank is written on its
 archetype row — the front of the line for one carrying a shield, back with the archers

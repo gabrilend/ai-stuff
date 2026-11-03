@@ -42,6 +42,28 @@
 -- *itself*, and common ones to both. A tower is a thing that shoots from a
 -- distance and a guard is a body standing in front of it, so the split falls out
 -- of what they are rather than being a second rule to remember.
+--
+-- `lane` is what the kind does to the **deck** of a lane it is slotted into (issue
+-- 213, its second half): **an upgrade is a change to what a lane raises**, read once
+-- a wave from whatever the lane holds at that moment. Some mixture of:
+--
+--   ticket = row    -- one more ticket for that unit's entry: it turns up more often
+--   resource = n    -- n more tickets turned a wave: more troops, or heavier ones
+--   trade = {from = row, to = row}
+--                   -- an entry unlocked at the cost of an old one, the one it takes
+--                   -- its equipment from. As many tickets move as the old entry
+--                   -- costs bare, and the lane gains as many points a wave as the
+--                   -- pieces the new one carries beyond the old one cost -- the
+--                   -- design's own arithmetic, so neither is a number here.
+--
+-- Which kind does which is chosen by Claude, open for Ritz: a melee kind feeds a line
+-- entry, a ranged kind a missile entry, and the common ones the purse -- with two
+-- exceptions, Whetstone feeding light infantry and Boots skirmishers, so that every
+-- entry a lane starts with has some upgrade that makes it turn up more.
+--
+-- The `add` and `mul` stamping onto wave bodies is **kept** alongside this. The design
+-- says an upgrade "is not a stat bonus applied to a lane"; the chest, the captain rule
+-- and doc 010 all still say it is. Both hold until Ritz picks.
 
 local M = {}
 
@@ -56,6 +78,7 @@ M.kind = {
     add     = { damage = 5 },
     mul     = {},
     tower   = { damage = 9 },
+    lane    = {ticket = 20},
   },
 
   {
@@ -69,6 +92,7 @@ M.kind = {
     -- another body standing under it rather than a tougher tower, which is the
     -- same idea one level out.
     tower   = { guard_cap = 1 },
+    lane    = {ticket = 19},
   },
 
   {
@@ -79,6 +103,7 @@ M.kind = {
     add     = { health = 34 },
     mul     = {},
     tower   = { health = 190 },
+    lane    = {resource = 1},
   },
 
   {
@@ -89,6 +114,7 @@ M.kind = {
     add     = { range = 26, acquire_range = 26 },
     mul     = {},
     tower   = { range = 34 },
+    lane    = {ticket = 22},
   },
 
   {
@@ -102,6 +128,7 @@ M.kind = {
     -- and that is a real placement decision rather than a gap in the table:
     -- Boots in a lane is a push, Boots in stone is a wasted slot.
     tower   = {},
+    lane    = {ticket = 21},
   },
 
   {
@@ -115,6 +142,7 @@ M.kind = {
     add     = {},
     mul     = { cooldown_max = 0.86 },
     tower   = { cooldown_max = 0.88 },
+    lane    = {resource = 1},
   },
 
   {
@@ -125,6 +153,7 @@ M.kind = {
     add     = {},
     mul     = { damage = 1.16 },
     tower   = { damage_mul = 1.14 },
+    lane    = {resource = 1},
   },
 
   {
@@ -135,6 +164,7 @@ M.kind = {
     add     = {},
     mul     = { health = 1.22 },
     tower   = { guard_cap = 1 },
+    lane    = {trade = {from = 20, to = 23}},
   },
 }
 -- }}}

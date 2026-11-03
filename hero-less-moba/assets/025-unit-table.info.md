@@ -62,10 +62,11 @@ something else.
 | `cooldown_max` | integer | Ticks between swings. |
 | `kit` | table, optional | `carries`, the pieces always worn, and `maybe`, a list of {piece, chance} tried once each at birth. Only the lane's own soldiers have one. |
 | `arcs` | boolean, optional | Shoots over a line rather than needing a clear one. |
+| `stands` | string, optional | Where a lane's own soldier stands in its wave: `line`, `shoulder` or `behind`. Required of every row the lane deck raises. |
 
 The first rows are melee (1), ranged (2), captain (3), guard (4).
-Rows 19 to 22 are the lane's own soldiers from issue 213 — heavy infantry, light
-infantry, skirmishers and archers — which are what an ordinary wave is drawn from.
+Rows 19 to 23 are the lane's own soldiers from issue 213 — heavy infantry, light
+infantry, skirmishers, archers, and the shieldbearers a Bulwark unlocks — which are what an ordinary wave is drawn from.
 Melee and ranged remain for the arena's posed formations and a siege-surge's stream. A body **copies**
 these values into its own slot at birth; nothing ever reads a row through a
 pointer during a match.

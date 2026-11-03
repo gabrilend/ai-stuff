@@ -33,8 +33,18 @@ deck runs out mid-wave the discards are shuffled and become it.
 one stream object per team — so neither team's draws depend on the other's, and an
 untouched match is still a mirror.
 
-Not here yet: what upgrades do to a deck (a ticket for an entry, a point of income, an
-entry traded for a better one), and placing each kind at its own bearing. That is 213b.
+**The upgrades are what fill it** (213b). At the start of every wave the deck is refitted
+to what the lane holds at that moment, each upgrade kind's `lane` effect counted once
+per copy: a **ticket** for an entry, a point of **resource** (one more ticket turned a
+wave), or a **trade** that unlocks an entry at the cost of the one it takes its
+equipment from. A trade moves as many tickets as the old entry costs bare and adds as
+many points a wave as the new entry's extra pieces cost — the design's own arithmetic.
+No entry goes below none or above its `max`. Gains go on the bottom of the deck and
+losses come off its bottom first. The purse saves up to `saves_for_waves` of the
+lane's current income.
+
+Where each kind stands is read from its row's `stands` by the spawner and the
+formation; see [the waves](039-waves.info.md) and [formations](052-formations.info.md).
 
 ## Exports
 
@@ -44,6 +54,8 @@ entry traded for a better one), and placing each kind at its own bearing. That i
 | `draw_wave(world, team, lane, commander)` | the commander whose turn it is | A list of `{archetype, kit, cost, entry}`, ordered by entry and heaviest first, and the lane's books settled for the wave. |
 | `pile_shuffle(cards, settings, rotation)` | `settings` is `parameters.unit.deck` | The cards, shuffled. Pure. |
 | `cost_of(world, row, mask)` | an archetype row with a kit, and its optional pieces | Its cost, in tickets. |
+| `what_the_lane_holds(world, team, lane)` | | The tickets per entry and the income the lane has this wave, from what is slotted into it. Pure. |
+| `trade_terms(world, trade)` | an upgrade's `lane.trade` | How many tickets one trade moves, and how many points a wave it adds. |
 
 ## Data structures it owns
 
@@ -54,7 +66,8 @@ entry traded for a better one), and placing each kind at its own bearing. That i
 | `draw` | integer[] | The deck, top first. Each card is an index into `parameters.unit.deck.entry`. |
 | `discard` | integer[] | Cards turned this wave. Empty between waves. |
 | `shuffles` | integer | How many shuffles so far, which picks the next rotation of the odd pile counts. |
-| `tickets` | integer[entries] | How many tickets each entry holds. Its start, until 213b. |
+| `tickets` | integer[entries] | How many tickets each entry holds, as of the last refit. |
+| `income` | integer | The income the last wave was refilled with. |
 | `meter` | integer[entries] | Grows by an entry's tickets each wave it is missing; zero once it walks out. |
 | `fielded_total` | integer[entries] | How many of each have walked out of this lane, ever. |
 | `purse` | integer | Tickets the lane may turn. May be negative: that is debt. |

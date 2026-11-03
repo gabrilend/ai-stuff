@@ -18,11 +18,15 @@ cost. Cost is paid in discards; the purse is counted in tickets turned; a meter 
 missing kind out undrawn; never three of a kind; the pile shuffle exactly as specified.
 See [the lane deck](../src/076-the-lane-deck.info.md).
 
-**The second half is not built (213b):** what the upgrades do to a deck — `+1 ticket`,
-`+1 resource`, an entry traded for a better one — and placing each kind at its own
-bearing. Until then every deck holds its starting tickets forever, and a kind stands
-where its reach puts it: line in front, missile behind, heavy nearest the centre of its
-rank because it takes its place first. Cavalry is not built, as specified.
+**The second half is built too (213b): the upgrades are what fill it.** Each upgrade
+kind has a `lane` effect in the [upgrade table](../assets/027-upgrade-table.lua): one more
+ticket for an entry, one more point of income, or a trade that moves an entry's tickets
+to a new entry and adds income for the new one's equipment. A lane's deck is refitted at
+the start of every wave from what is slotted into it then, so pulling an upgrade out
+takes its tickets back. Bulwark unlocks shieldbearers, row 23, the one entry a lane
+starts without. Each kind is placed by its `stands` band: the line sorted heavier
+toward the centre of its rank, skirmishers at the shoulders behind the ends of the
+line, archers behind. Cavalry is not built, as specified.
 
 ## Intended behavior
 
@@ -165,7 +169,7 @@ Ritz**.
   is how much of the deck a choice consumes rather than a price checked against a
   balance, so every card off the top is a point: the one drawn, the ones discarded for
   it, and one set aside. A wave draws until the purse is spent. Income 18 a wave,
-  saving up to 36, starting at 18. The last body may take it into debt.
+  starting at 18. (213b replaced the ceiling of 36 by two waves' income, below.) The last body may take it into debt.
 - **Starting tickets** heavy 2, light 12, skirmishers 8, archers 6 — about the old
   two line to one missile, heavy rare. **Most tickets** per entry twice the start, so
   the doubling rule's threshold is four waves missing for every kind alike.
@@ -191,7 +195,37 @@ Measured on the pinned seed, against main: the match ends at tick 15,389 instead
 14,484, and team 1 wins instead of team 2. Waves are about five bodies beside the
 captain where they were six, because the never-three rule caps the line at four.
 
+## Decisions taken building 213b
+
+Also **chosen by Claude, open for Ritz**, and each a parameter: the effects are the
+`lane` field of each kind in the [upgrade table](../assets/027-upgrade-table.lua), the
+rest are in `M.deck` and row 23 of the [unit table](../assets/025-unit-table.lua).
+
+- **Which upgrade does what.** A melee kind feeds a line entry, a ranged kind a missile
+  entry, the common ones the purse: Plate +1 heavy, Whetstone +1 light, Boots +1
+  skirmisher, Longbow +1 archer, Rations, Drums and Banner +1 income each, Bulwark trades
+  light infantry for shieldbearers. Whetstone and Boots break the melee/ranged pattern
+  so that every entry a lane starts with has an upgrade that makes it turn up more.
+- **The trade's arithmetic is the design's own.** The tickets that move are the old
+  entry's bare cost, one for light infantry; the income added is the new entry's
+  extra always-carried pieces by weight, shield and cap at three weight, two points.
+  An entry never goes past its `max` or below none.
+- **Shieldbearers** are light infantry with a shield and a cap always, starting at none,
+  most eight, standing in the line.
+- **The purse's ceiling is two waves' income** (`saves_for_waves`), rather than a fixed
+  36, so a lane whose upgrades raised its income can save in proportion.
+- **The stat stamping is kept.** Upgrades in a lane still add to the wave's numbers as
+  they did, beside what they now do to the deck. This disagrees with "not a stat bonus
+  applied to a lane"; the chest, the captain rule and doc 010 all still say it is one.
+- **Bearing by band.** Each row says where it `stands`: line, shoulder or behind. The
+  line is sorted by cost, heaviest first, so it takes the centre of each rank.
+  Skirmishers take a new formation role, the shoulder, at the ends of the rank behind
+  the line, from the outside in. Archers stay behind; where they march is still H14's.
+
+Measured on the pinned seed: the long scenario ends at tick 12,295, team 1 winning,
+because the bots slot stones into lanes and those now change what the lanes raise.
+
 ## Still open
 
-Nothing blocking. H10, H11 and H12 are answered above. 213b — upgrades filling the
-deck and the purse, and bearing placement — is the rest of this issue.
+Nothing blocking; 213 is built. One question for Ritz: whether an upgrade in a lane
+should stop stamping numbers onto the wave now that it changes what the lane raises.
