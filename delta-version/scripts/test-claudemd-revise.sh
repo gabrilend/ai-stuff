@@ -228,6 +228,46 @@ function test_audit() {
 }
 # }}}
 
+# -- {{{ test_prune
+# Issue 040d, backup rotation: the newest N backups stay, and so does any a
+# rollback still needs; nothing goes without --yes, and what goes is on the
+# audit trail.
+function test_prune() {
+    local p001 p002
+    p001=$(ls "$STATE"/backups/P001-*.md)
+    p002=$(ls "$STATE"/backups/P002-*.md)
+    run prune
+    check "prune: under the default 100, nothing to prune" "$(has_line "$OUT" "Nothing to prune: 2 backups")"
+    run prune --keep=0
+    check "prune without --yes only shows what would go" \
+        "$(if grep -qF "would remove  $(basename "$p002")" <<< "$OUT" && [ -f "$p002" ]; then echo yes; else echo no; fi)"
+    check "... and keeps the backup a rollback needs (P001 is approved)" \
+        "$(has_line "$OUT" "1 older kept for rollback")"
+    touch "$STATE/backups/P003-20000101-000000.md" "$STATE/backups/notes.md"
+    run prune --keep=1 --yes
+    check "prune --yes removes the backups beyond the newest N, oldest first by the date in the name" \
+        "$(if [ ! -f "$STATE/backups/P003-20000101-000000.md" ] && [ -f "$p002" ] && [ -f "$p001" ]; then echo yes; else echo no; fi)"
+    check "... and says what it kept" "$(has_line "$OUT" "1 backup removed (newest 1 kept, 1 older kept for rollback).")"
+    check "... and leaves files not named as backups alone" "$(if [ -f "$STATE/backups/notes.md" ]; then echo yes; else echo no; fi)"
+    run prune --keep=0 --yes
+    check "prune --keep=0 removes every backup a rollback does not need" \
+        "$(if [ ! -f "$p002" ] && [ -f "$p001" ]; then echo yes; else echo no; fi)"
+    run history --action=pruned
+    check "each removal is on the audit trail" \
+        "$(if [ "$(wc -l <<< "$OUT")" = 2 ] && grep -qF "P002" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run diff P002
+    check "diff of a pruned backup says it was pruned (1)" \
+        "$(if [ "$CODE" = 1 ] && grep -qF "was pruned on" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run verify
+    check "verify: a pruned backup is not a problem" "$(same "$CODE" 0)"
+    run prune --keep=0 --yes
+    check "prune never removes the backup a rollback needs" \
+        "$(if [ -f "$p001" ] && grep -qF "Nothing to prune" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run prune --keep=some
+    check "prune --keep takes a whole number (2)" "$(same "$CODE" 2)"
+}
+# }}}
+
 # -- {{{ main
 function main() {
     setup
@@ -238,6 +278,7 @@ function main() {
     test_approve
     test_rollback
     test_audit
+    test_prune
     stand_in_stop
     [ -n "$KEEP" ] || rm -rf "$SCRATCH"
     echo

@@ -440,3 +440,30 @@ would orphan any trail already kept. `audit.tsv` is append-only already.
 **Still open:** backup rotation, checkpoints, conflict analysis, and
 proposals as an append-only log (their status is rewritten in place
 today).
+
+## Status (2026-11-03, later): backup rotation built
+
+`claudemd-revise.lua prune [--keep=N] [--yes]` is step 7's rotation. It is
+tested in `test-claudemd-revise.sh` (69 checks, 12 of them new).
+
+- It keeps the newest N backups (default 100, as step 7 says) by the date in
+  their names.
+- Whatever their age, it also keeps the backups a rollback still needs: the
+  last approval of each proposal approved now. So rotation never takes away
+  an undo.
+- Without `--yes` it only lists what would go.
+- Each removal is a `pruned` row on `audit.tsv`. `diff` then says the backup
+  was pruned on that date, and `verify` does not count it as missing. Only
+  status rows (proposed, approved, rejected, rolled-back) count as a
+  proposal's timeline in `verify`.
+
+**Decided while building (my own calls):**
+- Rotation is a command, not something `approve` does by itself, so nothing
+  is ever deleted unasked.
+- The old backups it removes are those of rolled-back proposals and earlier
+  approvals. They only serve `diff`.
+
+**Still open:** checkpoints, conflict analysis, and proposals as an
+append-only log. Checkpoints matter less here than in the issue's design,
+because every status can already be rebuilt from `audit.tsv`, and `verify`
+checks that it agrees.

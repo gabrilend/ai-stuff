@@ -29,6 +29,10 @@
 --   claudemd-revise.lua diff ID               what its approval changed
 --   claudemd-revise.lua report [--since=DATE] counts of events, proposals, actions
 --   claudemd-revise.lua verify                check the audit trail and backups
+--   claudemd-revise.lua prune [--keep=N] [--yes]   backup rotation: show which
+--                                             backups beyond the newest N (default
+--                                             100) would go; --yes removes them.
+--                                             A backup a rollback needs is kept.
 --
 -- Options: --state=DIR  where events, proposals, backups and the audit trail
 --          live (default ~/.local/share/claudemd-revisions, outside any
@@ -50,6 +54,7 @@ local config = {
     kinds = { correction = true, instruction = true, convention = true },
     section = "## Learned conventions",
     max_guideline = 200,
+    keep_backups = 100,   -- prune keeps this many of the newest backups
     system_prompt = table.concat({
         "Task: propose-guideline.",
         "You maintain a CLAUDE.md file of working guidelines for an AI coding assistant.",
@@ -467,6 +472,24 @@ local function last_approval(id)
 end
 -- }}}
 
+-- {{{ local function base_name()
+local function base_name(path)
+    return path:match("([^/]*)$")
+end
+-- }}}
+
+-- {{{ local function pruned_backups()
+-- The backups prune has removed: file name -> the audit row that says so.
+local function pruned_backups()
+    local pruned = {}
+    for _, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        local path = entry.action == "pruned" and entry.detail:match("^backup (.+)$")
+        if path then pruned[base_name(path)] = entry end
+    end
+    return pruned
+end
+-- }}}
+
 -- {{{ commands.diff
 -- What an approval changed: the file before it (the backup) against the
 -- file it wrote, rebuilt from the backup and checked against the checksum
@@ -476,7 +499,15 @@ function commands.diff(words)
     local approval = last_approval(row.id) or fail(row.id .. " was never approved", 1)
     local backup, after = approval.detail:match("^backup (.-) after (%x+)$")
     if not backup then fail("the audit trail has no backup for " .. row.id, 1) end
-    local before = read_file(backup) or fail("the backup " .. backup .. " is missing", 1)
+    local before = read_file(backup)
+    if not before then
+        local pruned = pruned_backups()[base_name(backup)]
+        if pruned then
+            fail("the backup " .. backup .. " was pruned on " .. pruned.date:sub(1, 10)
+                .. ", so this change can no longer be shown", 1)
+        end
+        fail("the backup " .. backup .. " is missing", 1)
+    end
     local rebuilt = state_path("backups/.diff-" .. row.id .. ".md")
     write_file(rebuilt, with_guideline(before, row.guideline))
     local matches = checksum(rebuilt) == after
@@ -531,6 +562,9 @@ function commands.verify()
     local problems, notes = {}, {}
     local by_id = {}
     for _, row in ipairs(proposals()) do by_id[row.id] = { row = row, actions = {} } end
+    local status_after = { proposed = "pending", approved = "approved", rejected = "rejected",
+                           ["rolled-back"] = "rolled-back" }
+    local pruned = pruned_backups()
     local previous = ""
     for number, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
         local where = "audit.tsv line " .. number
@@ -544,20 +578,20 @@ function commands.verify()
             if not known then
                 problems[#problems + 1] = where .. ": names " .. entry.id .. ", which is not a proposal"
             else
-                known.actions[#known.actions + 1] = entry
+                -- Only the rows that set a status are its timeline; a
+                -- "pruned" row records a backup removed by rotation.
+                if status_after[entry.action] then known.actions[#known.actions + 1] = entry end
                 if entry.action == "approved" then
                     local backup = entry.detail:match("^backup (.-) after %x+$")
                     if not backup then
                         problems[#problems + 1] = where .. ": an approval with no backup recorded"
-                    elseif not read_file(backup) then
+                    elseif not read_file(backup) and not pruned[base_name(backup)] then
                         problems[#problems + 1] = where .. ": the backup " .. backup .. " is missing"
                     end
                 end
             end
         end
     end
-    local status_after = { proposed = "pending", approved = "approved", rejected = "rejected",
-                           ["rolled-back"] = "rolled-back" }
     local ids = {}
     for id in pairs(by_id) do ids[#ids + 1] = id end
     table.sort(ids)
@@ -590,6 +624,78 @@ end
 -- }}}
 -- }}}
 
+-- {{{ commands.prune
+-- Backup rotation (040d). Every approval leaves a backup, so they would grow
+-- without end. This keeps the newest --keep (default 100) and, whatever their
+-- age, the backups a rollback still needs: the last approval of each
+-- proposal that is approved now. Without --yes it only shows what it would
+-- remove. Each removal is written to the audit trail, so diff and verify
+-- can tell a pruned backup from a lost one.
+function commands.prune(_, options)
+    local keep = tonumber(options.keep or config.keep_backups)
+    if not keep or keep < 0 or keep % 1 ~= 0 then fail("--keep takes a whole number, 0 or more") end
+
+    local status = {}
+    for _, row in ipairs(proposals()) do status[row.id] = row.status end
+    local last = {}
+    for _, entry in ipairs(read_rows(state_path("audit.tsv"), AUDIT_COLUMNS)) do
+        local path = entry.action == "approved" and entry.detail:match("^backup (.-) after %x+$")
+        if path then last[entry.id] = base_name(path) end
+    end
+    local needed = {}
+    for id, name in pairs(last) do
+        if status[id] == "approved" then needed[name] = id end
+    end
+
+    -- The backups on disk, newest first by the date in their names.
+    local files = {}
+    local handle = io.popen("find " .. shell_quote(state_path("backups")) .. " -maxdepth 1 -type f"
+        .. " -name '*.md' ! -name '.*' 2>/dev/null")
+    for path in handle:lines() do
+        -- Only files named as approve names its backups (ID-DATE-TIME.md).
+        local name = base_name(path)
+        local id, stamp = name:match("^(.-)%-(%d+%-%d+)%.md$")
+        if id then files[#files + 1] = { path = path, name = name, id = id, stamp = stamp } end
+    end
+    handle:close()
+    table.sort(files, function(a, b)
+        if a.stamp ~= b.stamp then return a.stamp > b.stamp end
+        return a.name > b.name
+    end)
+
+    local remove, protected = {}, 0
+    for index, file in ipairs(files) do
+        if index > keep then
+            if needed[file.name] then protected = protected + 1
+            else remove[#remove + 1] = file end
+        end
+    end
+    local kept_note = string.format("newest %d kept%s", math.min(keep, #files),
+        protected > 0 and string.format(", %d older kept for rollback", protected) or "")
+    if #remove == 0 then
+        print(string.format("Nothing to prune: %d backup%s (%s).", #files, #files == 1 and "" or "s", kept_note))
+        return 0
+    end
+    for _, file in ipairs(remove) do
+        if options.yes then
+            if os.remove(file.path) then
+                append_row(state_path("audit.tsv"), { os.date("%Y-%m-%d %H:%M:%S"), "pruned", file.id, "-",
+                    "backup " .. file.path })
+                print("removed  " .. file.name)
+            else
+                print("could not remove " .. file.name)
+            end
+        else
+            print("would remove  " .. file.name)
+        end
+    end
+    print(string.format("%d backup%s %s (%s)%s", #remove, #remove == 1 and "" or "s",
+        options.yes and "removed" or "would be removed", kept_note,
+        options.yes and "." or "; run again with --yes to remove them."))
+    return 0
+end
+-- }}}
+
 -- {{{ local function show_help()
 local function show_help()
     local file = io.open(arg[0], "r")
@@ -609,6 +715,7 @@ local function main(argv)
         local key, value = argument:match("^%-%-([%w%-]+)=(.*)$")
         if key then options[key] = value
         elseif argument == "--all" then options.all = true
+        elseif argument == "--yes" then options.yes = true
         elseif argument == "-h" or argument == "--help" then show_help() return 0
         else words[#words + 1] = argument end
     end
@@ -616,11 +723,11 @@ local function main(argv)
     local name = table.remove(words, 1)
     if not name or not commands[name] then
         fail("say what to do: event, events, suggest, propose, list, approve, reject, rollback, "
-            .. "history, show, diff, report or verify")
+            .. "history, show, diff, report, verify or prune")
     end
     for key in pairs(options) do
         if not ({ state = true, min = true, reason = true, target = true, all = true, id = true,
-                  action = true, since = true })[key] then
+                  action = true, since = true, keep = true, yes = true })[key] then
             fail("unknown option --" .. key)
         end
     end
