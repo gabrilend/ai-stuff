@@ -288,11 +288,24 @@ check("git really ignores a page", ignored:find("index.html", 1, true) ~= nil, t
 
 local said_build, built_ok = run_quiet("'" .. SITE .. "/build-pages-before-push' '" .. repo .. "'")
 check("the hook's builder succeeds", built_ok, true)
-check("pages just built are already current", said_build:find("0 rebuilt, 1 already current", 1, true) ~= nil, true)
-os.execute("touch '" .. project .. "/llm-transcripts/sep-2-26.md'")
+if not built_ok then print(said_build) end
+check("pages just built are already current", said_build:find(" 0 pages drawn,", 1, true) ~= nil, true)
 os.execute("sleep 1; touch '" .. project .. "/llm-transcripts/sep-2-26.md'")
 said_build = run_quiet("'" .. SITE .. "/build-pages-before-push' '" .. repo .. "'")
-check("a newer transcript makes the pages rebuild", said_build:find("1 rebuilt", 1, true) ~= nil, true)
+check("a transcript only touched draws nothing: its bytes are the same",
+  said_build:find(" 0 pages drawn,", 1, true) ~= nil, true)
+local touched = io.open(project .. "/llm-transcripts/sep-2-26.md"):read("*a")
+write(project .. "/llm-transcripts/sep-2-26.md", touched .. "\nOne more line.\n")
+said_build = run_quiet("'" .. SITE .. "/build-pages-before-push' '" .. repo .. "'")
+check("a changed transcript draws its page again", said_build:find(" 1 pages drawn,", 1, true) ~= nil, true)
+-- A project git has never committed is named and skipped, not a failure.
+os.execute("mkdir -p '" .. repo .. "/never-committed/llm-transcripts'")
+write(repo .. "/never-committed/llm-transcripts/oct-1-26.md", transcript({ models = "m" },
+  { { "User Request 1", "hi" }, { "Assistant Response 1", "hello" } }))
+local said_new, new_ok = run_quiet("'" .. SITE .. "/build-pages-before-push' '" .. repo .. "'")
+check("a never-committed project does not stop the push", new_ok, true)
+check("... and is named as skipped", said_new:find("skipping " .. repo .. "/never-committed", 1, true) ~= nil, true)
+os.execute("rm -rf '" .. repo .. "/never-committed'")
 
 -- Someone else's hook is left exactly as it was.
 local foreign = "#!/bin/bash\n# someone else's hook\n"
@@ -531,6 +544,29 @@ check("... each under the heading it sits beneath, as a quiet label",
 check("... naming the file", hand:find("docs/questions.md", 1, true) ~= nil, true)
 check("... leaving out the transcripts folder's files", hand:find("not her words", 1, true) == nil, true)
 check("... and says it was written by hand", hand:find("written by hand", 1, true) ~= nil, true)
+print("== pages drawn only when what they are made from changed ==")
+
+-- Built once above; built again with nothing changed, nothing is drawn.
+local again = site.build(own_settings)
+check("a second build with nothing changed draws no page", again.pages_drawn, 0)
+check("... and counts every page as current", again.pages_current, own_report.pages_drawn)
+-- A transcript changed but stamped back to its old time, as the exporter
+-- stamps every transcript with its last message's time.
+local stamped = own .. "/llm-transcripts/sep-2-26.md"
+os.execute("cp -p '" .. stamped .. "' '" .. SCRATCH .. "/stamp'")
+local before = io.open(stamped):read("*a")
+write(stamped, (before:gsub("built\n", "built, and patched later\n", 1)))
+os.execute("touch -r '" .. SCRATCH .. "/stamp' '" .. stamped .. "'")
+local patched = site.build(own_settings)
+check("a transcript changed under its old time is drawn again", patched.pages_drawn, 1)
+local patched_page = io.open(own .. "/llm-transcripts/HTML/sep-2-26.html"):read("*a")
+check("... and its page shows the change", patched_page:find("patched later", 1, true) ~= nil, true)
+os.execute("rm -f '" .. own .. "/llm-transcripts/HTML/.drawn-from'")
+local cleared = site.build(own_settings)
+check("with the record gone, every page is drawn", cleared.pages_drawn, own_report.pages_drawn)
+os.execute("rm -f '" .. own .. "/llm-transcripts/HTML/sep-2-26.html'")
+check("a page missing from disk is drawn again", site.build(own_settings).pages_drawn, 1)
+
 check("a missing evidence_from folder stops the build",
   (pcall(site.build, settings_reader.resolve(own, { evidence_from = { SCRATCH .. "/nowhere" } }))), false)
 

@@ -39,7 +39,7 @@ the page head, JSON), `fonts/` (the monospace the pages ship).
 | `assign-films [project] [--settings file]` | chooses a film for every message that has none (needs the model server) |
 | `start-the-film-models [project] [--settings file]` | starts the local model server the films need |
 | `pull-transcript-site <project> [--commit c] [--without name]...` | copies this library, as committed, into a project |
-| `build-pages-before-push [repository]` | rebuilds every stale project's pages; what the pre-push hook runs |
+| `build-pages-before-push [repository] [--jobs n]` | builds every committed project's pages, several at once, drawing only the pages whose transcript or display code changed; what the pre-push hook runs |
 | `install-pages-hook <repository>...` | installs that hook, and ignores the pages in git |
 
 Each starts with a comment saying what it is; `--help` prints it.

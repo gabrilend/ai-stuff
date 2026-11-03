@@ -63,10 +63,22 @@ written path, and read 61 "other projects'" lines out of a mirror with none.
 ## Rebuilt before every push
 
 `install-pages-hook <repository>...` gives a repository a `pre-push` hook
-running `build-pages-before-push`, which rebuilds every project whose
-transcripts or latest commit are newer than its `llm-transcripts/HTML/`
-pages, and stops the push if one cannot be built. It looks only at the
-default output folder; a project with its own `output` builds itself.
+running `build-pages-before-push`, which hands every project git has
+committed to the builder, one per processor core at a time (`--jobs` to
+change it), names any folder git has never committed and skips it, and
+stops the push if one cannot be built, printing the builder's words.
+
+The builder draws again only the pages whose inputs changed. Each pages
+folder keeps a record, `.drawn-from`, of what each page was drawn from: a
+conversation page's transcript fingerprint (md5 of its bytes, plus its
+films' choices when the project uses films), a by-hand page's commit, and
+one fingerprint of the display side (every Lua file of the library except
+its tests, the project's settings file, the films' descriptions). A
+changed fingerprint, a missing page or a missing record draws the page;
+anything else is left as it is. Fingerprints rather than file times,
+because the exporter stamps each transcript with its last message's time.
+The contents page is always drawn. The report says `pages drawn N, M
+already current`, and the push hook adds those up across projects.
 
 ## When it stops
 

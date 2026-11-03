@@ -229,6 +229,25 @@ committed: `install-pages-hook` gives a repository a pre-push hook that
 rebuilds stale pages (`build-pages-before-push`) and a `.gitignore` line for
 `**/llm-transcripts/HTML/`.
 
+The hook builds projects in parallel, one per processor core, and skips a
+folder git has never committed, naming it. A page is drawn again only when
+what it is made from changed: its transcript's bytes, or the display side
+(the library's code, the project's settings, the films' descriptions),
+recorded as fingerprints in the pages folder's `.drawn-from`. The owner
+asked for it on 2026-11-02: "can we make it so we don't regenerate the
+transcripts if there's no work to do? ... Unless we modified the display
+side of the transcript". Before, a push judged staleness by file times,
+which the exporter's time stamps make unreliable, and rebuilt whole
+projects one after another; a full rebuild of the monorepo took about
+27 minutes, 765 seconds of it the top folder's by-hand pages. It now takes
+about 30 seconds, and a push with nothing changed about 6.
+
+Still open: splitting one large project's pages across several processes
+(each drawing its own pages, so none touch the same file), which the
+owner also asked for. With the record above, the remaining full-rebuild
+cost is the top folder's few very large by-hand pages, so it would help
+only after a display change.
+
 ## Pushing the pages to the Linode (asked 2026-09-26)
 
 The owner asked that the pre-push hook also send the pages to the Linode

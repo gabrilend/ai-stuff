@@ -355,15 +355,36 @@ local function recorded_elsewhere(settings)
 end
 -- }}}
 
--- {{{ local function nearest_heading()
--- The markdown heading at or above a line of a file, without its hashes, or
--- nil when there is none above it.
-local function nearest_heading(file_lines, line_number)
-  for n = math.min(line_number, #file_lines), 1, -1 do
-    local heading = file_lines[n]:match("^#+%s+(.-)%s*$")
-    if heading then return heading end
+-- {{{ local function headings_by_line()
+-- For every line of a file, the markdown heading at or above it, without
+-- its hashes (false where there is none above). Made in one pass down the
+-- file. It replaced a search backwards from each added block, which cost a
+-- whole file's length per block: a by-hand commit that changed 200,000
+-- lines of generated JSON in thousands of blocks took most of a 765-second
+-- build of the repository's top folder (2026-11-03).
+local function headings_by_line(file_lines)
+  local at, current = {}, false
+  for n, line in ipairs(file_lines) do
+    current = line:match("^#+%s+(.-)%s*$") or current
+    at[n] = current
   end
-  return nil
+  return at
+end
+-- }}}
+
+-- {{{ local function in_a_transcripts_folder()
+-- Whether a path lies inside a transcripts folder at any depth: the
+-- project's own (`transcripts_name`), or a nested project's
+-- `llm-transcripts/`. At the repository's top folder, whose project is the
+-- whole repository, every project's transcripts are below it, and they are
+-- conversation exports, never her writing.
+local function in_a_transcripts_folder(path, transcripts_name)
+  for _, name in ipairs({ transcripts_name, "llm-transcripts" }) do
+    if path:sub(1, #name + 1) == name .. "/" or path:find("/" .. name .. "/", 1, true) then
+      return true
+    end
+  end
+  return false
 end
 -- }}}
 
@@ -454,9 +475,9 @@ function M.hand_made_conversation(commit, repository, transcripts_name)
 
   if repository then
     for _, path in ipairs(files_with_text(repository, commit.source)) do
-      if path:sub(1, #transcripts_name + 1) ~= transcripts_name .. "/" then
-        local file_lines = git_lines(repository, "show "
-          .. shell_quote(commit.source .. ":./" .. path))
+      if not in_a_transcripts_folder(path, transcripts_name) then
+        local headings = headings_by_line(git_lines(repository, "show "
+          .. shell_quote(commit.source .. ":./" .. path)))
         local diff = git_lines(repository, "show --format= --unified=0 "
           .. shell_quote(commit.source) .. " -- " .. shell_quote(path))
         -- Walk the diff's hunks. Each "@@ ... +start ..." says where the
@@ -480,7 +501,7 @@ function M.hand_made_conversation(commit, repository, transcripts_name)
         for _, block in ipairs(blocks) do
           local text = table.concat(block.lines, "\n")
           if text:match("%S") then
-            local heading = nearest_heading(file_lines, block.first - 1)
+            local heading = headings[block.first - 1]
             where("`" .. path .. "`" .. (heading and (", under \"" .. heading .. "\"") or ""))
             said(text)
           end
@@ -552,6 +573,70 @@ local function copy_fonts(settings)
 end
 -- }}}
 
+-- {{{ local function fingerprints_of()
+-- The md5 fingerprint (a 32-character hex string) of each file named, as a
+-- table from path to fingerprint, from one md5sum call. A path md5sum cannot
+-- read stops the build: a page judged current from a file nobody could read
+-- would be a guess.
+local function fingerprints_of(paths)
+  local out = {}
+  if #paths == 0 then return out end
+  local quoted = {}
+  for index, path in ipairs(paths) do quoted[index] = shell_quote(path) end
+  local command = "md5sum -- " .. table.concat(quoted, " ")
+  for _, line in ipairs(lines_of(command .. " 2>&1; printf '\\nexit:%s\\n' \"$?\"")) do
+    local sum, path = line:match("^(%x+)  (.+)$")
+    if sum then out[path] = sum end
+    -- Two paths: a fingerprint line (kept), or the exit marker or md5sum's
+    -- complaint, which the check below turns into an error.
+    if line:match("^exit:") and line ~= "exit:0" then
+      error("could not fingerprint the build's inputs: md5sum said " .. line)
+    end
+  end
+  return out
+end
+-- }}}
+
+-- {{{ local function display_fingerprint()
+-- One fingerprint for everything that decides how a page looks rather than
+-- what it says: every Lua file of this library (the reader, the page, the
+-- markdown, the palette, this builder) except its tests, the project's
+-- settings file when it has one, and the films' descriptions when it uses
+-- films. A change to any of them redraws every page, which is the rule the
+-- owner asked for: no rebuild "unless we modified the display side".
+local function display_fingerprint(settings)
+  local files = lines_of("find " .. shell_quote(HERE) .. " -name '*.lua' -not -path '*/tests/*'"
+    .. " -not -path '*/llm-transcripts/*' | sort")
+  if settings.file then files[#files + 1] = settings.file end
+  if settings.films then files[#files + 1] = settings.films.descriptions_file end
+  local sums = fingerprints_of(files)
+  local joined = {}
+  for index, path in ipairs(files) do
+    if not sums[path] then error("could not fingerprint " .. path) end
+    joined[index] = sums[path]
+  end
+  return table.concat(joined, ":")
+end
+-- }}}
+
+-- {{{ local function read_manifest()
+-- The pages folder's record of what each page was last drawn from: a file
+-- `.drawn-from` holding one "<page name>\t<inputs>" line per page. Missing
+-- (a first build, or a cleared folder) means every page is drawn.
+local MANIFEST = ".drawn-from"
+local function read_manifest(settings)
+  local drawn = {}
+  local file = io.open(settings.pages_folder .. "/" .. MANIFEST, "r")
+  if not file then return drawn end
+  for line in file:lines() do
+    local name, inputs = line:match("^([^\t]+)\t(.*)$")
+    if name then drawn[name] = inputs end
+  end
+  file:close()
+  return drawn
+end
+-- }}}
+
 -- {{{ function M.build()
 -- Writes the whole site for one project's resolved settings, and returns a
 -- report: a table of what it counted.
@@ -578,6 +663,32 @@ function M.build(settings)
   run("mkdir -p " .. shell_quote(settings.pages_folder), "make " .. settings.pages_folder)
   copy_fonts(settings)
   local colours_css = settings_reader.colours_css(settings)
+
+  -- WHAT IS ALREADY DRAWN. A page is drawn again only when what it is made
+  -- from has changed since it was last drawn: its transcript's bytes (or,
+  -- for a by-hand page, its commit, which never changes), and the display
+  -- side (display_fingerprint). Fingerprints, not file times: the exporter
+  -- stamps each transcript with its last message's time, so a transcript
+  -- patched later can look older than its page. The contents page is always
+  -- drawn, because any commit can change it.
+  local display = display_fingerprint(settings)
+  local drawn_before, drawn_now = read_manifest(settings), {}
+  local transcript_paths = {}
+  for index, transcript in ipairs(transcripts) do
+    transcript_paths[index] = settings.transcripts .. "/" .. transcript.name
+  end
+  local transcript_sums = fingerprints_of(transcript_paths)
+  report.pages_current, report.pages_drawn = 0, 0
+  local function page_is_current(out_name, inputs)
+    drawn_now[out_name] = inputs
+    -- Two paths: the record matches and the page is on disk (current), or
+    -- either is not so (drawn again).
+    if drawn_before[out_name] ~= inputs then return false end
+    local present = io.open(settings.pages_folder .. "/" .. out_name, "r")
+    if not present then return false end
+    present:close()
+    return true
+  end
 
   -- A transcript's key is its path as the history writes it, so a commit's
   -- list of touched files can be looked up directly; a transcripts folder
@@ -626,17 +737,34 @@ function M.build(settings)
       end
     end
 
-    report.pictures = (report.pictures or 0) + copy_pictures(conversation, settings, name)
     local title = name:gsub("%.md$", "")
     local out_name = title .. ".html"
-    spit(settings.pages_folder .. "/" .. out_name, page.render(conversation, {
-      title = title,
-      back = "index.html",
-      base_path = settings.base_path,
-      colours_css = colours_css,
-      films = films,
-      film_size = settings.films and settings.films.square_px or nil,
-    }))
+    local inputs = display .. "|" .. transcript_sums[settings.transcripts .. "/" .. name]
+    if settings.films then
+      -- The films chosen for this conversation are part of its page too.
+      local choices = matcher.choices_path(settings.films, name)
+      local probe = io.open(choices, "r")
+      if probe then
+        probe:close()
+        inputs = inputs .. "|" .. fingerprints_of({ choices })[choices]
+      end
+    end
+    -- Two paths: drawn last time from exactly these inputs (left as it is),
+    -- or not (its pictures copied and the page drawn).
+    if page_is_current(out_name, inputs) then
+      report.pages_current = report.pages_current + 1
+    else
+      report.pictures = (report.pictures or 0) + copy_pictures(conversation, settings, name)
+      spit(settings.pages_folder .. "/" .. out_name, page.render(conversation, {
+        title = title,
+        back = "index.html",
+        base_path = settings.base_path,
+        colours_css = colours_css,
+        films = films,
+        film_size = settings.films and settings.films.square_px or nil,
+      }))
+      report.pages_drawn = report.pages_drawn + 1
+    end
     written = written + 1
 
     conversations[key_of(name)] = {
@@ -680,11 +808,19 @@ function M.build(settings)
         -- with a mirror and no setting gets the commit message alone.
         local repository = settings.hand_made_from or settings.history
         local out_name = "by-hand-" .. commit.source:sub(1, 7) .. ".html"
-        spit(settings.pages_folder .. "/" .. out_name, page.render(
-          M.hand_made_conversation(commit, repository, settings.transcripts:match("([^/]+)/*$")), {
-            title = commit.subject, back = "index.html", base_path = settings.base_path,
-            colours_css = colours_css,
-          }))
+        -- A commit never changes, so its page is drawn again only when the
+        -- display side or where its files are read from has.
+        local inputs = display .. "|" .. commit.source .. "|" .. tostring(repository)
+        if page_is_current(out_name, inputs) then
+          report.pages_current = report.pages_current + 1
+        else
+          spit(settings.pages_folder .. "/" .. out_name, page.render(
+            M.hand_made_conversation(commit, repository, settings.transcripts:match("([^/]+)/*$")), {
+              title = commit.subject, back = "index.html", base_path = settings.base_path,
+              colours_css = colours_css,
+            }))
+          report.pages_drawn = report.pages_drawn + 1
+        end
         local key = "by-hand:" .. commit.source
         conversations[key] = { href = out_name, title = commit.subject }
         commit.conversation, commit.how = key, "by hand"
@@ -735,6 +871,14 @@ function M.build(settings)
     end
   end
 
+  -- The record of what each page was drawn from, written last, so a build
+  -- that stopped part-way leaves the old record and its pages are drawn
+  -- again next time. Pages no longer made (a conversation gone) drop out.
+  local lines = {}
+  for out_name, inputs in pairs(drawn_now) do lines[#lines + 1] = out_name .. "\t" .. inputs end
+  table.sort(lines)
+  spit(settings.pages_folder .. "/" .. MANIFEST, table.concat(lines, "\n") .. "\n")
+
   return report
 end
 -- }}}
@@ -763,6 +907,8 @@ function M.print_report(report)
   print("  commits        " .. report.commits)
   print("  groups         " .. report.groups)
   print("  written to     " .. report.output)
+  print("  pages drawn    " .. report.pages_drawn .. ", " .. report.pages_current
+    .. " already current")
   print("  commits linked " .. report.linked .. " of " .. report.commits)
   for _, rule in ipairs(attribution.DEFAULT_RULES) do
     if report.how[rule] then
