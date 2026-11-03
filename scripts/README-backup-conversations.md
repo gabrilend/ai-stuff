@@ -36,6 +36,26 @@ helper conversation. The sweep says how many of each it found.
 
 ```bash
 /home/ritz/programming/ai-stuff/scripts/backup-conversations --session <session-id> /path/to/project
+/home/ritz/programming/ai-stuff/scripts/backup-conversations --newest /path/to/project
+```
+
+`--newest` exports the conversation written to last, with its helpers.
+
+### Pick a project from a menu
+`-I` lists every project Claude has conversations on record for, most
+recently active first, with how many each has. The project is read from the
+`cwd` Claude Code records in the session logs; a session folder whose project
+no longer exists is left out. A "Do" list picks what Go does (back up every
+conversation, or the newest), and "Transcripts go to" picks the project's own
+folder or another typed at a prompt (the same as `-o`). The panel below the
+items shows the last four lines of the last run and the newest transcript of
+the project under the cursor. Each backup is a run of the script itself,
+shown as it goes and logged as usual; then the menu opens again with a note
+of how it went. `q` leaves.
+
+```bash
+/home/ritz/programming/ai-stuff/scripts/backup-conversations -I
+/home/ritz/programming/ai-stuff/scripts/backup-conversations -I /path/to/project
 ```
 
 ## Configuration Options
@@ -45,14 +65,19 @@ helper conversation. The sweep says how many of each it found.
 | `--hook` | Stop-hook mode: read `session_id` and `transcript_path` from stdin; the project is `CLAUDE_PROJECT_DIR` |
 | `[--all] [project-dir]` | Sweep every conversation of a project (the default mode) |
 | `--session <id> [project-dir]` | Export one conversation and its helpers |
+| `--newest [project-dir]` | Export the most recent conversation and its helpers |
+| `-I`, `--interactive [project-dir]` | The menu (see above) |
+| `-o`, `--output <folder>` | With any mode: write the transcripts here instead of the project's own folder |
 | `-h`, `--help` | Print the script's header |
 
 With no project named, the project is `CLAUDE_PROJECT_DIR` when running under
 Claude Code and the current folder otherwise.
 
 Environment seams, used by the tests: `CLAUDE_SESSIONS_ROOT` (where Claude
-keeps session logs, default `~/.claude/projects`) and `SCRIPTS_DIR` (where the
-toolchain lives, default `/mnt/mtwo/programming/ai-stuff/scripts`).
+keeps session logs, default `~/.claude/projects`), `SCRIPTS_DIR` (where the
+toolchain lives, default `/mnt/mtwo/programming/ai-stuff/scripts`), and
+`EXEC_TIER_ROOT` / `ARTIFACT_TIER_ROOT` (where the scratch tiers are made,
+default `/tmp` and `/dev/shm`, as in `libs/ensure-ram-tiers`).
 
 ## Finding a project's conversations
 
@@ -370,6 +395,7 @@ the date consumers sort the corpus by is the file's mtime.
 - Standard projects: `{project-dir}/llm-transcripts/`
 - Home directory: `/home/ritz/ai/llm-transcripts/`
 - Nested transcripts: `{dir}/llm-transcripts/transcripts/`
+- With `-o <folder>` (or "Another folder..." in the menu): that folder
 
 ## Related Functions
 
@@ -392,6 +418,8 @@ A missing tool is an error that names the tool, not a skipped backup.
 - `tests/test-backup-conversations-sessions.sh` — which logs each mode exports,
   helper conversations in both layouts, forks, dotted project paths, the lock,
   and every failure path.
+- `tests/test-backup-conversations-interactive.sh` — the `-I` menu, driven in
+  a pretend terminal, plus `--newest`, `-o` and the scratch tiers' roots.
 - `tests/test-transcript-export-guards.sh` — the race guard, husks, and both
   kinds of idempotency.
 - `tests/test-transcript-wrapping.sh` and `tests/test_conversation-parser-*.lua`

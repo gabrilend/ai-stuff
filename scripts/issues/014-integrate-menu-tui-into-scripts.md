@@ -107,3 +107,42 @@ fi
 - `libs/lua-menu.sh` - TUI library documentation
 - `libs/README-lua-menu-user.md` - User guide
 - `libs/README-lua-menu-dev.md` - Developer guide
+
+## What Happened
+
+**2026-11-03: phase 4, backup-conversations.** `backup-conversations -I
+[project]` opens a menu built with `lua-menu.sh`. It lists every project
+Claude has conversations on record for, most recently active first, with how
+many each has. A "Do" list chooses what Go does: back up every conversation
+of the chosen project, or only the newest. "Transcripts go to" chooses the
+project's own folder or another folder typed at a prompt. The panel below
+the items shows the end of the last run and the newest transcript of the
+project under the cursor (the "sample transcript"). After each run the menu
+opens again with a one-line note in the subtitle; q leaves. Tested by
+`tests/test-backup-conversations-interactive.sh` (22 checks: the new command
+line pieces, and a real menu in a pretend terminal against a scratch session
+store).
+
+Decisions:
+
+- **One Go button and a "Do" list**, as in phases 1 and 3: `menu_run` reports
+  only that an action was pressed, and `menu.lua` is left alone.
+- **Every menu choice is also a command-line option.** `--newest` and
+  `-o/--output <folder>` are new. Go runs the script itself with them, so a
+  menu run is logged and checked exactly like a hand-run one.
+- **The project list comes from the session logs' `cwd`,** not from the
+  session folders' names. A folder name can't be turned back into a path,
+  because every non-alphanumeric character became a dash. A folder is listed
+  only when its name matches the recorded `cwd` and that folder still exists.
+- **The output folder is typed at a prompt after the menu closes.** The menu
+  has no text field; its flag items take numbers only.
+- **The menu runs outside the log's `tee`,** because it needs the terminal.
+  It also turns off stop-on-error, which the menu library isn't written for.
+  Each run it starts has stop-on-error on, as before.
+- **The scratch tiers' roots can be overridden** (`EXEC_TIER_ROOT`,
+  `ARTIFACT_TIER_ROOT`, as in `libs/ensure-ram-tiers`), so the test doesn't
+  write to the real `/tmp/ai-stuff-scripts` or `/dev/shm/ai-stuff-scripts`.
+
+Phase 5 (project-file-server) is still to do. Phase 1 (filesystem_scanner.sh)
+is PR #213, phase 3 (state-daemon.sh) is PR #211, and phase 2's sync-visions
+viewer is PR #170 (issue 005).
