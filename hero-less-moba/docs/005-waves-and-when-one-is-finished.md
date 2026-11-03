@@ -46,7 +46,7 @@ What a commander sets is three things and none of them is a stat block:
 | | Set by the commander |
 | --- | --- |
 | **The captain** | which one — its signature body, and the only unit that differs |
-| **The proportion** | how much of the wave is melee and how much is ranged |
+| **The proportion** | how much of the wave may be line and how much missile — the lane's deck decides which bodies fill each half ([213](../issues/213-what-the-lane-can-afford.md)) |
 | **The bounty dice** | which colours its bodies carry, and so what killing them pays |
 
 That is a large simplification and the right one. **A commander is a mixture and

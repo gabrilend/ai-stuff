@@ -499,6 +499,178 @@ M.archetype = {
     cooldown_max = 24,
     deathless    = true,
   },
+
+  -- ---------------------------------------------------------------------------
+  -- The lane's own soldiers (issue 213). Appended rather than renumbered, so that
+  -- nothing which already names a row by number moves.
+  --
+  -- **The differences are equipment rather than statistics.** The four rows below are
+  -- close to one another on purpose: a line body and a missile body, each at two
+  -- reaches. What makes heavy infantry a nearly invincible killing machine is what it
+  -- is wearing and holding, which is in `kit` and drawn at birth from `M.equipment`
+  -- below -- so the same row walks out a little differently every time, and what it
+  -- carries is also what it costs the lane.
+  --
+  -- `kit.carries` is always worn. `kit.maybe` is a list of {piece, chance}, each tried
+  -- once, in order, from the lane's kit stream: a fixed number of draws per body,
+  -- whatever comes up, so that what one body carries never shifts what the next one
+  -- does. Everybody wears gloves and boots.
+  --
+  -- The numbers are a first guess sized so that an average wave weighs about what the
+  -- old four-melee, two-ranged wave did. Chosen by Claude, open for Ritz.
+  -- ---------------------------------------------------------------------------
+
+  -- 19 -- heavy infantry. The full weight of it. Expensive, and rare because of it.
+  {
+    name         = "heavy infantry",
+    flavour      = 1,
+    reach        = 1,
+    radius       = 4.0,
+    health       = 80,
+    damage       = 12,
+    armour       = 1,
+    range        = 17,
+    acquire_range = 74,
+    speed        = 1.15,
+    cooldown_max = 22,
+    kit          = {carries = {"gloves and boots", "mail", "shield", "war blade", "metal cap"},
+                    maybe   = {}},
+  },
+
+  -- 20 -- light infantry. Usually a spear and leather; sometimes a shield, sometimes a
+  -- sword, sometimes both, sometimes a metal cap. The sides of the line, where it can
+  -- flank once a formation can turn.
+  {
+    name         = "light infantry",
+    flavour      = 1,
+    reach        = 1,
+    radius       = 3.6,
+    health       = 80,
+    damage       = 12,
+    armour       = 1,
+    range        = 17,
+    acquire_range = 74,
+    speed        = 1.15,
+    cooldown_max = 22,
+    kit          = {carries = {"gloves and boots", "spear", "leather"},
+                    maybe   = {{"shield", 0.4}, {"sword", 0.3}, {"metal cap", 0.3}}},
+  },
+
+  -- 21 -- skirmishers. Short reach: enough to disable whatever comes near, and no more.
+  -- They shoot *around* the line rather than over it, so they keep the flat arrow's
+  -- need for a clear line.
+  {
+    name         = "skirmisher",
+    flavour      = 1,
+    reach        = 2,
+    radius       = 3.0,
+    health       = 80,
+    damage       = 12,
+    armour       = 1,
+    range        = 64,
+    acquire_range = 104,
+    speed        = 1.15,
+    cooldown_max = 24,
+    kit          = {carries = {"gloves and boots", "javelins", "leather"},
+                    maybe   = {{"metal cap", 0.3}}},
+  },
+
+  -- 22 -- archers. Long reach, artillery: these genuinely shoot **over** a line, across
+  -- a glen, which is what `arcs` says.
+  {
+    name         = "archer",
+    arcs         = true,
+    flavour      = 1,
+    reach        = 2,
+    radius       = 3.0,
+    health       = 80,
+    damage       = 12,
+    armour       = 1,
+    range        = 110,
+    acquire_range = 146,
+    speed        = 1.15,
+    cooldown_max = 28,
+    kit          = {carries = {"gloves and boots", "bow", "leather"},
+                    maybe   = {{"metal cap", 0.2}}},
+  },
+}
+-- }}}
+
+-- {{{ M.equipment
+-- What a body can be carrying, what each piece weighs, and what it adds.
+--
+-- **Cost follows weight.** A body's cost to its lane is its kit's total weight, a
+-- point of cost per `M.deck.weight_per_point`, rounded up and never less than one --
+-- so a heavier draw eats more of the lane's deck and purse, and a lighter one less.
+-- `add` is folded into the body before its lane's upgrades are, so an upgrade
+-- multiplies what the body is actually carrying.
+--
+-- Weights and additions chosen by Claude, open for Ritz.
+M.equipment = {
+  ["gloves and boots"] = {weight = 0, add = {}},
+  ["leather"]   = {weight = 1, add = {health = 10}},
+  ["mail"]      = {weight = 3, add = {health = 60, armour = 3, speed = -0.10}},
+  ["shield"]    = {weight = 2, add = {armour = 2}},
+  ["metal cap"] = {weight = 1, add = {armour = 1}},
+  ["spear"]     = {weight = 1, add = {damage = 4, range = 4}},
+  ["sword"]     = {weight = 1, add = {damage = 3}},
+  ["war blade"] = {weight = 2, add = {damage = 10}},
+  ["javelins"]  = {weight = 1, add = {damage = 4}},
+  ["bow"]       = {weight = 2, add = {damage = 4}},
+}
+-- }}}
+
+-- {{{ M.deck
+-- What a lane can afford: its deck of tickets, its purse, and its meters (issue 213).
+--
+-- **Every number here was left open by the design and chosen by Claude, open for
+-- Ritz.** Each says why it is what it is.
+M.deck = {
+  -- The entries a lane's deck is built from, in this order. `start` is how many
+  -- tickets each begins with -- about the proportion the old fixed wave had, two line
+  -- to one missile, with heavy infantry rare: two tickets in twenty-eight. `max` is the most tickets an entry may ever
+  -- hold, which only upgrades will push toward (213b), set at twice the start so the
+  -- doubling rule below has headroom to mean something.
+  entry = {
+    {archetype = 19, start = 2,  max = 4},    -- heavy infantry
+    {archetype = 20, start = 12, max = 24},   -- light infantry
+    {archetype = 21, start = 8,  max = 16},   -- skirmishers
+    {archetype = 22, start = 6,  max = 12},   -- archers
+  },
+
+  -- Weight per point of cost. Two, so a light infantryman in spear and leather costs
+  -- one, a full set of heavy kit costs four, and nothing is free.
+  weight_per_point = 2,
+
+  -- The purse, **counted in tickets turned**: every card off the top of the deck is a
+  -- point, whether it was drawn, discarded for a body's cost, or set aside. Eighteen
+  -- a wave fields about five bodies beside the captain, measured over a hundred
+  -- waves -- one fewer than the old fixed wave, on purpose: the never-three rule caps
+  -- the line at four, so more purse would have bought heavier waves rather than
+  -- larger ones, and a first guess should err toward the old strength, not past it. It may save up to twice that, so a lane that has been
+  -- cheap for a while can suddenly afford something, and the last body's discards may
+  -- take it into debt, so a lane that drew heavy infantry last is poorer next wave.
+  purse_start      = 18,
+  income_per_wave  = 18,
+  purse_max        = 36,
+
+  -- At most this many drawn bodies in a wave, beside its captain: enough room for two
+  -- of each of the four kinds, which is the most the never-three rule allows anyway.
+  body_cap         = 8,
+
+  -- How many of one kind may walk out together. Two, never three.
+  most_of_a_kind   = 2,
+
+  -- The meter that guarantees a kind turns up. Each wave an entry is not fielded its
+  -- meter grows by its tickets; at twice its `max` one walks out without being drawn.
+  -- At the starting counts that is four waves without one, for every entry alike.
+  meter_doubling   = 2,
+
+  -- The pile shuffle: deal into this many piles and stack them, pass after pass. The
+  -- odd counts rotate from one shuffle to the next (3 5 7, then 5 7 3, then 7 3 5),
+  -- and every other pass is a pile of four, which is the one rule the design fixes.
+  odd_piles        = {3, 5, 7},
+  even_pile        = 4,
 }
 -- }}}
 
@@ -506,13 +678,11 @@ M.archetype = {
 -- What a wave is made of, and how often one leaves the base.
 --
 -- One captain per lane, every wave, which is the rule that makes every lane
--- worth contesting. The melee and ranged counts are the commander's mixture; at
--- prototype scale there is one commander and these are its proportions.
+-- worth contesting. Everybody else in a wave is drawn from its lane's deck, so how
+-- many there are and which kinds is `M.deck`'s business and not a count here.
 M.wave = {
   interval      = 620,   -- ticks between one wave leaving the base and the next
   first_at      = 90,    -- ticks before the very first wave, so a match opens calm
-  melee_count   = 4,
-  ranged_count  = 2,
   captain_count = 1,
 
   -- Ticks between two bodies of the same wave stepping out of the library, so a

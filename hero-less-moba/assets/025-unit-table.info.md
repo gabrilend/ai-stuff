@@ -42,7 +42,9 @@ something else.
 | `decay_ticks` | integer | How long a fallen body holds its slot before its death is final. **Two sync cycles**, written as that multiplication rather than as a number, so that changing the cadence carries this with it. See issue 210. |
 | `archetype` | array of rows | One row per kind of body. A body's `archetype` field is an index into this. |
 | `max_radius` | number | The biggest body in the catalogue, in paces. **Derived from the rows**, not written down, so an archetype larger than the Golem cannot silently make a spatial query too small to find it. |
-| `wave` | table | What a wave is made of and how often one leaves the base. |
+| `wave` | table | How often a wave leaves the base, and its one captain. |
+| `equipment` | table | Every piece a body can carry: its weight, and what it adds. |
+| `deck` | table | What a lane can afford: its deck's entries, its purse and its meters. Every number in it is chosen by Claude and open for Ritz. |
 
 ## An archetype row
 
@@ -58,8 +60,13 @@ something else.
 | `acquire_range` | double | Wider than `range`, so a body commits to a fight slightly before it can hit. |
 | `speed` | double | Paces per tick. |
 | `cooldown_max` | integer | Ticks between swings. |
+| `kit` | table, optional | `carries`, the pieces always worn, and `maybe`, a list of {piece, chance} tried once each at birth. Only the lane's own soldiers have one. |
+| `arcs` | boolean, optional | Shoots over a line rather than needing a clear one. |
 
-The four rows are melee (1), ranged (2), captain (3), guard (4). A body **copies**
+The first rows are melee (1), ranged (2), captain (3), guard (4).
+Rows 19 to 22 are the lane's own soldiers from issue 213 — heavy infantry, light
+infantry, skirmishers and archers — which are what an ordinary wave is drawn from.
+Melee and ranged remain for the arena's posed formations and a siege-surge's stream. A body **copies**
 these values into its own slot at birth; nothing ever reads a row through a
 pointer during a match.
 
@@ -69,8 +76,6 @@ pointer during a match.
 | --- | --- | --- |
 | `interval` | integer | Ticks between one wave leaving the base and the next. |
 | `first_at` | integer | Ticks before the very first wave, so a match opens calm. |
-| `melee_count` | integer | Melee bodies per wave per lane. |
-| `ranged_count` | integer | Ranged bodies per wave per lane. |
 | `captain_count` | integer | **One per lane, every wave.** |
 | `stagger` | integer | Ticks between two bodies of the same wave stepping out, so a wave leaves as a column. |
 

@@ -298,6 +298,12 @@ local function make_soldier_arrays(capacity, kind_count)
   -- This tick's cohesion multiplier on speed. Bodies behind their place hurry and
   -- bodies ahead of it wait, and the two are the same budget moved around.
   soldier.speed_scale       = zeroed(capacity)
+  -- Which of its row's optional pieces this body was born carrying, one bit per entry
+  -- of the row's `kit.maybe`, in order. Set before `give_body` by whatever raised the
+  -- body, and read by `give_body` alone -- so a sweep that clears a body back to its
+  -- row and rebuilds it gives it back the same shield it was born with, rather than
+  -- the shield being a thing that only existed between birth and the first boon.
+  soldier.kit               = zeroed(capacity)
   -- Which colour this body pays out when it dies, decided by the commander that
   -- fielded it. **You farm what the enemy fields**, so their commander selection
   -- decides what you can afford.
@@ -740,6 +746,46 @@ function M.give_body(world, id, row)
   soldier.target_generation[id] = 0
   soldier.target_structure[id]  = 0
   soldier.incoming_dps[id]  = 0
+
+  -- What it is carrying, folded in on top of the row. Part of the copy rather than a
+  -- stamp applied afterwards, because what a body is wearing is what it *is* -- a
+  -- heavy infantryman is a row in mail, not a row that was later given mail -- and
+  -- because every sweep that rebuilds a body goes through here.
+  local kit = row.kit
+  if kit ~= nil then
+    local equipment = world.parameters.unit.equipment
+    for _, piece in ipairs(kit.carries) do
+      M.wear(soldier, id, equipment, piece)
+    end
+    local mask = soldier.kit[id]
+    for index, maybe in ipairs(kit.maybe) do
+      if math.floor(mask / 2 ^ (index - 1)) % 2 == 1 then
+        M.wear(soldier, id, equipment, maybe[1])
+      end
+    end
+    soldier.health[id] = soldier.health_max[id]
+  end
+end
+-- }}}
+
+-- {{{ function M.wear()
+-- One piece of equipment, added to a body's own numbers.
+--
+-- A piece the equipment table does not know is an error, not a piece that weighs
+-- nothing: a misspelt shield would otherwise walk out as a body that is quietly
+-- worse than the one somebody wrote down.
+function M.wear(soldier, id, equipment, piece)
+  local row = equipment[piece]
+  if row == nil then
+    error("a body is carrying '" .. tostring(piece) .. "', which the equipment table does not have")
+  end
+  local add = row.add
+  if add.health        then soldier.health_max[id]    = soldier.health_max[id]    + add.health end
+  if add.damage        then soldier.damage[id]        = soldier.damage[id]        + add.damage end
+  if add.armour        then soldier.armour[id]        = soldier.armour[id]        + add.armour end
+  if add.range         then soldier.range[id]         = soldier.range[id]         + add.range end
+  if add.acquire_range then soldier.acquire_range[id] = soldier.acquire_range[id] + add.acquire_range end
+  if add.speed         then soldier.speed[id]         = soldier.speed[id]         + add.speed end
 end
 -- }}}
 

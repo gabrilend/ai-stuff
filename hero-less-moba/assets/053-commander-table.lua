@@ -71,7 +71,7 @@ M.rung_interval = 2400
 -- | Field | Meaning |
 -- | --- | --- |
 -- | `captain` | Row in the unit table. Its signature body, and the only wave unit that differs between commanders. |
--- | `melee_share` | What proportion of a wave is melee. The rest is ranged. |
+-- | `melee_share` | How much of a wave may be line (reach one); the rest may be missile. The lane's deck decides which bodies fill each half (issue 213). |
 -- | `bounty` | Which colours its bodies carry, and in what ratio. Killing them pays this. |
 -- | `roster` | Rows in the unit table. The heroes this commander may buy. |
 M.commander = {

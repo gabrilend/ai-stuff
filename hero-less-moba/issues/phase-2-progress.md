@@ -26,7 +26,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 211c | A formation is a circle that faces where it is going | built |
 | 211d | Marching speed is not running speed | gears built; running not |
 | 212 | A beaten body gets one roll | not started |
-| 213 | What the lane can afford | not started — fully specified |
+| 213 | What the lane can afford | half built — the deck, its four kinds and their kit (213a); upgrades filling it and bearing placement are not (213b) |
 | 214 | Going round what is in the way | built — and neither of its two designs was |
 | 215 | A body has a size | built, except that size does not grow with upgrades |
 | 216 | Movement is a goal and a step | in progress — the umbrella |
