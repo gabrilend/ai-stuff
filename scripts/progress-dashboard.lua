@@ -36,8 +36,13 @@
 -- The project read when no directory is given. Hard-coded per the house rule;
 -- override with a positional argument or -d.
 local DIR = "/home/ritz/programming/ai-stuff/scripts"
--- Where this tool and its shared library live, independent of DIR.
-local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and its shared library live, independent of DIR: beside
+-- this file, so a checkout tests its own copy. Read from this file's own path
+-- (not arg[0], which names the caller when this is loaded with dofile); the
+-- house path when that is unknown.
+local SCRIPTS_DIR = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")
+    or (debug.getinfo(1, "S").source:match("^@[^/]*$") and ".")
+    or "/home/ritz/programming/ai-stuff/scripts"
 -- }}}
 
 local issue_names = dofile(SCRIPTS_DIR .. "/libs/issue-names.lua")

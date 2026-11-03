@@ -52,7 +52,9 @@
 set -euo pipefail
 
 DIR="/home/ritz/programming/ai-stuff/scripts"
-RUNNER_HOME="/home/ritz/programming/ai-stuff/scripts"
+# Where this runner and its libraries live: beside this file, so a checkout
+# runs its own copy (the house path is where this file normally is).
+RUNNER_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # {{{ configuration
 FILTER=""

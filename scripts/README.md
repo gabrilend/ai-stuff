@@ -52,6 +52,13 @@ Generates prettified commit logs segmented by project phase. Outputs human-reada
 ./git-history.sh -I             # Interactive TUI mode
 ```
 
+### The Phase A tools together
+`git-history.sh`, `progress-dashboard.lua`, `test-runner.sh`, `validate-issues` and `update-toc` are tested as one by `tests/test-phase-a-integration.sh`. To see them all on a project:
+
+```bash
+issues/completed/demos/phase-a-demo.sh /path/to/project   # read-only; -I to pick tools
+```
+
 ### sync-visions.sh
 Discovers and symlinks vision documents from all projects into a centralized `visions/` directory. Provides statistics on documentation coverage.
 

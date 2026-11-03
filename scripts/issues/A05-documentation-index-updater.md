@@ -4,6 +4,7 @@
 **Type:** Tool
 **Priority:** Low
 **Dependencies:** None
+**Blocks:** A07 (the phase-A integration test)
 
 ---
 
