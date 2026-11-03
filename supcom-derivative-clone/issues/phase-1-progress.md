@@ -25,7 +25,7 @@ blind.
 | 110 | The headless runner | built |
 | 111 | A terminal viewer, so we are not blind | built |
 | 112 | Territory is painted on cells | built |
-| 113 | Every mechanic has a test | not started |
+| 113 | Every mechanic has a test | built |
 
 **Blocking:** nothing outside the phase. B4 (ticks per second) and B5 (field size
 and shell speed) are working rulings the phase can proceed on; they are numbers
@@ -35,4 +35,4 @@ in the catalogue and change nothing structural.
 name the stems each issue's source file must take. Read
 `docs/014-the-tests-come-first.md` before claiming a file.
 
-**Demo:** not yet built.
+**Demo:** built. `./run-phase-demo 1` runs [phase-1-demo](completed/demos/phase-1-demo): the phase's checks first, then ten thousand ticks on one seed twice to the same hash, the first run's log replayed, and the field drawn as text.

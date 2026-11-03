@@ -18,7 +18,7 @@
 
 -- 019-the-dunes-and-the-clock.lua
 --
--- covers: 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112
+-- covers: 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113
 --
 -- Phase 1: the field, sightlines, flat arrays, the tick order, the timer pair,
 -- named streams, the command door, snapshots, territory.
@@ -816,6 +816,90 @@ harness.suite("the claim is the tick's sixth row, and refuses what is not a team
   harness.check("a cell off the field is refused by index",
                 not ok and tostring(problem):find("cell 0", 1, true) ~= nil, problem)
 end)
+-- }}}
+
+-- {{{ every mechanic has a test
+harness.suite("a test's world is assembled through the tick", function()
+  local world, cast = harness.fresh_world({field = FIELD, units = 16, teams = 2, seed = SEED},
+                                          {"territory"})
+  local the_world = harness.load("the-world", "104")
+  harness.check("fresh_world hands back a world that validates",
+                pcall(the_world.validate, world))
+  harness.check("and the modules it was asked for, keyed by stem",
+                type(cast.territory) == "table" and type(cast.territory.claim) == "function")
+  harness.check("the world starts at tick zero with the seed it was given",
+                world.tick == 0 and world.seed == SEED)
+  local ok, problem = pcall(harness.fresh_world, {field = FIELD, units = 16, teams = 2},
+                            {"no-such-stem"})
+  harness.check("asking for a module that does not exist is refused by its stem",
+                not ok and tostring(problem):find("no-such-stem", 1, true) ~= nil, problem)
+end)
+
+harness.suite("source with no test naming its issue fails the validator", function()
+  -- A copy of the whole project, so the real covers lines are never touched.
+  -- The copy is checked as it is, then with a covers entry taken away whose
+  -- stem has no source yet, then with one whose stem has.
+  local holder = "/tmp/supcom-derivative-clone/019-a-census"
+  local root = holder .. "/supcom-derivative-clone"
+  os.execute("rm -rf '" .. holder .. "' && mkdir -p '" .. holder .. "' && cp -r '"
+             .. harness.root .. "/.' '" .. root .. "'")
+  local function validate()
+    local handle = io.popen("'" .. root .. "/validate-documentation' '" .. root .. "' 2>&1; echo \"exit $?\"")
+    local text = handle:read("*a")
+    handle:close()
+    return text, tonumber(text:match("exit (%d+)%s*$"))
+  end
+  local function uncover(file, issue)
+    local path = root .. "/tests/" .. file
+    local handle = io.open(path, "r")
+    local text = handle:read("*a")
+    handle:close()
+    local line = text:match("\n(%-%-%s*covers:[^\n]*)")
+    local changed = line:gsub(",%s*" .. issue .. "%f[%D]", ""):gsub(":%s*" .. issue .. ",%s*", ": ")
+    text = text:gsub(line:gsub("%p", "%%%0"), (changed:gsub("%%", "%%%%")), 1)
+    handle = io.open(path, "w")
+    handle:write(text)
+    handle:close()
+    return changed ~= line
+  end
+  local text, status = validate()
+  harness.check("the project as it stands has no untested source",
+                text:find("untested source", 1, true) == nil and status == 0, text)
+  local taken = uncover("020-things-that-roll-fly-and-sail.lua", "201")
+  text, status = validate()
+  harness.check("an issue with no source behind it yet is only counted, never failed",
+                taken and status == 0 and text:find("untested source", 1, true) == nil, text)
+  taken = uncover("019-the-dunes-and-the-clock.lua", "112")
+  text, status = validate()
+  harness.check("with territory's issue named by no test, the validator fails",
+                taken and status ~= 0, text)
+  harness.check("and the failure names the stem and the issue that owns it",
+                text:find("'territory'", 1, true) ~= nil and text:find("names 112", 1, true) ~= nil,
+                text)
+  os.execute("rm -rf '" .. holder .. "'")
+end)
+
+-- {{{ a module loaded from inside src/ by a bare name
+-- What went wrong: a module finds the world module beside it by taking its own
+-- path from the debug library and cutting off the file name. Loaded as a bare
+-- name from inside src/ -- `dofile("031-the-tick.lua")` -- the path has no slash
+-- to cut at, the directory came out as nothing, and the load died before the
+-- first tick. The fix makes a relative path absolute from PWD first.
+harness.suite("a module loaded by a bare name from inside src/ still finds its siblings", function()
+  harness.load("the-tick", "105")
+  local name
+  local handle = io.popen("ls -1 '" .. harness.root .. "/src'")
+  for entry in handle:lines() do
+    if entry:match("^%d%d%d%-the%-tick%.lua$") then name = entry end
+  end
+  handle:close()
+  handle = io.popen("cd '" .. harness.root .. "/src' && luajit -e \"local tick = dofile('"
+                    .. name .. "'); io.write(#tick.SYSTEMS)\" 2>&1")
+  local said = handle:read("*a")
+  handle:close()
+  harness.check("the tick loads and lists its systems", said == "13", said)
+end)
+-- }}}
 -- }}}
 
 harness.finish()

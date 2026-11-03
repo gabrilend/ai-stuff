@@ -5,19 +5,18 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 101 |
 | Blocks | — |
-| Reads | [the tests come first](../docs/014-the-tests-come-first.md) |
+| Reads | [the tests come first](../../docs/014-the-tests-come-first.md) |
 | Open questions | none |
 
 ## Current behavior
 
-The tests exist before the source does. Under `tests/` there is a harness and
-ten test programs, one per phase, each carrying a line naming the issues it
-covers; `./validate-documentation` refuses a coverage claim on an issue that
-has no file and **counts** how many issues have a test naming them. The count
-is reported and does not fail, because at this stage the tests are the
-specification and the number is the interesting part. `./run-tests` runs every
-program under `tests/` and reports each named absence as a failure, never a
-skip.
+Built. The census in `./validate-documentation` reads the stems from the
+contract table in the tests document and **fails** for any stem whose file
+exists under `src/` or `assets/` while no test's covers line names the issue
+that owns it; a stem with no file is still only counted. The harness has
+`fresh_world(parameters, modules)`, which assembles a world through the tick.
+The phase 1 demo, `issues/completed/demos/phase-1-demo`, starts by running the
+written checks and phase 1's program and stops on any that does not hold.
 
 ## Intended behavior
 
@@ -67,12 +66,41 @@ shown on a build whose own checks do not hold.
 4. Add `fresh_world` to the harness once issue 105's assemble exists.
 5. Have every phase demo begin by running the tests.
 
+## What happened
+
+- **The owner of a stem is the first issue its row names**, the one that
+  creates the file -- the same issue the harness names in an absence. A row
+  like `the-tick | 105, 801` asks for 105; later issues that add exports to a
+  stem are left to the count, so the census does not fail an issue that is
+  under-claimed on purpose.
+- **Assets count as source.** `the-rules` lives in `assets/`, and the census
+  looks there too, so a catalogue table with no test is caught the same way.
+- **The report stays `finish()`**, which all ten programs already call; the
+  table above said `report()`. Renaming it would touch every program for no
+  gain, so the documents say `finish()` now.
+- **`fresh_world` takes the parameters and an optional list of stems** and
+  returns the world and those modules, exactly what the tick's `assemble`
+  returns, so a test's world is validated the way a match's is.
+- **The phase 1 demo runs the phase's own checks, and lets a later phase's
+  absence through.** The original territory suite stands a tank on the ground
+  and so waits for issue 201; an absence whose issue is outside phase 1 is
+  printed by name and does not stop the demo, while any failed claim, any
+  phase 1 absence, or any written problem does. Then it plays ten thousand
+  ticks on one seed twice and prints both hashes, replays the first run's log,
+  and draws the field.
+- **One bug fixed this phase has its test**: a module loaded by a bare name
+  from inside `src/` could not find its directory. The test fails without the
+  fix (checked by removing it). The other fixes this phase were to the tests
+  themselves or were caught by tests that already existed.
+- The census and `fresh_world` are tested in phase 1's program on a scratch
+  copy of the project, so the real covers lines are never edited.
+
 ## Related documents and tools
 
-- [The tests come first](../docs/014-the-tests-come-first.md)
-- [The shape of the code](../docs/013-the-shape-of-the-code.md)
-- The harness: [the harness](../tests/018-the-harness.lua)
-- The phase 1 program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The tests come first](../../docs/014-the-tests-come-first.md)
+- [The shape of the code](../../docs/013-the-shape-of-the-code.md)
+- The harness: [the harness](../../tests/018-the-harness.lua)
+- The phase 1 program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 - `./run-tests`, `./validate-documentation`
 
 ## Still open
