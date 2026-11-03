@@ -26,6 +26,7 @@ struct slot {
     int32_t   owner;
     uint32_t  z;
     uint32_t *pixels;
+    uint8_t   damage;               /* written and read only through the atomics */
 };
 
 static struct slot   slots[SURFACE_MAX];
@@ -129,6 +130,7 @@ int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, 
             s->owner = owner;
             s->z = next_z++;
             s->pixels = pixels;
+            atomic_store_release(&s->damage, 1);    /* its first frame shows it */
             answer = handle_of(i);
             break;
         }
@@ -217,6 +219,7 @@ int surface_resize(int32_t handle, int width, int height)
         s->pixels = fresh;
         s->width = width;
         s->height = height;
+        atomic_store_release(&s->damage, 1);
         answer = SURFACE_OK;
     }
     spin_unlock(&lock);
@@ -242,6 +245,7 @@ int surface_set_position(int32_t handle, int x, int y)
     } else {
         s->x = x;
         s->y = y;
+        atomic_store_release(&s->damage, 1);
         answer = SURFACE_OK;
     }
     spin_unlock(&lock);
@@ -313,5 +317,53 @@ int surface_list(int screen, int32_t *out, int max)
         out[i] = handles[i];
     }
     return n;
+}
+/* }}} */
+
+/* {{{ surface_mark_dirty */
+int surface_mark_dirty(int32_t handle)
+{
+    int answer = SURFACE_NO_HANDLE;
+    spin_lock(&lock);
+    struct slot *s = slot_of(handle);
+    if (s) {
+        /* Release: the pixels written before this are visible to whoever
+         * sees the bit set. Every core of the box writes the same 1, so
+         * two marking at once is one mark. */
+        atomic_store_release(&s->damage, 1);
+        answer = SURFACE_OK;
+    }
+    spin_unlock(&lock);
+    return answer;
+}
+/* }}} */
+
+/* {{{ surface_is_dirty */
+int surface_is_dirty(int32_t handle)
+{
+    int answer = SURFACE_NO_HANDLE;
+    spin_lock(&lock);
+    struct slot *s = slot_of(handle);
+    if (s) {
+        answer = atomic_load_acquire(&s->damage) != 0;
+    }
+    spin_unlock(&lock);
+    return answer;
+}
+/* }}} */
+
+/* {{{ surface_take_dirty */
+int surface_take_dirty(int32_t handle)
+{
+    int answer = SURFACE_NO_HANDLE;
+    spin_lock(&lock);
+    struct slot *s = slot_of(handle);
+    if (s) {
+        /* Clear and read in one step, before the copy: a mark made while
+         * the compositor copies lands after this and is seen next frame. */
+        answer = atomic_swap(&s->damage, (uint8_t)0) != 0;
+    }
+    spin_unlock(&lock);
+    return answer;
 }
 /* }}} */
