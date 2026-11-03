@@ -4,7 +4,7 @@
 # 099 — sun-just-past-behind-no-snap
 
 - **Picture:** 099-sun-just-past-behind-no-snap.png
-- **Commit:** 3cba5ed0a 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
+- **Commit:** 26ccbb9ed 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
 - **Run:** `run --screenshot 36.8` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests

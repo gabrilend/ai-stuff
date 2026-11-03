@@ -4,7 +4,7 @@
 # 089 — facing-follow-0-5-near
 
 - **Picture:** 089-facing-follow-0-5-near.png
-- **Commit:** 4808343fa 2026-10-10 centered-ui-design: view dials proven end to end, a steady console, upright villagers
+- **Commit:** 40c84a2c6 2026-10-10 centered-ui-design: view dials proven end to end, a steady console, upright villagers
 - **Run:** `run --wheel-with 24 a -4 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

@@ -4,7 +4,7 @@
 # 141 — light-pipe-gltf-the-hall-from-the-back-lit
 
 - **Picture:** 141-light-pipe-gltf-the-hall-from-the-back-lit.png
-- **Commit:** 3c0cb88d7 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
+- **Commit:** 17eb2ae09 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M src/018-the-light-pipe-model.lua
@@ -13,7 +13,7 @@
 ## What changed
 
 Compared with picture 140:
-- commit: 7389d1c1b -> 3c0cb88d7
+- commit: 23f182d02 -> 17eb2ae09
 - changed: src/011-the-tests.test.lua
 - changed: src/018-the-light-pipe-model.lua
 

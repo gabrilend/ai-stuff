@@ -4,7 +4,7 @@
 # 020 — console-metal-brushed-along-the-arch-at-noon
 
 - **Picture:** 020-console-metal-brushed-along-the-arch-at-noon.png
-- **Commit:** 753de1eba 2026-10-10 centered-ui-design: the world's rings follow the console's arch
+- **Commit:** 11d975d1d 2026-10-10 centered-ui-design: the world's rings follow the console's arch
 - **Run:** `run --screenshot 0.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/012-made-by-formula.lua
@@ -15,7 +15,7 @@
 ## What changed
 
 Compared with picture 019:
-- commit: 76f335172 -> 753de1eba
+- commit: 561bcd318 -> 11d975d1d
 - changed: src/012-made-by-formula.lua
 - changed: src/014-the-dashboard.lua
 - changed: src/016-the-game.lua

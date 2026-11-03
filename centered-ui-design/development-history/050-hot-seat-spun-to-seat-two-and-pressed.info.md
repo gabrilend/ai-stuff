@@ -4,7 +4,7 @@
 # 050 — hot-seat-spun-to-seat-two-and-pressed
 
 - **Picture:** 050-hot-seat-spun-to-seat-two-and-pressed.png
-- **Commit:** d4e5af531 2026-10-10 centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge
+- **Commit:** 0851eb669 2026-10-10 centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge
 - **Run:** `run --drag 24 1300 990 400 990 0.8 --click 27 280 968 --screenshot 27.3` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/014-the-dashboard.lua
@@ -13,7 +13,7 @@
 ## What changed
 
 Compared with picture 049:
-- commit: f99ef3260 -> d4e5af531
+- commit: 6ecd6e142 -> 0851eb669
 - changed: src/014-the-dashboard.lua
 - changed: src/016-the-game.lua
 

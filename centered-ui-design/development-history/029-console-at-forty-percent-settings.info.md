@@ -4,7 +4,7 @@
 # 029 — console-at-forty-percent-settings
 
 - **Picture:** 029-console-at-forty-percent-settings.png
-- **Commit:** ea3d1a658 2026-10-10 centered-ui-design: a console lit like a desk, and magic circles
+- **Commit:** 0722349aa 2026-10-10 centered-ui-design: a console lit like a desk, and magic circles
 - **Run:** `run --key 24 escape --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

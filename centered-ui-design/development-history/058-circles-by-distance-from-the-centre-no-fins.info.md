@@ -4,7 +4,7 @@
 # 058 — circles-by-distance-from-the-centre-no-fins
 
 - **Picture:** 058-circles-by-distance-from-the-centre-no-fins.png
-- **Commit:** 619895b42 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
+- **Commit:** 632aaea7d 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
 - **Run:** `run --screenshot 20.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests

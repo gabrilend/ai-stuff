@@ -1,11 +1,11 @@
 <!-- made by scripts/capture-history on 2026-10-10 20:16, from the
-     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/ebcd945c1/game-at-ebcd945c1 --click 0.6 300 300 --screenshot 1.8 -->
+     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/69e64a987/game-at-69e64a987 --click 0.6 300 300 --screenshot 1.8 -->
 
 # 002 — figures-on-bent-limbs-and-the-arch
 
 - **Picture:** 002-figures-on-bent-limbs-and-the-arch.png
-- **Commit:** ebcd945c1 2026-10-10 centered-ui-design: units walk on bent limbs, and the console becomes an arch
-- **Run:** `run --click 0.6 300 300 --screenshot 1.8` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/ebcd945c1/game-at-ebcd945c1)
+- **Commit:** 69e64a987 2026-10-10 centered-ui-design: units walk on bent limbs, and the console becomes an arch
+- **Run:** `run --click 0.6 300 300 --screenshot 1.8` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/69e64a987/game-at-69e64a987)
 
 ## What it shows
 

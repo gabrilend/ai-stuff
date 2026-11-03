@@ -29,7 +29,7 @@ describe functionality as it stood several phases ago, not as it is now.
   where the project standard is `luajit`.)
 - **Demos that point at deleted code** (found 2026-10-04 by
   `scripts/audit-orphan-files`). The golden-prioritization template system was
-  deleted (commit afae1dced), but two demos still depend on it:
+  deleted (commit aff431d1b), but two demos still depend on it:
   - `demos/3-demo.sh` checks for `src/html-generator/golden-collection-generator.lua`
     and `src/html-generator/template-engine.lua`, finds neither, prints
     "⚠️ Component not found" and carries on -- a warning shown as part of the

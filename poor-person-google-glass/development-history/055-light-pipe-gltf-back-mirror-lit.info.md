@@ -4,7 +4,7 @@
 # 055 — light-pipe-gltf-back-mirror-lit
 
 - **Picture:** 055-light-pipe-gltf-back-mirror-lit.png
-- **Commit:** d0c94b3e0 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
+- **Commit:** c289005c1 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M src/005-gltf.lua
@@ -17,7 +17,7 @@
 ## What changed
 
 Compared with picture 054:
-- commit: e9924b358 -> d0c94b3e0
+- commit: 3e389566b -> c289005c1
 - changed: src/005-gltf.lua
 - changed: src/008-say-goodbye.lua
 - changed: src/009-the-orbit-camera.lua

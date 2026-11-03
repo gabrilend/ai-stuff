@@ -4,7 +4,7 @@
 # 013 — slant-view-mid-turn
 
 - **Picture:** 013-slant-view-mid-turn.png
-- **Commit:** df3d0ea23 2026-10-10 centered-ui-design: every screenshot is kept, with what changed
+- **Commit:** b93b2e70d 2026-10-10 centered-ui-design: every screenshot is kept, with what changed
 - **Run:** `run --wheel 9.6 1 --screenshot 9.85` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

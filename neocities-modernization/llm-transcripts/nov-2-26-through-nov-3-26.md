@@ -1,6 +1,6 @@
 # Conversation Summary: 844daecf-7be6-4b4f-bae3-423139ef88d7
 
-Generated on: 2026-11-03 11:34:56
+Generated on: 2026-11-03 11:41:16
 Models: claude-opus-5-5
 
 ## Contents
@@ -21,6 +21,10 @@ Models: claude-opus-5-5
    and the download is now fixed so plain zip and unzip open it. Next, run
    ./scripts/deploy-to-neocities --prune, then tell me if I can commit both
    changes together.
+5. 2026-11-03 11:37, after Request 26 - The neocities fixes are all committed:
+   every program now names its folder with --dir, and the download is split into
+   pieces zip can rejoin. Next, run ./scripts/deploy-to-neocities --prune to
+   finish the deploy, then tell me whether tests should get notes files.
 
 --------------------------------------------------------------------------------
 
@@ -1659,6 +1663,65 @@ made since the last commit, so none rode along.
   `./scripts/deploy-to-neocities --prune`.
 - **The folder-flag issue** is waiting on your answer: should tests get notes
   files too? Each test's header already says what it checks.
+
+--------------------------------------------------------------------------------
+
+### User Request 27
+
+> - The folder-flag issue is waiting on your answer: should tests get notes
+> files too? Each test's header already says what it checks.
+
+no
+
+> - The deploy hasn't run, so the download issue stays open until it does:
+> ./scripts/deploy-to-neocities --prune.
+
+running now
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 27
+
+> Closing the folder-flag issue with your "no". The deploy only reads the built
+> site, so editing and moving issue files can't disturb it.
+
+> Adding the folder-flag issue to the completed table, and the two still open
+> (the download pieces and the behavior fallbacks) to the active table:
+
+*[commit] a4d899a9a in ai-stuff - neocities: the folder-flags issue closes*
+
+> The commit is in, but it warned that my `git mv` had also staged the move in
+> the shared staging area. Checking whether that left anything out of step:
+
+The folder-flag issue is closed and committed (`a4d899a9a`). Your "no" is
+written into it, it's moved to `issues/completed/`, and the phase progress file
+lists it as done. The download pieces and the behavior fallbacks are listed as
+open.
+
+One slip on my part: I moved the file with `git mv`. That put an entry in the
+shared staging area, which the commit tool is careful never to touch. The commit
+itself is right: it records the move with the final text. I reset only that one
+stale staging entry, and the file now shows clean.
+
+The cause is in the docs: the issue-lifecycle skill's completion steps say to
+move issues with `git mv`. With this commit tool, a plain move followed by
+`claim-own-change` keeps the shared staging area untouched. I can fix that line
+in the skill; it needs your permission again, because the skill lives outside
+this project. Want me to?
+
+**Something running alongside:** another session is running `transcript-patches
+translate-ids --all`, and the newest `delta-version` commits talk about a
+cleaned-up history. It's rewriting old commit IDs inside issue and transcript
+files, for example in `10-048`. Those edits are its own and I've left them
+alone. My five commits from this session are on `main` (`1aeb4c668`,
+`a10600eaa`, `223642242`, `a4d899a9a`, plus `f6a6394e2` in the skills
+repository). If that session rewrites and force-pushes history, check that these
+five survive it.
+
+**Your deploy:** tell me how it ends, especially whether the roughly 90 MB
+pieces upload. If they all go up, I'll close the download issue. If one is
+refused, I'll make the pieces smaller, still an odd number of kilobytes so zip
+can join them.
 
 --------------------------------------------------------------------------------
 

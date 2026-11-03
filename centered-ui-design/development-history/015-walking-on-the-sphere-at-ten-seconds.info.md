@@ -4,7 +4,7 @@
 # 015 — walking-on-the-sphere-at-ten-seconds
 
 - **Picture:** 015-walking-on-the-sphere-at-ten-seconds.png
-- **Commit:** 4631a8407 2026-10-10 centered-ui-design: a slant view, near by the console and far at the top
+- **Commit:** 296f49543 2026-10-10 centered-ui-design: a slant view, near by the console and far at the top
 - **Run:** `run --screenshot 10` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -18,7 +18,7 @@
 ## What changed
 
 Compared with picture 014:
-- commit: df3d0ea23 -> 4631a8407
+- commit: b93b2e70d -> 296f49543
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/004-the-sphere-fold.lua

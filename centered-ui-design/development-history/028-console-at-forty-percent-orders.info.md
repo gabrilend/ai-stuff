@@ -4,7 +4,7 @@
 # 028 — console-at-forty-percent-orders
 
 - **Picture:** 028-console-at-forty-percent-orders.png
-- **Commit:** ea3d1a658 2026-10-10 centered-ui-design: a console lit like a desk, and magic circles
+- **Commit:** 0722349aa 2026-10-10 centered-ui-design: a console lit like a desk, and magic circles
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -14,7 +14,7 @@
 ## What changed
 
 Compared with picture 027:
-- commit: 753de1eba -> ea3d1a658
+- commit: 11d975d1d -> 0722349aa
 - changed: input/game-settings.lua
 - changed: src/014-the-dashboard.lua
 - changed: src/017-the-tests.test.lua

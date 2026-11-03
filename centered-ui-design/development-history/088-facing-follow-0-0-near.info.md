@@ -4,7 +4,7 @@
 # 088 — facing-follow-0-0-near
 
 - **Picture:** 088-facing-follow-0-0-near.png
-- **Commit:** 4808343fa 2026-10-10 centered-ui-design: view dials proven end to end, a steady console, upright villagers
+- **Commit:** 40c84a2c6 2026-10-10 centered-ui-design: view dials proven end to end, a steady console, upright villagers
 - **Run:** `run --wheel-with 24 a -4 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -15,7 +15,7 @@
 ## What changed
 
 Compared with picture 087:
-- commit: 2ae949951 -> 4808343fa
+- commit: c1fec5a53 -> 40c84a2c6
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/003-the-far-camera.lua

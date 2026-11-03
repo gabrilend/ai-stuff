@@ -4,7 +4,7 @@
 # 058 — light-pipe-gltf-along-the-middle-lit
 
 - **Picture:** 058-light-pipe-gltf-along-the-middle-lit.png
-- **Commit:** d0c94b3e0 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
+- **Commit:** c289005c1 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M src/005-gltf.lua

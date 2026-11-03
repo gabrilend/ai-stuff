@@ -194,7 +194,7 @@ end
 -- The commits a reply records making (issue 035), one line each, written by
 -- the exporter where the commit happened:
 --
---   *[commit] 8a235a0fe in ai-stuff - Close four finished issues...*
+--   *[commit] 7a29ea7a8 in ai-stuff - Close four finished issues...*
 --   *[commit] 6b80531 - One service per mailbox...*
 --
 -- Returns a list of { hash = <string, abbreviated hex>, subject = <string> },

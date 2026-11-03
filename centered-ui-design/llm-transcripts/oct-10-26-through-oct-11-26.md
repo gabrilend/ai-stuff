@@ -221,7 +221,7 @@ tables, non-linear maps with travel delay) should join the vision.
 Setting up the project skeleton and committing your original vision before I
 move it into `notes/`.
 
-*[commit] c68334c95 in ai-stuff - centered-ui-design: the founding vision, as it was first written*
+*[commit] 91057ddbb in ai-stuff - centered-ui-design: the founding vision, as it was first written*
 
 --------------------------------------------------------------------------------
 
@@ -406,7 +406,7 @@ the owner decide.
 
 > Claiming the tool-written files as this session's work, then committing.
 
-*[commit] 66522c6c1 in ai-stuff - centered-ui-design: the project is laid out, designed, and broken into issues*
+*[commit] a190cbfcd in ai-stuff - centered-ui-design: the project is laid out, designed, and broken into issues*
 
 The game isn't built yet. No code exists so far: I've set up the project,
 written the design and the plan, and committed both. Building starts once you've
@@ -586,7 +586,7 @@ the dial (which is a generic UI component we'll use a lot) is displaying.
 > contents page as mine, so I'm leaving those two files out of this commit and
 > committing everything else.
 
-*[commit] 644fd1994 in ai-stuff - centered-ui-design: the design follows the owner's answers — orders are told, dials only show*
+*[commit] 173507e09 in ai-stuff - centered-ui-design: the design follows the owner's answers — orders are told, dials only show*
 
 I've rewritten the design around your answers and committed it. There's still no
 code: the project is the vision, the design documents and 63 issue files across
@@ -748,7 +748,7 @@ value, and then allow the user to determine the exact framerate between 0 and
 > Committing this session's work, leaving out the other session's files and the
 > run's own goodbye note.
 
-*[commit] cee707864 in ai-stuff - centered-ui-design: the first picture — spheroid units under a glass-and-metal dashboard*
+*[commit] 0f753f833 in ai-stuff - centered-ui-design: the first picture — spheroid units under a glass-and-metal dashboard*
 
 The renderer runs, and it's committed. Start it with `./run` in the project
 folder. Escape opens the settings menu.
@@ -889,7 +889,7 @@ the same size.
 
 > Tests pass and the run holds 144 fps. Committing.
 
-*[commit] ebcd945c1 in ai-stuff - centered-ui-design: units walk on bent limbs, and the console becomes an arch*
+*[commit] 69e64a987 in ai-stuff - centered-ui-design: units walk on bent limbs, and the console becomes an arch*
 
 Both changes are in, committed and checked: 39 window-free tests pass and the
 main view holds 144 fps.
@@ -1092,7 +1092,7 @@ distant beyond.
 > The roadmap and contents page would again sweep in the other session's lines,
 > so I'm leaving them out by path as before.
 
-*[commit] ac89a5132 - centered-ui-design: the world runs on the ceramic engine; units haul cuboids home*
+*[commit] 81facb00f - centered-ui-design: the world runs on the ceramic engine; units haul cuboids home*
 
 All four changes are in and committed: cuboids, the chair, the band painted with
 the map, and the world running on your ceramic engine. The 41 window-free checks
@@ -1439,7 +1439,7 @@ I think... Neither.
 > commit, then committing this cycle's code (history pictures come in the next
 > commit, so their notes can name it).
 
-*[commit] 457e0f594 - centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor*
+*[commit] ee27a5535 - centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor*
 
 > Committed. Now the comparison pictures: each is a scratch copy of the project
 > with one setting changed, captured into `development-history/`.
@@ -1719,7 +1719,7 @@ please continue
 > then commit with explicit paths (leaving out roadmap/TOC, which share blocks
 > with the other session's work):
 
-*[commit] df3d0ea23 in ai-stuff - centered-ui-design: every screenshot is kept, with what changed*
+*[commit] b93b2e70d in ai-stuff - centered-ui-design: every screenshot is kept, with what changed*
 
 > Now the slant view. Reading the depth issue first:
 
@@ -1761,7 +1761,7 @@ please continue
 > Updating the issue's current behavior (built, waiting on the two questions),
 > then committing:
 
-*[commit] 4631a8407 in ai-stuff - centered-ui-design: a slant view, near by the console and far at the top*
+*[commit] 296f49543 in ai-stuff - centered-ui-design: a slant view, near by the console and far at the top*
 
 Both pieces are built and committed. The depth issue stays open until you answer
 the two questions at the end.
@@ -1859,7 +1859,7 @@ dense.
 > All 58 pass. Speed doesn't show in one still, so I'm taking two pictures half
 > a second apart (same seed, so the runs are identical up to that point):
 
-*[commit] 76f335172 in ai-stuff - centered-ui-design: villagers walk on a sphere between two poles*
+*[commit] 561bcd318 in ai-stuff - centered-ui-design: villagers walk on a sphere between two poles*
 
 Villagers now walk on a sphere. Your hub is one pole and the foes' kingdom is
 the other, and the slant view is the flat plane between. Far out they cross the
@@ -1942,7 +1942,7 @@ it might be easier to match the world's scaling to the curve of the dashboard.
 > Every step so far has its own picture (017 first arch view, 018 the broken
 > bands, 019 this fix), including the broken one. Looking at 019:
 
-*[commit] 753de1eba in ai-stuff - centered-ui-design: the world's rings follow the console's arch*
+*[commit] 11d975d1d in ai-stuff - centered-ui-design: the world's rings follow the console's arch*
 
 The world now follows the console's curve. This "arch view" is a fourth view and
 the game starts in it. All 65 tests pass, and it's committed.
@@ -2029,7 +2029,7 @@ on one of those greek stages where the actors went up a staircase too
 
 > Committing this batch first, then shrinking the console:
 
-*[commit] ea3d1a658 in ai-stuff - centered-ui-design: a console lit like a desk, and magic circles*
+*[commit] 0722349aa in ai-stuff - centered-ui-design: a console lit like a desk, and magic circles*
 
 > Recording it in the console issue, then re-laying the surface:
 
@@ -2047,7 +2047,7 @@ on one of those greek stages where the actors went up a staircase too
 > All 71 pass. Checking the new console pictures, then proving a click works end
 > to end on a real run:
 
-*[commit] 7f80ba0d8 in ai-stuff - centered-ui-design: a console 40% the size, and clicks that reach again*
+*[commit] e845da886 in ai-stuff - centered-ui-design: a console 40% the size, and clicks that reach again*
 
 > Rewriting the console's drawing so every arch is drawn the same way. Writing
 > the issue entry first:
@@ -2055,7 +2055,7 @@ on one of those greek stages where the actors went up a staircase too
 > All 71 pass. Two pictures: one in the middle of a drag, and one after a longer
 > drag lets go and settles on the neighbour's seat:
 
-*[commit] 8341309b1 in ai-stuff - centered-ui-design: the console spins by hand, every arch drawn whole*
+*[commit] 863b18019 in ai-stuff - centered-ui-design: the console spins by hand, every arch drawn whole*
 
 > They're already scattered evenly by distance from the hub, so each ring starts
 > with about the same number. Recording personal space in the movement issue,
@@ -2068,7 +2068,7 @@ on one of those greek stages where the actors went up a staircase too
 > All 74 pass. Pictures: the dials at their starting values, then view distance
 > pushed farther, then field of view widened:
 
-*[commit] f99ef3260 in ai-stuff - centered-ui-design: personal space, and two view dials turned by key and wheel*
+*[commit] 6ecd6e142 in ai-stuff - centered-ui-design: personal space, and two view dials turned by key and wheel*
 
 > Writing it into the depth issue first, then the seeding (data) and the drawing
 > (view), kept apart:
@@ -2084,7 +2084,7 @@ on one of those greek stages where the actors went up a staircase too
 > Now the splotch change, test, and blur setting (written to a file this time so
 > no escaping slips in):
 
-*[commit] d4e5af531 in ai-stuff - centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge*
+*[commit] 0851eb669 in ai-stuff - centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge*
 
 All of it is built and committed. 77 tests pass, and pictures 028–049 are
 filed with notes, including the broken ones.
@@ -2228,7 +2228,7 @@ rendered at all.
 > direction should lean outward, not inward, for a camera looking out and down.
 > Then morning, noon and evening:
 
-*[commit] 619895b42 in ai-stuff - centered-ui-design: the land as lit points, and hot-seat by spinning*
+*[commit] 632aaea7d in ai-stuff - centered-ui-design: the land as lit points, and hot-seat by spinning*
 
 Both are built and committed, and all 78 tests pass.
 
@@ -2316,7 +2316,7 @@ visualizing data on the graphics card(s).
 > The dot shader no longer uses the light-dial settings, so sending them to it
 > fails. Those three now go only to shaders that use them:
 
-*[commit] f1cea4269 in ai-stuff - centered-ui-design: the land painted by turned circles*
+*[commit] 1abb118e6 in ai-stuff - centered-ui-design: the land painted by turned circles*
 
 Both fixed and committed (pictures 058–059). The tests pass, plus a new
 start-up check.
@@ -2401,7 +2401,7 @@ around the correct axis.
 > Pictures: a short drag (300 pixels) let go, which should now carry on to the
 > next seat, then the open bars beside the opaque ones:
 
-*[commit] 4cd59af74 in ai-stuff - centered-ui-design: bar-chart circles to watch the turn, and drags that carry*
+*[commit] b8ff3dc2a in ai-stuff - centered-ui-design: bar-chart circles to watch the turn, and drags that carry*
 
 The bar test, the open/opaque comparison and the drag fix are all committed.
 Pictures 060–066 are filed, and the tests pass along with the start-up check.
@@ -2473,7 +2473,7 @@ But luckily we have soramech, which handles all of them nicely.
 > centre to rim, like your picture but blended. The turn that you confirmed with
 > the bars stays exactly as it is; only the circle's picture changes.
 
-*[commit] a6d830dee in ai-stuff - centered-ui-design: terrain circles shaded round their centres, from the owner's drawing*
+*[commit] ff29f8708 in ai-stuff - centered-ui-design: terrain circles shaded round their centres, from the owner's drawing*
 
 The circles now follow your drawing, and it's committed (pictures 067–069).
 The game starts with the shaded circles again; bars and open bars are still in
@@ -2591,7 +2591,7 @@ yes but we just adjust the rotation of the bloxels - no that's for cubes, we use
 > away from the sun, and in half a second they've moved across the lake. Writing
 > up 070–073 and committing:
 
-*[commit] d34c6296f in ai-stuff - centered-ui-design: sheen-points with two colours each, and a lake the engine ripples*
+*[commit] b4eb379a1 in ai-stuff - centered-ui-design: sheen-points with two colours each, and a lake the engine ripples*
 
 Both answers are built and committed. All 83 tests pass, along with the start-up
 check, and pictures 070–073 are filed.
@@ -2787,7 +2787,7 @@ gallery example (`scripts/see-in-3d-examples/NN-name/`), rebuilt with
 
 ![a round land of grass and sand around a central console, three flat-topped clay mesas ahead, the sun low in the south behind the viewer lighting the mesas' near cliffs, while the villagers stand in night-blue -- imagined from the angle view](/mnt/mtwo/programming/ai-stuff/centered-ui-design/mind/imagination-portraits/2026-10-10-233418-079-sun-circling-the-hub-half-day-south-scene-imagined/imagined.jpg)
 
-*[commit] b9333d8c3 in ai-stuff - centered-ui-design: gradient sheen-points, and a sun that circles the hub*
+*[commit] 372ebe4f6 in ai-stuff - centered-ui-design: gradient sheen-points, and a sun that circles the hub*
 
 Both changes are committed with pictures 074–079, and all 83 tests pass, plus
 the start-up check.
@@ -2873,7 +2873,7 @@ the curved texture, same as the map.
 
 ![the console as a wheel of four seats turning behind an arch-shaped window: each seat a panel round the wheel, the arch window in front showing the upper half, the seat in front at the top and the next seat rising in from the right foot -- front, right / top, angle](/mnt/mtwo/programming/ai-stuff/centered-ui-design/mind/imagination-portraits/2026-10-10-234110-console-wheel-scene-views/views.jpg)
 
-*[commit] 2ae949951 in ai-stuff - centered-ui-design: the console spins along its own curve, as the map does*
+*[commit] c1fec5a53 in ai-stuff - centered-ui-design: the console spins along its own curve, as the map does*
 
 Spinning now carries the console along the arch's own curve, the way the map
 does, instead of sliding the arches in sideways. It's committed with pictures
@@ -2963,7 +2963,7 @@ well.
 > Villagers now stand straight up the picture. Writing up 082–087 and
 > committing:
 
-*[commit] 4808343fa in ai-stuff - centered-ui-design: view dials proven end to end, a steady console, upright villagers*
+*[commit] 40c84a2c6 in ai-stuff - centered-ui-design: view dials proven end to end, a steady console, upright villagers*
 
 All three are fixed and committed. The 86 tests pass, along with the two
 end-to-end checks (the game starts cleanly; the view dials answer).
@@ -3048,7 +3048,7 @@ some examples and I'll let you know when it looks right?
 > I'll leave strength 1 on as the default. Writing up 088–095 and committing
 > so you can try it live:
 
-*[commit] 3cba5ed0a in ai-stuff - centered-ui-design: villagers turn to face their path along the curve*
+*[commit] 26ccbb9ed in ai-stuff - centered-ui-design: villagers turn to face their path along the curve*
 
 Villagers now turn to follow their path along the curved rings, and there are
 four strengths for you to compare; I've left it on 1 for now. Tests pass, and
@@ -3134,7 +3134,7 @@ not spheres.
 > The buttons now keep their round shape all the way along the curve (100).
 > Committing this batch before starting on the limbs:
 
-*[commit] 5c34442db in ai-stuff - centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size*
+*[commit] 7ba090a20 in ai-stuff - centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size*
 
 > Now the limbs. Reading how the body plan bends them today:
 
@@ -3148,7 +3148,7 @@ not spheres.
 > The side view reads as a walk: each knee points forward with the shin folding
 > back behind it, and the elbows bend with the forearm forward. Committing:
 
-*[commit] fa3527f8d in ai-stuff - centered-ui-design: villagers walk on jointed limbs*
+*[commit] 6383c516d in ai-stuff - centered-ui-design: villagers walk on jointed limbs*
 
 Everything you asked for this round is built and committed. All 91 tests pass,
 plus the two live checks (the game starts cleanly; S, A and D answer the wheel).

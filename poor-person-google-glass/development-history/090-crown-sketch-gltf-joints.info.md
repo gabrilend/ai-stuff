@@ -4,7 +4,7 @@
 # 090 — crown-sketch-gltf-joints
 
 - **Picture:** 090-crown-sketch-gltf-joints.png
-- **Commit:** 2620ab43a 2026-10-10 poor-person-google-glass: tolerance calculations, with a format to write them in
+- **Commit:** d18378df5 2026-10-10 poor-person-google-glass: tolerance calculations, with a format to write them in
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.2 60 20 --screenshot 0.5`
 - **Uncommitted at the time:**
   -  M scripts/run-tests

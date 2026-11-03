@@ -4,7 +4,7 @@
 # 101 — jointed-limbs-walking-near
 
 - **Picture:** 101-jointed-limbs-walking-near.png
-- **Commit:** 5c34442db 2026-10-11 centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size
+- **Commit:** 7ba090a20 2026-10-11 centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size
 - **Run:** `run --wheel-with 24 a -8 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/017-the-tests.test.lua
@@ -13,7 +13,7 @@
 ## What changed
 
 Compared with picture 100:
-- commit: 3cba5ed0a -> 5c34442db
+- commit: 26ccbb9ed -> 7ba090a20
 - changed: src/017-the-tests.test.lua
 - changed: src/018-the-body-plan.lua
 

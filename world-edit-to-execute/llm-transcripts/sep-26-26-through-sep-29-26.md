@@ -107,9 +107,9 @@ follows:
 
   **Evidence I gathered**
   - **None of the 42 files has been touched since 2025-12-31.** Their last
-    commits were the split commit on 12-29 (`f7cbdcb03`, for 502/503/504/507), a
-    monorepo sweep that filled in their bodies on 12-30 (`a205f3be7` "508c" and
-    `377144ee5` "508a"), and `31b8b588d` on 12-31 for 506.
+    commits were the split commit on 12-29 (`d1b3dcbc7`, for 502/503/504/507), a
+    monorepo sweep that filled in their bodies on 12-30 (`ce35f348a` "508c" and
+    `0dfc2fe83` "508a"), and `4c60de18e` on 12-31 for 506.
   - **No acceptance box is ticked** in any of them (0 `[x]` in each file). Every
     "Current Behavior" section still says "no rendering exists", which is stale.
   - **The renderer that got built is C on raylib**, in `src/render/` (`main.c`,
@@ -132,7 +132,7 @@ follows:
   - **501–507 are not re-examined in any doc.** `docs/roadmap.md:469` claims
     "501a complete", which is false. `issues/progress.md:389-413` shows them all
     as Pending.
-  - **500 and 510 were archived** on 2026-01-08 (commit `8fd99c1e0`, into an
+  - **500 and 510 were archived** on 2026-01-08 (commit `08a668f5a`, into an
     archived WoW-mode folder), but `docs/roadmap.md:468,476` still lists both.
   - **The runtime has no fog or visibility system** (`src/runtime/` holds none),
     so 502d has no data to show.
@@ -785,7 +785,7 @@ the owner decide.
 
 > Now the progress file's rows for these.
 
-*[commit] 8a235a0fe in ai-stuff - Close four finished issues that had never been filed away*
+*[commit] 7a29ea7a8 in ai-stuff - Close four finished issues that had never been filed away*
 
 > The first piece is committed. The four warnings are from my own `git mv`,
 > which put the renames into the shared staging area. I'm clearing those entries
@@ -800,13 +800,13 @@ the owner decide.
 > Now recording your note about downloading from hosting sites in the
 > download-protocol issue and the map-browser issue.
 
-*[commit] 0a47792cb in ai-stuff - Redraw the critical path as it stands in September*
+*[commit] ce6b41f10 in ai-stuff - Redraw the critical path as it stands in September*
 
 > The commit tool left out about 20 blank lines, because it credited them to the
 > file's old author. The committed copy has headings and tables run together.
 > Committing the rest:
 
-*[commit] b3b4a2f02 in ai-stuff - Restore the blank lines the critical path lost in its last commit*
+*[commit] edd91d326 in ai-stuff - Restore the blank lines the critical path lost in its last commit*
 
 I've done three pieces of the cleanup and committed each. The working tree is
 clean except for the crowd files another session is still writing.
@@ -932,7 +932,7 @@ yes.
 > The warning is gone: 112 of 112 files pass. Now updating the two documents
 > that mentioned it.
 
-*[commit] 8e67ba20c in ai-stuff - Stop the map-info test from printing raw zero bytes*
+*[commit] 3735d94b0 in ai-stuff - Stop the map-info test from printing raw zero bytes*
 
 > Something went wrong with that commit. It picked up files this session never
 > wrote. I'm checking what it took before touching anything.
@@ -1033,7 +1033,7 @@ sounds good.
 
 > Only this session's files, as intended. Committing:
 
-*[commit] 7de30970e in ai-stuff - Split getting community content into a fetcher and a catalogue*
+*[commit] 8e2ac4136 in ai-stuff - Split getting community content into a fetcher and a catalogue*
 
 I've split getting community content into two issues, as you agreed, and
 committed it. Only this project's files went in, and the tree is clean.
@@ -1153,7 +1153,7 @@ why not, but maybe I will when we're working over there.
 > Updating the catalogue issue, the critical path and the progress file to
 > match.
 
-*[commit] c0a4f0a65 in ai-stuff - Plan real WC3 models in place of the placeholder shapes*
+*[commit] f7688dbbb in ai-stuff - Plan real WC3 models in place of the placeholder shapes*
 
 I've written up your answers and committed them. The tree is clean.
 
@@ -1318,7 +1318,7 @@ per-stock-model overrides that they can then have rendered on their end.
 
 > Now the critical path and the WoW-model issue.
 
-*[commit] 259127a6a in ai-stuff - Settle how models are chosen, read and drawn*
+*[commit] 245dd05c8 in ai-stuff - Settle how models are chosen, read and drawn*
 
 All five answers are written into the issues and committed, and the tree is
 clean.
@@ -1392,7 +1392,7 @@ Okay let's keep working
 > didn't see. The roadmap had no other changes when I started on it, so I'm
 > recording the whole file as mine and committing.
 
-*[commit] b18f1ef98 in ai-stuff - Bring the roadmap up to what has been built and decided*
+*[commit] a57a97485 in ai-stuff - Bring the roadmap up to what has been built and decided*
 
 > Roadmap committed. Next, the progress file's out-of-date rows.
 
@@ -1401,7 +1401,7 @@ Okay let's keep working
 > All 23 rows are replaced. Next, the matchmaking sub-issues, whose headers
 > still say Phase 7.
 
-*[commit] 99e6f52f7 in ai-stuff - Correct the progress table and the issue labels that had drifted*
+*[commit] b001f6967 in ai-stuff - Correct the progress table and the issue labels that had drifted*
 
 > Progress table and labels committed. Next are the out-of-date "current
 > behavior" sections, starting with the stock-tables issue.
@@ -1424,7 +1424,7 @@ Okay let's keep working
 > current-behavior section belong to someone else. The file had no other changes
 > before mine, so I'm claiming it and committing.
 
-*[commit] 427c98340 in ai-stuff - Describe the stock tables as built, and name the fallback left in validation*
+*[commit] b06c24c90 in ai-stuff - Describe the stock tables as built, and name the fallback left in validation*
 
 > Committed. Next is the crowd-on-every-threading-design issue's current
 > behavior.
@@ -1438,7 +1438,7 @@ Okay let's keep working
 > All 138 networking checks pass, and every networking source file has its
 > description. Ticking the three criteria that are met:
 
-*[commit] e453e01f5 in ai-stuff - Bring two in-progress issues' status up to what is built*
+*[commit] 5beebccda in ai-stuff - Bring two in-progress issues' status up to what is built*
 
 > Next I'm removing the rows that are now fixed from the critical path's drift
 > table.
@@ -1446,12 +1446,12 @@ Okay let's keep working
 > Confirmed: 2026-09-24. Next, the WoW-mode leftovers in the map-export and
 > editor-test issues.
 
-*[commit] c06ceb41d in ai-stuff - Mark the editor's dual-mode map format as resting on a dropped premise*
+*[commit] 35de4b61f in ai-stuff - Mark the editor's dual-mode map format as resting on a dropped premise*
 
 > Committed. Next: the asset loader's lookup order, the guild roster's status
 > errors, and the Phase W demo's dependencies.
 
-*[commit] d39336848 in ai-stuff - Tell three older issues what was decided after they were written*
+*[commit] 23bb3b29d in ai-stuff - Tell three older issues what was decided after they were written*
 
 Another pass is done: six commits, each limited to this project. The tree is
 clean apart from the crowd films and report, which were already in progress.
@@ -1608,7 +1608,7 @@ as well.
 
 > Now overrides, the data folder, and what the editor saves:
 
-*[commit] bf62a01db in ai-stuff - Record the owner's answers on overrides, data folder, editor saves, patches*
+*[commit] b69f8879b in ai-stuff - Record the owner's answers on overrides, data folder, editor saves, patches*
 
 > Their criteria are written against the old Lua interface (`terrain.init`,
 > `sprites.register`), so none can be ticked as written. Checking what the C
@@ -1666,18 +1666,18 @@ as well.
 > repair-tool additions, so the two changes can't be split cleanly. Committing
 > them together, with a message that explains both:
 
-*[commit] 2b09d8682 in ai-stuff - Re-cut the January rendering plan, and write every missing blocks link*
+*[commit] af14f2d96 in ai-stuff - Re-cut the January rendering plan, and write every missing blocks link*
 
 > Claiming works when done file by file. My single batch claim probably stopped
 > at the first deleted file, and its errors were hidden. Claiming the remaining
 > 145 one at a time and committing them:
 
-*[commit] a19b38545 in ai-stuff - Write the rest of the missing blocks links*
+*[commit] bf6fd6c0f in ai-stuff - Write the rest of the missing blocks links*
 
 > Only one file went in; 144 are still uncommitted, even though each was
 > claimed. Previewing the commit tool on one of them:
 
-*[commit] 830298e6f in ai-stuff - Write the remaining missing blocks links*
+*[commit] 1211ba8a3 in ai-stuff - Write the remaining missing blocks links*
 
 > All link repairs are committed, and the tree is clean. Next are the per-phase
 > progress files. Reading Phase W's, which is the only one that exists, to use
@@ -1691,7 +1691,7 @@ as well.
 > The dashboard no longer warns about missing progress files. Writing the tool's
 > description file, then committing:
 
-*[commit] 25d997857 in ai-stuff - Give every phase a progress file, written from the issues themselves*
+*[commit] dd9eb408d in ai-stuff - Give every phase a progress file, written from the issues themselves*
 
 The rendering re-cut, the link repairs and the per-phase progress files are all
 done and committed, and the tree is clean. One mistake on the way: my first

@@ -4,7 +4,7 @@
 # 033 — spun-and-settled-on-the-next-seat
 
 - **Picture:** 033-spun-and-settled-on-the-next-seat.png
-- **Commit:** 7f80ba0d8 2026-10-10 centered-ui-design: a console 40% the size, and clicks that reach again
+- **Commit:** e845da886 2026-10-10 centered-ui-design: a console 40% the size, and clicks that reach again
 - **Run:** `run --drag 24 1300 990 400 990 0.8 --screenshot 26.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/014-the-dashboard.lua

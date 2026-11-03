@@ -4,7 +4,7 @@
 # 025 — magic-circle-450-degrees-at-noon
 
 - **Picture:** 025-magic-circle-450-degrees-at-noon.png
-- **Commit:** 753de1eba 2026-10-10 centered-ui-design: the world's rings follow the console's arch
+- **Commit:** 11d975d1d 2026-10-10 centered-ui-design: the world's rings follow the console's arch
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

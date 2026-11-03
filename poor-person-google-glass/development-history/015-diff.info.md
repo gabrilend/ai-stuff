@@ -4,7 +4,7 @@
 # 015 — diff
 
 - **Picture:** 015-diff.png
-- **Commit:** e9924b358 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
+- **Commit:** 3e389566b 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
 - **Run:** `view-cad (made by: compare -metric AE 001 003)`
 - **Uncommitted at the time:**
   -  M src/008-say-goodbye.lua

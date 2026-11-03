@@ -30,7 +30,7 @@ run commands, a machine room about the thread pool, the two boards, a
 workbench, a long day-by-day story, and a back shelf of stale tickets) was
 built and committed first, then replaced the same day when the owner set
 the lodge pattern: a fan site, not a manual. Its words are in git history at
-commit fa0244c21.
+commit 76483586d.
 
 ## Intended Behavior
 

@@ -4,7 +4,7 @@
 # 032 — spinning-the-console-mid-drag
 
 - **Picture:** 032-spinning-the-console-mid-drag.png
-- **Commit:** 7f80ba0d8 2026-10-10 centered-ui-design: a console 40% the size, and clicks that reach again
+- **Commit:** e845da886 2026-10-10 centered-ui-design: a console 40% the size, and clicks that reach again
 - **Run:** `run --drag 24 600 990 100 990 1.0 --screenshot 24.6` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/014-the-dashboard.lua
@@ -14,7 +14,7 @@
 ## What changed
 
 Compared with picture 031:
-- commit: ea3d1a658 -> 7f80ba0d8
+- commit: 0722349aa -> e845da886
 - changed: src/014-the-dashboard.lua
 - changed: src/016-the-game.lua
 - changed: src/main.lua

@@ -295,7 +295,7 @@ the owner decide.
 
 > Exactly my changes. Committing.
 
-*[commit] e9924b358 in ai-stuff - poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown*
+*[commit] 3e389566b in ai-stuff - poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown*
 
 I built the CAD viewer, and it's committed. You open a model with `./view-cad
 FILE`, and it shows the model in 3D, lit, in a window you turn with the mouse.
@@ -1189,9 +1189,9 @@ to map to original image.]
 
 > Only this session's files, plus this conversation's transcript. Committing:
 
-*[commit] d0c94b3e0 in ai-stuff - poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen*
+*[commit] c289005c1 in ai-stuff - poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen*
 
-> Committed (d0c94b3e0). One warning to resolve first: my earlier `git mv` of
+> Committed (c289005c1). One warning to resolve first: my earlier `git mv` of
 > the OBJ issue left an entry in the shared staging area. Checking it:
 
 > The move is in the commit; the shared staging area just holds a stale copy
@@ -1484,11 +1484,11 @@ distance at least once across the whole set.
 > Committing — the light pipe work, plus the tiles notes and issue left
 > uncommitted from earlier:
 
-*[commit] 66748cd18 in ai-stuff - poor-person-google-glass: a walk through the inside of the light pipe*
+*[commit] e2c8ffa4e in ai-stuff - poor-person-google-glass: a walk through the inside of the light pipe*
 
 The inside of the light pipe is now a 3D model you can stand in, with 12
 viewpoints. Each of the 14 parts is visible from at least one of them, and a
-test checks that. It's committed (66748cd18).
+test checks that. It's committed (e2c8ffa4e).
 
 **The model**
 - Open it with `./view-cad output/models/light-pipe.gltf`. Press `n` to step
@@ -1589,7 +1589,7 @@ done!
 
 > Fixing the question order, updating the phase progress, then committing:
 
-*[commit] 2620ab43a in ai-stuff - poor-person-google-glass: tolerance calculations, with a format to write them in*
+*[commit] d18378df5 in ai-stuff - poor-person-google-glass: tolerance calculations, with a format to write them in*
 
 I built the tolerance calculations: the file format, the engine that works them
 out, and six first calculations. It's committed, and all tests pass, including 7
@@ -1689,7 +1689,7 @@ material fundamentals.
 > All tests pass (65 window-free, plus the two window runs). Filling the two new
 > pictures' notes and committing:
 
-*[commit] 2a6acd917 in ai-stuff - poor-person-google-glass: tolerance records kept on the model, one per joint*
+*[commit] e9bccc358 in ai-stuff - poor-person-google-glass: tolerance records kept on the model, one per joint*
 
 The viewer now keeps a tolerance record for every place two parts meet, and
 marks each one on the model. It's committed, and all tests pass, including 5 new
@@ -1800,7 +1800,7 @@ lets them tilt up or down instead of rotate left/right.
 > All tests pass. The window's new fixed size changed every picture, so the test
 > run filed 19 new ones (093–111). Filling their notes and committing:
 
-*[commit] 7389d1c1b in ai-stuff - poor-person-google-glass: models held like an artifact on a plinth, in a window that keeps its size*
+*[commit] 23f182d02 in ai-stuff - poor-person-google-glass: models held like an artifact on a plinth, in a window that keeps its size*
 
 The viewer now holds a model like an artifact on a plinth in a round case. It's
 committed, and all tests pass, including a new one for sliding the pillar.
@@ -1902,7 +1902,7 @@ aspects of the design from multiple angles.
 > now has 50 joints (43 new, 20 old pairs kept and marked gone), found in 27 s
 > on its 73,500 triangles. Committing:
 
-*[commit] 3c0cb88d7 in ai-stuff - poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside*
+*[commit] 17eb2ae09 in ai-stuff - poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside*
 
 The light pipe now opens from inside. It looked like one flat colour because the
 viewer started outside, where you only see the back of the tube wall. Any model
@@ -2105,7 +2105,7 @@ does light pass through fiber-optic cables like that?
 > All tests pass. Filling the notes for the newest pictures (141–180), then
 > committing:
 
-*[commit] f78500001 in ai-stuff - poor-person-google-glass: moving pictures of every model, and a light pipe as wide as a glasses arm*
+*[commit] 026dfddda in ai-stuff - poor-person-google-glass: moving pictures of every model, and a light pipe as wide as a glasses arm*
 
 ## How light passes through a fibre-optic cable
 

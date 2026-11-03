@@ -17,10 +17,19 @@ checker would look for in this project)
 
 ## Current Behavior
 
-**Prepared, not swapped** (2026-11-03). The inventory is taken and the owner
-gave the word ("Just remove the files as best you can"). A rewritten copy
-passes every gate below and waits in a scratch mirror on `/mnt/kaun` for a
-quiet repository. Remaking the GitHub repository was proposed and refused
+**Swapped and published; waiting on GitHub Support** (2026-11-03). The owner
+gave the word ("Just remove the files as best you can"). The rewrite was made
+in a scratch mirror on `/mnt/kaun`, passed every gate below, and the owner
+ran the publish script herself, because Claude Code's safety check refuses a
+force-push from a session: `main` (now `f24bf609`), the 237 `claude/*`
+branches and the 9 kept tags were replaced, the archive tag deleted, and this
+machine's `main` moved onto the new history. The open pull requests followed
+their branches. Before it, a full mirror of GitHub's state, pull-request refs
+included, was kept at `/mnt/kaun/scratch/ai-stuff-github-backup-2026-11-03.git`.
+Then the quoted ids were translated (steps 6 and 7, below). The owner's
+request to GitHub Support (delete pull request #1, dereference the old
+commits behind the force-push links, run garbage collection) is filed; this
+issue is complete when it is answered. Remaking the GitHub repository was proposed and refused
 by the owner ("I do not want to do that"); the swap stays a force-push (see
 Intended Behavior). The redactions of issue 003a are
 not part of this pass: the mail state lives inside `words-pdf/input/`, which
@@ -50,13 +59,30 @@ repack and lost a pack file mid-copy):
   dropped, among them "Five notes, and a folder of letters" and the notes
   added between 2026-08-11 and 2026-09-09.
 - filter-repo translates abbreviated ids in commit messages itself; its map
-  is `filter-repo/commit-map` in the mirror.
+  is `filter-repo/commit-map` in the mirror, kept as
+  `delta-version/archive/disentangle/commits.map`.
+
+**The quoted ids** (open question 1 answered: one combined map). The two
+rewrites' maps are joined into `delta-version/archive/disentangle/chained.map`,
+oldest id to today's, so a quote from before the graft, between the
+rewrites, or of a commit made just before this one lands on today's commit.
+Tracked text files were translated in place with `commit-id-quotes.lua
+translate` against every old commit id (the GitHub backup's and this
+repository's), except the transcript patches, the maps themselves, the saved
+pull-request record, and files another session had open: about 1,900 quotes
+in 707 files, among them the development-history fingerprints, which record
+the commit each picture was taken at. Each conversation with a session log
+got its id patch refreshed from the chained map (`transcript-patches
+translate-ids`, with `TRANSCRIPT_PATCHES_UNIVERSE` naming the old ids rather
+than keeping a ref to the old history). 30 transcripts on disk lag behind
+their session logs (a recap or a turn added since the last export); none
+quotes an old id, and the next export brings each up to date.
 
 The owner's poems and the mail tool's private state are in git history, on
 a public GitHub repository (`gabrilend/ai-stuff`):
 
 - **`words-pdf/input/`** has been tracked since the trunk's first commit
-  (`15268505`, 2025-12-15). It held 510 files: the poems, the notes, and the
+  (`472e9b9d`, 2025-12-15). It held 510 files: the poems, the notes, and the
   mail tool's folder `notes/rmail/`. On 2026-10-01 it stopped being tracked
   and was added to `.gitignore`. The files stay on disk; history still holds
   every earlier version.

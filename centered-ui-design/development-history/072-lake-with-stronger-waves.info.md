@@ -4,7 +4,7 @@
 # 072 — lake-with-stronger-waves
 
 - **Picture:** 072-lake-with-stronger-waves.png
-- **Commit:** a6d830dee 2026-10-10 centered-ui-design: terrain circles shaded round their centres, from the owner's drawing
+- **Commit:** ff29f8708 2026-10-10 centered-ui-design: terrain circles shaded round their centres, from the owner's drawing
 - **Run:** `run --drag 22 400 990 1300 990 0.5 --wheel-with 23 a -3 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/005-unit-records.lua

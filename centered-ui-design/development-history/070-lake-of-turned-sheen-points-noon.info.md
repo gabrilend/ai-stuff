@@ -4,7 +4,7 @@
 # 070 — lake-of-turned-sheen-points-noon
 
 - **Picture:** 070-lake-of-turned-sheen-points-noon.png
-- **Commit:** a6d830dee 2026-10-10 centered-ui-design: terrain circles shaded round their centres, from the owner's drawing
+- **Commit:** ff29f8708 2026-10-10 centered-ui-design: terrain circles shaded round their centres, from the owner's drawing
 - **Run:** `run --drag 22 400 990 1300 990 0.5 --wheel-with 23 a -3 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/005-unit-records.lua
@@ -20,7 +20,7 @@
 ## What changed
 
 Compared with picture 069:
-- commit: 4cd59af74 -> a6d830dee
+- commit: b8ff3dc2a -> ff29f8708
 - changed: src/005-unit-records.lua
 - changed: src/013-the-world-renderer.lua
 - changed: src/016-the-game.lua

@@ -5,7 +5,7 @@
 - taken: 2026-10-21, Firefox headless with a throwaway profile,
   --window-size=1280,2200 (011) and 1280,2400 (012), --screenshot
 - page: docs/HTML/lodge/, built by lodge/build from lodge/pages/
-- commit: uncommitted lodge work on top of 3b96088cd
+- commit: uncommitted lodge work on top of f12d85693
 
 ## What changed since the previous picture
 

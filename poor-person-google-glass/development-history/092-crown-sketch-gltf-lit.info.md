@@ -4,7 +4,7 @@
 # 092 — crown-sketch-gltf-lit
 
 - **Picture:** 092-crown-sketch-gltf-lit.png
-- **Commit:** 2a6acd917 2026-10-10 poor-person-google-glass: tolerance records kept on the model, one per joint
+- **Commit:** e9bccc358 2026-10-10 poor-person-google-glass: tolerance records kept on the model, one per joint
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.1 60 0 --tilt 0.15 30 --mouse 0.2 1275 400 --screenshot 0.7 --views lit`
 - **Uncommitted at the time:**
   -  M input/viewer-settings.lua

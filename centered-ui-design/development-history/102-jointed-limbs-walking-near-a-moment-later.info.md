@@ -4,7 +4,7 @@
 # 102 — jointed-limbs-walking-near-a-moment-later
 
 - **Picture:** 102-jointed-limbs-walking-near-a-moment-later.png
-- **Commit:** 5c34442db 2026-10-11 centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size
+- **Commit:** 7ba090a20 2026-10-11 centered-ui-design: no colour snap, a spacing dial, and console shapes that keep their size
 - **Run:** `run --wheel-with 24 a -8 --screenshot 24.7` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/017-the-tests.test.lua

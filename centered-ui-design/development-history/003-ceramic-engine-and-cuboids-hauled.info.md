@@ -1,11 +1,11 @@
 <!-- made by scripts/capture-history on 2026-10-10 20:16, from the
-     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/ac89a5132/game-at-ac89a5132 --click 12 300 300 --screenshot 14 -->
+     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/81facb00f/game-at-81facb00f --click 12 300 300 --screenshot 14 -->
 
 # 003 — ceramic-engine-and-cuboids-hauled
 
 - **Picture:** 003-ceramic-engine-and-cuboids-hauled.png
-- **Commit:** ac89a5132 2026-10-10 centered-ui-design: the world runs on the ceramic engine; units haul cuboids home
-- **Run:** `run --click 12 300 300 --screenshot 14` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/ac89a5132/game-at-ac89a5132)
+- **Commit:** 81facb00f 2026-10-10 centered-ui-design: the world runs on the ceramic engine; units haul cuboids home
+- **Run:** `run --click 12 300 300 --screenshot 14` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/81facb00f/game-at-81facb00f)
 
 ## What it shows
 

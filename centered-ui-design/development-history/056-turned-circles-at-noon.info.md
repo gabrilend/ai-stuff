@@ -4,7 +4,7 @@
 # 056 — turned-circles-at-noon
 
 - **Picture:** 056-turned-circles-at-noon.png
-- **Commit:** 619895b42 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
+- **Commit:** 632aaea7d 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/012-made-by-formula.lua

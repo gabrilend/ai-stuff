@@ -4,7 +4,7 @@
 # 023 — crown-sketch-gltf-lit
 
 - **Picture:** 023-crown-sketch-gltf-lit.png
-- **Commit:** e9924b358 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
+- **Commit:** 3e389566b 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.1 40 15 --key 0.2 space --key 1.5 w --screenshot 3`
 - **Uncommitted at the time:**
   -  M scripts/run-tests

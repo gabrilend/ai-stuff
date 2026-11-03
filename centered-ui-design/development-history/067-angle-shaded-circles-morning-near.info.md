@@ -4,7 +4,7 @@
 # 067 — angle-shaded-circles-morning-near
 
 - **Picture:** 067-angle-shaded-circles-morning-near.png
-- **Commit:** 4cd59af74 2026-10-10 centered-ui-design: bar-chart circles to watch the turn, and drags that carry
+- **Commit:** b8ff3dc2a 2026-10-10 centered-ui-design: bar-chart circles to watch the turn, and drags that carry
 - **Run:** `run --wheel-with 20 a -6 --screenshot 20.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -13,7 +13,7 @@
 ## What changed
 
 Compared with picture 066:
-- commit: f1cea4269 -> 4cd59af74
+- commit: 1abb118e6 -> b8ff3dc2a
 - changed: input/game-settings.lua
 - changed: src/012-made-by-formula.lua
 

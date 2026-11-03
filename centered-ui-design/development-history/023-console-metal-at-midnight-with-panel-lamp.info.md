@@ -4,7 +4,7 @@
 # 023 — console-metal-at-midnight-with-panel-lamp
 
 - **Picture:** 023-console-metal-at-midnight-with-panel-lamp.png
-- **Commit:** 753de1eba 2026-10-10 centered-ui-design: the world's rings follow the console's arch
+- **Commit:** 11d975d1d 2026-10-10 centered-ui-design: the world's rings follow the console's arch
 - **Run:** `run --screenshot 12` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/012-made-by-formula.lua

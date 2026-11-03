@@ -4,7 +4,7 @@
 # 096 — console-mid-spin-buttons-keep-their-width
 
 - **Picture:** 096-console-mid-spin-buttons-keep-their-width.png
-- **Commit:** 3cba5ed0a 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
+- **Commit:** 26ccbb9ed 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
 - **Run:** `run --drag 24 1100 990 600 990 1.0 --screenshot 24.6` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests
@@ -19,7 +19,7 @@
 ## What changed
 
 Compared with picture 095:
-- commit: 4808343fa -> 3cba5ed0a
+- commit: 40c84a2c6 -> 26ccbb9ed
 - changed: input/game-settings.lua
 - changed: src/003-the-far-camera.lua
 - changed: src/013-the-world-renderer.lua

@@ -4,7 +4,7 @@
 # 010 — hub-camera-at-dusk
 
 - **Picture:** 010-hub-camera-at-dusk.png
-- **Commit:** 457e0f594 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
+- **Commit:** ee27a5535 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
 - **Run:** `run --screenshot 8.6` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 
 ## What it shows

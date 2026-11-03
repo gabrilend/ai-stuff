@@ -4,7 +4,7 @@
 # 107 — light-pipe-gltf-along-the-middle-2-lit
 
 - **Picture:** 107-light-pipe-gltf-along-the-middle-2-lit.png
-- **Commit:** 2a6acd917 2026-10-10 poor-person-google-glass: tolerance records kept on the model, one per joint
+- **Commit:** e9bccc358 2026-10-10 poor-person-google-glass: tolerance records kept on the model, one per joint
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M input/viewer-settings.lua

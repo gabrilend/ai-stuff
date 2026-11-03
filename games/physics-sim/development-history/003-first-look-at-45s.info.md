@@ -5,7 +5,7 @@
 - taken: 2026-10-21, by a scratch capture script that became
   scripts/picture-the-game; the game run once for 45 seconds and its window
   photographed with ImageMagick's import at 5, 20 and 45 seconds
-- commit: 3b96088cd (the game as committed in July; binary built in May)
+- commit: f12d85693 (the game as committed in July; binary built in May)
 - source fingerprint: 7d626580581a08d2 (the same sources as pictures 004-009)
 - input: none intended; see 'What it shows' for evidence of stray input
 

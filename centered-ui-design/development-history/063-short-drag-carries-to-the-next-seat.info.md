@@ -4,7 +4,7 @@
 # 063 — short-drag-carries-to-the-next-seat
 
 - **Picture:** 063-short-drag-carries-to-the-next-seat.png
-- **Commit:** f1cea4269 2026-10-10 centered-ui-design: the land painted by turned circles
+- **Commit:** 1abb118e6 2026-10-10 centered-ui-design: the land painted by turned circles
 - **Run:** `run --drag 24 900 990 600 990 0.3 --screenshot 26.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

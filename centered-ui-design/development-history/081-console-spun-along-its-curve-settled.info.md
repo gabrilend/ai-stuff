@@ -4,7 +4,7 @@
 # 081 — console-spun-along-its-curve-settled
 
 - **Picture:** 081-console-spun-along-its-curve-settled.png
-- **Commit:** b9333d8c3 2026-10-10 centered-ui-design: gradient sheen-points, and a sun that circles the hub
+- **Commit:** 372ebe4f6 2026-10-10 centered-ui-design: gradient sheen-points, and a sun that circles the hub
 - **Run:** `run --drag 24 1100 990 600 990 0.5 --screenshot 26.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/014-the-dashboard.lua

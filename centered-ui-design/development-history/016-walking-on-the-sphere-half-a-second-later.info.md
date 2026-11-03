@@ -4,7 +4,7 @@
 # 016 — walking-on-the-sphere-half-a-second-later
 
 - **Picture:** 016-walking-on-the-sphere-half-a-second-later.png
-- **Commit:** 4631a8407 2026-10-10 centered-ui-design: a slant view, near by the console and far at the top
+- **Commit:** 296f49543 2026-10-10 centered-ui-design: a slant view, near by the console and far at the top
 - **Run:** `run --screenshot 10.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

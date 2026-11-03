@@ -4,7 +4,7 @@
 # 162 — light-pipe-gltf-levers-lit
 
 - **Picture:** 162-light-pipe-gltf-levers-lit.png
-- **Commit:** 3c0cb88d7 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
+- **Commit:** 17eb2ae09 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M src/018-the-light-pipe-model.lua

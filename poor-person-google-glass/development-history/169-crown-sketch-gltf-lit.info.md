@@ -4,7 +4,7 @@
 # 169 — crown-sketch-gltf-lit
 
 - **Picture:** 169-crown-sketch-gltf-lit.png
-- **Commit:** 3c0cb88d7 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
+- **Commit:** 17eb2ae09 2026-10-10 poor-person-google-glass: the light pipe as a faceted, glowing hall, seen from inside
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.1 40 0 --tilt 0.2 10 --screenshot 0.4 --views lit,annotated,joints`
 - **Uncommitted at the time:**
   -  M src/010-the-viewer.lua
