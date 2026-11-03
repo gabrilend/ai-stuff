@@ -182,8 +182,9 @@ fallback, and it is announced every time rather than taken silently.
 2. ~~Should the ledger be cleared when a session ends, or left in RAM until
    reboot?~~ Answered 2026-09-22: kept until reboot, so a resumed session keeps
    its claims. That is the behavior as built; no `SessionEnd` hook is added.
-3. Is a whole-file claim (`claim-own-change`) too blunt for files two sessions
-   share? The alternative is a claim by line range, which is more typing for
+3. ~~Is a whole-file claim (`claim-own-change`) too blunt for files two sessions
+   share?~~ Answered 2026-11-02: no, whole-file claims stay (see What
+   Happened). The alternative is a claim by line range, which is more typing for
    the session and harder for a person to read in the transcript.
 4. ~~The staging command staged the `llm-transcripts/` folder of every project
    the session touched, other sessions' transcripts included (seen 2026-09-22
@@ -250,3 +251,34 @@ refuses, and a refusing hook, under both luajit and lua5.4, and
 `test-refusal-gates` runs it. `tests/test-commit-own-changes.sh` passed its
 `--scripts-dir` after any `-- <paths>`, where it was read as two more paths;
 it now goes first.
+
+## What Happened
+
+Everything in the steps was built by 2026-09-26, as the status above says.
+032a and 032b replaced the commit route and added adoption. The last open
+question was settled on 2026-11-02:
+
+**Whole-file claims stay.** `claim-own-change` is the fallback for changes the
+ledger could not record line by line, such as a generator's output or a
+rename. Claims by line range would ask a session to type ranges that are
+easy to get wrong, and a person reading the transcript would have to check
+them against the file. The danger the question names is two sessions sharing
+a file. Since then, that case has been handled where it happens: the block
+judge in `own-changes-patch.lua` commits only the claimed lines inside a block
+that mixes owners, and the gate refuses a true same-place change. A
+whole-file claim therefore doesn't sweep another live session's lines into a
+commit, because those lines are in the other session's ledger and are left
+out. Line-range claims can be added if a real case shows a whole-file claim
+taking too much.
+
+Checked on 2026-11-02 on branch `claude/close-built-transcript-issues`,
+which sits on #53 (`claude/commit-own-changes-exit-status`):
+
+- `tests/test-commit-own-changes.sh`: 108 checks, 0 failures.
+- `tests/test-adopt-left-behind.sh`: 30 checks, 0 failures.
+- `tests/test-own-lines.sh`: 33 checks, 0 failures.
+- `test-refusal-gates`: 184 cases, 0 failures.
+
+On main without #53, the commit-route checks report a commit as failed even
+though it landed. That is the LuaJIT exit-status bug #53 fixes, so this close
+waits on #53.

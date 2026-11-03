@@ -128,8 +128,9 @@ forgotten:
   `/dev/shm/<name>`. No such pair exists today. Answered 2026-09-22: leave it —
   the tiers are temporary by design, so neither unique names nor a refusal is
   added.
-- CLAUDE.md names the exec tier as "/tmp/{project_name}/tmp/" and says the
-  project's `tmp` link points at `/tmp/{project_name}`. The library follows
+- ~~CLAUDE.md names the exec tier as "/tmp/{project_name}/tmp/" and says the
+  project's `tmp` link points at `/tmp/{project_name}`.~~ Answered
+  2026-11-02: intended, and kept (see What Happened). The library follows
   that, which means code run from `tmp/` lives at `tmp/tmp/`. Is that
   double `tmp` intended, or should executables sit directly in `/tmp/<name>/`?
 
@@ -140,3 +141,26 @@ forgotten:
   the tier set-up out of the sandbox-only path.
 - `/home/ritz/.claude/settings.json` — where the SessionStart hook is
   installed.
+
+## What Happened
+
+Built: `libs/ensure-ram-tiers` (the ensure and restore modes),
+`restore-ram-tiers` (the SessionStart hook), and the tier set-up in
+`init-project.sh` and the test runner. The last open question was settled on
+2026-11-02:
+
+**The double `tmp` is intended and stays.** The project's `tmp` link is a door
+to `/tmp/<name>/`, and that folder holds two things side by side: `tmp/`, the
+exec tier, and `shared-memory`, the link to the artifact tier in `/dev/shm`.
+`tmp/tmp/` is the exec tier seen through the door, and
+`tmp/shared-memory/` is the artifact tier seen the same way. Putting
+executables directly in `/tmp/<name>/` would mix them with the
+`shared-memory` link and lose the layout CLAUDE.md describes for the whole
+monorepo. It would also move every project's executables at once, which is
+not this project's change to make. The library already follows CLAUDE.md.
+
+The follow-up above, sourcing the library from each project's own run,
+compile, update and demo scripts, belongs to those projects' issue files and
+is not part of closing this one.
+
+`tests/test-ram-tiers.sh`: 44 passed, 0 failed (2026-11-02).

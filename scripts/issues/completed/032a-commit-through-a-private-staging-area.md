@@ -223,8 +223,9 @@ one-time token remains for the rare exception.
 
 ## Open Questions
 
-1. Hooks get git's standard arguments plus `COMMIT_OWN_CHANGES=1` and the
-   session id. The owner remembers that extra arguments to hooks once would
+1. ~~Hooks get git's standard arguments plus `COMMIT_OWN_CHANGES=1` and the
+   session id.~~ Answered 2026-11-02: nothing more for now (see What
+   Happened). The owner remembers that extra arguments to hooks once would
    have prevented some unwanted behaviour, but not which. What should hooks
    be told beyond this?
 
@@ -244,3 +245,31 @@ one-time token remains for the rare exception.
 - `032-commit-only-your-own-lines.md` (parent): the ledger, the gate.
 - `034-export-only-the-session-that-stopped.md`: the exporter whose transcript
   headers the transcript rule reads.
+
+## What Happened
+
+Built and in daily use since 2026-09-23: `commit-own-changes`, the private
+staging list, transcripts riding along, and hooks run in git's order. The one
+open question was settled on 2026-11-02:
+
+**Hooks are told nothing beyond git's standard arguments, `COMMIT_OWN_CHANGES=1`
+and the session id.** The owner remembered that extra arguments once would
+have prevented some unwanted behaviour, but not which. Adding arguments
+without that case would be guessing at a contract every hook then has to
+honour. The two environment values already let a hook tell this route's
+commits from a plain `git commit` and tell sessions apart. Those are the two
+facts a hook could act on that git itself doesn't give it. When the
+behaviour is remembered, the argument that would have prevented it can be
+added then, with a test that shows the difference.
+
+Checked on 2026-11-02 on branch `claude/close-built-transcript-issues`,
+which sits on #53 (`claude/commit-own-changes-exit-status`):
+
+- `tests/test-commit-own-changes.sh`: 108 checks, 0 failures.
+- `tests/test-adopt-left-behind.sh`: 30 checks, 0 failures.
+- `tests/test-own-lines.sh`: 33 checks, 0 failures.
+- `test-refusal-gates`: 184 cases, 0 failures.
+
+On main without #53, the commit-route checks report a commit as failed even
+though it landed. That is the LuaJIT exit-status bug #53 fixes, so this close
+waits on #53.
