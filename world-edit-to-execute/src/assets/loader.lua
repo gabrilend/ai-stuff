@@ -31,6 +31,13 @@ when a pack's file changed and asks it to read one asset again:
     L:file_changed(dir, rel)        -- a pack's file changed: its key, and whether to reload it
     L:wants(path)   L:reindex()   loader.key_of(path)
 
+The renderer reads through a loader the same way it read through
+assets.open's handle (issue 606a): texture, model, table, model_for and
+scale_for, so gpu.lua and ground.lua draw the player's packs first.
+
+    local L = loader.new({ assets = A })     -- A: assets.open(map)
+    gpu.new(render, L)   ground.apply(render, L, scene)   L:model_for("unit", "hfoo", nil, od)
+
 A layer for one game, above every pack (a shared map-and-model list,
 share/profile.lua, issue 609), and taken off again after:
 
@@ -327,6 +334,62 @@ function L:reindex()
     for _, pack in ipairs(self.packs) do
         pack.index, pack.files = index_pack(pack.dir)
     end
+end
+-- }}}
+
+-- {{{ the renderer's calls: L:texture / L:model / L:table / L:model_for / L:scale_for
+-- As assets.open's handle answers them (assets/init.lua), so the renderer
+-- (gpu.lua, ground.lua, the map viewer and the editor) can be handed a
+-- loader instead and draw the player's packs first (issue 606a).
+
+-- A decoded texture, or nil. Like A:texture, a path with no extension, or
+-- a .tga that isn't there, is tried again as .blp.
+function L:texture(path)
+    if type(path) ~= "string" or path == "" then return nil end
+    local key = key_of(path)
+    local tries = { path }
+    if key:match("%.tga$") then tries[2] = path:sub(1, -5) .. ".blp"
+    elseif not key:match("%.blp$") then tries[2] = path .. ".blp" end
+    for _, p in ipairs(tries) do
+        local v = self:get(p)
+        if type(v) == "table" and v.rgba then return v end
+    end
+    return nil
+end
+
+-- A parsed model, or nil; the path is made a .mdx as A:model makes it.
+function L:model(path)
+    local p = assets.model_path(path)
+    if not p then return nil end
+    local v = self:get(p)
+    if type(v) == "table" and not v.rgba then return v end
+    return nil
+end
+
+-- A stock table: the install's, through the assets handle (packs hold art).
+function L:table(path)
+    if not self.assets then return nil end
+    return self.assets:table(path)
+end
+
+-- model_for and scale_for are the assets handle's own, run with the loader
+-- as `self`, so the model they name is looked up packs first.
+local function borrowed(self, name)
+    local mt = self.assets and getmetatable(self.assets)
+    local methods = mt and (type(mt.__index) == "table" and mt.__index or mt)
+    local f = methods and methods[name]
+    if type(f) ~= "function" then
+        error("loader: " .. name .. " needs an assets handle (assets.open) to read object data", 3)
+    end
+    return f
+end
+
+function L:model_for(kind, id, variation, object_data)
+    return borrowed(self, "model_for")(self, kind, id, variation, object_data)
+end
+
+function L:scale_for(kind, id, object_data)
+    return borrowed(self, "scale_for")(self, kind, id, object_data)
 end
 -- }}}
 

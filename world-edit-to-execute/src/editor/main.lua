@@ -43,6 +43,13 @@ if os.getenv("WC3_MODELS") ~= "0" or os.getenv("WC3_TILES") ~= "0" then
     local ok, got = pcall(require("assets").open, path, { root = ROOT })
     if ok then A = got end
 end
+-- read through the loader (issue 606a), so the player's asset packs come
+-- before the map and the install; A alone when the packs can't be read.
+-- Unseen: no screen to check it on.
+if A then
+    local ok, got = pcall(require("assets.loader").new, { assets = A, root = ROOT })
+    if ok then A = got else print("[editor] packs not read, the map and install only: " .. tostring(got)) end
+end
 -- }}}
 
 -- {{{ the ground

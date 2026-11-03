@@ -62,12 +62,20 @@ local player = tonumber(os.getenv("WC3_PLAYER") or "0")
 local assets_mod = require("assets")
 local A = assets_mod.open(path, { root = ROOT })
 local chain = A.chain
+-- the art through the loader (issue 606a): the player's asset packs
+-- first, then the map, then the install; A itself is still the reader
+-- for stock tables, sounds and the game. Unseen: no screen to check it on.
+local art = A
+do
+    local ok, got = pcall(require("assets.loader").new, { assets = A, root = ROOT })
+    if ok then art = got else print("[assets] packs not read, the map and install only: " .. tostring(got)) end
+end
 local stock = require("gamedata.unit_stock").new(A.chain, s.map.object_data and s.map.object_data.units)
 -- the ground's textures (issue 526): the install's tilesets, else
 -- stand-ins drawn in their layout; WC3_TILES=0 for plain colours
 if os.getenv("WC3_TILES") ~= "0" then
     local ground = require("assets.ground")
-    local r = ground.apply(render, A, s, { standins = os.getenv("WC3_TILES") == "standin" })
+    local r = ground.apply(render, art, s, { standins = os.getenv("WC3_TILES") == "standin" })
     print(string.format("[ground] %d tilesets: %d from the install, %d stand-ins; %d cells textured, %d triangles",
         r.tilesets, r.real, r.standin, r.cells, r.triangles))
 end
@@ -238,7 +246,7 @@ local hud = hud_mod.new(game, sw, sh)
 -- {{{ models: the map's and the install's (issue 522); WC3_MODELS=0 for
 -- the geometry designs only
 local gpu = require("assets.gpu")
-local model_cache = A and gpu.new(render, A)
+local model_cache = A and gpu.new(render, art)
 local model_ids = {}
 local object_data = s.map.object_data
 local function model_of(kind, id, variation)
@@ -246,7 +254,7 @@ local function model_of(kind, id, variation)
     local key = kind .. ":" .. id .. ":" .. tostring(variation or "")
     local v = model_ids[key]
     if v == nil then
-        local m, mpath = A:model_for(kind, id, variation, object_data)
+        local m, mpath = art:model_for(kind, id, variation, object_data)
         v = m and model_cache:build(m, mpath) or false
         model_ids[key] = v
     end

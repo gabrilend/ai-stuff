@@ -45,3 +45,18 @@ a link changes the stored file for every map and pack that shares it, and
 inotify (watching the pack's folder, not the store) doesn't see it.
 Make it the pack's own copy first: `luajit src/cli/storage.lua edit pack
 NAME PATH` (604a, where stored files are read-only).
+
+## Onto the screen (606a)
+
+`on_reload` callbacks that put a saved texture into the one already made
+for it, by the same texture id:
+
+| Callback | For |
+|----------|-----|
+| `gpu.on_reload(cache)` (`cache:retexture(path, img)`) | model textures (`assets/gpu.lua`) |
+| `ground.on_reload(render, ids, terrain, report)` | the ground's tilesets (`assets/ground.lua`) |
+
+Both need `render.tex_update(id, w, h, rgba)`, which `render/models.c`
+doesn't have yet; without it they swap nothing and say so (false). Only
+the Lua side is tested (`src/tests/test_renderer_loader.lua`, a fake
+renderer); nothing here has been seen on a screen.

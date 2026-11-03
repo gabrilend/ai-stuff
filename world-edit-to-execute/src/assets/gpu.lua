@@ -27,6 +27,12 @@ per path.
     local id = cache:build(m, path)                   -- a model id, or nil (nothing drawable)
     render.model_draw(id, x, y, z, facing, scale, r, g, b)
     local rig = cache:rig(id)                         -- to animate it (assets/anim.lua)
+    cache:retexture(path, img)                        -- hot-reload: new pixels into a texture made before
+    H = hotreload.new(L, { on_reload = gpu.on_reload(cache) })   -- the same, for every saved texture
+
+The source may be an assets.loader (issue 606a) as well as assets.open's
+handle: anything with :texture(path). Through a loader, the player's
+packs come first.
 ]]
 
 local ffi = require("ffi")
@@ -88,6 +94,12 @@ function C:glow_texture()
     return self.tex["<glow>"]
 end
 
+-- A texture's key: "Textures\Foo.BLP" and "textures/foo.blp" are one
+-- texture, made once
+local function norm(p)
+    return (p:gsub("\\", "/"):gsub("^/+", ""):lower())
+end
+
 -- (texture id, team flag) for a model texture entry
 function C:texture(t)
     if not t then return self:solid_texture("<grey>", 150, 146, 140) , 0 end
@@ -96,7 +108,7 @@ function C:texture(t)
     local path = t.path
     if t.replaceable ~= 0 then path = gpu.REPLACEABLE[t.replaceable] end
     if not path or path == "" then return self:solid_texture("<grey>", 150, 146, 140), 0 end
-    local key = path:lower()
+    local key = norm(path)
     if self.tex[key] == nil then
         local img = self.assets:texture(path)
         if img then
@@ -109,6 +121,48 @@ function C:texture(t)
     -- missing: trees green, the rest grey (the third value says so)
     if t.replaceable >= 31 and t.replaceable <= 37 then return self:solid_texture("<leaf>", 70, 110, 60), 0, true end
     return self:solid_texture("<grey>", 150, 146, 140), 0, true
+end
+-- }}}
+
+-- {{{ Hot-reload (606a)
+-- The names a texture made for KEY could have been read under: itself,
+-- and the .blp tried in place of a missing .tga or a path with no
+-- extension (as A:texture and the loader's L:texture try it).
+local function read_as(key)
+    local names = { key }
+    if key:match("%.tga$") then names[2] = key:sub(1, -5) .. ".blp"
+    elseif not key:match("%.blp$") then names[2] = key .. ".blp" end
+    return names
+end
+
+-- Puts IMG ({ width, height, rgba }) into the texture already made for
+-- PATH. True when it was swapped; false when no texture was made for that
+-- path, or the renderer can't replace one (render.tex_update isn't in
+-- render/models.c yet: 606a).
+function C:retexture(path, img)
+    if type(path) ~= "string" or not img or not img.rgba then return false end
+    if type(self.render.tex_update) ~= "function" then return false end
+    local want, swapped = norm(path), false
+    for key, id in pairs(self.tex) do
+        if id and not key:match("^<") then
+            for _, name in ipairs(read_as(key)) do
+                if name == want then
+                    self.render.tex_update(id, img.width, img.height, img.rgba)
+                    swapped = true
+                    break
+                end
+            end
+        end
+    end
+    return swapped
+end
+
+-- An on_reload for assets/hotreload.lua that swaps each reloaded texture
+-- into CACHE.
+function gpu.on_reload(cache)
+    return function(path, value)
+        if type(value) == "table" and value.rgba then cache:retexture(path, value) end
+    end
 end
 -- }}}
 

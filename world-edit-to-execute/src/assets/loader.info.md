@@ -24,6 +24,24 @@ limit (`cache.lua`).
 | `L:pop_layer(name)` | a layer's name | takes it off; what it served is read again from the packs; true when it was on |
 | `loader.key_of(path)` | a path | its key: lower case, forward slashes |
 
+### The renderer's calls (issue 606a)
+
+The same calls `assets.open`'s handle answers, so `gpu.lua`, `ground.lua`,
+the map viewer and the editor can be handed a loader and draw the
+player's packs first.
+
+| Function | Takes | Gives |
+|----------|-------|-------|
+| `L:texture(path)` | a texture path | `{width, height, rgba}` or nil; a path with no extension, or a `.tga` nobody has, is tried again as `.blp` |
+| `L:model(path)` | a model path (`.mdl`, `.mdx` or none) | the parsed `.mdx`, or nil |
+| `L:table(path)` | a stock table's path | the handle's table (packs hold art, not tables); nil without a handle |
+| `L:model_for(kind, id, variation, object_data)` | as the handle's | the handle's own `model_for`, run with the loader as `self`, so the model is looked up packs first; an error without a handle |
+| `L:scale_for(kind, id, object_data)` | as the handle's | the same, for its scale |
+
+One difference from the handle: a file with no extension is decoded only
+under its `.blp` name; the handle also tried the bare name, guessing its
+format from its first bytes.
+
 Sources are `"pack:NAME"`, `"map"`, or the install's archive as
 `gamedata/chain.lua` names it. Paths match without regard to case or slash
 direction.
