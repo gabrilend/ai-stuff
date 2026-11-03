@@ -68,10 +68,14 @@ daemon_loop() {
         echo "[$(date '+%H:%M:%S')] Loaded $(echo ${#STATE[@]}) keys from state file" >> "$LOG_FILE"
     fi
 
-    # Create request pipe
+    # Create request pipe. If that fails there is nothing to listen on, and
+    # the read loop below would spin on the missing pipe for ever, filling
+    # the log; so give up instead, and start_daemon reports the failure.
     rm -f "$REQUEST_PIPE"
-    mkfifo "$REQUEST_PIPE"
-    chmod 600 "$REQUEST_PIPE"
+    if ! mkfifo "$REQUEST_PIPE" || ! chmod 600 "$REQUEST_PIPE"; then
+        echo "[$(date '+%H:%M:%S')] Cannot create $REQUEST_PIPE; not starting" >> "$LOG_FILE"
+        exit 1
+    fi
 
     echo "[$(date '+%H:%M:%S')] Daemon started, listening on $REQUEST_PIPE" >> "$LOG_FILE"
     echo $$ > "$PID_FILE"
@@ -220,21 +224,31 @@ start_daemon() {
         rm -f "$PID_FILE"
     fi
 
-    # Start daemon in background
-    nohup bash "$0" _daemon >> "$LOG_FILE" 2>&1 &
+    # Start daemon in background. The folder goes with it: the daemon is a
+    # new run of this script, and without it the daemon would fall back on
+    # the default folder while this client talks to the one it was given.
+    STATE_DAEMON_DIR="$DIR" nohup bash "$0" _daemon >> "$LOG_FILE" 2>&1 &
     local daemon_pid=$!
 
-    # Wait a moment for startup
-    sleep 0.5
+    # Started means listening: the request pipe exists and the daemon has
+    # written its PID file. Wait up to two seconds for both.
+    local tries=0
+    while (( tries < 20 )); do
+        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+            break
+        fi
+        if [ -p "$REQUEST_PIPE" ] && [ "$(cat "$PID_FILE" 2>/dev/null)" = "$daemon_pid" ]; then
+            echo "Daemon started (PID $daemon_pid)"
+            echo "Socket: $REQUEST_PIPE"
+            return 0
+        fi
+        sleep 0.1
+        tries=$((tries + 1))
+    done
 
-    if kill -0 "$daemon_pid" 2>/dev/null; then
-        echo "Daemon started (PID $daemon_pid)"
-        echo "Socket: $REQUEST_PIPE"
-        return 0
-    else
-        echo "Failed to start daemon"
-        return 1
-    fi
+    kill "$daemon_pid" 2>/dev/null
+    echo "Failed to start daemon (see $LOG_FILE)"
+    return 1
 }
 # }}}
 
