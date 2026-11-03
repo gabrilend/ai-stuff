@@ -47,6 +47,20 @@ uintptr_t platform_caller_token(void);
  * device, entry never returns (the run loop is forever); on the twin it
  * returns when the engine is shut down, which is how a test ends. */
 void platform_start_cores(int count, void (*entry)(int core));
+
+/* One turn of a spin lock's wait for its number to come up: `word` is
+ * the lock's now-serving number, `seen` what it held at the last look,
+ * `turns` how many turns this wait has taken since the queue last moved.
+ * And the release's side:
+ * `platform_spin_wake` is called when a lock is let go with others queued.
+ * A device core is never taken away from the code it runs, so the device
+ * hints the core that it is spinning and never sleeps. The twin's cores
+ * are threads the host can set aside at any moment, and a lock that
+ * serves in arrival order then stalls every waiter behind one the host
+ * has set aside; so the twin lets a waiter that has watched the queue
+ * stand still a while sleep in the kernel until the word changes. */
+void platform_spin_wait(uint32_t *word, uint32_t seen, uint32_t turns);
+void platform_spin_wake(uint32_t *word);
 /* }}} */
 
 /* {{{ sleeping and waking (issue 206) */

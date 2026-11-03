@@ -124,6 +124,10 @@ rather than copied here.
   checksummed pages released and taken back, or rebuilt out loud.
 - **214 — when a box removes itself.** One counted slot per station; a
   faulting box survived in debug builds.
+- **216 — the twin on a busy host.** A spin-lock waiter on the twin
+  sleeps on the lock's word after a short spin, so a host that sets the
+  next number's thread aside cannot stall the lock; the device still only
+  spins. The suite passes with every CPU busy.
 
 Tests: `scripts/test-twin` runs `twin/tests/048`–`054`, 88 checks.
 

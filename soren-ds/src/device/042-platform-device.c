@@ -190,6 +190,21 @@ void platform_start_cores(int count, void (*entry)(int core))
 }
 /* }}} */
 
+/* {{{ platform_spin_wait / platform_spin_wake */
+/* Nothing takes a core away from a spinning waiter here, so a hint to the
+ * core is all a turn needs, and nobody ever sleeps to be woken. */
+void platform_spin_wait(uint32_t *word, uint32_t seen, uint32_t turns)
+{
+    (void)word; (void)seen; (void)turns;
+    __asm__ volatile("yield");
+}
+
+void platform_spin_wake(uint32_t *word)
+{
+    (void)word;
+}
+/* }}} */
+
 /* {{{ platform_wait_for_event */
 void platform_wait_for_event(void)
 {

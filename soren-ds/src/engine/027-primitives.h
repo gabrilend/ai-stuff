@@ -60,7 +60,10 @@
  *
  * Only ever held for a bounded, short stretch, and never on the delivery
  * path. Nothing interrupts a core holding one, because no interrupt
- * handler in this design touches the engine. */
+ * handler in this design touches the engine. How a waiter waits is the
+ * platform's (platform_spin_wait): the device spins, and the twin, whose
+ * cores are threads a busy host can set aside, sleeps after a short spin
+ * (issue 216). */
 typedef struct {
     uint32_t next;      /* the next ticket to hand out */
     uint32_t serving;   /* the ticket that currently holds the lock */
