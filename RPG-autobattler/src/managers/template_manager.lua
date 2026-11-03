@@ -7,40 +7,14 @@
 --   manager:get_template(name)
 --   manager:remove_template(name)
 --   manager:list()                       names, sorted
---   manager:create_default_templates()   one per ability set
+--   manager:create_default_templates(sets)  the game's own templates
+--                                        (src/data/default_templates.lua)
 --   manager:save_to_storage(storage) / load_from_storage(storage)
 local TemplateManager = {}
 TemplateManager.__index = TemplateManager
 
 local UnitTemplate = require("src.data.unit_template")
-
--- The defaults: a name, a body and an ability set from
--- src/data/ability_templates.lua for each, plus any stats raised above
--- the body's own. Each must fit the default budget.
-TemplateManager.DEFAULTS = {
-    {name = "Warrior", unit_type = "melee", set = "basic_warrior", stats = {armor = 4},
-        description = "Sword and power strike; holds the line."},
-    {name = "Archer", unit_type = "ranged", set = "basic_archer",
-        description = "Bow and piercing shot; fights from range while standing still."},
-    {name = "Cleric", unit_type = "support", set = "support_cleric", stats = {health = 80},
-        description = "Heals the weakest ally and wards a group."},
-    {name = "Battle Mage", unit_type = "special", set = "battle_mage",
-        description = "Meteors on clumped enemies; stirs allies to fury."},
-    {name = "Brute", unit_type = "tank", set = "brute",
-        description = "Stuns, cripples and sunders the armor of what it hits."},
-    {name = "Druid", unit_type = "support", set = "druid",
-        description = "Regeneration and healing circles from range."},
-    {name = "Skirmisher", unit_type = "ranged", set = "skirmisher", stats = {speed = 55},
-        description = "Poison darts and piercing shots."},
-    {name = "Berserker", unit_type = "melee", set = "berserker", stats = {health = 140},
-        description = "A cleaving axe and battle fury."},
-    {name = "Crossbowman", unit_type = "ranged", set = "crossbowman",
-        description = "Slow, heavy, accurate bolts."},
-    {name = "Field Medic", unit_type = "support", set = "field_medic",
-        description = "Emergency heals for allies near death."},
-    {name = "Storm Caller", unit_type = "special", set = "storm_caller",
-        description = "Static fields that slow and burn; curses that weaken."}
-}
+local DefaultTemplates = require("src.data.default_templates")
 
 -- {{{ TemplateManager:new
 function TemplateManager:new()
@@ -95,35 +69,23 @@ end
 -- }}}
 
 -- {{{ TemplateManager.default_template_data
--- The data for the default templates, as UnitTemplate.new takes it.
-function TemplateManager.default_template_data()
-    local AbilityTemplates = require("src.data.ability_templates")
-    local list = {}
-    for _, default in ipairs(TemplateManager.DEFAULTS) do
-        local abilities = {}
-        for index, name in ipairs(AbilityTemplates.sets[default.set]) do
-            abilities[index] = name
-        end
-        table.insert(list, {
-            name = default.name,
-            description = default.description,
-            created_by = "Default",
-            unit_type = default.unit_type,
-            stats = default.stats,
-            abilities = abilities
-        })
-    end
-    return list
+-- The data for the default templates of the named sets (all when nil),
+-- from src/data/default_templates.lua, as UnitTemplate.new takes it.
+function TemplateManager.default_template_data(set_names)
+    return DefaultTemplates.data(set_names)
 end
 -- }}}
 
 -- {{{ TemplateManager:create_default_templates
--- Registers every default. Returns the templates by name; errors if a
--- default doesn't validate, since that's a mistake in the game's data.
-function TemplateManager:create_default_templates()
+-- Registers the default templates of the named sets (all when nil).
+-- Returns the templates by name; errors if a default doesn't validate,
+-- since that's a mistake in the game's data.
+function TemplateManager:create_default_templates(set_names)
     local made = {}
-    for _, data in ipairs(TemplateManager.default_template_data()) do
+    for _, data in ipairs(TemplateManager.default_template_data(set_names)) do
         local template = UnitTemplate.new(data)
+        template.default_set = data.set
+        template.archetype = data.archetype
         local ok, errors = self:register_template(template)
         if not ok then
             error("Default template " .. data.name .. " isn't valid: " .. table.concat(errors, "; "))

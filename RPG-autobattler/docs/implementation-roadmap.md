@@ -94,7 +94,7 @@
 - [ ] Create point-based balancing system
 - [x] Implement template validation and constraints (Issue #059: errors and warnings from one constraints file)
 - [x] Add template saving/loading system (Issue #060: JSON files by category, backups, import/export, library)
-- [ ] Create default template sets for testing
+- [x] Create default template sets for testing (Issue #061: 21 templates in five sets, guide in docs/default-templates.md)
 
 ### 5.2 Template Editor
 - [ ] Design template editor UI

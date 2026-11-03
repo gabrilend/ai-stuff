@@ -32,6 +32,7 @@ local AbilityActivationSystem = require("src.systems.ability_activation_system")
 local AbilityEffectSystem = require("src.systems.ability_effect_system")
 local PersistentEffectsSystem = require("src.systems.persistent_effects_system")
 local AbilityFactory = require("src.factories.ability_factory")
+local UnitTemplate = require("src.data.unit_template")
 
 -- The unit body each set is carried by, when the roster doesn't say.
 AbilityBalance.UNIT_TYPE_FOR_SET = {
@@ -77,23 +78,56 @@ end
 -- }}}
 
 -- {{{ AbilityBalance.roster
--- A roster from a set name and a count, or a list of set names or
--- {set, unit_type} entries.
+-- A roster from a set name or a unit template (src/data/unit_template.lua)
+-- and a count, or a list of set names, templates, or {set, unit_type}
+-- entries.
 function AbilityBalance.roster(spec, count)
     local list = {}
-    if type(spec) == "string" then
+    local function entry_for(item)
+        if type(item) == "string" then
+            return {set = item}
+        elseif UnitTemplate.is_template(item) then
+            return {template = item}
+        end
+        return item
+    end
+    if type(spec) == "string" or UnitTemplate.is_template(spec) then
         for i = 1, count or AbilityBalance.DEFAULTS.team_size do
-            list[i] = {set = spec}
+            list[i] = entry_for(spec)
         end
     else
-        for i, entry in ipairs(spec) do
-            list[i] = type(entry) == "string" and {set = entry} or entry
+        for i, item in ipairs(spec) do
+            list[i] = entry_for(item)
         end
     end
     for _, entry in ipairs(list) do
-        entry.unit_type = entry.unit_type or AbilityBalance.UNIT_TYPE_FOR_SET[entry.set] or "melee"
+        if not entry.template then
+            entry.unit_type = entry.unit_type or AbilityBalance.UNIT_TYPE_FOR_SET[entry.set] or "melee"
+        end
     end
     return list
+end
+-- }}}
+
+-- {{{ AbilityBalance.label
+-- A name for a roster spec, for tables and reports: the set's or
+-- template's name, or the names joined with "+".
+function AbilityBalance.label(spec)
+    if type(spec) == "string" then
+        return spec
+    elseif UnitTemplate.is_template(spec) then
+        return spec.name
+    elseif type(spec) == "table" then
+        local names = {}
+        for _, item in ipairs(spec) do
+            if type(item) == "table" and not UnitTemplate.is_template(item) then
+                item = item.template or item.set
+            end
+            table.insert(names, AbilityBalance.label(item))
+        end
+        return table.concat(names, "+")
+    end
+    return tostring(spec)
 end
 -- }}}
 
@@ -131,11 +165,17 @@ function AbilityBalance.add_team(world, team, roster, x, options)
     for i, entry in ipairs(roster) do
         local ux = x + (world.random() * 2 - 1) * jitter
         local uy = top + (i - 1) * spacing + (world.random() * 2 - 1) * jitter
-        local unit = Unit.create_basic_unit(world.em, ux, uy, team, entry.unit_type)
-        local container = AbilityFactory.attach_set(world.em, unit, entry.set)
+        local unit, container
+        if entry.template then
+            unit = entry.template:create_unit(world.em, ux, uy, team)
+            container = world.em:get_component(unit, "abilities")
+        else
+            unit = Unit.create_basic_unit(world.em, ux, uy, team, entry.unit_type)
+            container = AbilityFactory.attach_set(world.em, unit, entry.set)
+        end
         table.insert(world.units[team], unit)
         world.reach[unit] = container.abilities[1] and container.abilities[1].range or 15
-        world.set_of[unit] = entry.set
+        world.set_of[unit] = entry.template and entry.template.name or entry.set
     end
 end
 -- }}}
@@ -342,11 +382,18 @@ end
 -- }}}
 
 -- {{{ AbilityBalance.round_robin
--- Every set against every other set (each named once). Returns
+-- Every set against every other set (each named once). Specs may be set
+-- names, unit templates or rosters. Returns
 -- {sets, matchups (list), table (a -> b -> win rate of a), overall
 -- (set -> {score, battles, win_rate, low, high})}.
-function AbilityBalance.round_robin(sets, options)
-    local round = {sets = sets, matchups = {}, table = {}, overall = {}}
+function AbilityBalance.round_robin(specs, options)
+    -- Rows are keyed by each spec's label: a set name, or a template's
+    -- name.
+    local sets = {}
+    for index, spec in ipairs(specs) do
+        sets[index] = AbilityBalance.label(spec)
+    end
+    local round = {sets = sets, specs = specs, matchups = {}, table = {}, overall = {}}
     for _, set in ipairs(sets) do
         round.table[set] = {}
         round.overall[set] = {score = 0, battles = 0}
@@ -354,7 +401,8 @@ function AbilityBalance.round_robin(sets, options)
     for i = 1, #sets do
         for j = i + 1, #sets do
             local a, b = sets[i], sets[j]
-            local result = AbilityBalance.matchup(a, b, options)
+            local result = AbilityBalance.matchup(specs[i], specs[j], options)
+            result.a, result.b = a, b
             table.insert(round.matchups, result)
             round.table[a][b] = result.win_rate_a
             round.table[b][a] = 1 - result.win_rate_a
