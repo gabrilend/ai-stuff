@@ -1,0 +1,185 @@
+# taken 2026-11-03 from gabrilend/ai-stuff by scripts/list-open-pull-requests
+2	main	claude/701a-shape-films-home	burner-of-down-things,delta-version,gif-generator,neocities-modernization	The shape films and their viewer come home to gif-generator (issue 701a)
+3	claude/701a-shape-films-home	claude/701b-one-reader-one-writer	burner-of-down-things,gif-generator	One reader and one writer for the whole studio (issue 701b)
+4	claude/701b-one-reader-one-writer	claude/701c-the-3d-vocabulary	gif-generator	gif-generator 701c: the 3D vocabulary (scenes are data, closed word lists, every rule at the wall)
+5	claude/701c-the-3d-vocabulary	claude/701d-one-canvas-two-spaces	gif-generator	gif-generator 701d: one canvas, two spaces
+6	claude/701d-one-canvas-two-spaces	claude/701e-every-film-kept-and-rated	gif-generator	701e: every film kept and rated
+7	claude/701e-every-film-kept-and-rated	claude/701f-the-studio-skill	gif-generator,skills	701f: the studio skill
+8	claude/701f-the-studio-skill	claude/701g-two-spaces-demo	gif-generator,skills	701g: the two spaces demo
+9	claude/701g-two-spaces-demo	claude/704-the-porch-hears-both-spaces	gif-generator	704: the porch hears both spaces, and says back what it heard
+10	claude/704-the-porch-hears-both-spaces	claude/601-the-porch-goes-live	gif-generator	601: the porch goes live, a door to llama.cpp's server and ./porch
+11	claude/601-the-porch-goes-live	claude/602-three-readings	gif-generator	602: three readings of one sentence, filmed small, and the pick
+12	main	claude/oled-black-backgrounds	neocities-modernization	Poetry site: every page on pure black from one theme (11-009)
+13	main	claude/soren-ds-stock-toolchains	soren-ds	soren-ds: build the twin and the kernel on stock GCC or LLVM
+14	main	claude/116-mdx-reader-checks	world-edit-to-execute	Model reader: errors that say where, classic models only, a summary (issue 116)
+15	main	claude/writing-cadence-histograms	neocities-modernization	Poetry site: writing-cadence histograms on the explore page (11-008)
+16	main	claude/threadpool-hardening	my-libs	my-libs threadpool: safe to share between threads, sanitizer-clean tests (800h)
+17	main	claude/117-blp1-errors-and-tests	world-edit-to-execute	Texture reader: errors that name the mipmap and byte, every mipmap at once (issue 117)
+18	main	claude/splash-gateway-page	neocities-modernization	Poetry site: an editable splash page in front of the word cloud (11-006)
+19	main	claude/threadpool-platform-layer	my-libs	my-libs threadpool: platform layer, every OS call in one header (800f)
+20	main	claude/soren-ds-fat-on-the-twin	soren-ds	soren-ds: test the FAT32 layer against laptop-made cards; fix three faults (402-404)
+21	main	claude/compat-truncated-reads	world-edit-to-execute	Known debt paid: short reads named, straight lines seen through rounding (issues 118, 410)
+22	main	claude/words-pdf-offline-tests	words-pdf	words-pdf: offline unit tests for loading, layout and theme choice (015 slice A)
+23	main	claude/A06-parser-coverage	world-edit-to-execute	Parser coverage report: every file in the test maps, its reader, and whether it read (issue A06)
+24	claude/words-pdf-offline-tests	claude/words-pdf-tier1-gate-text-block	words-pdf	words-pdf: Tier 1 gate measures only the empty column bottoms (issue 033)
+25	main	claude/soren-ds-paths-and-symlinks	soren-ds	soren-ds: paths and the device's symlinks on the card (405)
+26	main	claude/test-runner	neocities-modernization	Poetry site: one command runs every test suite (10-010)
+27	claude/words-pdf-offline-tests	claude/words-pdf-weighted-theme-negative	words-pdf	words-pdf: diversity boost lowers negative theme scores too (issue 034)
+28	main	claude/042a-integration-audits	delta-version	delta-version: the integration checker checks issue files and transcripts (042a)
+29	claude/words-pdf-tier1-gate-text-block	claude/words-pdf-art-follows-boxes	words-pdf	words-pdf: art regions follow the poem boxes as drawn (issue 035)
+30	main	claude/604-asset-dedup	world-edit-to-execute	Each fetched file is kept once, under its hash (issue 604)
+31	main	claude/gallery-pagination	neocities-modernization	Poetry site: chronological image gallery in ten pages, both directions (10-062)
+32	main	claude/storyteller-chapters	burner-of-down-things	burner-of-down-things: the ledger told as a story (1001b-d)
+33	main	claude/055-commit-completed-issue	delta-version	delta-version: an issue closes in one commit (055, the wrapper)
+34	claude/storyteller-chapters	claude/mechanism-refusal	burner-of-down-things	burner-of-down-things: moods sent back, lessons read back (1002c)
+35	main	claude/soren-ds-filesystem-boxes	soren-ds	soren-ds: the six filesystem boxes (406, 407)
+36	main	claude/soren-ds-transcript-after-push	soren-ds	soren-ds: read a queued task's size before another core can free it
+37	main	claude/shell-blocks-in-transcripts	scripts	scripts: commands run from the shell prompt read as commands in a transcript (031)
+38	main	claude/044-directory-trees	delta-version	delta-version: a map of every project's folders (044)
+39	claude/mechanism-refusal	claude/strategem-drafts	burner-of-down-things	burner-of-down-things: strategems drafted from recurring lessons, kept only by the person (1003b-d)
+40	main	claude/tag-numbers	burner-of-down-things	burner-of-down-things: tag numbers given by the machine, reuse refused (901c-d)
+41	main	claude/reverse-poem-order	neocities-modernization	Poetry site: --reverse builds the site newest first (10-064)
+42	main	claude/017-keyword-engine	delta-version	delta-version: ticket templates fill themselves, the keyword engine (017)
+43	main	claude/flair-and-night	burner-of-down-things	burner-of-down-things: the flair's quarter colours, day refused on night-only categories (801c-d)
+44	main	claude/054-language-stats-confirmed	delta-version	delta-version: close 054, GitHub's language figures confirmed
+45	main	claude/update-toc	scripts	scripts: update-toc notices documents the table of contents does not link to (A05)
+46	main	claude/structured-types	burner-of-down-things	burner-of-down-things: image, clip and table recognised without a model (902b)
+47	main	claude/rpg-036-base-entities	RPG-autobattler	RPG-autobattler: bases with health pools and a victory event (issue 036)
+48	main	claude/soren-ds-settings	soren-ds	soren-ds: the four remembered settings, on the twin (408)
+49	claude/structured-types	claude/remaining-types	burner-of-down-things	burner-of-down-things: every shape type recognised, the rest unknown (902c)
+50	claude/A06-parser-coverage	claude/wpm-shd-mmp-readers	world-edit-to-execute	Readers for the pathing map, shadow map and minimap icons (issue 119)
+51	claude/rpg-036-base-entities	claude/rpg-037-defense-shields	RPG-autobattler	RPG-autobattler: three defence shields per base (issue 037)
+52	main	claude/concurrent-ratings	burner-of-down-things	burner-of-down-things: ratings appended safely under two writers, tiers counted (809b)
+53	main	claude/commit-own-changes-exit-status	scripts	scripts: commit-own-changes reads exit statuses the same under LuaJIT and Lua 5.4
+54	main	claude/046-worktrees-from-main	delta-version	delta-version 046: worktrees start from origin/main, never /dev
+55	claude/rpg-037-defense-shields	claude/rpg-038-base-turret	RPG-autobattler	RPG-autobattler: automatic base turret (issue 038)
+56	main	claude/box-diagrams	burner-of-down-things	burner-of-down-things: box diagrams in text, arrows labelled there and here (807c)
+57	main	claude/project-discovery	scripts	scripts: shared project-discovery library (010)
+58	claude/rpg-038-base-turret	claude/rpg-039-shield-destruction	RPG-autobattler	RPG-autobattler: shield vulnerability windows and a 30 s seal between shield losses (issue 039)
+59	main	claude/plans-by-shape	burner-of-down-things	burner-of-down-things: plans joined by shape: search, joint checks, execution (905b-d)
+60	claude/rpg-039-shield-destruction	claude/rpg-040-unit-reset	RPG-autobattler	RPG-autobattler: a fallen shield removes every attacking unit (issue 040)
+61	main	claude/issue-manager	scripts	scripts: issue manager library on the shared issue-name reader (012)
+62	claude/project-discovery	claude/018-project-discovery	delta-version	delta-version 018: discover-projects picks a ticket's projects (stacked on #57)
+63	main	claude/rpg-041-mana-bars	RPG-autobattler	RPG-autobattler: mana bars per ability with primary and secondary charging (issue 041)
+64	claude/604-asset-dedup	claude/605-storage-manager	world-edit-to-execute	How much each map and asset pack takes, and deleting one (issue 605)
+65	claude/concurrent-ratings	claude/pool-floors	burner-of-down-things	burner-of-down-things: floors per category (809d)
+66	claude/604-asset-dedup	claude/601-player-data-paths-in-docs	world-edit-to-execute	The docs put player data in the project's player-data folder (part of 601)
+67	claude/box-diagrams	claude/prose-templates	burner-of-down-things	burner-of-down-things: prose templates (807d)
+68	main	claude/rpg-fix-are-enemies	RPG-autobattler	RPG-autobattler: fix Unit.are_enemies reading an undefined variable
+69	main	claude/soren-ds-compile-pipeline	soren-ds	soren-ds: compile a box on the running device (409)
+70	main	claude/rpg-fix-lane-test-hang	RPG-autobattler	RPG-autobattler: fix Vector2.lerp looping forever (lane tests hung)
+71	main	claude/charts-and-diagrams	burner-of-down-things	burner-of-down-things: line and dot charts, diagrams by level, the machine drawn by itself (805b-d)
+72	main	claude/048-027-keep-or-close	delta-version	delta-version 048, 027: close both as already answered
+73	claude/rpg-040-unit-reset	claude/rpg-wire-base-systems	RPG-autobattler	RPG-autobattler: the game state now runs a match with bases, shields, turrets and resets
+74	main	claude/ollama-needs-and-confinement	burner-of-down-things	burner-of-down-things: ollama needs check and confinement (903b, 903d)
+75	claude/rpg-wire-base-systems	claude/rpg-draw-base-systems	RPG-autobattler	RPG-autobattler: draw the match with plain shapes (NOT YET SEEN ON SCREEN)
+76	main	claude/user-prompts-file	scripts	scripts: a file of just the person's requests beside every transcript (issue 002)
+77	main	claude/close-015	scripts	scripts: close issue 015, the list viewport was already built
+78	claude/project-discovery	claude/list-projects-shared-library	delta-version	delta-version: list-projects.sh reads its rules from the shared library (stacked on #57)
+79	claude/601-player-data-paths-in-docs	claude/601-asset-loader	world-edit-to-execute	Any asset by its path, the player's packs first (issue 601)
+80	claude/rpg-041-mana-bars	claude/rpg-042-043-mana-conditions	RPG-autobattler	RPG-autobattler: mana settle time, combat bonuses and death reset (issues 042, 043)
+81	claude/ollama-needs-and-confinement	claude/the-router	burner-of-down-things	burner-of-down-things: the router, step 1 (904)
+82	claude/rpg-042-043-mana-conditions	claude/rpg-044-mana-efficiency	RPG-autobattler	RPG-autobattler: proportional mana spending (issue 044)
+83	claude/soren-ds-compile-pipeline	claude/soren-ds-reclaim-code	soren-ds	soren-ds: give compiled code back once nothing can be inside it (410)
+84	main	claude/readme-toc-shared-phases	delta-version	delta-version: README TOC takes issue phases from the shared reader (048 leftover)
+85	main	claude/023-duplicate-pointer	delta-version	delta-version 023: duplicate copy becomes a pointer to the completed record
+86	claude/pool-floors	claude/the-viewer	burner-of-down-things	burner-of-down-things: the viewer without its window (810, steps 1-2)
+87	main	claude/phase-folder-duplicates	delta-version	delta-version: stale phase-folder issue copies become pointers (001, 004–007, 010, 011, 013, 014)
+88	claude/605-storage-manager	claude/603-fetcher	world-edit-to-execute	Catalogue, check and store maps and models; local files only for now (issue 603)
+89	claude/phase-folder-duplicates	claude/005-close-superseded	delta-version	delta-version 005: close branch isolation as superseded (stacked on #87)
+90	claude/rpg-044-mana-efficiency	claude/rpg-046-ability-components	RPG-autobattler	RPG-autobattler: ability base class and component system (046)
+91	main	claude/png-writer	burner-of-down-things	burner-of-down-things: the PNG writer (804 step 1)
+92	claude/soren-ds-reclaim-code	claude/soren-ds-replace-box	soren-ds	soren-ds: replace a box in a running program by moving the arrows (411)
+93	main	claude/menu-dropdown	scripts	scripts: dropdown select items for the Lua menu (issue 017)
+94	claude/rpg-046-ability-components	claude/rpg-047-targeting	RPG-autobattler	RPG-autobattler: targeting system for abilities (047)
+95	claude/flair-and-night	claude/the-wall	burner-of-down-things	burner-of-down-things: the paintbrush and its wall (802)
+96	claude/rpg-047-targeting	claude/rpg-048-ability-activation	RPG-autobattler	RPG-autobattler: abilities fire when their mana is full (048)
+97	claude/the-wall	claude/source-first-line	burner-of-down-things	burner-of-down-things: the source end's checks (808 step 1)
+98	claude/018-project-discovery	claude/019-ticket-distribution	delta-version	delta-version 019: ticket distribution engine (dry run, ledger, undo)
+99	claude/update-toc	claude/phase-a-integration-test	scripts	scripts: Phase A tools tested together, with a demo (issue A07)
+100	claude/source-first-line	claude/frames-and-moves	burner-of-down-things	burner-of-down-things: frames and moves (806 step 1)
+101	claude/rpg-048-ability-activation	claude/rpg-049-ability-effects	RPG-autobattler	RPG-autobattler: ability types and their effects (049)
+102	claude/019-ticket-distribution	claude/020-ticket-menu	delta-version	delta-version 020: ticket distribution menu (preview, distribute after a yes, history, undo)
+103	claude/strategem-drafts	claude/observations	burner-of-down-things	burner-of-down-things: observations of a station's errors (906 step 1)
+104	claude/rpg-049-ability-effects	claude/rpg-050-cooldowns-effects	RPG-autobattler	RPG-autobattler: ability cooldowns and effects over time (050)
+105	claude/rpg-050-cooldowns-effects	claude/rpg-045-mana-bar-ui	RPG-autobattler	RPG-autobattler: mana bars drawn in plain shapes, not yet seen (045)
+106	claude/020-ticket-menu	claude/021-ticket-chain-tests	delta-version	delta-version 021: ticket chain test suite (every keyword, every template, scale)
+107	main	claude/rpg-067-match-ability-sets	RPG-autobattler	RPG-autobattler: file issue 067, matches spawn units with ability sets
+108	main	claude/issue-004-menu-render	scripts	scripts: the bash menu stops scrolling its own screen (issue 004)
+109	claude/601-asset-loader	claude/606-hot-reload	world-edit-to-execute	world-edit-to-execute: hot-reload for asset packs (606)
+110	claude/rpg-draw-base-systems	claude/rpg-040b-units-attack-bases	RPG-autobattler	RPG-autobattler: units attack bases and shields (040b)
+111	claude/021-ticket-chain-tests	claude/022-ticket-hook	delta-version	delta-version 022: ticket command and opt-in post-commit hook (preview only by default)
+112	main	claude/phase-5-9-B-progress-tables	world-edit-to-execute	world-edit-to-execute: phase 5, 9 and B progress tables up to date
+113	claude/rpg-fix-lane-test-hang	claude/rpg-008a-013a-test-disagreements	RPG-autobattler	RPG-autobattler: settle the vector and spawn test disagreements (008a, 013a)
+114	main	claude/test-runner-scripts-folder	scripts	test-runner finds tests kept in a project's scripts/ folder
+115	claude/005-close-superseded	claude/duplicate-ids	delta-version	delta-version: one issue per number (001, 037, 038 renumbered to 065, 066, 067 with pointers)
+116	main	claude/sdc-dunes-and-sightlines	supcom-derivative-clone	supcom-derivative-clone: the dunes are raised by a tool, and sightlines are read off them (102, 103)
+117	claude/soren-ds-filesystem-boxes	claude/soren-ds-append-writes	soren-ds	soren-ds: append-path, a file larger than one value (413)
+118	main	claude/lua-menu-global-tables	scripts	Menu libraries keep their tables when sourced from inside a function
+119	main	claude/040-claudemd-revisions	delta-version	delta-version 040 (first slice): CLAUDE.md guidelines from repeated events, approve/rollback; stand-in model for tests
+120	claude/040-claudemd-revisions	claude/049-transcript-detail	delta-version	delta-version 049 (first slice, 049a): transcript detail levels, classed by the model, kept word for word
+121	claude/605-storage-manager	claude/604-read-only-blobs	world-edit-to-execute	world-edit-to-execute: read-only stored files, edited copy-on-write (604a)
+122	claude/sdc-dunes-and-sightlines	claude/sdc-the-world-and-its-clock	supcom-derivative-clone	supcom-derivative-clone: the world is flat arrays, the tick is a table, timers and named streams (104-107)
+123	claude/049-transcript-detail	claude/051-vision-from-history	delta-version	delta-version 051 (first slice, 051a): first-commit facts from git and a model-drafted vision
+124	claude/rpg-045-mana-bar-ui	claude/rpg-051-056-reconcile	RPG-autobattler	RPG-autobattler: reconcile issues 051-056 with the ability stack
+125	claude/issue-004-menu-render	claude/bash-menu-viewport	scripts	Bash menu scrolls a tall list inside its box
+126	claude/051-vision-from-history	claude/053-shared-components	delta-version	delta-version 053 (first slice): TODONE reports components several projects each plan to build
+127	claude/phase-5-9-B-progress-tables	claude/515-516-renumber	world-edit-to-execute	world-edit-to-execute: renumber the second 515 and 516 to 543 and 544
+128	claude/rpg-051-056-reconcile	claude/rpg-057-unit-templates	RPG-autobattler	RPG-autobattler: priced unit templates and template manager (057)
+129	claude/sdc-the-world-and-its-clock	claude/sdc-commands-and-snapshots	supcom-derivative-clone	supcom-derivative-clone: commands enter through one door; snapshots, hashes and replays (108, 109)
+130	main	claude/007-file-server-pure-html	scripts	scripts: file server keeps names as data, so the page has no script and runs nothing (issue 007)
+131	claude/rpg-057-unit-templates	claude/rpg-059-template-validation	RPG-autobattler	RPG-autobattler: template validation and constraints (059)
+132	claude/duplicate-ids	claude/older-issue-decisions	delta-version	delta-version: decide the older open issues (close 058, 056a; recommend 039, 052, 056, 067)
+133	main	claude/034-loud-exporter	scripts	scripts: conversation exporter shows a failed export; tmp link ignored (issue 034)
+134	claude/sdc-commands-and-snapshots	claude/sdc-runner-and-viewer	supcom-derivative-clone	supcom-derivative-clone: the headless runner and a terminal viewer (110, 111)
+135	claude/older-issue-decisions	claude/052-superseded	delta-version	delta-version 052: close as superseded by llama.cpp
+136	claude/rpg-059-template-validation	claude/rpg-060-template-storage	RPG-autobattler	RPG-autobattler: template saving, loading, backups and library (060)
+137	main	claude/037-recap-markers	scripts	scripts: transcripts carry the name the person gave the session; recap questions settled (issue 037)
+138	claude/601-asset-loader	claude/602-wireframe-fallback	world-edit-to-execute	world-edit-to-execute: wire-frame fallback for missing assets and blank maps (602)
+139	claude/rpg-060-template-storage	claude/rpg-061-default-template-sets	RPG-autobattler	RPG-autobattler: default template sets and generated guide (061)
+140	claude/sdc-runner-and-viewer	claude/sdc-territory	supcom-derivative-clone	supcom-derivative-clone: territory is painted on cells (112)
+141	claude/soren-ds-append-writes	claude/soren-ds-card-faults	soren-ds	soren-ds: pull the twin's card out mid-write; every write shown old-or-new
+142	claude/commit-own-changes-exit-status	claude/close-built-transcript-issues	scripts	scripts: close the built commit, scratch-tier and patch issues (032, 032a, 032b, 033, 036)
+143	claude/rpg-061-default-template-sets	claude/rpg-064-ability-selection	RPG-autobattler	RPG-autobattler: ability library and selection logic (064)
+144	claude/sdc-territory	claude/sdc-every-mechanic-has-a-test	supcom-derivative-clone	supcom-derivative-clone: every mechanic has a test, and the phase 1 demo (113)
+145	main	claude/settle-016-038	scripts	scripts: settle the gif-per-turn questions (038), list it under 035, close 016
+146	main	claude/hlm-216d-guard-is-a-point	hero-less-moba	hero-less-moba: a guard is a point, and no guard had ever moved (216d)
+147	claude/older-issue-decisions	claude/059-counting	delta-version	delta-version 059: count every conversation alike, plus git lines and a symlink hang fix
+148	claude/606-hot-reload	claude/609-shared-model-list	world-edit-to-execute	world-edit-to-execute: shared map-and-model list, applied for one game (609)
+149	claude/rpg-064-ability-selection	claude/rpg-058-repricing	RPG-autobattler	RPG-autobattler: provisional repricing machinery (058)
+150	claude/052-superseded	claude/039-extra-roots	delta-version	delta-version 039: extra-root projects stay local unless listed; pushing is opt-in
+151	main	claude/tui-panels	scripts	scripts: panels in tui.lua, a rectangle with its own coordinates (039, from delta-version 067)
+152	main	claude/duplicate-ids-008-026	scripts	scripts: one issue per number, the newer 008 and 026 become 040 and 041
+153	claude/sdc-every-mechanic-has-a-test	claude/sdc-units	supcom-derivative-clone	supcom-derivative-clone: a unit is one record, and the unit catalogue (201, 202)
+154	main	claude/hlm-111a-door-and-chest-tests	hero-less-moba	hero-less-moba: the door and the chest get a suite of their own (106, 401, 402, 411)
+155	claude/039-extra-roots	claude/056b-summarizer	delta-version	delta-version 056b: recursive map-reduce transcript summarizer (stand-in tested)
+156	claude/sdc-units	claude/sdc-domains-and-movement	supcom-derivative-clone	supcom-derivative-clone: three domains on one field, and movement follows a pattern (203, 204)
+157	main	claude/hlm-709-drawn-body-weight	hero-less-moba	hero-less-moba: a drawn body can carry weight, behind a key (709)
+158	claude/609-shared-model-list	claude/606a-renderer-on-loader	world-edit-to-execute	606a: the renderer reads through the asset loader
+159	claude/056b-summarizer	claude/056c-apply-summary	delta-version	delta-version 056c: summary applier (table of contents + block; renames off by default)
+160	claude/rpg-058-repricing	claude/rpg-reachable-triggers	RPG-autobattler	RPG-autobattler: warn on ability triggers a body can never meet; fix Glass Cannon and battle fury
+161	claude/sdc-domains-and-movement	claude/sdc-targeting	supcom-derivative-clone	supcom-derivative-clone: nothing is out of range (205)
+162	claude/515-516-renumber	claude/validator-pointer-files	scripts	The issue validator recognises a pointer file and lets it be
+163	claude/rpg-reachable-triggers	claude/rpg-063-stat-allocation	RPG-autobattler	RPG-autobattler: stat allocation logic (063)
+164	main	claude/009-batch-backup-menu	scripts	scripts: batch transcript backup gets its menu, --since and --commit (009)
+165	claude/053-shared-components	claude/051b-roadmap	delta-version	051b, first slice: a project's phases read from its git history, as a drafted roadmap
+166	claude/609-shared-model-list	claude/609a-shared-list-exchange	world-edit-to-execute	609a: a shared list goes from one player to another, asking first
+167	claude/rpg-063-stat-allocation	claude/rpg-065-point-budget	RPG-autobattler	RPG-autobattler: point budget display logic and optimizer (065)
+168	claude/sdc-targeting	claude/sdc-combat	supcom-derivative-clone	supcom-derivative-clone: a shot is buffered when fired and applied when it lands (206, 207)
+169	claude/rpg-065-point-budget	claude/rpg-066-template-preview	RPG-autobattler	RPG-autobattler: template preview logic (066)
+170	main	claude/005-vision-viewer	scripts	scripts: vision-viewer reads the projects' vision documents (005a, closes 005)
+171	claude/sdc-combat	claude/sdc-bones	supcom-derivative-clone	supcom-derivative-clone: a dead unit leaves bones that carry mass (208)
+172	claude/rpg-066-template-preview	claude/rpg-062-template-editor	RPG-autobattler	RPG-autobattler: template editor logic and layout (062)
+173	claude/051b-roadmap	claude/051c-issues-from-history	delta-version	051c: issue files for work already done, drafted from git history
+174	main	claude/summary-block-rulebook	scripts	scripts: the exporter keeps a summary block and a slug name (043, for delta-version 056c)
+175	claude/606a-renderer-on-loader	claude/606a-hot-reload-switch	world-edit-to-execute	606a: WC3_HOT_RELOAD turns hot-reload on in the viewer and the editor
+176	claude/053-shared-components	claude/053c-shared-roadmap	delta-version	053c: shared components in build order, from todone's report
+177	claude/sdc-bones	claude/sdc-command-truck	supcom-derivative-clone	supcom-derivative-clone: the command truck moves on command and launches its plane (210)
+178	claude/rpg-062-template-editor	claude/rpg-068-ability-cues	RPG-autobattler	RPG-autobattler: draw and play ability cues (068)
+179	main	claude/lua-menu-multistate	scripts	scripts: lua-menu multistate items get their states and cycle (044)
+180	claude/sdc-command-truck	claude/sdc-enforcer	supcom-derivative-clone	supcom-derivative-clone: the enforcer eats bones, upgrades, and shields its friends (211)
+181	claude/040-claudemd-revisions	claude/040d-audit	delta-version	040d and 040g: a queryable CLAUDE.md audit trail, and why a guideline exists
+182	main	claude/hlm-212-a-beaten-body-rolls	hero-less-moba	hero-less-moba: a beaten body gets one roll (212), H15 answered
+183	claude/sdc-enforcer	claude/sdc-thread-pool	supcom-derivative-clone	supcom-derivative-clone: the thread pool slices the tick, the same at any count (209)
+184	main	claude/042-batch-backup-output	scripts	scripts: batch backup output folder, combined file, metadata, parallel levels (042, on #164)
+185	claude/056c-apply-summary	claude/056d-overseer	delta-version	056d: an overseer that finds unsummarized conversations, previewing unless run=on

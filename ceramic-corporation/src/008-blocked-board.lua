@@ -26,7 +26,7 @@
 -- per source; the ranking is reach, then frees, then whether the source can
 -- act now, then name.
 --
--- Run directly: `luajit 008-blocked-board.lua ORG_DIR [--ready]`.
+-- Run directly: `luajit 008-blocked-board.lua ORG_DIR [--ready] [--says]`.
 
 local ROOT = debug.getinfo(1, "S").source:match("^@(.*)/src/[^/]+$") or "."
 local reader = dofile(ROOT .. "/src/007-org-reader.lua")
@@ -113,9 +113,15 @@ function M.board(org)
     else
       holders = org.map.boxes[source].holders
     end
+    local says
+    if source:sub(1, 1) == "$" then
+      says = org.map.outsides[source:sub(2)].says
+    else
+      says = org.map.boxes[source].says
+    end
     rows[#rows + 1] = { source = source, state = source_state(org, source),
                         owes = owes[source], frees = frees, reach = reach,
-                        holders = holders }
+                        holders = holders, says = says }
   end
 
   table.sort(rows, function(a, b)
@@ -131,8 +137,10 @@ end
 -- }}}
 
 -- {{{ function M.render()
--- A plain-text table. For an outside source the last column is its speakers.
-function M.render(rows)
+-- A plain-text table. For an outside source the holders column is its
+-- speakers. With `with_says`, each row is followed by the source's says line,
+-- indented, so a board of numbered things says what each one is.
+function M.render(rows, with_says)
   local out = {}
   local width = #"source"
   for _, r in ipairs(rows) do
@@ -143,6 +151,7 @@ function M.render(rows)
   for _, r in ipairs(rows) do
     local holders = #r.holders > 0 and table.concat(r.holders, " ") or "-"
     out[#out + 1] = string.format(fmt, r.source, r.state, r.owes, r.frees, r.reach, holders)
+    if with_says and r.says then out[#out + 1] = "    " .. r.says end
   end
   return table.concat(out, "\n") .. "\n"
 end
@@ -150,17 +159,18 @@ end
 
 -- {{{ function M.main()
 function M.main(args)
-  local dir, ready_only = nil, false
+  local dir, ready_only, with_says = nil, false, false
   for _, a in ipairs(args) do
     if a == "--ready" then ready_only = true
+    elseif a == "--says" then with_says = true
     elseif dir == nil then dir = a:gsub("/+$", "")
     else
-      io.stderr:write("usage: 008-blocked-board.lua ORG_DIR [--ready]\n")
+      io.stderr:write("usage: 008-blocked-board.lua ORG_DIR [--ready] [--says]\n")
       return 2
     end
   end
   if not dir then
-    io.stderr:write("usage: 008-blocked-board.lua ORG_DIR [--ready]\n")
+    io.stderr:write("usage: 008-blocked-board.lua ORG_DIR [--ready] [--says]\n")
     return 2
   end
   local org, problems = reader.read_org(dir)
@@ -181,7 +191,7 @@ function M.main(args)
     print(ready_only and "nothing anybody can deliver right now is owed" or "nothing is waiting")
     return 0
   end
-  io.write(M.render(rows))
+  io.write(M.render(rows, with_says))
   return 0
 end
 -- }}}

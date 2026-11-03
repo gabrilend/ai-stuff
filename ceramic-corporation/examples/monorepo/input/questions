@@ -1,0 +1,19 @@
+# Questions the monorepo is waiting on its owner to answer, kept by hand.
+# Each becomes a work box held by the owner, wired to the project it holds up.
+# Only questions a project's own files say are open, with the file that says
+# so; a question answered is removed here and the map regenerated.
+
+question soren-ds-catalogue
+  project soren-ds
+  says "does the device keep a catalogue at all, or lean on something like the parent's symbol table?"
+  source "soren-ds/issues/phase-3-progress.md, the catalogue question"
+
+question ceramic-what-soramech-is
+  project ceramic-corporation
+  says "is the reading of soramech right? the parent, minimal-soramech, is not in the repository"
+  source "ceramic-corporation/docs/005-open-questions.md, Q1"
+
+question ceramic-trainstation
+  project ceramic-corporation
+  says "can ceramic-trainstation come into the repository, so the boxes-and-wires picture can be built?"
+  source "ceramic-corporation/issues/203-the-trainstation-picture.md"

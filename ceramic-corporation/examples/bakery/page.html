@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>corner-bakery — the map</title>
+<style>:root { color-scheme: light dark; --line: #8884; --wait: #c62; --ok: #284; --dim: #888; }
+body { font: 15px/1.45 system-ui, sans-serif; max-width: 62rem; margin: 0 auto; padding: 1rem; }
+h1, h2, h3 { line-height: 1.2; }
+h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: .2rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+article { border: 1px solid var(--line); border-radius: .4rem; padding: .6rem .8rem; margin: .6rem 0; }
+article:target { outline: 2px solid var(--wait); }
+.state { font-size: .8rem; padding: 0 .4rem; border-radius: .3rem; border: 1px solid currentColor; }
+.blocked, .waiting { color: var(--wait); }
+.ready, .fed, .done { color: var(--ok); }
+.vacant, .outside, .note { color: var(--dim); }
+code { font-size: .9em; }
+</style>
+</head>
+<body>
+<header>
+<h1>corner-bakery</h1>
+<p>bread for the street, baked before seven</p>
+<p>4 people, 7 boxes: 3 blocked, 4 ready, 0 done. Written from <code>org.map</code> and <code>org.state</code>; nothing on this page is anywhere but those files.</p>
+<nav><a href="#board">What is blocking</a> · <a href="#boxes">Every box</a> · <a href="#people">People</a> · <a href="#outside">Outside</a></nav>
+</header>
+<section id="board">
+<h2>What is blocking</h2>
+<p>Every source of waiting, ranked by <em>reach</em> (how many boxes cannot finish without it), then <em>frees</em> (how many become ready the moment it delivers).</p>
+<table>
+<thead><tr><th>source</th><th>state</th><th>owes</th><th>frees</th><th>reach</th><th>holders</th><th>what it is</th></tr></thead>
+<tbody>
+<tr><td><a href="#box-cleaning">cleaning</a></td><td class="vacant">vacant</td><td class="n">1</td><td class="n">1</td><td class="n">2</td><td><span class="vacant">nobody</span></td><td>the bench is scrubbed before the first dough</td></tr>
+<tr><td><a href="#box-books">books</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td><a href="#person-dee">dee</a></td><td></td></tr>
+<tr><td><a href="#box-baking">baking</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td><a href="#person-ana">ana</a></td><td>turns flour into loaves</td></tr>
+</tbody>
+</table>
+</section>
+<section id="boxes">
+<h2>Every box</h2>
+<article id="box-buying">
+<h3>role buying <span class="state ready">ready</span></h3>
+<p>orders flour and keeps the pantry full</p>
+<p>Held by <a href="#person-bo">bo</a>.</p>
+<table>
+<tr><td>in</td><td><code>invoice</code></td><td>from <a href="#outside-mill">$mill</a> <span class="note">the mill's weekly invoice</span></td><td><span class="fed">fed 2026-11-02</span></td></tr>
+<tr><td>out</td><td><code>flour</code></td><td>to <a href="#box-baking">baking</a>.flour</td><td></td></tr>
+</table>
+</article>
+<article id="box-baking">
+<h3>role baking <span class="state blocked">blocked</span></h3>
+<p>turns flour into loaves</p>
+<p>Held by <a href="#person-ana">ana</a>.</p>
+<table>
+<tr><td>in</td><td><code>flour</code></td><td>from <a href="#box-buying">buying</a>.flour</td><td><span class="fed">fed 2026-11-02</span></td></tr>
+<tr><td>in</td><td><code>recipe</code></td><td>from <span class="note">fixed: the house sourdough, seventy percent water</span></td><td><span class="fed">fed</span></td></tr>
+<tr><td>in</td><td><code>clean-bench</code></td><td>from <a href="#box-cleaning">cleaning</a>.bench</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>loaves</code></td><td>to <a href="#box-selling">selling</a>.loaves</td><td></td></tr>
+<tr><td>out</td><td><code>loaves</code></td><td>to <a href="#box-delivery">delivery</a>.loaves</td><td></td></tr>
+<tr><td>out</td><td><code>wash-water</code></td><td>to <a href="#outside-drain">$drain</a> <span class="note">flour paste down the sink</span></td><td></td></tr>
+</table>
+</article>
+<article id="box-cleaning">
+<h3>role cleaning <span class="state vacant">vacant</span></h3>
+<p>the bench is scrubbed before the first dough</p>
+<p>Held by <span class="vacant">nobody</span>.</p>
+<table>
+<tr><td>out</td><td><code>bench</code></td><td>to <a href="#box-baking">baking</a>.clean-bench</td><td></td></tr>
+</table>
+</article>
+<article id="box-selling">
+<h3>role selling <span class="state ready">ready</span></h3>
+<p>Held by <a href="#person-bo">bo</a>.</p>
+<table>
+<tr><td>in</td><td><code>loaves</code></td><td>from <a href="#box-baking">baking</a>.loaves</td><td><span class="fed">fed 2026-11-03</span> <span class="note">yesterday's bake, still on the shelf</span></td></tr>
+<tr><td>out</td><td><code>takings</code></td><td>to <a href="#box-books">books</a>.takings</td><td></td></tr>
+<tr><td>out</td><td><code>bread</code></td><td>to <a href="#outside-customers">$customers</a></td><td></td></tr>
+</table>
+</article>
+<article id="box-delivery">
+<h3>role delivery <span class="state blocked">blocked</span></h3>
+<p>takes the standing orders round by bicycle</p>
+<p>Held by <a href="#person-cy">cy</a>.</p>
+<table>
+<tr><td>in</td><td><code>loaves</code></td><td>from <a href="#box-baking">baking</a>.loaves</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>bread</code></td><td>to <a href="#outside-customers">$customers</a></td><td></td></tr>
+</table>
+</article>
+<article id="box-books">
+<h3>role books <span class="state ready">ready</span></h3>
+<p>Held by <a href="#person-dee">dee</a>.</p>
+<table>
+<tr><td>in</td><td><code>takings</code></td><td>from <a href="#box-selling">selling</a>.takings</td><td><span class="fed">fed 2026-11-03</span></td></tr>
+<tr><td>out</td><td><code>oven-budget</code></td><td>to <a href="#box-new-oven">new-oven</a>.budget</td><td></td></tr>
+<tr><td>out</td><td><code>payment</code></td><td>to <a href="#outside-mill">$mill</a></td><td></td></tr>
+</table>
+</article>
+<article id="box-new-oven">
+<h3>work new-oven <span class="state blocked">blocked</span></h3>
+<p>replace the oven that loses heat overnight</p>
+<p>Held by <a href="#person-ana">ana</a>.</p>
+<table>
+<tr><td>in</td><td><code>budget</code></td><td>from <a href="#box-books">books</a>.oven-budget</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+</section>
+<section id="people">
+<h2>People</h2>
+<table>
+<tr id="person-ana"><td>ana</td><td>bakes</td><td>holds <a href="#box-baking">baking</a>, <a href="#box-new-oven">new-oven</a></td></tr>
+<tr id="person-bo"><td>bo</td><td>buys flour and runs the till</td><td>holds <a href="#box-buying">buying</a>, <a href="#box-selling">selling</a></td></tr>
+<tr id="person-cy"><td>cy</td><td>delivers, and is new</td><td>holds <a href="#box-delivery">delivery</a></td></tr>
+<tr id="person-dee"><td>dee</td><td>keeps the books</td><td>holds <a href="#box-books">books</a></td></tr>
+</table>
+</section>
+<section id="outside">
+<h2>Outside</h2>
+<table>
+<tr id="outside-customers"><td>$customers</td><td>the people who buy bread</td><td>spoken for by <span class="vacant">nobody</span></td></tr>
+<tr id="outside-mill"><td>$mill</td><td>the mill we buy flour from</td><td>spoken for by <span class="vacant">nobody</span></td></tr>
+<tr id="outside-drain"><td>$drain</td><td>the city drain behind the shop</td><td>spoken for by <a href="#person-dee">dee</a></td></tr>
+</table>
+</section>
+</body>
+</html>

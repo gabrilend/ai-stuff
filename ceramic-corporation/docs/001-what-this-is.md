@@ -79,6 +79,8 @@ what from whom, and the rule for changing that picture.
 
 The monorepo this project lives in has the shape the vision describes: many
 projects, one person who merges, and a long queue of pull requests some of which
-are stacked on others. [The roadmap](006-roadmap.md) ends phase 1 with that
-queue written as an org map and the blocked board telling its one merger which
+are stacked on others. [`examples/monorepo/`](../examples/monorepo/board.txt) is
+that queue written as an org map — every open pull request a work box, every
+stacked one wired to the one it is built on, every project waiting on its open
+pull requests — and its blocked board tells the one person who merges which
 merge frees the most work.

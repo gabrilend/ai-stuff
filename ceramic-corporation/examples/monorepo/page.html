@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-stuff — the map</title>
+<style>:root { color-scheme: light dark; --line: #8884; --wait: #c62; --ok: #284; --dim: #888; }
+body { font: 15px/1.45 system-ui, sans-serif; max-width: 62rem; margin: 0 auto; padding: 1rem; }
+h1, h2, h3 { line-height: 1.2; }
+h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: .2rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+article { border: 1px solid var(--line); border-radius: .4rem; padding: .6rem .8rem; margin: .6rem 0; }
+article:target { outline: 2px solid var(--wait); }
+.state { font-size: .8rem; padding: 0 .4rem; border-radius: .3rem; border: 1px solid currentColor; }
+.blocked, .waiting { color: var(--wait); }
+.ready, .fed, .done { color: var(--ok); }
+.vacant, .outside, .note { color: var(--dim); }
+code { font-size: .9em; }
+</style>
+</head>
+<body>
+<header>
+<h1>ai-stuff</h1>
+<p>the monorepo as of 2026-11-03: 184 open pull requests, 3 open questions, 14 projects waiting</p>
+<p>2 people, 201 boxes: 122 blocked, 79 ready, 0 done. Written from <code>org.map</code> and <code>org.state</code>; nothing on this page is anywhere but those files.</p>
+<nav><a href="#board">What is blocking</a> · <a href="#boxes">Every box</a> · <a href="#people">People</a> · <a href="#outside">Outside</a></nav>
+</header>
+<section id="board">
+<h2>What is blocking</h2>
+<p>Every source of waiting, ranked by <em>reach</em> (how many boxes cannot finish without it), then <em>frees</em> (how many become ready the moment it delivers).</p>
+<table>
+<thead><tr><th>source</th><th>state</th><th>owes</th><th>frees</th><th>reach</th><th>holders</th><th>what it is</th></tr></thead>
+<tbody>
+<tr><td><a href="#box-pr-63">pr-63</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">22</td><td><a href="#person-ritz">ritz</a></td><td>#63: RPG-autobattler: mana bars per ability with primary and secondary charging (issue 041)</td></tr>
+<tr><td><a href="#box-pr-80">pr-80</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">21</td><td><a href="#person-ritz">ritz</a></td><td>#80: RPG-autobattler: mana settle time, combat bonuses and death reset (issues 042, 043)</td></tr>
+<tr><td><a href="#box-pr-82">pr-82</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">20</td><td><a href="#person-ritz">ritz</a></td><td>#82: RPG-autobattler: proportional mana spending (issue 044)</td></tr>
+<tr><td><a href="#box-pr-90">pr-90</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">19</td><td><a href="#person-ritz">ritz</a></td><td>#90: RPG-autobattler: ability base class and component system (046)</td></tr>
+<tr><td><a href="#box-pr-94">pr-94</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">18</td><td><a href="#person-ritz">ritz</a></td><td>#94: RPG-autobattler: targeting system for abilities (047)</td></tr>
+<tr><td><a href="#box-pr-96">pr-96</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">17</td><td><a href="#person-ritz">ritz</a></td><td>#96: RPG-autobattler: abilities fire when their mana is full (048)</td></tr>
+<tr><td><a href="#box-pr-101">pr-101</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">16</td><td><a href="#person-ritz">ritz</a></td><td>#101: RPG-autobattler: ability types and their effects (049)</td></tr>
+<tr><td><a href="#box-pr-104">pr-104</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">15</td><td><a href="#person-ritz">ritz</a></td><td>#104: RPG-autobattler: ability cooldowns and effects over time (050)</td></tr>
+<tr><td><a href="#box-pr-116">pr-116</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">14</td><td><a href="#person-ritz">ritz</a></td><td>#116: supcom-derivative-clone: the dunes are raised by a tool, and sightlines are read off them (102, 103)</td></tr>
+<tr><td><a href="#box-pr-2">pr-2</a></td><td class="ready">ready</td><td class="n">5</td><td class="n">1</td><td class="n">14</td><td><a href="#person-ritz">ritz</a></td><td>#2: The shape films and their viewer come home to gif-generator (issue 701a)</td></tr>
+<tr><td><a href="#box-pr-105">pr-105</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">14</td><td><a href="#person-ritz">ritz</a></td><td>#105: RPG-autobattler: mana bars drawn in plain shapes, not yet seen (045)</td></tr>
+<tr><td><a href="#box-pr-122">pr-122</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">13</td><td><a href="#person-ritz">ritz</a></td><td>#122: supcom-derivative-clone: the world is flat arrays, the tick is a table, timers and named streams (104-107)</td></tr>
+<tr><td><a href="#box-pr-124">pr-124</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">13</td><td><a href="#person-ritz">ritz</a></td><td>#124: RPG-autobattler: reconcile issues 051-056 with the ability stack</td></tr>
+<tr><td><a href="#box-pr-30">pr-30</a></td><td class="ready">ready</td><td class="n">3</td><td class="n">2</td><td class="n">12</td><td><a href="#person-ritz">ritz</a></td><td>#30: Each fetched file is kept once, under its hash (issue 604)</td></tr>
+<tr><td><a href="#box-pr-128">pr-128</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">12</td><td><a href="#person-ritz">ritz</a></td><td>#128: RPG-autobattler: priced unit templates and template manager (057)</td></tr>
+<tr><td><a href="#box-pr-129">pr-129</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">12</td><td><a href="#person-ritz">ritz</a></td><td>#129: supcom-derivative-clone: commands enter through one door; snapshots, hashes and replays (108, 109)</td></tr>
+<tr><td><a href="#box-pr-131">pr-131</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">11</td><td><a href="#person-ritz">ritz</a></td><td>#131: RPG-autobattler: template validation and constraints (059)</td></tr>
+<tr><td><a href="#box-pr-134">pr-134</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">11</td><td><a href="#person-ritz">ritz</a></td><td>#134: supcom-derivative-clone: the headless runner and a terminal viewer (110, 111)</td></tr>
+<tr><td><a href="#box-pr-3">pr-3</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">1</td><td class="n">11</td><td><a href="#person-ritz">ritz</a></td><td>#3: One reader and one writer for the whole studio (issue 701b)</td></tr>
+<tr><td><a href="#box-pr-87">pr-87</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">10</td><td><a href="#person-ritz">ritz</a></td><td>#87: delta-version: stale phase-folder issue copies become pointers (001, 004–007, 010, 011, 013, 014)</td></tr>
+<tr><td><a href="#box-pr-136">pr-136</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">10</td><td><a href="#person-ritz">ritz</a></td><td>#136: RPG-autobattler: template saving, loading, backups and library (060)</td></tr>
+<tr><td><a href="#box-pr-140">pr-140</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">10</td><td><a href="#person-ritz">ritz</a></td><td>#140: supcom-derivative-clone: territory is painted on cells (112)</td></tr>
+<tr><td><a href="#box-pr-139">pr-139</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">9</td><td><a href="#person-ritz">ritz</a></td><td>#139: RPG-autobattler: default template sets and generated guide (061)</td></tr>
+<tr><td><a href="#box-pr-144">pr-144</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">9</td><td><a href="#person-ritz">ritz</a></td><td>#144: supcom-derivative-clone: every mechanic has a test, and the phase 1 demo (113)</td></tr>
+<tr><td><a href="#box-pr-4">pr-4</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">9</td><td><a href="#person-ritz">ritz</a></td><td>#4: gif-generator 701c: the 3D vocabulary (scenes are data, closed word lists, every rule at the wall)</td></tr>
+<tr><td><a href="#box-pr-89">pr-89</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">9</td><td><a href="#person-ritz">ritz</a></td><td>#89: delta-version 005: close branch isolation as superseded (stacked on #87)</td></tr>
+<tr><td><a href="#box-pr-119">pr-119</a></td><td class="ready">ready</td><td class="n">3</td><td class="n">2</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#119: delta-version 040 (first slice): CLAUDE.md guidelines from repeated events, approve/rollback; stand-in model for tests</td></tr>
+<tr><td><a href="#box-pr-57">pr-57</a></td><td class="ready">ready</td><td class="n">3</td><td class="n">2</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#57: scripts: shared project-discovery library (010)</td></tr>
+<tr><td><a href="#box-pr-47">pr-47</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#47: RPG-autobattler: bases with health pools and a victory event (issue 036)</td></tr>
+<tr><td><a href="#box-pr-115">pr-115</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#115: delta-version: one issue per number (001, 037, 038 renumbered to 065, 066, 067 with pointers)</td></tr>
+<tr><td><a href="#box-pr-143">pr-143</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#143: RPG-autobattler: ability library and selection logic (064)</td></tr>
+<tr><td><a href="#box-pr-153">pr-153</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#153: supcom-derivative-clone: a unit is one record, and the unit catalogue (201, 202)</td></tr>
+<tr><td><a href="#box-pr-5">pr-5</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#5: gif-generator 701d: one canvas, two spaces</td></tr>
+<tr><td><a href="#box-pr-66">pr-66</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">8</td><td><a href="#person-ritz">ritz</a></td><td>#66: The docs put player data in the project's player-data folder (part of 601)</td></tr>
+<tr><td><a href="#box-pr-132">pr-132</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">2</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#132: delta-version: decide the older open issues (close 058, 056a; recommend 039, 052, 056, 067)</td></tr>
+<tr><td><a href="#box-pr-79">pr-79</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">2</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#79: Any asset by its path, the player's packs first (issue 601)</td></tr>
+<tr><td><a href="#box-pr-149">pr-149</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#149: RPG-autobattler: provisional repricing machinery (058)</td></tr>
+<tr><td><a href="#box-pr-156">pr-156</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#156: supcom-derivative-clone: three domains on one field, and movement follows a pattern (203, 204)</td></tr>
+<tr><td><a href="#box-pr-51">pr-51</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#51: RPG-autobattler: three defence shields per base (issue 037)</td></tr>
+<tr><td><a href="#box-pr-6">pr-6</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">7</td><td><a href="#person-ritz">ritz</a></td><td>#6: 701e: every film kept and rated</td></tr>
+<tr><td><a href="#box-pr-120">pr-120</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">6</td><td><a href="#person-ritz">ritz</a></td><td>#120: delta-version 049 (first slice, 049a): transcript detail levels, classed by the model, kept word for word</td></tr>
+<tr><td><a href="#box-pr-160">pr-160</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">6</td><td><a href="#person-ritz">ritz</a></td><td>#160: RPG-autobattler: warn on ability triggers a body can never meet; fix Glass Cannon and battle fury</td></tr>
+<tr><td><a href="#box-pr-161">pr-161</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">6</td><td><a href="#person-ritz">ritz</a></td><td>#161: supcom-derivative-clone: nothing is out of range (205)</td></tr>
+<tr><td><a href="#box-pr-55">pr-55</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">6</td><td><a href="#person-ritz">ritz</a></td><td>#55: RPG-autobattler: automatic base turret (issue 038)</td></tr>
+<tr><td><a href="#box-pr-7">pr-7</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">1</td><td class="n">6</td><td><a href="#person-ritz">ritz</a></td><td>#7: 701f: the studio skill</td></tr>
+<tr><td><a href="#box-pr-109">pr-109</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#109: world-edit-to-execute: hot-reload for asset packs (606)</td></tr>
+<tr><td><a href="#box-pr-123">pr-123</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#123: delta-version 051 (first slice, 051a): first-commit facts from git and a model-drafted vision</td></tr>
+<tr><td><a href="#box-pr-135">pr-135</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#135: delta-version 052: close as superseded by llama.cpp</td></tr>
+<tr><td><a href="#box-pr-163">pr-163</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#163: RPG-autobattler: stat allocation logic (063)</td></tr>
+<tr><td><a href="#box-pr-168">pr-168</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#168: supcom-derivative-clone: a shot is buffered when fired and applied when it lands (206, 207)</td></tr>
+<tr><td><a href="#box-pr-58">pr-58</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#58: RPG-autobattler: shield vulnerability windows and a 30 s seal between shield losses (issue 039)</td></tr>
+<tr><td><a href="#box-pr-62">pr-62</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#62: delta-version 018: discover-projects picks a ticket's projects (stacked on #57)</td></tr>
+<tr><td><a href="#box-pr-8">pr-8</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">1</td><td class="n">5</td><td><a href="#person-ritz">ritz</a></td><td>#8: 701g: the two spaces demo</td></tr>
+<tr><td><a href="#box-pr-22">pr-22</a></td><td class="ready">ready</td><td class="n">3</td><td class="n">2</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#22: words-pdf: offline unit tests for loading, layout and theme choice (015 slice A)</td></tr>
+<tr><td><a href="#box-pr-126">pr-126</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">2</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#126: delta-version 053 (first slice): TODONE reports components several projects each plan to build</td></tr>
+<tr><td><a href="#box-pr-148">pr-148</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">2</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#148: world-edit-to-execute: shared map-and-model list, applied for one game (609)</td></tr>
+<tr><td><a href="#box-pr-112">pr-112</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#112: world-edit-to-execute: phase 5, 9 and B progress tables up to date</td></tr>
+<tr><td><a href="#box-pr-32">pr-32</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#32: burner-of-down-things: the ledger told as a story (1001b-d)</td></tr>
+<tr><td><a href="#box-pr-43">pr-43</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#43: burner-of-down-things: the flair's quarter colours, day refused on night-only categories (801c-d)</td></tr>
+<tr><td><a href="#box-pr-150">pr-150</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#150: delta-version 039: extra-root projects stay local unless listed; pushing is opt-in</td></tr>
+<tr><td><a href="#box-pr-167">pr-167</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#167: RPG-autobattler: point budget display logic and optimizer (065)</td></tr>
+<tr><td><a href="#box-pr-171">pr-171</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#171: supcom-derivative-clone: a dead unit leaves bones that carry mass (208)</td></tr>
+<tr><td><a href="#box-pr-60">pr-60</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#60: RPG-autobattler: a fallen shield removes every attacking unit (issue 040)</td></tr>
+<tr><td><a href="#box-pr-98">pr-98</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">4</td><td><a href="#person-ritz">ritz</a></td><td>#98: delta-version 019: ticket distribution engine (dry run, ledger, undo)</td></tr>
+<tr><td><a href="#box-pr-64">pr-64</a></td><td class="blocked">blocked</td><td class="n">3</td><td class="n">2</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#64: How much each map and asset pack takes, and deleting one (issue 605)</td></tr>
+<tr><td><a href="#box-pr-35">pr-35</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#35: soren-ds: the six filesystem boxes (406, 407)</td></tr>
+<tr><td><a href="#box-pr-52">pr-52</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#52: burner-of-down-things: ratings appended safely under two writers, tiers counted (809b)</td></tr>
+<tr><td><a href="#box-pr-69">pr-69</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#69: soren-ds: compile a box on the running device (409)</td></tr>
+<tr><td><a href="#box-pr-102">pr-102</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#102: delta-version 020: ticket distribution menu (preview, distribute after a yes, history, undo)</td></tr>
+<tr><td><a href="#box-pr-127">pr-127</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#127: world-edit-to-execute: renumber the second 515 and 516 to 543 and 544</td></tr>
+<tr><td><a href="#box-pr-155">pr-155</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#155: delta-version 056b: recursive map-reduce transcript summarizer (stand-in tested)</td></tr>
+<tr><td><a href="#box-pr-169">pr-169</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#169: RPG-autobattler: template preview logic (066)</td></tr>
+<tr><td><a href="#box-pr-177">pr-177</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#177: supcom-derivative-clone: the command truck moves on command and launches its plane (210)</td></tr>
+<tr><td><a href="#box-pr-34">pr-34</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#34: burner-of-down-things: moods sent back, lessons read back (1002c)</td></tr>
+<tr><td><a href="#box-pr-73">pr-73</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#73: RPG-autobattler: the game state now runs a match with bases, shields, turrets and resets</td></tr>
+<tr><td><a href="#box-pr-9">pr-9</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#9: 704: the porch hears both spaces, and says back what it heard</td></tr>
+<tr><td><a href="#box-pr-95">pr-95</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">3</td><td><a href="#person-ritz">ritz</a></td><td>#95: burner-of-down-things: the paintbrush and its wall (802)</td></tr>
+<tr><td><a href="#box-pr-108">pr-108</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#108: scripts: the bash menu stops scrolling its own screen (issue 004)</td></tr>
+<tr><td><a href="#box-pr-23">pr-23</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#23: Parser coverage report: every file in the test maps, its reader, and whether it read (issue A06)</td></tr>
+<tr><td><a href="#box-pr-45">pr-45</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#45: scripts: update-toc notices documents the table of contents does not link to (A05)</td></tr>
+<tr><td><a href="#box-pr-46">pr-46</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#46: burner-of-down-things: image, clip and table recognised without a model (902b)</td></tr>
+<tr><td><a href="#box-pr-53">pr-53</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#53: scripts: commit-own-changes reads exit statuses the same under LuaJIT and Lua 5.4</td></tr>
+<tr><td><a href="#box-pr-56">pr-56</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#56: burner-of-down-things: box diagrams in text, arrows labelled there and here (807c)</td></tr>
+<tr><td><a href="#box-pr-70">pr-70</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#70: RPG-autobattler: fix Vector2.lerp looping forever (lane tests hung)</td></tr>
+<tr><td><a href="#box-pr-74">pr-74</a></td><td class="ready">ready</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#74: burner-of-down-things: ollama needs check and confinement (903b, 903d)</td></tr>
+<tr><td><a href="#box-pr-10">pr-10</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#10: 601: the porch goes live, a door to llama.cpp's server and ./porch</td></tr>
+<tr><td><a href="#box-pr-106">pr-106</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#106: delta-version 021: ticket chain test suite (every keyword, every template, scale)</td></tr>
+<tr><td><a href="#box-pr-117">pr-117</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#117: soren-ds: append-path, a file larger than one value (413)</td></tr>
+<tr><td><a href="#box-pr-158">pr-158</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#158: 606a: the renderer reads through the asset loader</td></tr>
+<tr><td><a href="#box-pr-159">pr-159</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#159: delta-version 056c: summary applier (table of contents + block; renames off by default)</td></tr>
+<tr><td><a href="#box-pr-165">pr-165</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#165: 051b, first slice: a project's phases read from its git history, as a drafted roadmap</td></tr>
+<tr><td><a href="#box-pr-172">pr-172</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#172: RPG-autobattler: template editor logic and layout (062)</td></tr>
+<tr><td><a href="#box-pr-180">pr-180</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#180: supcom-derivative-clone: the enforcer eats bones, upgrades, and shields its friends (211)</td></tr>
+<tr><td><a href="#box-pr-24">pr-24</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#24: words-pdf: Tier 1 gate measures only the empty column bottoms (issue 033)</td></tr>
+<tr><td><a href="#box-pr-39">pr-39</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#39: burner-of-down-things: strategems drafted from recurring lessons, kept only by the person (1003b-d)</td></tr>
+<tr><td><a href="#box-pr-65">pr-65</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#65: burner-of-down-things: floors per category (809d)</td></tr>
+<tr><td><a href="#box-pr-75">pr-75</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#75: RPG-autobattler: draw the match with plain shapes (NOT YET SEEN ON SCREEN)</td></tr>
+<tr><td><a href="#box-pr-83">pr-83</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#83: soren-ds: give compiled code back once nothing can be inside it (410)</td></tr>
+<tr><td><a href="#box-pr-97">pr-97</a></td><td class="blocked">blocked</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td><a href="#person-ritz">ritz</a></td><td>#97: burner-of-down-things: the source end's checks (808 step 1)</td></tr>
+<tr><td><a href="#box-pr-107">pr-107</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#107: RPG-autobattler: file issue 067, matches spawn units with ability sets</td></tr>
+<tr><td><a href="#box-pr-114">pr-114</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#114: test-runner finds tests kept in a project's scripts/ folder</td></tr>
+<tr><td><a href="#box-pr-118">pr-118</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#118: Menu libraries keep their tables when sourced from inside a function</td></tr>
+<tr><td><a href="#box-pr-12">pr-12</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#12: Poetry site: every page on pure black from one theme (11-009)</td></tr>
+<tr><td><a href="#box-pr-13">pr-13</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#13: soren-ds: build the twin and the kernel on stock GCC or LLVM</td></tr>
+<tr><td><a href="#box-pr-130">pr-130</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#130: scripts: file server keeps names as data, so the page has no script and runs nothing (issue 007)</td></tr>
+<tr><td><a href="#box-pr-133">pr-133</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#133: scripts: conversation exporter shows a failed export; tmp link ignored (issue 034)</td></tr>
+<tr><td><a href="#box-pr-137">pr-137</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#137: scripts: transcripts carry the name the person gave the session; recap questions settled (issue 037)</td></tr>
+<tr><td><a href="#box-pr-14">pr-14</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#14: Model reader: errors that say where, classic models only, a summary (issue 116)</td></tr>
+<tr><td><a href="#box-pr-145">pr-145</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#145: scripts: settle the gif-per-turn questions (038), list it under 035, close 016</td></tr>
+<tr><td><a href="#box-pr-146">pr-146</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#146: hero-less-moba: a guard is a point, and no guard had ever moved (216d)</td></tr>
+<tr><td><a href="#box-pr-15">pr-15</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#15: Poetry site: writing-cadence histograms on the explore page (11-008)</td></tr>
+<tr><td><a href="#box-pr-151">pr-151</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#151: scripts: panels in tui.lua, a rectangle with its own coordinates (039, from delta-version 067)</td></tr>
+<tr><td><a href="#box-pr-152">pr-152</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#152: scripts: one issue per number, the newer 008 and 026 become 040 and 041</td></tr>
+<tr><td><a href="#box-pr-154">pr-154</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#154: hero-less-moba: the door and the chest get a suite of their own (106, 401, 402, 411)</td></tr>
+<tr><td><a href="#box-pr-157">pr-157</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#157: hero-less-moba: a drawn body can carry weight, behind a key (709)</td></tr>
+<tr><td><a href="#box-pr-16">pr-16</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#16: my-libs threadpool: safe to share between threads, sanitizer-clean tests (800h)</td></tr>
+<tr><td><a href="#box-pr-164">pr-164</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#164: scripts: batch transcript backup gets its menu, --since and --commit (009)</td></tr>
+<tr><td><a href="#box-pr-17">pr-17</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#17: Texture reader: errors that name the mipmap and byte, every mipmap at once (issue 117)</td></tr>
+<tr><td><a href="#box-pr-170">pr-170</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#170: scripts: vision-viewer reads the projects' vision documents (005a, closes 005)</td></tr>
+<tr><td><a href="#box-pr-174">pr-174</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#174: scripts: the exporter keeps a summary block and a slug name (043, for delta-version 056c)</td></tr>
+<tr><td><a href="#box-pr-179">pr-179</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#179: scripts: lua-menu multistate items get their states and cycle (044)</td></tr>
+<tr><td><a href="#box-pr-18">pr-18</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#18: Poetry site: an editable splash page in front of the word cloud (11-006)</td></tr>
+<tr><td><a href="#box-pr-182">pr-182</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#182: hero-less-moba: a beaten body gets one roll (212), H15 answered</td></tr>
+<tr><td><a href="#box-pr-184">pr-184</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#184: scripts: batch backup output folder, combined file, metadata, parallel levels (042, on #164)</td></tr>
+<tr><td><a href="#box-pr-19">pr-19</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#19: my-libs threadpool: platform layer, every OS call in one header (800f)</td></tr>
+<tr><td><a href="#box-pr-20">pr-20</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#20: soren-ds: test the FAT32 layer against laptop-made cards; fix three faults (402-404)</td></tr>
+<tr><td><a href="#box-pr-21">pr-21</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#21: Known debt paid: short reads named, straight lines seen through rounding (issues 118, 410)</td></tr>
+<tr><td><a href="#box-pr-25">pr-25</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#25: soren-ds: paths and the device's symlinks on the card (405)</td></tr>
+<tr><td><a href="#box-pr-26">pr-26</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#26: Poetry site: one command runs every test suite (10-010)</td></tr>
+<tr><td><a href="#box-pr-28">pr-28</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#28: delta-version: the integration checker checks issue files and transcripts (042a)</td></tr>
+<tr><td><a href="#box-pr-31">pr-31</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#31: Poetry site: chronological image gallery in ten pages, both directions (10-062)</td></tr>
+<tr><td><a href="#box-pr-33">pr-33</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#33: delta-version: an issue closes in one commit (055, the wrapper)</td></tr>
+<tr><td><a href="#box-pr-36">pr-36</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#36: soren-ds: read a queued task's size before another core can free it</td></tr>
+<tr><td><a href="#box-pr-37">pr-37</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#37: scripts: commands run from the shell prompt read as commands in a transcript (031)</td></tr>
+<tr><td><a href="#box-pr-38">pr-38</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#38: delta-version: a map of every project's folders (044)</td></tr>
+<tr><td><a href="#box-pr-40">pr-40</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#40: burner-of-down-things: tag numbers given by the machine, reuse refused (901c-d)</td></tr>
+<tr><td><a href="#box-pr-41">pr-41</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#41: Poetry site: --reverse builds the site newest first (10-064)</td></tr>
+<tr><td><a href="#box-pr-42">pr-42</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#42: delta-version: ticket templates fill themselves, the keyword engine (017)</td></tr>
+<tr><td><a href="#box-pr-44">pr-44</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#44: delta-version: close 054, GitHub's language figures confirmed</td></tr>
+<tr><td><a href="#box-pr-48">pr-48</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#48: soren-ds: the four remembered settings, on the twin (408)</td></tr>
+<tr><td><a href="#box-pr-54">pr-54</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#54: delta-version 046: worktrees start from origin/main, never /dev</td></tr>
+<tr><td><a href="#box-pr-59">pr-59</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#59: burner-of-down-things: plans joined by shape: search, joint checks, execution (905b-d)</td></tr>
+<tr><td><a href="#box-pr-61">pr-61</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#61: scripts: issue manager library on the shared issue-name reader (012)</td></tr>
+<tr><td><a href="#box-pr-68">pr-68</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#68: RPG-autobattler: fix Unit.are_enemies reading an undefined variable</td></tr>
+<tr><td><a href="#box-pr-71">pr-71</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#71: burner-of-down-things: line and dot charts, diagrams by level, the machine drawn by itself (805b-d)</td></tr>
+<tr><td><a href="#box-pr-72">pr-72</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#72: delta-version 048, 027: close both as already answered</td></tr>
+<tr><td><a href="#box-pr-76">pr-76</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#76: scripts: a file of just the person's requests beside every transcript (issue 002)</td></tr>
+<tr><td><a href="#box-pr-77">pr-77</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#77: scripts: close issue 015, the list viewport was already built</td></tr>
+<tr><td><a href="#box-pr-84">pr-84</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#84: delta-version: README TOC takes issue phases from the shared reader (048 leftover)</td></tr>
+<tr><td><a href="#box-pr-85">pr-85</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#85: delta-version 023: duplicate copy becomes a pointer to the completed record</td></tr>
+<tr><td><a href="#box-pr-91">pr-91</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#91: burner-of-down-things: the PNG writer (804 step 1)</td></tr>
+<tr><td><a href="#box-pr-93">pr-93</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#93: scripts: dropdown select items for the Lua menu (issue 017)</td></tr>
+<tr><td><a href="#box-question-ceramic-trainstation">question-ceramic-trainstation</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>can ceramic-trainstation come into the repository, so the boxes-and-wires picture can be built? (ceramic-corporation/issues/203-the-trainstation-picture.md)</td></tr>
+<tr><td><a href="#box-question-ceramic-what-soramech-is">question-ceramic-what-soramech-is</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>is the reading of soramech right? the parent, minimal-soramech, is not in the repository (ceramic-corporation/docs/005-open-questions.md, Q1)</td></tr>
+<tr><td><a href="#box-question-soren-ds-catalogue">question-soren-ds-catalogue</a></td><td class="ready">ready</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>does the device keep a catalogue at all, or lean on something like the parent's symbol table? (soren-ds/issues/phase-3-progress.md, the catalogue question)</td></tr>
+<tr><td><a href="#box-pr-100">pr-100</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#100: burner-of-down-things: frames and moves (806 step 1)</td></tr>
+<tr><td><a href="#box-pr-103">pr-103</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#103: burner-of-down-things: observations of a station's errors (906 step 1)</td></tr>
+<tr><td><a href="#box-pr-11">pr-11</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#11: 602: three readings of one sentence, filmed small, and the pick</td></tr>
+<tr><td><a href="#box-pr-110">pr-110</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#110: RPG-autobattler: units attack bases and shields (040b)</td></tr>
+<tr><td><a href="#box-pr-111">pr-111</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#111: delta-version 022: ticket command and opt-in post-commit hook (preview only by default)</td></tr>
+<tr><td><a href="#box-pr-113">pr-113</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#113: RPG-autobattler: settle the vector and spawn test disagreements (008a, 013a)</td></tr>
+<tr><td><a href="#box-pr-121">pr-121</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#121: world-edit-to-execute: read-only stored files, edited copy-on-write (604a)</td></tr>
+<tr><td><a href="#box-pr-125">pr-125</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#125: Bash menu scrolls a tall list inside its box</td></tr>
+<tr><td><a href="#box-pr-138">pr-138</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#138: world-edit-to-execute: wire-frame fallback for missing assets and blank maps (602)</td></tr>
+<tr><td><a href="#box-pr-141">pr-141</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#141: soren-ds: pull the twin's card out mid-write; every write shown old-or-new</td></tr>
+<tr><td><a href="#box-pr-142">pr-142</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#142: scripts: close the built commit, scratch-tier and patch issues (032, 032a, 032b, 033, 036)</td></tr>
+<tr><td><a href="#box-pr-147">pr-147</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#147: delta-version 059: count every conversation alike, plus git lines and a symlink hang fix</td></tr>
+<tr><td><a href="#box-pr-162">pr-162</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#162: The issue validator recognises a pointer file and lets it be</td></tr>
+<tr><td><a href="#box-pr-166">pr-166</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#166: 609a: a shared list goes from one player to another, asking first</td></tr>
+<tr><td><a href="#box-pr-173">pr-173</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#173: 051c: issue files for work already done, drafted from git history</td></tr>
+<tr><td><a href="#box-pr-175">pr-175</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#175: 606a: WC3_HOT_RELOAD turns hot-reload on in the viewer and the editor</td></tr>
+<tr><td><a href="#box-pr-176">pr-176</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#176: 053c: shared components in build order, from todone's report</td></tr>
+<tr><td><a href="#box-pr-178">pr-178</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#178: RPG-autobattler: draw and play ability cues (068)</td></tr>
+<tr><td><a href="#box-pr-181">pr-181</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#181: 040d and 040g: a queryable CLAUDE.md audit trail, and why a guideline exists</td></tr>
+<tr><td><a href="#box-pr-183">pr-183</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#183: supcom-derivative-clone: the thread pool slices the tick, the same at any count (209)</td></tr>
+<tr><td><a href="#box-pr-185">pr-185</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#185: 056d: an overseer that finds unsummarized conversations, previewing unless run=on</td></tr>
+<tr><td><a href="#box-pr-27">pr-27</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#27: words-pdf: diversity boost lowers negative theme scores too (issue 034)</td></tr>
+<tr><td><a href="#box-pr-29">pr-29</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#29: words-pdf: art regions follow the poem boxes as drawn (issue 035)</td></tr>
+<tr><td><a href="#box-pr-49">pr-49</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#49: burner-of-down-things: every shape type recognised, the rest unknown (902c)</td></tr>
+<tr><td><a href="#box-pr-50">pr-50</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#50: Readers for the pathing map, shadow map and minimap icons (issue 119)</td></tr>
+<tr><td><a href="#box-pr-67">pr-67</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#67: burner-of-down-things: prose templates (807d)</td></tr>
+<tr><td><a href="#box-pr-78">pr-78</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#78: delta-version: list-projects.sh reads its rules from the shared library (stacked on #57)</td></tr>
+<tr><td><a href="#box-pr-81">pr-81</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#81: burner-of-down-things: the router, step 1 (904)</td></tr>
+<tr><td><a href="#box-pr-86">pr-86</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#86: burner-of-down-things: the viewer without its window (810, steps 1-2)</td></tr>
+<tr><td><a href="#box-pr-88">pr-88</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#88: Catalogue, check and store maps and models; local files only for now (issue 603)</td></tr>
+<tr><td><a href="#box-pr-92">pr-92</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#92: soren-ds: replace a box in a running program by moving the arrows (411)</td></tr>
+<tr><td><a href="#box-pr-99">pr-99</a></td><td class="blocked">blocked</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td><a href="#person-ritz">ritz</a></td><td>#99: scripts: Phase A tools tested together, with a demo (issue A07)</td></tr>
+</tbody>
+</table>
+</section>
+<section id="boxes">
+<h2>Every box</h2>
+<article id="box-burner-of-down-things">
+<h3>role burner-of-down-things <span class="state blocked">blocked</span></h3>
+<p>the next round of work on burner-of-down-things, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-2</code></td><td>from <a href="#box-pr-2">pr-2</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-3</code></td><td>from <a href="#box-pr-3">pr-3</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-32</code></td><td>from <a href="#box-pr-32">pr-32</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-34</code></td><td>from <a href="#box-pr-34">pr-34</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-39</code></td><td>from <a href="#box-pr-39">pr-39</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-40</code></td><td>from <a href="#box-pr-40">pr-40</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-43</code></td><td>from <a href="#box-pr-43">pr-43</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-46</code></td><td>from <a href="#box-pr-46">pr-46</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-49</code></td><td>from <a href="#box-pr-49">pr-49</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-52</code></td><td>from <a href="#box-pr-52">pr-52</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-56</code></td><td>from <a href="#box-pr-56">pr-56</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-59</code></td><td>from <a href="#box-pr-59">pr-59</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-65</code></td><td>from <a href="#box-pr-65">pr-65</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-67</code></td><td>from <a href="#box-pr-67">pr-67</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-71</code></td><td>from <a href="#box-pr-71">pr-71</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-74</code></td><td>from <a href="#box-pr-74">pr-74</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-81</code></td><td>from <a href="#box-pr-81">pr-81</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-86</code></td><td>from <a href="#box-pr-86">pr-86</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-91</code></td><td>from <a href="#box-pr-91">pr-91</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-95</code></td><td>from <a href="#box-pr-95">pr-95</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-97</code></td><td>from <a href="#box-pr-97">pr-97</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-100</code></td><td>from <a href="#box-pr-100">pr-100</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-103</code></td><td>from <a href="#box-pr-103">pr-103</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-ceramic-corporation">
+<h3>role ceramic-corporation <span class="state blocked">blocked</span></h3>
+<p>the next round of work on ceramic-corporation, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>question-ceramic-what-soramech-is</code></td><td>from <a href="#box-question-ceramic-what-soramech-is">question-ceramic-what-soramech-is</a>.answer</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>question-ceramic-trainstation</code></td><td>from <a href="#box-question-ceramic-trainstation">question-ceramic-trainstation</a>.answer</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-delta-version">
+<h3>role delta-version <span class="state blocked">blocked</span></h3>
+<p>the next round of work on delta-version, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-2</code></td><td>from <a href="#box-pr-2">pr-2</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-28</code></td><td>from <a href="#box-pr-28">pr-28</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-33</code></td><td>from <a href="#box-pr-33">pr-33</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-38</code></td><td>from <a href="#box-pr-38">pr-38</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-42</code></td><td>from <a href="#box-pr-42">pr-42</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-44</code></td><td>from <a href="#box-pr-44">pr-44</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-54</code></td><td>from <a href="#box-pr-54">pr-54</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-62</code></td><td>from <a href="#box-pr-62">pr-62</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-72</code></td><td>from <a href="#box-pr-72">pr-72</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-78</code></td><td>from <a href="#box-pr-78">pr-78</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-84</code></td><td>from <a href="#box-pr-84">pr-84</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-85</code></td><td>from <a href="#box-pr-85">pr-85</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-87</code></td><td>from <a href="#box-pr-87">pr-87</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-89</code></td><td>from <a href="#box-pr-89">pr-89</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-98</code></td><td>from <a href="#box-pr-98">pr-98</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-102</code></td><td>from <a href="#box-pr-102">pr-102</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-106</code></td><td>from <a href="#box-pr-106">pr-106</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-111</code></td><td>from <a href="#box-pr-111">pr-111</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-115</code></td><td>from <a href="#box-pr-115">pr-115</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-119</code></td><td>from <a href="#box-pr-119">pr-119</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-120</code></td><td>from <a href="#box-pr-120">pr-120</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-123</code></td><td>from <a href="#box-pr-123">pr-123</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-126</code></td><td>from <a href="#box-pr-126">pr-126</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-132</code></td><td>from <a href="#box-pr-132">pr-132</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-135</code></td><td>from <a href="#box-pr-135">pr-135</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-147</code></td><td>from <a href="#box-pr-147">pr-147</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-150</code></td><td>from <a href="#box-pr-150">pr-150</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-155</code></td><td>from <a href="#box-pr-155">pr-155</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-159</code></td><td>from <a href="#box-pr-159">pr-159</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-165</code></td><td>from <a href="#box-pr-165">pr-165</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-173</code></td><td>from <a href="#box-pr-173">pr-173</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-176</code></td><td>from <a href="#box-pr-176">pr-176</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-181</code></td><td>from <a href="#box-pr-181">pr-181</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-185</code></td><td>from <a href="#box-pr-185">pr-185</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-gif-generator">
+<h3>role gif-generator <span class="state blocked">blocked</span></h3>
+<p>the next round of work on gif-generator, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-2</code></td><td>from <a href="#box-pr-2">pr-2</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-3</code></td><td>from <a href="#box-pr-3">pr-3</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-4</code></td><td>from <a href="#box-pr-4">pr-4</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-5</code></td><td>from <a href="#box-pr-5">pr-5</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-6</code></td><td>from <a href="#box-pr-6">pr-6</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-7</code></td><td>from <a href="#box-pr-7">pr-7</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-8</code></td><td>from <a href="#box-pr-8">pr-8</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-9</code></td><td>from <a href="#box-pr-9">pr-9</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-10</code></td><td>from <a href="#box-pr-10">pr-10</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-11</code></td><td>from <a href="#box-pr-11">pr-11</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-hero-less-moba">
+<h3>role hero-less-moba <span class="state blocked">blocked</span></h3>
+<p>the next round of work on hero-less-moba, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-146</code></td><td>from <a href="#box-pr-146">pr-146</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-154</code></td><td>from <a href="#box-pr-154">pr-154</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-157</code></td><td>from <a href="#box-pr-157">pr-157</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-182</code></td><td>from <a href="#box-pr-182">pr-182</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-my-libs">
+<h3>role my-libs <span class="state blocked">blocked</span></h3>
+<p>the next round of work on my-libs, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-16</code></td><td>from <a href="#box-pr-16">pr-16</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-19</code></td><td>from <a href="#box-pr-19">pr-19</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-neocities-modernization">
+<h3>role neocities-modernization <span class="state blocked">blocked</span></h3>
+<p>the next round of work on neocities-modernization, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-2</code></td><td>from <a href="#box-pr-2">pr-2</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-12</code></td><td>from <a href="#box-pr-12">pr-12</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-15</code></td><td>from <a href="#box-pr-15">pr-15</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-18</code></td><td>from <a href="#box-pr-18">pr-18</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-26</code></td><td>from <a href="#box-pr-26">pr-26</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-31</code></td><td>from <a href="#box-pr-31">pr-31</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-41</code></td><td>from <a href="#box-pr-41">pr-41</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-rpg-autobattler">
+<h3>role rpg-autobattler <span class="state blocked">blocked</span></h3>
+<p>the next round of work on RPG-autobattler, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-47</code></td><td>from <a href="#box-pr-47">pr-47</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-51</code></td><td>from <a href="#box-pr-51">pr-51</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-55</code></td><td>from <a href="#box-pr-55">pr-55</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-58</code></td><td>from <a href="#box-pr-58">pr-58</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-60</code></td><td>from <a href="#box-pr-60">pr-60</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-63</code></td><td>from <a href="#box-pr-63">pr-63</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-68</code></td><td>from <a href="#box-pr-68">pr-68</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-70</code></td><td>from <a href="#box-pr-70">pr-70</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-73</code></td><td>from <a href="#box-pr-73">pr-73</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-75</code></td><td>from <a href="#box-pr-75">pr-75</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-80</code></td><td>from <a href="#box-pr-80">pr-80</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-82</code></td><td>from <a href="#box-pr-82">pr-82</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-90</code></td><td>from <a href="#box-pr-90">pr-90</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-94</code></td><td>from <a href="#box-pr-94">pr-94</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-96</code></td><td>from <a href="#box-pr-96">pr-96</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-101</code></td><td>from <a href="#box-pr-101">pr-101</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-104</code></td><td>from <a href="#box-pr-104">pr-104</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-105</code></td><td>from <a href="#box-pr-105">pr-105</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-107</code></td><td>from <a href="#box-pr-107">pr-107</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-110</code></td><td>from <a href="#box-pr-110">pr-110</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-113</code></td><td>from <a href="#box-pr-113">pr-113</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-124</code></td><td>from <a href="#box-pr-124">pr-124</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-128</code></td><td>from <a href="#box-pr-128">pr-128</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-131</code></td><td>from <a href="#box-pr-131">pr-131</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-136</code></td><td>from <a href="#box-pr-136">pr-136</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-139</code></td><td>from <a href="#box-pr-139">pr-139</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-143</code></td><td>from <a href="#box-pr-143">pr-143</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-149</code></td><td>from <a href="#box-pr-149">pr-149</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-160</code></td><td>from <a href="#box-pr-160">pr-160</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-163</code></td><td>from <a href="#box-pr-163">pr-163</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-167</code></td><td>from <a href="#box-pr-167">pr-167</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-169</code></td><td>from <a href="#box-pr-169">pr-169</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-172</code></td><td>from <a href="#box-pr-172">pr-172</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-178</code></td><td>from <a href="#box-pr-178">pr-178</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-scripts">
+<h3>role scripts <span class="state blocked">blocked</span></h3>
+<p>the next round of work on scripts, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-37</code></td><td>from <a href="#box-pr-37">pr-37</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-45</code></td><td>from <a href="#box-pr-45">pr-45</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-53</code></td><td>from <a href="#box-pr-53">pr-53</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-57</code></td><td>from <a href="#box-pr-57">pr-57</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-61</code></td><td>from <a href="#box-pr-61">pr-61</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-76</code></td><td>from <a href="#box-pr-76">pr-76</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-77</code></td><td>from <a href="#box-pr-77">pr-77</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-93</code></td><td>from <a href="#box-pr-93">pr-93</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-99</code></td><td>from <a href="#box-pr-99">pr-99</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-108</code></td><td>from <a href="#box-pr-108">pr-108</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-114</code></td><td>from <a href="#box-pr-114">pr-114</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-118</code></td><td>from <a href="#box-pr-118">pr-118</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-125</code></td><td>from <a href="#box-pr-125">pr-125</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-130</code></td><td>from <a href="#box-pr-130">pr-130</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-133</code></td><td>from <a href="#box-pr-133">pr-133</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-137</code></td><td>from <a href="#box-pr-137">pr-137</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-142</code></td><td>from <a href="#box-pr-142">pr-142</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-145</code></td><td>from <a href="#box-pr-145">pr-145</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-151</code></td><td>from <a href="#box-pr-151">pr-151</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-152</code></td><td>from <a href="#box-pr-152">pr-152</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-162</code></td><td>from <a href="#box-pr-162">pr-162</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-164</code></td><td>from <a href="#box-pr-164">pr-164</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-170</code></td><td>from <a href="#box-pr-170">pr-170</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-174</code></td><td>from <a href="#box-pr-174">pr-174</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-179</code></td><td>from <a href="#box-pr-179">pr-179</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-184</code></td><td>from <a href="#box-pr-184">pr-184</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-skills">
+<h3>role skills <span class="state blocked">blocked</span></h3>
+<p>the next round of work on skills, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-7</code></td><td>from <a href="#box-pr-7">pr-7</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-8</code></td><td>from <a href="#box-pr-8">pr-8</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-soren-ds">
+<h3>role soren-ds <span class="state blocked">blocked</span></h3>
+<p>the next round of work on soren-ds, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-13</code></td><td>from <a href="#box-pr-13">pr-13</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-20</code></td><td>from <a href="#box-pr-20">pr-20</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-25</code></td><td>from <a href="#box-pr-25">pr-25</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-35</code></td><td>from <a href="#box-pr-35">pr-35</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-36</code></td><td>from <a href="#box-pr-36">pr-36</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-48</code></td><td>from <a href="#box-pr-48">pr-48</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-69</code></td><td>from <a href="#box-pr-69">pr-69</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-83</code></td><td>from <a href="#box-pr-83">pr-83</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-92</code></td><td>from <a href="#box-pr-92">pr-92</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-117</code></td><td>from <a href="#box-pr-117">pr-117</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-141</code></td><td>from <a href="#box-pr-141">pr-141</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>question-soren-ds-catalogue</code></td><td>from <a href="#box-question-soren-ds-catalogue">question-soren-ds-catalogue</a>.answer</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-supcom-derivative-clone">
+<h3>role supcom-derivative-clone <span class="state blocked">blocked</span></h3>
+<p>the next round of work on supcom-derivative-clone, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-116</code></td><td>from <a href="#box-pr-116">pr-116</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-122</code></td><td>from <a href="#box-pr-122">pr-122</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-129</code></td><td>from <a href="#box-pr-129">pr-129</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-134</code></td><td>from <a href="#box-pr-134">pr-134</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-140</code></td><td>from <a href="#box-pr-140">pr-140</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-144</code></td><td>from <a href="#box-pr-144">pr-144</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-153</code></td><td>from <a href="#box-pr-153">pr-153</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-156</code></td><td>from <a href="#box-pr-156">pr-156</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-161</code></td><td>from <a href="#box-pr-161">pr-161</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-168</code></td><td>from <a href="#box-pr-168">pr-168</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-171</code></td><td>from <a href="#box-pr-171">pr-171</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-177</code></td><td>from <a href="#box-pr-177">pr-177</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-180</code></td><td>from <a href="#box-pr-180">pr-180</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-183</code></td><td>from <a href="#box-pr-183">pr-183</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-words-pdf">
+<h3>role words-pdf <span class="state blocked">blocked</span></h3>
+<p>the next round of work on words-pdf, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-22</code></td><td>from <a href="#box-pr-22">pr-22</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-24</code></td><td>from <a href="#box-pr-24">pr-24</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-27</code></td><td>from <a href="#box-pr-27">pr-27</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-29</code></td><td>from <a href="#box-pr-29">pr-29</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-world-edit-to-execute">
+<h3>role world-edit-to-execute <span class="state blocked">blocked</span></h3>
+<p>the next round of work on world-edit-to-execute, which branches from main</p>
+<p>Held by <a href="#person-claude">claude</a>.</p>
+<table>
+<tr><td>in</td><td><code>pr-14</code></td><td>from <a href="#box-pr-14">pr-14</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-17</code></td><td>from <a href="#box-pr-17">pr-17</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-21</code></td><td>from <a href="#box-pr-21">pr-21</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-23</code></td><td>from <a href="#box-pr-23">pr-23</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-30</code></td><td>from <a href="#box-pr-30">pr-30</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-50</code></td><td>from <a href="#box-pr-50">pr-50</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-64</code></td><td>from <a href="#box-pr-64">pr-64</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-66</code></td><td>from <a href="#box-pr-66">pr-66</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-79</code></td><td>from <a href="#box-pr-79">pr-79</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-88</code></td><td>from <a href="#box-pr-88">pr-88</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-109</code></td><td>from <a href="#box-pr-109">pr-109</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-112</code></td><td>from <a href="#box-pr-112">pr-112</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-121</code></td><td>from <a href="#box-pr-121">pr-121</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-127</code></td><td>from <a href="#box-pr-127">pr-127</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-138</code></td><td>from <a href="#box-pr-138">pr-138</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-148</code></td><td>from <a href="#box-pr-148">pr-148</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-158</code></td><td>from <a href="#box-pr-158">pr-158</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-166</code></td><td>from <a href="#box-pr-166">pr-166</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>in</td><td><code>pr-175</code></td><td>from <a href="#box-pr-175">pr-175</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+</table>
+</article>
+<article id="box-pr-2">
+<h3>work pr-2 <span class="state ready">ready</span></h3>
+<p>#2: The shape films and their viewer come home to gif-generator (issue 701a)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-3">pr-3</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-2</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-2</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-2</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-2</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-3">
+<h3>work pr-3 <span class="state blocked">blocked</span></h3>
+<p>#3: One reader and one writer for the whole studio (issue 701b)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-2">pr-2</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-4">pr-4</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-3</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-3</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-4">
+<h3>work pr-4 <span class="state blocked">blocked</span></h3>
+<p>#4: gif-generator 701c: the 3D vocabulary (scenes are data, closed word lists, every rule at the wall)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-3">pr-3</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-5">pr-5</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-4</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-5">
+<h3>work pr-5 <span class="state blocked">blocked</span></h3>
+<p>#5: gif-generator 701d: one canvas, two spaces</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-4">pr-4</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-6">pr-6</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-5</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-6">
+<h3>work pr-6 <span class="state blocked">blocked</span></h3>
+<p>#6: 701e: every film kept and rated</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-5">pr-5</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-7">pr-7</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-6</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-7">
+<h3>work pr-7 <span class="state blocked">blocked</span></h3>
+<p>#7: 701f: the studio skill</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-6">pr-6</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-8">pr-8</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-7</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-skills">skills</a>.pr-7</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-8">
+<h3>work pr-8 <span class="state blocked">blocked</span></h3>
+<p>#8: 701g: the two spaces demo</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-7">pr-7</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-9">pr-9</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-8</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-skills">skills</a>.pr-8</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-9">
+<h3>work pr-9 <span class="state blocked">blocked</span></h3>
+<p>#9: 704: the porch hears both spaces, and says back what it heard</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-8">pr-8</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-10">pr-10</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-9</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-10">
+<h3>work pr-10 <span class="state blocked">blocked</span></h3>
+<p>#10: 601: the porch goes live, a door to llama.cpp's server and ./porch</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-9">pr-9</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-11">pr-11</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-10</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-11">
+<h3>work pr-11 <span class="state blocked">blocked</span></h3>
+<p>#11: 602: three readings of one sentence, filmed small, and the pick</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-10">pr-10</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-gif-generator">gif-generator</a>.pr-11</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-12">
+<h3>work pr-12 <span class="state ready">ready</span></h3>
+<p>#12: Poetry site: every page on pure black from one theme (11-009)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-12</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-13">
+<h3>work pr-13 <span class="state ready">ready</span></h3>
+<p>#13: soren-ds: build the twin and the kernel on stock GCC or LLVM</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-13</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-14">
+<h3>work pr-14 <span class="state ready">ready</span></h3>
+<p>#14: Model reader: errors that say where, classic models only, a summary (issue 116)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-14</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-15">
+<h3>work pr-15 <span class="state ready">ready</span></h3>
+<p>#15: Poetry site: writing-cadence histograms on the explore page (11-008)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-15</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-16">
+<h3>work pr-16 <span class="state ready">ready</span></h3>
+<p>#16: my-libs threadpool: safe to share between threads, sanitizer-clean tests (800h)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-my-libs">my-libs</a>.pr-16</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-17">
+<h3>work pr-17 <span class="state ready">ready</span></h3>
+<p>#17: Texture reader: errors that name the mipmap and byte, every mipmap at once (issue 117)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-17</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-18">
+<h3>work pr-18 <span class="state ready">ready</span></h3>
+<p>#18: Poetry site: an editable splash page in front of the word cloud (11-006)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-18</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-19">
+<h3>work pr-19 <span class="state ready">ready</span></h3>
+<p>#19: my-libs threadpool: platform layer, every OS call in one header (800f)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-my-libs">my-libs</a>.pr-19</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-20">
+<h3>work pr-20 <span class="state ready">ready</span></h3>
+<p>#20: soren-ds: test the FAT32 layer against laptop-made cards; fix three faults (402-404)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-20</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-21">
+<h3>work pr-21 <span class="state ready">ready</span></h3>
+<p>#21: Known debt paid: short reads named, straight lines seen through rounding (issues 118, 410)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-21</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-22">
+<h3>work pr-22 <span class="state ready">ready</span></h3>
+<p>#22: words-pdf: offline unit tests for loading, layout and theme choice (015 slice A)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-24">pr-24</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-27">pr-27</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-words-pdf">words-pdf</a>.pr-22</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-23">
+<h3>work pr-23 <span class="state ready">ready</span></h3>
+<p>#23: Parser coverage report: every file in the test maps, its reader, and whether it read (issue A06)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-50">pr-50</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-23</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-24">
+<h3>work pr-24 <span class="state blocked">blocked</span></h3>
+<p>#24: words-pdf: Tier 1 gate measures only the empty column bottoms (issue 033)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-22">pr-22</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-29">pr-29</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-words-pdf">words-pdf</a>.pr-24</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-25">
+<h3>work pr-25 <span class="state ready">ready</span></h3>
+<p>#25: soren-ds: paths and the device's symlinks on the card (405)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-25</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-26">
+<h3>work pr-26 <span class="state ready">ready</span></h3>
+<p>#26: Poetry site: one command runs every test suite (10-010)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-26</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-27">
+<h3>work pr-27 <span class="state blocked">blocked</span></h3>
+<p>#27: words-pdf: diversity boost lowers negative theme scores too (issue 034)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-22">pr-22</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-words-pdf">words-pdf</a>.pr-27</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-28">
+<h3>work pr-28 <span class="state ready">ready</span></h3>
+<p>#28: delta-version: the integration checker checks issue files and transcripts (042a)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-28</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-29">
+<h3>work pr-29 <span class="state blocked">blocked</span></h3>
+<p>#29: words-pdf: art regions follow the poem boxes as drawn (issue 035)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-24">pr-24</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-words-pdf">words-pdf</a>.pr-29</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-30">
+<h3>work pr-30 <span class="state ready">ready</span></h3>
+<p>#30: Each fetched file is kept once, under its hash (issue 604)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-64">pr-64</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-66">pr-66</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-30</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-31">
+<h3>work pr-31 <span class="state ready">ready</span></h3>
+<p>#31: Poetry site: chronological image gallery in ten pages, both directions (10-062)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-31</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-32">
+<h3>work pr-32 <span class="state ready">ready</span></h3>
+<p>#32: burner-of-down-things: the ledger told as a story (1001b-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-34">pr-34</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-32</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-33">
+<h3>work pr-33 <span class="state ready">ready</span></h3>
+<p>#33: delta-version: an issue closes in one commit (055, the wrapper)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-33</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-34">
+<h3>work pr-34 <span class="state blocked">blocked</span></h3>
+<p>#34: burner-of-down-things: moods sent back, lessons read back (1002c)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-32">pr-32</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-39">pr-39</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-34</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-35">
+<h3>work pr-35 <span class="state ready">ready</span></h3>
+<p>#35: soren-ds: the six filesystem boxes (406, 407)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-117">pr-117</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-35</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-36">
+<h3>work pr-36 <span class="state ready">ready</span></h3>
+<p>#36: soren-ds: read a queued task's size before another core can free it</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-36</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-37">
+<h3>work pr-37 <span class="state ready">ready</span></h3>
+<p>#37: scripts: commands run from the shell prompt read as commands in a transcript (031)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-37</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-38">
+<h3>work pr-38 <span class="state ready">ready</span></h3>
+<p>#38: delta-version: a map of every project's folders (044)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-38</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-39">
+<h3>work pr-39 <span class="state blocked">blocked</span></h3>
+<p>#39: burner-of-down-things: strategems drafted from recurring lessons, kept only by the person (1003b-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-34">pr-34</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-103">pr-103</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-39</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-40">
+<h3>work pr-40 <span class="state ready">ready</span></h3>
+<p>#40: burner-of-down-things: tag numbers given by the machine, reuse refused (901c-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-40</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-41">
+<h3>work pr-41 <span class="state ready">ready</span></h3>
+<p>#41: Poetry site: --reverse builds the site newest first (10-064)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-neocities-modernization">neocities-modernization</a>.pr-41</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-42">
+<h3>work pr-42 <span class="state ready">ready</span></h3>
+<p>#42: delta-version: ticket templates fill themselves, the keyword engine (017)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-42</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-43">
+<h3>work pr-43 <span class="state ready">ready</span></h3>
+<p>#43: burner-of-down-things: the flair's quarter colours, day refused on night-only categories (801c-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-95">pr-95</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-43</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-44">
+<h3>work pr-44 <span class="state ready">ready</span></h3>
+<p>#44: delta-version: close 054, GitHub's language figures confirmed</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-44</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-45">
+<h3>work pr-45 <span class="state ready">ready</span></h3>
+<p>#45: scripts: update-toc notices documents the table of contents does not link to (A05)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-99">pr-99</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-45</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-46">
+<h3>work pr-46 <span class="state ready">ready</span></h3>
+<p>#46: burner-of-down-things: image, clip and table recognised without a model (902b)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-49">pr-49</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-46</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-47">
+<h3>work pr-47 <span class="state ready">ready</span></h3>
+<p>#47: RPG-autobattler: bases with health pools and a victory event (issue 036)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-51">pr-51</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-47</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-48">
+<h3>work pr-48 <span class="state ready">ready</span></h3>
+<p>#48: soren-ds: the four remembered settings, on the twin (408)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-48</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-49">
+<h3>work pr-49 <span class="state blocked">blocked</span></h3>
+<p>#49: burner-of-down-things: every shape type recognised, the rest unknown (902c)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-46">pr-46</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-49</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-50">
+<h3>work pr-50 <span class="state blocked">blocked</span></h3>
+<p>#50: Readers for the pathing map, shadow map and minimap icons (issue 119)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-23">pr-23</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-50</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-51">
+<h3>work pr-51 <span class="state blocked">blocked</span></h3>
+<p>#51: RPG-autobattler: three defence shields per base (issue 037)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-47">pr-47</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-55">pr-55</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-51</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-52">
+<h3>work pr-52 <span class="state ready">ready</span></h3>
+<p>#52: burner-of-down-things: ratings appended safely under two writers, tiers counted (809b)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-65">pr-65</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-52</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-53">
+<h3>work pr-53 <span class="state ready">ready</span></h3>
+<p>#53: scripts: commit-own-changes reads exit statuses the same under LuaJIT and Lua 5.4</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-142">pr-142</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-53</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-54">
+<h3>work pr-54 <span class="state ready">ready</span></h3>
+<p>#54: delta-version 046: worktrees start from origin/main, never /dev</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-54</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-55">
+<h3>work pr-55 <span class="state blocked">blocked</span></h3>
+<p>#55: RPG-autobattler: automatic base turret (issue 038)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-51">pr-51</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-58">pr-58</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-55</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-56">
+<h3>work pr-56 <span class="state ready">ready</span></h3>
+<p>#56: burner-of-down-things: box diagrams in text, arrows labelled there and here (807c)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-67">pr-67</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-56</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-57">
+<h3>work pr-57 <span class="state ready">ready</span></h3>
+<p>#57: scripts: shared project-discovery library (010)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-62">pr-62</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-78">pr-78</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-57</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-58">
+<h3>work pr-58 <span class="state blocked">blocked</span></h3>
+<p>#58: RPG-autobattler: shield vulnerability windows and a 30 s seal between shield losses (issue 039)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-55">pr-55</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-60">pr-60</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-58</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-59">
+<h3>work pr-59 <span class="state ready">ready</span></h3>
+<p>#59: burner-of-down-things: plans joined by shape: search, joint checks, execution (905b-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-59</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-60">
+<h3>work pr-60 <span class="state blocked">blocked</span></h3>
+<p>#60: RPG-autobattler: a fallen shield removes every attacking unit (issue 040)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-58">pr-58</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-73">pr-73</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-60</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-61">
+<h3>work pr-61 <span class="state ready">ready</span></h3>
+<p>#61: scripts: issue manager library on the shared issue-name reader (012)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-61</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-62">
+<h3>work pr-62 <span class="state blocked">blocked</span></h3>
+<p>#62: delta-version 018: discover-projects picks a ticket's projects (stacked on #57)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-57">pr-57</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-98">pr-98</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-62</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-63">
+<h3>work pr-63 <span class="state ready">ready</span></h3>
+<p>#63: RPG-autobattler: mana bars per ability with primary and secondary charging (issue 041)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-80">pr-80</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-63</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-64">
+<h3>work pr-64 <span class="state blocked">blocked</span></h3>
+<p>#64: How much each map and asset pack takes, and deleting one (issue 605)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-30">pr-30</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-88">pr-88</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-121">pr-121</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-64</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-65">
+<h3>work pr-65 <span class="state blocked">blocked</span></h3>
+<p>#65: burner-of-down-things: floors per category (809d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-52">pr-52</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-86">pr-86</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-65</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-66">
+<h3>work pr-66 <span class="state blocked">blocked</span></h3>
+<p>#66: The docs put player data in the project's player-data folder (part of 601)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-30">pr-30</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-79">pr-79</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-66</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-67">
+<h3>work pr-67 <span class="state blocked">blocked</span></h3>
+<p>#67: burner-of-down-things: prose templates (807d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-56">pr-56</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-67</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-68">
+<h3>work pr-68 <span class="state ready">ready</span></h3>
+<p>#68: RPG-autobattler: fix Unit.are_enemies reading an undefined variable</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-68</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-69">
+<h3>work pr-69 <span class="state ready">ready</span></h3>
+<p>#69: soren-ds: compile a box on the running device (409)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-83">pr-83</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-69</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-70">
+<h3>work pr-70 <span class="state ready">ready</span></h3>
+<p>#70: RPG-autobattler: fix Vector2.lerp looping forever (lane tests hung)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-113">pr-113</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-70</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-71">
+<h3>work pr-71 <span class="state ready">ready</span></h3>
+<p>#71: burner-of-down-things: line and dot charts, diagrams by level, the machine drawn by itself (805b-d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-71</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-72">
+<h3>work pr-72 <span class="state ready">ready</span></h3>
+<p>#72: delta-version 048, 027: close both as already answered</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-72</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-73">
+<h3>work pr-73 <span class="state blocked">blocked</span></h3>
+<p>#73: RPG-autobattler: the game state now runs a match with bases, shields, turrets and resets</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-60">pr-60</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-75">pr-75</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-73</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-74">
+<h3>work pr-74 <span class="state ready">ready</span></h3>
+<p>#74: burner-of-down-things: ollama needs check and confinement (903b, 903d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-81">pr-81</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-74</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-75">
+<h3>work pr-75 <span class="state blocked">blocked</span></h3>
+<p>#75: RPG-autobattler: draw the match with plain shapes (NOT YET SEEN ON SCREEN)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-73">pr-73</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-110">pr-110</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-75</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-76">
+<h3>work pr-76 <span class="state ready">ready</span></h3>
+<p>#76: scripts: a file of just the person's requests beside every transcript (issue 002)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-76</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-77">
+<h3>work pr-77 <span class="state ready">ready</span></h3>
+<p>#77: scripts: close issue 015, the list viewport was already built</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-77</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-78">
+<h3>work pr-78 <span class="state blocked">blocked</span></h3>
+<p>#78: delta-version: list-projects.sh reads its rules from the shared library (stacked on #57)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-57">pr-57</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-78</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-79">
+<h3>work pr-79 <span class="state blocked">blocked</span></h3>
+<p>#79: Any asset by its path, the player's packs first (issue 601)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-66">pr-66</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-109">pr-109</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-138">pr-138</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-79</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-80">
+<h3>work pr-80 <span class="state blocked">blocked</span></h3>
+<p>#80: RPG-autobattler: mana settle time, combat bonuses and death reset (issues 042, 043)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-63">pr-63</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-82">pr-82</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-80</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-81">
+<h3>work pr-81 <span class="state blocked">blocked</span></h3>
+<p>#81: burner-of-down-things: the router, step 1 (904)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-74">pr-74</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-81</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-82">
+<h3>work pr-82 <span class="state blocked">blocked</span></h3>
+<p>#82: RPG-autobattler: proportional mana spending (issue 044)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-80">pr-80</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-90">pr-90</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-82</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-83">
+<h3>work pr-83 <span class="state blocked">blocked</span></h3>
+<p>#83: soren-ds: give compiled code back once nothing can be inside it (410)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-69">pr-69</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-92">pr-92</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-83</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-84">
+<h3>work pr-84 <span class="state ready">ready</span></h3>
+<p>#84: delta-version: README TOC takes issue phases from the shared reader (048 leftover)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-84</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-85">
+<h3>work pr-85 <span class="state ready">ready</span></h3>
+<p>#85: delta-version 023: duplicate copy becomes a pointer to the completed record</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-85</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-86">
+<h3>work pr-86 <span class="state blocked">blocked</span></h3>
+<p>#86: burner-of-down-things: the viewer without its window (810, steps 1-2)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-65">pr-65</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-86</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-87">
+<h3>work pr-87 <span class="state ready">ready</span></h3>
+<p>#87: delta-version: stale phase-folder issue copies become pointers (001, 004–007, 010, 011, 013, 014)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-89">pr-89</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-87</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-88">
+<h3>work pr-88 <span class="state blocked">blocked</span></h3>
+<p>#88: Catalogue, check and store maps and models; local files only for now (issue 603)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-64">pr-64</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-88</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-89">
+<h3>work pr-89 <span class="state blocked">blocked</span></h3>
+<p>#89: delta-version 005: close branch isolation as superseded (stacked on #87)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-87">pr-87</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-115">pr-115</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-89</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-90">
+<h3>work pr-90 <span class="state blocked">blocked</span></h3>
+<p>#90: RPG-autobattler: ability base class and component system (046)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-82">pr-82</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-94">pr-94</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-90</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-91">
+<h3>work pr-91 <span class="state ready">ready</span></h3>
+<p>#91: burner-of-down-things: the PNG writer (804 step 1)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-91</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-92">
+<h3>work pr-92 <span class="state blocked">blocked</span></h3>
+<p>#92: soren-ds: replace a box in a running program by moving the arrows (411)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-83">pr-83</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-92</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-93">
+<h3>work pr-93 <span class="state ready">ready</span></h3>
+<p>#93: scripts: dropdown select items for the Lua menu (issue 017)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-93</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-94">
+<h3>work pr-94 <span class="state blocked">blocked</span></h3>
+<p>#94: RPG-autobattler: targeting system for abilities (047)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-90">pr-90</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-96">pr-96</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-94</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-95">
+<h3>work pr-95 <span class="state blocked">blocked</span></h3>
+<p>#95: burner-of-down-things: the paintbrush and its wall (802)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-43">pr-43</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-97">pr-97</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-95</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-96">
+<h3>work pr-96 <span class="state blocked">blocked</span></h3>
+<p>#96: RPG-autobattler: abilities fire when their mana is full (048)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-94">pr-94</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-101">pr-101</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-96</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-97">
+<h3>work pr-97 <span class="state blocked">blocked</span></h3>
+<p>#97: burner-of-down-things: the source end's checks (808 step 1)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-95">pr-95</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-100">pr-100</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-97</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-98">
+<h3>work pr-98 <span class="state blocked">blocked</span></h3>
+<p>#98: delta-version 019: ticket distribution engine (dry run, ledger, undo)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-62">pr-62</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-102">pr-102</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-98</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-99">
+<h3>work pr-99 <span class="state blocked">blocked</span></h3>
+<p>#99: scripts: Phase A tools tested together, with a demo (issue A07)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-45">pr-45</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-99</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-100">
+<h3>work pr-100 <span class="state blocked">blocked</span></h3>
+<p>#100: burner-of-down-things: frames and moves (806 step 1)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-97">pr-97</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-100</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-101">
+<h3>work pr-101 <span class="state blocked">blocked</span></h3>
+<p>#101: RPG-autobattler: ability types and their effects (049)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-96">pr-96</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-104">pr-104</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-101</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-102">
+<h3>work pr-102 <span class="state blocked">blocked</span></h3>
+<p>#102: delta-version 020: ticket distribution menu (preview, distribute after a yes, history, undo)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-98">pr-98</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-106">pr-106</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-102</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-103">
+<h3>work pr-103 <span class="state blocked">blocked</span></h3>
+<p>#103: burner-of-down-things: observations of a station's errors (906 step 1)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-39">pr-39</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-burner-of-down-things">burner-of-down-things</a>.pr-103</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-104">
+<h3>work pr-104 <span class="state blocked">blocked</span></h3>
+<p>#104: RPG-autobattler: ability cooldowns and effects over time (050)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-101">pr-101</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-105">pr-105</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-104</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-105">
+<h3>work pr-105 <span class="state blocked">blocked</span></h3>
+<p>#105: RPG-autobattler: mana bars drawn in plain shapes, not yet seen (045)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-104">pr-104</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-124">pr-124</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-105</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-106">
+<h3>work pr-106 <span class="state blocked">blocked</span></h3>
+<p>#106: delta-version 021: ticket chain test suite (every keyword, every template, scale)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-102">pr-102</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-111">pr-111</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-106</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-107">
+<h3>work pr-107 <span class="state ready">ready</span></h3>
+<p>#107: RPG-autobattler: file issue 067, matches spawn units with ability sets</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-107</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-108">
+<h3>work pr-108 <span class="state ready">ready</span></h3>
+<p>#108: scripts: the bash menu stops scrolling its own screen (issue 004)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-125">pr-125</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-108</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-109">
+<h3>work pr-109 <span class="state blocked">blocked</span></h3>
+<p>#109: world-edit-to-execute: hot-reload for asset packs (606)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-79">pr-79</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-148">pr-148</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-109</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-110">
+<h3>work pr-110 <span class="state blocked">blocked</span></h3>
+<p>#110: RPG-autobattler: units attack bases and shields (040b)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-75">pr-75</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-110</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-111">
+<h3>work pr-111 <span class="state blocked">blocked</span></h3>
+<p>#111: delta-version 022: ticket command and opt-in post-commit hook (preview only by default)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-106">pr-106</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-111</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-112">
+<h3>work pr-112 <span class="state ready">ready</span></h3>
+<p>#112: world-edit-to-execute: phase 5, 9 and B progress tables up to date</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-127">pr-127</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-112</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-113">
+<h3>work pr-113 <span class="state blocked">blocked</span></h3>
+<p>#113: RPG-autobattler: settle the vector and spawn test disagreements (008a, 013a)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-70">pr-70</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-113</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-114">
+<h3>work pr-114 <span class="state ready">ready</span></h3>
+<p>#114: test-runner finds tests kept in a project's scripts/ folder</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-114</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-115">
+<h3>work pr-115 <span class="state blocked">blocked</span></h3>
+<p>#115: delta-version: one issue per number (001, 037, 038 renumbered to 065, 066, 067 with pointers)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-89">pr-89</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-132">pr-132</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-115</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-116">
+<h3>work pr-116 <span class="state ready">ready</span></h3>
+<p>#116: supcom-derivative-clone: the dunes are raised by a tool, and sightlines are read off them (102, 103)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-122">pr-122</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-116</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-117">
+<h3>work pr-117 <span class="state blocked">blocked</span></h3>
+<p>#117: soren-ds: append-path, a file larger than one value (413)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-35">pr-35</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-141">pr-141</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-117</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-118">
+<h3>work pr-118 <span class="state ready">ready</span></h3>
+<p>#118: Menu libraries keep their tables when sourced from inside a function</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-118</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-119">
+<h3>work pr-119 <span class="state ready">ready</span></h3>
+<p>#119: delta-version 040 (first slice): CLAUDE.md guidelines from repeated events, approve/rollback; stand-in model for tests</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-120">pr-120</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-181">pr-181</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-119</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-120">
+<h3>work pr-120 <span class="state blocked">blocked</span></h3>
+<p>#120: delta-version 049 (first slice, 049a): transcript detail levels, classed by the model, kept word for word</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-119">pr-119</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-123">pr-123</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-120</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-121">
+<h3>work pr-121 <span class="state blocked">blocked</span></h3>
+<p>#121: world-edit-to-execute: read-only stored files, edited copy-on-write (604a)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-64">pr-64</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-121</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-122">
+<h3>work pr-122 <span class="state blocked">blocked</span></h3>
+<p>#122: supcom-derivative-clone: the world is flat arrays, the tick is a table, timers and named streams (104-107)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-116">pr-116</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-129">pr-129</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-122</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-123">
+<h3>work pr-123 <span class="state blocked">blocked</span></h3>
+<p>#123: delta-version 051 (first slice, 051a): first-commit facts from git and a model-drafted vision</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-120">pr-120</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-126">pr-126</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-123</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-124">
+<h3>work pr-124 <span class="state blocked">blocked</span></h3>
+<p>#124: RPG-autobattler: reconcile issues 051-056 with the ability stack</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-105">pr-105</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-128">pr-128</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-124</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-125">
+<h3>work pr-125 <span class="state blocked">blocked</span></h3>
+<p>#125: Bash menu scrolls a tall list inside its box</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-108">pr-108</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-125</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-126">
+<h3>work pr-126 <span class="state blocked">blocked</span></h3>
+<p>#126: delta-version 053 (first slice): TODONE reports components several projects each plan to build</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-123">pr-123</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-165">pr-165</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-176">pr-176</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-126</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-127">
+<h3>work pr-127 <span class="state blocked">blocked</span></h3>
+<p>#127: world-edit-to-execute: renumber the second 515 and 516 to 543 and 544</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-112">pr-112</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-162">pr-162</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-127</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-128">
+<h3>work pr-128 <span class="state blocked">blocked</span></h3>
+<p>#128: RPG-autobattler: priced unit templates and template manager (057)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-124">pr-124</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-131">pr-131</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-128</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-129">
+<h3>work pr-129 <span class="state blocked">blocked</span></h3>
+<p>#129: supcom-derivative-clone: commands enter through one door; snapshots, hashes and replays (108, 109)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-122">pr-122</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-134">pr-134</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-129</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-130">
+<h3>work pr-130 <span class="state ready">ready</span></h3>
+<p>#130: scripts: file server keeps names as data, so the page has no script and runs nothing (issue 007)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-130</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-131">
+<h3>work pr-131 <span class="state blocked">blocked</span></h3>
+<p>#131: RPG-autobattler: template validation and constraints (059)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-128">pr-128</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-136">pr-136</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-131</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-132">
+<h3>work pr-132 <span class="state blocked">blocked</span></h3>
+<p>#132: delta-version: decide the older open issues (close 058, 056a; recommend 039, 052, 056, 067)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-115">pr-115</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-135">pr-135</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-147">pr-147</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-132</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-133">
+<h3>work pr-133 <span class="state ready">ready</span></h3>
+<p>#133: scripts: conversation exporter shows a failed export; tmp link ignored (issue 034)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-133</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-134">
+<h3>work pr-134 <span class="state blocked">blocked</span></h3>
+<p>#134: supcom-derivative-clone: the headless runner and a terminal viewer (110, 111)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-129">pr-129</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-140">pr-140</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-134</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-135">
+<h3>work pr-135 <span class="state blocked">blocked</span></h3>
+<p>#135: delta-version 052: close as superseded by llama.cpp</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-132">pr-132</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-150">pr-150</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-135</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-136">
+<h3>work pr-136 <span class="state blocked">blocked</span></h3>
+<p>#136: RPG-autobattler: template saving, loading, backups and library (060)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-131">pr-131</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-139">pr-139</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-136</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-137">
+<h3>work pr-137 <span class="state ready">ready</span></h3>
+<p>#137: scripts: transcripts carry the name the person gave the session; recap questions settled (issue 037)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-137</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-138">
+<h3>work pr-138 <span class="state blocked">blocked</span></h3>
+<p>#138: world-edit-to-execute: wire-frame fallback for missing assets and blank maps (602)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-79">pr-79</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-138</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-139">
+<h3>work pr-139 <span class="state blocked">blocked</span></h3>
+<p>#139: RPG-autobattler: default template sets and generated guide (061)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-136">pr-136</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-143">pr-143</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-139</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-140">
+<h3>work pr-140 <span class="state blocked">blocked</span></h3>
+<p>#140: supcom-derivative-clone: territory is painted on cells (112)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-134">pr-134</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-144">pr-144</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-140</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-141">
+<h3>work pr-141 <span class="state blocked">blocked</span></h3>
+<p>#141: soren-ds: pull the twin's card out mid-write; every write shown old-or-new</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-117">pr-117</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.pr-141</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-142">
+<h3>work pr-142 <span class="state blocked">blocked</span></h3>
+<p>#142: scripts: close the built commit, scratch-tier and patch issues (032, 032a, 032b, 033, 036)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-53">pr-53</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-142</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-143">
+<h3>work pr-143 <span class="state blocked">blocked</span></h3>
+<p>#143: RPG-autobattler: ability library and selection logic (064)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-139">pr-139</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-149">pr-149</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-143</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-144">
+<h3>work pr-144 <span class="state blocked">blocked</span></h3>
+<p>#144: supcom-derivative-clone: every mechanic has a test, and the phase 1 demo (113)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-140">pr-140</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-153">pr-153</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-144</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-145">
+<h3>work pr-145 <span class="state ready">ready</span></h3>
+<p>#145: scripts: settle the gif-per-turn questions (038), list it under 035, close 016</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-145</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-146">
+<h3>work pr-146 <span class="state ready">ready</span></h3>
+<p>#146: hero-less-moba: a guard is a point, and no guard had ever moved (216d)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-hero-less-moba">hero-less-moba</a>.pr-146</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-147">
+<h3>work pr-147 <span class="state blocked">blocked</span></h3>
+<p>#147: delta-version 059: count every conversation alike, plus git lines and a symlink hang fix</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-132">pr-132</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-147</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-148">
+<h3>work pr-148 <span class="state blocked">blocked</span></h3>
+<p>#148: world-edit-to-execute: shared map-and-model list, applied for one game (609)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-109">pr-109</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-158">pr-158</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-166">pr-166</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-148</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-149">
+<h3>work pr-149 <span class="state blocked">blocked</span></h3>
+<p>#149: RPG-autobattler: provisional repricing machinery (058)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-143">pr-143</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-160">pr-160</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-149</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-150">
+<h3>work pr-150 <span class="state blocked">blocked</span></h3>
+<p>#150: delta-version 039: extra-root projects stay local unless listed; pushing is opt-in</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-135">pr-135</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-155">pr-155</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-150</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-151">
+<h3>work pr-151 <span class="state ready">ready</span></h3>
+<p>#151: scripts: panels in tui.lua, a rectangle with its own coordinates (039, from delta-version 067)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-151</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-152">
+<h3>work pr-152 <span class="state ready">ready</span></h3>
+<p>#152: scripts: one issue per number, the newer 008 and 026 become 040 and 041</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-152</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-153">
+<h3>work pr-153 <span class="state blocked">blocked</span></h3>
+<p>#153: supcom-derivative-clone: a unit is one record, and the unit catalogue (201, 202)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-144">pr-144</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-156">pr-156</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-153</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-154">
+<h3>work pr-154 <span class="state ready">ready</span></h3>
+<p>#154: hero-less-moba: the door and the chest get a suite of their own (106, 401, 402, 411)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-hero-less-moba">hero-less-moba</a>.pr-154</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-155">
+<h3>work pr-155 <span class="state blocked">blocked</span></h3>
+<p>#155: delta-version 056b: recursive map-reduce transcript summarizer (stand-in tested)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-150">pr-150</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-159">pr-159</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-155</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-156">
+<h3>work pr-156 <span class="state blocked">blocked</span></h3>
+<p>#156: supcom-derivative-clone: three domains on one field, and movement follows a pattern (203, 204)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-153">pr-153</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-161">pr-161</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-156</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-157">
+<h3>work pr-157 <span class="state ready">ready</span></h3>
+<p>#157: hero-less-moba: a drawn body can carry weight, behind a key (709)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-hero-less-moba">hero-less-moba</a>.pr-157</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-158">
+<h3>work pr-158 <span class="state blocked">blocked</span></h3>
+<p>#158: 606a: the renderer reads through the asset loader</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-148">pr-148</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-175">pr-175</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-158</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-159">
+<h3>work pr-159 <span class="state blocked">blocked</span></h3>
+<p>#159: delta-version 056c: summary applier (table of contents + block; renames off by default)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-155">pr-155</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-185">pr-185</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-159</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-160">
+<h3>work pr-160 <span class="state blocked">blocked</span></h3>
+<p>#160: RPG-autobattler: warn on ability triggers a body can never meet; fix Glass Cannon and battle fury</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-149">pr-149</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-163">pr-163</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-160</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-161">
+<h3>work pr-161 <span class="state blocked">blocked</span></h3>
+<p>#161: supcom-derivative-clone: nothing is out of range (205)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-156">pr-156</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-168">pr-168</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-161</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-162">
+<h3>work pr-162 <span class="state blocked">blocked</span></h3>
+<p>#162: The issue validator recognises a pointer file and lets it be</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-127">pr-127</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-162</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-163">
+<h3>work pr-163 <span class="state blocked">blocked</span></h3>
+<p>#163: RPG-autobattler: stat allocation logic (063)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-160">pr-160</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-167">pr-167</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-163</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-164">
+<h3>work pr-164 <span class="state ready">ready</span></h3>
+<p>#164: scripts: batch transcript backup gets its menu, --since and --commit (009)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-164</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-165">
+<h3>work pr-165 <span class="state blocked">blocked</span></h3>
+<p>#165: 051b, first slice: a project's phases read from its git history, as a drafted roadmap</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-126">pr-126</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-173">pr-173</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-165</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-166">
+<h3>work pr-166 <span class="state blocked">blocked</span></h3>
+<p>#166: 609a: a shared list goes from one player to another, asking first</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-148">pr-148</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-166</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-167">
+<h3>work pr-167 <span class="state blocked">blocked</span></h3>
+<p>#167: RPG-autobattler: point budget display logic and optimizer (065)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-163">pr-163</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-169">pr-169</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-167</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-168">
+<h3>work pr-168 <span class="state blocked">blocked</span></h3>
+<p>#168: supcom-derivative-clone: a shot is buffered when fired and applied when it lands (206, 207)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-161">pr-161</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-171">pr-171</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-168</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-169">
+<h3>work pr-169 <span class="state blocked">blocked</span></h3>
+<p>#169: RPG-autobattler: template preview logic (066)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-167">pr-167</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-172">pr-172</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-169</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-170">
+<h3>work pr-170 <span class="state ready">ready</span></h3>
+<p>#170: scripts: vision-viewer reads the projects' vision documents (005a, closes 005)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-170</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-171">
+<h3>work pr-171 <span class="state blocked">blocked</span></h3>
+<p>#171: supcom-derivative-clone: a dead unit leaves bones that carry mass (208)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-168">pr-168</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-177">pr-177</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-171</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-172">
+<h3>work pr-172 <span class="state blocked">blocked</span></h3>
+<p>#172: RPG-autobattler: template editor logic and layout (062)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-169">pr-169</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-178">pr-178</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-172</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-173">
+<h3>work pr-173 <span class="state blocked">blocked</span></h3>
+<p>#173: 051c: issue files for work already done, drafted from git history</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-165">pr-165</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-173</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-174">
+<h3>work pr-174 <span class="state ready">ready</span></h3>
+<p>#174: scripts: the exporter keeps a summary block and a slug name (043, for delta-version 056c)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-174</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-175">
+<h3>work pr-175 <span class="state blocked">blocked</span></h3>
+<p>#175: 606a: WC3_HOT_RELOAD turns hot-reload on in the viewer and the editor</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-158">pr-158</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-world-edit-to-execute">world-edit-to-execute</a>.pr-175</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-176">
+<h3>work pr-176 <span class="state blocked">blocked</span></h3>
+<p>#176: 053c: shared components in build order, from todone's report</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-126">pr-126</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-176</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-177">
+<h3>work pr-177 <span class="state blocked">blocked</span></h3>
+<p>#177: supcom-derivative-clone: the command truck moves on command and launches its plane (210)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-171">pr-171</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-180">pr-180</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-177</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-178">
+<h3>work pr-178 <span class="state blocked">blocked</span></h3>
+<p>#178: RPG-autobattler: draw and play ability cues (068)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-172">pr-172</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-rpg-autobattler">rpg-autobattler</a>.pr-178</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-179">
+<h3>work pr-179 <span class="state ready">ready</span></h3>
+<p>#179: scripts: lua-menu multistate items get their states and cycle (044)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-179</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-180">
+<h3>work pr-180 <span class="state blocked">blocked</span></h3>
+<p>#180: supcom-derivative-clone: the enforcer eats bones, upgrades, and shields its friends (211)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-177">pr-177</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-pr-183">pr-183</a>.base</td><td></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-180</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-181">
+<h3>work pr-181 <span class="state blocked">blocked</span></h3>
+<p>#181: 040d and 040g: a queryable CLAUDE.md audit trail, and why a guideline exists</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-119">pr-119</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-181</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-182">
+<h3>work pr-182 <span class="state ready">ready</span></h3>
+<p>#182: hero-less-moba: a beaten body gets one roll (212), H15 answered</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-hero-less-moba">hero-less-moba</a>.pr-182</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-183">
+<h3>work pr-183 <span class="state blocked">blocked</span></h3>
+<p>#183: supcom-derivative-clone: the thread pool slices the tick, the same at any count (209)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-180">pr-180</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>.pr-183</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-184">
+<h3>work pr-184 <span class="state ready">ready</span></h3>
+<p>#184: scripts: batch backup output folder, combined file, metadata, parallel levels (042, on #164)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-scripts">scripts</a>.pr-184</td><td></td></tr>
+</table>
+</article>
+<article id="box-pr-185">
+<h3>work pr-185 <span class="state blocked">blocked</span></h3>
+<p>#185: 056d: an overseer that finds unsummarized conversations, previewing unless run=on</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>in</td><td><code>base</code></td><td>from <a href="#box-pr-159">pr-159</a>.merged</td><td><span class="waiting">waiting</span></td></tr>
+<tr><td>out</td><td><code>merged</code></td><td>to <a href="#box-delta-version">delta-version</a>.pr-185</td><td></td></tr>
+</table>
+</article>
+<article id="box-question-soren-ds-catalogue">
+<h3>work question-soren-ds-catalogue <span class="state ready">ready</span></h3>
+<p>does the device keep a catalogue at all, or lean on something like the parent's symbol table? (soren-ds/issues/phase-3-progress.md, the catalogue question)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>answer</code></td><td>to <a href="#box-soren-ds">soren-ds</a>.question-soren-ds-catalogue</td><td></td></tr>
+</table>
+</article>
+<article id="box-question-ceramic-what-soramech-is">
+<h3>work question-ceramic-what-soramech-is <span class="state ready">ready</span></h3>
+<p>is the reading of soramech right? the parent, minimal-soramech, is not in the repository (ceramic-corporation/docs/005-open-questions.md, Q1)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>answer</code></td><td>to <a href="#box-ceramic-corporation">ceramic-corporation</a>.question-ceramic-what-soramech-is</td><td></td></tr>
+</table>
+</article>
+<article id="box-question-ceramic-trainstation">
+<h3>work question-ceramic-trainstation <span class="state ready">ready</span></h3>
+<p>can ceramic-trainstation come into the repository, so the boxes-and-wires picture can be built? (ceramic-corporation/issues/203-the-trainstation-picture.md)</p>
+<p>Held by <a href="#person-ritz">ritz</a>.</p>
+<table>
+<tr><td>out</td><td><code>answer</code></td><td>to <a href="#box-ceramic-corporation">ceramic-corporation</a>.question-ceramic-trainstation</td><td></td></tr>
+</table>
+</article>
+</section>
+<section id="people">
+<h2>People</h2>
+<table>
+<tr id="person-claude"><td>claude</td><td>builds in the background, one project per session, from main</td><td>holds <a href="#box-burner-of-down-things">burner-of-down-things</a>, <a href="#box-ceramic-corporation">ceramic-corporation</a>, <a href="#box-delta-version">delta-version</a>, <a href="#box-gif-generator">gif-generator</a>, <a href="#box-hero-less-moba">hero-less-moba</a>, <a href="#box-my-libs">my-libs</a>, <a href="#box-neocities-modernization">neocities-modernization</a>, <a href="#box-rpg-autobattler">rpg-autobattler</a>, <a href="#box-scripts">scripts</a>, <a href="#box-skills">skills</a>, <a href="#box-soren-ds">soren-ds</a>, <a href="#box-supcom-derivative-clone">supcom-derivative-clone</a>, <a href="#box-words-pdf">words-pdf</a>, <a href="#box-world-edit-to-execute">world-edit-to-execute</a></td></tr>
+<tr id="person-ritz"><td>ritz</td><td>the owner: reviews and merges, and answers the questions</td><td>holds <a href="#box-pr-2">pr-2</a>, <a href="#box-pr-3">pr-3</a>, <a href="#box-pr-4">pr-4</a>, <a href="#box-pr-5">pr-5</a>, <a href="#box-pr-6">pr-6</a>, <a href="#box-pr-7">pr-7</a>, <a href="#box-pr-8">pr-8</a>, <a href="#box-pr-9">pr-9</a>, <a href="#box-pr-10">pr-10</a>, <a href="#box-pr-11">pr-11</a>, <a href="#box-pr-12">pr-12</a>, <a href="#box-pr-13">pr-13</a>, <a href="#box-pr-14">pr-14</a>, <a href="#box-pr-15">pr-15</a>, <a href="#box-pr-16">pr-16</a>, <a href="#box-pr-17">pr-17</a>, <a href="#box-pr-18">pr-18</a>, <a href="#box-pr-19">pr-19</a>, <a href="#box-pr-20">pr-20</a>, <a href="#box-pr-21">pr-21</a>, <a href="#box-pr-22">pr-22</a>, <a href="#box-pr-23">pr-23</a>, <a href="#box-pr-24">pr-24</a>, <a href="#box-pr-25">pr-25</a>, <a href="#box-pr-26">pr-26</a>, <a href="#box-pr-27">pr-27</a>, <a href="#box-pr-28">pr-28</a>, <a href="#box-pr-29">pr-29</a>, <a href="#box-pr-30">pr-30</a>, <a href="#box-pr-31">pr-31</a>, <a href="#box-pr-32">pr-32</a>, <a href="#box-pr-33">pr-33</a>, <a href="#box-pr-34">pr-34</a>, <a href="#box-pr-35">pr-35</a>, <a href="#box-pr-36">pr-36</a>, <a href="#box-pr-37">pr-37</a>, <a href="#box-pr-38">pr-38</a>, <a href="#box-pr-39">pr-39</a>, <a href="#box-pr-40">pr-40</a>, <a href="#box-pr-41">pr-41</a>, <a href="#box-pr-42">pr-42</a>, <a href="#box-pr-43">pr-43</a>, <a href="#box-pr-44">pr-44</a>, <a href="#box-pr-45">pr-45</a>, <a href="#box-pr-46">pr-46</a>, <a href="#box-pr-47">pr-47</a>, <a href="#box-pr-48">pr-48</a>, <a href="#box-pr-49">pr-49</a>, <a href="#box-pr-50">pr-50</a>, <a href="#box-pr-51">pr-51</a>, <a href="#box-pr-52">pr-52</a>, <a href="#box-pr-53">pr-53</a>, <a href="#box-pr-54">pr-54</a>, <a href="#box-pr-55">pr-55</a>, <a href="#box-pr-56">pr-56</a>, <a href="#box-pr-57">pr-57</a>, <a href="#box-pr-58">pr-58</a>, <a href="#box-pr-59">pr-59</a>, <a href="#box-pr-60">pr-60</a>, <a href="#box-pr-61">pr-61</a>, <a href="#box-pr-62">pr-62</a>, <a href="#box-pr-63">pr-63</a>, <a href="#box-pr-64">pr-64</a>, <a href="#box-pr-65">pr-65</a>, <a href="#box-pr-66">pr-66</a>, <a href="#box-pr-67">pr-67</a>, <a href="#box-pr-68">pr-68</a>, <a href="#box-pr-69">pr-69</a>, <a href="#box-pr-70">pr-70</a>, <a href="#box-pr-71">pr-71</a>, <a href="#box-pr-72">pr-72</a>, <a href="#box-pr-73">pr-73</a>, <a href="#box-pr-74">pr-74</a>, <a href="#box-pr-75">pr-75</a>, <a href="#box-pr-76">pr-76</a>, <a href="#box-pr-77">pr-77</a>, <a href="#box-pr-78">pr-78</a>, <a href="#box-pr-79">pr-79</a>, <a href="#box-pr-80">pr-80</a>, <a href="#box-pr-81">pr-81</a>, <a href="#box-pr-82">pr-82</a>, <a href="#box-pr-83">pr-83</a>, <a href="#box-pr-84">pr-84</a>, <a href="#box-pr-85">pr-85</a>, <a href="#box-pr-86">pr-86</a>, <a href="#box-pr-87">pr-87</a>, <a href="#box-pr-88">pr-88</a>, <a href="#box-pr-89">pr-89</a>, <a href="#box-pr-90">pr-90</a>, <a href="#box-pr-91">pr-91</a>, <a href="#box-pr-92">pr-92</a>, <a href="#box-pr-93">pr-93</a>, <a href="#box-pr-94">pr-94</a>, <a href="#box-pr-95">pr-95</a>, <a href="#box-pr-96">pr-96</a>, <a href="#box-pr-97">pr-97</a>, <a href="#box-pr-98">pr-98</a>, <a href="#box-pr-99">pr-99</a>, <a href="#box-pr-100">pr-100</a>, <a href="#box-pr-101">pr-101</a>, <a href="#box-pr-102">pr-102</a>, <a href="#box-pr-103">pr-103</a>, <a href="#box-pr-104">pr-104</a>, <a href="#box-pr-105">pr-105</a>, <a href="#box-pr-106">pr-106</a>, <a href="#box-pr-107">pr-107</a>, <a href="#box-pr-108">pr-108</a>, <a href="#box-pr-109">pr-109</a>, <a href="#box-pr-110">pr-110</a>, <a href="#box-pr-111">pr-111</a>, <a href="#box-pr-112">pr-112</a>, <a href="#box-pr-113">pr-113</a>, <a href="#box-pr-114">pr-114</a>, <a href="#box-pr-115">pr-115</a>, <a href="#box-pr-116">pr-116</a>, <a href="#box-pr-117">pr-117</a>, <a href="#box-pr-118">pr-118</a>, <a href="#box-pr-119">pr-119</a>, <a href="#box-pr-120">pr-120</a>, <a href="#box-pr-121">pr-121</a>, <a href="#box-pr-122">pr-122</a>, <a href="#box-pr-123">pr-123</a>, <a href="#box-pr-124">pr-124</a>, <a href="#box-pr-125">pr-125</a>, <a href="#box-pr-126">pr-126</a>, <a href="#box-pr-127">pr-127</a>, <a href="#box-pr-128">pr-128</a>, <a href="#box-pr-129">pr-129</a>, <a href="#box-pr-130">pr-130</a>, <a href="#box-pr-131">pr-131</a>, <a href="#box-pr-132">pr-132</a>, <a href="#box-pr-133">pr-133</a>, <a href="#box-pr-134">pr-134</a>, <a href="#box-pr-135">pr-135</a>, <a href="#box-pr-136">pr-136</a>, <a href="#box-pr-137">pr-137</a>, <a href="#box-pr-138">pr-138</a>, <a href="#box-pr-139">pr-139</a>, <a href="#box-pr-140">pr-140</a>, <a href="#box-pr-141">pr-141</a>, <a href="#box-pr-142">pr-142</a>, <a href="#box-pr-143">pr-143</a>, <a href="#box-pr-144">pr-144</a>, <a href="#box-pr-145">pr-145</a>, <a href="#box-pr-146">pr-146</a>, <a href="#box-pr-147">pr-147</a>, <a href="#box-pr-148">pr-148</a>, <a href="#box-pr-149">pr-149</a>, <a href="#box-pr-150">pr-150</a>, <a href="#box-pr-151">pr-151</a>, <a href="#box-pr-152">pr-152</a>, <a href="#box-pr-153">pr-153</a>, <a href="#box-pr-154">pr-154</a>, <a href="#box-pr-155">pr-155</a>, <a href="#box-pr-156">pr-156</a>, <a href="#box-pr-157">pr-157</a>, <a href="#box-pr-158">pr-158</a>, <a href="#box-pr-159">pr-159</a>, <a href="#box-pr-160">pr-160</a>, <a href="#box-pr-161">pr-161</a>, <a href="#box-pr-162">pr-162</a>, <a href="#box-pr-163">pr-163</a>, <a href="#box-pr-164">pr-164</a>, <a href="#box-pr-165">pr-165</a>, <a href="#box-pr-166">pr-166</a>, <a href="#box-pr-167">pr-167</a>, <a href="#box-pr-168">pr-168</a>, <a href="#box-pr-169">pr-169</a>, <a href="#box-pr-170">pr-170</a>, <a href="#box-pr-171">pr-171</a>, <a href="#box-pr-172">pr-172</a>, <a href="#box-pr-173">pr-173</a>, <a href="#box-pr-174">pr-174</a>, <a href="#box-pr-175">pr-175</a>, <a href="#box-pr-176">pr-176</a>, <a href="#box-pr-177">pr-177</a>, <a href="#box-pr-178">pr-178</a>, <a href="#box-pr-179">pr-179</a>, <a href="#box-pr-180">pr-180</a>, <a href="#box-pr-181">pr-181</a>, <a href="#box-pr-182">pr-182</a>, <a href="#box-pr-183">pr-183</a>, <a href="#box-pr-184">pr-184</a>, <a href="#box-pr-185">pr-185</a>, <a href="#box-question-soren-ds-catalogue">question-soren-ds-catalogue</a>, <a href="#box-question-ceramic-what-soramech-is">question-ceramic-what-soramech-is</a>, <a href="#box-question-ceramic-trainstation">question-ceramic-trainstation</a></td></tr>
+</table>
+</section>
+<section id="outside">
+<h2>Outside</h2>
+<p>No door leads outside this org.</p>
+</section>
+</body>
+</html>

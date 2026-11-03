@@ -13,8 +13,8 @@ requests, naming which merge frees the most waiting work.
 | 102 | The map is read, and refused by name | built |
 | 103 | The blocked board | built |
 | 104 | A proposal is applied as a diff | built |
-| 105 | The monorepo, mapped | not started |
-| 106 | A page anybody can open | not started |
+| 105 | The monorepo, mapped | built |
+| 106 | A page anybody can open | built |
 
 **Order:** 102 first (everything reads through it), then 103 and 104, then 105
 and 106, which need the board.
@@ -22,4 +22,8 @@ and 106, which need the board.
 **Blocking:** nothing outside the phase. The reading of soramech is a working
 ruling (open question Q1); if the parent project differs, the format follows it.
 
-**Demo:** not yet built.
+**Demo:** `./run-phase-demo 1` — the bakery validated, its board, a proposal
+judged and another applied, then the monorepo's queue ranked. In
+`issues/completed/demos/phase-1-demo`.
+
+**Phase 1 is complete.**

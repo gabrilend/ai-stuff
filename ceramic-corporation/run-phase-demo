@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# run-phase-demo -- runs a phase's demo from issues/completed/demos/.
+#
+# Each phase ends with a demo that shows its tools working together on the
+# examples. Asks which to run when given none, or runs the one named.
+#
+# Usage:
+#   ./run-phase-demo            -- choose from a list
+#   ./run-phase-demo 1          -- phase 1's demo
+#   ./run-phase-demo /path/to/ceramic-corporation [N]
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+if [ -d "$1/issues/completed/demos" ]; then
+    DIR="$1"
+    shift
+fi
+
+DEMOS=("${DIR}"/issues/completed/demos/phase-*-demo)
+if [ ! -e "${DEMOS[0]}" ]; then
+    echo "ERROR: no demos in ${DIR}/issues/completed/demos" >&2
+    exit 1
+fi
+
+PHASE="$1"
+if [ -z "${PHASE}" ]; then
+    echo "Phase demos:"
+    for demo in "${DEMOS[@]}"; do
+        echo "  $(basename "${demo}" | sed 's/^phase-\([0-9]*\)-demo$/\1/')  $(sed -n '3p' "${demo}" | sed 's/^# //')"
+    done
+    read -r -p "Which phase? " PHASE
+fi
+
+DEMO="${DIR}/issues/completed/demos/phase-${PHASE}-demo"
+if [ ! -x "${DEMO}" ]; then
+    echo "ERROR: no demo for phase ${PHASE}" >&2
+    exit 2
+fi
+exec "${DEMO}" "${DIR}"
