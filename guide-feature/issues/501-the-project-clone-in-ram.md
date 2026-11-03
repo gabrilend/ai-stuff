@@ -44,7 +44,7 @@ Which repository to clone from, for a project name, comes from a list in
 
 ## Open questions
 
-- Do the mini-computers have `git`? (`docs/open-questions.md`, 7)
+- Do the mini-computers have `git`? (`docs/open-questions.md`, 1)
 
 ## Blocked by
 

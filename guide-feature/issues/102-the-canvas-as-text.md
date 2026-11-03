@@ -31,7 +31,7 @@ parser, not a chain of if-else. Any missing, repeated, unknown or
 out-of-order header, a wrong row count, or a row that is too long is an error
 naming the line.
 
-The reader does not check the change budgets. That is the fit check (105).
+The reader does not count changes. That is the fit check (105).
 
 ## Suggested implementation steps
 

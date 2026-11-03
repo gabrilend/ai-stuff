@@ -51,7 +51,9 @@ this report. The blit itself does not mark.
 
 ## Open questions
 
-- Which collision rules to build next (`docs/open-questions.md`, 1).
+- None left from the collision rules: the owner chose `fade-fragments`,
+  `keep-fragments` and `push-aside` after `blank-whole`
+  (`docs/datapath-blit.md`, "Collision rules").
 
 ## Blocked by
 

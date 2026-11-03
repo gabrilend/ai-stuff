@@ -76,6 +76,7 @@ its own lines, so one living message still serves all three.
     size: 60x20
     mode: newest
     project: guide-feature 9f2c1e0
+    endpoint: voice-small http://192.168.1.100:<port>
     written: 2026-10-21T22:10:05Z
 
 | Field | Type | Meaning |
@@ -84,6 +85,7 @@ its own lines, so one living message still serves all three.
 | `size` | `WxH` | the canvas size in characters |
 | `mode` | `newest` or `distill` | the merge mode in use (voices may be told how their edits are used) |
 | `project` | name and commit | the project being worked on, and the commit each voice's clone should be at (`docs/datapath-looking-into-the-project.md`) |
+| `endpoint` | name and address | the model server this voice uses for its next turn, chosen on kuvalu (`docs/endpoints.md`) |
 | `written` | UTC time `YYYY-MM-DDThh:mm:ssZ` | when kuvalu wrote this version |
 
 ## Headers, voice → kuvalu (`canvas`)

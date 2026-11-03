@@ -30,9 +30,10 @@ canvas size is chosen (205).
 
 ## Open questions
 
-- Is there a Mac with Xcode? (`docs/open-questions.md`, 13)
-- Whether the causeway needs a key and HTTPS; the watch must send it if so (`docs/open-questions.md`, 2).
-- Canvas size versus the watch screen (`docs/open-questions.md`, 5).
+- Is there a Mac with Xcode? (`docs/open-questions.md`, 5)
+- Answered: the watch's display holds an rmail mailbox, as the phone's
+  does (`docs/network.md`); its canvas is made at its own size, or, in
+  `smallest` mode, every screen shows the watch's (`issues/205`).
 
 ## Blocked by
 

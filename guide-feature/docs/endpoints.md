@@ -85,7 +85,8 @@ chosen in issue 401a, away from the ports other projects use.
 
 ## Where the file lives
 
-Each of the four machines has its own copy of the project root, and so its
-own `endpoints`. For now every endpoint is on kuvalu, and the deploy script
-copies the file to the voices. Whether kuvalu should instead tell the voices
-which endpoint to use, in the canvas it sends them, is an open question.
+Only kuvalu keeps `endpoints`. kuvalu tells each voice which endpoint to
+use in the canvas it sends: an `endpoint` header with the endpoint's name
+and address (`docs/canvas-format.md`). Switching every voice is then one
+edit, in one place. A voice keeps no list of its own and uses the header
+it was last sent.

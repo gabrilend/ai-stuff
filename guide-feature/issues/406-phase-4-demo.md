@@ -12,7 +12,7 @@ Phase 3's demo shows stand-in turns through rmail once 306 is done.
 on all three stand-in voices, against kuvalu's llama.cpp server, and shows:
 
 - the canvas changing, with marks, in the terminal;
-- per turn: words changed against the budget, fit tries and why, give-ups;
+- per turn: words changed against the recommendation, fit tries and why;
 - per voice and endpoint: seconds and tokens per turn;
 - a role switched to another endpoint halfway through with
   `scripts/use-endpoint`, and the switch visible in the numbers.

@@ -42,7 +42,7 @@ guide-feature reads indexes and never builds another project's index.
 ## Open questions
 
 - delta-version or the shared scripts folder? Build guide-feature's own
-  index first? (`docs/open-questions.md`, 10)
+  index first? (`docs/open-questions.md`, 2)
 
 ## Blocked by
 

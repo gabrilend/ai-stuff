@@ -46,7 +46,9 @@ shown working.
 
 ## Open questions
 
-- Whose name goes on a distilled change? (`docs/open-questions.md`, 4)
+- None left on credit: distilled changes carry `kuvalu`'s name and the
+  distiller is not asked where each came from ("like melting two candles to
+  each other", `docs/datapath-blit.md`, "distill").
 
 ## Blocked by
 

@@ -46,7 +46,7 @@ into one block of memory with LuaJIT's FFI, so it costs milliseconds.
 
 ## Open questions
 
-- The call's form (`docs/open-questions.md`, 11).
+- The call's form (`docs/open-questions.md`, 3).
 
 ## Blocked by
 

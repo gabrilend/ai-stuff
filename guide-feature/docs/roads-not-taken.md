@@ -63,3 +63,13 @@ says how focused or broad it wants to be, searched by embeddings of the
 project's names (variables, structures, functions). The project is the one
 being worked on, cloned onto each mini-computer. Now:
 `docs/datapath-looking-into-the-project.md`.
+
+## Voices explaining their changes to each other
+
+**What it was.** The voices' mailboxes would also carry a conversation, so
+each voice could justify its edits to the others.
+
+**Why not, for now.** The owner: "that's not necessary, and I worry it might
+lead to all of them speaking the same words or having the same voice. It's
+better if they drift a bit, but stay focused." The canvas is their only
+shared speech.

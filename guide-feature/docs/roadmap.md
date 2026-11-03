@@ -42,7 +42,7 @@ prompt, and the ask-until-it-fits loop with compiler-style reports. Running
 on kuvalu's llama.cpp server.
 
 Ends with: three real turns per version on kuvalu, showing fit retries,
-change counts against the budget, and the canvas changing.
+change counts against the recommendation, and the canvas changing.
 
 ## Phase 5 — Looking into the project
 

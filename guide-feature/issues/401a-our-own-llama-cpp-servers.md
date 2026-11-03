@@ -30,7 +30,7 @@ start scripts. Those are words-pdf's and are not used here.
   running, so the GPU is free whenever guide-feature is not in use.
 - The chat server is started with its chat templates switched on
   (`--jinja`), so llama.cpp's tool calls are available to the look tool,
-  unless the owner decides otherwise (`docs/open-questions.md`, 11).
+  unless the owner decides otherwise (`docs/open-questions.md`, 3).
 
 ## Suggested implementation steps
 
@@ -50,7 +50,7 @@ start scripts. Those are words-pdf's and are not used here.
 
 - Which chat model and which embedding model?
 - Tool calls through `--jinja`, or a plain line in the reply?
-  (`docs/open-questions.md`, 11)
+  (`docs/open-questions.md`, 3)
 
 ## Blocked by
 

@@ -14,8 +14,9 @@ to `tmp/shared-memory/canvas/current` (temporary name, then rename) and to
 reads bases back from the history instead of holding every version in
 memory.
 
-At start the folder is emptied of the previous run, unless the owner decides
-the history should survive a restart (`docs/open-questions.md`, 6).
+At start the folder is emptied of the previous run. The owner chose that the
+history does not survive a restart: after one, each voice's first canvas is
+refused and it is sent the current version.
 
 ## Suggested implementation steps
 
@@ -30,7 +31,7 @@ the history should survive a restart (`docs/open-questions.md`, 6).
 
 ## Open questions
 
-- Keep the history across restarts? (`docs/open-questions.md`, 6)
+- None left.
 
 ## Blocked by
 

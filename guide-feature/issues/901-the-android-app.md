@@ -28,8 +28,9 @@ with age.
 
 ## Open questions
 
-- Whether the causeway needs a key and HTTPS; the app must send it if so
-  (`docs/open-questions.md`, 2).
+- Answered: the app holds an rmail mailbox and shows what it receives,
+  encrypted by rmail. Whether it collects or is pushed to, and how often,
+  is tuned while building (`docs/network.md`).
 
 ## Blocked by
 

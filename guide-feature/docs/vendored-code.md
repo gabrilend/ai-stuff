@@ -31,6 +31,8 @@ the difference, keep or adapt.
 | `libs/llama.cpp/`, a git clone | `/home/ritz/programming/ai-stuff/words-pdf/libs/llama.cpp` (a llama.cpp clone with a CUDA build, last commit 2026-06-20) | guide-feature runs its own llama.cpp servers, built and started by its own scripts | 401a |
 | `libs/llama-chat-client.lua` | `delta-version/scripts/libs/llama-chat-client.lua` | chat, exact token counts, reachability | 401b |
 | `libs/dkjson.lua` | `/home/ritz/programming/ai-stuff/libs/lua/` | the client's JSON reader and writer | 401b |
+| noble-hashes (a slow password-to-key function in plain JavaScript), for the HTML page's password prompt | its published source, copied in when 803 is built | the key is made from the password in the browser, so the password never crosses the network | 803 |
+| noble-ciphers (AES-256-GCM in plain JavaScript, no dependencies), for the HTML page | its published source, copied in when 803 is built; the path and version go here then | browsers have no built-in decryption on plain HTTP | 803 |
 | `libs/ensure-ram-tiers.lua` | `/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers.lua` | rebuilding the `tmp/` RAM folders after a reboot | 101 |
 
 Each row is filled in with the real path and commit when its issue copies

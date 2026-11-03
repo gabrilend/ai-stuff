@@ -79,5 +79,5 @@ log line naming the reason. It is never dropped silently.
 Everything under `tmp/shared-memory/` is RAM and is emptied by a reboot.
 The blitter needs the history to find a voice's base. A voice whose base is
 older than anything in the history (after a restart, for example) has its
-canvas refused, and it is sent the current version. Whether the canvas
-history should survive a restart is an open question.
+canvas refused, and it is sent the current version. The history does
+not survive a restart; the owner chose to keep it in RAM only.

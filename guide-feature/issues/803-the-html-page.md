@@ -19,7 +19,9 @@ or one of the voices (`docs/network.md`).
 
 ## Suggested implementation steps
 
-1. The page and its parser, checked against the viewer-side reader's test
+1. The key from the address after `#`, the AES-256-GCM decryptor (tested
+   against the standard's published example values, and against a canvas
+   the server encrypted), then the page and its parser, checked against the viewer-side reader's test
    canvases (202).
 2. Check in Firefox with screenshots.
 
@@ -30,7 +32,12 @@ or one of the voices (`docs/network.md`).
 
 ## Open questions
 
-- Whether the causeway needs a key and HTTPS (`docs/open-questions.md`, 2).
+- Answered: the key is read from after the `#` in the page's address, and
+  the page decrypts with its own JavaScript AES-256-GCM, because Web Crypto
+  is missing on plain HTTP. It is noble-ciphers, copied in. Without a key in
+  the address, the page asks for the viewer's password. The password never
+  leaves the page: the page derives the viewer's key from it, slowly, and
+  unlocks the session key the server sends.
 
 ## Blocked by
 

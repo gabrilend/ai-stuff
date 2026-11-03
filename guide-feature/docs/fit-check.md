@@ -22,16 +22,33 @@ Against the base canvas the turn started from:
 |---|---|---|
 | no row is longer than `W` characters | `too-wide` | `row 7: 64 characters, 4 over the width of 60` |
 | there are exactly `H` rows | `wrong-height` | `the canvas has 22 rows; it must have exactly 20` |
-| no more words changed than the change budget | `too-many-changes` | `you changed 31 words; at most 12 may change per turn` |
-| sentences rewritten whole count against a smaller budget | `rewrote-sentences` | `you rewrote 3 whole sentences; at most 1 may be rewritten. change single words where you can` |
 
 A word counts as changed when the word at that row and column is different
 from the base, or is new, or was removed (`docs/datapath-blit.md` defines
 this exactly; the fit check and the blitter use the same word comparison).
 
-The two budgets are settings (`input/turn`). They are knobs. Changes to
-them go into `docs/balance-updates.md` with the reason, once there is a
-first change.
+## The change budget is soft
+
+Only the size is refused. How much a voice changes is advice, not a rule.
+The owner: "as many as it'd like, but it's recommended to change fewer, and
+focus on I think they're called 'operative words' like 'very' being replaced
+to 'not very' or similar if something changes in magnitude or quality or
+whatever."
+
+So the turn prompt recommends a number of changed words and of whole
+sentences rewritten, and asks the voice to reach first for the word that
+carries the meaning's strength or direction ("very" to "not very", "often"
+to "rarely"). A canvas over the recommendation is accepted. The counts are
+written in the next canvas the voice receives, as a plain note, not an
+error:
+
+    last turn you changed 31 words (12 recommended) and rewrote 3 whole
+    sentences (1 recommended). smaller changes to the operative words
+    keep more of what is already here.
+
+The two recommended numbers are settings (`input/turn`). They are knobs.
+Changes to them go into `docs/balance-updates.md` with the reason, once
+there is a first change.
 
 ## The report
 
@@ -40,20 +57,22 @@ limit:
 
     the canvas does not fit:
       row 7: 64 characters, 4 over the width of 60
-      you changed 31 words; at most 12 may change per turn
     write the whole canvas again: exactly 20 rows, each at most 60
-    characters, changing at most 12 words and rewriting at most 1 sentence.
-    keep everything you did not mean to change exactly as it was.
+    characters. keep everything you did not mean to change exactly as it
+    was.
 
 ## Where it runs
 
 - **In each voice's turn**, before the canvas is mailed. On failure the
   report and the model's reply are added to the conversation and the model is
-  asked again, up to a number of tries (a setting). When the tries run out,
-  the turn sends nothing and counts a give-up. A canvas is never trimmed or
-  cut down to make it fit.
-- **In the blitter**, on arrival, for the size only. The budgets are the
-  voice's business, but a canvas of the wrong size cannot be compared with
+  asked again, with no limit on tries: "it will just keep spinning until it
+  gets it right." A reply too large is shown back to the model cut at the
+  edge, even in the middle of a word, with "this is all that'd fit, please
+  rephrase the sentences prior to the broken lines". The cut version is only
+  ever shown to the model; it is never published. The number of tries is
+  counted and logged, so a model stuck spinning is visible.
+- **In the blitter**, on arrival, for the size only. The change counts are
+  the voice's business, but a canvas of the wrong size cannot be compared with
   its base at all, so it is refused and logged.
 - **In distill mode**, on the distiller's reply, the same as in a voice's
   turn.

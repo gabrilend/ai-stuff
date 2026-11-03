@@ -16,19 +16,23 @@ again with a description of why. Like a compiler error."
 2. If the reply is a look call, answer it (503; until then, answer that the
    look tool is not built yet), add both to the conversation, and ask again,
    up to the look limit.
-3. Run the fit check against the base canvas and the budgets.
+3. Run the fit check against the base canvas; the change counts become the advisory note.
 4. If it fits, return the rows.
 5. If not, add the reply (`assistant`) and the report (`user`) to the
    conversation and ask again.
-6. After the last allowed try, end the turn with a give-up. Nothing is
-   trimmed.
+6. There is no last try. The owner: "it will just keep spinning until it
+   gets it right." A reply too large is cut at the edge, "even in the middle
+   of the word!", and the cut rows go back with the report: "this is all
+   that'd fit, please rephrase the sentences prior to the broken lines". A
+   cut reply is never published.
 
 Counted per turn: tries, problems by kind, look calls, tokens, seconds.
 
 ## Suggested implementation steps
 
 1. The loop, tested first with a scripted stand-in model (too wide, then
-   fits; too many changes forever).
+   fits; too wide five times, then fits; too many changes, which is accepted
+   with the advisory note).
 2. Then against kuvalu's llama.cpp server with a small canvas, to watch a
    real model being corrected.
 

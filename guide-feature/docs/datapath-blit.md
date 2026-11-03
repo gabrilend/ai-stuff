@@ -72,6 +72,14 @@ table from rule name to function. Most promising first:
 | `push-aside` | The cut word slides right, along its row, to the nearest gap wide enough to hold it. If there is none, it is blanked. | Words survive collisions, at the cost of the row reshuffling. |
 | `blank-sentence` | The whole sentence holding the cut word is blanked. | A sentence with a word cut out is broken anyway. This clears space fastest. |
 
+The owner chose the next three to build after `blank-whole`: `fade-fragments`,
+`keep-fragments` and `push-aside`. What a reader should see when two voices
+want the same spot: "confusion, as it flips back and forth. Indecision is
+valid. But, it should coalesce to a stable state over time, because the LLMs
+are encouraged to change as little as possible." So the scripted test series
+for each rule should show the flipping and then the settling: how many
+versions pass before a contested spot stops changing.
+
 Independently of the rule, **tell-the-voice** (on or off) lists the words a
 voice cut in the next canvas it receives, so its next turn can see what its
 edit destroyed.
@@ -127,8 +135,10 @@ keeps the newest canvas from each voice. On each arrival:
    canvas, under the same fit check and retries as a voice's turn
    (`docs/fit-check.md`).
 3. It blits that canvas with `C` as its base, through steps 1–5. Its marks
-   carry the voice name `kuvalu`, unless the owner prefers marks to name the
-   voice whose idea each change came from (an open question).
+   carry the voice name `kuvalu`. The distiller is not asked which voice
+   each change came from. The owner: "The synthesis step takes 3 or more
+   inputs and combines them. The provenance is inherently melded together
+   like melting two candles to each other."
 
 Distilling takes as long as a turn, so arrivals that come in meanwhile wait.
 Only each voice's newest canvas is kept, so a queue cannot build up.

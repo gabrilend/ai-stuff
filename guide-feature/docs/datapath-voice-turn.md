@@ -22,7 +22,7 @@ output to the outbox with the correct formatting and such."
        │        ▲                                              │
        │        └────────────── answered, ask again ◄──────────┘
        │
-       6. fit check ── fails ──► report back to the model, ask again (N tries)
+       6. fit check ── fails ──► report back to the model, ask again (no limit)
        │ fits
        ▼
        7. write outbox/canvas (base: N), turn counter + 1
@@ -37,7 +37,7 @@ output to the outbox with the correct formatting and such."
    - the rules: the canvas is real and stays on screen. Change as little as
      possible, single words before sentences, and keep what still matters
      while fitting in what is new;
-   - the canvas size and the change budgets (`docs/fit-check.md`);
+   - the canvas size and the recommended change counts (`docs/fit-check.md`);
    - the look tool, and how to ask for focused or broad results;
    - the canvas itself, exactly as it is.
 5. **Ask.** The model may answer with a look call instead of a canvas.
@@ -45,10 +45,11 @@ output to the outbox with the correct formatting and such."
    result is added to the conversation, and the model is asked again. The
    number of look calls per turn is limited by a setting.
 6. **Fit check.** The reply is the whole edited canvas. It is checked
-   against the size and the budgets. On failure the compiler-style report
-   goes back to the model, up to a set number of tries. When the tries run
-   out, the turn sends nothing and counts a give-up. A reply is never trimmed
-   to make it fit.
+   against the size; the change counts become an advisory note, never a
+   refusal. On failure the compiler-style report goes back to the model, with
+   a too-large reply shown cut at the edge, and the model is asked again with
+   no limit on tries ("it will just keep spinning until it gets it right").
+   The cut version is never published.
 7. **Write.** Headers (`voice`, `turn`, `base: N`, `size`, `written`), a
    blank line, the rows, an empty marks section. It is checked by reading it
    back with the canvas reader, then written under a temporary name and
@@ -66,4 +67,4 @@ canvas, never from one it skipped.
 
 In the log and the goodbye receipt (`tmp/shared-memory/` and `output/` on
 the voice): turns run, canvases sent, unchanged turns, look calls (by focus),
-fit retries by kind, give-ups, endpoint used, seconds and tokens per turn.
+fit retries by kind, endpoint used, seconds and tokens per turn.

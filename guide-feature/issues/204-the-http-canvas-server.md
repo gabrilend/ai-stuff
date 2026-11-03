@@ -51,7 +51,13 @@ as listed in "Keeping the causeway narrow" there:
 
 ## Open questions
 
-- Does the causeway need a key and HTTPS, and which port? (`docs/open-questions.md`, 2)
+- Answered: the canvas it serves is encrypted with AES-256-GCM, and the
+  page decrypts it in JavaScript with a key from after the `#` in its
+  address. The server never holds that key in any page it sends. Each browser
+  session has its own key, separate from the rmail secrets; viewers set up
+  their password-key on the server beforehand. For a password
+  viewer, the server sends the session's fresh key locked with that
+  viewer's key; the password itself never crosses the network.
 
 ## Blocked by
 

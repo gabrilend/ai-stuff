@@ -32,7 +32,9 @@ and port mapping are turned off if rmail allows it (`docs/network.md`).
 
 ## Open questions
 
-- rmail's outside requests (`docs/open-questions.md`, 8).
+- None left on rmail's outside requests: the public-address lookup and the
+  router port-mapping are each a switch the user turns on or off
+  (`docs/network.md`).
 
 ## Blocked by
 

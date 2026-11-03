@@ -37,7 +37,7 @@ Anything it cannot find is reported as an error, not a blank.
 
 ## Open questions
 
-- C library and tools (`docs/open-questions.md`, 7). The survey answers it.
+- C library and tools (`docs/open-questions.md`, 1). The survey answers it.
 - How the owner wants login credentials handled. They offered them; either
   way they stay out of the repository.
 

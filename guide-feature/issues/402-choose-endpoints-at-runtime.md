@@ -39,8 +39,8 @@ canvas's history can be traced to the models that wrote it.
 
 ## Open questions
 
-- Should kuvalu choose each voice's endpoint, through the canvas it sends?
-  (`docs/open-questions.md`, 9)
+- None left: kuvalu names each voice's endpoint in the canvas it sends
+  (`docs/endpoints.md`).
 
 ## Blocked by
 
