@@ -1,6 +1,6 @@
 # Conversation Summary: 3e9767bf-5307-4ac4-8204-4e97b6e35e1d
 
-Generated on: 2026-11-03 10:04:51
+Generated on: 2026-11-03 10:21:27
 Models: claude-opus-5-5
 
 ## Contents
@@ -1106,6 +1106,201 @@ branches. The five `soramech` commits are routine transcript upkeep.
 This conversation's transcript now contains those file names, including
 `xfinity-order-id`, and it gets committed to the public repo. It should go on
 the redaction list too.
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+> So original on GitHub has never received the licence you asked for on both
+> branches. The five soramech commits are routine transcript
+  upkeep.
+
+the RGPL is still very much in-progress so maybe that's okay
+
+> 1. ai-stuff: which of the three options do you want? Should I make the
+> repository private right now while we decide?
+
+don't make it private. Just remove the files as best you can, and the
+pull-request refs will sort themselves out. Right? It's okay if they're up for a
+bit longer, because they are already up. So long as we set ourselves on a track
+to be clean, it's alright. Don't do drugs, and if you do do drugs, then work on
+getting your life in order so that you don't need to do drugs anymore. Then,
+don't do drugs. Right?
+
+> 2. Poems still tracked: stop tracking compiled.txt and backup-mvp/input/ now?
+> The poems are on your neocities site already, so they may be
+>      fine public.
+
+let's untrack them.
+
+> 3. custom-client docs/057 and the screenshot: publish the clean-room
+> description, or keep it local? If it should stay local, should the
+>      screenshot come out of history too?
+
+local for now but not forever. We're still working on it. The clean-room
+description isn't even complete.
+
+> 4. Ceramic engine: copy the licence commit onto soramech's original and push
+> both clones?
+
+I dunno. Sure, whatever.
+
+it sounds like for soramech it's just transcript pages, right? And the license?
+If so, then merge them, whatever, who cares.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> On the pull-request refs: they won't sort themselves out. GitHub keeps every
+> pull request's commits forever unless GitHub Support removes them, and only
+> you, as the owner, can ask them to. I'll put you on the track to clean: remove
+> the files from every branch we control, force-push, and leave you a short note
+> to send Support afterwards.
+>
+> Starting with the ceramic engine, since it's quick.
+
+*[commit] fd605e673 - Bring in the licence commit from the other clone of this branch*
+
+> Adding ignore rules for the two tracked poem copies. The history rewrite will
+> then take them out of every commit, the latest included.
+
+> All 239 GitHub branches are fetched. Your earlier push went through: local
+> `main` is only 1 commit ahead of GitHub. Now making the scratch copy on
+> `/mnt/kaun`.
+
+> A pack file disappeared during the copy, probably because git was tidying its
+> packs in the background after the fetch. Retrying in the slower way, which
+> streams objects instead of copying pack files.
+
+> The scratch copy is 2.2 GB with all 266 refs. Running the removal on it now.
+> Your working repository isn't touched.
+
+> Keeping the small list files in my scratchpad instead.
+
+> The rewrite took 15 seconds. Now the checks, before anything else.
+
+> filter-repo turned the fetched GitHub branches into ordinary branches: 237
+> `claude/*` plus `main`. Gate 1: no removed path is reachable from any ref.
+
+> Gate 1 passes: 1,567 private paths removed, none left on any branch or tag.
+> Gate 2: the newest files on `main` must be identical apart from the removed
+> paths.
+
+> Gate 3 passes: all 2,120 surviving commits keep their authors, dates and
+> subjects. Listing the 12 dropped commits, since they leave history entirely.
+
+*[commit] fa5cf77d6 in ai-stuff - The last two copies of the poems are ignored*
+
+I'm stopping before the swap for your go-ahead, because force-pushing rewrites
+`main` and 237 branches on GitHub.
+
+**Ready, in the scratch copy on `/mnt/kaun`**
+- **Removed from every commit, branch and tag:** 1,567 private paths. These are
+  neocities' `input/` (the message pictures, unposted pictures, notes, Reddit
+  comments, Bluesky export), its `assets/` and `output/` folders, both poem
+  lists, `words-pdf/input/` (poems, notes, mail state) and both poem copies.
+- **Checks passed:**
+  - None of those paths is reachable from any ref.
+  - The newest files on `main` are byte-for-byte the same, except the two poem
+    copies.
+  - All 2,120 surviving commits keep their authors, dates and subjects.
+- **Dropped:** 25 commits whose only content was those files. 12 of them are on
+  `main`, such as "A note on suffocation".
+
+**Also done**
+- The two poem copies are now ignored (fa5cf77). They leave every commit, the
+  newest included, at the swap.
+- The ceramic engine is merged and pushed. `original` has the licence, and both
+  clones agree with GitHub.
+- custom-client's `docs/057` stays local, as you said.
+
+**Still to do: the swap**
+1. Rebuild the scratch copy so it includes today's newest commits. That takes
+   about 15 seconds.
+2. Move this repository's branches onto the cleaned history. Your files on disk
+   don't change.
+3. Delete the old `archive/main-before-history-graft` tag, as you decided on Oct
+   1.
+4. Force-push `main`, the 237 `claude/*` branches and the tags.
+5. Save the old-to-new commit map. Then, in a follow-up commit, translate the
+   commit IDs that issues and docs quote, the way the first history rewrite did.
+
+**Your answers, needed before the swap**
+1. **Is the repository quiet?** The neocities session was committing earlier
+   today. A swap while it works would leave its next commit to be rebuilt on the
+   new history. Its commit tool retries on a moved branch, but I'd rather it be
+   stopped. Tell me when it is.
+2. **This conversation's own leftovers.** While searching, my tool output
+   printed a few private names: the `xfinity-order-id` note's name, one Reddit
+   post title, and the picture folders' names. That transcript is committed now
+   (fa5cf77). During the same rewrite I can blank those few strings in every
+   commit, and add transcript patches so later exports leave them out. Should I?
+3. **GitHub Support.** About 236 old pull-request refs will still hold the
+   files, and only you can ask GitHub to purge them. After the push I'll write
+   you the request with the exact list.
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+<pasted_content id="48d6">
+> 2. This conversation's own leftovers. While searching, my tool output printed
+> a few private names: the xfinity-order-id note's name, one
+>      Reddit post title, and the picture folders' names. That transcript is committed now (fa5cf77). During the same rewrite I can blank those
+>      few strings in every commit, and add transcript patches so later exports leave them out. Should I?
+</pasted_content id="48d6">
+
+
+it's fine don't worry about it
+
+> 3. GitHub Support. About 236 old pull-request refs will still hold the files,
+> and only you can ask GitHub to purge them. After the push
+>      I'll write you the request with the exact list.
+
+you said they would fade eventually right? What happens when we merge the
+pull-requests? Could I ask the session who made those pull-requests to remake
+them?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> Let me check what state those pull requests are in before answering.
+
+**On fading.** What fades is a commit that nothing points to: GitHub eventually
+deletes those on its own. A pull request is something that points to commits,
+and GitHub keeps every one, open, closed or merged, unless Support removes it.
+That is why I said before that these refs "won't sort themselves out".
+
+**But there's good news in the check I just ran.** 236 of the 237 pull requests
+are **open**, one for each `claude/*` branch. When an open pull request's branch
+is force-pushed, GitHub moves the pull request to the new commits. So the swap
+I've prepared already does what you're describing: each pull request ends up
+showing the cleaned history, with nothing to remake. Two things remain:
+- **Old commits stay findable by their old IDs.** Each pull request's timeline
+  records "force-pushed from X to Y", and GitHub keeps X downloadable through
+  that link until Support purges it. So the note to Support is still worth
+  sending afterwards, but it becomes a small cleanup instead of the only fix.
+- **Merging depends on timing:**
+  - *Merged after the swap:* fine. The branches are clean by then.
+  - *Merged before the swap:* each merge brings the old history, private files
+    and all, back into GitHub's `main`. The rewrite can clean it again, but it's
+    simpler to merge nothing until the swap is done.
+
+**Who made them.** All the ones I listed were opened **today**. The newest, #237
+`claude/fetch-cloud-conversations`, was opened in the last few hours. So some
+session, probably a cloud or web one, is opening pull requests right now. That's
+a second reason the repository isn't quiet, alongside the neocities session.
+
+So, before I swap:
+1. **The pull-request session:** do you know which session is opening these? Can
+   you stop it, or tell it to pause, until the swap is done? If it pushes a
+   branch mid-swap, that branch keeps the old history.
+2. **The neocities session:** is it done for now?
+
+When both are quiet, say so and I'll rebuild the scratch copy with today's
+commits, run the three checks again, swap, and force-push everything.
 
 --------------------------------------------------------------------------------
 
