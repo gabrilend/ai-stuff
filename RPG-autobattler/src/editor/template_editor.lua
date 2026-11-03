@@ -14,7 +14,7 @@
 --                                  its data), storage (TemplateStorage),
 --                                  category (default "user")
 -- Every change returns what the part it delegates to returns, records
--- an undo step, and keeps last_change (a PointBudget.change) for a
+-- an undo step (one for a whole group, see begin_group), and keeps last_change (a PointBudget.change) for a
 -- screen to animate.
 local TemplateEditor = {}
 TemplateEditor.__index = TemplateEditor
@@ -98,6 +98,17 @@ function TemplateEditor:replace(template, label)
     if TemplatePreview.signature(template) == TemplatePreview.signature(self.template) then
         return false
     end
+    if self.group and self.group.recorded then
+        -- Inside a group that already has its undo step: the step it
+        -- recorded holds the template from before the group began.
+        self.redo_stack = {}
+        self:put(template)
+        return true
+    end
+    if self.group then
+        self.group.recorded = true
+        label = self.group.label or label
+    end
     table.insert(self.undo_stack, {data = self.template:to_save_data(), label = label})
     if #self.undo_stack > TemplateEditor.HISTORY_LIMIT then
         table.remove(self.undo_stack, 1)
@@ -125,9 +136,28 @@ function TemplateEditor:edit(label, change)
 end
 -- }}}
 
+-- {{{ TemplateEditor:begin_group
+-- Until end_group, every change counts as one undo step, named `label`
+-- (or by its first change): a slider dragged across many values undoes
+-- in one go. Starting a group closes any open one.
+function TemplateEditor:begin_group(label)
+    self.group = {label = label, recorded = false}
+end
+-- }}}
+
+-- {{{ TemplateEditor:end_group
+-- Returns true when the group changed anything.
+function TemplateEditor:end_group()
+    local group = self.group
+    self.group = nil
+    return group ~= nil and group.recorded
+end
+-- }}}
+
 -- {{{ TemplateEditor:undo
 -- Returns the label of the step undone, or nil.
 function TemplateEditor:undo()
+    self.group = nil
     local step = table.remove(self.undo_stack)
     if not step then
         return nil
@@ -140,6 +170,7 @@ end
 
 -- {{{ TemplateEditor:redo
 function TemplateEditor:redo()
+    self.group = nil
     local step = table.remove(self.redo_stack)
     if not step then
         return nil
@@ -243,6 +274,30 @@ end
 function TemplateEditor:set_stat(stat, value)
     local allocator = self:stats()
     local kept, note = allocator:set(stat, value)
+    if kept ~= nil then
+        self:apply_stats(allocator, "set " .. stat)
+    end
+    return kept, note
+end
+-- }}}
+
+-- {{{ TemplateEditor:step_stat
+-- One increment up (1) or down (-1), as StatAllocator:step.
+function TemplateEditor:step_stat(stat, direction)
+    local allocator = self:stats()
+    local kept, note = allocator:step(stat, direction)
+    if kept ~= nil then
+        self:apply_stats(allocator, "step " .. stat)
+    end
+    return kept, note
+end
+-- }}}
+
+-- {{{ TemplateEditor:set_stat_fraction
+-- A slider position, 0-1, as StatAllocator:set_fraction.
+function TemplateEditor:set_stat_fraction(stat, fraction)
+    local allocator = self:stats()
+    local kept, note = allocator:set_fraction(stat, fraction)
     if kept ~= nil then
         self:apply_stats(allocator, "set " .. stat)
     end
@@ -372,7 +427,7 @@ function TemplateEditor:open(template, force)
     if not UnitTemplate.is_template(template) then
         template = UnitTemplate.new(template)
     end
-    self.undo_stack, self.redo_stack, self.last_change = {}, {}, nil
+    self.undo_stack, self.redo_stack, self.last_change, self.group = {}, {}, nil, nil
     self.template = UnitTemplate.new(template:to_save_data())
     self:mark_saved()
     return self.template

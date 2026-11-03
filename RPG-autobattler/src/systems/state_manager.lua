@@ -160,6 +160,24 @@ function StateManager:textinput(text)
 end
 -- }}}
 
+-- {{{ StateManager:wheelmoved
+function StateManager:wheelmoved(x, y)
+    if self.current_state and self.current_state.wheelmoved then
+        return self.current_state:wheelmoved(x, y)
+    end
+    return false
+end
+-- }}}
+
+-- {{{ StateManager:resize
+function StateManager:resize(width, height)
+    if self.current_state and self.current_state.resize then
+        return self.current_state:resize(width, height)
+    end
+    return false
+end
+-- }}}
+
 -- {{{ StateManager:cleanup
 function StateManager:cleanup()
     debug.info("Cleaning up StateManager", "STATE")

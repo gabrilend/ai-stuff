@@ -785,11 +785,52 @@ of this on a screen.
     stacked below that, never overlapping and inside the window.
 - `tests/test_template_editor.lua` (8 tests), run by `./run <dir> unit`.
 
-Still to do, all needing a screen: the tabbed interface itself, the
-sliders, the ability editor's panels, the live unit drawing, checking
-the layout looks right at different sizes, and visual feedback for
-errors and warnings. The sketch's `TemplateEditorUI` widgets (slider,
-dropdown, progress bar) belong to that work.
+Then the screen itself, `src/editor/template_editor_screen.lua`, drawn
+by the editor state (`src/systems/editor_state.lua`, reached from the
+menu's "Unit Editor"). No one has seen it on a screen yet: it has only
+been run against a stand-in for LÖVE that records drawing calls, so
+every box about how it looks stays unticked until someone has looked.
+
+- It is kept thin. Each frame `build()` turns what the editor holds into
+  a plain display list (panels, buttons, sliders, text, bar segments,
+  the unit and its circles), placed by `TemplateEditor.layout`; `draw(g)`
+  only draws that list; clicks, drags, the wheel and keys find the item
+  under the pointer in the same list and call the editor. No rule about
+  stats, abilities or points lives in it.
+- Stats tab: preset buttons; per stat a slider (the suggested range
+  shaded), its value and what was bought, minus and plus, and its
+  points; the allocator's advice below.
+- Abilities tab: the four slots (remove with x), sliders to tune the
+  chosen slot's library ability, and the library with a search that
+  filters as it is typed and scrolls with the wheel.
+- Appearance tab: name and description fields, body buttons, red, green
+  and blue sliders for both colours with a swatch, and size.
+- Preview tab: mode, zoom, overlays and "Run battles". The preview panel
+  always shows the current mode: the unit with its sight and ability
+  circles, the analysis in numbers, battle results, or what changed
+  since the last save.
+- Budget bar: a segment per part with tooltips, the budget marked, the
+  status and first finding with a mark (! error, ? warning) as well as a
+  colour, the rest in a tooltip; it shakes when a change goes over
+  budget, and "Fix budget" lists the optimizer's suggestions.
+- Buttons: save, undo, redo, revert, new, fix budget and back; new and
+  back ask for a second press when there are unsaved changes; ctrl-z,
+  ctrl-y, ctrl-s, tab and escape do the same from the keyboard.
+- `TemplateEditor:begin_group` / `end_group` make a whole slider drag
+  one undo step; `step_stat` and `set_stat_fraction` were added so the
+  screen makes one call per input.
+- `main.lua` now passes text input, the mouse wheel and window resizes
+  to the states.
+- `tests/test_template_editor_screen.lua` (10 tests) runs the screen at
+  five window sizes on every tab and preview mode, checks that nothing
+  spills out of its panel at 800x600 and up, drags sliders, clicks every
+  kind of control, types, and runs the editor state, all without
+  errors.
+
+Still to do: look at it in LÖVE. Not built: typing a number for a stat,
+smooth budget animations beyond the shake, and a template list to open
+saved templates from (loading works in the logic; the screen has no
+picker yet).
 
 ### Decisions
 
@@ -808,5 +849,11 @@ dropdown, progress bar) belong to that work.
 - Size modifier is held to 0.5-1.5, so a unit stays recognisable next to
   others.
 - 062 stays open instead of moving to completed: most of its boxes are
-  the screen.
+  about how the screen looks, and nobody has looked yet.
+- The screen builds a display list and draws it, rather than drawing and
+  testing clicks in one pass, so the drawing has no decisions in it and
+  input and tests see exactly what is drawn.
+- Sliders turn a position into a value at a fixed step (hundredths for
+  ability properties and colours, 5% for size); the logic holds the
+  value inside its limits as before.
 

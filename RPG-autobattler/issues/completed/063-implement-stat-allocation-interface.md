@@ -707,3 +707,6 @@ everything those need.
   model can back: points lost to rounding, and stats below the body's
   value.
 
+### Follow-up: drawn by the editor screen
+
+The template editor's screen (issue 062, `src/editor/template_editor_screen.lua`) now draws this: the stat rows are drawn as sliders (suggested range shaded) with minus and plus buttons, points per stat and the advice below; presets are buttons. There is no field for typing a number yet. Still unticked: nobody has seen it.

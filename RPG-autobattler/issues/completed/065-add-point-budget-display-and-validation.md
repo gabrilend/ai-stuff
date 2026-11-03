@@ -698,3 +698,6 @@ template is charged.
 - The thresholds (90% near, 15% unused) are the sketch's and live at the
   top of the file.
 
+### Follow-up: drawn by the editor screen
+
+The template editor's screen (issue 062, `src/editor/template_editor_screen.lua`) now draws this: the bar is drawn with a segment per part, hover tooltips, the budget marked, marks beside colours, a shake on going over budget, and the optimizer's suggestions behind "Fix budget". Not built: smooth animations and synergies. Still unticked: nobody has seen it.

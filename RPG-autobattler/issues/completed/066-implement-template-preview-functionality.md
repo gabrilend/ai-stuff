@@ -805,3 +805,6 @@ rendered); visual feedback; animated mana bars and breathing.
   there is no single "total score", because one number would hide the
   trade-offs the analysis is there to show.
 
+### Follow-up: drawn by the editor screen
+
+The template editor's screen (issue 062, `src/editor/template_editor_screen.lua`) now draws this: the preview panel draws the unit, its sight and ability circles, the analysis, battle results and the changes since the last save, with mode, zoom and overlay controls. Not built: animated mana bars and breathing. Still unticked: nobody has seen it.
