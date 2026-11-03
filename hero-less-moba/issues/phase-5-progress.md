@@ -50,6 +50,12 @@ compositions and players will exhaust them fast), B5 (payout per kill).
 
 **Demo:** not yet built.
 
+**Tested in full.** `tests/075-the-commanders.lua` names 501, 504-507, 509 and 510; with
+502, 503 and 508 already named by the invariants, every mechanic in this phase has a
+test. It found two bugs on the way in: a tower refusal named the tower beside the
+library instead of the nearest clear one behind, and every ability event lost the name
+of its ability.
+
 ## Where the prototype got to
 
 The second economy runs. A commander is a captain, a mixture, a bounty and a roster

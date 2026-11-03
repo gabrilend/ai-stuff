@@ -18,6 +18,12 @@ resolves it one bounce at a time.
 A healer only takes a target nobody else has claimed, and the rule relaxes rather than
 deadlocking when there are not enough wounded to go round.
 
+**Tested** in `tests/075-the-commanders.lua`: two priests with two wounded take one each,
+and with one wounded both heal it (the relaxing branch); claims clear every tick; a druid
+passes over an ally already regenerating; a curse-doctor curses the enemy most of its
+wounded allies are touching; and a druid behind an unbroken rank of its own cannot cast
+the moon spike, but can once the rank is gone.
+
 ## Intended behavior
 
 Five healers, differing in **shape** rather than strength, each answering the
@@ -106,8 +112,9 @@ refusing to march, and it pulls the formation apart before it meets anybody. Mea
 the line bends by two and a half ranks and the sandbox stops recognising it as a
 formation at all.
 
-**Not built:** the pending-heal buffer, the claim rule, the positional rule, and the
-test that a druid behind an unbroken rank cannot cast.
+**The claim rule is built** (in the rest of the brain's `soonest_to_die`) and tested,
+relaxing branch included, and so is the test that a druid behind an unbroken rank cannot
+cast. **Not built:** the pending-heal buffer and the positional rule.
 
 ## Suggested implementation steps
 

@@ -17,6 +17,11 @@ before anybody had done anything.
 
 Melee and ranged bodies are identical for every commander; only the captain differs.
 
+**Tested** in `tests/075-the-commanders.lua`: every commander has a name, a wave
+captain and at least three priced heroes; the two teams are dealt the same hand seat
+for seat; wallets start empty; a team's waves rotate through its players; and a body's
+bounty walks the commander's ratio exactly.
+
 ## Intended behavior
 
 Each player picks a **commander** before the match. A commander is **not a body

@@ -13,6 +13,11 @@
 A hero can be bought onto any of its team's living waves and appears at that
 wave's front immediately. The aggressive option, and the fragile one.
 
+**Tested** in `tests/075-the-commanders.lua`: a hero bought onto a living wave arrives in
+its lane at the wave's front and does not join the wave's counters; the enemy's wave and
+an empty one are refused. The test pins the **front**, which is what is built. The
+intended spot below is the rearmost living member, and that is still a gap.
+
 ## Intended behavior
 
 The first of three spawn destinations. A player picks one of their team's living
