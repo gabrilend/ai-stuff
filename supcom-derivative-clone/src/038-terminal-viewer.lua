@@ -62,6 +62,11 @@ M.UNKNOWN = "?"
 -- instead of its letter. The caller works the answer out (the targeting
 -- module's `visible`), since the viewer asks no simulation module anything.
 M.SEEN = "!"
+
+-- Bones (issue 208): where a unit died and no enforcer has eaten yet, so a
+-- picture of a match shows where the fighting was. A live unit standing on
+-- bones draws over them.
+M.BONE = "x"
 -- }}}
 
 -- {{{ the team colours
@@ -86,12 +91,21 @@ end
 
 -- {{{ local function units_by_cell()
 -- Which cell each live unit stands in, as a table from cell index to the letter
--- drawn there. Units are walked in array order and a later unit in the same cell
--- draws over an earlier one, so the picture is the same every time.
+-- drawn there, over the bones lying in each cell. Units are walked in array
+-- order and a later unit in the same cell draws over an earlier one, so the
+-- picture is the same every time.
 local function units_by_cell(snapshot, seen)
   local field = snapshot.field
   local unit = snapshot.unit
   local marks = {}
+  local bone = snapshot.bone
+  for index = 1, bone ~= nil and bone.count or 0 do
+    local cx = math.floor(bone.x[index] + 0.5)
+    local cy = math.floor(bone.y[index] + 0.5)
+    if cx >= 0 and cx < field.size and cy >= 0 and cy < field.size then
+      marks[cy * field.size + cx + 1] = M.BONE
+    end
+  end
   local is_seen = {}
   for _, id in ipairs(seen or {}) do
     is_seen[id] = true
@@ -115,7 +129,8 @@ end
 
 -- {{{ function M.draw()
 -- The snapshot as one string: one line per row of the field, top row first, one
--- character per cell -- a unit's letter where a live unit stands, the water mark
+-- character per cell -- a unit's letter where a live unit stands, BONE where
+-- bones lie and no unit stands, the water mark
 -- below the water line, the land's grade otherwise -- then the legend. With
 -- `options.colour` set, an owned cell is tinted in its team's colour. With
 -- `options.seen`, a list of unit ids, those units draw as SEEN: the sightline

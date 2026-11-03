@@ -18,7 +18,7 @@ one in a trough, and the ridge losing — because it was seen first.
 | 205 | Nothing is out of range | built |
 | 206 | Damage is buffered, then applied | built |
 | 207 | Health comes back on a shared timer | built |
-| 208 | Death leaves bones | not started |
+| 208 | Death leaves bones | built |
 | 209 | The thread pool slices the tick | not started |
 | 210 | The command truck moves and dies in one hit | not started |
 | 211 | The enforcer walks forward and eats | not started |

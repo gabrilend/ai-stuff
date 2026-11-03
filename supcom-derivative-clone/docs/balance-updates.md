@@ -36,3 +36,9 @@ increment of its kind's shared reload counter, so its first shot after a
 quiet spell can come early, and from then on it fires once a reload period.
 No catalogue value changed. The shot queue's size, `shots_per_unit = 4` in the
 rules, is a size and not a tuning: a full queue is a refusal by name.
+
+**What a death puts back** (issue 208). Each kind's bones carry its new
+catalogue field `bone_share` of its `cost_mass`, rounded down: 0.5 for every
+kind to start, so a tank leaves 50 mass and a helicopter 2. The command truck
+cost no mass and leaves none. `bones_per_unit = 8` in the rules is a size, not
+a tuning.

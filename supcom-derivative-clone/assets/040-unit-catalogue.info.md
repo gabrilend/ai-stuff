@@ -60,6 +60,7 @@ The file returns one table: `{[name] = row}`.
 | `shield` | integer | the enforcer's sphere; zero elsewhere |
 | `shield_seconds` | double | the sphere's recharge period; zero where there is no shield; becomes `shield_ticks`, the period of `world.recharge.<name>` |
 | `cost_mass`, `cost_energy` | integer | the construction stream's totals |
+| `bone_share` | double | the fraction of `cost_mass` its bones carry when it dies (issue 208); from zero to one |
 | `build_seconds` | double | how long the stream runs at unit build power; becomes `build_ticks` |
 
 ## Data structures it owns

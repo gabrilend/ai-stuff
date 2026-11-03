@@ -87,6 +87,7 @@ M.FIELDS = {
   {"claim_radius", "integer"}, {"shield", "integer"},
   {"shield_seconds", "double", "shield_ticks"}, {"cost_mass", "integer"},
   {"cost_energy", "integer"}, {"build_seconds", "double", "build_ticks"},
+  {"bone_share", "double"},
 }
 
 -- {{{ local function refuse()
@@ -180,6 +181,10 @@ local function check_row(name, row, rate)
   end
   if row.falloff_floor > 1 then
     refuse(name, "falloff_floor", "is " .. row.falloff_floor .. ", not a fraction from zero to one")
+  end
+  if row.bone_share > 1 then
+    refuse(name, "bone_share", "is " .. row.bone_share .. ", not a fraction from zero to one;"
+           .. " a death never puts back more than the unit cost")
   end
   if row.heal_period <= 0 then
     refuse(name, "heal_period", "is zero; every kind heals on its own counter")
