@@ -1,6 +1,6 @@
 # Conversation Summary: 844daecf-7be6-4b4f-bae3-423139ef88d7
 
-Generated on: 2026-11-03 11:26:14
+Generated on: 2026-11-03 11:34:56
 Models: claude-opus-5-5
 
 ## Contents
@@ -1551,6 +1551,114 @@ belongs in that same shared-scripts issue.
 Which way do you want? And for the flag change itself, the one open question is
 still whether tests should get notes files too. Each test's header already
 describes it, so I left them out.
+
+--------------------------------------------------------------------------------
+
+### User Request 26
+
+um, okay, can you fix the docs and the tool's notes and commit all your stuff
+and such?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 26
+
+> Yes. First, the docs. The notes that led me to misdescribe the commit tool are
+> its own notes file and the "Committing" section of the issue-lifecycle skill.
+> Checking where both live:
+
+> The safety gate asks for your permission before I write outside this project's
+> folder:
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/programming/ai-stuff/scripts/commit-own-changes.info.md?
+> [outside-write 7079efc3]
+> - Yes — Allow this one write.
+> - This time — Allow any write inside /mnt/mtwo/programming/ai-stuff/scripts
+>   until this session ends.
+> - Always — Allow any write inside /mnt/mtwo/programming/ai-stuff/scripts
+>   from now on, for sessions working in
+>   /mnt/mtwo/programming/ai-stuff/neocities-modernization only.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> Now the skill's "Committing" section:
+
+> The skill file already has uncommitted changes from someone else, so my edit
+> would go only into its own section, and a commit would take only my lines.
+> Asking permission for that write:
+
+> **[Asked the user]**
+>
+> *Q1 — Outside:* Allow a write outside this session's folder, to
+> /mnt/mtwo/.claude/skills/issue-lifecycle/SKILL.md? [outside-write e35b32f4]
+> - Yes — Allow this one write.
+> - This time — Allow any write inside
+>   /mnt/mtwo/.claude/skills/issue-lifecycle until this session ends.
+> - Always — Allow any write inside /mnt/mtwo/.claude/skills/issue-lifecycle
+>   from now on, for sessions working in
+>   /mnt/mtwo/programming/ai-stuff/neocities-modernization only.
+> - No — Keep it refused.
+> → **Selected:** Yes
+
+> Both docs are fixed. Now the commits. Everything my bulk tools wrote has to be
+> claimed first, so I'm listing the project's uncommitted files and checking
+> each is mine:
+
+> All 222 claimed. First commit, the commit tool's notes:
+
+*[commit] 1aeb4c668 in ai-stuff - scripts: the commit tool's notes say exactly what it can and cannot split*
+
+> Second, the folder-flag change: every project file except the four that belong
+> only to the download pieces:
+
+*[commit] a10600eaa in ai-stuff - neocities: every program names its folder with --dir; a stray word stops it*
+
+> Third, the download pieces:
+
+*[commit] 223642242 in ai-stuff - neocities: the download comes in pieces Neocities will take*
+
+> Fourth, the skill fix, in its own repository. Only my lines go in; the other
+> uncommitted changes in that file stay out:
+
+*[commit] f6a6394e2 in .claude - The issue-lifecycle skill says exactly what the commit tool can split*
+
+I fixed both docs and made four commits. All my work is committed. The only
+thing uncommitted in this project is the `development-history/` folder, which
+was already uncommitted when this session started.
+
+**The docs:** the commit tool's notes and the issue-lifecycle skill now say
+exactly what the tool splits:
+- **Between sessions, by lines:** in one file, only this session's lines go into
+  a commit.
+- **Within one session's own work, only by file:** there's no way to take some
+  of my blocks in a file and leave the rest.
+
+The tool's notes also say that lines written by a script count as "foreign"
+until claimed, and that the tool has no `--help` yet.
+
+**Commits:**
+- **`1aeb4c668`:** the commit tool's notes.
+- **`a10600eaa`:** the folder flags, 218 files.
+  - Every program takes `--dir`, the folder fallbacks are removed, and the
+    checker and notes writer are included, plus 59 notes files.
+  - It also carries the behavior-fallbacks issue (`10-078`).
+  - The message says that the run script's zip step and the source browser's
+    download link ride along. Those two files held lines from both changes.
+- **`223642242`:** the download pieces, with the zip-bug explanation.
+- **`f6a6394e2`:** the skill, in the `/mnt/mtwo/.claude` repository. Two other
+  blocks in that file that weren't mine were left uncommitted.
+
+The transcripts went in with each commit. No new word-cloud records had been
+made since the last commit, so none rode along.
+
+**Still open:**
+- **The deploy** hasn't run, so the download issue stays open until it does:
+  `./scripts/deploy-to-neocities --prune`.
+- **The folder-flag issue** is waiting on your answer: should tests get notes
+  files too? Each test's header already says what it checks.
 
 --------------------------------------------------------------------------------
 

@@ -469,13 +469,13 @@ the owner decide.
 > Adopting the Oct 7 work (excluding the three snapshots, which wait on the zip
 > decision), then committing it in four topic batches.
 
-*[commit] cc0bcc0f6 in ai-stuff - neocities: EmbeddingGemma 2 joins the local server, which now listens only on this machine*
+*[commit] a0a9568cb in ai-stuff - neocities: EmbeddingGemma 2 joins the local server, which now listens only on this machine*
 
-*[commit] c002a7a68 in ai-stuff - neocities: a word page measures meaning, not shortness*
+*[commit] 4f76ad32b in ai-stuff - neocities: a word page measures meaning, not shortness*
 
-*[commit] fb626177e in ai-stuff - neocities: chronological pages draw with the same pen as every other page*
+*[commit] 681a8e5c9 in ai-stuff - neocities: chronological pages draw with the same pen as every other page*
 
-*[commit] 3a4f43959 in ai-stuff - neocities: the whole-site check gets a site it can pass*
+*[commit] 744e4e4a2 in ai-stuff - neocities: the whole-site check gets a site it can pass*
 
 > Four commits made. Clearing a stale staged copy of the reopened model issue
 > left by the old session's file move.
@@ -500,7 +500,7 @@ the owner decide.
 
 > Renderer fixed and tested (23 of 23). Now the seven dead links in documents:
 
-*[commit] a6955f389 in ai-stuff - neocities: four dead links fewer, and a test that was broken runs again*
+*[commit] 064914b13 in ai-stuff - neocities: four dead links fewer, and a test that was broken runs again*
 
 > Quick fixes committed. Now searching for an existing issue about building the
 > site in RAM, and checking the memory-lock limit:
@@ -514,7 +514,7 @@ the owner decide.
 > Now correcting the memory-pin note in the model issue. The limit is 512 MB
 > today, not 8 MB:
 
-*[commit] 08d7233d1 in ai-stuff - neocities: a plan for building the site in RAM, and the memory-pin note corrected*
+*[commit] b33457921 in ai-stuff - neocities: a plan for building the site in RAM, and the memory-pin note corrected*
 
 The Oct 7 work is committed in four commits split by topic, three of your four
 quick tasks are done, and the fifth is waiting for your rebuild. Run the build
@@ -682,7 +682,7 @@ I want to finish some issue files before we rebuild.
 
 > Status corrected. Claiming the tool- and sed-written lines and committing:
 
-*[commit] 07cff5a1b in ai-stuff - neocities: every issue agrees with its neighbours about what waits on what*
+*[commit] dc02a99f9 in ai-stuff - neocities: every issue agrees with its neighbours about what waits on what*
 
 > Links committed. Now the delta guide. It already is a link to delta-version,
 > as you suggested, but the source browser follows the link and publishes the
@@ -698,7 +698,7 @@ I want to finish some issue files before we rebuild.
 > source browser never removes pages for files that are no longer published.
 > Recording both in the source browser's issue:
 
-*[commit] b58bc6aac in ai-stuff - neocities: a link to another project's file is read here but never published*
+*[commit] bde13dd2c in ai-stuff - neocities: a link to another project's file is read here but never published*
 
 > Now the word-cloud snapshots. Finding the issue that built the archive, so the
 > new design extends it instead of starting a new file:
@@ -706,7 +706,7 @@ I want to finish some issue files before we rebuild.
 > Writing the snapshot-record issue. Each word in a snapshot carries only four
 > things: the word, a size from 1 to 7, a colour, and whether it's bold.
 
-*[commit] 39309d4bb in ai-stuff - neocities: a plan for keeping word clouds as records instead of whole pages*
+*[commit] 6557913dc in ai-stuff - neocities: a plan for keeping word clouds as records instead of whole pages*
 
 Everything you asked for is done and committed, except the snapshot redesign.
 That's now a written plan with three questions for you below.
@@ -897,7 +897,7 @@ oh that sounds pretty high-priority. Tell me more?
 
 > Zero findings. Committing:
 
-*[commit] f369f0c17 in ai-stuff - neocities: the issue checker finds nothing left to report*
+*[commit] b045916f7 in ai-stuff - neocities: the issue checker finds nothing left to report*
 
 > Now the edits. First the file list: links are published again, and the list
 > remembers which files are links:
@@ -905,7 +905,7 @@ oh that sounds pretty high-priority. Tell me more?
 > Now the zip: it goes back to packing linked files (zip packs the target's
 > content under the link's name):
 
-*[commit] 82bdf9a9b in ai-stuff - neocities: linked-in documents are published again, their stray links unlinked*
+*[commit] 3dc994319 in ai-stuff - neocities: linked-in documents are published again, their stray links unlinked*
 
 > Next, what `--force` actually does, before I answer whether it covers "only
 > write a page if it changed":
@@ -914,7 +914,7 @@ oh that sounds pretty high-priority. Tell me more?
 
 > Now rewriting the snapshot plan with your answers:
 
-*[commit] 404f44815 in ai-stuff - neocities: the two storage plans record the owner's answers*
+*[commit] b66cb832e in ai-stuff - neocities: the two storage plans record the owner's answers*
 
 > Plans committed. Now building the site-in-RAM change, starting from the helper
 > that already makes the RAM folders:
@@ -943,7 +943,7 @@ oh that sounds pretty high-priority. Tell me more?
 
 > Now updating the RAM plan's current state, then committing:
 
-*[commit] 8f632daa6 in ai-stuff - neocities: the built site lives in RAM, its pictures on disk*
+*[commit] 9d1f5a78a in ai-stuff - neocities: the built site lives in RAM, its pictures on disk*
 
 All 24 findings are settled (the issue checker now finds 0), links are published
 again, and building the site in RAM is done. One thing is waiting on you before
@@ -1176,13 +1176,13 @@ just load the specific files that each worker needs.
 > yourself (command at the end). Meanwhile, updating the docs and ignore list to
 > match the new behaviour:
 
-*[commit] 682c4cd55 in ai-stuff - neocities: the move into RAM deletes the old pages and keeps the model comparison*
+*[commit] b649aaeab in ai-stuff - neocities: the move into RAM deletes the old pages and keeps the model comparison*
 
 > Next, the snapshot records riding along in commits through a project
 > instruction rather than the shared tool. Checking for a project instruction
 > file:
 
-*[commit] 052663c28 in ai-stuff - neocities: a project instruction carries the word-cloud records into commits*
+*[commit] 40db78eca in ai-stuff - neocities: a project instruction carries the word-cloud records into commits*
 
 > Now the formatter merge. First, your memory about loading from disk being a
 > bandwidth problem. Searching the issue history for it:
@@ -1207,7 +1207,7 @@ just load the specific files that each worker needs.
 > Rewriting steps 1–6 as the concrete plan, with the measured drift and the
 > default choices:
 
-*[commit] 2bfa525c9 in ai-stuff - neocities: the duplicated poem drawing is mapped, measured and planned*
+*[commit] 211916f06 in ai-stuff - neocities: the duplicated poem drawing is mapped, measured and planned*
 
 I wrote the formatter-merge plan into the duplication issue, but haven't started
 the code yet. It needs your call on three choices that change how poems look (at
@@ -1418,7 +1418,7 @@ agreed
 > All pass except one unrelated-looking file, the image-embedding step's test
 > (17 passed, 3 failed). Checking whether my change touches it:
 
-*[commit] ade92e878 in ai-stuff - neocities: one poem drawer for the chronological and similar/different pages*
+*[commit] 5d155d508 in ai-stuff - neocities: one poem drawer for the chronological and similar/different pages*
 
 > Stage committed. Next, building the chronological pages in the workers. First,
 > how long the main program takes for them today:
@@ -1480,7 +1480,7 @@ agreed
 > Only the image-embedding test fails, the one that was failing before. Updating
 > the issue for the carried poems, then committing:
 
-*[commit] 9c01b49b5 in ai-stuff - neocities: the chronological pages are built by the page workers too*
+*[commit] f33ba4519 in ai-stuff - neocities: the chronological pages are built by the page workers too*
 
 All three page types (chronological, similar and different) now draw each poem
 through one shared drawer, and the chronological pages are built by the same
@@ -1615,7 +1615,7 @@ pretty printing...
 
 > 22 of 22 pass. Updating the image-post issue and committing the two fixes:
 
-*[commit] 4f5371c84 in ai-stuff - neocities: gallery pictures are numbered after the last poem, not the last embedding*
+*[commit] 145eed46f in ai-stuff - neocities: gallery pictures are numbered after the last poem, not the last embedding*
 
 > Now your page-2 question. Checking how many pages per poem the Oct 7 build
 > wrote:
@@ -1686,7 +1686,7 @@ pretty printing...
 > Every test passes. Updating the export issue and the drawer's reference, then
 > committing:
 
-*[commit] e30d90ece in ai-stuff - neocities: every list gets a text download drawn like its pages*
+*[commit] d477cbf41 in ai-stuff - neocities: every list gets a text download drawn like its pages*
 
 The text downloads are built and committed, and page-to-page links are still the
 open question at the end. Here's the rest:
@@ -1881,7 +1881,7 @@ well let's fix that then.
 > The helper is back to its committed state and its tests pass. Recording the
 > navigation in its issue and committing:
 
-*[commit] 2b97248c3 in ai-stuff - neocities: a poem's similar and different pages link to each other*
+*[commit] b25c5fe21 in ai-stuff - neocities: a poem's similar and different pages link to each other*
 
 > Navigation is committed. Next, no default model. Seeing how much leans on the
 > default today:
@@ -1931,13 +1931,13 @@ well let's fix that then.
 > The changed files are mine, from the config edits, the library change and the
 > two test scripts:
 
-*[commit] 3a8d11c3c in ai-stuff - neocities: there is no default embedding model; every run names one*
+*[commit] 1845cac77 in ai-stuff - neocities: there is no default embedding model; every run names one*
 
 > Committed. Last, the poem numbering finding. It goes into the issue that
 > created the numbering (8-019, which promised a "unique, stable" index),
 > reopened, with the design question:
 
-*[commit] c2260da97 in ai-stuff - neocities: the poem numbers move when notes are added, so notes carry other notes' embeddings*
+*[commit] 0e85f7290 in ai-stuff - neocities: the poem numbers move when notes are added, so notes carry other notes' embeddings*
 
 I found where the 16 notes came from, and it turned up a bigger problem than the
 pictures. Page navigation is fixed, and there's no default model any more.
@@ -2076,7 +2076,7 @@ what is left unaddressed?
 
 > 13 of 13 pass. Recording it in the numbering issue and committing:
 
-*[commit] 0141a777c in ai-stuff - neocities: notes are numbered by date, not by how the disk lists the folder*
+*[commit] 5277b75d5 in ai-stuff - neocities: notes are numbered by date, not by how the disk lists the folder*
 
 > Before answering the picture question, checking whether anything in the
 > project looks at image pixels at all:
@@ -2244,7 +2244,7 @@ okay
 
 > 44 of 44 pass. Checking the helper's reference for the old wording:
 
-*[commit] 9533310b2 in ai-stuff - neocities: a name with nowhere to break is cut at the frame's edge*
+*[commit] 726153c37 in ai-stuff - neocities: a name with nowhere to break is cut at the frame's edge*
 
 > The build includes the multimodal tools. Checking how the server takes a
 > vision file and whether its embedding endpoint accepts images:
@@ -2282,7 +2282,7 @@ okay
 > Task 10 (rewriting the image-post issue as a record of what was built) covers
 > the same file, so I'm doing both now. Reading it in full:
 
-*[commit] dceea8083 in ai-stuff - neocities: the embedding model reads pictures of words; the image issue is rewritten as built*
+*[commit] afcbea432 in ai-stuff - neocities: the embedding model reads pictures of words; the image issue is rewritten as built*
 
 > Two tasks done (pictures, issue rewrite). Now removing the single-threaded
 > builder. First, what its five tests check, so the replacement covers the same
@@ -2326,7 +2326,7 @@ okay
 > its date, and then stop at the page stage. Counting a cache without the
 > numbering mark as stale instead:
 
-*[commit] d731d1909 in ai-stuff - neocities: every "different" page has shown the wrong poem's list since January*
+*[commit] 52485da87 in ai-stuff - neocities: every "different" page has shown the wrong poem's list since January*
 
 > The bar is drawn correctly; the test's pattern was wrong again. In Lua, `═+`
 > repeats only the last byte of the multi-byte character. Counting `═`
@@ -2734,7 +2734,7 @@ please continue
 
 > Already committed earlier. Committing this piece.
 
-*[commit] 44ae398fc in ai-stuff - neocities: one way to draw a similar or different page; the one-thread builder is gone*
+*[commit] c9d5450dc in ai-stuff - neocities: one way to draw a similar or different page; the one-thread builder is gone*
 
 > The staging warning comes from my own earlier `git mv` and `git rm`, which
 > wrote into the shared staging area. Checking it now matches the commit.
@@ -2800,14 +2800,14 @@ please continue
 > Committing. The two `-done` scripts have now been through one commit, so
 > they're removed in this one, per your rule.
 
-*[commit] 5a3bd66a2 in ai-stuff - neocities: word pages draw their poems with the shared drawer, and come out the same every run*
+*[commit] edd0aaba8 in ai-stuff - neocities: word pages draw their poems with the shared drawer, and come out the same every run*
 
 Both jobs are done and committed. The old one-thread page builder is gone, and
 the word pages now draw each poem with the same shared drawer as every other
 page. All tests pass. I rendered sample pages before and after each change to
 check nothing else moved.
 
-**Removing the old builder** (commit 44ae398fc)
+**Removing the old builder** (commit c9d5450dc)
 - Every similar and different page is now drawn by the page workers through one
   shared module. About 1,500 lines of the old builder left the page generator,
   plus helpers only it used. Its five tests were rewritten against the shared
@@ -2820,7 +2820,7 @@ check nothing else moved.
 - The chronological text export used to fall back to seven made-up colours when
   the colour file was missing. It now stops with an error, like the workers.
 
-**Word pages** (commit 5a3bd66a2)
+**Word pages** (commit edd0aaba8)
 - What changes on the page: pictures and videos now appear (97 poems in the
   60-page sample have them), emphasis is styled, and a golden poem's file line
   sits above its frame instead of inside it.
@@ -2898,7 +2898,7 @@ that page, we take them to the top of the page?
 > Adding the word-page measurements to the open question in issue 8-058, then
 > committing.
 
-*[commit] af821ed26 in ai-stuff - neocities: plan for numbering poems fresh each run, and measurements for the word-page question*
+*[commit] 95ac2b488 in ai-stuff - neocities: plan for numbering poems fresh each run, and measurements for the word-page question*
 
 ## Word pages: should they become worker jobs?
 
@@ -2968,7 +2968,7 @@ names notes by their path inside the folder.
    (`similar/fediverse-2339-01.html`, longer for notes), or accept that these
    addresses move?
 
-Committed as af821ed26.
+Committed as 95ac2b488.
 
 --------------------------------------------------------------------------------
 
@@ -3090,7 +3090,7 @@ parallel, then we need to update them to do so.
 > Plans written; the issue tree checks clean. Closing the open question in 8-058
 > and committing the plans before building.
 
-*[commit] cbeb0dd94 in ai-stuff - neocities: plans for stable source keys, parallel word pages, and a parallel survey of every step*
+*[commit] ee2a58322 in ai-stuff - neocities: plans for stable source keys, parallel word pages, and a parallel survey of every step*
 
 > Plans committed. Starting step 1: subtract the average from each vector once.
 > Done carefully, the scores stay identical to the last bit, so the pages should
@@ -3138,7 +3138,7 @@ parallel, then we need to update them to do so.
 
 > Committing steps 1 and 3.
 
-*[commit] 330bf7e94 in ai-stuff - neocities: word pages are planned once and drawn by the page workers*
+*[commit] 210fb29c5 in ai-stuff - neocities: word pages are planned once and drawn by the page workers*
 
 > A stray file named `10` was committed by mistake; I must have created it.
 > Checking what it is.
@@ -3146,7 +3146,7 @@ parallel, then we need to update them to do so.
 > It's profiler output: my earlier `-jp=F,10` run treated "10" as an output file
 > name. Removing it in a follow-up commit.
 
-*[commit] 678394698 in ai-stuff - neocities: remove a stray profiler report committed by mistake*
+*[commit] 155c68723 in ai-stuff - neocities: remove a stray profiler report committed by mistake*
 
 > Starting the GPU step: ranking every word against every poem as one batch.
 > Reading how the existing GPU similarity code sets up its buffers and runs a
@@ -3179,7 +3179,7 @@ parallel, then we need to update them to do so.
 > The row was never updated: my earlier script used a pattern search that
 > silently matched nothing. Fixing it now.
 
-*[commit] cb2a81e44 in ai-stuff - neocities: word pages rank every word against every poem on the GPU at once*
+*[commit] c5bf6b45b in ai-stuff - neocities: word pages rank every word against every poem on the GPU at once*
 
 All three word-page changes are built and committed. All 200 word pages are
 byte-identical to before, 200 words now take 18 s instead of 32 s, and all tests
@@ -3327,7 +3327,7 @@ I have not made two posts in the same millisecond.
 
 > Running all tests, then committing the diversity fix and the plan updates.
 
-*[commit] ec9ba781b in ai-stuff - neocities: the "different" walks stop at the length the pages show, 51 minutes down to 84 seconds*
+*[commit] b7f495f55 in ai-stuff - neocities: the "different" walks stop at the length the pages show, 51 minutes down to 84 seconds*
 
 > Clean. Now the image-only posts: first checking how each way of drawing sets
 > the picture description screen readers read.
@@ -3378,7 +3378,7 @@ to map to original image.]
 
 ### Assistant Response 18
 
-*[commit] 79ec71e68 in ai-stuff - neocities: picture boxes read each picture's own description, and a page to compare the two ways image-only posts are drawn*
+*[commit] a06520822 in ai-stuff - neocities: picture boxes read each picture's own description, and a page to compare the two ways image-only posts are drawn*
 
 Issue 9-014 was already finished back in June; the real reason the step took 51
 minutes was a different waste, which I've fixed. That step now takes 84 seconds.
@@ -3520,7 +3520,7 @@ website.
 > The picture boxes are gone, and poem 133's content warning now shows on its
 > similar page. Checking widths and frames on those pages.
 
-*[commit] 68cca1036 in ai-stuff - neocities: every post with pictures is drawn as an ordinary post, and the comparison page wraps at 80 columns*
+*[commit] 6dd1270aa in ai-stuff - neocities: every post with pictures is drawn as an ordinary post, and the comparison page wraps at 80 columns*
 
 > Both committed. Now the issue survey: listing every open issue with the status
 > it claims.
@@ -3543,12 +3543,12 @@ website.
 
 > Moved. Updating the three progress files, then committing.
 
-*[commit] a9b3c96bb in ai-stuff - neocities: file four issues that were finished long ago but never moved*
+*[commit] 9d1ac4a6f in ai-stuff - neocities: file four issues that were finished long ago but never moved*
 
 > The moves themselves didn't go in (the commit tool takes only files I've
 > claimed). Claiming them and committing.
 
-*[commit] 8246c5c11 in ai-stuff - neocities: the four finished issues move into completed*
+*[commit] 86f5d795b in ai-stuff - neocities: the four finished issues move into completed*
 
 The comparison page now wraps at 80 columns, every page draws picture posts the
 full way you picked, and four long-finished issues are filed in `completed/`. I
@@ -3681,7 +3681,7 @@ yes please.
 > Committing the closures and the measuring tool, then moving on to the test
 > runner.
 
-*[commit] 0dd3f0231 in ai-stuff - neocities: close four superseded issues, and measure page sizes with a tool instead of quoted numbers*
+*[commit] abcf5ae1c in ai-stuff - neocities: close four superseded issues, and measure page sizes with a tool instead of quoted numbers*
 
 > The warnings are from my own `git mv` again. Clearing those staging entries;
 > from now on I'll move files with plain `mv`.
@@ -3696,7 +3696,7 @@ yes please.
 > The dry run shows the test step first. Writing the runner's reference note and
 > recording issue 10-010 as built.
 
-*[commit] 5a3c52bbf in ai-stuff - neocities: every build runs every test first*
+*[commit] 2310410e7 in ai-stuff - neocities: every build runs every test first*
 
 > Removing the old Ollama start script and the Ollama-port server entry, and
 > pointing the documents that named the script at the llama.cpp one.
@@ -3711,7 +3711,7 @@ yes please.
 
 > Committing the Ollama clean-up and the page-check fix.
 
-*[commit] 8735dfc47 in ai-stuff - neocities: the last of Ollama goes, and two page checks at once no longer wipe each other*
+*[commit] 842e9b743 in ai-stuff - neocities: the last of Ollama goes, and two page checks at once no longer wipe each other*
 
 > Adding the generator's `--out` option.
 
@@ -3726,7 +3726,7 @@ yes please.
 > The word-cloud generator has no reference note yet. Writing a short one, then
 > committing.
 
-*[commit] 7e168442c in ai-stuff - neocities: the seed test runs before every build, as a trial that touches nothing*
+*[commit] 2fffc6c94 in ai-stuff - neocities: the seed test runs before every build, as a trial that touches nothing*
 
 > Starting 8-019. First reading how poem numbers are given out today, and
 > everything that stores them.
@@ -3748,7 +3748,7 @@ yes please.
 > every number changes once, which is why the first build afterwards re-embeds.
 > Writing a test for the numbering rule.
 
-*[commit] 8d13f5e2e in ai-stuff - neocities: poems get source keys and are numbered by date*
+*[commit] 80b8c9d32 in ai-stuff - neocities: poems get source keys and are numbered by date*
 
 > Writing the edits to the embedding stage.
 
@@ -3770,7 +3770,7 @@ yes please.
 
 > Recording steps 1 and 2 in the issue, then running all tests and committing.
 
-*[commit] b9334b3f0 in ai-stuff - neocities: a stored vector follows its poem and its text, and every cache says which numbering it is in*
+*[commit] 95b2bec8e in ai-stuff - neocities: a stored vector follows its poem and its text, and every cache says which numbering it is in*
 
 > Step 2 is committed. Step 3 is naming anchors and page files by key. Listing
 > every place that builds a number-based page name or anchor.
@@ -3801,12 +3801,12 @@ yes please.
 > longer has, so the first deploy after this build should use it. Recording step
 > 3 in the issue and committing.
 
-*[commit] 516699d3c in ai-stuff - neocities: every poem's address is named by its source key*
+*[commit] 171b56074 in ai-stuff - neocities: every poem's address is named by its source key*
 
 > Committed. The retired repair tool has now been through one commit, so it
 > goes.
 
-*[commit] 8fe0013a1 in ai-stuff - neocities: remove the retired diversity-cache repair tool*
+*[commit] 9f277dc17 in ai-stuff - neocities: remove the retired diversity-cache repair tool*
 
 Everything you said yes to is done and committed, and all 44 tests pass. The
 45th needs the inference server, which is down, so it's listed as "could not
@@ -4139,7 +4139,7 @@ Build did not complete; restored the previous build record.
 
 > Both fixed. Now the terminal log: checking what `run.sh` writes to a file.
 
-*[commit] b633e7cb2 in ai-stuff - neocities: the two broken links the build's page check found*
+*[commit] b0fe37ede in ai-stuff - neocities: the two broken links the build's page check found*
 
 > Checking that this build's pages are whole this time.
 
@@ -4222,7 +4222,7 @@ I'll redo the compilation now.
 > `print()` calls across the Lua files, plus the shared `log_info` / `log_warn`
 > / `log_error` helpers.
 
-*[commit] 061b350b3 in ai-stuff - neocities: plan for every run keeping a log in RAM*
+*[commit] 95b2a7f32 in ai-stuff - neocities: plan for every run keeping a log in RAM*
 
 I've written your logging design into a new issue (10-075) and committed it. No
 code changes until your build finishes, since each stage loads its Lua files
@@ -4326,7 +4326,7 @@ and first page, tab-separated:
 
 > Updating the logging issue with your answers.
 
-*[commit] 4ce1c3cee in ai-stuff - neocities: the logging plan takes the owner's answers*
+*[commit] f7d62e13b in ai-stuff - neocities: the logging plan takes the owner's answers*
 
 The build passed (0 over-wide lines, 0 frame errors, 0 broken links), so the
 site is ready to push. Push it with `scripts/deploy-to-neocities --prune`. Every
@@ -4449,7 +4449,7 @@ them.
 > All 118 checks pass. Running the full suite and committing. The 47 scripts
 > were edited by my tool, so I'm claiming them by hand.
 
-*[commit] af26b0b0d in ai-stuff - neocities: every script answers --help without doing any work*
+*[commit] 986f8bfe6 in ai-stuff - neocities: every script answers --help without doing any work*
 
 > `--help` is done and committed. Next, your idea of pointing to the transcripts
 > instead of quoting. Checking how the transcripts are laid out, so a reference
@@ -4461,7 +4461,7 @@ them.
 > Pointing the convention at the tool instead of grep, adding a test, and
 > committing.
 
-*[commit] 13e7210db in ai-stuff - neocities: the refactoring plan, and a tool to find the owner's words in the transcripts*
+*[commit] 8e3fb7b93 in ai-stuff - neocities: the refactoring plan, and a tool to find the owner's words in the transcripts*
 
 > Committed. Now step 1, the logging change. Reading the current message helpers
 > first.
@@ -4491,7 +4491,7 @@ them.
 > built in the issue and committing. Converting the 885 `print()` calls is the
 > part still to do.
 
-*[commit] 45b011e19 in ai-stuff - neocities: every run keeps a log in RAM*
+*[commit] e2176b59e in ai-stuff - neocities: every run keeps a log in RAM*
 
 > Checking the new log line on a dry run before reporting.
 
@@ -4593,7 +4593,7 @@ Sure.
 > Help test: 120 of 120. Recording step 4 in the issue and committing. The
 > tool's edits get claimed by hand.
 
-*[commit] 5929c4455 - neocities: the programs' own messages reach the run's log too*
+*[commit] 4d8e24345 - neocities: the programs' own messages reach the run's log too*
 
 > Logging is complete. Now step 2, the unused files. Before retiring anything
 > I'm checking each one by hand: what it is, and whether anything names it,
@@ -4613,11 +4613,11 @@ Sure.
 > Tests pass, and the orphan audit is down from 13 modules to 3, the three I'm
 > keeping on purpose. Recording this in issue 10-060 and committing.
 
-*[commit] 506aa9e8f - neocities: retire eighteen files nothing uses*
+*[commit] e55bf37af - neocities: retire eighteen files nothing uses*
 
 > Committed. Now the removal commit for those eighteen `-done` files.
 
-*[commit] 2d9002258 - neocities: remove the eighteen retired files*
+*[commit] 585025d79 - neocities: remove the eighteen retired files*
 
 > Still on step 3: the gallery now reads its sources and grid from `config.lua`.
 > Drawing the gallery into a scratch folder to compare with the one your last
@@ -5045,7 +5045,7 @@ then move on?
 > Same words, same counts per colour, and only the colours changed. Running the
 > tests next.
 
-*[commit] 9384a8376 - neocities: gallery, word cloud, privacy and test settings come from config*
+*[commit] e9956e530 - neocities: gallery, word cloud, privacy and test settings come from config*
 
 The word cloud now uses the site's main colours, the same ones the progress bars
 use. A test render matched the built cloud word for word, with the same number
@@ -5804,7 +5804,7 @@ so, yes, but I don't want to classify them manually, so, no.
 > The shader's waiting fix is still waiting on your keep-or-undo answer, so I'm
 > leaving it out and committing only the picture work:
 
-*[commit] 3b2d3a4c1 - neocities: pictures are placed among the poems by what they show*
+*[commit] 815872904 - neocities: pictures are placed among the poems by what they show*
 
 The picture embedding is built and committed. Every picture is now placed by
 what the model sees in it. All 48 runnable tests pass, and the 5 notebook pages
@@ -6008,12 +6008,12 @@ rename superseded/ to will-not-implement.
 > rename needs no tool changes. Renaming it, then retiring the two planning
 > files:
 
-*[commit] c61bd2639 - neocities: retired issues live in will-not-implement/*
+*[commit] ee1851f0a - neocities: retired issues live in will-not-implement/*
 
 > The rename and the two retired files are committed. Next, the waiting fix for
 > the graphics card's walk, which you didn't object to:
 
-*[commit] e3b1fef4e - neocities: the card's walk waits before it resets the winner*
+*[commit] df99ea361 - neocities: the card's walk waits before it resets the winner*
 
 > Now group B. For each issue I'm pulling out what the file itself says is left:
 > unchecked steps, open questions, and anything marked deferred or remaining.
@@ -6029,7 +6029,7 @@ rename superseded/ to will-not-implement.
 > Updating both issues in place. The plan lists stay, with each step marked as
 > done, replaced, or no longer applicable.
 
-*[commit] 5b2554651 - neocities: the graphics card's similarity table is checked against plain arithmetic*
+*[commit] e28230cb9 - neocities: the graphics card's similarity table is checked against plain arithmetic*
 
 > All 8,667 poems have both pages, and 17,334 files is exactly two per poem (the
 > page plus its text export). Reading 8-001 and 8-002 to update them:
@@ -6063,13 +6063,13 @@ rename superseded/ to will-not-implement.
 
 > Both kinds of page share one list builder, so closing 10-025:
 
-*[commit] fa57c2d24 - neocities: four page-building issues checked against the built site and closed*
+*[commit] 7d8265532 - neocities: four page-building issues checked against the built site and closed*
 
 > 2-010's reopened scope, guarding the caches against a change in the poems'
 > numbering, is what the numbering stamps from 8-019 do. Confirming from its
 > steps and the code:
 
-*[commit] 68b9df833 - neocities: three more finished issues move to completed*
+*[commit] 07fee639f - neocities: three more finished issues move to completed*
 
 I've checked group B. Ten issues are closed and committed, each checked against
 the code or the built site rather than just re-labelled. Four are still open:
@@ -6323,9 +6323,9 @@ okay
 
 > All mine. Claiming the script-written changes:
 
-*[commit] e1653a9c2 - neocities: settings live only in config.lua, every program answers --help*
+*[commit] f2ae062ce - neocities: settings live only in config.lua, every program answers --help*
 
-*[commit] 15fd7d783 - neocities: remove the four retired test files*
+*[commit] 1ec7c8ccc - neocities: remove the four retired test files*
 
 Moving settings into config.lua is built and committed, with two design
 questions left for you. Along the way I fixed a program that started the
@@ -6405,7 +6405,7 @@ let's skip this for now.
 
 ### Assistant Response 42
 
-*[commit] d13221032 - neocities: the thread count stays explicit; history-comment pruning set aside*
+*[commit] 7ddd39753 - neocities: the thread count stays explicit; history-comment pruning set aside*
 
 > Moving on to the next group-C item, the pure-black backgrounds for OLED
 > screens. Reading the rest of the issue:
@@ -6430,7 +6430,7 @@ let's skip this for now.
 > since it rebuilds every page in it on each run anyway. Checking that nothing
 > else writes into `output/source/`:
 
-*[commit] 519f60dee - neocities: the source browser is pure black, and publishes only today's files*
+*[commit] a9826f52f - neocities: the source browser is pure black, and publishes only today's files*
 
 I skipped the history-comment pruning as you asked, and recorded your answer
 that the thread count is always given explicitly. The pure-black fix for OLED
@@ -6573,7 +6573,7 @@ a space, then the poem text, then a space, then a |. That's the constraint.
 > reads the files git knows about. It'll clear once committed. Recording the
 > decisions in the issues, then committing:
 
-*[commit] b7118d8bc - neocities: every frame is 84 wide, and the colours come from one place*
+*[commit] 3187e24ab - neocities: every frame is 84 wide, and the colours come from one place*
 
 > Committed, and the settings audit is clean again. One decision left before I
 > retire the model-comparison report:
@@ -6601,11 +6601,11 @@ a space, then the poem text, then a space, then a |. That's the constraint.
 > The pages folder is already empty. There's also `libs/model-evaluator.lua`,
 > and `build-deps.sh` mentions the tool. Checking both:
 
-*[commit] cacc5859d - neocities: retire the embedding-model comparison report*
+*[commit] 63afbbf5f - neocities: retire the embedding-model comparison report*
 
 > Now the second half of the retirement: removing the four `-done` files.
 
-*[commit] 673896044 - neocities: remove the retired model-comparison files*
+*[commit] 39988de6f - neocities: remove the retired model-comparison files*
 
 I've made all five of your answers, and they're committed. All 51 runnable tests
 pass; the 2 that need the embedding server were skipped.
@@ -6683,7 +6683,7 @@ the borders will tell you.
 
 > All 42 pass. Re-rendering the sample to see both kinds of poem together:
 
-*[commit] 7c48b7eff - neocities: regular poems' text lines up with golden poems'*
+*[commit] 2e5743eb0 - neocities: regular poems' text lines up with golden poems'*
 
 Fixed and committed. Only golden poems have walls. Regular poem text now starts
 in the same column as golden poem text, so only the borders tell the two apart.
@@ -6752,7 +6752,7 @@ okay let's keep going.
 > Now wiring it into the build's page check, so it runs right after the
 > whole-site check:
 
-*[commit] cde1a1482 - neocities: every build checks each poem has its pages; a mistyped model is named up front*
+*[commit] 501112378 - neocities: every build checks each poem has its pages; a mistyped model is named up front*
 
 > 9-011's three steps are all done, and the whole site has no over-wide lines,
 > so it can close. 9-006 lists a step 4 and a step 8 as open. Reading them:
@@ -6764,7 +6764,7 @@ okay let's keep going.
 > The formatter test passes 46 of 46, including the two new deep-indent cases.
 > Adding a validator check for the 82-column rule, then re-rendering the sample:
 
-*[commit] 15306f864 - neocities: a regular poem's text is held to its 80 columns; two page issues close*
+*[commit] 0aafd4284 - neocities: a regular poem's text is held to its 80 columns; two page issues close*
 
 > Committed. Next is 16-010, the monospace font on phones. Its notes say you
 > asked to reverse the "scroll sideways" decision, so reading what it intends:
@@ -6831,7 +6831,7 @@ okay let's keep going.
 > `rm` paths written with variables. Rerunning with the paths written out in
 > full:
 
-*[commit] 6e1874133 - neocities: poem pages fit a phone by scaling the font; emoji hold two cells*
+*[commit] dc9fd35ae - neocities: poem pages fit a phone by scaling the font; emoji hold two cells*
 
 Phones now work the way you chose: the font shrinks until the 84-column grid
 fits the screen, and emoji keep their pictures in a box exactly two cells wide.

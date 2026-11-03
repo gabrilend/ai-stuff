@@ -4,8 +4,7 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: High
 - **Type**: Enhancement
-- **Status**: Built and tested (2026-11-03), both parts; waiting on the
-  owner's answer on notes files for tests (see Open questions)
+- **Status**: Completed (2026-11-03)
 - **Created**: 2026-11-02
 - **Related**: 10-005 (the run script's flags; its usage line
   `./run.sh [FLAGS] [PROJECT_DIR]` is the shape this replaces), 8-014 (made
@@ -235,6 +234,6 @@ Second part:
 2. (Answered 2026-11-03: "should remove fallback defaults".) Keep the
    assets folder's `<project>/assets` default, or make it an error? -- An
    error: the second part above.
-3. Tests have never had `.info.md` notes here; each test's header says what
-   it checks. `scripts/write-info-notes --missing --include-tests` would
-   write 59 of them. Should tests have notes files too?
+3. (Answered 2026-11-03: "no".) Should tests have notes files too? -- No:
+   each test's header says what it checks. `scripts/write-info-notes
+   --missing` leaves tests out; `--include-tests` exists but is not used.
