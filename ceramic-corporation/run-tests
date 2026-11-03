@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# run-tests -- everything this project checks about itself, in one command.
+#
+# Every test program in tests/, run under LuaJIT and then again under Lua 5.4
+# when it is installed: the tools are meant to read an org the same way on
+# either, and the only way to know that is to run them on both. Then the
+# example orgs are validated through the front door, the way a person would.
+#
+# Usage:
+#   ./run-tests                  -- everything
+#   ./run-tests /path/to/project -- elsewhere
+#
+# Exits non-zero when anything fails.
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+if [ -f "$1/src/007-org-reader.lua" ]; then
+    DIR="$1"
+    shift
+fi
+
+FAILED=0
+
+# -- {{{ run_with
+run_with() {
+    local lua="$1"
+    echo "== the tests, under ${lua} =="
+    for test in "${DIR}"/tests/[0-9]*.lua; do
+        "${lua}" "${test}" || FAILED=1
+    done
+    echo
+}
+# }}}
+
+run_with luajit
+if command -v lua5.4 > /dev/null 2>&1; then
+    run_with lua5.4
+fi
+
+echo "== the examples, through the front door =="
+for org in "${DIR}"/examples/*/; do
+    "${DIR}/validate-org" "${DIR}" "${org%/}" > /dev/null || {
+        echo "FAIL: ${org} is not valid"
+        "${DIR}/validate-org" "${DIR}" "${org%/}"
+        FAILED=1
+    }
+done
+[ "${FAILED}" -eq 0 ] && echo "every example is valid"
+
+exit "${FAILED}"

@@ -1,7 +1,8 @@
 # Table of Contents
 
-Everything in `docs/` and `notes/`, in reading order. Issues are found through
-[the roadmap](006-roadmap.md).
+Everything in this project, in reading order. Issues are found through
+[the roadmap](006-roadmap.md); source files through their companion `.info.md`
+pages.
 
 File indices count up across the whole project from a single counter at
 `.file-index-counter`, so the numbers are a reading order, not a per-directory
@@ -14,6 +15,21 @@ ceramic-corporation/
 ├── LICENSE ................................... The GNU Affero General Public
 │                                               License, version 3, verbatim.
 ├── COPYING.md ................................ What the AGPL asks of you.
+│
+├── validate-org .............................. Checks an org directory against
+│                                               every rule, naming each by code.
+├── blocked-board ............................. Ranks what an org waits on by how
+│                                               much depends on it.
+├── run-tests ................................. Every test, under LuaJIT and Lua
+│                                               5.4, and every example validated.
+│
+├── src/ ...................................... The tools. Numbered, each with a
+│   │                                           companion .info.md.
+│   ├── 007-org-reader ........................ The one reader, and the validator.
+│   └── 008-blocked-board ..................... owes, frees, reach.
+├── tests/
+│   └── 009-the-map-and-the-board ............. One refusal per rule code; the
+│                                               board against document 004.
 │
 ├── notes/
 │   └── vision ................................ Where all of this came from, in the

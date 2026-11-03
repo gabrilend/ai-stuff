@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# validate-org -- checks an org directory against the org map's rules.
+#
+# Reads the org's map and state the way every tool here reads them, and prints
+# every problem with its file, line and rule code (look the code up in
+# docs/002-the-org-map.md), then every warning, then a verdict. Exits 0 only
+# when the org is valid, so it can sit in front of anything that trusts a map.
+#
+# Usage:
+#   ./validate-org ORG_DIR
+#   ./validate-org /path/to/ceramic-corporation ORG_DIR   -- tools from elsewhere
+#
+# LUA picks the interpreter (default luajit).
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+# -- {{{ show_help
+show_help() {
+    sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+# A leading argument is the project root only when it actually looks like one,
+# so an org directory is never mistaken for it.
+if [ -f "$1/src/007-org-reader.lua" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ "$#" -ne 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help
+    exit 2
+fi
+
+exec "${LUA:-luajit}" "${DIR}/src/007-org-reader.lua" "$1"
