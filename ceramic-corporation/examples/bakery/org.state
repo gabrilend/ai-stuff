@@ -1,0 +1,7 @@
+# What the bakery's ports hold this morning. Written by whoever holds the box
+# that is waiting: the one who is blocked is the one who knows.
+
+fed buying.invoice 2026-11-02
+fed baking.flour 2026-11-02
+fed selling.loaves 2026-11-03 "yesterday's bake, still on the shelf"
+fed books.takings 2026-11-03
