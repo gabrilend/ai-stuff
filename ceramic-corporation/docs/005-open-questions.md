@@ -102,9 +102,22 @@ The outer `org.state` says whether the box's `in spec` is fed; the inner one
 says whether `cutting.spec`, the door that port leads to, is fed. Nothing yet
 makes the two agree.
 
-**Working ruling:** each map's state is its own, written by the people waiting
-in that map, as everywhere else. The board looks inside a source using the
-inner state. Deriving one from the other — an inner door in fed whenever the
-box's port is — would be tidier and would mean a state line in one directory
-changes the meaning of another's; that is worth deciding with a real nested
-org in front of us rather than in advance.
+**Answered (2026-11-03): state crosses the wall in both directions, and is
+derived, never stored twice.** Built as [issue 204](../issues/204-state-crosses-the-wall.md).
+
+- **Down:** a box's `in` port being fed — by a `fed` line in the outer state,
+  or by being a fixed value — makes every inner door in from the outside of
+  that name fed. Nobody inside writes it again.
+- **Up:** the inner map being finished makes the box done. Nobody outside
+  writes it again.
+- **Both are worked out when the maps are read.** Each map still keeps only
+  its own `org.state`, written by the people of that map; no state line in one
+  directory is copied into another.
+- **A box that holds a map cannot be marked done by hand while its inner map
+  is unfinished.** That would let the outer map say something the inner one
+  contradicts, so it becomes a new rule code (a state rule, next to S1-S4).
+
+**What was rejected:** the working ruling this replaces — each map's state its
+own, with nothing linking them. It needed nobody to agree on what "finished"
+means inside a box, but it let the two state files disagree about the same
+port, with the board trusting whichever directory it happened to be reading.

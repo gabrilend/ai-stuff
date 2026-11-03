@@ -204,8 +204,10 @@ a blocked box is blocked by its inputs, which the board already ranks; a source
 that owes something is the box whose inside explains the delay.
 
 **State is kept per map.** The inner `org.state` says what the inner ports
-hold; the outer one says what the box's ports hold. Reconciling the two is
-[open question Q10](005-open-questions.md#q10--state-across-a-boxs-wall).
+hold; the outer one says what the box's ports hold. How the two meet is
+decided in [open question Q10](005-open-questions.md#q10--state-across-a-boxs-wall)
+— a fed port is fed inside, a finished inside makes the box done, both derived
+— and not yet built ([issue 204](../issues/204-state-crosses-the-wall.md)).
 
 ## The bakery, read
 
