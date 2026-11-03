@@ -102,6 +102,13 @@ end
 
 -- {{{ objects without models, baked in blocks
 local BLOCK = 2048
+-- the wire-frame fallback (issue 602a): F6 draws every object, region and
+-- camera wire-frame over a grid; F7 labels each object; a blank new map
+-- shows the grid. Unseen: no screen to check it on.
+local fallback = require("assets.fallback")
+local fv = require("assets.fallback_view")
+local wire = fv.new()
+local wire_labels = {}
 local specs = {}
 local function spec_of(o)
     local key = o.kind .. ":" .. o.id .. ":" .. tostring(o.variation or 0)
@@ -121,6 +128,7 @@ local function block_of(x, y)
 end
 local function bake_block(b)
     render.geo_unbake(100 + b)
+    if wire.F.force then return end
     local list = {}
     for _, o in ipairs(E.objs) do
         if not o.deleted and block_of(o.x, o.y) == b and not model_of(o) then
@@ -144,6 +152,20 @@ local function bake_block(b)
     render.geo_bake(16, 100 + b)
 end
 local function bake_all()
+-- the fallback's grid (group 50): over a blank new map, and in wire-frame
+local GRID = 50
+local grid_on = false
+local function bake_grid()
+    render.geo_unbake(GRID)
+    grid_on = wire.F.force or fv.is_blank(E)
+    if not grid_on then return 0 end
+    local t = E.terrain
+    local out = wire:build({ terrain = fv.terrain(t, function(i, j) return w3e.ground_z(t.tilepoints[j][i]) end) })
+    fallback.emit(out, render, false, 0)
+    render.geo_bake(16, GRID)
+    return out.lines
+end
+bake_grid()
     local blocks = {}
     for _, o in ipairs(E.objs) do blocks[block_of(o.x, o.y)] = true end
     for b in pairs(blocks) do bake_block(b) end
@@ -253,6 +275,7 @@ function scene_paint()
                     shift = viewer.key_down("SHIFT"), ctrl = viewer.key_down("CTRL"),
                     chars = viewer.chars and viewer.chars() or "", wheel = viewer.wheel and viewer.wheel() or 0 }
     ui:update(input, 1 / 60)
+    if wire:key(input.keys) == "wire" then bake_all(); bake_grid() end
     -- the trigger editor covers the view: the camera stays put under it
     if viewer.hold_camera then viewer.hold_camera(ui.tui ~= nil) end
     take_ground_changes()
@@ -261,6 +284,7 @@ function scene_paint()
     if ground_dirty and (not E.stroke_now or now - ground_at > 0.4) then
         -- textured again once the stroke is done (laying them takes a while)
         build_ground(not E.stroke_now)
+        if grid_on then bake_grid() end
         ground_dirty, ground_at = false, now
         E.objects_changed = true   -- objects sit on the new ground
     end
@@ -276,13 +300,14 @@ function scene_paint()
         E.objects_changed = false
         objects_at = now
         rebake_changed()
+        if grid_on ~= (wire.F.force or fv.is_blank(E)) then bake_grid() end
     end
     -- the objects with models, near the camera
     local cx, cy, dist = viewer.camera()
     local reach = dist * 2.4
     local dt = now - (last_draw or now)
     last_draw = now
-    if model_cache then
+    if model_cache and not wire.F.force then
         for _, o in ipairs(E.objs) do
             if not o.deleted and math.abs(o.x - cx) < reach and math.abs(o.y - cy) < reach then
                 local mid = model_of(o)
@@ -360,9 +385,35 @@ function scene_paint()
         end
     end
     kit.emit_prims(prims, render, true, 0)
+    -- the wire-frame fallback (issue 602a)
+    if wire:active() then
+        local sel, wired, near = {}, {}, {}
+        for _, o in ipairs(E.selection) do sel[o] = true end
+        for _, o in ipairs(E.objs) do
+            if not o.deleted and math.abs(o.x - cx) < reach and math.abs(o.y - cy) < reach then
+                local obj = fv.editor_object(o, E:ground_z(o.x, o.y), sel[o])
+                if wire.F.force then wired[#wired + 1] = obj else near[#near + 1] = obj end
+            end
+        end
+        local scene = { objects = wired }
+        if wire.F.force then
+            scene.regions, scene.cameras = {}, {}
+            for _, r in ipairs(E:regions()) do scene.regions[#scene.regions + 1] = fv.region(r) end
+            for _, c in ipairs(E:cameras()) do scene.cameras[#scene.cameras + 1] = fv.camera(c, scene_ground) end
+        end
+        local out = wire:build(scene)
+        fallback.emit(out, render, true, 0)
+        wire_labels = wire:labels(near, 60)
+        for _, l in ipairs(out.labels) do wire_labels[#wire_labels + 1] = l end
+    else
+        wire_labels = {}
+    end
 end
 
-function scene_ui() ui:draw(render) end
+function scene_ui()
+    if #wire_labels > 0 then fallback.draw_labels(wire_labels, render, viewer.to_screen, 13) end
+    ui:draw(render)
+end
 function scene_status() return "editor" end
 function scene_key(_) end
 function scene_ground(x, y)

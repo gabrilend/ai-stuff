@@ -294,14 +294,27 @@ end
 -- {{{ bake doodads (group 0) and buildings (group 1: re-baked when one
 -- falls); mobile units are drawn each frame
 local DOODADS, BUILDINGS = 0, 1
-local statics = {}
-local function add(list) for _, p in ipairs(list) do statics[#statics + 1] = p end end
-for _, d in ipairs(designed_doodads) do add(designs.build(d.spec, d.x, d.y, d.z, d.facing, d.scale)) end
-local painted = kit.emit_prims(statics, render, false, 0)
-local baked = render.geo_bake(16, DOODADS)
+-- the wire-frame fallback (issue 602a): F6 draws everything as wire-frame,
+-- F7 labels each unit and doodad. Unseen: no screen to check it on.
+local fallback = require("assets.fallback")
+local fv = require("assets.fallback_view")
+local wire = fv.new()
+local wire_labels = {}
+local function bake_doodads()
+    render.geo_unbake(DOODADS)
+    if wire.F.force then return 0, 0 end
+    local statics = {}
+    for _, d in ipairs(designed_doodads) do
+        for _, p in ipairs(designs.build(d.spec, d.x, d.y, d.z, d.facing, d.scale)) do statics[#statics + 1] = p end
+    end
+    local painted = kit.emit_prims(statics, render, false, 0)
+    return painted, render.geo_bake(16, DOODADS)
+end
+local painted, baked = bake_doodads()
 
 local function bake_buildings()
     render.geo_unbake(BUILDINGS)
+    if wire.F.force then return 0, 0 end
     local list = {}
     for _, u in ipairs(game.units) do
         if u.spec.design == "building" and u.alive and not u.hidden and not model_of("unit", u.id) and game.shown(u) then
@@ -313,7 +326,6 @@ local function bake_buildings()
 end
 local building_chunks, building_prims = bake_buildings()
 local last_rebake = 0
-statics = nil
 print(string.format("[map] %d land chunks, %d doodad primitives in %d chunks, %d building primitives in %d chunks, %.1fs",
     chunks, painted, baked, building_prims, building_chunks, os.clock() - clock))
 -- }}}
@@ -497,6 +509,9 @@ function scene_paint()
                   shift = viewer.key_down("SHIFT"), ctrl = viewer.key_down("CTRL"), alt = viewer.key_down("ALT") }
     end
     hud:update(input, 0)
+    -- F6: everything wire-frame (the baked doodads and buildings go, and
+    -- come back); F7: the overlay's labels
+    if wire:key(input.keys) == "wire" then bake_doodads(); bake_buildings() end
     hud.time = game.time
 
     -- units near the camera, and rings under the selected ones
@@ -506,11 +521,15 @@ function scene_paint()
     last_paint = game.time
     local prims = {}
     local function add_list(list) for _, p in ipairs(list) do prims[#prims + 1] = p end end
+    local wired, near = {}, {}     -- drawn the fallback way; and everything, for the overlay
     for _, u in ipairs(game.units) do
         if not u.hidden and not u.hidden_in_mine and math.abs(u.x - cx) < reach and math.abs(u.y - cy) < reach
             and game.shown(u) then
-            local mid = model_of("unit", u.id)
-            if mid then
+            local mid = not wire.F.force and model_of("unit", u.id)
+            if wire.F.overlay and not wire.F.force then near[#near + 1] = fv.unit(u) end
+            if wire.F.force then
+                wired[#wired + 1] = fv.unit(u)
+            elseif mid then
                 local r, g, b = team_rgb(u.player)
                 local rig = ANIMATE and model_cache:rig(mid)
                 local pose = rig and animate.unit(rig, u, adt)
@@ -523,9 +542,17 @@ function scene_paint()
             end
         end
     end
+    if wire:active() then
+        for _, d in ipairs(s.doodads) do
+            if not d.fallen and math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
+                if wire.F.force then wired[#wired + 1] = fv.doodad(d)
+                else near[#near + 1] = fv.doodad(d) end
+            end
+        end
+    end
     for _, dm in ipairs(doodad_models) do
         local d = dm.d
-        if not d.fallen and math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
+        if not wire.F.force and not d.fallen and math.abs(d.x - cx) < reach and math.abs(d.y - cy) < reach then
             local rig = ANIMATE and model_cache:rig(dm.id)
             render.model_draw(dm.id, d.x, d.y, d.z, d.facing or 0, d.scale and d.scale[1] or 1, 255, 255, 255,
                 1, rig and animate.still(rig, dm, adt))
@@ -593,10 +620,20 @@ function scene_paint()
         end
     end
     kit.emit_prims(prims, render, true, 0)
+    if wire:active() then
+        local out = wire:build({ objects = wired })
+        fallback.emit(out, render, true, 0)
+        wire_labels = wire:labels(near)      -- what is drawn for real; the wire-frame's own are in out
+        for _, l in ipairs(out.labels) do wire_labels[#wire_labels + 1] = l end
+    else
+        wire_labels = {}
+    end
     hud:paint_portrait()
 end
 
 function scene_ui()
+    -- the overlay's labels under the HUD (issue 602a); unseen
+    if #wire_labels > 0 then fallback.draw_labels(wire_labels, render, viewer.to_screen, 13) end
     hud:draw(render)
 end
 

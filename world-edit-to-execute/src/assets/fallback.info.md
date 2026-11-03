@@ -50,3 +50,25 @@ len, wid, hgt, yaw, color, width)`, `box(...)`, `dashed(p, q, color)`,
 
 The demo, `src/demo/fallback/main.lua`, shows every shape in the scene
 viewer; it has not been seen on a screen yet.
+
+## In the map viewer and the editor (`fallback_view.lua`, issue 602a)
+
+| Key | Does |
+|-----|------|
+| F6 | forced wire-frame: every unit, building, doodad (and, in the editor, region and camera) drawn the fallback way; the baked designs are taken off and put back |
+| F7 | the overlay: each object's type, number and place over it |
+
+A blank new map in the editor (nothing placed; a script's gold mines
+don't count) shows the fallback's grid at the ground's height, baked once
+(group 50) and again when the ground changes. All of this is **unseen**:
+built and tested without a window.
+
+| Function | Gives |
+|----------|-------|
+| `fv.unit(u[, selected])` | a map-viewer unit as a fallback object (building, flyer and hero from its spec and id) |
+| `fv.doodad(d)` | a doodad (trees by spec or id) |
+| `fv.editor_object(o, z[, selected])` | an editor unit, doodad or item on ground height `z` |
+| `fv.region(r)` / `fv.camera(c, ground_at)` | an editor region; an editor camera, its eye placed from distance, rotation, angle and z offset |
+| `fv.terrain(t, z_at)` | a w3e terrain as the grid's input, every Nth line past `fv.MAX_GRID_LINES` |
+| `fv.is_blank(E)` | true when nothing is placed |
+| `fv.new(opts)` | `V`: `V:key(keys)`, `V:active()`, `V:build(scene)`, `V:labels(objects[, height])`, `V:status()`, and `V.F` (the fallback) |
