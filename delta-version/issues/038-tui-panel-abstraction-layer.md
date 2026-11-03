@@ -153,7 +153,7 @@ Panels integrate with existing dirty tracking:
 
 **Status (2026-11-03): built.**
 - **Steps 1–8 and 10:** built in the shared library as `scripts/libs/tui.lua`'s
-  panels (scripts PR #151, its issue 039).
+  panels (scripts PR #151, its issue 048).
 - **Step 9:** built in delta-version. `scripts/history-viewer.lua` now draws a
   header panel, a content panel and a footer panel, and lays them out again
   after a resize. The project picker uses a title panel and a list panel, and
