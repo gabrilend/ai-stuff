@@ -25,6 +25,8 @@
 #   -s, --stats         Include detailed statistics
 #   --since <date>      Only commits after date
 #   --until <date>      Only commits before date
+#   -u, --update        Keep what an existing phase file says about each
+#                       commit; format only the commits it lacks
 #   -I, --interactive   TUI mode for selecting phases
 #   -h, --help          Show this help message
 #
@@ -55,6 +57,7 @@ INCLUDE_STATS=false
 SINCE_DATE=""
 UNTIL_DATE=""
 INTERACTIVE=false
+UPDATE=false
 
 # }}}
 
@@ -96,6 +99,9 @@ OPTIONS:
     -s, --stats         Include detailed statistics
     --since <date>      Only commits after date (git date format)
     --until <date>      Only commits before date
+    -u, --update        Keep what an existing phase file says about each
+                        commit; format only the commits it lacks (fast
+                        after the first run)
     -I, --interactive   TUI mode for selecting phases
     -h, --help          Show this help message
 
@@ -103,6 +109,7 @@ EXAMPLES:
     ./git-history.sh -p 2              # Generate Phase 2 history
     ./git-history.sh -a -s             # All phases with stats
     ./git-history.sh --since "1 week"  # Recent commits only
+    ./git-history.sh -a -u             # Bring every phase file up to date
     ./git-history.sh -I                # Interactive mode
 
 OUTPUT:
@@ -144,6 +151,10 @@ parse_args() {
             --until)
                 UNTIL_DATE="$2"
                 shift 2
+                ;;
+            -u|--update)
+                UPDATE=true
+                shift
                 ;;
             -I|--interactive)
                 INTERACTIVE=true
@@ -250,15 +261,19 @@ git_history_phase_of_issue_path() {
 # Fills two globals:
 #   COMMIT_PHASES[hash]  = space-separated phases that commit touched
 #   PHASE_ORDER          = every phase seen, sorted
+#   SHORT_HASH[hash]     = the commit's short hash, as its section heading
+#                          in a phase file spells it
 # A commit that touches issue files of two phases belongs to both.
 declare -gA COMMIT_PHASES=()
 declare -ga PHASE_ORDER=()
 declare -ga INDEXED_COMMITS=()
+declare -gA SHORT_HASH=()
 git_history_index_commits() {
     COMMIT_PHASES=()
     PHASE_ORDER=()
     INDEXED_COMMITS=()
-    local git_args=("log" "--all" "--name-status" "-M" "--format=@@%H")
+    SHORT_HASH=()
+    local git_args=("log" "--all" "--name-status" "-M" "--format=@@%H %h")
     [[ -n "$SINCE_DATE" ]] && git_args+=("--since=$SINCE_DATE")
     [[ -n "$UNTIL_DATE" ]] && git_args+=("--until=$UNTIL_DATE")
     git_args+=("--" "$ISSUES_PREFIX")
@@ -269,9 +284,11 @@ git_history_index_commits() {
     local hash="" line path phase
     local -A seen_phase=()
     while IFS= read -r line; do
-        # "@@<hash>" starts a commit; the file lines follow it.
+        # "@@<hash> <short hash>" starts a commit; the file lines follow it.
         if [[ "$line" == @@* ]]; then
-            hash="${line#@@}"
+            line="${line#@@}"
+            hash="${line%% *}"
+            SHORT_HASH[$hash]="${line#* }"
             INDEXED_COMMITS+=("$hash")
             continue
         fi
@@ -361,6 +378,41 @@ git_history_format_commit() {
 }
 # }}}
 
+# {{{ git_history_load_sections
+# Reads the commit sections of an existing phase file, for --update. Fills
+# OLD_SECTIONS[short hash] with each section's text exactly as written: from
+# its "## [<short hash>] subject" heading up to the next such heading, or the
+# end of the file. Only headings below "## Commits" count, so the statistics
+# table is never mistaken for a commit. A missing file leaves it empty.
+#
+# Why sections are reused rather than "everything after the last commit seen"
+# being appended: commits are gathered from every branch (git log --all), so a
+# branch merged today can bring commits dated last month into the middle of
+# the list. Matching each commit to its own section puts every commit where a
+# full run would, and a commit the file lacks is simply formatted fresh.
+declare -gA OLD_SECTIONS=()
+git_history_load_sections() {
+    local file="$1"
+    OLD_SECTIONS=()
+    [[ -f "$file" ]] || return 0
+    local line short="" text="" in_commits=false
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if ! $in_commits; then
+            [[ "$line" == "## Commits" ]] && in_commits=true
+            continue
+        fi
+        if [[ "$line" =~ ^\#\#\ \[([0-9a-f]+)\]\  ]]; then
+            [[ -n "$short" ]] && OLD_SECTIONS[$short]="$text"
+            short="${BASH_REMATCH[1]}"
+            text=""
+        fi
+        [[ -n "$short" ]] && text+="$line"$'\n'
+    done < "$file"
+    [[ -n "$short" ]] && OLD_SECTIONS[$short]="$text"
+    return 0
+}
+# }}}
+
 # {{{ git_history_get_stats
 # Get statistics for a phase
 git_history_get_stats() {
@@ -439,9 +491,20 @@ git_history_format_markdown() {
     echo "---"
     echo ""
 
+    # With --update, a commit whose section the old file already holds is
+    # copied from there (OLD_SECTIONS, see git_history_load_sections); the
+    # rest are formatted. REUSED_COUNT says how many were copied.
+    REUSED_COUNT=0
+    local short
     while IFS= read -r hash; do
         [[ -z "$hash" ]] && continue
-        git_history_format_commit "$hash"
+        short="${SHORT_HASH[$hash]:-}"
+        if [[ -n "$short" && -n "${OLD_SECTIONS[$short]+set}" ]]; then
+            printf '%s' "${OLD_SECTIONS[$short]}"
+            REUSED_COUNT=$((REUSED_COUNT + 1))
+        else
+            git_history_format_commit "$hash"
+        fi
     done <<< "$commits"
 }
 # }}}
@@ -454,12 +517,27 @@ generate_phase_history() {
 
     mkdir -p "$OUTPUT_DIR"
 
-    echo -e "${CYAN}Generating Phase $phase history...${NC}"
+    OLD_SECTIONS=()
+    if $UPDATE; then
+        echo -e "${CYAN}Updating Phase $phase history...${NC}"
+        git_history_load_sections "$output_file"
+    else
+        echo -e "${CYAN}Generating Phase $phase history...${NC}"
+    fi
 
-    git_history_format_markdown "$phase" > "$output_file"
+    # Written beside the old file and moved over it, so --update can read the
+    # old file while the new one is written, and an interrupted run leaves
+    # the old file whole.
+    local temp_file="${output_file}.new.$$"
+    git_history_format_markdown "$phase" > "$temp_file"
+    mv -f "$temp_file" "$output_file"
 
     local commit_count=$(grep -c "^## \[" "$output_file" || echo 0)
-    echo -e "${GREEN}✓${NC} Created $output_file ($commit_count commits)"
+    if $UPDATE; then
+        echo -e "${GREEN}✓${NC} Updated $output_file ($commit_count commits, $((commit_count - REUSED_COUNT)) new)"
+    else
+        echo -e "${GREEN}✓${NC} Created $output_file ($commit_count commits)"
+    fi
 }
 # }}}
 

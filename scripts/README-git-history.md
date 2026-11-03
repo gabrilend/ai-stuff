@@ -33,6 +33,15 @@ Generate history for recent work only.
 ./git-history.sh -a --since "2024-01-01" --until "2024-06-30"
 ```
 
+### Bring Existing Files Up to Date
+After the first run, `--update` keeps what each phase file already says about
+every commit and formats only the commits it lacks, which is much faster on a
+long history. The result is the file a full run would write.
+
+```bash
+./git-history.sh -a -u
+```
+
 ### Interactive Phase Selection
 Use TUI to select which phases to export.
 
@@ -51,6 +60,7 @@ Use TUI to select which phases to export.
 | `-s, --stats` | Include detailed statistics table |
 | `--since <date>` | Only commits after date (git date format) |
 | `--until <date>` | Only commits before date |
+| `-u, --update` | Keep what an existing phase file says about each commit; format only the commits it lacks |
 | `-I, --interactive` | TUI mode for selecting phases |
 | `-h, --help` | Show help message |
 
