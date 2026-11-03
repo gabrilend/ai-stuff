@@ -217,13 +217,16 @@ function test_audit() {
     sed -i "s|$good/|$STATE/|g" "$STATE/audit.tsv"
     rm -f "$STATE"/backups/P001-*.md
     printf '2000-01-01 00:00:00\tapproved\tP009\t-\tbackup x after 00\n' >> "$STATE/audit.tsv"
-    sed -i 's/^P003\t\([^\t]*\)\trejected/P003\t\1\tpending/' "$STATE/proposals.tsv"
+    sed -i 's/^P003\t\([^\t]*\)\tpending/P003\t\1\tapproved/' "$STATE/proposals.tsv"
+    grep '^P001' "$STATE/proposals.tsv" > "$SCRATCH/p001-row"
+    cat "$SCRATCH/p001-row" >> "$STATE/proposals.tsv"
     run verify
     check "verify: problems found (1)" "$(same "$CODE" 1)"
     check "... a missing backup" "$(has_line "$OUT" "is missing")"
     check "... a row naming no proposal" "$(has_line "$OUT" "names P009, which is not a proposal")"
     check "... a row out of date order" "$(has_line "$OUT" "dated before the line above it")"
-    check "... a status that disagrees with the trail" "$(has_line "$OUT" "P003: its status is pending, but its last action was rejected")"
+    check "... a filed status that disagrees with the trail" "$(has_line "$OUT" "P003: proposals.tsv says approved, but its last action was rejected")"
+    check "... a proposal filed twice" "$(has_line "$OUT" "P001 is filed twice")"
     STATE="$good"
 }
 # }}}
@@ -268,6 +271,51 @@ function test_prune() {
 }
 # }}}
 
+# -- {{{ test_conflicts
+# Issue 040d: proposals.tsv is append-only (statuses come from the audit
+# trail), and the conflict analysis report.
+function test_conflicts() {
+    local head_before
+    head_before=$(cat "$STATE/proposals.tsv")
+    run propose "Never use vimfolds in a function under ten lines"
+    run approve P004 --target="$TARGET"
+    check "approving leaves the proposals filed so far as they were (append-only)" \
+        "$(same "$(head -n 3 "$STATE/proposals.tsv")" "$head_before")"
+    check "... every row keeps the status it was filed with" \
+        "$(same "$(cut -f3 "$STATE/proposals.tsv" | sort -u)" "pending")"
+    run list --all
+    check "... and statuses are read from the audit trail" \
+        "$(if grep -qE '^P004  approved' <<< "$OUT" && grep -qE '^P002  rolled-back' <<< "$OUT"; then echo yes; else echo no; fi)"
+
+    run event correction "Do not add vimfolds to every short function"
+    run propose "Run the tests before committing"
+    run conflicts
+    check "conflicts: a do and a don't on the same topic may contradict" \
+        "$(if grep -qF "P001 - Use vimfolds in every function." <<< "$OUT" && grep -qF "both about: function, vimfold" <<< "$OUT"; then echo yes; else echo no; fi)"
+    check "... corrections since approval on the same topic" \
+        "$(has_line "$OUT" "1 correction since")"
+    check "... and the latest of them" "$(has_line "$OUT" "latest: Do not add vimfolds to every short function")"
+    check "... a rollback, and the guideline proposed again" \
+        "$(if grep -qF "P002 rolled back on" <<< "$OUT" && grep -qF "proposed again as P005 (pending)" <<< "$OUT"; then echo yes; else echo no; fi)"
+    check "... exit 0" "$(same "$CODE" 0)"
+    run verify
+    check "verify passes on an append-only trail" "$(same "$CODE" 0)"
+
+    local good="$STATE"
+    STATE="$SCRATCH/empty-state"
+    run conflicts
+    check "conflicts on an empty trail: none found" \
+        "$(same "$(grep -c 'None' <<< "$OUT")" 3)"
+    STATE="$SCRATCH/old-state"
+    cp -r "$good" "$STATE"
+    sed -i "s|$good/|$STATE/|g" "$STATE/audit.tsv"
+    sed -i 's/^P001\t\([^\t]*\)\tpending/P001\t\1\tapproved/' "$STATE/proposals.tsv"
+    run verify
+    check "a trail from before, with statuses kept in proposals.tsv, still verifies" "$(same "$CODE" 0)"
+    STATE="$good"
+}
+# }}}
+
 # -- {{{ main
 function main() {
     setup
@@ -279,6 +327,7 @@ function main() {
     test_rollback
     test_audit
     test_prune
+    test_conflicts
     stand_in_stop
     [ -n "$KEEP" ] || rm -rf "$SCRATCH"
     echo
