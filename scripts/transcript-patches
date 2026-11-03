@@ -301,6 +301,20 @@ local function universe_for(dir)
       -- repository's own commits only).
       local extra = os.getenv("TRANSCRIPT_PATCHES_UNIVERSE")
       if extra then quotes_lib.universe_from_file(extra, universe) end
+      -- A repository that has been through a history rewrite keeps the list
+      -- of the commits it replaced at this path (ai-stuff since issue 063).
+      -- Every export reads it, the Stop hook's included: without it the old
+      -- ids in a session log are not commits any more, so each conversation's
+      -- id patch reads as stale and the transcript is not saved (found
+      -- 2026-11-03, when a sweep failed for every patched conversation). Two
+      -- paths: the repository has the list (its ids join), or it has never
+      -- been rewritten (nothing to add).
+      local replaced = root .. "/delta-version/archive/disentangle/old-commits.txt"
+      local probe = io.open(replaced, "r")
+      if probe then
+         probe:close()
+         quotes_lib.universe_from_file(replaced, universe)
+      end
       universes[root] = universe
    end
    return universes[root]

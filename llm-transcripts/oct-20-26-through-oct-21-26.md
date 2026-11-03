@@ -1,6 +1,6 @@
 # Conversation Summary: e72751f8-8269-4e4c-b2e2-b2da34b042a7
 
-Generated on: 2026-10-21 21:09:01
+Generated on: 2026-11-03 11:54:33
 Models: claude-opus-5-5
 
 ## Contents
@@ -34,6 +34,10 @@ Models: claude-opus-5-5
    committed privately in your Claude settings folder. Next, I need your yes on
    a script that copies only their committed versions into the public
    repository.
+8. 2026-10-21 21:12, after Request 11 - We're publishing your skills and
+   CLAUDE.md as the public claude-code-utilities repository, and the tool is
+   built and tested. Next, you run it once with --create, then pick push or pull
+   to run it automatically.
 
 --------------------------------------------------------------------------------
 

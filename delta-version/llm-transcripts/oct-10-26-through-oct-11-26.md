@@ -1,6 +1,6 @@
 # Conversation Summary: 03f2f12d-4bd0-4379-8052-1028e8cb0e7e
 
-Generated on: 2026-10-11 00:15:27
+Generated on: 2026-11-03 11:54:41
 Models: claude-opus-5-5
 
 ## Contents
@@ -50,6 +50,11 @@ Models: claude-opus-5-5
     centered-ui-design game, made from its pictures and game state. Next, I need
     three answers from you: AI model or our own synthesizer, live or pre-made
     tracks, and which game variables the music should follow.
+12. 2026-10-11 00:21, after Request 35 - We're building game music from the
+    project's pictures, with the looking and the music made inside ComfyUI on
+    the machine nearby, and it needs two model files that aren't there yet.
+    Next: put ACE-Step and Qwen2.5-VL on that machine, and tell me which game
+    variables to use.
 
 --------------------------------------------------------------------------------
 

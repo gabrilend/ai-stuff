@@ -1,6 +1,6 @@
 # Conversation Summary: 5473c7d4-c170-4c2f-a125-44eb0d9926e2
 
-Generated on: 2026-10-21 14:48:50
+Generated on: 2026-11-03 11:54:26
 Models: claude-opus-5-5
 
 ## Contents
@@ -25,6 +25,10 @@ Models: claude-opus-5-5
    from writing outside their folder, and now splitting the permission question
    into "how long" and "how wide". Next, you confirm that design, including
    whether "Always + This file" allows only that exact file.
+6. 2026-10-21 14:51, after Request 19 - Agents are now blocked from writing
+   outside their project folder, and when they try you're asked Yes, This time,
+   Always or No. It's built, tested and committed. Next, check that the question
+   appears live the next time a session writes outside its folder.
 
 --------------------------------------------------------------------------------
 

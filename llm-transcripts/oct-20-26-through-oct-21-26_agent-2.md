@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 21:30:18
+Generated on: 2026-11-03 11:54:29
 Models: claude-opus-5-5
 
 ## Contents
@@ -39,6 +39,10 @@ Models: claude-opus-5-5
    fan-site lodge, and I'm looking at moving physics-sim's gif filmer into
    gif-generator. Next, you decide whether a film's ratings live in the project
    beside the gif or in the studio.
+9. 2026-10-21 21:33, after Request 25 - The `./say` gif tool is built and
+   committed: unknown words teach themselves, a director session draws, and you
+   chat to refine the gif. Next, run `./say` with real sessions, and tell me
+   whether to cap how many word sessions run at once.
 
 --------------------------------------------------------------------------------
 
