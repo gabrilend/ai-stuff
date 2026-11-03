@@ -66,6 +66,10 @@ Dropping on the library slots into it, which reaches all three base towers. Drop
 a **base** tower is refused **by name**, because a player who tries it is reaching for a
 real rule and deserves to be told which one.
 
+Such a refusal, made here without asking the simulation, goes to the context's
+`refuse_here`, so it is shown where the drop was made, like a refusal from the
+simulation.
+
 A drop into empty space returns nil rather than a refusal. That is a player changing
 their mind, not a player being told no, and filling the refusal log with "you dropped
 that on the grass" would train them to ignore it.

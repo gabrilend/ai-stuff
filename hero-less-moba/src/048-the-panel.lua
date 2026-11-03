@@ -48,8 +48,10 @@
 -- ## Every refusal is loud
 --
 -- A command that silently does nothing is the worst outcome available: the player
--- believes the game has their instruction and it does not. Refusals arrive at the
--- bottom of the panel, in the colour of a warning, and stay long enough to read.
+-- believes the game has their instruction and it does not. A refusal of the player's
+-- own command is drawn **beside where they tried it** (704, step 4; the bookkeeping is
+-- 078), in the colour of a warning, and stays long enough to read. Anybody else's
+-- still arrives at the bottom of the panel.
 
 local M = {}
 
@@ -643,6 +645,52 @@ local function draw_refusals(x, y, width)
     local age = (now - refusal.born) / REFUSAL_LIFETIME
     love.graphics.setColor(0.92, 0.45, 0.35, 1 - age * 0.75)
     love.graphics.printf(refusal.text, x, y + (index - 1) * 15, width, "left")
+  end
+end
+-- }}}
+
+-- {{{ function M.draw_refusals_in_place()
+-- The player's own refusals, each beside the place it was attempted: `shown` is what
+-- 078's `current` returns. A place on the map is followed as the camera moves; a
+-- sentence is kept on the screen rather than run off its edge.
+function M.draw_refusals_in_place(shown, settings, camera_module, camera)
+  local screen_w = love.graphics.getWidth()
+  local screen_h = love.graphics.getHeight()
+  local font = M.font_small
+  love.graphics.setFont(font)
+
+  -- How tall each sentence is once wrapped, first, because each is lifted by the
+  -- height of the newer ones at its place.
+  local lines, tall = {}, {}
+  for index, refusal in ipairs(shown) do
+    local _, wrapped = font:getWrap(refusal.text, settings.width)
+    lines[index] = wrapped
+    tall[index] = #wrapped * settings.line
+  end
+
+  for index, refusal in ipairs(shown) do
+    local x, y = refusal.x, refusal.y
+    if refusal.space == "world" then
+      x, y = camera_module.world_to_screen(camera, x, y)
+    end
+    local lifted = settings.lift + tall[index]
+    for _, newer in ipairs(refusal.newer_nearby) do
+      lifted = lifted + tall[newer]
+    end
+    local left = math.max(4, math.min(x - settings.width * 0.5, screen_w - settings.width - 4))
+    local top = math.max(4, math.min(y - lifted, screen_h - tall[index] - 4))
+
+    for row, text in ipairs(lines[index]) do
+      local line_top = top + (row - 1) * settings.line
+      -- A dark band under the words, because a sentence drawn straight onto a fight
+      -- is not read.
+      local wide = font:getWidth(text) + 8
+      love.graphics.setColor(0, 0, 0, 0.55 * (1 - refusal.age))
+      love.graphics.rectangle("fill", left + (settings.width - wide) * 0.5, line_top - 1,
+                              wide, settings.line - 1)
+      love.graphics.setColor(0.92, 0.45, 0.35, 1 - refusal.age * 0.75)
+      love.graphics.printf(text, left, line_top, settings.width, "center")
+    end
   end
 end
 -- }}}

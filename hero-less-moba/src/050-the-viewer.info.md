@@ -30,6 +30,16 @@ most recent snapshots.
 **Allowed to be behind. Never allowed to be ahead.** The blend is clamped at 1 rather
 than trusted to stay there.
 
+## Where a refusal is shown
+
+Every command the person at the keyboard sends goes through the context's `queue`,
+which also remembers **where the mouse was** — on the map in world units, on the panel
+in pixels — with the command's arrival number. After each tick the events are settled
+against those attempts by [078](078-where-it-was-refused.info.md): a refusal of one of
+this player's commands is drawn beside where it was tried, after the panel so it sits
+over it; anybody else's goes to the panel's corner list as before. The context's
+`refuse_here(text)` does the same for a refusal the input layer makes by itself.
+
 ## Three clamps that keep the window responsive
 
 **A long frame is truncated**, not simulated through. Catching up on four seconds of

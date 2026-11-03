@@ -12,7 +12,7 @@ applied to the project's own prose.
 | 701 | The window and the two snapshots | built |
 | 702 | The map draws itself | built |
 | 703 | The chest panel and the drag | built |
-| 704 | Locks, objections, and refusals are loud | refusals and the rate-limited ping built; locks replaced; refusals near the action still owed |
+| 704 | Locks, objections, and refusals are loud | refusals, the rate-limited ping, and refusals shown where they were tried built; locks replaced; the playtest still owed |
 | 705 | The sign-posts are clickable in the world | built |
 | 706 | The documentation becomes HTML | built |
 | 707 | The way in | menu built, replays and lobby still owed |

@@ -624,6 +624,84 @@ local function test_a_ping_is_rate_limited()
 end
 -- }}}
 
+-- {{{ local function test_a_refusal_is_shown_where_it_was_tried()
+-- 704, step 4. A refusal of a player's own command is shown beside where they tried
+-- it, not in a corner. What can be checked without a screen is the bookkeeping: that a
+-- refusal finds the attempt it answers by the arrival number it carries back, that
+-- anybody else's still goes to the corner, and that what is shown stacks, fades and is
+-- kept few. How it looks has not been seen.
+local function test_a_refusal_is_shown_where_it_was_tried()
+  local world, modules, parameters = fresh_world(tick_module)
+  world.bot = {}
+  world.event = {}
+  local where = loadfile(ROOT .. "/src/078-where-it-was-refused.lua")()
+  local settings = where.settings
+  local book = where.create()
+  local limit = parameters.upgrade.ping.limit
+
+  -- One more ping than the limit, each tried somewhere else on the map.
+  local last
+  for index = 1, limit + 1 do
+    last = modules.commands.queue(world, {verb = "ping", player = 1, x = index * 100, y = 0})
+    where.attempted(book, last, {space = "world", x = index * 100, y = 50})
+  end
+  -- And the enemy, with nothing remembered for it, past its limit too.
+  local enemy = parameters.team_size + 1
+  for index = 1, limit + 1 do
+    modules.commands.queue(world, {verb = "ping", player = enemy, x = index, y = 0})
+  end
+  modules.commands.apply_all(world)
+
+  local refusal = nil
+  for _, event in ipairs(world.event) do
+    if event.name == "refused" and event.player == 1 then refusal = event end
+  end
+  check("a refusal carries back the arrival number of the command it refuses",
+        refusal ~= nil and refusal.arrival == last.arrival)
+
+  local elsewhere = where.settle(book, world.event, 1, 0)
+  local shown = where.current(book, 0)
+  check("and is shown at the place that command was tried, in its own words",
+        #shown == 1 and shown[1].x == (limit + 1) * 100 and shown[1].y == 50
+          and shown[1].space == "world" and refusal ~= nil and shown[1].text == refusal.reason)
+  check("while anybody else's refusal still goes to the corner",
+        #elsewhere == 1)
+  check("and once the tick has answered them, no attempt is still waiting",
+        #book.attempt == 0)
+
+  -- Stacking: a second refusal at nearly the same place sits above the first, one far
+  -- away does not.
+  where.show(book, "second, beside the first",
+             {space = "world", x = (limit + 1) * 100 + 5, y = 50}, 1)
+  where.show(book, "third, across the map", {space = "world", x = 5000, y = 50}, 2)
+  shown = where.current(book, 2)
+  check("a refusal tried beside an older one lifts the older one, and one far away does not",
+        #shown == 3 and #shown[1].newer_nearby == 0 and #shown[2].newer_nearby == 0
+          and #shown[3].newer_nearby == 1 and shown[3].newer_nearby[1] == 2)
+
+  where.show(book, "on the panel", {space = "screen", x = (limit + 1) * 100, y = 50}, 3)
+  shown = where.current(book, 3)
+  check("a place on the panel never stacks with a place on the map",
+        #shown[1].newer_nearby == 0 and #shown[2].newer_nearby == 0)
+
+  for index = 1, settings.most + 2 do
+    where.show(book, "again " .. index, {space = "screen", x = 10, y = 10}, 4)
+  end
+  check("only the newest few are kept", #where.current(book, 4) == settings.most)
+  check("and they fade, and are gone once they have lasted",
+        where.current(book, 4 + settings.lifetime * 0.5)[1].age > 0.4
+          and #where.current(book, 4 + settings.lifetime + 0.01) == 0)
+
+  -- The same player and arrival with a different verb means the numbering is broken,
+  -- and that stops the program rather than showing a sentence beside the wrong thing.
+  where.attempted(book, {player = 1, arrival = 7, verb = "reroll"},
+                  {space = "screen", x = 1, y = 1})
+  local stopped = not pcall(where.settle, book,
+    {{name = "refused", player = 1, arrival = 7, verb = "ping", reason = "no"}}, 1, 5)
+  check("a refusal that matches an attempt at a different verb stops the program", stopped)
+end
+-- }}}
+
 -- {{{ local function test_reproducibility()
 -- The same seed and the same (empty) command list must produce the same match,
 -- tick for tick. Compared on a fingerprint of every body's position rather than
@@ -1824,6 +1902,7 @@ test_a_move_can_be_called_back()
 test_the_floor_closes()
 test_giving_is_easier_than_asking()
 test_a_ping_is_rate_limited()
+test_a_refusal_is_shown_where_it_was_tried()
 test_reproducibility()
 test_placement_moves_a_frontline()
 test_the_surge_deals_everything()

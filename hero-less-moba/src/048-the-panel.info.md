@@ -16,7 +16,8 @@ the frontlines are; the chest; the slots; the phase; the refusals. The lanes are
 | `load(renderer)` | | — Fonts, the hot-region list, the refusal log. |
 | `draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, speed, paused)` | | — The whole panel. |
 | `hit_test(x, y)` | | What is under a screen point, or nil. |
-| `note_refusal(text)` | | — Adds a line to the refusal log. |
+| `note_refusal(text)` | | — Adds a line to the corner refusal log: refusals of anybody else's commands, and of commands this viewer did not send. |
+| `draw_refusals_in_place(shown, settings, camera_module, camera)` | what [078](078-where-it-was-refused.info.md)'s `current` returns | — The player's own refusals, each beside where it was attempted, followed as the camera moves, wrapped, stacked and kept on screen. |
 | `panel_left()` | | Where the panel starts, so the viewer knows which clicks belong to the map. |
 
 ## An upgrade doing nothing should be visually annoying
@@ -81,3 +82,12 @@ On a networked match the enemy's chest is not on the machine at all. The prototy
 you switch which team you are watching, which a real match would never offer — so it is
 **marked on screen as a development affordance**, and nobody should mistake it for a
 feature.
+
+## Refusals beside where they were tried
+
+A refusal of the player's own command is drawn **at the place they tried it** (issue
+704, step 4): on the map, over the ground they dropped or pinged on, followed as the
+camera moves; on the panel, beside the chip or slot they clicked. It fades over the
+same six seconds the corner list always used. The bookkeeping, and every number, is
+in [078](078-where-it-was-refused.info.md). Everybody else's refusals still go to the
+bottom of the panel. **Not seen on screen**: drawn only with LÖVE stubbed out.

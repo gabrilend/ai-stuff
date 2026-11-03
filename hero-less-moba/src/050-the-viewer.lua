@@ -163,6 +163,7 @@ function M.load(root)
   M.panel       = loadfile(root .. "/src/048-the-panel.lua")()
   M.input       = loadfile(root .. "/src/049-input.lua")()
   M.way_in      = loadfile(root .. "/src/065-the-way-in.lua")()
+  M.refused_at  = loadfile(root .. "/src/078-where-it-was-refused.lua")()
 
   M.way_in.load()
   M.way_in.colours = M.modules.match_parameters.load().commander.colour
@@ -192,10 +193,24 @@ function M.load(root)
 end
 -- }}}
 
+-- {{{ function M.place_of_the_mouse()
+-- Where the mouse is, as a place a refusal can be shown: on the map in world units, so
+-- that it stays on the ground while the camera moves, and on the panel in pixels.
+function M.place_of_the_mouse()
+  local x, y = M.state.mouse_x, M.state.mouse_y
+  if x < M.panel.panel_left() then
+    local world_x, world_y = M.camera_module.screen_to_world(M.camera, x, y)
+    return {space = "world", x = world_x, y = world_y}
+  end
+  return {space = "screen", x = x, y = y}
+end
+-- }}}
+
 -- {{{ function M.begin_match()
 -- Builds a world and hands the viewer to it. The menu names this; it does not do it.
 function M.begin_match()
   local root = M.root
+  M.refusals = M.refused_at.create()
   local parameters = M.modules.match_parameters.load()
   M.world = M.tick_module.assemble(M.modules, parameters)
 
@@ -229,8 +244,16 @@ function M.begin_match()
     camera        = M.camera,
     camera_module = M.camera_module,
     panel         = M.panel,
+    -- Every command a person sends is sent from where the mouse is, so that is where
+    -- it was attempted, and where its refusal will be shown if one comes (704).
     queue         = function(command)
       M.modules.commands.queue(M.world, command)
+      M.refused_at.attempted(M.refusals, command, M.place_of_the_mouse())
+    end,
+    -- A refusal the input layer can make by itself, without asking the simulation,
+    -- shown in the same place for the same reason.
+    refuse_here   = function(text)
+      M.refused_at.show(M.refusals, text, M.place_of_the_mouse(), love.timer.getTime())
     end,
     -- Which player the person at the keyboard is. A real match has one and it is
     -- fixed; the prototype lets you switch teams, so it derives one from that.
@@ -270,11 +293,15 @@ end
 -- Every event here is legible at the rest framing, which is the camera's rule
 -- read from the other end: if a thing is worth raising an event about, a player
 -- must not have to be zoomed in to learn about it.
+--
+-- A refusal of one of this player's own commands is shown beside where it was
+-- attempted. Anybody else's still goes to the corner list, as everything used to.
 local function drain_events(world, frame, watching)
-  for _, event in ipairs(frame.event) do
-    if event.name == "refused" then
-      M.panel.note_refusal(event.reason)
-    end
+  local elsewhere = M.refused_at.settle(M.refusals, frame.event,
+                                        M.context.player_number(M.state),
+                                        love.timer.getTime())
+  for _, reason in ipairs(elsewhere) do
+    M.panel.note_refusal(reason)
   end
 end
 -- }}}
@@ -422,6 +449,10 @@ function M.draw()
                held_kind, M.state.mouse_x, M.state.mouse_y,
                M.state.speed, M.state.paused,
                player_number, M.state.held_hero)
+  -- After the panel, so that a refusal of something tried on the panel is drawn over
+  -- it rather than under it.
+  M.panel.draw_refusals_in_place(M.refused_at.current(M.refusals, love.timer.getTime()),
+                                 M.refused_at.settings, M.camera_module, M.camera)
 
   -- The one banner. A finished match is the only thing in the game that takes
   -- over the screen, because it is the only thing after which nothing else is
