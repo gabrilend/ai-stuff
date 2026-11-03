@@ -1,0 +1,25 @@
+# vertex-grid.map — the modeller's grid as a program of its own (issue 1001)
+#
+# Three doors in, three doors out: place, remove and ask about a cell.
+# Each argument is a struct cell naming the grid by number; each result
+# is a struct cell_answer. A modeller's map places this file as one
+# station and wires to its doors by number, the first use of a program
+# placed inside another in an app's own content.
+#
+# The grid itself lives in the system (src/system/128-vertex-grid.c),
+# because a box cannot remember. Its memory is its app's, through the
+# STAND-IN for 902's per-app region (src/engine/127-app-memory.h).
+
+grid = ../boxes/129-vertex-grid.c
+
+station place (grid:place_vertex)
+  in 0 - 0$
+  out 0 - 0$
+
+station remove (grid:remove_vertex)
+  in 0 - 1$
+  out 0 - 1$
+
+station ask (grid:vertex_in)
+  in 0 - 2$
+  out 0 - 2$
