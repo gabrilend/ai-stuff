@@ -286,3 +286,6 @@ symbeline-2/
 # words-pdf reads its poems and rmail state from here; they change constantly
 # and are kept out of history on purpose (untracked 2026-10-01).
 words-pdf/input/
+
+# fetch-cloud-conversations: the repository-to-project map holds paths on this computer
+scripts/config/cloud-session-projects
