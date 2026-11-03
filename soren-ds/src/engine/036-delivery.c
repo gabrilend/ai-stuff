@@ -91,8 +91,10 @@ static int32_t exit_plain(struct core_ctx *c, struct station *s, struct task *t)
 static int32_t exit_comparator(struct core_ctx *c, struct station *s, struct task *t)
 {
     (void)c;
-    uint8_t threshold[MAX_VALUE_BYTES > 64 ? 64 : MAX_VALUE_BYTES];
+    uint8_t threshold[MAX_VALUE_BYTES > ENGINE_THRESHOLD_BYTES ? ENGINE_THRESHOLD_BYTES : MAX_VALUE_BYTES];
     struct port *p = &s->ports[s->n_box_ports];
+    /* The loader never places one this wide (issue 313); a station built
+     * by hand that is still discards rather than read past the buffer. */
     if ((size_t)p->elem_size > sizeof threshold) {
         return -1;
     }
