@@ -379,10 +379,17 @@ function TargetingSystem:find_area_targets(caster, ability)
 
     local targets = {}
     for _, unit in ipairs(self:units_within(best.x, best.y, ability.area_radius, affected)) do
+        -- With line of sight on, a wall between the centre and a unit
+        -- shields it.
+        if ability.line_of_sight and unit.entity ~= best.entity
+            and not self:has_line_of_sight(best.x, best.y, unit.x, unit.y) then
+            goto continue
+        end
         local target = make_target(unit, caster, ability)
         local dx, dy = unit.x - best.x, unit.y - best.y
         target.distance_from_center = math.sqrt(dx * dx + dy * dy)
         targets[#targets + 1] = target
+        ::continue::
     end
     table.sort(targets, function(a, b)
         if a.distance_from_center ~= b.distance_from_center then

@@ -744,13 +744,64 @@ return AreaEffectSystem
 ```
 
 ### Acceptance Criteria
-- [ ] Area damage abilities hit multiple enemies with appropriate falloff
-- [ ] Area healing abilities efficiently heal multiple allies
-- [ ] Area utility abilities create persistent tactical effects
-- [ ] Optimal targeting finds best positions for maximum effect
-- [ ] Damage distribution respects distance and line-of-sight
+- [x] Area damage abilities hit multiple enemies with appropriate falloff
+- [x] Area healing abilities efficiently heal multiple allies
+- [x] Area utility abilities create persistent tactical effects
+- [x] Optimal targeting finds best positions for maximum effect
+- [x] Damage distribution respects distance and line-of-sight
 - [ ] Visual indicators clearly show area effect boundaries
-- [ ] Performance scales with multiple simultaneous area effects
-- [ ] Integration with existing targeting and effect systems works
+- [x] Performance scales with multiple simultaneous area effects
+- [x] Integration with existing targeting and effect systems works
 - [ ] Balance between area power and single-target abilities is appropriate
 - [ ] Tactical positioning becomes important for both offense and defense
+
+## What Happened
+
+Reconciled against the ability stack (Round 3).
+
+Done by earlier PRs:
+- **Area kind** with `area_radius` and `falloff` (#90, issue 046).
+- **Best-centre search,** which scores each candidate centre by the
+  damage or missing health it would reach (#94, issue 047).
+- **Templates:** `meteor_strike` and `healing_circle` (#101, issue 049).
+
+Built here:
+- **Lasting zones.** An area ability with `zone_duration` leaves its
+  circle on the ground. Settings:
+  - `zone_interval` and `zone_power`;
+  - `zone_modifiers` / `zone_flat_modifiers`, an effect such as a slow;
+  - `zone_effect_duration`, default a pulse and a half;
+  - `zone_effect_name`.
+
+  `PersistentEffectsSystem` pulses each zone. Each pulse:
+  - damages or heals every unit of the affected side standing inside;
+  - renews the zone's effect on them, so a slow fades soon after a unit
+    walks out.
+
+  `get_zones()` lists the zones for a renderer.
+- **`static_field`,** the sketch's utility ability: a small instant hit,
+  then six seconds of 6 damage a second and a 40% slow.
+- **Line of sight inside the blast.** With `line_of_sight` on, a wall
+  between the centre and a unit shields that unit. Before, only the
+  caster's sight to the centre was checked.
+
+Tested by `tests/test_ability_variants.lua` (zone pulses, slow, expiry,
+walls) and `tests/test_ability_balance.lua` (fields are laid in
+battle). Nothing was seen.
+
+### Decisions
+- **Zones live in `PersistentEffectsSystem`,** next to damage and healing
+  over time. The sketch had a separate area effect manager. Zones last
+  their full time even if the caster dies.
+- **No chain lightning or mana drain on the static field.** The field
+  keeps its damage and slow. Chains need a bounce rule, and the drain
+  needs a rule for which bar to drain. Both can be added as settings
+  later if play shows the field needs them.
+- **The first pulse comes one interval after the cast,** since the cast's
+  instant part has just landed.
+
+### Left open, tracked elsewhere
+- **Visual indicators for area and zone boundaries** move to issue 068.
+- **Area against single-target balance, and whether positioning
+  matters,** move to issue 055, whose battles include the static field.
+

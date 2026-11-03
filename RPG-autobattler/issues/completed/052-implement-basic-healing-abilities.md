@@ -553,13 +553,57 @@ end
 ```
 
 ### Acceptance Criteria
-- [ ] Basic heal abilities target allies with lowest health efficiently
-- [ ] Heal over time effects provide sustained healing without overheal waste
-- [ ] Group healing abilities find optimal positions to heal multiple allies
-- [ ] Emergency healing provides burst healing for critically injured units
-- [ ] Healing abilities integrate with mana efficiency system
-- [ ] Overheal prevention ensures no mana waste on full health targets
-- [ ] Self-healing mechanics provide sustainability for healer units
+- [x] Basic heal abilities target allies with lowest health efficiently
+- [x] Heal over time effects provide sustained healing without overheal waste
+- [x] Group healing abilities find optimal positions to heal multiple allies
+- [x] Emergency healing provides burst healing for critically injured units
+- [x] Healing abilities integrate with mana efficiency system
+- [x] Overheal prevention ensures no mana waste on full health targets
+- [x] Self-healing mechanics provide sustainability for healer units
 - [ ] Visual and audio effects clearly indicate healing types
 - [ ] Healing abilities balance appropriately with damage output
-- [ ] Performance scales with multiple healers and healing effects
+- [x] Performance scales with multiple healers and healing effects
+
+## What Happened
+
+Reconciled against the ability stack (Round 3). Almost all of this was
+already built there.
+
+Done by earlier PRs:
+- **Heal kind:** healing up to full, `bonus_low_health`, `self_heal_ratio`
+  and `cleanse` (#101, issue 049). The kind itself came with #90.
+- **Lowest-health targeting** for heals (#94, issue 047).
+- **Mana spent in proportion to the healing needed**, with nothing spent
+  on full-health allies (#82, issue 044).
+- **Templates:** `minor_heal`, `purifying_touch`, and `healing_circle` (an
+  area heal placed where it reaches the most missing health) (#101).
+- **`regeneration`**, healing over time, which stops at full health and
+  keeps the stronger tick on recast (#104, issue 050).
+- **Performance:** 200 units with effects (#101's test).
+
+Built here:
+- **`emergency_heal`**: a strong heal (power 50, +100% on targets under
+  half health) with a 5-second cooldown.
+  - It charges whenever an ally is in reach, but fires only when one is
+    below 30% health.
+  - This uses a new condition, `ally_health_below` (`value` 0-100,
+    `range` defaulting to the ability's).
+  - The unit's condition state gains `lowest_ally_health(range)`.
+- **A `field_medic` set:** sword, emergency heal and regeneration.
+
+Tested by `tests/test_ability_variants.lua` (the condition and the heal)
+and `tests/test_ability_balance.lua` (emergency heals fire in battle).
+Nothing was seen.
+
+### Decisions
+- **The emergency trigger is an activation condition, not a generation
+  condition.** The bar charges while the healer is near allies and is
+  ready the moment someone drops below 30%. The sketch gated charging on
+  the healer's own health being under 30%, which would only help the
+  healer.
+- **"Critically injured" means under 30%,** as in the sketch.
+
+### Left open, tracked elsewhere
+- **Visual and audio effects for healing** move to issue 068.
+- **Healing against damage balance** moves to issue 055.
+

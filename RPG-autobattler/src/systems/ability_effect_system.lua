@@ -26,7 +26,8 @@
 -- and audio player to pick up with pop_cues():
 --   {kind, x, y, amount, target, caster, visual, sound, time}
 -- where kind is "damage", "heal", "effect_applied", "effect_expired",
--- "projectile_launched", "projectile_hit", "area" or "death".
+-- "projectile_launched", "projectile_hit", "projectile_miss", "area" or
+-- "death".
 --
 -- A PersistentEffectsSystem made with this system attaches itself as
 -- self.persistent and receives each activation after its instant part,
@@ -60,6 +61,8 @@ function AbilityEffectSystem:new(entity_manager, options)
             kills = 0,
             projectiles_launched = 0,
             projectile_hits = 0,
+            projectile_misses = 0,
+            cleave_hits = 0,
             by_type = {}         -- ability type -> {casts, amount}
         }
     }
@@ -225,11 +228,64 @@ local function live_target(em, target)
 end
 -- }}}
 
+-- {{{ AbilityEffectSystem:cleave_targets
+-- Living enemies of the caster, other than those in `skip`, within the
+-- ability's range and inside its attack arc around the line from the
+-- caster to the main target; nearest first, at most cleave_targets.
+function AbilityEffectSystem:cleave_targets(caster, main_target, ability, skip)
+    local em = self.entity_manager
+    local cx, cy = position_of(em, caster)
+    local tx, ty = position_of(em, main_target)
+    local mx, my = tx - cx, ty - cy
+    local main_length = math.sqrt(mx * mx + my * my)
+    local half_arc = math.rad(ability.attack_arc / 2)
+    local team = em:get_component(caster, "team")
+    local own_team = team and team.player_id or 0
+
+    local found = {}
+    for _, entity in ipairs(em:get_entities_with_components({"position", "health", "team"})) do
+        if entity ~= caster and not skip[entity] and Unit.is_alive(em, entity)
+            and em:get_component(entity, "team").player_id ~= own_team then
+            local x, y = position_of(em, entity)
+            local dx, dy = x - cx, y - cy
+            local distance = math.sqrt(dx * dx + dy * dy)
+            if distance <= ability.range then
+                local inside = true
+                if main_length > 1e-6 and distance > 1e-6 then
+                    local cosine = (dx * mx + dy * my) / (distance * main_length)
+                    inside = math.acos(math.max(-1, math.min(1, cosine))) <= half_arc + 1e-9
+                end
+                if inside then
+                    table.insert(found, {entity = entity, distance = distance})
+                end
+            end
+        end
+    end
+    table.sort(found, function(a, b)
+        if a.distance ~= b.distance then
+            return a.distance < b.distance
+        end
+        return a.entity.id < b.entity.id
+    end)
+    while #found > ability.cleave_targets do
+        table.remove(found)
+    end
+    return found
+end
+-- }}}
+
 -- {{{ AbilityEffectSystem:apply_damage_effect
+-- Each target takes the ability's damage. With cleave_targets, each blow
+-- also strikes that many more enemies in the attack arc for cleave_ratio
+-- of the damage.
 function AbilityEffectSystem:apply_damage_effect(event)
     local total = 0
     local ability = event.ability
     local caster_stats = self:stats_of(event.caster)
+    local struck = {}
+    for _, target in ipairs(event.targets) do
+        struck[target.entity] = true
+    end
     for _, target in ipairs(event.targets) do
         local now = live_target(self.entity_manager, target)
         local effect = ability:calculate_effect(now, event.plan.effect_power, {
@@ -238,6 +294,20 @@ function AbilityEffectSystem:apply_damage_effect(event)
             random = self.random
         })
         total = total + self:deal_damage(event.caster, target.entity, effect.amount, ability)
+        if (ability.cleave_targets or 0) > 0 then
+            for _, extra in ipairs(self:cleave_targets(event.caster, target.entity, ability, struck)) do
+                struck[extra.entity] = true
+                local cleave = ability:calculate_effect(live_target(self.entity_manager, extra),
+                    event.plan.effect_power, {
+                        caster_stats = caster_stats,
+                        target_stats = self:stats_of(extra.entity),
+                        random = self.random,
+                        cleave = true
+                    })
+                total = total + self:deal_damage(event.caster, extra.entity, cleave.amount, ability)
+                self.stats.cleave_hits = self.stats.cleave_hits + 1
+            end
+        end
     end
     return total
 end
@@ -263,43 +333,60 @@ function AbilityEffectSystem:apply_heal_effect(event)
 end
 -- }}}
 
+-- {{{ AbilityEffectSystem:add_effect
+-- Puts a named effect on a living target. spec: {name, modifiers,
+-- flat_modifiers, stun, silence, duration, stacking, max_stacks}; kind is
+-- "buff" or "debuff"; cue_source gives the cue's visual and sound.
+-- Recasting refreshes the time, or adds a stack when stacking is
+-- "stack". Returns true when the effect landed.
+function AbilityEffectSystem:add_effect(caster, target, spec, kind, cue_source)
+    local em = self.entity_manager
+    if not Unit.is_alive(em, target) then
+        return false
+    end
+    local effects = self:effects_of(target)
+    local existing = effects.active[spec.name]
+    if existing then
+        if spec.stacking == "stack" and existing.stacks < existing.max_stacks then
+            existing.stacks = existing.stacks + 1
+        end
+        existing.remaining = spec.duration
+    else
+        effects.active[spec.name] = {
+            name = spec.name,
+            kind = kind,
+            modifiers = spec.modifiers,
+            flat_modifiers = spec.flat_modifiers,
+            stun = spec.stun,
+            silence = spec.silence,
+            duration = spec.duration,
+            remaining = spec.duration,
+            stacks = 1,
+            max_stacks = spec.max_stacks or 1,
+            caster = caster
+        }
+    end
+    self:refresh_speed(target)
+    self.stats.effects_applied = self.stats.effects_applied + 1
+    local x, y = position_of(em, target)
+    cue_source = cue_source or {}
+    self:cue("effect_applied", {x = x, y = y, target = target, caster = caster,
+        name = spec.name, effect_kind = kind, visual = cue_source.visual_effect, sound = cue_source.sound_effect})
+    return true
+end
+-- }}}
+
 -- {{{ AbilityEffectSystem:apply_status_effect
 -- Buffs and debuffs.
 function AbilityEffectSystem:apply_status_effect(event)
-    local em = self.entity_manager
     local ability = event.ability
     local applied = 0
     for _, target in ipairs(event.targets) do
-        if Unit.is_alive(em, target.entity) then
+        if Unit.is_alive(self.entity_manager, target.entity) then
             local spec = ability:calculate_effect(target, event.plan.effect_power)
-            local effects = self:effects_of(target.entity)
-            local existing = effects.active[spec.name]
-            if existing then
-                if spec.stacking == "stack" and existing.stacks < existing.max_stacks then
-                    existing.stacks = existing.stacks + 1
-                end
-                existing.remaining = spec.duration
-            else
-                effects.active[spec.name] = {
-                    name = spec.name,
-                    kind = ability.type,
-                    modifiers = spec.modifiers,
-                    flat_modifiers = spec.flat_modifiers,
-                    stun = spec.stun,
-                    silence = spec.silence,
-                    duration = spec.duration,
-                    remaining = spec.duration,
-                    stacks = 1,
-                    max_stacks = spec.max_stacks,
-                    caster = event.caster
-                }
+            if self:add_effect(event.caster, target.entity, spec, ability.type, ability) then
+                applied = applied + 1
             end
-            self:refresh_speed(target.entity)
-            self.stats.effects_applied = self.stats.effects_applied + 1
-            applied = applied + 1
-            local x, y = position_of(em, target.entity)
-            self:cue("effect_applied", {x = x, y = y, target = target.entity, caster = event.caster,
-                name = spec.name, effect_kind = ability.type, visual = ability.visual_effect, sound = ability.sound_effect})
         end
     end
     return applied
@@ -350,6 +437,7 @@ function AbilityEffectSystem:launch_projectile(event)
     local team = em:get_component(event.caster, "team")
     local projectile = {
         x = x, y = y,
+        origin_x = x, origin_y = y,
         dir_x = dx / length, dir_y = dy / length,
         speed = ability.projectile_speed,
         travelled = 0,
@@ -402,13 +490,22 @@ function AbilityEffectSystem:update_projectile(projectile, dt)
     local ability = projectile.ability
     for _, entry in ipairs(passed) do
         projectile.hit[entry.entity] = true
+        -- A miss flies on past the enemy, still able to hit the next.
+        if (ability.accuracy or 1) < 1 and self.random() >= ability.accuracy then
+            self.stats.projectile_misses = self.stats.projectile_misses + 1
+            local pos = em:get_component(entry.entity, "position")
+            self:cue("projectile_miss", {x = pos.x, y = pos.y, target = entry.entity, caster = projectile.caster,
+                visual = ability.visual_effect})
+            goto continue
+        end
         projectile.hits_left = projectile.hits_left - 1
         local health = em:get_component(entry.entity, "health")
         local effect = ability:calculate_effect({current_health = health.current_hp, max_health = health.max_hp},
             projectile.share, {
                 caster_stats = self:stats_of(projectile.caster),
                 target_stats = self:stats_of(entry.entity),
-                random = self.random
+                random = self.random,
+                distance = projectile.travelled + entry.t
             })
         self:deal_damage(projectile.caster, entry.entity, effect.amount, ability)
         self.stats.projectile_hits = self.stats.projectile_hits + 1
@@ -424,6 +521,7 @@ function AbilityEffectSystem:update_projectile(projectile, dt)
             projectile.y = y1 + projectile.dir_y * entry.t
             return false
         end
+        ::continue::
     end
 
     projectile.x, projectile.y = x2, y2

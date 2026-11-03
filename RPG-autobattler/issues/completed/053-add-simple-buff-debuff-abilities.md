@@ -702,13 +702,51 @@ return BuffDebuffFactory
 ```
 
 ### Acceptance Criteria
-- [ ] Buff abilities enhance ally stats and provide tactical advantages
-- [ ] Debuff abilities weaken enemy capabilities effectively
-- [ ] Effect stacking and duration mechanics work correctly
-- [ ] Cleanse abilities can remove appropriate effect types
-- [ ] Stat modifiers are applied and removed properly
+- [x] Buff abilities enhance ally stats and provide tactical advantages
+- [x] Debuff abilities weaken enemy capabilities effectively
+- [x] Effect stacking and duration mechanics work correctly
+- [x] Cleanse abilities can remove appropriate effect types
+- [x] Stat modifiers are applied and removed properly
 - [ ] Visual feedback clearly shows active buffs/debuffs
-- [ ] Performance scales with many simultaneous effects
-- [ ] Integration with existing ability and effect systems works seamlessly
+- [x] Performance scales with many simultaneous effects
+- [x] Integration with existing ability and effect systems works seamlessly
 - [ ] Balance between buff power and mana cost is appropriate
-- [ ] Targeting prioritization selects optimal buff/debuff targets
+- [x] Targeting prioritization selects optimal buff/debuff targets
+
+## What Happened
+
+Reconciled against the ability stack (Round 3). Almost all of this was
+already built there.
+
+Done by earlier PRs:
+- **Buff and debuff kinds** (#90), and their effects (#101, issue 049):
+  - an "effects" component on each unit, with stat modifiers (fractional
+    and flat), stun and silence;
+  - durations, refreshing, and stacking up to `max_stacks`;
+  - speed changes applied to the unit's movement.
+- **Templates:** `battle_fury`, `protective_ward`, `focus`,
+  `crippling_blow`, `stunning_bash` and `sunder_armor` (#101).
+- **Cleanse** of buffs or debuffs, including damage over time (#104,
+  issue 050).
+- **Targeting:**
+  - debuffs go to the highest-value enemy, and buffs to the closest ally;
+  - units that already carry the effect come last (#94, issue 047).
+- **Stuns and silences** stop a unit's abilities (#96, issue 048).
+
+Built here:
+- **`weakness_curse`**, the sketch's third ability. It takes 30% of an
+  enemy's attack and healing power for 8 seconds.
+- **`AbilityEffectSystem:add_effect`**, factored out of the buff and debuff
+  path, so the zones of issue 054 can put effects on units too.
+
+Nothing was seen.
+
+### Decisions
+- **No separate `buff_debuff_system.lua`.** The effect system and the
+  "effects" component already do what the sketch's manager did, so a
+  second manager would split one job in two.
+
+### Left open, tracked elsewhere
+- **Visual feedback for active buffs and debuffs** moves to issue 068.
+- **Buff power against mana cost** moves to issue 055.
+

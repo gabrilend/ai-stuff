@@ -169,6 +169,36 @@ function UnitAbilities.unit_state(entity_manager, entity, snapshot)
     function state.allies_within(range)
         return count_within(range, false)
     end
+
+    local lowest_memo = {}
+    -- {{{ function state.lowest_ally_health
+    -- The lowest health fraction (0-1) among living allies within range,
+    -- not counting the unit itself; nil when there are none.
+    function state.lowest_ally_health(range)
+        if lowest_memo[range] ~= nil then
+            return lowest_memo[range] or nil
+        end
+        snapshot = snapshot or snapshot_from(em)
+        local range_sq = range * range
+        local lowest
+        for _, other in ipairs(snapshot) do
+            if other.entity ~= entity and other.team == state.team then
+                local dx, dy = other.x - state.x, other.y - state.y
+                if dx * dx + dy * dy <= range_sq then
+                    local other_health = em:get_component(other.entity, "health")
+                    if other_health and other_health.max_hp > 0 then
+                        local fraction = other_health.current_hp / other_health.max_hp
+                        if not lowest or fraction < lowest then
+                            lowest = fraction
+                        end
+                    end
+                end
+            end
+        end
+        lowest_memo[range] = lowest or false
+        return lowest
+    end
+    -- }}}
     return state
 end
 -- }}}

@@ -11,16 +11,62 @@ local AbilityTemplates = {}
 
 AbilityTemplates.abilities = {
     -- {{{ Primary abilities
+    -- The sword and the bow are the defaults; the other weapons trade
+    -- reach, speed (mana_rate) and power against each other. Melee
+    -- reach sits near 15 and ranged near 30, matching the base assault
+    -- reaches in src/systems/base_assault_system.lua. Melee strikes the
+    -- closest enemy; ranged weapons pick the weakest one they can see, to
+    -- finish kills.
     primary_melee_attack = {
-        type = "damage", range = 15, power = 25, max_mana = 100, mana_rate = 10,
+        type = "damage", weapon_type = "sword", range = 15, power = 25, max_mana = 100, mana_rate = 10,
         damage_type = "physical",
         visual_effect = "melee_slash", sound_effect = "sword_hit"
     },
     primary_ranged_attack = {
-        type = "damage", delivery = "projectile", projectile_speed = 150,
+        type = "damage", weapon_type = "bow", target_priority = "weakest", delivery = "projectile", projectile_speed = 150,
         range = 30, power = 20, max_mana = 100, mana_rate = 10,
+        accuracy = 0.95, drop_off_distance = 20,
         damage_type = "physical",
         visual_effect = "arrow_shot", sound_effect = "bow_release"
+    },
+    axe_attack = {
+        type = "damage", weapon_type = "axe", range = 13, power = 32, max_mana = 100, mana_rate = 8,
+        cleave_targets = 1, attack_arc = 120,
+        damage_type = "physical",
+        visual_effect = "axe_swing", sound_effect = "axe_hit"
+    },
+    dagger_attack = {
+        type = "damage", weapon_type = "dagger", range = 12, power = 18, max_mana = 100, mana_rate = 14,
+        critical_chance = 0.15, critical_multiplier = 2,
+        damage_type = "physical",
+        visual_effect = "dagger_stab", sound_effect = "dagger_hit"
+    },
+    spear_attack = {
+        type = "damage", weapon_type = "spear", range = 20, power = 22, max_mana = 100, mana_rate = 10,
+        cleave_targets = 1, attack_arc = 20, cleave_ratio = 0.5,
+        damage_type = "physical",
+        visual_effect = "spear_thrust", sound_effect = "spear_hit"
+    },
+    crossbow_attack = {
+        type = "damage", weapon_type = "crossbow", target_priority = "weakest", delivery = "projectile", projectile_speed = 200,
+        range = 34, power = 28, max_mana = 100, mana_rate = 7,
+        accuracy = 0.98, drop_off_distance = 26, armor_penetration = 5,
+        damage_type = "physical",
+        visual_effect = "bolt_shot", sound_effect = "crossbow_release"
+    },
+    sling_attack = {
+        type = "damage", weapon_type = "sling", target_priority = "weakest", delivery = "projectile", projectile_speed = 180,
+        range = 24, power = 16, max_mana = 100, mana_rate = 13,
+        accuracy = 0.9, drop_off_distance = 14,
+        damage_type = "physical",
+        visual_effect = "stone_shot", sound_effect = "sling_release"
+    },
+    javelin_attack = {
+        type = "damage", weapon_type = "javelin", target_priority = "weakest", delivery = "projectile", projectile_speed = 110,
+        range = 20, power = 30, max_mana = 100, mana_rate = 8,
+        accuracy = 0.9, drop_off_distance = 12,
+        damage_type = "physical",
+        visual_effect = "javelin_throw", sound_effect = "javelin_whoosh"
     },
     -- }}}
 
@@ -54,6 +100,14 @@ AbilityTemplates.abilities = {
         generation_conditions = {{type = "allies_in_range", operator = ">", value = 0}},
         visual_effect = "regeneration_aura", sound_effect = "regen_cast"
     },
+    emergency_heal = {
+        type = "heal", range = 30, power = 50, max_mana = 100, mana_rate = 8,
+        bonus_low_health = 1.0,
+        cooldown = 5,
+        generation_conditions = {{type = "allies_in_range", operator = ">", value = 0}},
+        activation_conditions = {{type = "ally_health_below", value = 30}},
+        visual_effect = "emergency_light", sound_effect = "urgent_chime"
+    },
     purifying_touch = {
         type = "heal", range = 20, power = 15, max_mana = 100, mana_rate = 5,
         cleanse = true,
@@ -84,6 +138,12 @@ AbilityTemplates.abilities = {
     -- }}}
 
     -- {{{ Debuffs
+    weakness_curse = {
+        type = "debuff", range = 30, max_mana = 100, mana_rate = 4, duration = 8,
+        effect_name = "weakened", modifiers = {attack = -0.3, healing_power = -0.3},
+        generation_conditions = {{type = "enemies_in_range", operator = ">", value = 0}},
+        visual_effect = "curse", sound_effect = "whisper"
+    },
     poison_dart = {
         type = "damage", delivery = "projectile", projectile_speed = 180,
         range = 30, power = 8, max_mana = 100, mana_rate = 7,
@@ -116,6 +176,16 @@ AbilityTemplates.abilities = {
         generation_conditions = {{type = "enemies_in_range", operator = ">=", value = 2}},
         visual_effect = "meteor_impact", sound_effect = "explosion"
     },
+    static_field = {
+        type = "area", area_effect = "damage", range = 40, area_radius = 30,
+        power = 8, max_mana = 100, mana_rate = 4, max_targets = 6,
+        cooldown = 8, shared_cooldown = "spell",
+        damage_type = "magical",
+        zone_duration = 6, zone_interval = 1, zone_power = 6,
+        zone_modifiers = {speed = -0.4}, zone_effect_name = "static_slow",
+        generation_conditions = {{type = "enemies_in_range", operator = ">=", value = 2}},
+        visual_effect = "static_field", sound_effect = "crackle"
+    },
     healing_circle = {
         type = "area", area_effect = "heal", range = 25, area_radius = 40,
         power = 25, max_mana = 100, mana_rate = 4, max_targets = 4,
@@ -134,7 +204,11 @@ AbilityTemplates.sets = {
     battle_mage = {"primary_ranged_attack", "meteor_strike", "battle_fury"},
     brute = {"primary_melee_attack", "stunning_bash", "crippling_blow", "sunder_armor"},
     druid = {"primary_ranged_attack", "regeneration", "healing_circle", "focus"},
-    skirmisher = {"primary_ranged_attack", "poison_dart", "piercing_shot"}
+    skirmisher = {"primary_ranged_attack", "poison_dart", "piercing_shot"},
+    berserker = {"axe_attack", "battle_fury"},
+    crossbowman = {"crossbow_attack", "piercing_shot"},
+    field_medic = {"primary_melee_attack", "emergency_heal", "regeneration"},
+    storm_caller = {"primary_ranged_attack", "static_field", "weakness_curse"}
 }
 
 return AbilityTemplates

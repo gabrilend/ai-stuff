@@ -701,13 +701,80 @@ end
 ```
 
 ### Acceptance Criteria
-- [ ] Comprehensive test framework validates all ability types and interactions
+- [x] Comprehensive test framework validates all ability types and interactions
 - [ ] Balance testing ensures no single strategy dominates gameplay
-- [ ] Performance testing confirms system scales to 100+ units with abilities
-- [ ] Statistical analysis provides confidence in balance measurements
-- [ ] Automated testing can run during development builds
-- [ ] Test results generate actionable balance recommendations
-- [ ] Integration testing validates ability interactions work correctly
+- [x] Performance testing confirms system scales to 100+ units with abilities
+- [x] Statistical analysis provides confidence in balance measurements
+- [x] Automated testing can run during development builds
+- [x] Test results generate actionable balance recommendations
+- [x] Integration testing validates ability interactions work correctly
 - [ ] Memory and performance profiling identifies optimization opportunities
-- [ ] Test framework supports easy addition of new test scenarios
-- [ ] Balance reports provide clear insights for game design decisions
+- [x] Test framework supports easy addition of new test scenarios
+- [x] Balance reports provide clear insights for game design decisions
+
+## What Happened
+
+Reconciled against the ability stack (Round 3). The framework is built.
+The issue stays open, narrowed to the balance tuning it found and the
+memory profiling.
+
+Built here:
+- **`src/testing/ability_balance.lua`**, a headless battle harness:
+  - `run_battle`: two rosters of units with ability sets fight, with the
+    mana, targeting, activation, cooldown, effect and over-time systems
+    all running;
+  - `matchup`: many seeded battles, with the sides swapped every other
+    battle;
+  - `round_robin`: every set against every other;
+  - `wilson`: 95% intervals;
+  - `report`: a verdict and advice for each set.
+  - Battles are seeded and come out the same under luajit and lua5.4.
+- **`tests/test_ability_balance.lua`:**
+  - repeatability, a stronger side winning, the interval maths, a mirror
+    match that comes out even, and the report's thresholds;
+  - the newer abilities working in real battles (cleave, static fields,
+    emergency heals, misses);
+  - 100 units with abilities for ten seconds of battle (about 0.14 s
+    under luajit and 0.43 s under lua5.4 here).
+- **`./run <dir> unit`** now runs the variant and balance suites.
+- **`./run <dir> balance`** prints a full round robin of every set, ten
+  battles a pairing (about 30 s).
+
+### First findings (2026-11-02, ten battles a pairing)
+- **Ranged sets lead:**
+  - skirmisher 93%, archer 88% and crossbowman 79% are flagged dominant;
+  - warrior 23% and druid 21% are flagged weak;
+  - brute, storm caller, battle mage, berserker, medic and cleric fall in
+    between.
+- Melee units walk in under fire while archers stand and shoot, and a
+  primary bar takes about ten seconds to fill. So the first exchanges
+  favour reach.
+- **No numbers were changed for this.** The walking is a stand-in for lane
+  following, so tuning to it could be tuning to the stand-in.
+
+### Decisions
+- **One module, not three.** The sketch's test framework, performance
+  tests and balance reports are one harness plus a test suite.
+  Performance is timed in the suite and in each system's own tests.
+- **A set is flagged only when its whole 95% interval lies past 65%
+  (dominant) or 35% (weak),** so a lucky handful of battles isn't called
+  a problem. Draws count half to each side.
+- **Balance numbers are not tuned against the harness's stand-in
+  walking.** Decided in Round 4 by the coordinating session, answering
+  the question this PR raised. Tuning waits until issue 067 puts ability
+  sets into real matches with lane movement. Until then, harness win
+  rates are provisional readings, not targets.
+- **Battles use straight-line walking toward the nearest enemy.** That's
+  enough to bring melee into reach. Real lane movement comes with issue
+  067 (match units with ability sets).
+
+## Still To Do
+- [ ] Tune the sets until none is flagged, once issue 067 has put ability
+  sets into real matches (see the decision below).
+- [ ] Profile memory, not only time, in the 100-unit battle.
+- Balance judgements handed over from issues 051-054:
+  - [ ] melee against ranged;
+  - [ ] healing against damage;
+  - [ ] buff power against mana cost;
+  - [ ] area against single target, and whether positioning matters.
+

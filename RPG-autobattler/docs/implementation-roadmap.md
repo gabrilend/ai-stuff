@@ -77,13 +77,15 @@
 - [x] Add ability activation when mana is full (Issue #048)
 - [x] Create different ability types (damage, heal, buff, etc.) (Issue #049)
 - [x] Implement ability cooldowns and effects (Issue #050)
+- [x] Ability activation system (Issue #056: a repeat of #048, closed as done)
 
 ### 4.3 Basic Abilities
-- [ ] Create primary attack abilities for melee/ranged
-- [ ] Implement basic healing abilities
-- [ ] Add simple buff/debuff abilities
-- [ ] Create area-of-effect abilities
-- [ ] Test ability interactions and balance
+- [x] Create primary attack abilities for melee/ranged (Issue #051: weapons, cleave, accuracy, drop-off)
+- [x] Implement basic healing abilities (Issue #052: emergency heal added)
+- [x] Add simple buff/debuff abilities (Issue #053: weakness curse added)
+- [x] Create area-of-effect abilities (Issue #054: lasting zones, static field)
+- [ ] Test ability interactions and balance (Issue #055: harness built; open for tuning, ranged sets lead)
+- [ ] Draw and play ability cues (Issue #068: visuals and sounds from 051-054, needs a screen)
 
 ## Phase 5: Unit Templates
 
