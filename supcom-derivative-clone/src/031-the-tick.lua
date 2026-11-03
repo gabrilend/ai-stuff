@@ -116,7 +116,7 @@ M.SYSTEMS = {
   row("sight-and-aim", true, {"targeting", "aim_pass"}),
   row("fire", true, {"combat", "fire_pass"}),
   row("land", false, {"combat", "land_pass"}),
-  row("die", false, {"combat", "die_pass"}),
+  row("die", false, {"combat", "die_row"}),
   row("the-cloud", false, "401"),
   row("consequences", false, "309"),
   row("snapshot", false, {"snapshot", "snapshot_pass"}),

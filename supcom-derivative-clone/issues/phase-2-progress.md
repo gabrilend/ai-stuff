@@ -21,7 +21,7 @@ one in a trough, and the ridge losing — because it was seen first.
 | 208 | Death leaves bones | built |
 | 209 | The thread pool slices the tick | not started |
 | 210 | The command truck moves and dies in one hit | built |
-| 211 | The enforcer walks forward and eats | not started |
+| 211 | The enforcer walks forward and eats | built |
 
 **Blocking:** A3 (tracking or ballistic shells) sits under 205 and 206 and is the
 one question here that changes the shape of the code rather than a number. It

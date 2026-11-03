@@ -61,6 +61,13 @@ The file returns one table: `{[name] = row}`.
 | `shield_seconds` | double | the sphere's recharge period; zero where there is no shield; becomes `shield_ticks`, the period of `world.recharge.<name>` |
 | `cost_mass`, `cost_energy` | integer | the construction stream's totals |
 | `bone_share` | double | the fraction of `cost_mass` its bones carry when it dies (issue 208); from zero to one |
+| `sphere_radius` | double | cells around it its shield covers, a sphere, so height counts; zero exactly when `shield` is zero (issue 211) |
+| `eat_radius` | double | cells around it from which it eats bones; zero eats nothing (issue 211) |
+| `eat_share` | double | the share of what it eats that goes to the treasury, copied into the row at birth until a factory's dial sets another (issue 307); the rest goes to its `eaten`; from zero to one |
+| `upgrade_mass` | integer | `eaten` per upgrade step; at least one when there are steps |
+| `upgrade_steps` | integer | how many upgrade steps the kind has; zero never upgrades |
+| `upgrade_health`, `upgrade_damage` | integer | what each step adds to the health cap and the damage (A9's working ruling) |
+| `upgrade_sphere` | double | what each step adds to the sphere's radius |
 | `build_seconds` | double | how long the stream runs at unit build power; becomes `build_ticks` |
 
 ## Data structures it owns

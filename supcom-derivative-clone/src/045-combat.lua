@@ -71,12 +71,14 @@ local units = world_module.load("units")
 local timers = world_module.load("timers")
 local targeting = world_module.load("targeting")
 local bones = world_module.load("bones")
+local enforcer = world_module.load("enforcer")
 
 -- {{{ local function heal_counter()
--- The heal counter of a unit's kind, and the kind's cap.
+-- The heal counter of a unit's kind, and the unit's cap: the kind's, plus what
+-- an enforcer's upgrade steps add (issue 211).
 local function heal_counter(world, id)
   local row = units.kind(world.unit.kind[id])
-  return world.heal[row.name], row.health
+  return world.heal[row.name], enforcer.cap(world, id)
 end
 -- }}}
 
@@ -96,7 +98,8 @@ end
 
 -- {{{ function M.hurt()
 -- Takes `amount` off a unit's health: the current value is derived, the amount
--- subtracted, and the pair rewritten with the increment of now. Two hurts on one
+-- subtracted, and the pair rewritten with the increment of now; a friendly
+-- enforcer's sphere takes its share first. Two hurts on one
 -- increment both apply, and the heal after them counts from the second. Health
 -- may fall below zero; that is the die pass's business. Refuses a negative or
 -- fractional amount, so nothing heals through here.
@@ -108,8 +111,9 @@ function M.hurt(world, id, amount)
   if unit.alive[id] ~= 1 or unit.kind[id] == 0 then
     error("combat: unit " .. tostring(id) .. " is not a live unit of a kind to hurt", 2)
   end
-  -- Issue 211: a unit inside an enforcer's sphere has the shield take the
-  -- amount first; until then the amount goes straight to the heal pair.
+  -- A unit inside a friendly enforcer's sphere has the shield take the amount
+  -- first, and only what is left reaches the heal pair (issue 211).
+  amount = enforcer.absorb(world, id, amount)
   local counter, cap = heal_counter(world, id)
   unit.health[id], unit.health_at[id] =
     timers.write(unit.health[id], unit.health_at[id], counter, cap, -amount)
@@ -238,6 +242,16 @@ function M.die_pass(world)
     return gone[shot.target[index]] == true
   end)
   return #dead
+end
+-- }}}
+
+-- {{{ function M.die_row()
+-- The tick's `die` row: the die pass, then the enforcers' eat pass, so the bones
+-- a tick leaves are eaten the tick they fall if an enforcer stands there. The
+-- tick's thirteen rows are fixed, so the eat pass runs inside this one.
+function M.die_row(world)
+  M.die_pass(world)
+  enforcer.eat_pass(world)
 end
 -- }}}
 
