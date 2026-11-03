@@ -5,15 +5,16 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 105, 107 |
 | Blocks | 110, 111, 601, 701, 705, 706, 801 |
-| Reads | [the tick and the timers](../docs/003-the-tick-and-the-timers.md) |
+| Reads | [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) |
 | Open questions | F2 |
 
 ## Current behavior
 
-Nothing. The tick document says the world is fingerprinted at the end of every
-tick and copied out for a viewer, and nothing does either. The phase 1 test
-program looks for a source file whose stem is `snapshot` and asserts that two
-runs from the same seed and commands produce the same hash at every tick.
+Built. `src/036-snapshot.lua` fingerprints the world over its layout, copies it
+for a viewer, stamps what a match was made from, and writes and reads the replay
+log. Its `snapshot_pass` is the tick's last row. The phase 1 program's hash suite
+holds, and new ones show that a copy stands alone, that the hash sees a double's
+last bit, and that a recorded match replays to the same hashes.
 
 ## Intended behavior
 
@@ -57,12 +58,39 @@ silently played wrong. The log is text so that two of them can be diffed.
    command, and `replay(path)`.
 7. Fill the companion with the log's line formats.
 
+## What happened
+
+- **The world is fingerprinted every `fingerprint_every` ticks, not every
+  tick.** Folding every cell every tick cost about a tenth of a millisecond on
+  the test's small field (ten thousand ticks in 1.1 seconds, against the test's
+  limit of two) and grows with the field's area. The rule is ten ticks, one a
+  second, and the log writes every fingerprint; the tick document says so now.
+- **Arrays are folded as the words of their memory.** An integer is one word
+  and a double the two words of its bit pattern, read through a cast rather
+  than a union per value; the same thing, faster. Both target machines are
+  little-endian.
+- **A pool is folded only up to its highest claimed row**, a queue to its count:
+  the rest is zero and tells nothing.
+- **The fold is MurmurHash3's body without its large multiplications**, which a
+  double cannot hold exactly; it is a fingerprint for equality, not a defence.
+- **The log is written as the door accepts each command**, through
+  `note_command`; `record` also writes whatever was already queued, so starting
+  a recording late loses nothing.
+- **The stamp covers the allocation parameters and every rule**, so a replay
+  recorded before a balance change is refused by the runner that compares
+  stamps. The world now keeps a copy of its parameters for this.
+- **A hash line means the fingerprint taken during that tick**, kept in the
+  world as `fingerprint` and `fingerprint_tick`; a replayer compares those after
+  running the tick, not a fresh hash, which would fold the tick after.
+- **The log's first line names its format and version**, and anything else is
+  refused before a line is read.
+
 ## Related documents and tools
 
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md)
-- [The views](../docs/010-the-views.md)
-- [Other players](../docs/011-other-players.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md)
+- [The views](../../docs/010-the-views.md)
+- [Other players](../../docs/011-other-players.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

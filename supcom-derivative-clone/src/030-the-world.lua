@@ -64,9 +64,14 @@ local ROOT = HERE:match("^(.*)/[^/]+$")
 -- check `validate` makes of it. Switching positions to fixed-point integers --
 -- open question F2, if the two machines disagree on doubles -- is changing type
 -- names in the layout below and nothing else.
+--
+-- `text` is the one type that is not a number: a Lua array of strings, the empty
+-- string where there is nothing. It exists for the refusal ring, whose reasons
+-- are sentences a viewer shows, and it is never read by a rule.
 M.TYPES = {
   integer = {array = ffi.typeof("int32_t[?]")},
   double  = {array = ffi.typeof("double[?]")},
+  text    = {lua = true},
 }
 -- }}}
 
@@ -79,9 +84,14 @@ M.TYPES = {
 --            walkers go from one to it) and a stack of released ids.
 --   fixed -- every row exists for the whole match: one per cell, one per team,
 --            one per named stream.
+--   queue -- rows one to `count` in the order they were pushed; removing a row
+--            closes the gap, so the order never changes. The command queue.
+--   ring  -- the last `capacity` rows written, oldest overwritten first; `last`
+--            is the slot written most recently. The refusals a viewer shows.
 --
 -- Capacity comes from the allocation parameters (`units`, `teams`), from the
--- field (`cells`), or from a module's own list (`streams`). An issue that builds
+-- field (`cells`), from a module's own list (`streams`), or from the rules
+-- (`commands`, `refusals`). An issue that builds
 -- a system adds its group or its fields here; a field nobody has built yet still
 -- holds zero, which is what "nothing" means.
 M.LAYOUT = {
@@ -128,11 +138,28 @@ M.LAYOUT = {
   {group = "stream", kind = "fixed", capacity = "streams", fields = {
     {"state", "integer"},       -- one named stream's xorshift state, never zero
   }},
+  {group = "command", kind = "queue", capacity = "commands", fields = {
+    {"tick", "integer"},        -- the tick it takes effect at
+    {"verb", "integer"},        -- the verb's place in the door's list of names
+    {"team", "integer"},
+    {"player", "integer"},      -- zero when the command does not name one
+    {"argument1", "double"},    -- the verb's arguments, in the order it names them
+    {"argument2", "double"},
+    {"argument3", "double"},
+    {"argument4", "double"},
+  }},
+  {group = "refusal", kind = "ring", capacity = "refusals", fields = {
+    {"tick", "integer"},        -- the tick that was running when it was refused
+    {"team", "integer"},
+    {"verb", "integer"},        -- zero for a verb nobody knows
+    {"reason", "text"},
+  }},
 }
 
 -- The bookkeeping a group of each kind carries beside its fields, in the order
 -- the hash folds it.
-M.SCALARS = {pool = {"count", "top", "released"}, fixed = {}}
+M.SCALARS = {pool = {"count", "top", "released"}, fixed = {}, queue = {"count"},
+             ring = {"count", "last"}}
 
 -- Every periodic effect's counter, as a place in the world and where its period
 -- and any extra integers come from in the rules. Adding an effect is adding a
@@ -222,12 +249,14 @@ end
 
 -- {{{ local function capacities()
 -- How many rows each capacity name means for this match.
-local function capacities(parameters, field, streams)
+local function capacities(parameters, field, streams, rules)
   return {
     units = whole(parameters, "units"),
     teams = whole(parameters, "teams"),
     cells = field.size * field.size,
     streams = #streams.STREAMS,
+    commands = whole(rules, "commands"),
+    refusals = whole(rules, "refusals"),
   }
 end
 -- }}}
@@ -245,9 +274,39 @@ local function allocate_group(row, capacity)
     group.free = M.TYPES.integer.array(capacity + 1)
   end
   for _, field in ipairs(row.fields) do
-    group[field[1]] = M.TYPES[field[2]].array(capacity + 1)
+    local kind = M.TYPES[field[2]]
+    if kind.lua then
+      -- Text: a Lua array from slot zero, every slot the empty string.
+      local array = {}
+      for slot = 0, capacity do
+        array[slot] = ""
+      end
+      group[field[1]] = array
+    else
+      group[field[1]] = kind.array(capacity + 1)
+    end
   end
   return group
+end
+-- }}}
+
+-- {{{ local function copy_tree()
+-- A copy of a parameter table, so the world keeps what it was made from even if
+-- the caller changes its table afterwards. Only numbers, strings, booleans and
+-- tables of them are parameters.
+local function copy_tree(value, where)
+  if type(value) ~= "table" then
+    if type(value) ~= "number" and type(value) ~= "string" and type(value) ~= "boolean" then
+      error("the world: parameter " .. where .. " is a " .. type(value)
+            .. ", which a match cannot be made from", 3)
+    end
+    return value
+  end
+  local copy = {}
+  for key, inner in pairs(value) do
+    copy[key] = copy_tree(inner, where .. "." .. tostring(key))
+  end
+  return copy
 end
 -- }}}
 
@@ -281,9 +340,15 @@ function M.allocate(parameters)
   local rules = M.load_asset("the-rules")
 
   local field = dunes.raise(parameters.field, seed)
-  local sizes = capacities(parameters, field, streams)
-  local world = {tick = 0, seed = seed, field = field, rule = {},
+  local sizes = capacities(parameters, field, streams, rules)
+  -- `fingerprint` is the last hash the snapshot row took and `fingerprint_tick`
+  -- the tick it took it in; `record_path` is where the replay log goes, empty
+  -- when nothing is being recorded. None of them is part of what the hash folds.
+  local world = {tick = 0, seed = seed, field = field, rule = {}, fingerprint = 0,
+                 fingerprint_tick = 0, record_path = "",
+                 parameters = copy_tree(parameters, "parameters"),
                  layout = {groups = M.LAYOUT, counters = M.COUNTERS, scalars = M.SCALARS}}
+  world.parameters.seed = seed
   for name, value in pairs(rules) do
     world.rule[name] = value
   end
@@ -317,6 +382,20 @@ local function check_array(group_name, field_name, type_name, array, capacity)
   if kind == nil then
     error("the world: " .. group_name .. "." .. field_name .. " has an unknown type '"
           .. tostring(type_name) .. "'", 3)
+  end
+  if kind.lua then
+    -- Text: a Lua array from slot zero to the capacity, a string in every slot.
+    if type(array) ~= "table" or array[capacity + 1] ~= nil then
+      error("the world: " .. group_name .. "." .. field_name .. " is not an array of "
+            .. (capacity + 1) .. " strings", 3)
+    end
+    for slot = 0, capacity do
+      if type(array[slot]) ~= "string" then
+        error(string.format("the world: %s.%s[%d] is %s, not a string", group_name, field_name,
+                            slot, tostring(array[slot])), 3)
+      end
+    end
+    return
   end
   if type(array) ~= "cdata" or not ffi.istype(kind.array, array) then
     error("the world: " .. group_name .. "." .. field_name .. " is a " .. type(array)
@@ -430,6 +509,61 @@ function M.claim(world, name)
   group.count = group.count + 1
   group.alive[id] = 1
   return id
+end
+-- }}}
+
+-- {{{ function M.push()
+-- A new row at the end of a queue, as its index. Every field is already zero:
+-- removal zeroes the row it vacates. Past the capacity is a refusal naming the
+-- group.
+function M.push(world, name)
+  local row = layout_row(name)
+  if row.kind ~= "queue" then
+    error("the world: '" .. name .. "' is a " .. row.kind .. " group; only a queue is pushed", 2)
+  end
+  local group = world[name]
+  if group.count >= group.capacity then
+    error("the world: the " .. name .. " queue is full at its capacity of " .. group.capacity, 2)
+  end
+  group.count = group.count + 1
+  return group.count
+end
+-- }}}
+
+-- {{{ function M.remove()
+-- Takes a row out of a queue and closes the gap: every later row moves down by
+-- one, so the order of what remains never changes, and the last slot is zeroed.
+function M.remove(world, name, index)
+  local row = layout_row(name)
+  local group = world[name]
+  if row.kind ~= "queue" or index < 1 or index > group.count then
+    error("the world: " .. name .. " row " .. tostring(index) .. " is not in the queue", 2)
+  end
+  for _, field in ipairs(row.fields) do
+    local array = group[field[1]]
+    for slot = index, group.count - 1 do
+      array[slot] = array[slot + 1]
+    end
+    array[group.count] = M.TYPES[field[2]].lua and "" or 0
+  end
+  group.count = group.count - 1
+end
+-- }}}
+
+-- {{{ function M.ring_next()
+-- The slot a ring writes next: the one after the last written, wrapping to the
+-- first, so the oldest row is the one overwritten. The caller fills it.
+function M.ring_next(world, name)
+  local row = layout_row(name)
+  if row.kind ~= "ring" then
+    error("the world: '" .. name .. "' is a " .. row.kind .. " group; only a ring is written round", 2)
+  end
+  local group = world[name]
+  group.last = group.last % group.capacity + 1
+  if group.count < group.capacity then
+    group.count = group.count + 1
+  end
+  return group.last
 end
 -- }}}
 

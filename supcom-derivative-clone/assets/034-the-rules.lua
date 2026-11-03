@@ -45,4 +45,10 @@ return {
   -- is a refusal, never a resize, so they are set well above what a match sends.
   commands = 256,
   refusals = 16,
+
+  -- How often the world is fingerprinted, in ticks; the replay log writes every
+  -- fingerprint. A fingerprint folds every cell, so taking one every tick cost
+  -- a tenth of a millisecond on a small field and grows with the field's area;
+  -- one a second still names the second a match went wrong in.
+  fingerprint_every = 10,
 }

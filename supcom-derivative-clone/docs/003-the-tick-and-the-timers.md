@@ -117,9 +117,12 @@ shot is buffered at fire time and applied at land time, in order.
 
 ## The snapshot
 
-At the end of every tick the world is **fingerprinted** — a hash of every unit's
-position and health, every cell's owner, and the economy's totals — so that two
-machines can compare a single number and know whether they agree. And if a viewer
+At the end of every so many ticks the world is **fingerprinted** — a hash of
+every unit's position and health, every cell's owner, the economy's totals, the
+streams and the counters — so that two machines can compare a single number and
+know whether they agree. Not every tick: a fingerprint folds every cell, so its
+cost grows with the field's area, and how often it is taken is a rule in the
+catalogue. And if a viewer
 is attached, the world is **copied** out to it, whole. The viewer never reads the
 live world; see [the views](010-the-views.md).
 

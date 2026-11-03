@@ -36,6 +36,9 @@ because a file cannot use the loader to find the loader.
 | `validate(world)` | a world | nothing; raises naming the group and field of a wrong type, length or slot, a live count outside the capacity, a counter that is not whole numbers, or a stream at state zero; also validates the field |
 | `claim(world, group)` | a world; a pool's name | the id of a row now alive: the last released one, or the next never used; raises past the capacity, naming the group |
 | `release(world, group, id)` | a world; a pool's name; a live id | nothing; zeroes every field of the row and stacks the id for reuse; raises on a row that is not alive |
+| `push(world, group)` | a world; a queue's name | the index of a new row at the back, every field zero; raises past the capacity, naming the group |
+| `remove(world, group, index)` | a world; a queue's name; a row in it | nothing; later rows move down one, so the order never changes |
+| `ring_next(world, group)` | a world; a ring's name | the slot to write next, the oldest overwritten first |
 | `counter_at(world, row)` | a world; a row of `COUNTERS` | the counter table that row names |
 | `load(stem)` | a stem | the module in `src/NNN-<stem>.lua`, loaded once |
 | `load_asset(stem)` | a stem | the table in `assets/NNN-<stem>.lua`, loaded once |
@@ -51,12 +54,16 @@ The world is a table:
 | `seed` | integer | the match seed |
 | `field` | table | the field record from the dunes |
 | `rule` | table | a copy of `assets/NNN-the-rules.lua` |
+| `parameters` | table | a copy of the allocation parameters, with the seed, for the replay's stamp |
+| `fingerprint`, `fingerprint_tick` | integer | the last hash the snapshot row took, and the tick it took it in; zero before the first |
+| `record_path` | string | where the replay log is being written; empty when it is not |
 | `layout` | table | `{groups = LAYOUT, counters = COUNTERS, scalars = SCALARS}`, so a module holding a world can walk its layout without loading this file |
 | one table per group | table | `capacity`, the kind's scalars, and one foreign array per field |
 | `claim` | table | the claim counter, a `timers` counter with `increments_to_claim` |
 
 Types: `integer` is an `int32_t` array, `double` a `double` array, each
-`capacity + 1` long.
+`capacity + 1` long. `text` is a Lua array of strings from slot zero, the empty
+string where there is nothing; only the refusal ring has one, for its reasons.
 
 Kinds of group, and the scalars each carries beside its fields:
 
@@ -64,6 +71,8 @@ Kinds of group, and the scalars each carries beside its fields:
 | --- | --- | --- |
 | pool | `count`, `top`, `released` | rows are claimed and released; ids are stable while alive; `count` is live rows, `top` the highest row ever claimed (walkers go from one to it), `released` the height of `free`, the stack of released ids reused last-released first |
 | fixed | none | every row exists for the whole match |
+| queue | `count` | rows one to `count` in the order pushed; removing one closes the gap |
+| ring | `count`, `last` | the last `capacity` rows written, oldest overwritten first; `last` is the slot written most recently |
 
 The groups:
 
@@ -73,6 +82,8 @@ The groups:
 | `cell` | fixed | the field's cells | `owner`, `claim_by`, `claim_began`, `improvement` (integer) |
 | `team` | fixed | `teams` | `mass`, `energy`, `thorns` (double); `energy_level` (integer) |
 | `stream` | fixed | the names in `random-streams`' `STREAMS` | `state` (integer, never zero) |
+| `command` | queue | `commands` in the rules | `tick`, `verb`, `team`, `player` (integer); `argument1` to `argument4` (double) |
+| `refusal` | ring | `refusals` in the rules | `tick`, `team`, `verb` (integer, zero for an unknown verb); `reason` (text) |
 
 The counters (`COUNTERS`): each row is a `path` from the world to the counter,
 the rule holding its period in `seconds`, and `extra` integers copied from the
@@ -82,6 +93,6 @@ rules.
 | --- | --- | --- |
 | `world.claim` | `claim_seconds` | `increments_to_claim` from `claim_increments` |
 
-Groups and fields other issues need -- patterns, shots, bones, factories, the
-command queue and so on -- are added here by the issue that builds them, under
+Groups and fields other issues need -- patterns, shots, bones, factories and
+so on -- are added here by the issue that builds them, under
 the names the tests document gives.

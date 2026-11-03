@@ -66,9 +66,9 @@ the test.
 | `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`, with `waiting_for` naming the issue on a row not yet built; `advance(world)`; `assemble(modules, parameters)`; `ticks_of(seconds)` |
 | `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair; `ticks_of(seconds, rate)` |
 | `random-streams` | 107 | `open(seed, name)`; `next_integer(stream, below)` in `[0, below)`; `next_double(stream)` in `[0, 1)`; `STREAMS`, the names; `draw(world, name, below)` and `draw_double(world, name)` for the world's own streams |
-| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds`, `claim_increments` and `claim_radius`, and the sizes of the command queue and the refusal ring; copied into the world as `world.rule` |
-| `commands` | 108 | `VERBS`, a dispatch table; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied |
-| `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path)`; `replay(path)` |
+| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds`, `claim_increments` and `claim_radius`, the sizes of the command queue and the refusal ring, and `fingerprint_every`; copied into the world as `world.rule` |
+| `commands` | 108 | `VERBS`, a dispatch table, and `ARGUMENTS`, each verb's argument names; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied; `refusals(world)` returns the ring's refusals, oldest first; `unpack(world, row)` |
+| `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path, commands)`; `replay(path)`; `stamp(world)`; `snapshot_pass(world)`, the tick's last row; `note_command(world, command)`, the door's hook |
 | `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern` |
 | `terminal-viewer` | 111 | `draw(snapshot)` returns a string with a row per field row |
 | `territory` | 112 | `claim(world, team, x, y, radius)`; `claim_pass(world)`; `owner(world, cell)`; `percent(world, team)` |
@@ -108,7 +108,8 @@ one adds a row here first.
 The tests reach into the world record directly where a claim is about the data
 rather than about a function. Those fields are part of the contract too, and
 the world's layout must carry them under these names. Issue 104 laid down the
-unit, cell, team and stream groups and the claim counter; every other group and
+unit, cell, team and stream groups and the claim counter, and issue 108 the
+command queue and the refusal ring; every other group and
 field below is added to the layout, under the name given here, by the issue that
 builds the system that writes it:
 
@@ -130,6 +131,7 @@ builds the system that writes it:
 - `world.cloud.{x, y}`
 - `world.rule.mass_per_cell`
 - `world.applied_at`
+- `world.command.count`, `world.refusal`, `world.fingerprint`, `world.fingerprint_tick`, `world.record_path`
 
 ## What the tests assert, in one line each
 

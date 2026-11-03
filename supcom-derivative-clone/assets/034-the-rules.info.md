@@ -25,6 +25,7 @@ The file returns one table.
 | `claim_radius` | integer | cells around a unit it claims (B6); an enforcer's own radius is its catalogue row's |
 | `commands` | integer | how many commands may wait in the queue at once |
 | `refusals` | integer | how many refusals the ring keeps for a viewer |
+| `fingerprint_every` | integer | how often, in ticks, the snapshot row fingerprints the world; the replay log writes every fingerprint |
 
 ## Data structures it owns
 

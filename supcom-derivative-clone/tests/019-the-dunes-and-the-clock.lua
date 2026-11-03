@@ -369,6 +369,37 @@ harness.suite("commands enter through one door", function()
   applied = commands.apply_due(world)
   harness.check("the command is applied at its tick", applied == 1)
 end)
+
+harness.suite("a refused command is named and kept where a viewer can show it", function()
+  local commands = harness.load("commands", "108")
+  local the_world = harness.load("the-world", "104")
+  local world = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  local refusal = commands.queue(world, {verb = "set-energy-level", tick = 4, team = 3, level = 1})
+  harness.check("a team outside the match is refused by number",
+                type(refusal) == "string" and refusal:find("team 3", 1, true) ~= nil, refusal)
+  refusal = commands.queue(world, {verb = "set-energy-level", tick = 4, team = 1})
+  harness.check("a missing argument is refused by its name",
+                type(refusal) == "string" and refusal:find("level", 1, true) ~= nil, refusal)
+  commands.queue(world, {verb = "set-energy-level", tick = 0, team = 1, level = 5})
+  world.tick = 0
+  harness.check("a verb that refuses when applied does not count", commands.apply_due(world) == 0)
+  local kept = commands.refusals(world)
+  harness.check("every refusal is in the ring, oldest first", #kept == 3
+                and kept[1].reason:find("team 3", 1, true) ~= nil
+                and kept[3].reason:find("button 5", 1, true) ~= nil, #kept)
+  harness.check("the refused button was not pressed", world.team.energy_level[1] == 0)
+  for _ = 1, world.refusal.capacity + 3 do
+    commands.queue(world, {verb = "no-such-verb", tick = 9, team = 1})
+  end
+  harness.check("the ring keeps only its capacity", #commands.refusals(world) == world.refusal.capacity)
+  for tick = 1, world.command.capacity do
+    commands.queue(world, {verb = "noop", tick = tick, team = 1})
+  end
+  refusal = commands.queue(world, {verb = "noop", tick = 1, team = 1})
+  harness.check("a full queue refuses rather than grows",
+                type(refusal) == "string" and refusal:find("full", 1, true) ~= nil, refusal)
+  harness.check("the world still validates", (pcall(the_world.validate, world)))
+end)
 -- }}}
 
 -- {{{ snapshots and hashes
@@ -391,6 +422,65 @@ harness.suite("the same seed and commands produce the same hash", function()
   harness.check("a copy is not the same table", copy ~= world_a)
   the_tick.advance(world_b)
   harness.check("one more tick changes the hash", snapshot.hash(world_b) ~= second)
+end)
+
+harness.suite("a copy stands alone, and the hash sees the last bit", function()
+  local the_world = harness.load("the-world", "104")
+  local snapshot = harness.load("snapshot", "109")
+  local world = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  local copy = snapshot.copy(world)
+  copy.team.mass[1] = 7
+  copy.claim.increment = 3
+  harness.check("writing a copy leaves its source alone",
+                world.team.mass[1] == 0 and world.claim.increment == 0)
+  harness.check("the copy validates as a world", (pcall(the_world.validate, copy)))
+  local before = snapshot.hash(world)
+  world.team.mass[1] = 1
+  local one = snapshot.hash(world)
+  world.team.mass[1] = 1 + 2 ^ -52
+  harness.check("a double one bit away from another hashes differently",
+                one ~= snapshot.hash(world) and one ~= before)
+end)
+
+harness.suite("a recorded match replays to the same hashes", function()
+  local the_tick = harness.load("the-tick", "105")
+  local the_world = harness.load("the-world", "104")
+  local commands = harness.load("commands", "108")
+  local snapshot = harness.load("snapshot", "109")
+  os.execute("mkdir -p /tmp/supcom-derivative-clone")
+  local path = "/tmp/supcom-derivative-clone/019-replay.log"
+  local world = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  commands.queue(world, {verb = "set-energy-level", tick = 3, team = 1, level = 2})
+  snapshot.record(world, path, commands)
+  commands.queue(world, {verb = "set-energy-level", tick = 17, team = 2, level = 4})
+  commands.queue(world, {verb = "noop", tick = 30, team = 1})
+  for _ = 1, 45 do the_tick.advance(world) end
+  local log = snapshot.replay(path)
+  harness.check("the log holds the seed and the stamp", log.seed == SEED and log.stamp == snapshot.stamp(world))
+  harness.check("the log holds every accepted command, in order", #log.commands == 3
+                and log.commands[2].tick == 17 and log.commands[2].level == 4, #log.commands)
+  harness.check("the log holds a hash every so many ticks", #log.hashes == 5, #log.hashes)
+  -- Replaying: a fresh world, the recorded commands, and a comparison at every
+  -- recorded tick. A mismatch would name its tick.
+  local again = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = log.seed})
+  harness.check("a world made the same way has the same stamp", snapshot.stamp(again) == log.stamp)
+  for _, command in ipairs(log.commands) do commands.queue(again, command) end
+  local first_wrong = "none"
+  for _, pair in ipairs(log.hashes) do
+    while again.tick <= pair.tick do the_tick.advance(again) end
+    if again.fingerprint_tick ~= pair.tick or again.fingerprint ~= pair.hash then
+      first_wrong = "tick " .. pair.tick
+      break
+    end
+  end
+  harness.check("every recorded hash is the replay's hash at that tick", first_wrong == "none", first_wrong)
+  local other = the_world.allocate({field = FIELD, units = 17, teams = 2, seed = SEED})
+  harness.check("a world made differently has a different stamp", snapshot.stamp(other) ~= log.stamp)
+  local handle = io.open(path, "w")
+  handle:write("this is not a replay\n")
+  handle:close()
+  harness.check("a file that is not a replay is refused", not pcall(snapshot.replay, path))
+  os.remove(path)
 end)
 -- }}}
 
