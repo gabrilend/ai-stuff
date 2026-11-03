@@ -48,9 +48,11 @@ Options: `ticks` (a whole number, required unless replaying), `seed`, `field`
 (a shape table beating `input/field`), `units`, `fingerprint_every` (ticks
 between fingerprints, beating the rules'; one narrows a desync to its exact
 tick), `replay` (a log's path; a replay always fingerprints at the interval its
-log was recorded at, and refuses a different one asked for), `bots` (reserved
-for issue 901; nothing reads it yet). `./run-headless --fingerprint-every N`
-passes the interval through.
+log was recorded at, and refuses a different one asked for), `workers` (how
+many ranges the thread pool slices a sliceable row into, beating
+`input/workers`, which is a number or `cores`; the answer is the same at any
+count), `bots` (reserved for issue 901; nothing reads it yet).
+`./run-headless --fingerprint-every N` and `--workers N` pass them through.
 
 ## Data structures it owns
 
@@ -68,6 +70,7 @@ The report:
 | `replay` | where the log was written; empty when replaying |
 | `replay_checked`, `mismatch_tick` | when replaying: hashes compared, and the first tick that differed (zero for none) |
 | `factories`, `shortest_pattern` | zero until factories and patterns exist (issues 307 and 308) |
+| `workers` | the thread pool's worker count for the match (issue 209) |
 | `world` | the final world, for a viewer to copy |
 
 The input files' shapes are written at the top of each file in `input/`.

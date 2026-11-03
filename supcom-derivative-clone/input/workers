@@ -1,0 +1,9 @@
+# How many ranges the thread pool slices each sliceable tick row into: a whole
+# number from one, or the word `cores` for the machine's processor count.
+#
+# A sliced system reads anything and writes only its own range of unit rows, so
+# the answer is the same at any count; the reproducibility test runs one seed at
+# one worker and at many and expects the same fingerprints. The ranges run one
+# after another today (the pool's `serial` backend); running them on threads
+# waits on a threading library being vendored. --workers beats this file.
+cores

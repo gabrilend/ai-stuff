@@ -5,16 +5,18 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 105, 201 |
 | Blocks | 801 |
-| Reads | [the tick and the timers](../docs/003-the-tick-and-the-timers.md) |
+| Reads | [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The tick's dispatch table (issue 105) does not exist. The test program
-`tests/020-things-that-roll-fly-and-sail.lua` names this issue and looks for the
-stem `thread-pool`; the phase 8 test in `tests/026-the-handheld.lua` asserts the
-property the pool depends on — that every sliced system writes only its own
-slice.
+Built. `src/049-thread-pool.lua` splits the unit rows into contiguous ranges
+and runs each sliceable tick row over them through a backend. The default and
+only backend built is `serial`. `advance` runs move, sight-and-aim and fire
+through it. The worker count comes from `input/workers` (a number or `cores`)
+or `--workers`, and the headless report prints it. One seed gives the same
+fingerprints at one worker and at seven, and `trace_writes` / `outside` check
+that every sliceable row writes only its own range.
 
 ## Intended behavior
 
@@ -67,11 +69,37 @@ which worker finished first is, by construction, an unsliced system.
    copy the world, run on one slice, diff every array outside the slice, and
    name the first row that changed.
 
+## What happened
+
+- **The pool is an interface with a serial backend**, the default and the only
+  one built. The hot path is Lua, and a threaded backend means vendoring effil
+  or lanes into libs/, which is an open item for Ritz. Such a backend would join
+  `BACKENDS` and change nothing else. It would have to keep the fire pass's
+  shots in row order, for instance by giving each range its own stretch of the
+  queue and joining them lowest first.
+- **`slice` returns pairs `{first, last}`**, as the test reads them, rather than
+  the flat array step 2 suggests.
+- **A sliceable row may have a `before` step**, an unsliced pass its slices
+  read, run once by `run_sliced`. The move pass's occupancy is the one case;
+  movement exports it as `move_pass_before`.
+- **The flag already existed** in the dispatch table (`sliceable`); `advance` and
+  `advance_timed` now send flagged rows through `run_sliced`.
+- **`input/workers`** is a new input file, a number or `cores` (the default, and
+  also what an absent file means), read through `getconf`. `--workers` beats it,
+  and the report has a `workers` line. The count is a process setting and not
+  part of the world, so it is outside the fingerprint.
+- **Step 6's helper is `outside`**, which names the first unit row written
+  outside a range. `trace_writes` sees slots whose value changed, the only
+  writes another worker could notice.
+- **The reproducibility test** plays a 23-unit fight for 400 ticks at one worker
+  and at seven and compares every tenth tick's fingerprint, as the coordinator
+  asked.
+
 ## Related documents and tools
 
-- [the tick and the timers](../docs/003-the-tick-and-the-timers.md) — the thread pool section
-- [the handheld](../docs/012-the-handheld.md) — why a sliced system is a box
-- [the shape of the code](../docs/013-the-shape-of-the-code.md)
+- [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) — the thread pool section
+- [the handheld](../../docs/012-the-handheld.md) — why a sliced system is a box
+- [the shape of the code](../../docs/013-the-shape-of-the-code.md)
 - `tests/020-things-that-roll-fly-and-sail.lua`, `tests/026-the-handheld.lua`
 
 ## Still open

@@ -1167,4 +1167,112 @@ harness.suite("the sphere takes hits on its own team, until it is down", functio
 end)
 -- }}}
 
+-- {{{ the thread pool, closer
+harness.suite("the pool splits rows evenly and runs every sliceable row by its rule", function()
+  local pool = harness.load("thread-pool", "209")
+  local the_tick = harness.load("the-tick", "105")
+  local units = harness.load("units", "201")
+  local targeting = harness.load("targeting", "205")
+  local ranges = pool.slice(10, 3)
+  harness.check("ten rows three ways are four, three and three",
+                #ranges == 3 and ranges[1][2] == 4 and ranges[2][1] == 5 and ranges[2][2] == 7
+                and ranges[3][1] == 8 and ranges[3][2] == 10)
+  harness.check("more workers than rows gives a range a row", #pool.slice(3, 8) == 3
+                and pool.slice(3, 8)[3][1] == 3 and pool.slice(3, 8)[3][2] == 3)
+  harness.check("a worker count is a whole number from one",
+                not pcall(pool.slice, 10, 0) and not pcall(pool.configure, 1.5))
+  local ok, problem = pcall(pool.configure, 2, "effil")
+  harness.check("only the serial backend is built, and a threaded one says what it needs",
+                not ok and tostring(problem):find("libs/", 1, true) ~= nil, problem)
+  harness.check("the pool starts serial", select(2, pool.workers()) == "serial")
+  local world = flat()
+  world.pattern.points[1] = {{x = 5, y = 5}, {x = 20, y = 20}}
+  world.pattern.count = 1
+  for index = 1, 12 do
+    local id = units.spawn(world, "tank", (index % 2) + 1, 2 + index * 2, 10 + (index % 3))
+    world.unit.pattern[id], world.unit.leg[id] = 1, 1
+  end
+  targeting.aim_pass(world)
+  local named = {}
+  for _, row in ipairs(the_tick.SYSTEMS) do
+    if row.sliceable then
+      if row.before ~= nil then row.before(world) end
+      local wrote = pool.outside(world, row.run_slice, 4, 7)
+      named[#named + 1] = row.name .. (wrote and (" wrote " .. wrote) or "")
+    end
+  end
+  harness.check("move, aim and fire each write only their own range of a busy world",
+                table.concat(named, ", ") == "move, sight-and-aim, fire", table.concat(named, ", "))
+  local writes = pool.trace_writes(function() world.unit.x[11] = world.unit.x[11] + 1 end, world)
+  harness.check("a traced write names its group, field and row",
+                #writes == 1 and writes[1].array == "unit" and writes[1].field == "x" and writes[1].index == 11)
+  harness.check("and the rule names a row written outside its range",
+                pool.outside(world, function(w) w.unit.y[2] = w.unit.y[2] + 1 end, 4, 7) == "unit.y[2]")
+  harness.check("the move row reads an occupancy it is handed first", the_tick.SYSTEMS[5].before ~= nil)
+end)
+
+harness.suite("one seed gives the same fingerprints at one worker and at many", function()
+  local pool = harness.load("thread-pool", "209")
+  local the_tick = harness.load("the-tick", "105")
+  local units = harness.load("units", "201")
+  local snapshot = harness.load("snapshot", "109")
+  local function battle(workers)
+    pool.configure(workers)
+    local world = flat()
+    world.pattern.points[1] = {{x = 10, y = 30}, {x = 20, y = 30}}
+    world.pattern.points[2] = {{x = 25, y = 45}, {x = 15, y = 45}}
+    world.pattern.count = 2
+    for index = 1, 10 do
+      local a = units.spawn(world, "tank", 1, 2 + index * 2, 25)
+      local b = units.spawn(world, "anti-air", 2, 2 + index * 2, 50)
+      world.unit.pattern[a], world.unit.leg[a] = 1, 1
+      world.unit.pattern[b], world.unit.leg[b] = 2, 1
+    end
+    units.spawn(world, "enforcer", 1, 12, 20)
+    units.spawn(world, "helicopter", 2, 30, 30)
+    units.spawn(world, "frigate", 2, 30, 10)
+    local prints = {}
+    for tick = 1, 400 do
+      the_tick.advance(world)
+      if tick % 10 == 0 then prints[#prints + 1] = snapshot.hash(world) end
+    end
+    return prints, world
+  end
+  local one, alone = battle(1)
+  local many, crowd = battle(7)
+  pool.configure(1)
+  local first_apart = 0
+  for index = 1, #one do
+    if one[index] ~= many[index] and first_apart == 0 then first_apart = index * 10 end
+  end
+  harness.check("every tenth tick's fingerprint matches", #one == 40 and first_apart == 0,
+                "first apart at tick " .. first_apart)
+  harness.check("and the match was a fight, not a quiet field",
+                alone.unit.count < 23 and alone.unit.count == crowd.unit.count, alone.unit.count)
+end)
+
+harness.suite("the worker count comes from input/workers, or the machine", function()
+  local pool = harness.load("thread-pool", "209")
+  local root = os.tmpname()
+  os.remove(root)
+  os.execute("mkdir -p '" .. root .. "/input'")
+  harness.check("no file means the core count", pool.read_workers(root) == pool.cores()
+                and pool.cores() >= 1)
+  local function says(text)
+    local handle = io.open(root .. "/input/workers", "w")
+    handle:write("# a comment\n", text, "\n")
+    handle:close()
+    return pcall(pool.read_workers, root)
+  end
+  local ok, count = says("6")
+  harness.check("a number is the count", ok and count == 6, count)
+  ok, count = says("cores")
+  harness.check("'cores' is the core count", ok and count == pool.cores())
+  ok, count = says("none")
+  harness.check("anything else is refused, naming the file",
+                not ok and tostring(count):find("input/workers", 1, true) ~= nil, count)
+  os.execute("rm -rf '" .. root .. "'")
+end)
+-- }}}
+
 harness.finish()

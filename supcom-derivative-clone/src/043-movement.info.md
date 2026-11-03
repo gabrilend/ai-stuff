@@ -41,6 +41,7 @@ before it hands out slices.
 | --- | --- | --- |
 | `move_pass(world)` | a world | nothing; the tick's `move` row: the occupancy, then every unit |
 | `move_pass_slice(world, first, last)` | a world; a range of unit ids | nothing; walks the live land and sea units in the range |
+| `move_pass_before(world)` | a world | nothing; the occupancy pass, which the thread pool runs once before the move row's slices |
 | `occupancy_pass(world)` | a world | nothing; rewrites `world.cell.occupant` from every live land unit, the lowest id first when two share a cell |
 | `step_length(field, kind, from_x, from_y, to_x, to_y)` | a field; a kind's name or index; where it stands; where it heads | how far it goes this pass |
 | `held(world, id)` | a world; a unit | whether it has passed the last point of its pattern |

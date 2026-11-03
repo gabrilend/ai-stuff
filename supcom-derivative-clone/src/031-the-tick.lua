@@ -64,6 +64,7 @@ end
 
 local world_module = the_world()
 local timers = world_module.load("timers")
+local pool = world_module.load("thread-pool")
 local rules = world_module.load_asset("the-rules")
 
 -- {{{ local function nothing_yet()
@@ -91,14 +92,18 @@ local function row(name, sliceable, built)
           .. ", which is not a function", 2)
   end
   local run_slice = nothing_yet
+  local before = nil
   if sliceable then
     run_slice = module[built[2] .. "_slice"]
     if type(run_slice) ~= "function" then
       error("the tick: row '" .. name .. "' is sliceable but " .. built[1] .. " has no "
             .. built[2] .. "_slice", 2)
     end
+    -- An unsliced step the slices read, run once before them (the move pass's
+    -- occupancy); a module exports it as `<name>_before` when it has one.
+    before = module[built[2] .. "_before"]
   end
-  return {name = name, sliceable = sliceable, run = run, run_slice = run_slice}
+  return {name = name, sliceable = sliceable, run = run, run_slice = run_slice, before = before}
 end
 -- }}}
 
@@ -125,7 +130,7 @@ M.SYSTEMS = {
 
 -- {{{ function M.advance()
 -- One tick. Every counter is brought up to this tick first, so the increment of
--- now is settled before any system reads it; then every row runs in order; then
+-- now is settled before any system reads it; then every row runs in order, a sliceable one through the thread pool; then
 -- the tick count rises. Returns whether the match continues, which in this phase
 -- is always: the rule that ends a match arrives with the command truck.
 function M.advance(world)
@@ -135,7 +140,12 @@ function M.advance(world)
   end
   local systems = M.SYSTEMS
   for index = 1, #systems do
-    systems[index].run(world)
+    local row = systems[index]
+    if row.sliceable then
+      pool.run_sliced(row, world)
+    else
+      row.run(world)
+    end
   end
   world.tick = tick + 1
   return true
@@ -155,7 +165,11 @@ function M.advance_timed(world, seconds)
   for index = 1, #systems do
     local row = systems[index]
     local started = os.clock()
-    row.run(world)
+    if row.sliceable then
+      pool.run_sliced(row, world)
+    else
+      row.run(world)
+    end
     seconds[row.name] = (seconds[row.name] or 0) + (os.clock() - started)
   end
   world.tick = tick + 1
