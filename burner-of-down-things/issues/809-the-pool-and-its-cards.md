@@ -4,12 +4,14 @@ Every asset ever made, kept, each beside a `.card`: what, category, each paramet
 
 ## Current Behavior
 
-809a, 809b and 809c are built (issues/completed/809a-card-schema.md,
-809b-concurrent-append.md, 809c-count-utility.md): a card beside every
-asset; ratings appended one line at a time beside it, safe under two
-writers at once, resolving to one tier (a person's latest, else a
-machine's); and counts per category and per tier, read from cards and
-ratings alone. 809d (floors) is not yet built.
+809a-d are built (issues/completed/809a-card-schema.md,
+809b-concurrent-append.md, 809c-count-utility.md, 809d-floors.md): a card
+beside every asset; ratings appended one line at a time beside it, safe
+under two writers at once, resolving to one tier (a person's latest, else
+a machine's); counts per category and per tier, read from cards and
+ratings alone; and a floor per category whose cost is reported before it
+is raised, deleting nothing. What remains is the ends (804, 806-808)
+writing a card with every asset they make.
 
 ## Intended Behavior
 
@@ -22,7 +24,7 @@ ratings alone. 809d (floors) is not yet built.
 
 1. Cards written with every asset. **Test:** a card holds every field; two appends at once both survive.
 2. The count utility. **Test:** counts match the cards; nothing is read from any asset.
-3. Floors. **Test:** raising a floor reports how many remain.
+3. Floors. **Test:** raising a floor reports how many remain. Done (809d).
 
 ## Sub-issues
 

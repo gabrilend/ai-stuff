@@ -31,6 +31,10 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   person's latest rating is the asset's tier (else a machine's), and the
   count utility now counts per tier too.
 
-801c-d, 807c-d, 805b-d and 809d remain: the flair's colour math and the
+- 809d floors — a floor per category (0 until raised) as a text table in
+  the pool; raising one says first how many assets it keeps in use and how
+  many fall below it, and deletes nothing.
+
+801c-d, 807c-d and 805b-d remain: the flair's colour math and the
 night-only palette rule; box diagrams and prose templates; line-and-dot
-charts, diagrams by level and the machine drawing itself; and floors.
+charts, diagrams by level and the machine drawing itself.
