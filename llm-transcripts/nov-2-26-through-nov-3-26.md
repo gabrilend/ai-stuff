@@ -1,6 +1,6 @@
 # Conversation Summary: 3e9767bf-5307-4ac4-8204-4e97b6e35e1d
 
-Generated on: 2026-11-03 10:21:27
+Generated on: 2026-11-03 10:26:13
 Models: claude-opus-5-5
 
 ## Contents
@@ -1301,6 +1301,56 @@ So, before I swap:
 
 When both are quiet, say so and I'll rebuild the scratch copy with today's
 commits, run the three checks again, swap, and force-push everything.
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+why don't we just un-merge the one single one that wasn't open, then remake it
+and re-apply? C'mon this isn't an unsolvable problem, figure it out. You know
+what I want.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+> Fair enough. Checking the merged pull request and everything else GitHub holds
+> for ai-stuff. That decides whether the clean fix is to remake the whole
+> repository on GitHub.
+
+> Saving the pull-request record into the plan's folder, then committing both.
+
+*[commit] d5c907670 in ai-stuff - delta-version: the history rewrite is prepared, and GitHub's copy will be remade*
+
+Everything is ready except three things only you can do. Deleting the GitHub
+repository can't be undone, so this is the last stop before it.
+
+**What happens when you say go:**
+1. Rebuild the cleaned copy with every commit up to that moment, and run the
+   three checks again.
+2. Move this repository's branches onto the cleaned history. Your files on disk
+   don't change.
+3. Delete `gabrilend/ai-stuff` on GitHub and create it again, public, under the
+   same name.
+4. Push `main`, the 237 `claude/*` branches and the tags.
+5. Re-open the 236 pull requests from the record, saved in
+   `delta-version/archive/disentangle/pull-requests.json`. Each keeps its title,
+   description, base branch and draft state. Only their numbers start fresh.
+6. Afterwards, commit the old-to-new commit map, and translate the commit IDs
+   quoted in issues and docs.
+
+Every old pull-request ref, cached page and stray commit disappears with the old
+repository, so there's nothing to ask GitHub Support.
+
+**What I need from you**
+1. **Permission to delete.** The GitHub login can't delete repositories yet. Run
+   this in the prompt:
+   `! gh auth refresh -h github.com -s delete_repo`
+2. **Quiet sessions.** Stop the session that's opening pull requests (it opened
+   #237 today) and the neocities session. Any session still holding the old
+   history would carry it back on its next push, so after the swap each one has
+   to start from a fresh clone. That includes cloud sessions.
+3. **The word "go"**, once 1 and 2 are done.
 
 --------------------------------------------------------------------------------
 

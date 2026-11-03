@@ -20,8 +20,9 @@ checker would look for in this project)
 **Prepared, not swapped** (2026-11-03). The inventory is taken and the owner
 gave the word ("Just remove the files as best you can"). A rewritten copy
 passes every gate below and waits in a scratch mirror on `/mnt/kaun` for a
-quiet repository. The swap is changed from a force-push to remaking the
-GitHub repository (see Intended Behavior). The redactions of issue 003a are
+quiet repository. Remaking the GitHub repository was proposed and refused
+by the owner ("I do not want to do that"); the swap stays a force-push (see
+Intended Behavior). The redactions of issue 003a are
 not part of this pass: the mail state lives inside `words-pdf/input/`, which
 is removed whole, so no byte-level redaction is needed for it.
 
@@ -103,21 +104,18 @@ After the rewrite:
 - **`archive/main-before-history-graft` is deleted,** on GitHub and here (the
   owner's decision, 2026-10-01). Its old ids still translate through
   `delta-version/archive/history-graft/commits.map`.
-- **Nothing old is left on GitHub.** Found 2026-11-03: GitHub keeps every
-  pull request's refs (`refs/pull/N/head`) for good, and nobody but GitHub
-  Support can delete them; a force-push moves an open pull request to the new
-  commits but its timeline keeps the old ones downloadable. ai-stuff had 237
-  pull requests (236 open drafts, one merged), no forks, stars, watchers,
-  issues, releases or Pages site, and no comment or review on any pull
-  request. So the repository is deleted and created again under the same
-  name, the clean history is pushed, and the 236 open pull requests are
-  opened again from their cleaned branches with their saved titles,
-  descriptions, bases and draft state. The owner: "just un-merge the one
-  single one that wasn't open, then remake it and re-apply ... You know
-  what I want." The merged one (#1, "Implement WC3 gameplay systems and
-  world editor integration") is already in `main`, so its work stays; only
-  its page goes, and its title, description and merge commit are kept in
-  the saved record.
+- **What GitHub keeps after the force-push.** Found 2026-11-03: GitHub
+  keeps every pull request's refs (`refs/pull/N/head`), and only GitHub
+  Support can delete them. ai-stuff has 237 pull requests: 236 open drafts
+  and one merged (#1, "Implement WC3 gameplay systems and world editor
+  integration"). Force-pushing the cleaned `claude/*` branches moves each
+  open pull request to its clean commits, but each one's timeline keeps a
+  link to the old commits, and #1's ref keeps the old history for good.
+  Deleting and remaking the repository would remove all of that; the owner
+  refused it ("I do not want to do that"). What is left is accepted, or
+  removed later by a request to GitHub Support, the owner's choice. Every
+  pull request's details are saved in
+  `delta-version/archive/disentangle/pull-requests.json` all the same.
 - **No old clone pushes again.** Any session holding a clone of the old
   history (a cloud session, a worktree) would carry the old commits back
   on its first push. Every such session is stopped before the swap and
@@ -164,14 +162,9 @@ After the rewrite:
    (compare-and-swap against the recorded old tip). Move the carried tags.
    Delete `archive/main-before-history-graft`. The working tree is not
    touched; its files already match.
-9. **Publish, by remaking the repository:** save every pull request's
-   number, title, description, base, branch, draft state and merge record
-   (`gh pr list --state all --json ...`, kept as
-   `delta-version/archive/disentangle/pull-requests.json`); delete
-   `gabrilend/ai-stuff` on GitHub (the token needs the `delete_repo`
-   scope, which only the owner can grant); create it again, public, same
-   name; push `main`, every `claude/*` branch and the moved tags; open the
-   open pull requests again, oldest first, as drafts where they were.
+9. **Publish:** delete the archive tag on GitHub, then force-push `main`,
+   every `claude/*` branch and the moved tags (`--force-with-lease` against
+   the recorded origin refs). The open pull requests follow their branches.
 10. **Afterwards:** translate ids in files written since prepare. Check
     `git status` matches the status from before the swap. Update issue 031's
     note that the archive tag is kept.
