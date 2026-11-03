@@ -187,3 +187,11 @@ sizing but was being shown to users.
 ```
 
 ---
+
+## What Happened
+
+**2026-11-03: moved into `completed/`.** The status above has said Completed
+since 2025-12-23, and the implementation log records the fix. The step boxes
+above were never ticked, but the work is there: `parse_flag_value` in
+`libs/menu.lua` strips the `:width` suffix wherever a flag value is shown or
+put into a command, and `libs/test-menu-lib.lua` still passes.
