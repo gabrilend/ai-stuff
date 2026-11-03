@@ -127,3 +127,28 @@ int surface_is_dirty(int32_t handle)
 int surface_take_dirty(int32_t handle)
 ```
 
+### surface_expose
+
+```c
+void surface_expose(int screen, int x, int y, int width, int height)
+```
+
+Say that a rectangle of `screen` must be painted again: what was there
+has gone. A release, a move and a resize say it themselves about the
+rectangle the surface left; the foreground (604) and the drawers (606)
+say it when what should show changes. Clipped to the screen.
+
+### surface_gather
+
+```c
+int surface_gather(int screen, struct surface_view *out, int max, struct surface_rect *uncovered)
+```
+
+Every surface on `screen`, back to front, up to `max` of them, each with
+its damage bit taken (read and cleared, as surface_take_dirty does);
+and in `uncovered`, the one rectangle holding everything exposed since
+the last gather, taken too. Answers how many surfaces there are, up to
+`max`. The pixels stay readable until the end of the caller's run: call
+this from inside a box's run, or where nothing releases or resizes
+surfaces at the same time.
+

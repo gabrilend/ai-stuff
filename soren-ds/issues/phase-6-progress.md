@@ -69,6 +69,15 @@ threads asking for overlapping rectangles among them).
 Also `104-surfaces.c`. Test: `twin/tests/106` (18 checks, three writers
 against one compositor thread among them).
 
+- **603** the compositor's frame: a map on its own 60 Hz timer, one frame
+  at a time, copies marked surfaces back to front. Where a surface was,
+  it first paints the system's background colour; anything over what it
+  painted or copied is copied again.
+
+`src/system/107-compositor.c`, the `composite` box in
+`src/boxes/108-compositor.c`, `src/maps/compositor.map`. Test:
+`twin/tests/109` (24 checks).
+
 ## Open issues
 
 Sorted by what each one waits on (scoped once phase 5's twin halves
@@ -78,8 +87,6 @@ pull request a blocker is waiting in.
 **Buildable on the twin now.** The compositor is portable: the twin's
 screens are memory a test can read back or save as a picture.
 
-- **603** — the compositor's tick, a timer like the input frame's,
-  copying damaged surfaces back to front; on the twin into its screens.
 - **604** — one foreground per screen, filtering 603's copy.
 - **606** — the drawer surface and its slide, once 601–603 are in.
 
