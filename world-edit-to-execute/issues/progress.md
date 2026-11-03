@@ -524,7 +524,8 @@ Recorded in CRITICAL-PATH.md:
 | 609 | Shared map-and-model list | Completed 2026-11-02 (as files; the exchange in 609a) | 604, 605 |
 | 609a | Shared lists over rmail, and the one prompt | Completed 2026-11-03 (behind an assumed rmail contract; checked in 609b) | 609 |
 | 609b | rmail glue | Completed 2026-11-03 (checked against rmail; not yet run on a live one) | 609a |
-| 609c | The lobby prompt for a shared list | Pending | 609b |
+| 609c | The lobby prompt for a shared list | Completed 2026-11-03 (not yet looked at on screen) | 609b |
+| 609d | Offer a shared list from the game | Pending | 609c |
 
 ### Overview
 

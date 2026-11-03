@@ -28,6 +28,7 @@ world through a `game` table, so it runs headless in tests:
     local hud = require("ui.wc3.hud").new(game, 1280, 720)
     hud:update(input, dt)    -- input from viewer.mouse/keys (see main.lua)
     hud:draw(render)
+    hud.share = Lb           -- optional: shared lists' dialogs (share/lobby.lua, issue 609c)
 ]]
 
 local layout = require("ui.wc3.layout")
@@ -35,6 +36,7 @@ local commands = require("ui.wc3.commands")
 local icons = require("ui.wc3.icons")
 local designs = require("geometry.designs")
 local script_ui = require("ui.wc3.script_ui")
+local share_prompt = require("ui.wc3.share_prompt")
 
 local Hud = {}
 Hud.__index = Hud
@@ -442,6 +444,8 @@ function Hud:update(input, dt)
     self.time = self.time + (dt or 0)
     local r, game = self.r, self.game
     self.alt = input.alt
+    -- a shared list's prompt comes first (hud.share, ui/wc3/share_prompt.lua)
+    share_prompt.update(self, input)
     -- the map's script: chat typing, its dialogs, Esc (ui/wc3/script_ui.lua)
     script_ui.update(self, input)
     local mx, my = input.mx or 0, input.my or 0
@@ -777,6 +781,7 @@ function Hud:draw(ui)
     end
     if self.panel then self:draw_panel(ui) end
     script_ui.draw(self, ui)
+    share_prompt.draw(self, ui)
 end
 -- }}}
 

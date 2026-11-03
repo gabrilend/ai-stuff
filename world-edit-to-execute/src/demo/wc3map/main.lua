@@ -20,6 +20,7 @@ Unattended runs (screenshots, tests) can script input with SCENE_ACTIONS:
     camera:x,y[,d]
     chat:TEXT          the local player says TEXT (to the map's script)
     dialog:N           press button N of the dialog showing
+    share:N            press button N of the shared-list prompt (issue 609c)
     wait:              (nothing; a marker)
 
 WC3_SCRIPT=0 reads the units from the script's text instead of running it
@@ -28,6 +29,8 @@ Computer players (issue 521): WC3_AI=auto (default) gives every computer
 player the map leaves idle an AI, from ai-profiles/<map>/ when a file is
 there, else derived from its faction; WC3_AI=script only runs AI the map
 starts itself (as WC3 does); WC3_AI=none, none at all.
+Shared lists (issue 609c): WETE_RMAIL=<the player's rmail config> listens
+for lists other players share, and asks about each in a dialog.
 ]]
 
 local render = require("render")
@@ -235,6 +238,43 @@ end
 local hud = hud_mod.new(game, sw, sh)
 -- }}}
 
+-- {{{ shared lists (issue 609c): WETE_RMAIL names the player's rmail config.
+-- Lists other players share arrive over rmail and are asked about in a
+-- dialog (ui/wc3/share_prompt.lua); an applied list goes on the asset
+-- loader for this game, and comes off at End Game (or at the next start,
+-- when the game ended without saying so), unless the player kept it.
+local share_lobby
+if os.getenv("WETE_RMAIL") then
+    -- shared lists never keep a game from starting: anything that fails
+    -- here turns them off, and says why
+    local ok, err = pcall(function()
+        local data = require("assets.player_data").folder(ROOT)
+        local C, why = require("share.rmail_hook").connect({ config = os.getenv("WETE_RMAIL"), data = data })
+        if C then
+            local L = require("assets.loader").new({ assets = A, root = ROOT, data = data })
+            game.loader = L
+            share_lobby = require("share.lobby").new({ data = data, connection = C, loader = L })
+            hud.share = share_lobby
+            local quit = game.quit
+            game.quit = function()
+                share_lobby:end_game()
+                quit()
+            end
+            for _, k in ipairs(share_lobby.settled) do
+                print("[share] left from the last game: " .. k.name .. (k.kept and (", kept as " .. k.kept) or ", reverted"))
+            end
+            print("[share] listening for shared lists through " .. C.config)
+        else
+            print("[share] shared lists are off: " .. tostring(why))
+        end
+    end)
+    if not ok then
+        share_lobby, hud.share = nil, nil
+        print("[share] shared lists are off: " .. tostring(err))
+    end
+end
+-- }}}
+
 -- {{{ models: the map's and the install's (issue 522); WC3_MODELS=0 for
 -- the geometry designs only
 local gpu = require("assets.gpu")
@@ -364,6 +404,13 @@ local function scripted(what, input)
         end
         return
     end
+    local share_n = what:match("^share:(%d+)$")
+    if share_n then
+        local d = share_lobby and share_lobby:dialog()
+        local b = d and d.buttons[tonumber(share_n)]
+        if b then share_lobby:press(d, b.id) end
+        return
+    end
     local pressed = what:match("^dialog:(%d+)$")
     if pressed then
         local d = game.script and game.script:shown_dialogs()[1]
@@ -473,6 +520,7 @@ end
 local last_hover = { 0, 0 }
 function scene_tick(dt)
     game.tick(dt)
+    if share_lobby then share_lobby:update(dt) end
     glide_camera(dt)
     show_fog()
     if game.buildings_changed and game.time - last_rebake > 1 then

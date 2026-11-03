@@ -13,6 +13,8 @@ player keeps it as an asset pack of their own.
     P.types                  -- { hfoo = "units/knight/knight.mdx" }: a unit type's model
     P:revert(L)              -- after the game: as it was
     P:keep("Ana's models", L) -- or: an asset pack of the player's own
+    profile.leftovers(folder)    -- profiles still applied (a game that ended without saying so)
+    profile.open(folder, name)   -- one of them, to revert or keep
 
     local trust = profile.trust(folder)
     trust:decide("Ana", l)   -- "apply" (always from Ana, or always for this map) or "ask"
@@ -116,6 +118,44 @@ function profile.apply(l, opts)
     end
     write_file(data .. "/profiles/" .. opts.name .. ".list.lua", list.encode(l))
     return self
+end
+-- }}}
+
+-- {{{ function profile.open / profile.leftovers
+-- A profile applied earlier and not yet taken off (a game that ended
+-- without saying so: the window closed, the program stopped), read back
+-- from its saved list so it can be reverted or kept. Gives nil and why
+-- when there's no such profile.
+function profile.open(data, name, store)
+    check_name(name)
+    local text = read_file(data .. "/profiles/" .. name .. ".list.lua")
+    if not text then return nil, "no profile named " .. name end
+    local l, err = list.decode(text)
+    if not l then return nil, err end
+    local self = setmetatable({ name = name, dir = data .. "/profiles/" .. name, data = data,
+                                store = store or dedup.open(data .. "/blobs"), list = l,
+                                types = {}, files = {} }, P)
+    for _, e in ipairs(l.entries) do
+        local path = list.key_of(e.path or e.key)
+        if e.path then self.types[e.key] = path end
+        self.files[path] = self.files[path] or e.hash
+    end
+    return self
+end
+
+-- The names of the profiles applied and not taken off, sorted.
+function profile.leftovers(data)
+    local out = {}
+    local p = io.popen("ls -1 " .. sh(data .. "/profiles") .. " 2>/dev/null")
+    if p then
+        for f in p:lines() do
+            local name = f:match("^(.+)%.list%.lua$")
+            if name then out[#out + 1] = name end
+        end
+        p:close()
+    end
+    table.sort(out)
+    return out
 end
 -- }}}
 

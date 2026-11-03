@@ -11,6 +11,8 @@ and put in front of the player's packs for one game.
 | `P:revert(L)` | | taken off and removed; its stored files go at the next `gc` |
 | `P:keep(name, L)` | a pack name | made an asset pack of the player's own; its folder |
 | `P.types` | | `{id -> model path}` for the list's unit types |
+| `profile.leftovers(data)` | the player data folder | the names of profiles still applied (a game that ended without saying so) |
+| `profile.open(data, name[, store])` | | one of them, read back from its saved list, to revert or keep; or nil and why |
 | `profile.trust(data)` | the player data folder | the remembered choices (`<data>/share-trust.lua`) |
 | `T:decide(sender, l)` | who sent it, the list | `"apply"` (always from them, or always for this map) or `"ask"` |
 | `T:always_from(player, on)` / `T:always_for_map(hash, on)` | | remembered at once |
