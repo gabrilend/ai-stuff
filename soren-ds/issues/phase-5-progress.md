@@ -82,7 +82,7 @@ seam the twin can set, and the device's side of that seam waits for 101.
 
 - **506** — needs 502, 503 and 505, and its lookup table lives on the
   card at `/system-maps/` and `/settings/`, so it reads through
-  `read-path` (406, PR #35 and the filesystem stack under it).
+  `read-path` (406, PR #35).
 - **507** — reads handedness and drawer-swap from `/settings/` (408, PR
   #48) through `read-path` (406, PR #35), and re-reads on change.
 
