@@ -1,8 +1,8 @@
 # Issue 008 has moved: Custom Signal Protocol for File Server
 
-This issue was renumbered 008 → 040, because the number 008 also belongs to
+This issue was renumbered 008 → 049, because the number 008 also belongs to
 *Fix Execute Mode Analysis Parsing* (`completed/008-fix-execute-mode-analysis-parsing.md`).
-It is now [`040-custom-signal-protocol-for-file-server.md`](040-custom-signal-protocol-for-file-server.md).
+It is now [`049-custom-signal-protocol-for-file-server.md`](049-custom-signal-protocol-for-file-server.md).
 
 ## What Happened
 
