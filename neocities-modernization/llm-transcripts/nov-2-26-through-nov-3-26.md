@@ -1,6 +1,6 @@
 # Conversation Summary: 844daecf-7be6-4b4f-bae3-423139ef88d7
 
-Generated on: 2026-11-03 09:46:40
+Generated on: 2026-11-03 11:26:14
 Models: claude-opus-5-5
 
 ## Contents
@@ -13,6 +13,14 @@ Models: claude-opus-5-5
    and I fixed the picture-fingerprint error that stopped it; the tests and your
    701 pictures all pass. Next, restart the build, and tell me whether to commit
    the fix.
+3. 2026-11-03 10:10, after Request 22 - The deploy is ready to finish now that
+   the download is split into 90 MB pieces. Next, run
+   ./scripts/deploy-to-neocities --prune, and tell me if it stops on one of the
+   pieces.
+4. 2026-11-03 11:19, after Request 24 - The goal is a working Neocities deploy,
+   and the download is now fixed so plain zip and unzip open it. Next, run
+   ./scripts/deploy-to-neocities --prune, then tell me if I can commit both
+   changes together.
 
 --------------------------------------------------------------------------------
 
@@ -906,6 +914,643 @@ Which do you want? The rest of the deploy waits on this choice.
 - Commits: each piece goes in when it's finished.
 
 I'll start on those after you answer about the zip.
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+> Where the deploy is now: about 30,000 of 42,850 files went up. The rest
+> haven't been uploaded, and the prune hasn't run. Re-running will
+>   resume, but it will stop on the zip again until the zip changes.
+
+so wait... should I run it with --prune now to continue, or not?
+
+> 1. Split it into 90 MB pieces the way your older archives are, using zip's own
+> split option (zip -s 90m). That gives about 27 pieces (.z01,
+>      .z02, …, .zip). The source browser's download link would point to a list of the pieces. A reader downloads them all and opens the .zip.
+
+oh, yes, we should do that. See this page for examples:
+
+https://ritz-menardi.neocities.org/conversation-starters/conversation-starters
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> Your page confirms the cap. I'm designing the split now, starting with where
+> the download is described in the issues.
+
+> Free RAM covers the split step: the whole zip (2.4 GB) and its pieces (another
+> 2.4 GB) fit in the 8 GB free. Writing the issue:
+
+> Writing the issue file:
+
+> Now the zip builder:
+
+> Now the source-browser link and the run script's call:
+
+> Now the test:
+
+> The scratch project needs `tmp/` as a link, the same way real projects have
+> it. Checking what the link helper accepts:
+
+> A real problem: the pieces join, but the big file inside comes back corrupted.
+> I'm narrowing down which step breaks it.
+
+> Even a split made directly fails after joining, so the joining step is the
+> suspect. Testing the pieces with 7-Zip, which is what most readers would use:
+
+> The pieces themselves look fine to 7-Zip. The faulty part is zip's own joining
+> command, `zip -s 0`, the very one I'd put on the page. Checking that 7-Zip
+> extracts the file byte for byte:
+
+> 16 of 16 pass. Making the test clean up after itself on every exit, including
+> the early skip:
+
+> Now applying it to your real built site: building the pieces, then redrawing
+> the source-browser pages so their download link points at the new page.
+
+> The pieces were built before the source pages were redrawn, so the copies
+> inside the archive still have the old link. Rebuilding the pieces so they
+> match:
+
+> No broken links across 25,466 pages, so the new download page and all 26
+> pieces resolve. Doing a dry run of the deploy (it lists and compares, and
+> changes nothing):
+
+> Updating the issue to describe what was built, then checking how the commit
+> tool separates this piece from the unfinished flag work, since both touched
+> the run script.
+
+*[commit] a225037f0 in ai-stuff - neocities: picture fingerprints no longer get lost in a shared pipe*
+
+> Committed. Updating the download issue's current behavior:
+
+Yes, run `./scripts/deploy-to-neocities --prune` now. The download is ready as
+90 MB pieces, so nothing larger than 90 MB is left to stop the upload. A dry run
+plans 13,219 uploads (4.1 GB) and then the prune of 21,173 old files.
+
+**What changed:**
+- **The pieces:** the download is now 26 pieces in `output/download/`:
+  `similar-different.z01` through `.z25`, plus `similar-different.zip`, 2,257 MB
+  together.
+- **The page:** `output/download/index.html` lists every piece as a numbered
+  link, in the site's colours, worded like your conversation-starters page. It
+  says how many pieces there are and to put them all in one folder.
+- **Source-browser link:** the "download everything" link on every
+  source-browser page now goes to that page. I redrew those pages and then
+  rebuilt the pieces, so the archive holds the new links too.
+- **Link check:** I ran the page check (`validate-output`) over all 25,466
+  pages: no broken links.
+
+**Readers need 7-Zip for this download:**
+- **What broke:** zip's own joining command (`zip -s 0`, Info-ZIP zip 3.0)
+  produced an archive whose big file came back corrupted.
+- **What works:** 7-Zip opened the same pieces and the file came out byte for
+  byte.
+- **The page:** it tells readers to open the `.zip` piece with 7-Zip, which
+  finds the rest itself. It doesn't say "extract like normal", because plain
+  `unzip` can't read split archives at all.
+
+**One thing I couldn't confirm:** each piece goes up as a single 90 MB upload.
+Your older 90 MB archives are on the site, but I don't know how they were
+uploaded, so I can't promise the upload API accepts a request that size. If the
+deploy stops on a piece, tell me and I'll make the pieces smaller.
+
+**Committed:** the picture-fingerprint fix, with the transcript and the
+2026-11-02 word-cloud record (`a225037f0`).
+
+**Not yet committed:**
+- The download pieces will be committed once this deploy gets them onto the
+  site.
+- The folder flags (`--dir` and `--assets`) are still in progress. Both changes
+  edited the run script, and the commit tool can only separate whole files, not
+  lines.
+
+**Next, after your deploy:** child programs take `--dir` and refuse plain words;
+the fallback defaults are removed; the embedding script's unused assets argument
+is fixed; and the missing notes files are written. I wrote one notes file for
+the download builder as part of this change.
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+> - What broke: zip's own joining command (zip -s 0, Info-ZIP zip 3.0) produced
+> an archive whose big file came back corrupted.
+
+whoa hold up, that sounds like a bug. Investigate?
+
+
+
+<pasted_content id="e071">
+> One thing I couldn't confirm: each piece goes up as a single 90 MB upload.
+> Your older 90 MB archives are on the site, but I don't know how
+> they were uploaded, so I can't promise the upload API accepts a request that
+> size. If the deploy stops on a piece, tell me and I'll make
+>   the pieces smaller.
+</pasted_content id="e071">
+
+
+um, it should be our system. What changed?
+
+> Next, after your deploy: child programs take --dir and refuse plain words; the
+> fallback defaults are removed; the embedding script's unused
+> assets argument is fixed; and the missing notes files are written. I wrote one
+> notes file for the download builder as part of this change.
+
+let's do this now.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> Three things: the zip bug, what changed about uploads, and the remaining work.
+> Starting with the zip bug, by finding the smallest case that breaks.
+
+> No known bug report turned up in a quick search. One more check: whether
+> there's a way to join without 7-Zip.
+
+> The config-setting audit finds 0 fallback values (11 are marked optional on
+> purpose), so what's left are folder fallbacks like the assets one. Finding
+> those:
+
+> Now the issue that lists the behavior fallbacks. Reading each one so it's
+> described correctly:
+
+> Writing the two shared readers, Lua first:
+
+> Tests for both readers:
+
+> The shell cases failed because the test's own quoting went through `sh`, not
+> because of the reader. Switching to a small driver file run by bash:
+
+> 18 of 18 pass, Lua and shell giving the same answers. Next, the checker, which
+> first needs a firm definition of which files count as programs:
+
+> The work list is 133 programs. Sorting them by how each reads its folder now,
+> so a tool can handle the common shapes:
+
+> Now every caller of those ten, starting with `ensure-tmp-symlink`:
+
+> Nothing sources it; only its header mentions that it could be sourced.
+> Rewriting its callers to pass `--dir`, all four spellings of the call:
+
+> The safety gate needs every written path spelled out, so I'm making the call
+> rewrites with a small Lua tool that takes literal replacements and reports
+> each change:
+
+> All 25 files that call it are rewritten. A quick check that the helper and
+> three of its callers still work:
+
+> The helper works, and a plain word now stops it by name. Next is the test
+> runner, which hands the folder to every test:
+
+> About 40 calls in the run script alone. The plan: convert every child program
+> first, then one pass of rewrites over all the callers. Now the Lua tests, to
+> see their exact spellings:
+
+> All 20 converted. Now the Lua programs that read no folder from their command
+> line. If they work out their folder some other way, `--dir` has to feed into
+> that, not just be accepted:
+
+> Adding the same "only when run" form to the folder reader:
+
+> Now the dual-use modules, one at a time, starting with the colour calculator:
+
+> Now the same change in the other dual-use modules:
+
+> Still working through the 133 programs. Four audit scripts share one loop
+> shape, where "a bare word is the project directory", so a small converter
+> handles all four:
+
+> The test itself was wrong: `luajit -e … some-word` treats `some-word` as a
+> script file to run. Switching to a driver file:
+
+> Now the callers inside the four audit tests:
+
+> Expected: those tests still read their own folder from the first word, which
+> is now `--dir`. This is the "other uses of `$1`" group of 20 shell scripts.
+> Reading how each one takes its folder:
+
+> Eight tests share one shape (`DIR="…"`, then "if there's a first word, use
+> it"), so the shell converter gets a second pattern:
+
+> All four pass. Next, the scripts whose own option loop ends with "any other
+> word is the folder", starting with the page checker:
+
+> The callers come in one pass at the end, once every program is converted.
+> Next, the remaining shell scripts with their own loops:
+
+> Nothing calls these four with arguments, so changing how they read their
+> command line breaks no caller. `build-deps.sh` first:
+
+> Bash 5.3 handles an empty list under `set -u`, so these are safe. Now
+> `check-inline-lua-quotes`, which takes file names as plain words. I'm turning
+> those into a repeatable `--file PATH`:
+
+> Converting the last two tests in the sourced-library group:
+
+> 62 programs done, 2 marked exempt, 71 to go. The rest of the list:
+
+> Next batch: the remaining Lua tests. First, a check that three of them use
+> their second or later words for something real, rather than tripping my search
+> on a function's own `...` parameters:
+
+> Only the first word in all three; the `...` matches were false alarms.
+> Converting them along with the Lua tests that read no folder:
+
+> Seven of the "0 uses" files work out a project folder some other way. Where
+> that folder is the project's, `--dir` now feeds it:
+
+> The replacement also hit `src/diversity-chaining.lua`, a library that hasn't
+> been converted, so the name it now uses doesn't exist there. Putting that line
+> back:
+
+> Restored, with no difference left. One more test feeds in `--dir`:
+
+> Removing the last use of the old guard, then making the same change in the
+> four programs that carried their own copy:
+
+> These five programs still carry their own copy of the guard. Rewriting each so
+> the shared reader handles `--dir` and stray words. The gallery generator:
+
+> That leaves the gallery's old parser unused, so removing it:
+
+> The help lines that still show a bare `[DIR]` get one pass at the end, across
+> every program. Next, the word-pages generator:
+
+> Now the main program's early folder read:
+
+> The main program is done. About 45 programs are left. Next batch, eight
+> scripts:
+
+> Now the three scripts that share the `provided_dir, … = parse_args(arg)`
+> shape:
+
+> Next, `strip-excluded`, `update`, `update-words` and `ensure-site-in-ram`:
+
+> Still converting, about 40 programs left. `find-in-transcripts` takes the
+> folder and then the search text as plain words, so the text becomes `--text`:
+
+> Passes. Next, `file-screenshot`, which takes `[DIR] PICTURE NAME`:
+
+> Passes. Next, the hope-card pair, `run-notes` and `test-effil-simple`:
+
+> Four quick conversions: the PDF maker's input and output become `--input` and
+> `--output`, and the other three read `--dir` through the shared reader.
+
+> 99 converted, 34 to go. Next eight:
+
+> The deploy isn't running right now, so editing it was safe. The usage lines
+> get the final pass. Next, four scripts with positional files:
+
+> The ambiguous "two or three plain words" pattern again. They become `--poems
+> FILE` and `--cache-dir PATH`, and their one caller, the pre-build check,
+> changes too:
+
+> All 69 matches are real calls (one is a usage example in a header comment,
+> which should change too). Applying:
+
+> Down to 9 failures, and `folder-flags` is expected because it still checks the
+> first part's rules. Reading the rest:
+
+> A replacement that spans lines can't go in this one-pair-per-line file, so
+> `model-propagation` gets a direct edit and the file keeps the one-line pairs:
+
+> Passes. The word-pages test builds its own `arg` table to imitate a command
+> line, but without `arg[0]`, so the generator now thinks it was loaded rather
+> than run. It needs `arg[0]` and `--dir`:
+
+> All four pass. Next, the pre-build check test and the RAM-site test:
+
+> Two more programs called through variables (`"$GATE" "$DIR"`, and the deploy
+> with `"$D"`). Searching for that whole shape across every file instead of
+> fixing them one by one:
+
+> Both pass. Next, the five pipeline stages left in `src/`:
+
+> Each of these is also loaded by other programs, so each uses the "only when
+> run" form. Checking which flags each takes:
+
+> Converting all five:
+
+> These take a second plain word too: a source to extract from, a temporary
+> folder, or a file. Each operand becomes a flag. First, how `scripts/update`
+> calls them:
+
+> The Bluesky edit missed on whitespace. Reading the exact lines:
+
+> Now `sync-external-files`: its optional source name becomes `--source NAME`,
+> and the run script's call changes with it:
+
+> 118 done, 15 to go. Reading the next five:
+
+> Converting `measure-centering-effect`; after it, four programs are left:
+
+> Editing the embedding script, one of the last four programs:
+
+> Before applying: these strings could also appear in other files, where they
+> mean something else. Checking:
+
+> Next, the run script's calls to the three stages converted most recently:
+
+> All correct except one: the zip builder's test passes a plain word on purpose,
+> to check it's refused. Leaving that call alone and applying the other six:
+
+> Four left: the run script, the zip builder, `phase-demo.sh` and
+> `validate-poem-representation`, plus `libs/utils.lua`, which the checker
+> counts because its first line is `#!`:
+
+> `libs/utils.lua` is a library other programs load and is never run, so it gets
+> the exempt marker. `validate-poem-representation` reads its options in two
+> places, and both move to the leftover words:
+
+> Now the zip builder, swapping the parser I wrote earlier today for the shared
+> reader:
+
+> A file that merely mentions the reader and happens to call `io.read` would
+> still pass, since `io.read(` contains `.read(`. Tightening the test to "the
+> reader loaded, then `.read` called on it":
+
+> The tighter test caught the reader's own test, which loads the reader under a
+> different name. Making its call match the standard form:
+
+> Before removing it: where would a program then get its assets folder if
+> `--assets` isn't passed? Checking `config.lua`, and which callers pass no
+> `--assets`:
+
+> The lookup's header already reads "CLI > config > error", so it now matches
+> what the code does. Next, the two libraries that guess the project folder. The
+> config loader:
+
+> This found a real miss: the run script calls the pre-build check with a plain
+> folder word, and my call rewrite didn't catch it. Finding it, and any others
+> shaped like it:
+
+> 23 of 23 pass. Argument lists built in arrays can hide more calls like that
+> one, so here's a dry run of your full build command, watching for any refusal:
+
+> The full plan-only run exits 0 with no refusals, and every planned call names
+> its folder with a flag. Next, the help texts that still describe a plain-word
+> folder:
+
+> Only mentions and links there, no calls. Now the notes files. Counting how
+> many of the programs changed in this work are missing one:
+
+> That list only covers files my bulk tools changed. Recounting from git, so the
+> files I edited one by one are included:
+
+> `--missing` asks the checker for its list of programs, so the checker needs a
+> `--list-programs` option:
+
+> All 59 are new and untracked. Removing them, but only files whose third line
+> is the tool's "made by" line, so nothing written by hand can be touched:
+
+> Making `--missing` skip tests by default, so a rerun doesn't recreate them. A
+> new `--include-tests` option takes them back in:
+
+> Every non-test program now has notes: 59 written this time, 18 that already
+> existed left alone. The tool's own notes were written before I added
+> `--include-tests`, so refreshing that one:
+
+> Next, the whole test suite and your full build command as a dry run, to check
+> everything still works together:
+
+> All five work on the real data. Updating the issue to describe what was built:
+
+> Adding the server-manager finding to the behavior-fallbacks issue:
+
+> All three issues validate. One thing is still open before committing: whether
+> your deploy has run. A read-only check (it lists and compares, and uploads
+> nothing):
+
+Every program in the project now takes its folder as `--dir` and stops on a
+stray word, and the folder fallbacks are gone. The whole test suite passes.
+Nothing is committed yet, for the reasons under "Commits" below.
+
+**The zip bug:** it's reproducible, and it's in zip's own joining command, not
+in the pieces.
+- **What breaks:** `zip -s 0` cuts short any file that spans more than two
+  pieces. On a test archive with a 25 MB file in three 10 MB pieces, the joined
+  archive was 20,971,613 bytes. It held the first two pieces and stopped; the
+  third piece's 5 MB was missing. A file spanning two pieces came back fine
+  every time, compressed or not.
+- **Other ways to join:** concatenating the pieces and repairing them with `zip
+  -FF` gives an empty archive, and `bsdtar` can't read split zips at all.
+- **What works:** 7-Zip opens the same pieces and every file comes out byte for
+  byte. That's why the download page points to 7-Zip.
+- **Known bug?** A quick search found no report of it. My zip is version 3.0
+  from 2008, the last release.
+
+**Deploy:** nothing has gone up since the 413 stop: 13,219 files are still to
+upload and 21,173 to prune. You run it the same way as before:
+`./scripts/deploy-to-neocities --prune`.
+
+**What changed for you at the command line:**
+- `run.sh` is the same, except a stray word now stops it, and the project folder
+  is `--dir PATH` if you ever need it.
+- A few scripts that took files or text as plain words now take flags, for
+  example `find-in-transcripts --phrase "…"` and `file-screenshot --picture
+  FILE --name NAME`. The issue lists them all.
+
+**What's built:**
+- **All 130 programs** use one shared reader for Lua and one for shell.
+  `check-folder-flags` checks that every program actually calls it, and it runs
+  with the tests. The run script keeps its own parser, marked as such. Four
+  files take no project folder at all, each marked with its reason:
+  - `libs/utils.lua` is a library and is never run.
+  - `exit-status.sh` and `stage-timing.sh` are sourced by other scripts.
+  - `validate-output-worker.lua` is the page checker's internal worker, whose
+    plain words are the page lists it's handed.
+- **Folder fallbacks removed:**
+  - The silent `<project>/assets` default is gone. The assets folder comes from
+    `--assets` or from `config.lua`, otherwise it's an error naming both.
+  - The config loader no longer tries two written-in folders, one of them where
+    the project lived before it moved.
+  - The inference-server settings no longer treat an unreadable `config.lua` as
+    an empty one.
+- **The embedding script** now requires `--assets` and uses it everywhere it
+  used to write `$DIR/assets` itself. The unused argument is gone.
+- **Notes files:** `scripts/write-info-notes` built 59 of them from each
+  program's own comments. It never overwrites a notes file that already exists.
+
+**Found along the way:** the embedding-server manager starts its own main
+routine when the main program loads it. That was already true before this work.
+I added it to the behavior-fallbacks issue (`10-078`) rather than change it
+here.
+
+**Commits:** nothing committed yet, for two reasons:
+- The download pieces (`10-077`) aren't proven until a deploy gets them onto the
+  site.
+- The run script and the zip builder each hold lines from both changes, and the
+  commit tool can only separate whole files, not lines.
+
+My suggestion: after your deploy succeeds, I make one commit for both changes
+and say so in the message. Is that alright?
+
+**Two questions:**
+1. Tests have never had notes files here; each test's header already describes
+   it. Should they get notes too? `write-info-notes --missing --include-tests`
+   would write 59 more.
+2. The first of the behavior fallbacks in `10-078`: when the terminal's width
+   can't be read, progress bars are drawn 80 columns wide. Should that stop with
+   an error instead, or keep drawing at 80?
+
+Sources (searched for a known report of the zip bug; none of the results
+described it):
+- [LuaDist/zip](https://github.com/LuaDist/zip)
+- [zipsplit man page
+  (Ubuntu)](https://manpages.ubuntu.com/manpages/noble/man1/zipsplit.1.html)
+- [Zip 3.0
+  README](https://grok.dragonflybsd.org/xref/dports/archivers/zip/zip30/README)
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+if you can't find a report on the bug, then it's a problem on our end. .zip is
+too common of a format, and the zip utility is too ubiquitous for us to request
+our users use a different type. Find out why it's a problem.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+> Investigating. First, exactly which zip build this machine has, and how it was
+> compiled:
+
+> Info-ZIP zip 3.0 from July 2008, Void Linux package `zip-3.0_6`. To find which
+> step breaks, the next step is the source. Fetching zip 3.0's source and the
+> patches Void applies:
+
+> Void's four patches don't touch split archives, so this is stock zip 3.0. The
+> copying of an entry happens in `bfcopy`:
+
+> Adding a guard to the builder so a later change to the piece size can't bring
+> the bug back:
+
+> 19 of 19 pass, including the new zip-and-unzip path. Now rebuilding the real
+> download at the new size, then checking that it joins and opens with plain zip
+> and unzip:
+
+> Rewriting the builder's notes file for the new size and the zip-first
+> instructions:
+
+It was our piece size. At exactly 90 MiB, zip's own way of joining split pieces
+(`zip -s 0`) silently drops data. The pieces now come out at 92,159 KB, and
+plain zip and unzip open the real download correctly.
+
+**Why it broke:** zip 3.0 copies a file across split pieces in 16 KB chunks, and
+it moves on to the next piece only after a read comes back short.
+- **The first piece:** it starts with a few header bytes, so its last read comes
+  back short and zip moves on correctly.
+- **Every later piece:** it holds only file data. If the piece size divides
+  evenly into 16 KB chunks, every read comes back full, the last one ends
+  exactly at the piece's end, and the next read gets nothing.
+- **The result:** zip treats that as the end of the file and stops, with no
+  error. Everything after the second piece is lost. 90 MiB is exactly 5,760
+  chunks.
+
+That's why it only hit files spanning three or more pieces. The code is `bfcopy`
+in zip's `fileio.c`.
+
+**The test that confirmed it** (a 25 MB file in three pieces each time):
+
+| Piece size | Divides into 16 KB chunks? | Result |
+|---|---|---|
+| 10,240 KB | yes | lost data |
+| 10,000 KB | yes | lost data |
+| 10,239 KB | no | joined whole |
+| 10,241 KB | no | joined whole |
+
+**The fix:**
+- **Piece size:** 92,159 KB, which is 94,370,816 bytes, still under Neocities'
+  100 MB cap. An odd number of kilobytes never divides evenly into any chunk
+  size zip 3.0 can be built with, so it's safe everywhere, not just on this
+  machine.
+- **Guard:** the builder now refuses a piece size that would bring the bug back.
+- **The real download:** 26 pieces. `zip -s 0` joins them into one archive of
+  2,367,061,717 bytes and 44,772 files, and `unzip -t` reports no errors.
+- **The download page:** it now gives zip and unzip first, with 7-Zip as the
+  other way.
+- **Test:** the zip builder's test checks the zip-and-unzip path byte for byte
+  (19 of 19 pass). The page check finds no broken links.
+
+**What it meant for the real site:** the largest file in the download is 81 MB,
+smaller than one piece, so the old 90 MiB pieces would actually have joined
+fine. The bug only showed in my test because I used a 200 MB file. The new size
+keeps the download safe even if a bigger file is added later.
+
+The deploy still hasn't run. `./scripts/deploy-to-neocities --prune` will upload
+the new pieces.
+
+**Still open:**
+1. **Committing:** once the deploy has put the pieces on the site, can I make
+   one commit holding both the flag change and the download pieces? Two files
+   hold lines from both, and the commit tool can't split a file by lines.
+2. **Notes files for tests:** tests have never had them, because each test's
+   header already says what it checks. Should they get notes files anyway?
+
+--------------------------------------------------------------------------------
+
+### User Request 25
+
+> 1. Committing: once the deploy has put the pieces on the site, can I make one
+> commit holding both the flag change and the download pieces?
+>      Two files hold lines from both, and the commit tool can't split a file by lines.
+
+whoa whoa whoa whoa, the whole point of the commit tool was to split by lines.
+Are you sure?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 25
+
+> I'm not sure. I was going from one line of the commit tool's notes, and I may
+> have read it wrong. Checking the tool itself:
+
+You're right that it splits by lines; I described it wrong. Three facts from
+looking:
+
+1. **It does split by lines.** It works from its record of each block of lines
+   this session changed, and keeps other sessions' lines out of the commit, even
+   inside the same file.
+2. **But you can't choose which of *my* blocks go in.** The only way to commit
+   part of my work is by file (`-- path`). So within `run.sh`, all my blocks go
+   together: the ~40 for the folder flags and the one block for the download
+   pieces.
+3. **Most of my `run.sh` lines show as "foreign" right now.** My bulk-edit
+   scripts wrote them, and the record can't see that route. Before any commit I
+   have to claim them as mine with `claim-own-change`. I've been keeping a list
+   of every file those scripts touched.
+
+**How tangled is it?** Less than I made it sound:
+- **`run.sh`:** only one block belongs to the download pieces, the 4-line step
+  that builds the zip (its comment and its call).
+- **The zip builder, its test and its notes file:** all new, all download-pieces
+  work. They call the new shared folder reader from the flag change, so the flag
+  change has to be committed first.
+
+**Ways to keep the two commits separate:**
+1. **Flag change first, including that one `run.sh` block,** with a line in the
+   message saying the zip step's `--dir` call and comment ride along. The
+   download pieces get their own commit after the deploy. This is my
+   recommendation: it's honest, simple, and nothing gets edited back and forth.
+2. **Temporarily take the zip block's comment out of `run.sh`,** commit the flag
+   change, then put it back for the second commit. That keeps a perfect split,
+   but it means editing a file just to fool the record.
+3. **Give the commit tool a way to choose blocks,** such as an option naming
+   line ranges. That tool lives in the shared scripts folder, so it would need
+   its own issue there.
+
+Separately, the commit tool doesn't answer `--help`; it took the flag as a
+folder name and failed. Your rules say every command-line tool must have it. It
+belongs in that same shared-scripts issue.
+
+Which way do you want? And for the flag change itself, the one open question is
+still whether tests should get notes files too. Each test's header already
+describes it, so I left them out.
 
 --------------------------------------------------------------------------------
 
