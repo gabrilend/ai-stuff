@@ -5040,7 +5040,7 @@ before anything is switched on.
 - **Does the field filling up want fixing on its own?** It happens either way, and
   nothing in the design says it should. It may be the more interesting bug.
 
-## H15. Terror is a second pool, and it has collided with dying — **NEEDS A DECISION**
+## H15. Terror is a second pool, and it has collided with dying — **ANSWERED: the third way**
 
 Found while writing up the siege-surge, which is the first place morale attacks exist.
 
@@ -5086,7 +5086,24 @@ written, and lists three candidates for it. Terror plus health below zero is a f
 candidate, and it is better than the three because it is the only one that is a
 *number the player can affect* rather than a threshold somebody picked.
 
-**Changes when answered:** issues
+**Answered: the third.** Reaching zero or below makes a body **beaten**, and beaten is
+the moment of 212's one roll — fail and it runs and lives, pass and it lands one blow and
+dies. Chosen because this entry already argued for it, 602's S1 reached the same answer
+independently, and it is the only one of the three that keeps "dies at zero" and "retreats
+below zero" from being two rules that disagree about the same body.
+
+Two details the answer had to fix:
+
+- **Zero counts.** A body at exactly zero is beaten, as it was always dead at exactly
+  zero; the old death rule is kept rather than shifted by one point of health.
+- **Terror is not a field yet.** No morale attack exists until the surge's siege is
+  built, so today a body is beaten when its health alone reaches zero. When terror
+  arrives it joins the same test, health and terror together, and nothing else about
+  the roll changes.
+
+**Built:** [212](../issues/212-a-beaten-body-gets-one-roll.md).
+
+**Changed when answered:** issues
 [212](../issues/212-a-beaten-body-gets-one-roll.md) — the definition of beaten — and
 [602](../issues/602-the-surge-turns-waves-into-a-stream.md), plus
 [combat and damage](006-combat-and-damage.md) and

@@ -43,6 +43,7 @@ burning luck it should not be.
 | `tie` | one per team | Breaking exact ties in target selection. |
 | `boon` | one | Which boons a player is offered after a challenge. Not yet used. |
 | `surge` | one per team | The deal order when the chest is dealt across a surge. Not yet used. |
+| `will` | one per team | A beaten body's one will save (issue 212). Per team so that one side's luck never depends on how many of the other side's bodies were beaten. |
 
 `tie` is per-team for the same reason `draw` is. A shared tie stream makes each
 team's luck depend on how often the *other* team had a tie to break — a coupling

@@ -115,6 +115,9 @@ cluster in memory.
 | `orbit_side`, `orbit_milestone` | integer | Which shoulder a ranged body has committed to, and where it committed. |
 | `turns_left` | integer | Sign-posts this body will still obey. One for a hero, zero for everything else. |
 | `going_home` | integer | 1 while walking off the map during a calm. |
+| `will` | integer | The die this body rolls once when it is beaten, copied from its row. **0 never rolls.** See [212](../issues/212-a-beaten-body-gets-one-roll.md). |
+| `rolled` | integer | 1 once the roll has happened, for the rest of the body's life. Beaten again, it dies. |
+| `routed` | integer | 1 while running from a roll it failed: in the recovering state, at running pace, until it has mended. |
 | `crossing`, `crossing_step`, `crossing_dir` | integer | Which connector a hero is crossing, and how far along. |
 | `guard_of` | integer | Which tower this body is a guard of. |
 | `bounty_colour` | integer | Which colour killing it pays. |

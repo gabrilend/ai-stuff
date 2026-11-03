@@ -98,6 +98,20 @@ function M.strike_structure(world, structure_id, raw)
 end
 -- }}}
 
+-- {{{ local function the_blow()
+-- How hard this body hits right now. A frightened body hits softer. Fear is not damage
+-- and never was -- it is what the enemy actually does to you, and it is inflicted on
+-- purpose by something that meant to.
+local function the_blow(world, id)
+  local soldier = world.soldier
+  local blow = soldier.damage[id]
+  if soldier.fear[id] > 0 then
+    blow = blow * world.abilities.FEAR_MULTIPLIER
+  end
+  return blow
+end
+-- }}}
+
 -- {{{ function M.attack_pass()
 -- Every body whose cooldown has come up and whose target is in reach.
 --
@@ -182,14 +196,7 @@ function M.attack_pass(world)
 
           local reach = world.targeting.reach_to(world, id, target)
           if clear and dx * dx + dy * dy <= reach * reach then
-            -- A frightened body hits softer. Fear is not damage and never was --
-            -- it is what the enemy actually does to you, and it is inflicted on
-            -- purpose by something that meant to.
-            local blow = soldier.damage[id]
-            if soldier.fear[id] > 0 then
-              blow = blow * world.abilities.FEAR_MULTIPLIER
-            end
-            M.strike(world, target, blow)
+            M.strike(world, target, the_blow(world, id))
             soldier.cooldown[id] = soldier.cooldown_max[id]
           end
         elseif soldier.target_structure[id] ~= 0 then
@@ -210,30 +217,149 @@ function M.attack_pass(world)
 end
 -- }}}
 
+-- {{{ local function beaten()
+-- A body has just been brought to zero health or below. **It is beaten, and beaten is
+-- not yet an outcome** (issue 212, and H15's answer): it is the moment of the one will
+-- save that decides between the two ways out.
+--
+--   * a body that never rolls -- a `will` of 0 -- or has rolled once already, dies;
+--   * otherwise it rolls its own die on its team's stream. **Passing is what makes it
+--     stay**: it lands one single blow and dies. Failing is what lets it live: it is
+--     left with one point of health and runs, and that is the only time anything runs.
+--
+-- Note which way round that is, and do not quietly correct it. The save is against
+-- self-preservation, not against fear: a body that holds itself together enough to
+-- resist running is a body that spends itself.
+local function beaten(world, id)
+  local soldier = world.soldier
+  local unit = world.parameters.unit
+
+  if soldier.will[id] == 0 or soldier.rolled[id] == 1 then
+    soldier.health[id] = 0
+    soldier.state[id] = 5   -- dying
+    return
+  end
+
+  soldier.rolled[id] = 1
+  local roll = world.stream.will[soldier.team[id]]:next_below(soldier.will[id])
+  if roll >= unit.will_target then
+    soldier.health[id] = 0
+    soldier.state[id] = 5   -- dying, after its blow
+    local count = world.last_blow_count + 1
+    world.last_blow[count] = id
+    world.last_blow_count = count
+    world.raise(world, "stood", {team = soldier.team[id], lane = soldier.lane[id],
+                                 x = soldier.x[id], y = soldier.y[id]})
+  else
+    soldier.health[id] = 1
+    soldier.state[id] = 7   -- recovering, and running to do it
+    soldier.routed[id] = 1
+    soldier.target[id] = 0
+    soldier.target_generation[id] = 0
+    soldier.target_structure[id] = 0
+    world.raise(world, "routed", {team = soldier.team[id], lane = soldier.lane[id],
+                                  x = soldier.x[id], y = soldier.y[id]})
+  end
+end
+-- }}}
+
+-- {{{ local function hurt()
+-- Takes an amount off one body's health and asks whether that beat it.
+local function hurt(world, id, amount)
+  local soldier = world.soldier
+  -- The Golem cannot be hurt at all. Not very tough -- **deathless**, which is a
+  -- different thing and needs saying in the one place damage is applied, or
+  -- somebody will spend an afternoon tuning its health. It is also why no number of
+  -- last blows brings it down.
+  local row = world.parameters.unit.archetype[soldier.archetype[id]]
+  if row ~= nil and row.deathless then
+    return
+  end
+  soldier.health[id] = soldier.health[id] - amount
+  if soldier.health[id] <= 0 then
+    beaten(world, id)
+  end
+end
+-- }}}
+
+-- {{{ local function last_blow()
+-- The one blow a body that passed its save lands as it dies.
+--
+-- **Guaranteed**: no cooldown, no reach, no line of sight. It lands on what the body
+-- was fighting -- its target, or the stone it was hitting -- and only failing both
+-- does it look for the nearest enemy within its reach. A body with nobody to hit has
+-- spent itself on nothing, which is rare and is not papered over.
+local function last_blow(world, id)
+  local soldier = world.soldier
+  local blow = the_blow(world, id)
+
+  local target = soldier.target[id]
+  if target ~= 0 and soldier.alive[target] == 1 and soldier.state[target] ~= 5
+     and world.targeting.hostile(soldier.team[id], soldier.team[target]) then
+    local landed = blow - soldier.armour[target]
+    if landed < MINIMUM_DAMAGE then landed = MINIMUM_DAMAGE end
+    hurt(world, target, landed)
+    return
+  end
+
+  local structure_id = soldier.target_structure[id]
+  if structure_id ~= 0 and world.structure[structure_id].alive == 1 then
+    M.strike_structure(world, structure_id, blow)
+    return
+  end
+
+  local nearest, nearest_distance = 0, math.huge
+  local sweep = soldier.range[id] + world.largest_body
+  world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], sweep,
+    function(other)
+      if soldier.state[other] ~= 5
+         and world.targeting.hostile(soldier.team[id], soldier.team[other]) then
+        local dx, dy = soldier.x[other] - soldier.x[id], soldier.y[other] - soldier.y[id]
+        local distance = dx * dx + dy * dy
+        local reach = world.targeting.reach_to(world, id, other)
+        -- Ties broken by slot, so the choice cannot depend on the grid's order.
+        if distance <= reach * reach and (distance < nearest_distance
+           or (distance == nearest_distance and other < nearest)) then
+          nearest, nearest_distance = other, distance
+        end
+      end
+    end)
+  if nearest ~= 0 then
+    local landed = blow - soldier.armour[nearest]
+    if landed < MINIMUM_DAMAGE then landed = MINIMUM_DAMAGE end
+    hurt(world, nearest, landed)
+  end
+end
+-- }}}
+
 -- {{{ function M.resolve_pass()
--- The buffer is added into health. Anything at or below zero enters the dying
--- state; nothing is freed here, because freeing a slot mid-pass would let a
--- later body in the same pass be handed a slot that this pass still refers to.
+-- The buffer is added into health. Anything brought to zero or below is beaten, and
+-- rolls; anything that dies enters the dying state. Nothing is freed here, because
+-- freeing a slot mid-pass would let a later body in the same pass be handed a slot
+-- that this pass still refers to.
+--
+-- **Then the last blows, in the same pass.** Every body that passed its save lands
+-- its one blow after every ordinary blow of the tick is in, so a body beaten this tick
+-- can still strike back at whatever beat it -- the reason the buffer exists at all.
+-- A last blow can beat somebody else, who rolls in turn; that can only go so far,
+-- because nobody rolls twice. Structures are resolved after, so a last blow into stone
+-- counts this tick too.
 function M.resolve_pass(world)
   local soldier = world.soldier
   local pending = world.pending_damage
 
   for id = 1, world.high_water do
-    if soldier.alive[id] == 1 and pending[id] > 0 then
-      -- The Golem cannot be hurt at all. Not very tough -- **deathless**, which is a
-      -- different thing and needs saying in the one place damage is applied, or
-      -- somebody will spend an afternoon tuning its health.
-      local row = world.parameters.unit.archetype[soldier.archetype[id]]
-      if row ~= nil and row.deathless then
-        pending[id] = 0
-      end
-      soldier.health[id] = soldier.health[id] - pending[id]
-      if soldier.health[id] <= 0 then
-        soldier.health[id] = 0
-        soldier.state[id] = 5   -- dying
-      end
+    if soldier.alive[id] == 1 and pending[id] > 0 and soldier.state[id] ~= 5 then
+      hurt(world, id, pending[id])
     end
   end
+
+  local index = 1
+  while index <= world.last_blow_count do
+    last_blow(world, world.last_blow[index])
+    index = index + 1
+  end
+  world.last_blow_count = 0
 
   local structure_pending = world.pending_structure_damage
   for _, structure in ipairs(world.structure) do

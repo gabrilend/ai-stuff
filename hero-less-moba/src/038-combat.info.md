@@ -14,7 +14,7 @@ Three passes of the tick live here: the swings, the resolution, and the reaping.
 | `strike(world, target_id, raw)` | | — One blow landing on a body. |
 | `strike_structure(world, structure_id, raw)` | | — One blow landing on stone. |
 | `attack_pass(world)` | | — Every body whose cooldown came up and whose target is in reach. |
-| `resolve_pass(world)` | | — Adds the buffer into health; marks the dead. |
+| `resolve_pass(world)` | | — Adds the buffer into health; every body brought to zero is beaten and rolls its will save; lands the last blows of those that passed; marks the dead. |
 | `reap_pass(world)` | | — Starts a decay for the fallen, and finishes one for the certain. |
 
 ## A death is a two-second process
@@ -64,6 +64,27 @@ That is a real, reproducible, completely unexplainable unfairness.
 It also makes the attack pass safe to slice across a pool of workers: every worker
 writes into distinct slots of a preallocated array and reads nothing another worker
 is writing.
+
+## Beaten is a roll, and the last blows land in the same pass
+
+A body brought to zero health or below is **beaten** (issue 212, H15's answer) and rolls
+its own `will` die once on its team's `will` stream:
+
+| | What happens |
+| --- | --- |
+| no will (a guard, a monster), or rolled already | Dies. |
+| rolls `will_target` or more | **Stays**: owes one last blow, and dies. Raises `stood`. |
+| rolls less | **Runs**: one point of health, targets cleared, `routed`, recovering. Raises `routed`. |
+
+Note which way round that is — passing is what makes a body spend itself — and do not
+quietly correct it.
+
+Every ordinary blow of the tick is applied first. Then the last blows land, in the
+order their bodies were beaten, each **guaranteed**: no cooldown, reach or line, on the
+body's target, else the stone it was hitting, else the nearest enemy within its reach.
+A last blow that beats somebody makes them roll in turn, inside the same pass; that
+ends, because nobody rolls twice. Stone is resolved after, so a last blow into a tower
+counts this tick. The Golem takes nothing, last blows included.
 
 ## One swing, start to finish
 

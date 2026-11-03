@@ -19,7 +19,7 @@ no second system to distract from a bad one.
 | `orbit(world, id)` | | `true` if it fanned out or closed up. |
 | `should_fall_back(world, id)` | | Whether to leave the line. |
 | `should_return(world, id)` | | Whether to go back in. |
-| `recover(world, id)` | | — Withdraws and mends. |
+| `recover(world, id)` | | — Withdraws and mends. A routed body withdraws at **running pace** — the one place the `run` gait is read. |
 | `soonest_to_die(world, id, radius, skip_regenerating)` | | The ally with least time left. |
 | `healer` | *(table)* | Five choosers, one per archetype. |
 

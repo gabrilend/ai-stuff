@@ -24,8 +24,8 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 211a | The lane is cut into zones | built |
 | 211b | Every zone holds a waypoint | built — H9 |
 | 211c | A formation is a circle that faces where it is going | built |
-| 211d | Marching speed is not running speed | gears built; running not |
-| 212 | A beaten body gets one roll | not started |
+| 211d | Marching speed is not running speed | gears built; running built as a gait, for 212 |
+| 212 | A beaten body gets one roll | built — H15 answered, the third way |
 | 213 | What the lane can afford | not started — fully specified |
 | 214 | Going round what is in the way | built — and neither of its two designs was |
 | 215 | A body has a size | built, except that size does not grow with upgrades |

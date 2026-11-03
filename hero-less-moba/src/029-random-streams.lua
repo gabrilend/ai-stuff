@@ -180,6 +180,7 @@ function M.make_set(seed)
     -- depend on where the body before it happened to stand. Two questions sharing a
     -- sequence is two questions whose answers are coupled for no reason.
     spawn   = { M.new(seed, "spawn-1"), M.new(seed, "spawn-2") },
+    will    = { M.new(seed, "will-1"), M.new(seed, "will-2") },
     -- **No waypoint stream here**, and the absence is deliberate.
     --
     -- Which column a wave takes down a road, and where inside it the wave is heading,

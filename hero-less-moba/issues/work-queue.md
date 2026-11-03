@@ -18,7 +18,7 @@ written down only here, so the validator reported two questions needing a decisi
 there were five.
 
 ### Q1 → [H15](../docs/020-open-questions.md). Terror, and what it does to dying — issue [212](212-a-beaten-body-gets-one-roll.md), [602](602-the-surge-turns-waves-into-a-stream.md)
-**blocked**
+**done** · answered the third way, and built as 212: below zero is beaten, and beaten is the roll
 
 The rule is settled: a body carries **terror** as well as health, morale attacks
 (*fear*, *despair*, *ruin*) deal terror rather than damage, and **a body retreats when

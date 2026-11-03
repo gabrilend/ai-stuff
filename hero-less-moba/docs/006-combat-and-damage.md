@@ -9,7 +9,26 @@ number on a specific blow.
 Nothing writes to a health value during the attack pass. Attacks write into
 `pending_damage`, a flat array of doubles with one slot per soldier and one per
 structure, cleared at the top of every tick. A separate resolve pass adds the
-buffer into health and marks anything at or below zero as dying.
+buffer into health, and anything brought to zero or below is **beaten**.
+
+## Beaten is a roll, not a death
+
+*[H15](020-open-questions.md), answered by [212](../issues/212-a-beaten-body-gets-one-roll.md).*
+A body brought to zero health rolls its own `will` die once, on its team's `will`
+stream. **Passing makes it stay**: it lands one single blow on what it was fighting,
+guaranteed, and dies. **Failing lets it live**: it keeps one point of health and runs
+home at running pace, mends, and comes back an ordinary body with its roll spent. A body
+with no will to roll — a guard, a monster — or one that has rolled already, simply dies.
+
+The last blows land **in the same resolve pass**, after every ordinary blow of the tick:
+that is what the buffer makes expressible. A last blow can beat somebody else, who rolls
+in turn; it cannot run away, because nobody rolls twice. This is how big things die —
+the Pillar Orc and the Field Dragon are brought down by the accumulated last blows of
+everything they beat, and the Golem, which cannot be hurt at all, by nothing.
+
+Terror, when the morale attacks of the surge arrive, joins the same test: a body is
+beaten when health and terror together reach zero. There is no terror field yet, so
+today beaten means health alone.
 
 The reason is simultaneity. Two soldiers on their last sliver of health, both off
 cooldown on the same tick, should both die. If damage were applied immediately,

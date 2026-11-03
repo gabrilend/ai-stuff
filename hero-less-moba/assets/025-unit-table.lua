@@ -68,6 +68,12 @@ M.pace = {
   normal = 1.00,
   -- Charging; a guard running home; a body walking off the map during a calm.
   hurry  = 1.35,
+  -- **Running, which is for leaving and nothing else.** A beaten body that failed its
+  -- will save and is getting out (issue 212). Read in one place, the recovery step,
+  -- and never by a pattern: nothing that is still part of a fight runs (211d). Kept
+  -- under two paces a tick for the fastest body, so that the drawing of anything
+  -- moving faster than that can be read as a body being put somewhere.
+  run    = 1.60,
 }
 
 -- The pace numbers as an array too, so a pattern can name one with an integer and the
@@ -162,6 +168,7 @@ M.archetype = {
     acquire_range = 74,
     speed        = 1.15,
     cooldown_max = 22,
+    will         = 8,
   },
 
   -- 2 -- the ranged wave body. Same health and damage as melee; the whole
@@ -178,6 +185,7 @@ M.archetype = {
     acquire_range = 132,
     speed        = 1.15,
     cooldown_max = 26,
+    will         = 6,
   },
 
   -- 3 -- the melee captain. One per lane per wave, so no lane is ever the cheap
@@ -200,6 +208,7 @@ M.archetype = {
     acquire_range = 80,
     speed        = 1.05,
     cooldown_max = 24,
+    will         = 10,
   },
 
   -- 4 -- the tower guard. An ordinary body with a leash. It wanders inside its
@@ -217,6 +226,7 @@ M.archetype = {
     acquire_range = 88,
     speed        = 1.05,
     cooldown_max = 22,
+    will         = 0,
   },
 
   -- 5 -- the ranged captain. The same 2.5x health and 1.5x damage as its melee
@@ -242,6 +252,7 @@ M.archetype = {
     acquire_range = 138,
     speed        = 1.05,
     cooldown_max = 28,
+    will         = 10,
   },
 
   -- ---------------------------------------------------------------------------
@@ -273,6 +284,7 @@ M.archetype = {
     acquire_range = 82,
     speed        = 1.0,
     cooldown_max = 24,
+    will         = 12,
     ability      = {"guard_the_line"},
   },
 
@@ -289,6 +301,7 @@ M.archetype = {
     acquire_range = 90,
     speed        = 1.2,
     cooldown_max = 20,
+    will         = 12,
     ability      = {"cleave"},
   },
 
@@ -305,6 +318,7 @@ M.archetype = {
     acquire_range = 70,
     speed        = 0.9,
     cooldown_max = 26,
+    will         = 12,
     ability      = {"sunder"},
   },
 
@@ -322,6 +336,7 @@ M.archetype = {
     acquire_range = 130,
     speed        = 1.05,
     cooldown_max = 30,
+    will         = 12,
     -- An **area**, which needs no selection at all -- which is precisely why this is
     -- a different unit from the priest rather than a weaker one. The matching problem
     -- appears and disappears across the five healers, and this is where it is absent.
@@ -346,6 +361,7 @@ M.archetype = {
     acquire_range = 176,
     speed        = 1.1,
     cooldown_max = 30,
+    will         = 12,
     ability      = {"volley"},
   },
 
@@ -363,6 +379,7 @@ M.archetype = {
     acquire_range = 96,
     speed        = 1.0,
     cooldown_max = 23,
+    will         = 12,
     ability      = {"dread"},
   },
 
@@ -382,6 +399,7 @@ M.archetype = {
     health       = 200, damage = 12, armour = 3,
     range        = 96, acquire_range = 132,
     speed        = 1.05, cooldown_max = 32,
+    will         = 12,
     ability      = {"mend_deeply"},
   },
 
@@ -394,6 +412,7 @@ M.archetype = {
     health       = 210, damage = 13, armour = 3,
     range        = 92, acquire_range = 128,
     speed        = 1.1, cooldown_max = 26,
+    will         = 12,
     ability      = {"regrowth", "moon_spike"},
   },
 
@@ -410,6 +429,7 @@ M.archetype = {
     health       = 195, damage = 15, armour = 2,
     range        = 104, acquire_range = 140,
     speed        = 1.1, cooldown_max = 30,
+    will         = 12,
     ability      = {"affliction"},
   },
 
@@ -425,6 +445,7 @@ M.archetype = {
     health       = 205, damage = 13, armour = 3,
     range        = 98, acquire_range = 134,
     speed        = 1.08, cooldown_max = 34,
+    will         = 12,
     ability      = {"chain_tide"},
   },
 
@@ -457,6 +478,7 @@ M.archetype = {
     acquire_range = 62,
     speed        = 0.60,
     cooldown_max = 30,
+    will         = 0,
   },
 
   -- 13 -- the second. Harder, and still killable.
@@ -472,6 +494,7 @@ M.archetype = {
     acquire_range = 74,
     speed        = 0.66,
     cooldown_max = 28,
+    will         = 0,
   },
 
   -- 14 -- the last one, and it does not die.
@@ -497,6 +520,7 @@ M.archetype = {
     acquire_range = 0,         -- it acquires nothing, ever
     speed        = 0.52,
     cooldown_max = 24,
+    will         = 0,
     deathless    = true,
   },
 }
@@ -531,6 +555,19 @@ M.wave = {
 M.recovery = {
   regeneration = 0.45,   -- health per tick while recovering at your own stone
 }
+-- }}}
+
+-- {{{ M.will_target
+-- **A beaten body rolls its own `will` die once, and passing is rolling this or
+-- higher** (issue 212). Passing is what makes it stay and spend itself on one last
+-- blow; failing is what lets it run and live. A `will` of 0 never rolls -- a guard,
+-- which stands at its tower for its whole life, and the monsters, which are what the
+-- last blows are for.
+--
+-- So the die says how resolved a body is: d6 passes one time in three, d8 one in two,
+-- d10 three in five, d12 two in three. **Provisional** -- the shape is the design, the
+-- numbers are a first guess for the ledger.
+M.will_target = 5
 -- }}}
 
 -- {{{ M.bounty

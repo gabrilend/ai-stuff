@@ -333,6 +333,18 @@ end
 -- own. Made too eager, this is a body that spends the match walking.
 --
 local function recovering(world, id)
+  -- **A routed body has broken, and does not come back because it is needed.** It
+  -- failed its will save (issue 212) and is running; it goes back in only once it has
+  -- mended, and from then on it is an ordinary body that has spent its one roll.
+  local soldier = world.soldier
+  if soldier.routed[id] == 1 then
+    if soldier.health[id] >= soldier.health_max[id] * 0.9 then
+      soldier.routed[id] = 0
+      return 1
+    end
+    world.rest_of_brain.recover(world, id)
+    return 7
+  end
   if world.rest_of_brain.should_return(world, id) then
     return 1
   end

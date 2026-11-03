@@ -6,7 +6,7 @@
 | Blocked by | 207, 601 |
 | Blocks | 603, 605, 607 |
 | Reads | [the siege-surge](../docs/014-the-siege-surge.md) |
-| Open questions | B2 — surge length and stream rate; H15, H17 |
+| Open questions | B2 — surge length and stream rate; H17 |
 
 ## Current behavior
 
@@ -198,7 +198,7 @@ run, not by argument. Together those two decide the peak body count, which is th
 number the soldier store's fixed capacity is sized against (E3), and which
 decides whether the thread pool is worth having at all.
 
-**S1 — what does terror do to *dying*? — NEEDS A DECISION, and it blocks the rest.**
+**S1 — what does terror do to *dying*? — ANSWERED: the third, by H15, and built as 212.**
 
 A body dies at zero health today. Under the new rule a body **retreats** when health
 plus terror is below zero — and an ordinary blow taking a body from three health to
