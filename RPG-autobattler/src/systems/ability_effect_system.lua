@@ -27,7 +27,10 @@
 --   {kind, x, y, amount, target, caster, visual, sound, time}
 -- where kind is "damage", "heal", "effect_applied", "effect_expired",
 -- "projectile_launched", "projectile_hit", "projectile_miss", "area" or
--- "death".
+-- "death". Damage cues also carry delivery, weapon, cleave and
+-- damage_type, and damage and heal cues carry over_time for a tick of an
+-- effect over time, so a renderer can tell a sword swing from an arrow
+-- or a poison tick (src/systems/ability_cue_renderer.lua).
 --
 -- A PersistentEffectsSystem made with this system attaches itself as
 -- self.persistent and receives each activation after its instant part,
@@ -183,7 +186,9 @@ function AbilityEffectSystem:deal_damage(caster, target, amount, ability)
     self.stats.damage_dealt = self.stats.damage_dealt + dealt
     local x, y = position_of(em, target)
     self:cue("damage", {x = x, y = y, amount = dealt, target = target, caster = caster,
-        visual = ability.visual_effect, sound = ability.sound_effect})
+        visual = ability.visual_effect, sound = ability.sound_effect, delivery = ability.delivery,
+        weapon = ability.weapon_type, cleave = (ability.cleave_targets or 0) > 0, damage_type = ability.damage_type,
+        over_time = ability.over_time})
     if not Unit.is_alive(em, target) then
         self.stats.kills = self.stats.kills + 1
         self:cue("death", {x = x, y = y, target = target, caster = caster})
@@ -210,7 +215,7 @@ function AbilityEffectSystem:heal(caster, target, amount, ability)
     self.stats.overheal = self.stats.overheal + (amount - healed)
     local x, y = position_of(em, target)
     self:cue("heal", {x = x, y = y, amount = healed, target = target, caster = caster,
-        visual = ability.visual_effect, sound = ability.sound_effect})
+        visual = ability.visual_effect, sound = ability.sound_effect, over_time = ability.over_time})
     return healed
 end
 -- }}}

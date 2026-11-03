@@ -246,9 +246,11 @@ end
 
 -- {{{ AbilityBalance.tally
 -- Adds the effect system's damage and healing cues to each team's total.
+-- The step's cues are kept as world.last_cues, for a renderer to show.
 function AbilityBalance.tally(world)
     local em = world.em
-    for _, cue in ipairs(world.effects:pop_cues()) do
+    world.last_cues = world.effects:pop_cues()
+    for _, cue in ipairs(world.last_cues) do
         if (cue.kind == "damage" or cue.kind == "heal") and cue.caster then
             local team = em:get_component(cue.caster, "team")
             team = team and team.player_id

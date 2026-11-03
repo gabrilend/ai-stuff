@@ -293,7 +293,9 @@ end
 function PersistentEffectsSystem:apply_tick(effect)
     local em = self.entity_manager
     self.stats.ticks = self.stats.ticks + 1
-    local fake_ability = {visual_effect = effect.visual}
+    -- Stands in for the ability on the cue: its look, and that this is a
+    -- tick of an effect over time rather than a hit.
+    local fake_ability = {visual_effect = effect.visual, over_time = true}
     if effect.kind == "damage" then
         local stats = self.effect_system and self.effect_system:stats_of(effect.target) or nil
         local amount = DamageAbility.reduce(effect.per_tick, effect.damage_type, 0, stats)

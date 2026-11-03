@@ -427,6 +427,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_template_editor').run_all()
     " 2>/dev/null && print_success "Template editor tests passed" || print_error "Template editor tests failed"
+
+    # Test Ability cue drawing and sounds (issue 068)
+    print_info "Testing Ability cue renderer..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_ability_cue_renderer').run_all()
+    " 2>/dev/null && print_success "Ability cue renderer tests passed" || print_error "Ability cue renderer tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."

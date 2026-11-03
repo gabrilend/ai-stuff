@@ -85,7 +85,7 @@
 - [x] Add simple buff/debuff abilities (Issue #053: weakness curse added)
 - [x] Create area-of-effect abilities (Issue #054: lasting zones, static field)
 - [ ] Test ability interactions and balance (Issue #055: harness built; open for tuning, ranged sets lead)
-- [ ] Draw and play ability cues (Issue #068: visuals and sounds from 051-054, needs a screen)
+- [ ] Draw and play ability cues (Issue #068: drawn and played, tested with recorded calls; open until seen and heard)
 
 ## Phase 5: Unit Templates
 
