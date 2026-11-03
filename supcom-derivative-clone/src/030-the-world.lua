@@ -105,7 +105,7 @@ M.LAYOUT = {
     {"altitude", "double"},     -- height above the ground; zero for land and sea
     {"health", "integer"},      -- the heal pair: the value written ...
     {"health_at", "integer"},   -- ... and the increment it was written at
-    {"reload_at", "integer"},   -- the increment the weapon last fired at
+    {"reload_at", "integer"},   -- the reload increment from which it may fire again; zero: never fired
     {"pattern", "integer"},     -- which pattern it follows; zero for a plane
     {"leg", "integer"},         -- which segment of its pattern it is on
     {"mission", "integer"},     -- a plane's mission; zero for everything else

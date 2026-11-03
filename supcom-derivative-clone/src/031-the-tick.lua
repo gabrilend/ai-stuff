@@ -113,7 +113,7 @@ M.SYSTEMS = {
   row("emit", false, "307"),
   row("move", true, {"movement", "move_pass"}),
   row("claim", false, {"territory", "claim_pass"}),
-  row("sight-and-aim", true, "205"),
+  row("sight-and-aim", true, {"targeting", "aim_pass"}),
   row("fire", true, "206"),
   row("land", false, "206"),
   row("die", false, "208"),

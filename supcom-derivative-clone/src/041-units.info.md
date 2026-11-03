@@ -28,8 +28,9 @@ Zero is the sentinel. A tank's shield is zero, a target of zero is no target,
 and a row is never compacted mid-tick.
 
 The catalogue also asks the world for its counters. `counters()` gives one heal
-counter per kind (`world.heal.<name>`) and one recharge counter per shielded
-kind (`world.recharge.<name>`), in index order. The world adds them to its
+counter per kind (`world.heal.<name>`), one reload counter per kind with a
+weapon (`world.reload.<name>`), and one recharge counter per shielded kind
+(`world.recharge.<name>`), in index order. The world adds them to its
 counter table when it allocates, so the tick brings them up like any other.
 
 ## Exports

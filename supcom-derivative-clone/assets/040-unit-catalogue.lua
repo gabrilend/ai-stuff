@@ -43,6 +43,8 @@
 --   damage          -- per shot, at full strength; zero for a kind with no weapon
 --   falloff_full    -- cells out to which damage is full
 --   falloff_floor   -- the fraction of damage it never falls below
+--   falloff_end     -- cells out to which damage declines in a straight line to
+--                      the floor; beyond it, the floor
 --   shell_speed     -- cells per tick; decides the arrival tick
 --   reload_seconds  -- between shots
 --   heal_period     -- seconds between one point of health coming back
@@ -60,42 +62,42 @@
 return {
   tank = {
     index = 1, name = "tank", domain = 1, reaches = 5, tier = 1,
-    health = 100, damage = 25, falloff_full = 16, falloff_floor = 0.25,
+    health = 100, damage = 25, falloff_full = 16, falloff_floor = 0.25, falloff_end = 48,
     shell_speed = 2, reload_seconds = 3, heal_period = 1,
     speed = 0.2, climb = 0.5, eye = 1.5, profile = 2, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 100, cost_energy = 10, build_seconds = 6,
   },
   ["anti-air"] = {
     index = 2, name = "anti-air", domain = 1, reaches = 2, tier = 1,
-    health = 75, damage = 20, falloff_full = 24, falloff_floor = 0.5,
+    health = 75, damage = 20, falloff_full = 24, falloff_floor = 0.5, falloff_end = 64,
     shell_speed = 4, reload_seconds = 1.5, heal_period = 1.2,
     speed = 0.15, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 40, cost_energy = 40, build_seconds = 6,
   },
   helicopter = {
     index = 3, name = "helicopter", domain = 2, reaches = 5, tier = 1,
-    health = 50, damage = 15, falloff_full = 8, falloff_floor = 0.25,
+    health = 50, damage = 15, falloff_full = 8, falloff_floor = 0.25, falloff_end = 24,
     shell_speed = 3, reload_seconds = 2, heal_period = 0.8,
     speed = 0.6, climb = 0, eye = 1, profile = 1, altitude = 8, claim_radius = 0,
     shield = 0, shield_seconds = 0, cost_mass = 5, cost_energy = 50, build_seconds = 5,
   },
   frigate = {
     index = 4, name = "frigate", domain = 3, reaches = 5, tier = 1,
-    health = 200, damage = 30, falloff_full = 20, falloff_floor = 0.25,
+    health = 200, damage = 30, falloff_full = 20, falloff_floor = 0.25, falloff_end = 56,
     shell_speed = 2, reload_seconds = 4, heal_period = 1.5,
     speed = 0.15, climb = 0, eye = 3, profile = 3, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 80, cost_energy = 80, build_seconds = 12,
   },
   ["command-truck"] = {
     index = 5, name = "command-truck", domain = 1, reaches = 0, tier = 1,
-    health = 25, damage = 0, falloff_full = 0, falloff_floor = 0,
+    health = 25, damage = 0, falloff_full = 0, falloff_floor = 0, falloff_end = 0,
     shell_speed = 0, reload_seconds = 0, heal_period = 2,
     speed = 0.25, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
     shield = 0, shield_seconds = 0, cost_mass = 0, cost_energy = 0, build_seconds = 0,
   },
   enforcer = {
     index = 6, name = "enforcer", domain = 1, reaches = 5, tier = 2,
-    health = 150, damage = 60, falloff_full = 20, falloff_floor = 0.3,
+    health = 150, damage = 60, falloff_full = 20, falloff_floor = 0.3, falloff_end = 60,
     shell_speed = 2, reload_seconds = 4, heal_period = 0.5,
     speed = 0.1, climb = 0.3, eye = 5, profile = 6, altitude = 0, claim_radius = 4,
     shield = 100, shield_seconds = 0.5, cost_mass = 500, cost_energy = 50, build_seconds = 30,

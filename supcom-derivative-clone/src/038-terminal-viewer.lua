@@ -57,6 +57,11 @@ M.WATER = "~"
 -- shows up loudly rather than as ground.
 M.LETTERS = {"T", "A", "H", "F", "C", "E"}
 M.UNKNOWN = "?"
+
+-- The sightline layer's mark: a unit the caller says is seen draws as this
+-- instead of its letter. The caller works the answer out (the targeting
+-- module's `visible`), since the viewer asks no simulation module anything.
+M.SEEN = "!"
 -- }}}
 
 -- {{{ the team colours
@@ -83,17 +88,25 @@ end
 -- Which cell each live unit stands in, as a table from cell index to the letter
 -- drawn there. Units are walked in array order and a later unit in the same cell
 -- draws over an earlier one, so the picture is the same every time.
-local function units_by_cell(snapshot)
+local function units_by_cell(snapshot, seen)
   local field = snapshot.field
   local unit = snapshot.unit
   local marks = {}
+  local is_seen = {}
+  for _, id in ipairs(seen or {}) do
+    is_seen[id] = true
+  end
   for id = 1, unit.top do
     if unit.alive[id] == 1 then
       local cx = math.floor(unit.x[id] + 0.5)
       local cy = math.floor(unit.y[id] + 0.5)
       if cx < 0 then cx = 0 elseif cx > field.size - 1 then cx = field.size - 1 end
       if cy < 0 then cy = 0 elseif cy > field.size - 1 then cy = field.size - 1 end
-      marks[cy * field.size + cx + 1] = M.LETTERS[unit.kind[id]] or M.UNKNOWN
+      if is_seen[id] then
+        marks[cy * field.size + cx + 1] = M.SEEN
+      else
+        marks[cy * field.size + cx + 1] = M.LETTERS[unit.kind[id]] or M.UNKNOWN
+      end
     end
   end
   return marks
@@ -104,7 +117,9 @@ end
 -- The snapshot as one string: one line per row of the field, top row first, one
 -- character per cell -- a unit's letter where a live unit stands, the water mark
 -- below the water line, the land's grade otherwise -- then the legend. With
--- `options.colour` set, an owned cell is tinted in its team's colour.
+-- `options.colour` set, an owned cell is tinted in its team's colour. With
+-- `options.seen`, a list of unit ids, those units draw as SEEN: the sightline
+-- layer, showing which enemies a chosen unit can see.
 function M.draw(snapshot, options)
   local colour = options ~= nil and options.colour == true
   local field = snapshot.field
@@ -118,7 +133,7 @@ function M.draw(snapshot, options)
     if height[index] > top then top = height[index] end
   end
   local span = top - water
-  local marks = units_by_cell(snapshot)
+  local marks = units_by_cell(snapshot, options ~= nil and options.seen or nil)
 
   local land, owned = 0, {}
   local lines = {}
