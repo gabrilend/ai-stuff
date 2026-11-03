@@ -30,6 +30,13 @@ abstraction-transform.lua llm-transcripts/dec-10-25.md --compare-levels --write
   the model why the last answer was rejected: a code block outside low (or in
   low below detail level 4), no input and output named at high, or under a
   fifth of the original words.
+- **Key terms** are the names a reader would look for: what is in backticks,
+  file names, snake_case, camelCase and dotted names ("code"), and acronyms
+  of 3-5 capitals. Fenced code is left out. With `--validate`, high
+  abstraction may name none of the original's code names, and low must keep
+  at least half of the key terms (when there are two or more). Medium is
+  only counted. `--report` shows each chunk's count, and the summary line
+  the total the rewrites hold.
 - **`--cache=FILE`** keeps rewrites by (text fingerprint, level) and reuses
   them, so a second run costs only the changed chunks. It only grows.
 - **Output** is printed, or written with `--out=FILE` or `--write`
@@ -38,5 +45,5 @@ abstraction-transform.lua llm-transcripts/dec-10-25.md --compare-levels --write
 - **Prompts** live in `config/abstraction-prompts.lua` (`--prompts=FILE` for
   another set) so the wording can be tuned without touching the script.
 
-Tested by `test-abstraction-transform.sh` (46 checks) against the stand-in
+Tested by `test-abstraction-transform.sh` (54 checks) against the stand-in
 model in `libs/stand-in-model/`.

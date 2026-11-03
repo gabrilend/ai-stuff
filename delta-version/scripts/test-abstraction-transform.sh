@@ -32,10 +32,11 @@ function check() {
 }
 # }}}
 
-# -- {{{ same / has_line / lacks_line
+# -- {{{ same / has_line / lacks_line / matches
 function same() { if [ "$1" = "$2" ]; then echo yes; else echo no; fi; }
 function has_line() { if grep -qF -- "$2" <<< "$1"; then echo yes; else echo no; fi; }
 function lacks_line() { if grep -qF -- "$2" <<< "$1"; then echo no; else echo yes; fi; }
+function matches() { if grep -qE -- "$2" <<< "$1"; then echo yes; else echo no; fi; }
 # }}}
 
 # -- {{{ run
@@ -206,6 +207,39 @@ function test_usage() {
 }
 # }}}
 
+# -- {{{ test_key_terms
+# The key-term check: names in backticks, file names, snake_case, camelCase,
+# dotted names and acronyms. Low abstraction must keep half of them; high
+# must name none of the code; medium is only counted.
+function test_key_terms() {
+    local kt="$SCRATCH/terms.md"
+    {
+        printf '# Terms\n\n### Keeps\n\n`parse_line` reads config.lua and JSON.\n\n'
+        printf '### Loses\n\nThis paragraph runs long enough that the stand-in answer stops '
+        printf 'well before naming `read_cache`, cache.tsv and HTTP.\n\n'
+        printf '### High\n\nInput and output go via `route_request`.\n\n'
+        printf '### Plain\n\nInput and output, nothing named here, AI or OK, said plainly.\n\n```\nhidden_name = 1\n```\n'
+    } > "$kt"
+    run "$kt" --level=low --validate --report
+    check "low: a rewrite that keeps the key terms passes" "$(has_line "$OUT" "1.1  low    rewritten")"
+    check "... and the report counts them" "$(matches "$OUT" "^  1\.1 .* terms 3/3 +Keeps")"
+    check "low: a rewrite that loses them is kept, with the count" \
+        "$(has_line "$OUT" "(kept 0 of 3 key terms at low abstraction)")"
+    check "names in a fenced code block and two-letter capitals are not key terms" \
+        "$(matches "$OUT" "^  4\.1 .* terms 0/0 +Plain")"
+
+    run "$kt" --level=high --validate --report
+    check "high: a rewrite that names the code is kept, with the names" \
+        "$(has_line "$OUT" "(code names at high abstraction: route_request)")"
+    check "high: a rewrite without code names passes" "$(has_line "$OUT" "4.1  high   rewritten")"
+
+    run "$kt" --level=medium --validate --report
+    check "medium: lost key terms are counted, not refused" "$(matches "$OUT" "^  2\.1  medium rewritten .* terms 0/3 ")"
+    check "the summary gives the key terms the rewrites hold" \
+        "$(has_line "$ERR" "the rewrites hold 4 of their 7 key terms")"
+}
+# }}}
+
 # -- {{{ main
 function main() {
     setup
@@ -214,6 +248,7 @@ function main() {
     test_validate
     test_cache
     test_compare_and_chunks
+    test_key_terms
     test_writing
     test_usage
     stand_in_stop

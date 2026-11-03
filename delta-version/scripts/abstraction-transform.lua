@@ -25,7 +25,10 @@
 --   --validate        check each rewrite and retry (up to 3 times) when it
 --                     fails: no code outside low abstraction (and in low only
 --                     at detail level 4 or 5), input and output named at high,
---                     at least a fifth of the original words kept
+--                     at least a fifth of the original words kept, none of the
+--                     original's code names at high, and at low at least half
+--                     of its key terms (names in backticks, file names,
+--                     snake_case, camelCase, dotted names, acronyms) kept
 --   --cache=FILE      keep each rewrite here by (text, level) and reuse it
 --   --detail=N        the detail level the input was cut to (1-5); otherwise
 --                     read from transcript-detail's "left out" markers, or 5
@@ -33,7 +36,8 @@
 --   --out=FILE        write the document here (never over an existing file)
 --   --write           write it under the transcript's llm-transcripts folder,
 --                     in generated/{level}-abstraction/ (never over a file)
---   --report          print each chunk's outcome instead of the document
+--   --report          print each chunk's outcome (with its key terms kept)
+--                     instead of the document
 --
 -- Prompts come from ../config/abstraction-prompts.lua. The model is reached
 -- through libs/llama-chat-client.lua (INFERENCE_CHAT_HOST moves it). Exit
@@ -52,6 +56,7 @@ local config = {
     chunk_words = 800,        -- a chunk grows until the next paragraph would pass this
     max_retries = 3,          -- retries after a rejected rewrite, with --validate
     min_word_ratio = 0.2,     -- a rewrite keeps at least this share of the words
+    min_terms_kept = 0.5,     -- low abstraction keeps at least this share of key terms
     code_detail = 4,          -- low abstraction may hold code from this detail level up
     temperature = 0.3,
     max_tokens = 1024,
@@ -228,10 +233,65 @@ local function chunks_of(text)
 end
 -- }}}
 
+-- {{{ local function key_terms()
+-- The names in a text that a rewrite might lose or should not show: what is
+-- in `backticks`, file names, snake_case, camelCase and dotted names (all
+-- "code"), and acronyms of three to five capitals (JSON, HTTP; "acronym").
+-- Fenced code blocks are left out. Returns a list of { term, kind }.
+local FILE_TYPES = { lua = true, sh = true, c = true, h = true, md = true, json = true, tsv = true,
+    conf = true, py = true, js = true, ts = true, toml = true, yaml = true, txt = true, html = true }
+
+local function key_terms(text)
+    local terms, seen = {}, {}
+    local function add(term, kind)
+        term = term:gsub("%(%)$", "")
+        local key = term:lower()
+        if #term >= 3 and not seen[key] then
+            seen[key] = true
+            terms[#terms + 1] = { term = term, kind = kind }
+        end
+    end
+    text = text:gsub("```.-```", " ")
+    for inner in text:gmatch("`([^`\n]+)`") do add(inner, "code") end
+    text = text:gsub("`[^`\n]+`", " ")
+    for word in text:gmatch("[%w_%.%-/]+") do
+        word = word:gsub("[%.%-/]+$", ""):gsub("^[%.%-/]+", "")
+        local ext = word:match("%.(%a+)$")
+        if (ext and FILE_TYPES[ext:lower()] and word:match("^[%w_%-/%.]+$"))
+            or word:match("^[%a_][%w_]*_[%w_]+$")
+            or word:match("^%l+%u[%w]*$")
+            or word:match("^%a[%w_]+%.%a[%w_]+$") then
+            add(word, "code")
+        elseif word:match("^%u%u%u%u?%u?$") then
+            add(word, "acronym")
+        end
+    end
+    return terms
+end
+-- }}}
+
+-- {{{ local function terms_kept()
+-- How many of TERMS the rewrite still holds (ignoring case), and the code
+-- names among them it holds.
+local function terms_kept(terms, rewrite)
+    local lower, kept, code = rewrite:lower(), 0, {}
+    for _, item in ipairs(terms) do
+        if lower:find(item.term:lower(), 1, true) then
+            kept = kept + 1
+            if item.kind == "code" then code[#code + 1] = item.term end
+        end
+    end
+    return kept, code
+end
+-- }}}
+
 -- {{{ local function validate()
 -- ok, reason. The checks from the issue: code only in low abstraction and
 -- only at detail level 4 or 5, input and output named at high, and the
--- rewrite not shrunk below a fifth of the original's words.
+-- rewrite not shrunk below a fifth of the original's words. And the key-term
+-- check: high abstraction names none of the original's code names, and low
+-- abstraction keeps at least half of its key terms (when it has two or
+-- more). Medium is not held to either; its count is only reported.
 local function code_allowed(level, detail)
     return level == "low" and detail >= config.code_detail
 end
@@ -249,6 +309,14 @@ local function validate(original, rewrite, level, detail)
     end
     if words(rewrite) < words(original) * config.min_word_ratio then
         return false, "under a fifth of the original words"
+    end
+    local terms = key_terms(original)
+    local kept, code = terms_kept(terms, rewrite)
+    if level == "high" and #code > 0 then
+        return false, "code names at high abstraction: " .. table.concat(code, ", ", 1, math.min(#code, 3))
+    end
+    if level == "low" and #terms >= 2 and kept < #terms * config.min_terms_kept then
+        return false, string.format("kept %d of %d key terms at low abstraction", kept, #terms)
     end
     return true
 end
@@ -341,7 +409,8 @@ end
 -- }}}
 
 -- {{{ local function transform_units()
--- Gives each unit .results[level] = { text, chunks = { {outcome, reason, words, words_out} } }.
+-- Gives each unit .results[level] = { text, chunks = { {outcome, reason,
+-- words, words_out, terms, terms_kept} } }.
 local function transform_units(state, units, levels)
     local total = #units * #levels
     local step = 0
@@ -361,7 +430,13 @@ local function transform_units(state, units, levels)
                     text = "*[kept as written: " .. reason .. "]*\n\n" .. text
                 end
                 parts[#parts + 1] = text
-                record[#record + 1] = { outcome = outcome, reason = reason,
+                local terms = key_terms(chunk)
+                local kept = outcome == "kept" and #terms or terms_kept(terms, text)
+                if outcome ~= "kept" then
+                    state.terms.total = state.terms.total + #terms
+                    state.terms.kept = state.terms.kept + kept
+                end
+                record[#record + 1] = { outcome = outcome, reason = reason, terms = #terms, terms_kept = kept,
                     words = words(chunk), words_out = words(outcome == "kept" and chunk or text) }
             end
             unit.results = unit.results or {}
@@ -410,8 +485,9 @@ local function report(units, levels)
     for index, unit in ipairs(units) do
         for _, level in ipairs(levels) do
             for part, chunk in ipairs(unit.results[level].chunks) do
-                lines[#lines + 1] = string.format("%3d.%d  %-6s %-9s %5d -> %-5d %s%s", index, part,
-                    level, chunk.outcome, chunk.words, chunk.words_out, unit.title,
+                lines[#lines + 1] = string.format("%3d.%d  %-6s %-9s %5d -> %-5d terms %-7s %s%s", index, part,
+                    level, chunk.outcome, chunk.words, chunk.words_out,
+                    chunk.terms_kept .. "/" .. chunk.terms, unit.title,
                     chunk.reason and ("  (" .. chunk.reason .. ")") or "")
             end
         end
@@ -497,7 +573,7 @@ local function main(argv)
         cache = load_cache(options.cache), new_cache = {},
         validate = options.validate, detail = detail, quiet = options.quiet,
         asked = 0, unanswered = 0,
-        counts = { rewritten = 0, cached = 0, kept = 0 }, reasons = {},
+        counts = { rewritten = 0, cached = 0, kept = 0 }, reasons = {}, terms = { total = 0, kept = 0 },
     }
     transform_units(state, units, levels)
 
@@ -527,9 +603,11 @@ local function main(argv)
     for reason, count in pairs(state.reasons) do why[#why + 1] = count .. " " .. reason end
     table.sort(why)
     io.stderr:write(string.format("abstraction-transform: %s, detail level %d, %d sections: "
-        .. "%d chunks rewritten, %d from the cache, %d kept as written%s%s\n",
+        .. "%d chunks rewritten, %d from the cache, %d kept as written%s; "
+        .. "the rewrites hold %d of their %d key terms%s\n",
         table.concat(levels, "+"), detail, #units, state.counts.rewritten, state.counts.cached,
         state.counts.kept, #why > 0 and (" (" .. table.concat(why, "; ") .. ")") or "",
+        state.terms.kept, state.terms.total,
         (target and not options.report) and ("; written to " .. target) or ""))
     if state.asked > 0 and state.unanswered == state.asked then return 1 end
     return 0

@@ -29,11 +29,23 @@ Decisions taken in this slice:
   its own is usually too short to rewrite.
 - The tool reads 049a's output format (its "left out" markers carry the
   detail level) but not its code, so it works on any transcript.
-- Key-term preservation is not checked: telling a lost concept from a
-  renamed one needs a person or a second model pass.
+- Key-term preservation was left for a second pass (done below).
+
+**2026-11-03, key terms.** Key terms are names in backticks, file names,
+snake_case, camelCase and dotted names ("code"), and acronyms of three to
+five capitals; fenced code is left out. With `--validate`:
+
+- high abstraction may name none of the original's code names;
+- low must keep at least half of the key terms (when there are two or
+  more);
+- medium is only counted.
+
+`--report` and the summary line give the counts. Matching ignores case and
+does not try synonyms, so a renamed concept still counts as lost; that is
+why medium is not held to it. Tested: 54 checks.
 
 Still open: semantic accuracy and the feel of each level can only be judged
-on output from the real model; the key-term check; 049c takes the output.
+on output from the real model; 049c takes the output.
 
 ---
 
