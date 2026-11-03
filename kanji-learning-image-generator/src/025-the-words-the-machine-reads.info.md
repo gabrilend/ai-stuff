@@ -39,6 +39,8 @@ A colour palette is expendable. An etymology is not. Saying so explicitly is the
 
 `part` picks which clauses a route's sentence is made of (`416`). Every clause is one of four kinds -- a subject, an object along a stroke, the world, or the style -- and each part is a set of kinds. One sentence-maker for all of them, so the routes cannot drift into describing different scenes, and the style is shared because every part includes it.
 
+Two more kinds belong only to the inside route (`416a`): the world's *material*, which every stroke is built of, and its *cover*, which hides where that material would carry on past the strokes.
+
 ## Inside
 
 Not reachable from outside the file. Listed because the page is also

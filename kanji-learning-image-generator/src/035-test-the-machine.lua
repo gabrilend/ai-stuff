@@ -1139,6 +1139,38 @@ local function test_inside_and_outside(t)
          (role.phrase or role.object))
   end
 
+  -- `416a`: one material for the strokes, the only one of its kind.
+  local grammar = project.load("024-the-scene-grammar")
+  local unfinished = {}
+  for _, biome in ipairs(grammar.biomes()) do
+    local m = biome.material
+    if not (m and m.stuff and m.cover and m.words and #m.words > 0) then
+      unfinished[#unfinished + 1] = biome.name
+    end
+  end
+  t.ok(#unfinished == 0, "every world has a material and a cover for its strokes",
+       #unfinished > 0 and table.concat(unfinished, ", ") or nil)
+  local tree = assert(words.prompts(store.records["\230\156\168"], store, far, {}))  -- 木
+  t.same(tree.scene.biome.name, "forest", "木 lands in the forest")
+  local lowered = tree.parts.background:lower()
+  t.ok(not lowered:find("trunk", 1, true) and not lowered:find("bark", 1, true),
+       "the forest background names no trunk and no bark")
+  t.ok(tree.parts.background:find(tree.scene.biome.material.cover, 1, true),
+       "but does name the leaves that hide where trunks would carry on")
+  t.ok(tree.background_negative:find("trunks", 1, true) and
+       not tree.negative:find("trunks", 1, true),
+       "the background pass refuses trunks; the strokes' pass does not")
+  t.ok(tree.parts.subjects:find("trunks", 1, true), "the strokes are trunks")
+  for _, role in ipairs(tree.scene.named) do
+    t.ok(not tree.parts.subjects:find(role.phrase or role.object, 1, true),
+         "and nothing else: " .. (role.phrase or role.object))
+  end
+  local writing = assert(words.prompts(store.records["\230\150\135"], store, far, {}))  -- 文
+  for _, subject in ipairs(writing.scene.subjects) do
+    t.ok(not writing.parts.outside:find(subject.depicts, 1, true),
+         "the outside route is not told about 文's pieces: " .. subject.depicts)
+  end
+
   local mask = field_of.mask(record, far, far.routes.mask_width)
   local only_in_or_out, inked = true, 0
   for index = 1, mask.width * mask.height do

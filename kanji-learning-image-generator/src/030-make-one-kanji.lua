@@ -123,6 +123,7 @@ function M.make(record, store, settings, options)
       positive = built.positive,
       parts = built.parts,
       negative = built.negative,
+      background_negative = built.background_negative,
       field_name = field_name,
       arrows_name = arrows_name,
       -- The inside route holds its things to the wide mask; the outside route
@@ -214,6 +215,8 @@ function M.make(record, store, settings, options)
                             "outside_the_strokes", built.parts.background,
                             "around_the_ink", built.parts.outside,
                             "negative", built.negative,
+                            "negative_outside_the_strokes",
+                            built.background_negative,
                             "words", built.length.words,
                             "about_tokens", built.length.tokens,
                             "clauses_dropped", built.length.dropped)

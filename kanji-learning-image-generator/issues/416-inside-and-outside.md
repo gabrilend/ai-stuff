@@ -149,6 +149,12 @@ two pictures of one character are two files, not one replacing the other.
 7. **First real run on the far kitchen** with Juggernaut XL, a dozen characters,
    both routes, looked at by a person before any number is trusted.
 
+## Sub-issues
+
+- `416a` — one material for the strokes: the inside route builds every stroke
+  of one stuff that appears nowhere else, hidden past the strokes by a cover;
+  the outside route is told the meaning's world only.
+
 ## Open questions
 
 - The inside route's dark tone made the character into its subject but hid the
@@ -156,7 +162,10 @@ two pictures of one character are two files, not one replacing the other.
   background sentence be quieter (fewer trunks, more open ground) so dark
   strokes have something light to stand against — or should the tone be chosen
   by the first pass's actual brightness under each stroke instead of by the
-  world's polarity?
+  world's polarity? **Partly answered by the owner on 2026-10-06** (`416a`):
+  the strokes' material is the only one of its kind, so the background has no
+  trunks at all. Whether the tone should still follow polarity is open until
+  `416a`'s first pictures are seen.
 
 ## Related
 

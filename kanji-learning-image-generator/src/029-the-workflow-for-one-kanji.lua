@@ -135,7 +135,15 @@ function M.build_inside(record, made, settings)
                        "what is everywhere else")
   local refusals = g:add("CLIPTextEncode", { text = made.negative },
                          "what it must not be")
-  for _, box in ipairs({ things, ground, refusals }) do
+  -- The background is drawn first over the whole frame, and the strokes'
+  -- material must be the only one of its kind in the picture (`416a`), so the
+  -- first pass refuses the material as well. Without it the forest's first
+  -- pass drew trunks everywhere, and the trunk-shaped strokes were camouflaged
+  -- among them.
+  local refusals_around = g:add("CLIPTextEncode",
+                                { text = made.background_negative },
+                                "what the background must not be")
+  for _, box in ipairs({ things, ground, refusals, refusals_around }) do
     g:link(model, "CLIP", box, "clip")
   end
 
@@ -170,7 +178,7 @@ function M.build_inside(record, made, settings)
                       "an empty picture to start from")
   local world = sampler_for(g, record, made, wanted, model,
                             { held_out, "CONDITIONING" },
-                            { refusals, "CONDITIONING" },
+                            { refusals_around, "CONDITIONING" },
                             { blank, "LATENT" })
   -- AND A TONE TO START FROM. Redrawn from noise alone, the strokes were tried
   -- second and still did not appear: the model, asked to fill a tree-shaped
