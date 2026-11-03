@@ -59,6 +59,8 @@ Built as portable C and maps and proven on the laptop twin. Counts:
   every button it is about, each with a listen mask, each a comparator so
   only frames where something happened go on. The device's read answers
   "nothing pressed" until 101 names the pins.
+- **505** `chord_of`: two buttons by name and a window of frames, read
+  off the button history, one event on the frame the second goes down.
 
 The boxes are in `src/boxes/095-input.c`, the map is
 `src/maps/input-poll.map`, the starting and stopping in
@@ -69,7 +71,8 @@ once; frames plus skipped periods match the time that passed at 60 Hz;
 nothing after the stop; two copies do not see each other's ticks) and
 `100` (26 checks: downs, ups and their durations frame by frame, five
 buttons in one event, a held filter, a stale snapshot ignored, half a
-second on the real timer).
+second on the real timer) and `102` (12 checks: chords in either order,
+inside and outside their window, and a misspelled button).
 
 ## Open issues
 
@@ -85,8 +88,6 @@ seam the twin can set, and the device's side of that seam waits for 101.
   (`notes/diagnostics/002-stick-calibration.md`) is measured on the device.
 - **504** — `touch-down`, `touch-move`, `touch-up`, per-screen history;
   the I2C controller and its register map wait for 101.
-- **505** — `chord-of`, on 502's one-event-a-frame button stream (it
-  needs nothing else).
 
 **Blocked on an unmerged stack.**
 

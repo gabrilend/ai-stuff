@@ -20,7 +20,8 @@ the station that makes it, exactly as counting.map's count does:
              │          ├──→ read_touch   ──→ touch_events
              └──────────┘  (the previous frame, going round)
 
-The buttons are real (issue 502). The sticks and the touch panels are
+The buttons are real (issue 502), and chord_of (505) hangs off their
+history where a map wants a chord. The sticks and the touch panels are
 still stubs (issue 501): each answers an empty state stamped with its
 frame, and its event box only tallies the frame it was handed. Issues
 503 and 504 replace them.
@@ -34,6 +35,12 @@ included after this one in the catalogue and may use them by name.
 
 ```c
 int button_event__compare(struct button_event a, struct button_event b)
+```
+
+### chord_event__compare
+
+```c
+int chord_event__compare(struct chord_event a, struct chord_event b)
 ```
 
 ### frame_next
@@ -100,6 +107,36 @@ struct button_event button_held(struct button_state s, uint32_t listen)
 
 The buttons among `listen` held down this frame, once per frame — the
 frame a button goes down included, the frame it goes up not.
+
+### chord_of
+
+```c
+struct chord_event chord_of(struct button_state s, struct chord c)
+```
+
+Two buttons struck together (issue 505), named in a fixed value:
+`{ "dpad-up", "abxy-a", 3 }`. "Together" is within `window` frames of
+each other, in either order, with both still held when the second goes
+down — 0 is the same frame and nothing else. The event comes once, on
+the frame the second button goes down, and carries the frame, the two
+buttons, and how many frames apart they went down.
+
+It reads the button history, not the down events: the history already
+holds the frame each button went down, so no window of past frames has
+to be carried round a loop of its own, and two cores running it for
+neighbouring frames share nothing. A name that is not a button refuses
+the station on its first run (the refusal's detail is 1 for the first
+name, 2 for the second, 3 for the same button twice, 4 for a negative
+window), which takes it out of service where the person can see why.
+
+### say_chord
+
+```c
+void say_chord(struct chord_event e)
+```
+
+A chord on the developer line: the station's name, the frame, the two
+buttons by name and how many frames apart they went down.
 
 ### say_buttons
 
