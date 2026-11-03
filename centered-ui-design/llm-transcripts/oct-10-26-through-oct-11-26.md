@@ -753,7 +753,7 @@ value, and then allow the user to determine the exact framerate between 0 and
 The renderer runs, and it's committed. Start it with `./run` in the project
 folder. Escape opens the settings menu.
 
-![](/mnt/mtwo/programming/ai-stuff/centered-ui-design/tmp/shared-memory/screenshot.png)
+![](/mnt/mtwo/programming/ai-stuff/centered-ui-design/development-history/001-first-picture-spheroids-and-round-dashboard.png)
 
 **What you'll see**
 - **The map:** drawn flat by code, then laid on a ground disc that squeezes the
@@ -894,7 +894,7 @@ the same size.
 Both changes are in, committed and checked: 39 window-free tests pass and the
 main view holds 144 fps.
 
-![](/mnt/mtwo/programming/ai-stuff/tmp/shared-memory/screenshot.png)
+![](/mnt/mtwo/programming/ai-stuff/centered-ui-design/development-history/002-figures-on-bent-limbs-and-the-arch.png)
 
 **Units with bodies.** Each unit is now a small figure made of six spheroids: a
 body, a head, two arms and two legs.
@@ -1098,7 +1098,7 @@ All four changes are in and committed: cuboids, the chair, the band painted with
 the map, and the world running on your ceramic engine. The 41 window-free checks
 pass, and the game holds 144 fps.
 
-![](/mnt/mtwo/programming/ai-stuff/centered-ui-design/tmp/shared-memory/screenshot.png)
+![](/mnt/mtwo/programming/ai-stuff/centered-ui-design/development-history/003-ceramic-engine-and-cuboids-hauled.png)
 
 **Cuboids.** Each one is a sphere pushed toward a cube by one formula, so the
 edges stay rounded, and it's glazed like ceramic in one of the four seat
