@@ -73,9 +73,12 @@ end
 local stock = require("gamedata.unit_stock").new(A.chain, s.map.object_data and s.map.object_data.units)
 -- the ground's textures (issue 526): the install's tilesets, else
 -- stand-ins drawn in their layout; WC3_TILES=0 for plain colours
+local ground_reload      -- what hot-reload needs to swap a tileset (issue 606a)
 if os.getenv("WC3_TILES") ~= "0" then
     local ground = require("assets.ground")
-    local r = ground.apply(render, art, s, { standins = os.getenv("WC3_TILES") == "standin" })
+    local ids, extended, r = ground.textures(render, art, s.terrain, { standins = os.getenv("WC3_TILES") == "standin" })
+    r.cells, r.triangles = ground.lay(render, s.terrain, ids, extended)
+    ground_reload = { render, ids, s.terrain, r }
     print(string.format("[ground] %d tilesets: %d from the install, %d stand-ins; %d cells textured, %d triangles",
         r.tilesets, r.real, r.standin, r.cells, r.triangles))
 end
@@ -247,6 +250,9 @@ local hud = hud_mod.new(game, sw, sh)
 -- the geometry designs only
 local gpu = require("assets.gpu")
 local model_cache = A and gpu.new(render, art)
+-- hot-reload (issue 606a), when WC3_HOT_RELOAD=1: a texture saved in an
+-- asset pack goes into the running game. Unseen: no screen to check it on.
+local hot = art.packs and require("assets.live").from_env(art, { models = model_cache or nil, ground = ground_reload }) or nil
 local model_ids = {}
 local object_data = s.map.object_data
 local function model_of(kind, id, variation)
@@ -480,6 +486,7 @@ end
 -- {{{ Viewer entry points
 local last_hover = { 0, 0 }
 function scene_tick(dt)
+    if hot then hot:tick() end
     game.tick(dt)
     glide_camera(dt)
     show_fog()
@@ -606,6 +613,7 @@ end
 
 function scene_ui()
     hud:draw(render)
+    if hot then require("assets.live").draw(hot, render) end
 end
 
 function scene_status() return s.name or "map" end
