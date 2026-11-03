@@ -10,13 +10,18 @@
 
 ## Current behavior
 
-A hero can be bought onto any of its team's living waves and appears at that
-wave's front immediately. The aggressive option, and the fragile one.
+A hero can be bought onto any of its team's living waves and appears immediately
+**just behind the wave's rearmost living member**, one body's width back, down the
+middle of the road. The aggressive option, and the fragile one.
+
+It used to appear at the wave's front. Following the intent below rather than that is
+**chosen by Claude, open for Ritz**: the coordinator settled the question by following
+this issue, and the gap behind — the two bodies' radii, the walk's own spacing — is
+Claude's.
 
 **Tested** in `tests/075-the-commanders.lua`: a hero bought onto a living wave arrives in
-its lane at the wave's front and does not join the wave's counters; the enemy's wave and
-an empty one are refused. The test pins the **front**, which is what is built. The
-intended spot below is the rearmost living member, and that is still a gap.
+its lane just behind the rearmost living member, for both teams, and does not join the
+wave's counters; the enemy's wave and an empty one are refused.
 
 ## Intended behavior
 

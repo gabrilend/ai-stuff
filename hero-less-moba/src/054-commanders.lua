@@ -323,13 +323,41 @@ function M.place_hero(world, id, player, where, target)
   if where == M.WHERE_WAVE then
     local wave = world.wave[target]
     local lane = world.map.lane[wave.lane]
+    local facing = (team == 1) and 1 or -1
     soldier.lane[id] = wave.lane
-    soldier.facing[id] = (team == 1) and 1 or -1
+    soldier.facing[id] = facing
     soldier.path_index[id] = (team == 1) and 1 or #lane.path
-    -- Arrives with the wave, wherever the wave currently is, immediately. The
-    -- aggressive option, and the fragile one: the frontline is where the enemy's
-    -- damage already is.
-    world.walking.set_lane_position(world, id, wave.anchor, 0)
+
+    -- Arrives with the wave, wherever the wave currently is, immediately -- but
+    -- **behind its rearmost living member**, not at its front. The aggressive option
+    -- is still the fragile one, because the wave is where the fighting is; what it
+    -- must not be is strictly better than the other two, and a hero dropped in front
+    -- of its own escort is the first thing the enemy's line touches. Behind them, it
+    -- walks up into the fight the way the wave did.
+    --
+    -- Rearmost is measured along the lane, against the way the team walks, over the
+    -- members still standing in the wave's own lane. A wave always has one: buying
+    -- onto a wave with nobody left in it is refused before this is reached.
+    local rearmost, rear_along = 0, math.huge
+    for other = 1, world.high_water do
+      if soldier.alive[other] == 1 and soldier.wave[other] == wave.id
+         and soldier.lane[other] == wave.lane then
+        local behind = soldier.lane_along[other] * facing
+        if behind < rear_along then
+          rearmost, rear_along = other, behind
+        end
+      end
+    end
+    if rearmost == 0 then
+      error("wave " .. wave.id .. " has living members but none in lane " .. wave.lane)
+    end
+
+    -- One body's width behind it -- the two radii, the same spacing the walk keeps
+    -- between any two bodies -- and down the middle of the road.
+    local gap = soldier.radius[rearmost] + soldier.radius[id]
+    soldier.path_index[id] = soldier.path_index[rearmost]
+    world.walking.set_lane_position(world, id,
+      soldier.lane_along[rearmost] - gap * facing, 0)
     return
 
   elseif where == M.WHERE_TOWER then
