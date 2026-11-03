@@ -100,7 +100,7 @@
 - [ ] Design template editor UI
 - [x] Implement stat allocation interface (Issue #063: rows, limits, steps, presets and suggestions as logic; the screen comes with the editor UI)
 - [x] Create ability selection system (Issue #064: library, search, tuning and slot logic; the screen comes with the editor UI)
-- [ ] Add point budget display and validation
+- [x] Add point budget display and validation (Issue #065: segments, tooltips, status, change detection and over-budget suggestions as logic; the bar comes with the editor UI)
 - [ ] Implement template preview functionality
 
 ### 5.3 Template Integration
