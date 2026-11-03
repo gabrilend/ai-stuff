@@ -42,7 +42,7 @@ notes for 067. (052 has since closed as superseded.)
 
 | Issue | What | Decided |
 |-------|------|-------------|
-| **056** (056c–d) | Recursive transcript summarisation | 056a and 056b are done. 056c adds the blurb and table of contents, with renames off by default and turned on by a config setting. 056d is the overseer. |
+| **056** (056d) | Recursive transcript summarisation | 056a–c are done. 056d (the overseer) remains. It waits on the scripts project teaching the rulebook slug names and the summary block. |
 | **067** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 
 ## TIER 3: Large specifications, nothing built
