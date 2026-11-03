@@ -69,6 +69,7 @@ Phase 1 is complete: the model is written down; the validator, the blocked
 board, the proposal tool and a static page read it; and this monorepo's own
 queue of pull requests is mapped in [`examples/monorepo/`](examples/monorepo/board.txt),
 where the board says which merge frees the most. `./run-phase-demo 1` shows all
-of it. Phase 2 has begun: an org's history is replayed to prove its map came only
-from agreed proposals. Maps inside boxes are next. See [the roadmap](docs/006-roadmap.md) and
+of it. Phase 2: an org's history is replayed to prove its map came only from agreed
+proposals, and a box can hold a map of its own that reaches the world only
+through the box. The trainstation picture waits on the prototype. See [the roadmap](docs/006-roadmap.md) and
 [phase 1's progress](issues/phase-1-progress.md).

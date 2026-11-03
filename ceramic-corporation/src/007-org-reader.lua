@@ -703,6 +703,22 @@ function M.main(args)
     return 1
   end
   local map = org.map
+  -- Maps inside boxes are checked only once the org itself reads, because
+  -- lining an inner map up with a box needs the box.
+  for _, name in ipairs(map.box_order) do
+    if map.boxes[name].inside then
+      local root = debug.getinfo(1, "S").source:match("^@(.*)/src/[^/]+$") or "."
+      local inner_problems, inner_warnings = dofile(root .. "/src/017-inside.lua").check(dir)
+      for _, p in ipairs(inner_problems) do print(M.format_problem(p)) end
+      for _, w in ipairs(inner_warnings) do print(M.format_problem(w)) end
+      if #inner_problems > 0 then
+        print(string.format("%s: refused, %d problem%s inside its boxes", dir, #inner_problems,
+                            #inner_problems == 1 and "" or "s"))
+        return 1
+      end
+      break
+    end
+  end
   print(string.format("%s: valid -- %d people, %d boxes, %d outside, %d warning%s",
     dir, #map.person_order, #map.box_order, #map.outside_order,
     #warnings, #warnings == 1 and "" or "s"))
@@ -710,7 +726,11 @@ function M.main(args)
 end
 -- }}}
 
-if arg and arg[0] and arg[0]:match("007%-org%-reader%.lua$") then
+-- Run as a program only when this file is the program, and only once: a
+-- module loaded by another one while it runs is a library, even when the
+-- two share a name in arg[0].
+if arg and arg[0] and arg[0]:match("007%-org%-reader%.lua$") and not rawget(_G, "CERAMIC_MAIN") then
+  rawset(_G, "CERAMIC_MAIN", true)
   os.exit(M.main(arg))
 end
 

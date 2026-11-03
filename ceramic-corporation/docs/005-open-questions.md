@@ -69,6 +69,11 @@ has its own rules. How the outer map's rules bind the inner ones is open; until
 it is answered, **a proposal edits exactly one map**, and a change that spans
 two is two proposals.
 
+What is settled (issue 201) is the wall between them: an inner map reaches the
+world only through its box's ports (N5), so a change inside cannot open a door
+the outer map's rules never see. Changing what the box exchanges is a change to
+the outer map, under the outer rules; how the box does it is the inner map's.
+
 ## Q7 — Anonymous objections
 
 **Working ruling:** none. An objection names its author and its reason, so it
@@ -90,3 +95,16 @@ person; anybody may route around anybody by moving their own wires. What an
 organisation does about somebody everyone has routed around — stops paying
 them, asks them to leave — happens outside the map, and the map shows it
 happened.
+
+## Q10 — State across a box's wall
+
+The outer `org.state` says whether the box's `in spec` is fed; the inner one
+says whether `cutting.spec`, the door that port leads to, is fed. Nothing yet
+makes the two agree.
+
+**Working ruling:** each map's state is its own, written by the people waiting
+in that map, as everywhere else. The board looks inside a source using the
+inner state. Deriving one from the other — an inner door in fed whenever the
+box's port is — would be tidier and would mean a state line in one directory
+changes the meaning of another's; that is worth deciding with a real nested
+org in front of us rather than in advance.

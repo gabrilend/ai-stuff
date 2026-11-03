@@ -190,7 +190,11 @@ function M.main(args)
 end
 -- }}}
 
-if arg and arg[0] and arg[0]:match("015%-history%.lua$") then
+-- Run as a program only when this file is the program, and only once: a
+-- module loaded by another one while it runs is a library, even when the
+-- two share a name in arg[0].
+if arg and arg[0] and arg[0]:match("015%-history%.lua$") and not rawget(_G, "CERAMIC_MAIN") then
+  rawset(_G, "CERAMIC_MAIN", true)
   os.exit(M.main(arg))
 end
 

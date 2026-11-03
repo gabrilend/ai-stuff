@@ -5,7 +5,7 @@ that explains its map.
 
 | Issue | | Status |
 | --- | --- | --- |
-| 201 | A map inside a box | not started |
+| 201 | A map inside a box | built |
 | 202 | The org's history, replayed | built |
 | 203 | The trainstation picture | blocked: the prototype is not in the repository |
 

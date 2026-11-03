@@ -39,7 +39,9 @@ ceramic-corporation/
 │   │                                           the map edited as text.
 │   ├── 012-monorepo-map ...................... A snapshot of the queue, as a map.
 │   ├── 013-org-page .......................... The static page.
-│   └── 015-history ........................... The history replayed.
+│   ├── 015-history ........................... The history replayed.
+│   └── 017-inside ............................ A map inside a box lines up with it;
+│                                               the board looks inside.
 ├── tests/
 │   ├── 009-the-map-and-the-board ............. One refusal per rule code; the
 │   │                                           board against document 004.
@@ -47,8 +49,10 @@ ceramic-corporation/
 │   ├── 014-the-monorepo-and-the-page ......... The queue as a map; the page; every
 │   │                                           generated example against its
 │   │                                           generator.
-│   └── 016-the-history ....................... Every way a history can fail to
-│                                               explain a map, by its code.
+│   ├── 016-the-history ....................... Every way a history can fail to
+│   │                                           explain a map, by its code.
+│   └── 018-the-inside ........................ N1 to N6, and the board two levels
+│                                               down.
 ├── scripts/
 │   └── list-open-pull-requests ............... The queue, from GitHub's REST API.
 │
@@ -76,8 +80,9 @@ ceramic-corporation/
 │   │                                           uses: a map, a state, two proposals,
 │   │                                           and its page.
 │   ├── workshop/ ............................. An org that keeps a history: its
-│   │                                           first map, two applied changes and
-│   │                                           an open one.
+│   │                                           first map, three applied changes and
+│   │                                           an open one; its making box holds
+│   │                                           a map of its own in making/.
 │   └── monorepo/ ............................. This repository's queue of pull
 │                                               requests as an org: the snapshot and
 │                                               questions it is made from, the map,

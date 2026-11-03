@@ -90,13 +90,15 @@ end
 
 local KAI = "proposals/kai-joins.proposal"
 local FINISHING = "proposals/finishing-is-its-own-role.proposal"
+local MAKING = "proposals/making-shows-its-inside.proposal"
 
 -- {{{ histories that explain their maps
 do
   local r = history.replay(ROOT .. "/examples/workshop")
   check(r.history and r.matches and #r.problems == 0, "the workshop's history explains its map")
-  check(#r.steps == 2 and r.steps[1].name == "kai-joins" and r.steps[2].name == "finishing-is-its-own-role",
-        "two changes, in their numbered order; the open proposal is not part of history")
+  check(#r.steps == 3 and r.steps[1].name == "kai-joins" and r.steps[2].name == "finishing-is-its-own-role"
+        and r.steps[3].name == "making-shows-its-inside",
+        "three changes, in their numbered order; the open proposal is not part of history")
 
   local b = history.replay(ROOT .. "/examples/bakery")
   check(b.history and b.matches and #b.steps == 0, "the bakery has applied nothing, and its map is its first")
@@ -142,7 +144,8 @@ do
 
   local none = history.replay(copy_of("workshop", {
     [KAI] = sub("applied 2026-10-01 1", "applied 2026-10-01"),
-    [FINISHING] = sub("applied 2026-10-12 2", "applied 2026-10-12") }))
+    [FINISHING] = sub("applied 2026-10-12 2", "applied 2026-10-12"),
+    [MAKING] = sub("applied 2026-11-03 3", "applied 2026-11-03") }))
   check(none.matches and #none.problems == 0 and none.warnings[1] and none.warnings[1].code == "W4",
         "none numbered replays by date, with a warning that the order was inferred")
 
