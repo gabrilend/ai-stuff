@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# apply-proposal -- says whether a change to an org may be applied, and shows it.
+#
+# Reads a proposal against the org's map and prints its derived status (ready,
+# waiting, stale, broken, invalid, withdrawn, applied), its change id, the
+# kinds of change it makes, who each kind affects, every rule and whether it
+# is met, everybody's standing answer, any state the change would make
+# untrue, and the unified diff of org.map it would make. With --write, and
+# only when it is ready, writes the new map and state and marks the proposal
+# applied. The rules are docs/003-how-a-change-is-accepted.md.
+#
+# Usage:
+#   ./apply-proposal ORG_DIR PROPOSAL [--today YYYY-MM-DD] [--write]
+#   ./apply-proposal /path/to/ceramic-corporation ORG_DIR PROPOSAL ...
+#
+# PROPOSAL is a path, or a name in ORG_DIR/proposals/. --today fixes the date
+# the waiting periods are counted to. Exits 0 when ready (or already applied),
+# 3 when not, 1 on an error, 2 on a usage error. LUA picks the interpreter.
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+# -- {{{ show_help
+show_help() {
+    sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+if [ -f "$1/src/010-proposals.lua" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ "$#" -lt 2 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help
+    exit 2
+fi
+
+exec "${LUA:-luajit}" "${DIR}/src/010-proposals.lua" "$@"

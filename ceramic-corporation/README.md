@@ -53,6 +53,8 @@ either.
 ```
 ./validate-org examples/bakery        # every problem, by rule code
 ./blocked-board examples/bakery       # what to deliver first
+./apply-proposal examples/bakery oven-money-from-takings
+                                      # may it be applied, and its diff
 ./run-tests                           # everything this project checks
 ```
 
@@ -60,7 +62,6 @@ LuaJIT, or Lua 5.4 with `LUA=lua5.4`. Nothing else.
 
 ## Status
 
-Phase 1: the model is written down, and the validator and the blocked board
-read it. Proposals applied as diffs, and the monorepo mapped onto itself, are
-next. See [the roadmap](docs/006-roadmap.md) and
+Phase 1: the model is written down; the validator, the blocked board and the
+proposal tool read it. The monorepo mapped onto itself is next. See [the roadmap](docs/006-roadmap.md) and
 [phase 1's progress](issues/phase-1-progress.md).

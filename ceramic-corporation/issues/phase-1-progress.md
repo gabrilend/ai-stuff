@@ -12,7 +12,7 @@ requests, naming which merge frees the most waiting work.
 | 101 | The model is written down | built |
 | 102 | The map is read, and refused by name | built |
 | 103 | The blocked board | built |
-| 104 | A proposal is applied as a diff | not started |
+| 104 | A proposal is applied as a diff | built |
 | 105 | The monorepo, mapped | not started |
 | 106 | A page anybody can open | not started |
 

@@ -50,16 +50,17 @@ approve bo 2026-11-03 513f1bd9
 | `applied DATE` | — | It has been applied to the map. |
 
 LINE is a body line of the map exactly as it would be written there, without
-its two leading spaces. KIND is a map head keyword: `person`, `outside`,
+its two leading spaces: everything after the `+` or `-` and the spaces that
+follow it, compared character for character. KIND is a map head keyword: `person`, `outside`,
 `role`, `work`, `rule`, or `org` (which can only be edited).
 
 | Code | Rule |
 | --- | --- |
 | P1 | The first head is `proposal NAME`, and NAME is the file's name without `.proposal`. |
 | P2 | Exactly one `by`, naming a person in the map **or a person this proposal adds** — which is how somebody asks to join. Exactly one `opened`. At most one `says`. |
-| P3 | `add` blocks hold `+` lines only, `remove` blocks `-` lines only, `edit` blocks either, and at least one. Each LINE is well-formed for its KIND. `org` may only be edited. |
+| P3 | A proposal's heads are `proposal`, `add`/`edit`/`remove KIND NAME`, and the answer lines. `add` blocks hold `+` lines only, `remove` blocks `-` lines only, `edit` blocks either, and at least one. Each body line is `+ LINE` or `- LINE`, and each LINE is well-formed for its KIND. `org` may only be edited. |
 | P4 | A block is the target of at most one `add`/`edit`/`remove` in a proposal. |
-| P5 | `object` carries a non-empty reason. **An objection without a reason is noise**; with one, it is a record anybody can read and answer. |
+| P5 | Answer lines are exactly the four shapes in the table above and have no body lines. `object` carries a non-empty reason: **an objection without a reason is noise**; with one, it is a record anybody can read and answer. An answer from somebody who is not a person in the org is not a problem — anybody can append a line — and does not count. |
 | P6 | Not both `withdrawn` and `applied`; neither twice. |
 
 **Answers are appended, not edited.** A person's answer is their latest line;
@@ -93,12 +94,15 @@ Precisely, so that two tools produce the same file:
    head, its body lines, the comments and blank lines between them, and any
    comment lines directly above the head with no blank line between — they
    were that block's comments.
-3. **Add.** An `edit`'s `+` lines go directly after the block's last body line
-   (after the head, if it has none), in proposal order. An `add` appends a
+3. **Add.** An `edit`'s `+` lines go directly after the last body line the
+   block still has (after the head, if it has none left), in proposal order. An `add` appends a
    blank line and the new block at the end of the file, in proposal order. A
    `+` line identical to one the block still has makes the proposal stale.
-4. **Tidy.** Two blank lines in a row become one; a blank line at the very end
-   is dropped.
+4. **Tidy, only where something was removed.** A blank line that would follow
+   a removal and sit directly after another blank line, or first in the file,
+   goes; a removal at the very end of the file takes the blank lines before it
+   too. Nothing the proposal did not touch is reformatted, so the diff holds
+   only the change.
 5. **Validate the result** against every rule in [the org map](002-the-org-map.md).
    A proposal whose result is invalid is **broken** — the commonest way is
    changing one end of a wire and not the other (M12).
