@@ -5,7 +5,8 @@
 # Every test program in tests/, run under LuaJIT and then again under Lua 5.4
 # when it is installed: the tools are meant to read an org the same way on
 # either, and the only way to know that is to run them on both. Then the
-# example orgs are validated through the front door, the way a person would.
+# example orgs are validated through the front door, the way a person would,
+# and every example that keeps a history is replayed.
 #
 # Usage:
 #   ./run-tests                  -- everything
@@ -47,5 +48,12 @@ for org in "${DIR}"/examples/*/; do
     }
 done
 [ "${FAILED}" -eq 0 ] && echo "every example is valid"
+
+echo
+echo "== the examples' histories =="
+for org in "${DIR}"/examples/*/; do
+    "${DIR}/replay-history" "${DIR}" "${org%/}" | tail -n 1
+    [ "${PIPESTATUS[0]}" -eq 0 ] || FAILED=1
+done
 
 exit "${FAILED}"

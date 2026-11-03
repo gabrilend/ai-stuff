@@ -1,0 +1,11 @@
+proposal kai-joins
+  by kai
+  opened 2026-09-28
+  says "I finish furniture, and I would like to finish yours"
+
+add person kai
+  + says "finishes the chairs"
+
+approve jon 2026-09-30
+
+applied 2026-10-01 1

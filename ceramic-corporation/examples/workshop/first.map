@@ -1,0 +1,25 @@
+# A chair workshop as it was founded. Its history is first.map, then every
+# applied proposal in its numbered order; ./replay-history checks that the two
+# together make org.map exactly.
+
+org workshop
+  says "chairs, made to order"
+
+person ines
+  says "takes the orders"
+
+person jon
+  says "makes the chairs"
+
+outside buyers
+  says "the people who order chairs"
+
+role orders
+  held-by ines
+  in order $buyers "a chair, its wood, its size"
+  out spec - making.spec
+
+role making
+  held-by jon
+  in spec - orders.spec
+  out chair $buyers

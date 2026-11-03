@@ -22,10 +22,11 @@ the front door.
 | `kinds_and_affected(proposal, old_map, new_map)` | `{ kind -> set of people }` for every kind present |
 | `answers(proposal, people)` | each person's standing answer, and whether it counts |
 | `judge(proposal, old_map, by_kind, standing, today)` | per kind: who it affects, where the rule came from, and each check met or not |
-| `evaluate(org, text, file, basename, today)` | the whole report, with `status` |
+| `evaluate(org, text, file, basename, today, as_of)` | the whole report, with `status`; with `as_of`, judged as it stood that day |
 | `render(report)` | the report as text |
 | `diff(old, new, label)` | a unified diff, by the system's `diff -u` |
 | `main(args)` | 0 ready or applied, 3 not, 1 error, 2 usage |
+| `list_proposals(dir)`, `next_seq(dir)` | the proposal files of an org; the next change number |
 
 ## Things worth knowing
 
@@ -35,5 +36,6 @@ the front door.
   changes one end of a wire is broken, by M12.
 - **An objection from somebody the change does not affect** is printed as on
   the record and not blocking: the route-around rule, visible.
-- **`--write` only writes a ready proposal**, and appends `applied DATE`
-  rather than moving or deleting the file.
+- **`--write` only writes a ready proposal**, and appends `applied DATE N`
+  and its change number (one more than the highest in the org) rather than
+  moving or deleting the file.

@@ -14,6 +14,7 @@ when it refuses a line, so a refusal can be looked up here.
 corner-bakery/
 ├── org.map                      the structure; changes only by proposal
 ├── org.state                    what is fed and what is done; changes daily
+├── first.map                    the map as founded, when the org keeps a history
 └── proposals/
     ├── cy-takes-cleaning.proposal
     └── oven-money-from-takings.proposal
@@ -21,7 +22,9 @@ corner-bakery/
 
 Three kinds of file, one grammar. `org.map` is required. `org.state` may be
 absent, which means nothing is fed and nothing is done. `proposals/` may be
-absent or empty.
+absent or empty. `first.map`, in the map's own format, is optional: an org that
+has one **keeps a history**, and its map must then be exactly what `first.map`
+and its applied proposals make (see [history](003-how-a-change-is-accepted.md#history)).
 
 **Why three files and not one.** The map and the state change at different
 speeds and under different authority. Moving a wire changes who owes what to

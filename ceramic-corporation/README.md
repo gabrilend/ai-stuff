@@ -56,6 +56,7 @@ either.
 ./apply-proposal examples/bakery oven-money-from-takings
                                       # may it be applied, and its diff
 ./org-page examples/bakery > page.html
+./replay-history examples/workshop    # does the history explain the map
 ./map-the-monorepo --fetch            # this repository's own queue, ranked
 ./run-tests                           # everything this project checks
 ```
@@ -68,5 +69,6 @@ Phase 1 is complete: the model is written down; the validator, the blocked
 board, the proposal tool and a static page read it; and this monorepo's own
 queue of pull requests is mapped in [`examples/monorepo/`](examples/monorepo/board.txt),
 where the board says which merge frees the most. `./run-phase-demo 1` shows all
-of it. Phase 2 (maps inside boxes, history replayed) is next. See [the roadmap](docs/006-roadmap.md) and
+of it. Phase 2 has begun: an org's history is replayed to prove its map came only
+from agreed proposals. Maps inside boxes are next. See [the roadmap](docs/006-roadmap.md) and
 [phase 1's progress](issues/phase-1-progress.md).
