@@ -73,10 +73,14 @@ pull-request record, and files another session had open: about 1,900 quotes
 in 707 files, among them the development-history fingerprints, which record
 the commit each picture was taken at. Each conversation with a session log
 got its id patch refreshed from the chained map (`transcript-patches
-translate-ids`, with `TRANSCRIPT_PATCHES_UNIVERSE` naming the old ids rather
-than keeping a ref to the old history). 30 transcripts on disk lag behind
-their session logs (a recap or a turn added since the last export); none
-quotes an old id, and the next export brings each up to date.
+translate-ids`). Once no ref held the old history, the patch tool could no
+longer tell an old id was a commit, so every patched conversation failed to
+save; a list of old ids was tried and dropped as debt the same day. The tool
+now treats every id a map or patch names as a commit, so each patch carries
+what it needs, in any repository. The conversations that had fallen behind
+their session logs were then saved again. Ten older ones differ from a fresh
+save only in an older exporter's line wrapping; their logs have not
+changed, so the exporter leaves them.
 
 The owner's poems and the mail tool's private state are in git history, on
 a public GitHub repository (`gabrilend/ai-stuff`):

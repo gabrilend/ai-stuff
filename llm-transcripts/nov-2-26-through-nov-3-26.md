@@ -1,6 +1,6 @@
 # Conversation Summary: 3e9767bf-5307-4ac4-8204-4e97b6e35e1d
 
-Generated on: 2026-11-03 11:54:24
+Generated on: 2026-11-03 11:57:44
 Models: claude-opus-5-5
 
 ## Contents
@@ -2190,7 +2190,46 @@ shouldn't they rebuild on a git push?
 > Writing the notes file to match, and having the patch tool read the list
 > whenever the repository carries one.
 
-Rerunning the sweeps with no extra settings, exactly as the hook runs them.
+> Rerunning the sweeps with no extra settings, exactly as the hook runs them.
+
+*[commit] 9b4413123 in ai-stuff - Conversations can be saved again after the history rewrite*
+
+> The fix is pushed. Once more, the transcripts in other projects didn't ride
+> along without their projects named. Committing them the same way as before.
+
+*[commit] fd4470696 in ai-stuff - Twelve conversations catch up with their session logs*
+
+No: the push hook only rebuilds the web pages from the transcript files. The
+transcript files themselves are saved by the exporter, and it only runs when
+that conversation finishes a turn. So old conversations stay behind until you
+open them again. I swept the lagging projects by hand instead, and that turned
+up a real break I had caused.
+
+**The break:** saving a conversation applies its ID patch, and the patch only
+recognizes old commit IDs the repository knows. After the rewrite, no published
+branch held the old commits, so every patched conversation's save failed,
+including the save after each reply. Pages built from those transcripts would
+have quietly stopped updating.
+
+**The fix:** the repository now keeps a list of the 3,877 commit IDs the two
+rewrites replaced, in `delta-version/archive/disentangle/old-commits.txt`. The
+patch tool reads it on every save. It holds only the 40-character IDs, nothing
+from inside the files. The sweep then saved every lagging project except
+filesystem-tapestry, and those transcripts match a fresh save with their
+patches.
+
+Committed and pushed. GitHub's `main` is `fd447069`.
+
+Two things are still left:
+- **filesystem-tapestry:** Claude Code has no session folder for it, so its
+  conversation can't be saved again from here.
+- **10 older conversations:** they differ from a fresh save only in line breaks
+  from an older exporter version. Their session logs haven't changed, so the
+  exporter leaves them as they are. None of them quotes an old ID.
+
+Should the push hook also run the exporter over every project first, so
+transcripts never lag like this? The catch: a push would then leave freshly
+saved transcripts behind as uncommitted changes, to go up with the next commit.
 
 --------------------------------------------------------------------------------
 

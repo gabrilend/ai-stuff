@@ -277,9 +277,10 @@ local function apply_text(patch, text)
 end
 -- }}}
 
--- Every commit each repository knows, loaded once per run: old ids stay
--- reachable through the archive tags, which is what lets an old id be
--- recognised as a commit at all.
+-- Every commit each repository knows, loaded once per run. Old commits a
+-- history rewrite replaced are not in it: each id patch, and each map
+-- translate-ids reads, names its own old ids in full, and translate_ids adds
+-- them, so a patch carries everything needed to apply it.
 local universes = {}
 
 -- {{{ local function universe_for
@@ -292,29 +293,6 @@ local function universe_for(dir)
       if not ok then fail("cannot list the commits of " .. root .. ": " .. output) end
       local universe = quotes_lib.new_universe()
       for id in output:gmatch("%x+") do quotes_lib.universe_add(universe, id) end
-      -- Commits a history rewrite took out of the repository can still be
-      -- quoted in a conversation's session log. TRANSCRIPT_PATCHES_UNIVERSE
-      -- names a file of their full ids, one per line, so they are recognised
-      -- without keeping refs to the old history (which, after issue 063,
-      -- held the private material the rewrite removed). Two paths: the
-      -- variable is set (its ids join the repository's) or not (the
-      -- repository's own commits only).
-      local extra = os.getenv("TRANSCRIPT_PATCHES_UNIVERSE")
-      if extra then quotes_lib.universe_from_file(extra, universe) end
-      -- A repository that has been through a history rewrite keeps the list
-      -- of the commits it replaced at this path (ai-stuff since issue 063).
-      -- Every export reads it, the Stop hook's included: without it the old
-      -- ids in a session log are not commits any more, so each conversation's
-      -- id patch reads as stale and the transcript is not saved (found
-      -- 2026-11-03, when a sweep failed for every patched conversation). Two
-      -- paths: the repository has the list (its ids join), or it has never
-      -- been rewritten (nothing to add).
-      local replaced = root .. "/delta-version/archive/disentangle/old-commits.txt"
-      local probe = io.open(replaced, "r")
-      if probe then
-         probe:close()
-         quotes_lib.universe_from_file(replaced, universe)
-      end
       universes[root] = universe
    end
    return universes[root]
@@ -327,6 +305,15 @@ end
 -- (old full id -> new full id).
 local function translate_ids(text, map, universe)
    quotes_lib = quotes_lib or dofile(QUOTES_LIB)
+   -- The map's own ids are commits, whether or not the repository still
+   -- holds them: an old id a history rewrite replaced is on no ref, and is
+   -- known only because the map names it. Without this, after issue 063's
+   -- rewrite every id patch read as stale and no patched conversation could
+   -- be saved (2026-11-03). Adding an id already held changes nothing.
+   for old, new in pairs(map) do
+      quotes_lib.universe_add(universe, old)
+      quotes_lib.universe_add(universe, new)
+   end
    local seen = {}
    local result, stats = quotes_lib.rewrite(text, {
       before = universe, after = universe,

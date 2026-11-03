@@ -1,3 +1,0 @@
-old-commits.txt
-
-Made on 2026-11-03 (delta-version issue 063): the full id of every commit the two history rewrites replaced, one per line, taken from both maps (history-graft/commits.map and commits.map beside this file) and from the backup of GitHub made just before the second rewrite, less every commit a published branch or tag still holds. Ids only; none of the removed files are in it. transcript-patches reads it, for this repository, so the old ids quoted in session logs are still recognised as commits and translated by each conversation's id patch now that no published ref points at the old history. Without it, every export of a conversation with an id patch fails as stale.
