@@ -1,6 +1,6 @@
 # Conversation Summary: 7f8a12be-6564-4760-a645-c88c063fed48
 
-Generated on: 2026-10-11 00:27:06
+Generated on: 2026-11-03 11:55:01
 Models: claude-opus-5-5
 
 ## Contents
@@ -26,6 +26,10 @@ Models: claude-opus-5-5
    your head-worn projector; the light pipe now opens from inside as a faceted,
    glowing hall, committed. Next, open it with ./view-cad
    output/models/light-pipe.gltf and press n to walk the fifteen viewpoints.
+6. 2026-10-11 00:30, after Request 16 - We're designing the head-worn crown
+   display. The 5 mm light pipe and a gallery of pictures and GIFs are finished
+   and committed. Next, I need your answer on the music: sounds from the
+   device's own parts, or a soundtrack for the pictures?
 
 --------------------------------------------------------------------------------
 

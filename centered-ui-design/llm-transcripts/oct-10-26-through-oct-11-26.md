@@ -1,6 +1,6 @@
 # Conversation Summary: 151ddaeb-59f4-466e-abd5-8862afcb9075
 
-Generated on: 2026-10-11 00:12:21
+Generated on: 2026-11-03 11:54:39
 Models: claude-opus-5-5
 
 ## Contents
@@ -26,6 +26,10 @@ Models: claude-opus-5-5
    game's terrain look, and the circles now shade around their centres like your
    drawing. Next I need your answers, starting with which thing "hold A and
    scroll" should adjust.
+6. 2026-10-11 00:15, after Request 29 - We're shaping how the game's world and
+   console look, and this round's fixes are all committed. Next, I need your
+   answer on which way villagers should turn when walking toward the middle:
+   toward you or away.
 
 --------------------------------------------------------------------------------
 
@@ -217,6 +221,8 @@ tables, non-linear maps with travel delay) should join the vision.
 > found in the center console, or perhaps near the sides where you handle
 > accordian settings. "zoom in" and "zoom out" but with more than one dimension
 > that you're zooming in - scale, of two types.
+
+*[commit] 91057ddbb - centered-ui-design: the founding vision, as it was first written*
 
 Setting up the project skeleton and committing your original vision before I
 move it into `notes/`.
@@ -1718,6 +1724,8 @@ please continue
 > The pictures and notes were written by the capture script, so I'll claim them,
 > then commit with explicit paths (leaving out roadmap/TOC, which share blocks
 > with the other session's work):
+
+*[commit] b93b2e70d - centered-ui-design: every screenshot is kept, with what changed*
 
 *[commit] b93b2e70d in ai-stuff - centered-ui-design: every screenshot is kept, with what changed*
 

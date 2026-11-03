@@ -1,6 +1,6 @@
 # Conversation Summary: d61d9ff0-ab3d-4550-92d4-1c406f1f5234
 
-Generated on: 2026-10-04 17:38:22
+Generated on: 2026-11-03 11:55:23
 Models: claude-opus-5-5
 
 ## Contents
@@ -1033,6 +1033,8 @@ sounds good.
 
 > Only this session's files, as intended. Committing:
 
+*[commit] 8e2ac4136 - Split getting community content into a fetcher and a catalogue*
+
 *[commit] 8e2ac4136 in ai-stuff - Split getting community content into a fetcher and a catalogue*
 
 I've split getting community content into two issues, as you agreed, and
@@ -1388,6 +1390,8 @@ Okay let's keep working
 
 > Now Phase 7 and Phase W in the roadmap.
 
+*[commit] a57a97485 - Bring the roadmap up to what has been built and decided*
+
 > That one block is my own earlier text replacement, which the edit tracker
 > didn't see. The roadmap had no other changes when I started on it, so I'm
 > recording the whole file as mine and committing.
@@ -1419,6 +1423,8 @@ Okay let's keep working
 
 > Now the stock-tables issue's current behavior and its criteria. First,
 > checking that the command-line tools it added have description files:
+
+*[commit] b06c24c90 - Describe the stock tables as built, and name the fallback left in validation*
 
 > That's the tracker again. It thinks the lines I replaced in the
 > current-behavior section belong to someone else. The file had no other changes

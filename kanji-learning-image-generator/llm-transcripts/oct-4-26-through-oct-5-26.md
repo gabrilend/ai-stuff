@@ -1,6 +1,6 @@
 # Conversation Summary: 8905e5c3-619d-4f53-947c-788145f430cc
 
-Generated on: 2026-10-05 01:49:02
+Generated on: 2026-11-03 11:55:00
 Models: claude-opus-5-5
 
 ## Contents
@@ -31,6 +31,10 @@ Models: claude-opus-5-5
    now on a web page you can scroll through:
    https://claude.ai/artifact/M41YiiUnFEinyPRGGQjoTm. Next, look through it and
    tell me which way makes the characters easier to recognize.
+7. 2026-10-05 01:58, after Request 8 - We're comparing image models for the
+   kanji pictures, and trying Chroma on the .88 machine made its ComfyUI stop
+   running. Next, someone needs to restart ComfyUI on .88 and tell me how much
+   memory that machine has.
 
 --------------------------------------------------------------------------------
 
