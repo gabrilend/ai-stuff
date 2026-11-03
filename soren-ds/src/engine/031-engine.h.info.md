@@ -213,6 +213,25 @@ Free whatever retired things no core can still be inside. The engine
 does this itself on every rewire and removal; this is for a caller that
 wants a removed place back sooner.
 
+### engine_memory_take
+
+```c
+void *engine_memory_take(size_t bytes)
+```
+
+Memory for things the engine's boxes write into but the engine does not
+own — a surface's pixels (issue 601). Taken zeroed; answers NULL when
+the pool is exhausted. Retiring hands it back once no core can still be
+inside a run that began before the call, by the same per-core counters
+that reclaim an old set of arrows: a box that read the pointer during
+its run may keep writing through it until the run ends.
+
+### engine_memory_retire
+
+```c
+void engine_memory_retire(void *memory)
+```
+
 ### engine_station_count
 
 ```c

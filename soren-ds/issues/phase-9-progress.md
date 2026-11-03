@@ -55,7 +55,31 @@ None yet.
 
 ## Open issues
 
-All of 901 through 910.
+Sorted by what each one waits on (scoped once phase 5's twin halves
+were built, against main as it stood then). "Unmerged" names the open
+pull request a blocker is waiting in.
+
+**Buildable on the twin now.** None as the issues stand: each one
+reaches the MMU, directly or through 902's per-app memory.
+
+**Blocked on an unmerged pull request.**
+
+- **907**, **908** — the background transitions and wake signals also
+  hang off the link transition (610, after 608–609) and the transport
+  (709).
+
+**Needs the device.**
+
+- **901**, **902**, **903** — MMU protection, per-app regions, the fault
+  handler.
+- **904** — recovering from an app's fault, after 903.
+- **905** — the per-app work queue is blocked by 902 (its memory comes
+  from the app's region). The queue and the workers' round-robin are
+  portable, and could be split off and built on the twin with ordinary
+  engine memory if that is wanted; **906** (input suppression by taking
+  the arrow away) follows 905.
+- **909** — closing an app frees its region (901, 902).
+- **910** — the capstone demo.
 
 ## Phase demo
 

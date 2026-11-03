@@ -48,7 +48,33 @@ None yet.
 
 ## Open issues
 
-All of 801 through 811.
+Sorted by what each one waits on (scoped once phase 5's twin halves
+were built, against main as it stood then). "Unmerged" names the open
+pull request a blocker is waiting in.
+
+**Buildable on the twin now.** None. Every app here stands on pieces
+that are not on main yet.
+
+**Blocked on an unmerged pull request** (or on phase 6 and 7 work that
+is).
+
+- **801**, **802** — the editor: the radial menu (506, waiting on #35),
+  drawers and links (608–610), files (406 and 407, #35).
+- **803** — the programming environment's HTTP side: files (#35) and
+  the transport (709).
+- **804** — its run side: the compile pipeline, code reclamation and box
+  replacement (409, 410, 411: #69, #83, #92), drawers and links.
+- **805**, **806**, **807** — the messenger: the radial menu (506), the
+  peer table (705), rmail (710), files (#35), drawers and links.
+- **808** — the paint canvas: the stylus is 504's touch events (#225)
+  on 601 and 603's surfaces.
+- **809** — paint tools follow handedness (507, waiting on #48 and #35).
+- **810** — saving drawings and handing them to the messenger: files
+  (#35), drawers and links, 807.
+
+**Needs the device.**
+
+- **811** — the demo is two handhelds and a laptop.
 
 ## Phase demo
 

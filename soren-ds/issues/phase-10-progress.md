@@ -59,7 +59,32 @@ None yet.
 
 ## Open issues
 
-All of 1001 through 1011.
+Sorted by what each one waits on (scoped once phase 5's twin halves
+were built, against main as it stood then). "Unmerged" names the open
+pull request a blocker is waiting in.
+
+**Buildable on the twin now.**
+
+- **1001** — the vertex grid is a data structure. It is blocked by 902
+  for the app's own memory region; with ordinary engine memory standing
+  in until 902, it builds and tests on the twin.
+
+**Blocked on an unmerged pull request.**
+
+- **1002** — the cursor moves with the sticks (503, #225) and places
+  with the face buttons (502, #218), sides chosen by handedness (507,
+  waiting on #48 and #35).
+- **1003** — faces, after 1002.
+- **1004** — colour and roughness are picked from a radial menu in a
+  drawer (506, 608).
+- **1005**, **1006** — saving and loading models (406 and 407, #35).
+- **1007**, **1008** — merging, after 1006.
+- **1009** — the two views, on 601 and 603's surfaces and 1001–1004.
+- **1010** — the drawers and links (608–610).
+
+**Needs the device.**
+
+- **1011** — the demo is the handheld.
 
 ## Phase demo
 

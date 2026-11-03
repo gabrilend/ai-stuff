@@ -191,6 +191,15 @@ int engine_take_result(int32_t station, int exit, void *out, size_t size);
  * wants a removed place back sooner. */
 void engine_sweep(void);
 
+/* Memory for things the engine's boxes write into but the engine does not
+ * own — a surface's pixels (issue 601). Taken zeroed; answers NULL when
+ * the pool is exhausted. Retiring hands it back once no core can still be
+ * inside a run that began before the call, by the same per-core counters
+ * that reclaim an old set of arrows: a box that read the pointer during
+ * its run may keep writing through it until the run ends. */
+void *engine_memory_take(size_t bytes);
+void  engine_memory_retire(void *memory);
+
 /* Station facts, for tools that write programs back out. */
 int32_t            engine_station_count(void);
 const struct box  *engine_station_box(int32_t station);

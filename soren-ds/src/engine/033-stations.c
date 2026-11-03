@@ -139,6 +139,28 @@ void scrap_release_block(struct core_ctx *c, void *thing, int64_t arg)
 }
 /* }}} */
 
+/* {{{ engine_memory_take */
+void *engine_memory_take(size_t bytes)
+{
+    struct core_ctx *c = engine_enter();
+    void *memory = block_alloc_zero(c->number, bytes);
+    engine_leave(c);
+    return memory;
+}
+/* }}} */
+
+/* {{{ engine_memory_retire */
+void engine_memory_retire(void *memory)
+{
+    if (!memory) {
+        return;
+    }
+    struct core_ctx *c = engine_enter();
+    scrap_retire(c, scrap_release_block, memory, 0);
+    engine_leave(c);
+}
+/* }}} */
+
 /* {{{ scrap_waiting */
 uint64_t scrap_waiting(void)
 {
