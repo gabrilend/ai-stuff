@@ -111,7 +111,11 @@ inputs as `write-path`, the bytes added to the end of the file
 instead of replacing it. One value holds at most 4096 bytes, so a
 file larger than that is written as several appends, each one
 whole or not at all; the painter's saved drawings are why it
-exists.
+exists. The second is **`move-path`** (issue 414): inputs `from`
+and `to`, and the file at `from` takes the name `to`, replacing
+what had it. A large file is built under a name of its own and
+moved over the one readers use, which is the temporary-path-and-
+rename pattern above, available to any program.
 
 ## Symlinks on FAT
 

@@ -80,6 +80,8 @@ described and never rebuilt.
 13. `413-append-path.md` — a file larger than one 4096-byte value,
     built from several appends, each whole or not at all. Filed when
     the value's cap was kept rather than grown.
+14. `414-move-path.md` — a file built under a name of its own is moved
+    over the name readers use, so it appears all at once.
 
 ## Completed issues
 
@@ -111,9 +113,12 @@ against cards a laptop's tools would make. Counts:
   filling the last cluster's spare room, then new clusters linked on, then
   the size; interrupted, the file is its old self and the stray clusters
   are let go by the next append. A file of any size is several appends.
+- **414** `move_path`: a file takes another name, replacing what had it;
+  the old name goes first, so an interrupted move never leaves two names
+  on one chain. Long names are now removed short entry first.
 
 402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`,
-the boxes of 406, 407 and 413 in `src/boxes/082-files.c`.
+the boxes of 406, 407, 413 and 414 in `src/boxes/082-files.c`.
 Tests: `twin/tests/079` (118 checks, on one-sector and eight-sector
 clusters; `fsck.fat` checks every card it writes and a `mkfs.fat` card
 gets the writing checks, where the laptop has those tools) and `081` (56
@@ -122,7 +127,8 @@ placed in a map and fed through its doors) and `092` (44 checks: appends
 on both cluster sizes, a full card, a card left mid-append, two threads on
 one file, a copy in 4096-byte slices) and `093` (22 checks: replacing,
 appending and making a file, each with the card pulled out after every
-block it writes, old or new and never torn), all on cards
+block it writes, old or new and never torn) and `094` (27 checks: moves of
+every kind, and two pulled after every block), all on cards
 `twin/tests/080-card-image.h` lays out the way a laptop does, with phases
 2 and 3's still passing.
 

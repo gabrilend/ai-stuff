@@ -1,11 +1,12 @@
 /*
- * 082-files.c — the seven filesystem boxes, and the values they pass
- * (issues 406, 407, 413).
+ * 082-files.c — the eight filesystem boxes, and the values they pass
+ * (issues 406, 407, 413, 414).
  *
  * General description: everything an app ever does to the card goes
  * through one of these: read-path, write-path, list-directory,
- * delete-path, path-exists and make-symlink (docs/011-filesystem.md), and
- * append-path, which builds a file larger than one value (413). Each
+ * delete-path, path-exists and make-symlink (docs/011-filesystem.md);
+ * append-path, which builds a file larger than one value (413); and
+ * move-path, which lets such a file appear all at once (414). Each
  * is a thin wrapper over the path layer (src/system/078-files.c), which
  * holds the card's one lock, follows the device's symlinks, and keeps a
  * write whole if it is interrupted.
@@ -206,6 +207,22 @@ int64_t append_path(struct path path, struct file_bytes value)
         return FAT_TOO_LONG;
     }
     int r = files_append(path.chars, value.bytes, value.length);
+    refused(r);
+    return r;
+}
+/* }}} */
+
+/* {{{ move_path */
+/* Give a file another name, replacing any file that had it (issue 414).
+ * Build a large file under a name of its own with append_path, then move
+ * it over the name readers use: they see the old file or the whole new
+ * one, never the appends so far. Links at either end are moved or
+ * replaced as themselves; a directory is a status, not moved. Answers 0
+ * or a negative code. */
+int64_t move_path(struct path from, struct path to)
+{
+    if (!ended(&from) || !ended(&to)) return FAT_TOO_LONG;
+    int r = files_move(from.chars, to.chars);
     refused(r);
     return r;
 }

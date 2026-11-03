@@ -85,7 +85,8 @@ last byte before it adds anything.
    the appends so far. A program that wants a large file to appear all at
    once builds it under another name and moves it over the old one, as
    docs/011 has apps do. There is no box that renames a file yet: that is
-   the next thing the painter needs, and it is not built here.
+   the next thing the painter needs, and it is not built here. *(414
+   builds it: `move-path`.)*
 4. *A full card?* `FAT_NO_SPACE` in the value, and the file and the free
    space as they were: the clusters taken for it are given back before the
    answer.
