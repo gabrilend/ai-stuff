@@ -643,9 +643,58 @@ return BudgetOptimizer
 
 ### Acceptance Criteria
 - [ ] Clear visual representation of point budget usage with color-coded segments
-- [ ] Real-time validation with appropriate warning levels
+- [x] Real-time validation with appropriate warning levels
 - [ ] Detailed cost breakdown showing contribution of stats, abilities, and synergies
 - [ ] Visual feedback for budget violations with shake animations
 - [ ] Hover tooltips showing detailed cost information
-- [ ] Optimization suggestions when over budget
+- [x] Optimization suggestions when over budget
 - [ ] Smooth animations for budget changes
+
+## What Happened
+
+Built the logic behind the budget display, with nothing drawn: the bar,
+colours, tooltips on hover, shaking and animation belong to the
+template editor's screen (issue 062), and no one has seen this on a
+screen.
+
+- `src/editor/point_budget.lua`: `PointBudget.summary(template)` gives
+  points used, left and their share; a status (over, near the limit at
+  90% or more, good, or unused with more than 15% left) with its
+  severity and message; the bar's segments in a fixed order (body, each
+  bought stat, each ability), each with its share, where it starts and a
+  tooltip in words (what was bought above the body, the price, the
+  points before rounding; an ability's role, cost, charge time, reach
+  and tuning); totals by group; and the validator's findings, errors
+  first, each with its rule and severity.
+  `PointBudget.change(before, after)` says what moved, by how much and
+  in which group, and flags the moment a template goes over budget (when
+  a screen would shake) and when it comes back.
+- `src/utils/budget_optimizer.lua`: for an over-budget template, tries
+  lowering each bought stat just enough, slowing an ability's charge
+  rate to its slowest, swapping an ability for a cheaper one of the same
+  kind (a like-for-like one first), and removing a secondary ability.
+  Each is tried on a copy, so the saving and the result are exact. They
+  are listed with those that fit first, then those with no errors, then
+  those adding no warnings, then the least taken away.
+- `tests/test_point_budget.lua` (5 tests), run by `./run <dir> unit`.
+
+Left unticked: colour-coded segments, shake and smooth animations and
+hover tooltips need a screen (the summary carries the groups, the
+tooltip text and the moment to shake). "Detailed cost breakdown showing
+... synergies" is also unticked: the price model has no synergy costs,
+and inventing them here would make the display disagree with what a
+template is charged.
+
+### Decisions
+
+- The display reads the template's own breakdown, so it can never show
+  a different number from the one charged; the sketch's separate cost
+  formulas aren't built.
+- The validator's two budget rules are left out of the messages; the
+  budget status says the same thing once.
+- Optimizer suggestions are exact (each built and priced), and limited
+  to eight. A primary ability is never removed, only swapped for
+  another that can be a primary.
+- The thresholds (90% near, 15% unused) are the sketch's and live at the
+  top of the file.
+
