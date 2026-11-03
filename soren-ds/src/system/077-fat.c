@@ -869,8 +869,13 @@ int fat_dir_update(struct fat_volume *v, const struct fat_entry *e, uint32_t fir
 /* {{{ fat_dir_remove */
 int fat_dir_remove(struct fat_volume *v, const struct fat_entry *e)
 {
+    /* The short entry first: it is the name. Interrupted after it, the
+     * long-name pieces before it are left with nothing to belong to, which
+     * every reader skips; the other way round, the file would live on
+     * under its short name alone. */
     uint8_t slot[SLOT_BYTES];
-    for (uint32_t s = e->first_slot; s <= e->slot; s++) {
+    for (uint32_t k = 0; k <= e->slot - e->first_slot; k++) {
+        uint32_t s = e->slot - k;
         int r = read_slot(v, e->dir_cluster, s, slot);
         if (r <= 0) return r < 0 ? r : FAT_IO;
         slot[0] = 0xE5;

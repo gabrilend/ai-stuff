@@ -133,6 +133,20 @@ part-way, finds the file as it was before the call or with every new
 byte after it. A file built from many appends is not one write: what is
 on the card between them is the appends so far.
 
+### files_move
+
+```c
+int files_move(const char *from, const char *to)
+```
+
+Give a file another name, replacing whatever file had that name and
+making any directories on the way (issue 414). A symlink at either end is
+moved or replaced as itself, not followed. A directory cannot be moved,
+or replaced. The destination is atomic as files_write's is: a reader, or a
+card pulled out part-way, finds the file that was there or the moved one.
+The point is a file too large for one write, built under a name of its
+own and then moved over the one readers use, so it appears all at once.
+
 ### files_list
 
 ```c

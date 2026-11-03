@@ -442,6 +442,56 @@ int files_delete(const char *path)
 }
 /* }}} */
 
+/* {{{ same_entry */
+static int same_entry(const struct fat_entry *a, const struct fat_entry *b)
+{
+    return a->location_block == b->location_block && a->location_offset == b->location_offset;
+}
+/* }}} */
+
+/* {{{ files_move */
+/* The old name goes first, then the new name is pointed at the chain,
+ * then a replaced file's clusters are freed. Interrupted after the first
+ * step, the chain belongs to nobody (lost space, which fsck.fat finds) and
+ * the destination is as it was; there is no moment at which two names
+ * share one chain, which would let deleting one free the other's bytes. */
+int files_move(const char *from, const char *to)
+{
+    spin_lock(&lock);
+    struct place a, b;
+    int r = mounted ? locate(from, 0, 0, &a) : FAT_NO_CARD;
+    if (r == FAT_OK && !a.found) r = FAT_NOT_FOUND;
+    if (r == FAT_OK && a.made_up) r = FAT_BAD_NAME;               /* the root, ".", or ".." */
+    if (r == FAT_OK && (a.entry.attributes & FAT_ATTR_DIRECTORY)) r = FAT_IS_A_DIRECTORY;
+    if (r == FAT_OK) r = locate(to, 0, 1, &b);
+    if (r == FAT_OK && b.made_up) r = FAT_BAD_NAME;
+    if (r == FAT_OK && b.found && (b.entry.attributes & FAT_ATTR_DIRECTORY)) r = FAT_IS_A_DIRECTORY;
+    if (r == FAT_OK && b.found && same_entry(&a.entry, &b.entry)) {
+        spin_unlock(&lock);
+        return FAT_OK;                                            /* the same file, spelt another way */
+    }
+    /* Making the destination's directories may have grown the table. */
+    if (r == FAT_OK) r = fat_flush(&volume);
+    if (r == FAT_OK) r = fat_dir_remove(&volume, &a.entry);
+    if (r == FAT_OK) {
+        uint32_t first = a.entry.first_cluster, size = a.entry.size;
+        r = b.found ? fat_dir_update(&volume, &b.entry, first, size)
+                    : fat_dir_add(&volume, b.dir, b.leaf, a.entry.attributes, first, size, (struct fat_entry *)0);
+        if (r < 0 && r != FAT_IO) {
+            /* The new name could not be written (a directory full to FAT's
+             * limit, say): the old one is put back where it was. */
+            fat_dir_add(&volume, a.dir, a.leaf, a.entry.attributes, first, size, (struct fat_entry *)0);
+        } else if (r == FAT_OK && b.found) {
+            fat_chain_free(&volume, b.entry.first_cluster);
+        }
+        int f = fat_flush(&volume);
+        if (r == FAT_OK) r = f;
+    }
+    spin_unlock(&lock);
+    return r;
+}
+/* }}} */
+
 /* {{{ files_make_link */
 int files_make_link(const char *link, const char *target)
 {

@@ -106,6 +106,18 @@ this layer; it is for collecting names.
 int files_delete(const char *path)
 ```
 
+### files_move
+
+```c
+int files_move(const char *from, const char *to)
+```
+
+The old name goes first, then the new name is pointed at the chain,
+then a replaced file's clusters are freed. Interrupted after the first
+step, the chain belongs to nobody (lost space, which fsck.fat finds) and
+the destination is as it was; there is no moment at which two names
+share one chain, which would let deleting one free the other's bytes.
+
 ### files_make_link
 
 ```c
