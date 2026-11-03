@@ -32,6 +32,24 @@ each button held down. Each side of the platform answers it its own way
 — the device from the GPIO banks (101 maps the pins; until then it
 answers 0), the twin from whatever a test set.
 
+### input_sticks_now
+
+```c
+void input_sticks_now(int32_t axes[STICK_AXES])
+```
+
+### direction_name
+
+```c
+const char *direction_name(int direction)
+```
+
+### input_touch_now
+
+```c
+void input_touch_now(int screen, int32_t out[TOUCH_FIELDS])
+```
+
 ### input_poll_start
 
 ```c

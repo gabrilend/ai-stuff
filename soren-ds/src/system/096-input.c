@@ -30,6 +30,19 @@ const char *button_name(int button)
 }
 /* }}} */
 
+/* {{{ direction_name */
+const char *direction_name(int direction)
+{
+    static const char *const names[DIRECTION_COUNT] = {
+        "none", "n", "ne", "e", "se", "s", "sw", "w", "nw",
+    };
+    if (direction < 0 || direction >= DIRECTION_COUNT) {
+        return "?";
+    }
+    return names[direction];
+}
+/* }}} */
+
 /* {{{ input_poll_start */
 int input_poll_start(struct input_poll *poll, struct map_report *report)
 {

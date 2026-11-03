@@ -49,6 +49,54 @@ the diagnostics from 106.
 4. Per-screen history struct (last-state, last-position).
 5. Wire into the input-poll map from 501.
 
+## Open questions
+
+- *One event per screen, or per frame?*
+- *touch-move and touch-move-changed: what is the difference?*
+- *Where is "the final position" for touch-up?*
+- *Is the frame a panel is first touched also a move?*
+- *What happens to the warning and the LED pattern on a missed read?*
+
+### Proposed answers (UNVERIFIED)
+
+Each one is a choice Ritz can overturn.
+
+1. *Per frame, both screens in it*, as the buttons are: a
+   `struct touch_event` carries which screens (bit 0 bottom, bit 1 top)
+   and where on each. Two screens touched in the same frame are one
+   event; each still carries its own screen's place.
+2. *None, here.* Positions are whole pixels, so "moved at least one
+   pixel" and "the integer position changed" are the same test. One
+   `touch_move`; no second box.
+3. *The history keeps it.* Once let go, a panel's point stays where it
+   was last touched (with `down` 0), so touch-up says that place, not the
+   zeros the controller answers when untouched.
+4. *No.* The first frame is a down; moves start on the next.
+5. *Device work, waiting with the controller (101).* The seam promises
+   that a controller which misses the frame's budget reads as untouched;
+   the transcript line and the LED pattern belong beside the I2C read.
+
+## What happened
+
+Built on the twin as answered above.
+
+- `src/boxes/095-input.c` — `read_touch` reads both panels;
+  `touch_at_rest`, `touch_track` (each panel's history and what happened
+  on it), `touch_down`, `touch_move`, `touch_up` (comparators against an
+  all-zero event) and `say_touch`.
+- `src/maps/input-poll.map` — the stub replaced; downs and ups said on
+  the developer line, moves unheard (they come every frame a finger
+  slides).
+- `src/system/096-input.h` — `input_touch_now(screen, out)`; the device
+  answers "not touched" for both, the twin what a test set.
+- `twin/tests/103-test-sticks-and-touch.c` — a down that is not a move, a
+  still finger that is not a move, a pixel's slide that is, an up at the
+  last place, a stale frame; through the map, each panel's down and up
+  with its place, and both screens in one event each way.
+
+Waiting for 101 and the device: the controllers' bring-up and per-frame
+I2C reads, the missed-read warning and LED pattern.
+
 ## Related documents
 
 - `docs/004-input-model.md`.

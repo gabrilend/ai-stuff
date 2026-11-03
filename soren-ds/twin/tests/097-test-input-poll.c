@@ -18,7 +18,6 @@
 #define _GNU_SOURCE
 #include "../../src/engine/031-engine-internal.h"
 #include "../../src/engine/068-programs.h"
-#include "../../src/engine/038-tallies.h"
 #include "../../src/system/096-input.h"
 #include "../026-platform-twin.h"
 #include "../041-twin-engine.h"
@@ -40,10 +39,10 @@ static void sleep_ms(int ms)
 /* }}} */
 
 /* {{{ surface_counts */
-/* How many frames each of the three surfaces received, and their sum.
- * The sticks and the touch panels are still stubs that tally the frame
- * they were handed; the buttons are real (502), so for them it is how
- * many frames their history station compared, and the sum is left out. */
+/* How many frames each of the three surfaces received: how many times
+ * each surface's history station compared a frame with the one before
+ * (502, 503, 504). The sums are left out (-1); the frame numbers are
+ * checked by each surface's own test. */
 struct surfaces {
     uint64_t count[3];
     int64_t  sum[3];
@@ -51,11 +50,12 @@ struct surfaces {
 
 static struct surfaces surface_counts(int program)
 {
+    static const char *names[3] = { "buttons", "sticks", "touch" };
     struct surfaces s;
-    s.count[0] = engine_station_runs(program_station(program, "buttons"));
-    s.sum[0] = -1;
-    tally_read(program_station(program, "stick_events"), &s.count[1], &s.sum[1]);
-    tally_read(program_station(program, "touch_events"), &s.count[2], &s.sum[2]);
+    for (int i = 0; i < 3; i++) {
+        s.count[i] = engine_station_runs(program_station(program, names[i]));
+        s.sum[i] = -1;
+    }
     return s;
 }
 /* }}} */
@@ -108,7 +108,7 @@ int main(void)
     CHECK(program >= 0 && poll.timer >= 0, "input-poll loads, brings up and is armed (%s)", report.text);
     CHECK(program_argument_count(program) == 1 && program_result_count(program) == 0,
           "it has one argument door, the tick, and no results");
-    CHECK(program_station_count(program) == 14, "its fourteen stations are placed (%d)",
+    CHECK(program_station_count(program) == 25, "its twenty-five stations are placed (%d)",
           program_station_count(program));
     uint64_t first_ns = engine.timers[poll.timer].due_ns;
     CHECK(first_ns >= before + INPUT_FRAME_NS && first_ns <= platform_now_ns() + INPUT_FRAME_NS,
@@ -148,7 +148,6 @@ int main(void)
     /* --- two at once ----------------------------------------------------- */
     /* Two input frames are not something the device wants, but they are two
      * ordinary programs and must not see each other's ticks. */
-    tally_reset();
     struct input_poll a, b;
     CHECK(input_poll_start(&a, &report) >= 0, "a first copy starts (%s)", report.text);
     CHECK(input_poll_start(&b, &report) >= 0, "a second copy starts beside it (%s)", report.text);

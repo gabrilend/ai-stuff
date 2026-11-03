@@ -54,6 +54,37 @@ const char *button_name(int button);
 uint32_t input_buttons_now(void);
 /* }}} */
 
+/* {{{ the sticks (issue 503) */
+/* Both sticks' four axes at this instant, in one batched read, into
+ * axes[0..3] = left x, left y, right x, right y. Each is centred on 0,
+ * x growing to the right and y growing up, over about -2048 to 2047 (a
+ * 12-bit converter with its middle taken off; 101 says which converter
+ * and channels, and the device answers all zeros until then). */
+#define STICK_AXES 4
+void input_sticks_now(int32_t axes[STICK_AXES]);
+
+/* The eight ways a stick (or the D-pad, two neighbouring bits at once)
+ * can point, and none. Shared with 506 so either can choose a direction. */
+enum direction {
+    DIRECTION_NONE,
+    DIRECTION_N, DIRECTION_NE, DIRECTION_E, DIRECTION_SE,
+    DIRECTION_S, DIRECTION_SW, DIRECTION_W, DIRECTION_NW,
+    DIRECTION_COUNT
+};
+const char *direction_name(int direction);
+/* }}} */
+
+/* {{{ the touch panels (issue 504) */
+/* One panel's controller at this instant: out[0] 1 if touched, out[1]
+ * and out[2] the position in that screen's pixels, out[3] the pressure.
+ * Screen 0 is the bottom panel, 1 the top. A controller that does not
+ * answer in time answers "not touched". The device answers that for both
+ * until 101 names the controllers. */
+#define TOUCH_SCREENS 2
+#define TOUCH_FIELDS 4
+void input_touch_now(int screen, int32_t out[TOUCH_FIELDS]);
+/* }}} */
+
 /* One frame. A second is not a whole number of nanoseconds over 60, so
  * this rounds 16 666 666.67 up: the frame drifts 20 ns a second (1.7 ms
  * a day) behind the true 60 Hz. Nothing on this device keeps wall time by
