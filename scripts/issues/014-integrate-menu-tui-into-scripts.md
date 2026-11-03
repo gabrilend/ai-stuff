@@ -107,3 +107,35 @@ fi
 - `libs/lua-menu.sh` - TUI library documentation
 - `libs/README-lua-menu-user.md` - User guide
 - `libs/README-lua-menu-dev.md` - Developer guide
+
+## What Happened
+
+**2026-11-03: phase 3, state-daemon.sh.** `state-daemon.sh -I` opens a menu
+built with `lua-menu.sh`. It lists every key as `key = value`, with the full
+pair in the description line. A "Do" list chooses what Go does: Refresh,
+Set a key, Delete the checked keys, Clear all keys, Watch, Stop the daemon
+(or Start the daemon when it is not running). After each step the menu opens
+again with fresh values and a one-line note in the subtitle; q leaves.
+`state-daemon.sh watch [secs]` is the watch mode on its own. Tested by
+`tests/test-state-daemon-interactive.sh` (16 checks, a real menu in a
+pretend terminal). It needed the fix in issue 052 first, so a daemon can run
+in a test's own folder; the branch is stacked on it.
+
+Decisions:
+
+- **One Go button and a "Do" list, not one button per action.** `menu_run`
+  reports only that an action was pressed, not which one. Telling actions
+  apart would mean changing `menu.lua`, which PRs #93 and #197 are also
+  rewriting.
+- **Set asks at a plain prompt after the menu closes.** The menu has no
+  free-text field. A key must be one word with no `=`, because the daemon
+  reads the first word of a SET line as the key and `dump` writes `key=value`.
+- **Clear asks y/N first**; delete acts only on the keys checked with space.
+- **Watch is its own loop rather than a menu that refreshes itself.** The
+  menu cannot redraw on a timer. Watch redraws every 2 seconds until any key
+  is pressed. Without a terminal on standard input it keeps to the interval
+  instead of spinning.
+
+Phases 1 (filesystem_scanner.sh), 4 (backup-conversations) and 5
+(project-file-server) are still to do. Phase 2's sync-visions viewer is PR
+#170 (issue 005).
