@@ -746,10 +746,67 @@ return TemplateEditorUI
 
 ### Acceptance Criteria
 - [ ] Intuitive tabbed interface for different editing aspects
-- [ ] Real-time point budget tracking and validation
+- [x] Real-time point budget tracking and validation
 - [ ] Visual stat sliders with immediate feedback
 - [ ] Comprehensive ability editor with all options
 - [ ] Live unit preview showing appearance and stats
-- [ ] Save/load functionality integrated with template storage
+- [x] Save/load functionality integrated with template storage
 - [ ] Responsive UI that works well at different screen sizes
 - [ ] Clear visual feedback for validation errors and warnings
+
+## What Happened (so far)
+
+Built the editor's logic, with nothing drawn. The issue stays open: its
+remaining work is the screen itself, which is also where the drawing
+left open in issues 063, 064, 065 and 066 belongs. No one has seen any
+of this on a screen.
+
+- `src/editor/template_editor.lua` holds the template being edited and:
+  - tabs (stats, abilities, appearance, preview), chosen by name or
+    stepped through;
+  - edits: name, description, body (stats go back to the new body's
+    values; the shape follows the body), primary and secondary colours
+    (held to 0-1), size (held to 0.5-1.5), stats and presets through
+    the stat allocator (issue 063), abilities through the ability
+    selector (issue 064), and budget fixes from the optimizer (issue
+    065);
+  - undo and redo (50 steps, each named), with an edit that changes
+    nothing not counted, and every change recorded as a budget change
+    a screen can animate (issue 065);
+  - unsaved-change tracking: opening, loading, starting a new template
+    or leaving are refused while there are unsaved changes unless
+    forced; revert goes back to the last save as an undoable step;
+  - saving and loading through template storage (issue 060); a template
+    with errors isn't saved;
+  - feedback (the budget status, then errors, then warnings) and the
+    preview's analysis (issue 066), worked out again only on change;
+  - `TemplateEditor.layout(width, height)`: where the tabs, editor,
+    preview, budget bar and buttons go; side by side from 1000 wide,
+    stacked below that, never overlapping and inside the window.
+- `tests/test_template_editor.lua` (8 tests), run by `./run <dir> unit`.
+
+Still to do, all needing a screen: the tabbed interface itself, the
+sliders, the ability editor's panels, the live unit drawing, checking
+the layout looks right at different sizes, and visual feedback for
+errors and warnings. The sketch's `TemplateEditorUI` widgets (slider,
+dropdown, progress bar) belong to that work.
+
+### Decisions
+
+- The editor's logic lives in `src/editor/` beside its parts, not in
+  the sketch's `src/states/template_editor_state.lua`, so it runs and is
+  tested without LÖVE; a state for the screen would wrap it.
+- Changing the body resets stats to the new body's values: stats are
+  priced against the body, so carrying the old numbers over would
+  silently change their cost. Abilities stay.
+- The editor delegates every change to the part that owns it (stat
+  allocator, ability selector, optimizer), so each rule lives in one
+  place; the editor adds history and saving.
+- Loading or opening starts a fresh history; leaving with unsaved
+  changes needs an explicit force, which a screen would ask the player
+  for.
+- Size modifier is held to 0.5-1.5, so a unit stays recognisable next to
+  others.
+- 062 stays open instead of moving to completed: most of its boxes are
+  the screen.
+
