@@ -862,7 +862,7 @@ end
 -- time.  Panels are thin: every write goes through tui.set_cell, so the
 -- dirty tracking above sees panel writes exactly as it sees any other.
 --
--- Rules (issue 039, from delta-version issue 067):
+-- Rules (issue 048, from delta-version issue 067):
 --   * Anything outside the panel is dropped, so a long string stops at the
 --     panel's right edge and row 10 of a 3-row panel writes nothing.
 --     Anything outside the screen is dropped too, so a panel that hangs off
