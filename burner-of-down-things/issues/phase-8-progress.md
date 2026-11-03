@@ -35,6 +35,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   the pool; raising one says first how many assets it keeps in use and how
   many fall below it, and deletes nothing.
 
+- 810 the viewer, without its window — the gallery (exactly what the
+  count utility counts), ratings by key, floors proposed with their cost
+  and set only on `y`, and each frame as a draw list, all checked with no
+  display (docs/010 question 11, answered). The raylib window waits on
+  raylib in `libs/`.
+
 801c-d, 807c-d and 805b-d remain: the flair's colour math and the
 night-only palette rule; box diagrams and prose templates; line-and-dot
 charts, diagrams by level and the machine drawing itself.
