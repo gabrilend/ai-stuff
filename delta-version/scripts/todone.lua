@@ -36,6 +36,9 @@ package.path = SCRIPT_DIR .. "/libs/?.lua;" .. SCRIPT_DIR .. "/../../libs/lua/?.
 local SYNONYMS = SCRIPT_DIR .. "/../config/component-synonyms.conf"
 -- }}}
 
+local component_names = require("component-names")
+local key_of, load_synonyms = component_names.key_of, component_names.load_synonyms
+
 -- {{{ Configuration
 local config = {
     max_prompt_chars = 12000,
@@ -87,35 +90,6 @@ local function first_line(path)
 end
 -- }}}
 
--- {{{ local function key_of()
--- Tier 1: a name with case, spaces, "-" and "_" ignored.
-local function key_of(name)
-    return (name:lower():gsub("[%s%-_]+", ""))
-end
--- }}}
--- }}}
-
--- {{{ local function load_synonyms()
--- Tier 2: each line "name = alias, alias" makes all of them one component,
--- reported under the first name.
-local function load_synonyms(path)
-    local map = {}
-    local file = io.open(path, "r")
-    if not file then return map end
-    for line in file:lines() do
-        line = line:gsub("#.*$", "")
-        local name, aliases = line:match("^%s*([^=]-)%s*=%s*(.-)%s*$")
-        if name and name ~= "" then
-            map[key_of(name)] = name
-            for alias in aliases:gmatch("[^,]+") do
-                alias = alias:gsub("^%s+", ""):gsub("%s+$", "")
-                if alias ~= "" then map[key_of(alias)] = name end
-            end
-        end
-    end
-    file:close()
-    return map
-end
 -- }}}
 
 -- {{{ local function planned_work()

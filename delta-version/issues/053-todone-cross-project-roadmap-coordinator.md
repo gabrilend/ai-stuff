@@ -516,7 +516,9 @@ The Ollama-compatible output format is key to maintainability. By standardizing 
 
 - **053b tiers 3–4:** fuzzy matching, and asking the model about uncertain
   pairs. There are no confidence scores yet.
-- **053c:** the shared-library roadmap.
+- **053c:** the shared-library roadmap. Built without its model step
+  (2026-11-03): `scripts/todone-roadmap.lua` orders the shared components;
+  see 053c's status.
 - **053d:** updates.
 - **053e:** the Anthropic API path.
 - **053f:** the TODO document format.

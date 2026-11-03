@@ -427,3 +427,44 @@ The topological sort ensures that shared components are built before the project
 The effort reduction calculations are estimates. Real-world savings will vary based on implementation complexity and integration overhead. However, even conservative estimates typically show 30-50% reduction when 3+ projects share a component.
 
 LLM refinement is optional but recommended for the initial analysis. It can catch subtle dependencies and suggest optimizations that pure algorithmic approaches miss.
+
+---
+
+## Status (2026-11-03): built without the model step, open for the rest
+
+**Built:** `scripts/todone-roadmap.lua`, with `scripts/todone-roadmap.info.md`,
+`scripts/test-todone-roadmap.sh` (30 checks) and `config/shared-components.conf`
+(the format and commented examples; no live entries). It reads
+`todone.lua --json`, so todone's name matching moved into
+`scripts/libs/component-names.lua`, which both tools share.
+
+- **Dependency graph:** from the config's `NAME: needs A, B` lines.
+  Something a shared component needs is built too, even when no two
+  projects share it.
+- **Priority:** the formula above. Hours come from `complexity`, and default
+  to medium, marked as a guess.
+- **Build order:** shared phases by level, higher priority first within a
+  phase.
+- **Cycles:** named, and left out of the order.
+- **Effort:** built once (hours plus 2 per project to fit it in) against
+  each project building its own.
+- **Per project:** what it waits on, and after which shared phase it has
+  everything.
+
+**Decided while building (my own calls):**
+
+- **Which component needs which is written down by hand,** not guessed. A
+  wrong edge reorders everything, and there is no source for edges other
+  than the model, which has not been judged on it.
+- **Complexity defaults to medium and says so,** instead of being guessed
+  from the name as the sketch does.
+- **Only the shared components are ordered.** Each project's own phases
+  stay in the project's roadmap, and the roadmap says which shared phase
+  the project waits for.
+
+**Still open:**
+
+- The LLM refinement step (the sketch uses the Anthropic API, which is
+  053e's path).
+- Re-planning each project's roadmap phases around the shared components:
+  `per_project_adjustments` in the sketch.
