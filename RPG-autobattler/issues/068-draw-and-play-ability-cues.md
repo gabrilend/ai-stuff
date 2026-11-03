@@ -61,8 +61,57 @@ Players can see and hear what abilities do:
 - [ ] Active buffs, debuffs and over-time effects show on units
 - [ ] Area casts and lasting zones show their boundaries
 - [ ] Sounds play by name when present, and nothing fails when they're not
-- [ ] Recorded-call tests pass headlessly
+- [x] Recorded-call tests pass headlessly
 - [ ] Seen and heard by a person
 
 ## Related Issues
 - 045 (mana bars drawn), 049 (cues), 051-054 (what's being shown), 067
+
+## What Happened (so far)
+
+The drawing and the sound are built and tested with recorded calls, the
+way the mana bars (045) were. Like 045, the issue stays open: no one has
+seen or heard any of it, and its other boxes are about what a person
+sees and hears. It isn't wired into a match yet; that comes with issue
+067.
+
+- `src/systems/ability_cue_renderer.lua` takes the effect system's cues
+  each frame and keeps short-lived things to draw:
+  - floating numbers that rise and fade, coloured by kind (physical,
+    magical, true, over time, healing, healing over time; healing has a
+    "+"); a miss shows "miss";
+  - melee swings from caster to target: an arc shaped by weapon (sword,
+    wider axe, short dagger), a straight thrust for a spear, half again
+    wider when the weapon cleaves; arrows and over-time ticks don't
+    swing;
+  - area casts flash their circle; deaths draw a fading cross.
+  It also draws from the systems' state: projectiles in flight, shaped by
+  `visual_effect` (arrow and javelin with heads, a heavy-tipped bolt, a
+  stone, a short dart, an orb for anything else); zones as circles that
+  fade as they run out; and on each living unit a row of markers, a
+  triangle pointing up per buff and down per debuff (with a stack
+  count), a ring when stunned, and a dot per effect over time.
+  `draw(g, world, view)` takes the graphics object and the same view
+  (offset and zoom) as the mana bar renderer.
+- `src/systems/sound_player.lua` plays a cue's `sound_effect` from
+  `assets/sounds/<name>.ogg` or `.wav`. With no file, no audio module or
+  a broken file, nothing plays and nothing fails. Each name is looked up
+  once, and names can't leave the folder.
+- Damage cues now carry `delivery`, `weapon`, `cleave` and `damage_type`,
+  and damage and heal cues carry `over_time` for a tick, so the renderer
+  can tell a sword from an arrow or a poison tick. The balance harness
+  keeps each step's cues as `world.last_cues`.
+- `tests/test_ability_cue_renderer.lua` (7 tests, including a real
+  headless battle drawn every frame), run by `./run <dir> unit`.
+
+### Decisions
+
+- Melee swings are drawn from damage cues that aren't projectiles or
+  ticks, rather than adding a separate swing cue: every melee hit
+  already makes a damage cue with its caster.
+- Each kind differs by more than colour: buffs and debuffs by which way
+  the triangle points, healing by its "+", misses by a word, as the mana
+  bars do.
+- No sound files are added; the game plays none until someone adds them
+  to `assets/sounds/`, named after the `sound_effect` in each ability.
+
