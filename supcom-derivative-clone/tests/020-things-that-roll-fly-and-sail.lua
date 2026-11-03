@@ -948,6 +948,83 @@ harness.suite("the command truck moves and dies in one hit", function()
 end)
 -- }}}
 
+-- {{{ the command truck, closer
+harness.suite("the door moves only a team's own truck, and only onto land", function()
+  local units = harness.load("units", "201")
+  local truck = harness.load("command-truck", "210")
+  local commands = harness.load("commands", "108")
+  local movement = harness.load("movement", "204")
+  local world = flat()
+  local ours = units.spawn(world, "command-truck", 1, 10, 10)
+  local theirs = units.spawn(world, "command-truck", 2, 50, 50)
+  local tank = units.spawn(world, "tank", 1, 12, 12)
+  local function send(verb, fields)
+    fields.verb, fields.tick, fields.team = verb, world.tick, fields.team or 1
+    harness.check("the door takes a well-formed " .. verb, commands.queue(world, fields) == nil)
+    return commands.apply_due(world)
+  end
+  harness.check("a move to land applies", send("move", {truck = ours, x = 20, y = 10}) == 1)
+  harness.check("and hands the truck a one-leg pattern from where it stands",
+                world.unit.pattern[ours] == world.pattern.count and world.unit.leg[ours] == 1
+                and #world.pattern.points[world.pattern.count] == 2
+                and world.pattern.points[world.pattern.count][2].x == 20)
+  harness.check("another team's truck is refused", send("move", {truck = theirs, x = 20, y = 10}) == 0
+                and commands.refusals(world)[1].reason:find("not your truck", 1, true) ~= nil)
+  harness.check("a unit that is not a truck is refused", send("move", {truck = tank, x = 20, y = 10}) == 0
+                and commands.refusals(world)[2].reason:find("not a command truck", 1, true) ~= nil)
+  harness.check("the sea is refused", send("move", {truck = ours, x = 30, y = 5}) == 0
+                and commands.refusals(world)[3].reason:find("not a land cell", 1, true) ~= nil)
+  harness.check("and so is the edge of the field", truck.move(world, ours, 64, 3) ~= nil)
+  harness.check("a second move replaces the first", truck.move(world, ours, 10, 20) == nil
+                and world.pattern.points[world.unit.pattern[ours]][2].y == 20)
+  for _ = 1, 60 do movement.move_pass(world) end
+  harness.check("the truck walks the new pattern and holds at its end",
+                world.unit.x[ours] == 10 and world.unit.y[ours] == 20 and movement.held(world, ours))
+  harness.check("each team counts its live trucks",
+                truck.trucks_alive(world, 1) == 1 and truck.trucks_alive(world, 2) == 1)
+end)
+
+harness.suite("a truck launches its plane on a heading when its launch pair allows", function()
+  local units = harness.load("units", "201")
+  local truck = harness.load("command-truck", "210")
+  local timers = harness.load("timers", "106")
+  local the_world = harness.load("the-world", "104")
+  local world = level()
+  local id = units.spawn(world, "command-truck", 1, 10, 20)
+  harness.check("a heading is a number", truck.launch(world, id, 0 / 0) ~= nil)
+  harness.check("a launch east applies", truck.launch(world, id, 90) == nil)
+  local plane = world.unit.top
+  harness.check("the plane is the truck's plane kind, at the truck, on its team",
+                world.unit.kind[plane] == units.index_of(truck.PLANE) and world.unit.team[plane] == 1
+                and world.unit.x[plane] == 10 and world.unit.y[plane] == 20)
+  harness.check("its mission is heading, and its goal is where east leaves the field",
+                world.unit.mission[plane] == truck.MISSION.heading
+                and math.abs(world.unit.goal_x[plane] - 63.5) < 1e-9
+                and math.abs(world.unit.goal_y[plane] - 20) < 1e-9,
+                world.unit.goal_x[plane] .. ", " .. world.unit.goal_y[plane])
+  harness.check("the team waits for the launch counter's next increment",
+                world.team.launch_at[1] == world.launch.increment + 1)
+  local refusal = truck.launch(world, id, 0)
+  local next_tick = truck.next_launch_tick(world, 1)
+  harness.check("a launch too soon names the tick the next is allowed",
+                refusal ~= nil and refusal:find("tick " .. next_tick, 1, true) ~= nil
+                and next_tick == world.launch.next, refusal)
+  world.tick = next_tick
+  timers.advance(world.launch, world.tick)
+  harness.check("at that tick it may launch again, north this time", truck.launch(world, id, 0) == nil
+                and math.abs(world.unit.goal_y[world.unit.top] + 0.5) < 1e-9)
+  local small = the_world.allocate({field = FIELD, units = 1, teams = 2, seed = SEED})
+  for index = 1, #small.field.height do small.field.height[index] = 10 end
+  local alone = units.spawn(small, "command-truck", 2, 5, 5)
+  local full = truck.launch(small, alone, 180)
+  harness.check("a full world keeps the plane on the truck, by refusal",
+                full ~= nil and full:find("no room", 1, true) ~= nil, full)
+  the_world.release(small, "unit", alone)
+  harness.check("a dead truck counts for nothing", truck.trucks_alive(small, 2) == 0
+                and truck.launch(small, alone, 180) ~= nil)
+end)
+-- }}}
+
 -- {{{ the enforcer
 harness.suite("the enforcer eats bones and its sphere absorbs", function()
   local units = harness.load("units", "201")

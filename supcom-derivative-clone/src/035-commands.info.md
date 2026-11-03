@@ -50,6 +50,8 @@ The verbs:
 | --- | --- | --- |
 | `noop` | none | nothing; a lockstep batch may be empty |
 | `set-energy-level` | `level` | presses one of the energy menu's four buttons for the team; refuses any other button by number. What a button means is issue 302's. |
+| `move` | `truck`, `x`, `y` | points the team's command truck at a land cell (`command-truck.move`, issue 210); refuses a row that is not the team's truck, and a cell that is not land |
+| `launch` | `truck`, `heading` | launches the team's truck's plane on a compass heading in degrees from north (`command-truck.launch`, issue 210); refuses a row that is not the team's truck, and a plane still reloading, naming the tick the next launch is allowed |
 
 The queue and the ring are groups in the world's layout (`command`, a queue, and
 `refusal`, a ring); see the world's companion for their fields. The verb is

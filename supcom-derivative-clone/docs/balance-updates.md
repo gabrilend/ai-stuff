@@ -42,3 +42,7 @@ catalogue field `bone_share` of its `cost_mass`, rounded down: 0.5 for every
 kind to start, so a tank leaves 50 mass and a helicopter 2. The command truck
 cost no mass and leaves none. `bones_per_unit = 8` in the rules is a size, not
 a tuning.
+
+**How often a truck launches its plane** (issue 210). A new rule,
+`launch_seconds = 15`: the launch counter fires every fifteen seconds, and a
+truck that launched waits for its next increment. A guess to be measured.

@@ -143,6 +143,7 @@ M.LAYOUT = {
     {"energy", "double"},
     {"thorns", "double"},
     {"energy_level", "integer"}, -- which of the four buttons is pressed; zero for none yet
+    {"launch_at", "integer"},   -- the launch increment from which its truck may launch again (issue 210)
   }},
   {group = "stream", kind = "fixed", capacity = "streams", fields = {
     {"state", "integer"},       -- one named stream's xorshift state, never zero
@@ -190,6 +191,7 @@ M.SCALARS = {pool = {"count", "top", "released"}, fixed = {}, queue = {"count"},
 M.COUNTERS = {
   {path = {"claim"}, seconds = "claim_seconds",
    extra = {{"increments_to_claim", "claim_increments"}}},
+  {path = {"launch"}, seconds = "launch_seconds", extra = {}},
 }
 -- }}}
 

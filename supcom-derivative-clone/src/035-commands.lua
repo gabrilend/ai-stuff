@@ -65,6 +65,7 @@ end
 
 local world_module = the_world()
 local snapshot = world_module.load("snapshot")
+local truck = world_module.load("command-truck")
 
 -- The most arguments a verb may name: the command record has this many slots.
 local SLOTS = 4
@@ -95,6 +96,32 @@ M.VERBS["set-energy-level"] = function(world, command)
   world.team.energy_level[command.team] = level
 end
 -- }}}
+
+-- {{{ M.VERBS["move"]
+-- Points a team's command truck at a cell: the one unit a command moves
+-- (issue 210). Refused when the row is not the team's truck or the cell is not
+-- land.
+M.VERBS["move"] = function(world, command)
+  local reason = truck.owned_by(world, command.truck, command.team)
+  if reason ~= nil then
+    return reason
+  end
+  return truck.move(world, command.truck, command.x, command.y)
+end
+-- }}}
+
+-- {{{ M.VERBS["launch"]
+-- Launches a team's truck's plane on a compass heading, in degrees from north
+-- (issue 210). Refused when the row is not the team's truck or its plane is
+-- still reloading.
+M.VERBS["launch"] = function(world, command)
+  local reason = truck.owned_by(world, command.truck, command.team)
+  if reason ~= nil then
+    return reason
+  end
+  return truck.launch(world, command.truck, command.heading)
+end
+-- }}}
 -- }}}
 
 -- {{{ ARGUMENTS
@@ -103,6 +130,8 @@ end
 M.ARGUMENTS = {
   ["noop"] = {},
   ["set-energy-level"] = {"level"},
+  ["move"] = {"truck", "x", "y"},
+  ["launch"] = {"truck", "heading"},
 }
 -- }}}
 

@@ -91,7 +91,7 @@ the test.
 | `combat` | 206, 207 | `fire_pass(world)` and `fire_pass_slice(world, first, last)`; `land_pass(world)`; `die_pass(world)` returns how many died; `hurt(world, id, amount)`; `health(world, id)`; `damage_at(world, id, distance)`; `describe(world, index)` returns one shot as a line |
 | `bones` | 208 | `leave(world, unit)` returns the bone row, or zero for a kind whose bones carry nothing; `leave_at(world, x, y, mass)`; `eat(world, unit, bone)` returns the mass; `near(world, x, y, radius)` returns bone rows in queue order; `mass_of(kind)`; `total(world)` |
 | `thread-pool` | 209 | `slice(count, workers)` returns contiguous ranges; `run_sliced(system, world)`; `trace_writes(body, world)` returns every write the body made, as `{array, field, index}` |
-| `command-truck` | 210 | `move(world, id, x, y)`; `launch(world, id, heading)` returns nothing or a refusal |
+| `command-truck` | 210 | `move(world, id, x, y)` and `launch(world, id, heading)` return nothing or a refusal (heading in compass degrees, nought north); `trucks_alive(world, team)`; `owned_by(world, id, team)`; `next_launch_tick(world, team)`; `KIND`, `PLANE`, `MISSIONS`, `MISSION` |
 | `enforcer` | 211 | `eat_pass(world)`; `shield_pass(world)` |
 | `economy` | 301, 303, 305, 311 | `income_pass(world)`; `construction_pass(world)`; `build_power(world, team)`; `place_energy(world, team, cell)`; `find_hydrocarbon(world, team, cell)`; `consequences_pass(world)`; `cell_pays(world, cell)`; `improve(world, team, cell)` |
 | `energy-menu` | 302 | `LEVELS`, four rows; `set_level(world, team, level)` raises on a fifth |
@@ -134,9 +134,9 @@ builds the system that writes it:
 - `world.pattern.{count, points}`
 - `world.shot.{count, shooter, target, damage, arrives}` — the shells in flight (issue 206)
 - `world.bone.{count, x, y, mass}`
-- `world.heal.<kind>`, `world.reload.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
+- `world.heal.<kind>`, `world.reload.<kind>`, `world.recharge.enforcer`, `world.launch`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
-- `world.team.{mass, energy, thorns, energy_level}`
+- `world.team.{mass, energy, thorns, energy_level, launch_at}`
 - `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark, occupant}`
 - `world.marked.{count, cell}` — the claim pass's scratch, empty between passes (issue 112)
 - `world.building.alive`

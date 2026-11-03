@@ -5,15 +5,16 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 108, 201 |
 | Blocks | 406, 607 |
-| Reads | [the command truck and its plane](../docs/008-the-command-truck-and-its-plane.md) |
+| Reads | [the command truck and its plane](../../docs/008-the-command-truck-and-its-plane.md) |
 | Open questions | A1, A2, A8 |
 
 ## Current behavior
 
-Nothing. The command door (issue 108) and the unit row (issue 201) do not
-exist. The test program `tests/020-things-that-roll-fly-and-sail.lua` names this
-issue, looks for the stem `command-truck`, and asserts that the truck moves on
-command and that the catalogue makes it die in one tank shell.
+Built. `src/047-command-truck.lua` moves a truck by handing it a one-leg
+pattern and launches its plane on a compass heading when the team's launch pair
+allows; the command door has `move` and `launch` verbs that refuse anything but
+the team's own live truck. `trucks_alive` counts a team's trucks. The truck
+dies to one tank shell through the catalogue alone.
 
 ## Intended behavior
 
@@ -70,11 +71,36 @@ that every tank carries as zero.
 6. Write the refusal texts the viewer will show: not your truck, not a land
    cell, still reloading, with the tick the next launch is allowed.
 
+## What happened
+
+- **The door checks the team, the truck module checks the rest.** `owned_by`
+  refuses a row that is not a live truck or not the commanding team's; `move`
+  and `launch` take a row and refuse a non-truck too, so a direct call (as the
+  test makes) is safe.
+- **The pattern is two points**, where the truck stands and the destination;
+  the move pass skips the first. Each move appends a pattern to the store, which
+  is never trimmed. The store's lifetime is for the factories' issues to settle.
+- **The launch pair** is a new world counter, `world.launch`, with a new rule
+  `launch_seconds = 15` (logged in the balance updates), and a new team field,
+  `launch_at`. A launch writes the counter's next increment.
+- **The plane is the helicopter**, the catalogue's one plane kind (A8's working
+  ruling), named by `PLANE`.
+- **The heading is stored as the plane's goal**: the point where the heading
+  leaves the field, in `goal_x` and `goal_y`. The unit row has no heading
+  column, and a goal is what a mission flies to. Headings are compass degrees,
+  nought north (toward row zero), ninety east.
+- **Missions are numbered** in the truck document's table order: heading 1,
+  hunting 2, striking 3, returning 4 (`MISSIONS`, `MISSION`).
+- **A full world refuses the launch** instead of failing inside the tick.
+- **New verbs renumber the verbs**, which are numbered by sorted name; logs and
+  refusals carry names, so nothing stored changes meaning.
+- A1, A2 and A8 stay open on their working rulings.
+
 ## Related documents and tools
 
-- [the command truck and its plane](../docs/008-the-command-truck-and-its-plane.md)
-- [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md) — the command door and the queue invariant
-- [the cloud](../docs/007-the-cloud.md) — what the plane's report does
+- [the command truck and its plane](../../docs/008-the-command-truck-and-its-plane.md)
+- [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md) — the command door and the queue invariant
+- [the cloud](../../docs/007-the-cloud.md) — what the plane's report does
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

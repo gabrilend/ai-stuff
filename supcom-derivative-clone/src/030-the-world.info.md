@@ -60,6 +60,7 @@ The world is a table:
 | `layout` | table | `{groups = LAYOUT, counters = COUNTERS, scalars = SCALARS}`, so a module holding a world can walk its layout without loading this file |
 | one table per group | table | `capacity`, the kind's scalars, and one foreign array per field |
 | `claim` | table | the claim counter, a `timers` counter with `increments_to_claim` |
+| `launch` | table | the launch counter, a `timers` counter (issue 210) |
 
 Types: `integer` is an `int32_t` array, `double` a `double` array, each
 `capacity + 1` long. `text` is a Lua array of strings from slot zero, the empty
@@ -81,7 +82,7 @@ The groups:
 | `unit` | pool | `units` | `alive`, `kind`, `team` (integer); `x`, `y` (double); `domain` (integer); `altitude` (double); `health`, `health_at`, `reload_at`, `pattern`, `leg`, `mission`, `target`, `damage`, `falloff` (integer); `eye`, `profile` (double); `claim_radius`, `waited` (integer); `shield`, `shield_at`, `eaten` (integer); `eat_share`, `strength` (double); `in_round` (integer); `goal_x`, `goal_y` (double) |
 | `cell` | fixed | the field's cells | `owner`, `claim_by`, `claim_began`, `claim_seen`, `improvement`, `mark`, `occupant` (integer) |
 | `marked` | queue | the field's cells | `cell` (integer): the cells some unit marked this tick, emptied by the claim pass (issue 112) |
-| `team` | fixed | `teams` | `mass`, `energy`, `thorns` (double); `energy_level` (integer) |
+| `team` | fixed | `teams` | `mass`, `energy`, `thorns` (double); `energy_level`, `launch_at` (integer) |
 | `stream` | fixed | the names in `random-streams`' `STREAMS` | `state` (integer, never zero) |
 | `command` | queue | `commands` in the rules | `tick`, `verb`, `team`, `player` (integer); `argument1` to `argument4` (double) |
 | `shot` | queue | `units` times `shots_per_unit` in the rules | `shooter`, `target`, `damage`, `arrives` (integer): the shells in flight, appended in unit-row order within a tick and landed in queue order (issue 206) |
@@ -97,6 +98,7 @@ list, and it is what the tick, the hash and the validator walk.
 | Counter | Period | Extra |
 | --- | --- | --- |
 | `world.claim` | `claim_seconds` | `increments_to_claim` from `claim_increments` |
+| `world.launch` | `launch_seconds` | none; a team's truck may launch when its increment reaches the team's `launch_at` (issue 210) |
 | `world.heal.<kind>`, one per catalogue kind | the kind's `heal_period` | none |
 | `world.reload.<kind>`, one per kind with a weapon | the kind's `reload_seconds` | none |
 | `world.recharge.<kind>`, one per kind with a shield | the kind's `shield_seconds` | none |
