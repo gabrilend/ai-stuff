@@ -81,6 +81,14 @@ if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
     if [ "$?" -ne 0 ]; then
         FAILED=1
     fi
+
+    # The shared frame, separately, because it forks: one process writes a match into
+    # memory while this one reads it, which is the only way to test a torn read.
+    echo
+    luajit "${DIR}/tests/080-the-shared-frame.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
 fi
 
 if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "scenes" ]; then

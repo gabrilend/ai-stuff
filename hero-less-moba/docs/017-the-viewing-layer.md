@@ -68,6 +68,13 @@ extrapolates is a viewer that shows things that did not happen, and in a game
 where a player is judging a frontline by eye, showing a frontline that is not
 really there is a lie that changes decisions.
 
+**When the simulation has a thread of its own** ([709](../issues/709-the-drawn-body-lags-the-real-one.md),
+R4), the pair is kept, not replaced. Each tick's frame is written whole into a ring of
+blocks in memory both threads can see, and the viewer keeps a copy only if the block
+was whole before and after it copied. What is shared is finished frames, never the live
+world. The ring is built ([the shared frame](../src/079-the-shared-frame.info.md)); the
+thread is not.
+
 There is one exception, and it is on a key and off by default: a **weighted** picture
 ([709](../issues/709-the-drawn-body-lags-the-real-one.md)) in which each drawn body chases
 the honest position with a little momentum, so it leans into a turn and runs slightly

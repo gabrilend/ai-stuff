@@ -6,7 +6,7 @@
 | Blocked by | 701, 702, 215 |
 | Blocks | — |
 | Reads | [the viewing layer](../docs/017-the-viewing-layer.md) |
-| Open questions | R4; R2 provisionally, until looked at; R3 settled below |
+| Open questions | R2 provisionally, until looked at; R3 settled; R4 answered by Claude, open for Ritz |
 
 ## Current behavior
 
@@ -23,7 +23,18 @@ gives every body a drawn place and velocity, pulled toward the honest position b
 spring that swings a little before it settles. The viewer keeps both pictures every
 frame and the renderer draws whichever it is handed; `i` swaps them, and the honest one
 is the default. The numbers on the spring were chosen by arithmetic, and this machine
-has no LÖVE, so how it actually looks is still R2's question. Step 3 is not started.
+has no LÖVE, so how it actually looks is still R2's question.
+
+**Step 3 is begun: the memory and the rule for reading it.** [079](../src/079-the-shared-frame.info.md)
+holds the bodies of the viewer's frame in a ring of four blocks, in memory another
+thread can be handed, and a reader takes a block only if it was whole before and after
+it copied it — so nothing that reads it ever takes half of one tick and half of the
+next. [The test](../tests/080-the-shared-frame.lua) proves that with two real
+processes: one plays a match and writes every tick, the other reads while it does,
+and every frame it kept is exactly a frame the match had. **The game does not use it
+yet.** The simulation still runs on the drawing's thread, because putting it on its own
+needs LÖVE's threads, and LÖVE is not on this machine to try them; that is the next
+step, below.
 
 What it promises, and what `tests/051-the-invariants` checks without a window:
 
@@ -85,10 +96,30 @@ thread can see — including the drawing thread — so that all of them are reas
 the same state at the same time.
 
 This is the largest of the three and the only one that changes the shape of the program.
-It should be its own issue before it is started, and it needs an answer to R4 first,
-because "everyone reads the same memory" and "the picture is never half of one tick and
-half of the next" are in tension, and the current snapshot pair exists precisely to
-resolve that tension.
+It needed an answer to R4 first, because "everyone reads the same memory" and "the
+picture is never half of one tick and half of the next" are in tension, and the
+current snapshot pair exists precisely to resolve that tension. R4 is answered below,
+and the answer is what was built: **what is shared is finished frames, not the live
+world.**
+
+It stays in this issue rather than becoming one of its own, so the roadmap's rows do
+not move. *Chosen by Claude, open for Ritz.*
+
+What is left of it, in order:
+
+1. **A thread for the simulation**, in LÖVE: it assembles the world, keeps the clock the
+   accumulator keeps now, applies the commands sent to it on a channel, stamps, and
+   writes each tick into the ring in a ByteData both threads hold. The viewer stops
+   ticking and reads.
+2. **The rest of the frame** — the chest, slots, wallets, phase, sign-posts, events —
+   crosses on a channel once a tick. It is small, and it is not drawn between ticks, so
+   it needs no ring.
+3. **What the viewer reads from the world directly**: the map and the parameters, which
+   never change and can be built on both sides from the same seed; and a few live reads
+   in input and the renderer (the wave, the structures, the sign-posts), which have to
+   move onto the frame first.
+4. Looked at, at walking pace and fast-forwarded, beside the one-thread loop it
+   replaces, which stays behind a switch until then.
 
 ## Suggested implementation steps
 
@@ -99,7 +130,8 @@ resolve that tension.
 2. Give the renderer a per-body drawn position with a velocity, chasing the simulated
    one. Keep the existing straight interpolation behind a switch, because the two want
    comparing and the honest one is the one to fall back to.
-3. Leave the shared-memory question alone until the first two are settled and liked.
+3. Shared memory: the frame's bodies in a ring of whole frames (built, not yet used),
+   then the simulation on its own thread (listed above, not built).
 
 ## Open questions
 
@@ -134,6 +166,26 @@ can never be drawn on the far side of a neighbour it did not pass.
 is what stops the screen showing half of one tick and half of the next. Reading live
 state from a drawing thread reintroduces exactly that, so the answer has to say what is
 gained in exchange, and by whom.
+
+*Answered by Claude, open for Ritz: separate clocks, for the person watching, and
+memory to share, for the thread pool. The price is not paid, because what is shared is
+finished frames.* Today the simulation and the drawing take turns on one thread: a slow
+frame delays ticks, and a fast-forwarded match spends each frame on up to forty ticks
+before drawing anything. On its own thread the simulation keeps time whatever the
+drawing does, and the drawing draws whatever was most recently finished — the person
+watching gets the frame rate back at high speed, and [209](209-the-thread-pool-slices-the-tick.md)'s
+workers get memory allocated up front that every thread can see. The tension with the
+snapshot pair is resolved by keeping the pair: each tick's frame is written whole into
+one block of a ring, under a sequence number that is odd while it is being written, and
+a reader keeps a copy only if the number was even and unchanged across the copy. The
+writer never waits for a reader. Nothing reads the live world from another thread.
+
+The numbers: **four blocks** — two for the pair a reader blends between, one for the
+writer, one spare so a slow reader still finds its pair whole. When the tick before the
+newest has gone, the previous frame is the newest again: no blend, the honest picture.
+And **x86 only**: the rule needs loads and stores kept in order, which x86 does by
+itself and other processors need fences for that LuaJIT does not offer, so the ring
+refuses to be made anywhere else rather than run unsoundly.
 
 ## Related documents and tools
 
