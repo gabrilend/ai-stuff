@@ -109,7 +109,8 @@ The tests reach into the world record directly where a claim is about the data
 rather than about a function. Those fields are part of the contract too, and
 the world's layout must carry them under these names. Issue 104 laid down the
 unit, cell, team and stream groups and the claim counter, and issue 108 the
-command queue and the refusal ring; every other group and
+command queue and the refusal ring, and issue 112 the claim's presence fields
+and the marked queue; every other group and
 field below is added to the layout, under the name given here, by the issue that
 builds the system that writes it:
 
@@ -123,7 +124,8 @@ builds the system that writes it:
 - `world.heal.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
 - `world.team.{mass, energy, thorns, energy_level}`
-- `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began}`
+- `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark}`
+- `world.marked.{count, cell}` — the claim pass's scratch, empty between passes (issue 112)
 - `world.building.alive`
 - `world.factory.{line, running, pattern}`
 - `world.flip.{count, cell, from, to, by}`

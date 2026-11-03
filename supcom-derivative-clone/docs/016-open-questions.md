@@ -231,8 +231,13 @@ whatever claimed the cell that flipped.
 
 ## C4. Does a contested claim reset or pause?
 
-**Working ruling:** pause. The claim's start increment is kept while both sides
-are present and the claim resumes when one leaves.
+**Working ruling:** pause. While both sides are present nothing changes hands
+and the claim's progress stops: its start increment moves on by the increments
+the contest lasts, so the claim resumes where it was when one side leaves.
+(Keeping the start increment unmoved would let the contest's time count, so the
+claim would finish the moment the contest ended -- a run-on, not a pause. Issue
+112 builds the pause, and treats a claimant walking away the same way until a
+whole claim length passes, when the claim is cleared.)
 
 **Changes:** issue 112.
 
