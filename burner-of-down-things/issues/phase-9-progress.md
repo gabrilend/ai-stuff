@@ -28,6 +28,10 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   tag at all (ordinary), or a malformed attempt (a finding naming the
   right form) — a word-boundary check keeps "promptly" from misreading as
   a broken tag.
+- 906 step 1 observations — a result holding an error becomes an
+  observation of what happened and its mechanism, checked by the lesson's
+  own mood-vs-mechanism rule; sent back up to three times, then waits for
+  the person. Adjustments (step 2) remain.
 
 903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
 confinement; number issuance and reuse refusal; structured and remaining
