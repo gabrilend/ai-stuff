@@ -147,6 +147,7 @@ fi
 - **Complexity**: High
 - **Estimated Time**: 2-3 hours
 - **Dependencies**: Issue 004 (extracted project histories)
+- **Blocks**: 007, 035b (each names this issue as a dependency)
 - **Impact**: Developer workflow, project organization
 
 ## Success Criteria
@@ -157,3 +158,32 @@ fi
 - Git operations work correctly in isolated context
 - Helper scripts and automation in place
 - Validation that isolation works as intended
+---
+
+## What Happened
+
+**2026-11-02 — closed because the design it configures was retired.**
+
+This issue set out to give each project its own branch, holding only that
+project's files and its pre-monorepo history, with sparse-checkout to hide
+everything else. The status note above records the branches as made and
+pushed in December 2024. They are no longer there:
+
+- Issue 031 (completed) joined the six projects' pre-monorepo histories
+  under the trunk's first commit instead. Now `git log -- <project>/` on
+  `main` reaches each project's first commit, which was the history goal
+  of point 3 above.
+- The five project branches were retired. Their local copies were deleted
+  on 2026-09-22, after being saved to a bundle that issue 031 names. On
+  2026-11-02 the remote has no branch besides `main` and the `claude/`
+  work branches.
+- Issue 046 settled the branch layout: work starts from `main` and returns
+  by pull request. There are no per-project branches.
+
+What was left, sparse-checkout per project branch, was marked optional
+above and has nothing left to apply to. Anyone who wants to see one
+project's files can use git's own `git sparse-checkout set <project>` on a
+checkout of `main`. No tooling is needed.
+
+The success criteria stay unticked on purpose. They describe the
+per-branch design, which was replaced rather than finished.

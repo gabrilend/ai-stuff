@@ -102,6 +102,7 @@ For progress-ii/game-state:
 - **Complexity**: Medium-High
 - **Estimated Time**: 1-1.5 hours
 - **Dependencies**: Issue 001 (repository structure)
+- **Blocks**: 005 (configure branch isolation)
 - **Impact**: Preservation of development history
 
 ## Success Criteria

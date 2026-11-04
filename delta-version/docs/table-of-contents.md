@@ -55,7 +55,7 @@
 
 ### Git Repository Management Issues
 - [Issue 004: Extract Project Histories](../issues/004-extract-project-histories.md)
-- [Issue 005: Configure Branch Isolation](../issues/005-configure-branch-isolation.md)
+- [Issue 005: Configure Branch Isolation](../issues/completed/005-configure-branch-isolation.md)
 - [Issue 006: Initialize Master Branch](../issues/006-initialize-master-branch.md)
 - [Issue 007: Remote Repository Setup](../issues/007-remote-repository-setup.md)
 - [Issue 008: Validation and Documentation](../issues/completed/008-validation-and-documentation.md) ✅
