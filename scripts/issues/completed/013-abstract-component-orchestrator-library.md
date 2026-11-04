@@ -101,7 +101,7 @@ wrapper `libs/component-orchestrator.sh` and notes in
 `tests/test_component-orchestrator.lua` (48 checks), which uses real
 processes: `sleep` for a daemon, netcat for something that listens on a port.
 
-Steps 1-9 are done. Step 10, a TUI dashboard, is filed as issue 051.
+Steps 1-9 are done. Step 10, a TUI dashboard, is filed as issue 060.
 `handheld-office`'s own orchestrator is not switched over; that belongs to
 that project.
 

@@ -1,4 +1,4 @@
-# Issue 051: A TUI dashboard for the component orchestrator
+# Issue 060: A TUI dashboard for the component orchestrator
 
 ## Status
 - **Priority**: Low
@@ -27,3 +27,8 @@ restart the component under the cursor, and show the tail of its
 2. Draw `orch.status_all()` into the list; redraw only rows that changed.
 3. Keys: j/k to move, s start, x stop, r restart, o toggle output, q quit.
 4. A screen test in the style of `tests/test-menu-layout.sh`.
+
+## Renumbered
+
+**2026-11-04:** this issue was 051, a number another open pull request
+(#237, cloud conversations) also uses, so it moved to the next free number, 060.
