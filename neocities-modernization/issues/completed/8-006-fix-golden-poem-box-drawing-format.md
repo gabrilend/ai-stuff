@@ -79,6 +79,10 @@ Per `notes/golden-poem-example`, golden poems should render with a proper box:
 - Requires understanding of poem content structure (already 80-char formatted)
 - Works within existing `format_content_with_warnings()` pipeline
 
+## Blocks
+
+- 8-007
+
 ## Quality Assurance Criteria
 
 - [x] Golden poems (1024 chars) render with full box-drawing border

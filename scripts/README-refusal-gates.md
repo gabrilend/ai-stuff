@@ -6,11 +6,25 @@ together let a session commit exactly the lines it wrote. They are installed as
 hooks in `~/.claude/settings.json`, so they apply to **every session on this
 machine, in every project**.
 
+Every script Claude Code runs as a hook lives in `harness-hooks/` (moved there
+2026-10-20, so the things that judge each session sit in one place). Each hook
+still takes the scripts folder as its folder (`DIR`), since that is where its
+shared libraries (`libs/`) are. The commands below (`commit-own-changes` and
+the rest) are run by sessions, not by Claude Code, and stay in the scripts
+folder; so does `backup-conversations`, a command of its own that the Stop
+hook also calls with `--hook`.
+
 | Script | Kind | What it does | Token to lift it once |
 | --- | --- | --- | --- |
-| `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` |
+| `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` (any one move), or `echo /a/folder > /tmp/claude-allow-cwd-change` (a move there only); expires after ten minutes |
 | `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
 | `refuse-foreign-lines` | gate (before Bash) | refuses a plain `git commit` that would record anything, pointing at `commit-own-changes` | `touch /tmp/claude-allow-foreign-commit` |
+| `refuse-outside-writes` | gate (before Bash, Edit, Write, MultiEdit, NotebookEdit) | refuses a file tool writing, or a command that writes (redirection, `sed -i`, `tee`, `cp`, `mv`, `rm`, …) anywhere but the session's folder, its two RAM rooms, or `/dev/null` and its kind; never answers "allow", so Claude Code's classifier still judges every command it lets by | `touch /tmp/claude-allow-outside-write` |
+| `answer-outside-write` | hook (before and after AskUserQuestion) | reads the person's answer to the write gate's question (Yes / This time / Always / No) from what Claude Code records, and grants the one write, allows the folder until the session ends, allows it from now on for that project only, or grants nothing; refuses a question that arrives with its answers filled in | — |
+| `forget-session-permits` | hook (SessionEnd) | removes what a session was allowed "This time" and its unspent Yes grants | — |
+| `merge-agent-scratchpad` | hook (SessionEnd) | moves the session's Claude Code scratchpad into `/tmp/<name>/agent-scratchpads/<session>/` behind the session folder's `tmp` link; leaves it in place when there is no link | — |
+| `allow-own-ram-tiers` | permission (before Read, Edit, Write, MultiEdit, NotebookEdit, Glob, Grep) | answers "allow" for a path inside the session's own project's RAM tiers, so Claude Code's folder boundary does not ask; says nothing about any other path | — (it only widens) |
+| `carry-working-folder-name` | hook (SessionStart, CwdChanged) | makes each command's shell show the folder name Claude Code has on record, not the one inherited at launch | — |
 | `record-own-edits` | note-taker (after Edit, Write, MultiEdit, NotebookEdit, Bash) | appends every line the session adds or removes to its edit ledger | — |
 | `commit-own-changes <repo> -F -` | command | commits only this session's lines, built on a private staging list | — |
 | `stage-own-changes [repo]` | command | previews what `commit-own-changes` would commit; writes nothing | — |
@@ -26,6 +40,155 @@ separate on purpose — allowing one directory change should not also allow one
 foreign commit, nor one blind reset. A token that cannot be deleted (a
 directory with something in it) is not honoured, since it would otherwise
 permit every later command.
+
+### Moving the session's folder when the person allows it
+
+The directory gate's permission can name its folder, and it expires (issue
+041 in `issues/`):
+
+- `! touch /tmp/claude-allow-cwd-change` allows any one move;
+  `! echo /new/place > /tmp/claude-allow-cwd-change` allows a move to that
+  folder only. A named permission does not let a move elsewhere through, and
+  is kept for the move it was made for. Folders are compared by where they
+  really are, so the old name of a folder and its new name match.
+- A permission older than ten minutes is removed the next time the gate sees
+  a move, the refusal says so, and it is not used. Without this, a
+  permission given for a move that never reached the gate (see below) waited
+  for whatever move came next.
+- **Ask for the move as a command of its own: `cd /new/place` alone.**
+  Claude Code drops a leading `cd DIR &&` when DIR is the folder the session
+  is in, comparing real places, so after a folder is moved and its old name
+  left as a link, `cd /new/place && pwd` from the old name never reaches the
+  gate and never moves; `cd /new/place` alone does.
+- **A new name for the folder the session is in takes two steps.** Tried
+  live 2026-10-18: a permitted one-step `cd` from a folder's old name to its
+  new name ran, and the next command was back at the old name, since Claude
+  Code moves its record of the session's folder only when the real place
+  changes. So: `! echo /new/place > /tmp/claude-allow-cwd-change`, then
+  `cd /new` (the new name's parent; a real move, the permission kept), then
+  `cd /new/place` (the permission spent). A one-step move between names is
+  refused, says so, and spends nothing.
+- **Why the old name sticks at all:** each command's fresh shell inherits the
+  `claude` program's own `PWD`, set when it was launched, and bash keeps an
+  inherited `PWD` that names the folder it is in. `carry-working-folder-name`
+  (a hook on `SessionStart` and `CwdChanged`, through Claude Code's
+  `CLAUDE_ENV_FILE`) re-enters the folder by the name Claude Code has on
+  record before every command. Start a session in the folder by the name you
+  want, and that name is what it shows.
+- **A session already stuck on an old name** (one that cannot be restarted):
+  run `carry-working-folder-name --now /the/name/wanted`, then give one
+  permission and have the session make one real move (into a subfolder).
+  Claude Code reads the session's environment files only when one of its
+  hooks fires; after that move, every command shows the wanted name.
+
+Found 2026-10-18, when a project moved disks and the session, started under
+the old name, could not be moved to the new one: the chained move was
+dropped, the permission was left armed, and nothing said why.
+
+### The project's own RAM tiers
+
+Claude Code's file tools work only inside the folders a session was started
+with, and stop to ask about anything else. Every project's scratch space
+lives outside them, in RAM: `<project>/tmp` leads to `/tmp/<name>`, and
+`tmp/shared-memory` to `/dev/shm/<name>` (issue 033). So reading a project's
+own log stopped for a question every time. `allow-own-ram-tiers` looks only
+at the `tmp` link in the folder the session is in (never one above it),
+follows it and the `shared-memory` link inside it, and answers "allow" for
+any path that really lands in one of those two rooms, and nowhere else. A
+room counts only when it lies below its RAM root (`/tmp`, `/dev/shm`), so a
+`tmp` link aimed at a disk folder or at a root widens nothing; a session
+whose own folder has no link gets no exception, even inside a project;
+another project's rooms are not this session's. It never refuses, and when it cannot
+read its input it announces that and gives no answer, leaving Claude Code's
+own boundary in charge (issue 042, `tests/test-allow-own-ram-tiers.sh`).
+
+Shell commands reach the same rooms by another route, because that hook
+answers only for the file tools and a hook's "allow" for a shell command
+would skip the classifier. Claude Code does check the places a shell command
+writes (`mkdir`, `touch`, `rm`, `cp`, `mv`, `>`, …) against its folders, and
+asks about any outside them; so `libs/ensure-ram-tiers` gives every project's
+own `.claude/settings.local.json` one path rule per room,
+`Edit(//tmp/<name>/**)` and `Edit(//dev/shm/<name>/**)`, each time it builds
+or repairs the rooms (including at every session start, through
+`restore-ram-tiers`). With them the check passes, and the classifier and the
+gate below still judge every command. Rules, not extra working folders: an
+extra folder that is missing when Claude Code starts, as the rooms are after
+a reboot, is not honoured for that session; a rule is (issue 042, proven with
+headless sessions).
+
+That check is not a guard on its own, though: in auto mode its question can
+be answered by the classifier, and a `sed -i` on another project's file does
+not look risky, so such writes used to go through. `refuse-outside-writes`
+stands in front of them, as a refusal only (issue 043,
+`tests/test-refuse-outside-writes.sh`). It reads
+the command with the shared reader, which keeps redirection targets aside
+for it, and asks a table of commands where each writes (`sed`/`perl` with
+`-i`, `tee`, `cp`, `mv`, `rm`, `touch`, `mkdir`, `chmod`, `ln`, `install`,
+`truncate`, `dd of=`, `curl -o`, `wget -O`, `tar`, `unzip -d`, `patch`,
+`rsync`, `find -delete`/`-exec`). The places allowed are the session's
+folder, its two RAM rooms (the same `libs/own-ram-tiers.lua` the hook above
+uses), and `/dev/null`, `/dev/stdout`, `/dev/stderr`, `/dev/tty`,
+`/dev/fd/N`. A target it cannot work out (a variable set outside the line,
+a command substitution, or a file tool given a relative or `~` path) is
+refused even when a permission is waiting, and the permission is kept: a
+permission covers a write whose destination can be seen, and these have
+none. (Asked for 2026-10-20 after a permitted Write showed in Claude Code as
+`../../../../home/ritz/.claude/...`. That was only Claude Code displaying an
+absolute path relative to the session's folder; the tool had been given the
+absolute path.) The two judgements are joined by
+design, in the owner's words: "They should both be allow for it to
+succeed." This gate can only say no; when it says nothing, the classifier
+still decides. A program the command runs, `git -C`, and paths fed through
+`xargs` are not seen.
+
+The same gate judges the file tools that write (Edit, Write, MultiEdit,
+NotebookEdit) by the path they name, by the same rule. Claude Code's own
+question for such a path is no guard in auto mode, where the classifier can
+answer it. Reading outside the folder stays free. A refusal here outranks
+`allow-own-ram-tiers`'s "allow" (a deny from any hook wins), though the two
+never disagree: the rooms are inside for both.
+
+**Asking the person: Yes, This time, Always, No.** When the gate refuses
+a write whose places it can pin down, it files a request (in
+`/dev/shm/claude-outside-writes/`) and hands the agent one question to ask
+word for word, tagged `[outside-write <id>]`, with four answers (the
+owner, 2026-10-21: "yes is one single write, this time is until session
+closes, always is forever, and no means no"):
+
+- **Yes**: this one write.
+- **This time**: anything in the folder each place is in, until this
+  session ends.
+- **Always**: anything in those folders, from now on, for sessions working
+  in this same project folder. Never every session ("it should never give
+  global permissions"); a project is the session's own folder.
+- **No**: nothing.
+
+`answer-outside-write` reads the answer from what Claude Code records after
+the person picks it, checks the question was asked exactly as filed and by
+the session refused, and acts: Yes is a grant that session spends on its
+next write needing no more than those places; This time keeps the folders
+in a list in RAM under the session's id, which `forget-session-permits`
+removes when the session ends; Always keeps them in
+`~/.claude/outside-write-allowed-folders`, one line per permission:
+project, kind, place. A hook cannot ask the person itself (it runs without the terminal),
+and Claude Code's own permission dialog can be answered by the auto-mode
+classifier, hence the agent asking and a hook reading. The agent cannot
+forge any of it: the request store and the allowed list are outside every
+session's folder, and a question arriving with answers filled in is
+refused. `! touch /tmp/claude-allow-outside-write` still works as the
+person's own route (an agent's `touch` there is itself refused).
+Tests: `tests/test-answer-outside-write.sh`.
+
+The session's own Claude Code scratchpad
+(`/tmp/claude-<uid>/<slug>/<session>/scratchpad`, matched by the session id
+in the hook input, by shape rather than on disk, since Claude Code makes the
+folder only on first use) counts as inside too, and no other session's. Claude Code
+tells every agent to use it, and it cannot be moved while Claude Code runs:
+the program reads where its temp folder lives once, from its own
+environment, which no hook can change. So the agent writes there, and
+`merge-agent-scratchpad` carries the files into the project's exec room when
+the session ends — copied, then the scratchpad removed only if the copy
+worked; a resumed session's second ending merges into the same folder.
 
 ## Why each exists
 
@@ -206,6 +369,10 @@ characters. `git -C` leaves nothing to judge.
 **Observed on Claude Code 2.1.280:** the harness appears to drop a leading
 `cd <the current directory> &&` before hooks see the command, so that no-op
 shape passes live even though the directory gate refuses it when fed the text.
+"The current directory" is compared by real place: on 2026-10-18 it also
+dropped `cd /new/place && pwd` run from an old name that is a link to
+`/new/place`, which is a real move of names, not a no-op (see "Moving the
+session's folder" above: ask for it alone).
 To tell that from a broken gate, try a change inside a subshell — `(cd /tmp &&
 pwd)` — which the harness leaves alone and the gate refuses.
 

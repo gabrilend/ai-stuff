@@ -41,7 +41,7 @@
 **Impact**: Unified research and validation into comprehensive algorithm analysis system
 
 ### **4. Simple Navigation and Discovery**
-**New Issue**: `014-CONSOLIDATED-simple-navigation-and-discovery.md`  
+**New Issue**: `5-014-consolidated-simple-navigation-and-discovery.md` (renamed 2026-10-20 to the lower-case naming rule; first filed as `014-CONSOLIDATED-...`)  
 **Consolidated From**:
 - ✅ Issue 008c: Discovery interface (rewritten)
 - ✅ Issue 014: Link navigation (rewritten)

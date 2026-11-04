@@ -314,6 +314,9 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
         local error_str = ffi.string(vklib.vkc_get_error_string(cache_result))
         error("[GPU SIMILARITY ERROR] Cache generation failed: " .. error_str)
     end
+    -- Issue 8-019: which numbering of the poems these rankings are in, beside
+    -- the cache; stage 9 refuses rankings made under another numbering
+    require("numbering-stamp").write(cache_file, require("numbering-stamp").of_embeddings(embeddings_data))
 
     -- Stamp the directory with the space these files were built in, LAST -- after
     -- every file is on disk. Written earlier, the note would survive a crash

@@ -111,6 +111,38 @@ expect([[sh -ec "git commit -a"]], { "sh -ec git commit -a", "git commit -a" })
 expect("diff <(sort a) b", { "diff <(sort a) b", "sort a" })
 expect("echo $((1 + 2))", { "echo $((1 + 2))" })
 
+io.write("\nRedirect targets, kept aside\n")
+-- {{{ local function expect_redirects()
+-- Each command's redirects rendered as "op target", joined by " | " across
+-- the line's commands (a command with none gives "").
+local function expect_redirects(line, want)
+    checked = checked + 1
+    local parts = {}
+    for _, cmd in ipairs(scan.all_commands(line)) do
+        local r = {}
+        for _, red in ipairs(cmd.redirects) do r[#r + 1] = red.op .. " " .. red.target end
+        parts[#parts + 1] = table.concat(r, ", ")
+    end
+    local got = table.concat(parts, " | ")
+    if got == want then
+        io.write(string.format("  ok       %s\n", (line:gsub("\n", "\\n"))))
+    else
+        failures = failures + 1
+        io.write(string.format("  FAILED   %s\n           want: %s\n           got:  %s\n", line, want, got))
+    end
+end
+-- }}}
+expect_redirects("echo hi > out.txt", "> out.txt")
+expect_redirects("echo hi >>'a b.log' 2>&1", ">> a b.log, >& 1")
+expect_redirects("make &> build.log; cat <in.txt", "&> build.log | < in.txt")
+expect_redirects("run &>>all.log", "&>> all.log")
+expect_redirects("echo x >| forced", ">| forced")
+expect_redirects("grep x <<< \"data\"", "")
+expect_redirects("cat <<EOF > out\nbody > not-a-target\nEOF", "> out")
+expect_redirects("bash -c 'echo x > inner'", " | > inner")
+expect_redirects("echo $(cat f > g) > h", "> h | > g")
+expect_redirects("diff <(sort a) b", " | ")
+
 io.write("\nGit invocation\n")
 checked = checked + 1
 local inv = scan.git_invocation(scan.effective_words(scan.commands([[git -C "/repo with space" -c a=b --no-pager commit -m x]])[1]))

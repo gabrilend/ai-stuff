@@ -1,7 +1,8 @@
 -- {{{ fuzzy-computing-batch-test.lua
 -- Issue 10-050: live smoke test for M.get_embeddings_batch.
 --
--- Needs a running inference server (the selected one from config.lua). If none
+-- Needs a running inference server (the selected one from config.lua), and asks
+-- it which model it has loaded. If none
 -- is reachable it SKIPS (exit 0) rather than failing, so it is safe to wire
 -- into a build step that may run without the GPU box up. Run:
 --   luajit libs/fuzzy-computing-batch-test.lua
@@ -13,6 +14,16 @@
 --   - chunk-then-batch round-trips an over-long text into >1 vector
 -- }}}
 
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = "libs/?.lua;" .. package.path
 local fuzzy = require("fuzzy-computing")
 local chunk = require("text-chunking")
@@ -21,7 +32,6 @@ local inference = require("inference-server-config")
 inference.set_project_root(".")
 local server = inference.get_selected_server()
 local url = inference.build_host_url(server)
-local model = server.model
 
 -- {{{ skip if no server
 local probe = io.popen(string.format(
@@ -32,7 +42,17 @@ if code ~= "200" then
     print(string.format("SKIP: no server at %s/health (got '%s')", url, code))
     os.exit(0)
 end
-print("server reachable at " .. url .. " (model: " .. tostring(model) .. ")")
+-- The model to name in requests: the one the server has loaded, as it reports
+-- it. config.lua names no default model (2026-10-21), and this smoke test
+-- checks whatever the running server serves.
+local models_probe = io.popen(string.format("curl -s --max-time 3 '%s/v1/models'", url))
+local models_json = models_probe:read("*a")
+models_probe:close()
+local model = models_json:match('"id"%s*:%s*"([^"]+)"')
+if not model then
+    error("the server at " .. url .. " did not report its loaded model: " .. models_json)
+end
+print("server reachable at " .. url .. " (model: " .. model .. ")")
 -- }}}
 
 local failures = 0
