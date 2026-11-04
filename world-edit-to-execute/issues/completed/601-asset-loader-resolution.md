@@ -1,5 +1,7 @@
 # Issue 601: Asset Loader and Resolution
 
+**Status:** Completed 2026-11-02 (`src/assets/loader.lua`, `src/assets/cache.lua`).
+
 **Phase:** 6
 **Type:** Implementation
 **Priority:** Critical
@@ -116,13 +118,13 @@ loader.clear()
 
 ## Acceptance Criteria
 
-- [ ] Assets load from WC3 map MPQ files via direct path
-- [ ] Assets load from server directories via direct path
-- [ ] Memory cache with configurable size limit
-- [ ] Cache eviction when limit exceeded (LRU)
-- [ ] `loader.stats()` reports accurate memory usage
-- [ ] Graceful handling of missing assets (returns nil + error, triggers fallback)
-- [ ] Tests for loader, cache, and each extractor
+- [x] Assets load from WC3 map MPQ files via direct path
+- [x] Assets load from server directories via direct path (asset packs: nothing is server-provided)
+- [x] Memory cache with configurable size limit
+- [x] Cache eviction when limit exceeded (LRU)
+- [x] `loader.stats()` reports accurate memory usage (exact for images and bytes; a model is charged its file size, decision 4)
+- [x] Graceful handling of missing assets (returns nil + error, triggers fallback)
+- [x] Tests for loader, cache, and each extractor
 
 ## Related Documents
 
@@ -151,4 +153,65 @@ loader.clear()
    **Chosen 2026-11-02 while building 604:** `<project>/player-data/`, moved
    by `<project>/config/player-data.lua` returning `{ folder = "PATH" }`
    (both git-ignored); `src/assets/player_data.lua` reads it. The docs'
-   paths are still to be rewritten with this issue.
+   paths are rewritten (2026-11-02).
+
+---
+
+## Implementation Notes
+
+**Date:** 2026-11-02
+
+- **`src/assets/loader.lua`:** `loader.new{map | assets, packs, data,
+  limit_mb}` and `get`, `read`, `exists`, `preload`, `stats`, `clear`,
+  `close`. The map and the install are read through the existing
+  `assets.open` (`src/assets/init.lua`, issue 522d), so the loader adds the
+  player's packs in front of them and the cache around them rather than a
+  second way to read either.
+- **`src/assets/cache.lua`:** the byte-limited LRU cache.
+- **`src/tests/test_cache_loader.lua`** (34 tests): the cache's order,
+  eviction, oversize entries, replacement and counts; on a test map, an
+  override pack's texture comes before the map's (found under another case
+  and slash direction), the map's when no pack has it, a model parsed, a
+  sound kept as bytes, a missing file and an unreadable one each reported
+  with where it looked and counted apart, a cache hit, memory equal to the
+  pixels, file and bytes kept, a small limit evicting and reloading,
+  `preload`, misses forgotten by `clear`, and the default pack order.
+  `test_assets`, `test_ground`, `test_imports` and `test_dedup` still pass.
+
+### Decisions made while building
+
+1. **The order is packs, map, install**, the 2026-09-26 decision (516):
+   the player's own overrides first, then the model or texture the map
+   asks for, then the stock one from the player's install. Nothing found
+   is nil and a message; the placeholder is 602's to draw.
+   (2026-11-04: the owner's lookup order puts the project's own baseline
+   model set, made by the asset forge (W05-W06), after the install and
+   before 602's wire-frame; `docs/wow-client-bridge.md`, "Our own models
+   are the default". The loader gains that step once the set exists.)
+2. **Asset packs replace server directories.** Nothing is server-provided
+   since 2026-09-26; packs live in `<player data>/asset-packs/<name>/`, as
+   605 keeps them. Packs are given in priority order; without an order,
+   every pack is used, by name, so the result never depends on the order
+   a folder lists in.
+3. **Paths match without regard to case or slashes**, as the game's do: a
+   map asks for `Textures\Footman.blp`, a pack may hold
+   `textures/footman.blp`. Each pack's file list is read once, at start and
+   on `clear()`.
+4. **Memory is charged by what can be measured:** an image its RGBA bytes,
+   a file kept as bytes its length, and a parsed model its file's size (a
+   Lua table's own size can't be read exactly; the file's size grows with
+   it).
+5. **One decoder table, not four extractor files.** Textures (BLP, TGA,
+   PNG) and models (MDX) decode through the existing readers; everything
+   else (sounds, fonts, UI files) is returned as bytes until something
+   needs it decoded (sounds wait on the audio library). A standalone
+   `.jpg` is returned as bytes too: maps use BLP, and the JPEG reader
+   gives components, not RGBA.
+6. **`preload` loads at once, in the calling thread.** The loader has no
+   thread of its own; a render thread can call it in the background.
+7. **A miss is remembered until `clear()`**, so a map naming a missing file
+   in every frame doesn't look it up every frame; `clear()` also re-reads
+   the packs' lists, so a file added since is found.
+8. **The existing callers keep `assets.open`.** The editor and renderer
+   read through it today; moving them onto the loader is a change of its
+   own, made when the packs matter to them (W03's chooser).
