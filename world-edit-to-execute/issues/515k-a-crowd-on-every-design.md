@@ -21,7 +21,7 @@ times faster than LuaJIT. The scene (the scaled crossing map,
 `net/arenas/crossing_scaled.lua`, and each unit's start) is written by
 `crowd-scene.lua` from the Lua game's own placement, so both start alike.
 Rechecked 2026-09-26: both sizes still match to the last digit.
-**Step 3 done** (commit 49e375273): the deciding phase is shared out over
+**Step 3 done** (commit 6630dc0ab): the deciding phase is shared out over
 threads five ways by hand (fixed slices and a shared counter, each with
 sleeping or spin-then-sleep waits, and the job system; `crowd-hand.c`) and
 as a ceramic map, one station taking each chunk of units as a task

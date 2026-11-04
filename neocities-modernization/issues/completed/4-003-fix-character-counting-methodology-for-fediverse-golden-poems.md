@@ -333,3 +333,7 @@ pipeline and can re-verify any future counting change.
 
 ## Implementation Priority
 **High** - Core functionality affecting similarity engine and HTML generation priorities
+
+## Blocks
+
+- 6-027a

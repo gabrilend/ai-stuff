@@ -2,8 +2,8 @@
 
 `cera.c` and `cera.h` started as soramech (minimal-soramech) at commit
 `059487d` (2026-09-12), copied unchanged in this project's commit
-`8639d7077`. Every change after that is marked `FORK (issue 515g)` in the
-source. `git diff 8639d7077 -- src/render/ceramic/engine/` shows them all.
+`0f2b7051e`. Every change after that is marked `FORK (issue 515g)` in the
+source. `git diff 0f2b7051e -- src/render/ceramic/engine/` shows them all.
 
 What changed, and why (issue 515g; measured by
 `src/render/ceramic/bench/run-analysis.sh`):

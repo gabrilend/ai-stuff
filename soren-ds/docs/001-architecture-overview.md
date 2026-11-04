@@ -1,5 +1,12 @@
 # Architecture overview
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 Soren DS is a handheld operating system for the Anbernic RG DS — a
 dual-touchscreen ARM device with a D-pad and trigger buttons on the
 left, ABXY and trigger buttons on the right, four center buttons in

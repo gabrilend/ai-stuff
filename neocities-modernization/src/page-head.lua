@@ -58,6 +58,15 @@ local function font_face_rules(font_base)
 end
 -- }}}
 
+-- {{{ function M.frame_columns
+-- The poem grid's width in columns: config.lua layout.text_content_width + 4
+-- (a wall, a space, the text, a space, a wall), as src/poem-bars.lua draws it.
+function M.frame_columns()
+    local layout = require("config-loader").load().layout or error("config.lua has no layout section")
+    return (layout.text_content_width or error("config.lua layout.text_content_width is missing")) + 4
+end
+-- }}}
+
 -- {{{ local function base_style
 -- The rules the poem grid depends on, in the order they matter.
 --
@@ -71,7 +80,7 @@ end
 -- and two font sizes means two cell widths, which means the frames stop lining
 -- up with each other even when every character is correct.
 local function base_style()
-    return [[
+    return (([[
 body, pre {
   font-family: 'PoemGrid', 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono',
                'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono',
@@ -85,13 +94,28 @@ body, pre {
 :root {
   color-scheme: dark;
 }
-/* The poem column is a fixed 83-character grid and must never reflow. On a
-   screen narrower than that the page scrolls sideways, which is the honest
-   outcome: wrapping the frames would break the alignment they exist to show. */
+/* The poem column is a fixed grid of %COLUMNS% characters and never reflows:
+   on a narrow screen the font shrinks until the whole grid fits, rather than
+   the columns changing (owner, 2026-10-25: "scale the font size, not the text
+   columns"). Each cell of the shipped font is 1233/2048 = 0.602 of the font
+   size, so %COLUMNS% cells need %EMS% font sizes; 16px of the page's own
+   margins are left out. 16px is the size on any screen wide enough. */
 pre {
   white-space: pre;
   overflow-x: auto;
-}]]
+  font-size: min(16px, calc((100vw - 16px) / %EMS%));
+}
+/* An emoji is drawn from a colour font wider than one cell; this box holds it
+   to exactly two cells, the two columns the drawer counts it as
+   (libs/text-formatter.lua grid_emoji). */
+.e {
+  display: inline-block;
+  width: 2ch;
+  text-align: center;
+  overflow: hidden;
+  vertical-align: bottom;
+}]]):gsub("%%COLUMNS%%", tostring(M.frame_columns()))
+        :gsub("%%EMS%%", string.format("%.3f", M.frame_columns() * 1233 / 2048)))
 end
 -- }}}
 
