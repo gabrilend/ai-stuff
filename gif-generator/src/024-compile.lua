@@ -66,6 +66,9 @@ local SAID_ELSEWHERE = {
     delay_cs = "canvas{ fps = ... } sets it", jobs = "a score renders in one process",
     camera = "say it in camera{}", instances = "each shape is its own shape{}",
 }
+-- the porch (032-porch.lua) builds its grammar from these as well
+compile.PANE_WORDS = PANE_WORDS
+compile.SAID_ELSEWHERE = SAID_ELSEWHERE
 
 -- The 3D half, loaded only by a score that has shapes (the stroke-only
 -- scores never pay for it). Loaded beside this file, as the films do.
