@@ -28,9 +28,9 @@ So the glue has two halves. Two small hook scripts (written by C:install,
 and named in rmail's config by the person) drop a record of each share
 mail and each arriving file into <data>/share-mail/. The editor or the
 launcher calls C:poll(X) when it wants to know: it reads those records,
-hands messages to the exchange, answers consent forms for files the
-exchange asked that sender for (and denies the rest), and tidies up what
-it has handled. Nothing calls it on a timer: share mail only comes when a
+hands lists to the exchange, answers consent forms for the files the
+exchange wants from that list (and denies the rest), hands over the files
+once they have come, and tidies up what it has handled. Nothing calls it on a timer: share mail only comes when a
 map is shared ("check out my map", issue 609), so the inbox is read when
 the person opens the editor or launcher, asks it to look, or answers a
 question, and at no other time. Between calls the records just wait.
@@ -40,7 +40,7 @@ question, and at no other time. Between calls the records just wait.
     print(C:install())                 -- the config lines for the person to add
     local X = exchange.new({ ..., transport = C:transport() })
     C:poll(X)                          -- when the editor or launcher opens, or the person asks
-    X:answer(id, "yes"); C:poll(X)     -- after an answer, so the map's form is answered now
+    X:answer(id, "yes"); C:poll(X)     -- after an answer, so the forms are answered now
 
 In-process forms, for tests and any mail program that calls Lua directly:
 
@@ -48,18 +48,18 @@ In-process forms, for tests and any mail program that calls Lua directly:
     hook.on_receive(X)                 -- on_receive(mail): "accept", "decline" or nil
     hook.encode(msg) / hook.decode(mail)
 
-A share mail's subject is "wete-share-<kind>-<id>". A list's body is the
-list file (data, never run), after a first line "map: <hex>.<ext>" when
-the map file travels with it as the mail's one attachment. A want's body
-is one hash a line, and a files message's body names its files (each a
-hash's hex); the files travel as attachments.
+A share mail's subject is "wete-share-list-<id>": the list is the only
+message. Its body is the list file (data, never run), after a first line
+"map: <hex>.<ext>" when the map travels with it. Its attachments are the
+map and every file the list names, each named by its hash's hex, so the
+receiver takes only the files it lacks by answering their consent forms,
+and nothing is sent back.
 ]]
 
 local hook = {}
 
 hook.SUBJECT = "wete-share"
 hook.MAX_BODY = 131072        -- rmail sends a longer body as an attachment (its #308)
-hook.MAX_FILES = 4096         -- names in one files message
 hook.FORM = "-consent-to-download-form"
 
 -- {{{ local helpers
@@ -163,26 +163,17 @@ function hook.subject(msg)
     return hook.SUBJECT .. "-" .. msg.kind .. "-" .. msg.id
 end
 
--- A share message (share/exchange.lua) as a mail, and back.
+-- A share message (share/exchange.lua) as a mail, and back. A list is the
+-- only message that travels: its files and its map are its attachments.
 function hook.encode(msg)
-    local mail = { subject = hook.subject(msg), body = "", attachments = {} }
-    if msg.kind == "list" then
-        mail.body = msg.text
-        if msg.map then
-            mail.attachments[1] = { name = msg.map.name, path = msg.map.path }
-            mail.body = "map: " .. msg.map.name .. "\n" .. msg.text
-        end
-    elseif msg.kind == "want" then
-        mail.body = table.concat(msg.hashes, "\n") .. "\n"
-    elseif msg.kind == "files" then
-        local names = {}
-        for _, f in ipairs(msg.files) do
-            mail.attachments[#mail.attachments + 1] = { name = f.name, path = f.path }
-            names[#names + 1] = f.name
-        end
-        mail.body = table.concat(names, "\n") .. "\n"
-    else
-        error("rmail hook: no mail for a " .. tostring(msg.kind) .. " message", 2)
+    if msg.kind ~= "list" then error("rmail hook: no mail for a " .. tostring(msg.kind) .. " message", 2) end
+    local mail = { subject = hook.subject(msg), body = msg.text, attachments = {} }
+    if msg.map then
+        mail.attachments[1] = { name = msg.map.name, path = msg.map.path }
+        mail.body = "map: " .. msg.map.name .. "\n" .. msg.text
+    end
+    for _, f in ipairs(msg.files or {}) do
+        mail.attachments[#mail.attachments + 1] = { name = f.name, path = f.path }
     end
     return mail
 end
@@ -196,46 +187,25 @@ end
 
 -- A mail as a share message, or nil when it isn't one (or is malformed).
 -- Takes the subject as 609a wrote it ("wete-share list <id>") or as rmail
--- delivers it ("wete-share-list-<id>"). A files message's names come from
--- its attachments when the mail carries them (in process), else from its
--- body with no paths yet (over rmail the files come later, one by one).
+-- delivers it ("wete-share-list-<id>"). The files and the map come from
+-- the mail's attachments when it carries them (in process); over rmail
+-- they come later, one by one, and the list itself names them.
 function hook.decode(mail)
     if type(mail) ~= "table" or type(mail.subject) ~= "string" then return nil end
     local kind, id = mail.subject:match("^" .. PREFIX .. "[%- ](%l+)[%- ]([%w%-_.]+)$")
-    if not kind or #id > 64 then return nil end
-    local msg = { kind = kind, id = id, from = mail.from }
-    if kind == "list" then
-        if type(mail.body) ~= "string" then return nil end
-        local name, rest = mail.body:match("^map: ([^\n]*)\n(.*)$")
-        if name then
-            if not name:match("^%x+%.?%w*$") or #name > 80 then return nil end
-            msg.map = { name = name }
-            for _, a in ipairs(type(mail.attachments) == "table" and mail.attachments or {}) do
-                if type(a) == "table" and a.name == name then msg.map.path = a.path end
-            end
+    if kind ~= "list" or #id > 64 or type(mail.body) ~= "string" then return nil end
+    local msg = { kind = kind, id = id, from = mail.from, files = {} }
+    local name, rest = mail.body:match("^map: ([^\n]*)\n(.*)$")
+    if name then
+        if not name:match("^%x+%.?%w*$") or #name > 80 then return nil end
+        msg.map = { name = name }
+    end
+    msg.text = rest or mail.body
+    for _, a in ipairs(type(mail.attachments) == "table" and mail.attachments or {}) do
+        if type(a) == "table" then
+            if name and a.name == name then msg.map.path = a.path
+            elseif good_hex(a.name) then msg.files[#msg.files + 1] = { name = a.name, path = a.path } end
         end
-        msg.text = rest or mail.body
-    elseif kind == "want" then
-        if type(mail.body) ~= "string" then return nil end
-        msg.hashes = {}
-        for line in mail.body:gmatch("[^\n]+") do
-            if not line:match("^sha256:%x+$") or #line ~= 71 then return nil end
-            msg.hashes[#msg.hashes + 1] = line
-        end
-    elseif kind == "files" then
-        msg.files = {}
-        if type(mail.attachments) == "table" and #mail.attachments > 0 then
-            for _, a in ipairs(mail.attachments) do
-                if type(a) == "table" then msg.files[#msg.files + 1] = { name = a.name, path = a.path } end
-            end
-        elseif type(mail.body) == "string" then
-            for line in mail.body:gmatch("[^\n]+") do
-                if not good_hex(line) or #msg.files >= hook.MAX_FILES then return nil end
-                msg.files[#msg.files + 1] = { name = line:lower() }
-            end
-        end
-    else
-        return nil
     end
     return msg
 end
@@ -347,9 +317,9 @@ function hook.connect(opts)
         contacts = mail .. "/contacts",
         attachments = (cfg.attachments or (mail .. "/attachments")):gsub("(.)/+$", "%1"),
         drop = opts.data .. "/share-mail",
-        waiting = {},     -- files messages whose files are still coming: inbox name -> { id, from, names, path }
+        waiting = {},     -- list mails whose files may still come: inbox name -> { id, from, map, path }
         arrived = {},     -- files that came: sender -> hex -> path
-        outgoing = {},    -- messages with attachments sent: outbox name -> { id, what }
+        outgoing = {},    -- lists sent with attachments: outbox name -> id
     }, C)
     if not is_dir(c.outbox) or not is_dir(c.inbox) then
         return nil, "no rmail mailbox beside " .. config .. " (no inbox/ and outbox/ there)"
@@ -425,8 +395,7 @@ function C:transport()
             local tmp = self.outbox .. "/." .. name .. ".tmp"   -- rmail skips dot files
             assert(write(tmp, table.concat(head, "\n") .. "\n\n" .. mail.body))
             assert(os.rename(tmp, path))
-            if msg.kind == "files" then self.outgoing[name] = { id = msg.id } end
-            if msg.kind == "list" and msg.map then self.outgoing[name] = { id = msg.id, what = "map" } end
+            if #mail.attachments > 0 then self.outgoing[name] = msg.id end
         end,
     }
 end
@@ -506,14 +475,15 @@ function C:records()
     return out
 end
 
--- One share mail. Lists and wants go to the exchange at once; a files
--- message waits here for its files.
+-- One share mail: a list. It goes to the exchange at once, and the mail
+-- stays here while the files and map attached to it may still come.
 function C:receive(X, r, events, known, listens)
     local function done(result, err, id)
         events[#events + 1] = { event = "receive", from = r.from, id = id, result = result, err = err }
     end
     if not hook.is_ours(r.name) or not inside(self.inbox, r.path) then return end
     if not good_name(r.from) or not known[r.from] or listens[r.from] then
+        self:deny_forms(basename(r.path), r.from)
         os.remove(r.path)
         local why = listens[r.from] and ("share mail from a listen-only contact (anyone may hold its token): " .. r.from)
             or ("share mail from someone who isn't a contact: " .. tostring(r.from))
@@ -522,124 +492,83 @@ function C:receive(X, r, events, known, listens)
     end
     local msg = hook.decode({ subject = r.name, body = read(r.path), from = r.from })
     if not msg then
+        self:deny_forms(basename(r.path), r.from)
         os.remove(r.path)
         local why = "a malformed share mail from " .. r.from .. ": " .. r.name
         X:problem(nil, why)
         return done(nil, why)
     end
-    if msg.kind ~= "files" then
-        local ok, result, err = pcall(X.on_message, X, msg)
-        if not ok then result, err = X:problem(msg.id, tostring(result)) end
-        if msg.kind == "list" and msg.map and result ~= nil then
-            -- the map is this mail's attachment: the mail stays until the
-            -- map has come or isn't wanted (C:complete)
-            local hex = msg.map.name:sub(1, 64):lower()
-            self.waiting[basename(r.path)] = { id = msg.id, from = r.from, names = { hex }, path = r.path,
-                                               map = msg.map.name }
-            return done(result, err, msg.id)
-        end
-        if msg.kind == "list" and msg.map then self:deny_forms(basename(r.path), r.from) end
-        os.remove(r.path)
-        return done(result, err, msg.id)
-    end
-    if not X:wants(msg.id, r.from) or #msg.files == 0 then
-        msg.files = {}
-        local _, err = X:on_message(msg)        -- refused, and counted
+    local ok, result, err = pcall(X.on_message, X, msg)
+    if not ok then result, err = X:problem(msg.id, tostring(result)) end
+    if result == nil then
         self:deny_forms(basename(r.path), r.from)
         os.remove(r.path)
-        return done(nil, err, msg.id)
+    else
+        self.waiting[basename(r.path)] = { id = msg.id, from = r.from, path = r.path, map = msg.map and msg.map.name }
     end
-    local names = {}
-    for _, f in ipairs(msg.files) do names[#names + 1] = f.name end
-    self.waiting[basename(r.path)] = { id = msg.id, from = r.from, names = names, path = r.path }
+    return done(result, err, msg.id)
 end
 
--- Each pending form on a share mail this glue is waiting on: accepted
--- when the exchange asked that sender for that file, denied otherwise. A
--- list's map is accepted once the player said yes, and its form left for
--- later while they haven't answered. Forms on any other mail are the
+-- Each pending form on a list mail this glue is holding: accepted for a
+-- file (or the map) the exchange wants, once the player said yes; denied
+-- for one it doesn't (already held, not the list's, or no); left for
+-- later while the player hasn't answered. Forms on any other mail are the
 -- person's, and are left alone.
 function C:answer_forms(X, events)
     self:each_form(function(path, text, f)
         local w = self.waiting[f.attached]
         if not w or w.from ~= f.from then return end
-        local yes
-        if w.map then
-            local want = X:wants_map(w.id, w.from)
-            if want == nil then return end
-            yes = want and f.file:lower() == w.map:lower()
+        local want
+        if w.map and f.file:lower() == w.map:lower() then
+            want = X:wants_map(w.id, w.from)
         else
-            local hex, listed = f.file:lower(), false
-            for _, n in ipairs(w.names) do if n == hex then listed = true end end
-            yes = listed and X:wants(w.id, w.from, hex)
+            want = X:wants(w.id, w.from, f.file)
         end
-        answer_form(path, text, yes)
+        if want == nil then return end
+        answer_form(path, text, want)
         events[#events + 1] = { event = "consent", from = f.from, id = w.id, file = f.file,
-                                result = yes and "accepted" or "denied" }
+                                result = want and "accepted" or "denied" }
     end)
 end
 
--- A files message whose every file has come goes to the exchange (or one
--- the exchange stopped waiting for, to be refused). Then its files and the
--- message are removed: removing the message is what tells the sender's
--- rmail it was read, and a message's files are never removed with it
--- (rmail's #306).
+-- A list mail whose wanted files and map have all come: they go to the
+-- exchange, which checks them and keeps the list. One whose list wants
+-- nothing (no, refused, or nothing lacking) is given up. Either way the
+-- forms left on it are denied, its files that came are removed, and the
+-- mail is removed: removing it is what tells the sender's rmail it was
+-- read, and a message's files are never removed with it (rmail's #306).
 function C:complete(X, events)
     for message, w in pairs(self.waiting) do
+        local aw = X:awaiting(w.id, w.from)
         local got = self.arrived[w.from] or {}
-        if w.map then
-            self:complete_map(X, events, message, w, got)
-        else
-            self:complete_files(X, events, message, w, got)
+        local whole = aw ~= nil
+        for _, n in ipairs(aw or {}) do if not got[n:sub(1, 64):lower()] then whole = false end end
+        if whole then
+            local result, err
+            if #aw > 0 then
+                local files, map = {}, nil
+                for _, n in ipairs(aw) do
+                    local p = got[n:sub(1, 64):lower()]
+                    if w.map and n == w.map:lower() then map = { name = n, path = p }
+                    else files[#files + 1] = { name = n, path = p } end
+                end
+                local ok
+                ok, result, err = pcall(X.on_message, X, { kind = "files", from = w.from, id = w.id, files = files, map = map })
+                if not ok then result, err = X:problem(w.id, tostring(result)) end
+            end
+            for _, n in ipairs(aw) do
+                local hex = n:sub(1, 64):lower()
+                if got[hex] and inside(self.attachments, got[hex]) then os.remove(got[hex]) end
+                got[hex] = nil
+            end
+            self:deny_forms(message, w.from)
+            os.remove(w.path)
+            self.waiting[message] = nil
+            if #aw > 0 then
+                events[#events + 1] = { event = "files", from = w.from, id = w.id, result = result, err = err }
+            end
         end
     end
-end
-
-function C:complete_files(X, events, message, w, got)
-    local whole = true
-    for _, n in ipairs(w.names) do if not got[n] then whole = false end end
-    if not whole and X:wants(w.id, w.from) then return end
-    local files = {}
-    for _, n in ipairs(w.names) do
-        if got[n] then files[#files + 1] = { name = n, path = got[n] } end
-    end
-    local ok, result, err = pcall(X.on_message, X, { kind = "files", from = w.from, id = w.id, files = files })
-    if not ok then result, err = X:problem(w.id, tostring(result)) end
-    for _, f in ipairs(files) do
-        if inside(self.attachments, f.path) then os.remove(f.path) end
-        got[f.name] = nil
-    end
-    if not whole then self:deny_forms(message, w.from) end
-    os.remove(w.path)
-    self.waiting[message] = nil
-    events[#events + 1] = { event = "files", from = w.from, id = w.id, result = result, err = err }
-end
-
--- A list's map: handed to the exchange once it has come (it checks the
--- map against the list's hash), or given up when the exchange won't want
--- it (no, refused, or already held). Then the map's file and the list mail
--- are removed, as for a files message.
-function C:complete_map(X, events, message, w, got)
-    local hex = w.names[1]
-    local want = X:wants_map(w.id, w.from)
-    if want == nil or (want and not got[hex]) then return end
-    local result, err
-    if want then
-        local ok
-        ok, result, err = pcall(X.on_message, X, { kind = "map", from = w.from, id = w.id,
-                                                    map = { name = w.map, path = got[hex] } })
-        if not ok then result, err = X:problem(w.id, tostring(result)) end
-    else
-        self:deny_forms(message, w.from)
-        result = "not wanted"
-    end
-    if got[hex] then
-        if inside(self.attachments, got[hex]) then os.remove(got[hex]) end
-        got[hex] = nil
-    end
-    os.remove(w.path)
-    self.waiting[message] = nil
-    events[#events + 1] = { event = "map", from = w.from, id = w.id, result = result, err = err }
 end
 -- }}}
 
@@ -667,11 +596,11 @@ function C:poll(X)
     self:complete(X, events)
     -- the sharer: rmail removes an outbox file once every recipient has
     -- deleted their copy, and only then is the bundle it attached free
-    for name, o in pairs(self.outgoing) do
+    for name, id in pairs(self.outgoing) do
         if not is_file(self.outbox .. "/" .. name) then
-            X:sent(o.id, o.what)
+            X:sent(id)
             self.outgoing[name] = nil
-            events[#events + 1] = { event = "sent", id = o.id, what = o.what }
+            events[#events + 1] = { event = "sent", id = id }
         end
     end
     return events

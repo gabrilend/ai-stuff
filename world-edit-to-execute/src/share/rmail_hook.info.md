@@ -9,8 +9,8 @@ answer it. So two small hook scripts note each share mail and each
 arriving file in `<data>/share-mail/`, and the editor or launcher calls
 `C:poll(X)`. Nothing calls it on a timer: share mail only comes when a map
 is shared, so it is called when the editor or launcher opens, when the
-person asks it to look, and after they answer a question (so the map's
-consent form is answered then). Between calls the notes just wait.
+person asks it to look, and after they answer a question (so the
+list's consent forms are answered then). Between calls the notes just wait.
 
 | Function | Takes | Gives |
 |----------|-------|-------|
@@ -18,34 +18,33 @@ consent form is answered then). Between calls the notes just wait.
 | `C:install([chain])` | hooks to chain (default: those the config names) | the two config lines for the person to add; writes the scripts |
 | `C:hooked()` | | true, or false and the hooks missing from rmail's config |
 | `C:transport()` | | a transport for `exchange.new` that writes outbox files |
-| `C:poll(X)` | an exchange | what happened: `{ event, from, id, result, err }` each (`event`: receive, consent, files, map, sent) |
+| `C:poll(X)` | an exchange | what happened: `{ event, from, id, result, err }` each (`event`: receive, consent, files, sent) |
 | `hook.transport(rmail)` | an in-process `send` | a transport (the tests' fake) |
 | `hook.on_receive(X)` | an exchange | an in-process `on_receive(mail)`: `"accept"`, `"decline"`, or nil |
 | `hook.encode(msg)` / `hook.decode(mail)` | | a share message as a mail, and back (nil for anything malformed) |
 | `hook.read_form(text)` | a consent form's text | `{ from, attached, file }`, or nil when it isn't pending |
 
-A share mail's subject is `wete-share-<kind>-<id>` (rmail turns spaces
-into dashes). A list travels as the body, and a want as one hash per
-line. A files message names its files in the body, and the files are
-its attachments. For "check out my map" the list's body starts with
-`map: <hex>.<ext>`, and the map file, named so, is the list mail's one
-attachment.
+A share mail's subject is `wete-share-list-<id>` (rmail turns spaces into
+dashes): a list is the only share message. Its body is the list file,
+after a first line `map: <hex>.<ext>` when the map goes with it. Its
+attachments are the map and every file the list names, each named by
+its hash's hex. Nothing is sent back: the receiver takes only the files
+it lacks by answering their consent forms.
 
 What `C:poll` does:
 
-- It hands lists and wants to the exchange.
-- It holds a files message until every named file has come, then hands
-  it over.
-- It holds a list mail that carries its map until the map has come (or
-  isn't wanted), then hands the map over; the exchange checks it against
-  the list's hash.
-- It accepts a consent form only for a file the exchange asked that
-  sender for, and denies the rest. A map's form waits until the player
-  has answered, and is accepted only on yes when they don't hold that
-  map already. Forms on other mail are left alone.
+- It hands lists to the exchange, which asks the player once.
+- It answers each consent form on a list's mail after the player's
+  answer: accepted for a file (or the map) their store lacks, denied for
+  the rest, and for all of them on no. A file the list doesn't name is
+  denied at once. Forms on other mail are left alone.
+- It holds the list mail until every file it wants has come, then hands
+  them over together; the exchange checks the map against the list's
+  hash and every file against its own, and keeps the list as a pack.
 - It deletes share mail once handled, which tells the sender's rmail.
-- It frees the sharer's bundle once rmail drops the outbox file.
-- It refuses mail from listen-only contacts.
+- It frees the sharer's copies once rmail drops the outbox file.
+- It refuses mail from listen-only contacts, and want or files mails
+  (no longer share messages).
 
 The config is never edited here. A body over 128 KiB is refused, rather
 than letting rmail turn it into an attachment.

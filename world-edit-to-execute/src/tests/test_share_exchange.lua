@@ -1,10 +1,11 @@
 #!/usr/bin/env luajit
 -- test_share_exchange.lua - a shared list carried between two players (issue 609a)
 --
--- In plain terms: Ana offers her list to Ben; Ben's game reads it (never
--- runs it) and asks him first, unless he trusts Ana or the map; on yes it
--- asks Ana for only the files his store lacks; Ana sends only files she
--- offered to Ben; Ben checks every file and keeps the list as a pack.
+-- In plain terms: Ana sends Ben her list in one message, with every file
+-- it names and the map; Ben's editor reads it (never runs it) and asks him
+-- first, unless he trusts Ana or the map; on yes it takes only the files
+-- his store lacks, checks the map against the list's hash and every file
+-- against its own, and keeps the list as a pack. Nothing goes back to Ana.
 -- Everything goes through a fake rmail built to the contract the issue
 -- assumes, so the real glue is the only part left.
 --
@@ -76,25 +77,29 @@ local ana_hook, ben_hook = hook.on_receive(ana), hook.on_receive(ben)
 print("\n=== The rmail glue ===")
 local ok_c, why = hook.connect({ config = SCR .. "/no-such-mailbox/config", data = B })
 test("connecting where there's no rmail mailbox says why", ok_c == nil and why:match("no rmail config"))
-local m = hook.decode(hook.encode({ kind = "want", id = "x-1", hashes = { l.entries[1].hash } }))
-test("a want survives the mail format", m and m.kind == "want" and m.hashes[1] == l.entries[1].hash)
+test("only a list has a mail form", not pcall(hook.encode, { kind = "want", id = "x-1", hashes = {} }))
 test("a mail that isn't ours is left to rmail", ben_hook({ subject = "lunch?", body = "", from = "ana" }) == nil)
 test("a share subject with a bad id is declined", ben_hook({ subject = "wete-share list ../x", body = "", from = "ana" }) == "decline")
-test("a want with something other than hashes is declined",
-    ana_hook({ subject = "wete-share want x-1", body = "rm -rf /\n", from = "ben" }) == "decline")
+test("a want is declined: nothing is asked of a sharer now",
+    ana_hook({ subject = "wete-share want x-1", body = l.entries[1].hash .. "\n", from = "ben" }) == "decline")
 -- }}}
 
 -- {{{ Asked first, by default
 print("\n=== A list from someone not trusted waits for the player ===")
-local id = ana:offer("ben", l)
-test("the offer goes out as one mail with the list as its body", #boxes.ben == 1
-    and boxes.ben[1].subject == "wete-share-list-" .. id and #boxes.ben[1].attachments == 0)
+local CASTLE = SCR .. "/maps/castle.w3x"
+local id = ana:offer("ben", l, CASTLE)
+test("the offer goes out as one mail: the list, the map and its three files", #boxes.ben == 1
+    and boxes.ben[1].subject == "wete-share-list-" .. id and #boxes.ben[1].attachments == 4
+    and boxes.ben[1].attachments[1].name == l.map.hash:sub(8) .. ".w3x" and boxes.ben[1].body:match("^map: %x+%.w3x\n"))
+local mail0 = boxes.ben[1]
 local got = deliver("ben", ben_hook)
-test("rmail is told to take it (a list carries no files)", got[1] == "accept")
+test("rmail is told to take it", got[1] == "accept")
 local waiting = ben:pending()
-test("one question waits for Ben", #waiting == 1 and waiting[1].sender == "ana" and waiting[1].missing == 3,
-    tostring(waiting[1] and waiting[1].missing))
-test("nothing was asked for yet", #boxes.ana == 0)
+test("one question waits for Ben", #waiting == 1 and waiting[1].sender == "ana" and waiting[1].missing == 3
+    and waiting[1].map_sent and not waiting[1].map_held, tostring(waiting[1] and waiting[1].missing))
+test("nothing goes back to Ana", #boxes.ana == 0)
+test("before the answer nothing is wanted yet", ben:wants(id, "ana", l.entries[1].hash:sub(8)) == nil
+    and ben:wants_map(id, "ana") == nil and ben:awaiting(id, "ana") == nil)
 local words = exchange.prompt(waiting[1])
 test("the prompt asks the one question", words[1] == "Keep ana's models for this map?")
 test("and names the map and each entry's provenance", words[2]:match("^Map: Castle Fight")
@@ -103,34 +108,34 @@ test("and names the map and each entry's provenance", words[2]:match("^Map: Cast
 -- }}}
 
 -- {{{ Yes: only what's missing
-print("\n=== On yes, only the missing files are asked for and sent ===")
+print("\n=== On yes, only the missing files are taken ===")
 local Bstore = dedup.open(B .. "/blobs")
 -- Ben already has the horn
 write(SCR .. "/horn.wav", "RIFF a horn")
 Bstore:store_file(SCR .. "/horn.wav")
-test("Ben answers yes: waiting for files", ben:answer(id, "yes") == "waiting")
-test("the want names two hashes, not the horn's", #boxes.ana == 1 and select(2, boxes.ana[1].body:gsub("\n", "")) == 2
-    and not boxes.ana[1].body:find(list.hash_file(SCR .. "/horn.wav"), 1, true))
-got = deliver("ana", ana_hook)
-test("Ana's hook takes the want", got[1] == "accept")
-test("Ana replies with two attachments named by hash", #boxes.ben == 1 and #boxes.ben[1].attachments == 2
-    and boxes.ben[1].attachments[1].name:match("^%x+$") and #boxes.ben[1].attachments[1].name == 64)
-got = deliver("ben", ben_hook)
-test("Ben's hook takes the files", got[1] == "accept", tostring(got[1]) .. " " .. table.concat(problems, "; "))
+ben.store:load()
+local horn = list.hash_file(SCR .. "/horn.wav"):sub(8)
+test("Ben answers yes: kept at once, the files having come with the list", ben:answer(id, "yes") == "ready",
+    table.concat(problems, "; "))
+test("the horn he has isn't taken", ben:wants(id, "ana", horn) == false)
 test("the list was kept: ready, as a pack of Ben's own", #ready == 1 and ready[1].pack == B .. "/asset-packs/share-" .. id,
     tostring(ready[1] and ready[1].pack))
 test("the pack holds the knight", read(ready[1].pack .. "/units/knight/knight.mdx") == "MDLX a knight, by Ana")
+test("and the map is kept in Ben's maps folder", ready[1].q.map_file:match("/maps/Castle Fight/Castle Fight%.w3x$")
+    and read(ready[1].q.map_file) == "a map's bytes")
 test("the arrived files were cleaned up", not exists(B .. "/share-incoming/" .. id))
+test("nothing goes back to Ana, even now", #boxes.ana == 0)
 ana:sent(id)
-test("Ana's bundle can be cleaned up once sent", not exists(A .. "/share-outgoing/" .. id))
+test("Ana's copies can be cleaned up once sent", not exists(A .. "/share-outgoing/" .. id))
 test("no question waits now", #ben:pending() == 0)
 -- }}}
 
 -- {{{ No
-print("\n=== On no, nothing is asked for ===")
-local id2 = ana:offer("ben", l)
+print("\n=== On no, nothing is taken ===")
+local id2 = ana:offer("ben", l, CASTLE)
 deliver("ben", ben_hook)
-test("declined", ben:answer(id2, "no") == "declined" and #boxes.ana == 0 and #ben:pending() == 0)
+test("declined", ben:answer(id2, "no") == "declined" and #boxes.ana == 0 and #ben:pending() == 0
+    and ben:wants_map(id2, "ana") == false and #ben:awaiting(id2, "ana") == 0)
 test("a second answer is refused", ben:answer(id2, "yes") == nil)
 -- }}}
 
@@ -140,8 +145,8 @@ profile.trust(B):always_from("ana", true)
 ben.trust = profile.trust(B)
 local id3 = ana:offer("ben", l)
 deliver("ben", ben_hook)
--- (the first list's files are still in Ben's store, so nothing need be sent)
-test("no question, nothing to fetch: kept at once", #ben:pending() == 0 and #boxes.ana == 0
+-- (the first list's files are still in Ben's store, so nothing need be taken)
+test("no question, nothing to take: kept at once", #ben:pending() == 0 and #boxes.ana == 0
     and #ready == 2 and ready[2].q.trusted == true and ready[2].q.id == id3
     and read(ready[2].pack .. "/units/knight/knight.mdx") == "MDLX a knight, by Ana")
 profile.trust(B):always_from("ana", false)
@@ -149,7 +154,7 @@ ben.trust = profile.trust(B)
 -- }}}
 
 -- {{{ The consent callback answers now
-print("\n=== A game that asks at once ===")
+print("\n=== An editor that asks at once ===")
 local asked
 local ben2 = exchange.new({ data = B, me = "ben", transport = hook.transport(rmail_for("ben")),
                             consent = function(q) asked = q; return "no" end })
@@ -158,69 +163,56 @@ deliver("ben", hook.on_receive(ben2))
 test("consent got the question and its answer was used", asked and asked.id == id4 and #ben2:pending() == 0 and #boxes.ana == 0)
 -- }}}
 
--- {{{ What each side refuses
-print("\n=== What each side refuses ===")
--- Ben deletes the packs kept above, so their stored files go and must be sent again
-os.execute("rm -rf " .. sh(B .. "/asset-packs"))
+-- {{{ What is refused
+print("\n=== What is refused ===")
+-- Ben deletes the packs kept above, so their stored files go and must be taken again
+os.execute("rm -rf " .. sh(B .. "/asset-packs") .. " " .. sh(B .. "/maps"))
 ben.store:gc()
+-- a file swapped on the way
 local id5 = ana:offer("ben", l)
--- Eve asks Ana for the files offered to Ben
-local eve = rmail_for("eve")
-eve.send({ to = "ana", subject = "wete-share want " .. id5, body = l.entries[1].hash .. "\n" })
-test("Ana won't send files offered to Ben to Eve", deliver("ana", ana_hook)[1] == "decline" and #boxes.eve == 0)
--- Ben asks for a hash that isn't in the list
-local other = "sha256:" .. string.rep("ab", 32)
-rmail_for("ben").send({ to = "ana", subject = "wete-share want " .. id5, body = other .. "\n" })
-test("nor a file that isn't in the list", deliver("ana", ana_hook)[1] == "decline" and #boxes.ben == 1)
-deliver("ben", ben_hook)     -- the list itself; Ben hasn't answered
--- Eve sends Ben files he didn't ask her for
-write(SCR .. "/evil", "MDLX not Ana's")
-eve.send({ to = "ben", subject = "wete-share files " .. id5, attachments = { { name = string.rep("0", 64), path = SCR .. "/evil" } } })
-test("Ben won't take files he didn't ask for", deliver("ben", ben_hook)[1] == "decline")
--- Ben says yes; Ana's files arrive but one was swapped on the way
-ben:answer(id5, "yes")
-deliver("ana", ana_hook)
 local mail = boxes.ben[1]
 write(SCR .. "/swapped", "MDLX swapped on the way")
 mail.attachments[1].path = SCR .. "/swapped"
-local n_ready = #ready
 deliver("ben", ben_hook)
+local n_ready = #ready
+ben:answer(id5, "yes")
 test("one bad file refuses the whole list", #ready == n_ready and problems[#problems]:match("refused whole"))
 test("and nothing was kept", not exists(B .. "/asset-packs/share-" .. id5))
--- an attachment named like a path is never written outside
+-- Eve sends files under Ana's list's id
+write(SCR .. "/evil", "MDLX not Ana's")
+local eve = rmail_for("eve")
 local id6 = ana:offer("ben", l)
 deliver("ben", ben_hook)
-ben:answer(id6, "yes")
-deliver("ana", ana_hook)
+ben:answer(id6, "no")
+test("files from anyone but the list's sender are refused",
+    ben:on_message({ kind = "files", from = "eve", id = id6, files = { { name = l.entries[1].hash:sub(8), path = SCR .. "/evil" } } }) == nil)
+test("and a file not in the list is never wanted", ben:wants(id6, "ana", string.rep("0", 64)) == false)
+-- an attachment named like a path is never written outside
+local id7 = ana:offer("ben", l)
 boxes.ben[1].attachments[1].name = "../../escape"
 deliver("ben", ben_hook)
+ben:answer(id7, "yes")
 test("an attachment named like a path is ignored", not exists(B .. "/escape") and not exists(SCR .. "/escape"))
-local id7 = "eve-1"
-eve.send({ to = "ben", subject = "wete-share list " .. id7, body = "return os.execute('touch " .. SCR .. "/ran')" })
+local id8 = "eve-1"
+eve.send({ to = "ben", subject = "wete-share list " .. id8, body = "return os.execute('touch " .. SCR .. "/ran')" })
 test("a list that tries to run code is declined, and nothing ran", deliver("ben", ben_hook)[1] == "decline" and not exists(SCR .. "/ran"))
 -- }}}
 
--- {{{ Check out my map: the map in the same message (issue 609b)
+-- {{{ Check out my map: the map checked against the list (issue 609b)
 print("\n=== The map file goes with its list ===")
 write(SCR .. "/maps/keep.w3m", "Castle Keep's bytes")
 local lk = list.build({ map = SCR .. "/maps/keep.w3m", map_name = "Castle Keep", pack = MINE, author = "Ana" })
+local okk, errk = pcall(ana.offer, ana, "ben", lk, CASTLE)
+test("a map that isn't the list's isn't sent", not okk and errk:match("hash differs"))
 local idk = ana:offer("ben", lk, SCR .. "/maps/keep.w3m")
-local mk = boxes.ben[1]
-test("the list's mail carries the map as its one attachment, named by hash", #mk.attachments == 1
-    and mk.attachments[1].name == lk.map.hash:sub(8) .. ".w3m" and mk.body:match("^map: %x+%.w3m\n"))
+test("the map keeps its extension, named by hash", boxes.ben[1].attachments[1].name == lk.map.hash:sub(8) .. ".w3m")
 deliver("ben", ben_hook)
-local qk = ben:pending()[#ben:pending()]
-test("the question says the map came with it", qk.id == idk and qk.map_sent and not qk.map_held
-    and ben:wants_map(idk, "ana") == nil)
 n_ready = #ready
 ben:answer(idk, "yes")
-deliver("ana", ana_hook); deliver("ben", ben_hook)
 test("on yes the map is checked and kept beside the models", #ready == n_ready + 1
     and ready[#ready].q.map_file:match("/maps/Castle Keep/Castle Keep%.w3m$")
     and read(ready[#ready].q.map_file) == "Castle Keep's bytes", table.concat(problems, "; "))
 test("and isn't wanted again", ben:wants_map(idk, "ana") == false)
-ana:sent(idk, "map")
-test("Ana's copy of the map is freed", not exists(A .. "/share-outgoing/" .. idk .. ".map"))
 -- a map swapped on the way
 write(SCR .. "/maps/keep2.w3x", "a second keep")
 local lk2 = list.build({ map = SCR .. "/maps/keep2.w3x", map_name = "Keep Two", pack = MINE, author = "Ana" })
