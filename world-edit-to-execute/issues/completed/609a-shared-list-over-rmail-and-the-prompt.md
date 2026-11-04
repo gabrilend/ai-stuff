@@ -82,6 +82,8 @@ the real rmail and the prompt on screen (609b).
 ### The rmail hook contract (an assumption, not yet checked against rmail)
 
 When rmail is read, check these; only `rmail_hook.lua` should change.
+(Checked in 609b: items 2 and 3 held, and 1, 4 and 5 did not. See
+`issues/completed/609b-rmail-glue.md`. The prompt on screen moved to 609c.)
 
 1. **rmail calls `on_receive(message, rmail)`** for every message that
    arrives. The message is `{ from, subject, body, attachments = { { name,
@@ -139,7 +141,8 @@ When rmail is read, check these; only `rmail_hook.lua` should change.
   served only as offered, taken only as asked) and the prompt's words
   (decision 7) carry over to it as a design.
 - **A list travels only with its map.** The offer names its map by hash;
-  the map file riding in the same message is the rmail glue's (609b).
+  the map file riding in the same message is the rmail glue's (609b;
+  not built there yet).
 
 ### Trimmed after the split (2026-11-04)
 

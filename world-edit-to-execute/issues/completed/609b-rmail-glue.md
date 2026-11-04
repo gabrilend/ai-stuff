@@ -1,0 +1,290 @@
+# Issue 609b: rmail Glue
+
+**Phase:** 6
+**Type:** Implementation
+**Priority:** Medium
+**Dependencies:** 609a (the exchange and the assumed hook)
+**Blocks:** 609c (the lobby prompt)
+**Uses:** rmail (gabrilend/r-mail), its own repository; read, not changed
+
+---
+
+## Current Behavior
+
+`src/share/exchange.lua` carries a shared list between two players over
+any transport, and asks the player first. `src/share/rmail_hook.lua`
+connects it to rmail, but it was written against an *assumed* hook
+contract (see 609a's notes), because rmail wasn't attached to this
+repository, and `hook.connect()` is a stub.
+
+## Intended Behavior
+
+- Lists and their files travel over the real rmail (wants too, until
+  decision 13 made the list's one message carry every file).
+- Each of 609a's five assumptions is checked against rmail's code and
+  docs, and the glue follows what rmail really does.
+- The prompt on screen moves to 609c: it needs a screen to be checked.
+- For "check out my map", the map file goes in the same message as its
+  list, and is taken only when it has the hash the list gives.
+- The inbox is read only when the editor or launcher asks (`C:poll`),
+  never on a timer.
+
+**After the editor-and-client split (2026-11-04).** Playing happens in
+the W client (issue 913), and using a list during a game, the lobby
+prompt included, is the W client's (its 1110), for "come check out my
+map", where the host's list comes with the join (609, "A list travels
+only with its map"). The rmail glue stays here, for "check out my map":
+the map and its list in one message, asked about once by the editor or
+launcher, then stored.
+
+## Suggested Implementation Steps
+
+1. Read rmail's message, attachment and hook docs
+   (`docs/.templates/attachments.md`, `docs/.templates/scripting-tutorial.md`).
+   Check the five assumptions in 609a's contract.
+2. Replace the `hook.connect()` stub with the real contract, keeping the
+   transport interface so the tests still run against the fake.
+3. Write up anything rmail lacks as a proposed rmail change (rmail itself
+   is not changed here).
+
+## Acceptance Criteria
+
+- [x] A list sent over rmail arrives and is checked (through a fake of
+      rmail's daemon that works on the same files rmail does; not yet run
+      against a live rmail)
+- [x] Each assumption is marked held or not, with the rmail file that shows it
+- [x] The in-process fake from 609a still passes
+- [x] A map sent with its list arrives in the same message, and one whose
+      bytes don't match the list's map hash refuses the whole list
+- [x] Nothing reads the inbox until `C:poll` is called, and nothing calls
+      it on a timer
+- [x] Every file goes in the list's one message, the receiver takes only
+      those it lacks, and nothing is sent back to the sharer
+
+## Implementation Notes (2026-11-03)
+
+Read from a clone of gabrilend/r-mail at `c25a4a7`. Nothing was fetched
+beyond it, and rmail was not changed.
+
+- `src/share/rmail_hook.lua`: `hook.connect{ config, data }` gives a
+  connection `C`. `C:install()` writes two hook scripts and gives the
+  config lines for the person to add. `C:transport()` writes outbox files.
+  `C:poll(X)` reads what the hooks noted, answers consent forms, and
+  hands messages to the exchange. The in-process `hook.transport(rmail)`,
+  `hook.on_receive(X)`, `encode` and `decode` stay for the fake.
+- `src/share/exchange.lua`: one read-only method, `X:wants(id, from, hex)`,
+  so the glue can answer a consent form before the files message is whole.
+- `src/tests/test_share_rmail.lua`: 46 tests. Two mailboxes laid out like
+  rmail's, and a fake of rmail's daemon that sends outbox files, runs the
+  configured hooks with rmail's arguments, writes consent forms in rmail's
+  words, reads the answers back, saves accepted files and drops a read
+  message from the sender's outbox.
+- `src/tests/test_share_exchange.lua`: still 32. The stub's test now
+  checks the real `connect` on a missing mailbox, and the subject check
+  uses the dashed form.
+
+### The five assumptions, checked
+
+| # | 609a assumed | Held? | Shown by (r-mail) |
+|---|--------------|-------|-------------------|
+| 1 | rmail calls `on_receive(message, rmail)` with a table, attachments saved | No | `docs/.templates/scripting-tutorial.md` (Hook interface); `rmail.lua` 2248 and 2153, 4973 |
+| 2 | `from` is authenticated | Yes, except listen-only contacts | `rmail.lua` `trial_decrypt` 3006 and 7839–7890; `contactfile.listens` 1069; `README.md` (Listen-only contacts) |
+| 3 | the hook sends with `rmail.send{...}` | In substance; by writing a file | `rmail.lua` `_scan_outbox_header` 2342, `parse_outbox_file` 3607; `README.md` |
+| 4 | consent through `on_receive`'s answer | No | `rmail.lua` 4168–4214 (the form), `check_consent_pending` 4277; `helpers/raccept.sh`; `docs/.templates/attachments.md` (The consent flow) |
+| 5 | free-text subjects, bodies to 4 MiB | No | `rmail.lua` `sanitize_filename` 588; 6027 (#308) |
+
+1. **A hook is a program, not a function.** rmail runs the executable
+   its config names with shell arguments: `on_receive` gets sender,
+   subject and the inbox file. It runs in the background, and its output
+   is ignored. Attachments come later, one `on_package` (sender, file
+   name, saved path) per file, after the person's consent. So the glue's
+   hooks only note each event in `<data>/share-mail/`, and the editor or
+   launcher reads those notes.
+2. **The sender is authenticated.** rmail finds the contact by decrypting
+   the request with each contact's token-derived key, so `$1` is a
+   contact that holds the shared token. The exception is a contact marked
+   `listen = true`: a public door whose token anyone may hold, which may
+   only send plain messages up to 64 KiB and is never sent to. Its share
+   mail is refused.
+3. **Sending is a file.** A message is a file in `outbox/` named by its
+   subject, with `to:` and `attach:` lines and then the body. Each `to:`
+   gets the `attach:` lines below it. The text is held back until every
+   attached path exists. An outbox file stays until each recipient has
+   deleted their copy. Editing it sends an edit, which is why the glue
+   never writes over one.
+4. **No hook can answer consent.** Each attachment puts a form in the
+   inbox (`<message>-<file>-consent-to-download-form`) ending in `accept`
+   and `deny`. Deleting `deny` accepts, and deleting the form or `accept`
+   declines. The glue answers the form as `raccept` does, and only for a
+   file the exchange wants from that sender, on that list's mail.
+5. **Subjects become file names, and bodies have a size limit.** rmail turns a
+   subject into an inbox file name, and spaces into dashes, so
+   "wete-share list <id>" arrives as "wete-share-list-<id>". An id is at
+   most 64 characters, so names stay well under file-name limits. A body
+   over 128 KiB is sent as an attachment needing consent (#308), so the
+   glue refuses to send one that long.
+
+### Decisions made while building
+
+1. **Subjects are sent in the form rmail delivers them**
+   (`wete-share-<kind>-<id>`). `decode` still reads 609a's spaced form.
+2. **The hooks only take notes, and the editor or launcher does the rest
+   in `C:poll`, when it calls it.** rmail's hooks run in the background
+   and can't reach a running program, so each writes one record, which
+   waits until the next `C:poll`. (Written first as "the game polls";
+   changed 2026-11-04, decision 12 below.) A record is written under a
+   dot name and renamed, and one with a newline smuggled into a value has
+   too many lines and is dropped.
+3. **The config is never edited here.** `C:install()` writes the scripts
+   and gives the two lines. The person adds them and restarts rmail, and
+   `C:hooked()` says whether they're in. A hook the config already names
+   is chained, so it still runs after ours (rmail has one script per
+   hook).
+4. **A list mail waits for its files.** Each attached file is named by
+   its hash's hex, and the list names those hashes, because rmail doesn't
+   tell `on_package` which message a file came with. A file is matched by
+   sender and name, and once every file the exchange wants has come they
+   go to the exchange together (`X:awaiting` names them). (Built first
+   for a separate files message; since decision 13 the files come with
+   the list.)
+5. **Consent is answered only for what the exchange wants.** A form is
+   accepted when the player said yes to that list from that sender and
+   their store lacks that file; it is denied when they said no, already
+   hold it, or the list doesn't name it, and left alone while they
+   haven't answered. Forms on any other mail are the person's, and are
+   left alone.
+6. **Handled share mail is deleted.** Deleting is what tells the sender's
+   rmail the message was read, and it then drops its outbox file. A list
+   mail is deleted only after the files it wants arrive (or once it wants
+   none), and the files are deleted after the exchange has copied them,
+   since rmail never deletes a message's files (#306). The sharer's copies
+   are freed (`X:sent`) once its outbox file is gone.
+7. **Senders must be contacts and not listen-only.** A listen-only contact
+   is a door anyone may knock on, whose token anyone may hold.
+8. **The data folder's path must be plain** (no spaces or shell
+   characters). rmail runs a hook without quoting its path and expands glob
+   characters in `attach:` lines, so `connect` refuses such a folder.
+9. **Bodies are capped at rmail's 128 KiB** (`hook.MAX_BODY`). A longer
+   list raises an error rather than becoming an attachment the other side
+   would have to consent to by hand.
+10. **State stays in memory, as in 609a.** A record waits in the drop
+    folder and the mail in the inbox until the next poll, so a list that
+    arrives while the editor and launcher are closed is handled when one
+    opens. The sharer keeps no state once the list is sent (decision 13);
+    on the receiver's side, a question not answered before a restart is
+    asked no more, and its mail is left in the inbox.
+
+11. **The map goes in the list's message (2026-11-04).** For "check out
+    my map", `X:offer(to, l, map)` copies the map file to
+    `share-outgoing/<id>/<hex>.<ext>` and the list mail attaches it;
+    the body's first line, `map: <hex>.<ext>`, names it, so the receiver
+    knows a map is coming before its consent form shows up. The copy is
+    sent, not the map itself, so a map edited after sharing still arrives
+    as the list names it, and it is freed (`X:sent(id)`) once rmail
+    drops the list's outbox file. Named by its hash, the map gets past the
+    `on_package` script unchanged, and the sharer's own file name isn't
+    sent.
+    On the receiver's side the list goes to the exchange at once, so the
+    player is asked once, as before; the list mail stays in the inbox
+    until the map has come. The map's consent form is left alone until
+    the player answers (`X:wants_map` is nil), then accepted on yes and
+    denied on no, or when their store already holds that map (it isn't
+    downloaded twice). When the map comes, its bytes are hashed and must
+    be the list's `map.hash`, or the whole list is refused and nothing is
+    stored; a name in the `map:` line that isn't the list's map hash is
+    refused the same way, before anything is downloaded. Only then is it
+    stored, and with the models (decision 13) the list is kept as a pack and the
+    map linked at `<data>/maps/<its name>/<its name>.<ext>` (the player
+    data folder's maps folder; a folder of that name holding another map
+    is never replaced, a " 2" is added), given as `q.map_file`. The map
+    is never kept as art: it goes to the store and the maps folder, not
+    into the kept pack.
+12. **No timer (2026-11-04).** The owner: "we only send models and such
+    when the map that includes them is shared ... so we don't need to
+    check the rmail inbox every 5 seconds." `C:poll(X)` is the only thing
+    that reads the hooks' notes, and only the editor or the launcher calls
+    it: when it opens, when the person asks it to look, and right after
+    they answer a question (so the map's form is answered then). Nothing
+    in `share/` keeps a timer or a loop, and connecting starts nothing.
+    Each step of a share then moves when the receiver calls `C:poll`: to
+    take the list, answer the forms after the answer, and take the files.
+    The sharer polls only to free its copies (decision 13).
+13. **Every file in the one message, and no want (2026-11-04).** Built
+    first as 609a's round trip: the list, then a want naming the hashes
+    the receiver lacked, then a files message. With no timer, the sharer
+    answered a want only when its own editor or launcher polled, and only
+    if it hadn't restarted since sharing. Answered (open question 1, by
+    the owner's coordinator): "yes, send every model in the one message
+    with the map, and let the receiver accept only the consent forms for
+    files it lacks, so nothing has to come back from the sharer." So
+    `X:offer` copies every file the list names into
+    `share-outgoing/<id>/` (named by hash) beside the map, and the list
+    mail attaches them all. The receiver's consent forms do the picking
+    that the want did: `X:wants` is true only for a file its store lacks.
+    "Only what's missing is sent" now means only what's missing is
+    downloaded; the sharer's rmail offers every file. The want and files
+    messages are gone from the wire (a `wete-share-want-...` mail is
+    refused as malformed); `files` stays only as the glue's hand-over to
+    the exchange of what came. The sharer's `X:want` and its record of
+    offers are gone too, since nothing comes back to answer.
+
+### Open questions (2026-11-04)
+
+1. ~~**The want round trip without a timer.**~~ Answered: every file goes
+   in the one message (decision 13).
+2. **A list without its map.** "A list travels only with its map", but
+   `X:offer(to, l)` without a map still works, and a list mail without a
+   `map:` line is still read (609a's tests use both). Should a list that
+   brings no map, for a map the receiver doesn't hold, be refused?
+
+### Proposed rmail changes (not made; rmail is its own repository)
+
+1. **An `on_consent` hook**: sender, the message's inbox name, the file
+   name, the expected size and the form's path, answering `accept`,
+   `deny` or nothing (ask the person) on its output, synchronously. The glue
+   could then answer consent without scanning the inbox for forms.
+2. **The message on `on_package`**: a fourth argument with the message's
+   inbox name or id, so a file is tied to its message without matching by
+   sender and name.
+3. **More than one script per hook** (a list in the config), so a program
+   adds its hook without chaining the person's.
+4. **A way to send that stays out of the person's view**, such as a
+   hidden outbox or subjects routed to a folder of their own. Today share
+   mail and its forms show in the inbox (and on the phone) until the
+   editor or launcher polls.
+
+### After the editor-and-client split (2026-11-04)
+
+Two things in these notes read differently under the owner's decisions
+of 2026-11-04 (609, "Where each part runs" and "A list travels only with
+its map"), and both are now built (decisions 11 and 12).
+
+- **Who reads the notes, and when.** Decision 2 had "the game" poll the
+  hooks' notes. Playing is now the W client's, and no inbox is checked on
+  a timer. `C:poll` stays as the call that reads what the hooks noted, and
+  the editor or the launcher calls it when it opens, when the person asks,
+  and after an answer (decision 12).
+- **The map travels with its list.** The list's message now carries the
+  map file as its attachment, and the receiver checks the map's hash
+  against the list before taking it (decision 11). Every model goes in
+  the same message, and nothing comes back (decision 13).
+
+Files changed for these two, and for decision 13:
+
+- `src/share/exchange.lua`: `X:offer(to, l, map)` sends the list, every
+  file it names and the map in one message; a list message's `map` and
+  `files`; `X:wants` (nil before the answer), `X:wants_map` and
+  `X:awaiting` for the glue; the map's hash check in `X:files`; and
+  `q.map_file`. `X:want` and the sharer's record of offers are gone.
+- `src/share/rmail_hook.lua`: the `map:` line and the attachments, the
+  list mail held until the files it wants have come, its forms answered
+  on the player's answer, want and files mails no longer encoded or
+  decoded, and the comments and hook scripts say the editor or launcher,
+  not the game.
+- `src/tests/test_share_rmail.lua`: 55 tests, rewritten for one message:
+  the forms waiting for the answer, only the lacking files accepted, a
+  photo's form left alone, a list held whole, no, a fake map, a swapped
+  and an extra file, a list naming another map, a want refused, and
+  nothing read before `C:poll`.
+- `src/tests/test_share_exchange.lua`: 36, in process, rewritten the same
+  way.
