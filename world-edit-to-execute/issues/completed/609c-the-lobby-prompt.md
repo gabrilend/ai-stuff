@@ -24,6 +24,16 @@ game's loop.
   the profile on yes (`P:attach(L)`), and reverts it after the game unless
   the player keeps it (`P:keep`).
 
+**After the editor-and-client split (2026-11-04).** Two items above are
+no longer this project's as written. The lobby prompt, for "come check
+out my map" where the host's list comes with the join, is the W client's
+(its 1110): playing happens there (issue 913), and it carries this
+issue's rules over as a design (609, "A list travels only with its
+map"). And no inbox is polled on a timer: the owner, "we don't need to
+check the rmail inbox every 5 seconds", since models travel only when
+their map is shared. What stays here is the one question the editor or
+launcher asks when a map is given to keep ("check out my map").
+
 ## Suggested Implementation Steps
 
 1. Connect and poll from the game's loop; show the setup lines when
@@ -119,3 +129,25 @@ Nothing in `lobby.lua` or `share_prompt.lua` changes; the glue under them
 - **Files:** a file is matched to its message by sender and name. With
   `on_package`'s `$4`, each file names its message.
 - **Setup:** the setup notice would then list three hook lines, not two.
+
+### After the editor-and-client split (2026-11-04)
+
+What was built here ran in this project's map viewer
+(`src/demo/wc3map/main.lua`), whose play mode gives way to Test Map, which
+opens the W client (913). The owner's design now builds the prompt for a
+hosted game in the W client (its 1110), "with the rules pull request #227
+worked out" (609): one question, answered only by a click (decision 5);
+Yes, No, "Always from this player", "Always for this map" (decision 4);
+one bad file refuses the whole list; the models taken off after the game
+unless kept (decisions 6 and 7). So this issue's code is the reference
+those rules were worked out and tested in, more than code this project
+keeps. Two notes above read differently now:
+
+- **Polling every 5 seconds** (the first implementation note) is what the
+  owner ruled out: "we don't need to check the rmail inbox every 5
+  seconds", since models travel only when their map is shared.
+- **"Shared lists are opt-in"** (decision 8) and the prompt as a dialog
+  over the game (decision 1) are the W client's to decide for its own
+  screens.
+
+The code is unchanged by this note.

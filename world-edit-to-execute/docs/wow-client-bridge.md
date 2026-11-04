@@ -1,6 +1,6 @@
 # Phase W: The WoW Client Bridge
 
-**Status:** Design (issues W01-W07 created 2026-09-23, none started)
+**Status:** In progress. Issues W01-W07 created 2026-09-23; the move of this project's client into the W client started 2026-10-07 (see "The client's move into the W client" below)
 **Phase letter:** W (a lettered phase, like A, B, Q and X, so it can sit beside
 the numbered engine phases without renumbering them)
 **Issues:** see `issues/phase-W-progress.md`
@@ -98,7 +98,7 @@ no script hard-codes them twice.
 | Client launch script | `/mnt/mtwo/games/azeroth-core/client/run` | Wine prefix, 32-bit (`WINEARCH=win32`). Its `DIR` still names `/mnt/dile/ritz/games/wotlk`, an older location; the live client is the folder above (confirmed by the owner 2026-09-24) |
 | AzerothCore source + build | `/mnt/mtwo/games/azeroth-core/azerothcore/` | Has `modules/mod-eluna` (the older Lua scripting engine; the project uses its successor ALE, `mod-ale`) and a `docker-compose.yml` |
 | Server data extracted from the client | `/mnt/mtwo/games/azeroth-core/data-files/` | `dbc/`, `maps/`, `vmaps/`, `mmaps/`, `Cameras/` |
-| The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its issues 104-107 build `libwreaders.so`, the reading layer this project uses; its Phase 11 is WC3 map mode. No code yet |
+| The W client | `/mnt/mtwo/games/azeroth-core/custom-client/` | The open client (C + raylib) for AzerothCore's world and converted WC3 maps. Its Phase 11 is WC3 map mode. Has code since 2026-10-07 (wow-chat-2026's custom client moved there): `libwreaders.so` (archives, tables, pictures, models, ground, buildings) is built by its `scripts/build` and loads from LuaJIT with `scripts/libs/wreaders.lua` |
 | Map editor for hand touch-ups | Noggit (Noggit Red), not yet installed | Opens and edits WoW `.adt` terrain; used to inspect and tweak what W02's converter writes, never as the only way to make a map |
 
 ---
@@ -270,6 +270,128 @@ pulled directly from the game and used as an input to an AI process
 (answers open question 12 for now: the server's data is examined later).
 Details and the owner's words: W05a.
 
+**2026-10-07: one engine, two games; WC3 maps on AzerothCore, server-authoritative.**
+The W client took in wow-chat-2026's working client (C on raylib) and is
+to take in this project's client too, in C: "The renderers need to merge.
+We should be able to load both model types and animations and
+particles... all visual stuff. Also audio is shared ... The goal is to be
+able to play both games seamlessly in the same binary" (the owner). Lua
+stays the scripting language. On networking: "I think we transition WETE
+to Azerothcore then", and, weighing lockstep: "I think lockstep isn't
+worth the implementation cost. Let's just do server-authoritative and
+call it good. Maybe lockstep for WETE LAN games or something...?" So a
+converted map runs on AzerothCore as the WoW world does: players send
+orders, the server runs the map's rules and sends each player what it
+can see. This project's own engine may keep a lockstep LAN mode. This
+is W08's stage 1 (AzerothCore installed, not bundled); W08's own server
+(stage 2, for the licence) is unchanged by it. Details: the W client's
+docs 000, 001 and 004; wow-chat-2026 issue 173v.
+
+## The client's move into the W client
+
+Started 2026-10-07. The W client's roadmap
+(`/mnt/mtwo/games/azeroth-core/custom-client/docs/009-roadmap.md`, "The
+second crosswalk") lists every part of this project's client and where
+it goes: a **C twin** in the W client (checked byte for byte against
+the Lua here once, then the Lua reader is deprecated), **replaced** by a
+part the W client already has, or **staying here** (the editor, the
+extractors, the map browser).
+
+| Step | State |
+|------|-------|
+| WC3's pictures (BLP1, with its JPEG) in C: W client issue 107a (completed) | Reading built 2026-10-07. Every BLP1 in `war3.mpq` and `War3x.mpq` decodes to the same bytes as `src/parsers/blp.lua` (W client `tests/050-blp1-matches-lua.lua`) |
+| WC3 models (MDX) into the W client's model structure: its 401 step 2 | next |
+| WC3 animations through the same posing: its 402 step 1 | after 401 |
+| WC3 particles and ribbons: its 403 | after 402 |
+
+Found on the way: the W client's own archive reader opens WC3's
+`war3.mpq` and `War3x.mpq` directly. Maps with damaged or hidden file
+tables are still read here through StormLib before conversion.
+
+**2026-10-07: who does what.** The owner: "The end result ideally is that
+this project handles the editor and the WC3 extractors and the custom map
+browser. The custom client should handle the custom models ... and
+rendering and such. That doesn't involve gameplay, because the gameplay
+can be built into the maps themselves with the editor, which stays here."
+
+| world-edit-to-execute | The W client | AzerothCore |
+|-----------------------|--------------|-------------|
+| The editor (writes a map, its rules included) | Drawing, sound, input, the interface | Runs a map's rules while people play: every trigger and WC3 mechanic, in ALE Lua or by server patches ("We might be able to implement those in Lua ALE? But patches are fine too.") |
+| The extractors (WC3 files into a converted map), through the W client's C readers | The custom model system (packs, resolver, scores) | Holds the truth |
+| The custom map browser, drawn as an HTML page onto a flat pane in the W client ("maybe we just render the browser to HTML and cast it onto a flat UI pane in the W client? And our Azerothcore project ... can do the same.") | Pictures drawn without a window (previews) | |
+
+**2026-10-07: the editor is a mode of the W client** (superseded
+2026-11-04, below). "let's make the editor a mode of the W client." Its
+code stays here and is worked on here; the W client loads it and draws
+for it, so there is one renderer. This project's renderer (`src/render/`)
+retires only once the W client's editor mode opens, edits, saves and
+test-plays a map (W client issue 1109).
+
+**2026-11-04: the editor keeps its own renderer; Test Map opens the W
+client.** The owner: "world-edit-to-execute should be in charge of the
+data extraction from wc3. It should be a map-editor for wc3 and World of
+Warcraft, sorta like Noggit except with the capability of the
+world-edit.exe from warcraft3. It has a lua renderer right now, but we're
+building a C renderer for in-game - the lua renderer is only for the
+editor, not the client." And: "there should be a button to test the map
+that opens the w-client. The map editor should have a renderer (lua) that
+displays the map and such so you can edit it of course."
+
+So there are two renderers, each with one audience. The Lua one here draws
+what is being edited; the C one in the W client draws what is being
+played. Neither retires the other. The editor stops being a game: this
+project's map viewer (play mode, the F5 run of its Lua simulation) gives
+way to the Test Map button, which converts the map being edited and opens
+it in the W client against a local AzerothCore (W client issue 1109,
+reshaped to that).
+
+| world-edit-to-execute | The W client | AzerothCore |
+|-----------------------|--------------|-------------|
+| The extractors: WC3 files into a converted map | Drawing for play, in C | Runs a map's rules while people play |
+| The editor, for WC3 maps and WoW maps (Noggit's reach, world-edit.exe's depth), drawn by this project's Lua renderer | What Test Map opens | Holds the truth |
+| Packs and the asset lookup for the editor (`src/assets/loader.lua`), the Lua twin the W client's C lookup is checked against | Packs and the asset lookup for play (its 105a), the same manifest format | |
+| Sharing a map with its models, "check out my map": the map and its list in one rmail message, received by the editor or launcher (issue 609) | Hosting a map with its models, "come check out my map": the list comes with the join, asked about once, used for that game, taken off after (its 1110, carrying the rules of pull request #227) | |
+| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser, its moving parts in JavaScript (issue 1001) | A web browser addon that opens that same page inside the game (its 710) | |
+| Wire-frames where the editor has no model (issue 602) | Wire-frames where the player has no model (its 105a, step 4) | |
+
+**Who sees a wire-frame.** The owner: "The wire-frame rendering should be
+in the custom-client for when we don't have a model, but that should be
+only for when the map doesn't provide one, or when the map provides one
+that's from a proprietary source and the viewer/player doesn't have access
+to it - for example a player who hasn't bought WC3 should probably see
+wireframes if they're playing on a default Blizzard map." The W client's
+lookup order already says this: the player's packs, then what the server
+delivered with the map, then the player's own Blizzard install, then the
+wire-frame. A server never delivers a file whose source is Blizzard's
+(open question 16, answered). The editor draws wire-frames too (the
+owner, same day), for the same two cases.
+
+**Our own models are the default; Blizzard's plug in.** The owner, the
+same day: "we're going to be creating our own assets that have 'feature
+parity' with the blizzard models, but which are aesthetically distinct.
+We have a whole pipeline for this set up ... we're going to have sensible
+defaults, and if users want, they can plug in their Blizzard assets,
+since they should be compatible." The pipeline is the asset forge (W05:
+find or generate a replacement; W05a, the similarity score; W05b,
+borrowed skeletons and animation sets; W05c, the "default client
+compatible" seal; W05d, the clean-room loop; W05e, body plans; W06, one
+style for every model). Its output is the **baseline standard model set**
+the W client's docs/012 waits for ("which will be a requirement until we
+develop our own baseline standard model set"). With it, the lookup reads:
+the player's packs, the server's files, the player's own Blizzard
+install if they plugged it in, the baseline set, and only then the
+wire-frame. A player without WC3 sees the baseline set's models; a
+wire-frame means nothing at all matched, neither a model of the map's
+own, nor theirs, nor ours.
+
+**2026-10-07: one reader per format, in C.** "Let's just deprecate the
+lua version and keep the C version." Each Lua reader here is retired
+once its C twin in the W client (`libwreaders.so`, called through
+LuaJIT's FFI) matches it byte for byte; the first, BLP1 and JPEG,
+already does. This project's Lua runtime (combat, pathing, economy) is
+not a reader: it stays as the reference AzerothCore's version of each
+rule is checked against.
+
 ## Open questions
 
 These are written in the issue files too; each must be answered before the
@@ -303,6 +425,44 @@ issue that holds it can be called complete.
     consequences: `docs/licensing-and-boundaries.md`.
 12. **Server data.** (Deferred 2026-10-01: only what is pulled from the game and fed to an AI process needs a score now; the rest is examined later.) Is AzerothCore's Blizzard-derived database (quests, NPC
     text, spells) inside "legally distinct", or only the client-side game?
+13. ~~WC3 ground in the W client~~ Answered 2026-10-07: one ground mesh
+    painted both ways, WC3 cliffs seated onto it ("Cliffs placed onto a
+    terrain mesh should jump to the highest point that their lowest point
+    intersects with the terrain... or something similar"). W client
+    roadmap, second crosswalk.
+14. ~~Flat-shaded designs~~ Answered 2026-10-07: placeholder art in the
+    W client, and a test of its custom model system.
+15. ~~The thread pool~~ Answered 2026-10-07: the ceramic engine becomes
+    the W client's shape, with no main loop: workers run every part as
+    stations, and render threads (one per OpenGL context) only draw. W
+    client issue 110 and its sub-issues.
+16. ~~**Does a server ever hand out Blizzard's files?**~~ Answered
+    2026-11-04: never. The owner: "well yes they aren't our files so we
+    can't distribute them. We're building an architecture around them,
+    that allows them to fit inside should the user provide them. This is
+    why we started with data extractors, they are the most important part
+    to understanding the nature of the structure we need to build." So
+    the server's step of the W client's lookup carries only files that
+    aren't Blizzard's: a map author's own ground, placements and imports.
+    Stock models a map uses are drawn from the player's own install if
+    they plugged it in, or from the baseline standard model set the asset
+    forge makes (the owner, same day: "we're going to have sensible
+    defaults, and if users want, they can plug in their Blizzard assets";
+    see "Our own models are the default" above). The question as asked:
+    does a player without WC3 get a default Blizzard map's converted
+    ground with wire-frames standing on it, or is the map not offered to
+    them at all? (The map file's own part of this is question 17.)
+17. ~~**A Blizzard map's own file.**~~ Answered 2026-11-04, the owner:
+    "we don't place any limitations on what maps players host for each
+    other." So the project ships no Blizzard file, and it doesn't check or
+    block which map a player hosts: a host serves the map they chose, and
+    the other players' clients draw its stock models from their own packs,
+    their Blizzard install, or the baseline set. The question as asked:
+    the baseline set covers a default map's models, but the map itself
+    (its ground, placements, triggers) is Blizzard's file too. Is a
+    default Blizzard map played only from the player's own copy, or does
+    the project make its own maps standing in for them, the way the
+    baseline set stands in for the models?
 
 ---
 
@@ -321,3 +481,5 @@ issue that holds it can be called complete.
 | 2026-09-23 | Created with issues W01-W07 |
 | 2026-09-23 | Owner's answers: borrowed art with a similarity score; custom client as host; reused animation sets. Added W05a, W05b |
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
+| 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
+| 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame; our own baseline model set is the default and Blizzard's plug in; open question 17 |

@@ -28,6 +28,16 @@ carries the files between players, and there is no prompt in the game.
   the provenance of each entry, applies the profile when accepted, and
   reverts it after the game unless the player keeps it.
 
+**After the editor-and-client split (2026-11-04).** The owner settled
+that playing happens in the W client (issue 913) and that using a shared
+list during a game, the prompt included, is the W client's (its 1110);
+this project sends, receives, checks and keeps lists (609, "Where each
+part runs"). A list also travels only with its map: "check out my map"
+sends the map and the list in one rmail message, and "come check out my
+map" brings the host's list with the join, in the W client. So the rmail
+items above stay here; the prompt "for this game" is the W client's,
+and the one question this project asks is when a map is given to keep.
+
 ## Suggested Implementation Steps
 
 1. Read rmail's message, attachment and hook formats.
@@ -118,4 +128,18 @@ When rmail is read, check these; only `rmail_hook.lua` should change.
 8. **The open question (can a hook answer consent?) is answered as an
    assumption** (contract item 4), to be checked against rmail's docs in
    609b.
+
+### After the editor-and-client split (2026-11-04)
+
+- **Still this project's:** the exchange (offer, want, files), its
+  consent step and the rmail hook, for "check out my map": the editor or
+  launcher asks once, then stores the map and its list.
+- **Now the W client's (its 1110):** the prompt in a lobby, for "come
+  check out my map", where the host's list comes with the join. The rules
+  decided here (decisions 1 to 4: consent before any download, files
+  served only as offered, taken only as asked) and the prompt's words
+  (decision 7) carry over to it as a design.
+- **A list travels only with its map.** The offer names its map by hash;
+  the map file riding in the same message is the rmail glue's (609b;
+  not built there yet).
 

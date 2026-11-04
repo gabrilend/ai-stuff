@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# describe - turns a description in words into a 3D model.
+#
+# In plain terms: the description says what the parts are and how they
+# relate ("the lid is slightly wider than the drum", "the knob is at the end
+# of the handle"), never how big anything is in inches or millimetres. This
+# reads it with the closed vocabulary in docs/shape-words.md, works out
+# every size and place, and writes a glTF model and a report of the numbers
+# into output/described/. Anything it cannot read is listed, all at once,
+# with the nearest word it knows; then nothing is made.
+#
+# Usage:
+#   ./describe FILE [--view [viewer run options]]
+#   ./describe <project-dir> FILE [--view ...]
+#   --view   open the model in the viewer afterwards (any options after
+#            --view go to the viewer, e.g. --screenshot 1)
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+# a first argument that is a folder is the project's location
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+FILE="${1:-}"
+if [ -z "${FILE}" ]; then
+    echo "usage: describe FILE [--view [viewer options]]" >&2
+    exit 64
+fi
+shift
+
+luajit "${DIR}/src/016-describe.lua" "${DIR}" "$(realpath "${FILE}")" || exit 1
+
+if [ "${1:-}" = "--view" ]; then
+    shift
+    NAME=$(basename "${FILE}")
+    NAME="${NAME%.*}"
+    "${DIR}/view-cad" "${DIR}" "${DIR}/output/described/${NAME}.gltf" "$@"
+fi

@@ -7,6 +7,11 @@ Copied from double-diaper-dungeon's `libs/` on 2026-09-26 (its commit
 | --- | --- | --- |
 | `markdown.lua` | `double-diaper-dungeon/libs/markdown.lua` | no |
 | `page-head.lua` | `double-diaper-dungeon/libs/page-head.lua` | no |
+| `dkjson.lua` | `double-diaper-dungeon/libs/dkjson.lua` (from `ai-stuff/libs/lua/dkjson.lua`), 2026-10-04 | no |
+
+`dkjson.lua` is David Kolf's JSON library, which the films part uses to talk
+to the local model server (issue 035d). It would use LPeg for speed if LPeg
+were installed, and runs without it.
 
 `markdown.lua` carries double-diaper-dungeon's `reflow` option, which
 `neocities-modernization`'s original does not have: it joins a paragraph's

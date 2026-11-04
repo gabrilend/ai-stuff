@@ -5,8 +5,9 @@ transcript pages ask for, under the name `PoemGrid` (see
 `libs/page-head.lua`). Copied on 2026-09-26 from double-diaper-dungeon's
 `assets/fonts/`, which copied them from `neocities-modernization`.
 
-`build-site.lua` writes them into a project's `llm-transcripts/HTML/fonts/`
-whenever a file is missing there, so every project's pages render from the
+`build-site.lua` writes them into the `fonts/` folder at a project's site root
+(by default `llm-transcripts/HTML/fonts/`) whenever a file is missing there --
+from this folder, or from the folder a project's settings name as `fonts` -- so every project's pages render from the
 same font file rather than whatever monospace the reader has installed. The
 pages are not committed, so the copies cost disk space only.
 

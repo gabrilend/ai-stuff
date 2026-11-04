@@ -26,6 +26,15 @@ reads it again through the loader (601) and hands the new value to its
 
 Saving a texture in an editor changes it in the running game.
 
+**Where it shows (2026-11-04).** This project's Lua renderer is now the
+editor's alone; the editor keeps it, and playing happens in the W client,
+which Test Map opens (`docs/wow-client-bridge.md`, "2026-11-04: the editor
+keeps its own renderer"; issue 913). So "the running game" here is the
+editor's view of the map being edited: saving a texture in a pack changes
+it there without a restart. A pack changing while a game is played would
+be the W client's, through its own asset lookup (its 105a). Step 8's flag
+is the editor's; the map viewer's play mode gives way to Test Map.
+
 ## Suggested Implementation Steps
 
 1. Add `tex_update(id, w, h, rgba)` to `render/models.c` (and the ground's
