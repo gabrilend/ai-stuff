@@ -5,7 +5,7 @@
 #
 # In general terms: the viewer is loaded as a library and drawn into tui's
 # in-memory screen (tui.init_buffers, tui.get_cell, tui.set_output from
-# scripts/libs/tui.lua), so no terminal is needed. Exercises issue 067,
+# scripts/libs/tui.lua), so no terminal is needed. Exercises issue 070,
 # step 9.
 #
 # Usage: test-history-viewer-panels.sh [--dir MONOREPO]

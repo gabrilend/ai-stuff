@@ -52,7 +52,7 @@ local state = {
 }
 
 -- The screen's three regions, as tui panels (scripts/libs/tui.lua, issue
--- 067): a one-row header, the scrolling content, a one-row footer. Each is
+-- 070): a one-row header, the scrolling content, a one-row footer. Each is
 -- written in its own coordinates and clips what does not fit. layout()
 -- makes them again whenever the terminal changes size.
 local panels = {}
