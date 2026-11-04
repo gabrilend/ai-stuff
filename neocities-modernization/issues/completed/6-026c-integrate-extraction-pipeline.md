@@ -187,6 +187,10 @@ end
 - **Data Sources**: JSON output from modernized extraction scripts
 - **Configuration**: `config/input-sources.json` for path management
 
+## Blocks
+
+- 6-026d
+
 ## Related Issues
 
 - **Parent**: Issue 6-026 (Scripts Directory Integration)
