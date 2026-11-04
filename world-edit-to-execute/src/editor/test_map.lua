@@ -1,0 +1,327 @@
+--[[
+Test Map: the Edited Map Played in the W Client (Issue 913)
+
+The owner, 2026-11-04: "there should be a button to test the map that
+opens the w-client." F5 and the Test Map button run, in order:
+
+  1. save      the map being edited (the editor's own Save), and a .w3x
+               of it for the converter when the map is a project
+  2. convert   through W02 into a build folder (test_map.build_dir, under
+               the project's tmp/): <convert...> <map.w3x> <build folder>
+  3. server    the local AzerothCore started, or the one already started
+               reused (editor/server_keeper.lua), waited on until it
+               accepts logins; started again when the build changed
+  4. launch    the W client, straight into the map (the contract below)
+  5. play      waited on until it exits; then its goodbye receipt read
+               and shown (editor/receipt.lua); no receipt is a crash
+
+Nothing waits in place: start() begins a run and step() moves it on, so
+the editor's window keeps drawing while the converter, the server and the
+W client run. close() (the editor closing) stops the W client if it is
+still open and the server the editor started. A session closes itself
+when it is collected too, which is what happens when the editor's window
+closes (the viewer's lua_close runs every finalizer).
+
+Each step is logged to <log_dir>/test-map.log (tmp/shared-memory/test-map
+by default) with the time; each program's output is beside it. The test
+account's password is never in the log, a file or a command line.
+
+The contract with the W client (its issue 1109; built there to this):
+
+  w-client --test-map <folder> --receipt <file> [--camera <x>,<y>]
+           [--realm <host>:<port>] [--account <name>]
+  W_CLIENT_PASSWORD in its environment, never on the command line
+  the receipt: editor/receipt.lua
+
+--camera is where the editor's view was looking, in the map's own world
+units (as the .w3x stores positions). test_map.w_client is the W client's
+scripts/run (or a program taking the same arguments), which adds the
+client's own --maps, --client, --settings, --world and --assets and passes
+these through unchanged; it runs from the client's folder (the one above
+scripts/). A failure inside scripts/run before the client starts (a failed
+build, no data) leaves no receipt, so it reads as a crash.
+
+The editor stops the W client only when the editor itself closes (a
+killed client writes no receipt, and nobody is left to read one then);
+otherwise the client is always left to close itself.
+
+    local test_map = require("editor.test_map")
+    local T = test_map.new(E, { root = ROOT, say = function(s) E:say(s) end })
+    T:start()                  -- true, or nil and why
+    while T:busy() do T:step() end
+    T.last                     -- { outcome = "closed"|"lost-connection"|"error"|"crashed"|"refused"|"failed",
+                               --   receipt = {...}, message = "..." }
+    T:close()
+]]
+
+local settings_mod = require("editor.settings")
+local receipt = require("editor.receipt")
+local server_keeper = require("editor.server_keeper")
+
+local test_map = {}
+
+local T = {}
+T.__index = T
+
+-- {{{ helpers
+local function utc() return os.date("!%Y-%m-%dT%H:%M:%SZ") end
+
+local function absolute(p)
+    if not p or p:sub(1, 1) == "/" then return p end
+    local here = os.getenv("PWD") or "."
+    return (here .. "/" .. p):gsub("/%./", "/")
+end
+
+local function dirname(p) return p:match("^(.*)/[^/]*$") or "." end
+-- }}}
+
+-- {{{ test_map.new
+-- opts: root, settings (a loaded table, else read from root), proc (the
+-- seam for other programs), say, save (function(copy) -> path of a .w3x
+-- to convert: the map saved as the editor saves it, or, for a map
+-- project, a .w3x of it written at `copy`),
+-- camera (function() -> x, y), poll_every
+function test_map.new(E, opts)
+    opts = opts or {}
+    local self = setmetatable({ E = E, opts = opts, root = opts.root or ".",
+                                proc = opts.proc or require("editor.proc"),
+                                say_fn = opts.say or (E and function(s) E:say(s) end) or print,
+                                stage = "idle", runs = 0 }, T)
+    -- the editor closing (its Lua state closed) stops what it started
+    if newproxy then
+        self.guard = newproxy(true)
+        getmetatable(self.guard).__gc = function() self:close() end
+    end
+    return self
+end
+-- }}}
+
+-- {{{ logging and saying
+function T:log(line)
+    if not self.log_dir then return end
+    local f = io.open(self.log_dir .. "/test-map.log", "a")
+    if f then f:write(utc(), " ", line, "\n"); f:close() end
+end
+
+function T:say(text)
+    self:log(text)
+    self.say_fn(text)
+end
+
+function T:finish(outcome, message, r)
+    self.last = { outcome = outcome, message = message, receipt = r, run = self.runs }
+    self.stage = "idle"
+    self.job = nil
+    self:say(message)
+    return outcome
+end
+
+function T:fail(why)
+    return self:finish("failed", "Test Map stopped: " .. tostring(why))
+end
+-- }}}
+
+-- {{{ T:start
+function T:start()
+    if self:busy() then
+        self:say("Test Map is already running (" .. self.stage .. ")")
+        return nil, "already running"
+    end
+    self.runs, self.closed = self.runs + 1, false
+    local s = self.opts.settings or settings_mod.load(self.root)
+    self.settings = s
+    local tm = s.test_map
+    self.log_dir = absolute(tm.log_dir)
+    self.build_dir = absolute(tm.build_dir)
+    os.execute("mkdir -p " .. self.proc.quote(self.log_dir) .. " " .. self.proc.quote(self.build_dir))
+    if not self.keeper or not self.keeper.running then
+        self.keeper = server_keeper.new(tm.server, { proc = self.proc, log_dir = self.log_dir,
+            say = function(t) self:say(t) end, poll_every = self.opts.poll_every })
+    end
+    self:log("---- Test Map " .. self.runs .. " (settings: " .. tostring(s.path)
+        .. (s.found and "" or ", not found") .. ")")
+
+    -- 1. save
+    self.stage = "saving"
+    local map, why
+    local copy = dirname(self.build_dir) .. "/test-map.w3x"
+    if self.opts.save then map, why = self.opts.save(copy)
+    else
+        map = copy
+        local ok, w = self.E:save(map)
+        if not ok then map, why = nil, w end
+    end
+    if not map then self:fail("couldn't save: " .. tostring(why)) return nil, why end
+    self.map = absolute(map)
+    self:say("Test Map: saved " .. self.map)
+
+    -- 2. convert
+    if not tm.convert or not tm.convert[1] then
+        self:fail("no W02 converter in the editor's settings (test_map.convert); W02 isn't built yet")
+        return nil, "no converter"
+    end
+    local argv = {}
+    for i, a in ipairs(tm.convert) do argv[i] = a end
+    argv[#argv + 1] = self.map
+    argv[#argv + 1] = self.build_dir
+    local status = self.log_dir .. "/convert.status"
+    os.remove(status)
+    local pid, err = self.proc.spawn(argv, { dir = self.root, log = self.log_dir .. "/convert.log", status = status })
+    if not pid then self:fail(err) return nil, err end
+    self:log("convert: " .. table.concat(argv, " "))
+    self.job = { pid = pid, status = status, at = self.proc.now(), limit = tm.convert_seconds or 600 }
+    self.stage = "converting"
+    self:say("Test Map: converting into " .. self.build_dir)
+    return true
+end
+-- }}}
+
+-- {{{ the build's stamp: what decides whether the server starts again
+-- the converter's own <build>/server-stamp when it writes one (the parts
+-- the server reads), else a checksum of every file in the build
+function T:stamp()
+    local f = io.open(self.build_dir .. "/server-stamp", "r")
+    if f then
+        local s = f:read("*a")
+        f:close()
+        return "stamp:" .. s
+    end
+    local q = self.proc.quote
+    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f -print0 | sort -z | xargs -0 -r cksum | cksum")
+    local out = p and p:read("*a") or ""
+    if p then p:close() end
+    return "sum:" .. out:gsub("%s+$", "")
+end
+-- }}}
+
+-- {{{ T:step
+function T:step()
+    local stage, p, job = self.stage, self.proc, self.job
+    if stage == "idle" or stage == "saving" then return stage end
+    local tm = self.settings.test_map
+
+    if stage == "converting" then
+        if p.alive(job.pid) then
+            if p.now() - job.at > job.limit then
+                p.stop(job.pid, 5)
+                return self:fail(string.format("the converter took longer than %d s; its log: %s/convert.log",
+                    job.limit, self.log_dir))
+            end
+            return stage
+        end
+        local code = p.exit_code(job.status)
+        if code ~= 0 then
+            return self:fail(string.format("the converter failed%s; its log: %s/convert.log",
+                code and (" (code " .. code .. ")") or "", self.log_dir))
+        end
+        self:log("converted")
+        local how, why = self.keeper:begin(self.build_dir, self:stamp())
+        if not how then return self:fail(why) end
+        if how == "reused" then self:say("Test Map: reusing the server the editor started")
+        elseif how == "outside" then
+            self:say("Test Map: a server the editor didn't start is on " .. self.keeper.host .. ":"
+                .. self.keeper.login_port .. "; using it as it is")
+        else self:say("Test Map: starting AzerothCore") end
+        self.stage = "server"
+        return self:step()
+    end
+
+    if stage == "server" then
+        local st, why = self.keeper:step()
+        if not st then return self:fail(why) end
+        if st ~= "ready" then return stage end
+        if self.keeper.ready_after then
+            self:log(string.format("server ready after %.1f s", self.keeper.ready_after))
+            self.keeper.ready_after = nil
+        end
+        return self:launch(tm)
+    end
+
+    if stage == "playing" then
+        if p.alive(job.pid) then return stage end
+        local code = p.exit_code(job.status)
+        self:log("w client exited" .. (code and (" with code " .. code) or ""))
+        local r, why, kind = receipt.read(self.receipt_path, self.build_dir)
+        if r then return self:finish(r.reason, receipt.describe(r), r) end
+        if kind == "missing" then
+            -- the W client: 2 is an option it refused, 1 any other failure;
+            -- scripts/run failing before the client starts leaves none too
+            local what = code == 2 and "exit code 2: an option was refused" or
+                (code and ("exit code " .. code) or "no exit code")
+            return self:finish("crashed", string.format("Test Map: the W client crashed (%s, no receipt); its log: %s",
+                what, self.log_dir .. "/w-client.log"))
+        end
+        return self:finish("refused", "Test Map: the W client's receipt was refused: " .. why
+            .. " (" .. self.receipt_path .. ")")
+    end
+    return stage
+end
+-- }}}
+
+-- {{{ T:launch: the W client, straight into the map
+function T:launch(tm)
+    local p = self.proc
+    if not tm.w_client or not tm.w_client[1] then
+        return self:fail("no W client in the editor's settings (test_map.w_client)")
+    end
+    self.receipt_path = self.log_dir .. "/receipt.lua"
+    os.remove(self.receipt_path)            -- an old receipt never counts
+    local argv = {}
+    for i, a in ipairs(tm.w_client) do argv[i] = a end
+    local function add(...) for _, a in ipairs({ ... }) do argv[#argv + 1] = a end end
+    add("--test-map", self.build_dir, "--receipt", self.receipt_path)
+    local cx, cy
+    if self.opts.camera then cx, cy = self.opts.camera() end
+    if cx and cy then add("--camera", string.format("%.0f,%.0f", cx, cy)) end
+    add("--realm", self.keeper.host .. ":" .. self.keeper.login_port)
+    if tm.account then add("--account", tm.account) end
+    local env = {}
+    if tm.password then env.W_CLIENT_PASSWORD = tm.password end
+    local status = self.log_dir .. "/w-client.status"
+    os.remove(status)
+    -- scripts/run runs from the client's folder (the one above scripts/)
+    local prog = tm.w_client[1]
+    local dir = tm.w_client_dir
+        or (prog:find("/scripts/[^/]+$") and dirname(dirname(prog)))
+        or (prog:find("/") and dirname(prog)) or self.root
+    -- the command line is logged: it holds no password
+    self:log("w client: " .. table.concat(argv, " ") .. (tm.password and "  (password in its environment)" or ""))
+    local pid, why = p.spawn(argv, { dir = dir, log = self.log_dir .. "/w-client.log", status = status, env = env })
+    if not pid then return self:fail(why) end
+    self.job = { pid = pid, status = status, at = p.now() }
+    self.stage = "playing"
+    self:say("Test Map: the W client is open on the map")
+    return self.stage
+end
+-- }}}
+
+-- {{{ T:busy, T:wait, T:close
+function T:busy() return self.stage ~= "idle" end
+
+-- step until the run ends or `seconds` pass (the tests and command-line
+-- use; the editor's window steps once a frame instead)
+function T:wait(seconds, every)
+    local until_t = self.proc.now() + (seconds or 60)
+    while self:busy() and self.proc.now() < until_t do
+        self:step()
+        if self:busy() then self.proc.sleep(every or 0.02) end
+    end
+    return not self:busy()
+end
+
+function T:close()
+    if self.closed then return end
+    self.closed = true
+    if self.job and self.job.pid and self.proc.alive(self.job.pid) then
+        self.proc.stop(self.job.pid, 5)
+        self:log("closed while " .. self.stage .. ": stopped it")
+    end
+    self.job, self.stage = nil, "idle"
+    if self.keeper then
+        local n = self.keeper:stop()
+        if n > 0 then self:log("editor closed: stopped the server it started") end
+    end
+end
+-- }}}
+
+return test_map

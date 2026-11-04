@@ -98,3 +98,14 @@ not into new issues.
 - `docs/wow-client-bridge.md`, `docs/datapath-wc3-map-into-wow-client.md`
 - `docs/archive/azerothcore-2026-01-07/data-conversion-pipeline.md`, `custom-ability-bridge.md`
 - `docs/formats/w3e-terrain.md`, `docs/formats/unitsdoo.md`
+
+## Notes
+
+- *2026-11-04:* the editor's Test Map (issue 913) calls the converter as
+  `<convert...> <map.w3x> <build folder>`, the command named in the
+  editor's settings (`test_map.convert`), and takes exit code 0 as
+  success. The converter owns the build folder's contents. It may write
+  `<build folder>/server-stamp`, a line naming what the server reads, so
+  the editor starts the server again only when that changes. The server
+  programs are given the build folder as `{build}` in their commands and
+  as `WETE_TEST_MAP_BUILD`; installing it into the server is W02f's.
