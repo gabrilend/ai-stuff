@@ -24,6 +24,13 @@ Loaded assets are kept in a least-recently-used cache with a byte limit
     local bytes = L:read("Sound\\Music\\mp3Music\\Comradeship.mp3")  -- the file, not decoded
     L:exists(path)   L:preload({ ... })   L:stats()   L:clear()   L:close()
 
+For hot-reload (assets/hotreload.lua, issue 606), which tells the loader
+when a pack's file changed and asks it to read one asset again:
+
+    L:reload(path)                  -- read again; a broken new file keeps the old value
+    L:file_changed(dir, rel)        -- a pack's file changed: its key, and whether to reload it
+    L:wants(path)   L:reindex()   loader.key_of(path)
+
 Paths match without regard to case or slash direction, as the game's do:
 "Textures\Footman.blp" finds a pack's textures/footman.blp.
 
@@ -71,6 +78,7 @@ end
 local function key_of(path)
     return (path:gsub("\\", "/"):gsub("^/+", ""):lower())
 end
+loader.key_of = key_of
 
 -- Every file in a pack's folder, by key: its real path.
 local function index_pack(dir)
@@ -240,6 +248,79 @@ function L:preload(paths)
         if v ~= nil then ok = ok + 1 else problems[#problems + 1] = msg end
     end
     return ok, problems
+end
+-- }}}
+
+-- {{{ function L:reload
+-- Reads the asset again from wherever it is now found, as get() would.
+-- When that fails and the old value was loaded, the old value stays in
+-- the cache (a broken save in an editor doesn't take a texture away).
+-- Returns the new value and its source; or nil, the message, and true
+-- when the old value was kept.
+function L:reload(path)
+    if type(path) ~= "string" or path == "" then
+        return nil, "loader: no path given", false
+    end
+    local key = key_of(path)
+    local old, old_bytes = self.cache:peek(key)
+    self.cache:remove(key)
+    self.missing[key], self.failed[key] = nil, nil
+    local value, source = self:get(path)
+    if value ~= nil then
+        return value, source
+    end
+    if old then
+        self.cache:put(key, old, old_bytes)
+        return nil, source, true
+    end
+    return nil, source, false
+end
+-- }}}
+
+-- {{{ function L:wants
+-- True when the loader has the asset loaded, or has looked for it and
+-- not found it: either way a new file under that path is worth reading.
+function L:wants(path)
+    local key = key_of(path)
+    return self.cache:has(key) or self.missing[key] ~= nil
+end
+-- }}}
+
+-- {{{ function L:file_changed
+-- A file in a pack's folder was written, added or removed: DIR is the
+-- pack's folder as the loader holds it (pack.dir), REL the file's path
+-- within it. Keeps the pack's file list right and gives the asset's key,
+-- and whether the change matters: the loader wants that asset and no pack
+-- before this one has it (a pack lower down is hidden by the one above).
+function L:file_changed(dir, rel)
+    local key = key_of(rel)
+    local before = false
+    for _, pack in ipairs(self.packs) do
+        if pack.dir == dir then
+            local real = dir .. "/" .. rel
+            local f = io.open(real, "rb")
+            if f then
+                f:close()
+                if not pack.index[key] then pack.files = pack.files + 1 end
+                pack.index[key] = real
+            elseif pack.index[key] == real then
+                pack.index[key] = nil
+                pack.files = pack.files - 1
+            end
+            return key, (not before) and self:wants(key)
+        end
+        if pack.index[key] then before = true end
+    end
+    return key, false
+end
+-- }}}
+
+-- {{{ function L:reindex
+-- Reads every pack's file list again; the cache is kept.
+function L:reindex()
+    for _, pack in ipairs(self.packs) do
+        pack.index, pack.files = index_pack(pack.dir)
+    end
 end
 -- }}}
 

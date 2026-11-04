@@ -12,6 +12,7 @@ kept.
     c:put(key, value, bytes)
     local v = c:get(key)              -- nil when absent; marks it just used
     c:has(key)                        -- without marking it used
+    local v, bytes = c:peek(key)      -- the value and its charge, not marked or counted
     c:stats()                         -- { count, bytes, limit, hits, misses, evictions }
     c:clear()
 ]]
@@ -81,7 +82,7 @@ function C:put(key, value, bytes)
 end
 -- }}}
 
--- {{{ function C:get / C:has
+-- {{{ function C:get / C:has / C:peek
 function C:get(key)
     local e = self.entries[key]
     if not e then
@@ -96,6 +97,14 @@ end
 
 function C:has(key)
     return self.entries[key] ~= nil
+end
+
+-- The value and what it was charged, without marking it used or counting
+-- it (hot-reload keeps the old value aside while it reads the new one).
+function C:peek(key)
+    local e = self.entries[key]
+    if not e then return nil end
+    return e.value, e.bytes
 end
 -- }}}
 

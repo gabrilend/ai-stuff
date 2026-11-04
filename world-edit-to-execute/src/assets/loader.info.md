@@ -16,6 +16,11 @@ limit (`cache.lua`).
 | `L:stats()` | — | `{loaded_count, loads, memory_bytes, memory_mb, limit_bytes, cache_hits, cache_misses, evictions, missing, failed, packs}` |
 | `L:clear()` | — | empties the cache, forgets misses, re-reads the packs' file lists |
 | `L:close()` | — | closes the map it opened |
+| `L:reload(path)` | a path | reads it again as `get` would; the new value and its source, or nil, the message and `true` when the old value was kept in the cache (issue 606) |
+| `L:wants(path)` | a path | true when it is loaded, or was looked for and not found |
+| `L:file_changed(dir, rel)` | a pack's folder (`pack.dir`) and a file within it that was written, added or removed | the asset's key, and whether the change matters (wanted, and no pack above has it); keeps that pack's file list right |
+| `L:reindex()` | — | reads every pack's file list again; the cache is kept |
+| `loader.key_of(path)` | a path | its key: lower case, forward slashes |
 
 Sources are `"pack:NAME"`, `"map"`, or the install's archive as
 `gamedata/chain.lua` names it. Paths match without regard to case or slash
