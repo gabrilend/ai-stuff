@@ -21,6 +21,9 @@
 --   - "ollama serve"   → delegate to scripts/start-llamacpp-server.sh
 -- }}}
 
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
+
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
     if provided_dir then
@@ -30,7 +33,12 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path in
+-- setup_dir_path (libs/project-dir.lua, Issue 10-076). It used to be the
+-- first word, even when another program loaded this one.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil))
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local inference_config = require("inference-server-config")
 
@@ -54,8 +62,8 @@ end
 -- Returning exit code 0 from the script means the server is up; we don't
 -- need to wait again here.
 local function start_llamacpp_service()
-    print("Starting llama.cpp embedding server via scripts/start-llamacpp-server.sh...")
-    local cmd = string.format('"%s/scripts/start-llamacpp-server.sh" "%s"', DIR, DIR)
+    require("output").print("Starting llama.cpp embedding server via scripts/start-llamacpp-server.sh...")
+    local cmd = string.format('"%s/scripts/start-llamacpp-server.sh" --dir "%s"', DIR, DIR)
     local result = os.execute(cmd)
     return result == 0 or result == true
 end
@@ -68,24 +76,24 @@ end
 -- call site in the same atomic batch as the require rename.
 function M.ensure_ready()
     local endpoint = inference_config.build_host_url()
-    print("=== Inference Server Manager ===")
-    print("Target endpoint: " .. endpoint)
-    print("")
+    require("output").print("=== Inference Server Manager ===")
+    require("output").print("Target endpoint: " .. endpoint)
+    require("output").print("")
 
-    print("Checking if the inference server is running...")
+    require("output").print("Checking if the inference server is running...")
     if is_server_running(endpoint) then
-        print("✓ Server is already running at " .. endpoint)
+        require("output").print("✓ Server is already running at " .. endpoint)
         return endpoint
     end
 
-    print("✗ Server not running — attempting to start it")
+    require("output").print("✗ Server not running — attempting to start it")
     if start_llamacpp_service() and is_server_running(endpoint) then
-        print("✓ Server is now ready at " .. endpoint)
+        require("output").print("✓ Server is now ready at " .. endpoint)
         return endpoint
     end
 
-    print("✗ Failed to start the inference server")
-    print("  HINT: run ./scripts/start-llamacpp-server.sh manually for verbose output")
+    require("output").print("✗ Failed to start the inference server")
+    require("output").print("  HINT: run ./scripts/start-llamacpp-server.sh manually for verbose output")
     return nil
 end
 -- }}}
@@ -97,9 +105,9 @@ end
 -- that's the consumer's job — but the substring check catches the
 -- obvious "server started but doesn't actually serve embeddings" failure.
 function M.test_embedding(endpoint, model)
-    print("Testing embedding generation...")
+    require("output").print("Testing embedding generation...")
 
-    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" --dir "%s"', DIR, DIR))
     local result_path = DIR .. "/tmp/shared-memory/embedding_test.json"
 
     local test_cmd = string.format(
@@ -111,18 +119,18 @@ function M.test_embedding(endpoint, model)
 
     local result_file = io.open(result_path, "r")
     if not result_file then
-        print("✗ Failed to read test response")
+        require("output").print("✗ Failed to read test response")
         return false
     end
     local content = result_file:read("*a")
     result_file:close()
 
     if content:find('"data"', 1, true) and content:find('"embedding"', 1, true) then
-        print("✓ Embedding generation test passed")
+        require("output").print("✓ Embedding generation test passed")
         return true
     end
-    print("✗ Embedding generation test failed")
-    print("Response: " .. content)
+    require("output").print("✗ Embedding generation test failed")
+    require("output").print("Response: " .. content)
     return false
 end
 -- }}}
@@ -131,9 +139,9 @@ end
 -- Interactive entry point for running the manager standalone.
 function M.main(interactive_mode)
     if interactive_mode then
-        print("=== Embedding Server Manager (interactive) ===")
-        print("1. Ensure server is running, then test (default config)")
-        print("2. Test embedding generation only")
+        require("output").print("=== Embedding Server Manager (interactive) ===")
+        require("output").print("1. Ensure server is running, then test (default config)")
+        require("output").print("2. Test embedding generation only")
         io.write("Select option (1-2): ")
         local choice = io.read()
 
@@ -146,7 +154,7 @@ function M.main(interactive_mode)
             local endpoint = inference_config.build_host_url()
             M.test_embedding(endpoint, inference_config.get_selected_model())
         else
-            print("Invalid choice")
+            require("output").print("Invalid choice")
         end
     else
         local endpoint = M.ensure_ready()

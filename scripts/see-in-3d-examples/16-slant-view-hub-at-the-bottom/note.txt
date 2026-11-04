@@ -1,0 +1,5 @@
+title: The slant view, the hub sunk at the bottom of the frame
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/16-slant-view-hub-at-the-bottom/picture.png
+stage: 25
+---
+The slanted pictures turned the world into a ball, and every view agrees: a dark sphere with figures on its crown and the console stuck to its front like a coin. The green rim of seat 4 shows in the right view as a separate bar floating beside the console.

@@ -1,7 +1,7 @@
 # zip-writer.lua
 
 Packs a file or folder into a zip of our own (my-libs issue 801; built for
-rao-chat issue 216e, shared with rmail #405), replacing the zip
+rao-chat issue 216e, shared with rmail #309), replacing the zip
 program. It writes only what zip-reader accepts. Runs on LuaJIT and Lua
 5.3/5.4; lists trees with GNU `find -printf` (not macOS or BSD).
 

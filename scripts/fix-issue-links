@@ -1,0 +1,393 @@
+#!/usr/bin/env luajit
+-- fix-issue-links
+--
+-- Makes two issue files agree about a dependency when only one of them wrote
+-- it down.
+--
+-- How it works, in general terms: it asks validate-issues which links are
+-- one-sided ("A says it blocks B, but B does not name A", or the reverse),
+-- and for each one writes the missing half into the file that lacks it. It
+-- takes the union rather than picking a winner -- nobody writes down a
+-- dependency that is not there, so a link asserted on either side counts as
+-- evidence, and silence on the other side does not count against it. (The same
+-- reasoning as the --fix of enheim-tome's validate-issue-graph, which only
+-- understood one way of writing a link.)
+--
+-- WHERE IT WRITES (in order of preference)
+--   1. the file already has a field for that direction  -> the number is added
+--      to the end of it
+--   2. the file has a field for the other direction     -> a new field is
+--      written right after it, in the same shape (table row, bold label,
+--      bullet, or heading section)
+--   3. the file has no link field at all                -> a new heading
+--      section is added at the end of the file
+--
+-- Why the shape-matching matters: validate-issues reads a "## Dependencies"
+-- heading as running until the next heading. A "- **Blocks**:" bullet placed
+-- inside that body would be read as more dependencies, the opposite of what it
+-- says. So beside a heading section the new field is a heading of its own, and
+-- beside an inline field it is an inline line, never the other way round.
+--
+-- Usage:
+--   fix-issue-links [DIR]              preview: print every edit, change nothing
+--   fix-issue-links [DIR] --write      make the edits
+--   fix-issue-links [DIR] --completed  also edit completed issues (off by
+--                                      default: completed issues are history)
+--
+-- Exit status: 0 nothing to fix or all fixed, 1 edits previewed but not made,
+-- 2 bad arguments or the checker could not run.
+
+-- {{{ local DIR
+-- The project fixed when none is given; override with the first argument.
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and validate-issues live, independent of DIR.
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- }}}
+
+-- {{{ local direction_labels
+-- The label a new field gets, by direction:
+--   before  the named issues wait on this one   ("Blocks")
+--   after   this issue waits on the named ones  ("Blocked by")
+-- and the labels that already count as a field of that direction (lower case,
+-- matching validate-issues' own table).
+local direction_labels = {
+    before = { new = "Blocks",     existing = { "blocks" } },
+    after  = { new = "Blocked by", existing = { "blocked by", "depends on", "dependencies" } },
+}
+local label_direction = {
+    ["blocks"] = "before",
+    ["blocked by"] = "after",
+    ["depends on"] = "after",
+    ["dependencies"] = "after",
+}
+-- }}}
+
+-- {{{ local function read_lines
+-- A file as a list of lines (string each), without their newline characters.
+local function read_lines(path)
+    local f = assert(io.open(path, "r"))
+    local content = f:read("*a")
+    f:close()
+    local lines = {}
+    for line in (content .. "\n"):gmatch("([^\n]*)\n") do
+        lines[#lines + 1] = line
+    end
+    -- the split leaves one empty entry for the file's final newline
+    if lines[#lines] == "" then
+        lines[#lines] = nil
+    end
+    return lines
+end
+-- }}}
+
+-- {{{ local function write_lines
+local function write_lines(path, lines)
+    local f = assert(io.open(path, "w"))
+    f:write(table.concat(lines, "\n"), "\n")
+    f:close()
+end
+-- }}}
+
+-- {{{ local inline_shapes
+-- The three ways a field is written on one line. Each entry: the Lua pattern
+-- that recognises it (given a lower-case label), and how to write a new line of
+-- that shape with another label and value.
+local inline_shapes = {
+    {
+        name = "table",
+        pattern = function(label) return "^%s*|%s*" .. label .. "%s*|" end,
+        make = function(label, value) return "| " .. label .. " | " .. value .. " |" end,
+    },
+    {
+        name = "bold",
+        pattern = function(label) return "^%s*%*%*" .. label .. ":?%*%*:?" end,
+        make = function(label, value) return "**" .. label .. "**: " .. value end,
+    },
+    {
+        name = "bullet",
+        pattern = function(label) return "^%s*[-*]%s+%*%*" .. label .. ":?%*%*:?" end,
+        make = function(label, value) return "- **" .. label .. "**: " .. value end,
+    },
+}
+-- }}}
+
+-- {{{ local function find_fields
+-- Every link field in a file, in the same reading validate-issues uses.
+-- Returns a list of { label (string), direction ("before"|"after"),
+-- kind ("heading"|"table"|"bold"|"bullet"), first (int), last (int),
+-- level (string of #'s, heading only) }, where first..last are the line numbers
+-- the field occupies (a heading's body runs to the line before the next heading).
+local function find_fields(lines)
+    local fields, open = {}, nil
+    for i, line in ipairs(lines) do
+        local is_heading = line:match("^#") ~= nil
+        if open and not is_heading then
+            open.last = i
+        else
+            open = nil
+            if is_heading then
+                local level, text = line:match("^(#+)%s*(.-)%s*:?%s*$")
+                local label = text and text:lower()
+                -- a link heading opens a body that runs to the next heading
+                if label and label_direction[label] then
+                    open = { label = label, direction = label_direction[label],
+                             kind = "heading", first = i, last = i, level = level }
+                    fields[#fields + 1] = open
+                end
+            else
+                local lower = line:lower()
+                for label, direction in pairs(label_direction) do
+                    for _, shape in ipairs(inline_shapes) do
+                        if lower:match(shape.pattern(label)) then
+                            fields[#fields + 1] = { label = label, direction = direction,
+                                                    kind = shape.name, first = i, last = i }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return fields
+end
+-- }}}
+
+-- {{{ local function last_content_line
+-- The last non-blank line of a heading section's body (or the heading itself
+-- when the body is empty), so new lines go before the trailing blank lines.
+local function last_content_line(lines, field)
+    local i = field.last
+    while i > field.first and lines[i]:match("^%s*$") do
+        i = i - 1
+    end
+    return i
+end
+-- }}}
+
+-- {{{ local function append_to_inline
+-- Adds ids to the end of a one-line field. A table row keeps its closing bar;
+-- a field whose value is an em dash ("none") is replaced rather than appended to.
+local function append_to_inline(line, kind, ids)
+    local addition = table.concat(ids, ", ")
+    local appenders = {
+        table = function()
+            local body = line:gsub("%s*|%s*$", "")
+            if body:match("|%s*—%s*$") then
+                return (body:gsub("—%s*$", addition)) .. " |"
+            end
+            return body .. ", " .. addition .. " |"
+        end,
+        bold = function()
+            local trimmed = line:gsub("%s+$", "")
+            return trimmed .. ", " .. addition
+        end,
+    }
+    appenders.bullet = appenders.bold
+    return appenders[kind]()
+end
+-- }}}
+
+-- {{{ local function plan_edit
+-- Works out the edit that adds `ids` (list of strings) in `direction` to a file.
+-- Returns { describe (string), apply (function(lines) -> lines) }.
+local function plan_edit(lines, direction, ids)
+    local fields = find_fields(lines)
+    local wanted = direction_labels[direction]
+    local same, other = nil, nil
+    for _, field in ipairs(fields) do
+        if field.direction == direction then
+            same = same or field
+        else
+            other = other or field
+        end
+    end
+    local value = table.concat(ids, ", ")
+
+    -- 1. a field for this direction exists: add to it
+    if same then
+        if same.kind == "heading" then
+            local at = last_content_line(lines, same)
+            return {
+                describe = "add \"- " .. value .. "\" to the " .. same.label
+                    .. " section at line " .. same.first,
+                apply = function(l)
+                    table.insert(l, at + 1, "- " .. value)
+                    return l
+                end,
+            }
+        end
+        return {
+            describe = "append " .. value .. " to the " .. same.label .. " field at line " .. same.first,
+            apply = function(l)
+                l[same.first] = append_to_inline(l[same.first], same.kind, ids)
+                return l
+            end,
+        }
+    end
+
+    -- 2. a field for the other direction exists: a sibling of the same shape
+    if other then
+        if other.kind == "heading" then
+            local at = last_content_line(lines, other)
+            local block = { "", other.level .. " " .. wanted.new, "", "- " .. value }
+            return {
+                describe = "new \"" .. other.level .. " " .. wanted.new .. "\" section after the "
+                    .. other.label .. " section at line " .. other.first .. ": " .. value,
+                apply = function(l)
+                    for k = #block, 1, -1 do
+                        table.insert(l, at + 1, block[k])
+                    end
+                    return l
+                end,
+            }
+        end
+        local new_line
+        for _, shape in ipairs(inline_shapes) do
+            if shape.name == other.kind then
+                new_line = shape.make(wanted.new, value)
+            end
+        end
+        -- keep the neighbour's indentation, so a field inside a list stays in it
+        new_line = lines[other.first]:match("^%s*") .. new_line
+        -- Two bold-label lines back to back are one paragraph in Markdown and
+        -- render run together, so a bold sibling gets a blank line before it.
+        -- Table rows and bullets join their neighbours correctly as they are.
+        local block = (other.kind == "bold") and { "", new_line } or { new_line }
+        return {
+            describe = "new line after the " .. other.label .. " field at line "
+                .. other.first .. ": " .. new_line:gsub("^%s+", ""),
+            apply = function(l)
+                for k = #block, 1, -1 do
+                    table.insert(l, other.first + 1, block[k])
+                end
+                return l
+            end,
+        }
+    end
+
+    -- 3. no link field at all: a section at the end of the file
+    return {
+        describe = "new \"## " .. wanted.new .. "\" section at the end: " .. value,
+        apply = function(l)
+            if l[#l] and not l[#l]:match("^%s*$") then
+                l[#l + 1] = ""
+            end
+            l[#l + 1] = "## " .. wanted.new
+            l[#l + 1] = ""
+            l[#l + 1] = "- " .. value
+            return l
+        end,
+    }
+end
+-- }}}
+
+-- {{{ local finding_shapes
+-- The two one-sided-link findings validate-issues prints, and which direction
+-- the missing half points from the reporting file's point of view.
+local finding_shapes = {
+    { pattern = "^(.-): does not list (%S+) under Blocks, but",      direction = "before" },
+    { pattern = "^(.-): does not name (%S+) as a blocker, but",      direction = "after" },
+}
+-- }}}
+
+-- {{{ local function collect_findings
+-- Runs validate-issues and groups the one-sided links by file and direction.
+-- Returns a list of { rel (string), direction (string), ids (list of string) }
+-- in a stable order.
+local function collect_findings(project_dir)
+    local command = string.format("%q %q", SCRIPTS_DIR .. "/validate-issues", project_dir)
+    local pipe = io.popen(command)
+    if not pipe then
+        io.stderr:write("could not run validate-issues\n")
+        os.exit(2)
+    end
+    local groups, order = {}, {}
+    for line in pipe:lines() do
+        for _, shape in ipairs(finding_shapes) do
+            local rel, id = line:match(shape.pattern)
+            if rel then
+                local key = rel .. "\0" .. shape.direction
+                if not groups[key] then
+                    groups[key] = { rel = rel, direction = shape.direction, ids = {} }
+                    order[#order + 1] = key
+                end
+                table.insert(groups[key].ids, id)
+            end
+        end
+    end
+    pipe:close()
+    table.sort(order)
+    local result = {}
+    for _, key in ipairs(order) do
+        result[#result + 1] = groups[key]
+    end
+    return result
+end
+-- }}}
+
+-- {{{ local function parse_args
+local function parse_args(args)
+    local options = { project_dir = DIR, write = false, completed = false }
+    local handlers = {
+        ["--write"] = function() options.write = true end,
+        ["--completed"] = function() options.completed = true end,
+        ["-h"] = function()
+            print("usage: fix-issue-links [DIR] [--write] [--completed]")
+            os.exit(0)
+        end,
+    }
+    handlers["--help"] = handlers["-h"]
+    for _, a in ipairs(args) do
+        local handler = handlers[a]
+        -- a known flag sets its option
+        if handler then
+            handler()
+        -- a bare word is the project directory
+        elseif not a:match("^%-") then
+            options.project_dir = a
+        -- an unknown flag is a mistake, not something to skip
+        else
+            io.stderr:write("unknown option: " .. a .. "\n")
+            os.exit(2)
+        end
+    end
+    return options
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    local options = parse_args(arg)
+    local groups = collect_findings(options.project_dir)
+    local planned, skipped = 0, 0
+    for _, group in ipairs(groups) do
+        -- completed issues are history; only touched when asked
+        if group.rel:match("^completed/") and not options.completed then
+            skipped = skipped + 1
+        else
+            local path = options.project_dir .. "/issues/" .. group.rel
+            local lines = read_lines(path)
+            local edit = plan_edit(lines, group.direction, group.ids)
+            print(group.rel .. ": " .. edit.describe)
+            planned = planned + 1
+            if options.write then
+                write_lines(path, edit.apply(lines))
+            end
+        end
+    end
+    if skipped > 0 then
+        print(skipped .. " completed issue(s) left alone (pass --completed to include them)")
+    end
+    if planned == 0 then
+        print("no one-sided links to fix")
+        os.exit(0)
+    end
+    if not options.write then
+        print(planned .. " edit(s) previewed; nothing written (pass --write to make them)")
+        os.exit(1)
+    end
+    print(planned .. " file edit(s) made; run validate-issues to confirm")
+    os.exit(0)
+end
+-- }}}
+
+main()

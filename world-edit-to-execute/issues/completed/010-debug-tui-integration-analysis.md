@@ -522,7 +522,7 @@ fi
 - [x] ~~Created minimal reproduction test~~ Not needed: the bash menu the
       bug lived in was replaced by the Lua rewrite below, so there is no
       buggy renderer left to reproduce. The reproduction scripts that did
-      exist moved to `scripts/debug/` (commit 0434c89d6).
+      exist moved to `scripts/debug/` (commit 3c9ba3c9e).
 - [x] Applied fix to menu.sh (superseded by Lua rewrite)
 - [x] ~~Verified fix in test scripts~~ Superseded by the Lua rewrite, which
       was verified through issue-splitter.sh.
