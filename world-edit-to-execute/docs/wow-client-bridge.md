@@ -471,7 +471,7 @@ issue that holds it can be called complete.
 - `docs/postmortem-azerothcore-integration.md` — why the January design was archived
 - `docs/archive/azerothcore-2026-01-07/data-conversion-pipeline.md` — earlier WC3 → AzerothCore conversion research (terrain, units, items, doodads, triggers). Read with the correction noted at its top
 - `docs/wc3-engine-architecture.md` — the engine Phase W connects to
-- `issues/completed/601-asset-loader-resolution.md`, `issues/602-wireframe-fallback-renderer.md` — the asset lookup chain W03 extends
+- `issues/completed/601-asset-loader-resolution.md`, `issues/completed/602-wireframe-fallback-renderer.md` — the asset lookup chain W03 extends
 - `/mnt/mtwo/games/azeroth-core/custom-client/docs/003-asset-formats.md` — WoW file formats as the custom-client project understands them
 
 ## Revision history
