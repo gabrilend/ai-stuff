@@ -22,10 +22,10 @@ luajit src/025-the-words-the-machine-reads.lua --chars 休語時川
 | `M.style(name)` | One style, or an error naming the ones there are. |
 | `M.refusals(style_name)` | The negative prompt, with whatever this style may lift removed. |
 | `M.token_estimate(text)` |  |
-| `M.positive(scene, settings, style_name)` | The scene, as the sentence describing it. |
+| `M.positive(scene, settings, style_name, part)` | The scene, as the sentence describing it. |
 | `M.prompts(record, store, settings, options)` | One record, all the way to the two sentences. Or nil and a reason. |
 
-### `M.positive(scene, settings, style_name)`
+### `M.positive(scene, settings, style_name, part)`
 
 The scene, as the sentence describing it.
 
@@ -36,6 +36,10 @@ WHY RANKS AND NOT POSITIONS. The first attempt kept the head and the tail and tr
 A colour palette is expendable. An etymology is not. Saying so explicitly is the only way the sentence shortens in the right direction.
 
   100  the first subject, weighted    92  the second subject    88  the world, in its particular version    80  the photographic tail    72  the third subject    60  the light    50  the objects along the strokes, heaviest first    40  the ground the sound-half became    30  the palette    20  the note that this is an abstract word
+
+`part` picks which clauses a route's sentence is made of (`416`). Every clause is one of four kinds -- a subject, an object along a stroke, the world, or the style -- and each part is a set of kinds. One sentence-maker for all of them, so the routes cannot drift into describing different scenes, and the style is shared because every part includes it.
+
+Two more kinds belong only to the inside route (`416a`): the world's *material*, which every stroke is built of, and its *cover*, which hides where that material would carry on past the strokes.
 
 ## Inside
 
@@ -48,4 +52,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `027-test-the-meaning`, `030-make-one-kanji`, `044-run-the-pictures`.
+Used by `027-test-the-meaning`, `030-make-one-kanji`, `035-test-the-machine`, `044-run-the-pictures`.

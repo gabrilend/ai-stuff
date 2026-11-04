@@ -7,6 +7,48 @@
 - **Status**: In progress
 
 ## Current Behavior
+**2026-10-25, found by widening the --help test to src/ (Issue 10-048).**
+Renamed `-done` for one commit, then removed:
+- `src/test-report-generator.lua`, `src/test-similarity-calculator.lua`,
+  `src/test-validation-engine.lua`: tests of the validation suite retired on
+  2026-10-23; they load modules that no longer exist, so they could not run,
+  and nothing ran them.
+- `libs/vulkan-compute/test-batch-full.lua`: a hand-run test of the GPU
+  walks that hands the library a Lua table of numbers; the library takes a
+  half-precision buffer since the storage change, so it could not run.
+  `libs/vk-diversity-walk-length.test.lua` and Stage 8 itself cover it.
+- Renamed, not retired: `src/test-diversity-chaining.lua` became
+  `src/diversity-chaining.test.lua`, so `scripts/run-tests` runs it (it
+  passes; its module is kept on purpose, below). It had sat outside the
+  runner's naming pattern since the runner was written.
+
+**2026-10-23, the refactoring pass (Issue 10-048 step 2; owner's yes to
+retiring after a check by hand).** Renamed `-done` for one commit, then
+removed:
+- modules: `libs/triangular-similarity-access.lua`,
+  `src/triangular-similarity-matrix.lua`, `src/regenerate-clean-site.lua`,
+  `src/html-generator/golden-poem-indicators.lua`,
+  `src/html-generator/embedding-list-generator.lua` (and its test), and the
+  validation suite (`run-validation`, `run-validation-with-reports`,
+  `validation-engine`, `report-generator`, `similarity-calculator`) with
+  `config.similarity`, which only the calculator read;
+- scripts: `compile` (belongs to the words repository and needs folder
+  settings nothing here gives it), `generate-diversity-cache.sh` (checked a
+  model folder that no longer exists), `run-fediverse` and `run-messages`
+  (the update stage does that extraction), `migrate-to-triangular-files.lua`
+  (a one-time migration, done), `generate-similarity-rankings-cache` (stage 7
+  writes that cache on the GPU), `validate-diversity-cache` (a binary cache
+  format the build no longer uses).
+- Kept on purpose: `src/hubness-experiment.lua` (the measurement tool for the
+  open picture-embedding questions, Issue 9-013), `src/diversity-chaining.lua`
+  (named as the reference algorithm by Issues 13-004 and 14-001),
+  `src/html-generator/url-manager.lua` (demo 3 uses it until 10-056 rewrites
+  the demo), and the hand-run tools (`scrape-boost-content.lua`,
+  `quarantine-stale-output`, `check-inline-lua-quotes`, `test-effil-simple`,
+  the measuring scripts).
+- `scripts/audit-orphan-files` now reports those 3 modules and nothing else.
+
+**Earlier:**
 
 Modules left behind by superseded implementations still sit in `src/`, only kept
 "alive" by their own tests. A test that exercises dead code stays green forever and
@@ -59,6 +101,64 @@ FILE granularity and FUNCTION granularity, and they differ. Last time a live fil
 was deleted for containing dead-looking code. Pruning these means removing
 functions, not the file.
 
+### Dead configuration (retired 2026-10-04)
+
+Liveness has a third granularity beside file and function: the single
+setting. A setting nothing reads still looks like a control, so someone edits
+it and nothing changes. `scripts/audit-config-keys` now finds these: it loads
+`config.lua`, then searches every tracked program for a read of each section
+and each setting, following the indirect routes this code uses (a local alias,
+a quoted name, a loop over a whole section, a table indexed by a list of names
+elsewhere in `config.lua`) and ignoring comment lines. Its first run found six;
+each was confirmed by hand and removed, with a short note left in its place
+saying what to use instead:
+
+- `randomization.seed` -- `run.sh` stopped reading it under 10-065; the seed is
+  `run.sh --seed N`.
+- `extraction.enable_fediverse`, `enable_messages`, `enable_notes`,
+  `enable_bluesky` -- never read; a source is switched off with `enabled =
+  false` on its entry in `sources`.
+- `word_cloud.enabled` -- never read; the word cloud is built by selecting
+  stage 10.
+
+A seventh, `external_files`, was an empty list read only by a fallback in
+`libs/external-sync.lua`: when the sources reader returned no sync entries, the
+module read the empty list instead and got the same answer. Worse, the sources
+reader was loaded inside a pcall, so if it failed to load the module silently
+synced nothing. The list, the fallback, and the module's private config loader
+(used only by the fallback) are gone; the sources reader is required outright,
+so a broken one is an error. `scripts/notes-tooling-exclusion.test.sh` (which
+drives the real sync) passes, and `scripts/sync-external-files --list` still
+shows all nine configured syncs.
+
+`docs/config-reference.md` had drifted the same way (written once in April; a
+removed section, a renamed one, seven missing). Its section reference is now
+generated from `config.lua`'s own comments by `scripts/generate-config-reference`
+(`--check` reports drift without writing). The doc's hand-written parts were
+corrected and gained a table of removed settings.
+
+### The broader orphan audit (step 3), run 2026-10-04
+
+`scripts/audit-orphan-files` does step 3 as a rerunnable tool. It starts from
+every script (`scripts/*`, the root `.sh` files) and every program that is not
+a module, follows every place a file is named outside whole-line comments --
+which includes the Lua inside shell scripts, the trap this issue warns about --
+and reports the modules in `src/` and top-level `libs/` that nothing reaches.
+No module is loaded by a name built at run time, so nothing is invisible to it.
+
+It reported 13 modules, each checked by hand. Each needs
+the owner's decision:
+
+| Group | Modules | What they are |
+|---|---|---|
+| already marked dead | `src/triangular-similarity-matrix.lua` | the file this issue verified on 2026-08-08 |
+| hand-run tools living in `src/` | `src/hubness-experiment.lua` (Issue 9-013 measurement tool), `src/regenerate-clean-site.lua` (a one-off fix for PDF-corrupted poems) | programs a person would run directly; nothing calls them |
+| removed 2026-10-04 | `src/centroid-html-generator.lua` | the mood pages planned in 8-008 Phase C, never wired in; owner: "that function is fulfilled by the word-cloud" |
+| removed 2026-10-04 | `libs/pipeline-validator.lua`, and the scripts `scripts/generate-html-parallel` and `scripts/generate-html-pthreads` with the C library `libs/html-threaded/` | the two stand-alone HTML generators (owner's decision) and the pre-start check only the first of them loaded; run.sh's pre-flight gate (10-069) and each stage's own input checks do that job now |
+| the validation suite | `src/run-validation.lua`, `src/run-validation-with-reports.lua`, `src/validation-engine.lua`, `src/report-generator.lua`, `src/similarity-calculator.lua` | two command-line runners and the three modules only they use (10-048h); `config.similarity` is read only by the calculator, so it lives or dies with this group |
+| what is left of `src/html-generator/` | `golden-poem-indicators.lua` (nothing), `embedding-list-generator.lua` (its test only), `url-manager.lua` (demo 3 only) | 4 of the 16 files 10-048 describes remain; the rest went with the golden-prioritization template system. Demo 3 must be rewritten first (10-056) |
+| a reader for triangular similarity files | `libs/triangular-similarity-access.lua` | may be wanted by 8-034 (triangular individual files only), which is open |
+
 **Reachable but off the pipeline (classify before pruning, not dead):**
 - `src/model-comparison.lua` -- referenced by `similarity-engine.lua` and
   `scripts/start-llamacpp-server.sh`. A diagnostic tool, not pipeline code.
@@ -68,7 +168,7 @@ functions, not the file.
 ## Cautionary context (why this issue is careful, not aggressive)
 
 This cleanup runs right after a near-identical mistake in the opposite direction:
-the GPU-only migration (7c48268e) deleted `src/similarity-engine.lua` as "CPU
+the GPU-only migration (95546173) deleted `src/similarity-engine.lua` as "CPU
 similarity code", but that module was ALSO the embedding generator, so the next full
 regeneration failed at stage 6. It was restored (separate commit). Lesson: "dead
 code" must be proven unreferenced by EVERY entry point -- `.lua` requires AND the

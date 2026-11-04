@@ -10,7 +10,15 @@
 ## Current Behavior
 
 Built. `validate-issues` checks any project's issue files and prints one line
-per finding, then the next free id per phase. Tested by
+per finding, then the next free id per phase. Since 2026-10-20 it also reads
+links to other projects' issues ("wow-chat-2026 916d") and looks them up in
+that project, where before it read every number as this project's and
+reported such links as missing files. Checked against custom-client (its six
+wow-chat-2026 links now accepted), and against scripts, wow-chat-2026,
+delta-version, enheim-tome and neocities-modernization, whose findings are
+unchanged except two that the old reading invented: delta-version's link
+written as a path into scripts (`scripts/issues/032-...`), and a path into
+gif-generator in scripts' A12. Tested by
 `tests/test_validate-issues.lua` and by read-only runs against enheim-tome (0
 findings, matching its own `validate-issue-graph`), soren-ds,
 my-own-custom-vtt, scripts, delta-version, wow-chat-2026 and
@@ -36,6 +44,18 @@ created, edited or completed.
   "Depends on" must have files; when a project writes links in both
   directions, each link must be stated on both sides. Links in retired files
   are ignored.
+- **Other projects' issues** named in a link field, written as the
+  project's folder name and then its numbers ("wow-chat-2026 916d's
+  placement ... (916k, 916l)"), are looked up in that project, not this
+  one. The name counts when a folder of that name with an `issues/`
+  inside sits beside this project's folder. Inside one bullet (or one
+  inline field), every number after the name belongs to that project
+  until another project's name appears. A number that has no file there
+  is a finding naming both; one that does is accepted. Cross-project
+  links are not checked for a matching line on the other side, since
+  the other project keeps its own record. Asked for by the owner
+  2026-10-20, from custom-client's issue 907, which blocks six
+  wow-chat-2026 issues: "it can recognize other project's issues."
 - **Next free id** per phase, in the phase's own shape; `--next PHASE` prints
   only that.
 - Findings are errors (exit 1): the house rule counts warnings as errors.
@@ -63,6 +83,16 @@ created, edited or completed.
 6. **Tests** — `tests/test_validate-issues.lua`: a clean project exits 0 and
    numbers correctly; a messy project shows each finding kind once; `--file`
    narrows; a missing `issues/` exits 2.
+7. **Other projects' numbers** — a link heading's body keeps its line
+   breaks so each bullet is read as one item; the item's text is cut at
+   each sibling project's name, numbers before the first name are this
+   project's and numbers after a name are that project's. A sibling's
+   issues are read once through the same shared reader (its own phases
+   and number width decide what counts as a number there). Tests: a
+   fake project beside a fake sibling, where "sibling 301" (present) is
+   accepted, "sibling 399" (absent) is reported as having no file in
+   the sibling, and a later plain number in the same bullet is read as
+   the sibling's.
 
 Ancestor: `/mnt/mtwo/programming/ai-stuff/games/enheim-tome/validate-issue-graph`
 (link agreement for one project's table-row format). This tool generalises its
