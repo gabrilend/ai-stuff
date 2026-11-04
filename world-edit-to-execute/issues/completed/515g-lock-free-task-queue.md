@@ -14,7 +14,7 @@
 Built, tested, measured and delivered (2026-09-25).
 
 **The kept copy** (`src/render/ceramic/engine/cera.c`, `cera.h`; forked
-from soramech `059487d` in commit `8639d7077`; the changes are marked
+from soramech `059487d` in commit `0f2b7051e`; the changes are marked
 `FORK (issue 515g)` and listed in `fork-notes.md`):
 - **Landing.** Collected results are counted after they are copied in
   (`landed`, which `cera_map_collected` reports).
