@@ -1,0 +1,51 @@
+#!/usr/bin/env luajit
+-- make-test-shapes - writes the formula-made test shapes out as CAD files.
+--
+-- In plain terms: the cube and the crown sketch (src/002-the-test-shapes.lua)
+-- are written in every format the viewer reads — glTF, OBJ with its colour
+-- library, text STL and binary STL — into the project's RAM scratch folder,
+-- tmp/shared-memory/shapes/. Every file's first line (or header, or
+-- generator field) says this script made it. Prints one line per file.
+--
+-- Usage:
+--   scripts/make-test-shapes                 the project at the default location
+--   scripts/make-test-shapes <project-dir>   another copy of the project
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if arg[1] ~= nil then DIR = arg[1] end
+package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
+
+local shapes = require("002-the-test-shapes")
+local stl = require("003-stl")
+local obj = require("004-obj")
+local gltf = require("005-gltf")
+
+local OUT = DIR .. "/tmp/shared-memory/shapes"
+-- the RAM folder may be gone after a reboot; the run scripts rebuild the
+-- tiers, and this makes the one folder it writes into
+os.execute("mkdir -p '" .. OUT .. "'")
+local MADE_BY = "made by scripts/make-test-shapes (poor-person-google-glass) from src/002-the-test-shapes.lua, as test and demo models"
+
+-- {{{ local function write_file()
+local function write_file(name, bytes)
+    local path = OUT .. "/" .. name
+    local file, problem = io.open(path, "wb")
+    if file == nil then error("cannot write " .. path .. ": " .. tostring(problem), 0) end
+    file:write(bytes)
+    file:close()
+    print(string.format("%9d bytes  %s", #bytes, path))
+end
+-- }}}
+
+-- Each shape is written in each format; the shape's own name becomes the
+-- file name, with the format as the ending.
+for _, name in ipairs({ "cube", "crown" }) do
+    local shape = shapes.BY_NAME[name]()
+    local base = shape.name
+    write_file(base .. ".gltf", gltf.write(shape, MADE_BY, "millimetres"))
+    local obj_text, mtl_text = obj.write(shape, MADE_BY, base .. ".mtl")
+    write_file(base .. ".obj", obj_text)
+    write_file(base .. ".mtl", mtl_text)
+    write_file(base .. "-text.stl", stl.write_text(shape, MADE_BY))
+    write_file(base .. "-binary.stl", stl.write_binary(shape, MADE_BY))
+end

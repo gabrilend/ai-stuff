@@ -47,14 +47,24 @@ MODEL_NAME="nomic-embed-text-v1.5"
 LIST_MODELS=false
 MODEL_STATUS=false
 INTERACTIVE_MODE=false
-DIRECTORY_ARG=""
+
 ASSETS_DIR=""
 # Issue 10-017: Inference server selection from config.lua
 INFERENCE_SERVER=""
 
+# The project folder: --dir PATH, or the path in setup_dir_path; a stray word
+# stops the script (libs/project-dir.sh, Issue 10-076). It used to be the
+# first word that did not start with "--". What is left is this script's own
+# options, all written --name=value or as bare switches.
+source "$(dirname "$(readlink -f "$0")")/libs/project-dir.sh"
+project_dir_read "$(setup_dir_path "")" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
+
 for arg in "$@"; do
     case $arg in
-        --dir=*)
+        # Issue 10-076: the assets folder is --assets=PATH (it was --dir=PATH,
+        # and --dir is now the project folder, read above).
+        --assets=*)
             ASSETS_DIR="${arg#*=}"
             ;;
         --full-regen|--full)
@@ -120,7 +130,8 @@ for arg in "$@"; do
             echo "  --model=MODEL_NAME      Specify embedding model (default: nomic-embed-text-v1.5)"
             echo "  --list-models           Show available models and their configurations"
             echo "  --model-status          Show cache status for all models"
-            echo "  --dir=PATH              Use custom assets directory instead of default"
+            echo "  --dir PATH              The project folder (default: the path in this script)"
+            echo "  --assets=PATH           The assets folder, holding poems.json (required)"
             echo ""
             echo "Examples:"
             echo "  $0 --flush-errors             # Clean up failed entries"
@@ -133,10 +144,8 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            # If argument doesn't start with --, treat as directory
-            if [[ ! $arg == --* ]] && [ -z "$DIRECTORY_ARG" ]; then
-                DIRECTORY_ARG="$arg"
-            fi
+            echo "generate-embeddings.sh: unknown option $arg (see --help)" >&2
+            exit 1
             ;;
     esac
 done
@@ -371,25 +380,26 @@ if [ "$INTERACTIVE_MODE" = true ]; then
     fi
 fi
 
-# Set up directory after parsing arguments
-DIR=$(setup_dir_path "$DIRECTORY_ARG")
 cd "$DIR" || exit 1
+
+# The assets folder is named, never assumed (Issue 10-076, owner 2026-11-03:
+# "should remove fallback defaults"). This script used to accept --assets=
+# and then ignore it, reading "$DIR/assets" in four places; run.sh now passes
+# the folder it resolved, and a run by hand names it.
+if [ -z "$ASSETS_DIR" ]; then
+    echo "generate-embeddings.sh: --assets=PATH is required (the folder holding poems.json)" >&2
+    exit 1
+fi
 
 # Issue 8-059: ensure the tmpfs-backed tmp/ symlink exists before any write,
 # since the progress file we share with similarity-engine.lua now lives there.
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
 
 # How a child process ended, said in words. The status number is the whole
 # diagnosis -- "gave up", "interrupted", "out of memory" and "crashed" are four
 # different investigations wearing the one word FAILED.
 # shellcheck source=/dev/null
 source "${DIR}/scripts/exit-status.sh"
-
-# Build --dir argument for Lua scripts if assets dir was specified
-ASSETS_ARG=""
-if [ -n "$ASSETS_DIR" ]; then
-    ASSETS_ARG="--dir $ASSETS_DIR"
-fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -402,8 +412,8 @@ NC='\033[0m' # No Color
 
 # Progress tracking
 START_TIME=$(date +%s)
-POEMS_FILE="$DIR/assets/poems.json"
-EMBEDDINGS_FILE="$DIR/assets/embeddings.json"
+POEMS_FILE="$ASSETS_DIR/poems.json"
+EMBEDDINGS_FILE="$ASSETS_DIR/embeddings.json"
 # Where this run's log lives, and how long it lives.
 #
 # Default: tmp/shared-memory/, which is /dev/shm — guaranteed RAM, and the tier
@@ -437,7 +447,7 @@ if [ "$MODEL_STATUS" = true ]; then
     lua -e "
     package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
     local engine = require('similarity-engine')
-    engine.show_all_model_status('$DIR/assets')
+    engine.show_all_model_status('$ASSETS_DIR')
     "
     exit 0
 fi
@@ -448,7 +458,7 @@ fi
 # CACHE_IN_RAM switch). It hard-errors out if the resolver yields nothing, rather
 # than silently writing to a wrong/empty path.
 SAFE_MODEL_NAME=$(echo "$MODEL_NAME" | sed 's/[^a-zA-Z0-9._-]/_/g')
-EMBEDDINGS_DIR=$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")
+EMBEDDINGS_DIR=$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --model "$MODEL_NAME")
 if [ -z "$EMBEDDINGS_DIR" ]; then
     echo "Error: could not resolve the embeddings cache dir (scripts/cache-dir)" >&2
     exit 1
@@ -861,7 +871,7 @@ LUA_EMBED_PROGRAM="
     local sim = require('similarity-engine')
     local success = sim.generate_all_embeddings(
         '$POEMS_FILE',
-        '$DIR/assets',
+        '$ASSETS_DIR',
         '$INFERENCE_ENDPOINT',
         ${INCREMENTAL_LUA},
         '$MODEL_NAME'

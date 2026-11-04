@@ -113,17 +113,21 @@ exported so the word-cloud generators reuse the exact same sort, tiebreaker and
 page size. Its companion `default_chrono_per_page` hard-errors on a missing
 config key rather than guessing a size.
 
-**Similar / different pages** (flat-html-generator):
-`generate_all_paginated_pages_for_poem` → `generate_paginated_poem_page_html` →
-`format_all_poems_with_progress_and_color` →
-`format_single_poem_with_progress_and_color`, which writes the link. The archive
-variants `generate_similarity_html_archive` / `generate_diversity_html_archive`
-join the chain at `generate_flat_poem_list_html`.
+**Similar / different pages**: the page worker in flat-html-generator builds
+the mapping into its context, and `src/ranked-page.lua` writes each poem's
+link (`chronological/NN.html#poem-N`, or `index.html` for a one-page view).
+(The single-threaded chain that used to carry it, from
+`generate_all_paginated_pages_for_poem` down to
+`format_single_poem_with_progress_and_color`, was removed 2026-10-21, Issue
+8-058.)
 
-**Word pages** (generate-word-pages): `chrono_page_map` →`generate_word_page` →
-`format_poem_for_word_page`. Note this generator stores pre-formatted `"01"`
-strings, where flat-html-generator stores entry tables — the same information in
-two shapes, which is itself a latent source of drift.
+**Word pages** (generate-word-pages): the mapping's entry tables (timeline
+progress, page number, page count) → `generate_word_page` →
+`format_poem_for_word_page`, which names the page with
+`chronological-page.file_name`, the rule the chronological pages name
+themselves by. (Until 2026-10-21 this generator kept a second table of
+pre-formatted `"01"` strings, with an `"01"` guess for a missing poem; both
+are gone.)
 
 **Word cloud** (wordcloud-generator): its own `chrono_page_map` built from the
 shared mapping function.
@@ -275,7 +279,17 @@ threading in `run.sh`'s word-cloud invocations.
 2. In paginated builds, never write a link through `chronological/index.html`;
    the redirect cannot carry the `#poem` anchor. (Unpaginated builds keep
    `index.html`, which is the real page there.)
-3. **Done 2026-09-22.** Compute "Next Page" and "Last Page" on similar / different pages from the set
+3. **Correction 2026-10-21: this step was built in the single-threaded
+   builder only**, which no build uses (Issue 8-058), so the live similar and
+   different pages had no page navigation at all: page 1 never linked to page
+   2 (the 2026-10-07 build wrote three pages per poem). Rebuilt in the page
+   workers: each page carries "« First │ ‹ Prev │ Page X of Y │ Next › │
+   Last »" above the anchor poem and below the last poem, over the pages the
+   list actually fills (`page_links` in `src/chronological-page.lua`, shared
+   with the chronological pages). Checked on a 3-page sample render: 591
+   pages, no navigation link to a missing page. The record below describes
+   the single-threaded version.
+   **Done 2026-09-22.** Compute "Next Page" and "Last Page" on similar / different pages from the set
    of pages actually written, not from the number of pages the list could fill:
    pass the list of pages being generated into the previous/next navigation
    builder, and omit a link whose target is not in that list. Built:
@@ -289,6 +303,13 @@ threading in `run.sh`'s word-cloud invocations.
 4. **Done 2026-09-22.** Fix the worker's page count so `--pages all` writes every page: it now
    writes every page its list fills, up to the storage cap, and a page list
    writes exactly those pages (it used to write pages 1..N for a list of N).
+   A bare number is a COUNT of pages per poem: `--pages 3` writes pages 1, 2
+   and 3, the same as stages 7-8 and run.sh's help read it (owner, 2026-10-07:
+   "never just one single page"). For a few weeks the page writer read it as
+   "only page 3", and a full build wrote only the -03 files while every link
+   pointed at -01. Ranges (`2-5`) were removed the same day (owner: "I don't
+   think we'll ever need it"); `--pages` takes a count or `all`, and anything
+   else is refused. Pinned by `src/flat-html-generator.pages-count.test.lua`.
 5. **Done 2026-09-22.** The missing-mapping cases are in
    `src/flat-html-generator.chronological-links.test.lua`; the page-link
    cases are in `src/flat-html-generator.page-links.test.lua` (page 1 only,
