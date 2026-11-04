@@ -114,6 +114,9 @@ above, and every other issue waits on a pull request or the device.
 - **608** — drawer contents present the radial menu (506, waiting on
   #35) and hang off 607.
 - **609**, **610** — inter-app links, after 608.
+- **612** — looks: each app split into its state and a look the user
+  chooses (added on main 2026-10-18). Draws into 601's surfaces through
+  603; waits on 609 and on 409 and 411 (#69, #83, #92).
 
 **Needs the device.**
 

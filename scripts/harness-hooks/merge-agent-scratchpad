@@ -1,0 +1,89 @@
+#!/usr/bin/env luajit
+--
+-- merge-agent-scratchpad
+--
+-- A hook that runs when a Claude Code session ends and carries the session's
+-- scratchpad into the project's own RAM scratch space.
+--
+-- In plain terms: Claude Code gives every session a scratch folder of its
+-- own, under /tmp/claude-<uid>/, and tells the agent to put temporary files
+-- there. The house rule keeps temporary files with the project instead, in
+-- /tmp/<name>/ behind the project's `tmp` link (issue 033). Moving Claude
+-- Code's folder while it runs is not possible -- it reads where its temp
+-- folder lives once, at start, from its own environment, which no hook can
+-- change -- so the agent writes where Claude Code tells it (the write gate
+-- allows that session's own scratchpad), and this hook moves the lot when
+-- the session is over:
+--
+--   /tmp/claude-<uid>/<slug>/<session>/scratchpad/*
+--     -> /tmp/<name>/agent-scratchpads/<session>/*
+--
+-- The owner's design, 2026-10-20: "let the agents write to their default
+-- directories, and then merge their stuff into the correct directory when
+-- they finish completely." Issue 043.
+--
+-- WHEN THERE IS NOTHING TO DO
+--
+-- No scratchpad, an empty one, or a session folder with no whole `tmp` link
+-- (the same rule as the gates: the session's own folder only, the exec room
+-- under /tmp): the hook says nothing and leaves the scratchpad where Claude
+-- Code put it. That is the design for a session outside a project, not a
+-- fallback, so it is not announced.
+--
+-- A resumed session ends under the same id more than once, so the move is a
+-- merge: the files are copied into the session's folder in the project
+-- (made if missing, kept if there), and the scratchpad is removed only when
+-- the copy succeeded. A file of the same name is replaced by the newer run's.
+--
+-- Talking to Claude Code (SessionEnd): input is JSON on standard input
+-- (`session_id`, `cwd`); success prints nothing; a failed copy prints one
+-- line on standard error and exits 1, which Claude Code shows as a
+-- non-blocking error, and the scratchpad is left whole.
+--
+-- Usage: merge-agent-scratchpad [scripts-directory]
+
+local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
+local HOOK_NAME = "merge-agent-scratchpad"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local tiers = require("own-ram-tiers")
+
+-- {{{ local function fail()
+-- A copy that did not work: say so and leave the scratchpad in place.
+local function fail(message)
+    io.stderr:write(HOOK_NAME, ": ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local input = gate.read_input(HOOK_NAME, DIR)
+    local cwd = input.cwd
+    -- no folder to find a project from: nothing to do
+    if type(cwd) ~= "string" or cwd:sub(1, 1) ~= "/" then os.exit(0) end
+
+    local scratchpad = tiers.claude_scratchpad_of(input.session_id)
+    -- the session never made a scratchpad
+    if not scratchpad then os.exit(0) end
+    local listing = gate.run({ "find", scratchpad, "-mindepth", "1", "-print", "-quit" })
+    -- an empty scratchpad: nothing to carry
+    if listing:gsub("%s+$", "") == "" then os.exit(0) end
+
+    local rooms = tiers.rooms_of(cwd)
+    -- no exec room for the session's folder: the scratchpad stays where it is
+    if not rooms[1] then os.exit(0) end
+    local destination = rooms[1] .. "/agent-scratchpads/" .. input.session_id
+
+    local out, ok = gate.run({ "mkdir", "-p", destination })
+    if not ok then fail("cannot make " .. destination .. ": " .. out) end
+    out, ok = gate.run({ "cp", "-a", "--", scratchpad .. "/.", destination .. "/" })
+    if not ok then fail("copying " .. scratchpad .. " into " .. destination .. " failed, so it was left in place: " .. out) end
+    out, ok = gate.run({ "rm", "-rf", "--", scratchpad })
+    if not ok then fail("copied into " .. destination .. ", but could not remove " .. scratchpad .. ": " .. out) end
+    os.exit(0)
+end
+-- }}}
+
+main()

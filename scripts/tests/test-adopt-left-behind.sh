@@ -144,7 +144,7 @@ check "the live session's line is still uncommitted" "$(git -C "${REPO}" show HE
 
 printf '\nThe gate points at adoption\n'
 GATE_INPUT="$(jq -n --arg s "${OWN}" --arg cwd "${REPO}" '{session_id: $s, cwd: $cwd, tool_name: "Bash", tool_input: {command: "git commit -m x"}}')"
-GATE_OUT="$("${DIR}/refuse-foreign-lines" "${SCRATCH}/no-token" "${DIR}" <<< "${GATE_INPUT}")"
+GATE_OUT="$("${DIR}/harness-hooks/refuse-foreign-lines" "${SCRATCH}/no-token" "${DIR}" <<< "${GATE_INPUT}")"
 check "the refusal names adopt-left-behind-changes" "$(grep -q 'adopt-left-behind-changes' <<< "${GATE_OUT}" && echo yes || echo no)"
 
 if [ "${failures}" -ne 0 ]; then

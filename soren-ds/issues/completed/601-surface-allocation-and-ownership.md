@@ -128,4 +128,4 @@ station, which another station cannot release.
 
 ## Blocks
 
-602, 603, every later phase 6 issue.
+602, 603, 612, every later phase 6 issue.

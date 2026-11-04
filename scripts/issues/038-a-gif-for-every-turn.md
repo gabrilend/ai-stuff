@@ -1,5 +1,13 @@
 # Issue #038: A gif for every turn
 
+> **Replaced, 2026-10-04, by `035d-the-films-join-the-library.md`.** The
+> owner chose the film system double-diaper-dungeon built (its completed
+> issue 10-007) over the first algorithm below: each gif is looked at by a
+> vision model and described, messages and descriptions are compared by
+> meaning, the nearest film wins, neighbours always differ, and every choice
+> is written down for good rather than drawn at random. Kept as written,
+> because issues are added to and never deleted.
+
 ## Current Behavior
 
 The transcript pages (issue 035, `transcript-site/`) draw each turn — the

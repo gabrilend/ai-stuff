@@ -13,24 +13,36 @@
 # Usage: scripts/update-words [--force]
 #   --force: Skip file preservation (regenerate everything from scratch)
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -euo pipefail
 
 # {{{ Parse arguments
+# The project folder: --dir PATH, or the path below; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). What is left is this script's
+# own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
 FORCE=false
 for arg in "$@"; do
     case "$arg" in
         --force)
             FORCE=true
             ;;
+        *)
+            echo "update-words: unknown option $arg" >&2
+            exit 1
+            ;;
     esac
 done
 # }}}
 
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-
 # Issue 8-059: route the preserve/restore backup through the project's
 # tmpfs-backed tmp/ symlink rather than a real on-disk temp/ directory.
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
 BACKUP_DIR="${DIR}/tmp/shared-memory/preserved-files-$$"
 
 # Issue 10-003b: Config helper functions removed

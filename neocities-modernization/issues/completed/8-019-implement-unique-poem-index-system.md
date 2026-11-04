@@ -1,6 +1,242 @@
 # Issue 8-019: Implement Unique poem_index System
 
-## Current Behavior
+## Reopened 2026-10-21: the index is unique but not stable
+
+### Current Behavior
+
+**Built 2026-10-22 (steps 1-5 of the steps below). The first build after it
+must re-embed (`--force`), and the first deploy after that should prune
+(`scripts/deploy-to-neocities --prune`): every similar and different page
+has a new file name, and the old number-named pages would otherwise stay on
+the site.**
+- `poem-extractor.number_poems` gives each poem its source key
+  (`fediverse-2339`) and numbers all poems 1..N by date, a tie broken by key
+  (dates from `src/poem-dates.lua`, shared with the chronological pages).
+  Two poems with one key, or a poem with no date, stop the extraction.
+  poems.json records `metadata.numbering.fingerprint`, a code made from the
+  keys in order (`libs/text-fingerprint.lua`, FNV-1a 64).
+- The embedding stage stores each vector with its source key and the code
+  of the text it was made from, and reuses a stored vector only when both
+  match (`similarity-engine.reusable_vector`); image-only posts and empty
+  poems are made fresh every run, and an image-only post now borrows its
+  neighbour's vector from this run only (it used to look in the old file,
+  filed under the old numbers). embeddings.json records the numbering.
+- Every cache made from the numbers is stamped with the numbering it was
+  made under, in a file beside it (`<cache>.numbering`,
+  `libs/numbering-stamp.lua`): poem colours, the picture list, the
+  similarity rankings, the diversity walks. Stage 9 (`main.lua`
+  `generate_website_html`) and stage 10 (`generate-word-pages` on a build)
+  check every stamp against poems.json and stop with what to rerun. The
+  checks are at the stages' doors, not in the shared drawing functions, so
+  the tests and the sample renderer still draw from today's caches.
+- `scripts/renumber-diversity-cache` is retired (`-done`): it repaired old
+  caches; stage 8 now regenerates the walks in about 84 s.
+- Tests: `src/poem-extractor.numbering.test.lua`,
+  `src/similarity-engine.reuse.test.lua` (reuse by key and text, the
+  2026-10-07 swap, the stamps), `libs/text-fingerprint.test.lua`.
+- Every address is named by the source key, from one module
+  (`src/poem-address.lua`): chronological anchors (`<span id="fediverse-2339">`),
+  similar and different pages (`similar/fediverse-2339-01.html`), text
+  exports (`fediverse-2339.txt`), and every link to them -- ranked pages,
+  chronological pages, word pages and their centre links, the word cloud's
+  poem index. A poem without a key stops the page. The poem-representation
+  checker (`scripts/validate-poem-representation`) reads pages by key too.
+- Until the next extraction writes keys into poems.json, the page workers
+  stop on the old list (it has no keys), so whole-site and sample renders
+  wait for that build; the tests use their own keyed poems, and the seed
+  test numbers a copy of the real list in RAM.
+- Not built: pictures counted among the poems by date. Gallery pictures
+  still take the numbers after the poems; where they sit on the timeline is
+  Issue 10-042b, and their numbers name no page.
+- After the owner's next build: confirm the site's links with
+  `scripts/validate-output` (run by the build) and deploy with `--prune`.
+
+**Before 2026-10-22:**
+`src/poem-extractor.lua` sorted all poems by category, then by each source's
+own id, and numbers them 1..N in that order. A note's own id is its position
+in `find`'s listing of the notes folder (`scripts/extract-notes.lua`), which
+follows how ext4 stores the directory, not names or dates. So adding a note
+renumbers every note after it, and adding a poem to an earlier category
+renumbers everything in the categories after it.
+
+What it broke, found 2026-10-21:
+- 17 notes reached `~/notes` at 17:49 on 2026-10-07 (pittiless,
+  spirit-of-life, work-at-power, ...), between that day's noon extraction and
+  the 18:02 copy into `input/`. They landed all through the listing (note
+  positions 27 to 542), each pushing every later note up one. The last 16
+  notes -- old ones, division-by-zero, symbeline-superheros, rivers... --
+  were pushed past the old end, to 8607–8622.
+- The embeddings are filed by poem number. About 555 of the 582 notes now
+  sit at a number whose embedding was made from a different note: for notes
+  the recorded text length no longer tracks the real length (correlation
+  0.12 for EmbeddingGemma 2, 0.08 for the September EmbeddingGemma 300m;
+  1.00 for every other category). Every note's similar and different list on
+  the live site is ranked from another note's meaning.
+- The gallery pictures were numbered after the highest embedded poem, so 16
+  took 8607–8622 (fixed 2026-10-20 in the image step; see Issue 9-013).
+- Page addresses use the number (`similar/0001-01.html`), so a renumbering
+  also moves every page a link points to.
+
+**The diversity cache was in positions, not poem numbers (found and fixed
+2026-10-21).** `scripts/precompute-diversity-sequences-gpu` wrote the GPU's
+positions (0 .. N-1, the order of the embeddings file) as both keys and
+entries, under a comment saying they were converted; the similarity cache is
+in poem numbers (1 .. N). The page builder read both as poem numbers, so
+since 2026-01-17 (the GPU diversity cache becoming the default) every
+"different" page showed the walk of the poem after its anchor, each listed
+poem one below the intended one; position 0 surfaced as a "poem 0" in 149
+lists, which the old page code dropped quietly. Found when the new page
+module refused a ranking naming a poem not in the poem list.
+- The writer now maps each position to the poem number stored at it in the
+  embeddings file, and marks the cache `numbering = "poem_index"`.
+- The page builder refuses a cache without the mark; `run.sh` stage 8
+  regenerates one whatever its date.
+- `scripts/renumber-diversity-cache --model NAME` (retired 2026-10-22, now `-done`) repaired an old cache in
+  place in seconds (the original kept in RAM), checking it was made from the
+  same embeddings file. The EmbeddingGemma 2 cache is repaired; the older
+  models' caches are not.
+
+**Notes are numbered by date (2026-10-21).** Owner: "this is bad and wrong.
+We should replace it with by date." `scripts/extract-notes.lua` now sorts
+the notes by their file's modification time, oldest first (the file name
+breaks a tie), before giving out ids; a note whose date cannot be read stops
+the extraction (it used to be dated "now"). Pinned by
+`scripts/notes-tooling-exclusion.test.sh`. The order no longer depends on how
+the disk lists the folder, but a note with an older date than the newest
+still renumbers the notes after it -- the open question below decides
+whether that matters. The next extraction renumbers the notes once, so the
+next build must re-embed them (`--force` does).
+
+### The three numbers each item needs (owner, 2026-10-21)
+
+> pictures should have their own index, for the gallery. But they should
+> also have another index that displays their providence. We already use a
+> dual-index system for fediverse / messages / notes, so look to that for
+> inspiration. This however adds a third index for the gallery which is just
+> separate.
+
+- **Source index** (provenance): which source and which item in it --
+  `fediverse/1583`, `notes/<file name>`, `my-art/<path>`. It must come from
+  the item itself (a post id, a file name), never from a listing position.
+- **Gallery index**: pictures only, their place in the gallery.
+- **Global number**: one number for every item, poem or picture, used to rank
+  them together and to name their pages.
+
+### Decision: the global number is counted fresh each run (owner, 2026-10-21)
+
+> recomputed each run. This should be a trivial computation, just... counting
+> in a specific order with a specific method. Probably no branches even at
+> all.
+
+The alternative, a register handing each item a number once and forever, was
+de-selected: it keeps old numbers meaningful, but it is a second record that
+must be kept in step with the sources, and its numbers carry no order.
+
+So the number is a view, not an identity. Every run sorts all items, poems
+and pictures together, in one fixed order (date, then source name to break a
+tie) and counts 1..N. Nothing stored on disk is keyed by the number; it is
+worked out again each run from what is stored.
+
+### What identifies an item: its source key
+
+Every source's own number (the `id` field, shown as `fediverse/2339`) is a
+position in that source's list, counted 1, 2, 3...:
+
+| source | table it comes from | its number |
+|---|---|---|
+| fediverse post | `outbox.json` (Mastodon export), `orderedItems` | position in that list (`scripts/extract-fediverse.lua`) |
+| fediverse boost | the same list, type `Announce` | a separate count of boosts |
+| message | `export.json` (Element "Messages to yourself" export), `messages` | position in that list (`scripts/extract-messages.lua`) |
+| bluesky post | `repo-*.car` (Bluesky repository archive), post records | rank by `createdAt` (`scripts/extract-bluesky-data`) |
+| note | the notes folder (`~/notes`, copied to `input/notes`) | rank by file date (`scripts/extract-notes.lua`) |
+| picture | the picture sources in config.lua | rank in the gallery |
+
+**The source key is that counting number with its source**:
+`fediverse-2339`, `messages-618`, `notes-41`. Owner, 2026-10-22, on the
+long ids each item also carries (a post's status id, a message's event id):
+"yo what that ID is brutal. We should have an incremental ID, none of this
+randomly generated GUID nonsense." A counting number shifts when an earlier
+item leaves (a deleted post, something removed because it put someone at
+risk) or an older note arrives, and that is accepted: "that's okay because
+it's rare, and only for the most recent things ... Let's just shift
+everything down. Sometimes words have the wrong link and that's okay." New
+items arrive at the end of their source, so in the usual case nothing
+shifts; and a shift in one source never moves another source's keys (today
+the global number moves every page after an addition in any source).
+
+What a shift must never do is attach a vector to the wrong poem (the notes
+of 2026-10-07 did): every cached vector carries a fingerprint of its text,
+and a mismatch is re-embedded (step 3).
+
+Two items with one source key stop the extraction with both named. The one
+case on 2026-10-21, two notes in the folder twice (the same bytes and the
+same date at the top and under `reddit-comments/`), was settled by the owner
+("if they're reddit comments, then we should delete the note version and
+leave the reddit-comments version"); the top-level copies of
+`harambe-conspiracy` and `planes-and-trains-and-tanks` were deleted from
+`~/notes` and `input/notes`.
+
+### Links when the numbers move (owner, 2026-10-21)
+
+> if the specified poem ID doesn't exist on that page, we take them to the
+> top of the page?
+
+Anchors are named by source key, not by the global number:
+`chronological/02.html#fediverse-2339`. A link written before poems were
+added then does one of two things, with no code on the page:
+- the poem is still on page 02: the browser lands on it;
+- the additions pushed it onto page 03: page 02 has no such anchor, and a
+  browser that cannot find an anchor shows the top of the page. That is the
+  owner's rule, and every browser already does it.
+A numbered anchor (`#poem-1551`) would never reach the top-of-page case:
+with numbers counted by date and pages cut by date, poem 1551 is always on
+page 02, so after additions the old link lands on a different poem without
+any sign. Numbered anchors go.
+
+An anchor id is the source key as it is (`fediverse-2339`): letters, digits
+and one dash. Two items with one key stop the build.
+
+**Similar and different pages are named by source key too** (owner,
+2026-10-21: "we will have to name these pages by source name as well"):
+`similar/fediverse-2339-01.html`. A bookmarked address keeps showing its
+poem's list until something earlier in that source is removed; then it
+shows the neighbour's, as the owner accepted above.
+
+### Suggested Implementation Steps
+
+1. **Source keys.** The key is the source and its counting number
+   (`fediverse-2339`), from the numbers the extractors already give out;
+   pictures get theirs from the gallery order. Extraction stops on two items
+   with one key.
+2. **One counting step.** After extraction, sort every item (poems and
+   gallery pictures) by date, then source name, and number 1..N. Pictures
+   then sit among the poems by date (Issue 9-013), and the gallery index is
+   counted separately over the pictures alone.
+3. **Caches keyed by source name, checked by text.** The embeddings store
+   each vector under its source name with a fingerprint of the text it was
+   made from; the embedding stage re-embeds any item whose fingerprint
+   differs, and refuses to hand a vector to an item whose text does not
+   match. The similarity rankings and the diversity walk store source names
+   (or are rebuilt each run from the vectors); the page builder turns them
+   into this run's numbers with one table, source name to number.
+4. **Anchors and page addresses by source key**: the chronological pages'
+   anchors, the similar and different page file names, and every link to
+   them (`ranked-page`, word pages, word cloud, source browser, the
+   storage measure that counts page files).
+5. **A check** (test and pre-flight): every vector's fingerprint matches its
+   item's text, and every anchor id is unique.
+6. **Re-embed once** under the new keys (the next `--force` build).
+
+### Answered questions
+
+- Long ids or counting numbers: counting numbers (owner, 2026-10-22, quoted
+  above).
+- Bluesky posts carry no id the extractor reads: counting them by creation
+  time is enough ("I have not made two posts in the same millisecond").
+
+## Original issue (2025-12-25)
+
+### Current Behavior (then)
 
 The poem identification system uses `id` fields derived from source filenames, which creates **collisions across categories**:
 
@@ -272,7 +508,10 @@ invisible", and the fix differs completely.
 
 **Completed**: 2025-12-25
 
-**Status**: Complete
+**Status**: Complete -- moved to completed/ 2026-10-25. The re-embedding
+build (`--force`) ran on 2026-10-23; the first deploy after it should prune
+(`scripts/deploy-to-neocities --prune`), since every similar and different
+page has a new file name.
 
 **Estimated Effort**: Medium (touches multiple files but straightforward logic)
 
