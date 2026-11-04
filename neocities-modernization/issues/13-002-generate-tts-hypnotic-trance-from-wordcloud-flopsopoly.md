@@ -93,6 +93,21 @@ Concatenate all audio segments (with configurable inter-word silence) into a sin
 4. **No narrative structure**: Pure word-level semantics bypasses rational processing, engaging the subconscious
 5. **Embedding-driven coherence**: Despite maximum diversity, all words come from the same poetic collection, creating a subliminal thematic unity
 
+## Suggested Implementation Steps
+
+The sub-issues are the steps, in their dependency order; each holds its own
+detail. The Technical Design below is the shared reference for all four.
+
+1. 13-002a: the word pool, each word repeated as many times as its word-cloud
+   size (1 to 7). Needs no TTS engine.
+2. 13-002b: order the pool by progressive centroid expansion over the word
+   embeddings. Needs no TTS engine either, so 1 and 2 can be built and tested
+   before 13-001 is done.
+3. 13-002c: speak each distinct word once through the TTS engine (13-001)
+   and cache the audio per word.
+4. 13-002d: join the cached audio in pool order into one track, with a
+   manifest of when each word starts (13-003 and 13-004 read it).
+
 ## Technical Design
 
 ### Flopsopoly Generation Algorithm
@@ -312,4 +327,4 @@ TTS generation dominates: ~0.5-2 seconds per word × 200 unique words = 100-400 
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: High (novel algorithm + audio assembly pipeline)
 - **Dependencies**: 13-001 (TTS engine)
-- **Blocks**: 13-003 (needs manifest for synchronization)
+- **Blocks**: 13-003 (needs manifest for synchronization), 13-004

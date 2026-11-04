@@ -6,6 +6,8 @@
 - **Type**: Enhancement
 - **Status**: IMPLEMENTED 2026-11-02 — built and tested; the wording is a
   first draft for the owner to rewrite
+- **Related**: 11-010 (guide-me tutorial), whose trust-me / guide-me / think-me
+  picker may live on this splash page (its open question 4)
 - **Builds on**: 11-004 (explore pages), 11-005 (editable page templates),
   10-059 (word cloud is its own stage)
 
