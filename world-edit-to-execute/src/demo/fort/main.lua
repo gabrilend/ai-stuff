@@ -1,5 +1,5 @@
 --[[
-Fort Demo Harness (Issue 516e)
+Fort Demo Harness (Issue 544e)
 
 Run by src/render/scene_viewer.c (its default scene) after it has
 registered the "render" module. Lays the ground (a real map's terrain when

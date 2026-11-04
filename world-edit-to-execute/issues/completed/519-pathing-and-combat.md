@@ -86,4 +86,4 @@ and hero buttons show real health. Food counts living units only.
 - Doodads (trees, rocks) don't block pathing; buildings don't either.
 - Units don't push each other apart (no collision between units).
 - No experience, levels, abilities or corpses beyond a few seconds.
-- The attack stand-ins and 64-deep wading are unmeasured (see 516d).
+- The attack stand-ins and 64-deep wading are unmeasured (see 544d).

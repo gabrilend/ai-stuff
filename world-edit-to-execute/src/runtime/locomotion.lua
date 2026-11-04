@@ -1,5 +1,5 @@
 --[[
-Locomotion (Issue 516c)
+Locomotion (Issue 544c)
 
 How a WC3 ground unit gets from here to there:
 
@@ -22,7 +22,7 @@ Numbers are WC3 units (128 to a terrain tile) and seconds.
 
 STAND-IN VALUES. The move speed 270 is WC3's "average" speed. The rest
 (TURN_SCALE, the propulsion window, the attack numbers in UNIT_TYPES) are
-placeholders chosen to look right, not measured; issue 516d says how to
+placeholders chosen to look right, not measured; issue 544d says how to
 measure each on a real install. Change them in one place: here.
 ]]
 

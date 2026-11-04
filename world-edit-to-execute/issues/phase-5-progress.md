@@ -89,8 +89,8 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 512f | [Main.c Threading Integration](./completed/512f-main-integration.md) | completed | 512a, 512e |
 | 513 | [Threading Architecture Demo](./completed/513-threading-architecture-demo.md) | completed | 512f |
 | 514 | [3D Rotation Frames](./514-3d-rotation-frames.md) | open | 409, 508 |
+| 515 | [Moved: Issue 515 is now Issue 543](./completed/515-threaded-demo-crashes-on-first-frame.md) | completed | — |
 | 515 | [The Render Graph on the Ceramic Engine](./515-render-graph-on-the-ceramic-engine.md) | open | 508, 512 |
-| 515 | [Threaded Demo Crashes on Its First Frame](./completed/515-threaded-demo-crashes-on-first-frame.md) | completed | 513 |
 | 515a | [Copy-Cost Benchmark](./completed/515a-copy-cost-benchmark.md) | completed | — |
 | 515b | [Ceramic Host Loop](./completed/515b-ceramic-host-loop.md) | completed | 515a, 515g |
 | 515c | [Mailbox Triple Buffer](./completed/515c-mailbox-triple-buffer.md) | completed | 515b |
@@ -103,10 +103,10 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 515j | [Stronger Hand-Written Opponents](./completed/515j-stronger-hand-written-opponents.md) | completed | 515h, 515i |
 | 515k | [A Crowd on Every Design](./515k-a-crowd-on-every-design.md) | open | 405f, 515h, 515j |
 | 516 | [Draw WC3 Models in the Engine](./516-draw-wc3-models-in-engine.md) | open | 116, 117, 503b |
-| 516 | [Geometry Painting and WC3-Style Behaviours (the Fort)](./completed/516-geometry-painting-and-wc3-behaviours.md) | completed | 508c, 508d, 404 |
-| 516d | [Measure WC3 Movement and Camera Numbers on a Real Install](./516d-measure-wc3-movement-and-camera.md) | open | 516 |
-| 517 | [WC3 Maps Drawn With Geometry Designs](./completed/517-wc3-maps-drawn-with-geometry-designs.md) | completed | 516, 103, 110, 206 |
-| 518 | [The WC3 Interface](./completed/518-wc3-interface.md) | completed | 517, 516c |
+| 516 | [Moved: Issue 516 is now Issue 544](./completed/516-geometry-painting-and-wc3-behaviours.md) | completed | — |
+| 516d | [Moved: Issue 516d is now Issue 544d](./516d-measure-wc3-movement-and-camera.md) | open | — |
+| 517 | [WC3 Maps Drawn With Geometry Designs](./completed/517-wc3-maps-drawn-with-geometry-designs.md) | completed | 544, 103, 110, 206 |
+| 518 | [The WC3 Interface](./completed/518-wc3-interface.md) | completed | 517, 544 |
 | 519 | [Units That Find Their Way and Fight](./completed/519-pathing-and-combat.md) | completed | 518, 517a, B01 |
 | 520 | [A Map's Own Script Runs](./completed/520-map-scripts-run.md) | completed | 309, 518, 519 |
 | 521 | [Computer Players, the AI Editor's Way](./completed/521-computer-players.md) | completed | 519, 520 |
@@ -131,7 +131,10 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 540 | [Computer Players Build, Buy and Cast](./completed/540-computer-players-build-buy-and-cast.md) | completed | 521, 531, 535, 533, 539, 528, 529, 532 |
 | 541 | [Buildings Block Movement](./completed/541-buildings-block-movement.md) | completed | 519a, 536 |
 | 542 | [Research](./completed/542-research.md) | completed | 521a, 524, 535 |
+| 543 | [Threaded Demo Crashes on Its First Frame](./completed/543-threaded-demo-crashes-on-first-frame.md) | completed | 513 |
+| 544 | [Geometry Painting and WC3-Style Behaviours (the Fort)](./completed/544-geometry-painting-and-wc3-behaviours.md) | completed | 508c, 508d, 404 |
+| 544d | [Measure WC3 Movement and Camera Numbers on a Real Install](./544d-measure-wc3-movement-and-camera.md) | open | 544 |
 
-Completed 60, open 41, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 62, open 42, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

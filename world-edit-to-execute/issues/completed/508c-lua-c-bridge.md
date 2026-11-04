@@ -4,7 +4,7 @@
 **Type:** Implementation
 **Priority:** Critical
 **Dependencies:** 508b (entity render slots)
-**Blocks:** 508d
+**Blocks:** 508d, 544
 
 ---
 

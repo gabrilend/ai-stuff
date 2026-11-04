@@ -1,5 +1,5 @@
 --[[
-Behaviours (Issue 516c)
+Behaviours (Issue 544c)
 
 Small state machines that drive movers from runtime/locomotion.lua:
 

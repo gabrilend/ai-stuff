@@ -4,6 +4,7 @@
 **Type:** Demo / Visualization
 **Priority:** Medium
 **Dependencies:** 512f (v2 threading migration complete)
+**Blocks:** 543 (the crash on its first frame)
 
 ---
 

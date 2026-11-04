@@ -1,6 +1,6 @@
 --[[
 Tests for the geometry kit, WC3 locomotion, behaviours and the fort scene
-(Issue 516). Headless: painting goes to a recorder, not a window.
+(Issue 544). Headless: painting goes to a recorder, not a window.
 ]]
 
 -- {{{ Setup paths

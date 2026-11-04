@@ -3,7 +3,7 @@
 **Phase:** 5
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** 516 (geometry painting), 103/110 (w3e), 206+ (doodads, object data)
+**Dependencies:** 544 (geometry painting), 103/110 (w3e), 206+ (doodads, object data)
 
 ---
 
