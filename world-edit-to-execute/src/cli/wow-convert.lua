@@ -16,27 +16,36 @@
 --                   48); default "WC3_" and the map file's name
 --   --textures FILE another ground texture table (default
 --                   src/wowbuild/ground_textures.lua)
+--   --models FILE   another model table (default src/wowbuild/models.lua)
+--   --map-id N      the server's map id the SQL starts with (default 9000,
+--                   until W02c picks map ids; one line of world.sql)
 --   --dir DIR       this project's folder (default: found from this file)
 --   --help
 --
--- Builds today ONLY THE TERRAIN (W02a): the map's WDT, WDL and ADT files,
--- under <build folder>/World/Maps/<name>/, and <build folder>/conversion-report.lua.
--- The later parts of W02 add to this same command as they are built:
--- doodads and units (W02b), map registration and patch-W.MPQ (W02c), server
--- data (W02d), triggers (W02e), the world database (W02h).
+-- Builds today the terrain (W02a) and the placements (W02b): the map's WDT,
+-- WDL and ADT files under <build folder>/World/Maps/<name>/, its doodads in
+-- those ADTs, its units as the server's creatures in
+-- <build folder>/server/world.sql, the map's own imported models at their
+-- own paths, <build folder>/placements.lua and conversion-report.lua.
+-- The later parts of W02 add to this same command as they are built: map
+-- registration and patch-W.MPQ (W02c), server data (W02d), triggers (W02e),
+-- the world database (W02h).
 --
 -- Exit status: 0 built; 1 the map couldn't be converted (the reason on
 -- stderr); 2 the options were wrong. A summary goes to stdout.
 --
--- Issue: issues/W02a-terrain-to-adt-writer.md
+-- Issues: issues/W02a-terrain-to-adt-writer.md, issues/W02b-doodads-and-units-to-placements.md
 
 local function usage(out)
     out:write([[
-usage: wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--dir DIR] <map.w3x> <build folder>
+usage: wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--models FILE]
+                      [--map-id N] [--dir DIR] <map.w3x> <build folder>
 Builds a WC3 map into WoW 3.3.5a's files in the build folder.
-Today only the terrain (issue W02a): WDT, WDL and ADTs under World/Maps/<name>/,
-and conversion-report.lua. W02's later parts (doodads and units, map
-registration and patch-W.MPQ, server data, triggers) add to this command.
+Today the terrain (issue W02a) and the placements (W02b): WDT, WDL and ADTs
+(with the doodads) under World/Maps/<name>/, the units as creatures in
+server/world.sql, the map's own models, placements.lua and
+conversion-report.lua. W02's later parts (map registration and patch-W.MPQ,
+server data, triggers) add to this command.
 Exit status: 0 built, 1 conversion failed, 2 bad options.
 ]])
 end
@@ -54,10 +63,16 @@ while i <= #arg do
     local a = arg[i]
     if a == "--help" or a == "-h" then usage(io.stdout) os.exit(0)
     elseif a == "--strict" then opts.strict = true
-    elseif a == "--name" or a == "--textures" or a == "--dir" then
+    elseif a == "--name" or a == "--textures" or a == "--models" or a == "--map-id" or a == "--dir" then
         local v = arg[i + 1]
         if not v or v:sub(1, 2) == "--" then bad(a .. " needs a value") end
-        if a == "--name" then opts.name = v elseif a == "--textures" then opts.textures = v else DIR = v end
+        if a == "--name" then opts.name = v
+        elseif a == "--textures" then opts.textures = v
+        elseif a == "--models" then opts.models = v
+        elseif a == "--map-id" then
+            opts.map_id = tonumber(v)
+            if not opts.map_id or opts.map_id ~= math.floor(opts.map_id) or opts.map_id < 0 then bad("--map-id: a whole number") end
+        else DIR = v end
         i = i + 1
     elseif a:sub(1, 2) == "--" then bad("unknown option " .. a)
     else paths[#paths + 1] = a end

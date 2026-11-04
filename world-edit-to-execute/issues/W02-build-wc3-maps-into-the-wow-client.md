@@ -74,7 +74,19 @@ not into new issues.
   texture table as data. Left: the texture paths checked against the
   owner's client, Noggit, the stock client and AzerothCore's extractor on
   the owner's machine.
-- W02b-W02h: not yet written.
+- `W02b-doodads-and-units-to-placements.md` (2026-11-04): written by hand
+  the same way. **Built** the same day as background work, on W02a's
+  branch: doodads as M2/WMO placements in the ADTs (with each chunk's
+  MCRF) through a model table kept as data (`src/wowbuild/models.lua`,
+  logical paths for the W client's resolver, which the baseline set
+  covers under the same names); units as `server/world.sql` (one template
+  per type and faction, one faction per WC3 force, only what the map uses,
+  as W02h asks); the map's own models copied into the build; a placement
+  list for the W client and W02c. The doodad and unit readers were fixed
+  on the way (every Frozen Throne map with units failed to parse). Left:
+  the model paths checked against the owner's client, the SQL on the
+  owner's AzerothCore, Noggit and the stock client.
+- W02c-W02h: not yet written.
 
 ## Progress
 
@@ -85,6 +97,15 @@ not into new issues.
   terrain part (texture folds and unmapped ground types) is in
   `conversion-report.lua`. Line 7 holds for the terrain: everything is
   written into the build folder; the ADTs name WoW's textures by path only.
+- *2026-11-04 (W02b):* line 4 is checked against the W client's own
+  reader for the doodads: every placed model comes back where WC3 placed
+  it (0.01 yd), facing its way through the W client's own placement
+  matrix, at its size; units become spawns at their WC3 points. In the
+  stock client and on a running server it waits for W02c. Line 6's
+  placements part (unmapped doodad and unit types, left-out doodads and
+  units) is in `conversion-report.lua`. Line 7 holds: the build carries
+  paths, SQL and the map's own imports only. Open question 4 is answered
+  for now by a hand-seeded table (W02b's decision 4).
 
 ## Acceptance Criteria
 
@@ -113,6 +134,7 @@ not into new issues.
 6. ~~Who runs a converted map's rules in the W client?~~ Answered 2026-09-23: AzerothCore, through W02e. Multiplayer comes with the server; every WC3 rule the shim touches must be re-expressed as server logic.
 3. Which range of map ids is ours? (Must not collide with Blizzard's rows or other custom patches the owner uses.)
 4. Custom units need a WoW model per WC3 unit type. Who fills the WC3 → WoW table first: a hand-seeded table for the melee races, or W05's forge?
+   *Answered for now 2026-11-04 (W02b, the owner's to overturn):* a hand-seeded table first (`src/wowbuild/models.lua`: the melee races' common units, creeps, tree walls, rocks and plants), every row unchecked; W05's forge fills the baseline set under the same names, and a row may name its own baseline model once one exists.
 8. Should the map and model fetcher (issue 603) also run inside the W client, as a map list in WC3 map mode? Deferred here from 603 by the owner (2026-09-26): "we should answer that question when we're working on the WoW client. I don't see why not, but maybe I will when we're working over there."
 
 ## Related Documents

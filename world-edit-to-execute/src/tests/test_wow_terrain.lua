@@ -538,8 +538,9 @@ do
     text, code = run("--bogus a b")
     test("an unknown option: exit 2", code == 2 and text:find("unknown option"))
     text, code = run("--help")
-    test("the usage says only the terrain is built and later parts add to it",
-        code == 0 and text:find("Today only the terrain") and text:find("add to this command"))
+    -- (since W02b: the terrain and the placements)
+    test("the usage says which parts are built and that later parts add to it",
+        code == 0 and text:find("Today the terrain") and text:find("placements") and text:find("add to this command"))
     text, code = run(quote(TMP .. "/no-such.w3x") .. " " .. quote(TMP .. "/b"))
     test("a missing map: exit 1, said why", code == 1 and text:find("no map file"))
     text, code = run("--name 'bad name' x y")
@@ -660,9 +661,11 @@ do
     for f in p:lines() do kinds[#kinds + 1] = f:match("%.([%w]+)$") or "?" end
     p:close()
     local only = #kinds > 0
-    for _, k in ipairs(kinds) do if k ~= "adt" and k ~= "wdt" and k ~= "wdl" and k ~= "lua" then only = false end end
+    -- (since W02b also the placement list, .lua, and the creatures' SQL; the
+    -- map's own imports are W02b's tests' to check)
+    for _, k in ipairs(kinds) do if k ~= "adt" and k ~= "wdt" and k ~= "wdl" and k ~= "lua" and k ~= "sql" then only = false end end
     if #kinds == 0 then skip("build folder contents", "no map was converted")
-    else test("the build holds ADT, WDT, WDL and the report only (no textures)", only, table.concat(kinds, " ")) end
+    else test("the build holds ADT, WDT, WDL, the report, the placement list and the SQL only (no textures)", only, table.concat(kinds, " ")) end
 end
 -- }}}
 
