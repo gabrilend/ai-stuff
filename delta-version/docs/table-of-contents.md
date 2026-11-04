@@ -72,7 +72,7 @@
 - [Issue 019: Implement Ticket Distribution Engine](../issues/completed/019-implement-ticket-distribution-engine.md)
 - [Issue 020: Create Interactive Interface](../issues/completed/020-create-interactive-interface.md)
 - [Issue 021: Implement Validation and Testing System](../issues/completed/021-implement-validation-and-testing-system.md)
-- [Issue 022: Create Integration and Workflow System](../issues/022-create-integration-and-workflow-system.md)
+- [Issue 022: Create Integration and Workflow System](../issues/completed/022-create-integration-and-workflow-system.md)
 
 ### History Reconstruction Issues
 - [Issue 035: Project History Reconstruction](../issues/completed/035-project-history-reconstruction.md) ✅

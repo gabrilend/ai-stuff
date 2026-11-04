@@ -42,7 +42,7 @@ SECONDS_PER_PROJECT=2
 
 # The chain's own tests, in the order the chain runs.
 PART_TESTS=(test-process-template.sh test-discover-projects.sh test-distribute-ticket.sh
-            test-ticket-menu.sh)
+            test-ticket-menu.sh test-ticket-hook.sh)
 
 # Sample parameters for each keyword that takes some, and what each gives in
 # the fixture project. A keyword added to the configuration without a line
