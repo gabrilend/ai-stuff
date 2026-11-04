@@ -52,7 +52,7 @@ itself.
   both spaces, the same score a person would have written.
 - **The grammar covers both vocabularies, generated, never typed.** The
   3D tool-calls (`shape`, `camera`, `world`, `pane`) come from the same
-  word lists the 3D wall checks (`src/048-shape-words.lua`): each
+  word lists the 3D wall checks (`src/058-shape-words.lua`): each
   context's words, their kinds, and the runtime's names (hues, meshes,
   motion kinds, effects). A word added to a list is a word the model may
   say. Strokes gain `pane`, and `tip` may name a shape.
@@ -78,7 +78,7 @@ itself.
 
 ## Suggested Implementation Steps
 
-1. Generate the 3D tool-calls' grammar from `048-shape-words.lua`: one
+1. Generate the 3D tool-calls' grammar from `058-shape-words.lua`: one
    rule per context, a `kind` that picks its motion's words, the
    runtime's names as alternations. Add `pane` to the stroke call and
    let a tip name a shape. Snapshot-test it against the word lists, as
@@ -127,7 +127,7 @@ Built 2026-10-30 on top of 701g. `src/033-porch-test.lua` is 35 of 35
 
 - **The grammar (step 1).** `porch.grammar()` now also has `shape`,
   `camera`, `world` and `pane` calls, generated when it is asked for
-  from `048-shape-words.lua`: one rule per context, each motion kind's
+  from `058-shape-words.lua`: one rule per context, each motion kind's
   own words after its `"kind"`, and the runtime's hues, meshes, effects
   and solids as choices. `world` takes the scene words a score doesn't
   say elsewhere (`compile.SAID_ELSEWHERE`), and `pane` takes
@@ -135,7 +135,7 @@ Built 2026-10-30 on top of 701g. `src/033-porch-test.lua` is 35 of 35
   shape's tag, and the canvas takes `frames` and `background`. It is 147
   rules. A word list naming a kind the porch can't say stops the grammar
   with a sentence, rather than leaving the word unsayable.
-- **A reader for it.** No model runs here, so `src/058-gbnf.lua` reads
+- **A reader for it.** No model runs here, so `src/068-gbnf.lua` reads
   GBNF and matches text against it. The tests prove the grammar names no
   rule it never defines, says every kind of shape motion, allows a
   mixed reading, and refuses a misspelled hue or motion word. It found a
@@ -146,7 +146,7 @@ Built 2026-10-30 on top of 701g. `src/033-porch-test.lua` is 35 of 35
   spoken, camera and world once each, and each call's prose rides above
   it in the written score. A second camera or world call is refused
   with a sentence saying why, so it is neither dropped nor merged.
-- **The read-back (step 3).** `src/059-say-back.lua` says each thing in
+- **The read-back (step 3).** `src/069-say-back.lua` says each thing in
   a score as one plain line, written from the calls and not by the
   model: "ball: a violet icosahedron, glowing, circles at radius 2, once
   a loop", "0 to 1 s: a jade point following ball". Each shape and

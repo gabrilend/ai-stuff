@@ -47,7 +47,7 @@ with the house's source companions.
 ## What Happened
 
 Built 2026-10-30 on top of 701d. `./test-shape-films` is 300 of 300 (22
-new checks in `src/056-cards-test.lua`), and all 34 shape films still film
+new checks in `src/066-cards-test.lua`), and all 34 shape films still film
 byte-identical; each now comes out with a card beside it.
 
 - **Learned from the kanji pool first (step 0).** Kept: the film and its
@@ -57,7 +57,7 @@ byte-identical; each now comes out with a card beside it.
   differently: the card suffix, no machine grader yet, no category
   folders (the library is one flat folder, so the kind is a field), and a
   film made again is marked on its card instead of renamed. The full note
-  is in `src/055-cards.info.md`.
+  is in `src/065-cards.info.md`.
 - **The card (step 1).** `NAME.gif.card`, so it can never be mistaken for
   a source file's `.info.md`. Fields: film, fingerprint, category, score,
   generator, seed, size, frames, made, about, then `ratings:` and one line

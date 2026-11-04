@@ -17,4 +17,4 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
     shift
 fi
 
-luajit "$DIR/src/046-make-shapes.lua" "$DIR" "$@"
+luajit "$DIR/src/056-make-shapes.lua" "$DIR" "$@"

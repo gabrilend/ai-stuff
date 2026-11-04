@@ -163,7 +163,7 @@ top of 704):
 - **A reply that isn't tool-calls** (a model that chats instead of
   calling) used to stop the porch with an error; now it fails that one
   reading, and the next try is told why.
-- **The front door.** `./porch` (`src/060-porch-say.lua`): `--check`
+- **The front door.** `./porch` (`src/070-porch-say.lua`): `--check`
   asks every door and says how long a context the prompt needs; a
   sentence is sent to the first door that answers (or `--door=NAME`),
   the read-back lines are printed, and the score is written to

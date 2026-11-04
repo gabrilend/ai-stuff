@@ -24,7 +24,7 @@ if [ -n "$DISPLAY" ] && command -v love > /dev/null; then
     echo "— the card of meeting.gif, after the viewer —"
     cat "${HERE}/meeting.gif.card"
     echo ""
-    luajit "${DIR}/src/055-cards.lua" "${DIR}" --counts "${HERE}"
+    luajit "${DIR}/src/065-cards.lua" "${DIR}" --counts "${HERE}"
 else
     echo "(no display or no LÖVE here — watch ${HERE}/meeting-side-by-side.gif"
     echo " in a browser, and rate with ./view-gifs ${HERE} where there is one)"

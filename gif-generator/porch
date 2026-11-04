@@ -21,4 +21,4 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
     shift
 fi
 
-exec luajit "$DIR/src/060-porch-say.lua" "$DIR" "$@"
+exec luajit "$DIR/src/070-porch-say.lua" "$DIR" "$@"

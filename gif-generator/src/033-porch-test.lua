@@ -6,9 +6,9 @@
 -- misspelled hue the grammar could never actually emit, to prove
 -- the wall's teaching is quoted back and the second answer lands.
 -- Since 704 it also proves the porch in both spaces: the grammar is
--- whole (058-gbnf.lua reads it), a mixed reading is sayable and a
+-- whole (068-gbnf.lua reads it), a mixed reading is sayable and a
 -- misspelled 3D word is not, the 3D wall's teaching flows back, the
--- read-back lines (059-say-back.lua) say what was heard, and the
+-- read-back lines (069-say-back.lua) say what was heard, and the
 -- written score films.
 -- Run: luajit src/033-porch-test.lua
 
@@ -123,12 +123,12 @@ check("the best draft surfaces beside them",
       draft ~= nil and draft:find("stubborn", 1, true) ~= nil)
 
 -- {{{ issue 704: the porch hears both spaces
-local gbnf = dofile(DIR .. "/src/058-gbnf.lua")
-local sayback = dofile(DIR .. "/src/059-say-back.lua")
+local gbnf = dofile(DIR .. "/src/068-gbnf.lua")
+local sayback = dofile(DIR .. "/src/069-say-back.lua")
 local score = require("022-score")
 local compile = require("024-compile")
-local two_spaces = require("053-two-spaces")
-local shape_words = dofile(DIR .. "/src/048-shape-words.lua")
+local two_spaces = require("063-two-spaces")
+local shape_words = dofile(DIR .. "/src/058-shape-words.lua")
 
 -- the grammar is whole: every rule it names, it defines
 local grammar = gbnf.read(g1)
