@@ -217,13 +217,101 @@ function test_audit() {
     sed -i "s|$good/|$STATE/|g" "$STATE/audit.tsv"
     rm -f "$STATE"/backups/P001-*.md
     printf '2000-01-01 00:00:00\tapproved\tP009\t-\tbackup x after 00\n' >> "$STATE/audit.tsv"
-    sed -i 's/^P003\t\([^\t]*\)\trejected/P003\t\1\tpending/' "$STATE/proposals.tsv"
+    sed -i 's/^P003\t\([^\t]*\)\tpending/P003\t\1\tapproved/' "$STATE/proposals.tsv"
+    grep '^P001' "$STATE/proposals.tsv" > "$SCRATCH/p001-row"
+    cat "$SCRATCH/p001-row" >> "$STATE/proposals.tsv"
     run verify
     check "verify: problems found (1)" "$(same "$CODE" 1)"
     check "... a missing backup" "$(has_line "$OUT" "is missing")"
     check "... a row naming no proposal" "$(has_line "$OUT" "names P009, which is not a proposal")"
     check "... a row out of date order" "$(has_line "$OUT" "dated before the line above it")"
-    check "... a status that disagrees with the trail" "$(has_line "$OUT" "P003: its status is pending, but its last action was rejected")"
+    check "... a filed status that disagrees with the trail" "$(has_line "$OUT" "P003: proposals.tsv says approved, but its last action was rejected")"
+    check "... a proposal filed twice" "$(has_line "$OUT" "P001 is filed twice")"
+    STATE="$good"
+}
+# }}}
+
+# -- {{{ test_prune
+# Issue 040d, backup rotation: the newest N backups stay, and so does any a
+# rollback still needs; nothing goes without --yes, and what goes is on the
+# audit trail.
+function test_prune() {
+    local p001 p002
+    p001=$(ls "$STATE"/backups/P001-*.md)
+    p002=$(ls "$STATE"/backups/P002-*.md)
+    run prune
+    check "prune: under the default 100, nothing to prune" "$(has_line "$OUT" "Nothing to prune: 2 backups")"
+    run prune --keep=0
+    check "prune without --yes only shows what would go" \
+        "$(if grep -qF "would remove  $(basename "$p002")" <<< "$OUT" && [ -f "$p002" ]; then echo yes; else echo no; fi)"
+    check "... and keeps the backup a rollback needs (P001 is approved)" \
+        "$(has_line "$OUT" "1 older kept for rollback")"
+    touch "$STATE/backups/P003-20000101-000000.md" "$STATE/backups/notes.md"
+    run prune --keep=1 --yes
+    check "prune --yes removes the backups beyond the newest N, oldest first by the date in the name" \
+        "$(if [ ! -f "$STATE/backups/P003-20000101-000000.md" ] && [ -f "$p002" ] && [ -f "$p001" ]; then echo yes; else echo no; fi)"
+    check "... and says what it kept" "$(has_line "$OUT" "1 backup removed (newest 1 kept, 1 older kept for rollback).")"
+    check "... and leaves files not named as backups alone" "$(if [ -f "$STATE/backups/notes.md" ]; then echo yes; else echo no; fi)"
+    run prune --keep=0 --yes
+    check "prune --keep=0 removes every backup a rollback does not need" \
+        "$(if [ ! -f "$p002" ] && [ -f "$p001" ]; then echo yes; else echo no; fi)"
+    run history --action=pruned
+    check "each removal is on the audit trail" \
+        "$(if [ "$(wc -l <<< "$OUT")" = 2 ] && grep -qF "P002" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run diff P002
+    check "diff of a pruned backup says it was pruned (1)" \
+        "$(if [ "$CODE" = 1 ] && grep -qF "was pruned on" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run verify
+    check "verify: a pruned backup is not a problem" "$(same "$CODE" 0)"
+    run prune --keep=0 --yes
+    check "prune never removes the backup a rollback needs" \
+        "$(if [ -f "$p001" ] && grep -qF "Nothing to prune" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run prune --keep=some
+    check "prune --keep takes a whole number (2)" "$(same "$CODE" 2)"
+}
+# }}}
+
+# -- {{{ test_conflicts
+# Issue 040d: proposals.tsv is append-only (statuses come from the audit
+# trail), and the conflict analysis report.
+function test_conflicts() {
+    local head_before
+    head_before=$(cat "$STATE/proposals.tsv")
+    run propose "Never use vimfolds in a function under ten lines"
+    run approve P004 --target="$TARGET"
+    check "approving leaves the proposals filed so far as they were (append-only)" \
+        "$(same "$(head -n 3 "$STATE/proposals.tsv")" "$head_before")"
+    check "... every row keeps the status it was filed with" \
+        "$(same "$(cut -f3 "$STATE/proposals.tsv" | sort -u)" "pending")"
+    run list --all
+    check "... and statuses are read from the audit trail" \
+        "$(if grep -qE '^P004  approved' <<< "$OUT" && grep -qE '^P002  rolled-back' <<< "$OUT"; then echo yes; else echo no; fi)"
+
+    run event correction "Do not add vimfolds to every short function"
+    run propose "Run the tests before committing"
+    run conflicts
+    check "conflicts: a do and a don't on the same topic may contradict" \
+        "$(if grep -qF "P001 - Use vimfolds in every function." <<< "$OUT" && grep -qF "both about: function, vimfold" <<< "$OUT"; then echo yes; else echo no; fi)"
+    check "... corrections since approval on the same topic" \
+        "$(has_line "$OUT" "1 correction since")"
+    check "... and the latest of them" "$(has_line "$OUT" "latest: Do not add vimfolds to every short function")"
+    check "... a rollback, and the guideline proposed again" \
+        "$(if grep -qF "P002 rolled back on" <<< "$OUT" && grep -qF "proposed again as P005 (pending)" <<< "$OUT"; then echo yes; else echo no; fi)"
+    check "... exit 0" "$(same "$CODE" 0)"
+    run verify
+    check "verify passes on an append-only trail" "$(same "$CODE" 0)"
+
+    local good="$STATE"
+    STATE="$SCRATCH/empty-state"
+    run conflicts
+    check "conflicts on an empty trail: none found" \
+        "$(same "$(grep -c 'None' <<< "$OUT")" 3)"
+    STATE="$SCRATCH/old-state"
+    cp -r "$good" "$STATE"
+    sed -i "s|$good/|$STATE/|g" "$STATE/audit.tsv"
+    sed -i 's/^P001\t\([^\t]*\)\tpending/P001\t\1\tapproved/' "$STATE/proposals.tsv"
+    run verify
+    check "a trail from before, with statuses kept in proposals.tsv, still verifies" "$(same "$CODE" 0)"
     STATE="$good"
 }
 # }}}
@@ -238,6 +326,8 @@ function main() {
     test_approve
     test_rollback
     test_audit
+    test_prune
+    test_conflicts
     stand_in_stop
     [ -n "$KEEP" ] || rm -rf "$SCRATCH"
     echo

@@ -440,3 +440,59 @@ would orphan any trail already kept. `audit.tsv` is append-only already.
 **Still open:** backup rotation, checkpoints, conflict analysis, and
 proposals as an append-only log (their status is rewritten in place
 today).
+
+## Status (2026-11-03, later): backup rotation built
+
+`claudemd-revise.lua prune [--keep=N] [--yes]` is step 7's rotation. It is
+tested in `test-claudemd-revise.sh` (69 checks, 12 of them new).
+
+- It keeps the newest N backups (default 100, as step 7 says) by the date in
+  their names.
+- Whatever their age, it also keeps the backups a rollback still needs: the
+  last approval of each proposal approved now. So rotation never takes away
+  an undo.
+- Without `--yes` it only lists what would go.
+- Each removal is a `pruned` row on `audit.tsv`. `diff` then says the backup
+  was pruned on that date, and `verify` does not count it as missing. Only
+  status rows (proposed, approved, rejected, rolled-back) count as a
+  proposal's timeline in `verify`.
+
+**Decided while building (my own calls):**
+- Rotation is a command, not something `approve` does by itself, so nothing
+  is ever deleted unasked.
+- The old backups it removes are those of rolled-back proposals and earlier
+  approvals. They only serve `diff`.
+
+Checkpoints matter less here than in the issue's design, because every
+status can already be rebuilt from `audit.tsv`, and `verify` checks that it
+agrees.
+
+## Status (2026-11-03, last): conflict analysis and an append-only proposals log
+
+Tested in `test-claudemd-revise.sh` (81 checks, 12 of them new).
+
+- **`proposals.tsv` is append-only.** A row is written once, when the
+  proposal is filed. A proposal's status is its last status row on
+  `audit.tsv`. `approve`, `reject` and `rollback` no longer rewrite the
+  file. State folders from before still read correctly. `verify` checks
+  that any status they kept agrees with the trail, and that no proposal is
+  filed twice.
+- **`conflicts`** is step 6's conflict analysis, as a report that decides
+  nothing:
+  - approved guidelines in one file that share two or more topic words,
+    where one is a "don't" and the other is not;
+  - corrections recorded since a guideline was approved that touch two or
+    more of its topic words;
+  - approvals rolled back, and guidelines proposed again after.
+
+**Decided (with the coordinator):** no checkpoints. `audit.tsv` is enough
+to rebuild every status.
+
+**Decided while building (my own calls):** the storage stays TSV, not
+JSON lines. Matching for conflicts is by shared words, so it can miss a
+contradiction worded differently. Deeper detection, possibly by the
+model, belongs to 040e.
+
+With this, 040d's steps are covered at this tool's scale. What remains for
+the parent issue (040) is the parent-issue note and the PRIORITY and
+progress rows, which wait until the stack is merged.

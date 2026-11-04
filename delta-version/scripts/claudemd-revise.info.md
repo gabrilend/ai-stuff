@@ -14,6 +14,8 @@ claudemd-revise.lua show P001             # its events, proposal and timeline
 claudemd-revise.lua diff P001             # what its approval changed
 claudemd-revise.lua report --since=2026-11-01
 claudemd-revise.lua verify                # the audit trail's integrity checks
+claudemd-revise.lua conflicts             # guidelines pulling against each other
+claudemd-revise.lua prune --keep=100      # backup rotation: shows; add --yes to remove
 ```
 
 - **Events** come in three kinds: correction, instruction and convention.
@@ -33,6 +35,12 @@ claudemd-revise.lua verify                # the audit trail's integrity checks
 - **`rollback`** restores the backup, but only while the file's checksum still
   matches the one recorded at approval, so a hand edit made since is never
   thrown away.
+- **Append-only files.** `events.tsv`, `proposals.tsv` and `audit.tsv`
+  only ever get new lines. A proposal's status is its last status row on
+  the audit trail (proposed, approved, rejected, rolled-back). Its row in
+  `proposals.tsv` keeps the status it was filed with. Older state folders,
+  whose `proposals.tsv` was rewritten in place, still read correctly, and
+  `verify` checks that their statuses agree.
 - **State** (events, proposals, backups, `audit.tsv`) lives in
   `~/.local/share/claudemd-revisions`, outside any repository, because events
   can hold anything said in a session. `--state=DIR` moves it.
@@ -51,10 +59,25 @@ claudemd-revise.lua verify                # the audit trail's integrity checks
   - rows are in date order;
   - each row names a known proposal;
   - each proposal's trail starts with its proposal;
-  - each status agrees with its last action;
-  - every approval's backup is still there.
+  - no proposal is filed twice, and any status kept in `proposals.tsv`
+    agrees with its last action;
+  - every approval's backup is still there, or was removed by `prune`.
 
   A target edited since its approval is noted, but is not a problem.
+- **`conflicts`** reports, and decides nothing:
+  - approved guidelines in one file that share two or more topic words
+    where one is a "don't" (never, not, avoid...) and the other is not;
+  - corrections recorded since a guideline's approval that share two or
+    more of its topic words;
+  - approvals rolled back, and any guideline proposed again after.
+- **`prune`** rotates the backups. It keeps the newest `--keep` (default 100,
+  going by the date in each backup's name) and, however old, every backup a
+  rollback still needs: the last approval of each proposal that is approved
+  now. Without `--yes` it only lists what it would remove. Each removal is a
+  `pruned` row on the audit trail, so `diff` says the backup was pruned
+  rather than lost, and `verify` does not count it as a problem. Files in
+  `backups/` not named as approvals name them (`ID-DATE-TIME.md`) are left
+  alone.
 
-Tested by `test-claudemd-revise.sh` (57 checks) against the stand-in model
+Tested by `test-claudemd-revise.sh` (81 checks) against the stand-in model
 in `libs/stand-in-model/`.
