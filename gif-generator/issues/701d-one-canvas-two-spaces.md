@@ -105,7 +105,7 @@ for open question 3.
   (a `000-canvas`) and a place: `front`, `back`, or `world` (at, facing,
   size in world units, pixels across). There is always a front pane,
   named `front`; a stroke that names no pane is painted there.
-  `src/052-frame.lua` holds the frame's three moves.
+  `src/062-frame.lua` holds the frame's three moves.
 - **Both painters, unchanged (step 2).** The 3D painter's frame body
   moved, unchanged, into `frame.draw_world`, and the shape films draw
   through it too. The 2D painter paints each pane exactly as it painted
@@ -137,7 +137,7 @@ for open question 3.
   where that shape appears in the picture each frame; a point or a line
   on a camera's pane follows it. A fill's corners stand still and a
   world pane does not see the picture, so neither may follow a shape.
-- **The proofs (step 6).** `src/054-two-spaces-test.lua` (38 checks, in
+- **The proofs (step 6).** `src/064-two-spaces-test.lua` (38 checks, in
   `./test-shape-films`, now 278 of 278): the four stroke-only scores in
   `input/` film the bytes they filmed before panes; each of the six
   approved films, said as a score, films its approved bytes; a pane

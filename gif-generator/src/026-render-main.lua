@@ -41,8 +41,8 @@ local splat = require("012-splat")
 local tracks = require("018-tracks")
 local score = require("022-score")
 local compile = require("024-compile")
-local two_spaces = require("053-two-spaces")
-local cards = require("055-cards")
+local two_spaces = require("063-two-spaces")
+local cards = require("065-cards")
 
 local main = {}
 
