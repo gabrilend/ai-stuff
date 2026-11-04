@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+#
+# file-screenshot - keeps every screenshot the game takes, with what changed.
+#
+# In plain terms: every time the game is run with --screenshot, the picture
+# it saves is not thrown away. This script files it in development-history/
+# under the next number, and writes a notes file beside it saying what made
+# it (the commit, the run, the settings), and what changed since the
+# previous picture — which source files, which settings (shown line by
+# line), and whether the commit moved — so the history shows the things that
+# change, one picture at a time. Two sections are left for a person (or
+# Claude) to fill: what the picture shows, literally, and the story so far.
+#
+# How "what changed" is known: each filing keeps a fingerprint of every
+# source and settings file (development-history/.fingerprints/NNN.txt);
+# the next filing compares its own fingerprint with the last one.
+#
+# Usage (normally called by the run script and by capture-history):
+#   scripts/file-screenshot SOURCE-DIR NAME -- RUN-OPTIONS...
+#
+#   SOURCE-DIR   the copy of the project that was run (its tmp/ holds the
+#                picture; its input/ holds the settings it ran with)
+#   NAME         words joined by dashes; "screenshot" if nothing better
+#   COMMIT       (environment) the commit the picture shows, if not HEAD
+
+DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
+SOURCE="${1:-}"
+NAME="${2:-screenshot}"
+shift 2
+# the "--" before the run options
+if [ "${1:-}" = "--" ]; then
+    shift
+fi
+
+SHOT="${SOURCE}/tmp/shared-memory/screenshot.png"
+# no picture: the run did not reach its screenshot (it failed or quit early)
+if [ ! -f "${SHOT}" ]; then
+    echo "file-screenshot: no picture at ${SHOT}" >&2
+    exit 1
+fi
+# a name that is not dash-joined lower-case words: refuse
+if ! [[ "${NAME}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo "file-screenshot: NAME must be lower-case words joined by dashes" >&2
+    exit 64
+fi
+
+HISTORY="${DIR}/development-history"
+PRINTS="${HISTORY}/.fingerprints"
+mkdir -p "${PRINTS}"
+COUNT=$(find "${HISTORY}" -maxdepth 1 -name '*.png' | wc -l)
+NUMBER=$(printf '%03d' $((COUNT + 1)))
+PICTURE="${HISTORY}/${NUMBER}-${NAME}.png"
+NOTES="${HISTORY}/${NUMBER}-${NAME}.info.md"
+cp "${SHOT}" "${PICTURE}"
+
+COMMIT="${COMMIT:-$(git -C "${DIR}" log -1 --format='%h' -- .)}"
+COMMIT_LINE=$(git -C "${DIR}" log -1 --format='%h %ad %s' --date=short "${COMMIT}" 2>&1)
+UNCOMMITTED=$(git -C "${DIR}" status --short -- src input libs scripts run 2>&1 | sed 's/^/  - /')
+
+# {{{ the fingerprint of this picture's sources and settings
+PRINT="${PRINTS}/${NUMBER}.txt"
+{
+    echo "commit ${COMMIT}"
+    find -L "${SOURCE}/src" "${SOURCE}/libs" -type f \( -name '*.lua' -o -name '*.c' -o -name '*.h' -o -name '*.map' \) \
+        -exec sha1sum {} + | sed "s|${SOURCE}/||" | sort -k2
+    sha1sum "${SOURCE}/input/game-settings.lua" | sed "s|${SOURCE}/||"
+} > "${PRINT}"
+cp "${SOURCE}/input/game-settings.lua" "${PRINTS}/${NUMBER}-settings.lua"
+# }}}
+
+# {{{ what changed since the previous picture
+PREVIOUS=$(find "${PRINTS}" -maxdepth 1 -name '[0-9][0-9][0-9].txt' ! -name "${NUMBER}.txt" | sort | tail -1)
+CHANGES="(the first filed picture: nothing to compare with)"
+if [ -n "${PREVIOUS}" ]; then
+    PREVIOUS_NUMBER=$(basename "${PREVIOUS}" .txt)
+    FILES=$(diff <(sed 1d "${PREVIOUS}") <(sed 1d "${PRINT}") | grep '^[<>]' | awk '{print $3}' | sort -u)
+    OLD_COMMIT=$(head -1 "${PREVIOUS}" | cut -d' ' -f2)
+    CHANGES="Compared with picture ${PREVIOUS_NUMBER}:"$'\n'
+    # the commit moved
+    if [ "${OLD_COMMIT}" != "${COMMIT}" ]; then
+        CHANGES+="- commit: ${OLD_COMMIT} -> ${COMMIT}"$'\n'
+    fi
+    # no file differs
+    if [ -z "${FILES}" ]; then
+        CHANGES+="- no source or settings file changed (same program, different run or moment)"$'\n'
+    else
+        while read -r FILE; do
+            CHANGES+="- changed: ${FILE}"$'\n'
+        done <<< "${FILES}"
+    fi
+    SETTINGS_DIFF=$(diff "${PRINTS}/${PREVIOUS_NUMBER}-settings.lua" "${PRINTS}/${NUMBER}-settings.lua" | grep '^[<>]')
+    # the settings changed: show the lines
+    if [ -n "${SETTINGS_DIFF}" ]; then
+        CHANGES+=$'\n'"Settings, before (<) and now (>):"$'\n\n'"\`\`\`"$'\n'"${SETTINGS_DIFF}"$'\n'"\`\`\`"
+    fi
+fi
+# }}}
+
+cat > "${NOTES}" <<EOF
+<!-- made by scripts/file-screenshot on $(date '+%Y-%m-%d %H:%M'), from the
+     game run as: run ${SOURCE} $* -->
+
+# ${NUMBER} — ${NAME}
+
+- **Picture:** ${NUMBER}-${NAME}.png
+- **Commit:** ${COMMIT_LINE}
+- **Run:** \`run $*\` (from ${SOURCE})
+- **Uncommitted at the time:**
+${UNCOMMITTED:-  - none}
+
+## What changed
+
+${CHANGES}
+
+## What it shows
+
+(Literally: what is on the screen, part by part.)
+
+## The story so far
+
+(The arc of the project up to this picture, briefly: what came before, what
+this cycle added, what it set up next. Details are in llm-transcripts/.)
+EOF
+
+echo "${PICTURE}"
+echo "${NOTES}"

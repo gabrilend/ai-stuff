@@ -184,6 +184,10 @@ loader.clear()
    the player's own overrides first, then the model or texture the map
    asks for, then the stock one from the player's install. Nothing found
    is nil and a message; the placeholder is 602's to draw.
+   (2026-11-04: the owner's lookup order puts the project's own baseline
+   model set, made by the asset forge (W05-W06), after the install and
+   before 602's wire-frame; `docs/wow-client-bridge.md`, "Our own models
+   are the default". The loader gains that step once the set exists.)
 2. **Asset packs replace server directories.** Nothing is server-provided
    since 2026-09-26; packs live in `<player data>/asset-packs/<name>/`, as
    605 keeps them. Packs are given in priority order; without an order,

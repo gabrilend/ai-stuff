@@ -42,4 +42,6 @@ what a person reads before opening the source.
 | `test_the_dial(t)` |  |
 | `test_the_card_is_also_the_screen(t)` | `307` asked whether the processor was getting hot and answered it properly. |
 | `test_the_folds_say_what_the_functions_take(t)` | Every function in this project opens with a fold header naming it, and the |
+| `test_another_kitchen(t)` | `415`: a kitchen in another house is a set of changes over the settings, and |
+| `test_inside_and_outside(t)` | `416`: two mask routes, one scene, one seed -- and the outside route kept |
 | `main(argv)` |  |

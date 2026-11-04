@@ -46,6 +46,7 @@ Exit status: 0 no findings, 1 findings printed, 2 bad arguments or no issues/.
 | orphans | a sub-issue (104a) with no parent (104) |
 | dangling links | a link field names an id with no file |
 | one-sided links | A says it blocks B but B does not name A as a blocker, or the reverse; checked only when the project writes links in both directions |
+| other projects' links | a link names another project and one of its numbers ("wow-chat-2026 916d"), and that project has no file with that number |
 
 Link fields are read under the labels "Blocked by", "Blocks", "Dependencies"
 and "Depends on", in four shapes: a header-table row, a bold label, a bold
@@ -54,11 +55,24 @@ taken as an issue reference when it names a phase the project has issues in,
 so years and percentages in free text are not mistaken for links. Links written
 in superseded or declined files are ignored.
 
+**Other projects.** A folder beside the project's own folder that holds an
+`issues/` folder is another project, and its folder name in a link field marks
+the numbers after it as that project's, until the end of the bullet or the
+next project's name ("- wow-chat-2026 916d's placement ... (916k, 916l)").
+Those numbers are looked up in that project, using its own phases and number
+width, and make no link here: whether that project lists this one back is its
+own business, so no one-sided finding is made across projects. A path such as
+`scripts/issues/032-...` counts the same way, so a link written as a path into
+a sibling project is read as that project's issue.
+
 ## Relationship to other tools
 
 - `progress-dashboard.lua` — counts the same issues by phase.
+- `fix-issue-links` — writes the missing half of every one-sided link this
+  tool reports, in the shape of the file's existing link fields.
 - `validate-issue-graph` in enheim-tome — the ancestor of the link check; it
   also has a `--fix` that writes the union of both sides into both files. This
-  tool reports only and never edits an issue file.
+  tool reports only and never edits an issue file; `fix-issue-links` does the
+  writing, in every link shape this tool reads.
 - The `issue-lifecycle` skill (`~/.claude/skills/issue-lifecycle/`) runs this
   tool when an issue is created, edited, or completed.
