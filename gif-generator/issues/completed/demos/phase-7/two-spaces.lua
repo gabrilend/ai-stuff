@@ -22,9 +22,9 @@ local gif = require("004-gif")
 local palette = require("002-palette")
 local score = require("022-score")
 local compile = require("024-compile")
-local two_spaces = require("053-two-spaces")
+local two_spaces = require("063-two-spaces")
 local stats = require("030-stats")
-local cards = dofile(DIR .. "/src/055-cards.lua")
+local cards = dofile(DIR .. "/src/065-cards.lua")
 
 local HERE = DIR .. "/issues/completed/demos/phase-7"
 local SCORE = HERE .. "/meeting.lua"

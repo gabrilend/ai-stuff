@@ -57,10 +57,10 @@ Built 2026-11-01 on branch `claude/602-three-readings`, on top of 601's
 live door, so it hears both spaces (704) with no further change.
 
 - **Asking.** `./porch --three "a sentence"` plans the readings
-  (`src/061-readings.lua`: every door in `input/cluster` once; one door
+  (`src/071-readings.lua`: every door in `input/cluster` once; one door
   three times with seeds 1, 2 and 3; two doors share three) and asks
   them all at once, each reading in its own process
-  (`src/062-three-readings.lua --one`), so a slow door holds up no one.
+  (`src/072-three-readings.lua --one`), so a slow door holds up no one.
   `--count=N` asks for 1 to 4, never more processes than her limit.
 - **Filming.** Each reading that passes is filmed through the one
   pipeline (`026-render-main`), shown at a whole fraction of its size
@@ -80,7 +80,7 @@ live door, so it hears both spaces (704) with no further change.
   score. Who heard it is appended to `input/porch-history.txt` rather
   than beside the cluster file, since `input/cluster` stays out of git
   and the history is worth keeping.
-- **Proof.** `src/063-readings-test.lua`, 22 of 22, with fakes: one door
+- **Proof.** `src/073-readings-test.lua`, 22 of 22, with fakes: one door
   that reads well, one that misspells every time, one that doesn't
   answer. By hand, against small fake llama.cpp servers: three doors
   (one good, one stubborn, one down), then one door with three seeds;

@@ -1,5 +1,5 @@
 -- misspelled: a scene with one mistake in each of a dozen places, for the
--- wall's test (050-shape-wall-test.lua). Every one must be reported in one
+-- wall's test (060-shape-wall-test.lua). Every one must be reported in one
 -- pass, each with the nearest legal word; nothing may be filmed.
 return {
     name = "misspelled",

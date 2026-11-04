@@ -39,7 +39,7 @@ MAX_PROCESSES=4
 # -- {{{ film_each
 # Hands every scene name to its own luajit process, four at a time.
 function film_each() {
-    printf '%s\n' $scene_names | xargs -P "$MAX_PROCESSES" -I{} luajit "$DIR/src/039-shape-films.lua" "$DIR" {} --jobs=1 "$@"
+    printf '%s\n' $scene_names | xargs -P "$MAX_PROCESSES" -I{} luajit "$DIR/src/049-shape-films.lua" "$DIR" {} --jobs=1 "$@"
 }
 # }}}
 

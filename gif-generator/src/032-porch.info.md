@@ -14,12 +14,12 @@ the best draft — never a silent repair or drop.
 
 Since issue 704 the porch hears both spaces. The grammar also has
 shape, camera, world and pane calls, generated from the 3D wall's
-own word lists (`048-shape-words.lua`: one rule per context, a
+own word lists (`058-shape-words.lua`: one rule per context, a
 motion's `kind` picking its words, the runtime's hues, meshes,
 effects and solids as choices), and a stroke may name its pane and
 follow a shape's tag. The prompt adds `docs/shape-format.md` and
 `tests/two-spaces/mixed.lua`. Every reading is said back in plain
-lines (`059-say-back.lua`), which also head the written score.
+lines (`069-say-back.lua`), which also head the written score.
 
 ## Usable surface
 

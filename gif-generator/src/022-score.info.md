@@ -21,7 +21,7 @@ the language's contract in prose.
   promise.
 - **write(raw) → text** — canonical score text: canvas first, then
   the camera, world, shapes and panes (3D values written as the shape
-  scenes write them, `045-scene-file.lua`, so numbers round-trip),
+  scenes write them, `055-scene-file.lua`, so numbers round-trip),
   then strokes sorted by insert, fields in fixed order so two writes are
   byte-identical, comments (the porch's prose sentences) above the
   strokes they describe, and, from `raw.said` (issue 704), above the

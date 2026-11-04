@@ -1,7 +1,7 @@
 -- broken-numbers: a scene where every word is spelled right and twelve
 -- of them break a rule (half a turn, a darkening past 1, a curve with three
 -- points, a shape with no colour, rolling on a circle, ...), for the wall's
--- test (050-shape-wall-test.lua). Every one must be reported in one pass;
+-- test (060-shape-wall-test.lua). Every one must be reported in one pass;
 -- nothing may be filmed.
 return {
     name = "broken-numbers",

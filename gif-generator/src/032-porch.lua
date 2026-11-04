@@ -21,10 +21,10 @@
 --
 -- Since issue 704 the porch hears both spaces: besides canvas and
 -- stroke, the model may call shape, camera, world and pane, whose
--- words come from the 3D wall's own lists (048-shape-words.lua), read
+-- words come from the 3D wall's own lists (058-shape-words.lua), read
 -- here the moment the grammar is asked for, so a word added there is a
 -- word the model may say. Every reading is said back in plain lines
--- (059-say-back.lua), written from the calls and not by the model, so a
+-- (069-say-back.lua), written from the calls and not by the model, so a
 -- person checks what was heard without reading Lua; the lines head the
 -- score as comments.
 
@@ -36,7 +36,7 @@ local emit = require("008-emit")
 local easing = require("016-easing")
 local score = require("022-score")
 local compile = require("024-compile")
-local sayback = dofile(HERE .. "059-say-back.lua")
+local sayback = dofile(HERE .. "069-say-back.lua")
 
 package.path = DKJSON_PATH .. package.path
 local json = require("dkjson")
@@ -88,9 +88,9 @@ end
 -- names as alternations. Every kind a word list names must be known
 -- here, so the lists cannot grow a kind the model cannot say.
 local function three_d_rules(rule)
-    local words = dofile(HERE .. "048-shape-words.lua")
-    local meshes = dofile(HERE .. "034-meshes.lua")
-    local owned = dofile(HERE .. "035-choreography.lua").vocabulary()
+    local words = dofile(HERE .. "058-shape-words.lua")
+    local meshes = dofile(HERE .. "044-meshes.lua")
+    local owned = dofile(HERE .. "045-choreography.lua").vocabulary()
     local compile = require("024-compile")
     local hues = {}
     for i, h in ipairs(compile.HOUSE_HUES) do hues[i] = h end

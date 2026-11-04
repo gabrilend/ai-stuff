@@ -36,7 +36,7 @@ Built 2026-10-30 on top of 701f. `./test-shape-films` is 315 of 315.
   jade spark rides each moon across the picture through the cross-over
   landmark, a teal comet flies from one moon to the other on the front
   pane, and an ice sweep glows on the back pane. It passes the wall, and
-  `src/054-two-spaces-test.lua` checks that it does.
+  `src/064-two-spaces-test.lua` checks that it does.
 - **The halves.** The two-space renderer takes a `show`: `"world"` films
   the shapes alone, `"light"` the panes' light alone (the shapes still
   hide and show it, but are not drawn). The tests prove the shapes' half is

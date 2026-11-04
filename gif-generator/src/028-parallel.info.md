@@ -27,5 +27,5 @@ render's fractions into the next.
 
 A score with a second space (issue 701d: shapes, panes or a background)
 is refused here with a pointer to `./run`: its world and panes are drawn
-by `053-two-spaces.lua`, which these workers don't run. Giving it many
+by `063-two-spaces.lua`, which these workers don't run. Giving it many
 hands is future work.

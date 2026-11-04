@@ -9,7 +9,7 @@ demos, tests, and the porch's thumbnails share it.
 ## Usable surface
 
 - **render(compiled) → frames, facts** — the spine. A compiled
-  score with a second space is handed to `053-two-spaces.lua`, which
+  score with a second space is handed to `063-two-spaces.lua`, which
   gives the same frames and facts; strokes alone are drawn here as
   ever. Facts are all
   measured: frames, peak particles, capacity, palette seats lit,
@@ -28,4 +28,4 @@ thin wrapper. Reports land as plain data lines beside each gif; the
 render log streams to the RAM tier (a missing tier means bootstrap
 has not run — said aloud, not worked around).
 
-Every gif it lands gets a card beside it, `NAME.gif.card` (`055-cards.lua`, issue 701e), in the same pool as the shape films: kind `strokes` or `two spaces`.
+Every gif it lands gets a card beside it, `NAME.gif.card` (`065-cards.lua`, issue 701e), in the same pool as the shape films: kind `strokes` or `two spaces`.

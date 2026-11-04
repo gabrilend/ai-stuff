@@ -117,7 +117,7 @@ end
 -- first-class road, not a fossil — the identity test drives it.
 function parallel.render_to_gif(compiled, dir, workers)
     -- a score with a second space (issue 701d) draws its world and panes
-    -- in 053-two-spaces.lua, which these workers do not run
+    -- in 063-two-spaces.lua, which these workers do not run
     if compiled.studio then
         error("parallel: a score with a second space films on one worker "
               .. "for now — render it with ./run, or measure it with 0 workers")
