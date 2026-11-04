@@ -154,7 +154,7 @@ One page serves all three; what differs is only who draws it.
 ## Related Documents
 
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (the fetcher)
-- `issues/609-shared-map-and-model-list.md`
+- `issues/completed/609-shared-map-and-model-list.md`
 - `docs/licensing-and-boundaries.md` (content rights)
 - `docs/roadmap.md` (phase 10)
 - `issues/W02-build-wc3-maps-into-the-wow-client.md` (conversion report)
