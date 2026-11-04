@@ -1,0 +1,111 @@
+#!/bin/bash
+#
+# pull-transcript-site
+#
+# Copies the transcript-site library into a project, the way a project keeps
+# any library it depends on: a whole copy inside the project, so the project
+# runs on a machine that has never seen the ai-stuff repository. The copy is
+# taken from the library AS COMMITTED -- never from whatever happens to be
+# half-edited on disk -- and the commit it came from is written beside it in
+# a file called UPSTREAM, so "which version is this" always has an answer.
+#
+# Pulling again replaces the old copy whole. That is the point: the copy is
+# never edited in the project; a change belongs in the library first, then a
+# fresh pull. Pull again whenever the project's dependencies are updated.
+#
+# Usage:
+#   pull-transcript-site <project-dir> [--commit <commit>] [--without <name>]...
+#                        [--into <folder>] [--dir <scripts-dir>]
+#
+#   project-dir   the project that keeps the copy
+#   --commit      which commit of the library to take (default: the latest)
+#   --without     a file or folder of the library to leave out, for example
+#                 "fonts" when the project names its own fonts in its
+#                 settings; may be given more than once
+#   --into        where in the project the copy goes (default:
+#                 libs/transcript-site)
+#   --dir         where the ai-stuff scripts live (default below)
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+
+# -- {{{ parse_arguments
+function parse_arguments() {
+   PROJECT=""
+   COMMIT="HEAD"
+   INTO="libs/transcript-site"
+   WITHOUT=()
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --commit)  COMMIT="${2:?--commit needs a commit}"; shift ;;
+         --without) WITHOUT+=("${2:?--without needs a name}"); shift ;;
+         --into)    INTO="${2:?--into needs a folder}"; shift ;;
+         --dir)     DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         -*)        echo "pull-transcript-site: unknown option $1" >&2; exit 1 ;;
+         *)         PROJECT="$1" ;;
+      esac
+      shift
+   done
+   if [ -z "$PROJECT" ]; then
+      echo "pull-transcript-site: which project? (see --help)" >&2
+      exit 1
+   fi
+   PROJECT=$(realpath "$PROJECT")
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   parse_arguments "$@"
+
+   local repository folder full
+   repository=$(git -C "$DIR" rev-parse --show-toplevel)
+   folder=$(realpath --relative-to="$repository" "$DIR/transcript-site")
+   full=$(git -C "$repository" rev-parse --verify "$COMMIT^{commit}")
+
+   # Unpacked first into the project's RAM folder, then moved into place, so
+   # a pull that fails partway never leaves the project with half a library.
+   local staging="$PROJECT/tmp/shared-memory/pull-transcript-site"
+   rm -rf "$staging"
+   mkdir -p "$staging"
+   local depth
+   depth=$(echo "$folder" | tr -cd '/' | wc -c)
+   git -C "$repository" archive "$full" "$folder" | tar -x -C "$staging" --strip-components=$((depth + 1))
+   if [ ! -f "$staging/build-site.lua" ]; then
+      echo "pull-transcript-site: commit $full has no library at $folder" >&2
+      return 1
+   fi
+
+   local name
+   for name in "${WITHOUT[@]}"; do
+      if [ ! -e "$staging/$name" ]; then
+         echo "pull-transcript-site: the library has no $name to leave out" >&2
+         return 1
+      fi
+      rm -rf "${staging:?}/$name"
+   done
+
+   cat > "$staging/UPSTREAM" <<EOF
+This folder is a copy of a library. Do not edit it here: change the library,
+commit it, and pull again.
+
+repository  $repository
+folder      $folder
+commit      $full
+pulled      $(date '+%Y-%m-%d %H:%M')
+left out    ${WITHOUT[*]:-nothing}
+
+Pulled by: $DIR/transcript-site/pull-transcript-site
+EOF
+
+   local target="$PROJECT/$INTO"
+   mkdir -p "$(dirname "$target")"
+   rm -rf "${target:?}"
+   mv "$staging" "$target"
+   echo "Pulled the transcript-site library at ${full:0:9} into $target"
+}
+# }}}
+
+main "$@"

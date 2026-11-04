@@ -63,7 +63,7 @@ focus it directly.
 
 ## Blocked by
 
-506, 601, 603, 608.
+506, 601, 603, 608, 612 (its drawing becomes the editor's default look).
 
 ## Blocks
 

@@ -71,7 +71,7 @@ local md = run_parser(table.concat({
     user("u1", "Commit the work."),
     said("Committing now."),
     ran("t1", "/home/ritz/programming/ai-stuff/scripts/commit-own-changes /mnt/mtwo/programming/ai-stuff -F - <<'EOF'\nClose *four* issues\nEOF"),
-    output("t1", "commit-own-changes: committed 8a235a0fe on main in /mnt/mtwo/programming/ai-stuff\n  Close *four* issues\n  ours           a.md (1 of 1 change blocks)"),
+    output("t1", "commit-own-changes: committed 7a29ea7a8 on main in /mnt/mtwo/programming/ai-stuff\n  Close *four* issues\n  ours           a.md (1 of 1 change blocks)"),
     ran("t2", "cd /tmp/x && git add -A && git commit -m 'First commit'"),
     output("t2", "[main (root-commit) 1a2b3c4] First commit\n 1 file changed"),
     ran("t3", "grep -h 'commit-own-changes: committed' ~/.claude/projects/*/*.jsonl"),
@@ -81,7 +81,7 @@ local md = run_parser(table.concat({
     said("Both are committed."),
 }, "\n") .. "\n")
 
-check(md:find("*[commit] 8a235a0fe in ai-stuff - Close \\*four\\* issues*", 1, true) ~= nil,
+check(md:find("*[commit] 7a29ea7a8 in ai-stuff - Close \\*four\\* issues*", 1, true) ~= nil,
     "commit-own-changes: hash, repository name and subject, asterisks escaped")
 check(md:find("*[commit] 1a2b3c4 - First commit*", 1, true) ~= nil,
     "plain git commit, first commit of a repository")

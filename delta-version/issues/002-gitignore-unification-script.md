@@ -85,12 +85,12 @@ Create an automated script that:
 ```
 
 ### Integration Points
-- Called during git repository initialization (Issue 065, formerly 001-MASTER)
+- Called during git repository initialization (Issue 068, formerly 001-MASTER)
 - Can be triggered manually when project `.gitignore` files change
 - Integrated into project maintenance workflows
 
 ## Related Documents
-- `065-comprehensive-git-repository-setup.md` - Parent task (numbered 001 until 2026-11-02) requiring unified gitignore
+- `068-comprehensive-git-repository-setup.md` - Parent task (numbered 001 until 2026-11-02) requiring unified gitignore
 - Individual project documentation explaining ignore requirements
 - Git workflow documentation
 
@@ -101,11 +101,11 @@ Create an automated script that:
 - File system traversal tools
 
 ## Metadata
-- **Priority**: High (prerequisite for Issue 065, formerly 001-MASTER)
+- **Priority**: High (prerequisite for Issue 068, formerly 001-MASTER)
 - **Complexity**: Medium
 - **Estimated Time**: 1-2 hours
 - **Dependencies**: None (it is one step of the master issue below)
-- **Parent**: Issue 065, the git repository setup master issue
+- **Parent**: Issue 068, the git repository setup master issue
 - **Impact**: Repository cleanliness, development workflow
 
 ## Success Criteria

@@ -17,11 +17,14 @@
 -- shown; other binaries are listed but not inlined.
 --
 -- Usage:
---   luajit src/generate-source-browser.lua [DIR]
+--   luajit src/generate-source-browser.lua [--dir PATH]
 -- Output:
 --   output/source/index.html              -- the tree + welcome
 --   output/source/<path>.html             -- one page per published file
 -- }}}
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ setup_dir_path()
 local function setup_dir_path(provided_dir)
@@ -30,21 +33,20 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- {{{ parse_args()
-local function parse_args(args)
-    for _, a in ipairs(args or {}) do
-        if not a:match("^%-") then return a end
-    end
-    return nil
-end
--- }}}
-
-local DIR = setup_dir_path(parse_args(arg))
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path in
+-- setup_dir_path (libs/project-dir.lua, Issue 10-076). It used to be the
+-- first bare word.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil))
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 -- Issue 10-055: render Markdown (.md, .info.md, and extensionless prose like the
 -- vision doc) as formatted HTML instead of flat text.
 local markdown = require("markdown")
+-- Trims a saved word-cloud page to the cloud alone, words linked to the live
+-- site, for publishing under source/archive/ (libs/wordcloud-snapshot.lua).
+local snapshot = require("wordcloud-snapshot")
 
 -- {{{ Configuration
 -- ALLOWLIST: only files under these top-level directories are published. This
@@ -213,12 +215,27 @@ end
 
 -- {{{ list_published_files()
 -- Ask git for tracked files (honors .gitignore), then keep only allowlisted
--- ones. Returns (kept_list, skipped_dir_counts). Read-only git, no chaining.
+-- ones. Returns (kept_list, skipped_dir_counts, linked_files). Read-only git,
+-- no chaining.
+--
+-- linked_files: table, { [project path] = true } for every published file
+-- that is a symbolic link. Links ARE published, the target's content under
+-- the link's name: a project links in what it needs from elsewhere
+-- (docs/delta-guide.md is delta-version's maintainer guide), and that is
+-- part of reading this project. What a link's page cannot do is follow ITS
+-- relative links, which name files beside the target in the other project;
+-- the markdown renderer uses this set to turn those into plain text (see
+-- render_markdown_page). "--stage" makes git print each file's mode first;
+-- 120000 is git's mode for a link.
 local function list_published_files()
-    local pipe = io.popen(string.format("git -C %q ls-files", DIR))
+    local pipe = io.popen(string.format("git -C %q ls-files --stage", DIR))
     if not pipe then error("could not run git ls-files in " .. DIR) end
-    local kept, skipped = {}, {}
-    for line in pipe:lines() do
+    local kept, skipped, linked = {}, {}, {}
+    for entry in pipe:lines() do
+        -- "<mode> <hash> <stage>\t<path>"
+        local mode, line = entry:match("^(%d+) %x+ %d+\t(.+)$")
+        if not mode then error("unexpected git ls-files line: " .. entry) end
+        if mode == "120000" then linked[line] = true end
         local top = line:match("^([^/]+)/") or line  -- top-level dir, or root file
         local published
         if line:match("/") then
@@ -235,7 +252,7 @@ local function list_published_files()
     end
     pipe:close()
     table.sort(kept)
-    return kept, skipped
+    return kept, skipped, linked
 end
 -- }}}
 
@@ -334,20 +351,21 @@ local function page_shell(title, sidebar, content)
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>%s</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="%s_style.css">
 </head>
-<body>
+<body bgcolor="]] .. require("page-theme").colours().background .. [[">
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
 <a class="site-link" href="%%LINKPREFIX%%../wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
 <a class="output-link" href="%%LINKPREFIX%%../wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
-<a class="download-link" href="%%LINKPREFIX%%../similar-different.zip" download>&#11015;&#160;download everything (site&#160;+&#160;source)</a>
+<a class="download-link" href="%%LINKPREFIX%%../download/index.html">&#11015;&#160;download everything (site&#160;+&#160;source)</a>
 </nav>
 <main id="main">%s</main>
 </div>
@@ -443,8 +461,68 @@ end
 -- lists, code, links) rather than numbered plain text. Used for .md / .info.md
 -- and for extensionless prose (the vision doc). The renderer escapes all text,
 -- so untrusted markup cannot inject tags.
-local function render_markdown_page(rel, body)
-    return page_header(rel) .. '<div class="md">' .. markdown.render(body) .. "</div>"
+-- source_page_name: table, { [project path] = true } for every file whose
+-- published page is "<path>.html" (documents and code). A relative link in the
+-- document to one of those is pointed at that page -- "13-002a-....md" becomes
+-- "13-002a-....md.html" -- because the browser publishes no file under the bare
+-- name, and every such link was a page-not-found (21 of them). A link to a file
+-- that is not published at all is left alone, so the site check still names it.
+--
+-- is_linked_in: boolean, true when this document is a symbolic link to a file
+-- in another project. Its relative links were written for ITS home folder, so
+-- one that names no file published here cannot be fixed by this project: it
+-- is drawn as plain text (the label, unlinked) instead of a dead link. In this
+-- project's own documents the same case stays a link, so the site check
+-- still catches a real mistake.
+local function render_markdown_page(rel, body, source_page_name, is_linked_in)
+    local html = markdown.render(body)
+    local dir = rel:match("^(.*)/[^/]*$") or ""
+
+    -- {{{ local function resolve()
+    -- A relative address -> (project path, fragment), or nil for addresses
+    -- that are not files of this project (a scheme, an in-page anchor, a
+    -- site-absolute path).
+    local function resolve(href)
+        if href:match("^%a[%w+.-]*:") or href:sub(1, 1) == "#" or href:sub(1, 1) == "/" then
+            return nil
+        end
+        local path, fragment = href:match("^([^#]*)(.*)$")
+        -- Resolve against the document's own folder, folding "." and "..".
+        local parts = {}
+        for part in ((dir ~= "" and (dir .. "/") or "") .. path):gmatch("[^/]+") do
+            if part == ".." then
+                parts[#parts] = nil
+            elseif part ~= "." then
+                parts[#parts + 1] = part
+            end
+        end
+        return table.concat(parts, "/"), path, fragment
+    end
+    -- }}}
+
+    if is_linked_in then
+        -- links of another project's document: keep those that land on a
+        -- page here, unlink the rest
+        html = html:gsub('<a href="([^"]*)">(.-)</a>', function(href, label)
+            local target = resolve(href)
+            if target and not source_page_name[target] then
+                return label
+            end
+            return nil
+        end)
+    end
+    html = html:gsub('href="([^"]*)"', function(href)
+        local target, path, fragment = resolve(href)
+        -- not a file of this project: leave the address as written
+        if not target then return nil end
+        -- a published file: point at its page
+        if source_page_name[target] then
+            return 'href="' .. path .. ".html" .. fragment .. '"'
+        end
+        -- an unpublished file: left alone, for the site check to report
+        return nil
+    end)
+    return page_header(rel) .. '<div class="md">' .. html .. "</div>"
 end
 -- }}}
 
@@ -477,8 +555,13 @@ end
 local function write_style_file(out_root)
     local css = [[
 /* Machine Codex -- source browser theme (Issue 10-052). */
+/* Every background is pure black, like the rest of the site (Issue 11-009):
+   on an OLED screen a black pixel is an unlit one, and a near-black panel
+   beside the pure-black poem pages reads as a second, lit "black". Boxes are
+   told apart by their border lines (--rule), not by a lighter fill. */
 :root{
-  --ink:#0b0c10; --ink-2:#13151f; --panel:#0e1018;
+  color-scheme: dark;
+  --ink:]] .. require("page-theme").colours().background .. [[; --ink-2:]] .. require("page-theme").colours().background .. [[; --panel:]] .. require("page-theme").colours().background .. [[;
   --paper:#e9e4d8; --paper-dim:#9b9484; --paper-faint:#6a6457;
   --gold:#d8b14a; --gold-soft:#c6b257; --blue:#74a0e6; --teal:#5f9c92; --coral:#e08363;
   --rule:#24262f; --rule-soft:#191b22;
@@ -489,15 +572,6 @@ body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:'JetBrains Mono',ui-monospace,'Hack',Consolas,monospace;
   font-size:13.5px; line-height:1.62; -webkit-font-smoothing:antialiased;
-  background-image:
-    radial-gradient(820px 460px at 8% -12%, rgba(216,177,74,.08), transparent 60%),
-    radial-gradient(680px 480px at 104% -6%, rgba(95,156,146,.06), transparent 55%);
-  background-attachment:fixed;
-}
-/* fine grain overlay for paper-like depth */
-body::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:9; opacity:.04;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 a{color:var(--blue); text-decoration:none; transition:color .14s ease;}
 a:hover{color:var(--gold);}
@@ -507,7 +581,7 @@ a:hover{color:var(--gold);}
 #side{
   width:308px; min-width:308px; height:100vh; position:sticky; top:0; overflow:auto;
   padding:1.6rem 1.25rem 3rem; border-right:1px solid var(--rule);
-  background:linear-gradient(176deg, var(--ink-2), var(--ink) 70%);
+  background:var(--ink);
   font-size:12.5px; animation:sideIn .55s cubic-bezier(.2,.8,.2,1) both;
 }
 #side .home{display:block; margin-bottom:1.1rem;}
@@ -746,10 +820,20 @@ local function classify_file(rel)
     elseif IMAGE_EXTS[e] then
         return "image"
     elseif e == "" then
-        -- No extension: prose unless the bytes say binary (a NUL is the giveaway).
+        -- No extension: a script when its first line names an interpreter
+        -- ("#!/usr/bin/env luajit"), shown as code in that language; otherwise
+        -- prose, unless the bytes say binary (a NUL is the giveaway). Scripts
+        -- used to be read as Markdown, so code like cases[name](p) became a
+        -- link to a page named "p".
         local body = utils.read_file(DIR .. "/" .. rel)
-        if body and not body:find("\0", 1, true) then return "md" end
-        return "skip"
+        if not body or body:find("\0", 1, true) then return "skip" end
+        local shebang = body:match("^#!([^\n]*)")
+        if shebang then
+            if shebang:find("lua", 1, true) then return "code", "lua" end
+            if shebang:find("bash", 1, true) or shebang:find("/sh", 1, true) then return "code", "sh" end
+            return "code", "text"
+        end
+        return "md"
     end
     return "skip"
 end
@@ -790,8 +874,17 @@ end
 -- }}}
 
 local function main()
-    local all_files, skipped = list_published_files()
+    local all_files, skipped, linked_files = list_published_files()
     local out_root = DIR .. "/output/source"
+    -- Start from an empty folder: every page is written again below, and a
+    -- page left from a file since deleted or renamed would stay published --
+    -- retired code still readable on the site, styled by an older theme
+    -- (36 such pages were found on 2026-10-25). The folder holds only what
+    -- this program writes; the check keeps the removal to that folder.
+    if not out_root:match("/output/source$") then
+        error("source-browser: refusing to empty " .. out_root)
+    end
+    os.execute("rm -rf '" .. out_root:gsub("'", "'\\''") .. "'")
     ensure_dir(out_root)
     write_style_file(out_root)
 
@@ -829,7 +922,16 @@ local function main()
     end
 
     local rels = {}
-    for _, f in ipairs(renderable) do rels[#rels + 1] = f.rel end
+    -- Files published as "<path>.html" (every kind except archived pages shown
+    -- as themselves, saved mirrors, and images) -- for render_markdown_page's
+    -- link fixing.
+    local source_page_name = {}
+    for _, f in ipairs(renderable) do
+        rels[#rels + 1] = f.rel
+        if f.kind ~= "view" and f.kind ~= "mirror" and f.kind ~= "image" then
+            source_page_name[f.rel] = true
+        end
+    end
     local tree = build_tree(rels)
     local issue_index = build_issue_index(rels)  -- Feature D: comment -> issue links
     local written, images, write_failed = 0, 0, {}
@@ -846,14 +948,33 @@ local function main()
         end
 
         if f.kind == "view" then
-            -- Issue 10-063: an archived HTML page (a word-cloud snapshot) is copied
-            -- byte-for-byte into the source tree so the link resolves on the deployed
-            -- site (only output/source/ is uploaded). No source-view page is written
-            -- -- its sidebar entry (render_sidebar) opens this file directly, rendered.
-            if copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel) then
-                written = written + 1
+            -- Issue 10-063: an archived HTML page (a word-cloud snapshot) is
+            -- published as a real page; no source-view page is written -- its
+            -- sidebar entry (render_sidebar) opens this file directly, rendered.
+            -- It was copied byte-for-byte, which carried its menu and poem index
+            -- along with links written for the site root, all broken one level
+            -- down. Now only the cloud is published, its words pointing at the
+            -- live word pages (libs/wordcloud-snapshot.lua). The original in
+            -- archive/ is untouched.
+            local src = io.open(DIR .. "/" .. rel, "rb")
+            local html = src and src:read("*all")
+            if src then src:close() end
+            local trimmed, why = html and snapshot.cloud_only(html, snapshot.root_prefix_for(rel))
+            if not trimmed then
+                -- A snapshot in some other shape is a failure to publish, not a
+                -- reason to fall back to the raw copy and its broken links.
+                write_failed[#write_failed + 1] = rel .. " (" .. tostring(why or "unreadable") .. ")"
             else
-                write_failed[#write_failed + 1] = rel
+                local dst_abs = out_root .. "/" .. rel
+                ensure_dir(dst_abs:match("^(.*)/[^/]+$"))
+                local dst = io.open(dst_abs, "wb")
+                if dst then
+                    dst:write(trimmed)
+                    dst:close()
+                    written = written + 1
+                else
+                    write_failed[#write_failed + 1] = rel
+                end
             end
             goto continue
         end
@@ -876,7 +997,7 @@ local function main()
             local body = utils.read_file(DIR .. "/" .. rel)
             if not body then skipped_files = skipped_files + 1; goto continue end
             if f.kind == "md" then
-                content = render_markdown_page(rel, body)
+                content = render_markdown_page(rel, body, source_page_name, linked_files[rel] == true)
             else
                 content = render_text_page(rel, body, LANGS[f.lang_id or "text"])
                 -- Feature D: comments here mention issues; link them to their pages.
@@ -923,7 +1044,7 @@ follow any path down through the tree.</p>
     end
 
     -- Report what was published and -- loudly -- what was held back.
-    print(string.format("[source-browser] published %d text + %d images to %s",
+    require("output").print(string.format("[source-browser] published %d text + %d images to %s",
         written, images, out_root))
     do
         -- Feature F: count saved pages now linked out to the web, and the assets we
@@ -932,28 +1053,29 @@ follow any path down through the tree.</p>
         local linked_out = 0
         for _ in pairs(mirror_url) do linked_out = linked_out + 1 end
         if linked_out > 0 then
-            print(string.format("[source-browser] %d saved page(s) link out to the original article; %d of their assets held back (not hosted)",
+            require("output").print(string.format("[source-browser] %d saved page(s) link out to the original article; %d of their assets held back (not hosted)",
                 linked_out, held_assets))
         end
         if #mirror_missing > 0 then
-            print(string.format("[source-browser] WARNING: %d saved page(s) had no canonical/og:url and were held back -- add a MIRROR_URL_OVERRIDES entry: %s",
+            require("output").print(string.format("[source-browser] WARNING: %d saved page(s) had no canonical/og:url and were held back -- add a MIRROR_URL_OVERRIDES entry: %s",
                 #mirror_missing, table.concat(mirror_missing, ", ")))
         end
     end
     if skipped_files > 0 then
-        print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
+        require("output").print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
     end
     if #write_failed > 0 then
-        print(string.format("[source-browser] WARNING: %d pages failed to write (odd path characters): %s",
+        require("output").print(string.format("[source-browser] WARNING: %d pages failed to write (odd path characters): %s",
             #write_failed, table.concat(write_failed, ", ")))
     end
     local skip_report = {}
     for dir, count in pairs(skipped) do skip_report[#skip_report + 1] = string.format("%s (%d)", dir, count) end
     table.sort(skip_report)
     if #skip_report > 0 then
-        print("[source-browser] NOT published (allowlist held these back): " .. table.concat(skip_report, ", "))
+        require("output").print("[source-browser] NOT published (allowlist held these back): " .. table.concat(skip_report, ", "))
     end
 end
 -- }}}
 
-main()
+-- start, end and any stopping error go to the run's log (Issue 10-075)
+require("output").guard("generate-source-browser.lua", main)

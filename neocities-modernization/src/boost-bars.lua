@@ -112,9 +112,11 @@ end
 -- {{{ function M.content_line()  ->   ║ │ <content padded to 72> │ │
 function M.content_line(content, progress_chars)
     content = content or ""
-    -- Count UTF-8 codepoints of the tag-stripped text for an honest column width.
-    local visible = content:gsub("<[^>]+>", "")
-    local _, vlen = visible:gsub("[^\128-\191]", "")
+    -- Its width as the grid shows it, by the drawer's shared measure: tags
+    -- cost nothing, an entity (&amp;) one column, an emoji two. Counting
+    -- characters here gave "&amp;" five columns and an emoji one, so a boost
+    -- line holding either was padded wrong and its walls moved.
+    local vlen = require("text-formatter").calculate_visible_width(content)
     -- Color the text yellow, THEN pad with plain spaces (padding stays uncolored).
     local colored = string.format('<font color="%s">%s</font>', palette.content_text, content)
     local padded = colored .. string.rep(" ", math.max(0, M.CONTENT_WIDTH - vlen))
@@ -175,7 +177,10 @@ end
 -- Junctions sit UNDER the nav-box walls: similar box wall at col 12 (bar-index
 -- 10), different box wall at col 69 (bar-index 67). The bottom-right corner is
 -- the fill frontier (┴ single -> ╩ double) and the ─▶ arrow exits to the right.
-function M.bottom_border(progress_pct)
+-- has_nav: true when the navigation strip sits above (every page); false for
+-- a frame without it (the text exports, Issue 8-013), whose bottom edge has
+-- no walls landing on it and so no junctions.
+function M.bottom_border(progress_pct, has_nav)
     local progress_chars = math.floor(progress_pct * BAR_WIDTH)
     local LEFT_JUNCTION = 10
     local RIGHT_JUNCTION = 67
@@ -184,7 +189,7 @@ function M.bottom_border(progress_pct)
         local in_progress = i <= progress_chars
         -- Junction: the green nav wall above lands here. Double-down ╧ once the
         -- bar has filled past it, single ┴ until then.
-        if i == LEFT_JUNCTION or i == RIGHT_JUNCTION then
+        if has_nav and (i == LEFT_JUNCTION or i == RIGHT_JUNCTION) then
             out[#out + 1] = in_progress
                 and color("╧", palette.outer_frame, true) or color("┴", palette.outer_frame, false)
         elseif in_progress then
@@ -216,7 +221,7 @@ function M.format_boost(content_lines, progress_pct, similar_link, different_lin
         out[#out + 1] = M.nav_separator(progress_chars)
         out[#out + 1] = M.nav_line(similar_link, different_link, chronological_link, progress_chars)
     end
-    out[#out + 1] = M.bottom_border(progress_pct)
+    out[#out + 1] = M.bottom_border(progress_pct, include_nav)
     return table.concat(out, "\n")
 end
 -- }}}

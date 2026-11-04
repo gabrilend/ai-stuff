@@ -38,4 +38,20 @@ else
     [ -s "$SCRATCH/grid.png" ] && echo "  ok   - the grid was drawn ($SCRATCH/grid.png)" || { echo "  FAIL - no grid picture"; window_status=1; }
 fi
 
-[ "$reader_status" -eq 0 ] && [ "$window_status" -eq 0 ]
+echo ""
+echo "gif-viewer: watching one file"
+# --watch=FILE (used by gif-generator's say tool): the one gif loads and the
+# self-test completes on it, the same proof as the folder view.
+watch_status=1
+if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+    first_gif=$(ls -1 "$FOLDER"/*.gif | head -1)
+    mkdir -p "$SCRATCH/watch"
+    report=$(timeout 150 "$VIEWER/view-gifs" --watch="$first_gif" --selftest --screenshots="$SCRATCH/watch" 2>&1)
+    watch_status=$?
+    echo "  $report" | tail -1
+    [ -s "$SCRATCH/watch/single.png" ] && echo "  ok   - the watched gif was drawn ($SCRATCH/watch/single.png)" || { echo "  FAIL - no picture of the watched gif"; watch_status=1; }
+else
+    echo "  FAIL - no display to open the window on"
+fi
+
+[ "$reader_status" -eq 0 ] && [ "$window_status" -eq 0 ] && [ "$watch_status" -eq 0 ]
