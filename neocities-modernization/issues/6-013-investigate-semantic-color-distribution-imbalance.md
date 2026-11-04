@@ -65,7 +65,7 @@ Possible causes:
 - The embedding model may have learned biased associations
 - Poetry corpus naturally contains more emotionally "red" themes
 
-## Investigation Steps
+## Suggested Implementation Steps (investigate, then build Option G, then Option F if still skewed)
 
 ### Phase 1: Analyze Current Algorithm
 1. [ ] Read and document the current color assignment logic in `semantic-color-calculator.lua`

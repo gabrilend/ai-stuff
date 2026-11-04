@@ -397,7 +397,7 @@ separate, but related enough to be part of the same project.
 > Confirmed the gate fails. Now let me preserve the current state before
 > restructuring, so both versions are in the record.
 
-*[commit] ff5d65f4 - A dream about a door that opens on a stranger's name*
+*[commit] 8da881b6 - A dream about a door that opens on a stranger's name*
 
 > Baseline is in the record. Now the structure and the vision split.
 
@@ -502,7 +502,7 @@ separate, but related enough to be part of the same project.
 > component doesn't exist, so a missing file read as *inside* the corpus. `-e`
 > requires every component to exist.
 
-*[commit] f547cc4a - Two dreams get a shared hand, and the hand learns to refuse*
+*[commit] 85ea9f0c - Two dreams get a shared hand, and the hand learns to refuse*
 
 Committed. Here's where things stand.
 
@@ -689,7 +689,7 @@ after we have the script working.
 
 > Both carriers work. Now aligning the docs with the new phase order.
 
-*[commit] e8fdd397 - A knock, a name, and a door that makes itself*
+*[commit] 32976f01 - A knock, a name, and a door that makes itself*
 
 Both corrections taken. The script exists and runs.
 

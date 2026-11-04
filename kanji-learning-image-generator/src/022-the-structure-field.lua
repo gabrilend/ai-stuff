@@ -206,6 +206,67 @@ function M.build(record, settings, options)
 end
 -- }}}
 
+-- {{{ M.mask(record, settings, width, options)
+-- The character's strokes as a hard-edged mask: one on a stroke, zero off it.
+--
+-- The two mask routes (`416`) draw the line between the strokes and the rest
+-- with this rather than with the blurred field above. The field is a
+-- *neighbourhood*, softened on purpose so a control net reads it as light and
+-- dark; a mask is a *boundary*, and a soft boundary would let the inside route's
+-- subjects and background bleed into each other.
+--
+-- Same placement, same strokes, same order as the field, so the mask and the
+-- field are the same character in the same place. No ramp along the writing
+-- order: a mask is in or out, and a last stroke at eighty-eight percent would be
+-- in at one threshold and out at another.
+--
+-- `width` is in pixels at the reference resolution and is scaled like every
+-- other length (`414`). It is wider than the field's stroke because the inside
+-- route has to fit *things* along a stroke -- a heron, a femur -- and a
+-- hairline has no room for anything.
+function M.mask(record, settings, width, options)
+  options = options or {}
+  local placement = M.placement(settings, record)
+  local measured = options.measured or shape.measure_record(record)
+  local surface = canvas.new(placement.width, placement.height, 0)
+  for index, one in ipairs(measured) do
+    local box = M.where(placement, record.strokes[index])
+    canvas.stroke(surface, one.flat, {
+      width = M.scaled(settings, width),
+      strength = 1,
+      taper = settings.field.taper,
+      scale = box.scale,
+      offset_x = box.x,
+      offset_y = box.y,
+    })
+  end
+  -- Thresholded at half, so the edge of the mask is where the brush's edge was
+  -- and not wherever its soft falloff happened to round to.
+  local pixels = surface.pixels
+  for index = 1, surface.width * surface.height do
+    pixels[index] = (pixels[index] >= 0.5) and 1 or 0
+  end
+  return surface
+end
+-- }}}
+
+-- {{{ M.ink(mask, ink, paper)
+-- The outside route's canvas: the strokes painted in ink, the rest blank paper.
+--
+-- `ink` and `paper` are grey levels between zero and one. What the paper is
+-- matters little -- every pixel of it is regenerated from noise -- but the ink
+-- is kept exactly, pasted back over the finished picture, so it is the
+-- character as the learner will see it.
+function M.ink(mask, ink, paper)
+  local surface = canvas.new(mask.width, mask.height, paper)
+  local from, to = mask.pixels, surface.pixels
+  for index = 1, mask.width * mask.height do
+    if from[index] == 1 then to[index] = ink end
+  end
+  return surface
+end
+-- }}}
+
 -- {{{ M.thumbnail(surface, settings)
 -- The same field at the size the illusion is supposed to work at.
 --

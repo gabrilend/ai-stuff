@@ -62,7 +62,7 @@ QUOTES_LIB="${SCRIPT_HOME}/libs/commit-id-quotes.lua"
 WORK="/tmp/ai-stuff-history-graft"
 
 # The snapshot commit the histories join at: the monorepo's first commit.
-JOIN_COMMIT="1526850559c86fa24be8c927d13992b1b792669d"
+JOIN_COMMIT="472e9b9deb8df52a2046f166219651574eb61997"
 
 # Release and backup tags on the trunk, moved to their rebuilt twins.
 CARRY_TAGS="phase12-complete-stable v0.1.0-phase1 backup/before-history-fix"

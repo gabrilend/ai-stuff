@@ -1,0 +1,323 @@
+#!/usr/bin/env luajit
+--
+-- publish-claude-code-utilities
+--
+-- Keeps the public repository gabrilend/claude-code-utilities a faithful copy
+-- of the owner's skills and global CLAUDE.md (issue 045).
+--
+-- In plain terms: the skills and the rules file live in the private Claude
+-- settings folder (~/.claude, its own git repository, with no remote). This
+-- copies exactly two things out of it -- every skill and CLAUDE.md, each as it
+-- was last committed there -- into a working copy of the public repository
+-- kept in RAM, adds a README and the licence, checks that nothing in it looks
+-- like a password or key, and pushes, but only when something changed. A
+-- skill a session is still writing (not yet committed) is not published until
+-- it is; skills/synced/, which holds the service's own skills, never is.
+--
+-- It is an allowlist on purpose: everything else in ~/.claude (the login
+-- token, the prompt history, the raw conversations, the settings) stays
+-- private because it is never named, not because it is excluded.
+--
+-- The working copy is generated, owned wholly by this tool, so it commits with
+-- plain git; the house's own-lines commit route is for shared repositories.
+--
+-- Usage: publish-claude-code-utilities [options]
+--   --dry-run       build the copy and print what would change; push nothing
+--   --create        if the public repository does not exist, create it (once,
+--                   by the owner: making a public repository cannot be undone)
+--   --dir DIR       the scripts folder (default below)
+--   --source PATH   the private repository to copy from (tests)
+--   --remote URL    the repository to publish to (tests: a local bare repo)
+--   --work PATH     where the working copy lives (tests)
+
+-- {{{ settings
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+local SOURCE = "/mnt/mtwo/.claude"
+local REMOTE = "https://github.com/gabrilend/claude-code-utilities.git"
+local GITHUB_NAME = "gabrilend/claude-code-utilities"
+local WORK = nil   -- default set after --dir is known
+local DRY_RUN, CREATE = false, false
+
+-- the only paths at the source's HEAD that are ever published
+local PUBLISHED_ROOTS = { "CLAUDE.md", "skills" }
+-- under a published root, but not the owner's
+local NEVER_PUBLISHED = { "^skills/synced/" }
+-- files the tool writes itself, which the mirror step must not remove
+local GENERATED = { ["README.md"] = true, ["LICENSE"] = true }
+
+-- a file to publish is refused if its name or text matches one of these
+local SECRET_NAMES = { "^%.credentials", "/%.credentials", "%.pem$", "id_rsa", "id_ed25519" }
+local SECRET_TEXT = {
+    "sk%-ant%-[%w%-_]+",                -- an Anthropic key or token
+    "gh[pousr]_[%w]+",                  -- a GitHub token
+    "github_pat_[%w_]+",                -- a fine-grained GitHub token
+    "BEGIN [%u ]*PRIVATE KEY",          -- any private key
+}
+-- }}}
+
+-- {{{ local function die()
+local function die(message)
+    io.stderr:write("publish-claude-code-utilities: ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function read_options()
+-- One handler per option; each consumes its value (if any) and returns how
+-- many arguments it used.
+local OPTION = {
+    ["--dry-run"] = function() DRY_RUN = true; return 1 end,
+    ["--create"]  = function() CREATE = true; return 1 end,
+    ["--dir"]     = function(v) DIR = v; return 2 end,
+    ["--source"]  = function(v) SOURCE = v; return 2 end,
+    ["--remote"]  = function(v) REMOTE = v; return 2 end,
+    ["--work"]    = function(v) WORK = v; return 2 end,
+}
+local function read_options(args)
+    local i = 1
+    while args[i] do
+        local handle = OPTION[args[i]]
+        -- an unknown word is an error, never ignored
+        if not handle then die("unknown option " .. args[i]) end
+        local used = handle(args[i + 1])
+        -- an option that takes a value was given none
+        if used == 2 and not args[i + 1] then die(args[i] .. " needs a value") end
+        i = i + used
+    end
+    WORK = WORK or (DIR .. "/tmp/shared-memory/claude-code-utilities")
+end
+-- }}}
+
+-- {{{ local function quote()
+local function quote(s)
+    return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ local function run()
+-- Runs a shell command; returns its output (stdout and stderr together) and
+-- whether it succeeded.
+local function run(command)
+    local pipe = io.popen(command .. " 2>&1", "r")
+    local output = pipe:read("*a")
+    local ok = pipe:close()
+    -- LuaJIT's close returns true, or nil on a non-zero exit
+    return output, ok == true
+end
+-- }}}
+
+-- {{{ local function must()
+local function must(command, what)
+    local output, ok = run(command)
+    if not ok then die(what .. " failed:\n" .. output) end
+    return output
+end
+-- }}}
+
+-- {{{ local function git()
+local function git(repo, rest)
+    return "git -C " .. quote(repo) .. " " .. rest
+end
+-- }}}
+
+-- {{{ local function remote_exists()
+local function remote_exists()
+    local _, ok = run("git ls-remote " .. quote(REMOTE))
+    return ok
+end
+-- }}}
+
+-- {{{ local function create_remote()
+-- The one step that cannot be taken back, so it happens only with --create,
+-- and only for the real GitHub repository (a test remote is made by the test).
+local function create_remote()
+    if not CREATE then
+        die(REMOTE .. " does not exist. Creating a public repository cannot be undone; " ..
+            "the owner runs this once with --create.")
+    end
+    if REMOTE ~= "https://github.com/" .. GITHUB_NAME .. ".git" then
+        die(REMOTE .. " does not exist, and --create makes only " .. GITHUB_NAME)
+    end
+    must("gh repo create " .. quote(GITHUB_NAME) .. " --public --description " ..
+        quote("Skills and a CLAUDE.md for Claude Code; the tools they call live in gabrilend/ai-stuff (scripts/)."),
+        "creating " .. GITHUB_NAME)
+    io.write("created ", GITHUB_NAME, " (public)\n")
+end
+-- }}}
+
+-- {{{ local function prepare_work_copy()
+-- A working copy in RAM, matching the remote exactly.
+local function prepare_work_copy(remote_is_there)
+    must("mkdir -p " .. quote(WORK:match("^(.*)/[^/]+$")), "making the RAM folder")
+    -- a dry run before the public repository exists: an empty copy of its own,
+    -- so the owner can see the first publish before deciding to create it
+    if not remote_is_there then
+        must("rm -rf " .. quote(WORK), "clearing the dry run's copy")
+        must("git init --quiet -b main " .. quote(WORK), "starting an empty copy")
+        return
+    end
+    -- cloned fresh every run: the repository is small, and a fresh clone can
+    -- never carry a dry run's leftovers or another remote's history
+    must("rm -rf " .. quote(WORK), "clearing the old copy")
+    must("git clone --quiet " .. quote(REMOTE) .. " " .. quote(WORK), "cloning " .. REMOTE)
+    local _, remote_has_main = run(git(WORK, "rev-parse --verify --quiet origin/main"))
+    if remote_has_main then
+        -- the remote has history: start from exactly that
+        must(git(WORK, "checkout --quiet -B main origin/main"), "checking out main")
+        must(git(WORK, "reset --quiet --hard origin/main"), "resetting to the remote")
+        must(git(WORK, "clean --quiet -fdx"), "cleaning the working copy")
+    else
+        -- an empty remote: the first commit is made on a new main
+        must(git(WORK, "checkout --quiet --orphan main"), "starting main")
+    end
+end
+-- }}}
+
+-- {{{ local function published_entries()
+-- Every file to publish at the source's HEAD: { path = string, mode = string }.
+-- Only what is committed counts: a working-tree edit is invisible here.
+local function published_entries()
+    local roots = {}
+    for _, r in ipairs(PUBLISHED_ROOTS) do roots[#roots + 1] = quote(r) end
+    local listing = must(git(SOURCE, "ls-tree -r HEAD -- " .. table.concat(roots, " ")),
+        "listing " .. SOURCE)
+    local entries = {}
+    for mode, kind, path in listing:gmatch("(%d+) (%a+) %x+\t([^\n]+)") do
+        local keep = kind == "blob"
+        for _, pattern in ipairs(NEVER_PUBLISHED) do
+            if path:match(pattern) then keep = false end
+        end
+        -- a committed symbolic link would be copied as its target's name; there
+        -- are none today, and one appearing is a question for the owner
+        if keep and mode == "120000" then die(path .. " is a link in " .. SOURCE .. "; not publishing it") end
+        if keep then entries[#entries + 1] = { path = path, mode = mode } end
+    end
+    -- an empty listing means the source changed shape; publishing nothing
+    -- would delete everything public, so it stops instead
+    if #entries == 0 then die("nothing to publish at " .. SOURCE .. " HEAD") end
+    return entries
+end
+-- }}}
+
+-- {{{ local function refuse_secrets()
+-- Reads each file to publish and stops at the first that looks like a secret.
+local function refuse_secrets(entries)
+    for _, e in ipairs(entries) do
+        for _, pattern in ipairs(SECRET_NAMES) do
+            if e.path:match(pattern) then die("refusing to publish " .. e.path .. ": its name looks like a key file") end
+        end
+        local f = io.open(WORK .. "/" .. e.path, "rb")
+        local text = f:read("*a")
+        f:close()
+        for _, pattern in ipairs(SECRET_TEXT) do
+            local found = text:match(pattern)
+            if found then
+                die("refusing to publish " .. e.path .. ": it contains something shaped like a secret (" ..
+                    found:sub(1, 12) .. "...)")
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ local function copy_entries()
+-- Writes each published file from the source's HEAD into the working copy,
+-- and removes any file there the source no longer has.
+local function copy_entries(entries)
+    local wanted = {}
+    for _, e in ipairs(entries) do wanted[e.path] = true end
+    local present = must(git(WORK, "ls-files"), "listing the working copy")
+    for path in present:gmatch("[^\n]+") do
+        -- a file the source dropped (a skill removed or renamed) goes too
+        if not wanted[path] and not GENERATED[path] then
+            must(git(WORK, "rm --quiet -- " .. quote(path)), "removing " .. path)
+        end
+    end
+    for _, e in ipairs(entries) do
+        local target = WORK .. "/" .. e.path
+        must("mkdir -p " .. quote(target:match("^(.*)/[^/]+$")), "making a folder for " .. e.path)
+        must(git(SOURCE, "show " .. quote("HEAD:" .. e.path)) .. " > " .. quote(target), "copying " .. e.path)
+        -- git records only two file modes for ordinary files
+        local chmod = { ["100755"] = "+x", ["100644"] = "-x" }
+        must("chmod " .. (chmod[e.mode] or "-x") .. " " .. quote(target), "setting the mode of " .. e.path)
+    end
+end
+-- }}}
+
+-- {{{ local function write_generated()
+local function write_generated(entries, source_commit)
+    local skills = {}
+    for _, e in ipairs(entries) do
+        local name = e.path:match("^skills/([^/]+)/SKILL%.md$")
+        if name then skills[#skills + 1] = name end
+    end
+    table.sort(skills)
+    local lines = {
+        "<!-- Made by publish-claude-code-utilities (gabrilend/ai-stuff, scripts/) from the",
+        "     owner's ~/.claude repository at commit " .. source_commit .. ", so the public copy",
+        "     matches what was last committed there. Edit the source, not this file. -->",
+        "",
+        "# claude-code-utilities",
+        "",
+        "Skills and a global `CLAUDE.md` for [Claude Code](https://claude.com/claude-code),",
+        "as used by gabrilend every day.",
+        "",
+        "- `CLAUDE.md` — the house rules every session reads.",
+        "- `skills/` — one folder per skill; each `SKILL.md` says when it applies.",
+        "",
+        "Many skills call tools that live in",
+        "[gabrilend/ai-stuff](https://github.com/gabrilend/ai-stuff), under `scripts/`",
+        "(the commit route, the issue checker, the transcript exporter, the hook gates).",
+        "They are not copied here, so they cannot drift apart. Paths in the skills name",
+        "the owner's machine (`/home/ritz/...`); change them for yours.",
+        "",
+        "## Skills",
+        "",
+    }
+    for _, name in ipairs(skills) do lines[#lines + 1] = "- [" .. name .. "](skills/" .. name .. "/SKILL.md)" end
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "Licensed under the GNU Affero General Public License, version 3 (`LICENSE`)."
+    local f = io.open(WORK .. "/README.md", "w")
+    f:write(table.concat(lines, "\n"), "\n")
+    f:close()
+    must("cp " .. quote(DIR .. "/../LICENSE") .. " " .. quote(WORK .. "/LICENSE"), "copying the licence")
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    read_options(arg)
+    -- the public repository must exist (or be made, once) before it is cloned;
+    -- a dry run needs neither
+    local remote_is_there = remote_exists()
+    if not remote_is_there and not DRY_RUN then
+        create_remote()
+        remote_is_there = true
+    end
+    prepare_work_copy(remote_is_there)
+    local entries = published_entries()
+    local source_commit = must(git(SOURCE, "rev-parse --short HEAD"), "reading the source commit"):gsub("%s+$", "")
+    copy_entries(entries)
+    write_generated(entries, source_commit)
+    refuse_secrets(entries)
+    must(git(WORK, "add -A"), "staging the copy")
+    local _, unchanged = run(git(WORK, "diff --cached --quiet"))
+    -- nothing differs from what is public: the common case, and silent work
+    if unchanged then
+        io.write("claude-code-utilities is current (", source_commit, ")\n")
+        return
+    end
+    io.write(must(git(WORK, "status --short"), "listing the changes"))
+    -- a dry run stops here; the next real run resets the copy first
+    if DRY_RUN then
+        io.write("dry run: ", #entries, " files from ", SOURCE, " at ", source_commit, "; nothing pushed\n")
+        return
+    end
+    must(git(WORK, "commit --quiet -m " .. quote("Sync from the owner's ~/.claude at " .. source_commit ..
+        "\n\nMade by publish-claude-code-utilities (gabrilend/ai-stuff, scripts/).")), "committing")
+    must(git(WORK, "push --quiet origin main"), "pushing to " .. REMOTE)
+    io.write("published ", #entries, " files from ", source_commit, " to ", REMOTE, "\n")
+end
+-- }}}
+
+main()

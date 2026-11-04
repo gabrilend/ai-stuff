@@ -10,9 +10,10 @@
 
 ## Current Behavior
 
-Each poem has paginated "similar" and "different" pages, rendered by
-`M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, ...)`
-in `src/flat-html-generator.lua` (`page_type` is `"similar"` or `"different"`).
+Each poem has paginated "similar" and "different" pages, drawn by the page
+workers through `page_html(anchor, list, page_type, page_num, ...)` in
+`src/ranked-page.lua` (`page_type` is `"similar"` or `"different"`; Issue
+8-058 made it the one place these pages are drawn).
 Each page shows a slice of `sorted_poems` (the ranked neighbours), sized by
 `config.pagination.poems_per_page`. The pages show poems only — they make no use
 of the word cloud.
@@ -123,7 +124,7 @@ whose transfers in embedding space would instead reinforce the dominant region.
    cache in the embeddings dir (e.g. `poem_top_word.json`: `{ poem_index -> word }`).
    Regenerate when embeddings change (freshness check like the other caches). This
    is the only heavy work; it replaces re-scoring poems on every page.
-3. **Per-page selection (cheap).** Inside `generate_paginated_poem_page_html`,
+3. **Per-page selection (cheap).** Inside `ranked-page.page_html`,
    gather the cached nearest word of each poem on this page and tally the votes,
    then run the MMR diversity pass (votes minus `lambda` x max similarity to
    already-picked words) to choose the final K. Identical for `similar` and
@@ -143,8 +144,10 @@ whose transfers in embedding space would instead reinforce the dominant region.
 
 ## Related Documents / Tools
 
-- `src/flat-html-generator.lua` — `generate_paginated_poem_page_html` (where the
-  strip is injected; knows the page's poem slice and `page_type`).
+- `src/ranked-page.lua` — `page_html` (where the strip is injected; knows the
+  page's poem slice and `page_type`). Its context (`ctx`) is built by the
+  worker in `src/flat-html-generator.lua`, which is where a cached
+  nearest-word table would be loaded and handed in.
 - `src/generate-word-pages.lua` — `word_embeddings.json` and `word_colors.json`
   producers (`load_word_embeddings_cache`, `compute_word_colors`).
 - `embeddings.json` (poem embeddings), `utils.embeddings_dir()` (per-model paths).
