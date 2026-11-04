@@ -45,7 +45,7 @@ reading a number here:
 | 040, 040a–i | Self-revising CLAUDE.md | Overlaps Claude Code's own memory and CLAUDE.md handling. |
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
-| 017, 019–022 | Ticket distribution system | 016 (markup) and 018 (project discovery, `discover-projects.lua`) are done; the rest of the chain is unbuilt. |
+| 020–022 | Ticket distribution system | 016–019 are done: `scripts/distribute-ticket.lua` files a template into the chosen projects, with a dry run, a ledger and undo. 020 (menu), 021 (testing) and 022 (master script, git triggers) remain. |
 | 038 | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
 | 039 | Multi-location ai-stuff integration | Unstarted. |
 
@@ -71,5 +71,5 @@ shared line-ledger commit gate (scripts 032)
         │
         └──▶ 055 (narrowed to the issue-completion check only)
 
-016 markup ✅ ──▶ 017 ──▶ 018 ──▶ 019 ──▶ 020 ──▶ 021 ──▶ 022
+016 markup ✅ ──▶ 017 ✅ ──▶ 018 ✅ ──▶ 019 ✅ ──▶ 020 ──▶ 021 ──▶ 022
 ```

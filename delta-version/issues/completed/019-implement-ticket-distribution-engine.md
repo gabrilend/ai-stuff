@@ -314,6 +314,7 @@ function rollback_distribution() {
 - **Complexity**: High
 - **Estimated Time**: 2-2.5 hours
 - **Dependencies**: Issues 017, 018 (processing engine, project discovery)
+- **Blocks**: Issue 020 (interactive interface)
 - **Impact**: Core functionality of ticket distribution system
 
 ## Success Criteria
@@ -325,3 +326,63 @@ function rollback_distribution() {
 - Distribution tracking enables future maintenance
 - Batch processing handles multiple projects efficiently
 - Rollback capability available for emergency situations
+
+
+---
+
+## What Happened
+
+**2026-11-02 — built as `scripts/distribute-ticket.lua`, on the tools that
+already exist.**
+
+The sketches above number issues by scanning `phase-1/` and write tickets
+there. Most projects in the monorepo keep their issues flat in `issues/`,
+with names like `522-...`, `9-007-...` or `A04-...`, so a hand-written
+numberer would have been a fourth copy of rules that already have one home.
+The script asks each question of the tool that owns the answer:
+
+- **which projects:** `discover-projects.lua --paths`, with every one of its
+  filters and profiles passed through (issue 018);
+- **which phase:** the shared reader `scripts/libs/issue-names.lua`.
+  `--phase=current` means the lowest phase with open issues, else the
+  highest phase, else 1;
+- **which number:** `scripts/validate-issues PROJECT --next PHASE`, so the
+  id follows each project's own name shape;
+- **the text:** `libs/kml.lua` (issue 017), with delta-version's keyword file
+  layered under the project's own `config/ticket-keywords.conf`.
+
+Against the success criteria:
+
+- **Distributed to all targets:** yes, with a line per project saying what it
+  got or why it was skipped.
+- **Issue structure created:** only when asked. `--create-issues` makes
+  `issues/` and `issues/completed/` in a project that has none. Without it
+  such a project is skipped and named. Decision: creating folders in other
+  people's projects should be a choice made per run, and the
+  `phase-1/progress.md` boilerplate sketched above was left out, because
+  progress is now read from file locations (the shared reader), not from
+  progress files.
+- **Sequential numbering:** from `validate-issues --next`.
+- **Project data substituted:** by the keyword engine, run inside each
+  project.
+- **No partial failures:** the default error mode here is `fail`. A ticket
+  with a keyword that could not be filled is not written at all. Nothing is
+  ever written over an existing file.
+- **Tracking for later maintenance:** `assets/ticket-distributions.tsv`, one
+  row per ticket with its sha256. `--undo=DISTRIBUTION` is the rollback the
+  sketch asked for, made safe: it removes only tickets still exactly as they
+  were written, and names any that have been edited since.
+- **Batch processing:** one pass over the chosen projects.
+
+Two more guards that were not asked for:
+
+- it is a **dry run unless `--write`** is given;
+- each ticket ends with a **marker comment**, so a re-run skips projects that
+  already have the template (`--again` overrides).
+
+The ledger's default place is delta-version's own `assets/`; `--ledger=`
+moves it, which the test uses so the real ledger is never touched.
+
+Tested by `scripts/test-distribute-ticket.sh` (53 checks on a scratch
+monorepo in RAM), and by a dry run on the real monorepo (`--language=c` chose
+4 projects; 3 were ready and 1 had no `issues/`).

@@ -69,7 +69,7 @@
 - [Issue 016: Design Keyword Markup Language](../issues/016-design-keyword-markup-language.md)
 - [Issue 017: Implement Keyword Processing Engine](../issues/017-implement-keyword-processing-engine.md)
 - [Issue 018: Create Project Discovery System](../issues/018-create-project-discovery-system.md)
-- [Issue 019: Implement Ticket Distribution Engine](../issues/019-implement-ticket-distribution-engine.md)
+- [Issue 019: Implement Ticket Distribution Engine](../issues/completed/019-implement-ticket-distribution-engine.md)
 - [Issue 020: Create Interactive Interface](../issues/020-create-interactive-interface.md)
 - [Issue 021: Implement Validation and Testing System](../issues/021-implement-validation-and-testing-system.md)
 - [Issue 022: Create Integration and Workflow System](../issues/022-create-integration-and-workflow-system.md)

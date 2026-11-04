@@ -229,7 +229,9 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 019**: Ticket distribution engine (2026-11-02) — `scripts/distribute-ticket.lua` files one template into the projects `discover-projects.lua` chooses, numbered by `validate-issues --next` in each project's phase from the shared issue-name reader and filled by the keyword engine. Dry run unless `--write`; never overwrites; a marker line stops repeat filing; `assets/ticket-distributions.tsv` records each ticket with its checksum, and `--undo` removes only tickets still unedited. Test: `scripts/test-distribute-ticket.sh`.
 - **Issue 018**: Project discovery — completed 2026-11-02 by building only the gap: `scripts/discover-projects.lua` takes the project list and kinds from the shared `scripts/libs/project-discovery.lua`, states from the census, counts each project's languages from git-tracked files, and picks a ticket's projects by kind, language used, state, path, activity or name, with named profiles in `config/project-discovery.conf`. Tested by `scripts/test-discover-projects.sh`.
+- **Issue 017**: Keyword processing engine (2026-11-02) — `scripts/libs/kml.lua` and `scripts/process-template.lua` fill `][keyword[]` placeholders from `config/ticket-keywords.conf`: parameters held to a safe character set, escapes, each command run once in the project's folder under a time limit, four error modes, `--check` and `--list`; the project's keyword file layers over delta-version's. Test: `scripts/test-process-template.sh`.
 - **Issue 065**: The reading walk, ialmstla (2026-10-10) — all eight pieces: the map, recorded reasons, chapters, the walk without an AI, the guide's room, its cipher, the guide, and the walk as web pages and an OLED view (065h: scripts/reading-walk-pages.lua). Built in parallel as `centered-ui-design` phase 9.
 - **Issue 065g**: The guide (2026-10-10) — with `--guide`, a local AI decides where "next" goes, stepping back to a stop this one is built from when the reader's own requests suggest a part is not landing, and returning afterwards; it never asks the reader anything; an unusable answer hands the choice to the reader. Tried with llama3.2 through ollama. Implemented: scripts/libs/reading-guide.lua, scripts/reading-walk.lua
 - **Issue 065f**: The guide's cipher (2026-10-10) — version one: the logistic map past its chaos threshold mixed with nearest-prime picks, a fresh nonce per message, a marker that catches a wrong key; trails written one encrypted note per line, listed and dated in the room's ledgers. Home-made, and says so. Implemented: scripts/libs/guide-cipher.lua, scripts/libs/guide-trail.lua, scripts/test-guide-cipher.sh
@@ -486,7 +488,7 @@ These issues provide foundational utilities and can be implemented independently
   older copies under `issues/phase-2/`, kept as that phase's record).
 
 ### Phase 3+ (Future)
-- **Issue 017–022**: Ticket Distribution System (016, the markup language, is completed)
+- **Issue 018–022**: Ticket Distribution System (016, the markup language, and 017, its engine, are completed)
 - **Issue 027**: Basic Reporting Framework
 - (024 and 026, listed here until September 2026, are completed.)
 
