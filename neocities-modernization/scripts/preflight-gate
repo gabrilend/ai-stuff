@@ -13,10 +13,10 @@
 # run; rows whose stages are not running are skipped.
 #
 # Usage:
-#   scripts/preflight-gate [DIR] [--html-threads N] [--extract]
+#   scripts/preflight-gate [--dir PATH] [--html-threads N] [--extract]
 #                          [--poems-file PATH] [--effil-cpath PATTERN]
 #
-#   DIR             project directory (default below)
+#   --dir PATH      project directory (default below)
 #   --html-threads  stage 9 will run with N page workers
 #   --extract       stage 2 (extract, then strip excluded content) will run
 #   --poems-file    stage 9 or 10 will read this existing poem list (run.sh
@@ -30,6 +30,10 @@
 #
 # Exit status: 0 when every selected check passed, 1 otherwise.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 HTML_THREADS=0
@@ -39,6 +43,12 @@ RANKINGS_DIR=""
 EFFIL_CPATH=""
 
 # {{{ parse arguments
+# The project folder: --dir PATH, or the path above; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). What is left is this script's
+# own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$DIR" "--html-threads --poems-file --rankings-dir --effil-cpath" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --html-threads) HTML_THREADS="$2"; shift 2 ;;
@@ -46,8 +56,7 @@ while [ $# -gt 0 ]; do
         --poems-file)   POEMS_FILE="$2"; shift 2 ;;
         --rankings-dir) RANKINGS_DIR="$2"; shift 2 ;;
         --effil-cpath)  EFFIL_CPATH="$2"; shift 2 ;;
-        --*)            echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
-        *)              DIR="$1"; shift ;;
+        *)              echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
     esac
 done
 if ! [[ "$HTML_THREADS" =~ ^[0-9]+$ ]]; then
@@ -83,14 +92,14 @@ check_threads() {
 # {{{ needs_exclusions / check_exclusions
 # Stage 2 strips excluded content; a mistyped exclusion stops it (10-053).
 needs_exclusions() { $EXTRACT; }
-check_exclusions() { lua "$DIR/scripts/strip-excluded" "$DIR" --check; }
+check_exclusions() { lua "$DIR/scripts/strip-excluded" --dir "$DIR" --check; }
 # }}}
 
 # {{{ needs_dates / check_dates
 # Stages 9 and 10 place every poem on the timeline by its date; an undated
 # poem stops them (8-045).  Uses the page build's own date reading.
 needs_dates() { [ -n "$POEMS_FILE" ]; }
-check_dates() { luajit "$DIR/scripts/check-poem-dates" "$DIR" "$POEMS_FILE"; }
+check_dates() { luajit "$DIR/scripts/check-poem-dates" --dir "$DIR" --poems "$POEMS_FILE"; }
 # }}}
 
 # {{{ needs_rankings / check_rankings
@@ -103,7 +112,7 @@ check_rankings() {
         echo "--rankings-dir needs --poems-file (the list to compare against)"
         return 1
     fi
-    luajit "$DIR/scripts/check-rankings-match-poems" "$DIR" "$POEMS_FILE" "$RANKINGS_DIR"
+    luajit "$DIR/scripts/check-rankings-match-poems" --dir "$DIR" --poems "$POEMS_FILE" --cache-dir "$RANKINGS_DIR"
 }
 # }}}
 

@@ -108,6 +108,10 @@ Use pseudo_id format for HTML anchors:
 - Issue 10-042a: Gallery pages (must exist for navigation links)
 - Issue 10-030: Randomization (provides scattered timestamps)
 
+## Blocks
+
+- 10-042c
+
 ## Status
 
 **OPEN** - Created 2026-03-23

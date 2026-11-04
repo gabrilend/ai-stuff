@@ -1,9 +1,33 @@
 #!/usr/bin/env bash
-# Wrapper script to run GPU diversity cache generation
-# Changes to vulkan-compute directory for shader loading, then runs Lua script
+# precompute-diversity-sequences-gpu -- the "different" walks, on the GPU.
+#
+# WHAT IT DOES (for a CEO): for every poem, builds the list of poems most
+# unlike it -- each step takes the poem furthest from everything picked so
+# far, checking every remaining poem -- and stops after the poems the pages
+# show (pages x poems per page). Run by run.sh stage 8.
+#
+# Usage:
+#   scripts/precompute-diversity-sequences-gpu [--dir PATH] [--model NAME] [--output PATH] [--save-binary]
+#     --dir PATH     project folder (default below)
+#     --model NAME   the embedding model, when run on its own (a build names
+#                    it on the run notepad)
+#     --output PATH  write the cache to PATH instead of the model folder, to try
+#                    the step without replacing the cache a build reads
+#     --save-binary  also save the raw GPU sequences (debugging)
+#   PAGES and POEMS_PER_PAGE (environment) set how far each walk goes;
+#   config.lua's pagination values otherwise.
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 # {{{ Setup directory path
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). It used to be the first word.
+# What is left is this script's own options, read below.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "--output --model" "$@"
+set -- "${PROJECT_ARGS[@]}"
 
 # Issue 10-057: the GPU shader paths (vk_diversity.c) and library path (vk_compute.lua)
 # are now project-root-relative / DIR-based, matching similarity -- so we run from the
@@ -16,12 +40,33 @@ cd "$DIR" || {
 # Export DIR so Lua can access it
 export DIR
 
+# The options. The Lua program below runs inline (luajit -e), which
+# passes it no command-line arguments, so the options travel as environment
+# variables instead (until 2026-10-22 --save-binary was read from arguments
+# that never arrived):
+#   --output PATH   write the cache to PATH, not the model folder -- to try
+#                   the step without replacing the cache a build reads
+#   --save-binary   also save the raw GPU sequences (debugging)
+#   --model NAME    the embedding model, when run on its own (a build names
+#                   it on the run notepad, which this reads otherwise)
+_model_args=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --output) [ -n "$2" ] || { echo "Error: --output needs a file path" >&2; exit 1; }
+                  export DIVERSITY_OUTPUT="$2"; shift 2 ;;
+        --save-binary) export DIVERSITY_SAVE_BINARY=1; shift ;;
+        --model) [ -n "$2" ] || { echo "Error: --model needs a model name" >&2; exit 1; }
+                 export DIVERSITY_MODEL="$2"; _model_args=(--model "$2"); shift 2 ;;
+        *) echo "Error: unknown option $1" >&2; exit 1 ;;
+    esac
+done
+
 # Ensure the on-disk diversity-cache directory exists BEFORE the (~40-minute) GPU
 # run, inferring it from the selected model via scripts/cache-dir --disk (the one
 # place that maps a model name to its directory). run.sh already creates this at
 # model-load; this keeps the wrapper safe when invoked on its own. Without it a
 # brand-new model would compute for an hour and only then fail at the final write.
-_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --disk)"
+_disk_dir="$(luajit "$DIR/scripts/cache-dir" --dir "$DIR" --disk "${_model_args[@]}")"
 [ -n "$_disk_dir" ] && mkdir -p "$_disk_dir"
 
 # Run the Lua script
@@ -57,7 +102,16 @@ local socket = require("socket")
 local wall_clock = socket.gettime
 
 -- Configuration
-local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
+-- the card tuning, from config.lua gpu.diversity (Issue 10-071): a missing
+-- number is an error. BATCH_SIZE may be lowered below to fit free memory.
+local GPU_TUNING
+do
+    local config_loader = require("config-loader")
+    config_loader.set_project_root(DIR)
+    local gpu = config_loader.load().gpu or error("config.lua has no gpu section")
+    GPU_TUNING = gpu.diversity or error("config.lua gpu.diversity is missing")
+end
+local BATCH_SIZE = GPU_TUNING.batch_size or error("config.lua gpu.diversity.batch_size is missing")
 -- The model determines the embeddings directory we read from. It is resolved
 -- through inference-server-config, which reads the overrides notepad for this
 -- run (tmp/run-overrides.lua, written by run.sh from --model) and falls back to
@@ -70,7 +124,12 @@ local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
 -- open a file literally named "selected"). Keep these comments
 -- apostrophe-free, or move this program into its own .lua file.
 local inference_config = require("inference-server-config")
+local numbering_stamp = require("numbering-stamp")
 inference_config.set_project_root(DIR)
+-- --model (see the bash part), else the run notepad
+if os.getenv("DIVERSITY_MODEL") then
+    inference_config.set_selected_model(os.getenv("DIVERSITY_MODEL"))
+end
 local MODEL_NAME = inference_config.get_selected_model()
 
 -- Issue 10-057: cap each diversity sequence to the top-K poems any page set can show
@@ -88,17 +147,14 @@ do
     local per_page = tonumber(os.getenv("POEMS_PER_PAGE")) or pag.poems_per_page
     if not pages or not per_page then error("cannot resolve pages/poems_per_page for diversity cache") end
     TOP_K = pages * per_page
-    print(string.format("[Config] Capping each sequence to top-%d (K = %d pages x %d per page)", TOP_K, pages, per_page))
+    require("output").print(string.format("[Config] Capping each sequence to top-%d (K = %d pages x %d per page)", TOP_K, pages, per_page))
 end
 
 -- Parse command line arguments
-local SAVE_BINARY = false  -- Optional: save binary format for debug
-for i = 2, #arg do
-    local a = arg[i]
-    if a == "--save-binary" then
-        SAVE_BINARY = true
-    end
-end
+-- Options, from the environment (see the bash part above)
+local SAVE_BINARY = os.getenv("DIVERSITY_SAVE_BINARY") == "1"  -- raw GPU sequences too (debugging)
+-- write the cache here instead of the model folder (Issue 10-074)
+local OUTPUT_OVERRIDE = os.getenv("DIVERSITY_OUTPUT")
 
 -- {{{ local function get_file_size
 local function get_file_size(filepath)
@@ -112,29 +168,29 @@ end
 
 -- {{{ local function main
 local function main()
-    print("=" .. string.rep("=", 78))
-    print("  GPU Diversity Cache Generation")
-    print("=" .. string.rep("=", 78))
-    print()
+    require("output").print("=" .. string.rep("=", 78))
+    require("output").print("  GPU Diversity Cache Generation")
+    require("output").print("=" .. string.rep("=", 78))
+    require("output").print()
 
     -- Build paths
     local model_dir = MODEL_NAME:gsub(":", "_")
     -- Issue 10-054: read embeddings from the movable cache (RAM), but write the
     -- diversity cache to disk (embeddings_dir_disk) so it survives a reboot.
     local embeddings_file = utils.embeddings_dir(MODEL_NAME) .. "/embeddings.json"
-    local output_file = utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json"
+    local output_file = OUTPUT_OVERRIDE or (utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json")
     -- The on-disk output directory is created by the wrapper (bash, above) and by
     -- run.sh at model-load, so it exists by the time we write here.
     local binary_file = string.format("%s/output/diversity-cache-gpu-batch.bin", DIR)
 
-    print(string.format("[Config] Model: %s", MODEL_NAME))
-    print(string.format("[Config] Batch Size: %d sequences", BATCH_SIZE))
-    print(string.format("[Config] Input: %s", embeddings_file))
-    print(string.format("[Config] Output: %s", output_file))
+    require("output").print(string.format("[Config] Model: %s", MODEL_NAME))
+    require("output").print(string.format("[Config] Batch Size: %d sequences", BATCH_SIZE))
+    require("output").print(string.format("[Config] Input: %s", embeddings_file))
+    require("output").print(string.format("[Config] Output: %s", output_file))
     if SAVE_BINARY then
-        print(string.format("[Config] Binary Output: %s", binary_file))
+        require("output").print(string.format("[Config] Binary Output: %s", binary_file))
     end
-    print()
+    require("output").print()
 
     -- Check if embeddings file exists
     if not utils.file_exists(embeddings_file) then
@@ -173,6 +229,21 @@ local function main()
     local fp16_fresh = fp16_mtime and json_mtime and fp16_mtime >= json_mtime
 
     local num_poems, embedding_dim
+    -- position (0-based, the order the GPU uses) -> poem number (poem_index)
+    local position_numbers
+    local diversity_numbering
+    -- {{{ local function numbers_by_position()
+    local function numbers_by_position(embeddings_data)
+        local numbers = {}
+        for i, entry in ipairs(embeddings_data.embeddings) do
+            if not entry.poem_index then
+                error("embedding entry " .. i .. " has no poem_index")
+            end
+            numbers[i - 1] = entry.poem_index
+        end
+        return numbers
+    end
+    -- }}}
     local embeddings_fp16  -- FFI uint16_t[?] buffer, fed to the GPU
 
     if fp16_fresh then
@@ -180,18 +251,22 @@ local function main()
         -- Reading just the metadata block from JSON would be cleaner but
         -- requires a streaming parser; for now we read the whole JSON
         -- just for the metadata. This is the only cost of the slow path.
-        print("[Loading] Reading embeddings metadata...")
+        require("output").print("[Loading] Reading embeddings metadata...")
         local embeddings_data = utils.read_json_file(embeddings_file)
         if not embeddings_data or not embeddings_data.embeddings then
             error("Failed to load embeddings or invalid format")
         end
         num_poems = #embeddings_data.embeddings
+        position_numbers = numbers_by_position(embeddings_data)
+        -- the numbering these vectors are filed under (Issue 8-019), stamped
+        -- beside the cache below
+        diversity_numbering = numbering_stamp.of_embeddings(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
         embeddings_data = nil  -- let the GC reclaim the table
         collectgarbage("collect")
 
-        print(string.format("[Loading] Loaded %d poems × %d dimensions (FP16 cache hit)", num_poems, embedding_dim))
-        print(string.format("[Loading] Reading FP16 cache: %s", fp16_file))
+        require("output").print(string.format("[Loading] Loaded %d poems × %d dimensions (FP16 cache hit)", num_poems, embedding_dim))
+        require("output").print(string.format("[Loading] Reading FP16 cache: %s", fp16_file))
         local total_values = num_poems * embedding_dim
         embeddings_fp16 = ffi.new("uint16_t[?]", total_values)
         local f = io.open(fp16_file, "rb")
@@ -204,19 +279,23 @@ local function main()
                 total_values * 2, #data, fp16_file))
         end
         ffi.copy(embeddings_fp16, data, total_values * 2)
-        print(string.format("[Loading] Loaded %d FP16 values (%.2f MB)",
+        require("output").print(string.format("[Loading] Loaded %d FP16 values (%.2f MB)",
                             total_values, total_values * 2 / (1024 * 1024)))
     else
         -- Cold path: read FP32 JSON, convert to FP16, write the cache,
         -- then load the resulting FP16 buffer into memory.
-        print("[Loading] Reading embeddings (FP32 JSON)...")
+        require("output").print("[Loading] Reading embeddings (FP32 JSON)...")
         local embeddings_data = utils.read_json_file(embeddings_file)
         if not embeddings_data or not embeddings_data.embeddings then
             error("Failed to load embeddings or invalid format")
         end
         num_poems = #embeddings_data.embeddings
+        position_numbers = numbers_by_position(embeddings_data)
+        -- the numbering these vectors are filed under (Issue 8-019), stamped
+        -- beside the cache below
+        diversity_numbering = numbering_stamp.of_embeddings(embeddings_data)
         embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
-        print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
+        require("output").print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 
         if embedding_dim % 2 ~= 0 then
             error(string.format(
@@ -226,7 +305,7 @@ local function main()
         end
 
         local total_values = num_poems * embedding_dim
-        print(string.format("[Loading] Converting %d FP32 values to FP16...", total_values))
+        require("output").print(string.format("[Loading] Converting %d FP32 values to FP16...", total_values))
 
         -- Subtract the direction every vector shares, before anything else
         -- touches them. Diversity is the mirror of similarity -- it picks the
@@ -237,7 +316,7 @@ local function main()
         if not mean then
             error("[Loading] " .. tostring(mean_count))
         end
-        print(string.format("[Loading] Centring on the mean of %d vectors (%s)",
+        require("output").print(string.format("[Loading] Centring on the mean of %d vectors (%s)",
             mean_count, embedding_space.SPACE_VERSION))
 
         -- Stage FP32 values into a flat FFI buffer (much faster than
@@ -266,23 +345,23 @@ local function main()
         collectgarbage("collect")
 
         -- Persist the FP16 cache. Subsequent runs hit the fast path above.
-        print(string.format("[Loading] Writing FP16 cache: %s", fp16_file))
+        require("output").print(string.format("[Loading] Writing FP16 cache: %s", fp16_file))
         local f = io.open(fp16_file, "wb")
         if not f then error("Failed to open FP16 cache for writing: " .. fp16_file) end
         f:write(ffi.string(embeddings_fp16, total_values * 2))
         f:close()
-        print(string.format("[Loading] Wrote %d FP16 values (%.2f MB)",
+        require("output").print(string.format("[Loading] Wrote %d FP16 values (%.2f MB)",
                             total_values, total_values * 2 / (1024 * 1024)))
     end
-    print()
+    require("output").print()
 
     -- Initialize GPU
-    print("[GPU] Initializing Vulkan compute context...")
+    require("output").print("[GPU] Initializing Vulkan compute context...")
     local ctx = vk.init()
     if not ctx then
         error("Failed to initialize GPU context")
     end
-    print()
+    require("output").print()
 
     -- Issue 10-057: clamp BATCH_SIZE to free GPU VRAM before the batched dispatch. On a
     -- roomy card this keeps the configured size; it is the guard rail for a much larger
@@ -304,22 +383,22 @@ local function main()
         if ok and result then
             BATCH_SIZE = result
         else
-            print("[GPU] VRAM budget check skipped (" .. tostring(result)
+            require("output").print("[GPU] VRAM budget check skipped (" .. tostring(result)
                 .. "); using configured BATCH_SIZE " .. BATCH_SIZE)
         end
     end
 
     -- Compute diversity sequences on GPU
     local start_time = wall_clock()
-    print("[GPU] Computing diversity sequences (batch parallel processing)...")
+    require("output").print("[GPU] Computing diversity sequences (batch parallel processing)...")
     -- One diversity sequence is produced per poem. The GPU processes them
     -- BATCH_SIZE sequences at a time, so the run is split into this many
     -- batches (the last one is partial). Reported so the reader knows how the
     -- work is chunked -- distinct from the 3 compute shaders the context holds.
     local num_batches = math.ceil(num_poems / BATCH_SIZE)
-    print(string.format("[GPU] %d sequences in %d batches of up to %d each", num_poems, num_batches, BATCH_SIZE))
-    print(string.format("[GPU] This will take approximately 1 minute for %d poems", num_poems))
-    print()
+    require("output").print(string.format("[GPU] %d sequences in %d batches of up to %d each", num_poems, num_batches, BATCH_SIZE))
+    require("output").print(string.format("[GPU] This will take approximately 1 minute for %d poems", num_poems))
+    require("output").print()
 
     -- Call GPU batch function (returns Lua tables, no file writing).
     -- Embeddings are now an FFI uint16_t buffer (FP16-packed) — the
@@ -330,19 +409,21 @@ local function main()
         num_poems,
         embedding_dim,
         SAVE_BINARY and binary_file or nil,  -- Optional binary output
-        BATCH_SIZE
+        BATCH_SIZE,
+        TOP_K,  -- each walk stops after the K poems the pages can show (0: walk them all)
+        GPU_TUNING
     )
 
     local elapsed = wall_clock() - start_time
-    print()
-    print(string.format("[GPU] ✅ Completed in %.2f seconds (%.2f sequences/sec)", elapsed, num_poems / elapsed))
-    print()
+    require("output").print()
+    require("output").print(string.format("[GPU] ✅ Completed in %.2f seconds (%.2f sequences/sec)", elapsed, num_poems / elapsed))
+    require("output").print()
 
     -- Shutdown GPU
     vk.shutdown(ctx)
 
     -- Format sequences as JSON (CPU responsibility)
-    print("[CPU] Formatting sequences as JSON...")
+    require("output").print("[CPU] Formatting sequences as JSON...")
     local cache = {
         metadata = {
             model = MODEL_NAME,
@@ -354,33 +435,49 @@ local function main()
             generation_time_seconds = math.floor(elapsed),
             embeddings_file_size = get_file_size(embeddings_file),
             total_sequences = num_poems,
-            top_k = TOP_K
+            top_k = TOP_K,
+            -- keys and entries are poem numbers (poem_index); a cache without
+            -- this mark holds GPU positions and is refused by its readers
+            numbering = "poem_index"
         },
         sequences = {}
     }
 
-    -- Convert 0-indexed Lua tables to 1-indexed JSON strings
-    -- GPU returns: {[0] = {seq}, [1] = {seq}, ...}
-    -- JSON needs: {"0": [seq], "1": [seq], ...}
-    for poem_id = 0, num_poems - 1 do
-        local sequence = sequences[poem_id]
+    -- Positions to poem numbers. The GPU works in positions (0 .. N-1, the
+    -- order of the embeddings file); the pages read poem numbers (poem_index).
+    -- Until 2026-10-21 the positions were written as they came -- keys AND
+    -- entries -- while the comment here said they were converted, so every
+    -- "different" page since 2026-01-17 showed the walk of the next poem, with each
+    -- listed poem one below the intended one (Issue 8-019). Each position
+    -- maps to the number stored at it, not to position + 1, so a gap in the
+    -- numbering cannot shift it again.
+    for position = 0, num_poems - 1 do
+        local sequence = sequences[position]
         if not sequence then
-            error(string.format("Missing sequence for poem_id %d", poem_id))
+            error(string.format("Missing sequence for position %d", position))
         end
-        -- Issue 10-057: keep only the first K of the diversity walk (the top-K).
-        if TOP_K > 0 and #sequence > TOP_K then
-            local capped = {}
-            for i = 1, TOP_K do capped[i] = sequence[i] end
-            sequence = capped
+        -- Issue 10-057: keep the starting poem and the first K of the walk. The
+        -- start is the poem itself, which its page leaves out, so K + 1 entries
+        -- give the pages their K poems (until 2026-10-22 it kept K entries, and
+        -- every last "different" page was one poem short).
+        local length = (TOP_K > 0 and #sequence > TOP_K + 1) and (TOP_K + 1) or #sequence
+        local numbered = {}
+        for i = 1, length do
+            local number = position_numbers[sequence[i]]
+            if not number then
+                error(string.format("diversity walk for position %d names position %s, outside the embeddings",
+                    position, tostring(sequence[i])))
+            end
+            numbered[i] = number
         end
-        cache.sequences[tostring(poem_id)] = sequence
+        cache.sequences[tostring(position_numbers[position])] = numbered
     end
 
-    print(string.format("[CPU] Formatted %d sequences", num_poems))
-    print()
+    require("output").print(string.format("[CPU] Formatted %d sequences", num_poems))
+    require("output").print()
 
     -- Write JSON to disk
-    print(string.format("[CPU] Writing JSON to: %s", output_file))
+    require("output").print(string.format("[CPU] Writing JSON to: %s", output_file))
     local json_str = dkjson.encode(cache, {indent = false})
     local f = io.open(output_file, "w")
     if not f then
@@ -388,26 +485,29 @@ local function main()
     end
     f:write(json_str)
     f:close()
+    -- Issue 8-019: which numbering of the poems these walks are in, beside
+    -- the cache; stage 9 refuses walks made under another numbering
+    numbering_stamp.write(output_file, diversity_numbering)
 
     local output_size = get_file_size(output_file)
-    print(string.format("[CPU] ✅ Written %.2f MB", output_size / 1024 / 1024))
-    print()
+    require("output").print(string.format("[CPU] ✅ Written %.2f MB", output_size / 1024 / 1024))
+    require("output").print()
 
-    print("=" .. string.rep("=", 78))
-    print("  SUCCESS!")
-    print("=" .. string.rep("=", 78))
-    print(string.format("  Total Time: %.2f seconds", elapsed))
-    print(string.format("  Output: %s", output_file))
-    print(string.format("  Speedup: ~2,600× faster than CPU implementation"))
-    print("=" .. string.rep("=", 78))
-    print()
+    require("output").print("=" .. string.rep("=", 78))
+    require("output").print("  SUCCESS!")
+    require("output").print("=" .. string.rep("=", 78))
+    require("output").print(string.format("  Total Time: %.2f seconds", elapsed))
+    require("output").print(string.format("  Output: %s", output_file))
+    require("output").print(string.format("  Speedup: ~2,600× faster than CPU implementation"))
+    require("output").print("=" .. string.rep("=", 78))
+    require("output").print()
 end
 -- }}}
 
 -- Run with error handling
 local success, err = pcall(main)
 if not success then
-    print("\n[ERROR] " .. tostring(err))
+    require("output").print("\n[ERROR] " .. tostring(err))
     os.exit(1)
 end
 '

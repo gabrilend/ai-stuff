@@ -1593,8 +1593,8 @@ all
 4. **Wrapper function** routes to TUI or simple mode based on availability
 
 **Commits made:**
-- `7bae4a2b` - Issue 004f: TUI integration into issue-splitter
-- `0d990ee8` - Initialize project: WC3-compatible game engine (includes all world-edit-to-execute project files)
+- `44a465a2` - Issue 004f: TUI integration into issue-splitter
+- `b3fe56c1` - Initialize project: WC3-compatible game engine (includes all world-edit-to-execute project files)
 
 **Issue 004 (Redesign interactive mode interface)** is now fully completed with all 6 sub-issues (004a-004f) done. The TUI library stack is functional and integrated.
 
