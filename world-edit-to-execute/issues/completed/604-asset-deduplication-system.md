@@ -7,7 +7,7 @@ to make: 603 calls `store_file` on each download).
 **Type:** Implementation
 **Priority:** High
 **Dependencies:** Issue 601 (asset loader)
-**Blocks:** 603 (the fetcher stores each download by its hash), 605, 608, 609, W05
+**Blocks:** 603 (the fetcher stores each download by its hash), 604a, 605, 608, 609, W05
 
 ---
 

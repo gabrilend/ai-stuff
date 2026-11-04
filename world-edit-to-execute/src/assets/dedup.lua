@@ -27,12 +27,22 @@ The store's folder is <player data>/blobs by default (assets/player_data.lua:
     store:list()  store:stats()  store:gc()  store:verify()
     store:refcounts()  store:orphans()                -- every blob's live links; what gc() would remove
     store:pin(hash)  store:unpin(hash)
+    store:unshare("maps/x/assets/grass.blp")          -- the link becomes a private, editable copy
+    store:protect()                                   -- makes any blob still writable read-only
 
 A reference counts while its link is in place and still leads to the blob.
 Deleting a map's folder therefore drops its references with no call here:
 the next stats() or gc() sees the links are gone. Links and the reference
 lines both give paths relative to the store, so moving the whole player
 data folder (the store and the maps beside it) keeps every reference.
+
+Blobs are read-only (mode 0444) from the moment they are stored: many maps
+and packs may share one, and an editor writing through one map's link
+would change it for all of them. To edit a file, unshare() its link first:
+the link is replaced by a private copy of the bytes (copy-on-write), and
+the blob is left as it was for everyone else. The mode stops ordinary
+users' programs; root's are not stopped by it, and verify() still catches
+a blob whose bytes no longer match its name.
 
 Linux (and other POSIX systems) only: links are made with symlink(2)
 through the FFI. One program at a time writes a store; two that store the
@@ -52,6 +62,7 @@ for _, decl in ipairs({
     "int unlink(const char *path);",
     "long readlink(const char *path, char *buf, size_t size);",
     "char *realpath(const char *path, char *resolved);",
+    "int chmod(const char *path, unsigned int mode);",
 }) do
     pcall(ffi.cdef, decl)
 end
@@ -63,6 +74,8 @@ local PATH_MAX = 4096
 local dedup = {}
 
 dedup.PREFIX = "sha256:"
+dedup.BLOB_MODE = 292    -- 0444: anyone may read, nobody writes
+dedup.COPY_MODE = 420    -- 0644: a private copy, made by unshare()
 dedup.ROOT = HERE .. "/../.."
 
 -- {{{ local function sha
@@ -282,6 +295,7 @@ end
 local function settle(self, part, hex, size)
     local shard = self.dir .. "/" .. hex:sub(1, 2)
     mkdir_p(shard)
+    C.chmod(part, dedup.BLOB_MODE)
     local ok, err = os.rename(part, shard .. "/" .. hex)
     if not ok then
         os.remove(part)
@@ -429,6 +443,80 @@ function Store:release(dest)
         return true
     end
     return false
+end
+-- }}}
+
+-- {{{ function Store:unshare
+-- Copy-on-write for editing: when DEST is a link into this store, replaces
+-- the link with a private copy of the blob's bytes (writable, mode 0644)
+-- and drops its reference; the blob stays as it was for every other link
+-- (gc() removes it once nothing links to it). Returns DEST's absolute
+-- path and true; the path and false when DEST is already a plain file;
+-- nil and a message when there is nothing there, or the link leads
+-- somewhere else.
+function Store:unshare(dest)
+    if type(dest) ~= "string" or dest == "" then
+        return nil, "dedup: unshare wants a path"
+    end
+    local dir, name = split(expand(dest))
+    local real = realpath(dir)
+    if not real then
+        return nil, "dedup: no folder " .. dir
+    end
+    local abs = real .. "/" .. name
+    if not readlink(abs) then
+        if is_file(abs) then return abs, false end
+        return nil, "dedup: nothing at " .. abs
+    end
+    local blob = realpath(abs)
+    local hex = blob and blob:match("/(%x+)$")
+    if not (hex and #hex == 64 and self.sizes[hex] and blob == realpath(self:path(dedup.PREFIX .. hex))) then
+        return nil, "dedup: " .. abs .. " is a link, but not into this store"
+    end
+    local part = abs .. ".unshare." .. string.format("%08x", math.random(0, 0x7fffffff))
+    local src = assert(io.open(blob, "rb"))
+    local out = io.open(part, "wb")
+    if not out then
+        src:close()
+        return nil, "dedup: can't write beside " .. abs
+    end
+    while true do
+        local piece = src:read(65536)
+        if not piece then break end
+        assert(out:write(piece))
+    end
+    src:close()
+    out:close()
+    C.chmod(part, dedup.COPY_MODE)
+    local ok, err = os.rename(part, abs)    -- replaces the link itself, not the blob
+    if not ok then
+        os.remove(part)
+        return nil, "dedup: can't put the copy in place: " .. tostring(err)
+    end
+    if self.refs[abs] then
+        self.refs[abs] = nil
+        note(self, "", abs)
+    end
+    return abs, true
+end
+-- }}}
+
+-- {{{ function Store:protect
+-- Makes every blob still writable read-only (a store made before blobs
+-- were); returns how many it changed.
+function Store:protect()
+    local n = 0
+    local p = io.popen("find " .. string.format("'%s'", self.dir:gsub("'", "'\\''"))
+        .. " -mindepth 2 -maxdepth 2 -type f -perm /222 -printf '%P\\n' 2>/dev/null")
+    for rel in p:lines() do
+        local shard, hex = rel:match("^(%x%x)/(%x+)$")
+        if hex and #hex == 64 and hex:sub(1, 2) == shard then
+            C.chmod(self.dir .. "/" .. rel, dedup.BLOB_MODE)
+            n = n + 1
+        end
+    end
+    p:close()
+    return n
 end
 -- }}}
 

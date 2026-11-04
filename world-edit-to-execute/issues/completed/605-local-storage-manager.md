@@ -7,7 +7,7 @@ decision 1); the TUI (step 7, optional) is not built.
 **Type:** Implementation
 **Priority:** Medium
 **Dependencies:** Issue 604 (deduplication), Issue 601 (its folder only)
-**Blocks:** 603 (the fetcher's downloads land in the storage this manages), 608, 609
+**Blocks:** 603 (the fetcher's downloads land in the storage this manages), 604a, 608, 609
 
 ---
 

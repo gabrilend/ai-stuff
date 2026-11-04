@@ -13,6 +13,8 @@
 --   luajit src/cli/storage.lua [--dir DIR] [--data FOLDER] delete map|pack NAME [--force]
 --   luajit src/cli/storage.lua [--dir DIR] [--data FOLDER] gc
 --   luajit src/cli/storage.lua [--dir DIR] [--data FOLDER] orphans
+--   luajit src/cli/storage.lua [--dir DIR] [--data FOLDER] edit map|pack NAME [PATH]
+--   luajit src/cli/storage.lua [--dir DIR] [--data FOLDER] protect
 --   luajit src/cli/storage.lua --help
 --
 -- DIR is the project (its player data folder is player-data/, unless
@@ -20,6 +22,11 @@
 -- directly. delete asks first, and with no answer (not a terminal, say)
 -- deletes nothing; --force skips the question. delete then collects, so
 -- the space is freed at once.
+--
+-- Stored files are read-only: one may be shared by many maps and packs.
+-- edit makes a file (PATH, inside the map or pack), or every file of that
+-- map or pack, its own copy to change; nothing else sees the change.
+-- protect makes stored files still writable (from before) read-only.
 --
 -- Issue: issues/completed/605-local-storage-manager.md
 
@@ -126,6 +133,21 @@ function M.delete(S, kind, name, force, ask)
 end
 -- }}}
 
+-- {{{ function M.edit
+-- Gives the message to print and whether it worked.
+function M.edit(S, kind, name, path)
+    local done, err = S:edit(kind, name, path)
+    if not done then return err, false end
+    if #done == 0 then
+        return (path or name) .. " is already its own copy; nothing changed.", true
+    end
+    local dir = S:dir(kind, name)
+    local lines = { string.format("Made %s in %s its own, to edit:", count(#done, "file", "files"), name) }
+    for _, p in ipairs(done) do lines[#lines + 1] = "  " .. dir .. "/" .. p end
+    return table.concat(lines, "\n"), true
+end
+-- }}}
+
 -- {{{ local function ask_terminal
 local function ask_terminal(question)
     io.write(question)
@@ -169,6 +191,17 @@ local function main()
         print(string.format("Removed %s nothing used, freed %s.", count(removed, "stored file", "stored files"), size(freed)))
     elseif cmd == "orphans" then
         for _, hash in ipairs(S:orphans()) do print(hash) end
+    elseif cmd == "edit" then
+        local kind, name, path = args[2], args[3], args[4]
+        if not storage.KINDS[kind] or not name then
+            io.stderr:write("usage: storage.lua edit map|pack NAME [PATH]\n")
+            return 2
+        end
+        local msg, ok = M.edit(S, kind, name, path)
+        print(msg)
+        return ok and 0 or 1
+    elseif cmd == "protect" then
+        print(string.format("Made %s read-only.", count(S:protect(), "stored file", "stored files")))
     else
         io.stderr:write("unknown command: " .. cmd .. " (try --help)\n")
         return 2

@@ -26,6 +26,8 @@ loaded on first use. Linux and other POSIX systems only (links through the FFI).
 | `store:exists(hash)` | a hash | true when the blob is on disk (one open of one path) |
 | `store:path(hash)` | a hash | the blob's absolute path |
 | `store:link(hash, dest)` | a stored hash, the link to make | DEST's absolute path; makes its folders; replaces a link, never a real file |
+| `store:unshare(dest)` | a link into the store | copy-on-write for editing: the link becomes a private copy (mode 0644) and its reference is dropped; DEST's path and true; DEST and false when it is already a plain file; nil and a message when nothing is there or the link leads elsewhere |
+| `store:protect()` | — | makes every blob still writable read-only (0444); how many it changed |
 | `store:release(dest)` | a link made by `link` | true when it was a reference; the link is removed |
 | `store:references(hash)` / `refcount(hash)` | a hash | the links that lead to it now (sorted) / how many |
 | `store:list()` | — | every stored hash, oldest first, from the index |
@@ -47,3 +49,12 @@ A hash is `sha256:` and 64 lower-case hex digits; anything else is an error.
 - Links and reference lines are relative to the store, so moving the whole
   player data folder keeps both.
 - `gc()` runs only when called.
+
+## Blobs are read-only
+
+A blob is made mode 0444 as it is stored (`dedup.BLOB_MODE`): one blob may
+be shared by many maps and packs, and an editor writing through one link
+would change it for all of them. To edit a file, `unshare` its link first.
+The mode doesn't bind root; `verify()` still finds a blob whose bytes no
+longer match its name. Removing a blob (`gc`) needs only its folder to be
+writable, so read-only blobs are collected as before.
