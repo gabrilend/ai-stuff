@@ -259,3 +259,61 @@ strokes directly.
 currency for it. What is left to try: fewer and fatter strokes in the field
 itself, a second low-strength pass at the larger size over a picture composed at
 the smaller one, or a checkpoint trained at 1024 to begin with.
+
+## 2026-10-04 — The inside route's redraw has a cliff (416)
+
+The first knobs of the two mask routes, set on the far kitchen with Juggernaut
+XL at 1024, one character (休), one seed.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `routes.mask_width` | — | 44 | Wide enough for a thing to stand along a stroke. Not yet varied. |
+| `routes.ink_width` | — | 22 | Brush weight for the outside route. Not yet varied. |
+| `routes.inside_denoise` | 1.0 → 0.8 | **0.62** | Measured, below. |
+| `routes.tone_dark` / `tone_light` | — | 0.08 / 0.92 | The flat tone the strokes start the redraw from, chosen by the world's polarity. |
+
+**One pass with each sentence held to its side of the mask: no character.**
+**Two passes, the strokes redrawn from noise: no character** — asked to fill a
+tree-shaped hole in a forest, the model continues the forest. So the strokes
+are laid into the background as one flat tone first, and the redraw strength
+decides how much of that tone survives:
+
+| strength | light tone | dark tone |
+|---|---|---|
+| 0.55 | the tone survives, flat white — a cut-out | — |
+| 0.62 | flat white, the 木 half beginning to become a figure | **the 木 half becomes one person, arms and legs along its strokes**; the 亻 half is lost among dark trunks |
+| 0.68 | as 0.62 | a man leaning on a tree; the shape mostly gone |
+| 0.74 | gone | gone |
+| 0.80 | faint glints where strokes cross | gone |
+
+The window is narrow — about a tenth either side of 0.62 — and it was found on
+one character in one world. The dark tone is the more interesting: it made the
+character into its subject, which is what this route is for. The light tone at
+the same strength stays a cut-out. What is left to try: differential diffusion
+(the core node that lets the mask's grey levels set per-pixel strength, so the
+middle of a stroke can be redrawn harder than its edges), a quieter background
+sentence so the strokes are not camouflaged by trunks, and a dozen characters
+across worlds before trusting any of these numbers.
+
+## 2026-10-05 — The far kitchen draws at 512, for speed
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `kitchens.across.field.resolution` | 1024 | 512 | A quarter of the pixels. The owner wanted pictures in seconds, not half a minute. |
+| `kitchens.across.workflow.steps` | 30 | 20 | Fewer drawing steps per pass; the inside route runs two passes and the outside one. |
+| `kitchens.across.kitchen.rest` (and on the display card) | 6.0 | 1.0 | The six-second rest was a courtesy on the assumption that the far card also draws a screen. Cut at the owner's asking. |
+
+One character, both routes, went from about 35 seconds to about 13 including
+start-up. Juggernaut XL was trained at 1024, so 512 is below its native size;
+on 日 the inside route read *better* at 512 than 休 did at 1024 — the
+character came out clearly as dark objects against the sky — which is one
+character and not a finding. The redraw strength (0.62) was tuned at 1024 and
+has not been re-measured at 512.
+
+## 2026-10-06 — The far kitchen rests three to five seconds, unevenly, between every picture
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `kitchens.across.kitchen.rest` (and on the display card) | 1.0 | `{ 3.0, 5.0 }` | The card is shared infrastructure. The owner allowed Chroma on it on the condition of one picture at a time with a random 3–5 second cool-down between. The rest is now also taken between the two routes of one character, not only between characters. |
+
+A character's two pictures therefore cost at least 3 seconds more than before.

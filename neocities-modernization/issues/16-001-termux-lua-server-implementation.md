@@ -340,3 +340,4 @@ end
 - **Phase**: 16 (Network Media)
 - **Estimated Complexity**: Medium-High
 - **Dependencies**: Termux, luasocket, luasec, (optional: transmission or aria2)
+- **Blocks**: 16-003

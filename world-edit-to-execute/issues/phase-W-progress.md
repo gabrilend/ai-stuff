@@ -24,6 +24,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W08 | [Our own server, speaking the same protocol](./W08-our-own-server-speaking-the-same-protocol.md) | design research | W02, W04 |
 | W06 | [Restyle every model in one theme](./W06-restyle-every-model-in-one-theme.md) | open (later) | W05 |
 | W07 | [Phase W demo](./W07-phase-w-demo.md) | open | W02-W06 |
+| W10 | [The editor edits WoW maps](./W10-the-editor-edits-wow-maps.md) | open | W01, W02, Phase 9 |
 
 ## Built elsewhere
 
