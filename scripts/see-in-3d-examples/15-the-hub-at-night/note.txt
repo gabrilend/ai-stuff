@@ -1,0 +1,5 @@
+title: The hub at night: a blue field, figures half seen
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/15-the-hub-at-night/picture.png
+stage: 25
+---
+As with dusk, night is carried by paint alone: a dark blue plate, a dim hub, blue figures. The top view reads like the picture; the side views show the scene is no different in shape from noon.

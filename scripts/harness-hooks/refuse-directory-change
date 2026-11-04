@@ -1,0 +1,256 @@
+#!/usr/bin/env luajit
+--
+-- refuse-directory-change
+--
+-- A gate that sits in front of every shell command Claude Code tries to run and
+-- refuses the ones that would move the working directory somewhere else.
+--
+-- The reason it exists: the working directory belongs to the person at the
+-- terminal, not to the assistant. When a command walks off to another folder,
+-- every later command in the session inherits that move, and the prompt, the
+-- status line, and the person's own sense of where they are all quietly
+-- disagree with reality. Nearly every real need for it has a flag instead --
+-- git takes -C, make takes -C, tar takes -C, and most other tools accept a
+-- full path -- so refusing the move costs almost nothing and removes a whole
+-- class of surprise.
+--
+-- The refusal can be lifted one time, by the person and only by the person, by
+-- creating the permission token named below. The gate spends the token on the
+-- next directory change and deletes it, so a permission granted once is not a
+-- permission granted forever.
+--
+-- Asking for confirmation instead was tried first and does not work: under the
+-- "auto" permission mode the confirmation is resolved without ever reaching a
+-- human, which would leave this gate looking present while doing nothing. A
+-- refusal is honoured; a request is not. Hence a refusal plus a token.
+--
+-- HOW IT READS A COMMAND
+--
+-- Through the shared shell-word reader (libs/shell-command-scan.lua), which
+-- splits the line the way a shell does. So the gate sees the real command word
+-- behind `if ...; then cd x; fi`, `builtin cd`, `command cd`, `FOO=1 cd`,
+-- `\cd`, `"cd"`, `eval "cd x"`, `bash -c 'cd x'`, and `cd>/dev/null x`, and it
+-- does not see `cd` inside a quoted string or a heredoc written to a file. The
+-- regular expression it used before missed the first list and refused the
+-- second.
+--
+-- A `cd` inside a child shell -- `(cd x && make)`, `$(cd x && pwd)`,
+-- `bash -c 'cd x'` -- cannot move the session's directory, and is refused
+-- anyway. Partly habit: a command that reaches for cd in a subshell reaches for
+-- it bare the next time. And partly because the difference is not cheap to
+-- prove from text: `( cd x ); make` and `cd x; make` differ by two characters.
+-- `git -C` and `make -C` do the same job and leave nothing to judge.
+--
+-- OBSERVED ON CLAUDE CODE 2.1.280: the harness appears to drop a leading
+-- `cd <the current directory> &&` from a command before PreToolUse hooks see
+-- it, so that no-op shape passes live even though this script refuses it when
+-- fed the text directly (and the test suite checks exactly that). It is not in
+-- the changelog. To tell a stripped no-op from a broken gate, try the change
+-- inside a subshell -- `(cd /tmp && pwd)` -- which the harness leaves alone and
+-- this gate refuses.
+--
+-- WHAT THIS IS NOT
+--
+-- This is not a security boundary and must never be mistaken for one. The
+-- assistant it constrains can read and write this file, can delete the hook
+-- entry that installs it, and can create the token itself. Any of those defeats
+-- it completely, and none of them is difficult. `source ./script` and a script
+-- piped into a shell are not read at all.
+--
+-- What it buys is not prevention. It is that the ways around it are all things
+-- a person would see: a token being touched, this script being edited, settings
+-- being rewritten. An honour system with a witness, not a lock.
+--
+-- MOVING WHEN ALLOWED (scripts issue 041, 2026-10-18)
+--
+-- The permission file may be empty (any one move) or hold a folder (a move
+-- to that folder only: `! echo /new/place > /tmp/claude-allow-cwd-change`).
+-- Folders are compared by where they really are, so a permission written
+-- with a folder's old name allows a move to its new name and the reverse. A
+-- named permission does not let a move elsewhere through, and is kept for
+-- the move it was made for.
+--
+-- A permission lives PERMISSION_MINUTES. One older than that is removed the
+-- next time this gate sees a move, the refusal says so, and it is not
+-- honoured. Why: the harness drops some moves before any hook sees them
+-- (below), so a permission given for a move that never reached the gate
+-- stayed armed, and the next move the session tried, for any reason, would
+-- have spent it. That is what happened on 2026-10-18: the owner moved a
+-- project to another disk, left a link at the old name, and asked the
+-- session to move from the old name to the new; the move was dropped and
+-- the permission lay there unspent.
+--
+-- A move to the folder the session is already in, by another name, changes
+-- only the name the session goes by (its prompt, its status line, the paths
+-- it writes). It needs a permission like any other; with one, it goes through
+-- in one step and the person sees a notice saying it was a change of name.
+-- (A two-step version, out to the new name's parent and back in, was built
+-- and tried on 2026-10-18 and taken out the same day: the parent was outside
+-- the session's allowed folders, where Claude Code resets the shell, and the
+-- name that stuck was never Claude Code's record anyway but the PWD each
+-- command's shell inherits from the `claude` program -- which
+-- carry-working-folder-name now carries.) Every move must be its own command:
+-- Claude Code drops a leading `cd DIR &&` when DIR is the current folder,
+-- comparing real places, so `cd /new/place && pwd` never reaches this gate.
+
+-- Reads the pending command as JSON on standard input. Says nothing when the
+-- command is fine; prints a refusal when it is not; prints a visible warning
+-- (and lets the command run) when it cannot read its input; prints a notice
+-- to the person (and lets the command run) when a permission was spent on a
+-- change of name of the folder the session is in.
+--
+-- Usage: refuse-directory-change [token-path] [scripts-directory]
+
+local TOKEN = arg[1] or "/tmp/claude-allow-cwd-change"
+-- How long a permission lives (issue 041, open question 1; ten minutes until
+-- the owner chooses): long enough to type the permission and then ask for the
+-- move, short enough that a forgotten one does not wait for a later move.
+local PERMISSION_MINUTES = 10
+local DIR = arg[2] or "/home/ritz/programming/ai-stuff/scripts"
+local GATE_NAME = "refuse-directory-change"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local scan = require("shell-command-scan")
+
+-- The command words that move the working directory.
+local MOVES_DIRECTORY = { cd = true, pushd = true, popd = true }
+
+-- {{{ local function find_directory_change()
+-- The first command on the line whose real command word moves the directory
+-- (as text, and as its words), or nil. Wrappers and assignments in front of it are stepped past by the
+-- reader, so `builtin cd` and `FOO=1 cd` are cd.
+local function find_directory_change(command_text)
+    for _, command in ipairs(scan.all_commands(command_text)) do
+        local words = scan.effective_words(command)
+        -- a command with no command word (only assignments) moves nothing;
+        -- one whose word moves the directory is the answer
+        if words and MOVES_DIRECTORY[words[1]] then
+            return table.concat(words, " "), words
+        end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function target_of()
+-- The folder a move names, as written: the first word after the command word
+-- that is not an option (`cd -P /x` is /x). `cd` alone is the home folder;
+-- `cd -` and `popd` name a folder only the shell knows, so they give nil.
+local function target_of(words)
+    if words[1] == "popd" then return nil end
+    for k = 2, #words do
+        local w = words[k]
+        if w == "-" then return nil end
+        if w:sub(1, 1) ~= "-" then return w end
+    end
+    return os.getenv("HOME")
+end
+-- }}}
+
+-- {{{ local function real_place()
+-- Where a folder really is (every link followed), or nil when it does not
+-- exist or cannot be read. A relative name is read from `cwd`, the folder
+-- the session is in; `~` is the home folder.
+local function real_place(name, cwd)
+    if not name or name == "" then return nil end
+    if name == "~" then name = os.getenv("HOME") or name
+    elseif name:sub(1, 2) == "~/" then name = (os.getenv("HOME") or "~") .. name:sub(2) end
+    if name:sub(1, 1) ~= "/" then
+        if not cwd then return nil end
+        name = cwd .. "/" .. name
+    end
+    local out, ok = gate.run({ "realpath", "-e", name })
+    if not ok then return nil end
+    return (out:gsub("%s+$", ""))
+end
+-- }}}
+
+-- {{{ local function read_permission()
+-- The permission file's state: "none", "expired" (and then it is removed),
+-- "unreadable" (there, but not a file this gate can read and remove), or
+-- "any" / "named" with the folder it names, as written.
+local function read_permission()
+    if not os.rename(TOKEN, TOKEN) then return "none" end
+    local stat_out, ok = gate.run({ "stat", "-c", "%Y %F", TOKEN })
+    local made, kind = stat_out:match("^(%d+) (.-)%s*$")
+    if not ok or not made or kind ~= "regular empty file" and kind ~= "regular file" then return "unreadable" end
+    if os.time() - tonumber(made) > PERMISSION_MINUTES * 60 then
+        os.remove(TOKEN)
+        return "expired", os.date("%H:%M", tonumber(made))
+    end
+    local f = io.open(TOKEN, "r")
+    local text = f and f:read("*a") or ""
+    if f then f:close() end
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+    if text == "" then return "any" end
+    return "named", text
+end
+-- }}}
+
+-- {{{ local function allow_with_notice()
+-- Lets the command run and tells the person why, as a notice (not a refusal).
+local function allow_with_notice(json, message)
+    io.stdout:write(json.encode({ systemMessage = GATE_NAME .. ": " .. message }), "\n")
+    os.exit(0)
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(GATE_NAME, DIR)
+    local command_text = gate.pending_command(GATE_NAME, input)
+
+    local offending, words = find_directory_change(command_text)
+    -- nothing on the line moves the directory: almost every command ends here
+    if not offending then os.exit(0) end
+
+    local cwd       = type(input.cwd) == "string" and input.cwd or nil
+    local written   = target_of(words)
+    local target    = real_place(written, cwd)
+    local here      = real_place(cwd, nil)
+    -- the same folder by another name: the move changes only the name the
+    -- session goes by
+    local same      = target and here and target == here
+
+    local reason = "This command changes the working directory (" .. offending .. "), which belongs to the user and does not move unless they specifically ask for it."
+    if same then
+        reason = reason .. " " .. written .. " is the same folder the session is in now, under another name (both are " .. target .. "): the move would change only the name the session goes by."
+    end
+    reason = reason .. " Do the work from where you are: git -C <dir>, make -C <dir>, tar -C <dir>, or absolute paths. A heredoc needs no directory change either -- git -C <dir> commit -F - reads from stdin perfectly well."
+
+    local state, detail = read_permission()
+    -- the folder a named permission is for, where it really is
+    local allowed = state == "named" and real_place(detail, cwd) or nil
+
+    if state == "expired" then
+        reason = reason .. " A permission to move was there, made at " .. detail .. ", but it was older than " .. PERMISSION_MINUTES .. " minutes, so it expired and was removed without being used."
+    elseif state == "unreadable" then
+        reason = reason .. " (The permission " .. TOKEN .. " is there but is not a plain file this gate can read and remove, so it was not honoured.)"
+    elseif state == "any" then
+        local spent, problem = gate.spend_token(TOKEN)
+        if spent then
+            if same then allow_with_notice(json, "the permission was spent on moving to " .. written .. ", the same folder as before under another name.") end
+            os.exit(0)
+        end
+        if problem then reason = reason .. " (" .. problem .. ")" end
+    elseif state == "named" then
+        if allowed and target and allowed == target then
+            local spent, problem = gate.spend_token(TOKEN)
+            if spent then
+                if same then allow_with_notice(json, "the permission was spent on moving to " .. written .. ", the same folder as before under another name.") end
+                os.exit(0)
+            end
+            if problem then reason = reason .. " (" .. problem .. ")" end
+        else
+            reason = reason .. " The permission waiting is for a move to " .. detail .. (allowed and (" (" .. allowed .. ")") or " (a folder that cannot be found)") .. ", not to " .. (written or "the folder this move names") .. (target and (" (" .. target .. ")") or "") .. ", so it was kept for that move."
+        end
+    end
+
+    local example = written or "<folder>"
+    reason = reason .. " If the user genuinely wants the directory moved, ask them to type: ! touch " .. TOKEN .. " (any one move, within " .. PERMISSION_MINUTES .. " minutes), or ! echo " .. example .. " > " .. TOKEN .. " (a move to that folder only). Then make the move a command of its own, `cd " .. example .. "` alone: Claude Code drops a leading `cd DIR &&` when DIR is the folder the session is in under another name, so a chained move never reaches this gate and never happens."
+    gate.refuse(json, reason)
+end
+-- }}}
+
+main()

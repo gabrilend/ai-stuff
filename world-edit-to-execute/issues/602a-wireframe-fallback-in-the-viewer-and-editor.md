@@ -17,6 +17,14 @@ plain ground.
 
 ## Intended Behavior
 
+**The editor's part only (2026-11-04).** The owner settled that the editor
+keeps this project's Lua renderer and that playing a map happens in the W
+client, which Test Map opens (issue 913); the player's wire-frames are the
+W client's (its 105a, step 4). So this project's map viewer
+(`src/demo/wc3map/`), which gives way to Test Map, needs no wire-frames of
+its own; the items below that name the viewer are kept as written, and
+only the editor's are still wanted (602, "Where wire-frames are drawn").
+
 - A unit, building, doodad or item whose model can't be found is drawn by
   the fallback (`has_model` says which).
 - A key in the viewer and the editor turns forced wire-frame and the

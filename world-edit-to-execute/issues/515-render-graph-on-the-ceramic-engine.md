@@ -11,6 +11,13 @@
 
 ## Current Behavior
 
+**Continues in the W client (2026-10-07).** The owner chose the ceramic
+shape for the W client, with no main loop and render threads only:
+`/mnt/mtwo/games/azeroth-core/custom-client/issues/110-the-ceramic-shape.md`
+and its sub-issues build 515b-515e there, on this issue's measurements.
+This project's own renderer is retiring into the W client, so 515f's
+comparison is made there (110e).
+
 The renderer (`src/render/`) is C on raylib, with Lua game logic behind a
 slot bridge. Its concurrency is hand-written threading: an updater, a worker
 pool fed through a ring buffer (512), a sync stage, and the draw thread,

@@ -14,7 +14,7 @@
 #   ./scripts/start-llamacpp-server.sh /custom/dir    # Override project DIR
 #   ./scripts/start-llamacpp-server.sh --help         # Show this message
 #
-# Replaces scripts/start-ollama-cuda.sh as the embedding-backend launcher
+# Replaces the old Ollama launcher (removed 2026-10-22) as the embedding-backend launcher
 # per issue 10-049. The on-disk binary at libs/llama.cpp/bin/llama-server
 # is produced by scripts/build-deps.sh; if it is missing, run that script
 # first.
@@ -36,32 +36,34 @@ C_RESET="\033[0m"
 # {{{ parse_arguments
 # Recognized flags:
 #   --server=NAME : override the default_inference_server from config
-#   --model=NAME  : serve a specific model from that server's available_models
-#                   (loads that model's GGUF); defaults to the server's model
-#   /path/to/dir  : override the project DIR (positional)
+#   --model=NAME  : required; the model to serve, one of that server's
+#                   available_models (loads its GGUF). There is no default.
+#   --dir PATH    : override the project DIR; a stray word stops the script
+#                   (libs/project-dir.sh, Issue 10-076; it used to be any
+#                   bare word)
 parse_arguments() {
+    source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+    project_dir_read "$DIR" "" "$@"
+    set -- "${PROJECT_ARGS[@]}"
     for arg in "$@"; do
         case "$arg" in
             --server=*)
                 SERVER_NAME="${arg#*=}"
                 ;;
             --model=*)
-                # Pick a specific model the server can serve (one of its
-                # available_models) and load that model's GGUF instead of the
-                # server default. Used by the model-comparison harness.
+                # The model to serve (one of the server's available_models):
+                # its GGUF is loaded. Required -- config.lua names no default
+                # model (2026-10-21); the library refuses a run without one.
                 MODEL_OVERRIDE="${arg#*=}"
                 ;;
             --help|-h)
                 sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
                 exit 0
                 ;;
-            -*)
+            *)
                 echo -e "${C_RED}Unknown option: $arg${C_RESET}" >&2
                 echo "Run with --help for usage." >&2
                 exit 1
-                ;;
-            *)
-                DIR="$arg"
                 ;;
         esac
     done
@@ -70,8 +72,10 @@ parse_arguments() {
 
 # {{{ resolve_server_config
 # Asks libs/inference-server-config.lua to resolve the chosen server (default
-# or --server=NAME override) and prints four lines to stdout: host, port,
-# model_path (relative to DIR), and the model identifier. Errors from the
+# or --server=NAME override) and prints to stdout, one per line: host, port,
+# model_path (relative to DIR), the model identifier, the model's
+# vision_projector (relative to DIR, or "-" for a model without one), and then
+# each word of the server's launch_flags (zero or more lines). Errors from the
 # module (typoed --server, missing default) propagate to stderr verbatim.
 # Running the module in a subprocess keeps the parent shell free of any
 # stray Lua state and lets us capture exactly the fields we want.
@@ -91,18 +95,26 @@ resolve_server_config() {
         ${server_override}
         ${model_override}
         local server = inference.get_selected_server()
-        -- Resolve the GGUF for the SELECTED model (default = server.model), so a
-        -- --model override on a multi-model server loads the right file.
+        -- Resolve the GGUF for the model named with --model (there is no
+        -- default; the library refuses a run without one).
         local mc = inference.get_selected_model_config()
         if not mc.model_path then
             error('inference-server-config: model \"' .. tostring(mc.model)
                 .. '\" on server \"' .. server.name .. '\" has no model_path; add it '
-                .. 'to the server entry or to that model in available_models')
+                .. 'to that model in available_models')
         end
         print(server.host)
         print(server.port)
         print(mc.model_path)
         print(mc.model)
+        -- Issue 9-013: the picture-reading add-on, when this model has one
+        print(mc.vision_projector or '-')  -- optional: a text-only model has none
+        -- One word per line so a flag and its value stay separate words in
+        -- the shell array they are read into.
+        -- optional: absent means llama-server's own defaults for these
+        for _, word in ipairs(server.launch_flags or {}) do
+            print(word)
+        end
     "
 }
 # }}}
@@ -201,11 +213,15 @@ launch_server() {
     #                 allocates its own KV cache, multiplying VRAM pressure
     #                 linearly. Also llama-server's default; set explicitly so a
     #                 future operator doesn't crank it up assuming it's free.
-    #   --mlock     : pin the model (~140 MB Q8_0) in RAM so the kernel cannot
+    #   --load-mode mmap+mlock : pin the model in RAM so the kernel cannot
     #                 swap parts of it back to disk under memory pressure. On
     #                 Pascal, swap-induced stuttering of forward passes can
     #                 extend a CUDA kernel's wall time past the display watchdog
-    #                 timeout. Cost is ~140 MB of pinned RAM, cheap on a 31 GB host.
+    #                 timeout. Cost is the model's size in pinned RAM (140-310 MB
+    #                 for the Q8_0 files here), cheap on a 31 GB host.
+    #                 Was "--mlock" until llama.cpp b11476 removed that flag
+    #                 (the server then refused to start); mmap+mlock is the
+    #                 same pairing the old flag gave with mmap on by default.
     #
     # -lv 1 (verbose) is added ONLY under --debug (NEOCITIES_LOG_DIR set): it
     # emits per-request slot lines that are gold for diagnosing a freeze, but
@@ -228,11 +244,25 @@ launch_server() {
         --batch-size 8192
         --ubatch-size 8192
         --parallel 1
-        --mlock
+        --load-mode mmap+mlock
     )
     if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
         launch_flags+=( -lv 1 )
     fi
+    # Issue 9-013: a model with a vision projector loads it, so the same
+    # server embeds pictures (Stage 6's picture step) as well as text.
+    # "-": a text-only model; no projector is loaded.
+    if [ "$VISION_PROJECTOR" != "-" ]; then
+        local abs_projector="${DIR}/${VISION_PROJECTOR}"
+        if [ ! -f "$abs_projector" ]; then
+            echo -e "${C_RED}Vision projector not found: $abs_projector${C_RESET}" >&2
+            exit 1
+        fi
+        launch_flags+=( --mmproj "$abs_projector" )
+    fi
+    # The server entry's launch_flags (config.lua) come last, so a GPU-specific
+    # setting there can also override one of the shared flags above.
+    launch_flags+=( "${SERVER_FLAGS[@]}" )
 
     # In --debug, pipe the server's stdout/stderr through fsync-logger so each
     # log line is committed to disk immediately (it survives a hard lock). The
@@ -241,7 +271,7 @@ launch_server() {
     # debug, the plain file redirect keeps things fast.
     if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
         "$server_bin" "${launch_flags[@]}" \
-            > >("${DIR}/scripts/fsync-logger" --quiet "$LOG_FILE") 2>&1 &
+            > >("${DIR}/scripts/fsync-logger" --quiet --log "$LOG_FILE") 2>&1 &
     else
         "$server_bin" "${launch_flags[@]}" > "$LOG_FILE" 2>&1 &
     fi
@@ -271,6 +301,12 @@ wait_for_ready() {
         if [ "$code" = "200" ]; then
             return 0
         fi
+        # A server that has already exited will never answer. Without this
+        # check a refused flag (e.g. "invalid argument: --mlock") cost the full
+        # three minutes before the error was shown.
+        if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            return 2
+        fi
         sleep 1
         i=$((i + 1))
     done
@@ -281,7 +317,7 @@ wait_for_ready() {
 # {{{ main
 main() {
     parse_arguments "$@"
-    "${DIR}/scripts/ensure-tmp-symlink" "${DIR}" 2>/dev/null
+    "${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" 2>/dev/null
     # run.sh's --debug exports NEOCITIES_LOG_DIR pointing at durable disk
     # (output/debug-logs) so the server log survives the reboot a hard GPU
     # lock forces. Default stays in the RAM-backed tmp/. The PID file stays in
@@ -301,11 +337,25 @@ main() {
     PORT=$(echo "$config" | sed -n 2p)
     MODEL_PATH=$(echo "$config" | sed -n 3p)
     MODEL=$(echo "$config" | sed -n 4p)
+    VISION_PROJECTOR=$(echo "$config" | sed -n 5p)
+    # Lines 6 onward: this server's own GPU flags from config.lua.
+    local server_flags_text
+    server_flags_text=$(echo "$config" | sed -n '6,$p')
+    SERVER_FLAGS=()
+    if [ -n "$server_flags_text" ]; then
+        # Present: the server entry states flags for its GPU; pass them on.
+        # Absent: llama-server's own defaults stand for anything not set below.
+        mapfile -t SERVER_FLAGS <<< "$server_flags_text"
+    fi
 
     if [ -n "$SERVER_NAME" ]; then
         echo -e "  ${C_GREEN}server${C_RESET}: $SERVER_NAME (--server override)"
     fi
     echo -e "  ${C_GREEN}model${C_RESET}:  $MODEL"
+    if [ "${#SERVER_FLAGS[@]}" -gt 0 ]; then
+        # Shown so the operator sees which GPU-specific choices are in force.
+        echo -e "  ${C_GREEN}gpu flags${C_RESET}: ${SERVER_FLAGS[*]}"
+    fi
 
     setup_env
     verify_artifacts
@@ -316,8 +366,17 @@ main() {
     fi
 
     launch_server
-    if ! wait_for_ready; then
-        echo -e "${C_RED}llama-server did not become responsive within 30 seconds${C_RESET}" >&2
+    local ready_status=0
+    wait_for_ready || ready_status=$?
+    if [ "$ready_status" -ne 0 ]; then
+        # 2: the process exited during startup (usually a refused flag or a
+        #    model file it cannot read) -- the log's last lines say which.
+        # 1: still running but never became ready within the wait.
+        if [ "$ready_status" -eq 2 ]; then
+            echo -e "${C_RED}llama-server exited during startup${C_RESET}" >&2
+        else
+            echo -e "${C_RED}llama-server did not become ready within 180 seconds${C_RESET}" >&2
+        fi
         echo -e "  Last 20 lines of log ($LOG_FILE):" >&2
         tail -n 20 "$LOG_FILE" >&2
         kill "$SERVER_PID" 2>/dev/null
