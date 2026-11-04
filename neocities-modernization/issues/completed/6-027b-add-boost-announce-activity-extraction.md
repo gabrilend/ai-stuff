@@ -174,6 +174,10 @@ end
 - Issue 6-027a: Privacy-aware reply anonymization (for boost content)
 - Current ActivityPub processing pipeline
 
+## Blocks
+
+- 10-037
+
 ## Implementation Results
 
 ### Boost/Announce Activity Extraction Successfully Implemented ✅

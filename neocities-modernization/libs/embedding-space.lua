@@ -31,11 +31,12 @@
 -- for: a cache carries a note saying which space it was built in, and a stage
 -- that finds the wrong note rebuilds instead of trusting it.
 --
--- Deliberately NOT applied to word-to-poem comparison by a different rule: those
--- centre too, but they must, and for a sharper reason. A single word carries
--- MORE of the shared direction than a whole poem does (0.829 against 0.766), so
--- the offset is not constant across that comparison and distorts the ordering
--- rather than merely compressing it. Poem-to-poem survives without centring;
+-- Word-to-poem comparison follows a different rule: each side is centred on
+-- the average of its OWN population (cosine_across_populations below). A single
+-- word carries MORE of the shared direction than a whole poem does (0.829
+-- against 0.766), so one shared average cannot cancel both offsets; centring a
+-- word on the poem average left the difference inside every word and sent
+-- every word to the same short posts. Poem-to-poem survives without centring;
 -- it just survives badly, as the table above shows.
 -- }}}
 
@@ -118,6 +119,102 @@ function M.centered(vec, mean)
     local out = {}
     for j = 1, #vec do out[j] = vec[j] - mean[j] end
     return out
+end
+-- }}}
+
+-- {{{ function M.centre_once
+-- One vector prepared for many comparisons: centred on its population's
+-- average, with the sum of its squared parts. cosine_centred then compares
+-- two prepared vectors with the same arithmetic, in the same order, as
+-- cosine_across_populations, so the score is the same to the last bit -- the
+-- subtraction is just not repeated for every comparison (Issue 10-035: the
+-- word pages re-centred all 8,622 poem vectors for each of 200 words).
+-- vec, mean: Lua arrays of numbers, same length (a mismatch is an error: two
+-- models' vectors mixed).
+-- returns: { v = <centred array>, sq = <number, sum of squares> }
+function M.centre_once(vec, mean)
+    if not mean then
+        error("centre_once: the population average is required")
+    end
+    if #vec ~= #mean then
+        error(string.format("centre_once: dimension mismatch (vector %d, average %d) -- two models' vectors mixed",
+            #vec, #mean))
+    end
+    local v, sq = {}, 0
+    for j = 1, #vec do
+        local x = vec[j] - mean[j]
+        v[j] = x
+        sq = sq + x * x
+    end
+    return { v = v, sq = sq }
+end
+-- }}}
+
+-- {{{ function M.cosine_centred
+-- The cosine of two vectors prepared by centre_once; equal to
+-- cosine_across_populations on the raw vectors and their averages.
+-- 0 when either has no direction left (it equalled its average).
+function M.cosine_centred(a, b)
+    local av, bv = a.v, b.v
+    if #av ~= #bv then
+        error(string.format("cosine_centred: dimension mismatch (%d, %d)", #av, #bv))
+    end
+    local dot = 0
+    for j = 1, #av do
+        dot = dot + av[j] * bv[j]
+    end
+    if a.sq == 0 or b.sq == 0 then
+        return 0
+    end
+    return dot / (math.sqrt(a.sq) * math.sqrt(b.sq))
+end
+-- }}}
+
+-- {{{ function M.cosine_across_populations
+-- Cosine similarity between a vector from one population of text and a vector
+-- from another, each first centred on the average of ITS OWN population.
+--
+-- Why two means and not one: a lone dictionary word and a whole poem are two
+-- different kinds of text, and the model parks each kind at its own offset from
+-- the origin. Centring both on the poem average (the first version of the word
+-- pages) left the word population's offset inside every word vector. That
+-- leftover was the same for every word and larger than any word's meaning, so
+-- every word page ranked the same short posts first -- measured on the
+-- embeddinggemma-300m build, two posts consisting of a single backslash sat on
+-- 7,254 of 7,290 word pages. Each population minus its own average leaves only
+-- what distinguishes one member from its siblings, and that is the meaning.
+--
+-- a, b: Lua arrays of numbers, same length. a_mean, b_mean: the averages of
+-- the populations a and b came from (corpus_mean's first return).
+-- returns: a number in [-1, 1]; 0 when either centred vector is all zeros.
+--
+-- Both means are REQUIRED and an absent one is an error, not a fallback: without
+-- it the comparison silently reverts to the measurement this function exists to
+-- replace, and the pages it produces look complete and plausible either way.
+function M.cosine_across_populations(a, a_mean, b, b_mean)
+    if not a_mean or not b_mean then
+        error("cosine_across_populations: both population averages are required "
+            .. "(got " .. (a_mean and "one" or "none") .. ")")
+    end
+    if #a ~= #a_mean or #b ~= #b_mean or #a ~= #b then
+        error(string.format("cosine_across_populations: dimension mismatch "
+            .. "(a %d, a_mean %d, b %d, b_mean %d) -- two models' vectors mixed",
+            #a, #a_mean, #b, #b_mean))
+    end
+    local dot, na, nb = 0, 0, 0
+    for j = 1, #a do
+        local x = a[j] - a_mean[j]
+        local y = b[j] - b_mean[j]
+        dot = dot + x * y
+        na = na + x * x
+        nb = nb + y * y
+    end
+    -- A vector exactly equal to its population's average has no direction left
+    -- to compare; it is equally unrelated to everything, so 0 rather than NaN.
+    if na == 0 or nb == 0 then
+        return 0
+    end
+    return dot / (math.sqrt(na) * math.sqrt(nb))
 end
 -- }}}
 

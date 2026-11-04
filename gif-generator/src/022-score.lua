@@ -38,19 +38,12 @@ local function tagger(kind)
 end
 -- }}}
 
--- {{{ function score.read()
--- Run a score file in the sandbox; return { canvas, strokes }.
--- Structural refusals live here (no canvas, two canvases, no
--- strokes, computing); everything field-level waits for the wall.
-function score.read(path)
-    local chunk, load_err = loadfile(path)
-    if not chunk then
-        error("score: cannot read '" .. path .. "': "
-              .. tostring(load_err))
-    end
-
-    local raw = { canvas = nil, strokes = {} }
-    local env = {
+-- {{{ function score.shapes()
+-- The shape constructors and tip(), as a fresh table. Shared by the
+-- score sandbox and by word files (src/034-words.lua), so a pattern
+-- builds its strokes from exactly the words a score would use.
+function score.shapes()
+    return {
         arc = tagger("arc"),
         line = tagger("line"),
         point = tagger("point"),
@@ -60,22 +53,88 @@ function score.read(path)
             return { ref = "tip", of = name }
         end,
         -- }}}
-        -- {{{ canvas()
-        canvas = function(t)
-            if raw.canvas then
-                error("score: two canvas calls — a score has one "
-                      .. "canvas; the second one is a mistake or a "
-                      .. "second score", 2)
-            end
-            raw.canvas = t
-        end,
-        -- }}}
-        -- {{{ stroke()
-        stroke = function(t)
-            raw.strokes[#raw.strokes + 1] = t
-        end,
-        -- }}}
     }
+end
+-- }}}
+
+-- {{{ local function expand_pattern()
+-- pattern{ name = "spiral", ... } (issue 604a): the named word file's
+-- expand() turns the call into ordinary strokes, which join the score
+-- as if written by hand, each carrying a comment naming the pattern.
+-- The wall then checks them like any others, so a pattern can never
+-- smuggle in something the vocabulary forbids. Paths:
+--   * no word files were handed in → refused: the reader cannot know
+--     what any pattern means;
+--   * the name is not a pattern word → refused, with the nearest one;
+--   * expand fails or returns something that is not a list of tables
+--     → refused, naming the pattern.
+local function expand_pattern(t, words, raw)
+    if type(t) ~= "table" or type(t.name) ~= "string" then
+        error("score: pattern{...} wants a table with name = \"...\"", 3)
+    end
+    if not words then
+        error("score: pattern '" .. t.name .. "' used, but no word files "
+              .. "were loaded for this reading", 3)
+    end
+    local entry = words.patterns[t.name]
+    if not entry then
+        error("score: no pattern named '" .. t.name .. "' — nearest: '"
+              .. tostring(words.nearest(t.name)) .. "'", 3)
+    end
+    local ok, strokes = pcall(entry.expand, t)
+    if not ok then
+        error("score: pattern '" .. t.name .. "' failed to expand: "
+              .. tostring(strokes), 3)
+    end
+    if type(strokes) ~= "table" or #strokes == 0 then
+        error("score: pattern '" .. t.name .. "' expanded to no strokes", 3)
+    end
+    for i, s in ipairs(strokes) do
+        if type(s) ~= "table" then
+            error("score: pattern '" .. t.name .. "' stroke " .. i
+                  .. " is not a table", 3)
+        end
+        s.comment = "from pattern " .. t.name
+        raw.strokes[#raw.strokes + 1] = s
+    end
+end
+-- }}}
+
+-- {{{ function score.read()
+-- Run a score file in the sandbox; return { canvas, strokes }.
+-- Structural refusals live here (no canvas, two canvases, no
+-- strokes, computing); everything field-level waits for the wall.
+-- `words` is optional: the table src/034-words.lua loads. Without it a
+-- score may not use pattern{...}.
+function score.read(path, words)
+    local chunk, load_err = loadfile(path)
+    if not chunk then
+        error("score: cannot read '" .. path .. "': "
+              .. tostring(load_err))
+    end
+
+    local raw = { canvas = nil, strokes = {} }
+    local env = score.shapes()
+    -- {{{ pattern()
+    env.pattern = function(t)
+        expand_pattern(t, words, raw)
+    end
+    -- }}}
+    -- {{{ canvas()
+    env.canvas = function(t)
+        if raw.canvas then
+            error("score: two canvas calls — a score has one "
+                  .. "canvas; the second one is a mistake or a "
+                  .. "second score", 2)
+        end
+        raw.canvas = t
+    end
+    -- }}}
+    -- {{{ stroke()
+    env.stroke = function(t)
+        raw.strokes[#raw.strokes + 1] = t
+    end
+    -- }}}
     setfenv(chunk, env)
     local ok, run_err = pcall(chunk)
     if not ok then
