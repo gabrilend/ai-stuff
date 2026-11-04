@@ -562,7 +562,7 @@ written.
 > Docs, roadmap, and 39 issue files are written and they validate clean.
 > Committing the initialization now.
 
-*[commit] 0fdefd4d7 in ai-stuff - Lay out the machine that turns software into blueprints and back*
+*[commit] 8e27ad64f in ai-stuff - Lay out the machine that turns software into blueprints and back*
 
 > Initialization is committed. Starting phase 1: the launcher, text tables,
 > SHA-256, the ledger, the case folder, and the dispatcher.
@@ -579,7 +579,7 @@ written.
 
 > Moving the phase 1 issues to completed and updating the progress file.
 
-*[commit] 0e6c7c17c in ai-stuff - Give the machine a memory it cannot quietly rewrite*
+*[commit] 1bce79037 in ai-stuff - Give the machine a memory it cannot quietly rewrite*
 
 > The warnings come from my own `git mv` staging. Resetting those index entries
 > to match the commit:
@@ -610,7 +610,7 @@ written.
 > I'm writing a small tool to close issues, since each phase repeats the same
 > steps: rewrite the current behavior as built, then move the file to completed.
 
-*[commit] 38d84c6db in ai-stuff - Teach the machine to read a source tree without a model*
+*[commit] e5372095d in ai-stuff - Teach the machine to read a source tree without a model*
 
 > Writing the turn kinds and their prompt templates, the instructions each turn
 > gets, and the snapshot comparison.
@@ -642,7 +642,7 @@ written.
 > Reopening 305. Its live check hasn't run, and by your rule an issue with
 > deferred work stays in progress.
 
-*[commit] 8877b178c in ai-stuff - Give the machine hands that stay inside their folders*
+*[commit] 227966dd5 in ai-stuff - Give the machine hands that stay inside their folders*
 
 > The house validator works on a blueprint folder and catches dangling blockers.
 > Writing the phase 4 modules:
@@ -667,7 +667,7 @@ written.
 > and retried, and the house validator passes the whole blueprint. Closing phase
 > 4:
 
-*[commit] d8cda538e in ai-stuff - Write software down as a blueprint the house validator accepts*
+*[commit] 64974505b in ai-stuff - Write software down as a blueprint the house validator accepts*
 
 > Phase 4 is committed. Starting phase 5, the design. First checking how the
 > house RAM-tier helper names the second tier behind an existing link, since
@@ -691,7 +691,7 @@ written.
 > off: it included the skeleton's README files. Fixing that, then closing phase
 > 5:
 
-*[commit] fb66efd84 in ai-stuff - Build new software from a blueprint alone, and deliver it*
+*[commit] 039cb2f3b in ai-stuff - Build new software from a blueprint alone, and deliver it*
 
 > Now the rebuilt code for each request, derived from the fixture design:
 
@@ -714,7 +714,7 @@ written.
 > held until `--go`, and the program changing after each request. Closing phase
 > 6:
 
-*[commit] 744d890e8 in ai-stuff - Grade change requests by how deep they reach, and rebuild outward*
+*[commit] 89207cc2f in ai-stuff - Grade change requests by how deep they reach, and rebuild outward*
 
 > Wiring the center into the describe, build, update, and grade commands:
 
@@ -746,7 +746,7 @@ written.
 > Everything except issue 305 is closed. All 11 check files pass. Committing
 > phase 7:
 
-*[commit] 0fd9249b3 in ai-stuff - Give the machine a personality it can only earn from its record*
+*[commit] 9af6c0d9b in ai-stuff - Give the machine a personality it can only earn from its record*
 
 The machine is built: all seven phases, with every piece except one tested and
 demonstrated.
@@ -840,7 +840,7 @@ compiled binaries and such. For this prototype, source-code is fine.
 > No, the machine doesn't use that strategem, and reading it exposed a real
 > flaw. More on that below. First, the live run you approved:
 
-*[commit] 66eca6510 in ai-stuff - Run one real Claude Code turn, and close the harness*
+*[commit] bdcb6f9e1 in ai-stuff - Run one real Claude Code turn, and close the harness*
 
 Issue 305 is closed and committed, and your notes about names and binaries are
 saved in the vision.
@@ -1000,7 +1000,7 @@ we go. Protocols, not procedures.
 > Every existing check still passes with referees in place. Now the checks for
 > the referee work itself:
 
-*[commit] b57d2ce4c in ai-stuff - Check designs with workflows the builder never sees*
+*[commit] f575e753b in ai-stuff - Check designs with workflows the builder never sees*
 
 The referee fix is built and committed, and all 12 check files pass.
 
@@ -1110,7 +1110,7 @@ range. Then we apply the fix. Dynamic re-abstraction.
 > now it's an audit. Updating that check, then writing the checks for the search
 > itself:
 
-*[commit] e37b167c9 in ai-stuff - Find a failing workflow's fault by dynamic re-abstraction*
+*[commit] 86385fd1e in ai-stuff - Find a failing workflow's fault by dynamic re-abstraction*
 
 Dynamic re-abstraction is built and committed, and all 13 check files pass.
 
@@ -1845,7 +1845,7 @@ consequential first. Each changes the shape of what gets built.
 > Now the roadmap, table of contents, and the open questions this plan raises,
 > then the commit:
 
-*[commit] 00560be3e in ai-stuff - Plan the studio, the switchboard, and the story*
+*[commit] 84feae6a7 in ai-stuff - Plan the studio, the switchboard, and the story*
 
 The plan is written and committed. Nothing is built yet, as you asked.
 
