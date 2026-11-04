@@ -21,7 +21,7 @@ by default; a reboot empties it, so run prepare again), `--projects FILE`,
 
 ## Inputs
 
-- **Join commit:** `15268505` "Initial commit: AI project collection", the
+- **Join commit:** `472e9b9d` "Initial commit: AI project collection", the
   trunk's first commit. It must have no parents and be on `main`.
 - **Project sources**, one line each: `<folder> <source> <ref>`. `<source>` is a
   git bundle or a repository path, and `<ref>` is the project's last commit

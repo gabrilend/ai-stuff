@@ -1,0 +1,159 @@
+#!/bin/bash
+# film-a-scene -- films one moment of the pachinko game as a small gif and
+# files it in development-history/ with notes.
+#
+# In general terms: a scene file describes one exact moment (which balls,
+# where, how fast, on an empty board or the real one). The game is run in
+# scene mode, which ignores the keyboard, steps time evenly, saves every
+# frame into RAM, and quits by itself. The frames are then cropped to the
+# part of the board where the thing happens, thinned to half the frame rate,
+# shrunk, and turned into a looping gif. Only the gif and its notes are kept;
+# the scene and the frames stay in RAM.
+#
+# Usage:
+#   scripts/film-a-scene SCENE NAME [options]
+#     SCENE                  a scene file (see issue 115 for the format)
+#     NAME                   the gif's name, e.g. both-balls-break
+#     --frames N             frames to run (default 120)
+#     --from F --to T        the frames that go into the gif (default all)
+#     --crop WxH+X+Y         the part of the window to keep (default all)
+#     --scale PERCENT        shrink after cropping (default 60)
+#     --step S               keep every S-th frame (default 2: real speed at
+#                            30 frames a second; 4 plays twice as fast)
+#     --dir /path/to/physics-sim
+#
+# The game's window is still opened, so a screen must be present; nothing
+# typed into it changes the film.
+
+set -u
+
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+FRAMES=120
+FROM=1
+TO=""
+CROP=""
+SCALE=60
+STEP=2
+
+# {{{ read the options
+if [ $# -lt 2 ]; then
+    echo "film-a-scene: needs a scene file and a name (see the comment at the top)"
+    exit 1
+fi
+SCENE="$1"
+NAME="$2"
+shift 2
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --frames) FRAMES="$2"; shift 2 ;;
+        --from)   FROM="$2";   shift 2 ;;
+        --to)     TO="$2";     shift 2 ;;
+        --crop)   CROP="$2";   shift 2 ;;
+        --scale)  SCALE="$2";  shift 2 ;;
+        --step)   STEP="$2";   shift 2 ;;
+        --dir)    DIR="$2";    shift 2 ;;
+        *) echo "film-a-scene: unknown option $1"; exit 1 ;;
+    esac
+done
+if [ -z "${TO}" ]; then
+    TO="${FRAMES}"
+fi
+# }}}
+
+HISTORY="${DIR}/development-history"
+
+# {{{ the RAM folders: frames are artifacts, so they go to the shared-memory tier
+if [ ! -e "${DIR}/tmp" ]; then
+    mkdir -p "/tmp/physics-sim"
+    ln -s "/tmp/physics-sim" "${DIR}/tmp"
+fi
+if [ ! -e "${DIR}/tmp/shared-memory" ]; then
+    mkdir -p "/dev/shm/physics-sim"
+    ln -s "/dev/shm/physics-sim" "${DIR}/tmp/shared-memory"
+fi
+FRAME_DIR="${DIR}/tmp/shared-memory/frames/${NAME}"
+mkdir -p "${FRAME_DIR}"
+rm -f "${FRAME_DIR}"/frame-*.png
+LOG="${DIR}/tmp/shared-memory/film-${NAME}.log"
+# }}}
+
+# {{{ run the scene; the goodbye proves it ended cleanly
+BEFORE=$(stat -c %Y "${DIR}/output/goodbye" 2>/dev/null || echo 0)
+env -C "${DIR}" "${DIR}/bin/physics-sim" --scene "${SCENE}" --record "${FRAME_DIR}" --frames "${FRAMES}" > "${LOG}" 2>&1
+STATUS=$?
+AFTER=$(stat -c %Y "${DIR}/output/goodbye" 2>/dev/null || echo 0)
+if [ ${STATUS} -ne 0 ] || [ "${AFTER}" = "${BEFORE}" ]; then
+    echo "film-a-scene: the game did not end cleanly (status ${STATUS}); see ${LOG}"
+    exit 1
+fi
+echo "film-a-scene: $(grep 'frames recorded' "${DIR}/output/goodbye")"
+# }}}
+
+# {{{ the next number in development-history/
+HIGHEST=0
+for FILE in "${HISTORY}"/[0-9][0-9][0-9]-*; do
+    if [ -e "${FILE}" ]; then
+        BASE=$(basename "${FILE}")
+        NUMBER=$((10#${BASE:0:3}))
+        if [ ${NUMBER} -gt ${HIGHEST} ]; then
+            HIGHEST=${NUMBER}
+        fi
+    fi
+done
+STEM=$(printf '%03d-%s' $((HIGHEST + 1)) "${NAME}")
+GIF="${HISTORY}/${STEM}.gif"
+# }}}
+
+# {{{ frames to gif: every STEP-th frame, shown 30 a second, cropped, shrunk
+PICKED=()
+for ((N = FROM; N <= TO; N += STEP)); do
+    PICKED+=("$(printf '%s/frame-%04d.png' "${FRAME_DIR}" "${N}")")
+done
+CROP_ARGS=()
+if [ -n "${CROP}" ]; then
+    CROP_ARGS=(-crop "${CROP}" +repage)
+fi
+if ! magick "${PICKED[@]}" "${CROP_ARGS[@]}" -resize "${SCALE}%" \
+        -set delay 3 -loop 0 -layers Optimize "${GIF}"; then
+    echo "film-a-scene: making the gif failed"
+    exit 1
+fi
+# }}}
+
+# {{{ the notes beside the gif
+{
+    echo "# ${STEM}"
+    echo ""
+    echo "Made by scripts/film-a-scene: the game run in scene mode (issue 115),"
+    echo "every frame saved to RAM, then frames ${FROM} to ${TO} (every ${STEP}th)"
+    echo "cropped to ${CROP:-the whole window}, shrunk to ${SCALE}%, at 30 frames a second."
+    echo ""
+    echo "## What made it"
+    echo ""
+    echo "- made: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "- commit: $(git -C "${DIR}" log -1 --format='%h %s' -- .)"
+    echo "- source fingerprint (src/ and boards/): $(cat "${DIR}"/src/*.c "${DIR}"/src/*.h "${DIR}"/boards/*.json | sha256sum | cut -c1-16)"
+    echo "- options: --frames ${FRAMES} --from ${FROM} --to ${TO} --crop ${CROP:-none} --scale ${SCALE} --step ${STEP}"
+    echo "- the scene, which lived only in RAM:"
+    echo ""
+    echo '```'
+    cat "${SCENE}"
+    echo '```'
+    echo ""
+    echo "- the game's goodbye:"
+    echo ""
+    echo '```'
+    cat "${DIR}/output/goodbye"
+    echo '```'
+    echo ""
+    echo "## What it shows"
+    echo ""
+    echo "(to be written by whoever looks at it)"
+    echo ""
+    echo "## The story so far"
+    echo ""
+    echo "(to be written by whoever looks at it)"
+} > "${HISTORY}/${STEM}.info.md"
+# }}}
+
+echo "film-a-scene: ${GIF} ($(du -h "${GIF}" | cut -f1))"

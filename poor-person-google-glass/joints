@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# joints - keeps tolerance records on a model's joints.
+#
+# In plain terms: finds every pair of parts in a model that touch or nearly
+# touch, and keeps a record for each in input/joints/MODEL.lua: what was
+# measured there, and an empty spot for the calculation that says whether
+# the joint works. Once a person writes an equation into a record (and each
+# part's material), this works it out from the joint's own measures and the
+# materials' fundamentals, and writes the answers to output/joints/, where
+# the viewer reads them to colour each joint. Format: docs/joints.md.
+#
+# Usage:
+#   ./joints MODEL-FILE                find, then work out
+#   ./joints find MODEL-FILE [--distance D]   only find (D: contact distance,
+#                                             in the model's units)
+#   ./joints work MODEL-FILE           only work out
+#   ./joints <project-dir> ...         another copy of the project
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+ARGUMENTS=()
+for ARGUMENT in "$@"; do
+    # the model file made absolute; the words and numbers passed as they are
+    if [ -f "${ARGUMENT}" ]; then ARGUMENTS+=("$(realpath "${ARGUMENT}")"); else ARGUMENTS+=("${ARGUMENT}"); fi
+done
+exec luajit "${DIR}/src/028-joints.lua" "${DIR}" "${ARGUMENTS[@]}"

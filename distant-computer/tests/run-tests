@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# run-tests - runs every test of distant-computer and says how many passed.
+#
+# In plain terms: each source file in src/ has a test file of the same number
+# in tests/. This runs each one with LuaJIT in a fresh scratch folder in RAM,
+# prints what each says, and fails if any of them failed. The RAM scratch
+# roots are pointed inside this project's own scratch space while the tests
+# run, so a test that builds a throwaway project never touches the real
+# /tmp or /dev/shm roots.
+#
+# Usage:
+#   tests/run-tests            run every test
+#   tests/run-tests <dir>      the same, for the project at <dir>
+#   tests/run-tests --help
+
+DIR="/mnt/mtwo/programming/ai-stuff/distant-computer"
+
+case "${1:-}" in
+    --help|-h)
+        sed -n '2,/^$/p' "$0"
+        exit 0
+        ;;
+esac
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source "${DIR}/../scripts/libs/ensure-ram-tiers"
+ensure_ram_tiers "${DIR}" || exit 1
+
+# Every run gets its own scratch folder, named by time, so two runs at once
+# do not share files. It is left behind after the run for inspection; RAM
+# empties itself at the next reboot.
+RUN_NAME="tests-$(date +%Y%m%d-%H%M%S)-$$"
+SCRATCH="${DIR}/tmp/shared-memory/${RUN_NAME}"
+mkdir -p "${SCRATCH}"
+export EXEC_TIER_ROOT="${DIR}/tmp/tmp/${RUN_NAME}-exec"
+export ARTIFACT_TIER_ROOT="${SCRATCH}/artifact-root"
+mkdir -p "${EXEC_TIER_ROOT}"
+mkdir -p "${ARTIFACT_TIER_ROOT}"
+
+FAILED=0
+for TEST in "${DIR}"/tests/*.test.lua; do
+    NAME="$(basename "${TEST}" .test.lua)"
+    mkdir -p "${SCRATCH}/${NAME}"
+    # each test is told the project and its own scratch folder
+    if ! luajit "${TEST}" "${DIR}" "${SCRATCH}/${NAME}"; then
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+if [ "${FAILED}" -ne 0 ]; then
+    echo "${FAILED} test file(s) failed; scratch kept at ${SCRATCH}"
+    exit 1
+fi
+echo "all test files passed"

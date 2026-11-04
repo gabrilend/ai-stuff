@@ -1,6 +1,12 @@
 --[[
 JPEG Decoder (Issue 522a)
 
+DEPRECATED (2026-10-07): the C twin in the W client
+(/mnt/mtwo/games/azeroth-core/custom-client/src/049-jpeg.c, in
+libwreaders.so) is the one implementation now; it matched this file byte
+for byte on every picture in WC3's archives (W client issue 107a). The
+owner: "Let's just deprecate the lua version and keep the C version."
+
 Baseline and progressive JPEG (SOF0, SOF1, SOF2; 8-bit samples):
 Huffman coding, any number of components with any sampling factors,
 restart intervals, spectral selection and successive approximation.
@@ -422,6 +428,16 @@ function jpeg._scan(buf, n, pos, frame, scomps, ht, restart, sp)
 
     local function at(c, bx, by) return c.coefs + (by * c.bw + bx) * 64 end
 
+    -- KNOWN BUG, left as is because this reader is deprecated (owner,
+    -- 2026-10-07: "it's fine, the lua engine is deprecated. Leave a
+    -- comment maybe."): at a restart interval's end the restart marker is
+    -- stepped over only if the bit reader had already met it. Usually it
+    -- hasn't (the interval's last bits come from bytes before the marker),
+    -- so the next fill meets the marker, stops input, and the whole next
+    -- interval decodes as zeros; the reset after that steps over it, so
+    -- every other interval is lost. No WC3 picture has restart intervals,
+    -- so WC3's pictures are unaffected. The C twin steps over the marker
+    -- either way.
     local function reset()
         bitbuf, bitcnt, eobrun = 0, 0, 0
         for i = 1, #scomps do pred[i] = 0 end

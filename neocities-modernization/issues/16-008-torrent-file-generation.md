@@ -416,6 +416,7 @@ output/
 - **Phase**: 16 (Network Media)
 - **Estimated Complexity**: Medium-High
 - **Dependencies**: SHA1 library, bencode implementation, transmission or aria2, Termux:Boot
+- **Blocks**: 16-009
 
 ## Philosophical Note
 
