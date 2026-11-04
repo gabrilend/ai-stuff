@@ -175,6 +175,8 @@ end
 --   front     front panes' light, size*size*3
 --   tm        a 000-canvas the size of the frame, used to tone-map the sum
 --   tonemap   000-canvas's tonemap
+--   light_only  true: the world's depth still hides and shows the light,
+--             but its colour is left out (the 2D half, for the phase 7 demo)
 -- Light is summed, tone-mapped once, and added to the 3D colour; where the
 -- sum is nothing, the pixel is the 3D painter's own (or black).
 function frame.compose(spec)
@@ -214,11 +216,12 @@ function frame.compose(spec)
     local mapped = spec.tonemap(tm)
 
     local rgb = rc and rc.rgb
+    local colour = rc and not spec.light_only
     for y = 0, S - 1 do
         for x = 0, S - 1 do
             local p = (y * S + x) * 3
             local lr, lg, lb = mapped[p], mapped[p + 1], mapped[p + 2]
-            if rc then
+            if colour then
                 -- the 3D painter's own average, in its own order
                 local r, g, b = 0, 0, 0
                 for dy = 0, ss - 1 do for dx = 0, ss - 1 do
