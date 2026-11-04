@@ -1,4 +1,4 @@
-# Issue 041: the bash menu scrolls a tall list inside its box
+# Issue 055: the bash menu scrolls a tall list inside its box
 
 ## Current Behavior
 
@@ -84,3 +84,8 @@ Built on branch `claude/bash-menu-viewport`, stacked on
   - 20 passed, 0 failed. Against the old `menu.sh`, 9 of the 11 new checks
     fail.
 - The `menu.sh` row of the README table mentions the scrolling.
+
+## Renumbered
+
+**2026-11-04:** this issue was 041, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 055.
