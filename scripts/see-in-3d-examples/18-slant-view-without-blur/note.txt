@@ -1,0 +1,6 @@
+title: The slant view without blur: more figures, sharper
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/18-slant-view-without-blur/picture.png
+stage: 25
+group: Three pictures, one object
+---
+Turning the blur off in the picture added visible figures, and so the reading added figures; otherwise this sheet matches the one before it. Blur says something about the camera, and the views have no camera of the picture's to show.

@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  /* isatty for progress-bar mode selection */
+#include <stdarg.h>  /* vkc_say */
+#include <time.h>    /* vkc_say: the log stamp */
 
 #define MAX_BUFFERS 32
 #define MAX_DESCRIPTOR_SETS 16
@@ -110,7 +112,7 @@ const char* vkc_get_error_string(VkComputeResult result) {
 
 static void check_vk_result(VkResult result, const char* operation) {
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] %s failed with code %d\n", operation, result);
+        VKC_SAY_ERR("[VKC ERROR] %s failed with code %d\n", operation, result);
     }
 }
 
@@ -129,7 +131,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     (void)user_data;
 
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        fprintf(stderr, "[VK VALIDATION] %s\n", callback_data->pMessage);
+        VKC_SAY_ERR("[VK VALIDATION] %s\n", callback_data->pMessage);
     }
 
     return VK_FALSE;
@@ -151,7 +153,7 @@ static uint32_t find_memory_type(VkComputeContext* ctx,
         }
     }
 
-    fprintf(stderr, "[VKC ERROR] Failed to find suitable memory type\n");
+    VKC_SAY_ERR("[VKC ERROR] Failed to find suitable memory type\n");
     return UINT32_MAX;
 }
 
@@ -191,7 +193,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
 
     VkResult result = vkCreateInstance(&instance_info, NULL, &ctx->instance);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create Vulkan instance: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create Vulkan instance: %d\n", result);
         free(ctx);
         return NULL;
     }
@@ -201,7 +203,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
     vkEnumeratePhysicalDevices(ctx->instance, &device_count, NULL);
 
     if (device_count == 0) {
-        fprintf(stderr, "[VKC ERROR] No Vulkan-capable devices found\n");
+        VKC_SAY_ERR("[VKC ERROR] No Vulkan-capable devices found\n");
         vkDestroyInstance(ctx->instance, NULL);
         free(ctx);
         return NULL;
@@ -240,7 +242,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
     free(devices);
 
     if (ctx->physical_device == VK_NULL_HANDLE) {
-        fprintf(stderr, "[VKC ERROR] No device with compute queue found\n");
+        VKC_SAY_ERR("[VKC ERROR] No device with compute queue found\n");
         vkDestroyInstance(ctx->instance, NULL);
         free(ctx);
         return NULL;
@@ -250,8 +252,8 @@ VkComputeContext* vkc_init(bool enable_validation) {
     vkGetPhysicalDeviceProperties(ctx->physical_device, &ctx->device_properties);
     vkGetPhysicalDeviceMemoryProperties(ctx->physical_device, &ctx->memory_properties);
 
-    printf("[VKC] Selected device: %s\n", ctx->device_properties.deviceName);
-    printf("[VKC] Compute queue family: %u\n", ctx->compute_queue_family);
+    VKC_SAY("[VKC] Selected device: %s\n", ctx->device_properties.deviceName);
+    VKC_SAY("[VKC] Compute queue family: %u\n", ctx->compute_queue_family);
 
     /* Create logical device */
     float queue_priority = 1.0f;
@@ -272,7 +274,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
 
     result = vkCreateDevice(ctx->physical_device, &device_info, NULL, &ctx->device);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create logical device: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create logical device: %d\n", result);
         vkDestroyInstance(ctx->instance, NULL);
         free(ctx);
         return NULL;
@@ -290,7 +292,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
 
     result = vkCreateCommandPool(ctx->device, &pool_info, NULL, &ctx->command_pool);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create command pool: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create command pool: %d\n", result);
         vkDestroyDevice(ctx->device, NULL);
         vkDestroyInstance(ctx->instance, NULL);
         free(ctx);
@@ -307,7 +309,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
 
     result = vkAllocateCommandBuffers(ctx->device, &alloc_info, &ctx->command_buffer);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to allocate command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to allocate command buffer: %d\n", result);
         vkDestroyCommandPool(ctx->device, ctx->command_pool, NULL);
         vkDestroyDevice(ctx->device, NULL);
         vkDestroyInstance(ctx->instance, NULL);
@@ -323,7 +325,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
 
     result = vkCreateFence(ctx->device, &fence_info, NULL, &ctx->fence);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create fence: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create fence: %d\n", result);
         vkDestroyCommandPool(ctx->device, ctx->command_pool, NULL);
         vkDestroyDevice(ctx->device, NULL);
         vkDestroyInstance(ctx->instance, NULL);
@@ -342,7 +344,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
     };
     result = vkAllocateCommandBuffers(ctx->device, &async_alloc_info, ctx->async_cmd_buffers);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to allocate async command buffers: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to allocate async command buffers: %d\n", result);
         vkDestroyFence(ctx->device, ctx->fence, NULL);
         vkDestroyCommandPool(ctx->device, ctx->command_pool, NULL);
         vkDestroyDevice(ctx->device, NULL);
@@ -353,7 +355,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
     for (int i = 0; i < VKC_ASYNC_PIPELINE_DEPTH; i++) {
         result = vkCreateFence(ctx->device, &fence_info, NULL, &ctx->async_fences[i]);
         if (result != VK_SUCCESS) {
-            fprintf(stderr, "[VKC ERROR] Failed to create async fence %d: %d\n", i, result);
+            VKC_SAY_ERR("[VKC ERROR] Failed to create async fence %d: %d\n", i, result);
             /* Clean up any fences already created. */
             for (int j = 0; j < i; j++) {
                 vkDestroyFence(ctx->device, ctx->async_fences[j], NULL);
@@ -368,7 +370,7 @@ VkComputeContext* vkc_init(bool enable_validation) {
     }
     ctx->next_async_slot = 0;
 
-    printf("[VKC] Initialization complete (async pipeline depth: %d)\n", VKC_ASYNC_PIPELINE_DEPTH);
+    VKC_SAY("[VKC] Initialization complete (async pipeline depth: %d)\n", VKC_ASYNC_PIPELINE_DEPTH);
     return ctx;
 }
 
@@ -564,7 +566,7 @@ VkComputeBuffer* vkc_create_buffer(VkComputeContext* ctx, size_t size, VkCompute
 
     VkResult result = vkCreateBuffer(ctx->device, &buffer_info, NULL, &buffer->internal.buffer);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create buffer: %d\n", result);
         free(buffer);
         return NULL;
     }
@@ -588,7 +590,7 @@ VkComputeBuffer* vkc_create_buffer(VkComputeContext* ctx, size_t size, VkCompute
 
     result = vkAllocateMemory(ctx->device, &alloc_info, NULL, &buffer->internal.memory);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to allocate buffer memory: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to allocate buffer memory: %d\n", result);
         vkDestroyBuffer(ctx->device, buffer->internal.buffer, NULL);
         free(buffer);
         return NULL;
@@ -615,7 +617,7 @@ VkComputeResult vkc_upload_buffer(VkComputeContext* ctx, VkComputeBuffer* buffer
     }
 
     if (size > buffer->internal.size) {
-        fprintf(stderr, "[VKC ERROR] Upload size exceeds buffer size\n");
+        VKC_SAY_ERR("[VKC ERROR] Upload size exceeds buffer size\n");
         return VKC_ERROR_BUFFER_CREATION_FAILED;
     }
 
@@ -625,7 +627,7 @@ VkComputeResult vkc_upload_buffer(VkComputeContext* ctx, VkComputeBuffer* buffer
         void* mapped;
         VkResult result = vkMapMemory(ctx->device, buffer->internal.memory, 0, size, 0, &mapped);
         if (result != VK_SUCCESS) {
-            fprintf(stderr, "[VKC ERROR] Failed to map buffer memory: %d\n", result);
+            VKC_SAY_ERR("[VKC ERROR] Failed to map buffer memory: %d\n", result);
             return VKC_ERROR_BUFFER_CREATION_FAILED;
         }
 
@@ -688,7 +690,7 @@ VkComputeResult vkc_download_buffer(VkComputeContext* ctx, VkComputeBuffer* buff
     }
 
     if (size > buffer->internal.size) {
-        fprintf(stderr, "[VKC ERROR] Download size exceeds buffer size\n");
+        VKC_SAY_ERR("[VKC ERROR] Download size exceeds buffer size\n");
         return VKC_ERROR_BUFFER_CREATION_FAILED;
     }
 
@@ -698,7 +700,7 @@ VkComputeResult vkc_download_buffer(VkComputeContext* ctx, VkComputeBuffer* buff
         void* mapped;
         VkResult result = vkMapMemory(ctx->device, buffer->internal.memory, 0, size, 0, &mapped);
         if (result != VK_SUCCESS) {
-            fprintf(stderr, "[VKC ERROR] Failed to map buffer memory: %d\n", result);
+            VKC_SAY_ERR("[VKC ERROR] Failed to map buffer memory: %d\n", result);
             return VKC_ERROR_BUFFER_CREATION_FAILED;
         }
 
@@ -758,7 +760,7 @@ VkComputeResult vkc_download_buffer(VkComputeContext* ctx, VkComputeBuffer* buff
 static VkShaderModule load_shader_module(VkComputeContext* ctx, const char* path) {
     FILE* file = fopen(path, "rb");
     if (!file) {
-        fprintf(stderr, "[VKC ERROR] Failed to open shader file: %s\n", path);
+        VKC_SAY_ERR("[VKC ERROR] Failed to open shader file: %s\n", path);
         return VK_NULL_HANDLE;
     }
 
@@ -768,7 +770,7 @@ static VkShaderModule load_shader_module(VkComputeContext* ctx, const char* path
     fseek(file, 0, SEEK_SET);
 
     if (file_size <= 0 || file_size % 4 != 0) {
-        fprintf(stderr, "[VKC ERROR] Invalid SPIR-V file size: %ld\n", file_size);
+        VKC_SAY_ERR("[VKC ERROR] Invalid SPIR-V file size: %ld\n", file_size);
         fclose(file);
         return VK_NULL_HANDLE;
     }
@@ -784,7 +786,7 @@ static VkShaderModule load_shader_module(VkComputeContext* ctx, const char* path
     fclose(file);
 
     if (bytes_read != (size_t)file_size) {
-        fprintf(stderr, "[VKC ERROR] Failed to read shader file\n");
+        VKC_SAY_ERR("[VKC ERROR] Failed to read shader file\n");
         free(code);
         return VK_NULL_HANDLE;
     }
@@ -802,7 +804,7 @@ static VkShaderModule load_shader_module(VkComputeContext* ctx, const char* path
     free(code);
 
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to create shader module: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to create shader module: %d\n", result);
         return VK_NULL_HANDLE;
     }
 
@@ -968,7 +970,7 @@ VkComputeResult vkc_bind_buffer(VkComputeContext* ctx, VkComputePipeline* pipeli
     }
 
     if (binding >= MAX_DESCRIPTOR_SETS) {
-        fprintf(stderr, "[VKC ERROR] Binding index %u exceeds maximum %d\n",
+        VKC_SAY_ERR("[VKC ERROR] Binding index %u exceeds maximum %d\n",
                 binding, MAX_DESCRIPTOR_SETS);
         return VKC_ERROR_PIPELINE_CREATION_FAILED;
     }
@@ -1009,7 +1011,7 @@ VkComputeResult vkc_dispatch(VkComputeContext* ctx, VkComputePipeline* pipeline,
 
     VkResult result = vkBeginCommandBuffer(ctx->command_buffer, &begin_info);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to begin command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to begin command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1035,7 +1037,7 @@ VkComputeResult vkc_dispatch(VkComputeContext* ctx, VkComputePipeline* pipeline,
     /* End command buffer */
     result = vkEndCommandBuffer(ctx->command_buffer);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to end command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to end command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1049,14 +1051,14 @@ VkComputeResult vkc_dispatch(VkComputeContext* ctx, VkComputePipeline* pipeline,
     vkResetFences(ctx->device, 1, &ctx->fence);
     result = vkQueueSubmit(ctx->compute_queue, 1, &submit_info, ctx->fence);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to submit command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to submit command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
     /* Wait for completion */
     result = vkWaitForFences(ctx->device, 1, &ctx->fence, VK_TRUE, UINT64_MAX);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to wait for fence: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to wait for fence: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1102,7 +1104,7 @@ VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pip
      * dispatches behind, which is the depth-limit of the pipeline. */
     VkResult result = vkWaitForFences(ctx->device, 1, &fence, VK_TRUE, UINT64_MAX);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to wait for async fence %u: %d\n", slot, result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to wait for async fence %u: %d\n", slot, result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
     vkResetFences(ctx->device, 1, &fence);
@@ -1116,7 +1118,7 @@ VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pip
     };
     result = vkBeginCommandBuffer(cmd_buf, &begin_info);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to begin async command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to begin async command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1155,7 +1157,7 @@ VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pip
 
     result = vkEndCommandBuffer(cmd_buf);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to end async command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to end async command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1167,7 +1169,7 @@ VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pip
 
     result = vkQueueSubmit(ctx->compute_queue, 1, &submit_info, fence);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to submit async command buffer: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to submit async command buffer: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1195,7 +1197,7 @@ VkComputeResult vkc_wait_async_all(VkComputeContext* ctx) {
                                        VK_TRUE,
                                        UINT64_MAX);
     if (result != VK_SUCCESS) {
-        fprintf(stderr, "[VKC ERROR] Failed to wait for async fences: %d\n", result);
+        VKC_SAY_ERR("[VKC ERROR] Failed to wait for async fences: %d\n", result);
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -1297,4 +1299,30 @@ float vkc_fp16_to_fp32(uint16_t bits) {
     return f;
 }
 
+/* }}} */
+
+/* {{{ vkc_say - a line to the terminal and to the run's log (Issue 10-075) */
+void vkc_say(int to_stderr, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(to_stderr ? stderr : stdout, fmt, ap);
+    va_end(ap);
+    const char* path = getenv("NEOCITIES_RUN_LOG");
+    if (!path || !*path) return;  /* run on its own, outside run.sh: terminal only */
+    FILE* log = fopen(path, "a");
+    if (!log) {
+        fprintf(stderr, "[VKC] cannot open the run's log %s\n", path);
+        exit(1);
+    }
+    time_t now = time(NULL);
+    char stamp[16];
+    strftime(stamp, sizeof stamp, "%H:%M:%S ", localtime(&now));
+    va_start(ap, fmt);
+    int ok = fputs(stamp, log) >= 0 && vfprintf(log, fmt, ap) >= 0;
+    va_end(ap);
+    if (fclose(log) != 0 || !ok) {
+        fprintf(stderr, "[VKC] writing the run's log %s failed\n", path);
+        exit(1);
+    }
+}
 /* }}} */

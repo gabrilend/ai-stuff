@@ -264,12 +264,12 @@ etc.
 
 **Latest commits (in reverse chronological order):**
 
-- `a205f3be` - Issue 508c: Implement Lua-C bridge for render system ✓
-- `4d7f4cbc` - Add interactive demo features with partial ray picking ✓
-- `dbbfd272` - Update CRITICAL-PATH.md with 405d and 508b completion
-- `fb4d3057` - Add Phase 4 demo and update run-demo.sh
-- `2487d96c` - Issue 508b: Implement entity render slots ✓
-- `377144ee` - Issue 508a: Implement threaded render architecture ✓
+- `ce35f348` - Issue 508c: Implement Lua-C bridge for render system ✓
+- `f7bacb74` - Add interactive demo features with partial ray picking ✓
+- `9811db7e` - Update CRITICAL-PATH.md with 405d and 508b completion
+- `7c3cc3e8` - Add Phase 4 demo and update run-demo.sh
+- `66910aed` - Issue 508b: Implement entity render slots ✓
+- `0dfc2fe8` - Issue 508a: Implement threaded render architecture ✓
 
 **Compiler output (most recent successful run):**
 

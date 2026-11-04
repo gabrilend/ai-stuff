@@ -1,8 +1,8 @@
 # Issue 001 has moved: Comprehensive Git Repository Setup (master)
 
-This issue was renumbered 001 → 065, because the number 001 also belongs
+This issue was renumbered 001 → 068, because the number 001 also belongs
 to *Prepare Repository Structure* (`completed/001-prepare-repository-structure.md`). It is now
-[`065-comprehensive-git-repository-setup.md`](065-comprehensive-git-repository-setup.md).
+[`068-comprehensive-git-repository-setup.md`](068-comprehensive-git-repository-setup.md).
 
 ## What Happened
 

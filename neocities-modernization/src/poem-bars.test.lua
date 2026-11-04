@@ -1,9 +1,23 @@
 -- Tests for poem-bars.lua. The bug these guard against: the bar width drifting
--- (88 chars, doubled ╧╧) instead of a fixed 83 with two single junctions.
+-- (88 chars, doubled ╧╧) instead of a fixed width with two single junctions.
+-- The width is the owner's rule (2026-10-25): a wall, a space, up to 80
+-- characters of text, a space, a wall -- 84 columns for every poem, regular
+-- or golden.
 -- Run: luajit src/poem-bars.test.lua
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = "./src/?.lua;./libs/?.lua;" .. package.path
 local B = require("poem-bars")
-B.configure({ gray = "#868E96", blue = "#74C0FC" })
+local ok_unconfigured = pcall(B.corner_box_bottom)
+B.configure({ gray = "#868E96", blue = "#74C0FC" }, 80)
 
 local passed, failed = 0, 0
 local function check(name, cond)
@@ -25,14 +39,15 @@ end
 for _, pct in ipairs({0, 1, 37, 50, 99, 100}) do
     local bar = B.progress_dashes({ percentage = pct }, "blue", false, "bottom", true)
     local n, txt = visible(bar.visual)
-    check("regular bottom bar is 83 wide @ " .. pct .. "%", n == 83)
+    check("regular bottom bar is 84 wide @ " .. pct .. "%", n == 84)
     -- Exactly two junctions (╧ when in progress, ┴ when not) -- never ╧╧ doubled.
     local junctions = count(txt, "╧") + count(txt, "┴")
     check("regular bottom bar has exactly 2 junctions @ " .. pct .. "%", junctions == 2)
     check("regular bottom bar starts with left corner ╘ @ " .. pct .. "%", txt:sub(1, #"╘") == "╘")
 end
 
--- Junctions must land at columns 10 and 70 (under the inner box walls).
+-- Junctions must land at columns 10 and 71 (under the inner box walls),
+-- the same columns as a golden poem's.
 do
     local bar = B.progress_dashes({ percentage = 0 }, "gray", false, "bottom", true)
     local _, txt = visible(bar.visual)
@@ -42,24 +57,45 @@ do
         if cp == "╧" or cp == "┴" then cols[#cols + 1] = col end
         col = col + 1
     end
-    check("junctions at columns 10 and 70", cols[1] == 10 and cols[2] == 70)
+    check("junctions at columns 10 and 71", cols[1] == 10 and cols[2] == 71)
 end
 
--- Corner box top is 83 wide.
+-- Corner box top is 84 wide.
 do
     local n = visible(B.corner_box_top(40, "#74C0FC"))
-    check("corner box top is 83 wide", n == 83)
+    check("corner box top is 84 wide", n == 84)
 end
 
--- Nav line is 83 wide WITH and WITHOUT the center chronological link.
+-- Nav line is 84 wide WITH and WITHOUT the center chronological link.
 do
     local sim = "<a href='x'>similar</a>"
     local dif = "<a href='y'>different</a>"
     local chrono = "<a href='z'>chronological</a>"
     local n_with = visible(B.corner_box_nav_line(sim, dif, chrono, 40, "#74C0FC"))
     local n_without = visible(B.corner_box_nav_line(sim, dif, nil, 40, "#74C0FC"))
-    check("nav line 83 wide with center link", n_with == 83)
-    check("nav line 83 wide without center link", n_without == 83)
+    check("nav line 84 wide with center link", n_with == 84)
+    check("nav line 84 wide without center link", n_without == 84)
+end
+
+-- A drawer that was never told the text width refuses to guess it.
+check("drawing before configure() is an error", not ok_unconfigured)
+
+-- The frame follows the text width: wall, space, text, space, wall.
+do
+    local f = B.frame(80)
+    check("an 80-character text gives an 84-wide frame", f.width == 84)
+    check("the right box starts at column 71", f.right_junction == 71)
+    check("a 60-character text gives a 64-wide frame", B.frame(60).width == 64)
+end
+
+-- The centre link sits in the same column on regular and golden nav lines.
+do
+    local sim, dif = "<a href='x'>similar</a>", "<a href='y'>different</a>"
+    local chrono = "<a href='z'>chronological</a>"
+    local _, regular = visible(B.corner_box_nav_line(sim, dif, chrono, 40, "#74C0FC"))
+    local _, golden = visible(B.golden_corner_box_nav_line(sim, dif, chrono, "#74C0FC"))
+    local function column(t) local c = 0; for cp in t:gmatch("[\1-\127\194-\244][\128-\191]*") do if cp == "c" then return c end; c = c + 1 end end
+    check("chronological starts in the same column on both", column(regular) == column(golden))
 end
 
 -- Golden bottom bar is 84 wide (╚ + 82 interior + ┘) with two junctions.
@@ -98,9 +134,9 @@ end
 -- Issue 8-045: the ends of the range draw; anything outside it is refused.
 do
     local empty = B.progress_dashes({ percentage = 0 }, "gray", false, "top")
-    check("0% top bar is 83 wide", visible(empty.visual) == 83)
+    check("0% top bar is 84 wide", visible(empty.visual) == 84)
     local full = B.progress_dashes({ percentage = 100 }, "gray", false, "top")
-    check("100% top bar is 83 wide", visible(full.visual) == 83)
+    check("100% top bar is 84 wide", visible(full.visual) == 84)
     local full_golden = B.progress_dashes({ percentage = 100 }, "gray", true, "top")
     check("100% golden top bar is 84 wide (82 cells + 2 corners)", visible(full_golden.visual) == 84)
 
