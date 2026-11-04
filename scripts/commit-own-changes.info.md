@@ -29,6 +29,26 @@ Exit 0 when a commit was made; 1 for nothing to commit, a tangled block, a
 refusing hook, a branch that kept moving, or any error. Preview first with
 `stage-own-changes <repository>`.
 
+## What it splits, and what it does not
+
+- **Between sessions, by lines.** Inside one file, the lines this session
+  wrote are committed and lines another session wrote are left out (they
+  show as "left out ... (foreign)" in the preview). This is the tool's
+  purpose: two sessions can work in the same file and each commits only
+  its own lines.
+- **Within this session's own lines, by file only.** `-- <path>...` limits a
+  commit to some files; there is no option to take some of this session's
+  blocks in a file and leave others. When one file holds this session's work
+  for two issues, both go into whichever commit takes that file -- say so in
+  the message. (2026-11-03: a session told the owner "the commit tool can
+  only separate whole files", when the true limit is only this one.)
+- **Lines written by a route the edit ledger cannot see** (a script the
+  session ran, a generator, `sed`) also show as foreign until claimed with
+  `claim-own-change <file>`.
+- **No `--help`.** The first word is taken as the repository folder, so
+  `commit-own-changes --help` fails with "cannot change to '--help'". (The
+  house rule asks every command-line tool for `--help`; not yet done.)
+
 ## What it does, in order
 
 1. Takes the repository's commit lock (`<git dir>/commit-own-changes.lock`,

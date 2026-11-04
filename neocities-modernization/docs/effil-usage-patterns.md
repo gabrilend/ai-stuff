@@ -49,9 +49,9 @@ end
    ```
    - GPU computes similarities → pass to writer → writer writes JSON
    - Each file is independent (no shared state between workers)
-   - Proven in `generate-html-parallel`
+   - Proven first in the stand-alone `scripts/generate-html-parallel` (removed 2026-10-04)
 
-2. **HTML Generation** (`scripts/generate-html-parallel`)
+2. **HTML Generation** (today: the coordinator-and-workers design in `src/flat-html-generator.lua`, Issue 10-034; first built as the stand-alone `scripts/generate-html-parallel`, removed 2026-10-04)
    ```lua
    local shared_poems = effil.table(all_poems)
    local shared_colors = effil.table(poem_colors)

@@ -1,6 +1,8 @@
 #!/usr/bin/env lua
 
 -- Project-wide utility library
+-- project-dir: none -- a library the programs load; it is never run itself.
+-- The programs read --dir (libs/project-dir.lua) and tell it their folder.
 -- Common functions for file I/O, logging, and configuration management
 
 local M = {}
@@ -17,21 +19,25 @@ end
 -- Module configuration
 M.DIR = setup_dir_path()
 
+-- The message helpers say each line on the terminal and in the run's log
+-- (libs/output.lua, Issue 10-075).
+local output = require("output")
+
 -- {{{ function M.log_info
 function M.log_info(message)
-    print(string.format("[INFO] %s", message))
+    output.say(string.format("[INFO] %s", message), "both")
 end
 -- }}}
 
 -- {{{ function M.log_warn
 function M.log_warn(message)
-    print(string.format("[WARN] %s", message))
+    output.say(string.format("[WARN] %s", message), "both")
 end
 -- }}}
 
 -- {{{ function M.log_error
 function M.log_error(message)
-    print(string.format("[ERROR] %s", message))
+    output.say(string.format("[ERROR] %s", message), "both")
 end
 -- }}}
 
@@ -101,30 +107,46 @@ function M.get_project_paths(base_dir)
 end
 -- }}}
 
+-- {{{ local function stray_word()
+-- Issue 10-076: a word with no flag in front of it stops the program, named.
+-- It used to become the project folder (dir_override), so a flag that lost
+-- its dashes, or a value whose flag this parser did not know, silently moved
+-- the whole program to a folder named after that word.
+local function stray_word(word)
+    error("unexpected word on the command line: " .. word
+        .. " -- every value follows its flag, and the project folder is --dir PATH", 0)
+end
+-- }}}
+
 -- {{{ function M.parse_interactive_args
+-- returns: interactive (boolean, -I given), dir_override (string from --dir
+-- PATH, or nil)
 function M.parse_interactive_args(args)
     local interactive = false
     local dir_override = nil
 
-    -- Issue 10-065: index-based loop, so "--dir PATH" can be consumed as a pair.
-    -- Same reasoning as parse_cli_args above: --dir names the ASSETS root and is
-    -- read by init_assets_root(); letting its value fall through to the bare-token
-    -- branch would set dir_override, which callers assign to the PROJECT root.
-    -- Fixed here pre-emptively -- this function has the same shape as the one
-    -- that broke stage 3, and nothing currently passes it --dir only by luck.
+    -- Issue 10-065: index-based loop, so "--assets PATH" and "--dir PATH" are
+    -- consumed as pairs. --assets names the ASSETS root and is read by
+    -- init_assets_root(); --dir names the PROJECT root (Issue 10-076). A value
+    -- that fell through to a bare-word branch once set the project root to the
+    -- assets folder; now any bare word stops the program.
     args = args or {}
     local i = 1
     while i <= #args do
         local a = args[i]
         if a == "-I" then
             interactive = true
-        elseif a == "--dir" then
+        elseif a == "--assets" then
             i = i + 1  -- skip the flag's value; it is not a project root
-        elseif a:match("^%-%-dir=") then
+        elseif a:match("^%-%-assets=") then
             -- Nothing to skip: the value rides on the same token.
+        elseif a == "--dir" and args[i + 1] then
+            dir_override = args[i + 1]
+            i = i + 1
+        elseif a:match("^%-%-dir=") then
+            dir_override = a:match("^%-%-dir=(.+)$")
         elseif not a:match("^%-") then
-            -- Non-flag argument, treat as directory override
-            dir_override = a
+            stray_word(a)
         end
         i = i + 1
     end
@@ -206,9 +228,10 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--seed=") then
             options.seed = tonumber(arg:match("^--seed=(%d+)"))
-        -- Issue 10-065: consume "--dir PATH" as a PAIR.
+        -- Issue 10-065: consume "--assets PATH" as a PAIR. (The flag was --dir
+        -- until Issue 10-076, when --dir became the project folder, below.)
         --
-        -- The value is deliberately DISCARDED here. --dir names the ASSETS root
+        -- The value is deliberately DISCARDED here. --assets names the ASSETS root
         -- and is read by init_assets_root(), which parses `arg` itself; it must
         -- never become dir_override, which main.lua assigns to DIR -- the
         -- PROJECT root. Those are different directories and conflating them
@@ -222,16 +245,21 @@ function M.parse_cli_args(args)
         -- assets/ and reported "No valid input found". Same shape of bug as the
         -- three child parsers fixed alongside this one: skipping a flag is not
         -- the same as skipping a flag and its argument.
-        elseif arg == "--dir" then
+        elseif arg == "--assets" then
+            i = i + 1
+        elseif arg:match("^%-%-assets=") then
+            -- Nothing to skip: the value rides on the same token.
+        -- Issue 10-076: the PROJECT root is --dir PATH, and nothing else.
+        elseif arg == "--dir" and args[i + 1] then
+            options.dir_override = args[i + 1]
             i = i + 1
         elseif arg:match("^%-%-dir=") then
-            -- Nothing to skip: the value rides on the same token.
+            options.dir_override = arg:match("^%-%-dir=(.+)$")
         elseif not arg:match("^%-") then
-            -- Non-flag argument, treat as directory override (the PROJECT root)
-            options.dir_override = arg
+            stray_word(arg)
         end
         -- Skip remaining unknown flags. A flag that TAKES a value needs its own
-        -- branch above, or its value lands in dir_override.
+        -- branch above, or its value is a stray word and stops the program.
 
         i = i + 1
     end
@@ -242,9 +270,9 @@ end
 
 -- {{{ function M.show_menu
 function M.show_menu(title, options)
-    print("\n=== " .. title .. " ===")
+    require("output").print("\n=== " .. title .. " ===")
     for i, option in ipairs(options) do
-        print(string.format("%d. %s", i, option))
+        require("output").print(string.format("%d. %s", i, option))
     end
     io.write("Select option (1-" .. #options .. "): ")
     local choice = tonumber(io.read())
@@ -252,7 +280,7 @@ function M.show_menu(title, options)
     if choice and choice >= 1 and choice <= #options then
         return choice
     else
-        print("Invalid choice")
+        require("output").print("Invalid choice")
         return nil
     end
 end
@@ -365,9 +393,10 @@ local _assets_root = nil
 local _assets_config_loaded = false
 
 -- {{{ function M.parse_assets_dir
--- Parse --dir flag from command line arguments
+-- Parse --assets flag from command line arguments (Issue 10-076; it was --dir,
+-- which is now the project folder in every program).
 -- @param args: table of command line arguments (default: global 'arg')
--- @return: string path if --dir found, nil otherwise
+-- @return: string path if --assets found, nil otherwise
 function M.parse_assets_dir(args)
     args = args or arg
     if not args then return nil end
@@ -375,10 +404,10 @@ function M.parse_assets_dir(args)
     local i = 1
     while i <= #args do
         local arg_val = args[i]
-        if arg_val == "--dir" and args[i + 1] then
+        if arg_val == "--assets" and args[i + 1] then
             return args[i + 1]
-        elseif arg_val:match("^%-%-dir=") then
-            return arg_val:match("^%-%-dir=(.+)$")
+        elseif arg_val:match("^%-%-assets=") then
+            return arg_val:match("^%-%-assets=(.+)$")
         end
         i = i + 1
     end
@@ -416,7 +445,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("\n")
             io.stderr:write("Error: Assets directory not found: " .. cli_dir .. "\n")
             io.stderr:write("\n")
-            io.stderr:write("Fix: supply valid path via --dir ~/your/assets/path\n")
+            io.stderr:write("Fix: supply valid path via --assets ~/your/assets/path\n")
             io.stderr:write("\n")
             io.stderr:write("Expected structure:\n")
             io.stderr:write("  " .. cli_dir .. "/\n")
@@ -439,7 +468,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("\n")
             io.stderr:write("Error: Assets directory not found: " .. config.assets_root .. "\n")
             io.stderr:write("\n")
-            io.stderr:write("Fix: supply path via --dir ~/your/assets/path\n")
+            io.stderr:write("Fix: supply path via --assets ~/your/assets/path\n")
             io.stderr:write("     or update asset_paths.assets_root in config.lua\n")
             io.stderr:write("\n")
             io.stderr:write("Expected structure:\n")
@@ -456,19 +485,16 @@ function M.init_assets_root(cli_args)
         return _assets_root
     end
 
-    -- Fallback to project default (for backward compatibility during transition)
-    local default_path = M.DIR .. "/assets"
-    if M.directory_exists(default_path) then
-        _assets_root = default_path
-        _assets_config_loaded = true
-        return _assets_root
-    end
-
-    -- Nothing found - error
+    -- Neither named it: an error. (Issue 10-076, owner 2026-11-03: "should
+    -- remove fallback defaults". A third step used to take <project>/assets
+    -- when it existed, "for backward compatibility during transition"; a
+    -- folder nobody named is a guess, and a guess here reads a different
+    -- poem collection without a word.)
     io.stderr:write("\n")
-    io.stderr:write("Error: Assets directory not found\n")
+    io.stderr:write("Error: no assets directory named\n")
     io.stderr:write("\n")
-    io.stderr:write("Fix: supply path via --dir ~/your/assets/path\n")
+    io.stderr:write("Fix: supply path via --assets ~/your/assets/path\n")
+    io.stderr:write("     or set asset_paths.assets_root in config.lua\n")
     io.stderr:write("\n")
     io.stderr:write("Expected structure:\n")
     io.stderr:write("  ~/your/assets/path/\n")
@@ -583,8 +609,8 @@ end
 -- The on-DISK embeddings dir (assets/). Kept as a SEPARATE function even though
 -- it now returns exactly what embeddings_dir() returns, because the distinction
 -- it draws is real and worth keeping legible: its callers
--- (diversity_cache.json, in flat-html-generator, main.lua and
--- pipeline-validator) are the ones that must NEVER be moved to volatile storage,
+-- (diversity_cache.json, in flat-html-generator and main.lua)
+-- are the ones that must NEVER be moved to volatile storage,
 -- whatever embeddings_dir does next. Collapsing them would erase the record of
 -- which caches are cheap to lose and which are not -- and that record is the
 -- thing that made the reversal above safe to reason about.

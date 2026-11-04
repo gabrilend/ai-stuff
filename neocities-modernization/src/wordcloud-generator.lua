@@ -6,12 +6,19 @@
 -- where font size represents word frequency (or optionally, centroid similarity)
 --
 -- Usage:
---   luajit src/wordcloud-generator.lua [DIR] [--all] [--words N]
+--   luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N]
 --   luajit src/wordcloud-generator.lua --help
 --
 -- Options:
---   --all      Include all words (no max_words limit)
---   --words N  Set maximum words to display (default: 200 from config)
+--   --all               Include all words (no max_words limit)
+--   --words N           Set maximum words to display
+--   --chrono-per-page N Poems per chronological page (for the poem links)
+--   --yes, -y           Take the default for any value not given, without asking
+--
+-- Issue 10-065a: a value left off the command line is asked for, with its
+-- default from config.lua in brackets ("How many words in the word cloud?
+-- [200]"); Enter takes it. --yes takes every default and says which. Started by
+-- run.sh, or with nobody at the keyboard, a missing value is an error instead.
 -- }}}
 
 -- {{{ Setup
@@ -27,7 +34,7 @@ end
 local function parse_args(args)
     local dir = nil
     local all_words = false
-    local max_words = nil  -- nil means use config default
+    local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
     -- Issue 10-064: the build's --reverse, so the poem-ID jump links number the
@@ -37,10 +44,14 @@ local function parse_args(args)
     -- notepad, then config.lua; a value here overrides both.
     local model = nil
     local server = nil
+    local out = nil  -- --out FOLDER: a trial run (see the --help text)
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
-        if a == "--all" then
+        if a == "--out" then
+            out = args[i + 1] or error("--out needs a folder")
+            i = i + 2
+        elseif a == "--all" then
             all_words = true
             i = i + 1
         elseif a == "--seed" then
@@ -70,17 +81,17 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("=(.+)$"))
             i = i + 1
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- Issue 10-065: consume "--assets PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --assets out of `arg` itself), but
         -- it must still swallow it: the branch below claims any token that does
         -- not start with "-" as the positional project directory, so an
         -- unconsumed PATH would silently REPLACE the project root -- and since
         -- package.path is built from that root, the program would then fail to
         -- find its own libraries. Skipping a flag is not the same as skipping a
         -- flag and its argument.
-        elseif a == "--dir" then
+        elseif a == "--assets" then
             i = i + 2
-        -- Same trap as --dir above (Issue 10-065): these carry a VALUE, and the
+        -- Same trap as --assets above (Issue 10-065): these carry a VALUE, and the
         -- branch below claims any bare token as the project directory -- so an
         -- unconsumed model name became the project root and package.path was
         -- built from it. Consumed AND honoured: the run notepad that normally
@@ -94,23 +105,64 @@ local function parse_args(args)
             server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then
             server = a:match("^%-%-server=(.+)$"); i = i + 1
-        elseif not a:match("^%-") then
-            -- Positional argument (DIR)
-            dir = a
-            i = i + 1
         else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
+            -- Skip unknown flags (value-less ones). There are no bare words
+            -- here: the folder reader stopped the program on any (Issue 10-076).
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page, seed, model, server, reverse
+    return dir, all_words, max_words, chrono_per_page, seed, model, server, out, reverse
 end
 -- }}}
 
-local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
-      CLI_MODEL, CLI_SERVER, CLI_REVERSE = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- {{{ --help
+-- Answered before anything else runs: the word count is settled at startup and
+-- may ask a question (Issue 10-065a), which a request for help must not trigger.
+-- Plain print, not the run log: help is for the person at the terminal, and
+-- it runs before package.path can find libs/.
+if arg[1] == "--help" or arg[1] == "-h" then
+    print("Usage: luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N] [--chrono-per-page N] [--seed N] [--reverse] [--yes]")
+    print("")
+    print("Generates a word cloud HTML page from the poetry collection.")
+    print("Words are sized by frequency, with stop words filtered out.")
+    print("")
+    print("Options:")
+    print("  --dir PATH           Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+    print("  --all                Include all words (no max_words limit)")
+    print("  --words N            Maximum words to display")
+    print("  --chrono-per-page N  Chronological page size; MUST match the value the")
+    print("                       chronological pages were built with, or poem links")
+    print("                       point at the wrong page.")
+    print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
+    print("                       Same seed => identical word order. Normally passed")
+    print("                       by run.sh; if omitted a seed is auto-generated and")
+    print("                       logged to stderr.")
+    print("  --reverse            The build was made with --reverse (Issue 10-064): poem")
+    print("                       links number the chronological pages newest first.")
+    print("  --yes, -y            Take config.lua's default for any value not given")
+    print("  --out FOLDER         A trial run: write wordcloud.html into FOLDER, not")
+    print("                       the site, and keep no record in archive/wordclouds/")
+    print("                       (that record is for builds)")
+    print("  --help               Show this help message")
+    print("")
+    print("A value not given is asked for, with config.lua's default in brackets;")
+    print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
+    print("missing value is an error instead.")
+    os.exit(0)
+end
+-- }}}
+
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). The reader is told
+-- which flags take a value, so those values are not stray; parse_args reads
+-- the program's own flags from what is left.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil), {
+        ["--out"] = true, ["--seed"] = true, ["--words"] = true, ["--chrono-per-page"] = true,
+        ["--assets"] = true, ["--model"] = true, ["--server"] = true,
+    })
+local _, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
+      CLI_MODEL, CLI_SERVER, CLI_OUT, CLI_REVERSE = parse_args(OWN_ARGS)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
 -- The word shuffle used to call math.randomseed(os.time()) inside the shuffle on
@@ -140,6 +192,9 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
+-- Issue 10-065a: settles a value missing from the command line (ask, --yes, or error)
+local ask = require("ask-for-value")
+local ACCEPT_DEFAULTS = ask.wants_defaults(arg)
 -- Shared <head> contents: viewport, the shipped monospace font, the text-size
 -- lock. One owner, so this menu cannot drift from the poem pages.
 local page_head = require("page-head")
@@ -169,8 +224,28 @@ if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
 -- the config key is missing). There is deliberately no literal fallback -- a
 -- wrong size sends every poem link to the wrong page, so an absent value is an
 -- error, not a guess.
+--
+-- Issue 10-065a: when --chrono-per-page is absent the config value is offered as
+-- the default and confirmed (asked, or taken by --yes with a notice), never
+-- applied silently. Settled once and remembered, since several pages use it.
+local settled_chrono_per_page = nil
 local function resolve_chrono_per_page()
-    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+    if settled_chrono_per_page then
+        return settled_chrono_per_page
+    end
+    -- the config value is the offered default; a config without one simply
+    -- offers none (the question is still asked, with no brackets)
+    local has_default, config_default = pcall(flat_html.default_chrono_per_page)
+    settled_chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page",
+        question = "How many poems per chronological page?",
+        kind = "count",
+        given = CLI_CHRONO_PER_PAGE,
+        default = has_default and config_default or nil,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_chrono_per_page
 end
 -- }}}
 -- }}}
@@ -179,25 +254,39 @@ local M = {}
 
 -- {{{ Configuration
 -- Issue 10-003: Load word_cloud config from unified config (including embedded stop_words)
-local wc = unified_config.word_cloud or {}
+local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
 
--- Determine max_words: CLI --all > CLI --words > config
-local effective_max_words
-if CLI_ALL_WORDS then
-    effective_max_words = math.huge  -- No limit
-elseif CLI_MAX_WORDS then
-    effective_max_words = CLI_MAX_WORDS
-else
-    effective_max_words = wc.max_words or 200
+-- How many words the cloud shows: --all / --words from the command line, or
+-- (Issue 10-065a) asked, offering config.lua's word_cloud.max_words as the
+-- default. This program always draws the cloud, so the value is always needed
+-- and is settled here, at startup.
+local cli_words = CLI_ALL_WORDS and "all" or CLI_MAX_WORDS
+local words_answer = ask.resolve({
+    flag = "--words",
+    question = "How many words in the word cloud? (a number, or \"all\")",
+    kind = "count_or_all",
+    given = cli_words,
+    default = wc.max_words,
+    default_source = "config.lua word_cloud.max_words",
+    accept_defaults = ACCEPT_DEFAULTS,
+})
+-- "all" means no limit
+local effective_max_words = (words_answer == "all") and math.huge or words_answer
+
+-- every value from config.lua's word_cloud section; a missing one is an
+-- error (Issue 10-071: defaults live only in config.lua)
+local function setting(key)
+    local value = wc[key]
+    if value == nil then error("config.lua word_cloud." .. key .. " is missing") end
+    return value
 end
-
 local CONFIG = {
-    min_occurrences = wc.min_occurrences or 5,
+    min_occurrences = setting("min_occurrences"),
     max_words = effective_max_words,
-    font_size_min = wc.font_size_min or 1,
-    font_size_max = wc.font_size_max or 7,
-    min_word_length = wc.min_word_length or 3,
-    output_file = wc.output_file or "wordcloud.html"
+    font_size_min = setting("font_size_min"),
+    font_size_max = setting("font_size_max"),
+    min_word_length = setting("min_word_length"),
+    output_file = setting("output_file"),
 }
 -- }}}
 
@@ -207,6 +296,7 @@ local function load_stop_words()
     local stop_words = {}
 
     -- Load from config (array of words)
+    -- optional: absent means no stop words beyond the built-in short-word rule
     local config_stop_words = wc.stop_words or {}
     for _, word in ipairs(config_stop_words) do
         stop_words[word:lower()] = true
@@ -380,7 +470,9 @@ local function generate_poem_index(poems_data)
         -- would land on the mirror-image page.
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page, CLI_REVERSE)
         for poem_index, info in pairs(mapping) do
-            chrono_page_map[poem_index] = string.format("%02d", info.page_number)
+            -- named as the chronological pages name themselves ("03.html",
+            -- or "index.html" for a one-page view)
+            chrono_page_map[poem_index] = require("chronological-page").file_name(info.page_number, info.total_pages)
         end
     end
 
@@ -443,9 +535,13 @@ local function generate_poem_index(poems_data)
             -- instead of index.html (a redirect that drops the anchor -> page 1)
             -- and instead of the old "poem-CATEGORY-ID" anchor that matched
             -- nothing.
-            local pidx = poem.poem_index or 0
-            local anchor_id = string.format("poem-%d", pidx)
-            local page_str = chrono_page_map[pidx] or "01"
+            -- Issue 8-019: the anchor is the poem's source key; a poem with
+            -- no place on the timeline stops the page (it used to guess page
+            -- 01)
+            local pidx = poem.poem_index
+            local anchor_id = require("poem-address").anchor(poem)
+            local page_file = chrono_page_map[pidx]
+                or error("word cloud: poem " .. anchor_id .. " is not on the chronological pages")
             local id_str = tostring(poem.id or 0)
 
             -- Keep column alignment with leading spaces, but place them OUTSIDE
@@ -454,8 +550,8 @@ local function generate_poem_index(poems_data)
             -- columns still line up.
             local pad = string.rep(" ", math.max(0, 4 - #id_str))
             local link = pad .. string.format(
-                '<a href="chronological/%s.html#%s">%s</a>',
-                page_str, anchor_id, id_str)
+                '<a href="chronological/%s#%s">%s</a>',
+                page_file, anchor_id, id_str)
             table.insert(line_ids, link)
 
             -- Output line when we reach IDS_PER_LINE or end of poems
@@ -486,12 +582,16 @@ end
 local function archive_wordcloud(html, word_count)
     local archive_dir = DIR .. "/archive/wordclouds"
     utils.ensure_directory(archive_dir)
-    -- Timestamp + word count in the name: successive builds accumulate instead of
-    -- overwriting, and the count tells "all words" (7082) from a default (200) at a
-    -- glance. No spaces, so the plain mkdir/io paths handle it.
+    -- Timestamp + word count + seed in the name: successive builds accumulate
+    -- instead of overwriting, the count tells "all words" (7082) from a default
+    -- (200) at a glance, and the seed means an old cloud can be re-made exactly
+    -- (run.sh --seed N) by reading its filename, without opening the file
+    -- (Issue 10-058). Copies made before the seed was added lack the "-seedN"
+    -- part; their seed is in the comment at the top of the file. No spaces, so
+    -- the plain mkdir/io paths handle it.
     local stamp = os.date("%Y-%m-%d_%H-%M-%S")
-    local archive_file = string.format("%s/wordcloud-%s-%dwords.html",
-        archive_dir, stamp, word_count)
+    local archive_file = string.format("%s/wordcloud-%s-%dwords-seed%d.html",
+        archive_dir, stamp, word_count, MASTER_SEED)
     if not utils.write_file(archive_file, html) then
         error("Failed to archive word cloud to: " .. archive_file)
     end
@@ -503,15 +603,16 @@ end
 local function generate_wordcloud_html(words, output_dir, poems_data)
     -- Issue 16-011: Load word colors and color configuration for colorized display
     local word_colors = load_word_colors()
-    local color_config = unified_config.colors or {
-        red = "#FF6B6B",
-        orange = "#FFA94D",
-        yellow = "#FFE066",
-        green = "#69DB7C",
-        blue = "#74C0FC",
-        purple = "#DA77F2",
-        gray = "#868E96"
-    }
+    -- config.lua semantic_colors: the site's one palette, shared with the
+    -- progress bars, so a red word and a red bar mean the same thing
+    local palette = unified_config.semantic_colors or error("config.lua has no semantic_colors section")
+    -- {{{ local function hex_of()
+    local function hex_of(name)
+        local entry = palette[name]
+        if not entry or not entry.hex then error("config.lua semantic_colors." .. tostring(name) .. ".hex is missing") end
+        return entry.hex
+    end
+    -- }}}
 
     -- Shuffle words for visual variety (not just sorted by size)
     local shuffled = {}
@@ -541,14 +642,14 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         -- significance rather than visual noise on every word.
         local is_significant = entry.font_size >= 5
         local bold_open, bold_close = "", ""
-        local hex_color = "#868E96"  -- neutral gray for the long tail
+        local hex_color = hex_of("gray")  -- neutral gray for the long tail
         if is_significant then
             bold_open, bold_close = "<b>", "</b>"
             -- Issue 16-011: Look up this word's semantic color. Large words never
             -- render gray (gray belongs to the de-emphasised small words), so we take
             -- the strongest NON-gray color from the word's full color ranking.
             local semantic_color = top_nongray_color(word_colors[safe_word]) or "gray"
-            hex_color = color_config[semantic_color] or "#868E96"
+            hex_color = hex_of(semantic_color)
         end
 
         -- Each word links to its similarity page, colored by semantic meaning
@@ -573,15 +674,18 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         .. "img, video, audio { margin-left: auto; margin-right: auto; }")
     local html = string.format([[<!DOCTYPE html>
 <!-- Issue 10-058: word order shuffled with master seed %d. Re-run with
-     --seed %d (or set randomization.seed in config.lua) to reproduce this exact
-     word cloud. The canonical record is output/generation-metadata.json. -->
+     --seed %d to reproduce this exact word cloud. (Issue 10-065 removed the
+     config.lua route; --seed is the only one.) -->
+<!-- The run record, output/generation-metadata.json, should name the same seed.
+     Issue 10-058 found a build where it did not; this comment is the one written
+     by the run that actually made the page. -->
 <html>
 <head>
 <meta charset="UTF-8">
 %s
 <title>Menu - Poetry Collection</title>
 %s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], MASTER_SEED, MASTER_SEED, page_head.viewport_meta(), head_block) .. string.format([[
+]] .. require("page-theme").body_tag() .. [[]], MASTER_SEED, MASTER_SEED, page_head.viewport_meta(), head_block) .. string.format([[
 
 <center>
 <h1>Menu</h1>
@@ -608,8 +712,12 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
     if success then
         utils.log_info("Generated: " .. output_file)
-        -- Keep a dated copy of this build's cloud in archive/wordclouds/.
-        archive_wordcloud(html, #words)
+        -- Keep a dated copy of this build's cloud in archive/wordclouds/ --
+        -- a build's, not a trial's (--out): a test that ran the generator
+        -- would otherwise add records of clouds nobody published.
+        if not CLI_OUT then
+            archive_wordcloud(html, #words)
+        end
         return output_file
     else
         utils.log_error("Failed to write: " .. output_file)
@@ -654,35 +762,18 @@ function M.main()
         return nil
     end
 
-    local output_dir = DIR .. "/output"
+    -- --out: a trial run writes into its own folder, not the site
+    local output_dir = CLI_OUT or (DIR .. "/output")
+    if CLI_OUT then utils.ensure_directory(output_dir) end  -- the site folder is made by run.sh (in RAM)
     return M.generate_wordcloud(poems_data, output_dir)
 end
 -- }}}
 
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
-    if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N]")
-        print("")
-        print("Generates a word cloud HTML page from the poetry collection.")
-        print("Words are sized by frequency, with stop words filtered out.")
-        print("")
-        print("Options:")
-        print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --all                Include all words (no max_words limit)")
-        print("  --chrono-per-page N  Chronological page size; MUST match the value the")
-        print("                       chronological pages were built with, or poem links")
-        print("                       point at the wrong page. Defaults to the config value.")
-        print("  --words N  Set maximum words to display (default: 200 from config)")
-        print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
-        print("                       Same seed => identical word order. Normally passed")
-        print("                       by run.sh; if omitted a seed is auto-generated and")
-        print("                       logged to stderr.")
-        print("  --help     Show this help message")
-        os.exit(0)
-    end
 
-    M.main()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("wordcloud-generator.lua", M.main)
 end
 -- }}}
 

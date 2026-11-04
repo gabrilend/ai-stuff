@@ -517,7 +517,7 @@ printf '\nThe commit gate\n'
 gate_verdict() {
     local input out
     input="$(jq -n --arg c "$1" '{session_id: "x", cwd: "/tmp", tool_name: "Bash", tool_input: {command: $c}}')"
-    out="$("${DIR}/refuse-foreign-lines" "${TOKEN}" "${DIR}" <<< "${input}")"
+    out="$("${DIR}/harness-hooks/refuse-foreign-lines" "${TOKEN}" "${DIR}" <<< "${input}")"
     printf '%s' "${out}" > "${SCRATCH}/gate-out"
     if [ "$(jq -r '.hookSpecificOutput.permissionDecision // ""' <<< "${out:-{\}}")" = deny ]; then printf refused; else printf allowed; fi
 }

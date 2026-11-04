@@ -1,0 +1,24 @@
+# crown.txt - the crown, described in words. Written by Claude (Opus 5.5),
+# 2026-10-10, for issue 007e, from docs/core-terms.md and the owner's sixth
+# round (notes/vision): the panel arm runs along the side arm of the
+# wearer's glasses, reaching forward, smooth and metallic like a fine pen.
+# A sketch in proportions, not a design: the band's size is the unit.
+The band is a brown ring.
+The emitter is a red box. The emitter is a tenth the size of the band.
+The emitter is behind the band.
+The light pipe is a teal rod. The light pipe lies front to back.
+The light pipe is as long as the band is wide.
+The light pipe is a tenth as wide as the band.
+The light pipe sits on top of the band.
+The glasses arm is a black rod. The glasses arm lies front to back.
+The glasses arm is as long as the band is wide.
+The glasses arm is half as wide as the light pipe.
+The glasses arm is to the right of the band.
+The panel arm is a metallic rod. The panel arm lies front to back.
+The panel arm is half as long as the band is wide.
+The panel arm is as wide as the glasses arm.
+The panel arm is aligned with the axis of the glasses arm.
+The panel arm is at the end of the glasses arm.
+The panel is a white plate. The panel faces forward.
+The panel is a quarter as wide as the band.
+The panel is in front of the panel arm.

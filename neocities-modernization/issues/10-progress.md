@@ -24,29 +24,29 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 10-001 | Integrate TUI into phase-demo.sh | Open | High |
-| 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
+| 10-001 | Integrate TUI into phase-demo.sh | Completed (filed 2026-10-22; built earlier) | High |
+| 10-002 | Integrate TUI into generate-embeddings | Completed (filed 2026-10-22; built earlier) | Medium |
 | 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
 | 10-008 | Implement multiline command wrapping | Completed | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
-| 10-010 | Integrate test suites into development pipeline | Open | Medium |
+| 10-010 | Integrate test suites into development pipeline | Completed 2026-10-22 (scripts/run-tests, run before every build) | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-018 | Animated command option transitions | Completed | Low |
 | 10-019 | Document config structure and field usage | Completed | Low |
 | 10-022 | Fix empty embeddings validation | Completed | High |
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | Medium |
 | 10-024 | Force flag should clear output directories | Completed | High |
-| 10-025 | Diversity cache includes anchor poem | Completed | Medium |
+| 10-025 | Diversity cache includes anchor poem | Completed (reopened 2026-09-22, closed again 2026-10-25) | Medium |
 | 10-026 | Merge sources and external_files config sections | Completed | Low |
 | 10-027 | Fix golden poem trailing whitespace detection | Resolved (Mastodon limitation) | Medium |
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
-| 10-029 | TUI Ollama server selector dropdown | Open | Medium |
+| 10-029 | TUI Ollama server selector dropdown | Superseded 2026-10-22 (Ollama gone; servers chosen with --server) | Medium |
 | 10-030 | Image source position randomization | Completed | Low |
-| 10-031 | Embedding model evaluation framework | Open | Medium |
+| 10-031 | Embedding model evaluation framework | Will not implement (2026-10-25) | Medium |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
-| 10-035 | Parallelize word page generation | Open | Medium |
+| 10-035 | Parallelize word page generation | Completed (2026-10-25) | Medium |
 | 10-036 | Fix word page chronological links | Completed | Medium |
 | 10-037 | Blank fediverse_boost content | Completed | Medium |
 | 10-038 | Separate ID numbering for fediverse_boost | Completed | Low |
@@ -56,10 +56,14 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-042 | Integrate standalone images into site (umbrella) | Open | Medium |
 | 10-042a | Gallery pages for standalone images | Completed | Medium |
 | 10-042b | Chronological interleaving of images | Open | Medium |
-| 10-042c | Filename embeddings for similar/different | Open | Low |
+| 10-042c | Filename embeddings for similar/different | Superseded 2026-10-22 (pictures get stand-in vectors, 9-013) | Low |
 | 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
 | 10-044 | Integrate conversation-starters as unified source | Open | Medium |
 | 10-045 | Integrate Android phone pictures as source | Open | Low |
+| 10-065a | Programs run on their own ask for missing values | Completed (2026-10-25) | Medium |
+| 10-071 | Defaults live only in config.lua, never in the code | Open | Medium |
+| 10-077 | The download comes in pieces Neocities will take | In progress (built; waiting on one deploy) | High |
+| 10-078 | Fallbacks that change what a program does | Open (each waits on the owner's decision) | Medium |
 
 ### Completed Issues
 
@@ -100,7 +104,17 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
 | 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
 | 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
+| 10-063 | Archived word clouds open as pages in the source browser, not as source code | Completed | 2026-10-04 |
+| 10-068 | The phone-message mailbox feeds the notes folder without being published itself | Completed | 2026-10-04 |
+| 10-070 | Menu fixes: drawable markers, no hang on leaving, copy to both clipboards | Completed | 2026-10-04 |
+| 10-049 | Replace Ollama with llama.cpp (last leftovers removed) | Completed | 2026-10-22 |
+| 10-075 | Every run keeps a log in RAM (terminal, log or both, one output function) | Completed | 2026-10-23 |
+| 10-069 | One pre-flight gate: every cheap check a selected stage can fail, before any stage | Completed | 2026-10-25 |
 | 10-064 | `--reverse`: newest chronological pages first, similar/different by date | Completed | 2026-11-02 |
+| 10-076 | Every program names its folders by flags (--dir, --assets); a stray word stops it; no folder is assumed | Completed | 2026-11-03 |
+
+These tables are hand-kept and fall behind. For current done and open counts per
+phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
 
 ## Issue Details
 
@@ -268,7 +282,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Line-specific $, 0: end/start of current line; G/gg: end/start of command
 - Files modified: /home/ritz/programming/ai-stuff/scripts/libs/menu.lua
 
-**10-031: Embedding Model Evaluation Framework** - OPEN
+**10-031: Embedding Model Evaluation Framework** - WILL NOT IMPLEMENT (2026-10-25: the owner no longer needs its report; the tool was retired)
 - Systematic comparison of embedding models (nomic, mxbai, etc.)
 - Generate similarity rankings for test anchor poems across models
 - Analyze model "personality" (semantic vs structural, verbs vs nouns)
@@ -374,7 +388,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - [x] Multi-Ollama server configuration (10-017)
 - [x] TUI per-stage regeneration options (10-016)
 - [ ] TUI integration for all interactive scripts
-- [ ] Test suite integration (10-010)
+- [x] Test suite integration (10-010)
 
 ---
 

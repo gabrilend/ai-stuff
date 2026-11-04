@@ -29,7 +29,7 @@ Models: claude-opus-5
    merge, commander rotation, die staking, and the request verb. Next: three
    questions still need your decision — F27, F30, and F37.
 6. 2026-08-26 00:14, after Request 15 - We're auditing and reconciling the
-   hero-less-moba design docs; latest commit `33831246` settled wave
+   hero-less-moba design docs; latest commit `714ddf08` settled wave
    composition, the dice wallet, and added lobby/scenario issues. Two questions
    remain open: F30 (per-colour ceilings and reroll price) and F38 (what a
    priest does).
@@ -1122,7 +1122,7 @@ please continue?
 > Now the commit. Staging only the hero-less-moba files I touched — nothing
 > from the other four projects, and not the transcripts:
 
-Committed as `36a0c229` — 33 files, nothing from the other four projects,
+Committed as `a369bf01` — 33 files, nothing from the other four projects,
 transcripts left alone.
 
 ---
@@ -1384,7 +1384,7 @@ dunno, figure it out.
 > Three of the standing-notes files now contradict decisions we made. Since
 > they're project documents rather than yours, fixing them properly:
 
-All three landed, plus both corrections. Committed as `23fb7462`.
+All three landed, plus both corrections. Committed as `6374c957`.
 
 ## Your two corrections
 
@@ -1632,7 +1632,7 @@ the last thing anyone sees before a match ends, and it's one of the few places
 where the answer is aesthetic before it's mechanical. Worth more than a shrug,
 or genuinely not?
 
-Committed as `8aed91ac`.
+Committed as `e6cd4b9c`.
 
 --------------------------------------------------------------------------------
 
@@ -1725,7 +1725,7 @@ let's go with "lazer beams or something idk" for now
 
 > Now the wave composition into doc 005, and F20's rule into the map:
 
-Worked through. **24 → 1.** Committed as `0e64b27b`.
+Worked through. **24 → 1.** Committed as `4f95eb61`.
 
 ## The list was two lists
 
@@ -1899,7 +1899,7 @@ what you said, can you remind me?
 
 > Now the four issue files that still build the deleted fields:
 
-Both done, committed as `2d8c6147`.
+Both done, committed as `045e370f`.
 
 ## The vision — `notes/vision-2`
 
@@ -2097,7 +2097,7 @@ drawn, team A draws stone 9 and team B draws the stone 9.
 
 > Now the vocabulary, where the term collision lives:
 
-Committed as `b8adf132`. Three things landed, and one of them is bigger than it
+Committed as `1a045186`. Three things landed, and one of them is bigger than it
 looked.
 
 ## Both visions are stored as they arrived
@@ -2258,7 +2258,7 @@ and one of the "languages" was "ported to azerothcore"
 > Only issues 406 and 407 still contain the lock machinery — which is exactly
 > what F31b is about, so leaving them pending that decision is correct.
 
-All four landed. `55967ff7`, plus the skill at
+All four landed. `fd46a389`, plus the skill at
 `~/.claude/skills/polyglot-source/`.
 
 ## Contribute-and-dismiss is better than what it replaces
@@ -2439,7 +2439,7 @@ more questions for me? yay!!
 
 > Found a real hole. Let me record it and a companion before I ask.
 
-All four in, committed as `3de27de3`. And yes — questions, including one
+All four in, committed as `e61ee1f7`. And yes — questions, including one
 that's a genuine hole rather than a preference.
 
 ## I had the moss balls wrong
@@ -2656,7 +2656,7 @@ issues/will-not-implement/ directory.
 > Now the two remaining answers — the request verb and per-colour ceilings —
 > and closing F31b:
 
-All six answered, `77cdb160`. And the reference you asked for:
+All six answered, `fc792111`. And the reference you asked for:
 **`notes/vision-3`, lines 59–69** — from your vision-3 message earlier
 today. That's the only place commander compositions appear; this message is the
 first time the *distribution* problem came up.
@@ -2829,7 +2829,7 @@ including a severage destroyer and a spiked mammoth.
 > All 41 entries intact, F26 back in the awaiting list. Now the queue-depth
 > exception you flagged:
 
-Committed as `33831246`. One thing to flag first.
+Committed as `714ddf08`. One thing to flag first.
 
 **I destroyed nine ledger entries mid-turn and restored them from HEAD.** My
 extraction said "give me F27 through F28" — but the entries aren't in numeric
@@ -2939,7 +2939,7 @@ uses their constitution dice.
 
 > That's a good puzzle and I think I see it. Let me write it down properly.
 
-Yes — I think I can see it. Written up as F39, committed in `3702da7e`.
+Yes — I think I can see it. Written up as F39, committed in `25c6e3a0`.
 
 ## Why that configuration is hard
 
@@ -3110,7 +3110,7 @@ Allies block LoS for the purposes of this spell.
 
 > 022 landed before 021 — the table is in index order. Fixing:
 
-Committed as `5f6892be`. Your positional rule is the good part of this, and I
+Committed as `c362627f`. Your positional rule is the good part of this, and I
 want to say why.
 
 ## You solved the matching problem by not solving it
@@ -3263,7 +3263,7 @@ cap of 5 as well.
 > That's deliberate parallelism, not corruption — but I'll tighten it so the
 > detector stays clean:
 
-**Nothing needs a decision.** First time since the audit started — `c0bfbf6e`.
+**Nothing needs a decision.** First time since the audit started — `bd83f97e`.
 
 ```
 78 issues, 106 questions, 94 answered, 12 awaiting evidence
@@ -3409,7 +3409,7 @@ hi, please continue? Although be aware, you keep freezing lmao
 ### Assistant Response 21
 
 Sorry — the commit landed but I went quiet before saying anything about it.
-`40826a97`.
+`b0c931e8`.
 
 ## Goblin archers
 

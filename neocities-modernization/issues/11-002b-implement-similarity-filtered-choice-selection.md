@@ -130,6 +130,10 @@ This is the final cache used by the HTML generator.
 - Output from 11-002a (`dimension_extremes.json` or similar)
 - `assets/embeddings/EmbeddingGemma_latest/embeddings.json`
 
+## Blocks
+
+- 11-002c, 11-003, 9-004
+
 ## Related Issues
 
 - **11-002a**: Provides input (768 dimension extremes per poem)

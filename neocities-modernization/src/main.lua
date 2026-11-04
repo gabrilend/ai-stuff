@@ -1,45 +1,66 @@
 #!/usr/bin/env luajit
+-- main.lua: the poetry site's core stages, one at a time or all together.
+--
+-- WHAT IT DOES (for a CEO): reads the exported posts and notes into one
+-- list of poems, checks that list, finds the pictures, and draws the
+-- website's pages from the poems and the caches the GPU stages made. run.sh
+-- calls it once per stage (3, 4, 5 and 9); asking for no stage runs them
+-- all in order, and -I opens a menu instead.
+--
+-- Usage: luajit src/main.lua [--dir PATH] [MODE] [OPTIONS]
+--   --dir PATH           the project folder (default below); any word that is
+--                        not a flag or a flag's value stops the program
+-- Modes (one at most; none = the whole pipeline):
+--   --parse-only         stage 3: the exports become assets/poems.json
+--   --validate-only      stage 4: check the poems, write the validation report
+--   --catalog-only       stage 5: find every picture, write the image catalog
+--   --html-only          stage 9: draw every page into output/
+--   -I, --interactive    a menu of the stages
+-- Options:
+--   --assets PATH        where assets/ lives (run.sh passes it; was --dir)
+--   --force              redo a stage even when its output looks current
+--   --threads N          page workers for --html-only (asked for if missing)
+--   --pages LIST         similar/different pages per poem: 1, all, 1-10
+--   --poems-per-page N   poems on each similar/different page
+--   --chrono-per-page N  poems on each chronological page
+--   --seed N             the build's random seed
+--   --no-boosts / --include-boosts   leave out or keep boosted posts
+--   -v, --verbose        more detail
+--   --help               this text, and nothing else
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ Early argument parsing (before package.path setup)
--- Parse arguments to extract directory path, skipping flags like -I
--- This must happen before utils is loaded since package.path depends on DIR
-local function parse_dir_from_args(args)
-    if not args then return nil end
-    for i = 1, #args do
-        local a = args[i]
-        -- Skip flags (start with -)
-        if a and a:sub(1, 1) ~= "-" then
-            return a
-        end
-        -- Handle --dir=path or --dir path
-        if a == "--dir" and args[i + 1] then
-            return args[i + 1]
-        end
-        if a:match("^--dir=") then
-            return a:match("^--dir=(.+)")
-        end
-    end
-    return nil
-end
-
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). This must happen before
+-- utils is loaded, since package.path is built from the folder. It used to be
+-- the first bare word, so a flag's value that came before the folder was read
+-- as the folder; the reader is told which flags take a value instead.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", {
+        ["--assets"] = true, ["--threads"] = true, ["--pages"] = true, ["--poems-per-page"] = true,
+        ["--chrono-per-page"] = true, ["--seed"] = true,
+    })
 -- }}}
 
--- Script configuration
-local DIR = setup_dir_path(parse_dir_from_args(arg))
-
 -- Load required libraries
--- Include TUI library from shared scripts location (updates propagate automatically)
-local TUI_LIBS = "/home/ritz/programming/ai-stuff/scripts/libs"
-package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. package.path
+-- The TUI library lives in the shared scripts folder (updates propagate
+-- automatically); where that is on this machine is config.lua
+-- libraries.tui_lua_dir (Issue 10-071).
+local system_path = package.path
+package.path = DIR .. "/libs/?.lua;" .. system_path   -- long enough to read config.lua
+local TUI_LIBS
+do
+    local libraries = require("config-loader").load().libraries
+        or error("config.lua has no libraries section")
+    TUI_LIBS = libraries.tui_lua_dir or error("config.lua libraries.tui_lua_dir is missing")
+end
+-- the project first, then the TUI library, then the system's own
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. system_path
 local utils = require("utils")
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 -- This must happen early, before any asset_path() calls
 utils.init_assets_root(arg)
 
@@ -59,21 +80,32 @@ local dkjson = require("dkjson")
 -- to resolve through the same code path the GPU embeddings stage uses.
 inference_config.set_project_root(DIR)
 
--- Boost inclusion: a CLI flag (--no-boosts / --exclude-boosts to drop them,
--- --include-boosts to force-keep) takes precedence over config.privacy.
--- include_boosts. Resolved once here and threaded into extraction.
+-- Boost inclusion: --no-boosts / --exclude-boosts drop them, --include-boosts
+-- keeps them (run.sh always passes one of these). Without either, Issue 10-065a:
+-- the person is asked, with config.privacy.include_boosts offered as the
+-- default; --yes takes that default with a notice; started by run.sh or with
+-- nobody at the keyboard it is an error. Called only when extracting, so other
+-- modes never ask.
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
+local ask = require("ask-for-value")
 local function resolve_include_boosts()
+    local given = nil
     for _, a in ipairs(arg or {}) do
-        if a == "--no-boosts" or a == "--exclude-boosts" then return false end
-        if a == "--include-boosts" then return true end
+        if a == "--no-boosts" or a == "--exclude-boosts" then given = false end
+        if a == "--include-boosts" then given = true end
     end
-    local ok, cfg = pcall(function() return config_loader.load() end)
-    if ok and cfg and cfg.privacy and cfg.privacy.include_boosts ~= nil then
-        return cfg.privacy.include_boosts
-    end
-    return false  -- default: exclude boosts (opt-in via --include-boosts)
+    -- a config.lua that cannot load is an error here, not a reason to guess
+    local cfg = config_loader.load()
+    return ask.resolve({
+        flag = "--include-boosts / --no-boosts",
+        question = "Include reblogged (boosted) posts?",
+        kind = "yesno",
+        given = given,
+        default = cfg.privacy and cfg.privacy.include_boosts,
+        default_source = "config.lua privacy.include_boosts",
+        accept_defaults = ask.wants_defaults(arg),
+    })
 end
 
 -- Restore original path
@@ -181,20 +213,11 @@ local function build_menu_config()
                         value = "0",
                         description = "Discovery instructions page"
                     },
-                    {
-                        id = "similar_pages",
-                        label = "Generate similarity pages (parallel)",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Per-poem pages sorted by semantic similarity"
-                    },
-                    {
-                        id = "different_pages",
-                        label = "Generate difference pages (parallel)",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Per-poem pages sorted by maximum diversity"
-                    },
+                    -- Two items here ran the similar or different pages alone
+                    -- through scripts/generate-html-parallel, a stand-alone
+                    -- generator removed 2026-10-04 (it read a model folder that
+                    -- no longer exists). The complete-website item below builds
+                    -- both kinds of page.
                     {
                         id = "full_website",
                         label = "Generate complete website",
@@ -212,18 +235,11 @@ local function build_menu_config()
                 type = "single",
                 items = {
                     {
-                        id = "test_similar",
-                        label = "Test single similarity page",
+                        id = "test_pages",
+                        label = "Test one poem's pages",
                         type = "checkbox",
                         value = "0",
-                        description = "Generate one similarity page for testing"
-                    },
-                    {
-                        id = "test_different",
-                        label = "Test single difference page",
-                        type = "checkbox",
-                        value = "0",
-                        description = "Generate one difference page for testing"
+                        description = "Draw one poem's similar and different pages into tmp/shared-memory/test-pages/"
                     }
                 }
             },
@@ -234,11 +250,11 @@ local function build_menu_config()
                 type = "multi",  -- Allow multiple options to be set
                 items = {
                     {
-                        id = "test_poem_id",
-                        label = "Test poem ID",
+                        id = "test_poem_number",
+                        label = "Test poem number",
                         type = "flag",
                         value = "1:5",  -- value:width format
-                        description = "Poem ID for test page generation"
+                        description = "The poem's number on the site (poem-N) for the test pages"
                     },
                     {
                         id = "thread_count",
@@ -592,6 +608,44 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
+    -- Issue 10-065a: settle the four values the page builder needs before any
+    -- work starts, so a question never interrupts a half-built site. Each comes
+    -- from the command line; otherwise it is asked for with config.lua's value
+    -- in brackets (Enter takes it), taken from config.lua under --yes with a
+    -- notice, or an error when run.sh started this or nobody is at the keyboard.
+    -- The thread count has no config.lua value, so it is asked with no default:
+    -- defaults live only in config.lua, never in code (owner, 2026-10-04).
+    local pagination = flat_html_generator.get_pagination_config()
+    local accept_defaults = ask.wants_defaults(arg)
+    pages_spec = ask.resolve({
+        flag = "--pages", question = "How many pages per poem? (a number, or \"all\")",
+        kind = "pages", given = pages_spec,
+        default = tostring(pagination.minimum_pages),
+        default_source = "config.lua pagination.minimum_pages",
+        accept_defaults = accept_defaults,
+    })
+    poems_per_page = ask.resolve({
+        flag = "--poems-per-page", question = "How many poems on each similar/different page?",
+        kind = "count", given = poems_per_page,
+        default = pagination.poems_per_page,
+        default_source = "config.lua pagination.poems_per_page",
+        accept_defaults = accept_defaults,
+    })
+    chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page", question = "How many poems per chronological page?",
+        kind = "count", given = chrono_per_page,
+        default = pagination.chronological_poems_per_page,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = accept_defaults,
+    })
+    num_threads = ask.resolve({
+        flag = "--threads", question = "How many worker threads?",
+        kind = "count", given = num_threads,
+        default = nil,
+        default_source = nil,
+        accept_defaults = accept_defaults,
+    })
+
     -- Load only poems data (12MB) - caches are loaded inside generator as needed
     -- Issue 10-033: Skip loading embeddings.json (77MB) and similarity_matrix.json (662MB)
     -- These are never used - generator functions use pre-computed caches exclusively
@@ -600,6 +654,22 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         utils.log_error("Failed to load poems data")
         return false
     end
+
+    -- {{{ Issue 8-019: every cache must be in this run's numbering
+    -- Poems are numbered fresh on every extraction, and these caches are
+    -- filed by number; one made under another numbering would give poems
+    -- each other's neighbours and colours. Each carries a stamp of the
+    -- numbering it was made under; stop before drawing a page if one differs.
+    do
+        local numbering_stamp = require("numbering-stamp")
+        local numbering = numbering_stamp.of_poems(poems_data)
+        local edir, ddir = utils.embeddings_dir(), utils.embeddings_dir_disk()
+        numbering_stamp.check(edir .. "/poem_colors.json", numbering, "poem colours", "stage 6 (--force-stage 6)")
+        numbering_stamp.check(edir .. "/image-manifest.json", numbering, "picture list", "stage 6 (--force-stage 6)")
+        numbering_stamp.check(edir .. "/similarity_rankings_cache.json", numbering, "similarity rankings", "stage 7 (--force-stage 7)")
+        numbering_stamp.check(ddir .. "/diversity_cache.json", numbering, "diversity walks", "stage 8 (--force-stage 8)")
+    end
+    -- }}}
 
     -- Note: similarity_data and embeddings_data parameters below are nil
     -- This is safe because generator functions use cache lookups (Issue 10-033)
@@ -610,7 +680,8 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Generate chronological index (main entry point)
     -- Issue 9-003: Pass chrono_per_page for CLI override of chronological pagination
-    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, reverse)
+    -- Issue 10-064: and the build's --reverse
+    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads, reverse)
     if not success then
         utils.log_error("Failed to generate chronological index")
         return false
@@ -627,7 +698,8 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     -- Issue 9-002: Pass num_threads for parallel processing
     -- Issue 9-003: Pass chrono_per_page for chronological mapping in parallel workers
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
-        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, reverse
+        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page,
+        nil, reverse  -- every poem gets its pages (no anchor_indices); Issue 10-064 --reverse
     )
 
     if gen_success then
@@ -663,7 +735,7 @@ end
 
 -- {{{ function M.show_project_status
 function M.show_project_status()
-    print("\n=== PROJECT STATUS ===")
+    require("output").print("\n=== PROJECT STATUS ===")
 
     local paths = utils.get_project_paths(DIR)
     local assets_root = utils.get_assets_root()
@@ -685,12 +757,12 @@ function M.show_project_status()
     }
 
     -- Show assets location
-    print(string.format("%-20s: %s", "Assets Location", assets_root))
+    require("output").print(string.format("%-20s: %s", "Assets Location", assets_root))
 
     for _, item in ipairs(status_items) do
         local name, filepath = item[1], item[2]
         local status = utils.file_exists(filepath) and "✅ Found" or "❌ Missing"
-        print(string.format("%-20s: %s", name, status))
+        require("output").print(string.format("%-20s: %s", name, status))
     end
 
     -- Show poem count if available
@@ -699,11 +771,11 @@ function M.show_project_status()
         local content = utils.read_file(poems_file)
         if content then
             local poem_count = select(2, content:gsub('"id":', '"id":'))
-            print(string.format("%-20s: %d poems", "Dataset Size", poem_count))
+            require("output").print(string.format("%-20s: %d poems", "Dataset Size", poem_count))
         end
     end
 
-    print("")
+    require("output").print("")
 end
 -- }}}
 
@@ -784,7 +856,9 @@ function M.handle_tui_action(values)
         local poems_file = utils.asset_path("poems.json")
         local poems_data = utils.read_json_file(poems_file)
         if poems_data then
-            flat_html_generator.generate_chronological_index_with_navigation(poems_data, DIR .. "/output")
+            -- the menu always carries a thread count (its "Thread count" item)
+            flat_html_generator.generate_chronological_index_with_navigation(poems_data, DIR .. "/output", nil,
+                tonumber(values.thread_count))
             utils.log_info("Generated chronological.html")
         end
         executed = true
@@ -794,30 +868,18 @@ function M.handle_tui_action(values)
         utils.log_info("Generated explore.html")
         executed = true
     end
-    if values.similar_pages == "1" then
-        utils.log_info("Generating similarity pages (use scripts/generate-html-parallel --similar-only)...")
-        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --similar-only")
-        executed = true
-    end
-    if values.different_pages == "1" then
-        utils.log_info("Generating difference pages (use scripts/generate-html-parallel --different-only)...")
-        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --different-only")
-        executed = true
-    end
     if values.full_website == "1" then
-        M.generate_website_html(true, nil, nil)  -- TUI mode: use config defaults
+        -- Values not given here are asked for, config.lua's offered in brackets
+        -- (Issue 10-065a); the menu has closed, so the terminal is free to ask.
+        M.generate_website_html(true, nil, nil)
         executed = true
     end
 
     -- Testing actions
-    if values.test_similar == "1" then
-        local poem_id = tonumber(values.test_poem_id) or 1
-        M.test_single_similarity_page(poem_id)
-        executed = true
-    end
-    if values.test_different == "1" then
-        local poem_id = tonumber(values.test_poem_id) or 1
-        M.test_single_difference_page(poem_id)
+    if values.test_pages == "1" then
+        M.test_one_poem_pages(
+            tonumber(values.test_poem_number) or error("the test poem number is a whole number, as on the site (poem-N)"),
+            tonumber(values.thread_count) or error("the thread count is a whole number of 1 or more"))
         executed = true
     end
 
@@ -835,83 +897,35 @@ function M.handle_tui_action(values)
 end
 -- }}}
 
--- {{{ function M.test_single_similarity_page
--- Test generating a single similarity page for debugging
-function M.test_single_similarity_page(poem_id)
-    utils.log_info("Testing similarity page for poem " .. poem_id .. "...")
-    local poems_file = utils.asset_path("poems.json")
-    local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
-    local output_dir = DIR .. "/output"
-
-    local poems_data = utils.read_json_file(poems_file)
-    local similarity_data = utils.read_json_file(similarity_file)
-
-    if poems_data and similarity_data then
-        local poem_data = nil
-        for _, poem in ipairs(poems_data.poems) do
-            if poem.id == poem_id then
-                poem_data = poem
-                break
-            end
-        end
-
-        if poem_data then
-            local ranking = flat_html_generator.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities or similarity_data)
-            -- Every poem needs its chronological map entry (progress bar and
-            -- chronological link, issues 8-045 / 10-036); an unpaginated map is
-            -- right for a one-off test page.
-            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id,
-                flat_html_generator.compute_chronological_mapping(poems_data, nil), false)
-            local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
-            os.execute("mkdir -p " .. output_dir)
-            utils.write_file(test_file, html)
-            utils.log_info("Test file written: " .. test_file)
-        else
-            utils.log_error("Poem ID " .. poem_id .. " not found")
-        end
-    else
-        utils.log_error("Failed to load required data files")
+-- {{{ function M.test_one_poem_pages
+-- Draws one poem's similar and different pages (first page of each), and all
+-- the chronological pages they link to, into a fresh folder in RAM, through
+-- the same page workers a build uses (Issue 8-058: there is one way to draw
+-- a page). The site is not touched. poem_number is the site's number (the N
+-- of poem-N); threads is how many workers draw; poems_per_page is asked for
+-- as a build asks, config.lua's value offered, since the neighbour caches
+-- hold only as many poems as the builds' page size needs.
+function M.test_one_poem_pages(poem_number, threads, poems_per_page)
+    local out = string.format("%s/tmp/shared-memory/test-pages/poem-%d-%s", DIR, poem_number, os.date("%Y%m%d-%H%M%S"))
+    local per_page = ask.resolve({
+        flag = "--poems-per-page", question = "How many poems on each similar/different page?",
+        kind = "count", given = poems_per_page,
+        default = flat_html_generator.get_pagination_config().poems_per_page,
+        default_source = "config.lua pagination.poems_per_page",
+        accept_defaults = ask.wants_defaults(arg),
+    })
+    local cmd = string.format("%q %q --out %q --model %q --server %q --threads %d --poems-per-page %d --pages 1 --anchor %d",
+        DIR .. "/scripts/render-page-sample", DIR, out,
+        inference_config.get_selected_model(), inference_config.get_selected_server().name,
+        threads, per_page, poem_number)
+    utils.log_info("Running: " .. cmd)
+    local result = os.execute(cmd)
+    -- LuaJIT reports success as 0, or as true when built with 5.2 compatibility
+    if result ~= 0 and result ~= true then
+        error("test pages failed for poem " .. poem_number)
     end
-end
--- }}}
-
--- {{{ function M.test_single_difference_page
--- Test generating a single difference page for debugging
-function M.test_single_difference_page(poem_id)
-    utils.log_info("Testing difference page for poem " .. poem_id .. "...")
-    local poems_file = utils.asset_path("poems.json")
-    local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
-    local output_dir = DIR .. "/output"
-
-    local poems_data = utils.read_json_file(poems_file)
-    local embeddings_data = utils.read_json_file(embeddings_file)
-
-    if poems_data and embeddings_data then
-        local poem_data = nil
-        for _, poem in ipairs(poems_data.poems) do
-            if poem.id == poem_id then
-                poem_data = poem
-                break
-            end
-        end
-
-        if poem_data then
-            local diversity_chaining = require("diversity-chaining")
-            local ranking = diversity_chaining.generate_diversity_chain(poem_id, poems_data, embeddings_data)
-            -- Issue 10-036: nil chrono_mapping here on purpose -- this is a dev test, not the
-            -- site build. The formatter now warns once and points at
-            -- chronological/index.html, which exists in both pagination modes.
-            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "different", poem_id, nil)
-            local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
-            os.execute("mkdir -p " .. output_dir)
-            utils.write_file(test_file, html)
-            utils.log_info("Test file written: " .. test_file)
-        else
-            utils.log_error("Poem ID " .. poem_id .. " not found")
-        end
-    else
-        utils.log_error("Failed to load required data files")
-    end
+    -- pages are named by the poem's source key (Issue 8-019)
+    utils.log_info(string.format("Pages written under %s (similar/ and different/, page 01 of poem %d)", out, poem_number))
 end
 -- }}}
 
@@ -927,7 +941,7 @@ function M.main(options)
             local action, values = M.show_tui_menu()
 
             if action == "quit" then
-                print("Goodbye!")
+                require("output").print("Goodbye!")
                 break
             elseif action == "run" then
                 local executed = M.handle_tui_action(values)
@@ -935,12 +949,12 @@ function M.main(options)
                 if executed then
                     -- Don't pause after status display
                     if values.status ~= "1" then
-                        print("\nPress Enter to continue...")
+                        require("output").print("\nPress Enter to continue...")
                         io.read()
                     end
                 else
-                    print("No action selected. Use space to toggle options, then press Enter or select [Run].")
-                    print("\nPress Enter to continue...")
+                    require("output").print("No action selected. Use space to toggle options, then press Enter or select [Run].")
+                    require("output").print("\nPress Enter to continue...")
                     io.read()
                 end
             end
@@ -991,7 +1005,8 @@ if arg then
         package.path = DIR .. "/libs/?.lua;" .. package.path
     end
 
-    M.main(options)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("main.lua", M.main, options)
 end
 
 return M

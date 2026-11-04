@@ -14,12 +14,20 @@
 --
 -- Word Count Options:
 --   --all               Include all words (no max_words limit)
---   --words N           Set maximum words to process (default: 200 from config)
+--   --words N           Set maximum words to process
+--   --yes, -y           Take config.lua's default for any value not given
+--
+-- Issue 10-065a: a value left off the command line is asked for, with
+-- config.lua's default in brackets; Enter takes it. Started by run.sh, or with
+-- nobody at the keyboard, a missing value is an error instead.
 --
 -- Usage:
---   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
+--   luajit src/generate-word-pages.lua [--dir PATH] [--embeddings-only|--html-only] [--all|--words N]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
 -- {{{ Setup
 local function setup_dir_path(provided_dir)
@@ -35,8 +43,8 @@ local function parse_args(args)
     local dir = nil
     local mode = "both"  -- default: both embeddings and HTML
     local all_words = false
-    local max_words = nil  -- nil means use config default
-    local poems_per_page = nil  -- Issue 8-050d: nil means use config default
+    local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
+    local poems_per_page = nil  -- Issue 8-050d; nil means not given: asked for, or --yes (10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never a literal)
     -- Issue 10-064: the build's --reverse, so "chronological" links number the
     -- pages the way that build did
@@ -45,6 +53,7 @@ local function parse_args(args)
     -- config.lua says"; a value here overrides both (see the --model branch).
     local model = nil
     local server = nil
+    local threads = nil  -- Issue 10-035: page workers; nil means not given: asked for
     local i = 1
 
     while i <= #(args or {}) do
@@ -89,17 +98,17 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("^--chrono%-per%-page=(.+)$"))
             i = i + 1
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- Issue 10-065: consume "--assets PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --assets out of `arg` itself), but
         -- it must still swallow it: the branch below claims any token that does
         -- not start with "-" as the positional project directory, so an
         -- unconsumed PATH would silently REPLACE the project root -- and since
         -- package.path is built from that root, the program would then fail to
         -- find its own libraries. Skipping a flag is not the same as skipping a
         -- flag and its argument.
-        elseif a == "--dir" then
+        elseif a == "--assets" then
             i = i + 2
-        -- Issue 10-065, same trap as --dir above: these take a VALUE, and the
+        -- Issue 10-065, same trap as --assets above: these take a VALUE, and the
         -- branch below claims any token not starting with "-" as the project
         -- directory. Left unconsumed, `--model embeddinggemma-300m` made
         -- "embeddinggemma-300m" the project root; package.path was built from it
@@ -116,28 +125,35 @@ local function parse_args(args)
             model = args[i + 1]; i = i + 2
         elseif a:match("^%-%-model=") then
             model = a:match("^%-%-model=(.+)$"); i = i + 1
+        elseif a == "--threads" then
+            threads = tonumber(args[i + 1]); i = i + 2
         elseif a == "--server" then
             server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then
             server = a:match("^%-%-server=(.+)$"); i = i + 1
-        elseif a:sub(1, 1) ~= "-" then
-            dir = a
-            i = i + 1
         else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
+            -- Skip unknown flags (value-less ones). There are no bare words
+            -- here: the folder reader stopped the program on any (Issue 10-076).
             i = i + 1
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, reverse
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, threads, reverse
 end
 -- }}}
 
-local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
-      CLI_MODEL, CLI_SERVER, CLI_REVERSE = parse_args(arg)
-local DIR = setup_dir_path(parsed_dir)
-package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). The reader is told
+-- which flags take a value, so those values are not stray; parse_args reads
+-- the program's own flags from what is left.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil), {
+        ["--words"] = true, ["--poems-per-page"] = true, ["--chrono-per-page"] = true,
+        ["--assets"] = true, ["--model"] = true, ["--threads"] = true, ["--server"] = true,
+    })
+local _, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
+      CLI_MODEL, CLI_SERVER, CLI_THREADS, CLI_REVERSE = parse_args(OWN_ARGS)
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
@@ -150,9 +166,6 @@ local fuzzy = require("fuzzy-computing")
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
--- Shared box/bar drawing so word-cloud poem pages can't drift from the
--- similar/different + chronological pages (they had a third, divergent copy).
-local poem_bars = require("poem-bars")
 -- Issue 10-065: the shared progress renderer, so this stage's bar obeys the same
 -- rules as every other stage's -- animated on a TTY, newline-terminated lines
 -- under --debug, silent when piped. It used to hand-roll a "\r" line instead;
@@ -162,16 +175,10 @@ local progress = require("progress-display")
 -- Reused here so the word-page "chronological" links resolve to the SAME page
 -- and anchor the chronological pages actually emit (Issue 10-049 follow-up).
 local flat_html = require("flat-html-generator")
--- Shared boost frame + text wrapping, so a reshared post looks the same here as
--- it does on the chronological and similar/different pages. Word pages used to
--- render boosts as plain poems, which is the only place on the site where the
--- frame went missing.
-local boost_bars = require("boost-bars")
-local text_formatter = require("text-formatter")
--- One owner for what every page's <head> contains (viewport, shipped font,
--- text-size lock). Four generators used to keep four copies of the font stack
--- and none of them declared a viewport.
-local page_head = require("page-head")
+-- How the chronological pages name their files, so a link from here lands
+-- on the page that holds the poem. (The pages themselves are drawn by the
+-- page workers through src/word-page.lua, Issue 10-035.)
+local chronological_page = require("chronological-page")
 -- How this project prepares vectors before comparing them, and the note that
 -- says which preparation a cache was built with (libs/embedding-space.lua).
 local embedding_space = require("embedding-space")
@@ -182,27 +189,105 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
--- Determine effective max_words: CLI --all > CLI --words > config
-local wc = unified_config.word_cloud or {}
-local effective_max_words
-if CLI_ALL_WORDS then
-    effective_max_words = math.huge  -- No limit
-elseif CLI_MAX_WORDS then
-    effective_max_words = CLI_MAX_WORDS
-else
-    effective_max_words = wc.max_words or 200
-end
+local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
+-- Issue 10-065a: a value missing from the command line is asked for (config.lua's
+-- value offered in brackets), taken from config.lua with a notice under --yes,
+-- or an error when run.sh started this program or nobody is at the keyboard.
+-- Each is settled where it is first USED, not at load: stage 6 runs this
+-- program in --embeddings-only mode, which never needs a page size, and must
+-- not stop to ask for one; --help must not ask anything either.
+local ask = require("ask-for-value")
+local ACCEPT_DEFAULTS = ask.wants_defaults(arg)
+-- Declared here, filled in below: the settle functions that follow must refer
+-- to this same table (a later `local CONFIG` would be a different variable to
+-- them, and they would write into an undefined global instead).
+local CONFIG
 
--- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
-local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
+-- {{{ settle_word_count()
+-- How many words get pages: --all / --words, else asked. Both modes need it
+-- (the embeddings and the pages must cover the same words). Settled once.
+local function settle_word_count()
+    if CONFIG.max_words then
+        return CONFIG.max_words
+    end
+    local answer = ask.resolve({
+        flag = "--words",
+        question = "How many words get word pages? (a number, or \"all\")",
+        kind = "count_or_all",
+        given = CLI_ALL_WORDS and "all" or CLI_MAX_WORDS,
+        default = wc.max_words,
+        default_source = "config.lua word_cloud.max_words",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    -- "all" means no limit
+    CONFIG.max_words = (answer == "all") and math.huge or answer
+    return CONFIG.max_words
+end
+-- }}}
+
+-- {{{ settle_threads()
+-- Issue 10-035: how many page workers draw the word pages: --threads, else
+-- asked (no default: run.sh passes the build's one thread count). Only the
+-- page-writing mode needs it. Settled once.
+local settled_threads = nil
+local function settle_threads()
+    if settled_threads then
+        return settled_threads
+    end
+    settled_threads = ask.resolve({
+        flag = "--threads",
+        question = "How many worker threads?",
+        kind = "count",
+        given = CLI_THREADS,
+        default = nil,
+        default_source = nil,
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_threads
+end
+-- }}}
+
+-- {{{ settle_poems_per_page()
+-- Issue 8-050d: poems listed on each word page: --poems-per-page, else asked.
+-- Only the page-writing mode needs it. Settled once.
+local function settle_poems_per_page()
+    if CONFIG.poems_per_word_page then
+        return CONFIG.poems_per_word_page
+    end
+    CONFIG.poems_per_word_page = ask.resolve({
+        flag = "--poems-per-page",
+        question = "How many poems on each word page?",
+        kind = "count",
+        given = CLI_POEMS_PER_PAGE,
+        default = wc.poems_per_page,
+        default_source = "config.lua word_cloud.poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return CONFIG.poems_per_word_page
+end
+-- }}}
 
 -- {{{ resolve_chrono_per_page()
 -- Chronological page size for the "chronological" poem links: the build's
--- --chrono-per-page if given, else the config value (which hard-errors if the
--- key is missing). No literal fallback -- a wrong size sends every link to the
--- wrong page, so an absent value is an error, not a guess (Issue 10-036).
+-- --chrono-per-page, else asked with the config value offered. Never a literal
+-- -- a wrong size sends every link to the wrong page (Issue 10-036). Settled once.
+local settled_chrono_per_page = nil
 local function resolve_chrono_per_page()
-    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+    if settled_chrono_per_page then
+        return settled_chrono_per_page
+    end
+    -- the config value is the offered default; a config without one offers none
+    local has_default, config_default = pcall(flat_html.default_chrono_per_page)
+    settled_chrono_per_page = ask.resolve({
+        flag = "--chrono-per-page",
+        question = "How many poems per chronological page?",
+        kind = "count",
+        given = CLI_CHRONO_PER_PAGE,
+        default = has_default and config_default or nil,
+        default_source = "config.lua pagination.chronological_poems_per_page",
+        accept_defaults = ACCEPT_DEFAULTS,
+    })
+    return settled_chrono_per_page
 end
 -- }}}
 
@@ -216,13 +301,15 @@ inference_config.set_project_root(DIR)
 -- late change would leave earlier readers pointing at a different directory.
 if CLI_SERVER then inference_config.set_selected_server(CLI_SERVER) end
 if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
-local CONFIG = {
+CONFIG = {
     model_name = inference_config.get_selected_model(),
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
-    poems_per_word_page = effective_poems_per_page,  -- Issue 8-050d: configurable via CLI/config
-    max_words = effective_max_words, -- Max words to process (from CLI or config)
+    -- Issue 10-065a: these two start unset and are filled by settle_word_count()
+    -- and settle_poems_per_page() when the mode that needs them begins
+    poems_per_word_page = nil,
+    max_words = nil,
 }
 -- }}}
 
@@ -253,6 +340,71 @@ local function cosine_similarity(vec1, vec2)
 end
 -- }}}
 
+-- {{{ local function ordered_keys
+-- A table's keys in a fixed order: numbers (and number-like strings such as
+-- "17") by value, then anything else by its text. Every walk whose order can
+-- change a page goes through this. A plain pairs() walk visits keys in hash
+-- order, which differs from one run to the next, and it changed pages two
+-- ways: two identical posts tie on similarity and the sort kept whichever came
+-- first, and the averages subtracted before comparing were summed in a
+-- different order each run, so their last decimals moved and near-ties
+-- flipped. The same code drew 13 of 60 word pages differently on two runs
+-- (found 2026-10-21, Issue 8-058's before/after check).
+local function ordered_keys(t)
+    local keys = {}
+    for k in pairs(t) do keys[#keys + 1] = k end
+    table.sort(keys, function(a, b)
+        local na, nb = tonumber(a), tonumber(b)
+        if na and nb then
+            if na ~= nb then return na < nb end
+            return tostring(a) < tostring(b)
+        end
+        if na or nb then return na ~= nil end  -- numbers before words
+        return tostring(a) < tostring(b)
+    end)
+    return keys
+end
+-- }}}
+
+-- {{{ local function more_similar_first
+-- The ranking order for word-page candidates: higher similarity first; equal
+-- similarity (two copies of one post) by poem number, so a tie is decided the
+-- same way every run.
+local function more_similar_first(a, b)
+    if a.word_similarity ~= b.word_similarity then
+        return a.word_similarity > b.word_similarity
+    end
+    return a.poem.poem_index < b.poem.poem_index
+end
+-- }}}
+
+-- {{{ local function shortlist
+-- Which poems to score exactly for one word, from the GPU's single-precision
+-- scores (Issue 10-035). Keeps every poem whose GPU score is within MARGIN
+-- of the keep-th best GPU score. A GPU score differs from the exact one by
+-- about a millionth (libs/vk-cross.test.lua), far less than half the margin,
+-- so every poem that belongs in the exact top `keep` -- ties included -- is
+-- kept, and the page is the same as scoring every poem exactly.
+-- score_of(r) : the GPU score of candidate r, r = 1..count
+-- returns     : list of candidate numbers r, ascending
+local SHORTLIST_MARGIN = 1e-4
+local function shortlist(score_of, count, keep)
+    local rows = {}
+    if keep >= count then
+        for r = 1, count do rows[r] = r end
+        return rows
+    end
+    local sorted = {}
+    for r = 1, count do sorted[r] = score_of(r) end
+    table.sort(sorted)                                   -- ascending
+    local threshold = sorted[count - keep + 1] - SHORTLIST_MARGIN
+    for r = 1, count do
+        if score_of(r) >= threshold then rows[#rows + 1] = r end
+    end
+    return rows
+end
+-- }}}
+
 -- {{{ local function compute_corpus_mean
 -- The direction every poem vector shares, from the shared module so that the
 -- word pages, the similarity matrix and the diversity cache all subtract the
@@ -264,14 +416,15 @@ end
 -- shared function takes, rather than duplicating the averaging.
 local function compute_corpus_mean(poem_lookup)
     local entries = {}
-    for _, emb in pairs(poem_lookup) do
-        entries[#entries + 1] = { embedding = emb }
+    -- summed in poem order, so the average is the same to the last bit each run
+    for _, key in ipairs(ordered_keys(poem_lookup)) do
+        entries[#entries + 1] = { embedding = poem_lookup[key] }
     end
     local mean, detail = embedding_space.corpus_mean(entries)
     if not mean then
-        -- detail carries the reason. Reported, not swallowed: without a mean the
-        -- ranking silently reverts to the uncentred behaviour, which is the thing
-        -- this correction exists to replace.
+        -- detail carries the reason. The nil it returns then stops the ranking
+        -- outright: cosine_across_populations refuses to compare without both
+        -- averages rather than reverting to the uncentred measurement.
         utils.log_error("Could not centre the embedding space: " .. tostring(detail))
         return nil
     end
@@ -279,13 +432,6 @@ local function compute_corpus_mean(poem_lookup)
 end
 -- }}}
 
--- {{{ local function centered
--- Subtracts the shared direction from one vector. Thin alias for the shared
--- module, kept because the two call sites below read better with a bare name.
-local function centered(vec, mean)
-    return embedding_space.centered(vec, mean)
-end
--- }}}
 
 -- {{{ local function load_word_embeddings_cache
 local function load_word_embeddings_cache()
@@ -339,7 +485,11 @@ local function compute_color_ranking(word_embedding, color_embeddings)
             similarity = cosine_similarity(word_embedding, color_embedding),
         }
     end
-    table.sort(ranking, function(a, b) return a.similarity > b.similarity end)
+    -- equal similarity: by colour name, so a tie goes the same way every run
+    table.sort(ranking, function(a, b)
+        if a.similarity ~= b.similarity then return a.similarity > b.similarity end
+        return a.color < b.color
+    end)
     return ranking
 end
 -- }}}
@@ -489,13 +639,17 @@ local function spread_colors_across_page(ranked, poem_colors)
                 -- depend on table iteration order, which is not stable in Lua and
                 -- would make two builds of the same data differ.
                 rank = entry.word_similarity or 0,
+                -- and when two are equally relevant (copies of one post), by
+                -- poem number
+                index = entry.poem.poem_index,
             }
         end
     end
 
     table.sort(placed, function(a, b)
         if a.target ~= b.target then return a.target < b.target end
-        return a.rank > b.rank
+        if a.rank ~= b.rank then return a.rank > b.rank end
+        return a.index < b.index
     end)
 
     local out = {}
@@ -547,22 +701,38 @@ end
 -- }}}
 
 -- {{{ local function find_closest_poem_to_centroid
--- Issue 8-050e: Find the poem whose embedding is closest to the given centroid
--- Returns poem data or nil if no match found
-local function find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
-    if not centroid then return nil end
-
+-- Issue 8-050e: the poem whose (raw) vector is closest to the centroid, the
+-- page's link into the timeline.
+-- prepared_poems: the run's candidate list, in poem order, each row carrying
+--   its raw vector (embedding) and that vector's sum of squares (raw_sq),
+--   worked out once per run (Issue 10-035: the lengths and the key order used
+--   to be redone for every word). Only poems can win; a picture's stand-in
+--   vector is not a candidate, since it has no chronological place to link.
+-- The arithmetic is cosine_similarity's, in the same order, so the result is
+-- the same to the last bit; on a tie the lowest poem number stays the best.
+local function find_closest_poem_to_centroid(centroid, prepared_poems)
     local best_poem = nil
     local best_similarity = -1
-
-    for poem_id_str, poem_embedding in pairs(poem_lookup) do
-        local sim = cosine_similarity(centroid, poem_embedding)
+    local dim = #centroid
+    for _, row in ipairs(prepared_poems) do
+        local emb = row.embedding
+        local sim = 0
+        if #emb == dim then
+            local dot, n1 = 0, 0
+            for i = 1, dim do
+                dot = dot + (centroid[i] * emb[i])
+                n1 = n1 + (centroid[i] * centroid[i])
+            end
+            local norm1, norm2 = math.sqrt(n1), math.sqrt(row.raw_sq)
+            if norm1 ~= 0 and norm2 ~= 0 then
+                sim = dot / (norm1 * norm2)
+            end
+        end
         if sim > best_similarity then
             best_similarity = sim
-            best_poem = poems_by_index[tonumber(poem_id_str)]
+            best_poem = row.poem
         end
     end
-
     return best_poem
 end
 -- }}}
@@ -619,7 +789,8 @@ end
 -- Issue 10-003: Load stop words from embedded config.word_cloud.stop_words array
 local function load_stop_words()
     local stop_words = {}
-    local wc = unified_config.word_cloud or {}
+    local wc = unified_config.word_cloud or error("config.lua has no word_cloud section")
+    -- optional: absent means no stop words beyond the built-in short-word rule
     for _, word in ipairs(wc.stop_words or {}) do
         stop_words[word:lower()] = true
     end
@@ -673,332 +844,19 @@ local function build_poem_embeddings_lookup(embeddings_data)
 end
 -- }}}
 
--- {{{ local function format_poem_for_word_page
--- Issue 8-043c: Format poem entry using same box-drawing style as similar/different pages
--- Issue 10-036: Added chrono_page_map for correct per-poem pagination links
--- Uses CHRONOLOGICAL position for progress bar (same as similar/different pages)
--- This helps users orient themselves in the timeline/story
-local function format_poem_for_word_page(poem, rank, similarity, poem_colors, color_config, chrono_map, chrono_page_map)
-    local poem_idx = poem.poem_index or 0
-
-    -- Get semantic color for this poem (default to gray)
-    local poem_color_data = poem_colors and poem_colors[poem_idx]
-    local semantic_color = poem_color_data and poem_color_data.color or "gray"
-    local hex_color = color_config and color_config[semantic_color] or "#888888"
-
-    -- Check if golden poem (metadata-based detection)
-    local is_golden = poem.metadata and poem.metadata.is_golden_poem
-
-    -- Use CHRONOLOGICAL position for progress bar (not similarity score)
-    -- This matches similar/different pages and helps orient the reader in the story
-    -- Issue 8-045: Use timeline_progress (time-based) instead of position-based
-    -- A poem missing from the map used to get a 50% bar; now the page build
-    -- stops and names it (issue 8-045).
-    local chrono_info = chrono_map and chrono_map[poem_idx]
-    if not chrono_info then
-        error("word page: poem " .. tostring(poem_idx) .. " is not in the chronological map"
-            .. (chrono_map and "" or " (no map was passed)"))
-    end
-    local progress_pct = chrono_info.timeline_progress
-
-    -- Calculate progress bar chars
-    -- Regular: 83 chars total, Golden: 82 interior + 2 corners = 84 total
-    local total_bar_chars = is_golden and 82 or 83
-    local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
-    local remaining_chars = total_bar_chars - progress_chars
-
-    -- Top progress bar from the shared poem-bars module (canonical geometry,
-    -- same as the similar/different + chronological pages).
-    poem_bars.configure(color_config)
-    local colored_progress = poem_bars.progress_dashes(
-        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "top", false).visual
-
-    -- Navigation links
-    local base_path = ".."
-    local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
-    local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-    -- Anchor must match the spans the chronological pages emit, which are
-    -- get_poem_anchor_id() = "poem-<poem_index>". The old "poem-CATEGORY-ID"
-    -- form never matched any anchor, so the chronological link landed at the
-    -- top of the page instead of the poem.
-    local anchor_id = string.format("poem-%d", poem_idx)
-    -- Issue 10-036: Use chrono_page_map for correct paginated link (index.html is redirect that loses anchors)
-    local chrono_page = chrono_page_map and chrono_page_map[poem_idx] or "01"
-    local chrono_link = string.format("<a href='%s/chronological/%s.html#%s'>chronological</a>", base_path, chrono_page, anchor_id)
-
-    -- Which source file this poem came from, shown above every entry so a reader
-    -- can find the original. Computed HERE, above the boost branch, because that
-    -- branch returns early -- when this lived further down, boosts on word pages
-    -- came out with no source line at all while every other page type had one.
-    -- Format: " -> file: fediverse/1234" or " -> file: notes/myfile".
-    local category = poem.category or "unknown"
-    local filename
-    if category == "notes" and poem.metadata and poem.metadata.source_file then
-        filename = poem.metadata.source_file
-    else
-        filename = tostring(poem.id or "unknown")
-    end
-    local poem_identifier = " -> file: " .. category .. "/" .. filename
-
-    -- A boost is a reshared post, and it gets its own nested frame: red arrows
-    -- into the corners, a blue outer wall, a teal inner box, the borrowed text in
-    -- yellow (Issue 8-057). Word pages used to skip this entirely -- this file
-    -- contained no mention of boosts at all -- so a reshare rendered as an
-    -- ordinary poem showing the raw "External post: <url>" placeholder, with the
-    -- URL not even clickable, while the same poem on a chronological page showed
-    -- the framed, cached content. The frame is drawn by the shared module rather
-    -- than redrawn here, which is the whole point of that module existing:
-    -- three hand-copied versions had already drifted into misaligned walls.
-    if poem.metadata and poem.metadata.is_boost then
-        local text = (poem.content or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-        -- An empty boost means the scrape never captured the original. Say which
-        -- post is missing rather than printing an empty frame.
-        if text == "" or text:match("^%s*$") then
-            local original_uri = poem.metadata.original_uri
-            if original_uri then
-                text = "External post: " .. original_uri:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-            else
-                text = "(Boost content unavailable)"
-            end
-        end
-
-        -- An uncached boost is just a link. Wrap it ACROSS the box lines with
-        -- every line anchored to the whole URL, so a long address stays inside
-        -- the frame and stays clickable instead of overflowing the right wall.
-        local external_url = text:match("^External post: (https?://[^%s]+)$")
-        if external_url then
-            text = text_formatter.wrap_external_url(
-                "External post: ", external_url, boost_bars.CONTENT_WIDTH)
-        else
-            local rewrapped = {}
-            for line in (text .. "\n"):gmatch("(.-)\n") do
-                for _, w in ipairs(text_formatter.wrap_preserving_indent(line, boost_bars.CONTENT_WIDTH)) do
-                    table.insert(rewrapped, w)
-                end
-            end
-            text = table.concat(rewrapped, "\n")
-        end
-
-        local boost_lines = {}
-        for line in (text .. "\n"):gmatch("(.-)\n") do
-            table.insert(boost_lines, line)
-        end
-
-        boost_bars.configure(flat_html.BOOST_COLOR_CONFIG)
-        -- Source line first, then the frame -- the same order the chronological
-        -- pages use, so a boost reads identically wherever it is encountered.
-        return poem_identifier .. "\n" .. boost_bars.format_boost(
-            boost_lines, progress_pct / 100,
-            similar_link, different_link, chrono_link, true) .. "\n"
-    end
-
-    -- Word-wrap content to 80 chars
-    local content = poem.content or ""
-    content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-    local wrapped_lines = {}
-
-    -- Issue 9-011: content-warning boxes come from the shared builder (wraps a
-    -- long warning after dashes and spaces, pads by visible width), indented
-    -- one column as before.  These copies used to put the whole warning on
-    -- one line, so a long one ran through the right side of the frame.
-    local function add_cw_box(cw_display)
-        local box = text_formatter.format_cw_box(cw_display, 80, true)
-        for box_line in box:gmatch("[^\n]+") do
-            table.insert(wrapped_lines, " " .. box_line)
-        end
-    end
-
-    -- Handle content warning from poem.content_warning (ActivityPub CW)
-    if poem.content_warning and poem.content_warning ~= "" then
-        add_cw_box("CW: " .. poem.content_warning)
-        table.insert(wrapped_lines, "")
-        table.insert(wrapped_lines, "")
-    end
-
-    -- Handle in-content CW: patterns
-    local main_content = content
-    local cw_match = content:match("^%s*[Cc][Ww]%s*:(.-)[\n\r]")
-    if not cw_match then
-        cw_match = content:match("^%s*[Cc]ontent [Ww]arning%s*:(.-)[\n\r]")
-    end
-    if cw_match then
-        local cw_text = cw_match:match("^%s*(.-)%s*$")
-        main_content = content:gsub("^%s*[Cc][Ww]%s*:[^\n\r]*[\n\r]?", "")
-        main_content = main_content:gsub("^%s*[Cc]ontent [Ww]arning%s*:[^\n\r]*[\n\r]?", "")
-        if cw_text and #cw_text > 0 then
-            add_cw_box("CW: " .. cw_text)
-            table.insert(wrapped_lines, "")
-        end
-    end
-
-    -- Issue 9-011 (step 3): poem text is wrapped by the shared wrapper the
-    -- similar/different/chronological pages use -- one-column margin, 80
-    -- columns, the author's spacing kept, measured by visible width, and a
-    -- word too long for the line (a web address) cut at the edge.  This page's
-    -- own wrapper counted bytes, collapsed runs of spaces, and never broke a
-    -- long word, so addresses ran out of the frame.
-    for _, line in ipairs(text_formatter.format_poem_content(main_content, 80)) do
-        table.insert(wrapped_lines, line)
-    end
-
-    -- Apply golden side borders if needed
-    if is_golden then
-        local golden_lines = {}
-        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-        local CONTENT_WIDTH = 80
-
-        local function utf8_char_count(str)
-            return #(str:gsub("[\128-\191]", ""))
-        end
-
-        for _, line in ipairs(wrapped_lines) do
-            local line_content = line:match("^%s*(.*)$") or line
-            local visible_content = line_content:gsub("<[^>]+>", "")
-            local visible_length = utf8_char_count(visible_content)
-            local padded_content
-            if visible_length >= CONTENT_WIDTH then
-                padded_content = line_content
-            else
-                padded_content = line_content .. string.rep(" ", CONTENT_WIDTH - visible_length)
-            end
-            table.insert(golden_lines, colored_wall .. " " .. padded_content .. " │")
-        end
-        wrapped_lines = golden_lines
-    end
-
-    -- Helper to colorize box characters based on progress
-    local function color_char(char, pos)
-        if progress_chars > pos then
-            return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
-        end
-        return char
-    end
-
-    -- Navigation box + bottom bar from the shared poem-bars module. The old
-    -- inline copy had drifted (golden junctions at 9/70 instead of 10/71), which
-    -- is exactly why word-cloud golden poems were mangled.
-    local nav_top, nav_mid
-    if is_golden then
-        nav_top = poem_bars.golden_corner_box_separator(hex_color, progress_chars)
-        nav_mid = poem_bars.golden_corner_box_nav_line(similar_link, different_link, chrono_link, hex_color, progress_chars)
-    else
-        nav_top = poem_bars.corner_box_top(progress_chars, hex_color)
-        nav_mid = poem_bars.corner_box_nav_line(similar_link, different_link, chrono_link, progress_chars, hex_color)
-    end
-
-    local bottom_line = poem_bars.progress_dashes(
-        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "bottom", true).visual
-
-    -- Build final output
-    local output = {}
-    table.insert(output, colored_progress)
-    if is_golden then
-        -- The header (" -> file:") and the blank line below it belong INSIDE the
-        -- golden box, with the same ║ ... │ walls as every other line, so the box
-        -- has consistent borders and uniform line width (no special-spaced gap).
-        local function golden_line(content)
-            local visible = content:gsub("<[^>]+>", "")
-            local vlen = #(visible:gsub("[\128-\191]", ""))
-            local padded = content .. string.rep(" ", math.max(0, 80 - vlen))
-            return string.format('<font color="%s"><b>║</b></font> %s │', hex_color, padded)
-        end
-        table.insert(output, golden_line((poem_identifier:gsub("^%s+", ""))))
-        table.insert(output, golden_line(""))
-    else
-        table.insert(output, poem_identifier)
-        table.insert(output, "")
-    end
-    table.insert(output, table.concat(wrapped_lines, "\n"))
-    table.insert(output, nav_top)
-    table.insert(output, nav_mid)
-    table.insert(output, bottom_line)
-
-    return table.concat(output, "\n")
-end
--- }}}
-
--- {{{ local function generate_word_page
--- Generates HTML page for a single word showing similar poems
--- Issue 8-043c: Now uses same box-drawing format as similar/different pages
--- Issue 8-050c: Word color shown in header, per-poem colors for progress bars
--- Issue 8-050e: Chronological link points to centroid-based location in timeline
--- Issue 10-036: Added chrono_page_map for correct per-poem pagination links
--- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link, chrono_page_map)
-    local safe_word = word:lower():gsub("[^%w]", "")
-    local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
-
-    -- Ensure directory exists
-    os.execute('mkdir -p "' .. output_dir .. '/wordcloud"')
-
-    -- Take top N poems
-    local top_poems = {}
-    for i = 1, math.min(poems_per_page, #ranked_poems) do
-        top_poems[i] = ranked_poems[i]
-    end
-
-    -- Issue 8-050c: Use word's semantic color for header (default to gray if not provided)
-    local header_color = word_hex_color or "#888888"
-
-    -- Issue 8-050e: Use centroid-based chronological link if provided, else default
-    local base_path = ".."
-    local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
-
-    -- Generate HTML.
-    -- The <head> -- charset, mobile viewport, shipped monospace font, text-size
-    -- lock -- comes from the shared page-head module, so this page cannot drift
-    -- away from the similar/different/chronological pages the way it had.
-    -- Same centering CSS those pages use: each <pre> centers as an inline-block
-    -- (text stays left), so the poem column lands on the page centerline even
-    -- when an attached image is wider.
-    local head = page_head.head({
-        title = "Poems similar to: " .. word,
-        base_path = base_path,
-        extra_css = "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; }\n"
-                 .. "img, video, audio { margin-left: auto; margin-right: auto; }",
-    })
-    local html_parts = {}
-    table.insert(html_parts, string.format([[<!DOCTYPE html>
-<html>
-%s
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
-<p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>
-<!-- Issue 16-011: Changed main.html to wordcloud.html (main.html doesn't exist) -->
-<p><a href="%s/wordcloud.html">Menu</a> │ <a href="%s">Chronological</a></p>
-</center>
-<hr>
-<table align="center"><tr><td>
-<pre>
-]], head, header_color, word, #top_poems, base_path, chrono_link))
-
-    -- Add ranked poems using box-drawing format
-    -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links
-    for i, entry in ipairs(top_poems) do
-        local formatted = format_poem_for_word_page(entry.poem, i, entry.similarity, poem_colors, color_config, chrono_map, chrono_page_map)
-        table.insert(html_parts, formatted)
-        table.insert(html_parts, "\n")
-    end
-
-    table.insert(html_parts, [[</pre>
-</td></tr></table>
-</body>
-</html>
-]])
-
-    local html = table.concat(html_parts)
-    return utils.write_file(output_file, html)
-end
--- }}}
+-- The order rules, for src/generate-word-pages.order.test.lua.
+M.ordered_keys = ordered_keys
+M.more_similar_first = more_similar_first
+M.spread_colors_across_page = spread_colors_across_page
+M.shortlist = shortlist
 
 -- {{{ function M.generate_word_embeddings
 -- Issue 8-043b: Stage 6 - Generate word embeddings only (expensive operation)
 -- Called during embedding generation stage of the pipeline
 function M.generate_word_embeddings(options)
     options = options or {}
+    -- Issue 10-065a: the word list needs its size before anything else
+    settle_word_count()
 
     -- Check inference server availability
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
@@ -1093,6 +951,12 @@ end
 -- Called during HTML generation stage of the pipeline
 function M.generate_word_html(options)
     options = options or {}
+    -- Issue 10-065a: settle every value this mode uses before any work starts,
+    -- so a question never interrupts a half-finished run
+    settle_word_count()
+    settle_poems_per_page()
+    resolve_chrono_per_page()
+    local num_threads = settle_threads()
     local output_dir = options.output_dir or (DIR .. "/output")
 
     -- Load poems
@@ -1111,6 +975,22 @@ function M.generate_word_html(options)
         return nil
     end
     local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
+
+    -- {{{ Issue 8-019: the vectors and colours must be in this run's numbering
+    -- Both are filed by poem number, and numbers are counted fresh on every
+    -- extraction; one made under another numbering would put the wrong
+    -- poems on a word's page. Stop if either differs from the poem list.
+    -- Checked on a build (options.check_numbering, set by main()); a trial
+    -- render (scripts/render-page-sample) draws from whatever caches exist.
+    if options.check_numbering then
+        local numbering_stamp = require("numbering-stamp")
+        local numbering = numbering_stamp.of_poems(poems_data)
+        if numbering_stamp.of_embeddings(embeddings_data) ~= numbering then
+            error("embeddings.json was made under another numbering of the poems; rerun stage 6 (--force-stage 6)")
+        end
+        numbering_stamp.check(utils.embeddings_dir() .. "/poem_colors.json", numbering, "poem colours", "stage 6 (--force-stage 6)")
+    end
+    -- }}}
 
     -- The direction every embedding shares, subtracted before any comparison.
     --
@@ -1148,6 +1028,23 @@ function M.generate_word_html(options)
     end
     utils.log_info(string.format("Loaded %d word embeddings", word_count))
 
+    -- The words' own average, subtracted from each word before ranking (the
+    -- poems are centred on theirs). A lone word sits at a different offset from
+    -- the poems; centring it on the poem average left that difference in every
+    -- word and sent all 7,290 pages to the same short posts. See
+    -- cosine_across_populations in libs/embedding-space.lua.
+    local word_entries = {}
+    -- summed in word order, so the average is the same to the last bit each run
+    for _, word in ipairs(ordered_keys(word_embeddings)) do
+        word_entries[#word_entries + 1] = { embedding = word_embeddings[word] }
+    end
+    local word_mean, word_mean_detail = embedding_space.corpus_mean(word_entries)
+    if not word_mean then
+        -- Refused rather than degraded: without it every word page reverts to
+        -- the one-offset ranking this replaced, and still looks complete.
+        error("Could not average the word embeddings: " .. tostring(word_mean_detail))
+    end
+
     -- Issue 8-043c: Load poem colors for semantic coloring
     -- Issue 10-034: Fixed path - poem_colors.json is in embeddings directory, not assets root
     local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
@@ -1158,17 +1055,21 @@ function M.generate_word_html(options)
     -- The old code keyed on entry.poem_index -- always nil -- so the table came
     -- out empty and every word-page progress bar fell back to gray. Reading the
     -- array directly is what makes those bars match the similar/different pages.
-    local poem_colors = (poem_colors_data and poem_colors_data.poem_colors) or {}
+    -- No colours, no pages: the other pages stop the same way. (This used
+    -- to warn and draw every poem grey, a page that looks finished.)
     if not (poem_colors_data and poem_colors_data.poem_colors) then
-        utils.log_warn("No poem colors found - using default gray")
+        error("no poem colours in " .. poem_colors_file)
     end
+    local poem_colors = poem_colors_data.poem_colors
 
     -- Issue 8-050a: Load word colors for per-word semantic coloring
     local word_colors = load_word_colors_cache()
     local word_color_count = 0
     for _ in pairs(word_colors) do word_color_count = word_color_count + 1 end
+    -- No word colours, no pages: every heading would be grey. They come from
+    -- the word-cloud stage (--embeddings-only).
     if word_color_count == 0 then
-        utils.log_warn("No word colors found - run --embeddings-only to generate them")
+        error("no word colours found; run the word-cloud stage (--embeddings-only) first")
     end
 
     -- No colour embeddings are loaded here any more. Poem colours are READ from
@@ -1191,9 +1092,8 @@ function M.generate_word_html(options)
 
     -- Issue 8-043c: Compute chronological mapping for progress bars
     -- This maps poem_index → {position, total_poems} for timeline orientation
-    -- Issue 8-050e: Also builds chrono_page_map for centroid-based navigation
+    -- Issue 8-050e: the page number also gives the centroid-based link
     local chrono_map = {}
-    local chrono_page_map = {}  -- poem_index → page string ("01", "02", etc.)
     do
         -- Reuse the chronological-page generator's OWN mapping instead of a second
         -- inline copy. The old copy sorted by the raw creation_date string with no
@@ -1216,8 +1116,11 @@ function M.generate_word_html(options)
                 -- Carry the time-based progress so the word-page bars match the
                 -- similar/different/chronological pages exactly (not position-based).
                 timeline_progress = info.timeline_progress,
+                -- which chronological page holds it, and how many there are
+                -- (chronological_page.file_name turns these into "03.html")
+                page_number = info.page_number,
+                total_pages = info.total_pages,
             }
-            chrono_page_map[poem_index] = string.format("%02d", info.page_number)
             total_poems = info.total_poems
         end
         utils.log_info(string.format("Built chronological mapping for %d poems (%d per page, shared)", total_poems, per_page))
@@ -1231,12 +1134,65 @@ function M.generate_word_html(options)
         end
     end
 
+    -- Every poem that can appear on a word page, centred on the poem average
+    -- once for the whole run, in poem order (Issue 10-035: it used to be
+    -- re-centred for every word). A vector with no poem in poems.json (a
+    -- gallery picture's stand-in) is not a candidate.
+    local prepared_poems = {}
+    for _, poem_index_str in ipairs(ordered_keys(poem_lookup)) do
+        local poem = poems_by_index[tonumber(poem_index_str)]
+        local poem_embedding = poem_lookup[poem_index_str]
+        if poem and poem_embedding then
+            local raw_sq = 0
+            for i = 1, #poem_embedding do
+                raw_sq = raw_sq + (poem_embedding[i] * poem_embedding[i])
+            end
+            prepared_poems[#prepared_poems + 1] = {
+                poem = poem,
+                embedding = poem_embedding,
+                raw_sq = raw_sq,  -- for the centre-poem search
+                prepared = embedding_space.centre_once(poem_embedding, corpus_mean),
+            }
+        end
+    end
+
     -- Get word list (same as embedding generation to ensure consistency)
     local stop_words = load_stop_words()
     local words = get_word_list(poems_data, stop_words, 5, CONFIG.max_words, 3)
 
     -- Generate pages for each word
-    local pages_generated = 0
+    -- Each word's page is planned here (which poems, in which order, the
+    -- heading colour, the centre link) and drawn by the page workers, the
+    -- same pool that draws every other page (Issue 10-035).
+    local jobs = {}
+
+    -- {{{ every word against every poem, at once, on the GPU (Issue 10-035)
+    -- Each word centred on the word average once; the GPU scores all words
+    -- against all prepared poems in one dispatch. Each word then scores
+    -- only its shortlist exactly (see shortlist).
+    local prepared_words = {}
+    for i, word in ipairs(words) do
+        local word_embedding = word_embeddings[word]
+        if not word_embedding then
+            -- The word list and the word embeddings come from the same
+            -- settings (--words, the stop list); a word without a vector means
+            -- the embeddings were made for a different list. Stop rather than
+            -- ship a word cloud whose words lead nowhere (it used to warn and
+            -- skip the word).
+            error(string.format("word page: no embedding for word '%s'; rerun the word-cloud stage (--embeddings-only) with the same --words", word))
+        end
+        prepared_words[i] = embedding_space.centre_once(word_embedding, word_mean)
+    end
+    local gpu_score
+    do
+        local a, b = {}, {}
+        for i, w in ipairs(prepared_words) do a[i] = w.v end
+        for r, row in ipairs(prepared_poems) do b[r] = row.prepared.v end
+        gpu_score = require("vk_cross").cosine_table(DIR, a, b)
+        utils.log_info(string.format("Scored %d words against %d poems on the GPU", #a, #b))
+    end
+    -- }}}
+
     for i, word in ipairs(words) do
         -- Issue 10-065: update OUTSIDE the has-an-embedding test below, so the
         -- bar tracks position in the word list rather than only the words that
@@ -1255,26 +1211,24 @@ function M.generate_word_html(options)
             progress.update("   🔤 Word pages", i, #words, word)
         end
 
-        local word_embedding = word_embeddings[word]
-        if word_embedding then
+        do
 
-            -- Rank every poem against the word, both sides mean-centered so the
-            -- shared direction described above cannot outvote the meaning.
-            local centered_word = centered(word_embedding, corpus_mean)
+            -- Rank every poem against the word, each centred on its own
+            -- population's average so neither kind of text's habitual offset
+            -- can outvote the meaning. Both were centred once, above; the
+            -- GPU's scores pick the shortlist, scored here exactly.
+            local word_prepared = prepared_words[i]
             local candidates = {}
-            for poem_index_str, poem_embedding in pairs(poem_lookup) do
-                local poem_index = tonumber(poem_index_str)
-                local poem = poems_by_index[poem_index]
-                if poem and poem_embedding then
-                    local word_sim = cosine_similarity(
-                        centered_word, centered(poem_embedding, corpus_mean))
-                    table.insert(candidates, {
-                        poem = poem,
-                        embedding = poem_embedding,
-                        word_similarity = word_sim,
-                        similarity = word_sim  -- for generate_word_page compatibility
-                    })
-                end
+            local rows = shortlist(function(r) return gpu_score(i, r) end,
+                #prepared_poems, CONFIG.poems_per_word_page)
+            for k, r in ipairs(rows) do
+                local row = prepared_poems[r]
+                local word_sim = embedding_space.cosine_centred(word_prepared, row.prepared)
+                candidates[k] = {
+                    poem = row.poem,
+                    embedding = row.embedding,
+                    word_similarity = word_sim,
+                }
             end
 
             -- Most relevant first, then spread the colours across that page.
@@ -1284,9 +1238,7 @@ function M.generate_word_html(options)
             -- down the page shows a changing colour rather than a long run of one.
             -- This is a word-page treatment only; the similar/different pages
             -- deliberately stay in strict similarity order.
-            table.sort(candidates, function(a, b)
-                return a.word_similarity > b.word_similarity
-            end)
+            table.sort(candidates, more_similar_first)
             local top_n = {}
             for j = 1, math.min(#candidates, CONFIG.poems_per_word_page) do
                 top_n[j] = candidates[j]
@@ -1294,42 +1246,65 @@ function M.generate_word_html(options)
             local ranked_poems = spread_colors_across_page(top_n, poem_colors)
 
             -- Issue 8-050c: Get word's semantic color for header
+            -- A word with no colour recorded, or a colour the palette lacks,
+            -- stops the build: the word-colour cache is older than the word
+            -- list (rerun the word-cloud stage, --embeddings-only). It used to
+            -- draw the heading in a grey outside the palette.
             local word_color_entry = word_colors[word]
-            local word_semantic_color = word_color_entry and word_color_entry.color or "gray"
-            local word_hex_color = color_config and color_config[word_semantic_color] or "#888888"
+                or error("word page: '" .. word .. "' has no colour in word_colors.json; run the word-cloud stage (--embeddings-only)")
+            local word_hex_color = color_config[word_color_entry.color]
+                or error("word page: '" .. word .. "' has colour '" .. tostring(word_color_entry.color) .. "', which config.lua's palette lacks")
 
-            -- Issue 8-050e: Compute centroid-based chronological link
-            local chrono_center_link = nil
+            -- Issue 8-050e: the page's link into the timeline, at the poem
+            -- nearest the centre of the page's poems. Every page has poems with
+            -- vectors, so there is always a centre and a nearest poem; a page
+            -- without one stops the build (it used to link to the top of the
+            -- chronological view instead).
+            local chrono_center_link
             do
-                -- Compute centroid of selected poems
                 local centroid = compute_centroid(ranked_poems, poem_lookup)
-                if centroid then
-                    -- Find the poem closest to the centroid
-                    local center_poem = find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
-                    if center_poem and center_poem.poem_index then
-                        -- Anchor must match the spans the chronological pages emit:
-                        -- get_poem_anchor_id() = "poem-<poem_index>". The old
-                        -- "poem-CATEGORY-ID" form matched no anchor, so this top
-                        -- "chronological" link landed at the page top, not the poem.
-                        local anchor_id = string.format("poem-%d", center_poem.poem_index)
-                        -- Get chronological page for this poem
-                        -- Issue 10-036: Use "01" fallback instead of "index" (redirect loses anchors)
-                        local chrono_page = chrono_page_map[center_poem.poem_index] or "01"
-                        -- Build full link
-                        local base_path = ".."
-                        chrono_center_link = string.format("%s/chronological/%s.html#%s",
-                            base_path, chrono_page, anchor_id)
-                    end
-                end
+                    or error("word page: '" .. word .. "' has no poems with vectors to take a centre of")
+                local center_poem = find_closest_poem_to_centroid(centroid, prepared_poems)
+                    or error("word page: '" .. word .. "': no poem is nearest its centre")
+                -- Anchor must match the spans the chronological pages emit:
+                -- get_poem_anchor_id() = "poem-<poem_index>". The old
+                -- "poem-CATEGORY-ID" form matched no anchor, so this top
+                -- "chronological" link landed at the page top, not the poem.
+                local anchor_id = require("poem-address").anchor(center_poem)  -- Issue 8-019
+                -- The chronological page that holds it, named as those
+                -- pages name themselves. Every poem is on the timeline;
+                -- one that is not stops the build (10-036: a guessed
+                -- page sent readers to the wrong place).
+                local center_info = chrono_map[center_poem.poem_index]
+                    or error("word page: centre poem " .. center_poem.poem_index .. " is not in the chronological map")
+                chrono_center_link = string.format("../chronological/%s#%s",
+                    chronological_page.file_name(center_info.page_number, center_info.total_pages), anchor_id)
             end
 
-            -- Generate page with semantic colors and chronological position
-            -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link, chrono_page_map) then
-                pages_generated = pages_generated + 1
+            -- The page's job: its first poems_per_word_page poems in this
+            -- order, each with its place on the timeline (8-045) and the
+            -- chronological page that holds it.
+            local entries = {}
+            for k = 1, math.min(CONFIG.poems_per_word_page, #ranked_poems) do
+                local poem = ranked_poems[k].poem
+                local index = poem.poem_index
+                local info = chrono_map[index]
+                if not info then
+                    -- a poem with no place on the timeline has no bar and no page to link
+                    error("word page: poem " .. tostring(index) .. " is not in the chronological map")
+                end
+                entries[k] = {
+                    poem = poem,
+                    progress_pct = info.timeline_progress,
+                    chrono_file = chronological_page.file_name(info.page_number, info.total_pages),
+                }
             end
-        else
-            utils.log_warn(string.format("Missing embedding for word '%s', skipping", word))
+            jobs[#jobs + 1] = {
+                word = word,
+                header_color = word_hex_color,
+                centre_link = chrono_center_link,
+                entries = entries,
+            }
         end
     end
     -- Close the animated line. progress.finish() is a no-op in verbose and quiet
@@ -1337,6 +1312,7 @@ function M.generate_word_html(options)
     -- line into every piped log.
     progress.finish()
 
+    local pages_generated = flat_html.generate_word_pages_on_workers(jobs, output_dir, num_threads)
     utils.log_info(string.format("Generated %d word similarity pages in %s/wordcloud/", pages_generated, output_dir))
     return pages_generated
 end
@@ -1365,9 +1341,9 @@ function M.main(mode)
     if mode == "embeddings" then
         return M.generate_word_embeddings()
     elseif mode == "html" then
-        return M.generate_word_html()
+        return M.generate_word_html({ check_numbering = true })
     else
-        return M.generate_word_pages()
+        return M.generate_word_pages({ check_numbering = true })
     end
 end
 -- }}}
@@ -1375,28 +1351,36 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
     if RUN_MODE == "help" then
-        print("Usage: luajit src/generate-word-pages.lua [DIR] [OPTIONS]")
-        print("")
-        print("Generates similarity pages for word cloud words.")
-        print("For each word, creates a page showing poems ranked by semantic similarity.")
-        print("")
-        print("Options:")
-        print("  DIR               Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --embeddings-only Generate word embeddings only (Stage 6 - expensive)")
-        print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
-        print("  --all             Include all words (no max_words limit)")
-        print("  --words N         Set maximum words to process (default: 200 from config)")
-        print("  --help            Show this help message")
-        print("")
-        print("Pipeline Integration (Issue 8-043b):")
-        print("  Stage 6 (Embeddings): luajit src/generate-word-pages.lua --embeddings-only")
-        print("  Stage 9 (HTML):       luajit src/generate-word-pages.lua --html-only")
-        print("")
-        print("Without flags, runs both stages (backward compatible).")
+        require("output").print("Usage: luajit src/generate-word-pages.lua [--dir PATH] [OPTIONS]")
+        require("output").print("")
+        require("output").print("Generates similarity pages for word cloud words.")
+        require("output").print("For each word, creates a page showing poems ranked by semantic similarity.")
+        require("output").print("")
+        require("output").print("Options:")
+        require("output").print("  --dir PATH        Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+        require("output").print("  --embeddings-only Generate word embeddings only (Stage 6 - expensive)")
+        require("output").print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
+        require("output").print("  --all             Include all words (no max_words limit)")
+        require("output").print("  --words N         Set maximum words to process (default: 200 from config)")
+        require("output").print("  --reverse         The build was made with --reverse (Issue 10-064): the")
+        require("output").print("                    chronological links number the pages newest first")
+        require("output").print("  --yes, -y         Take config.lua's default for any value not given")
+        require("output").print("  --help            Show this help message")
+        require("output").print("")
+        require("output").print("A value not given is asked for, with config.lua's default in brackets;")
+        require("output").print("Enter takes it. Started by run.sh, or with no one at the keyboard, a")
+        require("output").print("missing value is an error instead.")
+        require("output").print("")
+        require("output").print("Pipeline Integration (Issue 8-043b):")
+        require("output").print("  Stage 6 (Embeddings): luajit src/generate-word-pages.lua --embeddings-only")
+        require("output").print("  Stage 9 (HTML):       luajit src/generate-word-pages.lua --html-only")
+        require("output").print("")
+        require("output").print("Without flags, runs both stages (backward compatible).")
         os.exit(0)
     end
 
-    M.main()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("generate-word-pages.lua", M.main)
 end
 -- }}}
 
