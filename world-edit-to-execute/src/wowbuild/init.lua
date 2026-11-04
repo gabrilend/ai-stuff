@@ -65,7 +65,13 @@ local function serialize(value, indent)
     if kind == "string" then return string.format("%q", value) end
     if kind == "number" then
         if value == math.floor(value) and math.abs(value) < 2 ^ 53 then return string.format("%d", value) end
-        return string.format("%.6g", value)
+        -- the shortest form that reads back as the same number, from six
+        -- digits (the placement's numbers must come back exact: Test Map's
+        -- camera is worked out from them)
+        for digits = 6, 17 do
+            local s = string.format("%." .. digits .. "g", value)
+            if tonumber(s) == value or digits == 17 then return s end
+        end
     end
     if kind == "boolean" then return tostring(value) end
     local keys = {}
@@ -166,6 +172,9 @@ function wowbuild.convert(map_path, build_dir, opts)
             rule = "one WC3 tile = one WoW cell (4.1667 yd); 30.72 WC3 units a yard",
             first_tile = { L.tx0, L.ty0 },
             wc3_offset = { L.offset_x, L.offset_y },
+            -- a WC3 point as the W client's world (Test Map's --camera, issue 913):
+            -- client x = x0 + scale * wc3 y, client y = y0 - scale * wc3 x (wowbuild.coords)
+            client = L:client_placement(),
         },
         terrain = job:finish(),
         not_built = wowbuild.STAGES_NOT_BUILT,

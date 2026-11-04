@@ -4,8 +4,10 @@ goodbye receipt read and checked, other programs started, watched and
 stopped, the local AzerothCore started, waited on, reused, started again
 for a new build and stopped, and whole Test Map runs from F5: the receipt
 shown, a crash reported, a malformed or too-new receipt refused, the
-password kept off command lines and out of files, and the server stopped
-when the editor closes.
+password kept off command lines and out of files, the server stopped
+when the editor closes, and the camera turned from the view's WC3 units
+into the W client's world by the converter's placement (W02's own
+converter too, on Daow 4.4).
 
 No AzerothCore or W client runs here: fake programs stand in for them
 (src/tests/fixtures/test-map: a LuaJIT server that opens a port, a shell
@@ -347,7 +349,7 @@ do
     test("the build is in the build folder", read(base .. "/build/map.cksum") ~= nil)
     local args = lines(base .. "/log/fake-w-client.args")
     local want = { "--test-map", base .. "/build", "--receipt", base .. "/log/receipt.lua",
-                   "--camera", "1234,-568", "--realm", "127.0.0.1:" .. s.test_map.server.login_port,
+                   "--camera", "981.52,1959.82", "--realm", "127.0.0.1:" .. s.test_map.server.login_port,
                    "--account", "tester" }
     local same = #args >= #want
     for i, w in ipairs(want) do same = same and args[i] == w end
@@ -482,6 +484,94 @@ do
 end
 -- }}}
 
+-- {{{ The camera: the view's point in the W client's world
+test_section("The camera: the view's point, in the W client's world")
+do
+    local coords = require("wowbuild.coords")
+    -- the placement read from each kind of report the fake converter writes
+    local map = TMP .. "/placed.w3x"
+    write(map, "m")
+    local function report_of(mode)
+        local b = TMP .. "/placements/" .. mode
+        os.execute("mkdir -p " .. proc.quote(b))
+        shell(proc.quote(FIX .. "/fake-convert.sh") .. " " .. mode .. " " .. proc.quote(map) .. " " .. proc.quote(b) .. " 2>&1")
+        local q, why = test_map.read_placement(b)
+        return q, why, b
+    end
+    local p = report_of("ok")
+    test("the converter's placement read from its conversion-report.lua", p and p.x0 == 1000 and p.y0 == 2000
+        and math.abs(p.scale - 1 / 30.72) < 1e-15 and p.wc3_max[1] == 5000)
+    local function refused(mode, words)
+        local q, why = report_of(mode)
+        test(mode .. ": no placement, said why", q == nil and (why or ""):find(words, 1, true) ~= nil, why)
+    end
+    refused("noreport", "wrote no conversion-report.lua")
+    refused("noplace", "gives no placement")
+    refused("badplace", "scale")
+    refused("toonew", "format 2 is newer")
+    local _, _, b = report_of("ok")
+    write(b .. "/conversion-report.lua", "while true do end")
+    local q, why = test_map.read_placement(b)
+    test("a report that runs forever: refused as data", q == nil and (why or ""):find("runs too long", 1, true) ~= nil, why)
+    write(b .. "/conversion-report.lua", "return { format = 1, placement = { client = os.exit } }")
+    q, why = test_map.read_placement(b)
+    test("a report reaching for functions: nothing reached", q == nil, why)
+
+    -- the mapping: WC3 north is the client's +x, east its -y, 30.72 units a yard
+    local x, y = coords.wc3_to_client(p, 0, 307.2)
+    local xe, ye = coords.wc3_to_client(p, 307.2, 0)
+    test("WC3 north 307.2 units: 10 yards up the W client's x", math.abs(x - 1010) < 1e-9 and math.abs(y - 2000) < 1e-9)
+    test("WC3 east 307.2 units: 10 yards down its y (y points west)", math.abs(xe - 1000) < 1e-9 and math.abs(ye - 1990) < 1e-9)
+
+    -- whole runs
+    local s, base = fake_settings("camera")
+    local T = new_run(s, { camera = function() return 99999, -99999 end })
+    T:start(); T:wait(30)
+    local args = lines(base .. "/log/fake-w-client.args")
+    local want = string.format("%.2f,%.2f", 1000 + (-5000 + 32) / 30.72, 2000 - (5000 - 32) / 30.72)
+    test("a view off the map: the camera put just inside its edge", T.last.outcome == "closed" and args[5] == "--camera"
+        and args[6] == want, table.concat(args, " "))
+    test("the turning logged, WC3 units and yards", (read(base .. "/log/test-map.log") or ""):find("moved onto the map's edge", 1, true) ~= nil)
+    for _, mode in ipairs({ "noreport", "toonew" }) do
+        s.test_map.convert[2] = mode
+        local n = #said
+        T:start(); T:wait(30)
+        local a = read(base .. "/log/fake-w-client.args") or ""
+        local told = false
+        for k = n + 1, #said do if said[k]:find("no camera for the W client", 1, true) then told = true end end
+        test(mode .. ": the W client opened without --camera, at the map's own start; said why", T.last.outcome == "closed"
+            and not a:find("--camera", 1, true) and told, a)
+    end
+    s.test_map.convert[2] = "ok"
+    T:close()
+
+    -- W02's own converter (src/cli/wow-convert.lua) on a real map: the
+    -- camera is the converter's placement of the view's point, and the W
+    -- client's rule for which ADT it is in finds a file the converter wrote
+    local real = DIR .. "/assets/Daow4.4.w3x"
+    local mpq_ok, mpq_err = pcall(function() require("mpq").open(real):close() end)
+    if not mpq_ok then
+        print("  [SKIP] Test Map with W02's converter: " .. tostring(mpq_err):sub(1, 80))
+    else
+        local wowbuild = require("wowbuild")
+        local s2, base2 = fake_settings("camera-w02")
+        s2.test_map.convert = { "luajit", DIR .. "/src/cli/wow-convert.lua" }
+        local T2 = new_run(s2, { save = function() return real end, camera = function() return 1000, -2000 end })
+        T2:start(); T2:wait(60)
+        local a = lines(base2 .. "/log/fake-w-client.args")
+        local L = coords.layout(wowbuild.read_terrain(real))
+        local wx, wy = L:to_wow(1000, -2000)
+        test("W02's converter: the camera is its placement of the view's point", T2.last.outcome == "closed"
+            and a[5] == "--camera" and a[6] == string.format("%.2f,%.2f", wx, wy), (T2.last.message or "") .. " / " .. table.concat(a, " "))
+        local cx, cy = (a[6] or ""):match("^(-?[%d.]+),(-?[%d.]+)$")
+        local tx, ty = coords.client_adt(tonumber(cx) or 0, tonumber(cy) or 0)
+        local adt_file = string.format("%s/build/World/Maps/WC3_Daow4_4/WC3_Daow4_4_%d_%d.adt", base2, tx, ty)
+        test("the ADT the W client opens there is one the converter wrote", read(adt_file) ~= nil, adt_file)
+        T2:close()
+    end
+end
+-- }}}
+
 -- {{{ The editor closing (its Lua state closed)
 test_section("The editor closes")
 do
@@ -544,7 +634,8 @@ do
     test("the window's frames carry it through: the receipt shown in the status line",
         E.messages[#E.messages].text:find("closed after", 1, true) ~= nil, E.messages[#E.messages].text)
     test("the saved map is what was converted", read(base .. "/build/map.cksum") == shell("cksum < " .. proc.quote(out)))
-    test("the camera given is the view's", (read(base .. "/log/fake-w-client.args") or ""):find("100,200", 1, true) ~= nil)
+    test("the camera given is the view's, in the W client's world", lines(base .. "/log/fake-w-client.args")[6] == "1006.51,1996.74",
+        read(base .. "/log/fake-w-client.args"))
     local b = labels["Test"]
     frame({ mx = b.x + 3, my = b.y + 3, lp = true, lr = true })
     t0 = proc.now()

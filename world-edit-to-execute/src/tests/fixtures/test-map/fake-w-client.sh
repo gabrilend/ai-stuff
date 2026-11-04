@@ -25,7 +25,10 @@ while [[ $# -gt 0 ]]; do
         --test-map) folder="$2"; shift 2 ;;
         --receipt) receipt="$2"; shift 2 ;;
         --realm) realm="$2"; shift 2 ;;
-        --camera|--account) shift 2 ;;
+        --camera)   # world x and y in yards, as the W client's read_camera takes them (its 067-test-map.c)
+            [[ "$2" =~ ^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$ ]] || { echo "bad --camera $2" >&2; exit 2; }
+            shift 2 ;;
+        --account) shift 2 ;;
         *) echo "unknown option $1" >&2; exit 2 ;;
     esac
 done

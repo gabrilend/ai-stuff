@@ -523,6 +523,150 @@ do
 end
 -- }}}
 
+-- {{{ The camera point (Test Map, issue 913)
+-- The editor's view looks at a WC3 point; the W client's --camera takes
+-- its own world x (north) and y (west) in yards. The converter's report
+-- carries the placement (placement.client); here it is held to the
+-- layout, to the W client's own rule for which ADT a point is in
+-- (coords.client_adt: its 018-maps.c and 033-ground-prep.c), and, with its
+-- reader, to the ground the client reads there.
+test_section("The camera point (Test Map, issue 913)")
+do
+    -- the placement is the layout's own mapping, over maps of every shape
+    local shapes = { { 17, 17 }, { 41, 25 }, { 301, 9 }, { 129, 129 }, { 257, 193, 1000.5, -333.25 }, { 2, 2 } }
+    local worst, back, sampled = 0, 0, 0
+    for _, d in ipairs(shapes) do
+        local L = coords.layout({ width = d[1], height = d[2], offset_x = d[3] or -64 * (d[1] - 1), offset_y = d[4] or -64 * (d[2] - 1) })
+        local P = L:client_placement()
+        for j = 0, d[2] - 1, math.max(1, math.floor(d[2] / 7)) do
+            for i = 0, d[1] - 1, math.max(1, math.floor(d[1] / 7)) do
+                local wx, wy = L.offset_x + 128 * i + 40, L.offset_y + 128 * j + 40
+                local X, Y = L:to_wow(wx, wy)
+                local cx, cy = P.x0 + P.scale * wy, P.y0 - P.scale * wx
+                worst = math.max(worst, math.abs(cx - X), math.abs(cy - Y))
+                local bx, by = L:to_wc3(cx, cy)
+                back = math.max(back, math.abs(bx - wx), math.abs(by - wy))
+                sampled = sampled + 1
+            end
+        end
+    end
+    test("client_placement is the layout's to_wow, as a scale and a shift (" .. sampled .. " points)", worst < 1e-9,
+        string.format("worst %.3g yd", worst))
+    test("and to_wc3 takes it back", back < 1e-6, string.format("worst %.3g units", back))
+
+    -- the axes: WC3 north is the client's +x, WC3 east its -y; 30.72 units a yard
+    local L = coords.layout({ width = 17, height = 17, offset_x = -1024, offset_y = -1024 })
+    local P = L:client_placement()
+    local x0, y0 = coords.wc3_to_client(P, 0, 0)
+    local xn, yn = coords.wc3_to_client(P, 0, 307.2)
+    local xe, ye = coords.wc3_to_client(P, 307.2, 0)
+    test("WC3 north is the W client's +x (north)", math.abs(xn - x0 - 10) < 1e-9 and math.abs(yn - y0) < 1e-9)
+    test("WC3 east is the W client's -y (y points west)", math.abs(ye - y0 + 10) < 1e-9 and math.abs(xe - x0) < 1e-9)
+    -- a one-tile map's middle: tile 32_32 starts at world (0, 0) and runs south and east
+    test("a 17 x 17 map centred on WC3's (0, 0) is 33.3 yd south-east of world (0, 0)",
+        math.abs(x0 + 100 / 3) < 1e-9 and math.abs(y0 + 100 / 3) < 1e-9, x0 .. ", " .. y0)
+
+    -- off the map: moved inside its edge
+    local X, Y, moved = coords.wc3_to_client(P, 1e6, -1e6)
+    local _, _, moved_in = coords.wc3_to_client(P, 10, 10)
+    test("a point off the map moves onto it, just inside its edge", moved and not moved_in
+        and math.abs(X - (P.x0 + P.scale * (-1024 + coords.EDGE_INSET))) < 1e-9
+        and math.abs(Y - (P.y0 - P.scale * (1024 - coords.EDGE_INSET))) < 1e-9)
+    test("bad placements refused", coords.wc3_to_client(nil, 0, 0) == nil
+        and coords.wc3_to_client({ scale = 0, x0 = 0, y0 = 0, wc3_min = { 0, 0 }, wc3_max = { 1, 1 } }, 0, 0) == nil
+        and coords.wc3_to_client({ scale = 1, x0 = 0 / 0, y0 = 0, wc3_min = { 0, 0 }, wc3_max = { 1, 1 } }, 0, 0) == nil
+        and coords.wc3_to_client({ scale = 1, x0 = 0, y0 = 0, wc3_min = { 2, 0 }, wc3_max = { 1, 1 } }, 0, 0) == nil
+        and coords.wc3_to_client({ scale = 1, x0 = 0, y0 = 0, wc3_min = { 0 }, wc3_max = { 1, 1 } }, 0, 0) == nil
+        and coords.wc3_to_client(P, "1", 0) == nil)
+    test("the W client's own tile rule: Astranaar (2717, -400) is in Kalimdor_32_26, world (0, 0) in _32_32",
+        select(1, coords.client_adt(2717, -400)) == 32 and select(2, coords.client_adt(2717, -400)) == 26
+        and select(1, coords.client_adt(0, 0)) == 32 and select(2, coords.client_adt(0, 0)) == 32)
+
+    -- every point of each map, edges and corners too, is in an ADT written,
+    -- by the client's rule; with its reader, the ground it reads at the
+    -- camera's vertex is the WC3 ground at the tile point asked for (the
+    -- grounds slope, so a camera turned or shifted would read another height)
+    local function camera_lands(label, terrain)
+        local job = wterrain.prepare(terrain)
+        local Lm = job.layout
+        local Pm = Lm:client_placement()
+        local written, bytes = {}, {}
+        for _, t in ipairs(Lm:tiles()) do written[t.tx .. "_" .. t.ty] = t end
+        local missed, n, err, read_bad = 0, 0, 0, 0
+        local function at(wx, wy)
+            local cx, cy = coords.wc3_to_client(Pm, wx, wy)
+            local atx, aty = coords.client_adt(cx, cy)
+            local t = written[atx .. "_" .. aty]
+            n = n + 1
+            if not t then missed = missed + 1 return end
+            if not W then return end
+            if not bytes[t] then bytes[t] = adt.tile_bytes(job:tile(t)) end
+            local b = bytes[t]
+            local buf = ffi.new("unsigned char[?]", #b)
+            ffi.copy(buf, b, #b)
+            if W.adt_read(buf, #b, 1, wtile, WHY) ~= 0 then read_bad = read_bad + 1 return end
+            -- the chunk the point is in, from its own position (MCNK 104,
+            -- 32-bit floats: a point on a chunk's edge counts for either):
+            -- the nearest outer vertex's height against the WC3 ground there
+            local found = false
+            local e = 1e-3
+            for k = 0, 255 do
+                local c = wtile.chunks[k]
+                if not found and cx <= c.x + e and cx >= c.x - coords.CHUNK - e
+                   and cy <= c.y + e and cy >= c.y - coords.CHUNK - e then
+                    local r = math.floor((c.x - cx) / coords.CELL + 0.5)
+                    local col = math.floor((c.y - cy) / coords.CELL + 0.5)
+                    -- the WC3 tile point nearest where the camera was asked for
+                    -- (an off-map one: the nearest on the map)
+                    local i = math.floor((wx - Lm.offset_x) / 128 + 0.5)
+                    local j = math.floor((wy - Lm.offset_y) / 128 + 0.5)
+                    i, j = math.max(0, math.min(Lm.W - 1, i)), math.max(0, math.min(Lm.H - 1, j))
+                    local want = w3e.ground_z(terrain.tilepoints[j][i]) * coords.YARDS_PER_UNIT
+                    err = math.max(err, math.abs(c.z + c.heights[r * 17 + col] - want))
+                    found = true
+                end
+            end
+            if not found then read_bad = read_bad + 1 end
+            W.adt_free(wtile)
+        end
+        local x1, y1 = Pm.wc3_max[1], Pm.wc3_max[2]
+        local xa, ya = Pm.wc3_min[1], Pm.wc3_min[2]
+        for _, c in ipairs({ { xa, ya }, { xa, y1 }, { x1, ya }, { x1, y1 }, { (xa + x1) / 2, (ya + y1) / 2 },
+                             { xa - 5000, ya - 5000 }, { x1 + 5000, y1 + 5000 } }) do at(c[1], c[2]) end
+        for j = 0, Lm.H - 1, math.max(1, math.floor(Lm.H / 11)) do
+            for i = 0, Lm.W - 1, math.max(1, math.floor(Lm.W / 11)) do at(xa + 128 * i, ya + 128 * j) end
+        end
+        test(label .. ": the camera lands in a written ADT by the W client's rule (" .. n .. " points, corners and off-map too)",
+            missed == 0, missed .. " in a tile not written")
+        if W then
+            test(label .. ": the W client's reader has the camera's chunk there, its ground the WC3 ground",
+                read_bad == 0 and err <= 0.5, string.format("%d not found; worst %.3f yd", read_bad, err))
+        else
+            skip(label .. ": the camera's ground through the W client's reader", "no library")
+        end
+    end
+    camera_lands("17 x 17 slope", made(17, 17, { "Ldrt" }, function(i, j) return { height = i * 61 - j * 17 } end))
+    camera_lands("129 x 129 (one whole ADT)", made(129, 129, { "Ldrt" }, function(i, j) return { height = (i + 2 * j) * 9 } end))
+    camera_lands("301 x 9", made(301, 9, { "Ldrt" }, function(i, j) return { height = (i % 7) * 40 } end))
+
+    -- the report: placement.client written, read back exact
+    local build = TMP .. "/camera-build"
+    local terrain = made(41, 25, { "Ldrt" })
+    terrain.offset_x, terrain.offset_y = -2560.25, -1536.5
+    local report = wowbuild.convert("camera.w3x", build, { terrain = terrain })
+    local loaded = loadfile(build .. "/conversion-report.lua")
+    local data = loaded and setfenv(loaded, {})()
+    local want = coords.layout(terrain):client_placement()
+    local got = data and data.placement and data.placement.client
+    test("the report carries placement.client", got ~= nil and coords.check_placement(got) ~= nil
+        and report.placement.client ~= nil)
+    test("its numbers read back exactly as written", got and got.scale == want.scale and got.x0 == want.x0 and got.y0 == want.y0
+        and got.wc3_min[1] == want.wc3_min[1] and got.wc3_min[2] == want.wc3_min[2]
+        and got.wc3_max[1] == want.wc3_max[1] and got.wc3_max[2] == want.wc3_max[2],
+        got and string.format("%.17g %.17g %.17g", got.scale, got.x0, got.y0))
+end
+-- }}}
+
 -- {{{ The command
 test_section("The command")
 do

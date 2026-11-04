@@ -31,7 +31,7 @@ luajit src/cli/wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--dir
 | `World/Maps/<dir>/<dir>.wdt` | which ADT tiles exist; 8-bit blend maps |
 | `World/Maps/<dir>/<dir>.wdl` | far-off heights, one 17 x 17 + 16 x 16 grid a tile |
 | `World/Maps/<dir>/<dir>_<tx>_<ty>.adt` | one 533-yard tile (tx west to east, ty north to south): heights, normals, up to four texture layers with blend maps, water |
-| `conversion-report.lua` | data: files, placement, layer counts, texture folds, unmapped ground types, water, the stages not built yet |
+| `conversion-report.lua` | data: files, placement, layer counts, texture folds, unmapped ground types, water, the stages not built yet. `placement.client` is where the map lands in the W client's world (`client x = x0 + scale * wc3 y`, `client y = y0 - scale * wc3 x`, yards; the map's bounds in `wc3_min`, `wc3_max`): Test Map turns its camera through it (`wowbuild.coords.wc3_to_client`) |
 
 A summary goes to stdout (Test Map keeps it as `convert.log`).
 
