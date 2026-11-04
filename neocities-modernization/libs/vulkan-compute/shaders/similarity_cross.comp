@@ -1,0 +1,60 @@
+#version 450
+
+// Cross Similarity Compute Shader (Issue 10-035)
+// The cosine of every vector in set A against every vector in set B, in one
+// dispatch: the word pages rank every word-cloud word (A) against every poem
+// (B). The all-pairs shader (similarity_full.comp) compares one set with
+// itself and keeps half the table; this one compares two sets and keeps the
+// whole rectangle, row by row: scores[a * num_b + b].
+//
+// The vectors arrive already centred on their own population's average
+// (libs/embedding-space.lua), so this is the plain cosine of what it is
+// given. A vector with no length left scores 0, as on the CPU.
+//
+// One thread per (a, b) pair, in 16 x 16 workgroups: x walks set B, y walks
+// set A, so neighbouring threads read neighbouring poems against one word.
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set = 0, binding = 0) readonly buffer SetA {
+    float a_vectors[];   // num_a * dim
+};
+
+layout(set = 0, binding = 1) readonly buffer SetB {
+    float b_vectors[];   // num_b * dim
+};
+
+layout(set = 0, binding = 2) writeonly buffer Scores {
+    float scores[];      // num_a * num_b, row a holds a's score against every b
+};
+
+layout(push_constant) uniform Constants {
+    uint num_a;
+    uint num_b;
+    uint dim;
+};
+
+void main() {
+    uint b = gl_GlobalInvocationID.x;
+    uint a = gl_GlobalInvocationID.y;
+    if (a >= num_a || b >= num_b) return;
+
+    uint base_a = a * dim;
+    uint base_b = b * dim;
+    float dot_product = 0.0;
+    float norm_a = 0.0;
+    float norm_b = 0.0;
+    for (uint k = 0; k < dim; k++) {
+        float x = a_vectors[base_a + k];
+        float y = b_vectors[base_b + k];
+        dot_product += x * y;
+        norm_a += x * x;
+        norm_b += y * y;
+    }
+
+    float score = 0.0;
+    if (norm_a > 0.0 && norm_b > 0.0) {
+        score = dot_product / (sqrt(norm_a) * sqrt(norm_b));
+    }
+    scores[a * num_b + b] = score;
+}
