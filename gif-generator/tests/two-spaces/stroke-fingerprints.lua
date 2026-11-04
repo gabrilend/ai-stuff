@@ -5,7 +5,7 @@
 -- strokes renders byte-identical to what it rendered before a second
 -- space was added. These are the SHA-256 fingerprints of the GIFs the
 -- scores in input/ made on 2026-10-30, at the commit before 701d
--- (cf2124d); 054-two-spaces-test.lua renders each again and compares.
+-- (cf2124d); 064-two-spaces-test.lua renders each again and compares.
 --
 -- Data format: score name (input/<name>.lua) -> 64 hexadecimal characters.
 return {

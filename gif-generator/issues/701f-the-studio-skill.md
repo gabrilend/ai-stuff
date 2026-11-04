@@ -79,7 +79,7 @@ new checks).
   real refusal, 2D and 3D mistakes together); rendering; looking; rating
   and the pool; the house rules; and a closing pointer to
   `canvas-and-paintbrush` for building a different studio.
-- **The skill can't drift (step 2).** `src/057-skill-examples-test.lua`
+- **The skill can't drift (step 2).** `src/067-skill-examples-test.lua`
   films every example the skill shows, checks its refused score is
   refused word for word, and checks every project file and `./tool` it
   names exists. Examples are fenced blocks labelled `lua score`, `lua
@@ -96,8 +96,8 @@ new checks).
   1. After its opening paragraphs, a "worked example" paragraph: *This
      recipe's worked example is the gif studio (`gif-generator`, and the
      `gif-studio` skill for using it). Its wall is `src/024-compile.lua`
-     and `src/049-shape-wall.lua`, its encoder `src/004-gif.lua`, its
-     reader `src/040-gif-decode.lua`, its cards `src/055-cards.lua`. A
+     and `src/059-shape-wall.lua`, its encoder `src/004-gif.lua`, its
+     reader `src/050-gif-decode.lua`, its cards `src/065-cards.lua`. A
      pool built elsewhere: `kanji-learning-image-generator/src/045` to
      `048`.*
   2. Under "Choosing the artifact", after "Reject any format needing a
