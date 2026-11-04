@@ -22,12 +22,16 @@
 # font that is not there falls silently back to the broken rendering -- the
 # failure looks like nothing at all, so the build must be the thing that notices.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -euo pipefail
 
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ $# -ge 1 ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
 SOURCE_DIR="${DIR}/fonts"
 TARGET_DIR="${DIR}/output/fonts"

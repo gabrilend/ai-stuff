@@ -390,8 +390,17 @@ end
 --   embedding_dim - Dimension of embeddings
 --   output_file - File path to write sequences
 --   batch_size - Optional batch size (default: 3584)
+--   max_steps - how many poems each walk takes after its starting poem;
+--               0 or nil walks every poem. The walk is greedy, step by
+--               step, so its first K steps are the same whether it stops
+--               there or goes on: stopping at the K the pages show gives
+--               the same lists for a fraction of the work. (Until
+--               2026-10-22 every walk went all 9,265 steps and the caller
+--               kept 99 of them: about 50 minutes a build, nearly all of
+--               it thrown away. Issue 10-074.)
 --
--- Returns: Table mapping poem_id -> sequence table
+-- Returns: Table mapping poem_id -> sequence table (the starting poem, then
+--          max_steps poems; or every poem when max_steps is 0)
 -- embeddings_fp16 is now a uint16_t FFI buffer of length num_poems *
 -- embedding_dim, holding FP16-packed values in row-major order. The
 -- wrapper script is responsible for producing this buffer (typically
@@ -400,8 +409,22 @@ end
 -- FFI float[?] was a measurable bottleneck on ~20 million floats, and
 -- the new path uses ffi.copy from a binary file straight into the
 -- target buffer instead.
-function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poems, embedding_dim, output_file, batch_size)
-    batch_size = batch_size or 3584
+-- tuning: { probe_steps, chunk_seconds, safety_factor, l2_cache_bytes,
+--          cache_share } (numbers; config.lua gpu.diversity, Issue 10-071),
+--          all required. batch_size is required too.
+function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poems, embedding_dim, output_file, batch_size, max_steps, tuning)
+    if type(batch_size) ~= "number" then error("compute_all_diversity_sequences_batched: batch_size is required (config.lua gpu.diversity.batch_size)") end
+    if type(tuning) ~= "table" then error("compute_all_diversity_sequences_batched: tuning is required (config.lua gpu.diversity)") end
+    for _, name in ipairs({ "probe_steps", "chunk_seconds", "safety_factor", "l2_cache_bytes", "cache_share" }) do
+        if type(tuning[name]) ~= "number" then
+            error("compute_all_diversity_sequences_batched: tuning." .. name .. " is required (config.lua gpu.diversity)")
+        end
+    end
+    -- steps per walk: max_steps poems after the start, never more than exist
+    local walk_steps = num_poems - 1
+    if max_steps and max_steps > 0 and max_steps < walk_steps then
+        walk_steps = max_steps
+    end
 
     print(string.format("[Diversity Batch] Computing sequences for %d poems (batch size: %d, FP16 storage)...",
                        num_poems, batch_size))
@@ -451,22 +474,23 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         -- The probe is one extra dispatch per batch, rounding error in
         -- a ~100-chunk batch. The first chunk is intentionally tiny so a
         -- pathologically slow GPU still survives it.
-        local PROBE_ITERS = 10            -- size of the warm-up probe
-        local TARGET_CHUNK_SECONDS = 1.5  -- aim for this much GPU work per dispatch
-        local SAFETY_FACTOR = 0.6         -- pad below the measured ceiling so jitter doesn't trip the watchdog
+        -- size of the warm-up probe (no longer than the walk itself)
+        local PROBE_ITERS = math.min(tuning.probe_steps, walk_steps)
+        local TARGET_CHUNK_SECONDS = tuning.chunk_seconds  -- aim for this much GPU work per dispatch
+        local SAFETY_FACTOR = tuning.safety_factor         -- pad below the measured ceiling so jitter doesn't trip the watchdog
 
-        local total_iters = num_poems - 1
+        local total_iters = walk_steps
         local batch_start_time = wall_clock()
 
         -- 9-014: tile size for the inner candidate scan. Target tile working
         -- set ≤ L2 cache with margin. With FP16-packed storage each
-        -- candidate occupies embedding_dim × 2 bytes. The 0.85 factor
-        -- leaves room for the centroid, the mask, and shader code in L2.
-        -- L2_BYTES is the published spec for the GTX 1080 Ti (5.5 MiB);
-        -- a future port to a different card should query this at runtime.
-        local L2_BYTES = 5 * 1024 * 1024 + 512 * 1024  -- 5.5 MiB
+        -- candidate occupies embedding_dim × 2 bytes. cache_share leaves
+        -- room for the centroid, the mask, and shader code in L2.
+        -- l2_cache_bytes is the card's published spec (config.lua gpu);
+        -- a future port to a different card could query it at runtime.
+        local L2_BYTES = tuning.l2_cache_bytes
         local bytes_per_candidate = embedding_dim * 2
-        local tile_size = math.max(1, math.floor(L2_BYTES * 0.85 / bytes_per_candidate))
+        local tile_size = math.max(1, math.floor(L2_BYTES * tuning.cache_share / bytes_per_candidate))
         if tile_size > num_poems then tile_size = num_poems end
 
         -- Probe: small dispatch, time it. The probe uses the same tile_size
@@ -553,11 +577,12 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         local result = vk.vkd_batch_download_sequences(batch_ctx, batch_sequences_arr)
         check_result(result, "Download batch sequences")
 
-        -- Convert to Lua tables
+        -- Convert to Lua tables: the starting poem and the steps taken (the
+        -- slots past the last step were never written)
         for i = 0, current_batch_size - 1 do
             local poem_id = batch_start + i
             local sequence = {}
-            for j = 0, num_poems - 1 do
+            for j = 0, walk_steps do
                 sequence[j + 1] = tonumber(batch_sequences_arr[i * num_poems + j])
             end
             all_sequences[poem_id] = sequence

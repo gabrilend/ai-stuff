@@ -23,10 +23,10 @@ Agents report: "How did I start committing to the wrong branch? I thought I was 
 
 ```bash
 $ git -C /mnt/mtwo/programming/ai-stuff branch -vv
-* dv/dev            3be51ee9    ← MAIN REPO IS ON DV/DEV!
-  dv/issue-042      a441a7f6
-  master            1c3beaba
-  wete/dev          d2ffb993
+* dv/dev            71fcb118    ← MAIN REPO IS ON DV/DEV!
+  dv/issue-042      ea81fbba
+  master            9cbae784
+  wete/dev          bd38ff2b
 ```
 
 **The main repository is on `dv/dev` instead of `master`!**

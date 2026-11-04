@@ -1,0 +1,30 @@
+#!/usr/bin/env luajit
+-- make-light-pipe - writes the light pipe's inside as a model you can stand in.
+--
+-- In plain terms: builds the light pipe from src/018-the-light-pipe-model.lua
+-- (the curved mirrored hall, the emitters, beams, tabs, levers, light
+-- vortex and the store with its aperture) and writes it as one glTF file,
+-- output/models/light-pipe.gltf, carrying its own places to stand (stations)
+-- and the haze of its liquid filling. Open it with:
+--   ./view-cad output/models/light-pipe.gltf      then n for each station
+--
+-- Usage:
+--   scripts/make-light-pipe                 the project at the default location
+--   scripts/make-light-pipe <project-dir>   another copy of the project
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if arg[1] ~= nil then DIR = arg[1] end
+package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
+
+local pipe = require("018-the-light-pipe-model")
+local gltf = require("005-gltf")
+
+local OUT = DIR .. "/output/models"
+os.execute("mkdir -p '" .. OUT .. "'")
+local shape = pipe.build()
+local path = OUT .. "/light-pipe.gltf"
+local file, problem = io.open(path, "w")
+if file == nil then error("cannot write " .. path .. ": " .. tostring(problem), 0) end
+file:write(gltf.write(shape, "made by scripts/make-light-pipe (poor-person-google-glass) from src/018-the-light-pipe-model.lua, issue 105", shape.units))
+file:close()
+print(string.format("%s: %d parts, %d triangles, %d stations", path, #shape.parts, shape.triangle_count, #shape.stations))

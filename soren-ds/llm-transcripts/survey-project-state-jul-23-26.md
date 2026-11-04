@@ -180,7 +180,7 @@ hardware bring-up.
 
 ## 5. RECENT WORK — FIRST-PERSON-SPELLCRAFT
 
-**Latest commit:** `7b7e5d10` (Jul 22, 2026)
+**Latest commit:** `27f5f813` (Jul 22, 2026)
 > "first-person-spellcraft: the room takes shape — the world model, seen
 > top-down (103)"
 
