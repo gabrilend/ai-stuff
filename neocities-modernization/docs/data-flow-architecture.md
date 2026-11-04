@@ -222,24 +222,28 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 **How Data Transforms**: A printing press takes everything assembled so far — the unified collection, the relationship map, the neighborhood colors, the pre-charted journeys — and stamps out thousands of interconnected pages. Each page is a doorway: step through one door and you see everything arranged by similarity; step through another and you're on the pre-charted diversity journey. The press works in parallel, running multiple print heads simultaneously to produce pages faster. Nothing new is computed here; the press simply renders all the previously-gathered knowledge into a format that humans can navigate with nothing more than a web browser and the ability to click links.
 
 ```
-┌────────────────────────┐     ┌─────────────────────────────────┐
-│ flat-html-generator    │     │ output/                         │
-│          +             │     │   index.html (→ chronological)  │
-│ generate-html-parallel │ ──→ │   chronological.html (12 MB)    │
-│   (8 threads via effil)│     │   explore.html (1 KB)           │
-│                        │     │   wordcloud.html (menu + index) │
-│ Template engine:       │     │   similar/0001..6860.html       │
-│ /src/html-generator/   │     │   different/*.html              │
-│   template-engine.lua  │     │                                 │
-└────────────────────────┘     └─────────────────────────────────┘
+┌─────────────────────────┐     ┌─────────────────────────────────┐
+│ main.lua --html-only    │     │ output/                         │
+│          ↓              │     │   chronological/NN.html         │
+│ flat-html-generator     │ ──→ │   explore.html                  │
+│   one coordinator holds │     │   similar/NNNN-NN.html          │
+│   the big caches; effil │     │   different/NNNN-NN.html        │
+│   worker threads each   │     │   gallery/, source/             │
+│   get a small slice     │     │                                 │
+└─────────────────────────┘     └─────────────────────────────────┘
 ```
 
 **Key files**:
-- `/src/flat-html-generator.lua` - Main generation logic
-- `/scripts/generate-html-parallel` - Multi-threaded wrapper
-- `/src/html-generator/template-engine.lua` - HTML templates
-- `/src/html-generator/url-manager.lua` - Navigation URLs
-- `/src/html-generator/golden-poem-bonus.lua` - Golden poem styling
+- `/src/flat-html-generator.lua` - Main generation logic, including the
+  coordinator-and-workers threading (Issue 10-034)
+- `/src/main.lua` - Its entry point (`--html-only`, started by `run.sh` stage 9)
+
+Two other routes once existed and are gone: a stand-alone threaded generator
+(`scripts/generate-html-parallel`) and a C-threads variant
+(`scripts/generate-html-pthreads`), both removed 2026-10-04 after the
+coordinator design made them unnecessary; and a template engine under
+`/src/html-generator/`, removed with the golden-prioritization system. The
+word-cloud menu and word pages are written by stage 10, not this stage.
 
 **Generated pages**:
 | Page Type | Count | Size | Description |
@@ -349,20 +353,21 @@ kinds of work:
   effil channels, format HTML, and write files. This is the right tool
   for embarrassingly-parallel work whose unit is "render one page".
 - **Vulkan compute shaders (GPU)** — used in
-  `scripts/precompute-diversity-sequences-gpu` and
-  `scripts/generate-similarity-rankings-cache`, both of which dispatch
+  `scripts/precompute-diversity-sequences-gpu` and the similarity stage
+  (run.sh stage 7, `libs/vulkan-compute/lua/vk_similarity.lua`), both of which dispatch
   cosine-distance and greedy-selection work to the GPU via the
   `libs/vulkan-compute/` FFI wrapper. This is the right tool for
   matrix-heavy numeric work where the per-operation memory footprint
   beats CPU cache and the GPU's parallelism dwarfs the available CPU
   threads.
-- **CUDA via Ollama** — embedding generation itself runs on the GPU
-  through Ollama's CUDA build (see `scripts/start-ollama-cuda.sh`).
+- **CUDA via llama.cpp** — embedding generation itself runs on the GPU
+  through a llama.cpp server (see `scripts/start-llamacpp-server.sh`;
+  Issue 10-049 replaced Ollama).
 
-One step of the pipeline that is still single-threaded is word page
-generation in `src/generate-word-pages.lua`. Issue 10-035 captures the
-design (effil-orchestrator pattern, modelled on the completed Issue
-10-034 HTML orchestrator) but the change has not landed yet.
+Word pages are ranked on the GPU, every word against every poem at once,
+and drawn by the same page workers as every other page (Issue 10-035). The
+steps that still handle their items one at a time are listed in Issue
+10-074.
 
 ---
 

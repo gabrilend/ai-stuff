@@ -173,10 +173,10 @@ hi can you make this for me
 > vision's rename resolved cleanly. I'll commit only this subtree via pathspec
 > so the parent repo's unrelated staged work stays exactly as it was.
 
-*[commit] 7c0c81fb - usb-c-universal-encoder: scaffold the project and pour its RAM foundation*
+*[commit] a8ea3a8b - usb-c-universal-encoder: scaffold the project and pour its RAM foundation*
 
 Done for this pass, and it's real: `luajit tests/00-ram-arena-test.lua` →
-**15/15 checks pass**, committed as its own scoped commit (`7c0c81fb`, 19 files)
+**15/15 checks pass**, committed as its own scoped commit (`a8ea3a8b`, 19 files)
 that left the parent repo's other staged work untouched.
 
 ## What "this" turned out to be
@@ -372,9 +372,9 @@ operators. plug it in, and it installs itself easily. then it just works.
 > leave them untouched, and commit only my work. Flagging them so you can decide
 > what they are.
 
-*[commit] fa65302e - usb-c-universal-encoder: make the cable carry and install its own software*
+*[commit] 5cee9e83 - usb-c-universal-encoder: make the cable carry and install its own software*
 
-Both done, committed as `fa65302e` (15 files, only mine).
+Both done, committed as `5cee9e83` (15 files, only mine).
 
 ## Built: the self-installing cable (issue 71, Phase 7) — tested, passing
 The cable now bears its own software. Three pieces, in `delivery/`:
