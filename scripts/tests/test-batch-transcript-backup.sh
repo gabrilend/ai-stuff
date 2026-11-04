@@ -195,7 +195,7 @@ run commit2 --all --commit
 has "a second run has nothing new" "$T/commit2.out" "Nothing new to commit in alpha"
 check "and makes no commit" "$(git -C "$T/mono" rev-list --count HEAD)" "2"
 
-echo "--output-dir, --metadata (issue 042)"
+echo "--output-dir, --metadata (issue 056)"
 build
 run outdir --output-dir "$T/out" --metadata -v 2 alpha
 check "--output-dir exits 0" "$(rc outdir)" "0"
@@ -211,7 +211,7 @@ check "a failed level is not in the metadata" "$(cut -f1 "$T/out2/alpha/a1.expor
 run nometa --output-dir "$T/out3" -v 1 alpha
 check "no metadata file without --metadata" "$(ls "$T/out3/alpha" | grep -c exports)" "0"
 
-echo "--combined (issue 042)"
+echo "--combined (issue 056)"
 build
 mkdir -p "$T/mono/llm-transcripts"
 run combined --combined -v 1 --all
@@ -229,7 +229,7 @@ check "with --output-dir it goes there, and --since keeps only the changed ones"
 run combdry --combined --dry-run --all
 has "a dry run says where it would go" "$T/combdry.out" "Would join the baseline transcripts into:"
 
-echo "--parallel (issue 042)"
+echo "--parallel (issue 056)"
 build
 SLOW=1 run par --parallel 3 --verbosity-range 0-2 beta
 check "--parallel exits 0" "$(rc par)" "0"
@@ -247,7 +247,7 @@ check "the other levels are kept" "$(ls "$T/mono/beta/llm-transcripts" | tr '\n'
 run badpar --parallel 0 --all
 check "--parallel 0 is an error" "$(rc badpar)" "1"
 
-echo "--commit with --output-dir and --combined (issue 042)"
+echo "--commit with --output-dir and --combined (issue 056)"
 build
 git -C "$T/mono" init -q
 git -C "$T/mono" config user.email test@example.invalid

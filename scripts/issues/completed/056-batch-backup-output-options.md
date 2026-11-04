@@ -1,4 +1,4 @@
-# Issue 042: Batch transcript backup: output location, combined export, metadata, parallel levels
+# Issue 056: Batch transcript backup: output location, combined export, metadata, parallel levels
 
 ## Status
 - **Priority**: Low
@@ -87,3 +87,8 @@ Decisions (step 1, and the questions the others raised):
   - Without `--parallel`, the levels run one at a time, as before.
   - Conversations still run one after another, so the progress lines stay
     readable.
+
+## Renumbered
+
+**2026-11-04:** this issue was 042, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 056.

@@ -12,7 +12,7 @@
 # (Issue 009.)  --output-dir puts the level exports elsewhere, --combined
 # joins the run's baseline transcripts into one file, --metadata lists each
 # conversation's exports, and --parallel runs a conversation's levels at the
-# same time.  (Issue 042.)
+# same time.  (Issue 056.)
 
 # -- {{{ Script Directory and Path Setup
 DIR="${DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
