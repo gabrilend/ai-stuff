@@ -28,7 +28,7 @@
   require LuaJIT and say why; phase 1 used to prefer `lua5.4`, and the others
   fell back to it.
 - Retired: renamed with `-done` after the extension for one commit
-  (637ab69c5) so nothing loaded or ran them, then removed (`src/mpq/`): `header.lua`, `hash.lua`, `hashtable.lua`,
+  (97d2ce13e) so nothing loaded or ran them, then removed (`src/mpq/`): `header.lua`, `hash.lua`, `hashtable.lua`,
   `blocktable.lua`, `extract.lua`, `pkware.lua`, `huffman.lua` (+ `.info.md`),
   `adpcm.lua` (+ `.info.md`), `system_codecs.lua` (+ `.info.md`); tests
   (`src/tests/`): `test_hash.lua`, `test_header.lua`, `test_blocktable.lua`,

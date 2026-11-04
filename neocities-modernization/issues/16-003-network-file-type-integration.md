@@ -308,3 +308,4 @@ config.network_settings = {
 - **Phase**: 16 (Network Media)
 - **Estimated Complexity**: Medium
 - **Dependencies**: 16-001 or 16-002 (server must exist)
+- **Blocks**: 16-005
