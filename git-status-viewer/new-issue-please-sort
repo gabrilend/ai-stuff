@@ -1,0 +1,10 @@
+hi, we should also make it do a spiral
+
+lemme explain
+
+every day, we can have a dashboard update that shows a 2d graph of nodes.
+each of which has various radial spires coming out of it.
+each of which has a singular X/Y coordinate, written into a dotfile in that
+project.
+
+see radial-bar-charts.png somewhere.

@@ -1,0 +1,5 @@
+title: The hub at dusk: orange ground, figures in shadow
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/14-the-hub-at-dusk/picture.png
+stage: 25
+---
+Dusk survives only as colour. The renderer's light never changes, so the orange of the hour had to be painted onto the ground and the darkness onto the figures; from the right they are a dark clump on an orange plate.
