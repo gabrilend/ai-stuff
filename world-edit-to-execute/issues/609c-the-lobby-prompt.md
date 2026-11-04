@@ -33,6 +33,13 @@ check the rmail inbox every 5 seconds", since models travel only when
 their map is shared. What stays here is the one question the editor or
 launcher asks when a map is given to keep ("check out my map").
 
+Since then (609, "After the editor-and-client split") the one-game parts
+named above and in the steps below, `profile.apply`, `P:attach`,
+`P:revert` and `P:keep`, and the loader's `push_layer` / `pop_layer`,
+were taken out of this project: a checked list is kept as one of the
+player's packs (`profile.keep`, through the exchange's `X:keep`), and
+the steps below are kept as the design the W client's 1110 builds from.
+
 ## Suggested Implementation Steps
 
 1. Connect and poll from the game's loop; show the setup lines when

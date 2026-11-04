@@ -185,12 +185,12 @@ beyond it, and rmail was not changed.
     be the list's `map.hash`, or the whole list is refused and nothing is
     stored; a name in the `map:` line that isn't the list's map hash is
     refused the same way, before anything is downloaded. Only then is it
-    stored, and once the models are in too the list is applied and the
+    stored, and once the models are in too the list is kept as a pack and the
     map linked at `<data>/maps/<its name>/<its name>.<ext>` (the player
     data folder's maps folder; a folder of that name holding another map
     is never replaced, a " 2" is added), given as `q.map_file`. The map
-    is never applied as art: it goes to the store and the maps folder,
-    not into the list's profile.
+    is never kept as art: it goes to the store and the maps folder, not
+    into the kept pack.
 12. **No timer (2026-11-04).** The owner: "we only send models and such
     when the map that includes them is shared ... so we don't need to
     check the rmail inbox every 5 seconds." `C:poll(X)` is the only thing

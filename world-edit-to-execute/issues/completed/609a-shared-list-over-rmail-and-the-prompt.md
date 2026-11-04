@@ -59,6 +59,7 @@ and the one question this project asks is when a map is given to keep.
       built to the assumed contract; the real glue is 609b)
 - [x] Only the missing files are attached in the reply
 - [x] A trusted sender's list applies without a prompt; others ask once
+      (since the 2026-11-04 trim: is kept as a pack without a prompt)
 
 ## Implementation Notes (2026-11-03)
 
@@ -142,4 +143,31 @@ When rmail is read, check these; only `rmail_hook.lua` should change.
 - **A list travels only with its map.** The offer names its map by hash;
   the map file riding in the same message is the rmail glue's (609b;
   not built there yet).
+
+### Trimmed after the split (2026-11-04)
+
+The owner agreed to take out what the split gave to the W client. Done
+in a commit of its own, so it stays in this branch's history:
+
+- **Removed:** the exchange's end that applied a received list for one
+  game (`profile.apply`, handing `on_ready` a profile to `attach` and
+  `revert`; 609 took those out of `profile.lua`), and the prompt's
+  wording for a game ("Use Ana's models for this game?"). The lobby
+  prompt and using a list during a game live on in the W client, its
+  issue 1110, for "come check out my map".
+- **Changed to fit:** a received list that passes every check is now
+  kept as one of the player's asset packs (`profile.keep`, through
+  `X:keep`, which replaces `X:apply`). The state is still `"ready"` and
+  the callback still `on_ready`, so the rmail glue built on them (609b)
+  keeps working, but `on_ready` is handed the kept pack's folder, not a
+  profile. A pack's name comes from `name_for` (default `share-<id>`).
+  `exchange.prompt` asks "Keep Ana's models for this map?".
+- **Kept as they were:** the offer, want and files messages, the consent
+  step and its default of asking, trust, everything each side refuses,
+  and the rmail hook.
+- **Tests:** `test_share_exchange.lua` still has 32. The checks of the
+  applied profile (its unit types, its folder) became checks of the kept
+  pack (its folder, the knight in it, also for the trusted list); the
+  calls that reverted a profile are gone, and the refusal tests now
+  delete the kept packs before `gc` so the files must be sent again.
 

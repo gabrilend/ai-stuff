@@ -9,7 +9,7 @@
 --   luajit src/cli/share.lua [--dir DIR] [--data FOLDER] make MAP PACK [--author NAME] [--type ID=PATH ...] [-o LIST]
 --   luajit src/cli/share.lua [--dir DIR] [--data FOLDER] missing LIST          the hashes you lack, one a line
 --   luajit src/cli/share.lua [--dir DIR] [--data FOLDER] bundle LIST PACK WANTED OUTDIR
---   luajit src/cli/share.lua [--dir DIR] [--data FOLDER] check LIST BUNDLE     would it apply? (nothing changes)
+--   luajit src/cli/share.lua [--dir DIR] [--data FOLDER] check LIST BUNDLE     would it be kept? (nothing changes)
 --   luajit src/cli/share.lua --help
 --
 -- MAP is the map file; PACK the name of one of your asset packs (or a
@@ -17,8 +17,9 @@
 -- the files it left out (only art and sound are shared). missing is the
 -- receiver's answer; bundle copies the files WANTED names (a file of
 -- hashes, as missing writes) into OUTDIR; check verifies a received
--- bundle against the list. Applying a list is done by the game, for one
--- game (share/profile.lua).
+-- bundle against the list. Keeping a checked list as an asset pack is
+-- share/profile.lua's keep; using one for a single game is the W
+-- client's (its issue 1110).
 --
 -- Issue: issues/completed/609-shared-map-and-model-list.md
 

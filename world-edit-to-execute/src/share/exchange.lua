@@ -3,7 +3,8 @@ Shared Lists Between Two Players (Issue 609a)
 
 The conversation that carries a shared map-and-model list (share/list.lua)
 from one player to another, and the one consent step before anything is
-applied. It speaks through a transport (anything with send(to, message)),
+kept ("check out my map": a map and its list given to keep). It speaks
+through a transport (anything with send(to, message)),
 so the mail system that carries it is glue: share/rmail_hook.lua is that
 glue for rmail (issue 609b), and a test passes messages by hand.
 
@@ -14,8 +15,9 @@ glue for rmail (issue 609b), and a test passes messages by hand.
     on_message: only hashes offered
     to ben, copied from the pack -- files -->
                                          the map checked against the list's
-                                         hash, every file checked; stored
-                                         ready: the map at q.map_file
+                                         hash, every file checked; kept as
+                                         one of the player's packs; ready: the
+                                         pack's folder, the map at q.map_file
 
 "Check out my map" (issue 609, "A list travels only with its map"): the
 map file goes with its list, in the same message. The receiver takes the
@@ -26,7 +28,7 @@ a map that doesn't match refuses the whole list.
     local X = exchange.new({ data = folder, me = "ana", transport = t,
                              pack = folder .. "/asset-packs/mine",  -- the sharer's files
                              consent = function(q) return nil end,  -- default: ask later
-                             on_ready = function(P, q) end })
+                             on_ready = function(pack, q) end })  -- pack: the kept pack's folder
     X:offer("ben", l, "maps/castle.w3x") -- the sharer: the list and its map
     X:on_message(msg)                    -- every message the transport delivers
     X:pending()                          -- questions waiting for the player
@@ -45,7 +47,7 @@ Messages are plain tables:
 
 Consent defaults to asking: unless the player said "always from this
 player" or "always for this map" (profile.trust), nothing is requested,
-stored or applied until they answer yes. A sharer only ever sends files
+stored or kept until they answer yes. A sharer only ever sends files
 it offered to that same player, and a receiver only takes files it asked
 that sender for.
 ]]
@@ -128,9 +130,10 @@ end
 -- message ids), transport ({ send = function(to, message) }), pack (the
 -- folder a sharer's files come from), consent (function(question) giving
 -- "yes", "no" or nil for "ask the player later"; default nil), on_ready
--- (function(P, question): a list was applied), on_problem (function(id,
--- what)), name_for (function(question): the profile's name; default the
--- message id), store (default <data>/blobs).
+-- (function(pack, question): a list was kept, as the asset pack in folder
+-- PACK), on_problem (function(id, what)), name_for (function(question):
+-- the kept pack's name; default "share-" and the message id), store
+-- (default <data>/blobs).
 function exchange.new(opts)
     assert(type(opts) == "table" and opts.data, "exchange: needs opts.data")
     assert(opts.transport and type(opts.transport.send) == "function", "exchange: needs a transport with send(to, message)")
@@ -261,7 +264,7 @@ function X:pending()
 end
 
 -- The player's answer to question ID: "yes" asks the sender for only the
--- files the store lacks (or applies at once when it has them all), and
+-- files the store lacks (or keeps the list at once when it has them all), and
 -- takes the map sent with the list unless the store holds it already;
 -- "no" forgets the list and sends nothing.
 function X:answer(id, yes)
@@ -283,7 +286,7 @@ function X:answer(id, yes)
     if r.need_map and r.map.path then
         return self:take_map(id, r.map.path)     -- it came with the list (in process)
     end
-    if not r.need_map and r.models_in then return self:apply(id, nil) end
+    if not r.need_map and r.models_in then return self:keep(id, nil) end
     return "waiting"
 end
 -- }}}
@@ -314,7 +317,7 @@ end
 
 -- The map sent with list ID, at PATH: its bytes must have the hash the
 -- list gives, or the whole list is refused. Then it is stored, and the
--- list is applied once its files are in too.
+-- list is kept once its files are in too.
 function X:take_map(id, path)
     local r = self.received[id]
     local function refuse(why)
@@ -331,9 +334,9 @@ function X:take_map(id, path)
     if r.models_in then
         local bundle = r.bundle
         r.bundle = nil
-        local result, P = self:apply(id, bundle)
+        local result, pack = self:keep(id, bundle)
         if bundle then os.execute("rm -rf " .. sh(bundle)) end
-        return result, P
+        return result, pack
     end
     return "waiting"
 end
@@ -369,27 +372,29 @@ function X:files(msg)
         r.bundle = dir        -- checked when the map has come too
         return "waiting"
     end
-    local result, err = self:apply(msg.id, dir)
+    local result, err = self:keep(msg.id, dir)
     os.execute("rm -rf " .. sh(dir))
     return result, err
 end
 
-function X:apply(id, bundle)
+-- Every file checked, then the list kept as one of the player's asset
+-- packs (profile.keep); one bad file refuses it whole.
+function X:keep(id, bundle)
     local r = self.received[id]
-    local ok, P, problems = pcall(profile.apply, r.list, { data = self.data, store = self.store, bundle = bundle,
-                                                          name = self.name_for(r.question) })
-    if not ok then r.state = "failed"; return self:problem(id, tostring(P)) end
-    if not P then
+    local ok, pack, problems = pcall(profile.keep, r.list, { data = self.data, store = self.store, bundle = bundle,
+                                                            name = self.name_for(r.question) })
+    if not ok then r.state = "failed"; return self:problem(id, tostring(pack)) end
+    if not pack then
         r.state = "failed"
         local words = {}
         for _, p in ipairs(problems) do words[#words + 1] = p.key .. " " .. p.problem end
         return self:problem(id, "the list was refused whole: " .. table.concat(words, "; "))
     end
     r.state = "ready"
-    r.profile = P
+    r.pack = pack
     if r.map then r.question.map_file = self:place_map(r) end
-    pcall(self.on_ready, P, r.question)
-    return "ready", P
+    pcall(self.on_ready, pack, r.question)
+    return "ready", pack
 end
 
 -- Where the map of received list R is kept: a link to it already in the player data
@@ -416,7 +421,7 @@ end
 
 -- {{{ function X:on_message
 -- Every message the transport delivers. Gives what happened ("asking",
--- "waiting", "declined", "ready", true for files sent), or nil and why it
+-- "waiting", "declined", "ready" (kept), true for files sent), or nil and why it
 -- was refused. Nothing a message says is run.
 function X:on_message(msg)
     if type(msg) ~= "table" or not good_id(msg.id) or type(msg.from) ~= "string" or msg.from == "" then
@@ -432,12 +437,14 @@ end
 -- }}}
 
 -- {{{ function exchange.prompt
--- The one prompt's words for question Q: who, which map, and each entry's
+-- The one prompt's words for question Q (asked when a map and its list
+-- are given to keep; the lobby's prompt, for a hosted map, is the W
+-- client's, its issue 1110): who, which map, and each entry's
 -- provenance (its file, size and where else it can be had). A list of
 -- lines; the first is the question.
 function exchange.prompt(q)
     local lines = {}
-    lines[1] = string.format("Use %s's models for this game?", q.sender)
+    lines[1] = string.format("Keep %s's models for this map?", q.sender)
     lines[2] = string.format("Map: %s (%s)", q.map.name or "unnamed", q.map.hash:sub(1, 19))
     lines[3] = string.format("%d files, %d to fetch from %s:", #q.entries, q.missing, q.sender)
     for _, e in ipairs(q.entries) do
