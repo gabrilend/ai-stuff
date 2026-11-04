@@ -154,7 +154,7 @@ Convert to use project directory structure and config-based source paths.
 ## Related Issues
 
 - **Parent**: Issue 6-026 (Scripts Directory Integration)
-- **Blocks**: Issues 6-017 (Image Integration), 6-025 (Chronological Sorting)
+- **Blocks**: Issues 6-017 (Image Integration), 6-025 (Chronological Sorting), 6-026b, 6-026c, 6-026d
 - **Follows**: Project path standardization conventions from run.sh
 
 ## Testing Strategy

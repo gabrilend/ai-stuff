@@ -253,6 +253,7 @@ Re-run the pipeline and verify:
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None (but 8-055 touches adjacent code)
+- **Blocks**: 10-021
 - **Affects**: All poems on similar/different pages; architectural unification of text formatting
 
 ## Completion Notes

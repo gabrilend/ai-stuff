@@ -99,7 +99,7 @@ three requests a llama.cpp server does:
 **Found:** the stand-in answered `/tokenize` as `{"count":N}`. llama.cpp
 answers `{"tokens":[...]}`, which is what this client counts, so the
 stand-in was wrong, not the client. It was fixed on the 040 branch
-(commit `fae73ec`), and that branch's test now runs this client's
+(commit `1fc3d3f`), and that branch's test now runs this client's
 `--ping` and `--tokens` against the stand-in.
 
 **Not done here:** a run against the real llama.cpp server
