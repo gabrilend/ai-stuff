@@ -350,8 +350,8 @@ reshaped to that).
 | The extractors: WC3 files into a converted map | Drawing for play, in C | Runs a map's rules while people play |
 | The editor, for WC3 maps and WoW maps (Noggit's reach, world-edit.exe's depth), drawn by this project's Lua renderer | What Test Map opens | Holds the truth |
 | Packs and the asset lookup for the editor (`src/assets/loader.lua`), the Lua twin the W client's C lookup is checked against | Packs and the asset lookup for play (its 105a), the same manifest format | |
-| Sharing map-and-model lists, from the editor (issue 609) | Using a shared list during a game: the prompt, applying it for one game, taking it off after | |
-| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser (issue 1001) | | |
+| Sharing a map with its models, "check out my map": the map and its list in one rmail message, received by the editor or launcher (issue 609) | Hosting a map with its models, "come check out my map": the list comes with the join, asked about once, used for that game, taken off after (its 1110, carrying the rules of pull request #227) | |
+| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser, its moving parts in JavaScript (issue 1001) | A web browser addon that opens that same page inside the game (its 710) | |
 | Wire-frames where the editor has no model (issue 602) | Wire-frames where the player has no model (its 105a, step 4) | |
 
 **Who sees a wire-frame.** The owner: "The wire-frame rendering should be
