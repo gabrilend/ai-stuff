@@ -127,7 +127,7 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
 | 6-013 | Investigate semantic color distribution imbalance | Open | Medium |
-| 6-033 | Enhance embedding content preprocessing | Open | High |
+| 6-033 | Enhance embedding content preprocessing | Completed (filed 2026-10-22; embeddings regenerated since) | High |
 
 ---
 

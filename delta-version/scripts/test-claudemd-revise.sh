@@ -60,6 +60,19 @@ function setup() {
 }
 # }}}
 
+# -- {{{ test_stand_in
+# The stand-in must answer in the real server's shapes, or the shared client
+# reads it as a broken server.
+function test_stand_in() {
+    local client="$DIR/delta-version/scripts/libs/llama-chat-client.lua" out
+    out=$(timeout 30 luajit "$client" --ping 2>&1)
+    check "the shared client finds the stand-in reachable" "$(same "$?" 0)"
+    out=$(timeout 30 luajit "$client" --tokens "one two three" 2>&1)
+    check "the shared client reads a token count from the stand-in" \
+        "$(if [[ "$out" =~ ^[0-9]+$ ]] && [ "$out" -ge 3 ]; then echo yes; else echo no; fi)"
+}
+# }}}
+
 # -- {{{ test_events
 function test_events() {
     run event mood "x"
@@ -160,6 +173,7 @@ function test_rollback() {
 function main() {
     setup
     echo "claudemd-revise.lua with a stand-in model, scratch in $SCRATCH"
+    test_stand_in
     test_events
     test_suggest
     test_approve

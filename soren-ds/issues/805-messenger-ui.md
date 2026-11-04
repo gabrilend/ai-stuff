@@ -56,7 +56,7 @@ that go stale grey out; peers that come alive light up.
 
 ## Blocked by
 
-506, 601, 603, 705.
+506, 601, 603, 705, 612 (its interface is a look over a shared view record).
 
 ## Blocks
 

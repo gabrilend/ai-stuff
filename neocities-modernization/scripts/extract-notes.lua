@@ -10,9 +10,17 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- Get project directory from command line or use default
-local DIR = setup_dir_path(arg and arg[1])
-local OVERRIDE_SOURCE = arg and arg[2] -- Optional override for temporary extraction
+-- The project folder: --dir PATH, or the path above; the optional source to
+-- read instead of the usual one (a temporary extraction): --source PATH; a
+-- stray word stops the script (libs/project-dir.lua, Issue 10-076). Both used
+-- to be bare words, told apart by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), { ["--source"] = true })
+local OVERRIDE_SOURCE = nil
+for i = 1, #OWN_ARGS, 2 do
+    if OWN_ARGS[i] == "--source" then OVERRIDE_SOURCE = OWN_ARGS[i + 1]
+    else error("extract-notes: unknown option " .. OWN_ARGS[i]) end
+end
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -54,7 +62,7 @@ end
 -- Issue 10-015a: Get notes path from unified sources config (no fallback - errors if not configured)
 local notes_directories = sources_loader.get_directories("notes")
 if #notes_directories == 0 then
-    print(COLOR_RED .. "❌ Error: sources.notes not configured in config.lua" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ Error: sources.notes not configured in config.lua" .. COLOR_RESET)
     os.exit(1)
 end
 -- Use the primary directory from sources config
@@ -68,10 +76,10 @@ end
 local source_base_path
 if OVERRIDE_SOURCE then
     source_base_path = OVERRIDE_SOURCE
-    print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
 else
     source_base_path = DIR .. "/" .. notes_backup_path
-    print("🔄 Using configured source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using configured source: " .. relative_path(source_base_path))
 end
 
 -- Set up paths
@@ -102,8 +110,9 @@ local function get_file_mtime(file_path)
         end
     end
 
-    -- Fallback to current time if stat fails
-    return os.time()
+    -- No date: an error, not "now". A note dated "now" would sort to the end
+    -- and take a number its real date would not give it (Issue 8-019).
+    error("could not read the modification time of " .. file_path)
 end
 -- }}}
 
@@ -157,14 +166,14 @@ local function is_valid_note_file(file_path)
 end
 -- }}}
 
-print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
+require("output").print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
 
 -- Issue 6-031: Load poem exclusion filter
 -- For notes, exclusion IDs are filenames (without extension)
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count("notes") > 0 then
     -- Issue 7-006: Full-line coloring for info messages
-    print(COLOR_YELLOW .. "🚫 Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries" .. COLOR_RESET)
+    require("output").print(COLOR_YELLOW .. "🚫 Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries" .. COLOR_RESET)
 end
 
 local excluded_count = 0
@@ -184,7 +193,7 @@ for _, subdirectory_name in ipairs(excluded_subdirectories) do
         .. shell_escape(notes_dir .. "/" .. subdirectory_name)
 end
 if prune_expression ~= "" then
-    print("🚫 Notes tooling subdirectories skipped: "
+    require("output").print("🚫 Notes tooling subdirectories skipped: "
         .. table.concat(excluded_subdirectories, ", "))
     prune_expression = "\\( " .. prune_expression .. " \\) -prune -o "
 end
@@ -224,7 +233,7 @@ for file_path in find_handle:lines() do
                 
                 -- Generate JSON format for HTML generation
                 local poem_entry = {
-                    id = string.format("%04d", i),
+                    id = string.format("%04d", i),  -- provisional: renumbered by date below
                     category = "notes",
                     source_file = filename,
                     creation_date = format_iso_date(mtime),
@@ -243,6 +252,25 @@ for file_path in find_handle:lines() do
 end
 
 find_handle:close()
+
+-- {{{ number the notes by date (Issue 8-019)
+-- A note's id is its place in date order (its file's modification time,
+-- oldest first; the file name breaks a tie), not its place in find's listing.
+-- find lists a folder in the order ext4 stores its entries, which changes as
+-- files are added: on 2026-10-07, 17 new notes landed all through that order
+-- and renumbered the notes after each one, so most notes ended up on another
+-- note's embedding. (Owner, 2026-10-21: "this is bad and wrong. We should
+-- replace it with by date.") The ISO date strings sort the same as the times.
+table.sort(poems_json, function(a, b)
+    if a.creation_date ~= b.creation_date then
+        return a.creation_date < b.creation_date
+    end
+    return a.source_file < b.source_file
+end)
+for n, entry in ipairs(poems_json) do
+    entry.id = string.format("%04d", n)
+end
+-- }}}
 
 -- {{{ Generate JSON output for HTML generation
 -- Create output directory
@@ -266,10 +294,10 @@ f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
 -- Issue 7-006: Full-line coloring for success messages
-print(COLOR_GREEN .. "✅ Notes extraction complete" .. COLOR_RESET)
-print("   📄 Generated: " .. relative_path(json_file))
-print("   📊 Notes processed: " .. #poems_json)
+require("output").print(COLOR_GREEN .. "✅ Notes extraction complete" .. COLOR_RESET)
+require("output").print("   📄 Generated: " .. relative_path(json_file))
+require("output").print("   📊 Notes processed: " .. #poems_json)
 if excluded_count > 0 then
-    print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
+    require("output").print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
 end
 -- }}}

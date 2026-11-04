@@ -118,22 +118,35 @@ M._classify = classify
 --   ok       -> advance; after `grow_after` consecutive oks, budget *= grow (a
 --               gentle additive-ish increase, capped) -- AIMD: ease up, slam down.
 --   fatal    -> stop and report.
--- opts (all optional): budget, max_count, floor, grow, grow_after, max_budget,
--- base_delay, max_retries, sleep(fn), log(fn). Returns a stats table including the
--- converged budget so the caller can persist it for next time.
+-- opts: the pacing numbers, all required -- budget, max_count, floor, grow,
+-- grow_after, max_budget, base_delay, max_retries (config.lua deploy.uploads /
+-- deploy.deletions, Issue 10-071: they used to be written here as fallbacks) --
+-- and three optional callbacks: sleep(fn), log(fn), on_batch_ok(fn). Returns a
+-- stats table including the converged budget so the caller can persist it.
 function M.run_adaptive(items, op, opts)
-    opts = opts or {}
-    local budget      = opts.budget      or 8 * 1024 * 1024   -- 8 MB / batch to start
-    local max_count   = opts.max_count   or 200               -- and never > 200 files
-    local floor       = opts.floor       or 1
-    local grow        = opts.grow        or 1.5
-    local grow_after  = opts.grow_after  or 3
-    local max_budget  = opts.max_budget  or 64 * 1024 * 1024
-    local base_delay  = opts.base_delay  or 0                 -- politeness between calls
-    local max_retries = opts.max_retries or 8
+    -- {{{ local function required()
+    local function required(name)
+        local value = opts[name]
+        if type(value) ~= "number" then
+            error("neocities-sync.run_adaptive: opts." .. name .. " is required (config.lua deploy)")
+        end
+        return value
+    end
+    -- }}}
+    local budget      = required("budget")       -- first batch's size
+    local max_count   = required("max_count")    -- and never more items than this
+    local floor       = required("floor")
+    local grow        = required("grow")
+    local grow_after  = required("grow_after")
+    local max_budget  = required("max_budget")
+    local base_delay  = required("base_delay")   -- politeness between calls
+    local max_retries = required("max_retries")
+    -- optional: callbacks; absent means do nothing (a test, or no display)
     local sleep        = opts.sleep        or function() end
+    -- optional: as above
     local log          = opts.log          or function() end
-    local on_batch_ok  = opts.on_batch_ok  or function() end  -- called(batch) after each accepted batch
+    -- optional: called(batch) after each accepted batch; absent means no display
+    local on_batch_ok  = opts.on_batch_ok  or function() end
 
     local stats = { requests = 0, ok = 0, throttled = 0, shrinks = 0, grows = 0,
                     done = 0, total = #items }

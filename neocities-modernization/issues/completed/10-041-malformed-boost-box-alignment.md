@@ -173,6 +173,10 @@ Note: Exact character counts in this example are illustrative. Implementation sh
 
 **Phase**: 10 - Developer Experience & Tooling
 
+## Blocks
+
+- 10-040
+
 ## Implementation Notes (2026-03-25)
 
 **Issues fixed**:

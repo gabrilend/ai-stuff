@@ -55,6 +55,10 @@ No boost entry should render with completely blank content. If content cannot be
 
 - Related to Issue 6-027b (Boost extraction implementation)
 
+## Blocks
+
+- 10-038, 10-039
+
 ## Notes
 
 This issue should be investigated before other boost rendering issues, as the blank content may indicate an extraction bug that affects data quality.
