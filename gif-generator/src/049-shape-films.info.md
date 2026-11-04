@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (278 checks)
+    test-shape-films [DIR]                the proofs (300 checks)
 
 `DIR` is the gif-generator project; the parts are `src/044-meshes.lua`,
 `045-choreography.lua`, `046-raster.lua`, `047-fluid.lua` and `048-png.lua`,
@@ -420,3 +420,5 @@ studio's reader and puts it back together with its encoder, and requires
 the same bytes (issue 701b).
 
 Each frame is drawn through `062-frame.lua`'s `draw_world`, the same moves a two-space score's world makes (issue 701d).
+
+Every film gets a card beside it, `NAME.gif.card`: what made it, and its ratings on five tiers (`065-cards.lua`, `docs/card-format.md`, issue 701e). `count-films` counts them.
