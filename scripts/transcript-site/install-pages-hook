@@ -50,12 +50,18 @@ function install_one() {
       return 0
    fi
    mkdir -p "$(dirname "$hook")"
+   # The folder to rebuild is asked of git when the push runs, not written in
+   # here: every folder of one repository (its main checkout and each extra
+   # worktree) shares one hooks folder, so a path written at install time is
+   # the last installer's folder for all of them. Until 2026-10-20 it was
+   # written in, and after an install from wow-chat-2026's neuron worktree
+   # every push from the main folder rebuilt neuron's pages, not its own.
    cat > "$hook" <<EOF
 #!/bin/bash
 $MARK
-# Rebuilds this repository's conversation pages (llm-transcripts/HTML/) before
-# a push; see $DIR/transcript-site/build-pages-before-push.
-exec "$DIR/transcript-site/build-pages-before-push" "$repo" --dir "$DIR"
+# Rebuilds the pushing folder's conversation pages (llm-transcripts/HTML/)
+# before a push; see $DIR/transcript-site/build-pages-before-push.
+exec "$DIR/transcript-site/build-pages-before-push" "\$(git rev-parse --show-toplevel)" --dir "$DIR"
 EOF
    chmod +x "$hook"
    echo "installed $repo"

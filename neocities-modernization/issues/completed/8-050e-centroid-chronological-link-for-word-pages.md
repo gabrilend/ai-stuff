@@ -207,7 +207,7 @@ Computing centroids for 200 words is fast (just averaging vectors). The closest-
 - **Phase**: 8 (Website Completion)
 - **Parent**: 8-050
 - **Estimated Complexity**: Medium (centroid computation + chronological page mapping)
-- **Dependencies**: 8-050b (final ranked poem list determines centroid)
+- **Dependencies**: 8-050b (final ranked poem list determines centroid), 8-050a
 
 ## Completion Notes
 

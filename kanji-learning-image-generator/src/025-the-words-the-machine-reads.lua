@@ -76,23 +76,14 @@ local STYLES = {
           "pushed towards photographs, which have light and shade everywhere",
   },
 
-  wimmelbild = {
-    tail = "(a Wimmelbild:1.3), a teeming seek-and-find picture crowded with " ..
-           "hundreds of small distinct figures and objects in every corner, " ..
-           "each with its own outline, richly detailed, painted",
-    -- Near the front, because for this style the style *is* the point. Written
-    -- last, as the photographic tail is, it was a qualifier the model had
-    -- almost no room left to act on.
-    place = 15,
-    -- Lifted because a Wimmelbild is the *opposite* of flat: hundreds of small
-    -- distinct things, each with edges and a shadow, which is more for a hidden
-    -- shape to live in than a photograph offers rather than less. Diagram is
-    -- not lifted, because a diagram really is flat and schematic.
-    lifts = { "illustration", "cartoon", "flat colour", "poster" },
-    why = "a teeming picture has no large flat regions -- it is small detail " ..
-          "everywhere -- so the argument that sends this project towards " ..
-          "photographs does not apply to it",
-  },
+  -- A second style, "wimmelbild" (a teeming seek-and-find picture), lived here
+  -- and was removed on 2026-10-04. It worked by crowding the frame with small
+  -- objects, and on 時 the crowd assembled into the character's own strokes --
+  -- drawn, not hidden -- which the grader then scored second-best of its run
+  -- (docs/007, Q13). It was replaced not by another style but by two ways of
+  -- placing a scene around the strokes (issues/416), which every style shares.
+  -- Its renderings stay in the pool under their old name; the pool reads the
+  -- name as a string and never asks this table about it.
 }
 -- }}}
 
@@ -165,7 +156,7 @@ function M.token_estimate(text)
 end
 -- }}}
 
--- {{{ M.positive(scene, settings, style_name)
+-- {{{ M.positive(scene, settings, style_name, part)
 -- The scene, as the sentence describing it.
 --
 -- Every clause carries a rank, and the sentence is shortened by dropping the
@@ -193,19 +184,85 @@ end
 --    40  the ground the sound-half became
 --    30  the palette
 --    20  the note that this is an abstract word
-function M.positive(scene, settings, style_name)
+--
+-- `part` picks which clauses a route's sentence is made of (`416`). Every
+-- clause is one of four kinds -- a subject, an object along a stroke, the
+-- world, or the style -- and each part is a set of kinds. One sentence-maker
+-- for all of them, so the routes cannot drift into describing different
+-- scenes, and the style is shared because every part includes it.
+--
+-- Two more kinds belong only to the inside route (`416a`): the world's
+-- *material*, which every stroke is built of, and its *cover*, which hides
+-- where that material would carry on past the strokes.
+local PARTS = {
+  -- The illusion route: everything, as it has always been.
+  whole = { subject = true, stroke = true, world = true, style = true },
+  -- Inside the strokes, in the inside route: one material and nothing else.
+  -- The pieces and the per-stroke roles used to be said here, and a forest
+  -- character's strokes came out as trunks, a shaft of light and a bird at
+  -- once; the owner asked for one material, the only one of its kind.
+  subjects = { material = true, style = true },
+  -- Outside the strokes, in the inside route: the world with nobody in it,
+  -- with the cover, and with every clause that names the material left out.
+  background = { world = true, cover = true, style = true },
+  -- The outside route: the strokes are painted ink, so nothing is asked to lie
+  -- along them, and the pieces are not named either -- they described what a
+  -- character is drawn with (文 became "two crossed sticks"), which the owner
+  -- saw as a background unrelated to the character. The meaning's world only.
+  outside = { world = true, style = true },
+}
+M.PARTS = PARTS
+
+function M.positive(scene, settings, style_name, part)
   -- Two orders, and they are not the same order. `rank` decides what gets
   -- dropped when the sentence is too long; `place` decides where a clause sits
   -- in the sentence that is finally written. Using one for both put the
   -- photographic terms -- which must never be dropped, so they rank high --
   -- into the middle of the sentence, between the setting and the light.
   local style = M.style(style_name or (settings.scene and settings.scene.style))
+  local wanted = PARTS[part or "whole"]
+  if not wanted then error("there is no part of a sentence called '" ..
+                           tostring(part) .. "'") end
+  -- The material is needed by two of the parts and must exist for every world:
+  -- a world without one is an error, not a sentence quietly missing its
+  -- strokes.
+  local material = scene.biome.material
+  if (wanted.material or wanted.cover) and
+     not (material and material.stuff and material.words and material.cover) then
+    error("the world '" .. tostring(scene.biome.name) .. "' has no material " ..
+          "and cover for its strokes (024 BIOMES, 416a)")
+  end
+  -- In the background, a world clause that names the material is left out,
+  -- because the material must be the only one of its kind in the picture.
+  local function names_the_material(text)
+    if part ~= "background" then return false end
+    local lowered = text:lower()
+    for _, word in ipairs(material.words) do
+      if lowered:find(word, 1, true) then return true end
+    end
+    return false
+  end
+
   local clauses = {}
+  local kind = "subject"
   local function say(rank, place, text)
-    if text and text ~= "" then
+    if text and text ~= "" and wanted[kind] and
+       not (kind == "world" and names_the_material(text)) then
       clauses[#clauses + 1] = { rank = rank, place = place, text = text }
     end
   end
+
+  -- The strokes' material, first and weighted, in the inside route's strokes.
+  kind = "material"
+  if wanted.material then say(100, 5, "(" .. material.stuff .. ":1.3)") end
+
+  -- The background is said to be background, in that word, first. That is the
+  -- owner's specification for the inside route and the densest way to say it.
+  if part == "background" then
+    kind = "world"
+    say(100, 1, "background")
+  end
+  kind = "subject"
 
   -- Not every piece gets named. A crowded character can have six, and naming
   -- all six spends the whole sentence before the world is mentioned. `024`
@@ -232,17 +289,25 @@ function M.positive(scene, settings, style_name)
   -- A character with no nameable pieces still has a world and still has
   -- strokes. The sentence then starts with the setting, which is a legitimate
   -- picture: a landscape with no figure in it.
+  kind = "world"
   say(88, 20, scene.biome.register)
 
+  kind = "stroke"
   for index, role in ipairs(scene.named) do
     say(50 - index, 30 + index, role.phrase or role.object)
   end
+  kind = "world"
   for index, ground in ipairs(scene.landscape) do
     say(40 - index, 50 + index, ground.terrain)
   end
 
   say(60, 60, scene.biome.light)
   say(30, 65, scene.biome.palette)
+
+  -- The cover ranks with the world's setting: without it the material stops
+  -- in mid-air at the edge of every stroke.
+  kind = "cover"
+  if wanted.cover then say(88, 25, material.cover) end
 
   -- A character read only with borrowed pronunciations is usually an abstract,
   -- bookish word rather than a thing somebody points at. Saying so nudges the
@@ -251,6 +316,7 @@ function M.positive(scene, settings, style_name)
     say(20, 70, "still, composed, deliberate")
   end
 
+  kind = "style"
   say(80, style.place or 80, style.tail)
 
   -- Emitted in the order that reads as a sentence and puts the most heavily
@@ -308,9 +374,21 @@ function M.prompts(record, store, settings, options)
   local chosen = options.style or (settings.scene and settings.scene.style)
                  or "photographic"
   local positive, measured = M.positive(scene, settings, chosen)
+  -- Every part, written whether or not this run's routes use it, because it
+  -- costs nothing and the card shows what each route would have been told.
+  local parts = {}
+  for name in pairs(PARTS) do
+    parts[name] = M.positive(scene, settings, chosen, name)
+  end
+  -- The inside route's background pass also refuses the material, so the
+  -- strokes are the only place it appears (`416a`). Every world has one; a
+  -- world without one already stopped in `M.positive` above.
+  local negative = M.refusals(chosen)
   return {
     positive = positive,
-    negative = M.refusals(chosen),
+    parts = parts,
+    negative = negative,
+    background_negative = negative .. ", " .. scene.biome.material.stuff,
     style = chosen,
     scene = scene,
     length = measured,

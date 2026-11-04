@@ -1,0 +1,94 @@
+#!/usr/bin/env luajit
+-- find-in-transcripts -- finds where a phrase was said, in llm-transcripts/.
+--
+-- WHAT IT DOES (for a CEO): the code points at the owner's decisions by a
+-- date and a short phrase from the owner's own words, instead of quoting
+-- them in full (Issue 10-048). The transcripts wrap their lines at 80
+-- columns, so a phrase can be split across two lines and a plain grep misses
+-- it; this searches each transcript as one stream of words, line breaks and
+-- runs of spaces treated as one space, and prints each place it is found
+-- (file, line, and the lines around it).
+--
+-- Usage:  scripts/find-in-transcripts [--dir PATH] --phrase "PHRASE" [--context N]
+--   --dir PATH       project folder (default below)
+--   --phrase PHRASE  the words to find, as written (case ignored)
+--   --context N      lines shown around each find (default 3)
+--   A word with no flag in front of it stops the script (Issue 10-076). The
+--   phrase was a bare word, and "one word is the phrase, two are the folder
+--   then the phrase" let a phrase with no quotes around it become a folder.
+-- Exit status: 0 found, 1 not found.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+-- the project's libraries, for the logged print (libs/output.lua, Issue 10-075)
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
+
+-- {{{ arguments
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076).
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization",
+        { ["--phrase"] = true, ["--context"] = true })
+local PHRASE
+local CONTEXT = 3
+do
+    local i = 1
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
+        if a == "--context" then CONTEXT = tonumber(OWN_ARGS[i + 1]) or error("--context takes a number"); i = i + 1
+        elseif a == "--phrase" then PHRASE = OWN_ARGS[i + 1]; i = i + 1
+        else error("find-in-transcripts: unknown option " .. a) end
+        i = i + 1
+    end
+end
+if not PHRASE or PHRASE == "" then error("find-in-transcripts: give a phrase to find (see --help)") end
+-- }}}
+
+-- {{{ local function squeeze()
+-- Lower case, every run of whitespace one space.
+local function squeeze(text)
+    return (text:lower():gsub("%s+", " "))
+end
+-- }}}
+
+local wanted = squeeze(PHRASE)
+local found = 0
+local listing = assert(io.popen(string.format("ls %q/llm-transcripts/*.md", DIR)))
+for path in listing:lines() do
+    local f = assert(io.open(path))
+    local lines = {}
+    for line in f:lines() do lines[#lines + 1] = line end
+    f:close()
+    -- the whole file as one stream of words: each non-blank line squeezed,
+    -- joined by one space, and for each character the line it came from
+    local parts, line_of, length = {}, {}, 0
+    for n, line in ipairs(lines) do
+        local piece = squeeze(line):gsub("^ ", ""):gsub(" $", "")
+        if piece ~= "" then
+            parts[#parts + 1] = piece
+            for _ = 1, #piece + 1 do   -- the piece and the space after it
+                length = length + 1
+                line_of[length] = n
+            end
+        end
+    end
+    local text = table.concat(parts, " ") .. " "
+    local start = 1
+    while true do
+        local a = text:find(wanted, start, true)
+        if not a then break end
+        found = found + 1
+        local n = line_of[a] or #lines
+        require("output").print(string.format("%s:%d", path:sub(#DIR + 2), n))
+        for k = math.max(1, n - CONTEXT), math.min(#lines, n + CONTEXT) do
+            require("output").print(string.format("  %6d  %s", k, lines[k]))
+        end
+        require("output").print("")
+        start = a + #wanted
+    end
+end
+listing:close()
+if found == 0 then
+    io.stderr:write("find-in-transcripts: not found: " .. PHRASE .. "\n")
+    os.exit(1)
+end

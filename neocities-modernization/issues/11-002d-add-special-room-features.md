@@ -189,6 +189,10 @@ end
 - `assets/centroids.json` (centroid poem IDs)
 - Poems.json golden poem flags
 
+## Blocks
+
+- 11-003
+
 ## Related Issues
 
 - **11-002c**: Basic maze generation (this extends it)

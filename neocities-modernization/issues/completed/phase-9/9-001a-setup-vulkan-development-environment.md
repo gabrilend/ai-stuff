@@ -77,3 +77,7 @@ All environment setup complete and verified on GTX 1080 Ti.
 **Phase**: 9 (GPU Acceleration)
 
 **Priority**: High (blocking 9-001b)
+
+## Blocks
+
+- 9-001b, 9-002a
