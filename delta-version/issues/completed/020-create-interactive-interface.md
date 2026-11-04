@@ -346,3 +346,50 @@ function user_friendly_error_handling() {
 - Help system provides comprehensive guidance
 - Error handling provides clear, actionable guidance
 - Interface follows CLAUDE.md conventions for interaction modes
+
+---
+
+## What Happened
+
+**2026-11-02 — built as `scripts/ticket-menu.sh` on the shared Lua menu,
+covering the five intended behaviours; the wizard and editor screens were
+left out.**
+
+The sketches above are a hand-drawn bash menu loop. The house is retiring
+its bash TUI libraries in favour of the shared Lua menu
+(`scripts/libs/lua-menu.sh`), so the menu is built on that. Its tick boxes,
+scrolling list and file-preview panel already provide the index navigation
+and preview the sketch asked for.
+
+Against the intended behaviour:
+
+- **Guided workflow:** one screen, top to bottom: Template, Projects, Filing,
+  Do, then Go. After each step the menu comes back with the choices kept.
+- **Template management:** templates are the `.md` files in
+  `templates/tickets/`, listed in the menu and shown in its preview panel.
+  One working example ships there (`readme-run-instructions.md`).
+  *Decision:* no wizard, built-in editor or keyword-insertion assistant.
+  Writing a Markdown file in an editor does all three better. `--check` in
+  `process-template.lua` and the preview here catch a mistyped keyword.
+- **Project selection:** every project `discover-projects.lua` lists, none
+  ticked to begin with. The filters and profiles stay on the command line
+  (`distribute-ticket.lua --profile=...`), which the info file points to.
+- **Preview:** Preview is the dry run. Distribute runs the same dry run, then
+  writes only after `y` is typed.
+- **Distribution control:** phase (0 = current, or a number), `--create-issues`
+  and `--again` as tick boxes.
+- **History viewer:** History summarises the ledger per distribution. Undo
+  last removes the newest distribution's unedited tickets, after a `y`.
+
+Also not built: a configuration-management screen. The keyword files are
+plain text in `config/`.
+
+One library detail turned up and is noted in the code: `lua-menu.sh`
+declares its tables with `declare -A`, so it has to be sourced at a script's
+top level. Sourced inside a function, the tables become local to it, and
+every item id collides.
+
+Tested by `scripts/test-ticket-menu.sh` (32 checks on a scratch monorepo in
+RAM, driving the menu's functions without the screen). The screen itself was
+also opened in a 140×45 pseudo-terminal on the real tree, and showed the
+template, projects, filing and steps.
