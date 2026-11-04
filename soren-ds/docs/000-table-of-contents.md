@@ -1,5 +1,12 @@
 # Soren DS — documentation table of contents
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 The vision document lives at `notes/vision/000-vision.md`.
 
 Other notes:
@@ -8,6 +15,9 @@ Other notes:
   device could be made unrecoverable during development, why each
   scenario happens, and the design rule that prevents it. Read
   before any low-level flashing work.
+- `notes/safety/001-not-for-sale.md` — why Soren DS is a design
+  and prototype only, never sold or installed on a consumer device
+  until every layer beneath it is open code we can build.
 - `notes/3c-model` — the original artistic seed for the modeller
   app. The formal spec grown out of it lives at
   `docs/010-modeller.md`.

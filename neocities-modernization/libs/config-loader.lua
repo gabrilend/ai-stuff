@@ -37,29 +37,25 @@ local function detect_project_root()
     -- Try to find project root from current script location
     local script_path = debug.getinfo(1, "S").source:sub(2)  -- Remove @ prefix
 
-    -- If script is in libs/, go up one level
-    if script_path:match("/libs/") then
+    -- This file sits in the project's libs/, so the folder above it is the
+    -- project: the project this library belongs to, not a guess.
+    if script_path:match(".+/libs/") then
         project_root = script_path:match("(.+)/libs/")
-    elseif script_path:match("\\libs\\") then
-        -- Windows path
-        project_root = script_path:match("(.+)\\libs\\")
+    elseif script_path:match("^%.?/?libs/") then
+        -- loaded through a relative package.path ("libs/?.lua"): the folder
+        -- the program was started in holds libs/
+        local p = io.popen("pwd")
+        project_root = p:read("*l")
+        p:close()
     end
 
-    -- Fallback: check known project directory
+    -- Neither: an error, naming the call that tells this library its folder.
+    -- (Issue 10-076, owner 2026-11-03: "should remove fallback defaults". It
+    -- used to try two written-in folders -- one of them where the project
+    -- lived before it moved -- and use whichever held a config.lua.)
     if not project_root then
-        local known_paths = {
-            "/mnt/mtwo/programming/ai-stuff/neocities-modernization",
-            "/home/ritz/programming/ai-stuff/neocities-modernization"
-        }
-        for _, path in ipairs(known_paths) do
-            -- Issue 10-003: Check for config.lua in project root
-            local f = io.open(path .. "/config.lua", "r")
-            if f then
-                f:close()
-                project_root = path
-                break
-            end
-        end
+        error("config-loader: cannot tell which project to read config.lua from (it was loaded from "
+            .. script_path .. "); call set_project_root(DIR) first", 0)
     end
 
     return project_root
@@ -74,14 +70,11 @@ local function resolve_path(path)
         return path
     end
 
-    -- Resolve relative to project root
+    -- Resolve relative to project root (detect_project_root stops the program
+    -- when it cannot tell; it used to return nothing, and the path was then
+    -- used as written, relative to wherever the program happened to be)
     local root = project_root or detect_project_root()
-    if root then
-        return root .. "/" .. path
-    end
-
-    -- Fallback: return relative path and hope for the best
-    return path
+    return root .. "/" .. path
 end
 -- }}}
 

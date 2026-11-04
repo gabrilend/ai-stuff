@@ -196,6 +196,18 @@ POST /sdapi/v1/img2img {
 The neighbor images from the previous pass can be composited into a grid or blended
 before being passed as the init_image, ensuring all context images contribute equally.
 
+## Suggested Implementation Steps
+
+The sub-issues are the steps; each holds its own detail. The Technical Design
+below is the shared reference.
+
+1. 13-003a and 13-003b, in either order: the diameter context window that
+   picks the recent words for each prompt and composes the prompt; and the
+   call to the locally hosted stable diffusion server.
+2. 13-003c: one image per step of the word sequence, in a single pass,
+   written with the visual manifest that 13-004 reads.
+3. 13-003d (optional, off the critical path): multi-pass refinement.
+
 ## Technical Design
 
 ### Image Generation Pipeline
@@ -417,4 +429,5 @@ Image generation is the bottleneck:
 - **Created**: 2026-01-26
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: High (API integration + prompt engineering + large-scale generation)
-- **Dependencies**: 13-001 (TTS engine), 13-002 (flopsopoly manifest and audio)
+- **Dependencies**: 13-001 (TTS engine), 13-002 (flopsopoly manifest and audio), 13-002d
+- **Blocks**: 13-004

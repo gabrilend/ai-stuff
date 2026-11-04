@@ -250,3 +250,7 @@ After fix:
 **Re-opened**: 2026-01-21 (pagination bug)
 **Re-completed**: 2026-01-21 (anchor ID format fix)
 **Phase**: 8 (Website Completion)
+
+## Blocks
+
+- 8-046

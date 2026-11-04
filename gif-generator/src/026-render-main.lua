@@ -197,11 +197,15 @@ function main.run(dir, wanted)
         end
     end
 
+    -- the word files, loaded once, so any score may use pattern{...}
+    -- (issue 604a); a broken word file stops the run before any render
+    local vocabulary = require("034-words").load_all(dir)
+
     local failures = 0
     local landed = {}
     for _, name in ipairs(names) do
         local ok, err = pcall(function()
-            local raw = score.read(dir .. "/input/" .. name .. ".lua")
+            local raw = score.read(dir .. "/input/" .. name .. ".lua", vocabulary)
             local compiled = compile.score(raw)
             local bytes, facts = main.render_to_gif(compiled)
             local final = land(dir, name, bytes)
