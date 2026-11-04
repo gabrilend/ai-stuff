@@ -225,8 +225,8 @@ local STROKE_FIELDS = { "name", "pane", "at", "lasts", "color", "fade",
                         "ease", "shape", "emit" }
 local PANE_FIELDS = { "name", "place", "at", "facing", "size", "pixels" }
 -- 3D values are written as the shape scenes write them, so every
--- number reads back as the same double (045-scene-file.lua)
-local scene_file = require("045-scene-file")
+-- number reads back as the same double (055-scene-file.lua)
+local scene_file = require("055-scene-file")
 function score.write(raw)
     local lines = {}
     -- {{{ local function put()

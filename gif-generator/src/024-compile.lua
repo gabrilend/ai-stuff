@@ -5,7 +5,7 @@
 -- a score author fixes one render's worth of mistakes per attempt,
 -- not one mistake. Every error names its stroke and field, and when
 -- a name misses a vocabulary it carries the nearest legal word
--- (computed by edit distance, 047-nearest.lua, against the same tables
+-- (computed by edit distance, 057-nearest.lua, against the same tables
 -- the runtime trusts — nothing here keeps a second copy that could
 -- drift).
 -- Compilation then resolves every name to a number: clock words to
@@ -14,7 +14,7 @@
 -- out contains no strings to look up at runtime.
 --
 -- A score may also speak the second space (issue 701d): shapes, a
--- camera and a world, judged by the 3D wall (049-shape-wall.lua) in
+-- camera and a world, judged by the 3D wall (059-shape-wall.lua) in
 -- the same pass, so a score with a broken stroke and a misspelled
 -- shape hears about both at once; and panes of glass, each stroke
 -- painted on one. Such a score compiles to one stroke timeline per
@@ -40,11 +40,11 @@ local LEGAL_FPS = { [50]=true, [25]=true, [20]=true, [10]=true,
                     [5]=true, [4]=true, [2]=true, [1]=true }
 
 -- The nearest legal word to a miss, shared with the 3D wall.
-local nearest = require("047-nearest").word
+local nearest = require("057-nearest").word
 
 -- The house hues in their one fixed order: a score with a second space
 -- seats all of them, as every shape film does, so its shapes and strokes
--- index through the same palette as the films (039-shape-films.lua).
+-- index through the same palette as the films (049-shape-films.lua).
 compile.HOUSE_HUES = { "rose", "ember", "gold", "jade", "teal", "ice",
                        "violet" }
 
@@ -75,12 +75,12 @@ local three
 local function three_d()
     if not three then
         three = {
-            meshes = dofile(HERE .. "034-meshes.lua"),
-            choreography = dofile(HERE .. "035-choreography.lua"),
-            fluid = dofile(HERE .. "037-fluid.lua"),
-            raster = dofile(HERE .. "036-raster.lua"),
-            words = dofile(HERE .. "048-shape-words.lua"),
-            wall = dofile(HERE .. "049-shape-wall.lua"),
+            meshes = dofile(HERE .. "044-meshes.lua"),
+            choreography = dofile(HERE .. "045-choreography.lua"),
+            fluid = dofile(HERE .. "047-fluid.lua"),
+            raster = dofile(HERE .. "046-raster.lua"),
+            words = dofile(HERE .. "058-shape-words.lua"),
+            wall = dofile(HERE .. "059-shape-wall.lua"),
         }
         -- every house hue as light, and "cloud", white light, as the
         -- films hand them in

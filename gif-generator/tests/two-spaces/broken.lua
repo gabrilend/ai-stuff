@@ -1,5 +1,5 @@
 -- broken.lua — a two-space score with a dozen mistakes across both
--- spaces, for the wall to report all at once (054-two-spaces-test.lua).
+-- spaces, for the wall to report all at once (064-two-spaces-test.lua).
 -- Every line here is wrong on purpose; do not fix it.
 
 canvas{ size = 256, fps = 25, length = 4.0, seed = 7, background = "skye" }

@@ -16,7 +16,7 @@ them all.
 
 A new collection now exists and has no page: animated gifs of 3D shapes
 interacting. They are drawn by the monorepo's gallery renderer,
-`gif-generator/src/039-shape-films.lua` (gif-generator issue 702, once
+`gif-generator/src/049-shape-films.lua` (gif-generator issue 702, once
 delta-version issue 060), and kept
 at `/home/ritz/pictures/shape-gifs/`, with PNG stills in a `stills/`
 subfolder. The owner wants them all showcased:

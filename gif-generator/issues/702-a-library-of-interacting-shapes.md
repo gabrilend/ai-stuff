@@ -3,7 +3,7 @@
 **Status**: In progress (all 34 films kept in the owner's library; README section dropped by the owner; four open questions below)
 **Priority**: Low
 **Created**: 2026-09-23
-**Type**: New tool (now `src/034` to `039`, `input/shapes/`, `tests/shape-films/`)
+**Type**: New tool (now `src/044` to `049`, `input/shapes/`, `tests/shape-films/`)
 **Related**: neocities-modernization issue 10-042e (a gallery page of these
 films on the neocities site); `058-front-page-rewrites-its-own-figures.md`
 (the front page these were first meant for); 701 and 701a (which brought
@@ -15,10 +15,10 @@ where it tells what happened. Read them through this table:
 
 | Old name (delta-version/scripts/readme-gallery/) | Now (gif-generator/) |
 | --- | --- |
-| `readme-gallery.lua` | `src/039-shape-films.lua` |
-| `meshes.lua`, `choreography.lua`, `raster.lua`, `fluid.lua`, `png.lua` | `src/034` to `038`, same names after the number |
+| `readme-gallery.lua` | `src/049-shape-films.lua` |
+| `meshes.lua`, `choreography.lua`, `raster.lua`, `fluid.lua`, `png.lua` | `src/044` to `048`, same names after the number |
 | `scenes/` | `input/shapes/` |
-| `tests/choreography-test.lua`, `tests/framing-test.lua` | `src/042-choreography-test.lua`, `src/043-framing-test.lua` |
+| `tests/choreography-test.lua`, `tests/framing-test.lua` | `src/052-choreography-test.lua`, `src/053-framing-test.lua` |
 | `tests/` (scenes, fingerprints, gif-facts) | `tests/shape-films/` |
 | `render-all.sh`, `test-readme-gallery.sh` | `render-all-shapes`, `test-shape-films` |
 | `/dev/shm/delta-version/readme-gallery-candidates` | `/dev/shm/gif-generator/shape-film-candidates` |

@@ -27,7 +27,7 @@
 DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 [ -n "${1:-}" ] && [ -d "$1" ] && DIR="$1"
 
-TOOL="$DIR/src/039-shape-films.lua"
+TOOL="$DIR/src/049-shape-films.lua"
 SCRATCH="/dev/shm/gif-generator/shape-films-test"
 
 PASS=0
@@ -36,8 +36,8 @@ FAIL=0
 # -- {{{ gif_facts
 function gif_facts() {
     # What a gif is made of, as one line, read by the studio's one reader
-    # (src/040-gif-decode.lua), which shares no code with the encoder.
-    luajit "$DIR/src/040-gif-decode.lua" --facts "$1"
+    # (src/050-gif-decode.lua), which shares no code with the encoder.
+    luajit "$DIR/src/050-gif-decode.lua" --facts "$1"
 }
 # }}}
 
@@ -250,7 +250,7 @@ function test_framing() {
     # Scenes that promise to keep their subjects in the picture (`framing`)
     # are walked frame by frame through the painter's own projection.
     local report
-    report=$(luajit "$DIR/src/043-framing-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/053-framing-test.lua" "$DIR")
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - framing: /; s/^  FAIL - /  FAIL - framing: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
     FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
@@ -262,7 +262,7 @@ function test_choreography() {
     # Every scene loops without a seam, and each word of the vocabulary does
     # what it says -- asked of the stage manager directly, no pixels.
     local report
-    report=$(luajit "$DIR/src/042-choreography-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/052-choreography-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - stage: /; s/^  FAIL - /  FAIL - stage: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
@@ -276,7 +276,7 @@ function test_round_trip() {
     # The one reader and the one writer agree: each approved film, taken
     # apart and put back together, comes out the same bytes (issue 701b).
     local report
-    report=$(luajit "$DIR/src/044-round-trip-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/054-round-trip-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - round trip: /; s/^  FAIL - /  FAIL - round trip: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
@@ -311,14 +311,14 @@ function test_the_wall() {
     # those, and the vocabulary's documentation is the one the word lists
     # print.
     local report
-    report=$(luajit "$DIR/src/050-shape-wall-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/060-shape-wall-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - wall: /; s/^  FAIL - /  FAIL - wall: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
     FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
     [ $code -eq 0 ] || [ "$(echo "$report" | grep -c '^  FAIL')" -gt 0 ] || { echo "  FAIL - wall test crashed"; FAIL=$((FAIL + 1)); }
 
-    luajit "$DIR/src/051-shape-docs.lua" "$DIR" --check > /dev/null
+    luajit "$DIR/src/061-shape-docs.lua" "$DIR" --check > /dev/null
     check "docs/shape-format.md is the one the word lists print" "$([ $? -eq 0 ] && echo yes || echo no)"
 
     local refusal
@@ -342,7 +342,7 @@ function test_two_spaces() {
     # score with a dozen mistakes across both spaces hears of all of them,
     # and a mixed score films the same twice.
     local report
-    report=$(luajit "$DIR/src/054-two-spaces-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/064-two-spaces-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - two spaces: /; s/^  FAIL - /  FAIL - two spaces: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
