@@ -23,6 +23,10 @@ repository, and `hook.connect()` is a stub.
 - Each of 609a's five assumptions is checked against rmail's code and
   docs, and the glue follows what rmail really does.
 - The prompt on screen moves to 609c: it needs a screen to be checked.
+- For "check out my map", the map file goes in the same message as its
+  list, and is taken only when it has the hash the list gives.
+- The inbox is read only when the editor or launcher asks (`C:poll`),
+  never on a timer.
 
 **After the editor-and-client split (2026-11-04).** Playing happens in
 the W client (issue 913), and using a list during a game, the lobby
@@ -49,6 +53,10 @@ launcher, then stored.
       against a live rmail)
 - [x] Each assumption is marked held or not, with the rmail file that shows it
 - [x] The in-process fake from 609a still passes
+- [x] A map sent with its list arrives in the same message, and one whose
+      bytes don't match the list's map hash refuses the whole list
+- [x] Nothing reads the inbox until `C:poll` is called, and nothing calls
+      it on a timer
 
 ## Implementation Notes (2026-11-03)
 
@@ -117,11 +125,13 @@ beyond it, and rmail was not changed.
 
 1. **Subjects are sent in the form rmail delivers them**
    (`wete-share-<kind>-<id>`). `decode` still reads 609a's spaced form.
-2. **The hooks only take notes, and the game does the rest in
-   `C:poll`.** rmail's hooks run in the background and can't reach a
-   running game, so each writes one record, and the game polls. A record is
-   written under a dot name and renamed, and one with a newline smuggled
-   into a value has too many lines and is dropped.
+2. **The hooks only take notes, and the editor or launcher does the rest
+   in `C:poll`, when it calls it.** rmail's hooks run in the background
+   and can't reach a running program, so each writes one record, which
+   waits until the next `C:poll`. (Written first as "the game polls";
+   changed 2026-11-04, decision 12 below.) A record is written under a
+   dot name and renamed, and one with a newline smuggled into a value has
+   too many lines and is dropped.
 3. **The config is never edited here.** `C:install()` writes the scripts
    and gives the two lines. The person adds them and restarts rmail, and
    `C:hooked()` says whether they're in. A hook the config already names
@@ -152,8 +162,59 @@ beyond it, and rmail was not changed.
    other side would have to consent to by hand.
 10. **State stays in memory, as in 609a.** A record waits in the drop
     folder and the mail in the inbox until the next poll, so a list that
-    arrives while the game is closed is handled when it opens. A want or
+    arrives while the editor and launcher are closed is handled when one
+    opens. A want or
     files message for an exchange from before a restart is refused.
+
+11. **The map goes in the list's message (2026-11-04).** For "check out
+    my map", `X:offer(to, l, map)` copies the map file to
+    `share-outgoing/<id>.map/<hex>.<ext>` and the list mail attaches it;
+    the body's first line, `map: <hex>.<ext>`, names it, so the receiver
+    knows a map is coming before its consent form shows up. The copy is
+    sent, not the map itself, so a map edited after sharing still arrives
+    as the list names it, and it is freed (`X:sent(id, "map")`) once rmail
+    drops the list's outbox file. Named by its hash, the map gets past the
+    `on_package` script unchanged, and the sharer's own file name isn't
+    sent.
+    On the receiver's side the list goes to the exchange at once, so the
+    player is asked once, as before; the list mail stays in the inbox
+    until the map has come. The map's consent form is left alone until
+    the player answers (`X:wants_map` is nil), then accepted on yes and
+    denied on no, or when their store already holds that map (it isn't
+    downloaded twice). When the map comes, its bytes are hashed and must
+    be the list's `map.hash`, or the whole list is refused and nothing is
+    stored; a name in the `map:` line that isn't the list's map hash is
+    refused the same way, before anything is downloaded. Only then is it
+    stored, and once the models are in too the list is applied and the
+    map linked at `<data>/maps/<its name>/<its name>.<ext>` (the player
+    data folder's maps folder; a folder of that name holding another map
+    is never replaced, a " 2" is added), given as `q.map_file`. The map
+    is never applied as art: it goes to the store and the maps folder,
+    not into the list's profile.
+12. **No timer (2026-11-04).** The owner: "we only send models and such
+    when the map that includes them is shared ... so we don't need to
+    check the rmail inbox every 5 seconds." `C:poll(X)` is the only thing
+    that reads the hooks' notes, and only the editor or the launcher calls
+    it: when it opens, when the person asks it to look, and right after
+    they answer a question (so the map's form is answered then). Nothing
+    in `share/` keeps a timer or a loop, and connecting starts nothing.
+    Each step of a share then moves when someone calls `C:poll`: the
+    receiver's to take the list, answer the map's form and take the files,
+    and the sharer's to answer the want with the files.
+
+### Open questions (2026-11-04)
+
+1. **The want round trip without a timer.** The sharer's side answers a
+   want only when its editor or launcher calls `C:poll`, and (decision
+   10) only while it hasn't restarted since sharing. rmail's consent
+   forms could replace the round trip: the sharer attaches every model
+   with the map, and the receiver's poll accepts only the forms for files
+   its store lacks and denies the rest, so nothing has to come back.
+   Should the list's one message carry every file that way?
+2. **A list without its map.** "A list travels only with its map", but
+   `X:offer(to, l)` without a map still works, and a list mail without a
+   `map:` line is still read (609a's tests use both). Should a list that
+   brings no map, for a map the receiver doesn't hold, be refused?
 
 ### Proposed rmail changes (not made; rmail is its own repository)
 
@@ -175,16 +236,28 @@ beyond it, and rmail was not changed.
 
 Two things in these notes read differently under the owner's decisions
 of 2026-11-04 (609, "Where each part runs" and "A list travels only with
-its map"). The code is unchanged by this note.
+its map"), and both are now built (decisions 11 and 12).
 
-- **Who reads the notes, and when.** Decision 2 has "the game" poll the
-  hooks' notes. Playing is now the W client's, and the owner: "we only
-  send models and such when the map that includes them is shared ... so
-  we don't need to check the rmail inbox every 5 seconds." `C:poll` stays
-  as the call that reads what the hooks noted; what calls it here is the
-  editor or the launcher, not a game loop on a timer. When they call it is
-  still to be settled.
-- **The map travels with its list.** The glue sends a list that names its
-  map by hash. For "check out my map" the map file and the list go in one
-  message; adding the map file as an attachment of the list message is
-  not built yet.
+- **Who reads the notes, and when.** Decision 2 had "the game" poll the
+  hooks' notes. Playing is now the W client's, and no inbox is checked on
+  a timer. `C:poll` stays as the call that reads what the hooks noted, and
+  the editor or the launcher calls it when it opens, when the person asks,
+  and after an answer (decision 12).
+- **The map travels with its list.** The list's message now carries the
+  map file as its attachment, and the receiver checks the map's hash
+  against the list before taking it (decision 11).
+
+Files changed for these two:
+
+- `src/share/exchange.lua`: `X:offer(to, l, map)`, a list message's
+  `map`, `X:wants_map`, a `map` message for a map that came later, the
+  hash check, and `q.map_file`. `X:sent(id, "map")` frees the copy.
+- `src/share/rmail_hook.lua`: the `map:` line and the attachment, the list
+  mail held until its map has come, the map's consent form answered on
+  the player's answer, and the comments and hook scripts say the editor or
+  launcher, not the game.
+- `src/tests/test_share_rmail.lua`: 68 tests (22 new: the map in the
+  list's message, its form waiting for the answer, a map already held, a
+  map that doesn't match, a list naming another map, no, and nothing read
+  before `C:poll`).
+- `src/tests/test_share_exchange.lua`: 38 (6 new, in process).

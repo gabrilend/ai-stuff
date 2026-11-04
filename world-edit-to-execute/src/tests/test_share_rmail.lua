@@ -349,6 +349,113 @@ ok = pcall(T.send, "../ben", { kind = "want", id = "x-2", hashes = { l.entries[1
 test("nor is mail sent to a name that isn't a contact's", not ok)
 -- }}}
 
+-- {{{ "Check out my map": the map goes in the list's message
+print("\n=== Check out my map: the map file goes with its list ===")
+local MINE4 = A .. "/asset-packs/keep"
+write(MINE4 .. "/units/archer/archer.mdx", "MDLX an archer, by Ana")
+write(SCR .. "/maps/keep.w3x", "Castle Keep's own bytes")
+local l4 = list.build({ map = SCR .. "/maps/keep.w3x", map_name = "Castle Keep", pack = MINE4,
+                        types = { hrif = "units/archer/archer.mdx" }, author = "Ana", created = "2026-11-04" })
+local MAPNAME = l4.map.hash:sub(8) .. ".w3x"
+ana.pack = MINE4
+local ok4, err4 = pcall(ana.offer, ana, "ben", l4, SCR .. "/maps/castle.w3x")
+test("a map that isn't the one the list names isn't sent", not ok4 and err4:match("hash differs"))
+local id4 = ana:offer("ben", l4, SCR .. "/maps/keep.w3x")
+local L4 = "wete-share-list-" .. id4
+text = read(ANA.mail .. "/outbox/" .. L4) or ""
+test("the list's one message names the map and attaches a copy of it",
+    text:match("^to: ben\nattach: [^\n]*/share%-outgoing/" .. id4:gsub("%p", "%%%0") .. "%.map/" .. MAPNAME .. "\n\nmap: "
+        .. MAPNAME .. "\n%-%- A shared") ~= nil)
+sync(ANA, BEN)
+local MAPFORM = BEN.mail .. "/inbox/" .. L4 .. "-" .. MAPNAME .. "-consent-to-download-form"
+test("rmail delivers the list and a consent form for the map", exists(BEN.mail .. "/inbox/" .. L4) and exists(MAPFORM))
+before = #ben:pending()
+test("nothing reads the inbox until the editor or launcher calls C:poll", #ben:pending() == before
+    and #ls(B .. "/share-mail") > 1)
+ev = CB:poll(ben)
+local q4 = ben:pending()[#ben:pending()]
+test("the poll asks once, saying the map comes with the list", find(ev, "receive").result == "asking"
+    and q4.id == id4 and q4.map_sent == true and q4.map_held == false)
+test("the map's form waits for the answer, and the list mail stays",
+    (read(MAPFORM) or ""):match("\naccept\ndeny$") ~= nil and exists(BEN.mail .. "/inbox/" .. L4))
+test("a poll before the answer leaves the form alone", #CB:poll(ben) == 0 and (read(MAPFORM) or ""):match("\naccept\ndeny$"))
+test("Ben says yes", ben:answer(id4, "yes") == "waiting")
+ev = CB:poll(ben)
+local c4 = find(ev, "consent")
+test("the next poll accepts the map's form", c4 and c4.result == "accepted" and c4.file == MAPNAME
+    and (read(MAPFORM) or ""):match("\naccept\n?$") ~= nil)
+consent(BEN)
+sync(BEN, ANA); CA:poll(ana); sync(ANA, BEN)
+local nready = #ready
+ev = CB:poll(ben)
+test("the map came first and checks out; the list waits for its model", find(ev, "map")
+    and find(ev, "map").result == "waiting" and #ready == nready, table.concat(problems, "; "))
+consent(BEN)
+ev = CB:poll(ben)
+local got4 = ready[#ready]
+test("with the model in, the list is ready", find(ev, "files") and find(ev, "files").result == "ready"
+    and #ready == nready + 1 and got4.q.id == id4, table.concat(problems, "; "))
+test("and the map is kept in Ben's maps folder", got4.q.map_file and got4.q.map_file:match("/maps/Castle Keep/Castle Keep%.w3x$")
+    and list.hash_file(got4.q.map_file) == l4.map.hash)
+test("the list mail and the map's file are cleared", not exists(BEN.mail .. "/inbox/" .. L4)
+    and #ls(BEN.mail .. "/attachments") == 0)
+deletes(BEN)
+ev = CA:poll(ana)
+local sent4
+for _, e in ipairs(ev) do if e.event == "sent" and e.what == "map" then sent4 = e end end
+test("Ana's poll frees the map's copy once rmail is done with it", sent4 and sent4.id == id4
+    and not exists(A .. "/share-outgoing/" .. id4 .. ".map"))
+
+print("\n=== What's refused, with a map ===")
+-- the same map again: Ben has it, so it isn't downloaded twice
+local id5 = ana:offer("ben", l4, SCR .. "/maps/keep.w3x")
+sync(ANA, BEN); CB:poll(ben)
+nready = #ready
+test("a map Ben already has: yes is ready at once", ben:answer(id5, "yes") == "ready" and #ready == nready + 1
+    and ready[#ready].q.map_file == got4.q.map_file)
+local FORM5 = BEN.mail .. "/inbox/wete-share-list-" .. id5 .. "-" .. MAPNAME .. "-consent-to-download-form"
+ev = CB:poll(ben)
+test("and its form is denied, so it isn't sent again", find(ev, "map") and (read(FORM5) or ""):match("\ndeny\n$")
+    and not (read(FORM5) or ""):match("accept") and not exists(BEN.mail .. "/inbox/wete-share-list-" .. id5))
+consent(BEN)
+test("rmail saves nothing", #ls(BEN.mail .. "/attachments") == 0)
+
+-- a list whose map file doesn't have the hash the list gives
+write(SCR .. "/maps/keep2.w3x", "a second keep")
+local l6 = list.build({ map = SCR .. "/maps/keep2.w3x", map_name = "Castle Keep II", pack = MINE4, author = "Ana" })
+local BADNAME = l6.map.hash:sub(8) .. ".w3x"
+write(SCR .. "/fake/" .. BADNAME, "not the second keep at all")
+write(ANA.mail .. "/outbox/wete-share-list-ana-9-9", "to: ben\nattach: " .. SCR .. "/fake/" .. BADNAME .. "\n\nmap: "
+    .. BADNAME .. "\n" .. list.encode(l6))
+sync(ANA, BEN); CB:poll(ben)
+nready = #ready
+test("Ben says yes to a list whose map is a fake", ben:answer("ana-9-9", "yes") == "waiting")
+CB:poll(ben); consent(BEN)
+ev = CB:poll(ben)
+test("the map is checked against the list's hash and the list refused whole", find(ev, "map")
+    and find(ev, "map").result == nil and find(ev, "map").err:match("doesn't match the hash") and #ready == nready)
+test("nothing of the fake is kept", #ls(BEN.mail .. "/attachments") == 0 and not exists(B .. "/maps/Castle Keep II")
+    and not ben.store:exists(list.hash_file(SCR .. "/fake/" .. BADNAME)))
+
+-- declined: the map's form is denied
+local id7 = ana:offer("ben", l6, SCR .. "/maps/keep2.w3x")
+sync(ANA, BEN); CB:poll(ben)
+ben:answer(id7, "no")
+local FORM7 = BEN.mail .. "/inbox/wete-share-list-" .. id7 .. "-" .. BADNAME .. "-consent-to-download-form"
+ev = CB:poll(ben)
+test("no to a list denies its map's form", find(ev, "map") and (read(FORM7) or ""):match("\ndeny\n$")
+    and not exists(BEN.mail .. "/inbox/wete-share-list-" .. id7))
+-- a list naming a map that isn't its own
+write(ANA.mail .. "/outbox/wete-share-list-ana-9-10", "to: ben\nattach: " .. SCR .. "/maps/keep.w3x\n\nmap: "
+    .. MAPNAME .. "\n" .. list.encode(l6))
+sync(ANA, BEN)
+before = #ben:pending()
+ev = CB:poll(ben)
+test("a list naming another map than its own is refused, and its form denied", find(ev, "receive").err ~= nil
+    and #ben:pending() == before and not exists(BEN.mail .. "/inbox/wete-share-list-ana-9-10")
+    and (read(BEN.mail .. "/inbox/wete-share-list-ana-9-10-keep.w3x-consent-to-download-form") or ""):match("\ndeny\n$"))
+-- }}}
+
 -- {{{ The mail format
 print("\n=== The mail format ===")
 local f = hook.read_form("ana wants to send you an attachment.\n\n  Attached to:   m\n  File:          " .. hex ..

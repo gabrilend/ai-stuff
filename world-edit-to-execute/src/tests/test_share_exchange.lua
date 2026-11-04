@@ -198,6 +198,40 @@ eve.send({ to = "ben", subject = "wete-share list " .. id7, body = "return os.ex
 test("a list that tries to run code is declined, and nothing ran", deliver("ben", ben_hook)[1] == "decline" and not exists(SCR .. "/ran"))
 -- }}}
 
+-- {{{ Check out my map: the map in the same message (issue 609b)
+print("\n=== The map file goes with its list ===")
+write(SCR .. "/maps/keep.w3m", "Castle Keep's bytes")
+local lk = list.build({ map = SCR .. "/maps/keep.w3m", map_name = "Castle Keep", pack = MINE, author = "Ana" })
+local idk = ana:offer("ben", lk, SCR .. "/maps/keep.w3m")
+local mk = boxes.ben[1]
+test("the list's mail carries the map as its one attachment, named by hash", #mk.attachments == 1
+    and mk.attachments[1].name == lk.map.hash:sub(8) .. ".w3m" and mk.body:match("^map: %x+%.w3m\n"))
+deliver("ben", ben_hook)
+local qk = ben:pending()[#ben:pending()]
+test("the question says the map came with it", qk.id == idk and qk.map_sent and not qk.map_held
+    and ben:wants_map(idk, "ana") == nil)
+n_ready = #ready
+ben:answer(idk, "yes")
+deliver("ana", ana_hook); deliver("ben", ben_hook)
+test("on yes the map is checked and kept beside the models", #ready == n_ready + 1
+    and ready[#ready].q.map_file:match("/maps/Castle Keep/Castle Keep%.w3m$")
+    and read(ready[#ready].q.map_file) == "Castle Keep's bytes", table.concat(problems, "; "))
+test("and isn't wanted again", ben:wants_map(idk, "ana") == false)
+ana:sent(idk, "map")
+test("Ana's copy of the map is freed", not exists(A .. "/share-outgoing/" .. idk .. ".map"))
+-- a map swapped on the way
+write(SCR .. "/maps/keep2.w3x", "a second keep")
+local lk2 = list.build({ map = SCR .. "/maps/keep2.w3x", map_name = "Keep Two", pack = MINE, author = "Ana" })
+local idk2 = ana:offer("ben", lk2, SCR .. "/maps/keep2.w3x")
+write(SCR .. "/swapped-map", "not the second keep")
+boxes.ben[1].attachments[1].path = SCR .. "/swapped-map"
+deliver("ben", ben_hook)
+n_ready = #ready
+ben:answer(idk2, "yes")
+test("a map that doesn't match the list's hash refuses the whole list", #ready == n_ready
+    and problems[#problems]:match("doesn't match the hash") and not exists(B .. "/maps/Keep Two"))
+-- }}}
+
 os.execute("rm -rf " .. sh(SCR))
 print(string.format("\nTests: %d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)
