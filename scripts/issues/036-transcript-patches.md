@@ -12,7 +12,7 @@ conversation's patches to every rendering before its unchanged check, so
 `translate-ids --all` over the monorepo (about 50 s) found 485 transcripts:
 24 conversations quote ids the graft replaced and received an id patch, 53
 quote none, 408 are frozen (session log gone, never re-exported, so the
-translation `c6285e303` already made in them cannot be undone by an export),
+translation `713a20e32` already made in them cannot be undone by an export),
 none excluded. For 76 of the 77 re-renderable transcripts, raw rendering +
 patches equals the file on disk. The one mismatch,
 `filesystem-tapestry/llm-transcripts/jul-15-26.md`, is not a patch problem:
@@ -21,7 +21,7 @@ its conversation is recorded under a different project, so this project
 never re-exports it (it is the transcript `check-transcripts-are-filed-right`
 already reports as misfiled).
 
-A first version (committed as `929afaa0a`) kept Lua patch files at two
+A first version (committed as `42603c24c`) kept Lua patch files at two
 levels, including a repository-wide folder whose patch 001 translated every
 transcript in the monorepo. The owner's answers replaced it with the
 per-conversation layout below; the repository-wide level is gone.
@@ -30,7 +30,7 @@ Before any of this, a transcript was only a rendering: `backup-conversations`
 turns a Claude Code session log into `llm-transcripts/<date>.md` and
 re-renders it whenever that session is exported again, so a hand edit lasted
 only until the next export. The first edit that needed to last was the
-history graft (delta-version issue 031): commit `c6285e303` rewrote 670
+history graft (delta-version issue 031): commit `713a20e32` rewrote 670
 quoted ids in 87 files, 66 of them transcripts, while the session logs keep
 the old ids.
 
@@ -95,7 +95,7 @@ re-applied every time the transcript is exported again.
   text recurs; idempotency comes from the applied-state check instead.
 - **Id patches are their own kind, not generated find/replace pairs.** A
   commit id is a short run of hex digits; a plain substring replacement of
-  `df8412d0` would also rewrite that string inside a longer id or hash that
+  `a83d51d8` would also rewrite that string inside a longer id or hash that
   merely begins with it. The graft's recogniser only rewrites ids with
   nothing alphanumeric on either side that resolve to exactly one commit, and
   the per-conversation `ids` file still lists every id the patch touches.

@@ -83,6 +83,12 @@ documentation as a website, the demonstrations — and the governor that keeps a
 run from taking the whole machine and holding the processor at the top of its
 thermal range for as long as it lasts.
 
+**Phase 5 — The Museum.** A picture in the manner of a place where things are
+shown. A museum as a record in words, the halls whose exhibits stand along the
+strokes (a planetarium among them), the case said in a few words rather than
+drawn, and — once there are any — photographs conditioning the look without
+being allowed to take the shape.
+
 ## Reading the source in order
 
 The indices are the reading order. `src/009` through `src/020` are phase one and

@@ -34,6 +34,7 @@ Phase 11 focuses on innovative navigation systems that give users agency in how 
 | 11-002d | Add special room features | Open | Low | MVP |
 | 11-003 | Maze pipeline integration | Open | Low | MVP |
 | 11-004 | Rewrite explore page + add deeper-math page | Open | Medium | (deferred: similarity-score charts) |
+| 11-010 | Guide-me: a marker-annotated tutorial copy of one poem page | Open (design; 4 open questions) | Medium | its open questions |
 
 ### Completed Issues
 

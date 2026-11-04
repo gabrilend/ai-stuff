@@ -1,0 +1,333 @@
+#!/usr/bin/env luajit
+-- audit-config-keys
+--
+-- Lists the settings in config.lua that no program in the project reads.
+--
+-- In general terms: it opens config.lua the same way the pipeline does, walks
+-- its sections and the settings inside them, and searches every tracked program
+-- (Lua, shell, C) for a place that reads each one by name. A setting no program
+-- names is a setting whose value changes nothing -- worse than absent, because
+-- someone editing the file will believe it does something.
+--
+-- What counts as "read":
+--   a section       its name written after a dot or inside ["..."] brackets,
+--                   e.g. config.pagination, cfg["pagination"]
+--   a setting       its name written after a dot or inside brackets in a file
+--                   that also names its section (settings are often reached
+--                   through a local alias: local p = config.pagination; p.size)
+--
+-- This is a candidate list, not a verdict. A setting can be reached by a name
+-- built at run time (config[stage .. "_threads"]); the report says where each
+-- section IS read so a reader can check the remaining ones by eye before
+-- deleting anything. Short common names (enabled, path) will match unrelated
+-- code and look "read" when they are not; the error is only ever in that safe
+-- direction -- a setting reported unread is named by nothing at all.
+--
+-- Usage:
+--   scripts/audit-config-keys [--dir PATH]          report on DIR/config.lua
+--   scripts/audit-config-keys [--dir PATH] --all    also list the sections and
+--                                            settings that ARE read, with
+--                                            which files read them
+--
+-- Exit status: 0 every setting is read, 1 some are not, 2 config.lua missing.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+-- the project's libraries, for the logged print (libs/output.lua, Issue 10-075)
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
+
+-- {{{ local DIR
+-- The project folder: --dir PATH, or the path below; a stray word on the
+-- command line stops the program (libs/project-dir.lua, Issue 10-076).
+-- ARGS is every other word, for the option loop in main.
+local DIR, ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
+-- }}}
+
+-- {{{ local excluded_paths
+-- Tracked files that are not programs, or that would name every setting
+-- trivially (config.lua itself). Matched as Lua patterns against the path
+-- relative to DIR.
+local excluded_paths = {
+    "^config%.lua$",
+    "^issues/", "^docs/", "^notes/", "^llm%-transcripts/", "^archive/",
+    "^additional%-html%-files%-for%-site/", "^validation_reports/", "^fonts/",
+    "%.md$", "%.html$", "%.txt$", "%.png$", "%.jpg$", "%.gif$", "%.json$",
+}
+-- }}}
+
+-- {{{ local function read_file
+local function read_file(path)
+    local f = io.open(path, "rb")
+    if not f then
+        return nil
+    end
+    local content = f:read("*a")
+    f:close()
+    return content
+end
+-- }}}
+
+-- {{{ local function is_excluded
+local function is_excluded(rel)
+    for _, pattern in ipairs(excluded_paths) do
+        if rel:match(pattern) then
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function load_corpus
+-- Every tracked program file's text, keyed by its path relative to DIR.
+-- Returns { [rel] = content (string) } and a sorted list of the paths.
+local function load_corpus(dir)
+    local pipe = assert(io.popen(string.format("git -C %q ls-files", dir)))
+    local corpus, paths = {}, {}
+    for rel in pipe:lines() do
+        if not is_excluded(rel) then
+            local content = read_file(dir .. "/" .. rel)
+            -- binary files (a NUL byte) are not programs we can read names in
+            if content and not content:find("\0", 1, true) then
+                corpus[rel] = content
+                paths[#paths + 1] = rel
+            end
+        end
+    end
+    pipe:close()
+    table.sort(paths)
+    return corpus, paths
+end
+-- }}}
+
+-- {{{ local function strip_comment_lines
+-- Drops whole-line comments (Lua "--", shell "#"), so a comment that says
+-- "config.randomization.seed is no longer read" does not count as a read.
+-- A trailing comment after code stays; the error that leaves is the safe one
+-- (a setting looks read when it is not, never the reverse).
+local function strip_comment_lines(content)
+    local kept = {}
+    for line in (content .. "\n"):gmatch("([^\n]*)\n") do
+        if not line:match("^%s*%-%-") and not line:match("^%s*#") then
+            kept[#kept + 1] = line
+        end
+    end
+    return table.concat(kept, "\n")
+end
+-- }}}
+
+-- {{{ local function names
+-- Whether `content` reads `name`: as a field after a dot, as a quoted key in
+-- brackets, or (for a setting) as a quoted string anywhere -- the colour and
+-- source tables are reached by a name held in a variable that was set from a
+-- literal like "blue". A plain-word mention ("pagination is ...") does not
+-- count. A section may also be named as a table key holding a list of its
+-- settings (`pagination = { "poems_per_page", ... }`): src/flat-html-generator.lua
+-- reads its required settings that way, through config[section].
+local function names(content, name, allow_quoted)
+    local escaped = name:gsub("%p", "%%%0")
+    return content:find("%." .. escaped .. "%f[^%w_]") ~= nil
+        or content:find("%[%s*[\"']" .. escaped .. "[\"']%s*%]") ~= nil
+        or (allow_quoted and content:find("[\"']" .. escaped .. "[\"']") ~= nil)
+        or content:find("%f[%w_]" .. escaped .. "%s*=%s*{%s*[\"']") ~= nil
+end
+-- }}}
+
+-- {{{ local function walks
+-- Whether `content` loops over a section with pairs()/ipairs(), which reads
+-- every setting in it without naming any of them.
+local function walks(content, section)
+    local escaped = section:gsub("%p", "%%%0")
+    return content:find("pairs%s*%(%s*[%w_%.]*%." .. escaped .. "%s*%)") ~= nil
+end
+-- }}}
+
+-- {{{ local function files_naming
+local function files_naming(corpus, paths, name, within, allow_quoted)
+    local found = {}
+    for _, rel in ipairs(within or paths) do
+        if names(corpus[rel], name, allow_quoted) then
+            found[#found + 1] = rel
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function sorted_string_keys
+-- A table's string keys in order; numeric keys (list entries) are data, not
+-- settings, and are skipped.
+local function sorted_string_keys(t)
+    local keys = {}
+    for k in pairs(t) do
+        if type(k) == "string" then
+            keys[#keys + 1] = k
+        end
+    end
+    table.sort(keys)
+    return keys
+end
+-- }}}
+
+-- {{{ local function listed_names
+-- Every string held in a list (array) inside config.lua whose section some
+-- program reads. A table keyed by those strings is reached through the list:
+-- color_associations[name] for each name in color_names reads every colour
+-- without the code ever spelling "yellow". Returns { [string] = true }.
+local function listed_names(config, section_is_read)
+    local found = {}
+    local function collect(value)
+        for _, item in ipairs(value) do
+            if type(item) == "string" then
+                found[item] = true
+            end
+        end
+    end
+    for section, value in pairs(config) do
+        if type(value) == "table" and section_is_read[section] then
+            collect(value)
+            for _, inner in pairs(value) do
+                if type(inner) == "table" then
+                    collect(inner)
+                end
+            end
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function check_read_by_comments
+-- config.lua documents each section with a "Read by: a, b" comment. Each file
+-- named there must exist and must name the section; a comment that has gone
+-- stale sends the next reader to the wrong file. Returns a list of finding
+-- strings.
+local function check_read_by_comments(dir, corpus)
+    local findings = {}
+    local text = read_file(dir .. "/config.lua")
+    local pending = nil
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        local claim = line:match("^%s*%-%-%s*Read by:%s*(.-)%s*$")
+        -- a "Read by:" comment applies to the next section that opens
+        if claim then
+            pending = claim
+        else
+            local section = line:match("^%s*([%a_][%w_]*)%s*=%s*{")
+            if section and pending then
+                for file in pending:gmatch("[^,%s]+") do
+                    -- only path-like words are file claims ("and", "(stage 6)" are not)
+                    if file:match("/") or file:match("%.lua$") or file:match("%.sh$") then
+                        -- "file.lua:function_name" names a function in the file
+                        local rel = file:gsub("^%./", ""):gsub("[%(%)]", ""):gsub(":.*$", "")
+                        local content = corpus[rel] or read_file(dir .. "/" .. rel)
+                        if not content then
+                            findings[#findings + 1] = "STALE COMMENT   " .. section
+                                .. ": \"Read by\" names " .. rel .. ", which does not exist"
+                        elseif not names(content, section) then
+                            findings[#findings + 1] = "STALE COMMENT   " .. section
+                                .. ": \"Read by\" names " .. rel .. ", which never reads it"
+                        end
+                    end
+                end
+                pending = nil
+            end
+        end
+    end
+    return findings
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    local show_all = false
+    for _, a in ipairs(ARGS) do
+        -- --all widens the report; the project folder is --dir (read above)
+        if a == "--all" then
+            show_all = true
+        else
+            io.stderr:write("unknown option: " .. a .. "\n")
+            os.exit(2)
+        end
+    end
+
+    local config_path = DIR .. "/config.lua"
+    local ok, config = pcall(dofile, config_path)
+    if not ok or type(config) ~= "table" then
+        io.stderr:write("could not load " .. config_path .. ": " .. tostring(config) .. "\n")
+        os.exit(2)
+    end
+
+    local corpus, paths = load_corpus(DIR)
+    for _, rel in ipairs(paths) do
+        corpus[rel] = strip_comment_lines(corpus[rel])
+    end
+    local unread = 0
+    require("output").print(string.format("config.lua settings vs %d program files under %s", #paths, DIR))
+    require("output").print("")
+
+    -- first pass: which sections are read at all, so lists inside them can
+    -- vouch for the tables they index
+    local readers_of, section_is_read = {}, {}
+    for _, section in ipairs(sorted_string_keys(config)) do
+        readers_of[section] = files_naming(corpus, paths, section)
+        section_is_read[section] = #readers_of[section] > 0
+    end
+    local listed = listed_names(config, section_is_read)
+
+    for _, section in ipairs(sorted_string_keys(config)) do
+        local readers = readers_of[section]
+        -- a section nothing names: every setting inside it is unread too
+        if #readers == 0 then
+            unread = unread + 1
+            require("output").print("UNREAD SECTION  " .. section)
+        else
+            if show_all then
+                require("output").print("read section    " .. section .. "  <- " .. table.concat(readers, ", "))
+            end
+            -- settings inside the section, looked for only where the section is
+            -- read (a setting named elsewhere is a different thing that shares
+            -- its name)
+            -- a section some reader loops over: every setting in it is read
+            local walked_by = nil
+            for _, rel in ipairs(readers) do
+                if walks(corpus[rel], section) then
+                    walked_by = rel
+                    break
+                end
+            end
+            if walked_by and show_all then
+                require("output").print("                (every setting read by a loop in " .. walked_by .. ")")
+            end
+            if type(config[section]) == "table" and not walked_by then
+                for _, key in ipairs(sorted_string_keys(config[section])) do
+                    local key_readers = files_naming(corpus, paths, key, readers, true)
+                    -- reached through a read list in config.lua (see listed_names)
+                    if #key_readers == 0 and listed[key] then
+                        key_readers = { "a list in config.lua" }
+                    end
+                    if #key_readers == 0 then
+                        unread = unread + 1
+                        require("output").print("UNREAD SETTING  " .. section .. "." .. key
+                            .. "   (section read by: " .. table.concat(readers, ", ") .. ")")
+                    elseif show_all then
+                        require("output").print("read setting    " .. section .. "." .. key
+                            .. "  <- " .. table.concat(key_readers, ", "))
+                    end
+                end
+            end
+        end
+    end
+
+    local stale = check_read_by_comments(DIR, corpus)
+    for _, finding in ipairs(stale) do
+        require("output").print(finding)
+    end
+
+    require("output").print("")
+    require("output").print(unread .. " unread section(s)/setting(s), " .. #stale .. " stale \"Read by\" comment(s)")
+    os.exit((unread + #stale) > 0 and 1 or 0)
+end
+-- }}}
+
+main()

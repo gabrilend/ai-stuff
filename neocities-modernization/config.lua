@@ -1,6 +1,6 @@
 -- {{{ config.lua
 -- Issue 10-003: Single authoritative configuration for neocities-modernization
--- All settings are validated against actual script usage as of 2026-01-21.
+-- To list settings that no program reads, run scripts/audit-config-keys.
 -- Sections are organized with vimfolds for easy navigation.
 --
 -- For detailed field documentation, see: docs/config-reference.md (Issue 10-019)
@@ -26,14 +26,11 @@ return {
     -- These values are read by src/flat-html-generator.lua:load_layout_from_config()
     -- Width values are in characters. Junction positions are character offsets.
     layout = {
-        regular_poem_width = 83,        -- Width of standard poem boxes
-        golden_poem_width = 85,         -- Width of golden poem boxes (1024 chars)
-        text_content_width = 80,        -- Inner content area width
-        left_box_width = 11,            -- Left navigation box width
-        right_box_width = 13,           -- Right navigation box width
-        gap_width = 59,                 -- Gap between left and right boxes
-        left_junction_pos = 5,          -- Position of left box junction point
-        right_junction_pos = 6          -- Position of right box junction point
+        -- The widest a poem's line may be. Every frame is drawn from it
+        -- (src/poem-bars.lua): a wall, a space, the text, a space, a wall --
+        -- text_content_width + 4 columns (owner, 2026-10-25). The checker
+        -- (scripts/validate-output) holds every page to the same width.
+        text_content_width = 80,
     },
     -- }}}
 
@@ -139,6 +136,9 @@ return {
             --            you only want a handful of files out of it.
             -- This keeps excluded_images as one flat list; the flag decides
             -- whether a source's lines subtract from "all" or add to "none".
+            -- gallery (per source): { slug, title } puts the source on the
+            -- gallery pages, as gallery/<slug>.html under that title, in the
+            -- order listed here; a source without it is not in the gallery.
             directories = {
                 {
                     name = "fediverse-media",
@@ -154,6 +154,7 @@ return {
                 },
                 {
                     name = "my-art",
+                    gallery = { slug = "my-art", title = "My Art" },
                     include_by_default = true,
                     path = "input/images/my-art",
                     description = "artwork made in kolourpaint",
@@ -164,6 +165,7 @@ return {
                 },
                 {
                     name = "things-I-almost-posted",
+                    gallery = { slug = "things-i-almost-posted", title = "Things I Almost Posted" },
                     include_by_default = true,
                     path = "input/images/things-i-almost-posted",
                     external = {
@@ -173,6 +175,7 @@ return {
                 },
                 {
                     name = "poem-pictures",
+                    gallery = { slug = "poem-pictures", title = "Poem Pictures" },
                     include_by_default = true,
                     path = "input/images/poem-pictures",
                     external = {
@@ -181,6 +184,9 @@ return {
                 },
                 {
                     name = "dnd-pictures-from-the-internet",
+                    -- the full name as the title, so it is clear these were
+                    -- found, not made
+                    gallery = { slug = "dnd-pictures", title = "dnd-pictures-from-the-internet" },
                     include_by_default = true,
                     path = "input/images/dnd-pictures",
                     external = {
@@ -195,6 +201,7 @@ return {
                     -- NOTE: external syncs to fediverse-stars, sources reads from here
                     -- Path updated to match sync destination (was fediverse-backup)
                     name = "fediverse-stars",
+                    gallery = { slug = "fediverse-stars", title = "Fediverse Stars" },
                     include_by_default = true,
                     path = "input/images/fediverse-stars",
                     external = {
@@ -205,6 +212,9 @@ return {
                     randomize_order = true;
                 },
             },
+            -- the gallery pages' grid: columns, each picture's width, and the
+            -- gaps between columns and between stacked pictures (px)
+            gallery_layout = { columns = 4, thumbnail_width = 200, column_gap = 16, picture_gap = 8 },
             supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
             max_file_size_mb = 200,
             preserve_structure = true,
@@ -213,27 +223,21 @@ return {
     },
     -- }}}
 
-    -- {{{ external_files - DEPRECATED (Issue 10-026)
-    -- This section has been merged into the 'sources' section above.
-    -- External sync info is now stored as 'external' fields in each source's directories,
-    -- and as 'archives' arrays for ZIP files.
-    --
-    -- external-sync.lua now reads from sources-loader.get_all_external_syncs()
-    -- which collects external sync info from the unified sources configuration.
-    --
-    -- This empty array is kept for backward compatibility during the transition.
-    -- It can be removed after confirming all scripts use sources-loader.
-    external_files = {},
-    -- }}}
+    -- External syncs are described on the sources themselves: an `external`
+    -- field on a directory entry (rsync from there) or an `archives` list (ZIP
+    -- files that extract there). An empty `external_files` list used to sit
+    -- here for the move to that layout (Issue 10-026); the move is done, so it
+    -- was removed (2026-10-04).
 
     -- {{{ extraction
-    -- Controls which input sources are processed during extraction.
-    -- Disabling a source skips it entirely, useful for testing or partial rebuilds.
+    -- Settings for the archive-scanning step of extraction.
+    -- Read by: scripts/zip-extractor.lua
+    --
+    -- To switch a source off, set `enabled = false` on its entry under `sources`
+    -- above. Four per-source switches used to sit here (enable_fediverse,
+    -- enable_messages, enable_notes, enable_bluesky); nothing read them, so
+    -- they were removed (scripts/audit-config-keys found them, 2026-10-04).
     extraction = {
-        enable_fediverse = true,
-        enable_messages = true,
-        enable_notes = true,
-        enable_bluesky = true,
         -- Issue 7-003: ZIP files to ignore during archive scanning.
         -- These are ZIPs that appear in input/ but aren't content archives
         -- (e.g., site backups embedded in media_attachments from fediverse export).
@@ -243,27 +247,13 @@ return {
     },
     -- }}}
 
-    -- {{{ randomization
-    -- Issue 10-058: One master seed governs every randomization site in a build.
-    -- Today that is the word-cloud word shuffle (src/wordcloud-generator.lua) and
-    -- the image-order randomization for any source that does not pin its own
-    -- per-source random_seed (src/image-manager.lua). Reproducibility needs two
-    -- things: (a) all randomness flowing from ONE known seed, and (b) that seed
-    -- recorded somewhere durable. run.sh resolves the seed -- precedence is the
-    -- --seed CLI flag > this config value > an auto-generated seed -- and records
-    -- the resolved value to output/generation-metadata.json and the run log, so a
-    -- build is always answerable to "which seed produced this?".
-    --
-    --   seed = nil  => run.sh invents a seed each build and RECORDS it, so even a
-    --                  build nobody thought to seed is reproducible after the fact.
-    --   seed = N    => a fixed non-negative integer pins the build: the same seed
-    --                  over the same inputs yields byte-identical shuffled output.
-    --
-    -- A `--seed N` on the run.sh command line overrides this value for one run.
-    randomization = {
-        seed = nil,
-    },
-    -- }}}
+    -- The build's random seed is not set in this file. It is given on the
+    -- command line as `run.sh --seed N`; with no --seed, run.sh picks one. Either
+    -- way it is recorded in output/generation-metadata.json and stamped into the
+    -- word-cloud page (Issues 10-058, 10-065). A `randomization.seed` setting
+    -- used to sit here; run.sh stopped reading it, so it was removed.
+    -- A source can still pin its own image order with `random_seed` on its
+    -- entry under `sources`.
 
     -- {{{ excluded_poems
     -- Issue 6-031: Poems to exclude from the collection during extraction.
@@ -293,6 +283,12 @@ return {
             -- poem so it never enters poems.json, clearing the whole "different" section.
             -- (Takes effect on the next extraction run.)
             "0129",
+            -- Another raw PDF (input/notes/reddit-comments/, content starts
+            -- %PDF-1.5): its binary bytes printed into chronological page 3 and
+            -- several "different" pages as over-wide garbage lines. Excluded by
+            -- hand, one by one, rather than by a "refuse PDFs" rule (owner,
+            -- 2026-10-07).
+            "tips for enlightenment that I've discovered that improved my life awakened",
         },
         messages = {
             -- Add message indices here, e.g.: "42"
@@ -395,7 +391,7 @@ return {
     privacy = {
         mode = "clean",                     -- "clean" or "raw"
         anonymization_prefix = "user-",     -- Prefix for anonymized usernames
-        include_boosts = false,             -- Boosted/reblogged posts OFF by default (the name implies opt-in); pass --include-boosts to add them
+        include_boosts = false,             -- Boosts/reblogs. run.sh ignores this and requires --boosts yes|no; read only when scripts/extract-fediverse.lua or src/main.lua runs on its own without a boosts flag
         preserve_original_length = true,    -- Keep length hints for anonymized names
         store_anonymization_map = false,    -- Don't store mapping (privacy)
         local_server_domain = "tech.lgbt"   -- Your home instance domain
@@ -452,15 +448,6 @@ return {
     -- }}}
     -- }}}
 
-    -- {{{ similarity
-    -- Algorithm settings for computing poem-to-poem similarity scores.
-    -- Read by: src/similarity-calculator.lua
-    -- Available algorithms: "cosine", "euclidean", "manhattan", "angular", "pearson_correlation"
-    similarity = {
-        default_algorithm = "cosine"    -- Cosine is standard for text embeddings
-    },
-    -- }}}
-
     -- {{{ inference_servers
     -- Issue 10-049: Inference-server configuration for embedding generation.
     -- Originally written for Ollama under 10-017; renamed and re-shaped for
@@ -474,61 +461,73 @@ return {
     --   description: Human-readable description
     --   host: Server hostname or IP
     --   port: Inference server's HTTP port
-    --   model: Identifier sent in the OpenAI request body (informational;
-    --          llama-server serves whatever model it has loaded). Convention
-    --          is to use the GGUF basename without ".gguf".
-    --   model_path: Path to the GGUF model file on disk, relative to the
-    --               project DIR. start-llamacpp-server.sh resolves this
-    --               into the absolute path it passes to llama-server -m.
-    --   available_models: (optional) List of models the host can serve
-    --   embedding_prompt_prefix: (optional) Prefix prepended to every input
-    --                            (e.g. "clustering: " for nomic-embed-text v1.5)
+    --   available_models: the models this server can serve. There is no
+    --                     default: every run names its model with --model
+    --                     (owner, 2026-10-21: "we should not have a default
+    --                     model. It should be manually specified"). Each entry:
+    --     model: Identifier sent in the OpenAI request body (llama-server
+    --            serves whatever it has loaded). Convention is the GGUF
+    --            basename without ".gguf". Also the name of the model's cache
+    --            folder under assets/embeddings/.
+    --     model_path: (local models) the GGUF file, relative to the project
+    --                 DIR; start-llamacpp-server.sh passes it to llama-server -m.
+    --     embedding_prompt_prefix: (optional) prepended to every input
+    --                              (e.g. "clustering: " for nomic-embed-text v1.5).
+    --     A model this server does not list is refused when its prefix or
+    --     file is needed, rather than embedded without its prefix.
+    --   launch_flags: (optional) Extra llama-server flags for THIS machine's
+    --                 GPU, as a list of separate words ({ "--flash-attn", "off" }).
+    --                 start-llamacpp-server.sh appends them after its own
+    --                 flags. Only used by servers this project launches itself.
+    --                 Put a GPU's limits here so they are stated choices, not
+    --                 something llama.cpp quietly decides at load time.
     inference_servers = {
         {
             name = "gpu-server",
             description = "Remote GPU server (CUDA)",
             host = "192.168.0.115",
             port = 10265,
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             available_models = {
-                "nomic-embed-text-v1.5",
-                "mxbai-embed-large",
+                {
+                    model = "nomic-embed-text-v1.5",
+                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+                },
+                { model = "mxbai-embed-large" },
             }
-        },
-        {
-            name = "gpu-server-alt",
-            description = "Remote GPU server (alternate port)",
-            host = "192.168.0.115",
-            port = 11434,
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
         },
         {
             name = "local",
             description = "Local llama.cpp instance (CUDA-enabled)",
-            host = "192.168.1.100",
+            -- Loopback only. This was the machine's LAN address (192.168.1.100),
+            -- and llama-server listens on whatever host it is told, so the
+            -- unauthenticated server (no API key, any web origin allowed, plus a
+            -- chat web page) was reachable by every device on the network.
+            -- Nothing off this machine uses it, so it now listens only here.
+            host = "127.0.0.1",
             port = 10265,
-            -- nomic-embed-text v1.5 produces 768-dimensional vectors and
-            -- requires a task-prefix on every input. For diversity ranking
-            -- of poetry the right prefix is "clustering: ", which routes
-            -- the model through its clustering-oriented internal weights.
-            -- Switching models requires regenerating embeddings.json, the
-            -- similarity caches, the diversity cache, etc.
-            model = "nomic-embed-text-v1.5",
-            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
-            embedding_prompt_prefix = "clustering: ",
+            -- This machine is a GTX 1080 Ti (Pascal, compute 6.1). llama.cpp's
+            -- Flash Attention has no kernel for it: left on "auto", it found
+            -- that out at load time and switched itself off with a warning --
+            -- a silent fallback. Saying "off" here makes it a decision.
+            launch_flags = { "--flash-attn", "off" },
             -- This one machine can serve several local GGUFs (one at a time:
             -- start-llamacpp-server.sh --server=local --model=NAME loads the
-            -- chosen file). The default model above is nomic; the entries below
-            -- add the others. A plain-string entry (or the default model itself)
-            -- uses the server-level model_path/prefix above; a table entry brings
-            -- its OWN GGUF and the prompt phrasing its makers intend for
-            -- clustering/similarity, so each model is asked the same question
-            -- the right way. Switching the served model needs a server restart
-            -- (and regenerating the caches that depend on the embedding space).
+            -- chosen file). Each entry brings its own GGUF and the prompt
+            -- phrasing its makers intend for clustering/similarity, so each
+            -- model is asked the same question the right way. Switching the
+            -- served model needs a server restart (and regenerating the caches
+            -- that depend on the embedding space: embeddings.json, the
+            -- similarity and diversity caches).
             available_models = {
-                "nomic-embed-text-v1.5",
+                {
+                    -- nomic-embed-text v1.5: 768-dimensional, and requires a
+                    -- task prefix on every input. For diversity ranking of
+                    -- poetry the right prefix is "clustering: ", which routes
+                    -- the model through its clustering-oriented weights.
+                    model = "nomic-embed-text-v1.5",
+                    model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
+                    embedding_prompt_prefix = "clustering: ",
+                },
                 {
                     model = "mxbai-embed-large-v1",
                     model_path = "assets/models/mxbai-embed-large-v1.Q8_0.gguf",
@@ -544,12 +543,96 @@ return {
                     -- exact prefix per the model card, mirroring nomic's intent.
                     embedding_prompt_prefix = "task: clustering | query: ",
                 },
+                {
+                    -- Issue 1-010: EmbeddingGemma 2 (740M total, of which the
+                    -- 270M text model is all this file holds; 8K-token context).
+                    -- Needs llama.cpp b11454 or later. The model card keeps the
+                    -- same symmetric clustering prompt as version 1.
+                    model = "embeddinggemma-2",
+                    model_path = "assets/models/embeddinggemma-2-Q8_0.gguf",
+                    embedding_prompt_prefix = "task: clustering | query: ",
+                    -- Issue 9-013: the vision projector that lets this model
+                    -- embed pictures into the same space as text. A model
+                    -- without one cannot place pictures, and the build stops.
+                    vision_projector = "assets/models/mmproj-embeddinggemma-2-Q8_0.gguf",
+                },
             },
         },
     },
     -- Default server name (must match a name above)
     -- If not set, first server in list is used
     default_inference_server = "local",
+    -- }}}
+
+    -- {{{ libraries
+    -- Libraries built or kept outside this project, by where this machine
+    -- keeps them. Another machine edits these two lines.
+    libraries = {
+        -- the terminal menu library (shared scripts); read by src/main.lua
+        tui_lua_dir = "/home/ritz/programming/ai-stuff/scripts/libs",
+        -- the LuaJIT build of the effil threading library, as a package.cpath
+        -- entry ("?" is the module name); read by libs/effil-loader.lua
+        effil_cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so",
+    },
+    -- }}}
+
+    -- {{{ gpu
+    -- Tuning for the graphics card, measured on a GTX 1080 Ti; another card
+    -- wants its own numbers. Read by: scripts/precompute-diversity-sequences-gpu
+    -- (Stage 8), which hands them to libs/vulkan-compute/lua/vk_compute.lua.
+    gpu = {
+        diversity = {
+            batch_size = 3584,            -- walks run at once: one per CUDA core of a 1080 Ti (lowered to fit free memory)
+            probe_steps = 10,             -- steps in the timing run each batch starts with
+            chunk_seconds = 1.5,          -- GPU work per dispatch; the display watchdog kills one that runs ~2 s
+            safety_factor = 0.6,          -- aim this far below chunk_seconds, so jitter stays under the watchdog
+            l2_cache_bytes = 5767168,     -- the card's L2 cache, 5.5 MiB on a 1080 Ti: one tile of poems is sized to fit
+            cache_share = 0.85,           -- of that cache, the part a tile may fill (the rest holds the centre, the mask, the code)
+        },
+    },
+    -- }}}
+
+    -- {{{ deploy
+    -- How scripts/deploy-to-neocities paces its requests to Neocities
+    -- (libs/neocities-sync.lua). Each batch carries up to "budget" worth of
+    -- work; after grow_after batches in a row succeed the budget grows by
+    -- "grow" (up to max_budget); a batch the site refuses as too large halves
+    -- it (never below floor). A refusal for going too fast waits and retries,
+    -- up to max_retries times. pause_seconds is a courtesy wait between calls.
+    -- Read by: scripts/deploy-to-neocities
+    deploy = {
+        uploads = {                       -- budget in bytes of file data per request
+            budget = 8 * 1024 * 1024,
+            max_count = 60,               -- files per request, at most
+            floor = 1,
+            grow = 1.5,
+            grow_after = 3,
+            max_budget = 64 * 1024 * 1024,
+            pause_seconds = 0.2,
+            max_retries = 8,
+        },
+        deletions = {                     -- budget in files per request
+            budget = 50,
+            max_count = 50,
+            floor = 1,
+            grow = 1.5,
+            grow_after = 3,
+            max_budget = 64 * 1024 * 1024,
+            pause_seconds = 0.2,
+            max_retries = 8,
+        },
+    },
+    -- }}}
+
+    -- {{{ picture_embeddings
+    -- How pictures get their place among the poems (Issue 9-013): the vision
+    -- model embeds each picture itself.
+    -- Read by: src/picture-embeddings.lua, src/augment-embeddings-with-images.lua
+    picture_embeddings = {
+        long_side = 1800,     -- pixels; a picture is shrunk to this before it is sent (handwriting read better at 1800 than 900)
+        text_share = 0.5,     -- a text + picture post: this much its text, the rest its pictures
+        request_seconds = 300, -- how long one picture may take before the server is called stuck
+    },
     -- }}}
 
     -- {{{ image_integration
@@ -627,14 +710,20 @@ return {
     -- stop words (common words like "the", "and"), and displays the remaining
     -- words sized by frequency. Each word links to poems containing it.
     -- Read by: src/wordcloud-generator.lua
+    --
+    -- Whether the word cloud is built is chosen by selecting its stage (stage
+    -- 10) on the run.sh command line or menu. An `enabled` switch used to sit
+    -- here; nothing read it, so it was removed (2026-10-04).
     word_cloud = {
-        enabled = true,
         output_file = "wordcloud.html",
         min_occurrences = 5,        -- Minimum times a word must appear
-        max_words = 200,            -- Maximum words to display (0 = unlimited)
+        max_words = 200,            -- Words in the cloud and on word pages; the default offered when --words is not given (no limit: --all, or answer "all")
+        poems_per_page = 50,        -- Poems on each word page; the default offered when --poems-per-page is not given (Issue 10-065a: this 50 used to be written in src/generate-word-pages.lua and applied silently)
         min_word_length = 3,        -- Ignore words shorter than this
         font_size_min = 1,          -- HTML font tag: 1-7 scale
         font_size_max = 7,
+        -- The words' colours are semantic_colors above, the same ones the
+        -- progress bars use: a word's colour means what a bar's colour means.
 
         -- Stop words: common words to exclude from word cloud
         -- Organized by category for easy editing
@@ -861,31 +950,24 @@ return {
     -- }}}
 
     -- {{{ html_theme
-    -- Dark mode theme colors applied via HTML body attributes (CSS-free).
-    -- Uses true black (#000000) for OLED power savings and maximum contrast.
-    -- These colors are applied to <body bgcolor="..." text="..." link="..." vlink="...">
+    -- The site's colours, in one place (owner, 2026-10-25): every page's
+    -- <body bgcolor="..." text="..." link="..." vlink="..."> and the source
+    -- browser's backgrounds come from here, through src/page-theme.lua.
+    -- Pure black (#000000) background: on an OLED screen a black pixel is an
+    -- unlit one (Issue 11-009).
+    -- Read by: src/page-theme.lua
     html_theme = {
         background = "#000000",     -- True black background (OLED-friendly)
-        text = "#FFFFFF",           -- White text for readability
+        text = "#E0E0E0",           -- Soft white: gentler than pure #FFFFFF on pure black in a dark room (owner, 2026-10-25)
         link = "#6699FF",           -- Blue for unvisited links
         vlink = "#9966FF"           -- Purple for visited links
     },
     -- }}}
 
-    -- {{{ Algorithm Reference (documentation only)
-    -- These algorithm descriptions are for reference only - not read by scripts.
-    -- The actual algorithm is selected via similarity.default_algorithm above.
-    --
-    -- Available algorithms:
-    --   cosine:    Angle between vectors, range [-1, 1], fast, best for text embeddings
-    --   euclidean: Distance converted to similarity, range [0, 1], fast
-    --   manhattan: L1 distance converted to similarity, range [0, 1], robust to outliers
-    --   angular:   Normalized angle, range [0, 1], good for directional data
-    --   pearson:   Correlation coefficient, range [0, 1], for statistical analysis
-    --
-    -- Removed stale options (2026-01-21, Issue 10-003):
-    --   output_format: Only JSON is supported, no need for config
-    --   preserve_timestamps: Always preserved, not configurable
-    --   validation_settings: Over-engineering, not implemented
+    -- {{{ testing
+    -- The embedding model and server the tests, the sample renderer's checks
+    -- and the demos draw from. A build names its own (--model, --server);
+    -- this is only the one the checks use, so they agree with each other.
+    testing = { model = "embeddinggemma-2", server = "local" },
     -- }}}
 }

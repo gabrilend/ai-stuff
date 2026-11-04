@@ -9,6 +9,8 @@
 
 **Blocked By**: ~~MVP completion~~ (no longer blocked - MVP complete)
 
+**Blocks**: 8-057
+
 ## Current Behavior
 
 External fediverse boosts (Announce activities pointing to URIs on other servers)
