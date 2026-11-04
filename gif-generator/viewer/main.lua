@@ -21,6 +21,11 @@
 -- Arguments (after the viewer folder): an optional gif folder, and
 -- --selftest, which loads everything, prints what it found, and quits --
 -- used by the project's test-gif-viewer to prove the window runs.
+--
+-- --watch=FILE shows that one gif and reloads it whenever the file changes
+-- (its modification time and size, checked a few times a second). It is
+-- how gif-generator's `say` tool shows each new draft as it is rendered.
+-- The file may not exist yet; the window waits for it.
 
 local DEFAULT_FOLDER = "/home/ritz/pictures/shape-gifs"
 local THUMB_SIZE = 128        -- grid copies are shrunk to fit this square
@@ -30,6 +35,7 @@ local UPLOAD_BUDGET = 48      -- decoded frames turned into textures per tick
 local GRID_CELL = 170         -- target grid cell width, in pixels
 local FOOTER = 56             -- room kept below the picture for its name
 local SELFTEST_TIMEOUT = 90   -- seconds
+local WATCH_INTERVAL = 0.25   -- seconds between looks at a watched file
 
 local HIGHLIGHT = { 1.0, 0.85, 0.2 }   -- the house yellow
 local QUIET = { 0.55, 0.55, 0.6 }
@@ -72,6 +78,17 @@ local function list_gifs(folder)
     pipe:close()
     table.sort(names)
     return names
+end
+-- }}}
+
+-- {{{ local function file_signature()
+-- A watched file's modification time and size as one string, or nil when
+-- the file is not there. `stat` reads the file's details and nothing else.
+local function file_signature(path)
+    local pipe = io.popen("stat -c '%Y %s' '" .. path:gsub("'", "'\\''") .. "' 2>/dev/null")
+    local line = pipe:read("*l")
+    pipe:close()
+    return line
 end
 -- }}}
 
@@ -319,22 +336,35 @@ local keys = {
 function love.load(args)
     for _, argument in ipairs(args) do
         local screenshots = argument:match("^%-%-screenshots=(.+)$")
+        local watch = argument:match("^%-%-watch=(.+)$")
         if argument == "--selftest" then
             state.selftest = true
         elseif screenshots then
             state.screenshots = screenshots
+        elseif watch then
+            state.watch = watch
         else
             state.folder = argument
         end
     end
 
-    for _, name in ipairs(list_gifs(state.folder)) do
-        local path = state.folder .. "/" .. name
-        state.entries[#state.entries + 1] = { name = name, path = path,
-                                              tier = rate.tier(rate.card_path(path)) }
-    end
-    if #state.entries == 0 then
-        error("no .gif files in " .. state.folder, 0)
+    -- Two paths: watching one file (it is the only entry, and may not
+    -- exist yet), or a folder (every gif in it, and there must be some).
+    -- Either way each entry carries its card's tier (issue 701e).
+    if state.watch then
+        state.entries[1] = { name = state.watch:match("[^/]+$"), path = state.watch,
+                             tier = rate.tier(rate.card_path(state.watch)) }
+        state.watch_signature = nil
+        state.watch_next = 0
+    else
+        for _, name in ipairs(list_gifs(state.folder)) do
+            local path = state.folder .. "/" .. name
+            state.entries[#state.entries + 1] = { name = name, path = path,
+                                                  tier = rate.tier(rate.card_path(path)) }
+        end
+        if #state.entries == 0 then
+            error("no .gif files in " .. state.folder, 0)
+        end
     end
 
     love.graphics.setBackgroundColor(0, 0, 0)
@@ -356,6 +386,7 @@ function love.load(args)
         state.workers[i] = worker
     end
 
+    if state.watch then return end  -- the first look happens when the file appears
     look_at(1)
     for index = 1, #state.entries do request(index, "thumb", false) end
 end
@@ -364,6 +395,22 @@ end
 -- {{{ function love.update()
 function love.update(dt)
     state.clock = state.clock + dt
+    -- {{{ watching: reload the one gif when its file changes
+    -- A new signature drops what was decoded and asks for the file again;
+    -- the writer replaces the file whole (by rename), so a changed file is
+    -- always a complete gif.
+    if state.watch and state.clock >= state.watch_next then
+        state.watch_next = state.clock + WATCH_INTERVAL
+        local signature = file_signature(state.watch)
+        if signature and signature ~= state.watch_signature then
+            state.watch_signature = signature
+            drop(state.entries[1], "full")
+            drop(state.entries[1], "thumb")
+            look_at(1)
+            request(1, "thumb", false)  -- the grid, and the self-test, use it
+        end
+    end
+    -- }}}
     receive()
     for _, worker in ipairs(state.workers) do
         local failure = worker:getError()
@@ -428,6 +475,12 @@ local function draw_single()
     local width, height = love.graphics.getDimensions()
     local entry = state.entries[state.current]
     local slot = entry.full
+    if state.watch and not state.watch_signature then
+        love.graphics.setColor(QUIET)
+        love.graphics.setFont(fonts.name)
+        love.graphics.printf("waiting for the first picture…", 0, height / 2, width, "center")
+        return
+    end
     local frame = frame_now(slot)
     love.graphics.setColor(1, 1, 1)
     if frame then
