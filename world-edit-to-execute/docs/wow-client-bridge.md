@@ -344,6 +344,11 @@ project's map viewer (play mode, the F5 run of its Lua simulation) gives
 way to the Test Map button, which converts the map being edited and opens
 it in the W client against a local AzerothCore (W client issue 1109,
 reshaped to that).
+Issue 913's open question 1, answered by the owner the same day ("I think
+these are the same?"): there is one F5, and it opens the W client; the
+run in this project's own viewer is what Test Map replaces, not a second
+mode kept beside it. The Lua simulation stays, as the reference
+AzerothCore's rules are checked against.
 
 | world-edit-to-execute | The W client | AzerothCore |
 |-----------------------|--------------|-------------|
@@ -483,3 +488,4 @@ issue that holds it can be called complete.
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
 | 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
 | 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame; our own baseline model set is the default and Blizzard's plug in; open question 17 |
+| 2026-11-04 | Issue 913's first pass: F5 is Test Map, opening the W client; the run in the editor's own viewer retired; the contract with the W client written into 913 |

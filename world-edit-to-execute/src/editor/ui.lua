@@ -9,7 +9,7 @@ window itself (editor/main.lua) so tests can drive it:
               AI (the AI editor over the view: editor/ai_ui.lua), Files
               (the import manager: editor/imports_ui.lua), Sounds (the
               sound editor: editor/sounds_ui.lua),
-              Undo, Redo, Save, Test
+              Undo, Redo, Save, Test (Test Map, as F5)
   palette     on the left, for the tool in hand: brush size and strength,
               the map's ground textures, its doodad types or unit types
               (paged), the player new units belong to
@@ -24,12 +24,23 @@ window itself (editor/main.lua) so tests can drive it:
   cameras     the Cameras tool: the map's cameras picked and dragged,
               made from the view, looked through, stepped (issue 904b)
   keys        Ctrl+Z / Ctrl+Y undo and redo, Ctrl+C / Ctrl+V copy and
-              paste at the pointer, Delete, Ctrl+S save, F5 test,
+              paste at the pointer, Delete, Ctrl+S save, F5 Test Map,
               [ and ] brush size, 1-9 tools, Esc drops the selection
 
-    local ui = require("editor.ui").new(E, w, h, { to_ground = fn, save_path = p, on_test = fn })
+  testing     Test Map (F5, issue 913): saves, converts through W02,
+              starts or reuses the local AzerothCore and opens the W
+              client on the map (editor/test_map.lua); each frame moves
+              the run on, and its receipt is shown in the status line.
+              It replaces the old run in this project's own viewer; there
+              is one F5 (913's open question 1, the owner's answer).
+              ui:close() when the window closes: the server Test Map
+              started is stopped.
+
+    local ui = require("editor.ui").new(E, w, h, { to_ground = fn, save_path = p,
+        camera = fn, test_map_settings = s })   -- s: else the editor's settings file
     ui:update(input, dt)     -- input: mx, my, lp, ld, lr, keys, ctrl, shift
     ui:draw(render)
+    ui:close()
 ]]
 
 
@@ -274,13 +285,34 @@ function EUI:save()
     local path = self.opts.save_path or (self.E.path:gsub("%.w3[xm]$", "") .. "-edited.w3x")
     local ok, why = self.E:save(path)
     if not ok then self.E:say("Couldn't save: " .. tostring(why)) end
-    return ok
+    return ok, ok and path or nil
 end
 
+-- Test Map (F5, issue 913): the map saved, converted and opened in the W
+-- client against the local AzerothCore; update() moves it on each frame
 function EUI:test()
-    local cmd, why = self.E:playtest({ run = self.opts.run_tests ~= false, root = self.opts.root, viewer = self.opts.viewer })
-    if not cmd then self.E:say("Couldn't test: " .. tostring(why)) end
-    return cmd
+    if not self.test_map then
+        self.test_map = require("editor.test_map").new(self.E, {
+            root = self.opts.root, settings = self.opts.test_map_settings, proc = self.opts.proc,
+            camera = self.opts.camera,
+            -- saved as Save saves it; a project (saved as its folder) also
+            -- as a .w3x for the converter
+            save = function(copy)
+                local ok, path = self:save()
+                if not ok then return nil, "the map couldn't be saved" end
+                if path then return path end
+                local done, why = self.E:save(copy)
+                if not done then return nil, why end
+                return copy
+            end,
+        })
+    end
+    return self.test_map:start()
+end
+
+-- the window closing: what Test Map started is stopped
+function EUI:close()
+    if self.test_map then self.test_map:close() end
 end
 -- }}}
 
@@ -288,6 +320,8 @@ end
 function EUI:update(input, dt)
     local E = self.E
     self.clock = self.clock + (dt or 0)
+    -- a Test Map run going on: moved on a step each frame (issue 913)
+    if self.test_map and self.test_map:busy() then self.test_map:step() end
     local mx, my = input.mx or 0, input.my or 0
     local gx, gy
     if self.opts.to_ground then gx, gy = self.opts.to_ground(mx, my) end
