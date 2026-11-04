@@ -8,6 +8,10 @@
 - **Created**: 2025-12-23
 - **Completed**: 2025-12-23
 
+> **Later (Issue 10-076, 2026-11-03):** the project folder is no longer a bare
+> word: it is `--dir PATH`, the assets folder is `--assets PATH`, and a bare
+> word stops the run. The usage below is the 2025 shape.
+
 ## Current Behavior
 
 ~~The `run.sh` script has minimal CLI support.~~

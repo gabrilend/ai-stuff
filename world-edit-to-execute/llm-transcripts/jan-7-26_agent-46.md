@@ -1757,7 +1757,7 @@ The forward reference error has been fixed. You can now test with:
 /home/ritz/programming/ai-stuff/scripts/issue-splitter.sh -I
 ```
 
-Commit `7a92c3c5` includes all the changes.
+Commit `d4d5220c` includes all the changes.
 
 --------------------------------------------------------------------------------
 
@@ -1773,7 +1773,7 @@ option.
 
 ### Assistant Response 22
 
-Done. The changes have been committed (`ed57b008`).
+Done. The changes have been committed (`e0b98c69`).
 
 **Summary of changes:**
 
@@ -1817,7 +1817,7 @@ values currently stored there.
 
 ### Assistant Response 23
 
-Fixed and committed (`58850238`).
+Fixed and committed (`481be6fb`).
 
 Now after pressing LEFT (→ "0") or RIGHT (→ default), the next digit typed will
 overwrite rather than append:
@@ -1839,7 +1839,7 @@ exactly they need to do to make their scripts work.
 
 ### Assistant Response 24
 
-Created and committed (`95dd1895`) the documentation at
+Created and committed (`46c58bc7`) the documentation at
 `/home/ritz/programming/ai-stuff/scripts/libs/README-lua-menu.md`.
 
 **Documentation covers:**
@@ -1917,7 +1917,7 @@ including the shortcuts to the "run" command and other similar jumps.
 
 ### Assistant Response 25
 
-Done and committed (`c249b608`).
+Done and committed (`6b76ba03`).
 
 **Summary of changes:**
 
@@ -1992,7 +1992,7 @@ entry should have the 0th index, and the [*]
 
 ### Assistant Response 26
 
-Fixed and committed (`bce6fe97`).
+Fixed and committed (`cdc17b6f`).
 
 **The issue:** Flag/multistate/action items were consuming index numbers but not displaying them, causing visible indexes to skip numbers.
 
@@ -2042,7 +2042,7 @@ because of user-error. So they hold shift and push 5 again which takes them from
 
 ### Assistant Response 27
 
-Done and committed (`754a2cc7`).
+Done and committed (`227eb34e`).
 
 **New feature:** SHIFT+digit goes back one tier in index navigation
 
@@ -2077,7 +2077,7 @@ other of which explains how to integrate the library into their project?
 
 ### Assistant Response 28
 
-Done and committed (`6a6b0a73`).
+Done and committed (`0d56dd7f`).
 
 **Created three documentation files:**
 
@@ -2118,7 +2118,7 @@ which explain how to integrate the TUI interface script?
 
 ### Assistant Response 29
 
-Done and committed (`a9a8d9f8`).
+Done and committed (`554b5cc5`).
 
 **Created Phase 10: Developer Experience & Tooling** in neocities-modernization with 3 files:
 

@@ -38,12 +38,12 @@ reading a number here:
 Each issue below held a recommendation with its options. Ritz asked that
 open questions be answered without waiting on him, so each recommendation
 is now the decision; see the issue files. These rows supersede the Tier 3
-notes for 067. (052 has since closed as superseded.)
+notes for 070. (052 has since closed as superseded.)
 
 | Issue | What | Decided |
 |-------|------|-------------|
 | **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
-| **067** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
+| **070** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 
 ## TIER 3: Large specifications, nothing built
 
@@ -56,7 +56,6 @@ notes for 067. (052 has since closed as superseded.)
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
-| 067 (was 038) | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
 
 ## TIER 4: Aspirational
 
@@ -64,7 +63,7 @@ notes for 067. (052 has since closed as superseded.)
 |-------|------|
 | 032 → 033 → 034 | Donation links, revenue sharing, bug bounties — product ideas rather than tooling. |
 | 002, 003 | Master/reference issues for gitignore unification and ticket distribution. |
-| 065 (was 001-MASTER) | Master/reference issue for the repository layout. |
+| 068 (was 001-MASTER) | Master/reference issue for the repository layout. |
 
 ---
 
