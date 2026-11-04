@@ -9,9 +9,7 @@ window itself (editor/main.lua) so tests can drive it:
               AI (the AI editor over the view: editor/ai_ui.lua), Files
               (the import manager: editor/imports_ui.lua), Sounds (the
               sound editor: editor/sounds_ui.lua),
-              Undo, Redo, Save, Test (Test Map, as F5; the toolbar
-              has no room left at 1280 pixels for a Preview button, so
-              the preview is Shift+F5 alone)
+              Undo, Redo, Save, Test (Test Map, as F5)
   palette     on the left, for the tool in hand: brush size and strength,
               the map's ground textures, its doodad types or unit types
               (paged), the player new units belong to
@@ -27,16 +25,14 @@ window itself (editor/main.lua) so tests can drive it:
               made from the view, looked through, stepped (issue 904b)
   keys        Ctrl+Z / Ctrl+Y undo and redo, Ctrl+C / Ctrl+V copy and
               paste at the pointer, Delete, Ctrl+S save, F5 Test Map,
-              Shift+F5 the quick preview, [ and ] brush size, 1-9 tools,
-              Esc drops the selection
+              [ and ] brush size, 1-9 tools, Esc drops the selection
 
   testing     Test Map (F5, issue 913): saves, converts through W02,
               starts or reuses the local AzerothCore and opens the W
               client on the map (editor/test_map.lua); each frame moves
               the run on, and its receipt is shown in the status line.
-              Preview (Shift+F5): the saved copy played in this project's
-              own viewer, offline, as F5 did before Test Map (913's open
-              question 1: kept until the owner says otherwise).
+              It replaces the old run in this project's own viewer; there
+              is one F5 (913's open question 1, the owner's answer).
               ui:close() when the window closes: the server Test Map
               started is stopped.
 
@@ -223,7 +219,6 @@ function EUI:press(b)
     elseif a == "redo" then E:redo()
     elseif a == "save" then self:save()
     elseif a == "test" then self:test()
-    elseif a == "preview" then self:preview()
     elseif a == "size" then E.brush.size = math.max(0, math.min(8, E.brush.size + b.arg))
     elseif a == "strength" then E.brush.strength = math.max(4, math.min(256, E.brush.strength * (b.arg > 0 and 2 or 0.5)))
     elseif a == "texture" then E.brush.texture = b.arg
@@ -315,15 +310,6 @@ function EUI:test()
     return self.test_map:start()
 end
 
--- the quick preview (Shift+F5): the saved copy played offline in this
--- project's own viewer, with its Lua simulation (no server needed)
-function EUI:preview()
-    local cmd, why = self.E:playtest({ run = self.opts.run_tests ~= false, root = self.opts.root, viewer = self.opts.viewer })
-    if not cmd then self.E:say("Couldn't preview: " .. tostring(why)) end
-    self.last_preview = cmd
-    return cmd
-end
-
 -- the window closing: what Test Map started is stopped
 function EUI:close()
     if self.test_map then self.test_map:close() end
@@ -351,7 +337,6 @@ function EUI:update(input, dt)
                 if input.ctrl and k == "Z" then E:undo(); self.tui:layout()
                 elseif input.ctrl and k == "Y" then E:redo(); self.tui:layout()
                 elseif input.ctrl and k == "S" then self:save()
-                elseif k == "F5" and input.shift then self:preview()
                 elseif k == "F5" then self:test() end
             end
         end
@@ -364,7 +349,6 @@ function EUI:update(input, dt)
         elseif input.ctrl and k == "C" then if E:copy() then E:say("Copied " .. #E.selection) end
         elseif input.ctrl and k == "V" then if gx then E:paste(gx, gy) end
         elseif input.ctrl and k == "S" then self:save()
-        elseif k == "F5" and input.shift then self:preview()
         elseif k == "F5" then self:test()
         elseif k == "DELETE" then
             if E.tool == "regions" and self.region and self.region.editor then

@@ -21,6 +21,11 @@ And the same day, of this project: "It should be a map-editor for wc3
 and World of Warcraft, sorta like Noggit except with the capability of
 the world-edit.exe from warcraft3."
 
+And, asked about WoW-only parts and Blizzard's own maps: "we will have
+development pipelines for all proprietary assets. We are going to
+completely re-make the game. World of Warcraft is the template, and from
+it, we will create a system that creates games."
+
 ## Current Behavior
 
 The editor opens, edits and saves WC3 maps only (`.w3x`/`.w3m`, and the
@@ -86,15 +91,26 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
 
 ## Open Questions
 
-1. **One map, both games?** Can one map hold WC3 parts and WoW parts at
-   once (a WC3 map placed into a WoW zone, say), or is each map one game's,
-   with conversion between them?
-2. **WoW-only parts with no WC3 counterpart** (sky and light per zone,
-   building interiors and their portals, flight paths, phasing): new
-   editors, or out of scope for now?
-3. **Editing Blizzard's own maps.** The user's client holds Azeroth's maps.
-   Is editing them in place allowed, or does an edit always save as a new
-   map with only the changed tiles, so no Blizzard tile is redistributed?
+1. ~~**One map, both games?**~~ Answered 2026-11-04, the owner: "we are
+   unifying them." So one map can hold WC3 parts and WoW parts at once;
+   the editor's map structure holds both kinds side by side, and every
+   editor in the steps above works on either kind inside the same map.
+   The question as asked: can one map hold WC3 parts and WoW parts at
+   once (a WC3 map placed into a WoW zone, say), or is each map one
+   game's, with conversion between them?
+2. ~~**WoW-only parts with no WC3 counterpart**~~ Answered 2026-11-04: in
+   scope. Every proprietary asset gets a development pipeline (the owner,
+   quoted under Origin), so sky and light per zone, building interiors
+   and their portals, flight paths and phasing each get an editor here.
+   The question as asked: new editors, or out of scope for now?
+3. ~~**Editing Blizzard's own maps.**~~ Answered 2026-11-04: the game is
+   remade, with WoW as the template ("World of Warcraft is the template,
+   and from it, we will create a system that creates games"). The editor
+   opens Blizzard's maps from the user's own client as templates to learn
+   from and build on; what the project makes and ships are its own maps.
+   The question as asked: is editing them in place allowed, or does an
+   edit always save as a new map with only the changed tiles, so no
+   Blizzard tile is redistributed?
 
 ## Related Documents
 

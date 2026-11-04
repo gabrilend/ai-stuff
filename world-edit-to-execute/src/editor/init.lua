@@ -31,9 +31,11 @@ draws: src/editor/main.lua is the window; tests drive this directly.
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
-  testing    the saved copy played offline in this project's viewer
-             (E:playtest, the quick preview); Test Map, which opens the
-             W client, is editor/test_map.lua (issue 913)
+  testing    Test Map (F5), which opens the W client, is
+             editor/test_map.lua (issue 913); E:playtest, the saved copy
+             played in this project's own viewer with the Lua simulation,
+             is no longer on a key but stays for the tests and as the
+             reference AzerothCore's rules are checked against
   modules    other parts of the editor register themselves by name
              (E:register(name, module)); a module's init(E) runs then
 

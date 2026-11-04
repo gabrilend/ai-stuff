@@ -23,8 +23,8 @@ reused and waited on, and the W client is opened on the build with the
 options below; its receipt is read and shown in the status line, a
 missing one reported as a crash. Where the converter, the servers and the
 W client live comes from the editor's settings (`editor-settings.lua`).
-The old play in this project's viewer is Shift+F5, the offline quick
-preview. Every step is checked with fake programs only: W02's converter
+The old play in this project's viewer is gone from the editor: there is
+one F5 (open question 1, the owner's answer). Every step is checked with fake programs only: W02's converter
 isn't built yet, so on a real machine Test Map stops at step 2 and says
 so, and the W client's side (1109) is being built at the same time.
 
@@ -90,17 +90,15 @@ closes, and restarts it when the next Test Map needs a new build.
 
 ## Open Questions
 
-1. ~~**The old in-editor play.**~~ Answered 2026-11-04 by Claude, in
-   background work for the owner to keep or overturn: it stays, as an
-   offline quick preview on Shift+F5 (`EUI:preview`, the old
-   `E:playtest`), and F5 becomes Test Map, until the owner says
-   otherwise. The reason: the preview needs no server, and until W02's
-   converter and the W client's 1109 exist Test Map can't run at all, so
-   the preview is the only way to play an edit meanwhile; keeping it costs
-   nothing (it is the code F5 ran). The bridge document's "the editor
-   stops being a game" still holds for F5. The question as asked: Does
-   F5's current run in this project's own viewer stay as an offline quick
-   preview (no server needed), or retire once Test Map works?
+1. ~~**The old in-editor play.**~~ Answered 2026-11-04: they are one
+   thing. The owner: "I think these are the same?" F5 has always meant
+   "test the map"; only where it plays changes. So there is one F5, and it
+   opens the W client; the run in this project's own viewer is what this
+   issue replaces, not a second mode kept beside it. The Lua simulation
+   itself stays, as the reference AzerothCore's rules are checked against.
+   The question as asked: does F5's current run in this project's own
+   viewer stay as an offline quick preview (no server needed), or retire
+   once Test Map works?
 
 ## The Contract with the W Client
 
@@ -177,7 +175,11 @@ every file in the build decides.
 
 ## Decisions (2026-11-04, background work; each the owner's to overturn)
 
-- **Open question 1:** above.
+- **Open question 1:** the owner's answer, above. The first pass had kept
+  the old run as an offline quick preview on Shift+F5; that is taken out.
+  `E:playtest` and the Lua simulation it runs stay (`test_editor` uses
+  it, and the simulation is the reference AzerothCore's rules are checked
+  against), but no key or button reaches it.
 - **Settings in `editor-settings.lua`, not committed.** It names this
   machine's folders and a test account, so it is ignored by git;
   `editor-settings.example.lua` lists every field, and
@@ -220,8 +222,7 @@ every file in the build decides.
   folder. A new field means a new format number.
 - **The toolbar button keeps its label, Test.** The toolbar's commands
   already overlap its tools by 5 pixels at 1280 wide; a wider "Test Map"
-  and a Preview button would cover a tool. So the button is Test Map
-  under its old label, and the preview is Shift+F5 alone.
+  would cover a tool. So the button is Test Map under its old label.
 - **The log** is `tmp/shared-memory/test-map/test-map.log`, each step with
   its UTC time; beside it each program's output (`convert.log`,
   `authserver.log`, `worldserver.log`, `w-client.log`), the receipt, and
@@ -256,10 +257,11 @@ every file in the build decides.
 - `test_map.w_client` is the W client's `scripts/run` (the client side's
   note above); a fake `scripts/run` in the tests checks it is run from the
   client's folder with the options passed through.
-- `src/editor/ui.lua`: F5 and the Test button run Test Map, Shift+F5 the
-  preview; `update()` steps a run; `close()`. `main.lua` passes nothing
-  new (the view's camera was already given); its header says what F5 does
-  now. `src/render/run-editor`'s header still says F5 plays the copy in
+- `src/editor/ui.lua`: F5 and the Test button run Test Map, and nothing
+  else plays the map; `update()` steps a run; `close()`. `main.lua`
+  passes nothing new (the view's camera was already given) and no longer
+  passes the viewer, which only the old run used; its header says what F5
+  does now. `src/render/run-editor`'s header still says F5 plays the copy in
   the viewer (left alone with the rest of `src/render`).
 - **Tests:** `src/tests/test_test_map.lua` (110 tests), with fakes in
   `src/tests/fixtures/test-map/`: a LuaJIT server that opens a port

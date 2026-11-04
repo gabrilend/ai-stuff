@@ -530,7 +530,7 @@ do
     local E = assert(editor.open(DIR .. "/assets/Daow4.4.w3x"))
     local s, base = fake_settings("ui")
     local out = TMP .. "/ui-saved.w3x"
-    local ui = editor_ui.new(E, 1280, 720, { save_path = out, run_tests = false, root = DIR, viewer = "/bin/true",
+    local ui = editor_ui.new(E, 1280, 720, { save_path = out, root = DIR,
         test_map_settings = s, camera = function() return 100, 200, 1650 end })
     local function frame(i) i = i or {}; i.keys = i.keys or {}; ui:update(i, 1 / 30) end
     local labels = {}
@@ -552,9 +552,9 @@ do
     test("the Test Map button runs it again, on the same server", ui.test_map.last.run == 2
         and ui.test_map.last.outcome == "closed" and count_lines(base .. "/starts") == 2,
         tostring(count_lines(base .. "/starts")))
-    frame({ keys = { "F5" }, shift = true })
-    test("Shift+F5: the offline quick preview (no server), as F5 was", not ui.test_map:busy()
-        and ui.last_preview and ui.last_preview:find("main.lua", 1, true) ~= nil, tostring(ui.last_preview))
+    local others = 0
+    for _, b in ipairs(ui.buttons) do if b.action == "test" or b.action == "preview" then others = others + 1 end end
+    test("one F5: no second way to play the map in the editor's own viewer", others == 1 and ui.preview == nil)
     local pids = server_pids(ui.test_map)
     ui:close()
     test("closing the editor stops the server", #pids == 2 and not proc.alive(pids[1]) and not proc.alive(pids[2]))
