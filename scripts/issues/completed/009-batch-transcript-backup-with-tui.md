@@ -116,7 +116,7 @@ The same history, multiple perspectives - all stored for complete documentation.
 ### Phase C: TUI Menu Integration
 9. [x] Create checkbox section for project selection
 10. [x] Add verbosity dropdown (v0-v5 with descriptions) — a radio list, see What Happened
-11. [ ] (moved to issue 042, with `--combined`) Add output mode option (per-project / combined / both)
+11. [ ] (moved to issue 056, with `--combined`) Add output mode option (per-project / combined / both)
 12. [x] Show selection summary (count, estimated size) — the opening summary and the dry run give project, conversation and file counts; no size estimate
 13. [x] Add Select All / Deselect All actions
 
@@ -139,10 +139,10 @@ The same history, multiple perspectives - all stored for complete documentation.
 ### Phase F: Advanced Features
 24. [x] Add `--commit` flag to git commit after backup
 25. [x] Add `--since <date>` to only backup recent conversations
-26. [ ] (moved to issue 042) Add `--output-dir` to specify custom output location
-27. [ ] (moved to issue 042) Add `--combined` to generate single export across all projects
-28. [ ] (moved to issue 042) Add metadata file per conversation showing file sizes and export timestamps
-29. [ ] (moved to issue 042) Add `--parallel` to process multiple verbosity levels concurrently
+26. [ ] (moved to issue 056) Add `--output-dir` to specify custom output location
+27. [ ] (moved to issue 056) Add `--combined` to generate single export across all projects
+28. [ ] (moved to issue 056) Add metadata file per conversation showing file sizes and export timestamps
+29. [ ] (moved to issue 056) Add `--parallel` to process multiple verbosity levels concurrently
 
 ## Technical Notes
 
@@ -330,6 +330,6 @@ Decisions:
   already treats as a no-op for unchanged conversations.
 - **One commit per project**, with the message "Back up <name>'s LLM
   transcripts". A project with nothing new makes no commit.
-- **Steps 11 and 26-29 moved to issue 042** (output mode, `--output-dir`, `--combined`,
+- **Steps 11 and 26-29 moved to issue 056** (output mode, `--output-dir`, `--combined`,
   per-conversation metadata, `--parallel`). Each one changes where or how
   files are written, and none was needed for the menu.

@@ -1,4 +1,4 @@
-# Issue 042: Batch transcript backup: output location, combined export, metadata, parallel levels
+# Issue 056: Batch transcript backup: output location, combined export, metadata, parallel levels
 
 ## Status
 - **Priority**: Low
@@ -43,3 +43,8 @@ apart from these steps, which it listed under Phase C and Phase F.
 - `issues/completed/009-batch-transcript-backup-with-tui.md`: the tool, and
   why these steps were split off.
 - `batch-transcript-backup.sh`
+
+## Renumbered
+
+**2026-11-04:** this issue was 042, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 056.
