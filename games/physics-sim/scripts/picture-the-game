@@ -1,0 +1,167 @@
+#!/bin/bash
+# picture-the-game -- runs the pachinko game with nobody at the keyboard,
+# photographs its window at chosen moments, and files every photograph into
+# development-history/ with a notes page beside it.
+#
+# In general terms: the game is started from the project folder (it finds its
+# boards there), left alone, and photographed from outside its window the way
+# a person would press "print screen". Nothing is pressed, so what the
+# pictures show is what the game does by itself: the adversary drops balls on
+# its own, and the board fills. Each picture gets the next number in
+# development-history/, and a notes file saying what made it -- the commit,
+# the moment, a fingerprint of the source -- with two sections left for a
+# person to write: what the picture shows, and the story so far.
+#
+# The capture takes whatever is on screen inside the game window's rectangle,
+# so a window lying over the game appears in the picture as well.
+#
+# Usage:
+#   scripts/picture-the-game                        -- 5, 20 and 45 seconds in
+#   scripts/picture-the-game --at 10 --at 30        -- chosen moments
+#   scripts/picture-the-game --name first-board     -- name the pictures
+#   scripts/picture-the-game --editor               -- the board editor instead
+#   scripts/picture-the-game /path/to/physics-sim   -- another checkout
+
+set -u
+
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+NAME="unattended"
+MOMENTS=()
+PROGRAM="physics-sim"
+WINDOW_TITLE="Physics Simulator - Pachinko"
+
+# {{{ read the options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --at)
+            MOMENTS+=("$2")
+            shift 2
+            ;;
+        --name)
+            NAME="$2"
+            shift 2
+            ;;
+        --editor)
+            # the editor is the other program built from this project; it
+            # opens an empty board and waits, so its pictures show the tool
+            PROGRAM="board-editor"
+            WINDOW_TITLE="Board Editor - Physics Simulator"
+            shift
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ ${#MOMENTS[@]} -eq 0 ]; then
+    MOMENTS=(5 20 45)
+fi
+# }}}
+
+GAME="${DIR}/bin/${PROGRAM}"
+HISTORY="${DIR}/development-history"
+
+# {{{ the RAM scratch folders: tmp/ is the exec tier, tmp/shared-memory/ the logs
+if [ ! -e "${DIR}/tmp" ]; then
+    mkdir -p "/tmp/physics-sim"
+    ln -s "/tmp/physics-sim" "${DIR}/tmp"
+fi
+if [ ! -e "${DIR}/tmp/shared-memory" ]; then
+    mkdir -p "/dev/shm/physics-sim"
+    ln -s "/dev/shm/physics-sim" "${DIR}/tmp/shared-memory"
+fi
+LOG="${DIR}/tmp/shared-memory/picture-the-game.log"
+# }}}
+
+# {{{ refuse what cannot work
+if [ ! -x "${GAME}" ]; then
+    echo "picture-the-game: no game at ${GAME}"
+    echo "  Build it first with ./run, ./edit, or scripts/compile"
+    exit 1
+fi
+if [ ! -d "${HISTORY}" ]; then
+    echo "picture-the-game: no ${HISTORY}/ -- it is part of the project and"
+    echo "  should be in git; this script does not invent it."
+    exit 1
+fi
+# }}}
+
+# {{{ the next number: one more than the highest NNN- already filed
+HIGHEST=0
+for FILE in "${HISTORY}"/[0-9][0-9][0-9]-*; do
+    if [ -e "${FILE}" ]; then
+        BASE=$(basename "${FILE}")
+        NUMBER=$((10#${BASE:0:3}))
+        if [ ${NUMBER} -gt ${HIGHEST} ]; then
+            HIGHEST=${NUMBER}
+        fi
+    fi
+done
+NEXT=$((HIGHEST + 1))
+# }}}
+
+# {{{ what made these pictures, written into every notes file
+COMMIT=$(git -C "${DIR}" log -1 --format='%h %s' -- .)
+SOURCE_PRINT=$(cat "${DIR}"/src/*.c "${DIR}"/src/*.h "${DIR}"/boards/*.json | sha256sum | cut -c1-16)
+TAKEN=$(date '+%Y-%m-%d %H:%M:%S')
+# }}}
+
+# the game reads boards/ relative to the folder it runs in
+env -C "${DIR}" "${GAME}" > "${LOG}" 2>&1 &
+GAME_PID=$!
+echo "picture-the-game: game running (process ${GAME_PID}), log in ${LOG}"
+
+START=${SECONDS}
+for MOMENT in "${MOMENTS[@]}"; do
+    while [ $((SECONDS - START)) -lt "${MOMENT}" ]; do
+        sleep 1
+    done
+
+    STEM=$(printf '%03d-%s-at-%ss' "${NEXT}" "${NAME}" "${MOMENT}")
+    PICTURE="${HISTORY}/${STEM}.png"
+
+    if ! import -window "${WINDOW_TITLE}" "${PICTURE}"; then
+        echo "picture-the-game: the capture at ${MOMENT}s failed; stopping."
+        kill "${GAME_PID}"
+        exit 1
+    fi
+
+    # {{{ the notes file beside the picture
+    {
+        echo "# ${STEM}"
+        echo ""
+        echo "Made by scripts/picture-the-game, which ran the game unattended"
+        echo "and photographed its window from outside."
+        echo ""
+        echo "## What made it"
+        echo ""
+        echo "- taken: ${TAKEN}, ${MOMENT} seconds after the game started"
+        echo "- commit: ${COMMIT}"
+        echo "- source fingerprint (src/ and boards/): ${SOURCE_PRINT}"
+        echo "- program: bin/${PROGRAM}"
+        echo "- run options: --name ${NAME} --at ${MOMENTS[*]}"
+        echo "- input: none; nobody pressed anything"
+        echo ""
+        echo "## What changed since the previous picture"
+        echo ""
+        echo "Compare the source fingerprint with the previous notes file."
+        echo ""
+        echo "## What it shows"
+        echo ""
+        echo "(to be written by whoever looks at it)"
+        echo ""
+        echo "## The story so far"
+        echo ""
+        echo "(to be written by whoever looks at it)"
+    } > "${HISTORY}/${STEM}.info.md"
+    # }}}
+
+    echo "picture-the-game: ${PICTURE}"
+    NEXT=$((NEXT + 1))
+done
+
+kill "${GAME_PID}"
+wait "${GAME_PID}"
+echo "picture-the-game: game stopped"

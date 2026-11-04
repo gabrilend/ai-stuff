@@ -62,7 +62,7 @@ record() {
     local input
     input="$(jq -n --arg s "${SESSION}" --arg t "${tool}" --arg repo "${REPO}" \
         "{session_id: \$s, tool_name: \$t} + (${body})")"
-    "${DIR}/record-own-edits" "${DIR}" <<< "${input}"
+    "${DIR}/harness-hooks/record-own-edits" "${DIR}" <<< "${input}"
 }
 # }}}
 
@@ -76,7 +76,7 @@ gate_verdict() {
     local input out
     input="$(jq -n --arg s "${SESSION}" --arg c "${command}" --arg cwd "${cwd}" \
         '{session_id: $s, cwd: $cwd, tool_name: "Bash", tool_input: {command: $c}}')"
-    out="$("${DIR}/refuse-foreign-lines" "${TOKEN}" "${DIR}" <<< "${input}")"
+    out="$("${DIR}/harness-hooks/refuse-foreign-lines" "${TOKEN}" "${DIR}" <<< "${input}")"
     jq -r '.hookSpecificOutput.permissionDecisionReason // ""' <<< "${out:-{\}}" > "${REASON_FILE}"
     if [ "$(jq -r '.hookSpecificOutput.permissionDecision // ""' <<< "${out:-{\}}")" = "deny" ]; then
         printf 'refused'

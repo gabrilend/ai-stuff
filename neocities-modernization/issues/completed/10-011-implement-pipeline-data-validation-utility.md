@@ -426,8 +426,8 @@ Starting in 3... 2... 1...
 
 ### Documentation
 - `/docs/roadmap.md` - Pipeline stages documentation
-- `/issues/CRITICAL-PATH-SIMILAR.md` - Similar generation requirements
-- `/issues/CRITICAL-PATH-DIFFERENT.md` - Different generation requirements
+- `/issues/will-not-implement/CRITICAL-PATH-SIMILAR.md` - Similar generation requirements
+- `/issues/will-not-implement/CRITICAL-PATH-DIFFERENT.md` - Different generation requirements
 
 ### Scripts to Integrate Validation
 - **`run.sh`** - Main pipeline orchestrator (MUST integrate validation)

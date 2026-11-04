@@ -20,7 +20,7 @@ line's `stage-own-changes` was still working, this session's
 `stage-own-changes` staged 55 files (the transcript-patch rework) into the same
 index, and the neocities `git commit` recorded them all under the message
 "Pages tell phones they are already dark" (`1ad8bb7d5`, pushed, then untangled
-into `4efe1f8c0` plus three commits of this session's own). The gate even
+into `bbf13a67c` plus three commits of this session's own). The gate even
 advertised `stage-own-changes` as safe on the same line as a commit, which
 widened the window to seconds. No gate that runs before a command can close
 it: the list is shared, and anyone may write it between the check and the
