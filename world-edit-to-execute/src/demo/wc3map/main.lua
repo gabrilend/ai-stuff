@@ -62,21 +62,13 @@ local player = tonumber(os.getenv("WC3_PLAYER") or "0")
 local assets_mod = require("assets")
 local A = assets_mod.open(path, { root = ROOT })
 local chain = A.chain
--- the art through the loader (issue 606a): the player's asset packs
--- first, then the map, then the install; A itself is still the reader
--- for stock tables, sounds and the game. Unseen: no screen to check it on.
-local art = A
-do
-    local ok, got = pcall(require("assets.loader").new, { assets = A, root = ROOT })
-    if ok then art = got else print("[assets] packs not read, the map and install only: " .. tostring(got)) end
-end
 local stock = require("gamedata.unit_stock").new(A.chain, s.map.object_data and s.map.object_data.units)
 -- the ground's textures (issue 526): the install's tilesets, else
 -- stand-ins drawn in their layout; WC3_TILES=0 for plain colours
 local ground_reload      -- what hot-reload needs to swap a tileset (issue 606a)
 if os.getenv("WC3_TILES") ~= "0" then
     local ground = require("assets.ground")
-    local ids, extended, r = ground.textures(render, art, s.terrain, { standins = os.getenv("WC3_TILES") == "standin" })
+    local ids, extended, r = ground.textures(render, A, s.terrain, { standins = os.getenv("WC3_TILES") == "standin" })
     r.cells, r.triangles = ground.lay(render, s.terrain, ids, extended)
     ground_reload = { render, ids, s.terrain, r }
     print(string.format("[ground] %d tilesets: %d from the install, %d stand-ins; %d cells textured, %d triangles",
@@ -249,10 +241,10 @@ local hud = hud_mod.new(game, sw, sh)
 -- {{{ models: the map's and the install's (issue 522); WC3_MODELS=0 for
 -- the geometry designs only
 local gpu = require("assets.gpu")
-local model_cache = A and gpu.new(render, art)
+local model_cache = A and gpu.new(render, A)
 -- hot-reload (issue 606a), when WC3_HOT_RELOAD=1: a texture saved in an
 -- asset pack goes into the running game. Unseen: no screen to check it on.
-local hot = art.packs and require("assets.live").from_env(art, { models = model_cache or nil, ground = ground_reload }) or nil
+local hot = A.packs and require("assets.live").from_env(A, { models = model_cache or nil, ground = ground_reload }) or nil
 local model_ids = {}
 local object_data = s.map.object_data
 local function model_of(kind, id, variation)
@@ -260,7 +252,7 @@ local function model_of(kind, id, variation)
     local key = kind .. ":" .. id .. ":" .. tostring(variation or "")
     local v = model_ids[key]
     if v == nil then
-        local m, mpath = art:model_for(kind, id, variation, object_data)
+        local m, mpath = A:model_for(kind, id, variation, object_data)
         v = m and model_cache:build(m, mpath) or false
         model_ids[key] = v
     end

@@ -1,5 +1,5 @@
 #!/usr/bin/env luajit
--- test_share.lua - a shared map-and-model list, applied for one game (issue 609)
+-- test_share.lua - a shared map-and-model list, checked and kept (issue 609)
 --
 -- In plain terms: a sharer's pack becomes a list of its art and sound
 -- files by hash (data files are left out, so gameplay can't differ); the
@@ -7,9 +7,9 @@
 -- other than plain data, or a file that isn't art, is refused; the
 -- receiver works out which files it lacks, the sharer copies only those;
 -- every arriving file is checked against its hash and one bad file refuses
--- the whole list; an applied list comes before the player's own packs for
--- that game and is gone after it, or kept as a pack of their own; and
--- "always from this player" or "always for this map" turns the prompt off.
+-- the whole list; a checked list is kept as a pack of the receiver's own;
+-- and "always from this player" or "always for this map" turns the
+-- question off. (Using a list for one game is the W client's, its 1110.)
 --
 -- Run: luajit src/tests/test_share.lua [DIR]
 -- Issue: issues/completed/609-shared-map-and-model-list.md
@@ -126,60 +126,34 @@ print("\n=== Every file checked; one bad file refuses the list ===")
 local TAMPER = SCR .. "/tampered"
 os.execute("cp -r " .. sh(BUNDLE) .. " " .. sh(TAMPER))
 write(TAMPER .. "/" .. wanted[1]:sub(8), "something else entirely")
-local none, problems = profile.apply(l, { data = B, store = bstore, bundle = TAMPER, name = "game-1" })
+local none, problems = profile.keep(l, { data = B, store = bstore, bundle = TAMPER, name = "ana" })
 test("a file that doesn't match its hash: refused and named", none == nil and #problems == 1
     and problems[1].problem == "doesn't match its hash")
-test("... and nothing was applied", not exists(B .. "/profiles/game-1"))
+test("... and nothing was kept or stored", not exists(B .. "/asset-packs/ana") and not bstore:exists(wanted[2]))
 os.remove(TAMPER .. "/" .. wanted[1]:sub(8))
-none, problems = profile.apply(l, { data = B, store = bstore, bundle = TAMPER, name = "game-1" })
+none, problems = profile.keep(l, { data = B, store = bstore, bundle = TAMPER, name = "ana" })
 test("a file that wasn't sent: refused and named", none == nil and problems[1].problem == "not sent")
--- }}}
-
--- {{{ Applied for one game, then reverted
-print("\n=== Applied for one game, then reverted ===")
-write(B .. "/asset-packs/own/textures/grass.tga", tga(0, 0, 200))
-write(B .. "/asset-packs/own/units/unitdata.slk", "Ben's unit table")
-write(MINE .. "/units/unitdata.slk", "Ana's unit table")     -- in Ana's pack, but never in her list
-local L = loader.new({ packs = { "own" }, data = B, root = DIR })
-test("before: Ben sees his own grass", colour(L:get("Textures\\Grass.tga")) == "0,0,200")
-local slk_before = { L:read("Units\\UnitData.slk") }
-local P, perr = profile.apply(l, { data = B, store = bstore, bundle = BUNDLE, name = "game-1" })
-test("the list applies", P ~= nil, perr and perr[1] and perr[1].problem)
-P:attach(L)
-local img, from = L:get("Textures\\Grass.tga")
-test("during the game: Ana's grass, from the list's layer", colour(img) == "200,0,0" and from == "layer:share:game-1",
-    tostring(from))
-test("the unit type's model is named", P.types.hfoo == "units/knight/knight.mdx"
-    and L:read("units/knight/knight.mdx") == "MDLX a knight, by Ana")
-test("the horn Ben already had is used, not sent again", L:read("sounds/horn.wav") == "RIFF a horn")
-test("gameplay data reads the same with the list on (Ben's unit table, not Ana's)",
-    slk_before[1] == "Ben's unit table" and L:read("Units\\UnitData.slk") == slk_before[1])
-P:revert(L)
-test("after the game: Ben's own grass again", colour(L:get("textures/grass.tga")) == "0,0,200")
-test("the profile is gone", not exists(B .. "/profiles/game-1") and not exists(B .. "/profiles/game-1.list.lua"))
-local removed = bstore:gc()
-test("its stored files are collected (the horn was never linked by Ben: it goes too)", removed == 3, tostring(removed))
 -- }}}
 
 -- {{{ Kept as a pack
 print("\n=== Kept as a pack of the player's own ===")
-local P2 = profile.apply(l, { data = B, store = bstore, bundle = BUNDLE, name = "game-2" })
-test("missing again after gc, so the bundle is needed again", P2 == nil)
-bstore:store("RIFF a horn")
-P2 = profile.apply(l, { data = B, store = bstore, bundle = BUNDLE, name = "game-2" })
-P2:attach(L)
-local dir = P2:keep("ana", L)
-test("kept: a pack of Ben's own, the profile gone", dir == B .. "/asset-packs/ana" and not exists(B .. "/profiles/game-2"))
+write(B .. "/asset-packs/own/textures/grass.tga", tga(0, 0, 200))
+local L = loader.new({ packs = { "own" }, data = B, root = DIR })
+test("before: Ben sees his own grass", colour(L:get("Textures\\Grass.tga")) == "0,0,200")
+local dir, kerr = profile.keep(l, { data = B, store = bstore, bundle = BUNDLE, name = "ana" })
+test("the list is kept: a pack of Ben's own", dir == B .. "/asset-packs/ana", kerr and kerr[1] and kerr[1].problem)
 local L2 = loader.new({ packs = { "ana", "own" }, data = B, root = DIR })
-test("the kept pack serves Ana's grass", colour(L2:get("textures/grass.tga")) == "200,0,0" and select(2, L2:get("textures/grass.tga")) == "pack:ana")
-test("and gc keeps its files", bstore:gc() == 0)
-test("a second list can't take an applied name", (function()
-    local P3 = profile.apply(l, { data = B, store = bstore, bundle = BUNDLE, name = "game-3" })
-    local ok = not pcall(profile.apply, l, { data = B, store = bstore, bundle = BUNDLE, name = "game-3" })
-    P3:revert()
-    return ok
-end)())
-test("a profile name can't climb out", not pcall(profile.apply, l, { data = B, store = bstore, bundle = BUNDLE, name = "../x" }))
+local img, from = L2:get("textures/grass.tga")
+test("the kept pack serves Ana's grass", colour(img) == "200,0,0" and from == "pack:ana", tostring(from))
+test("the unit type's model is in it under its path", L2:read("units/knight/knight.mdx") == "MDLX a knight, by Ana")
+test("the horn Ben already had is used, not sent again", L2:read("sounds/horn.wav") == "RIFF a horn")
+test("Ben's own packs are as they were", colour(L:get("textures/grass.tga")) == "0,0,200")
+test("gc keeps its files", bstore:gc() == 0)
+test("a second list can't take a kept pack's name",
+    not pcall(profile.keep, l, { data = B, store = bstore, bundle = BUNDLE, name = "ana" }))
+test("a pack name can't climb out", not pcall(profile.keep, l, { data = B, store = bstore, bundle = BUNDLE, name = "../x" }))
+test("with every file stored already, no bundle is needed",
+    profile.keep(l, { data = B, store = bstore, name = "ana-2" }) == B .. "/asset-packs/ana-2")
 -- }}}
 
 -- {{{ Trust

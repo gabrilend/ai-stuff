@@ -15,8 +15,8 @@ reads it again through the loader (601) and hands the new value to its
 `on_reload(path, value, source)` callback. Nothing on screen changes yet:
 
 - (Done on the Lua side, PR "606a: the renderer reads through the
-  loader": `assets/gpu.lua`, `assets/ground.lua`, the map viewer and the
-  editor read through the loader, and `gpu.on_reload` /
+  loader": `assets/gpu.lua`, `assets/ground.lua` and the editor read
+  through the loader, and `gpu.on_reload` /
   `ground.on_reload` put a saved texture into its texture id.)
   `render/models.c` can make a texture (`tex_create`) but not replace
   one, so nothing changes on screen yet.
@@ -84,15 +84,18 @@ viewer and editor changes are **unseen** (compiled, not run).
 - `assets/gpu.lua`: `C:retexture(path, img)` and `gpu.on_reload(cache)`;
   texture keys are now one per path whatever its case and slashes.
 - `assets/ground.lua`: `ground.on_reload(render, ids, terrain, report)`.
-- `demo/wc3map/main.lua`, `editor/main.lua`: read art through a loader
-  over the map's handle.
+- `editor/main.lua`: reads art through a loader over the map's handle.
+  (`demo/wc3map/main.lua` did too, until 2026-11-04: see below.)
 - `src/tests/test_renderer_loader.lua`: 37 tests.
 
 After the editor-and-client split (2026-11-04): the editor's reading
 through the loader (`editor/main.lua`) is the part "Where it shows" asks
-for. The map viewer's (`demo/wc3map/main.lua`, decision 3) serves a play
-mode that gives way to Test Map (913); it is left as built until the
-owner says whether to take it out.
+for. The map viewer's (`demo/wc3map/main.lua`, decision 3) served a play
+mode that gives way to Test Map (913, PR #239), so with the owner's yes it
+was taken out in a commit of its own: the viewer reads through
+`assets.open`'s handle again, as before this issue. `gpu.lua`,
+`ground.lua` and the loader's renderer calls stay, for the editor. A pack
+changing while a game is played is the W client's (its 105a and 1110).
 
 Decisions made while building:
 
@@ -103,11 +106,13 @@ Decisions made while building:
 2. **Stock tables stay with the handle.** Packs hold art; `L:table` passes
    through. A pack that overrides a `.slk` is not read for it (not asked
    for; another issue if wanted).
-3. **The map viewer keeps the handle for everything but art** (stock
+3. ~~**The map viewer keeps the handle for everything but art** (stock
    tables, the unit stock, sounds, the game): only the ground, the model
    cache and `model_of` take the loader. When the packs can't be read
    (a broken pack folder) they fall back to the handle and print why,
-   rather than not starting.
+   rather than not starting.~~ Taken out 2026-11-04 (above): served play
+   in the map viewer is Test Map's now. The editor keeps the same
+   fallback: the handle alone, and why, when the packs can't be read.
 4. **The model gallery (`demo/models`) stays on the handle**: it shows the
    map's own models and counts the handle's textures in its report.
 5. **A texture made for a `.tga` read as its `.blp` is swapped** when the

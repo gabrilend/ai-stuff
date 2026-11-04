@@ -20,15 +20,12 @@ limit (`cache.lua`).
 | `L:wants(path)` | a path | true when it is loaded, or was looked for and not found |
 | `L:file_changed(dir, rel)` | a pack's folder (`pack.dir`) and a file within it that was written, added or removed | the asset's key, and whether the change matters (wanted, and no pack above has it); keeps that pack's file list right |
 | `L:reindex()` | — | reads every pack's file list again; the cache is kept |
-| `L:push_layer(name, dir)` | a name and a folder | puts its files before every pack's (source `"layer:NAME"`) for one game; how many files it has; what it holds is read again (issue 609) |
-| `L:pop_layer(name)` | a layer's name | takes it off; what it served is read again from the packs; true when it was on |
 | `loader.key_of(path)` | a path | its key: lower case, forward slashes |
 
 ### The renderer's calls (issue 606a)
 
-The same calls `assets.open`'s handle answers, so `gpu.lua`, `ground.lua`,
-the map viewer and the editor can be handed a loader and draw the
-player's packs first.
+The same calls `assets.open`'s handle answers, so `gpu.lua`, `ground.lua`
+and the editor can be handed a loader and draw the player's packs first.
 
 | Function | Takes | Gives |
 |----------|-------|-------|
