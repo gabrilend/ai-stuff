@@ -57,6 +57,7 @@ local choreography = dofile(SRC .. "/045-choreography.lua")
 local raster = dofile(SRC .. "/046-raster.lua")
 local png = dofile(SRC .. "/048-png.lua")
 local fluid = dofile(SRC .. "/047-fluid.lua")
+local scene_file = dofile(SRC .. "/055-scene-file.lua")
 local gif = dofile(SRC .. "/004-gif.lua")
 local palette = dofile(SRC .. "/002-palette.lua")
 local ffi = require("ffi")
@@ -159,7 +160,7 @@ end
 -- One scene, start to finish. Returns the byte count written.
 local function film(name, options)
     local path = scene_path(name)
-    local scene = dofile(path)
+    local scene = scene_file.read(path)
     if options.frames then scene.frames = options.frames end
 
     local hue_table = {}

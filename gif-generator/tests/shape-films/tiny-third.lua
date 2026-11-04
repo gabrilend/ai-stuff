@@ -11,7 +11,7 @@ return {
     ground = GROUND,
     camera = { fov = 60, motion = { kind = "fly", size = { 3, 0.2, 3 }, freq = { 1, 2, 1 }, shift = { 0.25, 0, 0 },
                                     center = { 0, 1.5, 0 }, target = "ahead", lead = 0.1 } },
-    framing = { tag = "anything", at_least = 0 },
+    framing = { tag = "ball", at_least = 0 },
     strokes = { { from = { -2, 0.5, 0 }, to = { 2, 0.5, 0 }, amplitude = 0.2, waves = 2, drift = 1 } },
     instances = {
         { tag = "ground", mesh = "terrain", hue = "jade", dim = 0.4, style = "solid", mesh_params = GROUND },

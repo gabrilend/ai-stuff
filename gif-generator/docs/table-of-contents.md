@@ -39,6 +39,9 @@ docs/
 ├── roadmap.md ............ the seven phases and their issues
 ├── score-format.md ....... the language's contract: every word a
 │                           score may speak, and what each means
+├── shape-format.md ....... the 3D scenes' contract: every word a
+│                           shape scene may use, printed from the
+│                           wall's own word lists
 ├── datapath-scene-script.md
 │                           score file → compiled timeline (the
 │                           vocabulary, the clock-face convention,
