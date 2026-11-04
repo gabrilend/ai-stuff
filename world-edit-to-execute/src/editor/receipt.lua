@@ -34,8 +34,10 @@ local FIELDS = { format = true, map = true, started = true, ended = true, second
                  reason = true, why = true }
 local TIME = "^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%dZ$"
 
--- {{{ run the file's text as data
-local function run_data(text, name)
+-- {{{ run the file's text as data (receipt.run_data: also how Test Map
+-- reads the converter's conversion-report.lua; max_steps, else MAX_STEPS)
+local function run_data(text, name, max_steps)
+    max_steps = max_steps or receipt.MAX_STEPS
     local env = {}
     local chunk, err
     if text:sub(1, 1) == "\27" then return nil, "it is compiled code, not text" end
@@ -51,7 +53,7 @@ local function run_data(text, name)
     local steps = 0
     debug.sethook(function()
         steps = steps + 1000
-        if steps > receipt.MAX_STEPS then error("it runs too long to be data", 2) end
+        if steps > max_steps then error("it runs too long to be data", 2) end
     end, "", 1000)
     local ok, t = pcall(chunk)
     debug.sethook()
@@ -59,6 +61,7 @@ local function run_data(text, name)
     if type(t) ~= "table" then return nil, "it doesn't return a table" end
     return t
 end
+receipt.run_data = run_data
 -- }}}
 
 -- {{{ receipt.check: every field

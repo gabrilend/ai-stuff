@@ -64,6 +64,28 @@ folder. W08 plans a server of our own that would replace AzerothCore here.
 Tuning ("lots of tweaking") goes into `docs/balance-updates.md` as it happens,
 not into new issues.
 
+## Generated Sub-Issues
+
+- `W02a-terrain-to-adt-writer.md` (2026-11-04): written by hand from the
+  table above, not by the issue-splitter, which reads numbered issue ids
+  only (W02a's Notes say where). **Built** the same day as background
+  work: `src/wowbuild/`, the converter command `src/cli/wow-convert.lua`
+  (terrain only; the later sub-issues add theirs to it), the ground
+  texture table as data. Left: the texture paths checked against the
+  owner's client, Noggit, the stock client and AzerothCore's extractor on
+  the owner's machine.
+- W02b-W02h: not yet written.
+
+## Progress
+
+- *2026-11-04:* acceptance line 1 is met for the terrain: one command
+  converts `assets/DAoW-2.1.w3x`'s ground into a build folder. Line 3's
+  height half is checked against the W client's own ADT reader (every
+  outer vertex and cell centre within 0.5 yd; worst 2.5e-6). Line 6's
+  terrain part (texture folds and unmapped ground types) is in
+  `conversion-report.lua`. Line 7 holds for the terrain: everything is
+  written into the build folder; the ADTs name WoW's textures by path only.
+
 ## Acceptance Criteria
 
 - [ ] One WC3 map (the smallest DAoW map in `assets/`) converts with one command

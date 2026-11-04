@@ -33,8 +33,16 @@ The contract with the W client (its issue 1109; built there to this):
   W_CLIENT_PASSWORD in its environment, never on the command line
   the receipt: editor/receipt.lua
 
---camera is where the editor's view was looking, in the map's own world
-units (as the .w3x stores positions). test_map.w_client is the W client's
+--camera is where the editor's view was looking, in the W client's own
+world: x north and y west, in yards (its src/018-maps.h; 1109: "world x
+and y in yards"). The view gives WC3 world units (as the .w3x stores
+positions); the converter writes where it placed the map in its
+<build>/conversion-report.lua (placement.client, wowbuild/coords.lua), and
+the camera is turned through that after converting (T:client_camera). A
+point off the map is moved onto its edge, so there is ground under it. A
+build whose report gives no placement gets no --camera (said, and
+logged): the W client then starts at the map's own start, rather than at
+WC3 units read as yards somewhere else. test_map.w_client is the W client's
 scripts/run (or a program taking the same arguments), which adds the
 client's own --maps, --client, --settings, --world and --assets and passes
 these through unchanged; it runs from the client's folder (the one above
@@ -57,8 +65,14 @@ otherwise the client is always left to close itself.
 local settings_mod = require("editor.settings")
 local receipt = require("editor.receipt")
 local server_keeper = require("editor.server_keeper")
+local coords = require("wowbuild.coords")
 
 local test_map = {}
+
+test_map.REPORT = "conversion-report.lua"     -- the converter's, in the build folder (wowbuild.REPORT)
+test_map.REPORT_FORMAT = 1                   -- the newest report format read here
+test_map.REPORT_MAX_BYTES = 32 * 1024 * 1024 -- a 64 x 64-tile map's report is well under a megabyte
+test_map.REPORT_MAX_STEPS = 50 * 1000 * 1000
 
 local T = {}
 T.__index = T
@@ -80,7 +94,7 @@ local function dirname(p) return p:match("^(.*)/[^/]*$") or "." end
 -- seam for other programs), say, save (function(copy) -> path of a .w3x
 -- to convert: the map saved as the editor saves it, or, for a map
 -- project, a .w3x of it written at `copy`),
--- camera (function() -> x, y), poll_every
+-- camera (function() -> x, y: where the view looks, WC3 world units), poll_every
 function test_map.new(E, opts)
     opts = opts or {}
     local self = setmetatable({ E = E, opts = opts, root = opts.root or ".",
@@ -173,6 +187,48 @@ function T:start()
     self.stage = "converting"
     self:say("Test Map: converting into " .. self.build_dir)
     return true
+end
+-- }}}
+
+-- {{{ test_map.read_placement: where the converter put the map
+-- From <build>/conversion-report.lua, read as data (as the receipt is: an
+-- empty environment, a count of instructions): its placement.client, or
+-- nil and why
+function test_map.read_placement(build_dir)
+    local path = build_dir .. "/" .. test_map.REPORT
+    local f = io.open(path, "rb")
+    if not f then return nil, "the converter wrote no " .. test_map.REPORT end
+    local text = f:read(test_map.REPORT_MAX_BYTES + 1) or ""
+    f:close()
+    if #text > test_map.REPORT_MAX_BYTES then return nil, "its " .. test_map.REPORT .. " is too big to be a report" end
+    local t, why = receipt.run_data(text, path, test_map.REPORT_MAX_STEPS)
+    if not t then return nil, "its " .. test_map.REPORT .. " can't be read: " .. why end
+    if type(t.format) ~= "number" or t.format ~= math.floor(t.format) or t.format < 1 then
+        return nil, "its " .. test_map.REPORT .. " has no format number"
+    end
+    if t.format > test_map.REPORT_FORMAT then
+        return nil, string.format("its %s's format %d is newer than this editor reads (%d)",
+            test_map.REPORT, t.format, test_map.REPORT_FORMAT)
+    end
+    local p = type(t.placement) == "table" and t.placement.client or nil
+    if p == nil then return nil, "its " .. test_map.REPORT .. " gives no placement (placement.client)" end
+    local ok, bad = coords.check_placement(p)
+    if not ok then return nil, "its " .. test_map.REPORT .. ": " .. bad end
+    return p
+end
+-- }}}
+
+-- {{{ T:client_camera: a point of the view as the W client's --camera
+-- wx, wy in WC3 world units -> the W client's world x, y in yards, or nil
+-- and why
+function T:client_camera(wx, wy)
+    local p, why = test_map.read_placement(self.build_dir)
+    if not p then return nil, why end
+    local x, y, moved = coords.wc3_to_client(p, wx, wy)
+    if not x then return nil, y end
+    self:log(string.format("camera: the view's (%.1f, %.1f) in WC3 units is the W client's (%.2f, %.2f) in yards%s",
+        wx, wy, x, y, moved and ", moved onto the map's edge" or ""))
+    return x, y
 end
 -- }}}
 
@@ -270,9 +326,16 @@ function T:launch(tm)
     for i, a in ipairs(tm.w_client) do argv[i] = a end
     local function add(...) for _, a in ipairs({ ... }) do argv[#argv + 1] = a end end
     add("--test-map", self.build_dir, "--receipt", self.receipt_path)
+    -- the view's point, turned into the W client's world (the top of this file)
     local cx, cy
     if self.opts.camera then cx, cy = self.opts.camera() end
-    if cx and cy then add("--camera", string.format("%.0f,%.0f", cx, cy)) end
+    if cx and cy then
+        local x, y = self:client_camera(cx, cy)
+        if x then add("--camera", string.format("%.2f,%.2f", x, y))
+        else
+            self:say("Test Map: no camera for the W client (" .. y .. "); it starts at the map's own start")
+        end
+    end
     add("--realm", self.keeper.host .. ":" .. self.keeper.login_port)
     if tm.account then add("--account", tm.account) end
     local env = {}

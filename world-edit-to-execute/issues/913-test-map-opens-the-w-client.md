@@ -132,9 +132,11 @@ What the editor sends, on its side of it: `<folder>` is the build folder
 as an absolute path, and `map` must come back as exactly that;
 `<file>` is `tmp/shared-memory/test-map/receipt.lua` (absolute), removed
 before each launch so an old receipt never counts; `--camera` is where the
-editor's view was looking, whole numbers in the map's own world units (as
-the `.w3x` stores positions), which the W client may need to turn into its
-own; `--realm` is the settings' host and login port (the authserver's);
+editor's view was looking, in the W client's own world: x north and y
+west, in yards, two decimals (`981.52,1959.82`), turned from the view's
+WC3 units through the converter's placement of the map (*2026-11-04,
+camera pass:* below; the first pass sent WC3 units, which the client
+read as yards somewhere else entirely); `--realm` is the settings' host and login port (the authserver's);
 `--account` is given when the settings or `W_CLIENT_ACCOUNT` name one, the
 password then in the environment when there is one (an empty one counts
 as none, on both sides).
@@ -172,6 +174,23 @@ build folder (the editor never empties it). It may write
 `<build folder>/server-stamp`, a line naming what the server reads, so the
 server is started again only when that changes; without it, a checksum of
 every file in the build decides.
+
+The converter also writes `<build folder>/conversion-report.lua` (W02a),
+whose `placement.client` says where it put the map in the W client's
+world (*2026-11-04, camera pass*):
+
+```lua
+placement = { client = { scale = 0.0325520833..., x0 = <yards>, y0 = <yards>,
+                         wc3_min = { <x>, <y> }, wc3_max = { <x>, <y> } }, ... }
+-- client x = x0 + scale * wc3 y      client y = y0 - scale * wc3 x
+```
+
+`wc3_min` and `wc3_max` bound the map's tile points. Test Map reads it
+after converting, as data (an empty environment, a count of
+instructions, as the receipt), and turns the view's point through it
+(`wowbuild.coords.wc3_to_client`). A report it can't read, of a format
+above 1, or with no good placement gives no `--camera`; the status line
+and the log say why, and the W client starts at the map's own start.
 
 ## Decisions (2026-11-04, background work; each the owner's to overturn)
 
@@ -223,6 +242,27 @@ every file in the build decides.
 - **The toolbar button keeps its label, Test.** The toolbar's commands
   already overlap its tools by 5 pixels at 1280 wide; a wider "Test Map"
   would cover a tool. So the button is Test Map under its old label.
+- **The camera in the W client's world** (*camera pass*). The W client's
+  `--camera` is its own world in yards (its 067-test-map.c and 043-main.c:
+  where she starts, the ground under it from the server's maps), not WC3
+  units, so the editor turns the view's point through the placement the
+  converter reports, rather than the W client learning WC3's units: the
+  converter is the one that chose the placement (W02a), and the report is
+  already the contract between them. The convention was checked against
+  the client's own code, not from memory: `src/018-maps.h` (x north, y
+  west, tile = floor(32 - x / 533.33)), `src/033-ground-prep.c` (it opens
+  `<map>_<y tile>_<x tile>.adt`), and `src/020-adt.h` (MCNK's position);
+  built from the client's sources, its `maps_tile_of` and
+  `maps_corner_position` gave the same tile and corner for every tile
+  point sampled on six shapes and two real maps, and its ADT reader the
+  same ground under the camera.
+- **A view off the map** is moved just inside its edge (32 WC3 units,
+  about a yard), and logged: the W client refuses a start with no ground
+  under it, and a point exactly on an edge that is also an ADT's edge
+  belongs, by the client's floor, to the tile beyond, which isn't written
+  (a 129 x 129 map's south and east edges are).
+- **No placement, no camera.** A converter that writes no placement gets
+  no `--camera`, said and logged, rather than WC3 units sent as yards.
 - **The log** is `tmp/shared-memory/test-map/test-map.log`, each step with
   its UTC time; beside it each program's output (`convert.log`,
   `authserver.log`, `worldserver.log`, `w-client.log`), the receipt, and
@@ -281,3 +321,60 @@ every file in the build decides.
   `ui.lua`.
 - **A server left by a killed editor** is not adopted or stopped by the
   next one; its pids are in `server.pids`.
+
+*(2026-11-04, camera pass: the camera lands where the editor's view looks)*
+
+How it was before: the editor sent `--camera` as the view's point in WC3
+world units, whole numbers, and the W client takes its own world x and
+y in yards; nothing turned one into the other, so the W client started
+far from the map (DAoW 4.4's middle, WC3 (0, 0), was sent as world
+(0, 0) by luck; any other point, a view 1000 units east, was sent 1000
+*yards* off, about 30 times too far and on the wrong axis). Now:
+
+- `src/wowbuild/coords.lua` (W02a's): `Layout:client_placement()`, the
+  placement as plain numbers (a scale and a shift, WC3's axes turned a
+  quarter: client x = x0 + scale * wc3 y, client y = y0 - scale * wc3 x,
+  and the map's bounds); `coords.check_placement`;
+  `coords.wc3_to_client(p, x, y)`, which moves a point off the map just
+  inside its edge; `coords.client_adt(x, y)`, the W client's own rule for
+  which ADT a world point is in (its 018-maps.c and 033-ground-prep.c,
+  in 32-bit floats as it does it).
+- `src/wowbuild/init.lua`: the report's `placement.client`; numbers in
+  the report are written in the shortest form that reads back exactly
+  (they were cut to six digits, which would put the camera up to a tenth
+  of a yard off).
+- `src/editor/test_map.lua`: `test_map.read_placement(build)` and
+  `T:client_camera(x, y)`; `--camera` is the W client's world, two
+  decimals; no placement means no `--camera`, said why.
+  `src/editor/receipt.lua` lends it its reader of data files
+  (`receipt.run_data`, with a larger count of instructions for a report).
+- **Tests:** `src/tests/test_test_map.lua` (125): the fake converter
+  writes a report (or none, none with a placement, a bad one, a too-new
+  one); each is read or refused with why; a report that runs forever or
+  reaches for functions is refused; the axes; a view off the map moved
+  onto it and logged; a run with no placement opens the W client
+  without `--camera` and says so; and a run through W02's own
+  converter on Daow 4.4: the camera is its placement of the view's
+  point, and the ADT the W client opens there is one it wrote. The fake
+  W client now refuses a `--camera` its reader would refuse.
+  `src/tests/test_wow_terrain.lua` (its camera section): the placement
+  is the layout's own mapping on six shapes; the axes; off-map points;
+  bad placements refused; the report's numbers read back exact; every
+  sampled point, corners and off-map ones too, lands in a written ADT by
+  the client's rule; and, with the client's reader library, the ground
+  it reads under the camera is the WC3 ground at the point asked for.
+
+**Still open after the camera pass:**
+- **Which map the W client opens.** With `--test-map` the client still
+  opens map 1 (Kalimdor) and its server-side ground (`--maps`), so the
+  camera is right for the converted map, but the map registered and
+  opened is W02c's and 1109's (the `Map.dbc` row, then telling the client
+  which map), and the ground under the start is the server's extracted
+  maps (W02d). Until then the client's "no ground at the start" check
+  may stop it on a point the converted ADTs do cover.
+- **The view's height** isn't sent: `--camera` is x and y only; she
+  starts on the ground there.
+- **Every F5 a new server:** the real converter's report carries the
+  time it was written, so without a `server-stamp` from the converter the
+  build's checksum changes on every run and the server is started again
+  each time. W02f's server stamp is the fix.
