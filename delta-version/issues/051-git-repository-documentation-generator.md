@@ -535,7 +535,8 @@ extraction (051a). It is tested against a stand-in model
 - **051b:** roadmap generation. First slice built (2026-11-03):
   `scripts/roadmap-from-history.lua` finds phases from breaks in the
   history and has the model name them; see 051b's status.
-- **051c:** issue files from the roadmap.
+- **051c:** issue files from the roadmap. Built (2026-11-03):
+  `scripts/issues-from-history.lua`; see `completed/051c-...`.
 - **051d:** completion status detection.
 - **051e:** phase demos.
 - **051f:** install scripts.

@@ -39,7 +39,7 @@ reading a number here:
 
 | Issues | What | Note |
 |--------|------|------|
-| 051, 051a–g | Documentation generated from git history | First slices built: `scripts/history-kernel.lua` (051a: first-commit facts from git, and a model-drafted vision that never replaces an existing one) and `scripts/roadmap-from-history.lua` (051b: phases from breaks in the history, named by the model). The rest of 051b, and 051c–g, remain. |
+| 051, 051a–g | Documentation generated from git history | First slices built: `scripts/history-kernel.lua` (051a: first-commit facts from git, and a model-drafted vision that never replaces an existing one), `scripts/roadmap-from-history.lua` (051b: phases from breaks in the history, named by the model) and `scripts/issues-from-history.lua` (051c, done: completed issue files drafted from those phases). The rest of 051b, and 051d–g, remain. |
 | 053, 053a–f | Cross-project roadmap coordinator | First slice built: `scripts/todone.lua` (components several projects plan, named by the model, matched by spelling and a synonym list). Fuzzy tiers, the shared roadmap and outputs remain (see 053's status note). |
 | 049, 049a–d | Transcript viewer at several levels of detail | First slice built: `scripts/transcript-detail.lua` (049a, model-classed detail levels 1–5, verbatim). Abstraction levels, chapters and the batch pipeline remain (see 049's status note). Overlaps the transcript tooling in double-diaper-dungeon. |
 | 040, 040a–i | Self-revising CLAUDE.md | First slice built: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback, audit). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |

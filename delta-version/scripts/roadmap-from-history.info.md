@@ -12,7 +12,8 @@ roadmap-from-history.lua soren-ds --out=/tmp/r.md     # ... or saved elsewhere
 roadmap-from-history.lua soren-ds --phases=4 --gap-days=30
 ```
 
-**The phases come from git alone.** Every commit touching the folder is
+**The phases come from git alone** (`libs/history-phases.lua`, shared with
+`issues-from-history.lua`). Every commit touching the folder is
 read, merges left out. A new phase starts at a break, scored from:
 
 | Signal | Weight |

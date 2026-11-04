@@ -1,7 +1,7 @@
 # Issue 051c: Issue File Generation from Roadmap
 
 **Phase**: 0 - Tooling
-**Status**: Open
+**Status**: Completed (2026-11-03)
 **Priority**: High
 **Created**: 2026-02-12
 **Parent**: Issue 051 (Git Repository Documentation Generator)
@@ -230,7 +230,7 @@ generate_issue_content() {
 # Issue $issue_id: $issue_title
 
 **Phase**: $phase_num
-**Status**: Open
+**Status**: Completed (2026-11-03)
 **Type**: $issue_type
 **Created**: $(date +%Y-%m-%d)
 **Generated From**: Git commit analysis
@@ -417,7 +417,7 @@ generate_issues_from_roadmap() {
 # Issue 201-add-user-authentication: Add User Authentication
 
 **Phase**: 2
-**Status**: Open
+**Status**: Completed (2026-11-03)
 **Type**: feature
 **Created**: 2026-02-12
 **Generated From**: Git commit analysis
@@ -490,14 +490,14 @@ Implement new functionality as described in commits.
 
 ## Acceptance Criteria
 
-- [ ] Groups commits into logical issue units (heuristic or LLM)
-- [ ] Generates issue IDs following {PHASE}{ID}-{DESCR} convention
-- [ ] Populates issue content from commit data
-- [ ] Writes issue files to issues/ directory
-- [ ] Creates issue-mapping.json linking issues to commits
-- [ ] Handles various issue types (feature, fix, refactor, etc.)
-- [ ] Skips existing issue files (no overwrites)
-- [ ] Works without LLM (heuristic fallback)
+- [x] Groups commits into logical issue units (heuristic or LLM)
+- [x] Generates issue IDs following {PHASE}{ID}-{DESCR} convention
+- [x] Populates issue content from commit data
+- [x] Writes issue files to issues/ directory
+- [x] Creates issue-mapping.json linking issues to commits
+- [x] Handles various issue types (feature, fix, refactor, etc.)
+- [x] Skips existing issue files (no overwrites)
+- [x] Works without LLM (heuristic fallback)
 
 ---
 
@@ -507,3 +507,42 @@ Implement new functionality as described in commits.
 - **Complexity**: Medium
 - **Dependencies**: Issue 051a, 051b
 - **Blocks**: 051d
+
+---
+
+## What Happened (2026-11-03)
+
+Built as `scripts/issues-from-history.lua`, with
+`scripts/issues-from-history.info.md` and
+`scripts/test-issues-from-history.sh` (35 checks, against the stand-in model
+in `scripts/libs/stand-in-model/`; no model was downloaded or run). The
+commit stream and phase finding moved out of `roadmap-from-history.lua`
+into `scripts/libs/history-phases.lua`, which both tools share.
+
+- **Phases:** from `docs/roadmap.json` when there is one (051b's
+  `--write`), so the issues carry its phase names; otherwise straight from
+  the history. A roadmap that no longer matches the history is refused.
+- **Grouping (heuristic):** within a phase, commits in a row become one
+  issue when they work in the same place, are at most 3 days apart, and
+  the issue holds at most 6 commits.
+- **Ids:** `{phase}{nn}-{slug}`, for example `101-start-the-parser.md`.
+- **Types:** from the commit subjects (feature, fix, refactor, docs, test,
+  chore).
+- **Titles and summaries:** from the local model; without one, the title is
+  the largest commit's subject.
+- **Content:** Current Behavior, Intended Behavior, What Happened (each
+  commit with the start of its message), Files Changed, and Metadata saying
+  it is a draft.
+- **Output:** the plan is printed by default. `--json` prints the issue
+  mapping. `--out=DIR` writes the files and `issue-mapping.json`.
+
+**Decided while building (my own calls):**
+
+- **The issues describe finished work,** so they are written as completed
+  issues (`issues/completed/`), not open ones.
+- **`--write` refuses a project that already has issue files.** Generated
+  ids like 101 would clash with the project's own. There, use `--out=DIR`
+  and move issues by hand. The mapping goes to `docs/issue-mapping.json`,
+  beside the roadmap.
+- **The model titles groups but does not form them.** Grouping by the model,
+  as the spec sketches, is left for when a real model can be judged on it.
