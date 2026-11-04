@@ -260,7 +260,7 @@ RGB is intuitive but alternatives exist:
 
 > Can we also make an issue file to read the embeddings as if they were colors and use that to paint a pixel on an image that represents the work? Each paragraph poem could be compared to each of the color embedding numbers and then the combination of the values (normalized or by... ignoring the parts of the percentage sign that are higher than 99 → 100 (the limit as 99 approaches 100)) could be used to color the pixel. And they could be arranged by artists into images by using each of the pixels and placing it where they please. This could be "encoded" into text by creating a similar/different style page, except with the arrangement of the poems determined by the order that was chosen to create the image that the author made by using the pixels of the poems as they please.
 
-## Suggested Sub-Issues
+## Suggested Implementation Steps (each a proposed sub-issue, not yet split out)
 
 1. **15-001a: Design embedding-to-color mapping algorithms**
 2. **15-001b: Generate poem color palette**
@@ -283,7 +283,7 @@ RGB is intuitive but alternatives exist:
 - **Phase**: 15 (Chromatic Encoding)
 - **Estimated Complexity**: Medium (mapping algorithms + image I/O)
 - **Dependencies**: Embeddings infrastructure (Phase 1-8)
-- **Blocks**: 15-001a through 15-001f (sub-issues)
+- **Sub-issues**: proposed below, not yet written (a parent is made of its sub-issues; it does not block them)
 
 ## Philosophical Note
 

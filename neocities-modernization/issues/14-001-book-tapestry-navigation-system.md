@@ -240,4 +240,4 @@ Public domain candidates:
 - **Phase**: 14 (Narrative Tapestry)
 - **Estimated Complexity**: Medium-High (adaptation of existing systems)
 - **Dependencies**: Phases 1-8 complete (embedding + HTML infrastructure)
-- **Blocks**: 14-001a through 14-001e (sub-issues to be created)
+- **Sub-issues**: proposed above, not yet written (a parent is made of its sub-issues; it does not block them)

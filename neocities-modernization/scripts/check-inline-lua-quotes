@@ -22,23 +22,50 @@
 # because the script IS still valid shell -- it just means something else now.
 #
 # Usage:
-#   scripts/check-inline-lua-quotes [FILE]...     # defaults to the known callers
+#   scripts/check-inline-lua-quotes [--dir PATH] [--file FILE]...
+#     --dir PATH   the project folder (default below)
+#     --file FILE  a file to check; repeatable. Without any, the known callers.
+#   A word with no flag in front of it stops the script (Issue 10-076): files
+#   are named with --file, so a mistyped flag is never read as a file name.
 # Exit status: 0 when every chunk balances, 1 when any does not.
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -u
 
-# {{{ DIR resolution
-# Hard-coded project root with first-argument override is the project convention,
-# but this tool takes FILES as arguments, so the root is resolved from the script
-# location instead and any arguments are treated as files to check.
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+# {{{ arguments
+# The project folder: --dir PATH, or the path below; files to check: --file
+# FILE, repeatable. A stray word stops the script (libs/project-dir.sh, Issue
+# 10-076). Files used to be bare words, which a mistyped flag could join.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "--file" "$@"
+set -- "${PROJECT_ARGS[@]}"
+GIVEN_FILES=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --file)
+            if [ $# -lt 2 ]; then
+                echo "check-inline-lua-quotes: --file needs a file after it" >&2
+                exit 1
+            fi
+            GIVEN_FILES+=("$2")
+            shift 2
+            ;;
+        *)
+            echo "check-inline-lua-quotes: unknown option $1" >&2
+            exit 1
+            ;;
+    esac
+done
 # }}}
 
 # {{{ default file list
 # The scripts known to embed Lua. A file with no inline chunks passes trivially,
 # so over-listing is harmless and under-listing is the real risk.
-if [ "$#" -gt 0 ]; then
-    FILES=("$@")
+if [ "${#GIVEN_FILES[@]}" -gt 0 ]; then
+    FILES=("${GIVEN_FILES[@]}")
 else
     FILES=(
         "${DIR}/run.sh"

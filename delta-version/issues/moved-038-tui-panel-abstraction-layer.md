@@ -1,8 +1,8 @@
 # Issue 038 has moved: TUI Panel Abstraction Layer
 
-This issue was renumbered 038 → 067, because the number 038 also belongs
+This issue was renumbered 038 → 070, because the number 038 also belongs
 to *Dependency Visualization Tool* (`completed/038-dependency-visualization-tool.md`). It is now
-[`067-tui-panel-abstraction-layer.md`](067-tui-panel-abstraction-layer.md).
+[`070-tui-panel-abstraction-layer.md`](070-tui-panel-abstraction-layer.md).
 
 ## What Happened
 
