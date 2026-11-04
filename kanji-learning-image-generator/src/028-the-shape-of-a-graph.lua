@@ -112,6 +112,39 @@ local CATALOGUE = {
     widgets = { { "x", 0 }, { "y", 0 }, { "resize_source", false } },
   },
 
+  -- The five below are what the two mask routes need (`416`), copied from the
+  -- far kitchen's own /object_info on 2026-10-04 rather than from memory.
+  ImageToMask = {
+    inputs = { { "image", "IMAGE" } },
+    outputs = { { "MASK", "MASK" } },
+    widgets = { { "channel", "red" } },
+  },
+
+  ConditioningSetMask = {
+    inputs = { { "conditioning", "CONDITIONING" }, { "mask", "MASK" } },
+    outputs = { { "CONDITIONING", "CONDITIONING" } },
+    widgets = { { "strength", 1.0 }, { "set_cond_area", "default" } },
+  },
+
+  ConditioningCombine = {
+    inputs = { { "conditioning_1", "CONDITIONING" },
+               { "conditioning_2", "CONDITIONING" } },
+    outputs = { { "CONDITIONING", "CONDITIONING" } },
+    widgets = {},
+  },
+
+  VAEEncode = {
+    inputs = { { "pixels", "IMAGE" }, { "vae", "VAE" } },
+    outputs = { { "LATENT", "LATENT" } },
+    widgets = {},
+  },
+
+  SetLatentNoiseMask = {
+    inputs = { { "samples", "LATENT" }, { "mask", "MASK" } },
+    outputs = { { "LATENT", "LATENT" } },
+    widgets = {},
+  },
+
   SaveImage = {
     inputs = { { "images", "IMAGE" } },
     outputs = {},

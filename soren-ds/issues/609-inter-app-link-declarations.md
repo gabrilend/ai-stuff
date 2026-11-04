@@ -74,4 +74,4 @@ named entry boxes the app exposes for inbound links.
 
 ## Blocks
 
-610.
+610, 612.

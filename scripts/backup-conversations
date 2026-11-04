@@ -314,6 +314,15 @@ function export_one_log() {
    start_date=$(printf '%s\n' "$parser_signals" | grep "^START_DATE:" | cut -d: -f2 || true)
    final_date=$(printf '%s\n' "$parser_signals" | grep "^FINAL_DATE:" | cut -d: -f2 || true)
 
+   # Commit commands that printed no announcement and matched no single
+   # commit in git (issue 040): said once, plainly, and never fatal. Two
+   # paths: none, and nothing is printed; some, and the count is.
+   local unmatched
+   unmatched=$(printf '%s\n' "$parser_signals" | grep "^RECOVERY_UNMATCHED:" | cut -d: -f2 || true)
+   if [ -n "$unmatched" ]; then
+      echo "  note: $conversation_id: commit command with no announcement and no single match: $unmatched"
+   fi
+
    # No dates at all means a husk: a session opened and titled but never spoken
    # in. It gets no file (a warning line instead - issue 020), and any stale
    # file claiming it, under whatever name, is retired by its header.
@@ -366,12 +375,25 @@ function export_one_log() {
       return 0
    fi
 
-   # Move content into place, retire any stale prior name, and stamp the mtime
-   # from the last message so the file's timestamp agrees with its name's date.
+   # What git was last told this file held, read before it is overwritten:
+   # an in-place rewrite of a transcript git is following needs it to decide
+   # whether the staged copy is the hook's own (see tell_git_about_transcript).
+   # Two paths: the folder is in git and the file is rewritten where it is,
+   # and its current content is fingerprinted; anything else needs no
+   # fingerprint.
+   local prior_blob=""
+   if [ "$TRANSCRIPT_IN_GIT" = "true" ] && [ -n "$claim" ] && [ "$dest" = "$claim" ]; then
+      prior_blob=$(git -C "$TRANSCRIPT_DIR" hash-object -- "$(basename "$dest")") || return 1
+   fi
+
+   # Move content into place, retire any stale prior name, tell git about the
+   # rename, and stamp the mtime from the last message so the file's timestamp
+   # agrees with its name's date.
    mv -f "$temp_file" "$dest" || return 1
    if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
       rm -f "$claim" || return 1
    fi
+   tell_git_about_transcript "$claim" "$dest" "$prior_blob" || return 1
    stamp_mtime "$dest" "$final_timestamp" || return 1
    echo "Created: $dest"
 }
@@ -386,6 +408,154 @@ function stamp_mtime() {
    local epoch="$2"
    if [ -n "$epoch" ] && [ "$epoch" -gt 0 ]; then
       touch -d "@$epoch" "$file" || return 1
+   fi
+}
+# }}}
+
+# -- {{{ find_transcript_repo
+# Settle once per run whether the transcript folder sits inside a git working
+# tree, into TRANSCRIPT_IN_GIT ("true" or "false"). Three outcomes: git says
+# yes (or "false", for a folder inside a .git directory); git says it is not a
+# repository, which is a normal answer for the shared archive folders; or git
+# fails some other way, which is an error rather than a guess.
+function find_transcript_repo() {
+   local answer
+   if answer=$(git -C "$TRANSCRIPT_DIR" rev-parse --is-inside-work-tree 2>&1); then
+      TRANSCRIPT_IN_GIT="$answer"
+   else
+      case "$answer" in
+         *"not a git repository"*) TRANSCRIPT_IN_GIT="false" ;;
+         *)
+            echo "backup-conversations: git could not say whether $TRANSCRIPT_DIR is in a repository: $answer" >&2
+            return 1
+            ;;
+      esac
+   fi
+}
+# }}}
+
+# -- {{{ update_staging_list
+# Run one `git update-index` in the transcript folder, with paths relative to
+# it. The staging list (.git/index) is shared by every session and person in
+# the repository, and git guards it with a lock file; when someone else holds
+# that lock this waits for them, briefly, the same way commit-own-changes
+# does. Two outcomes: the update lands; or git refuses for another reason, or
+# the lock outlasts two seconds, and that is an error naming what git said.
+function update_staging_list() {
+   local tries=0 output
+   while true; do
+      if output=$(git -C "$TRANSCRIPT_DIR" update-index "$@" 2>&1); then
+         return 0
+      fi
+      case "$output" in
+         *"index.lock"*)
+            # someone else is writing the staging list: wait a beat, retry
+            if [ "$tries" -ge 20 ]; then
+               echo "  ERROR: the staging list in $TRANSCRIPT_DIR stayed locked for two seconds; git update-index $*: $output" >&2
+               return 1
+            fi
+            tries=$((tries + 1))
+            sleep 0.1
+            ;;
+         *)
+            echo "  ERROR: git update-index $* failed in $TRANSCRIPT_DIR: $output" >&2
+            return 1
+            ;;
+      esac
+   done
+}
+# }}}
+
+# -- {{{ tell_git_about_transcript
+# Keep git's staging list truthful about a transcript this run just wrote.
+# Before this existed, a conversation that crossed into a new day was re-placed
+# under its new span name by a plain move and delete, and `git status` showed
+# the old name deleted and the new one untracked - two unrelated events where
+# there was one rename (the Oct 4-5 report, 2026-10-06).
+#
+# Git stores no renames; it infers one whenever the staging list (or a commit)
+# loses one path and gains another with similar content. So the rename is
+# told as exactly that, in one update: the old name is gone, the new name
+# holds this content.
+#
+# The second half is what keeps that honest afterwards. The hook rewrites the
+# file after every reply, and a staged copy frozen at the moment of the rename
+# would make commit-own-changes' tidy-up step see a path "staged by someone in
+# a way that conflicts" and warn. So while the last commit does not yet hold
+# the new name, and the staged copy is still the one this hook put there, each
+# rewrite re-stages it. Once a commit holds the name, the file is an ordinary
+# tracked file and its changes wait, unstaged, for whoever commits them.
+#
+# Paths, in order:
+#   folder not in git, or the new name is ignored  - git is not following it
+#   renamed, and git knew the old name             - stage the rename
+#   renamed, and git never knew the old name       - nothing to tell; the new
+#                                                    name is untracked, as the
+#                                                    old one was
+#   brand-new conversation                         - left untracked, as always
+#   rewritten in place, the last commit holds it   - an ordinary change; left
+#                                                    unstaged
+#   rewritten in place, staged copy is the hook's  - re-stage the new content
+#   rewritten in place, staged copy is someone
+#   else's (or there is none)                      - theirs; left alone
+function tell_git_about_transcript() {
+   local claim="$1" dest="$2" prior_blob="$3"
+   if [ "$TRANSCRIPT_IN_GIT" != "true" ]; then
+      return 0
+   fi
+   local new_name
+   new_name=$(basename "$dest")
+
+   # check-ignore answers 0 (ignored), 1 (not ignored), or fails outright
+   local ignored=0
+   git -C "$TRANSCRIPT_DIR" check-ignore -q -- "$new_name" || ignored=$?
+   case "$ignored" in
+      0) return 0 ;;
+      1) : ;;
+      *)
+         echo "  ERROR: git check-ignore failed for $dest" >&2
+         return 1
+         ;;
+   esac
+
+   # A rename: the claim existed under a different name and is now gone.
+   if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
+      local old_name old_entry
+      old_name=$(basename "$claim")
+      old_entry=$(git -C "$TRANSCRIPT_DIR" ls-files --stage -- "$old_name") || return 1
+      if [ -z "$old_entry" ]; then
+         return 0
+      fi
+      # --remove drops the old name because it is gone from disk; --add takes
+      # the new name's content as it is now. One command, one lock: nobody can
+      # see the list holding both names or neither.
+      update_staging_list --add --remove -- "$old_name" "$new_name" || return 1
+      echo "  staged rename: $old_name -> $new_name"
+      return 0
+   fi
+
+   # A brand-new conversation has no claim and nothing for git to follow yet.
+   if [ -z "$claim" ]; then
+      return 0
+   fi
+
+   # Rewritten in place. A repository with no commits yet holds nothing, so
+   # "the last commit holds it" is only asked when there is a last commit.
+   if git -C "$TRANSCRIPT_DIR" rev-parse -q --verify HEAD > /dev/null; then
+      local committed
+      committed=$(git -C "$TRANSCRIPT_DIR" ls-tree HEAD -- "$new_name") || return 1
+      if [ -n "$committed" ]; then
+         return 0
+      fi
+   fi
+   # The staged copy, as "<mode> <blob> <stage>\t<name>"; only its blob is
+   # compared. A path mid-merge has several lines and never matches one blob,
+   # so it falls into "someone else's" and is left alone.
+   local staged staged_blob
+   staged=$(git -C "$TRANSCRIPT_DIR" ls-files --stage -- "$new_name") || return 1
+   staged_blob=$(printf '%s\n' "$staged" | awk 'NR == 1 { print $2 }')
+   if [ -n "$staged" ] && [ "$(printf '%s\n' "$staged" | wc -l)" -eq 1 ] && [ "$staged_blob" = "$prior_blob" ]; then
+      update_staging_list -- "$new_name" || return 1
    fi
 }
 # }}}
@@ -457,6 +627,7 @@ function resolve_project() {
       fi
    fi
    mkdir -p "$TRANSCRIPT_DIR"
+   find_transcript_repo || return 1
 }
 # }}}
 
@@ -564,7 +735,7 @@ function main() {
 
    # Missing tools are errors, named plainly, not a skipped backup.
    local tool
-   for tool in lua luajit jq flock md5sum; do
+   for tool in lua luajit jq flock md5sum git awk; do
       if ! command -v "$tool" >/dev/null; then
          echo "backup-conversations: required tool '$tool' is not installed" >&2
          return 1
