@@ -5,7 +5,7 @@
 -- a score author fixes one render's worth of mistakes per attempt,
 -- not one mistake. Every error names its stroke and field, and when
 -- a name misses a vocabulary it carries the nearest legal word
--- (computed by edit distance, 047-nearest.lua, against the same tables
+-- (computed by edit distance, 057-nearest.lua, against the same tables
 -- the runtime trusts — nothing here keeps a second copy that could
 -- drift).
 -- Compilation then resolves every name to a number: clock words to
@@ -31,7 +31,7 @@ local LEGAL_FPS = { [50]=true, [25]=true, [20]=true, [10]=true,
                     [5]=true, [4]=true, [2]=true, [1]=true }
 
 -- The nearest legal word to a miss, shared with the 3D wall.
-local nearest = require("047-nearest").word
+local nearest = require("057-nearest").word
 
 -- {{{ local function keys_of()
 local function keys_of(tbl)

@@ -30,10 +30,10 @@ one gif at a time or all at once in a grid, every gif animating.
 | `conf.lua` | window settings (resizable, 960×960 to start) |
 | `main.lua` | the window: keys (a dispatch table per view), playback, drawing, memory limits |
 | `decode-worker.lua` | a background decoder; one per CPU core but one |
-| `../src/040-gif-decode.lua` | the gif reader: plain LuaJIT, no LÖVE, usable on its own |
-| `../src/041-gif-decode-test.lua`, `../test-gif-viewer` | the tests |
+| `../src/050-gif-decode.lua` | the gif reader: plain LuaJIT, no LÖVE, usable on its own |
+| `../src/051-gif-decode-test.lua`, `../test-gif-viewer` | the tests |
 
-## 040-gif-decode.lua
+## 050-gif-decode.lua
 
 ### decode(bytes, options) → info
 ### decode_file(path, options) → info
