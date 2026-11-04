@@ -1,4 +1,4 @@
-# Issue 040: menu libraries keep their tables when sourced in a function
+# Issue 054: menu libraries keep their tables when sourced in a function
 
 ## Current Behavior
 
@@ -54,3 +54,8 @@ Built on branch `claude/lua-menu-global-tables`.
   (checking the tables) and checks titles and items stay with their own
   sections. Before the fix 44 of the 49 checks fail; after it all pass.
 - `libs/test-menu-screen.sh` still passes 7/0.
+
+## Renumbered
+
+**2026-11-04:** this issue was 040, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 054.
