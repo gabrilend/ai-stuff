@@ -157,7 +157,7 @@ fallback, and it is announced every time rather than taken silently.
   session ran its read-only test suite at 12:57 while another session saved
   five files (four `scripts/transcript-site/*.md` and a note at the top of
   `neocities-modernization/libs/markdown.lua`); the hook recorded them in the
-  test-running session's ledger, and that session's next commit, 8e67ba20c
+  test-running session's ledger, and that session's next commit, 3735d94b0
   "Stop the map-info test from printing raw zero bytes", carried them. Since
   the same day the hook records a reported file only when the command's text
   names it (open question 5); a file the command does not name is left for
@@ -227,6 +227,9 @@ fallback, and it is announced every time rather than taken silently.
 - `032b-adopt-work-a-finished-session-left-behind.md` -- a session takes
   ownership, line by line, of uncommitted work whose author session has ended
   (a reboot empties every ledger), so it commits without a token
+- `032c-a-file-locked-until-its-lines-are-committed.md` -- a file another
+  live session holds uncommitted lines in is locked, asked with no LLM;
+  a gone session is resumed to commit, and sessions go idle with grace
 - `README-refusal-gates.md` -- the gates, the ledger and the commit route
 - `test-refusal-gates` -- the cases, kept in a file so they are read, not run
 - `refuse-unscoped-commit` -- the gate this replaces

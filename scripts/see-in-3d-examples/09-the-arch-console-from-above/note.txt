@@ -1,0 +1,5 @@
+title: The console drawn as a tall arch, seen from above
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/09-the-arch-console-from-above/picture.png
+stage: 25
+---
+From above, the arch lies on the ground the way it does in the picture. Every other view shows how little the picture said about height: a dark sheet with matchsticks on it. The square corners are again an invention; the picture's world is round and its corners black.

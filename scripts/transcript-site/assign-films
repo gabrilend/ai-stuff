@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# assign-films
+#
+# Gives every message in a project's saved conversations its film: the small
+# looping picture that sits beside it on the conversation page. It looks at
+# any film it has never seen (once per film, ever) and writes a few sentences
+# about it; then, for every message that has no film yet, it finds the film
+# whose description is nearest in meaning, never the same as the message just
+# before or after. Every choice is written down in the project's choices
+# folder, so a message keeps its film forever and a second run with nothing
+# new does nothing.
+#
+# Only for a project whose settings carry a films table (see films/README.md).
+# Needs the model server running: start-the-film-models.
+#
+# Usage:
+#   assign-films [project-dir] [--settings <file>] [--dir <scripts-dir>]
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+
+# -- {{{ parse_arguments
+function parse_arguments() {
+   PROJECT=""
+   SETTINGS=""
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --settings) SETTINGS="${2:?--settings needs a file}"; shift ;;
+         --dir)      DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help)  sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         -*)         echo "assign-films: unknown option $1" >&2; exit 1 ;;
+         *)          PROJECT="$1" ;;
+      esac
+      shift
+   done
+   PROJECT=$(realpath "${PROJECT:-$(pwd)}")
+   if [ -n "$SETTINGS" ]; then
+      SETTINGS=$(realpath "$SETTINGS")
+   fi
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   parse_arguments "$@"
+   # The builder's command line does the work; --assign-films picks the job.
+   if [ -n "$SETTINGS" ]; then
+      luajit "$DIR/transcript-site/build-site.lua" --assign-films "$PROJECT" "$SETTINGS"
+   else
+      luajit "$DIR/transcript-site/build-site.lua" --assign-films "$PROJECT"
+   fi
+}
+# }}}
+
+main "$@"

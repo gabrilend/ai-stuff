@@ -15,7 +15,7 @@ line in any of the formats the tests print, and reports passed files,
 passed and failed assertions, and timing; a pattern argument filters files,
 and the exit code is non-zero if any file failed.
 
-Phase A later moved to the shared scripts project (commit 447e8ceb5), where
+Phase A later moved to the shared scripts project (commit 8e50999a9), where
 a project-independent runner (`scripts/test-runner.sh`) is tracked by its
 own copy of this issue. This copy records the runner that lives here.
 
