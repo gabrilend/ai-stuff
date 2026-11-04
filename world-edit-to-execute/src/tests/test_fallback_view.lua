@@ -1,14 +1,15 @@
 #!/usr/bin/env luajit
--- test_fallback_view.lua - the wire-frame fallback in the viewer and the editor (issue 602a)
+-- test_fallback_view.lua - the wire-frame fallback in the editor (issue 602a)
 --
--- In plain terms: the map viewer's units and doodads and the editor's
--- objects, regions and cameras become the fallback's plain objects, each
+-- In plain terms: the editor's objects, regions and cameras become the
+-- fallback's plain objects, each
 -- the right kind; F6 and F7 turn wire-frame and the overlay on and off;
 -- the overlay labels what is drawn for real; a new map with nothing
 -- placed is blank, and its ground becomes the fallback's grid at the
 -- ground's height, thinned on a large map; and the fallback builds all of
--- it without a window. Nothing here is drawn: what the viewer and the
--- editor paint is unseen.
+-- it without a window. Nothing here is drawn: what the editor paints is
+-- unseen. (The map viewer's F6 and F7, and their converters fv.unit and
+-- fv.doodad, were taken out on 2026-11-04: see the issue.)
 --
 -- Run: luajit src/tests/test_fallback_view.lua [DIR]
 -- Issue: issues/602a-wireframe-fallback-in-the-viewer-and-editor.md
@@ -27,25 +28,26 @@ end
 local function near(a, b) return math.abs(a - b) < 1e-6 end
 
 -- {{{ Converters
-print("\n=== The viewer's and the editor's records, as the fallback's ===")
-local footman = { id = "hfoo", x = 100, y = 200, z = 5, facing = 1.5, spec = { design = "footman" } }
-local barracks = { id = "hbar", x = 0, y = 0, z = 0, spec = { design = "building" } }
-local gryphon = { id = "hgry", x = 0, y = 0, z = 300, spec = { flying = true } }
-local paladin = { id = "Hpal", x = 0, y = 0, z = 0, spec = {} }
-test("a footman is a unit, at its place", fallback.kind_of(fv.unit(footman)) == "unit" and fv.unit(footman).x == 100
-    and fv.unit(footman).z == 5 and fv.unit(footman).type_id == "hfoo")
-test("a barracks is a building", fallback.kind_of(fv.unit(barracks)) == "building")
-test("a gryphon rider flies", fallback.kind_of(fv.unit(gryphon)) == "flyer")
-test("a paladin is a hero (a capital id)", fallback.kind_of(fv.unit(paladin)) == "hero")
-test("selected is kept", fv.unit(footman, true).selected == true and fv.unit(footman).selected == nil)
-test("the copy doesn't share the unit's table", fv.unit(footman) ~= footman and fv.unit(footman).spec == nil)
-test("a tree doodad is a tree", fallback.kind_of(fv.doodad({ id = "LTlt", x = 0, y = 0, z = 0 })) == "tree")
-test("a rock doodad is a doodad", fallback.kind_of(fv.doodad({ id = "LOrk", x = 0, y = 0, z = 0 })) == "doodad")
-test("a doodad whose spec says tree is a tree", fallback.kind_of(fv.doodad({ id = "x", x = 0, y = 0, spec = { tree = true } })) == "tree")
+print("\n=== The editor's records, as the fallback's ===")
+local footman_rec = { kind = "unit", id = "hfoo", x = 100, y = 200, facing = 1.5, number = 7 }
+local footman = fv.editor_object(footman_rec, 5)
+local paladin = fv.editor_object({ kind = "unit", id = "Hpal", x = 0, y = 0 }, 0, true)
+-- a building and a flyer, as the fallback's own objects (the editor's
+-- records don't say either; the fallback draws them by these flags)
+local barracks = { building = true, type_id = "hbar", x = 0, y = 0, z = 0 }
+local gryphon = { flying = true, type_id = "hgry", x = 0, y = 0, z = 300 }
+test("an editor unit, at its place", fallback.kind_of(footman) == "unit" and footman.x == 100 and footman.z == 5
+    and footman.type_id == "hfoo" and footman.id == 7)
+test("a paladin is a hero (a capital id)", fallback.kind_of(paladin) == "hero")
+test("selected is kept", paladin.selected == true and footman.selected == nil)
+test("the copy doesn't share the editor's table", footman ~= footman_rec and footman.kind == nil)
 local eo = fv.editor_object({ kind = "doodad", id = "ATtr", x = 10, y = 20, facing = 0 }, 64)
 test("an editor doodad: a tree, on the ground given", fallback.kind_of(eo) == "tree" and eo.z == 64)
 test("an editor unit", fallback.kind_of(fv.editor_object({ kind = "unit", id = "ogru", x = 0, y = 0 }, 0)) == "unit")
 test("an editor item", fallback.kind_of(fv.editor_object({ kind = "item", id = "ratc", x = 0, y = 0 }, 0)) == "item")
+test("an editor rock is a doodad", fallback.kind_of(fv.editor_object({ kind = "doodad", id = "LOrk", x = 0, y = 0 }, 0)) == "doodad")
+test("an editor doodad marked as a tree is a tree",
+    fallback.kind_of(fv.editor_object({ kind = "doodad", id = "x", tree = true, x = 0, y = 0 }, 0)) == "tree")
 local r = fv.region({ name = "Spawn", left = -512, bottom = -256, right = 0, top = 128 })
 test("a region's edges", r.name == "Spawn" and r.x1 == -512 and r.y1 == -256 and r.x2 == 0 and r.y2 == 128)
 local c = fv.camera({ name = "Intro", x = 1000, y = 0, distance = 1000, rotation = 90, aoa = 315, zoffset = 50 },
@@ -73,15 +75,15 @@ test("other keys can be given", V2:key({ "W" }) == "wire" and V2.F.force)
 -- }}}
 
 -- {{{ Labels and building
-print("\n=== What the viewer and the editor build each frame ===")
-test("no overlay: no labels", #V:labels({ fv.unit(footman) }) == 0)
+print("\n=== What the editor builds each frame ===")
+test("no overlay: no labels", #V:labels({ footman }) == 0)
 V:key({ "F7" })
-local labels = V:labels({ fv.unit(footman), fv.doodad({ id = "LTlt", x = 7, y = 8, z = 0 }) })
-test("the overlay labels what is drawn for real", #labels == 2 and labels[1].text == "hfoo (100, 200)"
+local labels = V:labels({ footman, fv.editor_object({ kind = "doodad", id = "LTlt", x = 7, y = 8 }, 0) })
+test("the overlay labels what is drawn for real", #labels == 2 and labels[1].text == "hfoo #7 (100, 200)"
     and labels[1].z == 145 and labels[2].text == "LTlt (7, 8)", labels[1] and labels[1].text)
 V:key({ "F7" })
 V:key({ "F6" })
-local out = V:build({ objects = { fv.unit(footman), fv.unit(barracks), fv.unit(gryphon), fv.unit(paladin, true) },
+local out = V:build({ objects = { footman, barracks, gryphon, paladin },
                       regions = { r }, cameras = { c } })
 test("forced: every object drawn, by kind", out.drawn.unit == 1 and out.drawn.building == 1 and out.drawn.flyer == 1
     and out.drawn.hero == 1 and out.drawn.region == 1 and out.drawn.camera == 1)

@@ -34,7 +34,7 @@ only the editor's are still wanted (602, "Where wire-frames are drawn").
 
 ## Suggested Implementation Steps
 
-1. ~~Give the map viewer's scene a fallback, fed from its units and doodads.~~ (unseen)
+1. ~~Give the map viewer's scene a fallback, fed from its units and doodads.~~ (unseen; taken out again 2026-11-04, see the notes)
 2. ~~A key for forced wire-frame and one for the overlay.~~ F6 and F7 (unseen)
 3. ~~The editor's blank map and its region and camera layers.~~ (unseen)
 4. Look at it on a screen.
@@ -65,9 +65,23 @@ compiled but has not been seen on a screen; step 4 is still to do.
 
 After the editor-and-client split (2026-11-04): the editor's half
 (`src/editor/main.lua`) is what 602 now asks for. The viewer's half
-(`src/demo/wc3map/main.lua`) is for a play mode that gives way to Test
-Map (913); it is left in place, unchanged, until the owner says whether
-to take it out.
+(`src/demo/wc3map/main.lua`) was for a play mode that gives way to Test
+Map (913, PR #239), and the player's wire-frames are the W client's (its
+105a, step 4), so with the owner's yes it was taken out in a commit of
+its own:
+
+- **Removed:** the map viewer's F6 and F7 (`demo/wc3map/main.lua` is back
+  as it was before this issue), and `fallback_view.lua`'s converters for
+  the viewer's records, `fv.unit` and `fv.doodad`, which nothing else
+  used. Their tests went with them (a footman, barracks, gryphon rider
+  and paladin from the viewer's game, and three viewer doodads).
+- **Kept:** the editor's wiring (F6/F7, regions and cameras, the
+  blank-map grid) and everything of `fallback_view.lua` it uses
+  (`editor_object`, `region`, `camera`, `terrain`, `is_blank`, `new` and
+  `V`'s methods). The tests of the labels and of building a forced
+  scene now use the editor's records (and the fallback's own objects for
+  a building and a flyer, which an editor record doesn't mark), and two
+  checks of `editor_object`'s doodads were added: 35 tests.
 
 Decisions made while building:
 
@@ -81,9 +95,9 @@ Decisions made while building:
 3. **The overlay labels what is drawn for real too**, not only the
    fallback's boxes, through `V:labels`. Otherwise F7 alone would show
    nothing.
-4. **Wire-frame takes the baked designs off** (doodads and buildings in
-   the viewer, every object block in the editor) rather than drawing over
-   them, and bakes them again when turned off.
+4. **Wire-frame takes the baked designs off** (every object block in the
+   editor; until 2026-11-04 also the viewer's doodads and buildings)
+   rather than drawing over them, and bakes them again when turned off.
 5. **Blank means nothing placed.** A new map's gold mines are made by
    its script, so they don't count. Placing anything ends the grid, which
    F6 brings back.
