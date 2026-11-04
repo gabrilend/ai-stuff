@@ -610,8 +610,11 @@ Same map, different experience:
 
 ### Asset Pack Structure
 
+In the player data folder (`player-data/` in the project, unless
+`config/player-data.lua` moves it; see the storage layout below):
+
 ```
-~/.wc3-engine/assets/
+player-data/asset-packs/
 ├── default-pack/               # Fallback placeholder pack
 │   ├── models/
 │   │   ├── units/
@@ -640,13 +643,20 @@ Same map, different experience:
 
 ### Storage Architecture
 
+The player data folder is `player-data/` in the project (git ignores it);
+`config/player-data.lua`, returning `{ folder = "PATH" }`, moves it
+(`src/assets/player_data.lua`; decided 2026-09-26, named 2026-11-02).
+
 ```
-~/.wc3-engine/
-├── blobs/                  # Deduplicated content-addressed storage
-│   └── ab/ab3def789...     # SHA-256 hash as filename
-└── packs/                  # Asset pack references
-    ├── default/
-    └── community-pack-1/
+player-data/
+├── blobs/                  # each file stored once (604, src/assets/dedup.lua)
+│   └── ab/ab3def789...     # named by its SHA-256
+├── maps/                   # a folder per map, of links into blobs/
+│   └── Castle Fight/
+├── asset-packs/            # a folder per asset pack, of links into blobs/
+│   ├── default-pack/
+│   └── community-fantasy-pack/
+└── last-used               # when each map and pack was last used (605)
 ```
 
 ---

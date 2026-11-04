@@ -107,7 +107,7 @@
 │  │  • Sounds (.ogg, .wav)     → Replace .mp3 audio         │  │
 │  │  • Icons (.png)            → Replace ability icons      │  │
 │  │                                                          │  │
-│  │  Asset packs installed to: ~/.wc3-engine/assets/        │  │
+│  │  Asset packs installed to: player-data/asset-packs/     │  │
 │  │  Fallback: Simple placeholder models (cubes, spheres)   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -438,8 +438,13 @@ if (IsKeyPressed(KEY_F5)) {
 
 **Asset Pack Structure:**
 
+Asset packs live in the player data folder: `player-data/` in the project,
+unless `config/player-data.lua` moves it (issues 601, 604). Their files are
+links into `player-data/blobs/`, where each file is stored once by its hash
+(604); `src/cli/storage.lua` shows what each pack takes (605).
+
 ```
-~/.wc3-engine/assets/
+player-data/asset-packs/
 ├── default-pack/               # Fallback placeholder pack
 │   ├── models/
 │   │   ├── units/
@@ -487,11 +492,11 @@ asset_manager:load_pack("community-fantasy-pack")  -- Overrides defaults
 
 -- Resolve WC3 unit ID to model
 local footman_model = asset_manager:get_model("hfoo")
--- Returns: ~/.wc3-engine/assets/community-fantasy-pack/models/units/human_footman.obj
+-- Returns: player-data/asset-packs/community-fantasy-pack/models/units/human_footman.obj
 
 -- Fallback to default if not found
 local obscure_unit = asset_manager:get_model("n00B")
--- Returns: ~/.wc3-engine/assets/default-pack/models/units/placeholder.obj
+-- Returns: player-data/asset-packs/default-pack/models/units/placeholder.obj
 ```
 
 ---

@@ -230,7 +230,6 @@ Places where a document disagrees with the code or with another document.
 | `issues/progress.md` | only Phase W has a per-phase progress file | the dashboard warns for every other phase |
 | 911, 912 | export to `.wowmap` and "both modes" | WoW mode was dropped; the editor saves `.w3x` (decided 2026-09-26); the design text is rewritten when Phase 9 starts |
 | 911 (sub-issue 911c), `editor/mapfile.lua` | the unified format (a project folder or one `.wex` file) is built, and the editor opens and saves projects | built 2026-09-30 by a Claude web session working from a 2026-09-24 checkout, before the 2026-09-26 decision that the editor saves `.w3x` only and `.wex` is not built; merged 2026-10-01. Keep it, or retire it? (asked in 911's open questions) |
-| 601, `docs/wc3-engine-architecture.md`, `docs/roadmap.md` | player data in `~/.world-edit-engine/` or `~/.wc3-engine/` | player data lives in the project directory, movable by a config file (decided 2026-09-26); the folder is `player-data/` and the config file `config/player-data.lua` (chosen 2026-11-02 in 604); the docs' paths are still to be rewritten |
 
 ---
 

@@ -30,9 +30,10 @@ No unified asset loading system exists. The MPQ parser can extract files, but th
 >   "server-provided".
 > - **The chooser's design comes from W03** (override, then source, then
 >   placeholder, counted), shared by WC3 and WoW models once it exists.
-> - **The folder name disagrees:** this issue says `~/.world-edit-engine/`;
->   `docs/wc3-engine-architecture.md` and `docs/roadmap.md` say
->   `~/.wc3-engine/`. No code uses either yet. See open question 1.
+> - **The folder name disagreed** (`~/.world-edit-engine/` here,
+>   `~/.wc3-engine/` in the docs). Settled: the player data folder is
+>   `player-data/` in the project, moved by `config/player-data.lua` (open
+>   question 1). This issue and both docs now say so (2026-11-02).
 
 ## Intended Behavior
 
@@ -45,8 +46,13 @@ A unified asset loader that:
 
 ### Directory Structure
 
+In the player data folder: `player-data/` in the project, unless
+`config/player-data.lua` moves it (`src/assets/player_data.lua`). Since
+604/605, a map's or pack's folder holds links into `player-data/blobs/`,
+where each file is stored once, and is named by the map or pack.
+
 ```
-~/.world-edit-engine/
+player-data/
 ├── maps/                          # WC3 custom maps
 │   └── {map_hash}/
 │       ├── map.w3x                # Original map file
@@ -139,6 +145,7 @@ loader.clear()
    it anywhere. The `~/.world-edit-engine/` tree above and the
    `~/.wc3-engine/` paths in `docs/wc3-engine-architecture.md` and
    `docs/roadmap.md` are to be rewritten to that when this issue is built.
+   (Rewritten 2026-11-02, ahead of the loader.)
    Still to choose: the folder's name inside the project, and where the
    config file itself lives.
    **Chosen 2026-11-02 while building 604:** `<project>/player-data/`, moved
