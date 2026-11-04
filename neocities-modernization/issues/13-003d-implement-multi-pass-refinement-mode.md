@@ -286,5 +286,5 @@ Consider running overnight or with higher frame_interval.
 - **Created**: 2026-01-28
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: High (novel algorithm + image processing)
-- **Dependencies**: 13-003c (single-pass pipeline)
+- **Dependencies**: 13-003c (single-pass pipeline), 13-003b
 - **Blocks**: None (optional enhancement)
