@@ -57,6 +57,7 @@ notes for 070. (052 has since closed as superseded.)
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
+| 070 (was 038) | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
 
 ## TIER 4: Aspirational
 
