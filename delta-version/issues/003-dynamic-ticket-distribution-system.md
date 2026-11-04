@@ -133,7 +133,7 @@ Template: "Function [function_name] has new interface"
 Keywords: `][function_usage[function_name][]`, `][affected_modules[]`
 
 ## Related Documents
-- `065-comprehensive-git-repository-setup.md` - Repository structure for ticket distribution
+- `068-comprehensive-git-repository-setup.md` - Repository structure for ticket distribution
 - `002-gitignore-unification-script.md` - Example of cross-project coordination needs
 - `/home/ritz/.claude/CLAUDE.md` - Issue tracking conventions and requirements
 

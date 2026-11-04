@@ -189,3 +189,4 @@ rendered in hexes no other page type used.
 - **Phase**: 8 (Website Completion)
 - **Parent**: 8-050
 - **Dependencies**: 8-050a (word colours), poem_colors.json, color_embeddings.json
+- **Blocks**: 8-050e

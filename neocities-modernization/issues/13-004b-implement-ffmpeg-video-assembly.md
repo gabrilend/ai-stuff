@@ -313,4 +313,4 @@ The bottleneck is frame count and duration, not encoding complexity (still image
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: Low-Medium (ffmpeg orchestration)
 - **Dependencies**: 13-004a (concat file), ffmpeg (system)
-- **Blocks**: None (final output)
+- **Blocks**: None (final output), 13-004c

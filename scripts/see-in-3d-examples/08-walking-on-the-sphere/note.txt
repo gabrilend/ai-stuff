@@ -1,0 +1,5 @@
+title: Figures walking over a dark round world
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/08-walking-on-the-sphere/picture.png
+stage: 8
+---
+The world and the figures on its crown read well. The console does not: the right view shows it hanging in the air in front of the world, touching nothing, where the picture suggests it rests at the world's near edge.
